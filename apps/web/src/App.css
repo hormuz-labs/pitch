@@ -1,13 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --sidebar-width: 260px;
-  --bg-sidebar: #f9f9f9;
+  --sidebar-width: 300px;
+  --bg-sidebar: #f8fafc; /* slightly darker for better contrast */
   --bg-main: #ffffff;
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --accent: #0f172a;
-  --border: #e5e7eb;
+  --border: #e2e8f0;
   --card-border: #bcecf0;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -29,18 +29,24 @@ body {
 /* Sidebar Styling */
 .sidebar {
   width: var(--sidebar-width);
+  min-width: var(--sidebar-width); /* Prevent shrinking below assigned width when open */
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s ease, width 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
+  overflow: hidden; /* CRITICAL: Hide content when collapsed */
+  white-space: nowrap; /* Prevent text wrapping during collapse */
 }
 
 .sidebar-closed {
   width: 0;
-  transform: translateX(-100%);
-  border-right: none;
+  min-width: 0;
+  border-right-color: transparent;
+  opacity: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .sidebar-header {
