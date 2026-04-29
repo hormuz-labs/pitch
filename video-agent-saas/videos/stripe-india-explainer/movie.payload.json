@@ -1,0 +1,15 @@
+{
+  "project_name": "Stripe India Explainer",
+  "theme": "fintech-premium",
+  "design_tokens": {
+    "primary_color": "#635BFF",
+    "background_color": "#0A1020",
+    "font_display": "Inter",
+    "font_body": "Inter"
+  },
+  "scenes": [
+    { "scene_id": "stripe-00-film-v2", "data": {} }
+  ],
+  "music_track": "Cinemato.mp3",
+  "voice_model": "en-US-ChristopherNeural"
+}
