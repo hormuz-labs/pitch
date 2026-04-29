@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "bun --filter @saas/db run build || bunx prisma generate --schema=packages/db/prisma/schema.prisma",
     "build": "bun --filter '*' build",
     "dev": "bun --filter '*' dev",
     "start": "bun --filter '*' start",
