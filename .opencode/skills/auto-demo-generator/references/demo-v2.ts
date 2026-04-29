@@ -7,25 +7,79 @@
 // @ts-nocheck
 
 import puppeteer from 'puppeteer';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
+import mime from 'mime';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pkg from 'wavefile';
 import ffmpeg from 'fluent-ffmpeg';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const { WaveFile } = pkg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+interface WavConversionOptions {
+  numChannels : number,
+  sampleRate: number,
+  bitsPerSample: number
+}
+
+function parseMimeType(mimeType: string): WavConversionOptions {
+  const [fileType, ...params] = mimeType.split(';').map(s => s.trim());
+  const [_, format] = fileType.split('/');
+
+  const options: Partial<WavConversionOptions> = {
+    numChannels: 1,
+    sampleRate: 24000,
+    bitsPerSample: 16
+  };
+
+  if (format && format.toLowerCase().startsWith('l')) {
+    const bits = parseInt(format.slice(1), 10);
+    if (!isNaN(bits)) {
+      options.bitsPerSample = bits;
+    }
+  }
+
+  for (const param of params) {
+    const [key, value] = param.split('=').map(s => s.trim());
+    if (key === 'rate') {
+      options.sampleRate = parseInt(value, 10);
+    }
+  }
+
+  return options as WavConversionOptions;
+}
+
+function createWavHeader(dataLength: number, options: WavConversionOptions) {
+  const { numChannels, sampleRate, bitsPerSample } = options;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const buffer = Buffer.alloc(44);
+
+  buffer.write('RIFF', 0);                      // ChunkID
+  buffer.writeUInt32LE(36 + dataLength, 4);     // ChunkSize
+  buffer.write('WAVE', 8);                      // Format
+  buffer.write('fmt ', 12);                     // Subchunk1ID
+  buffer.writeUInt32LE(16, 16);                 // Subchunk1Size (PCM)
+  buffer.writeUInt16LE(1, 20);                  // AudioFormat (1 = PCM)
+  buffer.writeUInt16LE(numChannels, 22);        // NumChannels
+  buffer.writeUInt32LE(sampleRate, 24);         // SampleRate
+  buffer.writeUInt32LE(byteRate, 28);           // ByteRate
+  buffer.writeUInt16LE(blockAlign, 32);         // BlockAlign
+  buffer.writeUInt16LE(bitsPerSample, 34);      // BitsPerSample
+  buffer.write('data', 36);                     // Subchunk2ID
+  buffer.writeUInt32LE(dataLength, 40);         // Subchunk2Size
+
+  return buffer;
+}
+
+
 async function generateCinematicDemo() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const ttsApiKey = process.env.GEMINI_API_KEY_TTS || apiKey;
-  const genAITTS = new GoogleGenerativeAI(ttsApiKey!);
-  const ttsModel = genAITTS.getGenerativeModel({ model: 'gemini-3.1-flash-tts-preview' });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const model = 'gemini-3.1-flash-tts-preview';
 
   const demoDir = path.join(__dirname, 'demo-cinematic-' + Date.now());
   if (!fs.existsSync(demoDir)) fs.mkdirSync(demoDir, { recursive: true });
@@ -62,34 +116,92 @@ async function generateCinematicDemo() {
   console.log(`✅ Coordinates acquired: Search Box at X:${targetBox.x}, Y:${targetBox.y}`);
 
   console.log("🎙️ PHASE 2: Generating Voiceover...");
-  const scriptText = "To find out about Solana, simply click the Wikipedia search bar, type your query, and hit Enter. You'll instantly be taken to the official article.";
-  const audioResponse = await ttsModel.generateContent({
-    contents: [{ role: 'user', parts: [{ text: `Say this naturally: ${scriptText}` }] }],
-    generationConfig: {
-      // @ts-ignore
-      responseModalities: ['AUDIO'],
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Callirrhoe' } } }
-    }
+  
+  const config = {
+    temperature: 1,
+    responseModalities: ['audio'],
+    speechConfig: {
+      voiceConfig: {
+        prebuiltVoiceConfig: {
+          voiceName: 'Orus',
+        }
+      }
+    },
+  };
+
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `Read the following transcript based on the audio profile and director's note.
+
+# Audio Profile
+A smooth, premium commercial voice.
+
+# Director's note
+Style: Promo/Hype. Pace: Natural. Accent: American (Gen).
+
+## Scene:
+The Sound Stage Booth.
+
+## Transcript:
+To find out about Solana, simply click the Wikipedia search bar, type your query, and hit Enter. You'll instantly be taken to the official article.`,
+        },
+      ],
+    },
+  ];
+
+  const response = await ai.models.generateContentStream({
+    model,
+    config,
+    contents,
   });
-  const audioData = audioResponse.response.candidates[0].content.parts[0].inlineData.data;
-  const audioBuffer = Buffer.from(audioData, 'base64');
-  const wav = new WaveFile();
-  const pcmData = new Int16Array(audioBuffer.buffer, audioBuffer.byteOffset, audioBuffer.length / 2);
-  wav.fromScratch(1, 24000, '16', pcmData);
+
+  const chunks: Buffer[] = [];
+  let responseMimeType = 'audio/pcm;rate=24000';
+
+  for await (const chunk of response) {
+    if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
+      continue;
+    }
+    const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+    if (inlineData) {
+      if (inlineData.mimeType) responseMimeType = inlineData.mimeType;
+      chunks.push(Buffer.from(inlineData.data || '', 'base64'));
+    }
+  }
+
+  const rawPcmBuffer = Buffer.concat(chunks);
+  let finalAudioBuffer = rawPcmBuffer;
+  
+  let fileExtension = mime.getExtension(responseMimeType);
+  if (!fileExtension || fileExtension !== 'wav') {
+    const options = parseMimeType(responseMimeType);
+    const wavHeader = createWavHeader(rawPcmBuffer.length, options);
+    finalAudioBuffer = Buffer.concat([wavHeader, rawPcmBuffer]);
+  }
+
   const audioPath = path.join(demoDir, 'voiceover.wav');
-  fs.writeFileSync(audioPath, wav.toBuffer());
-  const totalAudioDuration = wav.data.chunkSize / wav.fmt.byteRate;
+  fs.writeFileSync(audioPath, finalAudioBuffer);
+  
+  // Calculate duration roughly based on the MIME type info
+  const options = parseMimeType(responseMimeType);
+  const byteRate = options.sampleRate * options.numChannels * (options.bitsPerSample / 8);
+  const totalAudioDuration = rawPcmBuffer.length / byteRate;
+  
+  console.log(\`✅ Voiceover generated. Duration: \${totalAudioDuration.toFixed(2)}s\`);
 
   console.log("🎞️ PHASE 3: Frame-by-Frame Cinematic Rendering...");
-  const cursorSvg = 'data:image/svg+xml;base64,' + Buffer.from(`<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.6687 28.5323C11.3986 28.6473 11.0874 28.6053 10.8529 28.422C10.6184 28.2386 10.5054 27.9482 10.5564 28.6577L13.8898 6.65775C13.9554 6.21316 14.3592 5.92212 14.8016 5.99981C15.0344 6.04068 15.2343 6.17702 15.3444 6.36987L24.6778 22.7032C24.8988 23.0898 24.7644 23.5824 24.3778 23.8034C24.2384 23.8831 24.0805 23.9248 23.9198 23.9246L18.4239 23.9145L15.6565 28.3248C15.3999 28.7337 14.8624 28.8551 14.4534 28.5985L11.6687 28.5323Z" fill="black" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>`).toString('base64');
+  const cursorSvg = 'data:image/svg+xml;base64,' + Buffer.from(\`<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.6687 28.5323C11.3986 28.6473 11.0874 28.6053 10.8529 28.422C10.6184 28.2386 10.5054 27.9482 10.5564 28.6577L13.8898 6.65775C13.9554 6.21316 14.3592 5.92212 14.8016 5.99981C15.0344 6.04068 15.2343 6.17702 15.3444 6.36987L24.6778 22.7032C24.8988 23.0898 24.7644 23.5824 24.3778 23.8034C24.2384 23.8831 24.0805 23.9248 23.9198 23.9246L18.4239 23.9145L15.6565 28.3248C15.3999 28.7337 14.8624 28.8551 14.4534 28.5985L11.6687 28.5323Z" fill="black" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>\`).toString('base64');
 
-  const animatorHtml = `
+  const animatorHtml = \`
   <!DOCTYPE html>
   <html>
   <head>
     <style>
       body { margin: 0; overflow: hidden; background: #000; width: 1280px; height: 720px; }
-      #camera { width: 1280px; height: 720px; transform-origin: ${targetBox.x}px ${targetBox.y}px; position: absolute; top: 0; left: 0; }
+      #camera { width: 1280px; height: 720px; transform-origin: \${targetBox.x}px \${targetBox.y}px; position: absolute; top: 0; left: 0; }
       #screenshot { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
       #cursor { position: absolute; width: 32px; height: 32px; z-index: 100; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3)); transform-origin: top left; }
     </style>
@@ -97,18 +209,18 @@ async function generateCinematicDemo() {
   <body>
     <div id="camera">
       <img id="screenshot" src="step-1.png" />
-      <img id="cursor" src="${cursorSvg}" />
+      <img id="cursor" src="\${cursorSvg}" />
     </div>
     <script>
       const camera = document.getElementById('camera');
       const cursor = document.getElementById('cursor');
       const screenshot = document.getElementById('screenshot');
 
-      const TARGET_X = ${targetBox.x};
-      const TARGET_Y = ${targetBox.y};
+      const TARGET_X = \${targetBox.x};
+      const TARGET_Y = \${targetBox.y};
       const START_X = 1000;
       const START_Y = 600;
-      const TOTAL_DUR = ${totalAudioDuration};
+      const TOTAL_DUR = \${totalAudioDuration};
 
       const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
@@ -153,7 +265,7 @@ async function generateCinematicDemo() {
     </script>
   </body>
   </html>
-  `;
+  \`;
   fs.writeFileSync(path.join(demoDir, 'animator.html'), animatorHtml);
 
   const fps = 30;
@@ -164,17 +276,21 @@ async function generateCinematicDemo() {
   await renderPage.setViewport({ width: 1280, height: 720 });
   await renderPage.goto('file://' + path.resolve(demoDir, 'animator.html'));
 
-  console.log(`Capturing ${totalFrames} frames at 30fps...`);
+  console.log(\`Capturing \${totalFrames} frames at 30fps...\`);
   for (let i = 0; i < totalFrames; i++) {
-    await renderPage.evaluate(`window.renderFrame(${i / fps})`);
-    await renderPage.screenshot({ path: path.join(demoDir, `frame-${String(i).padStart(4, '0')}.png`) });
-    if (i % 30 === 0) process.stdout.write(`\rRendered ${i}/${totalFrames} frames...`);
+    await renderPage.evaluate(\`window.renderFrame(\${i / fps})\`);
+    await renderPage.screenshot({ path: path.join(demoDir, \`frame-\${String(i).padStart(4, '0')}.png\`) });
+    if (i % 30 === 0) process.stdout.write(\`\\rRendered \${i}/\${totalFrames} frames...\`);
   }
-  console.log(`\n✅ Rendered ${totalFrames} frames!`);
+  console.log(\`\\n✅ Rendered \${totalFrames} frames!\`);
   await renderBrowser.close();
 
   console.log("🎬 PHASE 4: Final FFmpeg Stitching...");
   const outputPath = path.join(__dirname, 'public/demo-cinematic.mp4');
+  
+  if (!fs.existsSync(path.join(__dirname, 'public'))) {
+    fs.mkdirSync(path.join(__dirname, 'public'), { recursive: true });
+  }
 
   await new Promise((resolve, reject) => {
     ffmpeg()

@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "composite": true,
+    "paths": {
+      "@saas/shared": ["./packages/shared/src/index.ts"],
+      "@saas/db": ["./packages/db/src/index.ts"],
+      "@saas/storage": ["./packages/storage/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "job-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "job-cli": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@saas/db": "workspace:*",
+    "@saas/shared": "workspace:*",
+    "@saas/storage": "workspace:*",
+    "commander": "^11.0.0",
+    "dotenv": "^16.0.3",
+    "ioredis": "^5.10.1"
+  }
+}
