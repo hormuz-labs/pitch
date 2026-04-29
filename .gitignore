@@ -10,6 +10,16 @@ coverage/
 build/
 dist/
 out/
+*.tsbuildinfo
+packages/shared/src/*.js
+packages/shared/src/*.js.map
+packages/shared/src/*.d.ts
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite-journal
+!packages/db/prisma/schema.prisma
 
 # Misc
 .DS_Store

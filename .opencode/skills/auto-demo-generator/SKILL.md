@@ -10,7 +10,7 @@ description: >
   Gemini TTS for narration, frame-by-frame HTML5 animation rendering with Puppeteer, and
   FFmpeg for final encoding — always produce the full pipeline end-to-end unless the user
   explicitly asks for just one phase.
-compatibility: "Requires agent-browser MCP (Vercel) and bash tool. npm deps: @google/generative-ai, wavefile, fluent-ffmpeg, dotenv, puppeteer (render phase only). System: ffmpeg binary. Env: GEMINI_API_KEY (required), GEMINI_API_KEY_TTS (optional)."
+compatibility: "Requires agent-browser (Vercel) and bash tool. npm deps: @google/generative-ai, wavefile, fluent-ffmpeg, dotenv, puppeteer (render phase only). System: ffmpeg binary. Env: GEMINI_API_KEY (required), GEMINI_API_KEY_TTS (optional)."
 ---
 
 # Auto-Demo Generator
@@ -27,9 +27,9 @@ A single `demo-cinematic.mp4` written to `public/` (or a user-specified path) at
 
 ## Workflow
 
-### Phase 1 — Trace Capture (agent-browser MCP)
+### Phase 1 — Trace Capture (agent-browser)
 
-Use the **Vercel agent-browser MCP** to navigate the target site. It handles browser
+Use the **Vercel agent-browser** to navigate the target site. It handles browser
 spin-up, viewport, and session management automatically — you just call its tools.
 
 **For each step, call agent-browser tools in sequence:**
