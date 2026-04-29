@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, CheckCircle2, Play, AlertCircle, Loader2, Sparkles, LayoutTemplate } from 'lucide-react';
+import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, LayoutTemplate } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import './App.css';
@@ -84,8 +84,6 @@ function App() {
     if (!url && !instruction) return;
     setIsSubmitting(true);
 
-    // In a real implementation, we would upload the files via FormData or to a presigned URL first.
-    // Since the prompt noted "we will see later how to use this", we pass the names as metadata for now.
     const assetNames = assets.map(a => a.name);
 
     try {
@@ -122,7 +120,7 @@ function App() {
               <span className="pill-label">Target</span>
               <div className="target-pill">
                 <div className="pill-icon-wrapper">
-                  <Link2 className="w-4 h-4 text-emerald-600" />
+                  <Link2 className="w-4 h-4 text-sky-500" />
                 </div>
                 <input 
                   type="url" 
@@ -134,7 +132,7 @@ function App() {
               </div>
             </div>
             <button className="icon-btn" aria-label="Settings">
-              <Settings2 className="w-5 h-5 text-gray-400" />
+              <Settings2 className="w-5 h-5" />
             </button>
           </div>
 
@@ -182,7 +180,7 @@ function App() {
 
             <div className="submit-group">
               <div className="generate-pill">
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-4 h-4" />
                 <span>Generate</span>
               </div>
               <button 
@@ -190,7 +188,7 @@ function App() {
                 disabled={isSubmitting || (!url && !instruction)}
                 onClick={handleSubmit}
               >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
               </button>
             </div>
           </div>
@@ -198,31 +196,53 @@ function App() {
 
         {jobs.length > 0 && (
           <div className="jobs-container">
-            <h3 className="queue-title">Recent Productions</h3>
-            <div className="jobs-list">
-              {jobs.map((job) => (
-                <div key={job.id} className="job-row">
-                  <div className="job-row-main">
-                    <div className="job-meta">
-                      <span className="job-url">{job.parameters.url || 'No URL provided'}</span>
-                      {job.parameters.instruction && (
-                        <span className="job-instruction">{job.parameters.instruction}</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="job-row-status">
-                    {job.status === 'COMPLETED' && job.videoUrl ? (
-                      <a href={job.videoUrl} target="_blank" rel="noreferrer" className="action-link">
-                        <Play className="w-4 h-4" /> Watch
-                      </a>
-                    ) : (
-                      <StatusBadge status={job.status} />
+            {jobs.map((job) => (
+              <div key={job.id} className="generated-video-card">
+                <div className="job-header">
+                  <div className="job-meta">
+                    <span className="job-url">
+                      <Link2 className="w-4 h-4" />
+                      {job.parameters.url || 'No URL provided'}
+                    </span>
+                    {job.parameters.instruction && (
+                      <p className="job-instruction">{job.parameters.instruction}</p>
                     )}
                   </div>
+                  <div className="job-status">
+                    <StatusBadge status={job.status} />
+                  </div>
                 </div>
-              ))}
-            </div>
+                
+                <div className="job-content">
+                  {job.status === 'COMPLETED' && job.videoUrl ? (
+                    <div className="video-wrapper">
+                      <video 
+                        src={job.videoUrl} 
+                        controls 
+                        className="video-player"
+                        preload="metadata"
+                      />
+                    </div>
+                  ) : (
+                    <div className="processing-state">
+                      {job.status === 'FAILED' ? (
+                        <div className="flex flex-col items-center gap-3 text-rose-500">
+                           <AlertCircle className="w-8 h-8" />
+                           <span className="font-medium">Failed to generate video</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-4 text-sky-500">
+                           <Loader2 className="w-8 h-8 animate-spin" />
+                           <span className="font-medium text-slate-500">
+                             {job.status === 'PENDING' ? 'Waiting in queue...' : 'Orchestrating cinematic video...'}
+                           </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </main>
@@ -232,8 +252,8 @@ function App() {
 
 function StatusBadge({ status }: { status: JobStatus }) {
   const styles = {
-    PENDING: "text-gray-500 bg-gray-100",
-    PROCESSING: "text-blue-600 bg-blue-50 border-blue-200",
+    PENDING: "text-slate-500 bg-slate-100 border-slate-200",
+    PROCESSING: "text-sky-600 bg-sky-50 border-sky-200",
     COMPLETED: "text-emerald-600 bg-emerald-50 border-emerald-200",
     FAILED: "text-rose-600 bg-rose-50 border-rose-200",
   };
@@ -248,7 +268,7 @@ function StatusBadge({ status }: { status: JobStatus }) {
   const Icon = Icons[status];
 
   return (
-    <div className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border border-transparent", styles[status])}>
+    <div className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border", styles[status])}>
       <Icon className={cn("w-3.5 h-3.5", (status === 'PENDING' || status === 'PROCESSING') && "animate-spin")} />
       {status}
     </div>
