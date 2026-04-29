@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, LayoutTemplate } from 'lucide-react';
+import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, CheckCircle2, Play, AlertCircle, Loader2, Sparkles, LayoutTemplate, MessageSquare, History, User, PanelLeft, ExternalLink } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import './App.css';
@@ -32,6 +32,7 @@ function App() {
   const [assets, setAssets] = useState<File[]>([]);
   const [userId] = useState('user_' + Math.random().toString(36).substring(7));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const API_BASE = 'http://localhost:3000';
@@ -83,7 +84,6 @@ function App() {
   const handleSubmit = async () => {
     if (!url && !instruction) return;
     setIsSubmitting(true);
-
     const assetNames = assets.map(a => a.name);
 
     try {
@@ -92,11 +92,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
-          parameters: { 
-            url, 
-            instruction,
-            assetNames
-          }
+          parameters: { url, instruction, assetNames }
         }),
       });
       setUrl('');
@@ -111,140 +107,194 @@ function App() {
 
   return (
     <div className="app-container">
-      <main className="main-content">
-        <h1 className="hero-title">Turn your ideas into production-ready video</h1>
+      {/* Sidebar */}
+      <aside className={cn("sidebar", !sidebarOpen && "sidebar-closed")}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <Sparkles className="w-5 h-5 text-sky-500" />
+            <span className="font-bold">VideoGen</span>
+          </div>
+          <button className="icon-btn sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+             <PanelLeft className="w-5 h-5" />
+          </button>
+        </div>
 
-        <div className="composer-card">
-          <div className="composer-header">
-            <div className="target-pill-group">
-              <span className="pill-label">Target</span>
-              <div className="target-pill">
-                <div className="pill-icon-wrapper">
-                  <Link2 className="w-4 h-4 text-sky-500" />
+        <nav className="sidebar-nav">
+          <button className="new-chat-btn" onClick={() => { setUrl(''); setInstruction(''); }}>
+            <Plus className="w-4 h-4" />
+            <span>New Video</span>
+          </button>
+
+          <div className="sidebar-section">
+            <h4 className="sidebar-label">History</h4>
+            <div className="history-list">
+              {jobs.slice(0, 10).map(job => (
+                <div key={job.id} className="history-item">
+                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{job.parameters.instruction || job.parameters.url || 'Untitled Video'}</span>
                 </div>
-                <input 
-                  type="url" 
-                  className="target-input" 
-                  placeholder="https://your-product.com" 
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                />
-              </div>
+              ))}
+              {jobs.length === 0 && <span className="empty-history">No history yet</span>}
             </div>
-            <button className="icon-btn" aria-label="Settings">
-              <Settings2 className="w-5 h-5" />
+          </div>
+        </nav>
+
+        <div className="sidebar-footer">
+           <div className="user-profile">
+              <div className="avatar">{userId[5].toUpperCase()}</div>
+              <div className="user-info truncate">
+                <span className="user-name">{userId}</span>
+                <span className="user-plan">Free Plan</span>
+              </div>
+              <Settings2 className="w-4 h-4 text-slate-400" />
+           </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="main-content">
+        <div className="top-bar">
+          {!sidebarOpen && (
+            <button className="icon-btn" onClick={() => setSidebarOpen(true)}>
+              <PanelLeft className="w-5 h-5" />
             </button>
-          </div>
+          )}
+          <div className="flex-1" />
+          <button className="icon-btn">
+             <Settings2 className="w-5 h-5" />
+          </button>
+        </div>
 
-          <div className="composer-body">
-            <textarea
-              className="idea-textarea"
-              placeholder="Describe your video idea, specific features to highlight, or the exact flow..."
-              value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
-            />
-          </div>
+        <div className="content-inner">
+          <div className={cn("scroll-view", jobs.length === 0 && "center-view")}>
+            {jobs.length === 0 ? (
+              <div className="welcome-hero">
+                <div className="welcome-badge">
+                   <Sparkles className="w-4 h-4" />
+                   <span>AI Video Engine</span>
+                </div>
+                <h1 className="hero-title">What demo would you like to create?</h1>
+              </div>
+            ) : (
+              <div className="feed-container">
+                {jobs.map((job) => (
+                  <div key={job.id} className="feed-card">
+                    <div className="feed-card-header">
+                       <div className="user-request-badge">
+                          <User className="w-3.5 h-3.5" />
+                          <span>Request</span>
+                       </div>
+                       <StatusBadge status={job.status} />
+                    </div>
+                    
+                    <div className="feed-card-content">
+                      <div className="params-stack">
+                        {job.parameters.url && (
+                          <div className="param-url">
+                            <Link2 className="w-4 h-4 text-sky-500" />
+                            <a href={job.parameters.url} target="_blank" rel="noreferrer" className="hover:underline">
+                              {job.parameters.url}
+                            </a>
+                          </div>
+                        )}
+                        {job.parameters.instruction && (
+                          <p className="param-instruction">{job.parameters.instruction}</p>
+                        )}
+                      </div>
 
-          <div className="composer-footer">
-            <div className="action-group">
-              <input 
-                type="file" 
-                multiple 
-                className="hidden" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept="image/*,audio/*,.pdf"
-              />
-              <button className="round-btn" onClick={() => fileInputRef.current?.click()} aria-label="Add Asset">
-                <Plus className="w-5 h-5" />
-              </button>
-              <button className="round-btn" aria-label="AI Suggestions">
-                <Sparkles className="w-4 h-4" />
-              </button>
-              <button className="round-btn" aria-label="Templates">
-                <LayoutTemplate className="w-4 h-4" />
-              </button>
-
-              <div className="assets-list">
-                {assets.map((file, idx) => (
-                  <div key={idx} className="asset-chip">
-                    {getFileIcon(file.type)}
-                    <span className="asset-name">{file.name}</span>
-                    <button className="asset-remove" onClick={() => removeAsset(idx)}>
-                      <X className="w-3 h-3" />
-                    </button>
+                      <div className="video-section">
+                        {job.status === 'COMPLETED' && job.videoUrl ? (
+                          <div className="video-player-container">
+                             <video src={job.videoUrl} controls className="video-player" />
+                             <div className="video-actions">
+                                <button className="action-pill"><Play className="w-3.5 h-3.5" /> Replay</button>
+                                <a href={job.videoUrl} target="_blank" rel="noreferrer" className="action-pill">
+                                   <ExternalLink className="w-3.5 h-3.5" /> Open
+                                </a>
+                             </div>
+                          </div>
+                        ) : (
+                          <div className="loading-stage">
+                            {job.status === 'FAILED' ? (
+                              <div className="status-box failed">
+                                <AlertCircle className="w-8 h-8" />
+                                <span>Failed to generate cinematic video</span>
+                              </div>
+                            ) : (
+                              <div className="status-box">
+                                <Loader2 className="w-8 h-8 animate-spin" />
+                                <span>{job.status === 'PENDING' ? 'Enqueued in pipeline...' : 'Capturing & narrating walkthrough...'}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
+          </div>
 
-            <div className="submit-group">
-              <div className="generate-pill">
-                <Sparkles className="w-4 h-4" />
-                <span>Generate</span>
+          {/* Fixed Composer at bottom */}
+          <div className="composer-container">
+            <div className="composer-card">
+              <div className="composer-header">
+                <div className="target-pill">
+                  <Link2 className="w-3.5 h-3.5 text-sky-500" />
+                  <input 
+                    type="url" 
+                    placeholder="Enter target URL..." 
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                  />
+                </div>
               </div>
-              <button 
-                className="submit-btn" 
-                disabled={isSubmitting || (!url && !instruction)}
-                onClick={handleSubmit}
-              >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin text-white" /> : <ArrowUp className="w-5 h-5 text-white" />}
-              </button>
+              
+              <div className="composer-body">
+                <textarea
+                  className="idea-textarea"
+                  placeholder="Describe your video idea, or specific features to highlight..."
+                  value={instruction}
+                  onChange={(e) => setInstruction(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="composer-footer">
+                <div className="action-group">
+                  <input type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileChange} accept="image/*,audio/*,.pdf" />
+                  <button className="round-btn" onClick={() => fileInputRef.current?.click()}><Plus className="w-5 h-5" /></button>
+                  <button className="round-btn"><Sparkles className="w-4 h-4" /></button>
+                  
+                  <div className="assets-preview">
+                    {assets.map((file, idx) => (
+                      <div key={idx} className="asset-chip">
+                        {getFileIcon(file.type)}
+                        <span className="asset-name">{file.name}</span>
+                        <X className="w-3 h-3 cursor-pointer" onClick={() => removeAsset(idx)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button 
+                  className="submit-btn" 
+                  disabled={isSubmitting || (!url && !instruction)}
+                  onClick={handleSubmit}
+                >
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
+            <p className="legal-notice">AI-generated videos may require refinement. Review before publishing.</p>
           </div>
         </div>
-
-        {jobs.length > 0 && (
-          <div className="jobs-container">
-            {jobs.map((job) => (
-              <div key={job.id} className="generated-video-card">
-                <div className="job-header">
-                  <div className="job-meta">
-                    <span className="job-url">
-                      <Link2 className="w-4 h-4" />
-                      {job.parameters.url || 'No URL provided'}
-                    </span>
-                    {job.parameters.instruction && (
-                      <p className="job-instruction">{job.parameters.instruction}</p>
-                    )}
-                  </div>
-                  <div className="job-status">
-                    <StatusBadge status={job.status} />
-                  </div>
-                </div>
-                
-                <div className="job-content">
-                  {job.status === 'COMPLETED' && job.videoUrl ? (
-                    <div className="video-wrapper">
-                      <video 
-                        src={job.videoUrl} 
-                        controls 
-                        className="video-player"
-                        preload="metadata"
-                      />
-                    </div>
-                  ) : (
-                    <div className="processing-state">
-                      {job.status === 'FAILED' ? (
-                        <div className="flex flex-col items-center gap-3 text-rose-500">
-                           <AlertCircle className="w-8 h-8" />
-                           <span className="font-medium">Failed to generate video</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-4 text-sky-500">
-                           <Loader2 className="w-8 h-8 animate-spin" />
-                           <span className="font-medium text-slate-500">
-                             {job.status === 'PENDING' ? 'Waiting in queue...' : 'Orchestrating cinematic video...'}
-                           </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </main>
     </div>
   );
@@ -252,24 +302,13 @@ function App() {
 
 function StatusBadge({ status }: { status: JobStatus }) {
   const styles = {
-    PENDING: "text-slate-500 bg-slate-100 border-slate-200",
-    PROCESSING: "text-sky-600 bg-sky-50 border-sky-200",
-    COMPLETED: "text-emerald-600 bg-emerald-50 border-emerald-200",
-    FAILED: "text-rose-600 bg-rose-50 border-rose-200",
+    PENDING: "text-slate-500 bg-slate-100",
+    PROCESSING: "text-sky-600 bg-sky-50",
+    COMPLETED: "text-emerald-600 bg-emerald-50",
+    FAILED: "text-rose-600 bg-rose-50",
   };
-
-  const Icons = {
-    PENDING: Loader2,
-    PROCESSING: Loader2,
-    COMPLETED: CheckCircle2,
-    FAILED: AlertCircle,
-  };
-
-  const Icon = Icons[status];
-
   return (
-    <div className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border", styles[status])}>
-      <Icon className={cn("w-3.5 h-3.5", (status === 'PENDING' || status === 'PROCESSING') && "animate-spin")} />
+    <div className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", styles[status])}>
       {status}
     </div>
   );
