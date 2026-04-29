@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Play, Plus, Clock, CheckCircle2, AlertCircle, Video, Link as LinkIcon, User } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, CheckCircle2, Play, AlertCircle, Loader2, Sparkles, LayoutTemplate } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import './App.css';
 
-// Utility for tailwind-like class merging
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -18,6 +17,8 @@ interface Job {
   videoUrl?: string;
   parameters: {
     url: string;
+    instruction?: string;
+    assetNames?: string[];
     [key: string]: any;
   };
   createdAt: string;
@@ -27,18 +28,17 @@ interface Job {
 function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [url, setUrl] = useState('');
-  const [userId, setUserId] = useState('user_' + Math.random().toString(36).substring(7));
+  const [instruction, setInstruction] = useState('');
+  const [assets, setAssets] = useState<File[]>([]);
+  const [userId] = useState('user_' + Math.random().toString(36).substring(7));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const API_BASE = 'http://localhost:3000';
 
   useEffect(() => {
     fetchJobs();
-    
-    // Setup SSE for real-time updates
     const eventSource = new EventSource(`${API_BASE}/jobs/stream`);
-    
     eventSource.onmessage = (event) => {
       const updatedJob = JSON.parse(event.data);
       setJobs(prev => {
@@ -49,7 +49,6 @@ function App() {
         return newJobs;
       });
     };
-
     return () => eventSource.close();
   }, []);
 
@@ -63,28 +62,50 @@ function App() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url) return;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setAssets(prev => [...prev, ...newFiles]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
+  const removeAsset = (index: number) => {
+    setAssets(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <ImageIcon className="w-3.5 h-3.5" />;
+    if (type.startsWith('audio/')) return <Music className="w-3.5 h-3.5" />;
+    return <FileText className="w-3.5 h-3.5" />;
+  };
+
+  const handleSubmit = async () => {
+    if (!url && !instruction) return;
     setIsSubmitting(true);
-    setError(null);
+
+    // In a real implementation, we would upload the files via FormData or to a presigned URL first.
+    // Since the prompt noted "we will see later how to use this", we pass the names as metadata for now.
+    const assetNames = assets.map(a => a.name);
 
     try {
-      const res = await fetch(`${API_BASE}/jobs`, {
+      await fetch(`${API_BASE}/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
-          parameters: { url }
+          parameters: { 
+            url, 
+            instruction,
+            assetNames
+          }
         }),
       });
-
-      if (!res.ok) throw new Error('Failed to create job');
-      
       setUrl('');
-    } catch (err: any) {
-      setError(err.message);
+      setInstruction('');
+      setAssets([]);
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -92,110 +113,118 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="app-header">
-        <div className="header-content">
-          <div className="logo-group">
-            <Video className="logo-icon" />
-            <h1>VideoGen<span>SaaS</span></h1>
-          </div>
-          <div className="user-badge">
-            <User className="w-4 h-4" />
-            <span>{userId}</span>
-          </div>
-        </div>
-      </header>
+      <main className="main-content">
+        <h1 className="hero-title">Turn your ideas into production-ready video</h1>
 
-      <main className="app-main">
-        <section className="creation-section">
-          <div className="card creation-card">
-            <h2>Create New Demo</h2>
-            <p>Enter a URL to generate an autonomous cinematic walkthrough.</p>
-            
-            <form onSubmit={handleSubmit} className="url-form">
-              <div className="input-group">
-                <LinkIcon className="input-icon" />
+        <div className="composer-card">
+          <div className="composer-header">
+            <div className="target-pill-group">
+              <span className="pill-label">Target</span>
+              <div className="target-pill">
+                <div className="pill-icon-wrapper">
+                  <Link2 className="w-4 h-4 text-emerald-600" />
+                </div>
                 <input 
                   type="url" 
-                  placeholder="https://example.com" 
+                  className="target-input" 
+                  placeholder="https://your-product.com" 
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  required
                 />
               </div>
-              <button type="submit" disabled={isSubmitting || !url}>
-                {isSubmitting ? 'Processing...' : (
-                  <>
-                    <Plus className="w-5 h-5" />
-                    <span>Generate Video</span>
-                  </>
-                )}
+            </div>
+            <button className="icon-btn" aria-label="Settings">
+              <Settings2 className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+
+          <div className="composer-body">
+            <textarea
+              className="idea-textarea"
+              placeholder="Describe your video idea, specific features to highlight, or the exact flow..."
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+            />
+          </div>
+
+          <div className="composer-footer">
+            <div className="action-group">
+              <input 
+                type="file" 
+                multiple 
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept="image/*,audio/*,.pdf"
+              />
+              <button className="round-btn" onClick={() => fileInputRef.current?.click()} aria-label="Add Asset">
+                <Plus className="w-5 h-5" />
               </button>
-            </form>
-            {error && <div className="error-msg"><AlertCircle className="w-4 h-4" /> {error}</div>}
-          </div>
-        </section>
+              <button className="round-btn" aria-label="AI Suggestions">
+                <Sparkles className="w-4 h-4" />
+              </button>
+              <button className="round-btn" aria-label="Templates">
+                <LayoutTemplate className="w-4 h-4" />
+              </button>
 
-        <section className="jobs-section">
-          <div className="section-header">
-            <h2>Production Queue</h2>
-            <span className="job-count">{jobs.length} total</span>
-          </div>
-
-          <div className="jobs-grid">
-            {jobs.length === 0 ? (
-              <div className="empty-state">
-                <Clock className="w-12 h-12 opacity-20" />
-                <p>No videos in production yet.</p>
+              <div className="assets-list">
+                {assets.map((file, idx) => (
+                  <div key={idx} className="asset-chip">
+                    {getFileIcon(file.type)}
+                    <span className="asset-name">{file.name}</span>
+                    <button className="asset-remove" onClick={() => removeAsset(idx)}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
-              jobs.map((job) => (
-                <div key={job.id} className="card job-card">
-                  <div className="job-header">
-                    <div className="job-info">
-                      <span className="job-id">#{job.id.slice(-6)}</span>
-                      <span className="job-url">{job.parameters.url}</span>
+            </div>
+
+            <div className="submit-group">
+              <div className="generate-pill">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Generate</span>
+              </div>
+              <button 
+                className="submit-btn" 
+                disabled={isSubmitting || (!url && !instruction)}
+                onClick={handleSubmit}
+              >
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {jobs.length > 0 && (
+          <div className="jobs-container">
+            <h3 className="queue-title">Recent Productions</h3>
+            <div className="jobs-list">
+              {jobs.map((job) => (
+                <div key={job.id} className="job-row">
+                  <div className="job-row-main">
+                    <div className="job-meta">
+                      <span className="job-url">{job.parameters.url || 'No URL provided'}</span>
+                      {job.parameters.instruction && (
+                        <span className="job-instruction">{job.parameters.instruction}</span>
+                      )}
                     </div>
-                    <StatusBadge status={job.status} />
                   </div>
                   
-                  <div className="job-body">
+                  <div className="job-row-status">
                     {job.status === 'COMPLETED' && job.videoUrl ? (
-                      <a href={job.videoUrl} target="_blank" rel="noreferrer" className="preview-link">
-                        <div className="video-placeholder">
-                          <Play className="w-8 h-8 text-white" />
-                        </div>
-                        <span>Watch Demo</span>
+                      <a href={job.videoUrl} target="_blank" rel="noreferrer" className="action-link">
+                        <Play className="w-4 h-4" /> Watch
                       </a>
                     ) : (
-                      <div className={cn("status-display", job.status.toLowerCase())}>
-                        {job.status === 'PROCESSING' ? (
-                          <div className="spinner-group">
-                            <div className="spinner"></div>
-                            <span>Recording in progress...</span>
-                          </div>
-                        ) : job.status === 'FAILED' ? (
-                          <div className="failure-group">
-                            <AlertCircle className="w-6 h-6" />
-                            <span>Generation failed</span>
-                          </div>
-                        ) : (
-                          <div className="pending-group">
-                            <Clock className="w-6 h-6" />
-                            <span>Waiting in queue</span>
-                          </div>
-                        )}
-                      </div>
+                      <StatusBadge status={job.status} />
                     )}
                   </div>
-                  
-                  <div className="job-footer">
-                    <span className="timestamp">{new Date(job.createdAt).toLocaleString()}</span>
-                  </div>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
           </div>
-        </section>
+        )}
       </main>
     </div>
   );
@@ -203,15 +232,15 @@ function App() {
 
 function StatusBadge({ status }: { status: JobStatus }) {
   const styles = {
-    PENDING: "bg-blue-100 text-blue-700",
-    PROCESSING: "bg-amber-100 text-amber-700",
-    COMPLETED: "bg-emerald-100 text-emerald-700",
-    FAILED: "bg-rose-100 text-rose-700",
+    PENDING: "text-gray-500 bg-gray-100",
+    PROCESSING: "text-blue-600 bg-blue-50 border-blue-200",
+    COMPLETED: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    FAILED: "text-rose-600 bg-rose-50 border-rose-200",
   };
 
   const Icons = {
-    PENDING: Clock,
-    PROCESSING: Play,
+    PENDING: Loader2,
+    PROCESSING: Loader2,
     COMPLETED: CheckCircle2,
     FAILED: AlertCircle,
   };
@@ -219,9 +248,9 @@ function StatusBadge({ status }: { status: JobStatus }) {
   const Icon = Icons[status];
 
   return (
-    <div className={cn("status-badge", styles[status])}>
-      <Icon className="w-3.5 h-3.5" />
-      <span>{status}</span>
+    <div className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border border-transparent", styles[status])}>
+      <Icon className={cn("w-3.5 h-3.5", (status === 'PENDING' || status === 'PROCESSING') && "animate-spin")} />
+      {status}
     </div>
   );
 }
