@@ -14,6 +14,9 @@ out/
 packages/shared/src/*.js
 packages/shared/src/*.js.map
 packages/shared/src/*.d.ts
+packages/db/src/*.js
+packages/db/src/*.js.map
+packages/db/src/*.d.ts
 
 # SQLite
 *.db
@@ -34,6 +37,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+sse-output.log
 
 # IDEs
 .vscode/
