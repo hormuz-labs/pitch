@@ -427,6 +427,11 @@ body {
   line-height: 1.5;
   min-height: 60px;
   outline: none;
+  color: var(--text-primary);
+}
+
+.idea-textarea::placeholder {
+  color: #94a3b8;
 }
 
 .composer-footer {
