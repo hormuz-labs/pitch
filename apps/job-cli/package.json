@@ -7,8 +7,7 @@
     "job-cli": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
-    "dev": "bun src/index.ts"
+    "build": "tsc && chmod +x dist/index.js"
   },
   "dependencies": {
     "@saas/db": "workspace:*",
