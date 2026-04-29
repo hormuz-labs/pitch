@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, CheckCircle2, Play, AlertCircle, Loader2, Sparkles, LayoutTemplate, MessageSquare, History, User, PanelLeft, ExternalLink } from 'lucide-react';
+import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, Play, AlertCircle, Loader2, Sparkles, MessageSquare, User, PanelLeft, ExternalLink } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import './App.css';

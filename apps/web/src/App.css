@@ -438,12 +438,6 @@ body {
 .idea-textarea::placeholder {
   color: #94a3b8;
 }
-  color: var(--text-primary);
-}
-
-.idea-textarea::placeholder {
-  color: #94a3b8;
-}
 
 .composer-footer {
   display: flex;
