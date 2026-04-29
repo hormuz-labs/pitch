@@ -374,16 +374,13 @@ body {
 .composer-container {
   width: 100%;
   max-width: 800px;
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0 2rem 1.5rem 2rem;
+  flex-shrink: 0;
+  padding: 1rem 2rem 1.5rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   box-sizing: border-box;
-  background: linear-gradient(to top, var(--bg-main) 60%, transparent); /* Add slight fade out effect at bottom */
+  background: transparent;
 }
 
 .composer-card {
@@ -530,6 +527,10 @@ body {
 
 .flex-1 { flex: 1; }
 .shrink-0 { shrink: 0; }
+.hidden { display: none; }
+.animate-spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .hidden { display: none; }
 .animate-spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
