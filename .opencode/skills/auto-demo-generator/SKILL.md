@@ -10,10 +10,11 @@ description: >
   Gemini TTS for narration, frame-by-frame HTML5 animation rendering with Puppeteer, and
   FFmpeg for final encoding — always produce the full pipeline end-to-end unless the user
   explicitly asks for just one phase.
-compatibility: "Requires agent-browser (Vercel) and bash tool. npm deps: @google/generative-ai, wavefile, fluent-ffmpeg, dotenv, puppeteer (render phase only). System: ffmpeg binary. Env: GEMINI_API_KEY (required), GEMINI_API_KEY_TTS (optional)."
+compatibility: "Requires agent-browser (Vercel) and bash tool. npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, puppeteer (render phase only). System: ffmpeg binary. Env: GEMINI_API_KEY (required)."
 ---
 
 # Auto-Demo Generator
+
 
 Produces polished, cinematic product demo MP4s by combining autonomous browser capture,
 AI narration, and smooth frame-by-frame animation rendering.
@@ -63,34 +64,78 @@ If coordinates aren't available, fall back to `{ x: 640, y: 360 }` (viewport cen
 
 ### Phase 2 — Voiceover Generation
 
-Use Gemini TTS to generate a natural `.wav` narration timed to the demo flow.
+Use Gemini TTS to generate a natural `.wav` narration timed to the demo flow. You should use a detailed prompt with an Audio Profile and Director's note for high-quality production.
 
 ```ts
-const ttsModel = new GoogleGenerativeAI(process.env.GEMINI_API_KEY_TTS).getGenerativeModel({ model: 'gemini-3.1-flash-tts-preview' });
+import { GoogleGenAI } from '@google/genai';
+import mime from 'mime';
+// ... you will also need the convertToWav/createWavHeader utility functions ...
 
-const audioResponse = await ttsModel.generateContent({
-  contents: [{ role: 'user', parts: [{ text: `Say this naturally: ${scriptText}` }] }],
-  generationConfig: {
-    responseModalities: ['AUDIO'],
-    speechConfig: {
-      voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Callirrhoe' } }
-    }
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const model = 'gemini-3.1-flash-tts-preview';
+
+const config = {
+  temperature: 1,
+  responseModalities: ['audio'],
+  speechConfig: {
+    voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Orus' } }
   }
-});
+};
 
-// Extract PCM data and write as WAV
-const audioData = audioResponse.response.candidates[0].content.parts[0].inlineData.data;
-const audioBuffer = Buffer.from(audioData, 'base64');
-const wav = new WaveFile();
-const pcmData = new Int16Array(audioBuffer.buffer, audioBuffer.byteOffset, audioBuffer.length / 2);
-wav.fromScratch(1, 24000, '16', pcmData);
-fs.writeFileSync(audioPath, wav.toBuffer());
+const contents = [
+  {
+    role: 'user',
+    parts: [
+      {
+        text: `Read the following transcript based on the audio profile and director's note.
 
-// Calculate total duration to drive animation length
-const totalAudioDuration = wav.data.chunkSize / wav.fmt.byteRate;
+# Audio Profile
+A smooth, premium commercial voice.
+
+# Director's note
+Style: Promo/Hype. Pace: Natural. Accent: American (Gen).
+
+## Scene:
+The Sound Stage Booth.
+
+## Transcript:
+Say this naturally: ${scriptText}`
+      }
+    ]
+  }
+];
+
+const response = await ai.models.generateContentStream({ model, config, contents });
+
+const chunks: Buffer[] = [];
+let responseMimeType = 'audio/pcm;rate=24000';
+
+for await (const chunk of response) {
+  if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) continue;
+  
+  const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+  if (inlineData) {
+    if (inlineData.mimeType) responseMimeType = inlineData.mimeType;
+    let fileExtension = mime.getExtension(responseMimeType);
+    let buffer = Buffer.from(inlineData.data || '', 'base64');
+    
+    if (!fileExtension || fileExtension !== 'wav') {
+      buffer = convertToWav(inlineData.data || '', responseMimeType);
+    }
+    chunks.push(buffer);
+  }
+}
+
+const finalAudioBuffer = Buffer.concat(chunks);
+fs.writeFileSync(audioPath, finalAudioBuffer);
+
+// Calculate total duration using the parsed mime type data
+const options = parseMimeType(responseMimeType);
+const byteRate = options.sampleRate * options.numChannels * (options.bitsPerSample / 8);
+const totalAudioDuration = finalAudioBuffer.length / byteRate;
 ```
 
-**Voice options:** `Callirrhoe` (default), or any other Gemini prebuilt voice name.
+**Voice options:** `Orus` (default), or any other Gemini prebuilt voice name.
 
 ---
 
@@ -232,4 +277,4 @@ pipeline to a multi-step demo with more than 3 screenshots.
 
 ---
 
-© 2026 Hormuz Labs. This work is licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+© 2026 Hormuz Labs. This work is licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/)./).

@@ -21,6 +21,7 @@ export async function updateJob(id: string, data: { status?: JobStatus; videoUrl
   
   return {
     ...updated,
+    videoUrl: updated.videoUrl ?? undefined,
     status: updated.status as JobStatus,
     parameters: JSON.parse(updated.parameters)
   };
@@ -39,6 +40,7 @@ export async function createJob(data: { userId: string; parameters: any }): Prom
   
   return {
     ...created,
+    videoUrl: created.videoUrl ?? undefined,
     status: created.status as JobStatus,
     parameters: JSON.parse(created.parameters)
   };
@@ -51,7 +53,21 @@ export async function getJob(id: string): Promise<Job | null> {
   
   return {
     ...job,
+    videoUrl: job.videoUrl ?? undefined,
     status: job.status as JobStatus,
     parameters: JSON.parse(job.parameters)
   };
+}
+
+export async function listJobs(): Promise<Job[]> {
+  const jobs = await prisma.job.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
+  
+  return jobs.map(job => ({
+    ...job,
+    videoUrl: job.videoUrl ?? undefined,
+    status: job.status as JobStatus,
+    parameters: JSON.parse(job.parameters)
+  }));
 }

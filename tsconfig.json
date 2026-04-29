@@ -10,12 +10,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "composite": true,
     "paths": {
-      "@saas/shared": ["packages/shared/src/index.ts"],
-      "@saas/db": ["packages/db/src/index.ts"],
-      "@saas/storage": ["packages/storage/src/index.ts"]
+      "@saas/shared": ["./packages/shared/src/index.ts"],
+      "@saas/db": ["./packages/db/src/index.ts"],
+      "@saas/storage": ["./packages/storage/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist"]

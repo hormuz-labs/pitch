@@ -2,11 +2,13 @@
 import { Command } from 'commander';
 import * as db from '@saas/db';
 import * as storage from '@saas/storage';
-import { JobStatus } from '@saas/shared';
+import { JobStatus, JOB_UPDATES_CHANNEL } from '@saas/shared';
+import { Redis } from 'ioredis';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 const program = new Command();
 
 program
@@ -30,11 +32,16 @@ program
       console.log(`✅ Uploaded to GCS: ${videoUrl}`);
 
       // 2. Update Database
-      await db.updateJob(jobId, {
+      const updatedJob = await db.updateJob(jobId, {
         status: JobStatus.COMPLETED,
         videoUrl,
       });
+      
+      // 3. Notify subscribers
+      await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+      
       console.log(`✅ Database updated for job ${jobId}`);
+      process.exit(0);
     } catch (error: any) {
       console.error(`❌ Error processing job ${jobId}:`, error.message);
       process.exit(1);
@@ -56,8 +63,13 @@ program
     }
 
     try {
-      await db.updateJob(jobId, { status: jobStatus });
+      const updatedJob = await db.updateJob(jobId, { status: jobStatus });
+      
+      // Notify subscribers
+      await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+      
       console.log(`✅ Status for job ${jobId} updated to ${jobStatus}`);
+      process.exit(0);
     } catch (error: any) {
       console.error(`❌ Error updating job ${jobId}:`, error.message);
       process.exit(1);
