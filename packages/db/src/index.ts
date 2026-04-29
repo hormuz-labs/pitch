@@ -59,8 +59,9 @@ export async function getJob(id: string): Promise<Job | null> {
   };
 }
 
-export async function listJobs(): Promise<Job[]> {
+export async function listJobs(userId?: string): Promise<Job[]> {
   const jobs = await prisma.job.findMany({
+    where: userId ? { userId } : undefined,
     orderBy: { createdAt: 'desc' }
   });
   
@@ -70,4 +71,11 @@ export async function listJobs(): Promise<Job[]> {
     status: job.status as JobStatus,
     parameters: JSON.parse(job.parameters)
   }));
+}
+
+export async function deleteJob(id: string) {
+  console.log(`[DB] Deleting job ${id}`);
+  return await prisma.job.delete({
+    where: { id },
+  });
 }

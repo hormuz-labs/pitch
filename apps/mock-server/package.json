@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun src/index.ts",
-    "start": "bun src/index.ts"
+    "dev:mock": "bun src/index.ts",
+    "start:mock": "bun src/index.ts"
   },
   "dependencies": {
     "express": "^4.18.2"

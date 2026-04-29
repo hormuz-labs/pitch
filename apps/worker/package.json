@@ -9,6 +9,7 @@
     "start": "bun dist/index.js"
   },
   "dependencies": {
+    "@opencode-ai/sdk": "latest",
     "@saas/shared": "workspace:*",
     "@saas/db": "workspace:*",
     "bullmq": "^5.0.0",

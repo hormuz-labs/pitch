@@ -23,7 +23,8 @@ const subscriber = new Redis(redisUrl);
 const videoQueue = new Queue(QUEUE_NAME, { connection });
 
 app.get('/jobs', async (req, res) => {
-  const jobs = await db.listJobs();
+  const userId = req.query.userId as string | undefined;
+  const jobs = await db.listJobs(userId);
   res.json(jobs);
 });
 
@@ -36,7 +37,8 @@ app.post('/jobs', async (req, res) => {
 
   try {
     const job = await db.createJob({ userId, parameters });
-    await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters });
+    // IMPORTANT: we explicitly set the bullmq jobId to match our db job.id
+    await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters }, { jobId: job.id });
     
     // Notify subscribers
     await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job));
@@ -70,6 +72,60 @@ app.get('/jobs/stream', (req, res) => {
 app.get('/jobs/:id', async (req, res) => {
   const job = await db.getJob(req.params.id);
   res.json(job);
+});
+
+app.delete('/jobs/:id', async (req, res) => {
+  try {
+    await db.deleteJob(req.params.id);
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/jobs/:id/retrigger', async (req, res) => {
+  const { id } = req.params;
+  const job = await db.getJob(id);
+  
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  try {
+    const updatedJob = await db.updateJob(id, { status: db.JobStatus.PENDING, videoUrl: undefined });
+    
+    // Ensure we remove the old job from queue if it's there (e.g. failed state)
+    const existingJob = await videoQueue.getJob(id);
+    if (existingJob) {
+      await existingJob.remove();
+    }
+
+    await videoQueue.add('generate-video', { jobId: updatedJob.id, userId: updatedJob.userId, parameters: updatedJob.parameters }, { jobId: updatedJob.id });
+    
+    // Notify subscribers
+    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+    
+    res.json(updatedJob);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/jobs/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Attempt to remove from BullMQ first
+    const bullJob = await videoQueue.getJob(id);
+    if (bullJob) {
+      await bullJob.remove();
+      console.log(`[Queue] Removed job ${id} from BullMQ`);
+    }
+
+    await db.deleteJob(id);
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;

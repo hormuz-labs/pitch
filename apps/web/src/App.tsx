@@ -1,317 +1,268 @@
-import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, Plus, Settings2, Link2, X, Image as ImageIcon, Music, FileText, Play, AlertCircle, Loader2, Sparkles, MessageSquare, User, PanelLeft, ExternalLink } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import './App.css';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+import { useEffect, useState, useRef } from 'react';
+import { Play, Loader2, CheckCircle, XCircle, FileVideo, Terminal, Trash2 } from 'lucide-react';
 
 interface Job {
   id: string;
   userId: string;
-  status: JobStatus;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   videoUrl?: string;
   parameters: {
-    url: string;
-    instruction?: string;
-    assetNames?: string[];
+    prompt: string;
     [key: string]: any;
   };
   createdAt: string;
-  updatedAt: string;
 }
 
-function App() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [url, setUrl] = useState('');
-  const [instruction, setInstruction] = useState('');
-  const [assets, setAssets] = useState<File[]>([]);
-  const [userId] = useState('user_' + Math.random().toString(36).substring(7));
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const API_BASE = 'http://localhost:3000';
+interface LogEvent {
+  jobId: string;
+  type: string;
+  event: any;
+}
 
-  useEffect(() => {
-    fetchJobs();
-    const eventSource = new EventSource(`${API_BASE}/jobs/stream`);
-    eventSource.onmessage = (event) => {
-      const updatedJob = JSON.parse(event.data);
-      setJobs(prev => {
-        const index = prev.findIndex(j => j.id === updatedJob.id);
-        if (index === -1) return [updatedJob, ...prev];
-        const newJobs = [...prev];
-        newJobs[index] = updatedJob;
-        return newJobs;
-      });
-    };
-    return () => eventSource.close();
-  }, []);
+interface LogLine {
+  type: 'PTY' | 'AI' | 'RUN' | 'EDIT' | 'ERROR' | 'SYSTEM';
+  content: string;
+  id?: string;
+}
+
+export default function App() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [logs, setLogs] = useState<Record<string, LogLine[]>>({});
+  const [prompt, setPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const logsEndRef = useRef<HTMLDivElement>(null);
 
   const fetchJobs = async () => {
     try {
-      const res = await fetch(`${API_BASE}/jobs`);
+      const res = await fetch('http://localhost:3000/jobs');
       const data = await res.json();
       setJobs(data);
-    } catch (err) {
-      console.error('Failed to fetch jobs:', err);
+    } catch (e) {
+      console.error('Failed to fetch jobs', e);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setAssets(prev => [...prev, ...newFiles]);
+  useEffect(() => {
+    fetchJobs();
+
+    const evtSource = new EventSource('http://localhost:3000/jobs/stream');
+    
+    evtSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'LOG') {
+        const logEvt = data as LogEvent;
+        const msg = formatLogEvent(logEvt.event);
+        if (msg) {
+          setLogs(prev => {
+            const currentLogs = prev[logEvt.jobId] || [];
+            if (msg.id) {
+              const lastIdx = currentLogs.findLastIndex(l => l.id === msg.id);
+              if (lastIdx !== -1) {
+                const nextLogs = [...currentLogs];
+                nextLogs[lastIdx] = msg;
+                return { ...prev, [logEvt.jobId]: nextLogs };
+              }
+            }
+            return {
+              ...prev,
+              [logEvt.jobId]: [...currentLogs, msg]
+            };
+          });
+        }
+      } else if (data.id && data.status) {
+        // It's a job update
+        setJobs(prev => {
+          const exists = prev.find(j => j.id === data.id);
+          if (exists) {
+            return prev.map(j => j.id === data.id ? { ...j, ...data } : j);
+          }
+          return [data, ...prev];
+        });
+      }
+    };
+
+    return () => evtSource.close();
+  }, []);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  const formatLogEvent = (event: any): LogLine | null => {
+    if (!event || !event.type) return null;
+
+    switch (event.type) {
+      case 'pty.updated':
+        return { type: 'PTY', content: event.properties?.output || '' };
+
+      case 'message.updated': {
+        const info = event.properties?.message || event.properties?.info;
+        const parts = info?.parts;
+        if (!parts) return null;
+        const textPart = parts.find((p: any) => p.type === 'text');
+        return textPart?.text ? { type: 'AI', content: `[AI]: ${textPart.text}`, id: info.id } : null;
+      }
+
+      case 'command.executed':
+        return { type: 'RUN', content: `[Run]: ${event.properties?.name} ${event.properties?.arguments || ''}` };
+
+      case 'file.edited':
+        return { type: 'EDIT', content: `[Edit]: ${event.properties?.file}` };
+
+      case 'session.error':
+        return { type: 'ERROR', content: `[Error]: ${event.properties?.message || 'Unknown error'}` };
+
+      case 'pty.exited':
+        return { type: 'SYSTEM', content: `[System]: Process exited with code ${event.properties?.exitCode}` };
+
+      default:
+        // Suppress "status" events like session.updated, event.created, etc.
+        // unless they are explicitly useful.
+        if (event.type.endsWith('.updated') || event.type.endsWith('.created') || event.type.endsWith('.status')) {
+          return null;
+        }
+        return { type: 'SYSTEM', content: `[System]: ${event.type}` };
     }
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeAsset = (index: number) => {
-    setAssets(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const getFileIcon = (type: string) => {
-    if (type.startsWith('image/')) return <ImageIcon className="w-3.5 h-3.5" />;
-    if (type.startsWith('audio/')) return <Music className="w-3.5 h-3.5" />;
-    return <FileText className="w-3.5 h-3.5" />;
-  };
-
-  const handleSubmit = async () => {
-    if (!url && !instruction) return;
-    setIsSubmitting(true);
-    const assetNames = assets.map(a => a.name);
-
+  const submitJob = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prompt.trim()) return;
+    
+    setLoading(true);
     try {
-      await fetch(`${API_BASE}/jobs`, {
+      await fetch('http://localhost:3000/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
-          parameters: { url, instruction, assetNames }
-        }),
+          userId: 'user-demo',
+          parameters: { prompt }
+        })
       });
-      setUrl('');
-      setInstruction('');
-      setAssets([]);
-    } catch (err) {
-      console.error(err);
+      setPrompt('');
+    } catch (e) {
+      console.error('Failed to submit job', e);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'COMPLETED': return <CheckCircle className="w-5 h-5 text-emerald-500" />;
+      case 'FAILED': return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'PROCESSING': return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
+      default: return <Loader2 className="w-5 h-5 text-zinc-500" />;
+    }
+  };
+
+  const deleteJob = async (id: string) => {
+    try {
+      await fetch(`http://localhost:3000/jobs/${id}`, { method: 'DELETE' });
+      setJobs(prev => prev.filter(j => j.id !== id));
+      setLogs(prev => {
+        const nextLogs = { ...prev };
+        delete nextLogs[id];
+        return nextLogs;
+      });
+    } catch (e) {
+      console.error('Failed to delete job', e);
     }
   };
 
   return (
-    <div className="app-container">
-      {/* Sidebar */}
-      <aside className={cn("sidebar", !sidebarOpen && "sidebar-closed")}>
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <Sparkles className="w-5 h-5 text-sky-500" />
-            <span className="font-bold">VideoGen</span>
-          </div>
-          <button className="icon-btn sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
-             <PanelLeft className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="min-h-screen max-w-5xl mx-auto p-6 flex flex-col gap-8">
+      <header className="border-b border-zinc-800 pb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Video Generator</h1>
+        <p className="text-zinc-400 mt-2">Autonomous demo generation powered by OpenCode</p>
+      </header>
 
-        <nav className="sidebar-nav">
-          <button className="new-chat-btn" onClick={() => { setUrl(''); setInstruction(''); }}>
-            <Plus className="w-4 h-4" />
-            <span>New Video</span>
-          </button>
-
-          <div className="sidebar-section">
-            <h4 className="sidebar-label">History</h4>
-            <div className="history-list">
-              {jobs.slice(0, 10).map(job => (
-                <div key={job.id} className="history-item">
-                  <MessageSquare className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{job.parameters.instruction || job.parameters.url || 'Untitled Video'}</span>
-                </div>
-              ))}
-              {jobs.length === 0 && <span className="empty-history">No history yet</span>}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div className="lg:col-span-1 flex flex-col gap-6">
+          <form onSubmit={submitJob} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Instructions</label>
+              <textarea
+                value={prompt}
+                onChange={e => setPrompt(e.target.value)}
+                placeholder="Make a demo video showing how to use standard notes..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:ring-1 focus:ring-zinc-600 outline-none h-32 resize-none"
+              />
             </div>
-          </div>
-        </nav>
-
-        <div className="sidebar-footer">
-           <div className="user-profile">
-              <div className="avatar">{userId[5].toUpperCase()}</div>
-              <div className="user-info truncate">
-                <span className="user-name">{userId}</span>
-                <span className="user-plan">Free Plan</span>
-              </div>
-              <Settings2 className="w-4 h-4 text-slate-400" />
-           </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="main-content">
-        <div className="top-bar">
-          {!sidebarOpen && (
-            <button className="icon-btn" onClick={() => setSidebarOpen(true)}>
-              <PanelLeft className="w-5 h-5" />
+            <button
+              type="submit"
+              disabled={loading || !prompt.trim()}
+              className="flex items-center justify-center gap-2 bg-white text-black font-semibold rounded-lg px-4 py-2.5 hover:bg-zinc-200 transition-colors disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Dispatch Job
             </button>
-          )}
-          <div className="flex-1" />
-          <button className="icon-btn">
-             <Settings2 className="w-5 h-5" />
-          </button>
+          </form>
+
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Recent Jobs</h2>
+            {jobs.map(job => (
+              <div key={job.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-zinc-500">{job.id}</span>
+                  <div className="flex items-center gap-2.5">
+                    {getStatusIcon(job.status)}
+                    <button 
+                      onClick={() => deleteJob(job.id)} 
+                      className="text-zinc-600 hover:text-red-400 transition-colors bg-zinc-800/50 hover:bg-zinc-800 p-1.5 rounded"
+                      title="Delete Job"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm line-clamp-2 text-zinc-300">{job.parameters.prompt}</p>
+                {job.videoUrl && (
+                  <a href={job.videoUrl} target="_blank" rel="noreferrer" className="text-xs flex items-center gap-1.5 text-blue-400 hover:text-blue-300 mt-2 bg-blue-500/10 w-max px-2.5 py-1.5 rounded-md">
+                    <FileVideo className="w-3.5 h-3.5" />
+                    View Output
+                  </a>
+                )}
+              </div>
+            ))}
+            {jobs.length === 0 && <p className="text-sm text-zinc-500 italic">No jobs found.</p>}
+          </div>
         </div>
 
-        <div className="content-inner">
-          <div className={cn("scroll-view", jobs.length === 0 && "center-view")}>
-            {jobs.length === 0 ? (
-              <div className="welcome-hero">
-                <div className="welcome-badge">
-                   <Sparkles className="w-4 h-4" />
-                   <span>AI Video Engine</span>
-                </div>
-                <h1 className="hero-title">What demo would you like to create?</h1>
-              </div>
-            ) : (
-              <div className="feed-container">
-                {jobs.map((job) => (
-                  <div key={job.id} className="feed-card">
-                    <div className="feed-card-header">
-                       <div className="user-request-badge">
-                          <User className="w-3.5 h-3.5" />
-                          <span>Request</span>
-                       </div>
-                       <StatusBadge status={job.status} />
-                    </div>
-                    
-                    <div className="feed-card-content">
-                      <div className="params-stack">
-                        {job.parameters.url && (
-                          <div className="param-url">
-                            <Link2 className="w-4 h-4 text-sky-500" />
-                            <a href={job.parameters.url} target="_blank" rel="noreferrer" className="hover:underline">
-                              {job.parameters.url}
-                            </a>
-                          </div>
-                        )}
-                        {job.parameters.instruction && (
-                          <p className="param-instruction">{job.parameters.instruction}</p>
-                        )}
-                      </div>
-
-                      <div className="video-section">
-                        {job.status === 'COMPLETED' && job.videoUrl ? (
-                          <div className="video-player-container">
-                             <video src={job.videoUrl} controls className="video-player" />
-                             <div className="video-actions">
-                                <button className="action-pill"><Play className="w-3.5 h-3.5" /> Replay</button>
-                                <a href={job.videoUrl} target="_blank" rel="noreferrer" className="action-pill">
-                                   <ExternalLink className="w-3.5 h-3.5" /> Open
-                                </a>
-                             </div>
-                          </div>
-                        ) : (
-                          <div className="loading-stage">
-                            {job.status === 'FAILED' ? (
-                              <div className="status-box failed">
-                                <AlertCircle className="w-8 h-8" />
-                                <span>Failed to generate cinematic video</span>
-                              </div>
-                            ) : (
-                              <div className="status-box">
-                                <Loader2 className="w-8 h-8 animate-spin" />
-                                <span>{job.status === 'PENDING' ? 'Enqueued in pipeline...' : 'Capturing & narrating walkthrough...'}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="lg:col-span-2 bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden h-[800px] flex flex-col shadow-2xl">
+          <div className="bg-zinc-900/50 border-b border-zinc-800 p-3 flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-zinc-400" />
+            <span className="text-xs font-medium text-zinc-300 font-mono">Live Logs</span>
           </div>
-
-          {/* Fixed Composer at bottom */}
-          <div className="composer-container">
-            <div className="composer-card">
-              <div className="composer-header">
-                <div className="target-pill">
-                  <Link2 className="w-3.5 h-3.5 text-sky-500" />
-                  <input 
-                    type="url" 
-                    placeholder="Enter target URL..." 
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <div className="composer-body">
-                <textarea
-                  className="idea-textarea"
-                  placeholder="Describe your video idea, or specific features to highlight..."
-                  value={instruction}
-                  onChange={(e) => setInstruction(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit();
-                    }
-                  }}
-                />
-              </div>
-
-              <div className="composer-footer">
-                <div className="action-group">
-                  <input type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileChange} accept="image/*,audio/*,.pdf" />
-                  <button className="round-btn" onClick={() => fileInputRef.current?.click()}><Plus className="w-5 h-5" /></button>
-                  <button className="round-btn"><Sparkles className="w-4 h-4" /></button>
+          <div className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-relaxed text-zinc-400 flex flex-col gap-1.5">
+            {jobs.filter(j => ['PROCESSING', 'COMPLETED', 'FAILED'].includes(j.status)).slice(0,1).map(activeJob => (
+              <div key={activeJob.id} className="flex flex-col gap-1.5">
+                <div className="text-blue-400 mb-2">Attached to session for job {activeJob.id}...</div>
+                {logs[activeJob.id]?.map((log, i) => {
+                  if (log.type === 'PTY') {
+                    return <span key={i} className="text-zinc-300 whitespace-pre-wrap">{log.content}</span>;
+                  }
                   
-                  <div className="assets-preview">
-                    {assets.map((file, idx) => (
-                      <div key={idx} className="asset-chip">
-                        {getFileIcon(file.type)}
-                        <span className="asset-name">{file.name}</span>
-                        <X className="w-3 h-3 cursor-pointer" onClick={() => removeAsset(idx)} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  let colorClass = 'text-zinc-500';
+                  if (log.type === 'AI') colorClass = 'text-emerald-400';
+                  if (log.type === 'RUN') colorClass = 'text-blue-400';
+                  if (log.type === 'EDIT') colorClass = 'text-amber-400';
+                  if (log.type === 'ERROR') colorClass = 'text-red-400';
+                  if (log.type === 'SYSTEM') colorClass = 'text-zinc-600';
 
-                <button 
-                  className="submit-btn" 
-                  disabled={isSubmitting || (!url && !instruction)}
-                  onClick={handleSubmit}
-                >
-                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
-                </button>
+                  return (
+                    <div key={i} className={`mt-1 ${colorClass}`}>
+                      {log.content}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            <p className="legal-notice">AI-generated videos may require refinement. Review before publishing.</p>
+            ))}
+            <div ref={logsEndRef} />
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
-
-function StatusBadge({ status }: { status: JobStatus }) {
-  const styles = {
-    PENDING: "text-slate-500 bg-slate-100",
-    PROCESSING: "text-sky-600 bg-sky-50",
-    COMPLETED: "text-emerald-600 bg-emerald-50",
-    FAILED: "text-rose-600 bg-rose-50",
-  };
-  return (
-    <div className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", styles[status])}>
-      {status}
-    </div>
-  );
-}
-
-export default App;

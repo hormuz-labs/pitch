@@ -21,5 +21,12 @@
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0",
     "vitest": "^4.1.5"
+  },
+  "dependencies": {
+    "@google/genai": "",
+    "dotenv": "",
+    "fluent-ffmpeg": "",
+    "mime": "",
+    "puppeteer": ""
   }
 }

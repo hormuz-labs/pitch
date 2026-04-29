@@ -540,12 +540,55 @@ body {
   white-space: nowrap;
 }
 
-.flex-1 { flex: 1; }
-.shrink-0 { shrink: 0; }
-.hidden { display: none; }
-.animate-spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+.w-full { width: 100%; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mt-2 { margin-top: 0.5rem; }
+.ml-auto { margin-left: auto; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.p-1 { padding: 0.25rem; }
+.rounded { border-radius: 4px; }
+.text-xs { font-size: 0.75rem; }
+.text-sm { font-size: 0.875rem; }
+.text-xl { font-size: 1.25rem; }
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+.font-mono { font-family: monospace; }
+.text-slate-400 { color: #94a3b8; }
+.text-slate-500 { color: #64748b; }
+.text-slate-800 { color: #1e293b; }
+.text-sky-600 { color: #0284c7; }
+.text-rose-600 { color: #e11d48; }
+.bg-slate-100 { background-color: #f1f5f9; }
+.bg-slate-200 { background-color: #e2e8f0; }
+.bg-sky-100 { background-color: #e0f2fe; }
+.bg-rose-100 { background-color: #ffe4e6; }
+.hover\:bg-slate-50:hover { background-color: #f8fafc; }
+.hover\:bg-slate-100:hover { background-color: #f1f5f9; }
+.hover\:bg-sky-100:hover { background-color: #e0f2fe; }
+.hover\:bg-rose-100:hover { background-color: #ffe4e6; }
+.hover\:text-rose-500:hover { color: #f43f5e; }
+.transition-colors { transition-property: color, background-color; transition-duration: 150ms; }
 
+.queue-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.table-auto { table-layout: auto; }
+.border-collapse { border-collapse: collapse; }
+.divide-y > * + * { border-top-width: 1px; }
+.divide-slate-100 > * + * { border-color: #f1f5f9; }
+
+.flex-1 { flex: 1; }
+.shrink-0 { flex-shrink: 0; }
 .hidden { display: none; }
 .animate-spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
