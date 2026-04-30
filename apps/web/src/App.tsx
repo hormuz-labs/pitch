@@ -308,12 +308,16 @@ function AppContent() {
             
             {/* Video Player */}
             <div style={{ flex: 1, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: isMobile ? 200 : 300 }}>
-              <div style={{ textAlign: 'center' }}>
-                <PlayCircleOutlined style={{ fontSize: isMobile ? 48 : 64, color: '#555', cursor: 'pointer' }} />
-                <div style={{ marginTop: 16, color: '#555' }}>Preview</div>
-              </div>
+              {selectedProject.status === 'COMPLETED' && selectedProject.videoUrl ? (
+                <video src={selectedProject.videoUrl} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  <PlayCircleOutlined style={{ fontSize: isMobile ? 48 : 64, color: '#555', cursor: 'pointer' }} />
+                  <div style={{ marginTop: 16, color: '#555' }}>Preview</div>
+                </div>
+              )}
               {/* Mock Caption Overlay */}
-              <div style={{ position: 'absolute', bottom: 20, background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: 8, border: '1px solid #333', maxWidth: '90%' }}>
+              <div style={{ position: 'absolute', bottom: 50, background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: 8, border: '1px solid #333', maxWidth: '90%', pointerEvents: 'none' }}>
                 <Text style={{ fontSize: isMobile ? 12 : 14 }}>"And here is the new billing dashboard..."</Text>
               </div>
             </div>
