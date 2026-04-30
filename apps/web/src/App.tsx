@@ -38,16 +38,26 @@ interface Project {
 const MOCK_USER_ID = 'demo-user-123'; // Hardcoded for this demo
 
 function AppContent() {
-  const [collapsed, setCollapsed] = useState(false);
+  const screens = useBreakpoint();
+  const isMobile = !screens.lg;
+  
+  // Start collapsed on mobile, open on desktop
+  const [collapsed, setCollapsed] = useState(isMobile);
   const [projects, setProjects] = useState<Project[]>([]);
   const [form] = Form.useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const screens = useBreakpoint();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isMobile = !screens.lg;
+  // Auto-collapse when screen size changes to mobile
+  useEffect(() => {
+    if (isMobile) {
+      setCollapsed(true);
+    } else {
+      setCollapsed(false);
+    }
+  }, [isMobile]);
 
   // Fetch initial jobs
   useEffect(() => {
@@ -417,12 +427,20 @@ function AppContent() {
           background: '#141414',
           zIndex: 1000,
           position: isMobile ? 'absolute' : 'relative',
-          height: '100%'
+          height: '100%',
+          top: 0,
+          left: 0,
+          boxShadow: isMobile && !collapsed ? '4px 0 24px rgba(0,0,0,0.5)' : 'none'
         }}
       >
-        <div style={{ padding: '24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 12 }}>
-          <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #1677ff, #722ed1)', borderRadius: 8, flexShrink: 0 }}></div>
-          <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap', opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>AgentDemo.ai</Title>
+        <div style={{ padding: '24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #1677ff, #722ed1)', borderRadius: 8, flexShrink: 0 }}></div>
+            <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap', opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>AgentDemo.ai</Title>
+          </div>
+          {isMobile && !collapsed && (
+             <Button type="text" icon={<MenuOutlined />} onClick={() => setCollapsed(true)} style={{ color: '#fff' }} />
+          )}
         </div>
         <Menu
           mode="inline"
