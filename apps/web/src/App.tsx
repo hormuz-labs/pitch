@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { 
   ConfigProvider, theme, Layout, Menu, Button, Card, Row, Col, 
-  Tag, Form, Input, Steps, Typography, Space, Divider, Slider, Tabs, Select, Grid
+  Tag, Form, Input, Steps, Typography, Space, Divider, Slider, Tabs, Select, Grid, message
 } from 'antd';
 import {
   VideoCameraOutlined,
@@ -24,30 +24,111 @@ const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
+// Corresponds to backend Job
 interface Project {
   id: string;
-  title: string;
-  status: 'completed' | 'processing';
-  duration: string;
+  userId: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  videoUrl?: string;
+  parameters: Record<string, any>;
   createdAt: string;
+  updatedAt: string;
 }
 
-const mockProjects: Project[] = [
-  { id: '1', title: 'Payment Flow Demo', status: 'completed', duration: '01:45', createdAt: '2 mins ago' },
-  { id: '2', title: 'Onboarding Sequence', status: 'processing', duration: '--:--', createdAt: 'In progress' },
-  { id: '3', title: 'Settings Navigation', status: 'completed', duration: '00:30', createdAt: '1 hour ago' },
-];
+const MOCK_USER_ID = 'demo-user-123'; // Hardcoded for this demo
 
 function AppContent() {
   const [collapsed, setCollapsed] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [form] = Form.useForm();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const screens = useBreakpoint();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isMobile = !screens.lg;
 
+  // Fetch initial jobs
+  useEffect(() => {
+    fetch(`/api/jobs?userId=${MOCK_USER_ID}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setProjects(data);
+        }
+      })
+      .catch(err => console.error("Failed to fetch jobs:", err));
+  }, []);
+
+  // Listen to SSE updates
+  useEffect(() => {
+    const sse = new EventSource('/api/jobs/stream');
+    
+    sse.onmessage = (event) => {
+      try {
+        const updatedJob = JSON.parse(event.data);
+        if (updatedJob.userId === MOCK_USER_ID) {
+          setProjects(prev => {
+            const exists = prev.find(p => p.id === updatedJob.id);
+            if (exists) {
+              return prev.map(p => p.id === updatedJob.id ? updatedJob : p);
+            } else {
+              return [...prev, updatedJob];
+            }
+          });
+        }
+      } catch (err) {
+        console.error("SSE Parsing error", err);
+      }
+    };
+
+    return () => {
+      sse.close();
+    };
+  }, []);
+
   const handleCreateNew = () => navigate('/new');
   const handleOpenEditor = (project: Project) => navigate(`/editor/${project.id}`);
+
+  const handleQueueJob = async (values: any) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: MOCK_USER_ID,
+          parameters: {
+            url: values.url,
+            instructions: values.instructions,
+            script: values.script
+          }
+        })
+      });
+      
+      if (!res.ok) throw new Error("Failed to queue job");
+      
+      message.success("Video generation queued successfully!");
+      form.resetFields();
+      navigate('/dashboard');
+    } catch (err: any) {
+      message.error(err.message || "An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+      setProjects(prev => prev.filter(p => p.id !== id));
+      message.success("Job deleted");
+    } catch (err) {
+      message.error("Failed to delete job");
+    }
+  };
 
   // Determine current active menu key based on pathname
   let selectedKey = 'dashboard';
@@ -70,34 +151,54 @@ function AppContent() {
       </div>
 
       <Row gutter={[24, 24]}>
-        {mockProjects.map(project => (
+        {projects.length === 0 && (
+          <Col span={24}>
+            <div style={{ textAlign: 'center', padding: '48px 0', color: '#666' }}>
+              <VideoCameraOutlined style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }} />
+              <p>No videos yet. Create one to get started.</p>
+            </div>
+          </Col>
+        )}
+        {projects.map(project => (
           <Col xs={24} sm={12} lg={8} xl={6} key={project.id}>
             <Card
               hoverable
               onClick={() => handleOpenEditor(project)}
               cover={
-                <div style={{ height: 160, background: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #303030' }}>
-                  <VideoCameraOutlined style={{ fontSize: 48, color: '#424242' }} />
+                <div style={{ height: 160, background: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #303030', position: 'relative' }}>
+                  {project.status === 'COMPLETED' && project.videoUrl ? (
+                     <video src={project.videoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <VideoCameraOutlined style={{ fontSize: 48, color: '#424242' }} />
+                  )}
+                  {project.status === 'FAILED' && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text type="danger">Failed</Text>
+                    </div>
+                  )}
                 </div>
               }
               actions={[
                 <Button type="link" onClick={(e) => { e.stopPropagation(); handleOpenEditor(project); }}>Edit</Button>,
-                <Button type="link" danger onClick={(e) => e.stopPropagation()}>Delete</Button>
+                <Button type="link" danger onClick={(e) => handleDelete(e, project.id)}>Delete</Button>
               ]}
             >
               <Card.Meta 
-                title={project.title} 
+                title={project.parameters?.url || 'Untitled Job'} 
                 description={
                   <Space direction="vertical" size={2} style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                      {project.status === 'completed' ? (
+                      {project.status === 'COMPLETED' ? (
                         <Tag icon={<CheckCircleOutlined />} color="success">Ready</Tag>
+                      ) : project.status === 'FAILED' ? (
+                        <Tag color="error">Failed</Tag>
                       ) : (
-                        <Tag icon={<ClockCircleOutlined />} color="processing">Processing</Tag>
+                        <Tag icon={<ClockCircleOutlined />} color="processing">{project.status}</Tag>
                       )}
-                      <Text type="secondary" style={{ fontSize: 12 }}>{project.duration}</Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </Text>
                     </div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Created {project.createdAt}</Text>
                   </Space>
                 } 
               />
@@ -122,21 +223,21 @@ function AppContent() {
         <Row gutter={[32, 32]}>
           <Col xs={24} lg={16}>
             <Card bordered={false}>
-              <Form layout="vertical" size="large">
-                <Form.Item label="Product URL" required tooltip="The starting point for the agent.">
+              <Form form={form} layout="vertical" size="large" onFinish={handleQueueJob}>
+                <Form.Item name="url" label="Product URL" rules={[{ required: true, message: 'Please enter a URL' }]} tooltip="The starting point for the agent.">
                   <Input placeholder="https://your-app.com/login" />
                 </Form.Item>
-                <Form.Item label="What should the AI agent do?" required tooltip="Provide step-by-step instructions.">
+                <Form.Item name="instructions" label="What should the AI agent do?" rules={[{ required: true, message: 'Please provide instructions' }]} tooltip="Provide step-by-step instructions.">
                   <Input.TextArea 
                     rows={6} 
                     placeholder="e.g. Log in with test@example.com, navigate to the billing section, click 'Upgrade to Pro', and show the success banner." 
                   />
                 </Form.Item>
-                <Form.Item label="Voiceover Script (Optional)" tooltip="Leave blank to let the AI generate one automatically based on the actions.">
+                <Form.Item name="script" label="Voiceover Script (Optional)" tooltip="Leave blank to let the AI generate one automatically based on the actions.">
                   <Input.TextArea rows={3} placeholder="Start by welcoming the user..." />
                 </Form.Item>
                 <Divider />
-                <Button type="primary" size="large" block onClick={() => navigate('/dashboard')}>
+                <Button type="primary" htmlType="submit" size="large" block loading={isSubmitting}>
                   Queue Generation
                 </Button>
               </Form>
@@ -166,7 +267,16 @@ function AppContent() {
 
   const EditorView = () => {
     const { id } = useParams();
-    const selectedProject = mockProjects.find(p => p.id === id) || mockProjects[0];
+    const selectedProject = projects.find(p => p.id === id);
+
+    if (!selectedProject) {
+      return (
+        <div style={{ padding: 48, textAlign: 'center', flex: 1, color: '#fff' }}>
+          <Title level={4}>Project not found or loading...</Title>
+          <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+        </div>
+      );
+    }
 
     return (
       <Content style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
