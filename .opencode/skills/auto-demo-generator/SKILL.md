@@ -10,7 +10,7 @@ description: >
   Gemini TTS for narration, frame-by-frame HTML5 animation rendering with Puppeteer, and
   FFmpeg for final encoding — always produce the full pipeline end-to-end unless the user
   explicitly asks for just one phase.
-compatibility: "Requires agent-browser (Vercel) and bash tool. npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, puppeteer (render phase only). System: ffmpeg binary. Env: GEMINI_API_KEY (required)."
+compatibility: "Requires agent-browser (NPM package) and bash tool. npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, agent-browser (for Phase 1), puppeteer (for Phase 3 rendering only). System: ffmpeg binary. Env: GEMINI_API_KEY (required)."
 ---
 
 # Auto-Demo Generator
@@ -21,17 +21,17 @@ AI narration, and smooth frame-by-frame animation rendering.
 
 ## Output
 
-A single `demo-cinematic.mp4` written to `public/` (or a user-specified path) at 1280×720,
+A single `demo-cinematic.mp4` written to `public/` (or a user-specified path) at 1920×1080,
 30 fps, with synchronized voiceover.
 
 ---
 
 ## Workflow
 
-### Phase 1 — Trace Capture (agent-browser)
+### Phase 1 — Trace Capture (agent-browser SDK)
 
-Use the **Vercel agent-browser** to navigate the target site. It handles browser
-spin-up, viewport, and session management automatically — you just call its tools.
+Use the **agent-browser SDK** (installed via npm) to navigate the target site. It handles browser
+spin-up, viewport, and session management automatically via its CLI/SDK tools.
 
 **For each step, call agent-browser tools in sequence:**
 
@@ -47,7 +47,22 @@ spin-up, viewport, and session management automatically — you just call its to
 x = rect.left + rect.width / 2
 y = rect.top  + rect.height / 2
 ```
-If coordinates aren't available, fall back to `{ x: 640, y: 360 }` (viewport center).
+If coordinates aren't available, fall back to `{ x: 960, y: 540 }` (1080p viewport center).
+
+**Anti-bot User-Agent:** When launching agent-browser sessions, always set a realistic desktop User-Agent to avoid bot detection:
+```js
+await page.setUserAgent(
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+);
+```
+This significantly reduces the chance of CAPTCHAs or bot-walls interrupting the capture phase.
+
+**deviceScaleFactor:** Set `deviceScaleFactor: 2` when calling `page.setViewport` so screenshots are captured at 2× pixel density (retina). This ensures crisp, sharp frames at 1080p:
+```js
+await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 2 });
+```
+All coordinate values remain in CSS pixels — only the rendered bitmap is 2×.
 
 **Artifact:** Save all screenshots to a timestamped `demoDir/` and record a manifest:
 ```json
@@ -64,7 +79,64 @@ If coordinates aren't available, fall back to `{ x: 640, y: 360 }` (viewport cen
 
 ### Phase 2 — Voiceover Generation
 
-Use Gemini TTS to generate a natural `.wav` narration timed to the demo flow. You should use a detailed prompt with an Audio Profile and Director's note for high-quality production.
+Use Gemini TTS to generate a natural `.wav` narration timed to the demo flow.
+
+**Narration Tone Templates** — choose one based on the product/audience:
+
+| Template | Style | Pace | Use when |
+|---|---|---|---|
+| `promo` | Hype / Upbeat | Energetic | SaaS launches, consumer apps |
+| `corporate` | Authoritative / Clear | Measured | Enterprise software, B2B demos |
+| `tutorial` | Friendly / Instructive | Relaxed | How-to walkthroughs, onboarding |
+| `minimal` | Clean / Neutral | Natural | Developer tools, internal demos |
+
+Pass the chosen template as a `toneTemplate` variable into the TTS prompt. Default is `promo`.
+
+```ts
+const TONE_TEMPLATES = {
+  promo: {
+    audioProfile: 'A smooth, premium commercial voice.',
+    directorNote: 'Style: Promo/Hype. Pace: Natural. Accent: American (Gen).'
+  },
+  corporate: {
+    audioProfile: 'A confident, clear professional voice.',
+    directorNote: 'Style: Corporate/Authoritative. Pace: Measured. Accent: Neutral American.'
+  },
+  tutorial: {
+    audioProfile: 'A warm, approachable instructional voice.',
+    directorNote: 'Style: Friendly/Instructive. Pace: Relaxed. Accent: American (Gen).'
+  },
+  minimal: {
+    audioProfile: 'A clean, neutral voice with no affectation.',
+    directorNote: 'Style: Minimal/Developer. Pace: Natural. Accent: Neutral.'
+  }
+};
+
+const tone = TONE_TEMPLATES[toneTemplate ?? 'promo'];
+
+const contents = [
+  {
+    role: 'user',
+    parts: [
+      {
+        text: `Read the following transcript based on the audio profile and director's note.
+
+# Audio Profile
+${tone.audioProfile}
+
+# Director's note
+${tone.directorNote}
+
+## Scene:
+The Sound Stage Booth.
+
+## Transcript:
+Say this naturally: ${scriptText}`
+      }
+    ]
+  }
+];
+```
 
 ```ts
 import { GoogleGenAI } from '@google/genai';
@@ -81,29 +153,6 @@ const config = {
     voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Orus' } }
   }
 };
-
-const contents = [
-  {
-    role: 'user',
-    parts: [
-      {
-        text: `Read the following transcript based on the audio profile and director's note.
-
-# Audio Profile
-A smooth, premium commercial voice.
-
-# Director's note
-Style: Promo/Hype. Pace: Natural. Accent: American (Gen).
-
-## Scene:
-The Sound Stage Booth.
-
-## Transcript:
-Say this naturally: ${scriptText}`
-      }
-    ]
-  }
-];
 
 const response = await ai.models.generateContentStream({ model, config, contents });
 
@@ -139,6 +188,40 @@ const totalAudioDuration = finalAudioBuffer.length / byteRate;
 
 ---
 
+### Phase 2b — Background Music Mix (optional, recommended)
+
+Blend a subtle ambient music track underneath the voiceover for a premium feel.
+
+**Music source:** Use a royalty-free track (e.g. from `assets/music/`) or a user-supplied file. Keep it quiet — music should sit well below the voice.
+
+```ts
+// After generating voiceover WAV, mix music under it with FFmpeg
+await new Promise((resolve, reject) => {
+  ffmpeg()
+    .input(audioPath)                     // voiceover
+    .input(musicTrackPath)                // background music loop
+    .complexFilter([
+      // Loop music to match voiceover length, fade out last 2s
+      `[1:a]aloop=loop=-1:size=2e+09,atrim=duration=${totalAudioDuration},` +
+      `afade=t=out:st=${totalAudioDuration - 2}:d=2,volume=0.12[music]`,
+      // Mix voice at full volume + music at 12%
+      `[0:a][music]amix=inputs=2:duration=first[aout]`
+    ])
+    .outputOptions(['-map [aout]'])
+    .on('end', resolve)
+    .on('error', reject)
+    .save(mixedAudioPath);
+});
+// Use mixedAudioPath in Phase 4 instead of audioPath
+```
+
+**Volume guidance:**
+- Voice: 100% (`volume=1.0`)
+- Background music: 10–15% (`volume=0.10`–`0.15`) — barely audible, mood-setting only
+- Always fade music out over the last 2 seconds so it doesn't hard-cut at the end
+
+---
+
 ### Phase 3 — Cinematic Animation Rendering
 
 Build an HTML animation canvas that reconstructs smooth cursor movement and camera zoom
@@ -148,7 +231,7 @@ Puppeteer (used here only as a headless renderer, not a browser agent).
 #### HTML Animation Canvas
 
 The animator HTML file must:
-- Be a **self-contained** page at exactly `1280×720`
+- Be a **self-contained** page at exactly `1920×1080`
 - Load `step-N.png` screenshots as `<img>` sources (relative paths work when using `file://`)
 - Expose a global `window.renderFrame(timeSeconds)` function that sets all element styles deterministically
 
@@ -162,11 +245,126 @@ The animator HTML file must:
 **CSS transform setup** — zoom must be anchored to the interaction point:
 ```css
 #camera {
-  width: 1280px; height: 720px;
+  width: 1920px; height: 1080px;
   transform-origin: {targetX}px {targetY}px;
   position: absolute; top: 0; left: 0;
 }
 ```
+
+#### Click Ripple Effect
+
+On every click action, render a small, fast ripple emanating from the click coordinates. The ripple should be subtle and snappy — not a slow theatrical ring, but a tight, quick pulse that confirms the interaction.
+
+```html
+<!-- In animator HTML, add a ripple container above the camera layer -->
+<div id="ripple-container" style="position:absolute;top:0;left:0;width:1920px;height:1080px;pointer-events:none;z-index:100;"></div>
+```
+
+```js
+// Call this inside renderFrame when a click action fires
+function spawnRipple(x, y) {
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position: absolute;
+    left: ${x}px; top: ${y}px;
+    width: 0px; height: 0px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.55);
+    transform: translate(-50%, -50%) scale(0);
+    pointer-events: none;
+  `;
+  document.getElementById('ripple-container').appendChild(el);
+  // Ripple is driven by renderFrame — store spawn time
+  el.dataset.spawnTime = String(currentTime);
+  return el;
+}
+
+// Inside renderFrame, animate all live ripples
+for (const ripple of document.querySelectorAll('#ripple-container div')) {
+  const age = currentTime - parseFloat(ripple.dataset.spawnTime);
+  const DURATION = 0.22; // seconds — fast and snappy
+  const MAX_SIZE = 28;   // px — small footprint
+  if (age > DURATION) {
+    ripple.remove();
+    continue;
+  }
+  const p = age / DURATION;
+  const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+  const size = MAX_SIZE * eased;
+  const opacity = 0.55 * (1 - p);
+  ripple.style.width  = size + 'px';
+  ripple.style.height = size + 'px';
+  ripple.style.opacity = String(opacity);
+  ripple.style.transform = `translate(-50%, -50%)`;
+}
+```
+
+**Tuning:**
+- `DURATION = 0.22s` — keeps the ripple snappy; never go above `0.35s`
+- `MAX_SIZE = 28px` — tight halo; adjust to `20–32px` based on element size
+- Spawn exactly **one** ripple per click action at the click coordinates; never stack multiple ripples for the same event
+
+#### Intro / Outro Fade Cards
+
+Bookend the demo with a 1.5s fade-in title card at the start and a 1.5s fade-out end card at the finish. These are rendered as HTML overlay divs, driven by `renderFrame`.
+
+```html
+<!-- Intro card -->
+<div id="intro-card" style="
+  position:absolute; top:0; left:0; width:1920px; height:1080px;
+  background: #0a0a0f;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:200; pointer-events:none; opacity:1;
+">
+  <div style="font:700 64px/1.2 'Inter',sans-serif; color:#fff; letter-spacing:-1px;">
+    {PRODUCT_NAME}
+  </div>
+  <div style="font:400 28px/1 'Inter',sans-serif; color:rgba(255,255,255,0.5); margin-top:18px;">
+    {TAGLINE}
+  </div>
+</div>
+
+<!-- Outro card -->
+<div id="outro-card" style="
+  position:absolute; top:0; left:0; width:1920px; height:1080px;
+  background: #0a0a0f;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:200; pointer-events:none; opacity:0;
+">
+  <div style="font:700 56px/1.2 'Inter',sans-serif; color:#fff; letter-spacing:-1px;">
+    {CTA_TEXT}
+  </div>
+  <div style="font:400 24px/1 'Inter',sans-serif; color:rgba(255,255,255,0.45); margin-top:16px;">
+    {URL_OR_SUBTEXT}
+  </div>
+</div>
+```
+
+```js
+// Inside renderFrame(t):
+const INTRO_DURATION  = 1.5;  // seconds
+const OUTRO_START     = totalAudioDuration - 1.5;
+
+const introCard = document.getElementById('intro-card');
+const outroCard = document.getElementById('outro-card');
+
+// Intro: fully opaque → fade to 0 over last 0.5s of intro window
+if (t < INTRO_DURATION) {
+  const fadeProgress = Math.max(0, (t - 1.0) / 0.5); // start fading at t=1.0s
+  introCard.style.opacity = String(1 - easeInOut(fadeProgress));
+  outroCard.style.opacity = '0';
+} else if (t >= OUTRO_START) {
+  // Outro: fade in
+  const fadeProgress = (t - OUTRO_START) / 1.5;
+  introCard.style.opacity = '0';
+  outroCard.style.opacity = String(easeInOut(Math.min(fadeProgress, 1)));
+} else {
+  introCard.style.opacity = '0';
+  outroCard.style.opacity = '0';
+}
+```
+
+**Content:** Replace `{PRODUCT_NAME}`, `{TAGLINE}`, `{CTA_TEXT}`, `{URL_OR_SUBTEXT}` with values derived from the target URL / user instructions. If not provided, infer sensible defaults from the page title and domain.
 
 #### Animation Timeline Pattern
 
@@ -174,10 +372,12 @@ The animator HTML file must:
 
 | Time window | Action | Details |
 |---|---|---|
-| `0` → `t₁` | Cursor travels to target | Cubic ease-in-out, zoom 1.0 → 1.5× |
-| `t₁` → `t₁+0.5s` | Click feedback | Cursor scales 1.0 → 0.8 → 1.0 |
-| `t₁+0.5s` → `t₂` | Hold / show result | Screenshot advances to next step |
-| `t₂` → `t₂+1.5s` | Zoom out + cursor retreats | Cubic ease-in-out, zoom 1.5 → 1.0× |
+| `0` → `1.5s` | Intro card fade | Held fully opaque, fades out at t=1.0s |
+| `1.5s` → `t₁` | Cursor travels to target | Cubic ease-in-out, zoom 1.0 → 1.15× |
+| `t₁` → `t₁+0.22s` | Click ripple + feedback | Small ripple spawns; cursor scales 1.0 → 0.85 → 1.0 |
+| `t₁+0.22s` → `t₂` | Hold / show result | Screenshot advances to next step |
+| `t₂` → `t₂+1.5s` | Zoom out | Cubic ease-in-out, zoom 1.15 → 1.0× |
+| `end - 1.5s` → `end` | Outro card fade in | Dark card fades in over 1.5s |
 
 **Cubic ease-in-out:**
 ```js
@@ -191,8 +391,38 @@ cursorX = startX + (targetX - startX) * easeInOut(progress);
 cursorY = startY + (targetY - startY) * easeInOut(progress);
 
 // Zoom
-zoom = 1.0 + 0.5 * easeInOut(progress); // → 1.5×
+zoom = 1.0 + 0.15 * easeInOut(progress); // → 1.15×
 ```
+
+**Cursor idle fade-out behavior:**
+When there is no active interaction (during intro/outro cards or transitions), the cursor should smoothly drift to the right edge and fade out. This creates a natural, polished feel.
+
+```js
+// Track if cursor is in "active" interaction phase
+const isActive = (t >= INTRO_DUR && t < OUTRO_START);
+let cursorOpacity = 1;
+
+if (!isActive) {
+  // Fade out + drift right over 0.8s
+  const fadeOutDur = 0.8;
+  const timeSinceInactive = (isActive ? 0 : (t - (isActive ? INTRO_DUR : OUTRO_START))) % fadeOutDur;
+  const fadeP = clamp01(timeSinceInactive / fadeOutDur);
+  const eased = easeInOut(fadeP);
+  
+  // Drift rightward by ~400px over fade duration
+  const driftX = 400 * eased;
+  cursorX += driftX;
+  cursorOpacity = 1 - eased; // fade from 1 → 0
+}
+
+cursor.style.opacity = String(cursorOpacity);
+cursor.style.left = cursorX + 'px';
+cursor.style.top  = cursorY + 'px';
+cursor.style.transform = `scale(${cursorScale})`;
+camera.style.transform = `scale(${zoom})`;
+```
+
+This ensures the cursor never feels "stuck" on screen — it gracefully exits when idle.
 
 **Apply transforms at the end of `renderFrame`:**
 ```js
@@ -202,40 +432,96 @@ cursor.style.transform = `scale(${cursorScale})`;
 camera.style.transform = `scale(${zoom})`;
 ```
 
-#### Frame Capture Loop
+#### Frame Capture Loop — 30fps / 1080p
 
 ```ts
 const fps = 30;
 const totalFrames = Math.ceil(totalAudioDuration * fps);
 
-const renderBrowser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+const renderBrowser = await puppeteer.launch({
+  headless: true,
+  args: ['--no-sandbox', '--force-device-scale-factor=2']  // deviceScaleFactor=2 for retina
+});
 const renderPage = await renderBrowser.newPage();
-await renderPage.setViewport({ width: 1280, height: 720 });
+await renderPage.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 2 });
 await renderPage.goto('file://' + path.resolve(demoDir, 'animator.html'));
 
 for (let i = 0; i < totalFrames; i++) {
   await renderPage.evaluate(`window.renderFrame(${i / fps})`);
-  await renderPage.screenshot({ path: path.join(demoDir, `frame-${String(i).padStart(4,'0')}.png`) });
+  await renderPage.screenshot({
+    path: path.join(demoDir, `frame-${String(i).padStart(4,'0')}.png`),
+    // No clip needed — viewport is already 1920×1080
+  });
 }
 await renderBrowser.close();
 ```
+
+> **Frame padding:** Use `padStart(4, '0')` for frame filenames at 30fps (up to 9,999 frames) so FFmpeg's `%04d` glob works correctly.
+
+---
+
+### Phase 3b — Scroll Inertia Physics
+
+When a demo requires interacting with elements "below the fold," simulate natural scroll momentum instead of an instantaneous jump. This makes the scroll feel organic and camera-like.
+
+**Capture:** Before scrolling, take `step-N-top.png`. After `scrollIntoView`, take `step-N-scrolled.png`.
+
+**Physics model in `renderFrame`:**
+```js
+// Inertia scroll: exponential decay toward target scroll position
+// scrollVelocity and scrollPos are persistent state (declared outside renderFrame)
+let scrollPos = 0;
+let scrollVelocity = 0;
+const SCROLL_TARGET = 720; // px to scroll (one viewport height)
+const SPRING_K = 8;        // stiffness — higher = snappier
+const DAMPING  = 0.72;     // 0–1, lower = more oscillation
+
+function tickScroll(dt) {
+  const force = (SCROLL_TARGET - scrollPos) * SPRING_K;
+  scrollVelocity = scrollVelocity * DAMPING + force * dt;
+  scrollPos += scrollVelocity * dt;
+}
+```
+
+**Animator layout for scroll:**
+```html
+<!-- Both images start at top:0; translateY controls their position entirely -->
+<img id="scroll-top"      src="step-N-top.png"      style="position:absolute;top:0;left:0;">
+<img id="scroll-scrolled" src="step-N-scrolled.png" style="position:absolute;top:0;left:0;">
+```
+
+```js
+// Inside renderFrame — drive both images with inertia physics
+tickScroll(1 / 30);
+const topImg      = document.getElementById('scroll-top');
+const scrolledImg = document.getElementById('scroll-scrolled');
+topImg.style.transform      = `translateY(${-scrollPos}px)`;
+scrolledImg.style.transform = `translateY(${720 - scrollPos}px)`;
+```
+
+**Critical:** Never combine `top: 720px` with `translateY(720px)` on the same element — this doubles the offset to 1440px and produces a blank screen. Set `top: 0` on both images and control all movement via `translateY` only.
+
+**Proportional timings:** Always calculate scroll phase timing as a fraction of `totalAudioDuration` (e.g., `const tScroll = dur * 0.5`) so the scroll syncs with narration regardless of audio length.
 
 ---
 
 ### Phase 4 — FFmpeg Encoding
 
-Stitch frames + audio into the final MP4:
+Stitch frames + audio into the final MP4 at 1080p / 30fps:
 
 ```ts
 await new Promise((resolve, reject) => {
   ffmpeg()
-    .input(path.join(demoDir, 'frame-%04d.png'))
-    .inputOptions(['-framerate 30'])
-    .input(audioPath)
+    .input(path.join(demoDir, 'frame-%04d.png'))  // 4-digit padding for 30fps
+    .inputOptions(['-framerate 30'])               // 30fps input
+    .input(mixedAudioPath)                         // voiceover + music mix
     .outputOptions([
       '-c:v libx264',
+      '-preset slow',      // better compression quality at 1080p
+      '-crf 18',           // visually lossless — lower = higher quality
       '-pix_fmt yuv420p',  // broad compatibility
       '-c:a aac',
+      '-b:a 192k',         // high-quality audio bitrate
       '-shortest'          // trim to the shorter of video/audio
     ])
     .on('end', resolve)
@@ -244,13 +530,15 @@ await new Promise((resolve, reject) => {
 });
 ```
 
-**Output path:** `<project-root>/public/demo-cinematic.mp4` by default.
+**Output path:** `<project-root>/public/demo-cinematic.mp4` by default. Final output is 1920×1080 @ 30fps.
+
+---
 
 ## Handling Scrolling and Dynamic Layouts
 
 When a demo requires interacting with elements "below the fold":
 1. **Never jump instantly**: Capture a screenshot *before* scrolling (`step-N-top.png`), perform a `scrollIntoView`, then capture a screenshot *after* scrolling (`step-N-scrolled.png`). Only grab element coordinates *after* the scroll finishes so they are correct relative to the new viewport.
-2. **Simulate Scroll via CSS**: In the Animator HTML, stack both images using `position: absolute` and `top: 0`. Animate a fake scroll by sliding the `before` screenshot up by `-720px` while sliding the `after` screenshot up from `+720px` to `0px` using `transform: translateY()`. 
+2. **Simulate Scroll via CSS**: In the Animator HTML, stack both images using `position: absolute` and `top: 0`. Animate a fake scroll using inertia physics (see Phase 3b) by sliding the `before` screenshot up and the `after` screenshot in from below.
    **CRITICAL (Blank Screen Bug):** Do NOT set `top: 720px` on the second image in your HTML if you are also using `translateY(720px)` in your JavaScript animation. This will double up the offsets, pushing the image to 1440px (off-screen) and resulting in a blank screen when the scroll finishes. Both images must start at `top: 0` when their movement is controlled entirely by `translateY()`.
 3. **Proportional Timings**: Never hardcode animation phases to specific seconds. Always calculate them as percentages of `TOTAL_AUDIO_DURATION` (e.g., `const tScroll = dur * 0.5`) so the visual scroll perfectly synchronizes with the narration, no matter how long the TTS audio is.
 
@@ -259,12 +547,48 @@ When a demo requires interacting with elements "below the fold":
 ## Best Practices
 
 - **agent-browser is the capture layer:** Never spin up a raw Puppeteer instance for Phase 1. Let agent-browser handle navigation, sessions, and screenshots — it deals with anti-bot measures, wait strategies, and viewport configuration automatically.
+- **Anti-bot User-Agent:** Always set a realistic Chrome/macOS User-Agent in Phase 1 to prevent bot-wall interruptions (see Phase 1 section).
+- **deviceScaleFactor:** Set `deviceScaleFactor: 2` in Phase 1 capture AND Phase 3 Puppeteer render for crisp retina-quality frames at 1080p.
 - **No sudden transitions:** Always use 1.0–1.5s easing for all cursor moves and zoom changes.
 - **Screenshot timing:** Capture after typing, before pressing Enter, so typed text is visible in the frame where the cursor sits at the input.
-- **Fallback coordinates:** If agent-browser doesn't return element coords, default to `{ x: 640, y: 360 }` (viewport center).
-- **Temp directory:** Create a timestamped `demo-cinematic-<Date.now()>/` working directory and clean it up after encoding if disk space is a concern.
-- **Frame padding:** Use `String(i).padStart(4, '0')` for frame filenames so FFmpeg's `%04d` glob works correctly.
+- **Fallback coordinates:** If agent-browser doesn't return element coords, default to `{ x: 960, y: 540 }` (1080p viewport center).
+- **Temp directory:** Create a timestamped `demo-cinematic-<Date.now()>/` working directory.
+- **Frame padding:** Use `String(i).padStart(4, '0')` for 30fps frame filenames so FFmpeg's `%04d` glob works correctly.
+- **Click ripples:** Keep them small (`MAX_SIZE ≤ 32px`) and fast (`DURATION ≤ 0.22s`). One ripple per click event only.
+- **Background music:** Mix at 10–15% volume under the voice. Always fade out the last 2 seconds.
+- **Unlimited Steps:** The demo pipeline is **not restricted to 4 or 5 steps**. You can build workflows of any complexity (e.g. `step-10.png`, `step-15.png`). Simply add more Puppeteer actions in Phase 1, capture screenshots, and extend the cinematic animator's timeline variables (`p1`, `p2` ... `p20`) to map to your voiceover script.
 - **`-shortest` flag:** Always use `-shortest` in FFmpeg so any small timing mismatch between audio and frames is handled gracefully.
+- **Narration tone:** Default to `promo` template unless the user specifies a product/audience that suggests another template. Always pass the template variables into the TTS prompt rather than hardcoding the style text.
+
+### Phase 5 — Audio & SFX Integration
+
+To create a professional, immersive demo, the pipeline must integrate synchronized sound effects and perfect visual feedback:
+
+- **Typing Visuals (The Mask Reveal Method)**: To achieve a premium, zero-lag letter-by-letter typing effect with pixel-perfect native fonts:
+  1. Capture `step-1.png` (empty input) and `step-2.png` (fully typed text).
+  2. In the Animator HTML, stack `step-2.png` exactly on top of `step-1.png`.
+  3. Apply a CSS clip-path to hide `step-2.png` initially: `<img id="screenshot-typed" src="step-2.png" style="clip-path: inset(0 100% 0 0); position: absolute; top: 0; left: 0; z-index: 5;">`
+  4. During the typing phase in `renderFrame(t)`, animate the right-edge `inset` percentage from `100%` to `0%` specifically over the bounding box of the input field. Discretize the progress using `Math.floor(progress * charCount) / charCount` to make the text reveal abruptly keystroke-by-keystroke.
+- **Typing SFX**: When the typing visual plays, trigger `keyboard.mp3` at the exact start time. **Crucial**: Use `atrim` to stop the typing audio exactly when the visual typing finishes.
+- **Clicking SFX**: When the manifest action is `click`, trigger `click.mp3` at the precise moment the visual click ripple spawns.
+- **Narration**: TTS narration remains the primary audio layer, mixed at 100% volume.
+
+**Asset Paths:**
+- SFX: `.opencode/skills/auto-demo-generator/references/sounds/keyboard.mp3`, `.opencode/skills/auto-demo-generator/references/sounds/click.mp3`
+
+**Implementation Note (FFmpeg SFX Sync)**: 
+Use FFmpeg's `complexFilter` to accurately delay (`adelay`) and trim (`atrim`) the SFX to match the visual phases. Example:
+```ts
+.complexFilter([
+  // Delay typing SFX to 2.5s (2500ms) and trim to 2.0s duration
+  '[2:a]atrim=duration=2.0,adelay=2500|2500[typing]',
+  // Delay click SFX to 5.5s (5500ms)
+  '[3:a]adelay=5500|5500[click]',
+  // Mix voiceover (input 1), typing, and click into one track
+  '[1:a][typing][click]amix=inputs=3:duration=first:dropout_transition=0[aout]'
+])
+.outputOptions(['-map 0:v', '-map [aout]'])
+```
 
 ---
 
@@ -277,4 +601,4 @@ pipeline to a multi-step demo with more than 3 screenshots.
 
 ---
 
-© 2026 Hormuz Labs. This work is licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/)./).
+© 2026 Hormuz Labs. This work is licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
