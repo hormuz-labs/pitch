@@ -436,7 +436,7 @@ function AppContent() {
         <div style={{ padding: '24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #1677ff, #722ed1)', borderRadius: 8, flexShrink: 0 }}></div>
-            <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap', opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>AgentDemo.ai</Title>
+            <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap', opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>Silverfish</Title>
           </div>
           {isMobile && !collapsed && (
              <Button type="text" icon={<MenuOutlined />} onClick={() => setCollapsed(true)} style={{ color: '#fff' }} />
@@ -473,7 +473,7 @@ function AppContent() {
             onClick={() => setCollapsed(!collapsed)}
             style={{ color: '#fff', fontSize: 20 }}
           />
-          {collapsed && <div style={{ marginLeft: 16, fontWeight: 600, transition: 'opacity 0.3s' }}>AgentDemo.ai</div>}
+          {collapsed && <div style={{ marginLeft: 16, fontWeight: 600, transition: 'opacity 0.3s' }}>Silverfish</div>}
         </Header>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
