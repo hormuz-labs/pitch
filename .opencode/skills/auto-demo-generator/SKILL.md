@@ -366,17 +366,31 @@ if (t < INTRO_DURATION) {
 
 **Content:** Replace `{PRODUCT_NAME}`, `{TAGLINE}`, `{CTA_TEXT}`, `{URL_OR_SUBTEXT}` with values derived from the target URL / user instructions. If not provided, infer sensible defaults from the page title and domain.
 
-#### Animation Timeline Pattern
+#### Master Timeline Configuration (Zero Lag Sync)
 
-`window.renderFrame(t)` should implement this timeline structure for each interaction:
+To guarantee that AI voiceover, visual animations, and sound effects are perfectly synchronized without any lag or drift, **you must use a master `TIMELINE` object** inside `demo.js` to drive all three. 
+
+**Do not hardcode arbitrary timestamps like `P1_START = 2.5`.** Instead, define exact start times and durations.
+
+```js
+// Define the central timeline config
+const TIMELINE = {
+  clickSearch: { start: 2.5, duration: 0.22 },
+  typeQuery:   { start: 2.72, duration: 2.1 }, // e.g. 21 characters at 0.1s per keystroke
+  clickResult: { start: 7.72, duration: 0.22 }
+};
+```
+
+1. **In `animator.html` (`renderFrame`)**: Use `TIMELINE.action.start` and `(TIMELINE.action.start + TIMELINE.action.duration)` for your interpolation bounds.
+2. **Typing Speed**: For mask reveal typing, ensure duration is exactly `charCount * 0.1s` (approx 60 WPM).
+3. **In FFmpeg Audio Mix**: Multiply the timeline start value by 1000 for `adelay`, and use the exact duration for `atrim`. This ensures the `.mp3` matches the visual exactly to the millisecond.
 
 | Time window | Action | Details |
 |---|---|---|
 | `0` → `1.5s` | Intro card fade | Held fully opaque, fades out at t=1.0s |
-| `1.5s` → `t₁` | Cursor travels to target | Cubic ease-in-out, zoom 1.0 → 1.15× |
-| `t₁` → `t₁+0.22s` | Click ripple + feedback | Small ripple spawns; cursor scales 1.0 → 0.85 → 1.0 |
-| `t₁+0.22s` → `t₂` | Hold / show result | Screenshot advances to next step |
-| `t₂` → `t₂+1.5s` | Zoom out | Cubic ease-in-out, zoom 1.15 → 1.0× |
+| `1.5s` → `TIMELINE.clickSearch.start` | Cursor travels to target | Cubic ease-in-out, zoom 1.0 → 1.15× |
+| `TIMELINE.clickSearch.start` | Click ripple + feedback | Small ripple spawns; cursor scales 1.0 → 0.85 → 1.0 |
+| `TIMELINE.typeQuery.start` | Mask Reveal Typing | Animates clip-path based exactly on `TIMELINE.typeQuery.duration` |
 | `end - 1.5s` → `end` | Outro card fade in | Dark card fades in over 1.5s |
 
 **Cubic ease-in-out:**
@@ -566,9 +580,10 @@ To create a professional, immersive demo, the pipeline must integrate synchroniz
 
 - **Typing Visuals (The Mask Reveal Method)**: To achieve a premium, zero-lag letter-by-letter typing effect with pixel-perfect native fonts:
   1. Capture `step-1.png` (empty input) and `step-2.png` (fully typed text).
-  2. In the Animator HTML, stack `step-2.png` exactly on top of `step-1.png`.
-  3. Apply a CSS clip-path to hide `step-2.png` initially: `<img id="screenshot-typed" src="step-2.png" style="clip-path: inset(0 100% 0 0); position: absolute; top: 0; left: 0; z-index: 5;">`
-  4. During the typing phase in `renderFrame(t)`, animate the right-edge `inset` percentage from `100%` to `0%` specifically over the bounding box of the input field. Discretize the progress using `Math.floor(progress * charCount) / charCount` to make the text reveal abruptly keystroke-by-keystroke.
+  2. Extract the EXACT bounding box width and left-edge pixel coordinate of the input element via `getBoundingClientRect()`.
+  3. In the Animator HTML, stack `step-2.png` exactly on top of `step-1.png`.
+  4. Apply a CSS clip-path to hide `step-2.png` initially using absolute pixels: `<img id="screenshot-typed" src="step-2.png" style="clip-path: inset(0px 1920px 0px 0px); position: absolute; top: 0; left: 0; z-index: 5;">`
+  5. During the typing phase in `renderFrame(t)`, calculate exactly where the text cursor is: `currentX = boxLeft + (boxWidth * typeProgress)`. Animate the right-edge `inset` using `1920 - currentX`. Discretize the progress using `Math.floor(progress * charCount) / charCount` to make the text reveal abruptly keystroke-by-keystroke.
 - **Typing SFX**: When the typing visual plays, trigger `keyboard.mp3` at the exact start time. **Crucial**: Use `atrim` to stop the typing audio exactly when the visual typing finishes.
 - **Clicking SFX**: When the manifest action is `click`, trigger `click.mp3` at the precise moment the visual click ripple spawns.
 - **Narration**: TTS narration remains the primary audio layer, mixed at 100% volume.
@@ -577,15 +592,15 @@ To create a professional, immersive demo, the pipeline must integrate synchroniz
 - SFX: `.opencode/skills/auto-demo-generator/references/sounds/keyboard.mp3`, `.opencode/skills/auto-demo-generator/references/sounds/click.mp3`
 
 **Implementation Note (FFmpeg SFX Sync)**: 
-Use FFmpeg's `complexFilter` to accurately delay (`adelay`) and trim (`atrim`) the SFX to match the visual phases. Example:
+Use FFmpeg's `complexFilter` to accurately delay (`adelay`) and trim (`atrim`) the SFX to match the visual phases. ALWAYS dynamically link these to your `TIMELINE` object so they never drift. Example:
 ```ts
 .complexFilter([
-  // Delay typing SFX to 2.5s (2500ms) and trim to 2.0s duration
-  '[2:a]atrim=duration=2.0,adelay=2500|2500[typing]',
-  // Delay click SFX to 5.5s (5500ms)
-  '[3:a]adelay=5500|5500[click]',
+  // e.g., typing duration = 2.1s, delay = 2720ms. Use asetpts=PTS-STARTPTS to reset timestamps after trim!
+  `[2:a]atrim=0:${TIMELINE.typeQuery.duration},asetpts=PTS-STARTPTS,adelay=${TIMELINE.typeQuery.start * 1000}|${TIMELINE.typeQuery.start * 1000}[typing]`,
+  // e.g., click delay = 2500ms
+  `[3:a]adelay=${TIMELINE.clickSearch.start * 1000}|${TIMELINE.clickSearch.start * 1000}[click]`,
   // Mix voiceover (input 1), typing, and click into one track
-  '[1:a][typing][click]amix=inputs=3:duration=first:dropout_transition=0[aout]'
+  `[1:a][typing][click]amix=inputs=3:duration=first:dropout_transition=0[aout]`
 ])
 .outputOptions(['-map 0:v', '-map [aout]'])
 ```
