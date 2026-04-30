@@ -1,25 +1,60 @@
-@import "tailwindcss";
-
-@theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #d4d4d8;
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-primary: #fafafa;
-  --color-primary-foreground: #18181b;
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa;
-  --color-accent: #27272a;
-  --color-accent-foreground: #fafafa;
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #000000;
 }
 
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Custom design enhancements */
+.project-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+  border: 1px solid #303030 !important;
+  background: #141414 !important;
+}
+
+.project-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4) !important;
+  border-color: #1677ff !important;
+}
+
+.glass-card {
+  background: rgba(20, 20, 20, 0.7) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.ant-layout-sider {
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.ant-menu-item {
+  transition: all 0.2s ease !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ant-layout-content > div {
+  animation: fadeIn 0.4s ease-out;
+}
+

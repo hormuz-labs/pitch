@@ -1,268 +1,351 @@
-import { useEffect, useState, useRef } from 'react';
-import { Play, Loader2, CheckCircle, XCircle, FileVideo, Terminal, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { 
+  ConfigProvider, theme, Layout, Menu, Button, Card, Row, Col, 
+  Tag, Form, Input, Steps, Typography, Space, Divider, Slider, Tabs, Select, Grid
+} from 'antd';
+import {
+  VideoCameraOutlined,
+  PlusOutlined,
+  AppstoreOutlined,
+  SettingOutlined,
+  PlayCircleOutlined,
+  ExportOutlined,
+  UserOutlined,
+  StepBackwardOutlined,
+  StepForwardOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  MenuOutlined
+} from '@ant-design/icons';
+import './index.css';
 
-interface Job {
+const { Header, Content, Sider } = Layout;
+const { Title, Text } = Typography;
+const { useBreakpoint } = Grid;
+
+type View = 'dashboard' | 'create' | 'editor';
+
+interface Project {
   id: string;
-  userId: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  videoUrl?: string;
-  parameters: {
-    prompt: string;
-    [key: string]: any;
-  };
+  title: string;
+  status: 'completed' | 'processing';
+  duration: string;
   createdAt: string;
 }
 
-interface LogEvent {
-  jobId: string;
-  type: string;
-  event: any;
-}
+const mockProjects: Project[] = [
+  { id: '1', title: 'Payment Flow Demo', status: 'completed', duration: '01:45', createdAt: '2 mins ago' },
+  { id: '2', title: 'Onboarding Sequence', status: 'processing', duration: '--:--', createdAt: 'In progress' },
+  { id: '3', title: 'Settings Navigation', status: 'completed', duration: '00:30', createdAt: '1 hour ago' },
+];
 
-interface LogLine {
-  type: 'PTY' | 'AI' | 'RUN' | 'EDIT' | 'ERROR' | 'SYSTEM';
-  content: string;
-  id?: string;
-}
+function App() {
+  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const screens = useBreakpoint();
 
-export default function App() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [logs, setLogs] = useState<Record<string, LogLine[]>>({});
-  const [prompt, setPrompt] = useState('');
-  const [loading, setLoading] = useState(false);
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const isMobile = !screens.lg;
 
-  const fetchJobs = async () => {
-    try {
-      const res = await fetch('http://localhost:3000/jobs');
-      const data = await res.json();
-      setJobs(data);
-    } catch (e) {
-      console.error('Failed to fetch jobs', e);
-    }
+  const handleCreateNew = () => setCurrentView('create');
+  const handleOpenEditor = (project: Project) => {
+    setSelectedProject(project);
+    setCurrentView('editor');
   };
 
-  useEffect(() => {
-    fetchJobs();
+  const renderDashboard = () => (
+    <Content style={{ padding: isMobile ? '16px' : '32px', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>My Videos</Title>
+          <Text type="secondary">Manage and edit your generated product demos.</Text>
+        </div>
+        <Button type="primary" size={isMobile ? 'middle' : 'large'} icon={<PlusOutlined />} onClick={handleCreateNew}>
+          Create New Video
+        </Button>
+      </div>
 
-    const evtSource = new EventSource('http://localhost:3000/jobs/stream');
-    
-    evtSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'LOG') {
-        const logEvt = data as LogEvent;
-        const msg = formatLogEvent(logEvt.event);
-        if (msg) {
-          setLogs(prev => {
-            const currentLogs = prev[logEvt.jobId] || [];
-            if (msg.id) {
-              const lastIdx = currentLogs.findLastIndex(l => l.id === msg.id);
-              if (lastIdx !== -1) {
-                const nextLogs = [...currentLogs];
-                nextLogs[lastIdx] = msg;
-                return { ...prev, [logEvt.jobId]: nextLogs };
+      <Row gutter={[24, 24]}>
+        {mockProjects.map(project => (
+          <Col xs={24} sm={12} lg={8} xl={6} key={project.id}>
+            <Card
+              hoverable
+              onClick={() => handleOpenEditor(project)}
+              cover={
+                <div style={{ height: 160, background: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #303030' }}>
+                  <VideoCameraOutlined style={{ fontSize: 48, color: '#424242' }} />
+                </div>
               }
-            }
-            return {
-              ...prev,
-              [logEvt.jobId]: [...currentLogs, msg]
-            };
-          });
-        }
-      } else if (data.id && data.status) {
-        // It's a job update
-        setJobs(prev => {
-          const exists = prev.find(j => j.id === data.id);
-          if (exists) {
-            return prev.map(j => j.id === data.id ? { ...j, ...data } : j);
-          }
-          return [data, ...prev];
-        });
-      }
-    };
-
-    return () => evtSource.close();
-  }, []);
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
-
-  const formatLogEvent = (event: any): LogLine | null => {
-    if (!event || !event.type) return null;
-
-    switch (event.type) {
-      case 'pty.updated':
-        return { type: 'PTY', content: event.properties?.output || '' };
-
-      case 'message.updated': {
-        const info = event.properties?.message || event.properties?.info;
-        const parts = info?.parts;
-        if (!parts) return null;
-        const textPart = parts.find((p: any) => p.type === 'text');
-        return textPart?.text ? { type: 'AI', content: `[AI]: ${textPart.text}`, id: info.id } : null;
-      }
-
-      case 'command.executed':
-        return { type: 'RUN', content: `[Run]: ${event.properties?.name} ${event.properties?.arguments || ''}` };
-
-      case 'file.edited':
-        return { type: 'EDIT', content: `[Edit]: ${event.properties?.file}` };
-
-      case 'session.error':
-        return { type: 'ERROR', content: `[Error]: ${event.properties?.message || 'Unknown error'}` };
-
-      case 'pty.exited':
-        return { type: 'SYSTEM', content: `[System]: Process exited with code ${event.properties?.exitCode}` };
-
-      default:
-        // Suppress "status" events like session.updated, event.created, etc.
-        // unless they are explicitly useful.
-        if (event.type.endsWith('.updated') || event.type.endsWith('.created') || event.type.endsWith('.status')) {
-          return null;
-        }
-        return { type: 'SYSTEM', content: `[System]: ${event.type}` };
-    }
-  };
-
-  const submitJob = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prompt.trim()) return;
-    
-    setLoading(true);
-    try {
-      await fetch('http://localhost:3000/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: 'user-demo',
-          parameters: { prompt }
-        })
-      });
-      setPrompt('');
-    } catch (e) {
-      console.error('Failed to submit job', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return <CheckCircle className="w-5 h-5 text-emerald-500" />;
-      case 'FAILED': return <XCircle className="w-5 h-5 text-red-500" />;
-      case 'PROCESSING': return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
-      default: return <Loader2 className="w-5 h-5 text-zinc-500" />;
-    }
-  };
-
-  const deleteJob = async (id: string) => {
-    try {
-      await fetch(`http://localhost:3000/jobs/${id}`, { method: 'DELETE' });
-      setJobs(prev => prev.filter(j => j.id !== id));
-      setLogs(prev => {
-        const nextLogs = { ...prev };
-        delete nextLogs[id];
-        return nextLogs;
-      });
-    } catch (e) {
-      console.error('Failed to delete job', e);
-    }
-  };
-
-  return (
-    <div className="min-h-screen max-w-5xl mx-auto p-6 flex flex-col gap-8">
-      <header className="border-b border-zinc-800 pb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Video Generator</h1>
-        <p className="text-zinc-400 mt-2">Autonomous demo generation powered by OpenCode</p>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-1 flex flex-col gap-6">
-          <form onSubmit={submitJob} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Instructions</label>
-              <textarea
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                placeholder="Make a demo video showing how to use standard notes..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm focus:ring-1 focus:ring-zinc-600 outline-none h-32 resize-none"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading || !prompt.trim()}
-              className="flex items-center justify-center gap-2 bg-white text-black font-semibold rounded-lg px-4 py-2.5 hover:bg-zinc-200 transition-colors disabled:opacity-50"
+              actions={[
+                <Button type="link" onClick={(e) => { e.stopPropagation(); handleOpenEditor(project); }}>Edit</Button>,
+                <Button type="link" danger onClick={(e) => e.stopPropagation()}>Delete</Button>
+              ]}
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Dispatch Job
-            </button>
-          </form>
+              <Card.Meta 
+                title={project.title} 
+                description={
+                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                      {project.status === 'completed' ? (
+                        <Tag icon={<CheckCircleOutlined />} color="success">Ready</Tag>
+                      ) : (
+                        <Tag icon={<ClockCircleOutlined />} color="processing">Processing</Tag>
+                      )}
+                      <Text type="secondary" style={{ fontSize: 12 }}>{project.duration}</Text>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Created {project.createdAt}</Text>
+                  </Space>
+                } 
+              />
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    </Content>
+  );
 
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Recent Jobs</h2>
-            {jobs.map(job => (
-              <div key={job.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-zinc-500">{job.id}</span>
-                  <div className="flex items-center gap-2.5">
-                    {getStatusIcon(job.status)}
-                    <button 
-                      onClick={() => deleteJob(job.id)} 
-                      className="text-zinc-600 hover:text-red-400 transition-colors bg-zinc-800/50 hover:bg-zinc-800 p-1.5 rounded"
-                      title="Delete Job"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+  const renderCreate = () => (
+    <Content style={{ padding: isMobile ? '16px' : '32px', overflowY: 'auto' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ marginBottom: 32 }}>
+          <Button type="link" style={{ padding: 0, marginBottom: 16 }} onClick={() => setCurrentView('dashboard')}>
+            &larr; Back to Dashboard
+          </Button>
+          <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>Generate AI Demo</Title>
+          <Text type="secondary">Tell the AI agent what to record, and it will handle the rest.</Text>
+        </div>
+
+        <Row gutter={[32, 32]}>
+          <Col xs={24} lg={16}>
+            <Card bordered={false}>
+              <Form layout="vertical" size="large">
+                <Form.Item label="Product URL" required tooltip="The starting point for the agent.">
+                  <Input placeholder="https://your-app.com/login" />
+                </Form.Item>
+                <Form.Item label="What should the AI agent do?" required tooltip="Provide step-by-step instructions.">
+                  <Input.TextArea 
+                    rows={6} 
+                    placeholder="e.g. Log in with test@example.com, navigate to the billing section, click 'Upgrade to Pro', and show the success banner." 
+                  />
+                </Form.Item>
+                <Form.Item label="Voiceover Script (Optional)" tooltip="Leave blank to let the AI generate one automatically based on the actions.">
+                  <Input.TextArea rows={3} placeholder="Start by welcoming the user..." />
+                </Form.Item>
+                <Divider />
+                <Button type="primary" size="large" block onClick={() => setCurrentView('dashboard')}>
+                  Queue Generation
+                </Button>
+              </Form>
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card bordered={false} style={{ background: 'transparent' }}>
+              <Title level={5}>How it works</Title>
+              <Steps
+                direction="vertical"
+                size="small"
+                current={0}
+                items={[
+                  { title: 'Queue Job', description: 'Your request is sent to our worker queue.' },
+                  { title: 'Agent Navigation', description: 'A headless browser opens and follows your instructions.' },
+                  { title: 'Video Synthesis', description: 'Interactions are recorded and stitched together.' },
+                  { title: 'Voiceover & Polish', description: 'AI voiceover is added and aligned with the video.' },
+                  { title: 'Ready for Edit', description: 'Review and tweak the final video in our editor.' },
+                ]}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    </Content>
+  );
+
+  const renderEditor = () => (
+    <Content style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Editor Header */}
+      <div style={{ padding: '12px 24px', borderBottom: '1px solid #303030', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#141414', zIndex: 10 }}>
+        <Space>
+          <Button onClick={() => setCurrentView('dashboard')}>Exit</Button>
+          {!isMobile && <Title level={5} style={{ margin: 0, marginLeft: 16 }}>{selectedProject?.title}</Title>}
+        </Space>
+        <Space>
+          <Button icon={<SettingOutlined />} />
+          <Button type="primary" icon={<ExportOutlined />}>Export</Button>
+        </Space>
+      </div>
+
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
+        {/* Main Work Area (Player + Timeline) */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          
+          {/* Video Player */}
+          <div style={{ flex: 1, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: isMobile ? 200 : 300 }}>
+            <div style={{ textAlign: 'center' }}>
+              <PlayCircleOutlined style={{ fontSize: isMobile ? 48 : 64, color: '#555', cursor: 'pointer' }} />
+              <div style={{ marginTop: 16, color: '#555' }}>Preview</div>
+            </div>
+            {/* Mock Caption Overlay */}
+            <div style={{ position: 'absolute', bottom: 20, background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: 8, border: '1px solid #333', maxWidth: '90%' }}>
+              <Text style={{ fontSize: isMobile ? 12 : 14 }}>"And here is the new billing dashboard..."</Text>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div style={{ height: isMobile ? 180 : 280, borderTop: '1px solid #303030', background: '#141414', display: 'flex', flexDirection: 'column' }}>
+            {/* Timeline Controls */}
+            <div style={{ padding: '8px 16px', borderBottom: '1px solid #303030', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Space size="small">
+                <Button icon={<StepBackwardOutlined />} type="text" size="small" />
+                <Button icon={<PlayCircleOutlined />} type="text" size="middle" />
+                <Button icon={<StepForwardOutlined />} type="text" size="small" />
+                <Text style={{ fontFamily: 'monospace', fontSize: 12, marginLeft: 8 }}>00:12 / {selectedProject?.duration}</Text>
+              </Space>
+              {!isMobile && (
+                <Space>
+                   <Text type="secondary" style={{ fontSize: 12 }}>Zoom</Text>
+                   <Slider defaultValue={50} style={{ width: 80, margin: 0 }} />
+                </Space>
+              )}
+            </div>
+            
+            {/* Tracks Area */}
+            <div style={{ flex: 1, padding: '8px 0', overflowY: 'auto', position: 'relative' }}>
+              {/* Playhead Line */}
+              <div style={{ position: 'absolute', left: '25%', top: 0, bottom: 0, width: 2, background: '#177ddc', zIndex: 10 }}></div>
+
+              <div style={{ display: 'flex', marginBottom: 8 }}>
+                <div style={{ width: isMobile ? 60 : 80, padding: '0 8px', color: '#888', fontSize: 10, display: 'flex', alignItems: 'center' }}>Video</div>
+                <div style={{ flex: 1, position: 'relative', height: 32, background: '#1f1f1f', borderRadius: 4, marginRight: 16 }}>
+                  <div style={{ position: 'absolute', left: '0%', width: '30%', height: '100%', background: '#237804', borderRadius: 4, border: '1px solid #389e0d', padding: 4, overflow: 'hidden' }}>
+                    <Text style={{ fontSize: 10 }}>Scene 1</Text>
                   </div>
                 </div>
-                <p className="text-sm line-clamp-2 text-zinc-300">{job.parameters.prompt}</p>
-                {job.videoUrl && (
-                  <a href={job.videoUrl} target="_blank" rel="noreferrer" className="text-xs flex items-center gap-1.5 text-blue-400 hover:text-blue-300 mt-2 bg-blue-500/10 w-max px-2.5 py-1.5 rounded-md">
-                    <FileVideo className="w-3.5 h-3.5" />
-                    View Output
-                  </a>
-                )}
               </div>
-            ))}
-            {jobs.length === 0 && <p className="text-sm text-zinc-500 italic">No jobs found.</p>}
+
+              <div style={{ display: 'flex' }}>
+                <div style={{ width: isMobile ? 60 : 80, padding: '0 8px', color: '#888', fontSize: 10, display: 'flex', alignItems: 'center' }}>Audio</div>
+                <div style={{ flex: 1, position: 'relative', height: 32, background: '#1f1f1f', borderRadius: 4, marginRight: 16 }}>
+                  <div style={{ position: 'absolute', left: '5%', width: '20%', height: '100%', background: '#0958d9', borderRadius: 4, border: '1px solid #1677ff', padding: 4, overflow: 'hidden' }}>
+                    <Text style={{ fontSize: 10 }}>VO 1</Text>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden h-[800px] flex flex-col shadow-2xl">
-          <div className="bg-zinc-900/50 border-b border-zinc-800 p-3 flex items-center gap-2">
-            <Terminal className="w-4 h-4 text-zinc-400" />
-            <span className="text-xs font-medium text-zinc-300 font-mono">Live Logs</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-relaxed text-zinc-400 flex flex-col gap-1.5">
-            {jobs.filter(j => ['PROCESSING', 'COMPLETED', 'FAILED'].includes(j.status)).slice(0,1).map(activeJob => (
-              <div key={activeJob.id} className="flex flex-col gap-1.5">
-                <div className="text-blue-400 mb-2">Attached to session for job {activeJob.id}...</div>
-                {logs[activeJob.id]?.map((log, i) => {
-                  if (log.type === 'PTY') {
-                    return <span key={i} className="text-zinc-300 whitespace-pre-wrap">{log.content}</span>;
-                  }
-                  
-                  let colorClass = 'text-zinc-500';
-                  if (log.type === 'AI') colorClass = 'text-emerald-400';
-                  if (log.type === 'RUN') colorClass = 'text-blue-400';
-                  if (log.type === 'EDIT') colorClass = 'text-amber-400';
-                  if (log.type === 'ERROR') colorClass = 'text-red-400';
-                  if (log.type === 'SYSTEM') colorClass = 'text-zinc-600';
-
-                  return (
-                    <div key={i} className={`mt-1 ${colorClass}`}>
-                      {log.content}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-            <div ref={logsEndRef} />
-          </div>
+        {/* Right Sidebar (Inspector/Assets) */}
+        <div style={{ width: isMobile ? '100%' : 300, borderLeft: isMobile ? 'none' : '1px solid #303030', borderTop: isMobile ? '1px solid #303030' : 'none', background: '#141414', overflowY: 'auto' }}>
+          <Tabs 
+            defaultActiveKey="1" 
+            centered
+            items={[
+              {
+                key: '1',
+                label: 'Inspector',
+                children: (
+                  <div style={{ padding: '0 16px 16px' }}>
+                    <Form layout="vertical" size="small">
+                      <Form.Item label="Clip Name">
+                        <Input defaultValue="Billing Navigation" />
+                      </Form.Item>
+                      <Form.Item label="Speed">
+                        <Select defaultValue="1x">
+                          <Select.Option value="1x">1x</Select.Option>
+                          <Select.Option value="2x">2x</Select.Option>
+                        </Select>
+                      </Form.Item>
+                      <Divider style={{ margin: '12px 0' }} />
+                      <Title level={5} style={{ fontSize: 14 }}>Voice Settings</Title>
+                      <Form.Item label="Profile">
+                        <Select defaultValue="alloy">
+                          <Select.Option value="alloy">Alloy</Select.Option>
+                        </Select>
+                      </Form.Item>
+                    </Form>
+                  </div>
+                )
+              },
+              {
+                key: '2',
+                label: 'Assets',
+                children: (
+                  <div style={{ padding: '16px', textAlign: 'center' }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Upload assets here.</Text>
+                    <Button block size="small" style={{ marginTop: 12 }}>Upload</Button>
+                  </div>
+                )
+              }
+            ]} 
+          />
         </div>
       </div>
-    </div>
+    </Content>
+  );
+
+  return (
+    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#1677ff', borderRadius: 8 } }}>
+      <Layout style={{ height: '100vh', width: '100vw' }}>
+        <Sider 
+          collapsible 
+          collapsed={collapsed} 
+          onCollapse={(value) => setCollapsed(value)}
+          breakpoint="lg"
+          collapsedWidth={0}
+          width={240}
+          trigger={null}
+          style={{ 
+            borderRight: '1px solid #303030', 
+            background: '#141414',
+            zIndex: 1000,
+            position: isMobile ? 'absolute' : 'relative',
+            height: '100%'
+          }}
+        >
+          <div style={{ padding: '24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 12 }}>
+            <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #1677ff, #722ed1)', borderRadius: 8, flexShrink: 0 }}></div>
+            <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap', opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}>AgentDemo.ai</Title>
+          </div>
+          <Menu
+            mode="inline"
+            selectedKeys={[currentView === 'editor' ? 'dashboard' : currentView]}
+            style={{ background: 'transparent', borderRight: 0 }}
+            items={[
+              { key: 'dashboard', icon: <AppstoreOutlined />, label: 'Dashboard', onClick: () => { setCurrentView('dashboard'); if(isMobile) setCollapsed(true); } },
+              { key: 'create', icon: <PlusOutlined />, label: 'New Video', onClick: () => { setCurrentView('create'); if(isMobile) setCollapsed(true); } },
+              { type: 'divider' },
+              { key: 'settings', icon: <SettingOutlined />, label: 'Settings' },
+            ]}
+          />
+          <div style={{ position: 'absolute', bottom: 24, left: 16, right: 16, opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s', pointerEvents: collapsed ? 'none' : 'auto' }}>
+            <Card size="small" style={{ background: '#1f1f1f', borderColor: '#303030' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ background: '#333', padding: 8, borderRadius: '50%', display: 'flex' }}><UserOutlined /></div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Pro Plan</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>12/50 mins</div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </Sider>
+        <Layout style={{ background: '#000', position: 'relative', transition: 'all 0.2s' }}>
+          <Header style={{ background: '#141414', padding: '0 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #303030', height: 64 }}>
+            <Button 
+              type="text" 
+              icon={collapsed ? <MenuOutlined /> : <MenuOutlined />} 
+              onClick={() => setCollapsed(!collapsed)}
+              style={{ color: '#fff', fontSize: 20 }}
+            />
+            {collapsed && <div style={{ marginLeft: 16, fontWeight: 600, transition: 'opacity 0.3s' }}>AgentDemo.ai</div>}
+          </Header>
+          {currentView === 'dashboard' && renderDashboard()}
+          {currentView === 'create' && renderCreate()}
+          {currentView === 'editor' && renderEditor()}
+        </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }
+
+export default App;
