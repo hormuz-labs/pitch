@@ -1,0 +1,6 @@
+{
+  "searchBtnBox": {"x": 1361, "y": 12, "width": 256, "height": 32},
+  "cmdkBox": {"x": 749, "y": 170, "width": 446, "height": 36},
+  "resultBox": {"x": 712, "y": 238, "width": 496, "height": 36},
+  "titleBox": {"x": 640, "y": 104, "width": 138, "height": 36}
+}
