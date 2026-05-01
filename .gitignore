@@ -49,3 +49,4 @@ sse-output.log
 *.mp4
 *.wav
 *.mov
+\n# Generated Demos\ndemo/\n

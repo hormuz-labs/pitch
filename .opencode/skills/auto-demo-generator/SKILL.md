@@ -256,7 +256,7 @@ Example:
 `;
 
 const transcriptionResponse = await ai.models.generateContent({
-  model: 'gemini-1.5-flash',
+  model: 'gemini-2.5-flash',
   contents: [
     {
       role: 'user',
@@ -269,7 +269,7 @@ const transcriptionResponse = await ai.models.generateContent({
 });
 
 // Parse the JSON array
-const timestamps = JSON.parse(transcriptionResponse.text().replace(/^\\s*\`\`\`json|\\s*\`\`\`$/g, ''));
+const timestamps = JSON.parse(transcriptionResponse.text.replace(/^\\s*\`\`\`json|\\s*\`\`\`$/g, ''));
 fs.writeFileSync(path.join(demoDir, 'timestamps.json'), JSON.stringify(timestamps, null, 2));
 ```
 
