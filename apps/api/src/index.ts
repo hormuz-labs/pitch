@@ -5,12 +5,21 @@ import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest } from '@saas/shared'
 import * as db from '@saas/db';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '../../..');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+// Serve the demo directory as static
+app.use('/demo', express.static(path.join(rootDir, 'demo')));
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 

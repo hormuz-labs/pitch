@@ -59,6 +59,7 @@ const worker = new Worker(
             await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify({
               type: 'LOG',
               jobId,
+              userId, // Added userId here
               event
             }));
           }

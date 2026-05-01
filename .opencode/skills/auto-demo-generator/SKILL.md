@@ -64,7 +64,7 @@ await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 2 });
 ```
 All coordinate values remain in CSS pixels — only the rendered bitmap is 2×.
 
-**Artifact:** Save all screenshots to a timestamped `demoDir/` and record a manifest:
+**Artifact:** Save all screenshots to a timestamped `demo/demoDir/` (where `demoDir` is `demo-cinematic-<Date.now()>`) and record a manifest:
 ```json
 [
   { "step": 1, "file": "step-1.png", "action": "navigate",      "coords": null },
@@ -73,7 +73,7 @@ All coordinate values remain in CSS pixels — only the rendered bitmap is 2×.
 ]
 ```
 
-> **Key rule:** Always screenshot *after* typing but *before* pressing Enter, so typed text appears in the frame where the cursor is still at the input.
+> **Key rule:** Always screenshot *after* typing but *before* pressing Enter, so typed text appears in the frame where the cursor is still at the input. All files, including generated `.ts` scripts, MUST be kept inside the `demo/` folder.
 
 ---
 
@@ -222,6 +222,59 @@ await new Promise((resolve, reject) => {
 
 ---
 
+### Phase 2.5 — Audio Transcription for Perfect Sync
+
+To ensure perfect synchronization between the spoken narration and the visual actions (typing, clicking, scrolling), use Gemini to transcribe the generated `.wav` file into a JSON array of word-level timestamps.
+
+**Process:**
+Upload the generated `voiceover.wav` to Gemini (e.g., `gemini-2.0-flash` or `gemini-1.5-flash`) using the File API, and prompt it to return a structured JSON array.
+
+```ts
+import { GoogleAIFileManager } from '@google/genai/files';
+const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
+
+const uploadResult = await fileManager.uploadFile(audioPath, {
+  mimeType: 'audio/wav',
+  displayName: 'Voiceover',
+});
+
+const transcriptionPrompt = `
+Listen to the audio and provide a complete transcript. 
+Output the result as a raw JSON array of objects (do not wrap in markdown \`\`\`json blocks). 
+Each object must have the following keys:
+- "word": The spoken word (string)
+- "startMs": The start time of the word in milliseconds (number)
+- "endMs": The end time of the word in milliseconds (number)
+
+Example:
+[
+  { "word": "Welcome", "startMs": 0, "endMs": 450 },
+  { "word": "to", "startMs": 450, "endMs": 600 }
+]
+`;
+
+const transcriptionResponse = await ai.models.generateContent({
+  model: 'gemini-1.5-flash',
+  contents: [
+    {
+      role: 'user',
+      parts: [
+        { fileData: { mimeType: uploadResult.file.mimeType, fileUri: uploadResult.file.uri } },
+        { text: transcriptionPrompt }
+      ]
+    }
+  ]
+});
+
+// Parse the JSON array
+const timestamps = JSON.parse(transcriptionResponse.text().replace(/^\\s*\`\`\`json|\\s*\`\`\`$/g, ''));
+fs.writeFileSync(path.join(demoDir, 'timestamps.json'), JSON.stringify(timestamps, null, 2));
+```
+
+You must read `timestamps.json` in Phase 3 to dynamically calculate exact trigger times for your animation `TIMELINE`. For example, if the script says "Click on the dashboard" and you need to trigger a click ripple on the word "dashboard", you find the object where `"word": "dashboard"`, convert `startMs` to seconds (e.g., `startMs / 1000`), and assign that to `TIMELINE.clickDashboard.start`.
+
+---
+
 ### Phase 3 — Cinematic Animation Rendering
 
 Build an HTML animation canvas that reconstructs smooth cursor movement and camera zoom
@@ -235,12 +288,11 @@ The animator HTML file must:
 - Load `step-N.png` screenshots as `<img>` sources (relative paths work when using `file://`)
 - Expose a global `window.renderFrame(timeSeconds)` function that sets all element styles deterministically
 
-**Cursor SVG** (inline as `data:image/svg+xml;base64,...`):
-```svg
-<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M20.5056 10.7754C21.1225 10.5355 21.431 10.4155 21.5176 10.2459C21.5926 10.099 21.5903 9.92446 21.5115 9.77954C21.4205 9.61226 21.109 9.50044 20.486 9.2768L4.59629 3.5728C4.0866 3.38983 3.83175 3.29835 3.66514 3.35605C3.52029 3.40621 3.40645 3.52004 3.35629 3.6649C3.29859 3.8315 3.39008 4.08635 3.57304 4.59605L9.277 20.4858C9.50064 21.1088 9.61246 21.4203 9.77973 21.5113C9.92465 21.5901 10.0991 21.5924 10.2461 21.5174C10.4157 21.4308 10.5356 21.1223 10.7756 20.5054L13.3724 13.8278C13.4194 13.707 13.4429 13.6466 13.4792 13.5957C13.5114 13.5506 13.5508 13.5112 13.5959 13.479C13.6468 13.4427 13.7072 13.4192 13.828 13.3722L20.5056 10.7754Z" fill="black" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+**Cursor Asset:** Do not use massive inline SVG strings. Depending on the background of the target website, pick either the black or white cursor. Copy `cursor-black.svg` or `cursor-white.svg` from `.opencode/skills/auto-demo-generator/references/icons/` into your working `demoDir` and reference it in the animator HTML (saving it as `cursor.svg` in the working directory):
+```html
+<img id="cursor" src="cursor.svg" style="position: absolute; width: 32px; height: 32px; z-index: 100; transform-origin: top left;" />
 ```
+*(Note: the new cursor already has an SVG drop-shadow baked in, so you do not need a CSS filter).*
 
 **CSS transform setup** — zoom must be anchored to the interaction point:
 ```css
@@ -368,16 +420,37 @@ if (t < INTRO_DURATION) {
 
 #### Master Timeline Configuration (Zero Lag Sync)
 
-To guarantee that AI voiceover, visual animations, and sound effects are perfectly synchronized without any lag or drift, **you must use a master `TIMELINE` object** inside `demo.js` to drive all three. 
+To guarantee that AI voiceover, visual animations, and sound effects are perfectly synchronized without any lag or drift, **you must dynamically build a master `TIMELINE` object** inside `demo.js` to drive all three. 
 
-**Do not hardcode arbitrary timestamps like `P1_START = 2.5`.** Instead, define exact start times and durations.
+**Do not hardcode arbitrary timestamps like `P1_START = 2.5`.** Instead, use the `timestamps.json` file generated in Phase 2.5 to map exact spoken words to actions.
 
 ```js
-// Define the central timeline config
+// Load the transcription timestamps
+const timestamps = JSON.parse(fs.readFileSync(path.join(demoDir, 'timestamps.json'), 'utf8'));
+
+// Helper to find the start time of a specific word (first occurrence or after a certain time)
+function findWordTime(targetWord, afterMs = 0) {
+  const match = timestamps.find(t => t.word.toLowerCase().replace(/[^a-z0-9]/g, '') === targetWord.toLowerCase() && t.startMs > afterMs);
+  return match ? match.startMs / 1000 : null; // Return in seconds
+}
+
+// Build the central timeline config dynamically
 const TIMELINE = {
-  clickSearch: { start: 2.5, duration: 0.22 },
-  typeQuery:   { start: 2.72, duration: 2.1 }, // e.g. 21 characters at 0.1s per keystroke
-  clickResult: { start: 7.72, duration: 0.22 }
+  // Trigger the click when the voiceover says "search"
+  clickSearch: { 
+    start: findWordTime('search') || 2.5, 
+    duration: 0.22 
+  },
+  // Start typing right after the click
+  typeQuery: { 
+    start: (findWordTime('search') || 2.5) + 0.22, 
+    duration: 2.1 
+  }, // e.g. 21 characters at 0.1s per keystroke
+  // Trigger result click when voiceover says "enter"
+  clickResult: { 
+    start: findWordTime('enter', 3000) || 7.72, 
+    duration: 0.22 
+  }
 };
 ```
 
@@ -515,7 +588,7 @@ scrolledImg.style.transform = `translateY(${720 - scrollPos}px)`;
 
 **Critical:** Never combine `top: 720px` with `translateY(720px)` on the same element — this doubles the offset to 1440px and produces a blank screen. Set `top: 0` on both images and control all movement via `translateY` only.
 
-**Proportional timings:** Always calculate scroll phase timing as a fraction of `totalAudioDuration` (e.g., `const tScroll = dur * 0.5`) so the scroll syncs with narration regardless of audio length.
+**Proportional timings:** Always calculate scroll phase timing using the word timestamps from `timestamps.json` (e.g. `const tScrollStart = findWordTime('scroll')`) so the visual scroll perfectly synchronizes with the narration, no matter how long the TTS audio is.
 
 ---
 
@@ -554,7 +627,7 @@ When a demo requires interacting with elements "below the fold":
 1. **Never jump instantly**: Capture a screenshot *before* scrolling (`step-N-top.png`), perform a `scrollIntoView`, then capture a screenshot *after* scrolling (`step-N-scrolled.png`). Only grab element coordinates *after* the scroll finishes so they are correct relative to the new viewport.
 2. **Simulate Scroll via CSS**: In the Animator HTML, stack both images using `position: absolute` and `top: 0`. Animate a fake scroll using inertia physics (see Phase 3b) by sliding the `before` screenshot up and the `after` screenshot in from below.
    **CRITICAL (Blank Screen Bug):** Do NOT set `top: 720px` on the second image in your HTML if you are also using `translateY(720px)` in your JavaScript animation. This will double up the offsets, pushing the image to 1440px (off-screen) and resulting in a blank screen when the scroll finishes. Both images must start at `top: 0` when their movement is controlled entirely by `translateY()`.
-3. **Proportional Timings**: Never hardcode animation phases to specific seconds. Always calculate them as percentages of `TOTAL_AUDIO_DURATION` (e.g., `const tScroll = dur * 0.5`) so the visual scroll perfectly synchronizes with the narration, no matter how long the TTS audio is.
+3. **Synchronized Timings**: Never hardcode animation phases to specific seconds. Always extract precise trigger times from `timestamps.json` (Phase 2.5) so visual scrolls perfectly synchronize with the narration keywords (e.g. scrolling when the voiceover says "scroll down").
 
 ---
 
@@ -566,7 +639,7 @@ When a demo requires interacting with elements "below the fold":
 - **No sudden transitions:** Always use 1.0–1.5s easing for all cursor moves and zoom changes.
 - **Screenshot timing:** Capture after typing, before pressing Enter, so typed text is visible in the frame where the cursor sits at the input.
 - **Fallback coordinates:** If agent-browser doesn't return element coords, default to `{ x: 960, y: 540 }` (1080p viewport center).
-- **Temp directory:** Create a timestamped `demo-cinematic-<Date.now()>/` working directory.
+- **Temp directory:** Create a timestamped working directory inside `demo/` (e.g., `demo/demo-cinematic-<Date.now()>/`). All screenshots, manifests, and generated scripts MUST reside here.
 - **Frame padding:** Use `String(i).padStart(4, '0')` for 30fps frame filenames so FFmpeg's `%04d` glob works correctly.
 - **Click ripples:** Keep them small (`MAX_SIZE ≤ 32px`) and fast (`DURATION ≤ 0.22s`). One ripple per click event only.
 - **Background music:** Mix at 10–15% volume under the voice. Always fade out the last 2 seconds.
