@@ -28,6 +28,8 @@ A single `demo-cinematic.mp4` written to `public/` (or a user-specified path) at
 
 ## Workflow
 
+**SFX REQUIREMENT:** Every generated demo MUST include synchronized `click.mp3` and `keyboard.mp3` sound effects for all interactions. Failure to include these results in a low-quality, non-cinematic output.
+
 ### Phase 1 — Trace Capture (agent-browser SDK)
 
 Use the **agent-browser SDK** (installed via npm) to navigate the target site. It handles browser
@@ -641,6 +643,7 @@ When a demo requires interacting with elements "below the fold":
 - **Fallback coordinates:** If agent-browser doesn't return element coords, default to `{ x: 960, y: 540 }` (1080p viewport center).
 - **Temp directory:** Create a timestamped working directory inside `demo/` (e.g., `demo/demo-cinematic-<Date.now()>/`). All screenshots, manifests, and generated scripts MUST reside here.
 - **Frame padding:** Use `String(i).padStart(4, '0')` for 30fps frame filenames so FFmpeg's `%04d` glob works correctly.
+- **SFX Mandatory:** You MUST always include `click.mp3` for every click interaction and `keyboard.mp3` for every typing sequence. These must be perfectly synchronized via the `TIMELINE` object as described in Phase 5.
 - **Click ripples:** Keep them small (`MAX_SIZE ≤ 32px`) and fast (`DURATION ≤ 0.22s`). One ripple per click event only.
 - **Background music:** Mix at 10–15% volume under the voice. Always fade out the last 2 seconds.
 - **Unlimited Steps:** The demo pipeline is **not restricted to 4 or 5 steps**. You can build workflows of any complexity (e.g. `step-10.png`, `step-15.png`). Simply add more Puppeteer actions in Phase 1, capture screenshots, and extend the cinematic animator's timeline variables (`p1`, `p2` ... `p20`) to map to your voiceover script.

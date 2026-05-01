@@ -297,6 +297,10 @@ To find out about Solana, simply click the Wikipedia search bar, type your query
     fs.mkdirSync(path.join(__dirname, 'public'), { recursive: true });
   }
 
+  // NOTE: In a real production run, you MUST use FFmpeg's complexFilter to mix 
+  // keyboard.mp3 and click.mp3 at the exact timestamps defined in TIMELINE.
+  // See SKILL.md Phase 5 for the exact complexFilter syntax.
+
   await new Promise((resolve, reject) => {
     ffmpeg()
       .input(path.join(demoDir, 'frame-%04d.png'))
