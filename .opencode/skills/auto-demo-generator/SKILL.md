@@ -355,6 +355,187 @@ camera.style.transform = `translate(${camX}px, ${camY}px) scale(${zoom})`;
 
 This ensures the cursor never feels "stuck" on screen — it gracefully exits when idle, and the camera naturally follows the action across the screen without jumping.
 
+#### Click Ripple Effect
+
+On every click action, render a small, fast ripple emanating from the click coordinates. The ripple should be subtle and snappy — not a slow theatrical ring, but a tight, quick pulse that confirms the interaction.
+
+```html
+<!-- In animator HTML, add a ripple container above the camera layer -->
+<div id="ripple-container" style="position:absolute;top:0;left:0;width:1920px;height:1080px;pointer-events:none;z-index:100;"></div>
+```
+
+```js
+// Call this inside renderFrame when a click action fires
+function spawnRipple(x, y) {
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position: absolute;
+    left: ${x}px; top: ${y}px;
+    width: 0px; height: 0px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.55);
+    transform: translate(-50%, -50%) scale(0);
+    pointer-events: none;
+  `;
+  document.getElementById('ripple-container').appendChild(el);
+  // Ripple is driven by renderFrame — store spawn time
+  el.dataset.spawnTime = String(currentTime);
+  return el;
+}
+
+// Inside renderFrame, animate all live ripples
+for (const ripple of document.querySelectorAll('#ripple-container div')) {
+  const age = currentTime - parseFloat(ripple.dataset.spawnTime);
+  const DURATION = 0.22; // seconds — fast and snappy
+  const MAX_SIZE = 28;   // px — small footprint
+  if (age > DURATION) {
+    ripple.remove();
+    continue;
+  }
+  const p = age / DURATION;
+  const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+  const size = MAX_SIZE * eased;
+  const opacity = 0.55 * (1 - p);
+  ripple.style.width  = size + 'px';
+  ripple.style.height = size + 'px';
+  ripple.style.opacity = String(opacity);
+  ripple.style.transform = `translate(-50%, -50%)`;
+}
+```
+
+**Tuning:**
+- `DURATION = 0.22s` — keeps the ripple snappy; never go above `0.35s`
+- `MAX_SIZE = 28px` — tight halo; adjust to `20–32px` based on element size
+- Spawn exactly **one** ripple per click action at the click coordinates; never stack multiple ripples for the same event
+
+#### Intro / Outro Fade Cards
+
+Bookend the demo with a 1.5s fade-in title card at the start and a 1.5s fade-out end card at the finish. These are rendered as HTML overlay divs, driven by `renderFrame`.
+
+```html
+<!-- Intro card -->
+<div id="intro-card" style="
+  position:absolute; top:0; left:0; width:1920px; height:1080px;
+  background: #0a0a0f;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:200; pointer-events:none; opacity:1;
+">
+  <div style="font:700 64px/1.2 'Inter',sans-serif; color:#fff; letter-spacing:-1px;">
+    {PRODUCT_NAME}
+  </div>
+  <div style="font:400 28px/1 'Inter',sans-serif; color:rgba(255,255,255,0.5); margin-top:18px;">
+    {TAGLINE}
+  </div>
+</div>
+
+<!-- Outro card -->
+<div id="outro-card" style="
+  position:absolute; top:0; left:0; width:1920px; height:1080px;
+  background: #0a0a0f;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:200; pointer-events:none; opacity:0;
+">
+  <div style="font:700 56px/1.2 'Inter',sans-serif; color:#fff; letter-spacing:-1px;">
+    {CTA_TEXT}
+  </div>
+  <div style="font:400 24px/1 'Inter',sans-serif; color:rgba(255,255,255,0.45); margin-top:16px;">
+    {URL_OR_SUBTEXT}
+  </div>
+</div>
+```
+
+```js
+// Inside renderFrame(t):
+const INTRO_DURATION  = 1.5;  // seconds
+const OUTRO_START     = totalAudioDuration - 1.5;
+
+const introCard = document.getElementById('intro-card');
+const outroCard = document.getElementById('outro-card');
+
+// Intro: fully opaque → fade to 0 over last 0.5s of intro window
+if (t < INTRO_DURATION) {
+  const fadeProgress = Math.max(0, (t - 1.0) / 0.5); // start fading at t=1.0s
+  introCard.style.opacity = String(1 - easeInOut(fadeProgress));
+  outroCard.style.opacity = '0';
+} else if (t >= OUTRO_START) {
+  // Outro: fade in
+  const fadeProgress = (t - OUTRO_START) / 1.5;
+  introCard.style.opacity = '0';
+  outroCard.style.opacity = String(easeInOut(Math.min(fadeProgress, 1)));
+} else {
+  introCard.style.opacity = '0';
+  outroCard.style.opacity = '0';
+}
+```
+
+**Content:** Replace `{PRODUCT_NAME}`, `{TAGLINE}`, `{CTA_TEXT}`, `{URL_OR_SUBTEXT}` with values derived from the target URL / user instructions. If not provided, infer sensible defaults from the page title and domain.
+
+#### Master Timeline Configuration (Zero Lag Sync)
+
+To guarantee that AI voiceover, visual animations, and sound effects are perfectly synchronized without any lag or drift, **you must dynamically build a master `TIMELINE` object** inside `demo.js` to drive all three. 
+
+**Do not hardcode arbitrary timestamps like `P1_START = 2.5`.** Instead, use the `timestamps.json` file generated in Phase 2.5 to map exact spoken words to actions.
+
+**Dynamic Zoom Level**: Decide how much to zoom in based on the context. If clicking a small button, zoom to `1.3x` or `1.5x`. If moving a long distance, add an intermediate "zoom out" state to `1.0x` so the viewer sees the page before zooming into the next element. Add `targetZoom` to your `TIMELINE` config.
+
+```js
+// Load the transcription timestamps
+const timestamps = JSON.parse(fs.readFileSync(path.join(demoDir, 'timestamps.json'), 'utf8'));
+
+// Helper to find the start time of a specific word (first occurrence or after a certain time)
+function findWordTime(targetWord, afterMs = 0) {
+  const match = timestamps.find(t => t.word.toLowerCase().replace(/[^a-z0-9]/g, '') === targetWord.toLowerCase() && t.startMs > afterMs);
+  return match ? match.startMs / 1000 : null; // Return in seconds
+}
+
+// Build the central timeline config dynamically
+const TIMELINE = {
+  // Trigger the click when the voiceover says "search"
+  clickSearch: { 
+    start: findWordTime('search') || 2.5, 
+    duration: 0.22,
+    targetZoom: 1.5
+  },
+  // Start typing right after the click
+  typeQuery: { 
+    start: (findWordTime('search') || 2.5) + 0.22, 
+    duration: 2.1,
+    targetZoom: 1.5
+  }, // e.g. 21 characters at 0.1s per keystroke
+  // Trigger result click when voiceover says "enter"
+  clickResult: { 
+    start: findWordTime('enter', 3000) || 7.72, 
+    duration: 0.22,
+    targetZoom: 1.3
+  }
+};
+```
+
+1. **In `animator.html` (`renderFrame`)**: Use `TIMELINE.action.start` and `(TIMELINE.action.start + TIMELINE.action.duration)` for your interpolation bounds.
+2. **Typing Speed**: For mask reveal typing, ensure duration is exactly `charCount * 0.1s` (approx 60 WPM).
+3. **In FFmpeg Audio Mix**: Multiply the timeline start value by 1000 for `adelay`, and use the exact duration for `atrim`. This ensures the `.mp3` matches the visual exactly to the millisecond.
+
+| Time window | Action | Details |
+|---|---|---|
+| `0` → `1.5s` | Intro card fade | Held fully opaque, fades out at t=1.0s |
+| `1.5s` → `TIMELINE.clickSearch.start` | Cursor travels to target | Cubic ease-in-out, zoom 1.0 → `targetZoom` |
+| `TIMELINE.clickSearch.start` | Click ripple + feedback | Small ripple spawns; cursor scales 1.0 → 0.85 → 1.0 |
+| `TIMELINE.typeQuery.start` | Mask Reveal Typing | Animates clip-path based exactly on `TIMELINE.typeQuery.duration` |
+| `end - 1.5s` → `end` | Outro card fade in | Dark card fades in over 1.5s |
+
+**Cubic ease-in-out:**
+```js
+const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+```
+
+**Interpolation pattern:**
+```js
+// Cursor movement and Dynamic Zoom
+cursorX = startX + (targetX - startX) * easeInOut(progress);
+cursorY = startY + (targetY - startY) * easeInOut(progress);
+zoom = startZoom + (targetZoom - startZoom) * easeInOut(progress);
+```
+
 #### Frame Capture Loop — 30fps / 1080p
 
 ```ts
