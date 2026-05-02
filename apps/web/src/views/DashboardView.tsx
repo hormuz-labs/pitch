@@ -1,96 +1,246 @@
-import { Layout, Typography, Button, Row, Col, Card, Space, Tag } from 'antd';
-import { 
-  PlusOutlined, 
-  VideoCameraOutlined, 
-  CheckCircleOutlined, 
-  ClockCircleOutlined 
-} from '@ant-design/icons';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Project } from '../types';
 
-const { Content } = Layout;
-const { Title, Text } = Typography;
+// ── Icons ──────────────────────────────────────────────────────────────────────
+const IconVideoPlaceholder = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
+    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+    <line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/>
+    <line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/>
+    <line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/>
+    <line x1="17" y1="7" x2="22" y2="7"/>
+  </svg>
+);
+const IconFilter = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="18" x2="12" y2="18" strokeWidth="3"/>
+  </svg>
+);
+const IconSort = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/>
+  </svg>
+);
+const IconMoreH = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+  </svg>
+);
+const IconEmptyVideo = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
+    <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+  </svg>
+);
+const IconPlus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+const IconChevronUp = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="18 15 12 9 6 15"/>
+  </svg>
+);
+const IconChevronDown = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+);
 
+// ── Status Badge ───────────────────────────────────────────────────────────────
+const StatusBadge = ({ status }: { status: Project['status'] }) => {
+  const map: Record<string, { label: string; className: string }> = {
+    COMPLETED:  { label: 'Ready',       className: 'bg-green-50 text-green-700 border border-green-200' },
+    FAILED:     { label: 'Failed',      className: 'bg-red-50 text-red-600 border border-red-200' },
+    PROCESSING: { label: 'Rendering…',  className: 'bg-amber-50 text-amber-600 border border-amber-200' },
+    PENDING:    { label: 'Draft',       className: 'bg-gray-100 text-gray-500 border border-gray-200' },
+  };
+  const cfg = map[status] ?? { label: status, className: 'bg-gray-100 text-gray-500 border border-gray-200' };
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
+      {status === 'PROCESSING' && (
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+      )}
+      {cfg.label}
+    </span>
+  );
+};
+
+const Avatar = ({ initials, color = 'bg-gray-400' }: { initials: string; color?: string }) => (
+  <div className={`w-6 h-6 rounded-full ${color} flex items-center justify-center text-white text-xs font-semibold`}>
+    {initials}
+  </div>
+);
+
+// ── Video Card ─────────────────────────────────────────────────────────────────
+interface VideoCardProps {
+  project: Project;
+  onClick: () => void;
+  onDelete: (e: React.MouseEvent) => void;
+}
+const VideoCard = ({ project, onClick, onDelete }: VideoCardProps) => {
+  const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const title = project.parameters?.url
+    ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
+    : 'Untitled Job';
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-gray-300 transition-all duration-200 group"
+      id={`video-card-${project.id}`}
+    >
+      {/* Thumbnail */}
+      <div className="relative h-40 bg-gray-100 overflow-hidden">
+        {project.status === 'COMPLETED' && project.videoUrl ? (
+          <video src={project.videoUrl} className="w-full h-full object-cover" muted />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <IconVideoPlaceholder />
+          </div>
+        )}
+        {project.status === 'FAILED' && (
+          <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
+            <span className="text-red-500 text-xs font-semibold bg-white px-2 py-1 rounded-md">Failed</span>
+          </div>
+        )}
+        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-mono">
+          {project.status === 'COMPLETED' ? '—:——' : '…'}
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(e); }}
+          className="absolute top-2 right-2 p-1.5 bg-white rounded-md border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:border-red-200 hover:text-red-500"
+          id={`delete-btn-${project.id}`}
+          title="Delete"
+        >
+          <IconMoreH />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-3">
+        <p className="text-sm font-semibold text-gray-900 truncate mb-1">{title}</p>
+        <p className="text-xs text-gray-400 mb-3">{dateStr}</p>
+        <div className="flex items-center justify-between">
+          <StatusBadge status={project.status} />
+          <Avatar initials="U" color="bg-gray-400" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Dashboard View ─────────────────────────────────────────────────────────────
 interface DashboardViewProps {
   projects: Project[];
+  searchQuery: string;
   isMobile: boolean;
   onDelete: (e: React.MouseEvent, id: string) => void;
 }
 
-export const DashboardView = ({ projects, isMobile, onDelete }: DashboardViewProps) => {
+export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: DashboardViewProps) => {
   const navigate = useNavigate();
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
-  const handleCreateNew = () => navigate('/new');
-  const handleOpenEditor = (project: Project) => navigate(`/editor/${project.id}`);
+  const displayedProjects = useMemo(() => {
+    let list = [...projects];
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(p =>
+        (p.parameters?.url || '').toLowerCase().includes(q) ||
+        (p.parameters?.instructions || '').toLowerCase().includes(q) ||
+        p.status.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort
+    list.sort((a, b) => {
+      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return sortOrder === 'newest' ? -diff : diff;
+    });
+
+    return list;
+  }, [projects, searchQuery, sortOrder]);
+
+  const toggleSort = () => setSortOrder(o => o === 'newest' ? 'oldest' : 'newest');
 
   return (
-    <Content style={{ padding: isMobile ? '16px' : '32px', overflowY: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, flexWrap: 'wrap', gap: '16px' }}>
+    <div className="p-6 md:p-8 max-w-7xl mx-auto w-full">
+      {/* Page header */}
+      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <Title level={isMobile ? 3 : 2} style={{ margin: 0 }}>My Videos</Title>
-          <Text type="secondary">Manage and edit your generated product demos.</Text>
+          <h1 className="text-2xl font-bold text-gray-900 leading-tight">Recent Videos</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage and organize your generated content.</p>
         </div>
-        <Button type="primary" size={isMobile ? 'middle' : 'large'} icon={<PlusOutlined />} onClick={handleCreateNew}>
-          Create New Video
-        </Button>
+        {/* Filter / Sort */}
+        <div className="flex items-center gap-2">
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            id="filter-btn"
+          >
+            <IconFilter /> Filter
+          </button>
+          <button
+            onClick={toggleSort}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            id="sort-btn"
+          >
+            <IconSort />
+            Sort: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+            <span className="ml-0.5 text-gray-400">
+              {sortOrder === 'newest' ? <IconChevronDown /> : <IconChevronUp />}
+            </span>
+          </button>
+        </div>
       </div>
 
-      <Row gutter={[24, 24]}>
-        {projects.length === 0 && (
-          <Col span={24}>
-            <div style={{ textAlign: 'center', padding: '48px 0', color: '#666' }}>
-              <VideoCameraOutlined style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }} />
-              <p>No videos yet. Create one to get started.</p>
-            </div>
-          </Col>
-        )}
-        {projects.map(project => (
-          <Col xs={24} sm={12} lg={8} xl={6} key={project.id}>
-            <Card
-              hoverable
-              onClick={() => handleOpenEditor(project)}
-              cover={
-                <div style={{ height: 160, background: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #303030', position: 'relative' }}>
-                  {project.status === 'COMPLETED' && project.videoUrl ? (
-                     <video src={project.videoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <VideoCameraOutlined style={{ fontSize: 48, color: '#424242' }} />
-                  )}
-                  {project.status === 'FAILED' && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text type="danger">Failed</Text>
-                    </div>
-                  )}
-                </div>
-              }
-              actions={[
-                <Button type="link" onClick={(e) => { e.stopPropagation(); handleOpenEditor(project); }}>Edit</Button>,
-                <Button type="link" danger onClick={(e) => onDelete(e, project.id)}>Delete</Button>
-              ]}
-            >
-              <Card.Meta 
-                title={project.parameters?.url || 'Untitled Job'} 
-                description={
-                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                      {project.status === 'COMPLETED' ? (
-                        <Tag icon={<CheckCircleOutlined />} color="success">Ready</Tag>
-                      ) : project.status === 'FAILED' ? (
-                        <Tag color="error">Failed</Tag>
-                      ) : (
-                        <Tag icon={<ClockCircleOutlined />} color="processing">{project.status}</Tag>
-                      )}
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {new Date(project.createdAt).toLocaleDateString()}
-                      </Text>
-                    </div>
-                  </Space>
-                } 
-              />
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    </Content>
+      {/* No search results */}
+      {searchQuery && displayedProjects.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4">
+            <IconEmptyVideo />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-1">No results found</h3>
+          <p className="text-xs text-gray-400 max-w-xs">No videos match "<span className="font-medium">{searchQuery}</span>". Try a different search.</p>
+        </div>
+      )}
+
+      {/* Empty state (no projects at all) */}
+      {!searchQuery && projects.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4">
+            <IconEmptyVideo />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-1">No videos yet</h3>
+          <p className="text-xs text-gray-400 mb-5 max-w-xs">Create your first AI demo video and it will appear here.</p>
+          <button
+            onClick={() => navigate('/new')}
+            className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
+            id="empty-create-btn"
+          >
+            <IconPlus /> Create New Video
+          </button>
+        </div>
+      )}
+
+      {/* Card grid */}
+      {displayedProjects.length > 0 && (
+        <div className={`grid gap-4 ${
+          isMobile ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+        }`}>
+          {displayedProjects.map(project => (
+            <VideoCard
+              key={project.id}
+              project={project}
+              onClick={() => navigate(`/editor/${project.id}`)}
+              onDelete={(e) => onDelete(e, project.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

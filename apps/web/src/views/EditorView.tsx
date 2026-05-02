@@ -1,19 +1,47 @@
-import { Layout, Typography, Button, Space, Tag, Spin, Card, List, Empty } from 'antd';
-import { 
-  DownloadOutlined, 
-  LeftOutlined,
-  PlayCircleOutlined,
-  CheckCircleFilled,
-  LoadingOutlined,
-  AudioOutlined,
-  VideoCameraOutlined
-} from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
 
-const { Content } = Layout;
-const { Title, Text, Paragraph } = Typography;
+// ── Icons ──────────────────────────────────────────────────────────────────────
+const IconArrowLeft = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+  </svg>
+);
+const IconDownload = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+);
+const IconCheck = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+    <polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+);
+const IconXCircle = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+  </svg>
+);
+const IconLoader = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin text-gray-400">
+    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+  </svg>
+);
+const IconVideo = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+  </svg>
+);
+const IconAudio = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+  </svg>
+);
 
+// ── Editor View ────────────────────────────────────────────────────────────────
 interface EditorViewProps {
   projects: Project[];
   jobLogs: Record<string, LogEntry[]>;
@@ -23,184 +51,199 @@ interface EditorViewProps {
 export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const selectedProject = projects.find(p => p.id === id);
   const logs = jobLogs[id || ''] || [];
   const latestScreenshot = [...logs].reverse().find(l => l.screenshot)?.screenshot;
-  
-  // Filter for meaningful logs (text and calls)
   const displayLogs = logs.filter(l => l.type === 'text' || l.type === 'call').slice(-5);
 
   if (!selectedProject) {
     return (
-      <div style={{ padding: 48, textAlign: 'center', flex: 1, color: '#fff' }}>
-        <Title level={4}>Project not found or loading...</Title>
-        <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+      <div className="flex flex-col items-center justify-center h-full text-center p-12">
+        <p className="text-gray-500 mb-4">Project not found or loading…</p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
+        >
+          Back to Dashboard
+        </button>
       </div>
     );
   }
 
   const isProcessing = selectedProject.status === 'PROCESSING' || selectedProject.status === 'PENDING';
-  const isCompleted = selectedProject.status === 'COMPLETED';
-  const isFailed = selectedProject.status === 'FAILED';
+  const isCompleted  = selectedProject.status === 'COMPLETED';
+  const isFailed     = selectedProject.status === 'FAILED';
+  const projectTitle = selectedProject.parameters?.url?.replace(/^https?:\/\//, '') || 'Video Generation';
 
   return (
-    <Content style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', background: '#0a0a0a' }}>
-      {/* Header */}
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid #1f1f1f', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#141414', zIndex: 10 }}>
-        <Space>
-          <Button icon={<LeftOutlined />} onClick={() => navigate('/dashboard')} type="text">Dashboard</Button>
-          <Divider type="vertical" style={{ borderColor: '#333' }} />
-          <Title level={5} style={{ margin: 0 }}>{selectedProject?.parameters?.url || 'Video Generation'}</Title>
-        </Space>
+    <div className="flex flex-col h-full">
+
+      {/* ── Top bar ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-6 py-3.5 bg-white border-b border-gray-200 shrink-0 gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer p-0 shrink-0"
+            id="editor-back-btn"
+          >
+            <IconArrowLeft /> Dashboard
+          </button>
+          <span className="text-gray-300">/</span>
+          <p className="text-sm font-medium text-gray-800 truncate">{projectTitle}</p>
+        </div>
+
         {isCompleted && (
-          <Space>
-            <Button 
-              icon={<DownloadOutlined />} 
-              type="primary" 
-              onClick={() => window.open(selectedProject.videoUrl)}
-            >
-              Download Video
-            </Button>
-          </Space>
+          <button
+            onClick={() => window.open(selectedProject.videoUrl)}
+            className="flex items-center gap-2 px-3.5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer shrink-0"
+            id="download-video-btn"
+          >
+            <IconDownload /> Download Video
+          </button>
         )}
       </div>
 
-      <div style={{ flex: 1, padding: isMobile ? '16px' : '40px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-        {isProcessing && (
-          <div style={{ textAlign: 'center', marginTop: 40 }}>
-            <Card style={{ background: '#141414', borderColor: '#303030', borderRadius: 12 }}>
-              <div style={{ marginBottom: 32 }}>
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
-                <Title level={3} style={{ marginTop: 24 }}>Generating your video...</Title>
-                <Paragraph type="secondary">
-                  We're currently processing your request. This typically takes 1-2 minutes.
-                </Paragraph>
+      {/* ── Content ──────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="max-w-5xl mx-auto w-full">
+
+          {/* Processing state */}
+          {isProcessing && (
+            <div className="bg-white border border-gray-200 rounded-xl p-8">
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-200">
+                  <IconLoader />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Generating your video…</h2>
+                <p className="text-sm text-gray-500 mt-1">This typically takes 1–2 minutes. Hang tight!</p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 24, textAlign: 'left' }}>
-                <div style={{ flex: 1 }}>
-                  <Title level={5} style={{ color: '#888', textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 }}>Current Status</Title>
-                  <List
-                    size="small"
-                    dataSource={displayLogs.length > 0 ? displayLogs : [{ message: 'Initializing agent...', timestamp: '' } as LogEntry]}
-                    renderItem={(item) => (
-                      <List.Item style={{ border: 'none', padding: '4px 0' }}>
-                        <Text style={{ fontSize: 13, color: '#ccc' }}>
-                          <span style={{ color: '#555', marginRight: 8 }}>{item.timestamp}</span>
-                          {item.message}
-                        </Text>
-                      </List.Item>
-                    )}
-                  />
+              <div className={`flex gap-6 ${isMobile ? 'flex-col' : 'flex-row'}`}>
+                {/* Live log */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Current Status</p>
+                  <div className="space-y-2">
+                    {(displayLogs.length > 0 ? displayLogs : [{ message: 'Initializing agent…', timestamp: '', type: 'info' } as LogEntry]).map((item, i) => (
+                      <div key={i} className="flex items-start gap-2.5 text-sm">
+                        <span className="text-gray-300 font-mono text-xs mt-0.5 shrink-0">{item.timestamp}</span>
+                        <span className="text-gray-700 leading-snug">{item.message}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                
+
+                {/* Live preview */}
                 {latestScreenshot && (
-                  <div style={{ width: isMobile ? '100%' : 300 }}>
-                    <Title level={5} style={{ color: '#888', textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 }}>Live Preview</Title>
-                    <div style={{ border: '1px solid #333', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
-                      <img src={latestScreenshot} style={{ width: '100%', display: 'block' }} alt="Live screenshot" />
+                  <div className={isMobile ? 'w-full' : 'w-72 shrink-0'}>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Live Preview</p>
+                    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                      <img src={latestScreenshot} alt="Live screenshot" className="w-full block" />
                     </div>
                   </div>
                 )}
               </div>
-            </Card>
-          </div>
-        )}
+            </div>
+          )}
 
-        {isCompleted && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-             <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                <CheckCircleFilled style={{ fontSize: 48, color: '#52c41a' }} />
-                <Title level={2} style={{ marginTop: 16 }}>Video is Ready!</Title>
-                <Text type="secondary">Your video has been successfully generated and is ready for download.</Text>
-             </div>
+          {/* Completed state */}
+          {isCompleted && (
+            <div className="space-y-6">
+              {/* Success banner */}
+              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
+                <span className="text-green-500"><IconCheck /></span>
+                <div>
+                  <p className="text-sm font-semibold text-green-800">Video is Ready!</p>
+                  <p className="text-xs text-green-600 mt-0.5">Successfully generated and ready for download.</p>
+                </div>
+              </div>
 
-             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 24 }}>
-                <div style={{ flex: 2 }}>
-                  <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', border: '1px solid #303030', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
-                    <video 
-                      src={selectedProject.videoUrl} 
-                      controls 
+              <div className={`flex gap-6 ${isMobile ? 'flex-col' : 'flex-row items-start'}`}>
+                {/* Video player */}
+                <div className="flex-[2] min-w-0">
+                  <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-black">
+                    <video
+                      src={selectedProject.videoUrl}
+                      controls
                       autoPlay
-                      style={{ width: '100%', display: 'block' }} 
+                      className="w-full block"
                     />
                   </div>
                 </div>
 
-                <div style={{ flex: 1 }}>
-                  <Title level={5}>Download Assets</Title>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Button 
-                      block 
-                      size="large" 
-                      icon={<VideoCameraOutlined />} 
-                      onClick={() => window.open(selectedProject.videoUrl)}
-                      style={{ height: 60, textAlign: 'left', background: '#1f1f1f', borderColor: '#303030' }}
-                    >
-                      <div style={{ display: 'inline-block', marginLeft: 8 }}>
-                        <div style={{ fontWeight: 600 }}>Download Video</div>
-                        <div style={{ fontSize: 12, color: '#888' }}>MP4 format • High Quality</div>
-                      </div>
-                    </Button>
-                    
-                    <Button 
-                      block 
-                      size="large" 
-                      icon={<AudioOutlined />} 
-                      disabled={!selectedProject.audioUrl && !selectedProject.videoUrl}
-                      onClick={() => {
-                        const audioUrl = selectedProject.audioUrl || selectedProject.videoUrl?.replace('.mp4', '.wav');
-                        if (audioUrl) window.open(audioUrl);
-                      }}
-                      style={{ height: 60, textAlign: 'left', background: '#1f1f1f', borderColor: '#303030' }}
-                    >
-                      <div style={{ display: 'inline-block', marginLeft: 8 }}>
-                        <div style={{ fontWeight: 600 }}>Download Voiceover</div>
-                        <div style={{ fontSize: 12, color: '#888' }}>WAV format • AI Narration</div>
-                      </div>
-                    </Button>
-                  </Space>
+                {/* Download + details */}
+                <div className="flex-1 min-w-0 space-y-3">
+                  <p className="text-sm font-semibold text-gray-800">Download Assets</p>
 
-                  <Card size="small" title="Project Details" style={{ marginTop: 24, background: '#141414', borderColor: '#303030' }}>
-                    <div style={{ fontSize: 12 }}>
-                      <div style={{ marginBottom: 8 }}><Text type="secondary">Target URL:</Text> <div>{selectedProject.parameters.url}</div></div>
-                      <div><Text type="secondary">Generated:</Text> <div>{new Date(selectedProject.updatedAt).toLocaleString()}</div></div>
+                  <button
+                    onClick={() => window.open(selectedProject.videoUrl)}
+                    className="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all text-left cursor-pointer"
+                    id="download-video-asset-btn"
+                  >
+                    <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 shrink-0">
+                      <IconVideo />
                     </div>
-                  </Card>
-                </div>
-             </div>
-          </div>
-        )}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Download Video</p>
+                      <p className="text-xs text-gray-400">MP4 format · High Quality</p>
+                    </div>
+                  </button>
 
-        {isFailed && (
-          <div style={{ textAlign: 'center', marginTop: 80 }}>
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <Space direction="vertical">
-                  <Text strong style={{ fontSize: 18 }}>Generation Failed</Text>
-                  <Text type="secondary">Something went wrong during the video generation process.</Text>
-                  <Button type="primary" onClick={() => navigate('/dashboard')} style={{ marginTop: 16 }}>
-                    Back to Dashboard
-                  </Button>
-                </Space>
-              }
-            />
-          </div>
-        )}
+                  <button
+                    onClick={() => {
+                      const audioUrl = selectedProject.audioUrl || selectedProject.videoUrl?.replace('.mp4', '.wav');
+                      if (audioUrl) window.open(audioUrl);
+                    }}
+                    disabled={!selectedProject.audioUrl && !selectedProject.videoUrl}
+                    className="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    id="download-audio-btn"
+                  >
+                    <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 shrink-0">
+                      <IconAudio />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Download Voiceover</p>
+                      <p className="text-xs text-gray-400">WAV format · AI Narration</p>
+                    </div>
+                  </button>
+
+                  {/* Project details */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2">
+                    <p className="font-semibold text-gray-700 mb-2">Project Details</p>
+                    <div>
+                      <span className="text-gray-400">Target URL</span>
+                      <p className="text-gray-700 font-medium mt-0.5 break-all">{selectedProject.parameters.url}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Generated</span>
+                      <p className="text-gray-700 font-medium mt-0.5">{new Date(selectedProject.updatedAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Failed state */}
+          {isFailed && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4 text-red-400">
+                <IconXCircle />
+              </div>
+              <h3 className="text-base font-bold text-gray-900 mb-1">Generation Failed</h3>
+              <p className="text-sm text-gray-500 mb-6 max-w-xs">Something went wrong during the video generation process.</p>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
+                id="failed-back-btn"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          )}
+
+        </div>
       </div>
-    </Content>
+    </div>
   );
 };
-
-const Divider = ({ type, style }: { type?: 'horizontal' | 'vertical', style?: React.CSSProperties }) => (
-  <div style={{ 
-    display: 'inline-block', 
-    width: type === 'vertical' ? 1 : '100%', 
-    height: type === 'vertical' ? 24 : 1, 
-    background: '#333', 
-    margin: type === 'vertical' ? '0 12px' : '12px 0',
-    ...style 
-  }} />
-);
