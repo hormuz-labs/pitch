@@ -7,12 +7,6 @@ const IconArrowLeft = () => (
     <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
   </svg>
 );
-const IconDownload = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-  </svg>
-);
 const IconCheck = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -78,32 +72,6 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
 
   return (
     <div className="flex flex-col h-full">
-
-      {/* ── Top bar ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-6 py-3.5 bg-white border-b border-gray-200 shrink-0 gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer p-0 shrink-0"
-            id="editor-back-btn"
-          >
-            <IconArrowLeft /> Dashboard
-          </button>
-          <span className="text-gray-300">/</span>
-          <p className="text-sm font-medium text-gray-800 truncate">{projectTitle}</p>
-        </div>
-
-        {isCompleted && (
-          <button
-            onClick={() => window.open(selectedProject.videoUrl)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer shrink-0"
-            id="download-video-btn"
-          >
-            <IconDownload /> Download Video
-          </button>
-        )}
-      </div>
-
       {/* ── Content ──────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
         <div className="max-w-5xl mx-auto w-full">

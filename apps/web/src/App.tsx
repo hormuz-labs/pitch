@@ -73,6 +73,11 @@ const IconArrowLeft = () => (
     <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
   </svg>
 );
+const IconDownload = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+);
 
 // ── Nav Item ─────────────────────────────────────────────────────────────────
 interface NavItemProps {
@@ -197,15 +202,17 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
 // ── Top Header ────────────────────────────────────────────────────────────────
 interface TopHeaderProps {
   isMobile: boolean;
-  isNewPage: boolean;
+  isDetailPage: boolean;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onToggle: () => void;
   onNew: () => void;
   onBack: () => void;
+  projectTitle?: string;
+  onDownload?: () => void;
 }
-const TopHeader = ({ isMobile, isNewPage, searchQuery, onSearchChange, onToggle, onNew, onBack }: TopHeaderProps) => (
-  <header className="h-16 flex items-center justify-between px-5 bg-white border-b border-gray-200 shrink-0 gap-4 rounded-t-2xl">
+const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload }: TopHeaderProps) => (
+  <header className="h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
     {/* Left: hamburger + search / back */}
     <div className="flex items-center gap-3 flex-1 min-w-0">
       {isMobile && (
@@ -217,7 +224,7 @@ const TopHeader = ({ isMobile, isNewPage, searchQuery, onSearchChange, onToggle,
           <IconMenu />
         </button>
       )}
-      {isNewPage ? (
+      {isDetailPage ? (
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-base font-medium text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer p-0"
@@ -246,15 +253,23 @@ const TopHeader = ({ isMobile, isNewPage, searchQuery, onSearchChange, onToggle,
       )}
     </div>
 
-    {/* Right: bell + CTA */}
+    {projectTitle && (
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[200px] sm:max-w-sm hidden md:block">
+        <p className="text-base font-medium text-gray-900 truncate">{projectTitle}</p>
+      </div>
+    )}
+
+    {/* Right: Download / CTA */}
     <div className="flex items-center gap-3 shrink-0">
-      <button
-        className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-md hover:bg-gray-100 border-none bg-transparent cursor-pointer"
-        id="notifications-btn"
-      >
-        <IconBell />
-      </button>
-      {!isNewPage && (
+      {onDownload ? (
+        <button
+          onClick={onDownload}
+          className="flex items-center gap-2 px-3.5 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors border-none cursor-pointer shadow-sm"
+          id="header-download-btn"
+        >
+          <IconDownload /> Download
+        </button>
+      ) : !isDetailPage ? (
         <button
           onClick={onNew}
           className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
@@ -263,7 +278,7 @@ const TopHeader = ({ isMobile, isNewPage, searchQuery, onSearchChange, onToggle,
           <IconPlus />
           New Project
         </button>
-      )}
+      ) : null}
     </div>
   </header>
 );
@@ -395,8 +410,7 @@ function AppContent() {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
+  const handleDelete = async (id: string) => {
     try {
       await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
       setProjects(prev => prev.filter(p => p.id !== id));
@@ -406,8 +420,24 @@ function AppContent() {
   };
 
   let selectedKey = 'dashboard';
-  if (location.pathname.startsWith('/new')) selectedKey = 'create';
-  else if (location.pathname.startsWith('/settings')) selectedKey = 'settings';
+  let projectTitle;
+  let onDownload;
+
+  if (location.pathname.startsWith('/new')) {
+    selectedKey = 'create';
+  } else if (location.pathname.startsWith('/editor')) {
+    selectedKey = 'editor';
+    const id = location.pathname.split('/editor/')[1];
+    const project = projects.find(p => p.id === id);
+    if (project) {
+      projectTitle = project.parameters?.url?.replace(/^https?:\/\//, '') || 'Video Generation';
+      if (project.status === 'COMPLETED' && project.videoUrl) {
+        onDownload = () => window.open(project.videoUrl);
+      }
+    }
+  } else if (location.pathname.startsWith('/settings')) {
+    selectedKey = 'settings';
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
@@ -424,12 +454,14 @@ function AppContent() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
         <TopHeader
           isMobile={isMobile}
-          isNewPage={selectedKey === 'create'}
+          isDetailPage={selectedKey === 'create' || selectedKey === 'editor'}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onToggle={() => setCollapsed(c => !c)}
           onNew={() => navigate('/new')}
           onBack={() => navigate('/dashboard')}
+          projectTitle={projectTitle}
+          onDownload={onDownload}
         />
 
         <main className="flex-1 overflow-y-auto bg-white rounded-b-2xl">
