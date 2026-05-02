@@ -87,7 +87,7 @@ const NavItem = ({ icon, label, active, onClick }: NavItemProps) => (
     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer border-none outline-none
       ${active
         ? 'bg-black text-white'
-        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 bg-transparent'
+        : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent'
       }`}
   >
     <span className={active ? 'text-white' : 'text-gray-400'}>{icon}</span>
@@ -142,12 +142,14 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <NavItem
-            icon={<IconGrid />}
-            label="Dashboard"
-            active={selectedKey === 'dashboard'}
-            onClick={() => go('/dashboard')}
-          />
+          <div className="mb-2">
+            <NavItem
+              icon={<IconGrid />}
+              label="Dashboard"
+              active={selectedKey === 'dashboard'}
+              onClick={() => go('/dashboard')}
+            />
+          </div>
           <NavItem
             icon={<IconVideo />}
             label="New Video"
@@ -159,7 +161,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1">
           <div className="border-t border-gray-200 my-2" />
-          <div className="flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2">
             <button
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white transition-all duration-200 cursor-pointer shadow-sm border-none outline-none h-9"
               id="upgrade-pro-btn"
