@@ -9,19 +9,21 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({});
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-export async function updateJob(id: string, data: { status?: JobStatus; videoUrl?: string }) {
+export async function updateJob(id: string, data: { status?: JobStatus; videoUrl?: string; audioUrl?: string }) {
   console.log(`[DB] Updating job ${id}:`, data);
   const updated = await prisma.job.update({
     where: { id },
     data: {
       status: data.status,
       videoUrl: data.videoUrl,
+      audioUrl: data.audioUrl,
     },
   });
   
   return {
     ...updated,
     videoUrl: updated.videoUrl ?? undefined,
+    audioUrl: updated.audioUrl ?? undefined,
     status: updated.status as JobStatus,
     parameters: JSON.parse(updated.parameters)
   };
@@ -41,6 +43,7 @@ export async function createJob(data: { userId: string; parameters: any }): Prom
   return {
     ...created,
     videoUrl: created.videoUrl ?? undefined,
+    audioUrl: created.audioUrl ?? undefined,
     status: created.status as JobStatus,
     parameters: JSON.parse(created.parameters)
   };
@@ -54,6 +57,7 @@ export async function getJob(id: string): Promise<Job | null> {
   return {
     ...job,
     videoUrl: job.videoUrl ?? undefined,
+    audioUrl: job.audioUrl ?? undefined,
     status: job.status as JobStatus,
     parameters: JSON.parse(job.parameters)
   };
@@ -68,6 +72,7 @@ export async function listJobs(userId?: string): Promise<Job[]> {
   return jobs.map(job => ({
     ...job,
     videoUrl: job.videoUrl ?? undefined,
+    audioUrl: job.audioUrl ?? undefined,
     status: job.status as JobStatus,
     parameters: JSON.parse(job.parameters)
   }));

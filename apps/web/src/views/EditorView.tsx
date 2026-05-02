@@ -1,16 +1,18 @@
-import { Layout, Typography, Button, Space, Tag, Slider, Tabs, Form, Input, Divider } from 'antd';
+import { Layout, Typography, Button, Space, Tag, Spin, Card, List, Empty } from 'antd';
 import { 
-  SettingOutlined, 
-  ExportOutlined, 
-  PlayCircleOutlined, 
-  StepBackwardOutlined, 
-  StepForwardOutlined 
+  DownloadOutlined, 
+  LeftOutlined,
+  PlayCircleOutlined,
+  CheckCircleFilled,
+  LoadingOutlined,
+  AudioOutlined,
+  VideoCameraOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 interface EditorViewProps {
   projects: Project[];
@@ -25,6 +27,9 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
   const selectedProject = projects.find(p => p.id === id);
   const logs = jobLogs[id || ''] || [];
   const latestScreenshot = [...logs].reverse().find(l => l.screenshot)?.screenshot;
+  
+  // Filter for meaningful logs (text and calls)
+  const displayLogs = logs.filter(l => l.type === 'text' || l.type === 'call').slice(-5);
 
   if (!selectedProject) {
     return (
@@ -35,154 +40,167 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
     );
   }
 
+  const isProcessing = selectedProject.status === 'PROCESSING' || selectedProject.status === 'PENDING';
+  const isCompleted = selectedProject.status === 'COMPLETED';
+  const isFailed = selectedProject.status === 'FAILED';
+
   return (
-    <Content style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Editor Header */}
-      <div style={{ padding: '12px 24px', borderBottom: '1px solid #303030', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#141414', zIndex: 10 }}>
+    <Content style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', background: '#0a0a0a' }}>
+      {/* Header */}
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid #1f1f1f', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#141414', zIndex: 10 }}>
         <Space>
-          <Button onClick={() => navigate('/dashboard')}>Exit</Button>
-          {!isMobile && <Title level={5} style={{ margin: 0, marginLeft: 16 }}>{selectedProject?.parameters?.url || 'Untitled Project'}</Title>}
-          {selectedProject.status === 'PROCESSING' && <Tag color="processing">Processing...</Tag>}
+          <Button icon={<LeftOutlined />} onClick={() => navigate('/dashboard')} type="text">Dashboard</Button>
+          <Divider type="vertical" style={{ borderColor: '#333' }} />
+          <Title level={5} style={{ margin: 0 }}>{selectedProject?.parameters?.url || 'Video Generation'}</Title>
         </Space>
-        <Space>
-          <Button icon={<SettingOutlined />} />
-          <Button type="primary" icon={<ExportOutlined />} disabled={selectedProject.status !== 'COMPLETED'}>Export</Button>
-        </Space>
+        {isCompleted && (
+          <Space>
+            <Button 
+              icon={<DownloadOutlined />} 
+              type="primary" 
+              onClick={() => window.open(selectedProject.videoUrl)}
+            >
+              Download Video
+            </Button>
+          </Space>
+        )}
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
-        {/* Main Work Area (Player + Timeline) */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          
-          {/* Video Player or Live Preview */}
-          <div style={{ flex: 1, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: isMobile ? 200 : 300 }}>
-            {selectedProject.status === 'COMPLETED' && selectedProject.videoUrl ? (
-              <video src={selectedProject.videoUrl} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-            ) : selectedProject.status === 'PROCESSING' && latestScreenshot ? (
-              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={latestScreenshot} style={{ maxWidth: '90%', maxHeight: '80%', border: '1px solid #333', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }} alt="Live Capture" />
-                <div style={{ marginTop: 16, color: '#1677ff', animation: 'pulse 2s infinite' }}>
-                  <PlayCircleOutlined spin style={{ marginRight: 8 }} />
-                  Live Capture in Progress...
-                </div>
+      <div style={{ flex: 1, padding: isMobile ? '16px' : '40px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+        {isProcessing && (
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <Card style={{ background: '#141414', borderColor: '#303030', borderRadius: 12 }}>
+              <div style={{ marginBottom: 32 }}>
+                <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+                <Title level={3} style={{ marginTop: 24 }}>Generating your video...</Title>
+                <Paragraph type="secondary">
+                  We're currently processing your request. This typically takes 1-2 minutes.
+                </Paragraph>
               </div>
-            ) : (
-              <div style={{ textAlign: 'center' }}>
-                <PlayCircleOutlined style={{ fontSize: isMobile ? 48 : 64, color: '#555', cursor: 'pointer' }} />
-                <div style={{ marginTop: 16, color: '#555' }}>
-                  {selectedProject.status === 'PROCESSING' ? 'Initializing Agent...' : 'Preview'}
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Timeline */}
-          <div style={{ height: isMobile ? 180 : 280, borderTop: '1px solid #303030', background: '#141414', display: 'flex', flexDirection: 'column' }}>
-            {/* Timeline Controls */}
-            <div style={{ padding: '8px 16px', borderBottom: '1px solid #303030', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Space size="small">
-                <Button icon={<StepBackwardOutlined />} type="text" size="small" />
-                <Button icon={<PlayCircleOutlined />} type="text" size="middle" />
-                <Button icon={<StepForwardOutlined />} type="text" size="small" />
-                <Text style={{ fontFamily: 'monospace', fontSize: 12, marginLeft: 8 }}>00:00 / --:--</Text>
-              </Space>
-              {!isMobile && (
-                <Space>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Zoom</Text>
-                  <Slider defaultValue={50} style={{ width: 80, margin: 0 }} />
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 24, textAlign: 'left' }}>
+                <div style={{ flex: 1 }}>
+                  <Title level={5} style={{ color: '#888', textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 }}>Current Status</Title>
+                  <List
+                    size="small"
+                    dataSource={displayLogs.length > 0 ? displayLogs : [{ message: 'Initializing agent...', timestamp: '' } as LogEntry]}
+                    renderItem={(item) => (
+                      <List.Item style={{ border: 'none', padding: '4px 0' }}>
+                        <Text style={{ fontSize: 13, color: '#ccc' }}>
+                          <span style={{ color: '#555', marginRight: 8 }}>{item.timestamp}</span>
+                          {item.message}
+                        </Text>
+                      </List.Item>
+                    )}
+                  />
+                </div>
+                
+                {latestScreenshot && (
+                  <div style={{ width: isMobile ? '100%' : 300 }}>
+                    <Title level={5} style={{ color: '#888', textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 }}>Live Preview</Title>
+                    <div style={{ border: '1px solid #333', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
+                      <img src={latestScreenshot} style={{ width: '100%', display: 'block' }} alt="Live screenshot" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {isCompleted && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+             <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                <CheckCircleFilled style={{ fontSize: 48, color: '#52c41a' }} />
+                <Title level={2} style={{ marginTop: 16 }}>Video is Ready!</Title>
+                <Text type="secondary">Your video has been successfully generated and is ready for download.</Text>
+             </div>
+
+             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 24 }}>
+                <div style={{ flex: 2 }}>
+                  <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', border: '1px solid #303030', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+                    <video 
+                      src={selectedProject.videoUrl} 
+                      controls 
+                      autoPlay
+                      style={{ width: '100%', display: 'block' }} 
+                    />
+                  </div>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <Title level={5}>Download Assets</Title>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Button 
+                      block 
+                      size="large" 
+                      icon={<VideoCameraOutlined />} 
+                      onClick={() => window.open(selectedProject.videoUrl)}
+                      style={{ height: 60, textAlign: 'left', background: '#1f1f1f', borderColor: '#303030' }}
+                    >
+                      <div style={{ display: 'inline-block', marginLeft: 8 }}>
+                        <div style={{ fontWeight: 600 }}>Download Video</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>MP4 format • High Quality</div>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      block 
+                      size="large" 
+                      icon={<AudioOutlined />} 
+                      disabled={!selectedProject.audioUrl && !selectedProject.videoUrl}
+                      onClick={() => {
+                        const audioUrl = selectedProject.audioUrl || selectedProject.videoUrl?.replace('.mp4', '.wav');
+                        if (audioUrl) window.open(audioUrl);
+                      }}
+                      style={{ height: 60, textAlign: 'left', background: '#1f1f1f', borderColor: '#303030' }}
+                    >
+                      <div style={{ display: 'inline-block', marginLeft: 8 }}>
+                        <div style={{ fontWeight: 600 }}>Download Voiceover</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>WAV format • AI Narration</div>
+                      </div>
+                    </Button>
+                  </Space>
+
+                  <Card size="small" title="Project Details" style={{ marginTop: 24, background: '#141414', borderColor: '#303030' }}>
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ marginBottom: 8 }}><Text type="secondary">Target URL:</Text> <div>{selectedProject.parameters.url}</div></div>
+                      <div><Text type="secondary">Generated:</Text> <div>{new Date(selectedProject.updatedAt).toLocaleString()}</div></div>
+                    </div>
+                  </Card>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {isFailed && (
+          <div style={{ textAlign: 'center', marginTop: 80 }}>
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <Space direction="vertical">
+                  <Text strong style={{ fontSize: 18 }}>Generation Failed</Text>
+                  <Text type="secondary">Something went wrong during the video generation process.</Text>
+                  <Button type="primary" onClick={() => navigate('/dashboard')} style={{ marginTop: 16 }}>
+                    Back to Dashboard
+                  </Button>
                 </Space>
-              )}
-            </div>
-            
-            {/* Tracks Area */}
-            <div style={{ flex: 1, padding: '8px 0', overflowY: 'auto', position: 'relative' }}>
-              <div style={{ display: 'flex', marginBottom: 8 }}>
-                <div style={{ width: isMobile ? 60 : 80, padding: '0 8px', color: '#888', fontSize: 10, display: 'flex', alignItems: 'center' }}>Video</div>
-                <div style={{ flex: 1, position: 'relative', height: 32, background: '#1f1f1f', borderRadius: 4, marginRight: 16 }}>
-                  {selectedProject.status === 'COMPLETED' && (
-                    <div style={{ position: 'absolute', left: '0%', width: '100%', height: '100%', background: '#237804', borderRadius: 4, border: '1px solid #389e0d', padding: 4, overflow: 'hidden' }}>
-                      <Text style={{ fontSize: 10 }}>Rendered Clip</Text>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex' }}>
-                <div style={{ width: isMobile ? 60 : 80, padding: '0 8px', color: '#888', fontSize: 10, display: 'flex', alignItems: 'center' }}>Audio</div>
-                <div style={{ flex: 1, position: 'relative', height: 32, background: '#1f1f1f', borderRadius: 4, marginRight: 16 }}>
-                  {selectedProject.status === 'COMPLETED' && (
-                    <div style={{ position: 'absolute', left: '0%', width: '100%', height: '100%', background: '#0958d9', borderRadius: 4, border: '1px solid #1677ff', padding: 4, overflow: 'hidden' }}>
-                      <Text style={{ fontSize: 10 }}>AI Narration</Text>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Sidebar (Inspector/Logs) */}
-        <div style={{ width: isMobile ? '100%' : 350, borderLeft: isMobile ? 'none' : '1px solid #303030', borderTop: isMobile ? '1px solid #303030' : 'none', background: '#141414', overflowY: 'auto' }}>
-          <Tabs 
-            defaultActiveKey={selectedProject.status === 'PROCESSING' ? '3' : '1'} 
-            centered
-            items={[
-              {
-                key: '1',
-                label: 'Inspector',
-                children: (
-                  <div style={{ padding: '0 16px 16px' }}>
-                    <Form layout="vertical" size="small">
-                      <Form.Item label="Target URL">
-                        <Input value={selectedProject.parameters?.url} readOnly />
-                      </Form.Item>
-                      <Form.Item label="Instructions">
-                        <Input.TextArea value={selectedProject.parameters?.instructions} readOnly autoSize={{ minRows: 2, maxRows: 6 }} />
-                      </Form.Item>
-                      <Divider style={{ margin: '12px 0' }} />
-                      <Title level={5} style={{ fontSize: 14 }}>Project Info</Title>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Created: {new Date(selectedProject.createdAt).toLocaleString()}</Text>
-                    </Form>
-                  </div>
-                )
-              },
-              {
-                key: '2',
-                label: 'Assets',
-                children: (
-                  <div style={{ padding: '16px', textAlign: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Assets will appear here once generated.</Text>
-                  </div>
-                )
-              },
-              {
-                key: '3',
-                label: 'Live Logs',
-                children: (
-                  <div style={{ padding: '0 12px 12px', height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ flex: 1, overflowY: 'auto', background: '#000', borderRadius: 4, padding: 8, fontFamily: 'monospace', fontSize: 11 }}>
-                      {logs.length === 0 && <div style={{ color: '#555' }}>Waiting for agent...</div>}
-                      {logs.map((log, i) => (
-                        <div key={i} style={{ marginBottom: 4, borderBottom: '1px solid #1f1f1f', paddingBottom: 4 }}>
-                          <span style={{ color: '#1677ff' }}>[{log.timestamp}]</span>{' '}
-                          <span style={{ color: log.type === 'call' ? '#b7eb8f' : log.type === 'text' ? '#fff' : '#888' }}>
-                            {log.message}
-                          </span>
-                          {log.screenshot && (
-                            <div style={{ marginTop: 4, border: '1px solid #333' }}>
-                              <img src={log.screenshot} style={{ width: '100%', cursor: 'pointer' }} onClick={() => window.open(log.screenshot)} alt="Step Screenshot" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
               }
-            ]} 
-          />
-        </div>
+            />
+          </div>
+        )}
       </div>
     </Content>
   );
 };
+
+const Divider = ({ type, style }: { type?: 'horizontal' | 'vertical', style?: React.CSSProperties }) => (
+  <div style={{ 
+    display: 'inline-block', 
+    width: type === 'vertical' ? 1 : '100%', 
+    height: type === 'vertical' ? 24 : 1, 
+    background: '#333', 
+    margin: type === 'vertical' ? '0 12px' : '12px 0',
+    ...style 
+  }} />
+);

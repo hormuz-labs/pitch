@@ -12,6 +12,7 @@ model Job {
   userId     String
   status     String
   videoUrl   String?
+  audioUrl   String?
   parameters String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

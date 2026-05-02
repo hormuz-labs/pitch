@@ -1,5 +1,5 @@
 ---
-name: video-job-updater
+name: gcs
 description: >
   Provides instructions for the agent on how to use the job-cli tool to finalize video generation tasks.
   Use this skill whenever you need to upload a generated video to Google Cloud Storage (GCS) and update

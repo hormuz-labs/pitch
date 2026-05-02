@@ -75,8 +75,9 @@ Please execute the following video generation task for Job ${jobId}.
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
 
-IMPORTANT: Once the video is generated, you MUST run the job-cli to complete the job and upload the video.
-Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GENERATED_VIDEO>
+IMPORTANT: Once the video is generated, you MUST run the job-cli to complete the job and upload the results.
+If an audio/voiceover file was generated separately, include it with the --audio flag.
+Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GENERATED_VIDEO> [--audio <PATH_TO_GENERATED_AUDIO>]
 `;
 
       const promptResponse = await client.session.prompt({

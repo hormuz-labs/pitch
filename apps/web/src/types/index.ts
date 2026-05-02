@@ -3,6 +3,7 @@ export interface Project {
   userId: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   videoUrl?: string;
+  audioUrl?: string;
   parameters: Record<string, any>;
   createdAt: string;
   updatedAt: string;

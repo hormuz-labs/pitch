@@ -10,6 +10,7 @@ export interface Job {
   userId: string;
   status: JobStatus;
   videoUrl?: string;
+  audioUrl?: string;
   parameters: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +24,7 @@ export interface CreateJobRequest {
 export interface UpdateJobRequest {
   status?: JobStatus;
   videoUrl?: string;
+  audioUrl?: string;
 }
 
 export const QUEUE_NAME = 'video-generation';

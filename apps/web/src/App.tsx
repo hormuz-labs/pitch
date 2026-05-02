@@ -96,18 +96,39 @@ function AppContent() {
           } 
           // 2. Tool responses
           else if (opencodeEvent.type === 'response' || opencodeEvent.output) {
+            const response = opencodeEvent.response || opencodeEvent;
+            let message = 'Task step completed';
+            
+            if (response.content && Array.isArray(response.content)) {
+              const textPart = response.content.find((p: any) => p.type === 'text');
+              if (textPart && textPart.text) {
+                // Try to extract the last line of output if it's long
+                const lines = textPart.text.trim().split('\n');
+                message = lines[lines.length - 1];
+              }
+            }
+
             logEntry = {
               timestamp: new Date().toLocaleTimeString(),
-              message: `Task step completed`,
+              message,
               type: 'response'
             };
           } 
           // 3. Agent thought / text
           else if (opencodeEvent.type === 'text' || typeof opencodeEvent.text === 'string') {
             const text = opencodeEvent.text || opencodeEvent;
+            let message = typeof text === 'string' ? text : text.text || JSON.stringify(text);
+            
+            // Map specific phrases to cleaner status messages
+            if (message.includes('Generating Voiceover')) message = '🎙️ Generating AI Voiceover...';
+            if (message.includes('Transcribing')) message = '📝 Transcribing audio...';
+            if (message.includes('Rendering Frames')) message = '🎞️ Rendering video frames...';
+            if (message.includes('Encoding Final Video')) message = '🎬 Encoding final video...';
+            if (message.includes('Navigating')) message = '🌐 Navigating to target site...';
+
             logEntry = {
               timestamp: new Date().toLocaleTimeString(),
-              message: typeof text === 'string' ? text : JSON.stringify(text),
+              message,
               type: 'text'
             };
           }

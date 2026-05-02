@@ -21,23 +21,32 @@ program
   .description('Upload a video and update the job status')
   .requiredOption('-j, --job-id <string>', 'The ID of the job')
   .requiredOption('-f, --file <string>', 'Path to the local video file')
+  .option('-a, --audio <string>', 'Path to the local audio file')
   .option('-b, --bucket <string>', 'GCS bucket name')
   .action(async (options) => {
-    const { jobId, file, bucket } = options;
+    const { jobId, file, audio, bucket } = options;
     console.log(`🚀 Processing job completion for ${jobId}...`);
 
     try {
-      // 1. Upload to GCS
+      // 1. Upload video to GCS/Storage
       const videoUrl = await storage.uploadFile(file, bucket);
-      console.log(`✅ Uploaded to GCS: ${videoUrl}`);
+      console.log(`✅ Video uploaded: ${videoUrl}`);
 
-      // 2. Update Database
+      // 2. Upload audio if provided
+      let audioUrl: string | undefined;
+      if (audio) {
+        audioUrl = await storage.uploadFile(audio, bucket);
+        console.log(`✅ Audio uploaded: ${audioUrl}`);
+      }
+
+      // 3. Update Database
       const updatedJob = await db.updateJob(jobId, {
         status: JobStatus.COMPLETED,
         videoUrl,
+        audioUrl
       });
       
-      // 3. Notify subscribers
+      // 4. Notify subscribers
       await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
       
       console.log(`✅ Database updated for job ${jobId}`);

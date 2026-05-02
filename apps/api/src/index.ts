@@ -1,7 +1,7 @@
 import express from 'express';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest } from '@saas/shared';
+import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest, JobStatus } from '@saas/shared';
 import * as db from '@saas/db';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -101,7 +101,7 @@ app.post('/jobs/:id/retrigger', async (req, res) => {
   }
 
   try {
-    const updatedJob = await db.updateJob(id, { status: db.JobStatus.PENDING, videoUrl: undefined });
+    const updatedJob = await db.updateJob(id, { status: JobStatus.PENDING, videoUrl: undefined });
     
     // Ensure we remove the old job from queue if it's there (e.g. failed state)
     const existingJob = await videoQueue.getJob(id);
