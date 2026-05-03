@@ -23,21 +23,22 @@ A single `demo-cinematic.mp4` written to `public/` (or a user-specified path) at
 ## Workflow
 
 ### Phase 1 — High-Res Trace Capture (Agent-Browser CLI via Agent)
-As the AI Agent, you MUST use the `agent-browser` CLI directly in your terminal for all interactions and captures. **Do not write a Node script for this phase.**
-1. Set the viewport to 1920x1080: `agent-browser set viewport 1920 1080`
-2. Navigate and capture step-by-step screenshots: Use `agent-browser open`, `agent-browser snapshot -i`, and `agent-browser screenshot step-1.png`.
-3. Extract coordinates: Use `agent-browser get box @eN` to get the exact `{x, y, width, height}` for elements you interact with. 
-4. Manually construct and save a `manifest.json` file containing these exact coordinates.
+As the AI Agent, you MUST use the `agent-browser` CLI directly in your terminal step-by-step for all interactions and captures. **DO NOT write any automation scripts (no Bash scripts, no Node scripts, no Python scripts) for this phase.** 
+
+**Why?** Modern web frameworks (React, Angular, Vue) use highly dynamic DOM structures and hashed CSS class names that change frequently. By running interactions live in your terminal step-by-step, you can use `agent-browser snapshot -i` to adapt to the live DOM safely, whereas hardcoded scripts will inevitably break.
+
+**CRITICAL NOTE FOR VIDEO RECORDING:** If using `agent-browser record start`, it creates an isolated context. You **must** explicitly pass the `--session <name>` flag to *every single* subsequent interaction command (click, type, etc.) to ensure they happen inside the recorded tab.
 
 ```bash
-# Example sequence run directly by the Agent in the CLI
-agent-browser set viewport 1920 1080
-agent-browser open https://example.com
-agent-browser screenshot step-1.png
-agent-browser snapshot -i
+# Example sequence run DIRECTLY by the Agent in the CLI
+agent-browser --session demo-record set viewport 1920 1080
+agent-browser --session demo-record open https://example.com
+agent-browser --session demo-record record start raw.webm
+agent-browser --session demo-record snapshot -i
 # ... identify @e5 as Search button ...
-agent-browser get box @e5 --json
-agent-browser click @e5
+agent-browser --session demo-record get box @e5 --json
+agent-browser --session demo-record click @e5
+agent-browser --session demo-record record stop
 ```
 
 ### Phase 2 — Voiceover Generation & Transcription
@@ -52,10 +53,10 @@ Build an `animator.html` canvas.
 *   **Explicit State Machine & Dynamic Interpolation:** Build a strict `if/else if` ladder based on your `TIMELINE`.
 *   **Cursor Movement & Easing:** Target a cursor movement duration of **1.4s to 1.5s**. This provides a smooth, deliberate pace that is easy for viewers to follow. **You MUST use a soft cubic easing function** (`4*t*t*t`). Absolutely do not use `power4` or sharp easings, as they cause the cursor to whip violently across the screen.
 *   **Exact Center Clicks:** `agent-browser` bounding boxes return the *top-left* coordinate. You MUST manually calculate and target the exact center of the element by using `box.x + box.width / 2` and `box.y + box.height / 2`. Never click the top-left coordinate.
-*   **Cursor Visibility:** Always use `<img id="cursor" src="cursor-black.svg" />` (not the white default) to ensure the cursor stands out clearly against modern, light-themed documentation pages.
+*   **Professional Camera Logic (No Yo-Yo Zooming):** When scaling the Canvas to highlight UI elements (`transform: scale(zoom)`), **do not** zoom in for a click and immediately zoom back out to 1.0 (yo-yoing). Professional editors use long, continuous "pushes" (e.g., slowly zooming from 1.0 to 1.3 over several seconds) and then *hold* that zoom while panning the camera (`translate`) between nearby interactions. Only pull back to 1.0 during major page navigations or at the very end of the video.
 *   **Human-Like Typing:** Use a stepped easing function with sine-wave distortion (`humanTypeEase`) to simulate natural, bursty typing rather than uniform linear typing.
 *   **Strict Click Syncing:** Capture the bounding box for *every* interaction. Ensure each click triggers both a visual ripple in the DOM and a precisely timed `click.mp3` in the FFmpeg audio mix.
-*   **Puppeteer for Frames:** Use a Node script with `puppeteer` to render the frames (as shown in `demo-v3.ts`). Launch it with `--force-device-scale-factor=2` and `deviceScaleFactor: 2` to match the 1080p retina resolution, and loop through `window.renderFrame(t)` to take screenshots.
+*   **Puppeteer for Frames:** Use a Node script with `puppeteer` to render the frames (as shown in `demo-v4.ts`). Launch it with `--force-device-scale-factor=2` and `deviceScaleFactor: 2` to match the 1080p retina resolution, and loop through `window.renderFrame(t)` to take screenshots.
 
 ### Phase 4 — Normalized FFmpeg Encoding (Volume Drift Fix)
 When mixing multiple audio tracks (voiceover + clicks + typing), you MUST configure the `amix` filter carefully. If you do not, FFmpeg will dynamically recalculate the volume every time a short sound effect finishes (drops out), causing the voiceover to progressively become louder and louder until it distorts.
@@ -77,6 +78,4 @@ command.complexFilter([
 ```
 
 ## Reference Implementation
-See the **perfected, fully functioning pipeline** in `.opencode/skills/auto-demo-generator/references/demo-v3.ts`. This reference file uses `agent-browser` CLI for all captures and interactions. Always model new demos after this file.
-
-For the advanced V4 sync architecture (decimation, native typing time-stretching, dynamic canvas zoom): [time-remapping-pipeline](references/time-remapping-pipeline.md)
+See the **perfected, fully functioning pipeline** in [demo-v4](references/demo-v4.ts). This reference file demonstrates the complete V4 Time-Remapping architecture, including live interactive capture via `--session`, exact bounding box mapping, and professional continuous cinematic camera zooming. Always model new demos after this file.

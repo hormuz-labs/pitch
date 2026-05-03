@@ -35,7 +35,7 @@ Extract the frames from the decimated videos. Using a script, map these pure-act
 Do not use native OS cursors (which look messy and are often dropped by CDP). 
 Instead, load the perfectly synced, time-mapped frames into an HTML Canvas (`animator.html`).
 *   **The Cursor:** Render a high-quality SVG cursor that moves along programmed bezier curves between interaction coordinates, emitting CSS ripples on clicks.
-*   **The "Oom" Factor:** Apply dynamic `transform: scale(1.4)` (Ken Burns style pan/zoom) to the entire canvas, centering on the exact element coordinates right as the action occurs.
+*   **Professional Camera Logic (No Yo-Yo Zooming):** When scaling the Canvas to highlight UI elements (`transform: scale(zoom)`), **do not** zoom in for a click and immediately zoom back out to 1.0 (yo-yoing). Professional editors use long, continuous "pushes" (e.g., slowly zooming from 1.0 to 1.3 over several seconds) and then *hold* that zoom while panning the camera (`translate`) between nearby interactions. Only pull back to 1.0 during major page navigations or at the very end of the video.
 
 Render this canvas out using Puppeteer to generate the final frames.
 
