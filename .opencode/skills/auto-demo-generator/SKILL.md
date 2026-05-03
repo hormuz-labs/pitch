@@ -56,7 +56,7 @@ Build an `animator.html` canvas.
 *   **Professional Camera Logic (No Yo-Yo Zooming):** When scaling the Canvas to highlight UI elements (`transform: scale(zoom)`), **do not** zoom in for a click and immediately zoom back out to 1.0 (yo-yoing). Professional editors use long, continuous "pushes" (e.g., slowly zooming from 1.0 to 1.3 over several seconds) and then *hold* that zoom while panning the camera (`translate`) between nearby interactions. Only pull back to 1.0 during major page navigations or at the very end of the video.
 *   **Human-Like Typing:** Use a stepped easing function with sine-wave distortion (`humanTypeEase`) to simulate natural, bursty typing rather than uniform linear typing.
 *   **Strict Click Syncing:** Capture the bounding box for *every* interaction. Ensure each click triggers both a visual ripple in the DOM and a precisely timed `click.mp3` in the FFmpeg audio mix.
-*   **Puppeteer for Frames:** Use a Node script with `puppeteer` to render the frames (as shown in `demo-v3.ts`). Launch it with `--force-device-scale-factor=2` and `deviceScaleFactor: 2` to match the 1080p retina resolution, and loop through `window.renderFrame(t)` to take screenshots.
+*   **Puppeteer for Frames:** Use a Node script with `puppeteer` to render the frames (as shown in `demo-v4.ts`). Launch it with `--force-device-scale-factor=2` and `deviceScaleFactor: 2` to match the 1080p retina resolution, and loop through `window.renderFrame(t)` to take screenshots.
 
 ### Phase 4 — Normalized FFmpeg Encoding (Volume Drift Fix)
 When mixing multiple audio tracks (voiceover + clicks + typing), you MUST configure the `amix` filter carefully. If you do not, FFmpeg will dynamically recalculate the volume every time a short sound effect finishes (drops out), causing the voiceover to progressively become louder and louder until it distorts.
@@ -78,4 +78,4 @@ command.complexFilter([
 ```
 
 ## Reference Implementation
-See the **perfected, fully functioning pipeline** in `.opencode/skills/auto-demo-generator/references/demo-v4.ts`. This reference file demonstrates the complete V4 Time-Remapping architecture, including live interactive capture via `--session`, exact bounding box mapping, and professional continuous cinematic camera zooming. Always model new demos after this file.
+See the **perfected, fully functioning pipeline** in [demo-v4](references/demo-v4.ts). This reference file demonstrates the complete V4 Time-Remapping architecture, including live interactive capture via `--session`, exact bounding box mapping, and professional continuous cinematic camera zooming. Always model new demos after this file.
