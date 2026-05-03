@@ -50,3 +50,4 @@ sse-output.log
 *.wav
 *.mov
 \n# Generated Demos\ndemo/\n
+demo/**
