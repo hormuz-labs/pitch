@@ -78,3 +78,5 @@ command.complexFilter([
 
 ## Reference Implementation
 See the **perfected, fully functioning pipeline** in `.opencode/skills/auto-demo-generator/references/demo-v3.ts`. This reference file uses `agent-browser` CLI for all captures and interactions. Always model new demos after this file.
+
+For the advanced V4 sync architecture (decimation, native typing time-stretching, dynamic canvas zoom): [time-remapping-pipeline](references/time-remapping-pipeline.md)
