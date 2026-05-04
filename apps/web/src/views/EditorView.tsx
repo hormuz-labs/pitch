@@ -2,11 +2,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
-const IconArrowLeft = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-  </svg>
-);
 const IconCheck = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -68,7 +63,6 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
   const isProcessing = selectedProject.status === 'PROCESSING' || selectedProject.status === 'PENDING';
   const isCompleted  = selectedProject.status === 'COMPLETED';
   const isFailed     = selectedProject.status === 'FAILED';
-  const projectTitle = selectedProject.parameters?.url?.replace(/^https?:\/\//, '') || 'Video Generation';
 
   return (
     <div className="flex flex-col h-full">

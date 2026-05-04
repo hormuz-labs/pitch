@@ -2,17 +2,16 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import './index.css';
 import type { Project, LogEntry } from './types';
-import { DashboardView, CreateView, EditorView } from './views';
+import { DashboardView, CreateView, EditorView, PricingView } from './views';
+import { CreditPopover } from './components/CreditPopover';
+import { Avatar, AvatarFallback, AvatarBadge } from './components/Avatar';
+import { BiSolidZap } from 'react-icons/bi';
+import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
 
 const MOCK_USER_ID = 'demo-user-123'; // Hardcoded for this demo
 
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
-const IconGrid = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-    <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-  </svg>
-);
+
 const IconVideo = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
@@ -22,11 +21,6 @@ const IconSettings = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-  </svg>
-);
-const IconBell = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
   </svg>
 );
 const IconUser = () => (
@@ -44,25 +38,7 @@ const IconPlus = () => (
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
-const IconHelp = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-  </svg>
-);
-const IconSupport = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>
-    <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
-    <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="14.83" y1="9.17" x2="18.36" y2="5.64"/>
-    <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/>
-  </svg>
-);
-const IconZap = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-  </svg>
-);
+
 const IconMenu = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
@@ -89,9 +65,9 @@ interface NavItemProps {
 const NavItem = ({ icon, label, active, onClick }: NavItemProps) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer border-none outline-none
+    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-[background-position,color] duration-500 ease-out cursor-pointer border-none outline-none
       ${active
-        ? 'bg-black text-white'
+        ? 'bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] hover:[background-position:100%_center] text-white shadow-sm'
         : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent'
       }`}
   >
@@ -149,7 +125,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           <div className="mb-2">
             <NavItem
-              icon={<IconGrid />}
+              icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
               label="Dashboard"
               active={selectedKey === 'dashboard'}
               onClick={() => go('/dashboard')}
@@ -165,27 +141,26 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
 
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1">
-          <div className="border-t border-gray-200 my-2" />
+          <div className="border-t border-gray-200 my-2 -mx-3" />
           <div className="mb-2 flex items-center gap-2">
             <button
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white transition-all duration-200 cursor-pointer shadow-sm border-none outline-none h-9"
+              onClick={() => go('/pricing')}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-white transition-[background-position] duration-500 ease-out cursor-pointer shadow-sm border-none outline-none h-9 bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] hover:bg-transparent hover:[background-position:100%_center] focus-visible:ring-gray-900/20"
               id="upgrade-pro-btn"
             >
-              <span className="text-gray-300">
-                <IconZap />
-              </span>
-              <span className="text-sm font-medium text-white whitespace-nowrap">
+              <span className="text-sm font-medium text-white whitespace-nowrap" style={{ color: '#ffffff' }}>
                 Upgrade Pro
               </span>
+              <BiSolidZap className="w-4 h-4 text-gray-300" />
             </button>
-            <button
-              className="flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-colors cursor-pointer shrink-0 h-9 w-9 hover:brightness-95"
-              style={{ backgroundColor: '#e6e6e6' }}
-              id="sidebar-profile-btn"
-              title="Account"
-            >
-              <IconUser />
-            </button>
+            <div className="relative inline-block shrink-0 cursor-pointer hover:brightness-95 transition-all">
+              <Avatar>
+                <AvatarFallback>
+                  <IconUser />
+                </AvatarFallback>
+              </Avatar>
+              <AvatarBadge className="bg-emerald-500" />
+            </div>
           </div>
           <NavItem
             icon={<IconSettings />}
@@ -210,8 +185,9 @@ interface TopHeaderProps {
   onBack: () => void;
   projectTitle?: string;
   onDownload?: () => void;
+  isPricingPage?: boolean;
 }
-const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload }: TopHeaderProps) => (
+const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage }: TopHeaderProps) => (
   <header className="h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
     {/* Left: hamburger + search / back */}
     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -232,23 +208,29 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
         >
           <IconArrowLeft /> Back to Dashboard
         </button>
+      ) : isPricingPage ? (
+        <h2 className="text-lg font-bold text-gray-900 ml-1">Pricing</h2>
       ) : (
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex-1 max-w-sm">
-          <span className="text-gray-400 shrink-0"><IconSearch /></span>
-          <input
-            type="text"
-            placeholder="Search videos, projects..."
-            className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 w-full"
-            id="global-search-input"
-            value={searchQuery}
-            onChange={e => onSearchChange(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange('')}
-              className="text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer text-xs shrink-0"
-            >✕</button>
-          )}
+        <div className="flex flex-col gap-2 flex-1 max-w-md">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <IconSearch />
+            </span>
+            <input
+              type="text"
+              placeholder="Search videos, projects..."
+              className="flex h-10 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-10 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all"
+              id="global-search-input"
+              value={searchQuery}
+              onChange={e => onSearchChange(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer text-xs"
+              >✕</button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -261,6 +243,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 
     {/* Right: Download / CTA */}
     <div className="flex items-center gap-3 shrink-0">
+      <CreditPopover />
       {onDownload ? (
         <button
           onClick={onDownload}
@@ -269,7 +252,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
         >
           <IconDownload /> Download
         </button>
-      ) : !isDetailPage ? (
+      ) : !isDetailPage && !isPricingPage ? (
         <button
           onClick={onNew}
           className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
@@ -437,6 +420,8 @@ function AppContent() {
     }
   } else if (location.pathname.startsWith('/settings')) {
     selectedKey = 'settings';
+  } else if (location.pathname.startsWith('/pricing')) {
+    selectedKey = 'pricing';
   }
 
   return (
@@ -455,6 +440,7 @@ function AppContent() {
         <TopHeader
           isMobile={isMobile}
           isDetailPage={selectedKey === 'create' || selectedKey === 'editor'}
+          isPricingPage={selectedKey === 'pricing'}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onToggle={() => setCollapsed(c => !c)}
@@ -469,6 +455,7 @@ function AppContent() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} />} />
             <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
+            <Route path="/pricing" element={<PricingView />} />
             <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
           </Routes>
         </main>

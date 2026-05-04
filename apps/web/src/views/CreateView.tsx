@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
-// ── Icons ──────────────────────────────────────────────────────────────────────
-const IconArrowLeft = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-  </svg>
-);
+import { Switch } from '../components/Switch';
+import { ThemeSwitch } from '../components/ThemeSwitch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select';
+import { WaveformScrub } from '../components/WaveformScrub';
+import { ContainerTextFlip } from '../components/ContainerTextFlip';
+import { PlaceholdersAndVanishInput } from '../components/PlaceholdersAndVanishInput';
+
+
 const IconPlay = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <polygon points="5 3 19 12 5 21 5 3"/>
@@ -36,23 +37,13 @@ const FieldLabel = ({ required, label, tooltip }: { required?: boolean; label: s
   </label>
 );
 
-// ── How It Works Step ─────────────────────────────────────────────────────────
-const Step = ({ n, title, desc, isLast }: { n: number; title: string; desc: string; isLast?: boolean }) => (
-  <div className="flex gap-3">
-    <div className="flex flex-col items-center">
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-        n === 1 ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 border border-gray-200'
-      }`}>
-        {n}
-      </div>
-      {!isLast && <div className="w-px flex-1 bg-gray-200 mt-1" />}
-    </div>
-    <div className={`pb-5 ${isLast ? '' : ''}`}>
-      <p className="text-sm font-semibold text-gray-800 leading-tight">{title}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-    </div>
-  </div>
-);
+const AI_AGENT_PROMPTS = [
+  "Go to flipkart.com, search for 'iPhone 15', click the first result, and highlight the key specs for a product review.",
+  "Navigate to stripe.com, click 'Docs', search for 'Payment Intents', and summarize the integration steps.",
+  "Open our startup's landing page, click 'Get Started', fill the signup form, and walk through the onboarding dashboard.",
+  "Go to github.com, search for 'React', navigate to 'Issues', and show how to filter for 'good first issues'.",
+  "Visit the company intranet, click 'HR Portal', navigate to 'Leave Requests', and submit a time-off application."
+];
 
 // ── Create View ────────────────────────────────────────────────────────────────
 interface CreateViewProps {
@@ -63,12 +54,13 @@ interface CreateViewProps {
   onQueueJob: (values: any) => Promise<void>;
 }
 
-export const CreateView = ({ isMobile, formValues, setFormValues, isSubmitting, onQueueJob }: CreateViewProps) => {
-  const navigate = useNavigate();
+export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob }: CreateViewProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showAudioPreview, setShowAudioPreview] = useState(false);
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value });
+    if (key === 'audio') setShowAudioPreview(true);
     if (errors[key]) setErrors(e => { const n = { ...e }; delete n[key]; return n; });
   };
 
@@ -78,54 +70,136 @@ export const CreateView = ({ isMobile, formValues, setFormValues, isSubmitting, 
     if (!formValues.url?.trim()) errs.url = 'Please enter a URL';
     if (!formValues.instructions?.trim()) errs.instructions = 'Please provide instructions';
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    onQueueJob({ url: formValues.url, instructions: formValues.instructions, script: formValues.script });
+    onQueueJob({ 
+      url: formValues.url, 
+      subtitles: formValues.subtitles || 'false', 
+      theme: formValues.theme || 'light', 
+      audio: formValues.audio || '',
+      instructions: formValues.instructions, 
+      script: formValues.script 
+    });
   };
 
   const inputBase = "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-colors bg-white";
   const inputError = "border-red-300 focus:ring-red-200 focus:border-red-400";
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+    <div className="p-6 md:p-8 max-w-3xl mx-auto w-full">
       {/* Page heading */}
       <div className="mb-7">
-        <h1 className="text-2xl font-bold text-gray-900">Generate AI Demo</h1>
-        <p className="text-sm text-gray-500 mt-1">Tell the AI agent what to record, and it will handle the rest.</p>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center flex-wrap gap-1">
+          <span>Generate</span>
+          <ContainerTextFlip
+            words={["cinematic", "stunning", "polished", "engaging", "premium"]}
+            interval={2500}
+          />
+          <span>demos</span>
+        </h1>
+        <p className="text-sm text-gray-500 mt-1.5">Tell the AI agent what to record, and it will craft a production-ready walkthrough.</p>
       </div>
 
-      <div className={`flex gap-6 ${isMobile ? 'flex-col' : 'flex-row items-start'}`}>
+      <div className="w-full">
 
-        {/* ── Left: Form ──────────────────────────────────────────────────── */}
-        <div className="flex-[1.8] min-w-0">
+        {/* ── Form ──────────────────────────────────────────────────────── */}
+        <div className="min-w-0">
           <form
             onSubmit={handleSubmit}
-            className="bg-white border border-gray-200 rounded-xl p-6 space-y-5"
+            className="bg-white border border-gray-200 rounded-xl p-6 space-y-5 shadow-sm"
             id="create-video-form"
           >
-            {/* Product URL */}
-            <div>
-              <FieldLabel required label="Product URL" tooltip="The starting point for the AI agent." />
-              <input
-                id="url-input"
-                type="url"
-                className={`${inputBase} ${errors.url ? inputError : ''}`}
-                placeholder="https://your-app.com/login"
-                value={formValues.url || ''}
-                onChange={e => update('url', e.target.value)}
-              />
-              {errors.url && <p className="text-xs text-red-500 mt-1">{errors.url}</p>}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Product URL */}
+              <div>
+                <FieldLabel required label="Product URL" tooltip="The starting point for the AI agent." />
+                <input
+                  id="url-input"
+                  type="url"
+                  className={`${inputBase} ${errors.url ? inputError : ''}`}
+                  placeholder="https://your-app.com/login"
+                  value={formValues.url || ''}
+                  onChange={e => update('url', e.target.value)}
+                />
+                {errors.url && <p className="text-xs text-red-500 mt-1">{errors.url}</p>}
+              </div>
+
+              {/* Audio Track */}
+              <div>
+                <FieldLabel label="Background Audio" tooltip="Select an AI generated voice or background track." />
+                <Select 
+                  value={formValues.audio || ''} 
+                  onValueChange={(val) => update('audio', val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an audio track" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-400">Gemini Native Voices</div>
+                    <SelectItem value="Orus.mp3">Orus (Deep, professional)</SelectItem>
+                    <SelectItem value="Charon.mp3">Charon (Clear, conversational)</SelectItem>
+                    <SelectItem value="Fenrir.mp3">Fenrir (Dynamic, excitable)</SelectItem>
+                    <SelectItem value="Puck.mp3">Puck (Upbeat, energetic)</SelectItem>
+                    <SelectItem value="Aoede.mp3">Aoede (Natural, conversational)</SelectItem>
+                    <SelectItem value="Kore.mp3">Kore (Confident, firm)</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {formValues.audio && showAudioPreview && (
+                  <WaveformScrub 
+                    fileName={formValues.audio} 
+                    onConfirm={() => setShowAudioPreview(false)}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Options Row */}
+            <div className="grid grid-cols-2 gap-6 py-2">
+              {/* Subtitles */}
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="subtitles-toggle"
+                  checked={formValues.subtitles === 'true'}
+                  onCheckedChange={(checked) => update('subtitles', checked ? 'true' : 'false')}
+                  aria-label="Toggle subtitles"
+                />
+                <div>
+                  <label htmlFor="subtitles-toggle" className="text-sm font-medium text-gray-900 cursor-pointer block">
+                    Include Subtitles
+                  </label>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Overlay AI subtitles.</p>
+                </div>
+              </div>
+
+              {/* Theme Option */}
+              <div className="flex items-center gap-3">
+                <ThemeSwitch 
+                  checked={formValues.theme === 'dark'} 
+                  onCheckedChange={(checked) => update('theme', checked ? 'dark' : 'light')} 
+                />
+                <div>
+                  <label className="text-sm font-medium text-gray-900 cursor-pointer block">
+                    Video Theme
+                  </label>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Choose dark or light theme for the video.</p>
+                </div>
+              </div>
             </div>
 
             {/* Instructions */}
-            <div>
+            <div className="z-10 relative">
               <FieldLabel required label="What should the AI agent do?" tooltip="Provide step-by-step instructions." />
-              <textarea
-                id="instructions-input"
-                rows={6}
-                className={`${inputBase} resize-none ${errors.instructions ? inputError : ''}`}
-                placeholder="e.g. Log in with test@example.com, navigate to the billing section, click 'Upgrade to Pro', and show the success banner."
-                value={formValues.instructions || ''}
-                onChange={e => update('instructions', e.target.value)}
-              />
+              <div className={errors.instructions ? "ring-2 ring-red-300 rounded-xl" : ""}>
+                <PlaceholdersAndVanishInput
+                  placeholders={AI_AGENT_PROMPTS}
+                  onChange={(e) => update('instructions', e.target.value)}
+                  onSubmit={() => {
+                    // Prevent default behavior to stop immediate submission if they just press Enter in the input
+                    // We let them click the main "Generate Demo" button, or we can trigger it.
+                    // For now, it just triggers the vanish animation and they can click Generate Demo.
+                  }}
+                  value={formValues.instructions || ''}
+                />
+              </div>
               {errors.instructions && <p className="text-xs text-red-500 mt-1">{errors.instructions}</p>}
             </div>
 
@@ -147,24 +221,12 @@ export const CreateView = ({ isMobile, formValues, setFormValues, isSubmitting, 
               type="submit"
               disabled={isSubmitting}
               id="generate-demo-btn"
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed border-none cursor-pointer"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-500 ease-out disabled:opacity-50 flex items-center justify-center gap-2 border-none cursor-pointer bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] text-white hover:[background-position:99%_center] shadow-lg shadow-black/5 disabled:cursor-not-allowed"
             >
               {isSubmitting ? <IconLoader /> : <IconPlay />}
               {isSubmitting ? 'Queuing…' : 'Generate Demo'}
             </button>
           </form>
-        </div>
-
-        {/* ── Right: How it works ─────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0" style={{ minWidth: isMobile ? 0 : 240 }}>
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">How it works</p>
-            <Step n={1} title="Queue Job" desc="Your request is sent to our worker queue." />
-            <Step n={2} title="Agent Navigation" desc="A headless browser opens and follows your instructions." />
-            <Step n={3} title="Video Synthesis" desc="Interactions are recorded and stitched together." />
-            <Step n={4} title="Voiceover & Polish" desc="AI voiceover is added and aligned with the video." />
-            <Step n={5} title="Ready for Edit" desc="Review and tweak the final video in our editor." isLast />
-          </div>
         </div>
 
       </div>
