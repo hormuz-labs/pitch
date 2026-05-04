@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Project } from '../types';
+import { TimedUndoAction } from '../components/TimedUndoAction';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 const IconVideoPlaceholder = () => (
@@ -22,12 +23,9 @@ const IconSort = () => (
     <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/>
   </svg>
 );
-const IconMoreH = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-  </svg>
-);
-const IconTrash = () => (
+
+// Smaller trash for the hover button
+const IconTrashSm = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6"/>
     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -75,19 +73,16 @@ const StatusBadge = ({ status }: { status: Project['status'] }) => {
   );
 };
 
-const Avatar = ({ initials, color = 'bg-gray-400' }: { initials: string; color?: string }) => (
-  <div className={`w-6 h-6 rounded-full ${color} flex items-center justify-center text-white text-xs font-semibold`}>
-    {initials}
-  </div>
-);
-
 // ── Video Card ─────────────────────────────────────────────────────────────────
 interface VideoCardProps {
   project: Project;
   onClick: () => void;
-  onDelete: (e: React.MouseEvent) => void;
+  onConfirmDelete: () => void;
 }
-const VideoCard = ({ project, onClick, onDelete }: VideoCardProps) => {
+
+const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
+  const [isPendingDelete, setIsPendingDelete] = useState(false);
+
   const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const title = project.parameters?.url
     ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
@@ -95,9 +90,10 @@ const VideoCard = ({ project, onClick, onDelete }: VideoCardProps) => {
 
   return (
     <div
-      onClick={onClick}
+      onClick={!isPendingDelete ? onClick : undefined}
       className="bg-white rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-gray-300 transition-all duration-200 group"
       id={`video-card-${project.id}`}
+      style={{ cursor: isPendingDelete ? 'default' : 'pointer' }}
     >
       {/* Thumbnail */}
       <div className="relative h-40 bg-gray-100 overflow-hidden">
@@ -116,42 +112,51 @@ const VideoCard = ({ project, onClick, onDelete }: VideoCardProps) => {
         <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-mono">
           {project.status === 'COMPLETED' ? '—:——' : '…'}
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-          className="absolute top-2 right-2 p-1.5 bg-white rounded-md border border-gray-200 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-500 shadow-sm transition-colors"
-          id={`delete-btn-${project.id}`}
-          title="Delete"
-        >
-          <IconTrash />
-        </button>
       </div>
 
       {/* Body */}
       <div className="p-3">
         <p className="text-sm font-semibold text-gray-900 truncate mb-1">{title}</p>
         <p className="text-xs text-gray-400 mb-3">{dateStr}</p>
-        <div className="flex items-center justify-between">
+
+        {/* Footer */}
+        <div className="flex items-center justify-between h-8">
           <StatusBadge status={project.status} />
-          <Avatar initials="U" color="bg-gray-400" />
+          
+          <div className="flex justify-end relative h-full items-center">
+            {isPendingDelete ? (
+              <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-1/2 -translate-y-1/2 origin-right whitespace-nowrap z-10">
+                <TimedUndoAction
+                  initialSeconds={5}
+                  deleteLabel="Deleting..."
+                  undoLabel="Cancel"
+                  icon={
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                      <path d="M3 7v6h6" />
+                      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                    </svg>
+                  }
+                  onConfirm={onConfirmDelete}
+                  onUndo={() => setIsPendingDelete(false)}
+                  onDismiss={() => setIsPendingDelete(false)}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsPendingDelete(true); }}
+                className="p-1.5 rounded-md text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center cursor-pointer"
+                id={`delete-btn-${project.id}`}
+                title="Delete"
+              >
+                <IconTrashSm />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
-
-// ── Confirm Delete Modal ───────────────────────────────────────────────────────
-const ConfirmDeleteModal = ({ onConfirm, onCancel }: { onConfirm: () => void, onCancel: () => void }) => (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Video?</h3>
-      <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this video? This action cannot be undone.</p>
-      <div className="flex gap-3 justify-end">
-        <button onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors border-none cursor-pointer">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors border-none cursor-pointer">Delete</button>
-      </div>
-    </div>
-  </div>
-);
 
 // ── Dashboard View ─────────────────────────────────────────────────────────────
 interface DashboardViewProps {
@@ -164,12 +169,10 @@ interface DashboardViewProps {
 export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: DashboardViewProps) => {
   const navigate = useNavigate();
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const displayedProjects = useMemo(() => {
     let list = [...projects];
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(p =>
@@ -179,7 +182,6 @@ export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: Das
       );
     }
 
-    // Sort
     list.sort((a, b) => {
       const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       return sortOrder === 'newest' ? -diff : diff;
@@ -198,7 +200,6 @@ export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: Das
           <h1 className="text-2xl font-bold text-gray-900 leading-tight">Recent Videos</h1>
           <p className="text-sm text-gray-500 mt-1">Manage and organize your generated content.</p>
         </div>
-        {/* Filter / Sort */}
         <div className="flex items-center gap-2">
           <button
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
@@ -231,7 +232,7 @@ export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: Das
         </div>
       )}
 
-      {/* Empty state (no projects at all) */}
+      {/* Empty state */}
       {!searchQuery && projects.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mb-4">
@@ -259,21 +260,10 @@ export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: Das
               key={project.id}
               project={project}
               onClick={() => navigate(`/editor/${project.id}`)}
-              onDelete={(e) => { e.stopPropagation(); setDeleteTargetId(project.id); }}
+              onConfirmDelete={() => onDelete(project.id)}
             />
           ))}
         </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteTargetId && (
-        <ConfirmDeleteModal
-          onConfirm={() => {
-            onDelete(deleteTargetId);
-            setDeleteTargetId(null);
-          }}
-          onCancel={() => setDeleteTargetId(null)}
-        />
       )}
     </div>
   );
