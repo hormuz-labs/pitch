@@ -11,8 +11,8 @@ compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, puppeteer.
 
 # Auto-Demo Generator
 
-Produces polished, cinematic product demo MP4s by combining agent-browser CLI capture,
-AI narration, strict state-machine frame animation, and normalized FFmpeg audio mixing.
+Produces polished, cinematic product demo MP4s by combining HD static plate capture,
+AI narration, LLM-driven timeline mapping, and normalized FFmpeg audio mixing.
 
 ## Output
 A single `demo-cinematic.mp4` written to `public/` (or a user-specified path) at 1920x1080,
@@ -22,30 +22,43 @@ A single `demo-cinematic.mp4` written to `public/` (or a user-specified path) at
 
 ## Workflow
 
-### Phase 1 — High-Res Trace Capture (Agent-Browser CLI via Agent)
-As the AI Agent, you MUST use the `agent-browser` CLI directly in your terminal step-by-step for all interactions and captures. **DO NOT write any automation scripts (no Bash scripts, no Node scripts, no Python scripts) for this phase.** 
+### Phase 1 — HD Static Plate Capture (Agent-Browser CLI via Agent)
+As the AI Agent, you MUST use the `agent-browser` CLI directly in your terminal to capture high-definition static plates for every key state. **DO NOT write any automation scripts (no Bash scripts, no Node scripts, no Python scripts) for this phase.** 
 
-**Why?** Modern web frameworks (React, Angular, Vue) use highly dynamic DOM structures and hashed CSS class names that change frequently. By running interactions live in your terminal step-by-step, you can use `agent-browser snapshot -i` to adapt to the live DOM safely, whereas hardcoded scripts will inevitably break.
+**Why?** Modern web frameworks (React, Angular, Vue) use highly dynamic DOM structures and client-side routing. Taking a screenshot immediately after a click often captures the *old* page state. Recording video results in heavy compression and blurry text.
 
-**CRITICAL NOTE FOR VIDEO RECORDING:** If using `agent-browser record start`, it creates an isolated context. You **must** explicitly pass the `--session <name>` flag to *every single* subsequent interaction command (click, type, etc.) to ensure they happen inside the recorded tab.
+**CRITICAL NOTE FOR HD CAPTURE:**
+1. Do not use `agent-browser record` (it produces low-res video).
+2. **VERIFY BEFORE CAPTURE (MANDATORY):** Client-side routing and network requests take unpredictable amounts of time. You MUST verify the page state has updated before running `screenshot`. Do not rely solely on `sleep`. Use `agent-browser snapshot` or `agent-browser get box <ref>` to confirm the expected new element is present in the DOM *before* capturing the HD plate.
+3. For navigation, prefer using `agent-browser open <direct_url>` to guarantee a fresh load.
+4. Save each state to a dedicated directory (e.g., `hd_plates/state_0.png`, `hd_plates/state_1.png`).
+5. Capture the bounding box (`agent-browser get box ... --json`) for every element you intend to "click" or "type" into.
 
 ```bash
 # Example sequence run DIRECTLY by the Agent in the CLI
-agent-browser --session demo-record set viewport 1920 1080
-agent-browser --session demo-record open https://example.com
-agent-browser --session demo-record record start raw.webm
-agent-browser --session demo-record snapshot -i
+agent-browser --session demo-capture set viewport 1920 1080
+agent-browser --session demo-capture open https://example.com
+# 1. Wait for page load
+sleep 3
+# 2. VERIFY the expected element exists before capturing
+agent-browser --session demo-capture snapshot -i
+agent-browser --session demo-capture screenshot hd_plates/state_0.png
+
 # ... identify @e5 as Search button ...
-agent-browser --session demo-record get box @e5 --json
-agent-browser --session demo-record click @e5
-agent-browser --session demo-record record stop
+agent-browser --session demo-capture get box @e5 --json
+agent-browser --session demo-capture click @e5
+# 1. Wait for interaction/routing
+sleep 2
+# 2. VERIFY the new state (e.g., check if the search modal is open)
+agent-browser --session demo-capture get box @e20 --json
+agent-browser --session demo-capture screenshot hd_plates/state_1.png
 ```
 
 ### Phase 2 — Voiceover Generation & Transcription
-Use `gemini-3.1-flash-tts-preview` (or fallback to `gemini-2.5-flash` if unavailable in the current API version) to generate the `.wav` narration (default voice: `Orus`).
+Use `gemini-3.1-flash-tts-preview` (or fallback to `gemini-2.5-flash` if unavailable) to generate the `.wav` narration (default voice: `Orus`).
 Use `gemini-2.5-flash` to transcribe that `.wav` into a JSON array containing `word`, `startMs`, and `endMs`.
 
-These word-level timestamps are strictly required for Phase 3 synchronization.
+These word-level timestamps are strictly required for synchronization.
 
 ### Phase 2.5 — LLM-Driven Timeline Mapping
 **Do not use regex or `Array.find` to map words to timestamps.** Common words like "is" or "click" appear multiple times and will break your timeline.
@@ -59,7 +72,7 @@ Build an `animator.html` canvas.
 *   **Exact Center Clicks:** `agent-browser` bounding boxes return the *top-left* coordinate. You MUST manually calculate and target the exact center of the element by using `box.x + box.width / 2` and `box.y + box.height / 2`. Never click the top-left coordinate.
 *   **Professional Camera Logic (No Yo-Yo Zooming):** When scaling the Canvas to highlight UI elements (`transform: scale(zoom)`), **do not** zoom in for a click and immediately zoom back out to 1.0 (yo-yoing). Professional editors use long, continuous "pushes" (e.g., slowly zooming from 1.0 to 1.3 over several seconds) and then *hold* that zoom while panning the camera (`translate`) between nearby interactions. Only pull back to 1.0 during major page navigations or at the very end of the video.
 *   **Human-Like Typing:** Use a stepped easing function with sine-wave distortion (`humanTypeEase`) to simulate natural, bursty typing rather than uniform linear typing.
-*   **Strict Click Syncing:** Capture the bounding box for *every* interaction. Ensure each click triggers both a visual ripple in the DOM and a precisely timed `click.mp3` in the FFmpeg audio mix.
+*   **Strict Click Syncing:** Ensure each click triggers both a visual ripple in the DOM and a precisely timed `click.mp3` in the FFmpeg audio mix.
 *   **Puppeteer for Frames:** Use a Node script with `puppeteer` to render the frames (as shown in `demo-v4.ts`). Launch it with `--force-device-scale-factor=2` and `deviceScaleFactor: 2` to match the 1080p retina resolution, and loop through `window.renderFrame(t)` to take screenshots.
 
 ### Phase 4 — Normalized FFmpeg Encoding (Volume Drift Fix)
@@ -82,4 +95,4 @@ command.complexFilter([
 ```
 
 ## Reference Implementation
-See the **perfected, fully functioning pipeline** in [demo-v4](references/demo-v4.ts). This reference file demonstrates the complete V4 Time-Remapping architecture, including live interactive capture via `--session`, exact bounding box mapping, and professional continuous cinematic camera zooming. Always model new demos after this file.
+See the **perfected, fully functioning pipeline** in [demo-v4](references/demo-v4.ts). This reference file demonstrates the complete V4.1 architecture, including HD plate capture, semantic LLM timeline mapping, and professional continuous cinematic camera zooming. Always model new demos after this file.

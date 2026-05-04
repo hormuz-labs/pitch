@@ -8,6 +8,16 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * V4.1 Cinematic Pipeline Reference
+ * This script demonstrates:
+ * 1. AI Voiceover generation (TTS)
+ * 2. Word-level transcription
+ * 3. LLM-driven semantic timeline mapping (Structured Output)
+ * 4. State-machine rendering using HD Static Plates
+ * 5. High-quality FFmpeg encoding with Normalized Audio Mixing
+ */
+
 const DEMO_DIR = path.join(process.cwd(), 'demo/shadcn-smooth');
 
 interface WavConversionOptions {
@@ -54,7 +64,7 @@ function createWavHeader(dataLength: number, options: WavConversionOptions) {
 
 async function voiceoverPhase() {
   console.log("🎙️ Generating Voiceover...");
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY!);
   const model = 'gemini-3.1-flash-tts-preview';
   const scriptText = "Shadcn UI offers an extensive collection of components. Let's look at the Carousel, perfect for image galleries. Need a date? The Date Picker component is accessible and beautifully styled. Building stunning apps has never been easier.";
 
@@ -91,7 +101,7 @@ async function voiceoverPhase() {
 
 async function transcribePhase() {
   console.log("📝 Transcribing Voiceover...");
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY!);
   const audioBuffer = fs.readFileSync(path.join(DEMO_DIR, 'voiceover.wav'));
 
   const result = await ai.models.generateContent({
@@ -115,7 +125,7 @@ async function transcribePhase() {
 
 async function timelineMappingPhase() {
   console.log("🧠 Analyzing transcript with LLM to map animation timeline...");
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY!);
   const timestamps = JSON.parse(fs.readFileSync(path.join(DEMO_DIR, 'timestamps.json'), 'utf8'));
 
   const prompt = `
@@ -162,14 +172,12 @@ async function timelineMappingPhase() {
   console.log("✅ Timeline mapped:", rawJson);
 }
 
-
 async function renderPhase() {
   console.log("🎞️ Rendering Time-Mapped Frames with Smooth Zoom...");
   const manifest = JSON.parse(fs.readFileSync(path.join(DEMO_DIR, 'manifest.json'), 'utf8'));
   const TIMELINE = JSON.parse(fs.readFileSync(path.join(DEMO_DIR, 'timeline.json'), 'utf8'));
 
   const finalVideoDuration = TIMELINE.tOutro; 
-
   const framesDir = path.join(DEMO_DIR, 'hd_plates');
   const frameFiles = fs.readdirSync(framesDir).filter(f => f.endsWith('.png')).sort();
 
@@ -224,6 +232,7 @@ async function renderPhase() {
       document.getElementById('intro-card').style.opacity = t < INTRO_DUR ? String(1 - easeInOut(clamp01((t - 1.0)/0.5))) : '0';
       document.getElementById('outro-card').style.opacity = t >= (FINAL_DUR - 2.0) ? String(easeInOut(clamp01((t - (FINAL_DUR - 2.0))/1.0))) : '0';
 
+      // HD State Machine
       document.querySelectorAll('.screenshot').forEach(img => { img.style.display = 'none'; });
       let activeState = 0;
       if (t >= TIMELINE.tCarouselNext + 0.1) activeState = 1;
@@ -238,7 +247,6 @@ async function renderPhase() {
 
       let cx = 960, cy = 540, zoom = 1.0, cScale = 1.0;
       const MOVE_DUR = 1.2;
-      const ZOOM_DUR = 1.5;
 
       const cnTx = MANIFEST.carouselNextBox.x + MANIFEST.carouselNextBox.width / 2;
       const cnTy = MANIFEST.carouselNextBox.y + MANIFEST.carouselNextBox.height / 2;
@@ -253,30 +261,19 @@ async function renderPhase() {
       const dateTx = MANIFEST.dateSelectBox.x + MANIFEST.dateSelectBox.width / 2;
       const dateTy = MANIFEST.dateSelectBox.y + MANIFEST.dateSelectBox.height / 2;
 
-      // 1. Professional Cinematic Camera Logic
-      // Professional editors don't "yo-yo" (zoom in, zoom out, zoom in). 
-      // They use long, slow "pushes" (zooms) that hold, and then they pan the camera to the next point of interest while maintaining the zoom.
-      // If a major context shift happens, they use a fast ease to zoom out.
-
+      // Cinematic Camera Logic
       let targetZoom = 1.0;
-      
       if (t < TIMELINE.tSearchClick - 1.0) {
-          // Slowly push in on the Carousel over the first few seconds
           targetZoom = interp(1.0, 1.25, easeInOut(clamp01(t / TIMELINE.tCarouselNext)));
       } else if (t < TIMELINE.tDatePickerClick - 1.0) {
-          // When moving to search, hold a steady 1.3x zoom and just pan the camera
           targetZoom = interp(1.25, 1.35, easeInOut(clamp01((t - TIMELINE.tSearchClick) / (TIMELINE.tEnter - TIMELINE.tSearchClick))));
       } else if (t < TIMELINE.tDateSelect + 1.0) {
-          // After hitting enter on search, we stay zoomed in at 1.2x to focus on the date picker
           targetZoom = 1.2;
       } else {
-          // Slow, dramatic pull out at the very end
           targetZoom = interp(1.2, 1.0, easeInOut(clamp01((t - (TIMELINE.tDateSelect + 1.0)) / 2.0)));
       }
-
       zoom = targetZoom;
 
-      // 2. Smooth Cursor Movement Logic
       const moveCursor = (t, targetT, startX, startY, endX, endY) => {
         if (t < targetT - MOVE_DUR) { cx = startX; cy = startY; }
         else if (t < targetT) {
@@ -293,7 +290,6 @@ async function renderPhase() {
       else if (t < TIMELINE.tDateSelect) moveCursor(t, TIMELINE.tDateSelect, dpBtnTx, dpBtnTy, dateTx, dateTy);
       else { cx = dateTx; cy = dateTy; }
 
-      // 3. Click Ripple Logic
       const checkClick = (targetT, targetX, targetY) => {
         if (t >= targetT && t < targetT + 0.2) {
           let p = (t - targetT) / 0.2; cScale = p < 0.5 ? 1 - (p*0.4) : 0.6 + ((p-0.5)*0.4);
@@ -358,7 +354,6 @@ async function renderPhase() {
 async function encodePhase() {
   console.log("🎬 Encoding Final Video...");
   const TIMELINE = JSON.parse(fs.readFileSync(path.join(DEMO_DIR, 'timeline.json'), 'utf8'));
-  
   const typeDur = TIMELINE.tTypeEnd - TIMELINE.tTypeStart;
   const outputPath = path.join(process.cwd(), 'public/shadcn-smooth.mp4');
   
