@@ -42,15 +42,19 @@ agent-browser --session demo-record record stop
 ```
 
 ### Phase 2 — Voiceover Generation & Transcription
-Use `gemini-3.1-flash-tts-preview` to generate the `.wav` narration (default voice: `Orus`).
+Use `gemini-3.1-flash-tts-preview` (or fallback to `gemini-2.5-flash` if unavailable in the current API version) to generate the `.wav` narration (default voice: `Orus`).
 Use `gemini-2.5-flash` to transcribe that `.wav` into a JSON array containing `word`, `startMs`, and `endMs`.
 
 These word-level timestamps are strictly required for Phase 3 synchronization.
 
+### Phase 2.5 — LLM-Driven Timeline Mapping
+**Do not use regex or `Array.find` to map words to timestamps.** Common words like "is" or "click" appear multiple times and will break your timeline.
+You MUST write a script that passes the raw `timestamps.json` array to an LLM (`gemini-2.5-flash` or `gemini-3.1-flash`) and asks it to semantically extract the exact time in seconds for each interaction using a strict JSON `responseSchema`. Save this to `timeline.json`.
+
 ### Phase 3 — State Machine Animation Rendering
 Build an `animator.html` canvas.
 *   **No Backticks in Script:** You MUST use string concatenation (`+`) when injecting JS templates into the `animatorHtml` variable. ESBuild/TypeScript execution will fail with "Unterminated string literal" if you use backticks inside the HTML string.
-*   **Explicit State Machine & Dynamic Interpolation:** Build a strict `if/else if` ladder based on your `TIMELINE`.
+*   **HD State Machine:** Instead of interpolating through video frames, build a strict time-based state machine (`activeState = 1`, `activeState = 2`) that toggles the visibility of the HD static `<img>` plates captured in Phase 1.
 *   **Cursor Movement & Easing:** Target a cursor movement duration of **1.4s to 1.5s**. This provides a smooth, deliberate pace that is easy for viewers to follow. **You MUST use a soft cubic easing function** (`4*t*t*t`). Absolutely do not use `power4` or sharp easings, as they cause the cursor to whip violently across the screen.
 *   **Exact Center Clicks:** `agent-browser` bounding boxes return the *top-left* coordinate. You MUST manually calculate and target the exact center of the element by using `box.x + box.width / 2` and `box.y + box.height / 2`. Never click the top-left coordinate.
 *   **Professional Camera Logic (No Yo-Yo Zooming):** When scaling the Canvas to highlight UI elements (`transform: scale(zoom)`), **do not** zoom in for a click and immediately zoom back out to 1.0 (yo-yoing). Professional editors use long, continuous "pushes" (e.g., slowly zooming from 1.0 to 1.3 over several seconds) and then *hold* that zoom while panning the camera (`translate`) between nearby interactions. Only pull back to 1.0 during major page navigations or at the very end of the video.
