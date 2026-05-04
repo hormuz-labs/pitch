@@ -37,48 +37,73 @@ export const WaveformScrub: React.FC<WaveformScrubProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const waveformRef = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [audioDuration, setAudioDuration] = useState(duration);
 
-  const isFinished = currentTime >= duration;
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const x = useMotionValue(0);
+
+  const isFinished = currentTime >= audioDuration;
 
   useEffect(() => {
     const updateWidth = () => {
       if (waveformRef.current) {
         const newWidth = waveformRef.current.offsetWidth;
         setContainerWidth(newWidth);
-        x.set((currentTime / duration) * newWidth);
+        x.set((currentTime / audioDuration) * newWidth);
       }
     };
 
     updateWidth();
     window.addEventListener('resize', updateWidth);
     return () => window.removeEventListener('resize', updateWidth);
-  }, [duration, currentTime, x]);
+  }, [audioDuration, currentTime, x]);
 
   useEffect(() => {
-    if (isPlaying && currentTime < duration) {
-      timerRef.current = setInterval(() => {
-        setCurrentTime((prev) => {
-          const next = Math.min(prev + 0.1, duration);
-          x.set((next / duration) * containerWidth);
-          if (next >= duration) setIsPlaying(false);
-          return next;
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch(e => {
+          console.error("Audio play failed:", e);
+          setIsPlaying(false);
         });
-      }, 100);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+      } else {
+        audioRef.current.pause();
+      }
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isPlaying, duration, x, containerWidth, currentTime]);
+  }, [isPlaying]);
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      const current = audioRef.current.currentTime;
+      setCurrentTime(current);
+      if (containerWidth > 0 && isPlaying) {
+        x.set((current / audioDuration) * containerWidth);
+      }
+    }
+  };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(audioDuration);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      const dur = audioRef.current.duration;
+      if (dur && !isNaN(dur) && dur !== Infinity) {
+        setAudioDuration(dur);
+      }
+    }
+  };
 
   useMotionValueEvent(x, 'change', (latest) => {
     if (!isPlaying && containerWidth > 0) {
       const progress = latest / containerWidth;
-      setCurrentTime(progress * duration);
+      const newTime = progress * audioDuration;
+      setCurrentTime(newTime);
+      if (audioRef.current) {
+        audioRef.current.currentTime = newTime;
+      }
     }
   });
 
@@ -87,20 +112,38 @@ export const WaveformScrub: React.FC<WaveformScrubProps> = ({
     [0, containerWidth || 1],
     ['0%', '100%'],
   );
-  const displayTime = Math.round(duration - currentTime);
+  const displayTime = Math.max(0, Math.round(audioDuration - currentTime));
 
   const handleTogglePlay = () => {
     if (isFinished) {
       setCurrentTime(0);
       x.set(0);
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+      }
       setIsPlaying(true);
     } else {
       setIsPlaying(!isPlaying);
     }
   };
 
+  const getAudioUrl = (name: string) => {
+    try {
+      return new URL(`../assets/sounds/${name}`, import.meta.url).href;
+    } catch (e) {
+      return '';
+    }
+  };
+
   return (
     <div className="w-full mt-3">
+      <audio
+        ref={audioRef}
+        src={getAudioUrl(fileName)}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+        onLoadedMetadata={handleLoadedMetadata}
+      />
       <div className="flex flex-col items-center justify-center bg-transparent font-sans antialiased">
         <div className="w-full rounded-xl bg-white p-2 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-200/60 transition-colors duration-300">
           <div className="mb-1.5 flex items-center justify-between px-1.5">

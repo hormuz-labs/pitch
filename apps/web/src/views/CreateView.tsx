@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { Switch } from '../components/Switch';
 import { ThemeSwitch } from '../components/ThemeSwitch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select';
@@ -84,7 +84,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
   const inputError = "border-red-300 focus:ring-red-200 focus:border-red-400";
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+    <div className="p-6 md:p-8 max-w-3xl mx-auto w-full">
       {/* Page heading */}
       <div className="mb-7">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center flex-wrap gap-1">
@@ -98,7 +98,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
         <p className="text-sm text-gray-500 mt-1.5">Tell the AI agent what to record, and it will craft a production-ready walkthrough.</p>
       </div>
 
-      <div className="max-w-3xl">
+      <div className="w-full">
 
         {/* ── Form ──────────────────────────────────────────────────────── */}
         <div className="min-w-0">
@@ -133,10 +133,13 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                     <SelectValue placeholder="Choose an audio track" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Mom.mp3">Mom.mp3</SelectItem>
-                    <SelectItem value="Dad.mp3">Dad.mp3</SelectItem>
-                    <SelectItem value="Lofi_Beats.mp3">Lofi_Beats.mp3</SelectItem>
-                    <SelectItem value="Corporate_Upbeat.mp3">Corporate_Upbeat.mp3</SelectItem>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-400">Gemini Native Voices</div>
+                    <SelectItem value="Orus.mp3">Orus (Deep, professional)</SelectItem>
+                    <SelectItem value="Charon.mp3">Charon (Clear, conversational)</SelectItem>
+                    <SelectItem value="Fenrir.mp3">Fenrir (Dynamic, excitable)</SelectItem>
+                    <SelectItem value="Puck.mp3">Puck (Upbeat, energetic)</SelectItem>
+                    <SelectItem value="Aoede.mp3">Aoede (Natural, conversational)</SelectItem>
+                    <SelectItem value="Kore.mp3">Kore (Confident, firm)</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -189,7 +192,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                 <PlaceholdersAndVanishInput
                   placeholders={AI_AGENT_PROMPTS}
                   onChange={(e) => update('instructions', e.target.value)}
-                  onSubmit={(e) => {
+                  onSubmit={() => {
                     // Prevent default behavior to stop immediate submission if they just press Enter in the input
                     // We let them click the main "Generate Demo" button, or we can trigger it.
                     // For now, it just triggers the vanish animation and they can click Generate Demo.

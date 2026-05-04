@@ -109,9 +109,11 @@ const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
             <span className="text-red-500 text-xs font-semibold bg-white px-2 py-1 rounded-md">Failed</span>
           </div>
         )}
-        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-mono">
-          {project.status === 'COMPLETED' ? '—:——' : '…'}
-        </div>
+        {project.status === 'COMPLETED' && (
+          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-mono">
+            —:——
+          </div>
+        )}
       </div>
 
       {/* Body */}

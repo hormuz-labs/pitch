@@ -148,7 +148,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-white transition-[background-position] duration-500 ease-out cursor-pointer shadow-sm border-none outline-none h-9 bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] hover:bg-transparent hover:[background-position:100%_center] focus-visible:ring-gray-900/20"
               id="upgrade-pro-btn"
             >
-              <span className="text-sm font-medium text-white whitespace-nowrap">
+              <span className="text-sm font-medium text-white whitespace-nowrap" style={{ color: '#ffffff' }}>
                 Upgrade Pro
               </span>
               <BiSolidZap className="w-4 h-4 text-gray-300" />
