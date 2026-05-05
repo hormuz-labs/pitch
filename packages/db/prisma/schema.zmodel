@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+plugin prisma {
+  provider = "@core/prisma"
+  output = "./schema.prisma"
+}
+
+// Dummy user model for ZenStack auth type-checking
+// We use Clerk for auth, so this doesn't need to be in the database
+model User {
+  id    String @id
+  orgId String?
+
+  @@auth()
+  @@ignore()
+}
+
+model Job {
+  id         String   @id @default(cuid())
+  userId     String
+  orgId      String
+  status     String
+  videoUrl   String?
+  audioUrl   String?
+  parameters String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([orgId])
+
+  // Access policies
+  // User must be logged in to do anything
+  @@deny('all', auth() == null)
+
+  // A user can read/write jobs that belong to their organization, or their own personal jobs if no org
+  // The auth() object will be passed in when enhancing the prisma client:
+  // enhance(prisma, { user: { id: userId, orgId: orgId } })
+  @@allow('all', auth().orgId != null && orgId == auth().orgId)
+  @@allow('all', auth().orgId == null && userId == auth().id)
+}

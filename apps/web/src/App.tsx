@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { 
+  SignedIn, 
+  SignedOut, 
+  SignInButton, 
+  UserButton, 
+  OrganizationSwitcher,
+  useAuth
+} from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
 import { DashboardView, CreateView, EditorView, PricingView } from './views';
 import { CreditPopover } from './components/CreditPopover';
-import { Avatar, AvatarFallback, AvatarBadge } from './components/Avatar';
 import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
-
-const MOCK_USER_ID = 'demo-user-123'; // Hardcoded for this demo
 
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
@@ -23,11 +28,6 @@ const IconSettings = () => (
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
 );
-const IconUser = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-);
 const IconSearch = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -38,7 +38,6 @@ const IconPlus = () => (
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
-
 const IconMenu = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
@@ -142,6 +141,18 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1">
           <div className="border-t border-gray-200 my-2 -mx-3" />
+          
+          <div className="mb-2 flex items-center justify-center p-2 bg-white rounded-xl border border-gray-100 shadow-sm">
+            <OrganizationSwitcher 
+              appearance={{
+                elements: {
+                  rootBox: "w-full",
+                  organizationSwitcherTrigger: "w-full flex justify-between"
+                }
+              }}
+            />
+          </div>
+
           <div className="mb-2 flex items-center gap-2">
             <button
               onClick={() => go('/pricing')}
@@ -154,12 +165,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
               <BiSolidZap className="w-4 h-4 text-gray-300" />
             </button>
             <div className="relative inline-block shrink-0 cursor-pointer hover:brightness-95 transition-all">
-              <Avatar>
-                <AvatarFallback>
-                  <IconUser />
-                </AvatarFallback>
-              </Avatar>
-              <AvatarBadge className="bg-emerald-500" />
+              <UserButton afterSignOutUrl="/" />
             </div>
           </div>
           <NavItem
@@ -268,6 +274,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 
 // ── App Content ───────────────────────────────────────────────────────────────
 function AppContent() {
+  const { getToken, isLoaded, userId, orgId } = useAuth();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [collapsed, setCollapsed] = useState(window.innerWidth < 1024);
   const [searchQuery, setSearchQuery] = useState('');
@@ -275,7 +282,6 @@ function AppContent() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [jobLogs, setJobLogs] = useState<Record<string, LogEntry[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // form state for CreateView (managed here to match original arch)
   const [formValues, setFormValues] = useState<Record<string, string>>({});
 
   const navigate = useNavigate();
@@ -295,22 +301,35 @@ function AppContent() {
 
   // Fetch initial jobs
   useEffect(() => {
-    fetch(`/api/jobs?userId=${MOCK_USER_ID}`)
-      .then(res => res.json())
-      .then(data => {
+    if (!isLoaded || !userId) return;
+
+    const fetchJobs = async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch('/api/jobs', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
         if (Array.isArray(data)) setProjects(data);
-      })
-      .catch(err => console.error('Failed to fetch jobs:', err));
-  }, []);
+      } catch (err) {
+        console.error('Failed to fetch jobs:', err);
+      }
+    };
+    
+    fetchJobs();
+  }, [isLoaded, userId, orgId, getToken]);
 
   // Listen to SSE updates
   useEffect(() => {
+    if (!isLoaded || !userId) return;
+    
     const sse = new EventSource('/api/jobs/stream');
 
     sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.userId !== MOCK_USER_ID) return;
+        const currentTenantId = orgId || userId;
+        if (data.orgId !== currentTenantId && data.userId !== userId) return;
 
         if (data.type === 'LOG') {
           const { jobId, event: opencodeEvent } = data;
@@ -370,16 +389,19 @@ function AppContent() {
     };
 
     return () => sse.close();
-  }, []);
+  }, [isLoaded, userId, orgId]);
 
   const handleQueueJob = async (values: any) => {
     setIsSubmitting(true);
     try {
+      const token = await getToken();
       const res = await fetch('/api/jobs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          userId: MOCK_USER_ID,
           parameters: { url: values.url, instructions: values.instructions, script: values.script }
         })
       });
@@ -395,7 +417,11 @@ function AppContent() {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+      const token = await getToken();
+      await fetch(`/api/jobs/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch {
       alert('Failed to delete job');
@@ -424,42 +450,60 @@ function AppContent() {
     selectedKey = 'pricing';
   }
 
+  if (!isLoaded) return <div className="h-screen w-screen flex items-center justify-center">Loading...</div>;
+
   return (
     <div className="flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
-      {/* Sidebar card */}
-      <Sidebar
-        selectedKey={selectedKey}
-        navigate={navigate}
-        isMobile={isMobile}
-        collapsed={collapsed}
-        onClose={() => setCollapsed(true)}
-      />
-
-      {/* Main content card */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
-        <TopHeader
+      <SignedIn>
+        <Sidebar
+          selectedKey={selectedKey}
+          navigate={navigate}
           isMobile={isMobile}
-          isDetailPage={selectedKey === 'create' || selectedKey === 'editor'}
-          isPricingPage={selectedKey === 'pricing'}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onToggle={() => setCollapsed(c => !c)}
-          onNew={() => navigate('/new')}
-          onBack={() => navigate('/dashboard')}
-          projectTitle={projectTitle}
-          onDownload={onDownload}
+          collapsed={collapsed}
+          onClose={() => setCollapsed(true)}
         />
 
-        <main className="flex-1 overflow-y-auto bg-white rounded-b-2xl">
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} />} />
-            <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
-            <Route path="/pricing" element={<PricingView />} />
-            <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
-          </Routes>
-        </main>
-      </div>
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
+          <TopHeader
+            isMobile={isMobile}
+            isDetailPage={selectedKey === 'create' || selectedKey === 'editor'}
+            isPricingPage={selectedKey === 'pricing'}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onToggle={() => setCollapsed(c => !c)}
+            onNew={() => navigate('/new')}
+            onBack={() => navigate('/dashboard')}
+            projectTitle={projectTitle}
+            onDownload={onDownload}
+          />
+
+          <main className="flex-1 overflow-y-auto bg-white rounded-b-2xl">
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} />} />
+              <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
+              <Route path="/pricing" element={<PricingView />} />
+              <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
+            </Routes>
+          </main>
+        </div>
+      </SignedIn>
+      <SignedOut>
+        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-2xl shadow-sm border border-gray-200">
+          <div className="w-16 h-16 rounded-2xl bg-gray-900 flex items-center justify-center mb-6">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Silverfish</h1>
+          <p className="text-gray-500 mb-8">Sign in to manage your video projects</p>
+          <SignInButton mode="modal">
+            <button className="px-8 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-all cursor-pointer">
+              Get Started
+            </button>
+          </SignInButton>
+        </div>
+      </SignedOut>
     </div>
   );
 }

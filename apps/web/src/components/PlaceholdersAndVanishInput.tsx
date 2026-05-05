@@ -1,17 +1,15 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface PlaceholdersAndVanishInputProps {
   placeholders: string[];
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
   value?: string;
 }
 
 export function PlaceholdersAndVanishInput({
   placeholders,
   onChange,
-  onSubmit,
   value,
 }: PlaceholdersAndVanishInputProps) {
   const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
