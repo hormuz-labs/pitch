@@ -15,6 +15,10 @@ const rootDir = path.resolve(__dirname, '../../..');
 
 dotenv.config({ path: path.join(rootDir, '.env') });
 
+if (!process.env.CLERK_PUBLISHABLE_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY) {
+  process.env.CLERK_PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY;
+}
+
 const app = express();
 app.use(express.json());
 app.use(cors());
