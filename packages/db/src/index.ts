@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { enhance } from '@zenstackhq/runtime';
 import { JobStatus, Job } from '@saas/shared';
 import * as dotenv from 'dotenv';
 import path from 'path';
@@ -17,8 +18,18 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({});
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+export interface AuthUser extends Record<string, unknown> {
+  id: string;
+  orgId?: string | null;
+}
+
+export function getEnhancedPrisma(user?: AuthUser) {
+  return enhance(prisma, { user });
+}
+
 export async function updateJob(id: string, data: { status?: JobStatus; videoUrl?: string; audioUrl?: string }) {
   console.log(`[DB] Updating job ${id}:`, data);
+  // System-level bypass for webhook/worker updates
   const updated = await prisma.job.update({
     where: { id },
     data: {
@@ -37,10 +48,11 @@ export async function updateJob(id: string, data: { status?: JobStatus; videoUrl
   };
 }
 
-export async function createJob(data: { userId: string; orgId: string; parameters: any }): Promise<Job> {
+export async function createJob(data: { userId: string; orgId: string; parameters: any }, user?: AuthUser): Promise<Job> {
   console.log(`[DB] Creating job for user ${data.userId} in org ${data.orgId}`);
   
-  const created = await prisma.job.create({
+  const client = getEnhancedPrisma(user);
+  const created = await client.job.create({
     data: {
       userId: data.userId,
       orgId: data.orgId,
@@ -58,8 +70,9 @@ export async function createJob(data: { userId: string; orgId: string; parameter
   };
 }
 
-export async function getJob(id: string): Promise<Job | null> {
-  const job = await prisma.job.findUnique({ where: { id } });
+export async function getJob(id: string, user?: AuthUser): Promise<Job | null> {
+  const client = getEnhancedPrisma(user);
+  const job = await client.job.findUnique({ where: { id } });
   
   if (!job) return null;
   
@@ -72,13 +85,13 @@ export async function getJob(id: string): Promise<Job | null> {
   };
 }
 
-export async function listJobs(orgId?: string): Promise<Job[]> {
-  const jobs = await prisma.job.findMany({
-    where: orgId ? { orgId } : undefined,
+export async function listJobs(user?: AuthUser): Promise<Job[]> {
+  const client = getEnhancedPrisma(user);
+  const jobs = await client.job.findMany({
     orderBy: { createdAt: 'desc' }
   });
   
-  return jobs.map(job => ({
+  return jobs.map((job: any) => ({
     ...job,
     videoUrl: job.videoUrl ?? undefined,
     audioUrl: job.audioUrl ?? undefined,
@@ -87,9 +100,10 @@ export async function listJobs(orgId?: string): Promise<Job[]> {
   }));
 }
 
-export async function deleteJob(id: string) {
+export async function deleteJob(id: string, user?: AuthUser) {
   console.log(`[DB] Deleting job ${id}`);
-  return await prisma.job.delete({
+  const client = getEnhancedPrisma(user);
+  return await client.job.delete({
     where: { id },
   });
 }

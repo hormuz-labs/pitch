@@ -40,9 +40,12 @@ app.get('/jobs', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // Scope to organization if available, otherwise to user
-  const jobs = await db.listJobs(orgId || userId);
-  res.json(jobs);
+  try {
+    const jobs = await db.listJobs({ id: userId, orgId });
+    res.json(jobs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.post('/jobs', async (req, res) => {
@@ -54,9 +57,8 @@ app.post('/jobs', async (req, res) => {
   }
 
   try {
-    // Enforce tenant ID from auth context
     const tenantId = orgId || userId;
-    const job = await db.createJob({ userId, orgId: tenantId, parameters });
+    const job = await db.createJob({ userId, orgId: tenantId, parameters }, { id: userId, orgId });
     
     // IMPORTANT: we explicitly set the bullmq jobId to match our db job.id
     await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters }, { jobId: job.id });
@@ -71,14 +73,30 @@ app.post('/jobs', async (req, res) => {
 });
 
 app.get('/jobs/stream', (req, res) => {
+  const { orgId, userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
+  const currentTenantId = orgId || userId;
+
   const handler = (channel: string, message: string) => {
     if (channel === JOB_UPDATES_CHANNEL) {
-      res.write(`data: ${message}\n\n`);
+      try {
+        const data = JSON.parse(message);
+        // Only broadcast if the job belongs to the current tenant (org or user)
+        // Check for Job objects or Log objects that have an orgId/userId
+        if (data.orgId === currentTenantId || data.userId === userId || data.job?.orgId === currentTenantId) {
+          res.write(`data: ${message}\n\n`);
+        }
+      } catch (e) {
+        console.error('Failed to parse SSE message', e);
+      }
     }
   };
 
@@ -91,28 +109,35 @@ app.get('/jobs/stream', (req, res) => {
 });
 
 app.get('/jobs/:id', async (req, res) => {
-  const job = await db.getJob(req.params.id);
-  res.json(job);
-});
+  const { orgId, userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-app.delete('/jobs/:id', async (req, res) => {
   try {
-    await db.deleteJob(req.params.id);
-    res.status(204).send();
+    const job = await db.getJob(req.params.id, { id: userId, orgId });
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    res.json(job);
   } catch (error: any) {
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     res.status(500).json({ error: error.message });
   }
 });
 
 app.post('/jobs/:id/retrigger', async (req, res) => {
-  const { id } = req.params;
-  const job = await db.getJob(id);
-  
-  if (!job) {
-    return res.status(404).json({ error: 'Job not found' });
-  }
+  const { orgId, userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+  const { id } = req.params;
+  
   try {
+    // getJob will use ZenStack to verify the user has access
+    const job = await db.getJob(id, { id: userId, orgId });
+    
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
     const updatedJob = await db.updateJob(id, { status: JobStatus.PENDING, videoUrl: undefined });
     
     // Ensure we remove the old job from queue if it's there (e.g. failed state)
@@ -128,11 +153,17 @@ app.post('/jobs/:id/retrigger', async (req, res) => {
     
     res.json(updatedJob);
   } catch (error: any) {
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     res.status(500).json({ error: error.message });
   }
 });
 
 app.delete('/jobs/:id', async (req, res) => {
+  const { orgId, userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
   const { id } = req.params;
   try {
     // Attempt to remove from BullMQ first
@@ -142,9 +173,13 @@ app.delete('/jobs/:id', async (req, res) => {
       console.log(`[Queue] Removed job ${id} from BullMQ`);
     }
 
-    await db.deleteJob(id);
+    // ZenStack will automatically throw a P2004 error if unauthorized to delete
+    await db.deleteJob(id, { id: userId, orgId });
     res.status(204).send();
   } catch (error: any) {
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     res.status(500).json({ error: error.message });
   }
 });
