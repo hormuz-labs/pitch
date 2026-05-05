@@ -37,12 +37,13 @@ export async function updateJob(id: string, data: { status?: JobStatus; videoUrl
   };
 }
 
-export async function createJob(data: { userId: string; parameters: any }): Promise<Job> {
-  console.log(`[DB] Creating job for user ${data.userId}`);
+export async function createJob(data: { userId: string; orgId: string; parameters: any }): Promise<Job> {
+  console.log(`[DB] Creating job for user ${data.userId} in org ${data.orgId}`);
   
   const created = await prisma.job.create({
     data: {
       userId: data.userId,
+      orgId: data.orgId,
       status: JobStatus.PENDING,
       parameters: JSON.stringify(data.parameters),
     },
@@ -71,9 +72,9 @@ export async function getJob(id: string): Promise<Job | null> {
   };
 }
 
-export async function listJobs(userId?: string): Promise<Job[]> {
+export async function listJobs(orgId?: string): Promise<Job[]> {
   const jobs = await prisma.job.findMany({
-    where: userId ? { userId } : undefined,
+    where: orgId ? { orgId } : undefined,
     orderBy: { createdAt: 'desc' }
   });
   

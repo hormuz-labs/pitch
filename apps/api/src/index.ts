@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { clerkMiddleware, getAuth } from '@clerk/express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,7 @@ dotenv.config({ path: path.join(rootDir, '.env') });
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use(clerkMiddleware());
 
 // Serve the demo directory as static
 app.use('/demo', express.static(path.join(rootDir, 'demo')));
@@ -32,20 +34,30 @@ const subscriber = new Redis(redisUrl);
 const videoQueue = new Queue(QUEUE_NAME, { connection });
 
 app.get('/jobs', async (req, res) => {
-  const userId = req.query.userId as string | undefined;
-  const jobs = await db.listJobs(userId);
+  const { orgId, userId } = getAuth(req);
+  
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Scope to organization if available, otherwise to user
+  const jobs = await db.listJobs(orgId || userId);
   res.json(jobs);
 });
 
 app.post('/jobs', async (req, res) => {
-  const { userId, parameters } = req.body as CreateJobRequest;
+  const { orgId, userId } = getAuth(req);
+  const { parameters } = req.body as { parameters: any };
   
   if (!userId) {
-    return res.status(400).json({ error: 'userId is required' });
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
-    const job = await db.createJob({ userId, parameters });
+    // Enforce tenant ID from auth context
+    const tenantId = orgId || userId;
+    const job = await db.createJob({ userId, orgId: tenantId, parameters });
+    
     // IMPORTANT: we explicitly set the bullmq jobId to match our db job.id
     await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters }, { jobId: job.id });
     

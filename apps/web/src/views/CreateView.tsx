@@ -194,11 +194,6 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                 <PlaceholdersAndVanishInput
                   placeholders={AI_AGENT_PROMPTS}
                   onChange={(e) => update('instructions', e.target.value)}
-                  onSubmit={() => {
-                    // Prevent default behavior to stop immediate submission if they just press Enter in the input
-                    // We let them click the main "Generate Demo" button, or we can trigger it.
-                    // For now, it just triggers the vanish animation and they can click Generate Demo.
-                  }}
                   value={formValues.instructions || ''}
                 />
               </div>

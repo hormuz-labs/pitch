@@ -9,6 +9,7 @@
     "start": "bun dist/index.js"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.12",
     "@saas/db": "workspace:*",
     "@saas/shared": "workspace:*",
     "@types/cors": "^2.8.19",

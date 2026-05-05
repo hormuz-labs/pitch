@@ -16,7 +16,6 @@ interface WaveformScrubProps {
   duration?: number;
   fileName?: string;
   waveformHeights?: number[];
-  isDark?: boolean;
   onConfirm?: () => void;
 }
 
@@ -30,7 +29,6 @@ export const WaveformScrub: React.FC<WaveformScrubProps> = ({
   duration = 30,
   fileName = 'Mom.mp3',
   waveformHeights = DEFAULT_WAVEFORM,
-  isDark = false,
   onConfirm,
 }) => {
   const [currentTime, setCurrentTime] = useState(0);

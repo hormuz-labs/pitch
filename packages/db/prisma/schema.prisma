@@ -3,13 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Job {
   id         String   @id @default(cuid())
   userId     String
+  orgId      String
   status     String
   videoUrl   String?
   audioUrl   String?
