@@ -72,10 +72,12 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
     if (Object.keys(errs).length) { setErrors(errs); return; }
     onQueueJob({ 
       url: formValues.url, 
-      subtitles: formValues.subtitles || 'false', 
+      subtitles: formValues.subtitles === 'true', 
       theme: formValues.theme || 'light', 
-      audio: formValues.audio || '',
-      instructions: formValues.instructions, 
+      audio: formValues.audio ? formValues.audio.replace('.mp3', '') : '',
+      instructions: formValues.subtitles === 'true' 
+        ? `${formValues.instructions} (Please ensure subtitles are included in the final video)` 
+        : formValues.instructions, 
       script: formValues.script 
     });
   };
