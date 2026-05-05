@@ -7,12 +7,12 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // __dirname is apps/worker/src
 const rootDir = path.resolve(__dirname, '../../..');
+
+dotenv.config({ path: path.resolve(rootDir, '.env') });
 
 const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
