@@ -34,7 +34,7 @@ const worker = new Worker(
     try {
       // 1. Start OpenCode server and get client (dynamic port)
       console.log(`[Worker] Starting OpenCode server for job ${jobId} in ${targetDir}...`);
-      opencode = await createOpencode();
+      opencode = await createOpencode({ timeout: 60000 });
       const { client, server } = opencode;
 
       // 2. Create session associated with this job
