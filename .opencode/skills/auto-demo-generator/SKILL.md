@@ -36,12 +36,19 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
 
 **Execution:**
 ```bash
-bun references/demo-v4.ts demo-config.json
+bun demos/<demo-name>/demo-v4.ts demos/<demo-name>/demo-config.json
 ```
 
 **Just-In-Time (JIT) Element Resolution:** Bounding boxes are NOT extracted in a previous pass. Because modern web pages load dynamically and ads/banners can shift the layout, the engine resolves the selector's live coordinates directly during the video recording right before the camera moves. This ensures 100% precision.
 
 ## Workflow
+
+### Phase 0.1 — Demo Workspace Initialization
+Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
+The agent MUST then copy the main engine script (`demo-v4.ts`) and all required media assets (`references/sounds/*.mp3`) directly into this new folder. This creates a flat structure so the script can seamlessly access `click.mp3` and `keyboard.mp3` from the same directory where it runs.
+
+### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
+Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. This step is crucial for discovering the exact, reliable DOM selectors required for the actions. Once the agent has successfully verified and collected all the necessary working selectors via `agent-browser`, it will dynamically generate the `demo-config.json` file inside the new demo folder.
 
 ### Phase 1 — Flow Validation (Playwright Dry Run)
 The generic engine loops through `demoSteps`. For every step with a selector, it waits for the element and performs the action (`click` or `fill`). This ensures all selectors are valid and the sequence doesn't get stuck before we spend money on LLM/TTS generation.

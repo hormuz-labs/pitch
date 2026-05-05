@@ -15,9 +15,6 @@ dotenv.config();
  * to perfectly handle dynamic layouts, ads, and responsive shifts.
  */
 
-const DEMO_DIR = path.join(process.cwd(), 'demo-output');
-if (!fs.existsSync(DEMO_DIR)) fs.mkdirSync(DEMO_DIR, { recursive: true });
-
 const ai = new GoogleGenAI({});
 
 // --- 1. CONFIGURATION (Passed via JSON file as first CLI argument) ---
@@ -25,6 +22,9 @@ const configFile = process.argv[2];
 if (!configFile || !fs.existsSync(configFile)) {
   throw new Error("Please provide a valid path to a configuration JSON file as the first argument.");
 }
+
+const DEMO_DIR = path.dirname(path.resolve(configFile));
+if (!fs.existsSync(DEMO_DIR)) fs.mkdirSync(DEMO_DIR, { recursive: true });
 
 interface DemoConfig {
   startUrl: string;
@@ -140,7 +140,7 @@ async function pass1() {
 
   for (const step of demoSteps) {
     if (step.selector) {
-      console.log(\`Validating step: \${step.id}\`);
+      console.log(`Validating step: ${step.id}`);
       const loc = page.locator(step.selector).first();
       await loc.waitFor({ state: 'visible', timeout: 10000 });
       
@@ -161,16 +161,16 @@ async function pass1() {
 async function pass2() {
   console.log("== Pass 2: Generating Speech & Timestamps ==");
   
-  const flowDescriptions = demoSteps.map(s => \`- \${s.id}: \${s.description}\`).join('\n');
+  const flowDescriptions = demoSteps.map(s => `- ${s.id}: ${s.description}`).join('\n');
   const requiredKeys = demoSteps.map(s => s.id);
 
-  const scriptPrompt = \`
-  Write a 20-30 second voiceover script for a product demo video based on this requirement: "\${USER_REQ}".
+  const scriptPrompt = `
+  Write a 20-30 second voiceover script for a product demo video based on this requirement: "${USER_REQ}".
   The video follows these steps: 
-  \${flowDescriptions}
+  ${flowDescriptions}
   
   The script should be energetic and professional. Do NOT include any stage directions like [clicks]. Just the spoken words.
-  \`;
+  `;
   const scriptRes = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: scriptPrompt });
   const scriptText = scriptRes.text!.trim();
   console.log("📝 Script:", scriptText);
@@ -217,15 +217,15 @@ async function pass2() {
   fs.writeFileSync(path.join(DEMO_DIR, 'timestamps.json'), jsonMatch[0]);
 
   console.log("🧠 Mapping timeline...");
-  const mappingPrompt = \`
+  const mappingPrompt = `
   You are mapping UI interactions to a voiceover timeline.
-  Transcript: \${jsonMatch[0]}
+  Transcript: ${jsonMatch[0]}
   
   Actions:
-  \${flowDescriptions}
+  ${flowDescriptions}
   
   Output a JSON object with keys for each action ID. Values should be time in seconds (e.g., 2.500) indicating when the action should happen based on the semantic context of the transcript. Make sure actions are sequential.
-  \`;
+  `;
   
   const properties: Record<string, { type: "NUMBER" }> = {};
   requiredKeys.forEach(k => properties[k] = { type: "NUMBER" });
@@ -251,16 +251,16 @@ async function pass3() {
   const cursorStyle = config.cursorStyle || 'black';
   const fillColor = cursorStyle === 'black' ? '#000000' : '#FFFFFF';
   const strokeColor = cursorStyle === 'black' ? '#FFFFFF' : '#000000';
-  const cursorSvg = \`<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  const cursorSvg = `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
   <g filter="url(#drop-shadow)">
-    <path d="M 2 2 L 2 34 L 10 26 L 16 40 L 22 38 L 16 24 L 26 24 Z" fill="\${fillColor}" stroke="\${strokeColor}" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M 2 2 L 2 34 L 10 26 L 16 40 L 22 38 L 16 24 L 26 24 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" stroke-linejoin="round"/>
   </g>
   <defs>
     <filter id="drop-shadow" x="-4" y="-4" width="56" height="56" filterUnits="userSpaceOnUse">
       <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.4"/>
     </filter>
   </defs>
-</svg>\`;
+</svg>`;
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -334,8 +334,8 @@ async function pass3() {
   const videoFile = files.find(f => f.endsWith('.webm'));
   if (!videoFile) throw new Error("Video not found!");
 
-  console.log(\`🎬 Encoding Final Video...\`);
-  const finalOutput = config.outputPath || path.join(process.cwd(), 'demo-final.mp4');
+  console.log(`🎬 Encoding Final Video...`);
+  const finalOutput = config.outputPath ? path.resolve(DEMO_DIR, config.outputPath) : path.join(DEMO_DIR, 'demo-final.mp4');
   
   // Dynamically build audio filters based on steps
   let filterString = '[1:a]apad=pad_dur=2[voicepad]';
@@ -348,22 +348,22 @@ async function pass3() {
     if (step.action === 'click') {
        command.input(path.join(DEMO_DIR, 'click.mp3'));
        const delayMs = Math.floor(timeline[step.id] * 1000);
-       filterString += \`,[\${sfxIndex}:a]adelay=\${delayMs}|\${delayMs}[sfx\${sfxIndex}]\`;
-       mixInputs += \`[sfx\${sfxIndex}]\`;
+       filterString += `,[${sfxIndex}:a]adelay=${delayMs}|${delayMs}[sfx${sfxIndex}]`;
+       mixInputs += `[sfx${sfxIndex}]`;
        sfxIndex++;
        inputCount++;
     } else if (step.action === 'type') {
        command.input(path.join(DEMO_DIR, 'keyboard.mp3'));
        const delayMs = Math.floor(timeline[step.id] * 1000);
        // Assuming typing takes roughly 0.8 seconds based on keyboard.mp3 generation
-       filterString += \`,[\${sfxIndex}:a]atrim=0:0.8,asetpts=PTS-STARTPTS,adelay=\${delayMs}|\${delayMs}[sfx\${sfxIndex}]\`;
-       mixInputs += \`[sfx\${sfxIndex}]\`;
+       filterString += `,[${sfxIndex}:a]atrim=0:0.8,asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs}[sfx${sfxIndex}]`;
+       mixInputs += `[sfx${sfxIndex}]`;
        sfxIndex++;
        inputCount++;
     }
   }
   
-  filterString += \`,\${mixInputs}amix=inputs=\${inputCount}:duration=first:normalize=0[aout]\`;
+  filterString += `,${mixInputs}amix=inputs=${inputCount}:duration=first:normalize=0[aout]`;
 
   await new Promise((resolve, reject) => {
     command
@@ -374,7 +374,7 @@ async function pass3() {
       .on('error', reject);
   });
   
-  console.log("✨ Done! Final video saved to:", finalOutput);
+  console.log(`✨ Done! Final video saved to:`, finalOutput);
 }
 
 async function main() {
