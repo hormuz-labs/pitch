@@ -2,3 +2,6 @@ export { DashboardView } from './DashboardView';
 export { CreateView } from './CreateView';
 export { EditorView } from './EditorView';
 export { PricingView } from './PricingView';
+export { LandingView } from './LandingView';
+export { PublicPricingView } from './PublicPricingView';
+export { SettingsView } from './SettingsView';
