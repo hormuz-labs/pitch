@@ -36,7 +36,7 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
 
 **Execution:**
 ```bash
-bun demos/<demo-name>/demo-v4.ts demos/<demo-name>/demo-config.json
+bun demos/<demo-name>/index.ts demos/<demo-name>/demo-config.json
 ```
 
 **Just-In-Time (JIT) Element Resolution:** Bounding boxes are NOT extracted in a previous pass. Because modern web pages load dynamically and ads/banners can shift the layout, the engine resolves the selector's live coordinates directly during the video recording right before the camera moves. This ensures 100% precision.
@@ -46,7 +46,7 @@ bun demos/<demo-name>/demo-v4.ts demos/<demo-name>/demo-config.json
 ### Phase 0.1 — Demo Workspace Initialization
 Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
 
-**CRITICAL RULE ON FILES:** You MUST NEVER run or modify the `demo-v4.ts` script directly from the `.opencode/` directory. The `.opencode` version is the template. The agent MUST copy the main engine script (`demo-v4.ts`) and all required media assets (`references/sounds/*.mp3`) directly into the new `demos/<demo-name>/` folder. This creates a flat structure so the script can seamlessly access `click.mp3` and `keyboard.mp3` from the same directory where it runs. If any customizations are needed for the specific demo, you must ONLY edit the copy located inside the `demos/` folder.
+**CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the templates. The agent MUST copy the main engine scripts (`index.ts`, `pass1.ts`, `pass2.ts`, `pass3.ts`, `utils.ts`, `types.ts`) and all required media assets (`references/sounds/*.mp3`) directly into the new `demos/<demo-name>/` folder. This creates a flat structure so the scripts can seamlessly access dependencies and assets from the same directory where they run. If any customizations are needed for the specific demo, you must ONLY edit the copies located inside the `demos/` folder.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 
@@ -81,4 +81,4 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 4.  **End on Voiceover (`duration=first`):** Ensure the mix stops when the main padded voiceover stops.
 
 ## Reference Implementation
-See the **perfected, generic pipeline** in `references/demo-v4.ts`. It acts as an automation engine that processes JSON steps rather than hardcoded Playwright scripts, making it infinitely reusable across any website.
+See the **perfected, generic pipeline modularized** in the `references/` directory. It acts as an automation engine that processes JSON steps rather than hardcoded Playwright scripts, making it infinitely reusable across any website.
