@@ -82,6 +82,7 @@ interface VideoCardProps {
 
 const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
   const [isPendingDelete, setIsPendingDelete] = useState(false);
+  const [duration, setDuration] = useState<number | null>(null);
 
   const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const title = project.parameters?.url
@@ -98,7 +99,12 @@ const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
       {/* Thumbnail */}
       <div className="relative h-40 bg-gray-100 overflow-hidden">
         {project.status === 'COMPLETED' && project.videoUrl ? (
-          <video src={project.videoUrl} className="w-full h-full object-cover" muted />
+          <video 
+            src={project.videoUrl} 
+            className="w-full h-full object-cover" 
+            muted 
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <IconVideoPlaceholder />
@@ -111,7 +117,7 @@ const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
         )}
         {project.status === 'COMPLETED' && (
           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-mono">
-            —:——
+            {duration ? `${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}` : "—:——"}
           </div>
         )}
       </div>
