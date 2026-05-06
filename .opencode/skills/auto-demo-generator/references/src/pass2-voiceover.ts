@@ -12,17 +12,18 @@ export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoSte
   const requiredKeys = demoSteps.map(s => s.id);
 
   const scriptPrompt = `
-  Write a direct, concise voiceover script for a product demo video based on this requirement: "${userReq}".
+  Write a natural, engaging voiceover script for a product demo video based on this requirement: "${userReq}".
   The video follows these steps sequentially: 
   ${flowDescriptions}
   
-  CRITICAL PACING RULES:
-  - DO NOT use conversational filler words, padding, or lengthy descriptions. Keep instructions bare and simple (e.g. "Click the search bar.", "Type nike shoes.").
-  - To ensure there is a pause between actions, you MUST insert multiple ellipses (... ... ...) between the spoken instructions. This creates a natural silence in the voiceover so the actions have time to execute without adding unnecessary words.
-  - Example: "Click the search bar. ... ... ... Now type nike shoes. ... ... ... Click the search button. ... ... ..."
-  - The more ellipses you add, the longer the pause. Add at least three sets of ellipses between every single action.
+  CRITICAL PACING AND TONE RULES:
+  - The tone should be friendly, professional, and conversational. Speak as if you are an expert presenter enthusiastically showing off a cool product or feature.
+  - Instead of robotic instructions (e.g. "Click the search bar. Type nike."), narrate the journey naturally and explain the value or result (e.g. "Let's start by heading over to the search bar so we can find exactly what we need. ... ... ... We'll type in Nike shoes and see what comes up.").
+  - To ensure there is a pause between physical actions in the UI, you MUST insert multiple ellipses (... ... ...) between the spoken sentences where an action needs time to execute. This creates a natural silence in the voiceover so the video automation can sync the clicks and typing.
+  - Example: "Let's dive right in by hitting the search bar. ... ... ... We'll look for Nike shoes to see the latest drops. ... ... ... And just click search to see the awesome results. ... ... ..."
+  - The more ellipses you add, the longer the pause. Add at least three sets of ellipses between every major action.
   
-  The script should be energetic and professional but minimal in word count. Do NOT include any stage directions like [clicks].
+  Do NOT include any stage directions or markdown like [clicks] or **bold**.
   `;
   const scriptRes = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: scriptPrompt });
   const scriptText = scriptRes.text!.trim();
