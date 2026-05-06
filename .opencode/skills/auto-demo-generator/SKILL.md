@@ -48,8 +48,8 @@ Before creating the config, the AI Agent MUST create a dedicated folder for the 
 
 **CRITICAL RULE ON FILES:** You MUST NEVER run or modify the `demo-v4.ts` script directly from the `.opencode/` directory. The `.opencode` version is the template. The agent MUST copy the main engine script (`demo-v4.ts`) and all required media assets (`references/sounds/*.mp3`) directly into the new `demos/<demo-name>/` folder. This creates a flat structure so the script can seamlessly access `click.mp3` and `keyboard.mp3` from the same directory where it runs. If any customizations are needed for the specific demo, you must ONLY edit the copy located inside the `demos/` folder.
 
-### Phase 0.2 — Selector Collection via Playwright CLI/MCP (Prerequisite)
-Before generating `demo-config.json`, the AI Agent MUST use the `playwright-cli` skill (or Playwright MCP) to navigate the target website and interact with the elements. 
+### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
+Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 
 
 **CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
 
@@ -71,13 +71,14 @@ Pass the raw transcription and the `demoSteps` descriptions to an LLM (`gemini-2
 Run the final Playwright instance with `recordVideo` enabled (1920x1080).
 *   **Cinematic Injections:** Inject CSS-animated artificial cursor and camera zoom transforms.
 *   **Generic Execution Loop:** The engine loops through `demoSteps` again. For each step, it looks up the timestamp in `timeline.json`. 
-*   **JIT Coordinates:** It waits until `T - 1.2s`, waits for the element to be visible, dynamically grabs `locator.boundingBox()`, and starts moving the CSS cursor and zooming the camera. At exact time `T`, it triggers the CSS ripple and performs the real Playwright `click()` or `pressSequentially()`.
+*   **JIT Coordinates:** It waits until `T - 0.5s`, waits for the element to be visible, dynamically grabs `locator.boundingBox()`, and starts moving the CSS cursor and zooming the camera. We wait until right before the action to calculate coordinates in order to avoid clicking old stale coordinates after layout shifts (like CSS transitions and accordions). At exact time `T`, it triggers the CSS ripple and performs the real Playwright `click()` or `pressSequentially()`.
 
-### Phase 4 — Normalized FFmpeg Encoding (Volume Drift Fix)
+### Phase 4 — Normalized FFmpeg Encoding & AV Sync
 Multiplex the resulting `.webm` video from Playwright with the voiceover, typing, and click SFX.
-1.  **Drop infinite apad:** FFmpeg tends to hang if `apad` is left on all SFX mixing tracks indefinitely. The script now lets SFX end naturally.
-2.  **Disable Normalization (`normalize=0`):** Without `apad` on the SFX, standard `amix` behavior would volume-jump the voiceover whenever an SFX stops. `normalize=0` prevents volume shifting!
-3.  **End on Voiceover (`duration=first`):** Ensure the mix stops when the main padded voiceover stops.
+1.  **A/V Sync (Playwright Offset):** Playwright's `recordVideo` doesn't start its internal clock until the first frame is painted. The engine forces a blank frame immediately to start the clock, calculates `initDurationMs` (the time it takes for the actual page to load), and offsets the voiceover and all SFX by this duration in FFmpeg (`adelay`) to perfectly sync real-time audio with the delayed video.
+2.  **Drop infinite apad:** FFmpeg tends to hang if `apad` is left on all SFX mixing tracks indefinitely. The script now lets SFX end naturally.
+3.  **Disable Normalization (`normalize=0`):** Without `apad` on the SFX, standard `amix` behavior would volume-jump the voiceover whenever an SFX stops. `normalize=0` prevents volume shifting!
+4.  **End on Voiceover (`duration=first`):** Ensure the mix stops when the main padded voiceover stops.
 
 ## Reference Implementation
 See the **perfected, generic pipeline** in `references/demo-v4.ts`. It acts as an automation engine that processes JSON steps rather than hardcoded Playwright scripts, making it infinitely reusable across any website.
