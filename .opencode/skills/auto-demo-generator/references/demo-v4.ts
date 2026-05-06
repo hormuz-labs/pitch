@@ -142,7 +142,8 @@ async function pass1() {
     if (step.selector) {
       console.log(`Validating step: ${step.id}`);
       const loc = page.locator(step.selector).first();
-      await loc.waitFor({ state: 'visible', timeout: 10000 });
+      await loc.waitFor({ state: 'visible', timeout: 5000 });
+      await loc.scrollIntoViewIfNeeded();
       
       if (step.action === 'click') {
         await loc.click();
@@ -293,7 +294,9 @@ async function pass3() {
       await waitForTime(actionTime - 1.2);
       
       // Ensure the element is present on screen RIGHT NOW and grab its live coordinates
-      await loc.waitFor({ state: 'visible', timeout: 10000 });
+      await loc.waitFor({ state: 'visible', timeout: 5000 });
+      await loc.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(50); // small buffer for layout shift
       const box = await loc.boundingBox();
       
       // Fallback to center screen if for some reason boundingBox fails

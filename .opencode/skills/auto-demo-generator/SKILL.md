@@ -45,10 +45,17 @@ bun demos/<demo-name>/demo-v4.ts demos/<demo-name>/demo-config.json
 
 ### Phase 0.1 — Demo Workspace Initialization
 Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
-The agent MUST then copy the main engine script (`demo-v4.ts`) and all required media assets (`references/sounds/*.mp3`) directly into this new folder. This creates a flat structure so the script can seamlessly access `click.mp3` and `keyboard.mp3` from the same directory where it runs.
 
-### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
-Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. This step is crucial for discovering the exact, reliable DOM selectors required for the actions. Once the agent has successfully verified and collected all the necessary working selectors via `agent-browser`, it will dynamically generate the `demo-config.json` file inside the new demo folder.
+**CRITICAL RULE ON FILES:** You MUST NEVER run or modify the `demo-v4.ts` script directly from the `.opencode/` directory. The `.opencode` version is the template. The agent MUST copy the main engine script (`demo-v4.ts`) and all required media assets (`references/sounds/*.mp3`) directly into the new `demos/<demo-name>/` folder. This creates a flat structure so the script can seamlessly access `click.mp3` and `keyboard.mp3` from the same directory where it runs. If any customizations are needed for the specific demo, you must ONLY edit the copy located inside the `demos/` folder.
+
+### Phase 0.2 — Selector Collection via Playwright CLI/MCP (Prerequisite)
+Before generating `demo-config.json`, the AI Agent MUST use the `playwright-cli` skill (or Playwright MCP) to navigate the target website and interact with the elements. 
+
+**CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
+
+Once the agent has successfully verified and collected all the necessary stable working selectors, it will dynamically generate the `demo-config.json` file inside the new demo folder.
+
+**Note on Scrolling:** During the video recording phase, the engine automatically checks if the element is in the viewport. It will ONLY scroll the component into the viewport if it is not already visible. If it is in the viewport, it won't scroll. This ensures a clean cinematic experience.
 
 ### Phase 1 — Flow Validation (Playwright Dry Run)
 The generic engine loops through `demoSteps`. For every step with a selector, it waits for the element and performs the action (`click` or `fill`). This ensures all selectors are valid and the sequence doesn't get stuck before we spend money on LLM/TTS generation.
