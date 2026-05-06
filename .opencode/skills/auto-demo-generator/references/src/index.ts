@@ -3,9 +3,9 @@ import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { DemoConfig } from './types';
-import { pass1 } from './pass1';
-import { pass2 } from './pass2';
-import { pass3 } from './pass3';
+import { pass1 } from './pass1-dry-run';
+import { pass2 } from './pass2-voiceover';
+import { pass3 } from './pass3-cinematic-record';
 
 dotenv.config();
 

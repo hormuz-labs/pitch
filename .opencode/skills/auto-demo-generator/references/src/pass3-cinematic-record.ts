@@ -159,14 +159,14 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   let sfxIndex = 2;
   for (const step of demoSteps) {
     if (step.action === 'click') {
-       command.input(path.join(demoDir, 'click.mp3'));
+       command.input(path.join(demoDir, 'assets', 'sounds', 'click.mp3'));
        const delayMs = Math.floor(timeline[step.id] * 1000);
        filterString += `;[${sfxIndex}:a]adelay=${delayMs}|${delayMs}[sfx${sfxIndex}]`;
        mixInputs += `[sfx${sfxIndex}]`;
        sfxIndex++;
        inputCount++;
     } else if (step.action === 'type') {
-       command.input(path.join(demoDir, 'keyboard.mp3'));
+       command.input(path.join(demoDir, 'assets', 'sounds', 'keyboard.mp3'));
        const delayMs = Math.floor(timeline[step.id] * 1000);
        filterString += `;[${sfxIndex}:a]atrim=0:0.8,asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs}[sfx${sfxIndex}]`;
        mixInputs += `[sfx${sfxIndex}]`;
