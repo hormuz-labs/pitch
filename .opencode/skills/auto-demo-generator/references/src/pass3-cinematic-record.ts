@@ -67,8 +67,8 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
       const loc = page.locator(step.selector).first();
 
       // 1. Give time for a cinematic smooth scroll BEFORE zooming
-      // We start the scroll 1.5 seconds before the action
-      await waitForTime(actionTime - 1.5); 
+      // We start the scroll 2.0 seconds before the action to ensure it fully settles
+      await waitForTime(actionTime - 2.0); 
 
       // Ensure the element is visible
       await loc.waitFor({ state: 'visible', timeout: 5000 });
@@ -79,7 +79,7 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
       }).catch(() => loc.scrollIntoViewIfNeeded());
 
       // 2. Wait until 0.5s before the action to zoom and move cursor
-      // This ensures the scroll has settled so the bounding box is accurate
+      // This gives 1.5 full seconds for the scroll to settle so the bounding box is accurate
       await waitForTime(actionTime - 0.5);
       
       const box = await loc.boundingBox();
@@ -94,14 +94,28 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
         (window as any).zoomCamera(1.2, x, y, 0.5);
       }, { x: cx, y: cy });
 
-      // 2. Exact action time: Wait until the true action timestamp
+      // 3. Exact action time: Wait until the true action timestamp
       await waitForTime(actionTime);
+
+      // Re-calculate exactly where it is NOW right before we click
+      // This fixes the "cursor slightly up/down" bug if layout shifted or scroll was still easing
+      const finalBox = await loc.boundingBox();
+      const finalCx = finalBox ? finalBox.x + finalBox.width / 2 : cx;
+      const finalCy = finalBox ? finalBox.y + finalBox.height / 2 : cy;
 
       // Perform the cinematic ripple and native action
       if (step.action === 'click') {
-        await page.evaluate(({x,y}) => { (window as any).clickCursor(); (window as any).spawnRipple(x,y); }, { x: cx, y: cy });
+        await page.evaluate(({x,y}) => { 
+          // Snap to perfect final coordinates instantly if it drifted
+          (window as any).moveCursor(x, y, 0); 
+          (window as any).clickCursor(); 
+          (window as any).spawnRipple(x,y); 
+        }, { x: finalCx, y: finalCy });
         await loc.click({ force: true });
       } else if (step.action === 'type') {
+        await page.evaluate(({x,y}) => { 
+          (window as any).moveCursor(x, y, 0); 
+        }, { x: finalCx, y: finalCy });
         await loc.pressSequentially(step.value!, { delay: 80 });
       }
     } else {
