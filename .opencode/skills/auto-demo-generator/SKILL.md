@@ -44,9 +44,17 @@ bun run src/index.ts demo-config.json
 ## Workflow
 
 ### Phase 0.1 — Demo Workspace Initialization
+The entire `references/` directory is essentially a complete standalone TypeScript project template. 
+
 Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
 
-**CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the templates. The agent MUST copy the entire `references/` folder into the new `demos/<demo-name>/` folder. For example, copy everything to `demos/shadcn-demo/` so that `demos/shadcn-demo/package.json` and `demos/shadcn-demo/src/index.ts` exist. From there, `cd demos/<demo-name>` and `bun install`, then add your `demo-config.json` inside that folder. If any customizations are needed for the specific demo, you must ONLY edit the copies located inside the `demos/` folder.
+**CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the immutable templates. 
+The agent MUST copy the entire contents of the `references/` folder into the new `demos/<demo-name>/` folder. For example, copy everything to `demos/shadcn-demo/` so that `demos/shadcn-demo/package.json` and `demos/shadcn-demo/src/index.ts` exist. 
+
+From there, the AI should:
+1. `cd demos/<demo-name>` and run `bun install`
+2. Create and modify the `demo-config.json` inside that folder
+3. Modify any of the underlying TypeScript code (`src/`) if the specific demo requires custom logic or tweaks to make the right kind of demo. Remember, you must ONLY edit the copies located inside the `demos/` folder.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 
