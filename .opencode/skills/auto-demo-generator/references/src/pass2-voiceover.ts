@@ -18,10 +18,9 @@ export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoSte
   
   CRITICAL PACING AND TONE RULES:
   - The tone should be friendly, professional, and conversational. Speak as if you are an expert presenter enthusiastically showing off a cool product or feature.
-  - Instead of robotic instructions (e.g. "Click the search bar. Type nike."), narrate the journey naturally and explain the value or result (e.g. "Let's start by heading over to the search bar so we can find exactly what we need. ... ... ... We'll type in Nike shoes and see what comes up.").
-  - To ensure there is a pause between physical actions in the UI, you MUST insert multiple ellipses (... ... ...) between the spoken sentences where an action needs time to execute. This creates a natural silence in the voiceover so the video automation can sync the clicks and typing.
-  - Example: "Let's dive right in by hitting the search bar. ... ... ... We'll look for Nike shoes to see the latest drops. ... ... ... And just click search to see the awesome results. ... ... ..."
-  - The more ellipses you add, the longer the pause. Add at least three sets of ellipses between every major action.
+  - Instead of robotic instructions (e.g. "Click the search bar. Type nike."), narrate the journey naturally and explain the value or result (e.g. "Let's start by heading over to the search bar so we can find exactly what we need. We'll type in Nike shoes and see what comes up.").
+  - Only insert a single ellipsis (...) when two UI actions happen back-to-back with no natural speaking gap between them — this gives the automation just enough time to execute. Do NOT add ellipses between sentences that already have natural pacing or where there is narration bridging the actions.
+  - Example: "Let's dive right in by hitting the search bar. We'll look for Nike shoes to see the latest drops. ... And just click search to see the awesome results."
   
   Do NOT include any stage directions or markdown like [clicks] or **bold**.
   `;
