@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import * as db from '@saas/db';
 import * as storage from '@saas/storage';
+import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email';
 import { JobStatus, JOB_UPDATES_CHANNEL } from '@saas/shared';
 import { Redis } from 'ioredis';
 import dotenv from 'dotenv';
@@ -50,6 +51,18 @@ program
       await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
       
       console.log(`✅ Database updated for job ${jobId}`);
+
+      // 5. Send email notification to the user
+      try {
+        const userEmail = await getClerkUserEmail(updatedJob.userId);
+        if (userEmail && videoUrl) {
+          await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl });
+        }
+      } catch (emailError: any) {
+        // Email failure should never block job completion
+        console.warn(`⚠️  Email notification failed for job ${jobId}:`, emailError.message);
+      }
+
       process.exit(0);
     } catch (error: any) {
       console.error(`❌ Error processing job ${jobId}:`, error.message);
