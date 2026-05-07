@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+
+# Local env files — never bake secrets into the image
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+.dockerignore
+
+# Monorepo tooling
+.pnpm-store/
+
+# App-specific generated / transient files
+apps/web/public/videos/
+apps/web/dist/

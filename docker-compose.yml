@@ -47,6 +47,65 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: silverfish_api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      # Override localhost-based URLs to use Docker service names
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/silverfish?schema=public
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: http://minio:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/silverfish?schema=public
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: http://minio:9000
+      # AMD RX 5500 XT (gfx1012) — override to nearest supported ROCm target
+      HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+    devices:
+      # Expose AMD GPU to the container
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    deploy:
+      replicas: 1   # increase to scale horizontally, e.g. docker compose up --scale worker=3
+      resources:
+        reservations:
+          devices:
+            - driver: amdgpu
+              count: 1
+              capabilities: [gpu, compute]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
