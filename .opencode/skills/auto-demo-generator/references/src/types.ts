@@ -19,3 +19,16 @@ export interface WavConversionOptions {
   sampleRate: number;
   bitsPerSample: number;
 }
+
+export interface TrackingEvent {
+  id: string;
+  actionTime: number; // in seconds (from the timeline)
+  cx: number;
+  cy: number;
+  action: 'click' | 'type' | 'wait';
+}
+
+export interface TrackingData {
+  initDurationMs: number;
+  events: TrackingEvent[];
+}
