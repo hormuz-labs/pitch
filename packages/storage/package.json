@@ -6,5 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1045.0"
   }
 }
