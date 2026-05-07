@@ -1,6 +1,7 @@
 import * as Popover from '@radix-ui/react-popover';
 import { DollarSignIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import walletIcon from '../assets/wallet.svg';
 
 export const CreditPopover = () => {
   const navigate = useNavigate();
@@ -12,11 +13,14 @@ export const CreditPopover = () => {
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
-          className="flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 text-gray-700 bg-white rounded-lg transition-all hover:bg-gray-50 active:scale-95 cursor-pointer font-medium text-sm shadow-sm"
+          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 border border-gray-200 text-gray-700 bg-white rounded-lg transition-all hover:bg-gray-50 active:scale-95 cursor-pointer font-medium text-sm shadow-sm"
           id="header-credits-btn"
         >
-          <DollarSignIcon className="w-4 h-4 text-emerald-600" />
-          <span>{credits}</span>
+          <img src={walletIcon} alt="Wallet" className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center -ml-1">
+            <DollarSignIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-700 -mr-0.5" />
+            <span>{credits}</span>
+          </div>
         </button>
       </Popover.Trigger>
       

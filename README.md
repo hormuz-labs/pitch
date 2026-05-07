@@ -1,11 +1,11 @@
 <div align="center">
 
 <pre>
-   _____ ______ _    ____________  _______________ __  __
-  / ___//  _/ /| |  / / ____/ __ \/ ____/  _/ ___// / / /
-  \__ \ / // / | | / / __/ / /_/ / /_   / / \__ \/ /_/ / 
- ___/ // // /__| |/ / /___/ _, _/ __/ _/ / ___/ / __  /  
-/____/___/_____/___/_____/_/ |_/_/   /___//____/_/ /_/   
+    ____  ______________  __
+   / __ \/  _/_  __/ __ \/ / /
+  / /_/ // /  / / / / / / /_/ / 
+ / ____// /  / / / /___/ __  /  
+/_/   /___/ /_/  \____/_/ /_/   
 </pre>
 
 **A U T O N O M O U S &nbsp; C I N E M A T I C &nbsp; O R C H E S T R A T I O N**
@@ -20,7 +20,7 @@
 
 ## ▌ THE VISION
 
-SILVERFISH bridges the gap between raw functional testing and high-end marketing execution. By orchestrating Headless Browsers, Generative AI TTS, and programmatic video stitching, it translates simple task descriptions into pixel-perfect, timing-synchronized cinematic demonstrations.
+PITCH bridges the gap between raw functional testing and high-end marketing execution. By orchestrating Headless Browsers, Generative AI TTS, and programmatic video stitching, it translates simple task descriptions into pixel-perfect, timing-synchronized cinematic demonstrations.
 
 <br>
 

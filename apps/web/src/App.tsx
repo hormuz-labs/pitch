@@ -3,17 +3,20 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from
 import { 
   SignedIn, 
   SignedOut, 
-  SignInButton, 
   UserButton, 
   OrganizationSwitcher,
-  useAuth
+  useAuth,
+  useClerk
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
-import { DashboardView, CreateView, EditorView, PricingView } from './views';
+import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView } from './views';
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
+
+import tabLogoB from './assets/tabLogoB.svg';
+import { PitchLogoAnimation } from './components/PitchLogoAnimation';
 
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
@@ -39,8 +42,10 @@ const IconPlus = () => (
   </svg>
 );
 const IconMenu = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <rect x="2" y="5" width="20" height="3.5" rx="1" />
+    <rect x="2" y="10.5" width="20" height="3.5" rx="1" />
+    <rect x="2" y="16" width="20" height="3.5" rx="1" />
   </svg>
 );
 const IconArrowLeft = () => (
@@ -108,16 +113,17 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
         style={{ width: 220, backgroundColor: '#f5f5f5' }}
       >
         {/* Brand */}
-        <div className="flex items-center gap-2.5 px-4 h-16 border-b border-gray-200 shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
-          </div>
-          <div>
-            <div className="text-sm font-bold text-gray-900 leading-none">Silverfish</div>
-            <div className="text-xs text-gray-400 mt-0.5">Video Management</div>
-          </div>
+        <div className="px-3 h-16 border-b border-gray-200 shrink-0 flex items-center">
+          <a href="https://trypitch.in" target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#e6e6e6] transition-colors cursor-pointer no-underline group">
+            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+               <img src={tabLogoB} alt="Pitch" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+            </div>
+            <div className="flex-1 min-w-0 flex items-center">
+              <div className="w-[96px] flex items-center pb-1">
+                <PitchLogoAnimation startAnimation={true} />
+              </div>
+            </div>
+          </a>
         </div>
 
         {/* Nav */}
@@ -141,17 +147,6 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1">
           <div className="border-t border-gray-200 my-2 -mx-3" />
-          
-          <div className="mb-2 flex items-center justify-center p-2 bg-white rounded-xl border border-gray-100 shadow-sm">
-            <OrganizationSwitcher 
-              appearance={{
-                elements: {
-                  rootBox: "w-full",
-                  organizationSwitcherTrigger: "w-full flex justify-between"
-                }
-              }}
-            />
-          </div>
 
           <div className="mb-2 flex items-center gap-2">
             <button
@@ -164,8 +159,15 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
               </span>
               <BiSolidZap className="w-4 h-4 text-gray-300" />
             </button>
-            <div className="relative inline-block shrink-0 cursor-pointer hover:brightness-95 transition-all">
-              <UserButton afterSignOutUrl="/" />
+            <div className="relative flex items-center justify-center shrink-0 cursor-pointer hover:brightness-95 transition-all w-9 h-9">
+              <UserButton 
+                afterSignOutUrl="/" 
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: "w-9 h-9"
+                  }
+                }}
+              />
             </div>
           </div>
           <NavItem
@@ -192,19 +194,17 @@ interface TopHeaderProps {
   projectTitle?: string;
   onDownload?: () => void;
   isPricingPage?: boolean;
+  isSettingsPage?: boolean;
+  onSignOut?: () => void;
 }
-const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage }: TopHeaderProps) => (
+const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, onSignOut }: TopHeaderProps) => (
   <header className="h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
-    {/* Left: hamburger + search / back */}
-    <div className="flex items-center gap-3 flex-1 min-w-0">
+    {/* Left: logo + search / back */}
+    <div className="flex items-center gap-3 shrink-0">
       {isMobile && (
-        <button
-          onClick={onToggle}
-          className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-md hover:bg-gray-100 border-none bg-transparent cursor-pointer"
-          id="sidebar-toggle-btn"
-        >
-          <IconMenu />
-        </button>
+        <a href="https://trypitch.in" target="_blank" rel="noopener noreferrer" className="w-8 h-8 flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors p-1 group">
+           <img src={tabLogoB} alt="Pitch" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+        </a>
       )}
       {isDetailPage ? (
         <button
@@ -217,57 +217,91 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
       ) : isPricingPage ? (
         <h2 className="text-lg font-bold text-gray-900 ml-1">Pricing</h2>
       ) : (
-        <div className="flex flex-col gap-2 flex-1 max-w-md">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-              <IconSearch />
-            </span>
-            <input
-              type="text"
-              placeholder="Search videos, projects..."
-              className="flex h-10 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-10 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all"
-              id="global-search-input"
-              value={searchQuery}
-              onChange={e => onSearchChange(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer text-xs"
-              >✕</button>
-            )}
-          </div>
+        <div className="hidden sm:flex items-center h-8 shrink-0 sm:w-48">
+          <OrganizationSwitcher 
+            appearance={{
+              elements: {
+                rootBox: "w-full h-full flex items-center",
+                organizationSwitcherTrigger: "w-full h-full flex justify-between items-center py-1 px-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer",
+                organizationPreview: "flex items-center gap-2",
+                organizationPreviewTextContainer: "flex flex-col hidden sm:flex",
+                organizationPreviewMainIdentifier: "text-sm font-bold text-gray-900 leading-none truncate",
+                organizationPreviewSecondaryIdentifier: "text-[10px] text-gray-400 mt-0.5 truncate",
+                organizationSwitcherTriggerIcon: "w-4 h-4 text-gray-400 shrink-0"
+              }
+            }}
+          />
         </div>
       )}
     </div>
 
-    {projectTitle && (
+    {projectTitle ? (
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[200px] sm:max-w-sm hidden md:block">
         <p className="text-base font-medium text-gray-900 truncate">{projectTitle}</p>
       </div>
-    )}
+    ) : (!isDetailPage && !isPricingPage) ? (
+      <div className="flex-1 min-w-0 px-2 sm:px-4 md:px-0 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-[240px]">
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <IconSearch />
+          </span>
+          <input
+            type="text"
+            placeholder="Search..."
+            className="flex h-9 md:h-10 w-full rounded-lg border border-gray-200 bg-white pl-9 md:pl-10 pr-8 md:pr-10 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all"
+            id="global-search-input"
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer text-xs"
+            >✕</button>
+          )}
+        </div>
+      </div>
+    ) : null}
 
-    {/* Right: Download / CTA */}
-    <div className="flex items-center gap-3 shrink-0">
-      <CreditPopover />
-      {onDownload ? (
+    {/* Right: Download / CTA / Menu */}
+    <div className="flex items-center gap-2 md:gap-3 shrink-0">
+      {!isMobile && !isSettingsPage && <CreditPopover />}
+      {isSettingsPage && onSignOut ? (
+        <button
+          onClick={onSignOut}
+          className="flex items-center gap-1.5 px-3 py-1.5 md:px-3.5 md:py-2 bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium rounded-lg transition-colors border-none cursor-pointer"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span className="hidden sm:inline">Sign Out</span>
+        </button>
+      ) : onDownload ? (
         <button
           onClick={onDownload}
-          className="flex items-center gap-2 px-3.5 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors border-none cursor-pointer shadow-sm"
+          className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors border-none cursor-pointer shadow-sm"
           id="header-download-btn"
         >
-          <IconDownload /> Download
+          <IconDownload /> <span className="hidden sm:inline">Download</span>
         </button>
-      ) : !isDetailPage && !isPricingPage ? (
+      ) : !isMobile && !isDetailPage && !isPricingPage ? (
         <button
           onClick={onNew}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 md:px-3.5 md:py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
           id="new-project-btn"
         >
           <IconPlus />
-          New Project
+          <span className="hidden sm:inline">New Project</span>
         </button>
       ) : null}
+      
+      {isMobile && (
+        <button
+          onClick={onToggle}
+          className="text-gray-900 transition-colors w-9 h-9 flex items-center justify-center ml-1 rounded-lg border border-gray-200 hover:bg-gray-50 bg-white cursor-pointer shadow-sm"
+          id="sidebar-toggle-btn"
+        >
+          <IconMenu />
+        </button>
+      )}
     </div>
   </header>
 );
@@ -275,6 +309,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 // ── App Content ───────────────────────────────────────────────────────────────
 function AppContent() {
   const { getToken, isLoaded, userId, orgId } = useAuth();
+  const { signOut } = useClerk();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [collapsed, setCollapsed] = useState(window.innerWidth < 1024);
   const [searchQuery, setSearchQuery] = useState('');
@@ -450,61 +485,59 @@ function AppContent() {
     selectedKey = 'pricing';
   }
 
-  if (!isLoaded) return <div className="h-screen w-screen flex items-center justify-center">Loading...</div>;
+  if (!isLoaded) return <div className="h-screen w-screen bg-[#FDFDFD]"></div>;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
+    <>
       <SignedIn>
-        <Sidebar
-          selectedKey={selectedKey}
-          navigate={navigate}
-          isMobile={isMobile}
-          collapsed={collapsed}
-          onClose={() => setCollapsed(true)}
-        />
+        <div className="flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
+          {(!isMobile ? selectedKey !== 'settings' : true) && (
+            <Sidebar
+              selectedKey={selectedKey}
+              navigate={navigate}
+              isMobile={isMobile}
+              collapsed={collapsed}
+              onClose={() => setCollapsed(true)}
+            />
+          )}
 
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
-          <TopHeader
-            isMobile={isMobile}
-            isDetailPage={selectedKey === 'create' || selectedKey === 'editor'}
-            isPricingPage={selectedKey === 'pricing'}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onToggle={() => setCollapsed(c => !c)}
-            onNew={() => navigate('/new')}
-            onBack={() => navigate('/dashboard')}
-            projectTitle={projectTitle}
-            onDownload={onDownload}
-          />
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
+            <TopHeader
+              isMobile={isMobile}
+              isDetailPage={selectedKey === 'create' || selectedKey === 'editor' || selectedKey === 'settings'}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onToggle={() => setCollapsed(c => !c)}
+              onNew={() => navigate('/new')}
+              onBack={() => navigate('/dashboard')}
+              projectTitle={projectTitle}
+              onDownload={onDownload}
+              isPricingPage={selectedKey === 'pricing'}
+              isSettingsPage={selectedKey === 'settings'}
+              onSignOut={() => signOut()}
+            />
 
-          <main className="flex-1 overflow-y-auto bg-white rounded-b-2xl">
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} />} />
-              <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
-              <Route path="/pricing" element={<PricingView />} />
-              <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
-            </Routes>
-          </main>
+            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} />} />
+                <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
+                <Route path="/pricing" element={<PricingView />} />
+                <Route path="/settings" element={<SettingsView />} />
+                <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
+              </Routes>
+            </main>
+          </div>
         </div>
       </SignedIn>
       <SignedOut>
-        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-2xl shadow-sm border border-gray-200">
-          <div className="w-16 h-16 rounded-2xl bg-gray-900 flex items-center justify-center mb-6">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Silverfish</h1>
-          <p className="text-gray-500 mb-8">Sign in to manage your video projects</p>
-          <SignInButton mode="modal">
-            <button className="px-8 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-all cursor-pointer">
-              Get Started
-            </button>
-          </SignInButton>
-        </div>
+        <Routes>
+          <Route path="/" element={<LandingView />} />
+          <Route path="/pricing" element={<PublicPricingView />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </SignedOut>
-    </div>
+    </>
   );
 }
 
