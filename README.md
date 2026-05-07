@@ -104,6 +104,3 @@ bun run dev
   <i>"Code as Cinema."</i> <br><br>
   <b>© 2026 Hormuz Labs</b> · CC-BY-4.0
 </div>
-
-
-vercel deploy
