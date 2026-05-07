@@ -51,3 +51,4 @@ sse-output.log
 *.mov
 \n# Generated Demos\ndemo/\n
 demos/**
+.vercel
