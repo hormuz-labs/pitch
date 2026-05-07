@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
-    "@saas/shared": "workspace:*"
+    "@saas/shared": "workspace:*",
+    "@zenstackhq/runtime": "^2.22.1",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "prisma": "^5.22.0"
