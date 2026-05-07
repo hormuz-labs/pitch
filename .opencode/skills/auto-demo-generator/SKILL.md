@@ -12,7 +12,7 @@ compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, playwright
 # Auto-Demo Generator
 
 Produces polished, cinematic product demo MP4s by combining native Playwright video recording,
-AI narration, LLM-driven timeline mapping, injected cinematic overlays (zoom & cursor), 
+AI narration, LLM-driven timeline mapping, FFmpeg post-processing for cinematic overlays (zoom & cursor), 
 and normalized FFmpeg audio mixing.
 
 ## Architecture: Data-Driven Automation & JIT Bounding Boxes
@@ -44,17 +44,18 @@ bun run src/index.ts demo-config.json
 ## Workflow
 
 ### Phase 0.1 — Demo Workspace Initialization
-The entire `references/` directory is essentially a complete standalone TypeScript project template. 
+The `references/` directory contains the template files. 
 
 Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
 
 **CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the immutable templates. 
-The agent MUST copy the entire contents of the `references/` folder into the new `demos/<demo-name>/` folder. For example, copy everything to `demos/shadcn-demo/` so that `demos/shadcn-demo/package.json` and `demos/shadcn-demo/src/index.ts` exist. 
+The agent MUST copy ONLY the TypeScript files and assets (the `src/`  and assets/ directory) from the `references/` folder into the new `demos/<demo-name>/` folder. Do NOT copy `package.json` or any other dependency files. All dependencies are already globally installed, so you do NOT need to install them.
 
 From there, the AI should:
-1. `cd demos/<demo-name>` and run `bun install`
-2. Create and modify the `demo-config.json` inside that folder
-3. Modify any of the underlying TypeScript code (`src/`) if the specific demo requires custom logic or tweaks to make the right kind of demo. Remember, you must ONLY edit the copies located inside the `demos/` folder.
+1. Create and modify the `demo-config.json` inside the `demos/<demo-name>` folder.
+2. Modify any of the underlying TypeScript code (`src/`) if the specific demo requires custom logic or tweaks to make the right kind of demo. Remember, you must ONLY edit the copies located inside the `demos/` folder.
+3. NEVER run `npm install` or `bun install`.
+4. **Handling Errors/Resuming:** If an error occurs during execution (e.g., in Pass 2 or 3) and you need to retry, do not blindly redo the entire pipeline from scratch. You have context of what succeeded! Manually edit the `src/index.ts` file in the generated demo folder to comment out the passes (e.g., `// await pass1(...)`) that have already successfully completed, so you resume exactly from where the error occurred.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 
@@ -75,14 +76,15 @@ Use `gemini-2.5-flash` to transcribe that `.wav` into a JSON array containing `w
 ### Phase 2.5 — LLM-Driven Timeline Mapping
 Pass the raw transcription and the `demoSteps` descriptions to an LLM (`gemini-2.5-flash`). The LLM semantically maps the steps to exact timestamps in seconds. Save this to `timeline.json`. 
 
-### Phase 3 — Cinematic Recording & Execution
+### Phase 3 — Raw Video Recording & JIT Tracking
 Run the final Playwright instance with `recordVideo` enabled (1920x1080).
-*   **Cinematic Injections:** Inject CSS-animated artificial cursor and camera zoom transforms.
+*   **Pure Browser Context:** No CSS or DOM hacks are injected! The browser remains exactly as it naturally is.
 *   **Generic Execution Loop:** The engine loops through `demoSteps` again. For each step, it looks up the timestamp in `timeline.json`. 
-*   **JIT Coordinates:** It waits until `T - 0.5s`, waits for the element to be visible, dynamically grabs `locator.boundingBox()`, and starts moving the CSS cursor and zooming the camera. We wait until right before the action to calculate coordinates in order to avoid clicking old stale coordinates after layout shifts (like CSS transitions and accordions). At exact time `T`, it triggers the CSS ripple and performs the real Playwright `click()` or `pressSequentially()`.
+*   **JIT Coordinates:** It waits until `T - 0.5s`, waits for the element to be visible, dynamically grabs `locator.boundingBox()`, and logs the target coordinates into a tracking array. At exact time `T`, it performs the real Playwright `click()` or `pressSequentially()`. All coordinate data is exported to `tracking.json`.
 
-### Phase 4 — Normalized FFmpeg Encoding & AV Sync
+### Phase 4 — FFmpeg Post-Processing (Cinematic Overlay, Zoom & AV Sync)
 Multiplex the resulting `.webm` video from Playwright with the voiceover, typing, and click SFX.
+*   **Cinematic Injections (FFmpeg):** Parse `tracking.json` to generate a complex FFmpeg filtergraph. It mathematically animates the `overlay` filter for a seamless cursor movement and uses the `zoompan` filter for camera zooming based on the target coordinates.
 1.  **A/V Sync (Playwright Offset):** Playwright's `recordVideo` doesn't start its internal clock until the first frame is painted. The engine forces a blank frame immediately to start the clock, calculates `initDurationMs` (the time it takes for the actual page to load), and offsets the voiceover and all SFX by this duration in FFmpeg (`adelay`) to perfectly sync real-time audio with the delayed video.
 2.  **Drop infinite apad:** FFmpeg tends to hang if `apad` is left on all SFX mixing tracks indefinitely. The script now lets SFX end naturally.
 3.  **Disable Normalization (`normalize=0`):** Without `apad` on the SFX, standard `amix` behavior would volume-jump the voiceover whenever an SFX stops. `normalize=0` prevents volume shifting!
