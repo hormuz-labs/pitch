@@ -1,4 +1,26 @@
 services:
+  # ---------------------------------------------------------------------------
+  # Cloudflare Tunnel — zero-trust ingress, no open ports required
+  # Routes api.trypitch.co → api:3000 and minio.trypitch.co → minio:9001
+  #
+  # Setup:
+  #   1. Go to https://one.dash.cloudflare.com → Networks → Tunnels → Create tunnel
+  #   2. Copy the tunnel token and set TUNNEL_TOKEN in your .env file
+  #   3. In the tunnel's Public Hostname tab add:
+  #        api.trypitch.co   → http://api:3000
+  #        minio.trypitch.co → http://minio:9001
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: silverfish_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - api
+      - minio
+
   postgres:
     image: postgres:15-alpine
     container_name: silverfish_postgres
@@ -37,8 +59,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Web console
+      - "9000:9000"   # S3 API — used internally by api/worker
     volumes:
       - minio_data:/data
     healthcheck:
@@ -53,8 +74,6 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: silverfish_api
     restart: unless-stopped
-    ports:
-      - "${PORT:-3000}:3000"
     env_file:
       - .env
     environment:
