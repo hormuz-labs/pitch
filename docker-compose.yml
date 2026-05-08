@@ -59,7 +59,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"   # S3 API — used internally by api/worker
+      - "9002:9000"   # S3 API — used internally by api/worker
     volumes:
       - minio_data:/data
     healthcheck:
@@ -111,12 +111,6 @@ services:
       - render
     deploy:
       replicas: 1   # increase to scale horizontally, e.g. docker compose up --scale worker=3
-      resources:
-        reservations:
-          devices:
-            - driver: amdgpu
-              count: 1
-              capabilities: [gpu, compute]
     depends_on:
       postgres:
         condition: service_healthy

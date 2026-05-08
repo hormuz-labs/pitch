@@ -1,14 +1,16 @@
 # syntax=docker/dockerfile:1
 # ── Stage 1: install & build ──────────────────────────────────────────────────
-FROM oven/bun:1-alpine AS builder
+FROM oven/bun:1-debian AS builder
 
 WORKDIR /app
 
 COPY . .
 
-RUN bun install --ignore-scripts \
- && bun exec zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile \
- && bun --filter @saas/db run build
+RUN rm -rf packages/*/dist apps/*/dist \
+ && bun install --ignore-scripts \
+ && ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile \
+ && bun run --cwd packages/shared build \
+ && bun run --cwd packages/db build
 
 # ── Stage 2: runtime (AMD ROCm for RX 5500 XT) ───────────────────────────────
 FROM rocm/dev-ubuntu-22.04:6.1 AS runtime
