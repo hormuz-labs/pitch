@@ -13,7 +13,7 @@ services:
   # ---------------------------------------------------------------------------
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: silverfish_cloudflared
+    container_name: pitch_cloudflared
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
@@ -24,24 +24,24 @@ services:
 
   postgres:
     image: postgres:15-alpine
-    container_name: silverfish_postgres
+    container_name: pitch_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: silverfish
+      POSTGRES_DB: pitch
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d silverfish"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pitch"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: silverfish_redis
+    container_name: pitch_redis
     ports:
       - "6379:6379"
     volumes:
@@ -54,7 +54,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: silverfish_minio
+    container_name: pitch_minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -73,13 +73,13 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: silverfish_api
+    container_name: pitch_api
     restart: unless-stopped
     env_file:
       - .env
     environment:
       # Override localhost-based URLs to use Docker service names
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/silverfish?schema=public
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
     depends_on:
@@ -98,7 +98,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/silverfish?schema=public
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
       # AMD RX 5500 XT (gfx1012) — override to nearest supported ROCm target
