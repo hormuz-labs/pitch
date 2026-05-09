@@ -10,7 +10,7 @@ import {
 } from '@aws-sdk/client-s3';
 
 const endpoint = process.env.MINIO_ENDPOINT ?? 'http://localhost:9000';
-const bucket = process.env.MINIO_BUCKET ?? 'silverfish-videos';
+const bucket = process.env.MINIO_BUCKET ?? 'pitch-videos';
 const publicUrl = (process.env.MINIO_PUBLIC_URL ?? endpoint).replace(/\/$/, '');
 
 const client = new S3Client({

@@ -1,5 +1,5 @@
 {
-  "name": "silverfish",
+  "name": "pitch",
   "private": true,
   "packageManager": "bun@1.3.0",
   "workspaces": [

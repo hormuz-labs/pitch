@@ -33,7 +33,7 @@ The `cloudflared` container dials **outbound** to Cloudflare. No ports 80 or 443
 2. Navigate to **Networks → Tunnels**
 3. Click **Create a tunnel**
 4. Choose **Cloudflared** as the connector type
-5. Give the tunnel a name, e.g. `silverfish`
+5. Give the tunnel a name, e.g. `pitch`
 6. Click **Save tunnel**
 
 ---
