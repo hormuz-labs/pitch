@@ -4,51 +4,51 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url = env("DATABASE_URL")
 }
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 model User {
-  id    String  @id()
-  orgId String?
+    id String @id()
+    orgId String?
 
-  @@ignore()
+    @@ignore()
 }
 
 model CreditBalance {
-  tenantId     String              @id
-  balance      Int                 @default(0)
-  updatedAt    DateTime            @updatedAt
-  transactions CreditTransaction[]
+    tenantId String @id()
+    balance Int @default(0)
+    updatedAt DateTime @updatedAt()
+    transactions CreditTransaction[]
 }
 
 model CreditTransaction {
-  id        String        @id @default(cuid())
-  tenantId  String
-  delta     Int
-  reason    String
-  jobId     String?
-  createdAt DateTime      @default(now())
-  balance   CreditBalance @relation(fields: [tenantId], references: [tenantId])
+    id String @id() @default(cuid())
+    tenantId String
+    delta Int
+    reason String
+    jobId String?
+    createdAt DateTime @default(now())
+    balance CreditBalance @relation(fields: [tenantId], references: [tenantId])
 
-  @@index([tenantId])
+    @@index([tenantId])
 }
 
 model Job {
-  id         String   @id() @default(cuid())
-  userId     String
-  orgId      String
-  status     String
-  videoUrl   String?
-  audioUrl   String?
-  parameters String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt()
+    id String @id() @default(cuid())
+    userId String
+    orgId String
+    status String
+    videoUrl String?
+    audioUrl String?
+    parameters String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
 
-  @@index([orgId])
+    @@index([orgId])
 }
