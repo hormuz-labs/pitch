@@ -155,9 +155,9 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
             </div>
 
             {/* Options Row */}
-            <div className="grid grid-cols-2 gap-6 py-2">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 py-2">
               {/* Subtitles */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                 <Switch
                   id="subtitles-toggle"
                   checked={formValues.subtitles === 'true'}
@@ -173,7 +173,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
               </div>
 
               {/* Theme Option */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                 <ThemeSwitch 
                   checked={formValues.theme === 'dark'} 
                   onCheckedChange={(checked) => update('theme', checked ? 'dark' : 'light')} 
