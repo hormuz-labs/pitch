@@ -36,6 +36,7 @@
     "dotenv": "",
     "fluent-ffmpeg": "",
     "mime": "",
+    "playwright": "^1.59.1",
     "puppeteer": ""
   }
 }
