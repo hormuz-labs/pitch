@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
+import { smoothstepExpr, springOvershootExpr } from './utils';
 
 export async function pass3(config: DemoConfig, startUrl: string, demoSteps: DemoStep[], demoDir: string) {
   console.log("== Pass 3: Raw Video Recording & JIT Tracking ==");
@@ -59,6 +60,10 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   };
 
   // Execute generic engine
+  // Tracks the last-known cursor position for synthetic scroll events
+  let prevCursorX = 960;
+  let prevCursorY = 540;
+
   for (const step of demoSteps) {
     let actionTime = timeline[step.id];
     // Safeguard: if actionTime is > 1000, it's likely in milliseconds, convert to seconds
@@ -74,10 +79,30 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
       // Ensure the element is visible
       await loc.waitFor({ state: 'visible', timeout: 5000 });
       
+      // Capture scroll position BEFORE scroll to detect camera drift
+      const scrollYBefore = await page.evaluate(() => window.scrollY);
+
       // Perform smooth scroll to bring it into view
       await loc.evaluate((node) => {
         node.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }).catch(() => loc.scrollIntoViewIfNeeded());
+
+      // Wait for smooth scroll physics to settle, then read final position
+      await page.waitForTimeout(300);
+      const scrollYAfter = await page.evaluate(() => window.scrollY);
+
+      // If the page scrolled significantly, log a synthetic scroll tracking event
+      // so Phase 4 can pan the camera smoothly with the scroll
+      if (Math.abs(scrollYAfter - scrollYBefore) > 20) {
+        trackingEvents.push({
+          id: `${step.id}__scroll`,
+          actionTime: actionTime - 1.5, // arrive 1.5s before the actual action
+          cx: prevCursorX,              // cursor X unchanged during page scroll
+          cy: prevCursorY,
+          action: 'scroll',
+          scrollY: scrollYAfter
+        });
+      }
 
       // Wait until 0.5s before the action to calculate JIT coordinates
       await waitForTime(actionTime - 0.5);
@@ -104,6 +129,9 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
         cy: finalCy,
         action: step.action
       });
+      // Keep running cursor position so synthetic scroll events know where the cursor is
+      prevCursorX = finalCx;
+      prevCursorY = finalCy;
 
       // Perform the native action
       if (step.action === 'click') {
@@ -176,37 +204,53 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   let prevCx = 960;
   let prevCy = 540;
   let prevZoom = 1;
+  // Running pan state persists across loop iterations (needed for park/fade post-process)
+  let runningPanX = 0;
+  let runningPanY = 0;
+
+  // Sort events by time so synthetic scroll events are ordered correctly
+  trackingEvents.sort((a, b) => a.actionTime - b.actionTime);
 
   for (let i = 0; i < trackingEvents.length; i++) {
     const ev = trackingEvents[i];
-    const tTime = ev.actionTime; 
-    const moveDuration = 1.0; 
+    const tTime = ev.actionTime;
+    const moveDuration = 1.0;
     const moveStart = Math.max(0, tTime - moveDuration);
-    
+
+    // ── Scroll events: only update camera pan, no cursor/zoom change ──────────
+    if (ev.action === 'scroll') {
+      const scrolledY = ev.scrollY ?? 0;
+      const targetScrollPanY = Math.min(Math.max(0, scrolledY - 540 / prevZoom), 1080 - 1080 / prevZoom);
+      panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetScrollPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetScrollPanY},${panYExpr}))`;
+      runningPanY = targetScrollPanY;
+      continue; // skip cursor and zoom update for scroll-only events
+    }
+
     const targetZoom = ev.action === 'wait' ? 1.0 : 1.2;
-    
-    // Interpolation macros
-    const interpT = (prev: number, target: number) => `${prev}+(${target}-${prev})*(t-${moveStart})/${moveDuration}`;
-    const interpTime = (prev: number, target: number) => `${prev}+(${target}-${prev})*(time-${moveStart})/${moveDuration}`;
 
-    // Cursor overlay expressions (evaluates 't')
-    overlayXExpr = `if(between(t,${moveStart},${tTime}),${interpT(prevCx, ev.cx)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
-    overlayYExpr = `if(between(t,${moveStart},${tTime}),${interpT(prevCy, ev.cy)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
+    // ── Cursor overlay (smoothstep easing, evaluates 't') ────────────────────
+    overlayXExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
+    overlayYExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCy, ev.cy, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
 
-    // Zoompan expressions (evaluates 'time')
-    zoomZExpr = `if(between(time,${moveStart},${tTime}),${interpTime(prevZoom, targetZoom)},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
-    
-    const targetPanX = Math.min(Math.max(0, ev.cx - 1920/(2*targetZoom)), 1920 - 1920/targetZoom);
-    const targetPanY = Math.min(Math.max(0, ev.cy - 1080/(2*targetZoom)), 1080 - 1080/targetZoom);
-    const prevPanX = Math.min(Math.max(0, prevCx - 1920/(2*prevZoom)), 1920 - 1920/prevZoom);
-    const prevPanY = Math.min(Math.max(0, prevCy - 1080/(2*prevZoom)), 1080 - 1080/prevZoom);
+    // ── Zoom (spring overshoot on zoom-in, plain smoothstep on zoom-out) ─────
+    const overshootAmt = targetZoom > prevZoom ? 0.02 : 0;
+    const zoomInterp = (targetZoom !== prevZoom)
+      ? springOvershootExpr('time', prevZoom, targetZoom, overshootAmt, moveStart, moveDuration)
+      : `${targetZoom}`;
+    zoomZExpr = `if(between(time,${moveStart},${tTime}),${zoomInterp},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
 
-    panXExpr = `if(between(time,${moveStart},${tTime}),${interpTime(prevPanX, targetPanX)},if(gt(time,${tTime}),${targetPanX},${panXExpr}))`;
-    panYExpr = `if(between(time,${moveStart},${tTime}),${interpTime(prevPanY, targetPanY)},if(gt(time,${tTime}),${targetPanY},${panYExpr}))`;
+    // ── Pan (smoothstep easing, evaluates 'time') ────────────────────────────
+    const targetPanX = Math.min(Math.max(0, ev.cx - 1920 / (2 * targetZoom)), 1920 - 1920 / targetZoom);
+    const targetPanY = Math.min(Math.max(0, ev.cy - 1080 / (2 * targetZoom)), 1080 - 1080 / targetZoom);
+
+    panXExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanX, targetPanX, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanX},${panXExpr}))`;
+    panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanY},${panYExpr}))`;
 
     prevCx = ev.cx;
     prevCy = ev.cy;
     prevZoom = targetZoom;
+    runningPanX = targetPanX;
+    runningPanY = targetPanY;
   }
 
   // Ensure zoom doesn't break if no events exist
@@ -216,13 +260,85 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
     panYExpr = "0";
   }
 
-  // Construct Filtergraph
+  // ── Cursor Park / Fade ─────────────────────────────────────────────────────
+  // When no interaction is happening for >2s, the cursor slides off-screen to
+  // the right (x=1940) and fades back in 1s before the next interaction begins.
+  // This post-process wraps the existing expressions with higher-priority branches.
+  const PARK_X = 1940; // safely past the 1920 right edge
+  const SLIDE_OUT_DUR = 0.4;
+  const SLIDE_IN_DUR  = 1.0;
+  const PARK_GAP_MIN  = 2.0; // only park if idle gap is longer than this
+
+  const activeEvents = trackingEvents.filter(e => e.action !== 'scroll');
+  for (let i = 0; i < activeEvents.length; i++) {
+    const ev   = activeEvents[i];
+    const next = activeEvents[i + 1];
+
+    const slideOutStart = ev.actionTime + 0.3;
+    const slideOutEnd   = slideOutStart + SLIDE_OUT_DUR;
+    // Park ends 1s before next move starts (so slide-in has room)
+    const parkEnd = next ? next.actionTime - 1.0 - SLIDE_IN_DUR : ev.actionTime + 3.0;
+
+    if (parkEnd - slideOutEnd < PARK_GAP_MIN) continue; // gap too short — skip
+
+    // Slide cursor OUT to PARK_X over SLIDE_OUT_DUR seconds
+    const slideOutX = smoothstepExpr('t', ev.cx, PARK_X, slideOutStart, SLIDE_OUT_DUR);
+    const slideOutY = smoothstepExpr('t', ev.cy, ev.cy, slideOutStart, SLIDE_OUT_DUR); // Y holds
+
+    overlayXExpr = `if(between(t,${slideOutStart},${slideOutEnd}),${slideOutX},if(between(t,${slideOutEnd},${parkEnd}),${PARK_X},${overlayXExpr}))`;
+    overlayYExpr = `if(between(t,${slideOutStart},${slideOutEnd}),${slideOutY},if(between(t,${slideOutEnd},${parkEnd}),${ev.cy},${overlayYExpr}))`;
+
+    if (next) {
+      // Slide cursor IN from PARK_X to the next event's position
+      const slideInStart = parkEnd;
+      const slideInEnd   = slideInStart + SLIDE_IN_DUR;
+      const slideInX = smoothstepExpr('t', PARK_X, next.cx, slideInStart, SLIDE_IN_DUR);
+      const slideInY = smoothstepExpr('t', ev.cy, next.cy, slideInStart, SLIDE_IN_DUR);
+      overlayXExpr = `if(between(t,${slideInStart},${slideInEnd}),${slideInX},${overlayXExpr})`;
+      overlayYExpr = `if(between(t,${slideInStart},${slideInEnd}),${slideInY},${overlayYExpr})`;
+    }
+  }
+
+  // ── Click Ripple Builder ───────────────────────────────────────────────────
+  // 4-step decaying opacity drawbox chain per click: fast, tight (36×36 px),
+  // realistic — mimics macOS/iOS tap feedback at normal viewing distance.
+  const clickEventsForRipple = trackingEvents.filter(e => e.action === 'click');
+  let rippleChain = '';
+  if (clickEventsForRipple.length > 0) {
+    const parts: string[] = [];
+    for (const ev of clickEventsForRipple) {
+      const cx = Math.round(ev.cx);
+      const cy = Math.round(ev.cy);
+      const T  = +ev.actionTime.toFixed(4);
+      const steps = [
+        { t0: T,        t1: T + 0.06, alpha: 0.55 },
+        { t0: T + 0.06, t1: T + 0.12, alpha: 0.38 },
+        { t0: T + 0.12, t1: T + 0.18, alpha: 0.22 },
+        { t0: T + 0.18, t1: T + 0.25, alpha: 0.10 },
+      ];
+      for (const s of steps) {
+        parts.push(
+          `drawbox=x=${cx - 18}:y=${cy - 18}:w=36:h=36` +
+          `:color=white@${s.alpha}:t=fill` +
+          `:enable='between(t\\,${s.t0}\\,${s.t1})'`
+        );
+      }
+    }
+    rippleChain = parts.join(',');
+  }
+
+  // ── Construct Filtergraph ──────────────────────────────────────────────────
   let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30[vfps];`;
-  
-  // Add cursor overlay if PNG was created
+
   if (fs.existsSync(cursorPng)) {
     filterString += `[vfps][1:v]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
-    filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+    if (rippleChain) {
+      // Ripple chain sits between cursor overlay and zoompan
+      filterString += `[withcursor]${rippleChain}[withripple];`;
+      filterString += `[withripple]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+    } else {
+      filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+    }
   } else {
     filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
   }

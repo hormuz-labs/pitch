@@ -82,9 +82,13 @@ Run the final Playwright instance with `recordVideo` enabled (1920x1080).
 *   **Generic Execution Loop:** The engine loops through `demoSteps` again. For each step, it looks up the timestamp in `timeline.json`. 
 *   **JIT Coordinates:** It waits until `T - 0.5s`, waits for the element to be visible, dynamically grabs `locator.boundingBox()`, and logs the target coordinates into a tracking array. At exact time `T`, it performs the real Playwright `click()` or `pressSequentially()`. All coordinate data is exported to `tracking.json`.
 
-### Phase 4 — FFmpeg Post-Processing (Cinematic Overlay, Zoom & AV Sync)
+### Phase 4 — FFmpeg Post-Processing (Cinematic Overlay, Zoom & AV Sync) — V4.5
 Multiplex the resulting `.webm` video from Playwright with the voiceover, typing, and click SFX.
-*   **Cinematic Injections (FFmpeg):** Parse `tracking.json` to generate a complex FFmpeg filtergraph. It mathematically animates the `overlay` filter for a seamless cursor movement and uses the `zoompan` filter for camera zooming based on the target coordinates.
+*   **Smoothstep Easing (3t²−2t³):** All cursor movement and camera pan transitions use cubic hermite interpolation (zero velocity at start & end) for a natural, human-feeling mouse glide. Helper: `smoothstepExpr()` in `utils.ts`.
+*   **Spring Zoom Overshoot:** On zoom-in, the camera overshoots to `1.22x` at 60% of the transition window then settles back to `1.20x`, giving an elastic spring feel. Implemented via `springOvershootExpr()` in `utils.ts`.
+*   **Scroll-Tracking Camera Pan:** When `scrollIntoView` shifts the page by >20px, a synthetic `scroll` event is pushed to `tracking.json`. Phase 4 reads these to emit a smooth `panY` drift so the camera follows the page scroll naturally.
+*   **Click Ripple Overlay:** Each `click` event generates a 4-step decaying-opacity `drawbox` chain (36×36px, white, 0.25s duration: α 0.55→0.38→0.22→0.10). Sits between cursor overlay and zoompan in the filtergraph: `[withcursor]→ripple→[withripple]→zoompan`.
+*   **Cursor Park & Fade:** During idle gaps >2s, the cursor smoothly slides off-screen to the right (x=1940) over 0.4s, parks there, then glides back to the next target position 1s before the next interaction. All done as post-processing on top of the cursor overlay expressions.
 1.  **A/V Sync (Playwright Offset):** Playwright's `recordVideo` doesn't start its internal clock until the first frame is painted. The engine forces a blank frame immediately to start the clock, calculates `initDurationMs` (the time it takes for the actual page to load), and offsets the voiceover and all SFX by this duration in FFmpeg (`adelay`) to perfectly sync real-time audio with the delayed video.
 2.  **Drop infinite apad:** FFmpeg tends to hang if `apad` is left on all SFX mixing tracks indefinitely. The script now lets SFX end naturally.
 3.  **Disable Normalization (`normalize=0`):** Without `apad` on the SFX, standard `amix` behavior would volume-jump the voiceover whenever an SFX stops. `normalize=0` prevents volume shifting!
