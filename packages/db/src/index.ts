@@ -107,3 +107,73 @@ export async function deleteJob(id: string, user?: AuthUser) {
     where: { id },
   });
 }
+
+// ─── Credits ──────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the current credit balance for a tenant.
+ * Returns 0 if no balance row exists yet (tenant has never received credits).
+ */
+export async function getCreditBalance(tenantId: string): Promise<number> {
+  const row = await prisma.creditBalance.findUnique({ where: { tenantId } });
+  return row?.balance ?? 0;
+}
+
+/**
+ * Adds credits to a tenant's balance (creates the row if it doesn't exist).
+ * Records a CreditTransaction with the given reason.
+ */
+export async function addCredits(tenantId: string, amount: number, reason: string, jobId?: string): Promise<number> {
+  const result = await prisma.$transaction(async (tx) => {
+    const row = await tx.creditBalance.upsert({
+      where: { tenantId },
+      create: { tenantId, balance: amount },
+      update: { balance: { increment: amount } },
+    });
+    await tx.creditTransaction.create({
+      data: { tenantId, delta: amount, reason, jobId },
+    });
+    return row.balance;
+  });
+  console.log(`[Credits] +${amount} for tenant ${tenantId} (${reason}). New balance: ${result}`);
+  return result;
+}
+
+/**
+ * Deducts credits from a tenant's balance atomically.
+ * Throws an error if the balance would go below 0.
+ * Returns the new balance on success.
+ */
+export async function deductCredit(tenantId: string, amount: number, reason: string, jobId?: string): Promise<number> {
+  const result = await prisma.$transaction(async (tx) => {
+    // Lock the row for update
+    const row = await tx.creditBalance.findUnique({ where: { tenantId } });
+    const current = row?.balance ?? 0;
+
+    if (current < amount) {
+      throw new Error(`Insufficient credits: balance is ${current}, need ${amount}`);
+    }
+
+    const updated = await tx.creditBalance.upsert({
+      where: { tenantId },
+      create: { tenantId, balance: -amount },
+      update: { balance: { decrement: amount } },
+    });
+    await tx.creditTransaction.create({
+      data: { tenantId, delta: -amount, reason, jobId },
+    });
+    return updated.balance;
+  });
+  console.log(`[Credits] -${amount} for tenant ${tenantId} (${reason}). New balance: ${result}`);
+  return result;
+}
+
+/**
+ * Returns the full transaction history for a tenant, newest first.
+ */
+export async function getCreditTransactions(tenantId: string) {
+  return prisma.creditTransaction.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: 'desc' },
+  });
+}

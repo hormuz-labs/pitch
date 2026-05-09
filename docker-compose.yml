@@ -1,14 +1,15 @@
 services:
   # ---------------------------------------------------------------------------
   # Cloudflare Tunnel — zero-trust ingress, no open ports required
-  # Routes api.trypitch.co → api:3000 and minio.trypitch.co → minio:9001
-  #
-  # Setup:
-  #   1. Go to https://one.dash.cloudflare.com → Networks → Tunnels → Create tunnel
-  #   2. Copy the tunnel token and set TUNNEL_TOKEN in your .env file
-  #   3. In the tunnel's Public Hostname tab add:
-  #        api.trypitch.co   → http://api:3000
-  #        minio.trypitch.co → http://minio:9001
+# Routes api.trypitch.co → api:3000, minio.trypitch.co → minio:9001, s3.trypitch.co → minio:9000
+#
+# Setup:
+#   1. Go to https://one.dash.cloudflare.com → Networks → Tunnels → Create tunnel
+#   2. Copy the tunnel token and set TUNNEL_TOKEN in your .env file
+#   3. In the tunnel's Public Hostname tab add:
+#        api.trypitch.co   → http://api:3000
+#        minio.trypitch.co → http://minio:9001
+#        s3.trypitch.co    → http://minio:9000
   # ---------------------------------------------------------------------------
   cloudflared:
     image: cloudflare/cloudflared:latest

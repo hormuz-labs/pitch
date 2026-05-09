@@ -440,7 +440,12 @@ function AppContent() {
           parameters: { url: values.url, instructions: values.instructions, script: values.script }
         })
       });
-      if (!res.ok) throw new Error('Failed to queue job');
+      if (!res.ok) {
+        if (res.status === 402) {
+          throw new Error('You have no credits remaining. Please top up to continue generating videos.');
+        }
+        throw new Error('Failed to queue job');
+      }
       setFormValues({});
       navigate('/dashboard');
     } catch (err: any) {

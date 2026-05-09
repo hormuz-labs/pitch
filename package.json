@@ -16,7 +16,10 @@
     "build": "bun --filter '*' build",
     "dev": "bun --filter '*' dev",
     "start": "bun --filter '*' start",
-    "job-cli": "bun apps/job-cli/src/index.ts"
+    "job-cli": "bun apps/job-cli/src/index.ts",
+    "credits": "bun apps/job-cli/src/index.ts credits",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

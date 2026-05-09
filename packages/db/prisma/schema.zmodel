@@ -23,6 +23,29 @@ model User {
   @@ignore()
 }
 
+// Credit balance per tenant (orgId or userId when no org)
+model CreditBalance {
+  tenantId  String   @id         // orgId if in an org, otherwise userId
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  transactions CreditTransaction[]
+}
+
+// Immutable ledger of every credit change
+model CreditTransaction {
+  id        String   @id @default(cuid())
+  tenantId  String
+  delta     Int                        // positive = added, negative = deducted
+  reason    String                     // e.g. "job_created", "job_failed_refund", "admin_adjustment"
+  jobId     String?                    // reference to the related job if applicable
+  createdAt DateTime @default(now())
+
+  balance   CreditBalance @relation(fields: [tenantId], references: [tenantId])
+
+  @@index([tenantId])
+}
+
 model Job {
   id         String   @id @default(cuid())
   userId     String

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { UserProfile, OrganizationProfile, useOrganization } from '@clerk/clerk-react';
+import { useState, useEffect } from 'react';
+import { UserProfile, OrganizationProfile, useOrganization, useAuth } from '@clerk/clerk-react';
 import { DollarSignIcon, User, Building, CreditCard } from 'lucide-react';
 import walletIcon from '../assets/wallet.svg';
 import { OptionPicker } from '../components/OptionPicker';
@@ -10,9 +10,40 @@ const TAB_OPTIONS = [
   { id: 'billing', label: 'Billing & Credits', icon: CreditCard },
 ];
 
+interface CreditTransaction {
+  id: string;
+  delta: number;
+  reason: string;
+  jobId?: string | null;
+  createdAt: string;
+}
+
 export const SettingsView = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'billing'>('profile');
   const { organization } = useOrganization();
+  const { getToken } = useAuth();
+  const [balance, setBalance] = useState<number | null>(null);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+
+  useEffect(() => {
+    if (activeTab !== 'billing') return;
+    const fetchCredits = async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch('/api/credits', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBalance(data.balance);
+          setTransactions(data.transactions);
+        }
+      } catch {
+        // silently fail
+      }
+    };
+    fetchCredits();
+  }, [activeTab, getToken]);
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-[#FAFAFA] absolute inset-0">
@@ -113,7 +144,7 @@ export const SettingsView = () => {
                      <img src={walletIcon} alt="Wallet" className="w-8 h-8 opacity-80" />
                      <div className="flex items-center">
                        <DollarSignIcon className="w-8 h-8 text-emerald-600 -mr-1" strokeWidth={3} />
-                       <span>50</span>
+                       <span>{balance ?? '—'}</span>
                      </div>
                    </div>
                    <div className="text-sm text-gray-500 mt-4">1 credit = $1. Used for video generation.</div>
@@ -121,16 +152,33 @@ export const SettingsView = () => {
 
                  <div className="p-8 rounded-2xl border border-gray-100 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
                    <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Current Plan</div>
-                   <div className="text-3xl font-bold text-gray-900 mb-2">Pro Plan</div>
-                   <div className="text-sm font-medium text-gray-500">$10.00 / month</div>
+                   <div className="text-3xl font-bold text-gray-900 mb-2">Early Access</div>
+                   <div className="text-sm font-medium text-gray-500">Pay as you go — 1 credit per video</div>
                  </div>
                </div>
 
                <div className="border-t border-gray-100 pt-8">
                  <h4 className="font-bold text-gray-900 mb-6">Transaction History</h4>
-                 <div className="text-sm text-gray-500 text-center py-16 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
-                   No recent transactions
-                 </div>
+                 {transactions.length === 0 ? (
+                   <div className="text-sm text-gray-500 text-center py-16 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                     No recent transactions
+                   </div>
+                 ) : (
+                   <div className="flex flex-col gap-2">
+                     {transactions.map(tx => (
+                       <div key={tx.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 bg-gray-50/50 text-sm">
+                         <div className="flex flex-col gap-0.5">
+                           <span className="font-medium text-gray-800 capitalize">{tx.reason.replace(/_/g, ' ')}</span>
+                           {tx.jobId && <span className="text-xs text-gray-400">Job: {tx.jobId}</span>}
+                           <span className="text-xs text-gray-400">{new Date(tx.createdAt).toLocaleString()}</span>
+                         </div>
+                         <span className={`font-bold text-base ${tx.delta > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                           {tx.delta > 0 ? '+' : ''}{tx.delta}
+                         </span>
+                       </div>
+                     ))}
+                   </div>
+                 )}
                </div>
              </div>
           )}

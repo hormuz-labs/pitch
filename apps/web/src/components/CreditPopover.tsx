@@ -1,13 +1,32 @@
 import * as Popover from '@radix-ui/react-popover';
 import { DollarSignIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import { useEffect, useState } from 'react';
 import walletIcon from '../assets/wallet.svg';
 
 export const CreditPopover = () => {
   const navigate = useNavigate();
-  // Mock data for demo
-  const credits = 50;
-  const activePlan = "Pro Plan";
+  const { getToken } = useAuth();
+  const [credits, setCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch('/api/credits', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCredits(data.balance);
+        }
+      } catch {
+        // silently fail — UI falls back to dash
+      }
+    };
+    fetchBalance();
+  }, [getToken]);
 
   return (
     <Popover.Root>
@@ -19,7 +38,7 @@ export const CreditPopover = () => {
           <img src={walletIcon} alt="Wallet" className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <div className="flex items-center -ml-1">
             <DollarSignIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-700 -mr-0.5" />
-            <span>{credits}</span>
+            <span>{credits ?? '—'}</span>
           </div>
         </button>
       </Popover.Trigger>
@@ -33,23 +52,15 @@ export const CreditPopover = () => {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 block">Active Plan</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 block">Credits</span>
                 <span className="text-lg font-bold text-gray-900">
-                  {activePlan}
-                </span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-xl font-bold text-gray-900">
-                  $10.00
-                </span>
-                <span className="text-[10px] font-medium text-gray-400">
-                  per month
+                  {credits ?? '—'} available
                 </span>
               </div>
             </div>
             
             <p className="text-[13px] leading-relaxed text-gray-500">
-              Specialized tools for creators and professionals. Includes 1080p exports, custom agents, and priority status.
+              Each video generation costs 1 credit. Credits never expire.
             </p>
 
             <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 mt-1">
@@ -76,3 +87,4 @@ export const CreditPopover = () => {
     </Popover.Root>
   );
 };
+
