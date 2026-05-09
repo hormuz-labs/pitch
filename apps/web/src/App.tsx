@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useContext, createContext } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { 
   SignedIn, 
@@ -19,6 +19,72 @@ import { PrivacyPolicy } from './components/PrivacyPolicy';
 
 import tabLogoB from './assets/tabLogoB.svg';
 import { PitchLogoAnimation } from './components/PitchLogoAnimation';
+import * as ToastPrimitive from '@radix-ui/react-toast';
+import { X } from 'lucide-react';
+import { cn } from './lib/utils';
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+type ToastVariant = 'error' | 'success' | 'info';
+interface ToastEntry { id: string; message: string; variant: ToastVariant; }
+interface ToastCtx { toast: (message: string, variant?: ToastVariant) => void; }
+
+const ToastContext = createContext<ToastCtx | null>(null);
+const useToast = () => {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error('useToast must be used inside ToastShell');
+  return ctx;
+};
+
+const toastBorder: Record<ToastVariant, string> = {
+  error: 'border-red-100', success: 'border-green-100', info: 'border-gray-200',
+};
+const toastIconCls: Record<ToastVariant, string> = {
+  error: 'bg-red-50 text-red-500', success: 'bg-green-50 text-green-600', info: 'bg-gray-100 text-gray-500',
+};
+
+function ToastShell({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
+  const toast = useCallback((message: string, variant: ToastVariant = 'info') => {
+    setToasts(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, message, variant }]);
+  }, []);
+  const dismiss = useCallback((id: string) => setToasts(prev => prev.filter(t => t.id !== id)), []);
+
+  return (
+    <ToastContext.Provider value={{ toast }}>
+      <ToastPrimitive.Provider duration={4000}>
+        {children}
+        {toasts.map(t => (
+          <ToastPrimitive.Root
+            key={t.id}
+            onOpenChange={open => { if (!open) dismiss(t.id); }}
+            className={cn(
+              'group flex items-start gap-3 rounded-xl border bg-white px-3.5 py-3 shadow-sm',
+              'data-[state=open]:animate-in data-[state=closed]:animate-out',
+              'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+              'data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full',
+              'data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]',
+              'data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:transition-[transform_200ms_ease-out]',
+              'data-[swipe=end]:animate-out data-[swipe=end]:slide-out-to-right-full',
+              toastBorder[t.variant],
+            )}
+          >
+            <div className={cn('mt-0.5 flex shrink-0 items-center justify-center rounded-full p-1', toastIconCls[t.variant])}>
+              {t.variant === 'error' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>}
+              {t.variant === 'success' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+              {t.variant === 'info' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>}
+            </div>
+            <ToastPrimitive.Title className="text-xs font-medium leading-snug text-gray-800">{t.message}</ToastPrimitive.Title>
+            <ToastPrimitive.Close className="ml-auto shrink-0 rounded-md p-1 text-gray-400 opacity-0 transition-opacity hover:text-gray-700 focus:opacity-100 focus:outline-none group-hover:opacity-100">
+              <X className="h-3.5 w-3.5" />
+            </ToastPrimitive.Close>
+          </ToastPrimitive.Root>
+        ))}
+        <ToastPrimitive.Viewport className="fixed top-5 right-5 z-[9999] flex w-[360px] max-w-[calc(100vw-2.5rem)] flex-col gap-2 outline-none" />
+      </ToastPrimitive.Provider>
+    </ToastContext.Provider>
+  );
+}
 
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
@@ -312,6 +378,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 function AppContent() {
   const { getToken, isLoaded, userId, orgId } = useAuth();
   const { signOut } = useClerk();
+  const { toast } = useToast();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [collapsed, setCollapsed] = useState(window.innerWidth < 1024);
   const [searchQuery, setSearchQuery] = useState('');
@@ -451,7 +518,7 @@ function AppContent() {
       setFormValues({});
       navigate('/dashboard');
     } catch (err: any) {
-      alert(err.message || 'An error occurred');
+      toast(err.message || 'An error occurred', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -466,7 +533,7 @@ function AppContent() {
       });
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch {
-      alert('Failed to delete job');
+      toast('Failed to delete job', 'error');
     }
   };
 
@@ -555,7 +622,9 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <ToastShell>
+        <AppContent />
+      </ToastShell>
     </BrowserRouter>
   );
 }
