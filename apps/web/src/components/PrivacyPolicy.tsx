@@ -1,14 +1,20 @@
 import { PublicNavbar } from './PublicNavbar';
+import { Footer } from './Footer';
 import { useAuth } from '@clerk/clerk-react';
 
 export const PrivacyPolicy = () => {
   const { isSignedIn } = useAuth();
 
   return (
-    <div className={`min-h-screen ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
       {!isSignedIn && <PublicNavbar />}
-      <div className="max-w-3xl mx-auto px-6 py-16 text-gray-800">
-        <h1 className="text-3xl font-bold mb-8">Privacy Policy</h1>
+      <div className="max-w-3xl mx-auto px-6 py-16 text-gray-800 flex-1">
+        <div className="relative inline-block mb-8">
+          <h1 className="text-3xl font-bold">Privacy Policy</h1>
+          <svg className="absolute w-[110%] h-3 -bottom-2 -left-[5%] text-gray-800" viewBox="0 0 100 10" preserveAspectRatio="none">
+            <path d="M0 8 Q 50 0 100 8" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          </svg>
+        </div>
         
         <p className="text-sm text-gray-500 mb-8">Last Updated: {new Date().toLocaleDateString()}</p>
 
@@ -78,6 +84,7 @@ export const PrivacyPolicy = () => {
           </section>
         </div>
       </div>
+      {!isSignedIn && <Footer />}
     </div>
   );
 };
