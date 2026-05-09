@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { 
   SignedIn, 
   SignedOut, 
@@ -114,7 +114,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
       >
         {/* Brand */}
         <div className="px-3 h-16 border-b border-gray-200 shrink-0 flex items-center">
-          <a href="https://trypitch.in" target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#e6e6e6] transition-colors cursor-pointer no-underline group">
+          <Link to="/" className="flex flex-1 items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#e6e6e6] transition-colors cursor-pointer no-underline group">
             <div className="w-6 h-6 flex items-center justify-center shrink-0">
                <img src={tabLogoB} alt="Pitch" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
             </div>
@@ -123,7 +123,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
                 <PitchLogoAnimation startAnimation={true} />
               </div>
             </div>
-          </a>
+          </Link>
         </div>
 
         {/* Nav */}
@@ -202,9 +202,9 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
     {/* Left: logo + search / back */}
     <div className="flex items-center gap-3 shrink-0">
       {isMobile && (
-        <a href="https://trypitch.in" target="_blank" rel="noopener noreferrer" className="w-8 h-8 flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors p-1 group">
+        <Link to="/" className="w-8 h-8 flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors p-1 group">
            <img src={tabLogoB} alt="Pitch" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
-        </a>
+        </Link>
       )}
       {isDetailPage ? (
         <button
