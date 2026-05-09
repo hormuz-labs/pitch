@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
+import { LiquidChrome } from '../components/LiquidChrome';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 const IconCheck = () => (
@@ -11,11 +12,6 @@ const IconCheck = () => (
 const IconXCircle = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-  </svg>
-);
-const IconLoader = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin text-gray-400">
-    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
   </svg>
 );
 const IconVideo = () => (
@@ -74,37 +70,43 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
           {isProcessing && (
             <div className="bg-white border border-gray-200 rounded-xl p-8">
               <div className="flex flex-col items-center text-center mb-8">
-                <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-200">
-                  <IconLoader />
+                <div className="w-full aspect-video max-w-[1920px] max-h-[1080px] relative rounded-xl overflow-hidden mb-6 border border-gray-200/50 shadow-2xl bg-black">
+                  <LiquidChrome
+                    baseColor={[0.031, 0.490, 0.820]}
+                    speed={0.3}
+                    amplitude={0.5}
+                    interactive={true}
+                  />
+                  
+                  {/* Logs Overlay */}
+                  <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 md:p-10 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none text-left">
+                    <div className="max-w-3xl w-full">
+                      <p className="text-[10px] sm:text-xs font-bold text-white/70 uppercase tracking-widest mb-2 sm:mb-3 drop-shadow-md">Current Status</p>
+                      <div className="space-y-1.5 sm:space-y-2 max-h-[40%] overflow-hidden">
+                        {(displayLogs.length > 0 ? displayLogs : [{ message: 'Initializing agent…', timestamp: '', type: 'info' } as LogEntry]).map((item, i) => (
+                          <div key={i} className="flex items-start gap-2 sm:gap-3 text-xs sm:text-sm md:text-base">
+                            <span className="text-white/60 font-mono text-[10px] sm:text-xs md:text-sm mt-0.5 shrink-0 drop-shadow-md">{item.timestamp}</span>
+                            <span className="text-white font-medium leading-snug drop-shadow-lg line-clamp-2">{item.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Generating your video…</h2>
                 <p className="text-sm text-gray-500 mt-1">This typically takes 1–2 minutes. Hang tight!</p>
               </div>
 
-              <div className={`flex gap-6 ${isMobile ? 'flex-col' : 'flex-row'}`}>
-                {/* Live log */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Current Status</p>
-                  <div className="space-y-2">
-                    {(displayLogs.length > 0 ? displayLogs : [{ message: 'Initializing agent…', timestamp: '', type: 'info' } as LogEntry]).map((item, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-sm">
-                        <span className="text-gray-300 font-mono text-xs mt-0.5 shrink-0">{item.timestamp}</span>
-                        <span className="text-gray-700 leading-snug">{item.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Live preview */}
-                {latestScreenshot && (
+              {latestScreenshot && (
+                <div className="flex justify-center">
                   <div className={isMobile ? 'w-full' : 'w-72 shrink-0'}>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Live Preview</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 text-center">Live Preview</p>
                     <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                       <img src={latestScreenshot} alt="Live screenshot" className="w-full block" />
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
