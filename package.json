@@ -12,7 +12,7 @@
     "db:down": "docker compose down",
     "db:migrate": "dotenv -o -e .env -- bun --filter @saas/db exec prisma migrate dev --schema=prisma/schema.prisma --name init",
     "db:studio": "dotenv -o -e .env -- bun --filter @saas/db exec prisma studio --schema=prisma/schema.prisma",
-    "postinstall": "bun exec zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile && bun --filter @saas/db run build || (test -n \"$VERCEL\" && echo 'Postinstall failed on Vercel, but continuing as only web is required')",
+    "postinstall": "bunx zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile && bun --filter @saas/db build || (test -n \"$VERCEL\" && echo 'Postinstall failed on Vercel, but continuing as only web is required')",
     "build": "bun --filter '*' build",
     "dev": "bun --filter '*' dev",
     "start": "bun --filter '*' start",
@@ -39,6 +39,7 @@
     "dotenv": "",
     "fluent-ffmpeg": "",
     "mime": "",
+    "playwright": "^1.59.1",
     "puppeteer": ""
   }
 }
