@@ -3,6 +3,10 @@ export interface DemoConfig {
   userReq: string;
   outputPath?: string;
   cursorStyle?: 'black' | 'white';
+  companyName?: string;
+  introBg?: 'auto' | 'white' | 'black';
+  width?: number;
+  height?: number;
   steps: DemoStep[];
 }
 

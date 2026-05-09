@@ -40,7 +40,7 @@ export function createWavHeader(dataLength: number, options: WavConversionOption
  * @param moveDuration Segment length in seconds
  */
 export function smoothstepExpr(
-  evalVar: 't' | 'time',
+  evalVar: 't' | 'time' | 'T',
   prev: number,
   target: number,
   moveStart: number,

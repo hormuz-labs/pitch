@@ -9,6 +9,11 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   console.log("== Pass 3: Raw Video Recording & JIT Tracking ==");
   const timeline = JSON.parse(fs.readFileSync(path.join(demoDir, 'timeline.json'), 'utf8'));
   
+  const VIDEO_WIDTH = config.width || 1920;
+  const VIDEO_HEIGHT = config.height || 1080;
+  const CENTER_X = VIDEO_WIDTH / 2;
+  const CENTER_Y = VIDEO_HEIGHT / 2;
+
   const browser = await chromium.launch({ headless: true });
   
   // Rasterize cursor to PNG for FFmpeg
@@ -31,8 +36,8 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   }
 
   const context = await browser.newContext({
-    recordVideo: { dir: demoDir, size: { width: 1920, height: 1080 } },
-    viewport: { width: 1920, height: 1080 }
+    recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
+    viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT }
   });
   const page = await context.newPage();
   
@@ -61,8 +66,8 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
 
   // Execute generic engine
   // Tracks the last-known cursor position for synthetic scroll events
-  let prevCursorX = 960;
-  let prevCursorY = 540;
+  let prevCursorX = CENTER_X;
+  let prevCursorY = CENTER_Y;
 
   for (const step of demoSteps) {
     let actionTime = timeline[step.id];
@@ -110,8 +115,8 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
       let box = await loc.boundingBox();
       
       // Fallback to center screen if for some reason boundingBox fails
-      let cx = box ? box.x + box.width / 2 : 960;
-      let cy = box ? box.y + box.height / 2 : 540;
+      let cx = box ? box.x + box.width / 2 : CENTER_X;
+      let cy = box ? box.y + box.height / 2 : CENTER_Y;
 
       // Exact action time: Wait until the true action timestamp
       await waitForTime(actionTime);
@@ -145,8 +150,8 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
       trackingEvents.push({
         id: step.id,
         actionTime,
-        cx: 960,
-        cy: 540,
+        cx: CENTER_X,
+        cy: CENTER_Y,
         action: 'wait'
       });
       if (step.id === 'tOutro') {
@@ -193,16 +198,17 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   console.log(`🎬 Encoding Final Video with FFmpeg Effects...`);
   
   const finalOutput = config.outputPath ? path.resolve(demoDir, config.outputPath) : path.join(demoDir, 'demo-final.mp4');
+  const tempRawOut = finalOutput.replace('.mp4', '-raw.mp4');
   
   // Build cursor and zoom animations using FFmpeg math expressions
-  let overlayXExpr = "960";
-  let overlayYExpr = "540";
+  let overlayXExpr = `${CENTER_X}`;
+  let overlayYExpr = `${CENTER_Y}`;
   let zoomZExpr = "1";
   let panXExpr = "0";
   let panYExpr = "0";
   
-  let prevCx = 960;
-  let prevCy = 540;
+  let prevCx = CENTER_X;
+  let prevCy = CENTER_Y;
   let prevZoom = 1;
   // Running pan state persists across loop iterations (needed for park/fade post-process)
   let runningPanX = 0;
@@ -219,8 +225,10 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
 
     // ── Scroll events: only update camera pan, no cursor/zoom change ──────────
     if (ev.action === 'scroll') {
+      if (prevZoom <= 1.0) continue; // Skip scroll pan when not zoomed
+
       const scrolledY = ev.scrollY ?? 0;
-      const targetScrollPanY = Math.min(Math.max(0, scrolledY - 540 / prevZoom), 1080 - 1080 / prevZoom);
+      const targetScrollPanY = Math.min(Math.max(0, scrolledY - CENTER_Y / prevZoom), VIDEO_HEIGHT - VIDEO_HEIGHT / prevZoom);
       panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetScrollPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetScrollPanY},${panYExpr}))`;
       runningPanY = targetScrollPanY;
       continue; // skip cursor and zoom update for scroll-only events
@@ -233,15 +241,18 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
     overlayYExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCy, ev.cy, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
 
     // ── Zoom (spring overshoot on zoom-in, plain smoothstep on zoom-out) ─────
-    const overshootAmt = targetZoom > prevZoom ? 0.02 : 0;
+    const OVERSHOOT_FRACTION = 0.1; // 10% of the zoom delta
+    const overshootAmt = targetZoom > prevZoom 
+      ? (targetZoom - prevZoom) * OVERSHOOT_FRACTION 
+      : 0;
     const zoomInterp = (targetZoom !== prevZoom)
       ? springOvershootExpr('time', prevZoom, targetZoom, overshootAmt, moveStart, moveDuration)
       : `${targetZoom}`;
     zoomZExpr = `if(between(time,${moveStart},${tTime}),${zoomInterp},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
 
     // ── Pan (smoothstep easing, evaluates 'time') ────────────────────────────
-    const targetPanX = Math.min(Math.max(0, ev.cx - 1920 / (2 * targetZoom)), 1920 - 1920 / targetZoom);
-    const targetPanY = Math.min(Math.max(0, ev.cy - 1080 / (2 * targetZoom)), 1080 - 1080 / targetZoom);
+    const targetPanX = Math.min(Math.max(0, ev.cx - VIDEO_WIDTH / (2 * targetZoom)), VIDEO_WIDTH - VIDEO_WIDTH / targetZoom);
+    const targetPanY = Math.min(Math.max(0, ev.cy - VIDEO_HEIGHT / (2 * targetZoom)), VIDEO_HEIGHT - VIDEO_HEIGHT / targetZoom);
 
     panXExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanX, targetPanX, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanX},${panXExpr}))`;
     panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanY},${panYExpr}))`;
@@ -261,42 +272,32 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   }
 
   // ── Cursor Park / Fade ─────────────────────────────────────────────────────
-  // When no interaction is happening for >2s, the cursor slides off-screen to
-  // the right (x=1940) and fades back in 1s before the next interaction begins.
-  // This post-process wraps the existing expressions with higher-priority branches.
-  const PARK_X = 1940; // safely past the 1920 right edge
-  const SLIDE_OUT_DUR = 0.4;
-  const SLIDE_IN_DUR  = 1.0;
-  const PARK_GAP_MIN  = 2.0; // only park if idle gap is longer than this
+  // When no interaction is happening for >4s, the cursor fades out in place,
+  // and fades back in 1s before the next interaction begins.
+  const FADE_OUT_DUR = 0.4;
+  const FADE_IN_DUR  = 1.0;
+  const PARK_GAP_MIN = 4.0; 
+
+  let cursorAlphaExpr = "1";
 
   const activeEvents = trackingEvents.filter(e => e.action !== 'scroll');
   for (let i = 0; i < activeEvents.length; i++) {
     const ev   = activeEvents[i];
     const next = activeEvents[i + 1];
 
-    const slideOutStart = ev.actionTime + 0.3;
-    const slideOutEnd   = slideOutStart + SLIDE_OUT_DUR;
-    // Park ends 1s before next move starts (so slide-in has room)
-    const parkEnd = next ? next.actionTime - 1.0 - SLIDE_IN_DUR : ev.actionTime + 3.0;
+    const fadeOutStart = ev.actionTime + PARK_GAP_MIN;
+    const fadeOutEnd   = fadeOutStart + FADE_OUT_DUR;
+    // Fade in ends 1s before next move starts
+    const fadeInEnd    = next ? next.actionTime - 1.0 : fadeOutEnd + 100;
+    const fadeInStart  = fadeInEnd - FADE_IN_DUR;
 
-    if (parkEnd - slideOutEnd < PARK_GAP_MIN) continue; // gap too short — skip
+    // Only apply if the gap between fade out and fade in is large enough
+    if (next && (fadeInStart - fadeOutEnd < 0.5)) continue; 
 
-    // Slide cursor OUT to PARK_X over SLIDE_OUT_DUR seconds
-    const slideOutX = smoothstepExpr('t', ev.cx, PARK_X, slideOutStart, SLIDE_OUT_DUR);
-    const slideOutY = smoothstepExpr('t', ev.cy, ev.cy, slideOutStart, SLIDE_OUT_DUR); // Y holds
+    const fadeOut = smoothstepExpr('T', 1, 0, fadeOutStart, FADE_OUT_DUR);
+    const fadeIn  = smoothstepExpr('T', 0, 1, fadeInStart, FADE_IN_DUR);
 
-    overlayXExpr = `if(between(t,${slideOutStart},${slideOutEnd}),${slideOutX},if(between(t,${slideOutEnd},${parkEnd}),${PARK_X},${overlayXExpr}))`;
-    overlayYExpr = `if(between(t,${slideOutStart},${slideOutEnd}),${slideOutY},if(between(t,${slideOutEnd},${parkEnd}),${ev.cy},${overlayYExpr}))`;
-
-    if (next) {
-      // Slide cursor IN from PARK_X to the next event's position
-      const slideInStart = parkEnd;
-      const slideInEnd   = slideInStart + SLIDE_IN_DUR;
-      const slideInX = smoothstepExpr('t', PARK_X, next.cx, slideInStart, SLIDE_IN_DUR);
-      const slideInY = smoothstepExpr('t', ev.cy, next.cy, slideInStart, SLIDE_IN_DUR);
-      overlayXExpr = `if(between(t,${slideInStart},${slideInEnd}),${slideInX},${overlayXExpr})`;
-      overlayYExpr = `if(between(t,${slideInStart},${slideInEnd}),${slideInY},${overlayYExpr})`;
-    }
+    cursorAlphaExpr = `if(between(T,${fadeOutStart},${fadeOutEnd}),${fadeOut},if(between(T,${fadeOutEnd},${fadeInStart}),0,if(between(T,${fadeInStart},${fadeInEnd}),${fadeIn},${cursorAlphaExpr})))`;
   }
 
   // ── Click Ripple Builder (Circular geq Ring — Premium 3-Layer) ─────────────
@@ -357,19 +358,21 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30[vfps];`;
 
   if (fs.existsSync(cursorPng)) {
+    // Apply dynamic alpha fading to the cursor input
+    filterString += `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${cursorAlphaExpr})'[cur];`;
     if (rippleChain) {
       filterString += `[vfps]${rippleChain}[withripple];`;
-      filterString += `[withripple][1:v]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
+      filterString += `[withripple][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
     } else {
-      filterString += `[vfps][1:v]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
+      filterString += `[vfps][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
     }
-    filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+    filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
   } else {
     if (rippleChain) {
       filterString += `[vfps]${rippleChain}[withripple];`;
-      filterString += `[withripple]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+      filterString += `[withripple]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
     } else {
-      filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+      filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
     }
   }
 
@@ -402,9 +405,12 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
        sfxIndex++;
        inputCount++;
     } else if (step.action === 'type') {
-       command.input(path.join(demoDir, 'assets', 'sounds', 'keyboard.mp3'));
+       // Loop the 8-second keyboard.mp3 infinitely so we never run out of audio for long text
+       command.input(path.join(demoDir, 'assets', 'sounds', 'keyboard.mp3')).inputOptions(['-stream_loop -1']);
        const delayMs = Math.floor(tTime * 1000);
-       filterString += `[${sfxIndex}:a]atrim=0:0.8,asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs}[sfx${sfxIndex}];`;
+       // Calculate exact typing duration: 80ms per character
+       const typeDuration = ((step.value?.length || 10) * 0.08).toFixed(2);
+       filterString += `[${sfxIndex}:a]atrim=0:${typeDuration},asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs}[sfx${sfxIndex}];`;
        mixInputs += `[sfx${sfxIndex}]`;
        sfxIndex++;
        inputCount++;
@@ -424,12 +430,55 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
         '-c:a aac', 
         '-r 30', 
         '-crf 18', 
-        '-preset ultrafast'
+        '-preset ultrafast',
+        '-movflags +faststart'
       ])
-      .save(finalOutput)
+      .save(tempRawOut)
       .on('end', resolve)
       .on('error', reject);
   });
-  
+
+  // ── Concatenate intro + main demo ───────────────────────────────────────
+  const introPathFile = path.join(demoDir, 'intro-path.txt');
+  let hasStitched = false;
+  if (fs.existsSync(introPathFile)) {
+    const introVideo = fs.readFileSync(introPathFile, 'utf8').trim();
+    if (fs.existsSync(introVideo)) {
+      console.log('🎬 Stitching intro cinematic...');
+      
+      await new Promise((resolve, reject) => {
+        ffmpeg()
+          .input(introVideo)
+          .input(tempRawOut)
+          .complexFilter([
+            // Normalize intro to yuv420p at 30fps, pad silent audio
+            '[0:v]fps=30,format=yuv420p[iv];',
+            'aevalsrc=0:c=stereo:s=48000:d=3.5[ia];',
+            // Main demo video + audio pass-through
+            '[1:v]fps=30,format=yuv420p[mv];',
+            '[1:a]aresample=48000[ma];',
+            // Concatenate: intro then demo
+            '[iv][ia][mv][ma]concat=n=2:v=1:a=1[vout][aout]'
+          ])
+          .outputOptions(['-map [vout]', '-map [aout]', '-c:v libx264', '-crf 18',
+                          '-preset ultrafast', '-pix_fmt yuv420p', '-c:a aac',
+                          '-movflags +faststart'])
+          .save(finalOutput)
+          .on('end', resolve)
+          .on('error', reject);
+      });
+
+      console.log(`✨ Intro stitched successfully!`);
+      hasStitched = true;
+      // Clean up the raw file
+      if (fs.existsSync(tempRawOut)) fs.unlinkSync(tempRawOut);
+    }
+  }
+
+  // If no intro was stitched, just rename the raw output to final
+  if (!hasStitched) {
+    fs.renameSync(tempRawOut, finalOutput);
+  }
+
   console.log(`✨ Done! Final video saved to:`, finalOutput);
 }

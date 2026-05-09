@@ -62,9 +62,18 @@ Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` 
 
 **CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
 
+**MANDATORY — Logo Download:**  While the agent-browser is already on the website, it MUST find and download the website's primary logo file and save it into `demos/<demo-name>/assets/icons/`. The logo can be in any format (`.svg`, `.png`, `.webp`, `.jpg`, `.ico`). Prefer the highest-resolution or vector (`.svg`) version available. Look in the header/navigation area first, then check `<link rel="apple-touch-icon">` as a fallback. If you find a URL to an SVG or PNG logo, download it via `fetch()` or copy its source and save it to the `assets/icons/` folder. This is REQUIRED for the cinematic intro to work in Phase 0.5.
+
 Once the agent has successfully verified and collected all the necessary stable working selectors, it will dynamically generate the `demo-config.json` file inside the new demo folder.
 
 **Note on Scrolling:** During the video recording phase, the engine automatically checks if the element is in the viewport. It will ONLY scroll the component into the viewport if it is not already visible. If it is in the viewport, it won't scroll. This ensures a clean cinematic experience.
+
+### Phase 0.5 — Cinematic Intro Sequence (V4.6)
+Before running the validation or generation passes, `pass0-intro.ts` automatically generates a 3.5-second premium intro card.
+*   **Logo Source:** Reads the logo file directly from `assets/icons/` (placed there by agent-browser in Phase 0.2). Supports `.svg`, `.png`, `.webp`, `.jpg`, `.jpeg`, `.avif`, `.gif`, `.ico`. Prefers SVG (infinite resolution) over raster formats.
+*   **Adaptive Background:** Analyzes the logo's non-transparent pixels using canvas pixel math. Dark logo → white `#FFFFFF` background. Light logo → deep `#0A0A0A` background. Can be forced via `introBg: 'white' | 'black'` in `demo-config.json`.
+*   **Cinematic Animation:** Renders an HTML page via Playwright `recordVideo` featuring an Apple-style staggered slide-in (cubic-bezier easing): logo blooms in → divider draws down → company name slides in from left. Font: `Inter Bold 700`, 72px, -0.03em tracking.
+*   **Stitching:** The generated `intro.webm` is seamlessly concatenated at the very end of Phase 4 into the final `.mp4` via FFmpeg's `concat` filter.
 
 ### Phase 1 — Flow Validation (Playwright Dry Run)
 The generic engine loops through `demoSteps`. For every step with a selector, it waits for the element and performs the action (`click` or `fill`). This ensures all selectors are valid and the sequence doesn't get stuck before we spend money on LLM/TTS generation.
@@ -88,7 +97,7 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 *   **Spring Zoom Overshoot:** On zoom-in, the camera overshoots to `1.22x` at 60% of the transition window then settles back to `1.20x`, giving an elastic spring feel. Implemented via `springOvershootExpr()` in `utils.ts`.
 *   **Scroll-Tracking Camera Pan:** When `scrollIntoView` shifts the page by >20px, a synthetic `scroll` event is pushed to `tracking.json`. Phase 4 reads these to emit a smooth `panY` drift so the camera follows the page scroll naturally.
 *   **Click Ripple Overlay:** Each `click` event generates a 4-step decaying-opacity `drawbox` chain (36×36px, white, 0.25s duration: α 0.55→0.38→0.22→0.10). Sits between cursor overlay and zoompan in the filtergraph: `[withcursor]→ripple→[withripple]→zoompan`.
-*   **Cursor Park & Fade:** During idle gaps >2s, the cursor smoothly slides off-screen to the right (x=1940) over 0.4s, parks there, then glides back to the next target position 1s before the next interaction. All done as post-processing on top of the cursor overlay expressions.
+*   **Cursor Park & Fade:** During idle gaps >4s, the cursor gracefully fades out in place over 0.4s via dynamic alpha channel masking (`geq` filter), and fades back in 1s before the next interaction begins. All done as post-processing on top of the cursor overlay expressions.
 1.  **A/V Sync (Playwright Offset):** Playwright's `recordVideo` doesn't start its internal clock until the first frame is painted. The engine forces a blank frame immediately to start the clock, calculates `initDurationMs` (the time it takes for the actual page to load), and offsets the voiceover and all SFX by this duration in FFmpeg (`adelay`) to perfectly sync real-time audio with the delayed video.
 2.  **Drop infinite apad:** FFmpeg tends to hang if `apad` is left on all SFX mixing tracks indefinitely. The script now lets SFX end naturally.
 3.  **Disable Normalization (`normalize=0`):** Without `apad` on the SFX, standard `amix` behavior would volume-jump the voiceover whenever an SFX stops. `normalize=0` prevents volume shifting!
