@@ -75,7 +75,7 @@ Please execute the following video generation task for Job ${jobId}.
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
 
-IMPORTANT: Once the video is generated, you MUST run the job-cli to complete the job and upload the results.
+IMPORTANT: Once the ENTIRE video generation pipeline is complete (including the final FFmpeg concatenation of the intro and the main video), you MUST run the job-cli to complete the job and upload the final concatenated results. Do NOT push incomplete or un-stitched videos.
 If an audio/voiceover file was generated separately, include it with the --audio flag.
 Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GENERATED_VIDEO> [--audio <PATH_TO_GENERATED_AUDIO>]
 `;

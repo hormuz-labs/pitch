@@ -3,6 +3,7 @@ import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { DemoConfig } from './types';
+import { pass0 } from './pass0-intro';
 import { pass1 } from './pass1-dry-run';
 import { pass2 } from './pass2-voiceover';
 import { pass3 } from './pass3-cinematic-record';
@@ -34,7 +35,8 @@ if (!config.userReq) throw new Error("config.userReq is required.");
 if (!config.steps || config.steps.length === 0) throw new Error("config.steps is required and cannot be empty.");
 
 async function main() {
-  await pass1(config.startUrl, config.steps);
+  await pass0(config, config.startUrl, DEMO_DIR);
+  await pass1(config, config.startUrl, config.steps);
   await pass2(ai, config.userReq, config.steps, DEMO_DIR);
   await pass3(config, config.startUrl, config.steps, DEMO_DIR);
 }

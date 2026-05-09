@@ -1,10 +1,13 @@
 import { chromium } from 'playwright';
-import { DemoStep } from './types';
+import { DemoConfig, DemoStep } from './types';
 
-export async function pass1(startUrl: string, demoSteps: DemoStep[]) {
+export async function pass1(config: DemoConfig, startUrl: string, demoSteps: DemoStep[]) {
   console.log("== Pass 1: Generic Flow Validation ==");
+  const VIDEO_WIDTH = config.width || 1920;
+  const VIDEO_HEIGHT = config.height || 1080;
+  
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const context = await browser.newContext({ viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } });
   const page = await context.newPage();
   
   await page.goto(startUrl);
