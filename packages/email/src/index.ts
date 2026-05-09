@@ -78,7 +78,7 @@ function jobCompleteHtml(videoUrl: string): string {
       <a href="${videoUrl}" style="color:#555;">${videoUrl}</a>
     </p>
   </div>
-  <div class="footer">Silverfish &mdash; Automated Product Demos</div>
+  <div class="footer">Pitch &mdash; Automated Product Demos</div>
 </body>
 </html>
 `;
@@ -104,7 +104,7 @@ export async function sendJobCompleteEmail({
   const transport = createTransport();
 
   await transport.sendMail({
-    from: `Silverfish <${from}>`,
+    from: `Pitch <${from}>`,
     to,
     subject: 'Your demo video is ready',
     text: `Your product demo video for job ${jobId} has finished generating.\n\nWatch it here: ${videoUrl}`,
