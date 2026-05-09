@@ -98,12 +98,17 @@ bun run dev
 
 <br>
 
+## ▌ LICENSING
+
+Free for personal and non-commercial use.
+
+For an **official commercial license**, reach out at [officialtrypitch@gmail.com](mailto:officialtrypitch@gmail.com).
+
+<br>
+
 ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 <div align="center">
   <i>"Code as Cinema."</i> <br><br>
-  <b>© 2026 Hormuz Labs</b> · CC-BY-4.0
+  <b>© 2026 Hormuz Labs</b> · Free for personal use · <a href="mailto:officialtrypitch@gmail.com">Commercial license</a>
 </div>
-
-
-ssh
