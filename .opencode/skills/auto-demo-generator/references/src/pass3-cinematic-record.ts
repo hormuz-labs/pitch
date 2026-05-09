@@ -299,48 +299,78 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
     }
   }
 
-  // ── Click Ripple Builder ───────────────────────────────────────────────────
-  // 4-step decaying opacity drawbox chain per click: fast, tight (36×36 px),
-  // realistic — mimics macOS/iOS tap feedback at normal viewing distance.
+  // ── Click Ripple Builder (Circular geq Ring — Premium 3-Layer) ─────────────
+  // Layer 1 — Inner flash:  filled circle 6px shrinking, 0→0.12s, luma +200 decaying
+  // Layer 2 — Hard ring:    2px edge growing 0→44px radius,  0→0.40s, luma +180 decaying
+  // Layer 3 — Soft glow:    5px halo on same ring,            0→0.40s, luma +70  decaying
+  // Applied BEFORE cursor overlay → cursor always sits on top of the ring.
   const clickEventsForRipple = trackingEvents.filter(e => e.action === 'click');
   let rippleChain = '';
   if (clickEventsForRipple.length > 0) {
-    const parts: string[] = [];
+    const geqParts: string[] = [];
     for (const ev of clickEventsForRipple) {
       const cx = Math.round(ev.cx);
       const cy = Math.round(ev.cy);
-      const T  = +ev.actionTime.toFixed(4);
-      const steps = [
-        { t0: T,        t1: T + 0.06, alpha: 0.55 },
-        { t0: T + 0.06, t1: T + 0.12, alpha: 0.38 },
-        { t0: T + 0.12, t1: T + 0.18, alpha: 0.22 },
-        { t0: T + 0.18, t1: T + 0.25, alpha: 0.10 },
-      ];
-      for (const s of steps) {
-        parts.push(
-          `drawbox=x=${cx - 18}:y=${cy - 18}:w=36:h=36` +
-          `:color=white@${s.alpha}:t=fill` +
-          `:enable='between(t\\,${s.t0}\\,${s.t1})'`
-        );
-      }
+      const T0 = +ev.actionTime.toFixed(4);
+      const T1 = +(ev.actionTime + 0.40).toFixed(4); // ring end
+      const TF = +(ev.actionTime + 0.12).toFixed(4); // flash end
+
+      // dist = sqrt((X-cx)²+(Y-cy)²)
+      // ringR = ((T-T0)/0.40)*44  — grows 0→44px
+      // pSlow = (T-T0)/0.40       — ring progress 0→1
+      // pFast = (T-T0)/0.12       — flash progress 0→1
+      const dist  = `sqrt(pow(X-${cx},2)+pow(Y-${cy},2))`;
+      const ringR = `((T-${T0})/0.40)*44`;
+      const pSlow = `(T-${T0})/0.40`;
+      const pFast = `(T-${T0})/0.12`;
+
+      // LUM: adds brightness on top of existing luma (works on opaque yuv420p)
+      const lum =
+        `min(255,lum(X,Y)+` +
+          `if(between(T,${T0},${TF}),` +
+            `if(lt(${dist},max(0.01,6*(1-${pFast}))),` +
+              `(1-${pFast})*200,` +
+              `if(between(T,${T0},${T1}),` +
+                `if(lt(abs(${dist}-(${ringR})),2),(1-${pSlow})*180,` +
+                `if(lt(abs(${dist}-(${ringR})),5),(1-${pSlow})*70,0)),0)),` +
+          `if(between(T,${T0},${T1}),` +
+            `if(lt(abs(${dist}-(${ringR})),2),(1-${pSlow})*180,` +
+            `if(lt(abs(${dist}-(${ringR})),5),(1-${pSlow})*70,0)),0)))`;
+
+      // CB/CR: force white chroma on any active ripple pixel (flash OR glow ring)
+      const chromaActive =
+        `gt(` +
+          `if(between(T,${T0},${TF}),lt(${dist},max(0.01,6*(1-${pFast}))),0)` +
+          `+if(between(T,${T0},${T1}),lt(abs(${dist}-(${ringR})),5),0)` +
+        `,0)`;
+      const cb = `if(${chromaActive},128,cb(X,Y))`;
+      const cr = `if(${chromaActive},128,cr(X,Y))`;
+
+      geqParts.push(`geq=lum='${lum}':cb='${cb}':cr='${cr}'`);
     }
-    rippleChain = parts.join(',');
+    rippleChain = geqParts.join(',');
   }
 
   // ── Construct Filtergraph ──────────────────────────────────────────────────
+  // Z-order: raw_video → [ripple geq] → [cursor overlay] → [zoompan] → [vout]
+  // Ripple BELOW cursor so the cursor PNG always appears on top of the ring.
   let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30[vfps];`;
 
   if (fs.existsSync(cursorPng)) {
-    filterString += `[vfps][1:v]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
     if (rippleChain) {
-      // Ripple chain sits between cursor overlay and zoompan
-      filterString += `[withcursor]${rippleChain}[withripple];`;
+      filterString += `[vfps]${rippleChain}[withripple];`;
+      filterString += `[withripple][1:v]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
+    } else {
+      filterString += `[vfps][1:v]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
+    }
+    filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+  } else {
+    if (rippleChain) {
+      filterString += `[vfps]${rippleChain}[withripple];`;
       filterString += `[withripple]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
     } else {
-      filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
+      filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
     }
-  } else {
-    filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=1920x1080:fps=30[vout];`;
   }
 
   // Audio Mix
