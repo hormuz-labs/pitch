@@ -10,13 +10,17 @@
     "setup": "bun run db:up && echo 'Waiting for databases to start...' && sleep 3 && bun run db:migrate",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:migrate": "dotenv -o -e .env -- bun --filter @saas/db exec prisma migrate dev --schema=prisma/schema.prisma --name init",
-    "db:studio": "dotenv -o -e .env -- bun --filter @saas/db exec prisma studio --schema=prisma/schema.prisma",
-    "postinstall": "bunx zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile && bun --filter @saas/db build || (test -n \"$VERCEL\" && echo 'Postinstall failed on Vercel, but continuing as only web is required')",
+    "db:migrate": "./node_modules/.bin/dotenv -o -e .env -- packages/db/node_modules/.bin/prisma migrate dev --schema=packages/db/prisma/schema.prisma --name init",
+    "db:sync": "./scripts/db-sync.sh",
+    "db:studio": "./node_modules/.bin/dotenv -o -e .env -- bunx @zenstackhq/proxy --schema=packages/db/prisma/schema.zmodel",
+    "postinstall": "./scripts/zenstack-generate.sh && bun --filter @saas/db build || (test -n \"$VERCEL\" && echo 'Postinstall failed on Vercel, but continuing as only web is required')",
     "build": "bun --filter '*' build",
     "dev": "bun --filter '*' dev",
     "start": "bun --filter '*' start",
-    "job-cli": "bun apps/job-cli/src/index.ts"
+    "job-cli": "bun apps/job-cli/src/index.ts",
+    "credits": "bun apps/job-cli/src/index.ts credits",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

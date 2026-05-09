@@ -3,6 +3,7 @@ import path from 'path';
 import {
   S3Client,
   PutObjectCommand,
+  DeleteObjectCommand,
   CreateBucketCommand,
   HeadBucketCommand,
   PutBucketPolicyCommand,
@@ -76,4 +77,21 @@ export async function uploadFile(localPath: string, bucketOverride?: string) {
   const url = `${publicUrl}/${targetBucket}/${filename}`;
   console.log(`[Storage] Upload complete. Public URL: ${url}`);
   return url;
+}
+
+/**
+ * Deletes an object from storage given its public URL.
+ * Silently no-ops if the URL doesn't belong to the configured bucket.
+ */
+export async function deleteFile(publicFileUrl: string, bucketOverride?: string): Promise<void> {
+  const targetBucket = bucketOverride ?? bucket;
+  // Extract the key — URL format is: <publicUrl>/<bucket>/<key>
+  const prefix = `${publicUrl}/${targetBucket}/`;
+  if (!publicFileUrl.startsWith(prefix)) {
+    console.warn(`[Storage] deleteFile: URL does not match expected prefix, skipping. URL: ${publicFileUrl}`);
+    return;
+  }
+  const key = publicFileUrl.slice(prefix.length);
+  await client.send(new DeleteObjectCommand({ Bucket: targetBucket, Key: key }));
+  console.log(`[Storage] Deleted object: ${key} from bucket "${targetBucket}"`);
 }

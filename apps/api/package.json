@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
+    "predev": "../../scripts/zenstack-generate.sh",
     "dev": "bun src/index.ts",
     "start": "bun dist/index.js"
   },

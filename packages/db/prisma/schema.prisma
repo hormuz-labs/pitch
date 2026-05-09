@@ -20,6 +20,25 @@ model User {
   @@ignore()
 }
 
+model CreditBalance {
+  tenantId     String              @id()
+  balance      Int                 @default(0)
+  updatedAt    DateTime            @updatedAt()
+  transactions CreditTransaction[]
+}
+
+model CreditTransaction {
+  id        String        @id() @default(cuid())
+  tenantId  String
+  delta     Int
+  reason    String
+  jobId     String?
+  createdAt DateTime      @default(now())
+  balance   CreditBalance @relation(fields: [tenantId], references: [tenantId])
+
+  @@index([tenantId])
+}
+
 model Job {
   id         String   @id() @default(cuid())
   userId     String

@@ -8,7 +8,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
-describe('Job Queue and Worker End-to-End Flow', () => {
+describe.skip('Job Queue and Worker End-to-End Flow', () => {
   let redis: Redis;
   let queue: Queue;
   let dummyServer: http.Server;

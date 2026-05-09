@@ -62,7 +62,17 @@ app.post('/jobs', async (req, res) => {
 
   try {
     const tenantId = orgId || userId;
+
+    // Check credit balance — hard block if 0
+    const balance = await db.getCreditBalance(tenantId);
+    if (balance < 1) {
+      return res.status(402).json({ error: 'Insufficient credits', balance });
+    }
+
     const job = await db.createJob({ userId, orgId: tenantId, parameters }, { id: userId, orgId });
+
+    // Deduct 1 credit atomically
+    await db.deductCredit(tenantId, 1, 'job_created', job.id);
     
     // IMPORTANT: we explicitly set the bullmq jobId to match our db job.id
     await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters }, { jobId: job.id });
@@ -184,6 +194,20 @@ app.delete('/jobs/:id', async (req, res) => {
     if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/credits', async (req, res) => {
+  const { orgId, userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const tenantId = orgId || userId;
+    const balance = await db.getCreditBalance(tenantId);
+    const transactions = await db.getCreditTransactions(tenantId);
+    res.json({ balance, transactions });
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });

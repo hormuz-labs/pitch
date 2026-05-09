@@ -28,15 +28,20 @@ program
     const { jobId, file, audio, bucket } = options;
     console.log(`🚀 Processing job completion for ${jobId}...`);
 
+    // Track every URL successfully uploaded so we can clean up on partial failure
+    const uploadedUrls: string[] = [];
+
     try {
       // 1. Upload video to GCS/Storage
       const videoUrl = await storage.uploadFile(file, bucket);
+      uploadedUrls.push(videoUrl);
       console.log(`✅ Video uploaded: ${videoUrl}`);
 
       // 2. Upload audio if provided
       let audioUrl: string | undefined;
       if (audio) {
         audioUrl = await storage.uploadFile(audio, bucket);
+        uploadedUrls.push(audioUrl);
         console.log(`✅ Audio uploaded: ${audioUrl}`);
       }
 
@@ -66,6 +71,28 @@ program
       process.exit(0);
     } catch (error: any) {
       console.error(`❌ Error processing job ${jobId}:`, error.message);
+
+      // Clean up any files that were already uploaded to avoid orphaned objects
+      for (const url of uploadedUrls) {
+        try {
+          await storage.deleteFile(url, bucket);
+          console.log(`🗑️  Cleaned up uploaded file: ${url}`);
+        } catch (cleanupError: any) {
+          console.warn(`⚠️  Failed to clean up file ${url}:`, cleanupError.message);
+        }
+      }
+
+      // Mark job as FAILED and refund the credit
+      try {
+        const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
+        await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+        const tenantId = failedJob.orgId || failedJob.userId;
+        await db.addCredits(tenantId, 1, 'job_failed_refund', jobId);
+        console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
+      } catch (refundError: any) {
+        console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
+      }
+
       process.exit(1);
     }
   });
@@ -89,6 +116,17 @@ program
       
       // Notify subscribers
       await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+
+      // Refund 1 credit if the job is being marked as FAILED
+      if (jobStatus === JobStatus.FAILED) {
+        try {
+          const tenantId = updatedJob.orgId || updatedJob.userId;
+          await db.addCredits(tenantId, 1, 'job_failed_refund', jobId);
+          console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
+        } catch (refundError: any) {
+          console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
+        }
+      }
       
       console.log(`✅ Status for job ${jobId} updated to ${jobStatus}`);
       process.exit(0);
@@ -98,4 +136,74 @@ program
     }
   });
 
+// ─── Credits commands ─────────────────────────────────────────────────────────
+
+const creditsCmd = program
+  .command('credits')
+  .description('Manage credit balances for tenants');
+
+creditsCmd
+  .command('add')
+  .description('Add credits to a tenant (orgId or userId)')
+  .requiredOption('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .requiredOption('-n, --amount <number>', 'Number of credits to add', parseInt)
+  .option('-r, --reason <string>', 'Reason for adjustment', 'admin_adjustment')
+  .action(async (options) => {
+    const { tenant, amount, reason } = options;
+    try {
+      const newBalance = await db.addCredits(tenant, amount, reason);
+      console.log(`✅ Added ${amount} credit(s) to tenant ${tenant}. New balance: ${newBalance}`);
+      process.exit(0);
+    } catch (error: any) {
+      console.error(`❌ Failed to add credits:`, error.message);
+      process.exit(1);
+    }
+  });
+
+creditsCmd
+  .command('remove')
+  .description('Remove credits from a tenant (orgId or userId)')
+  .requiredOption('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .requiredOption('-n, --amount <number>', 'Number of credits to remove', parseInt)
+  .option('-r, --reason <string>', 'Reason for adjustment', 'admin_adjustment')
+  .action(async (options) => {
+    const { tenant, amount, reason } = options;
+    try {
+      const newBalance = await db.deductCredit(tenant, amount, reason);
+      console.log(`✅ Removed ${amount} credit(s) from tenant ${tenant}. New balance: ${newBalance}`);
+      process.exit(0);
+    } catch (error: any) {
+      console.error(`❌ Failed to remove credits:`, error.message);
+      process.exit(1);
+    }
+  });
+
+creditsCmd
+  .command('balance')
+  .description('Check the credit balance for a tenant')
+  .requiredOption('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .action(async (options) => {
+    const { tenant } = options;
+    try {
+      const balance = await db.getCreditBalance(tenant);
+      const transactions = await db.getCreditTransactions(tenant);
+      console.log(`\nTenant: ${tenant}`);
+      console.log(`Balance: ${balance} credit(s)\n`);
+      if (transactions.length > 0) {
+        console.log('Transaction History:');
+        transactions.forEach(tx => {
+          const sign = tx.delta > 0 ? '+' : '';
+          console.log(`  ${tx.createdAt.toISOString()}  ${sign}${tx.delta}  ${tx.reason}${tx.jobId ? `  (job: ${tx.jobId})` : ''}`);
+        });
+      } else {
+        console.log('No transactions yet.');
+      }
+      process.exit(0);
+    } catch (error: any) {
+      console.error(`❌ Failed to fetch balance:`, error.message);
+      process.exit(1);
+    }
+  });
+
 program.parse();
+
