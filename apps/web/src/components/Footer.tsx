@@ -70,10 +70,11 @@ export const Footer = () => {
           </svg>
         </div>
 
-        <div className="flex gap-6 text-sm font-medium text-white font-mono shrink-0">
-          <a href="#" className="hover:text-gray-300 transition-colors">About Us</a>
-          <a href="#" className="hover:text-gray-300 transition-colors">Contact</a>
+        <div className="flex gap-6 text-sm font-medium text-white font-mono shrink-0 flex-wrap justify-center">
+          <Link to="/about" className="hover:text-gray-300 transition-colors">About Us</Link>
+          <a href="mailto:support@trypitch.co" className="hover:text-gray-300 transition-colors">Contact</a>
           <Link to="/pricing" className="hover:text-gray-300 transition-colors">Pricing</Link>
+          <Link to="/privacy" className="hover:text-gray-300 transition-colors">Privacy Policy</Link>
         </div>
       </div>
       

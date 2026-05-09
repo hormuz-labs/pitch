@@ -14,6 +14,8 @@ import { DashboardView, CreateView, EditorView, PricingView, LandingView, Public
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
+import { AboutUs } from './components/AboutUs';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
 
 import tabLogoB from './assets/tabLogoB.svg';
 import { PitchLogoAnimation } from './components/PitchLogoAnimation';
@@ -525,6 +527,8 @@ function AppContent() {
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
                 <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
+                <Route path="/about" element={<AboutUs />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
               </Routes>
             </main>
           </div>
@@ -534,6 +538,8 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<LandingView />} />
           <Route path="/pricing" element={<PublicPricingView />} />
+          <Route path="/about" element={<AboutUs />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </SignedOut>
