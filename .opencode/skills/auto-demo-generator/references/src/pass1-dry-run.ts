@@ -13,20 +13,44 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
   await page.goto(startUrl);
   await page.waitForLoadState('networkidle');
 
+  let prevUrl = page.url();
+
   for (const step of demoSteps) {
     if (step.selector) {
-      console.log(`Validating step: ${step.id}`);
+      console.log(`Validating step: ${step.id} — locating: ${step.selector}`);
+
+      // Wait for the element to be visible (not just attached — dialogs/popups may
+      // mount the node in the DOM while still off-screen or inside a hidden layer)
       const loc = page.locator(step.selector).first();
-      await loc.waitFor({ state: 'visible', timeout: 5000 });
+      await loc.waitFor({ state: 'visible', timeout: 20000 });
       await loc.scrollIntoViewIfNeeded();
-      
+      await page.waitForTimeout(200);
+
       if (step.action === 'click') {
-        await loc.click();
+        // force: true bypasses Playwright's actionability checks (pointer-events,
+        // covered-by-overlay) which can time out for elements inside dialogs /
+        // cmdk command-palettes that are technically "covered" by their own backdrop.
+        await loc.click({ force: true });
+        await page.waitForTimeout(600);
+
+        // Wait for any client-side navigation to settle
+        const newUrl = page.url();
+        if (newUrl !== prevUrl) {
+          console.log(`  → Navigated to: ${newUrl}`);
+          await page.waitForLoadState('networkidle').catch(() => {});
+          await page.waitForTimeout(1000);
+          prevUrl = newUrl;
+        }
       } else if (step.action === 'type') {
+        // fill() sets the value directly and fires an `input` event, which is
+        // enough for most frameworks (React controlled inputs, cmdk, etc.).
+        // A short pause afterwards lets any async filter / suggestion logic settle
+        // before the next step tries to locate its element.
         await loc.fill(step.value!);
+        await page.waitForTimeout(800);
       }
-      
-      await page.waitForTimeout(1000); 
+
+      await page.waitForTimeout(400);
     }
   }
 
