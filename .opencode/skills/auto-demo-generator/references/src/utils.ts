@@ -1,4 +1,6 @@
 import { WavConversionOptions } from './types';
+import fs from 'fs';
+import os from 'os';
 
 export function parseMimeType(mimeType: string): WavConversionOptions {
   const [fileType, ...params] = mimeType.split(';').map(s => s.trim());
@@ -77,8 +79,6 @@ export function springOvershootExpr(
  * and returns the optimal Chromium launch arguments.
  */
 export function getChromiumGpuFlags(): string[] {
-  const fs = require('fs');
-  const os = require('os');
   const platform = os.platform();
   let hasGpu = false;
 
