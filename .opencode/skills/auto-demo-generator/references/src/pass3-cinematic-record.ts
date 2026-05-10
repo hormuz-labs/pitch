@@ -20,7 +20,12 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   const cursorStyle = config.cursorStyle || 'black';
   const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
   const cursorPng = path.join(demoDir, 'cursor.png');
-  if (fs.existsSync(cursorFile)) {
+  if (!fs.existsSync(cursorFile)) {
+    console.error(`Error: Cursor SVG not found at: ${cursorFile}`);
+    console.error(`Make sure cursor-${cursorStyle}.svg exists in assets/icons/ before running the pipeline.`);
+    process.exit(1);
+  }
+  try {
     const cursorContext = await browser.newContext();
     const cursorPage = await cursorContext.newPage();
     let svgContent = fs.readFileSync(cursorFile, 'utf8');
@@ -33,6 +38,10 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
     const svgEl = await cursorPage.locator('svg');
     await svgEl.screenshot({ path: cursorPng, omitBackground: true });
     await cursorContext.close();
+    console.log(`✅ Cursor PNG rasterized: ${cursorPng}`);
+  } catch (e) {
+    console.error(`Error: Cursor rasterization failed: ${e}`);
+    process.exit(1);
   }
 
   const context = await browser.newContext({
@@ -46,7 +55,7 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   await page.waitForTimeout(100);
 
   const videoStartTime = Date.now();
-  await page.goto(startUrl);
+  await page.goto(startUrl, { waitUntil: 'networkidle' });
 
   // Wait for layout to settle
   await page.waitForTimeout(2000);
@@ -164,12 +173,19 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   const timestampsData = JSON.parse(fs.readFileSync(path.join(demoDir, 'timestamps.json'), 'utf8'));
   const lastWord = timestampsData[timestampsData.length - 1];
   const totalAudioTimeMs = lastWord.endMs;
+
+  // Capture the video path NOW — before any keepAlive loop or context.close().
+  // page.video()?.path() returns the path as soon as recording is started; it
+  // stays valid even if the page crashes or the context is forcibly closed later.
+  const videoPathCapture = await page.video()?.path();
   
   const elapsedFinal = Date.now() - startTime;
   if (elapsedFinal < totalAudioTimeMs) {
     const timeToWait = totalAudioTimeMs - elapsedFinal + 2000;
     
-    // Force invisible DOM updates so Playwright continues writing video frames
+    // Force invisible DOM updates so Playwright continues writing video frames.
+    // The DOM poke is fire-and-forget; if the page disappears mid-wait we just
+    // swallow the error and let the recording tail finish on its own.
     const frameInterval = setInterval(() => {
       page.evaluate(() => {
         const el = document.createElement('div');
@@ -183,10 +199,11 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
     clearInterval(frameInterval);
   }
 
-  const videoPath = await page.video()?.path();
-  await context.close();
-  await browser.close();
+  // Safe close — the page may already be gone if it crashed during the tail wait
+  await context.close().catch(() => {});
+  await browser.close().catch(() => {});
 
+  const videoPath = videoPathCapture;
   if (!videoPath || !fs.existsSync(videoPath)) throw new Error("Video not found!");
 
   const trackingData: TrackingData = { initDurationMs, events: trackingEvents };
@@ -288,11 +305,21 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
     const fadeOutStart = ev.actionTime + PARK_GAP_MIN;
     const fadeOutEnd   = fadeOutStart + FADE_OUT_DUR;
     // Fade in ends 1s before next move starts
-    const fadeInEnd    = next ? next.actionTime - 1.0 : fadeOutEnd + 100;
-    const fadeInStart  = fadeInEnd - FADE_IN_DUR;
+    // BUG FIX: when there is no next event (last action), the old code set
+    // fadeInEnd = fadeOutEnd + 100 — a timestamp 100s beyond the video end.
+    // zoompan/geq would then try to process frames up to that phantom time,
+    // hanging FFmpeg indefinitely. For the last event we only fade out; no fade-in.
+    if (!next) {
+      const fadeOut = smoothstepExpr('T', 1, 0, fadeOutStart, FADE_OUT_DUR);
+      cursorAlphaExpr = `if(between(T,${fadeOutStart},${fadeOutEnd}),${fadeOut},if(gt(T,${fadeOutEnd}),0,${cursorAlphaExpr}))`;
+      continue;
+    }
+
+    const fadeInEnd   = next.actionTime - 1.0;
+    const fadeInStart = fadeInEnd - FADE_IN_DUR;
 
     // Only apply if the gap between fade out and fade in is large enough
-    if (next && (fadeInStart - fadeOutEnd < 0.5)) continue; 
+    if (fadeInStart - fadeOutEnd < 0.5) continue;
 
     const fadeOut = smoothstepExpr('T', 1, 0, fadeOutStart, FADE_OUT_DUR);
     const fadeIn  = smoothstepExpr('T', 0, 1, fadeInStart, FADE_IN_DUR);
@@ -300,80 +327,52 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
     cursorAlphaExpr = `if(between(T,${fadeOutStart},${fadeOutEnd}),${fadeOut},if(between(T,${fadeOutEnd},${fadeInStart}),0,if(between(T,${fadeInStart},${fadeInEnd}),${fadeIn},${cursorAlphaExpr})))`;
   }
 
-  // ── Click Ripple Builder (Circular geq Ring — Premium 3-Layer) ─────────────
-  // Layer 1 — Inner flash:  filled circle 6px shrinking, 0→0.12s, luma +200 decaying
-  // Layer 2 — Hard ring:    2px edge growing 0→44px radius,  0→0.40s, luma +180 decaying
-  // Layer 3 — Soft glow:    5px halo on same ring,            0→0.40s, luma +70  decaying
-  // Applied BEFORE cursor overlay → cursor always sits on top of the ring.
+  // ── Click Ripple Builder (drawbox — fast, no per-pixel math) ─────────────
+  // Replaces the old geq-based circular ring which evaluated sqrt/pow per pixel
+  // at 1920×1080 × 30fps — roughly 60M pixel ops/sec per click, making FFmpeg
+  // encode a 60s video in 10+ minutes. drawbox with enable= is ~30× faster.
   const clickEventsForRipple = trackingEvents.filter(e => e.action === 'click');
-  let rippleChain = '';
-  if (clickEventsForRipple.length > 0) {
-    const geqParts: string[] = [];
-    for (const ev of clickEventsForRipple) {
-      const cx = Math.round(ev.cx);
-      const cy = Math.round(ev.cy);
-      const T0 = +ev.actionTime.toFixed(4);
-      const T1 = +(ev.actionTime + 0.40).toFixed(4); // ring end
-      const TF = +(ev.actionTime + 0.12).toFixed(4); // flash end
-
-      // dist = sqrt((X-cx)²+(Y-cy)²)
-      // ringR = ((T-T0)/0.40)*44  — grows 0→44px
-      // pSlow = (T-T0)/0.40       — ring progress 0→1
-      // pFast = (T-T0)/0.12       — flash progress 0→1
-      const dist  = `sqrt(pow(X-${cx},2)+pow(Y-${cy},2))`;
-      const ringR = `((T-${T0})/0.40)*44`;
-      const pSlow = `(T-${T0})/0.40`;
-      const pFast = `(T-${T0})/0.12`;
-
-      // LUM: adds brightness on top of existing luma (works on opaque yuv420p)
-      const lum =
-        `min(255,lum(X,Y)+` +
-          `if(between(T,${T0},${TF}),` +
-            `if(lt(${dist},max(0.01,6*(1-${pFast}))),` +
-              `(1-${pFast})*200,` +
-              `if(between(T,${T0},${T1}),` +
-                `if(lt(abs(${dist}-(${ringR})),2),(1-${pSlow})*180,` +
-                `if(lt(abs(${dist}-(${ringR})),5),(1-${pSlow})*70,0)),0)),` +
-          `if(between(T,${T0},${T1}),` +
-            `if(lt(abs(${dist}-(${ringR})),2),(1-${pSlow})*180,` +
-            `if(lt(abs(${dist}-(${ringR})),5),(1-${pSlow})*70,0)),0)))`;
-
-      // CB/CR: force white chroma on any active ripple pixel (flash OR glow ring)
-      const chromaActive =
-        `gt(` +
-          `if(between(T,${T0},${TF}),lt(${dist},max(0.01,6*(1-${pFast}))),0)` +
-          `+if(between(T,${T0},${T1}),lt(abs(${dist}-(${ringR})),5),0)` +
-        `,0)`;
-      const cb = `if(${chromaActive},128,cb(X,Y))`;
-      const cr = `if(${chromaActive},128,cr(X,Y))`;
-
-      geqParts.push(`geq=lum='${lum}':cb='${cb}':cr='${cr}'`);
+  const rippleDrawboxParts: string[] = [];
+  for (const ev of clickEventsForRipple) {
+    const cx = Math.round(ev.cx);
+    const cy = Math.round(ev.cy);
+    const T0 = +ev.actionTime.toFixed(4);
+    // 4 expanding rings, each active for a 0.1s window within 0.4s total
+    const rings = [
+      { r: 8,  tStart: T0,        dur: 0.10, alpha: 0.55 },
+      { r: 16, tStart: T0 + 0.10, dur: 0.10, alpha: 0.38 },
+      { r: 26, tStart: T0 + 0.20, dur: 0.10, alpha: 0.22 },
+      { r: 36, tStart: T0 + 0.30, dur: 0.10, alpha: 0.10 },
+    ];
+    for (const ring of rings) {
+      const x = cx - ring.r;
+      const y = cy - ring.r;
+      const w = ring.r * 2;
+      const tEnd = +(ring.tStart + ring.dur).toFixed(4);
+      rippleDrawboxParts.push(
+        `drawbox=x=${x}:y=${y}:w=${w}:h=${w}:color=white@${ring.alpha}:t=2:enable='between(t,${ring.tStart},${tEnd})'`
+      );
     }
-    rippleChain = geqParts.join(',');
   }
+  const rippleChain = rippleDrawboxParts.join(',');
 
   // ── Construct Filtergraph ──────────────────────────────────────────────────
-  // Z-order: raw_video → [ripple geq] → [cursor overlay] → [zoompan] → [vout]
-  // Ripple BELOW cursor so the cursor PNG always appears on top of the ring.
-  let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30[vfps];`;
+  // Z-order: raw_video → [drawbox ripples inline] → [cursor overlay] → [zoompan] → [vout]
+  // drawbox filters are chained inline on the stream (no intermediate label needed).
+  // Cursor geq only operates on the tiny 48×48 cursor PNG — NOT the full 1920×1080 frame.
+  let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30`;
+
+  if (rippleChain) {
+    filterString += `,${rippleChain}`;
+  }
+  filterString += `[vfps];`;
 
   if (fs.existsSync(cursorPng)) {
-    // Apply dynamic alpha fading to the cursor input
     filterString += `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${cursorAlphaExpr})'[cur];`;
-    if (rippleChain) {
-      filterString += `[vfps]${rippleChain}[withripple];`;
-      filterString += `[withripple][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
-    } else {
-      filterString += `[vfps][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
-    }
+    filterString += `[vfps][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
     filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
   } else {
-    if (rippleChain) {
-      filterString += `[vfps]${rippleChain}[withripple];`;
-      filterString += `[withripple]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
-    } else {
-      filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
-    }
+    filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
   }
 
   // Audio Mix
@@ -386,7 +385,9 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   mixInputs += `[voicepad]`;
   inputCount++;
 
-  const command = ffmpeg().input(videoPath);
+  // Force constant frame rate on the Playwright WebM source (which is variable-rate)
+  // This prevents frame duplication artefacts and audio drift on long recordings.
+  const command = ffmpeg().input(videoPath).inputOptions(['-vsync cfr']);
   if (fs.existsSync(cursorPng)) {
     command.input(cursorPng).inputOptions(['-loop 1']);
   }
@@ -419,19 +420,34 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   
   filterString += `${mixInputs}amix=inputs=${inputCount}:duration=first:normalize=0[aout]`;
 
+  // Write the filter graph to a script file to avoid shell argument length limits
+  // (the geq ripple expressions alone can be several kilobytes for many clicks)
+  const filterScriptPath = path.join(demoDir, 'filters.txt');
+  fs.writeFileSync(filterScriptPath, filterString);
+
   await new Promise((resolve, reject) => {
     command
-      .complexFilter([filterString])
       .outputOptions([
-        '-map [vout]', 
-        '-map [aout]', 
-        '-c:v libx264', 
-        '-pix_fmt yuv420p', 
-        '-c:a aac', 
-        '-r 30', 
-        '-crf 18', 
-        '-preset ultrafast',
-        '-movflags +faststart'
+        '-filter_complex_script', filterScriptPath,
+        // BUG FIX: each flag must be a separate array element.
+        // fluent-ffmpeg splits strings on spaces internally, so '-map [vout]' as a
+        // single string becomes ['-map', '[vout]'] correctly, BUT values like
+        // 'comment=Generated by auto-demo-generator at <ISO date>' get split at the
+        // spaces, turning 'auto-demo-generator' into a spurious output filename.
+        // ffmpeg then hangs trying to open it. Always split flag/value pairs and
+        // never use space-containing values in a single outputOptions string.
+        '-map', '[vout]',
+        '-map', '[aout]',
+        '-c:v', 'libx264',
+        '-profile:v', 'high',
+        '-level:v', '4.2',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac',
+        '-r', '30',
+        '-crf', '18',
+        '-preset', 'medium',
+        '-movflags', '+faststart',
+        '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
       ])
       .save(tempRawOut)
       .on('end', resolve)
@@ -441,31 +457,50 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   // ── Concatenate intro + main demo ───────────────────────────────────────
   const introPathFile = path.join(demoDir, 'intro-path.txt');
   let hasStitched = false;
+  const metadataTitle = config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo';
+  const metadataComment = `Generated by auto-demo-generator at ${new Date().toISOString()}`;
   if (fs.existsSync(introPathFile)) {
     const introVideo = fs.readFileSync(introPathFile, 'utf8').trim();
     if (fs.existsSync(introVideo)) {
       console.log('🎬 Stitching intro cinematic...');
       
       await new Promise((resolve, reject) => {
+        // IMPORTANT: The intro .webm recorded by Playwright has NO audio stream.
+        // Using [0:a] or aresample on a missing stream causes FFmpeg to hang forever.
+        // Instead generate a silent track via anullsrc for exactly the intro duration.
+        const stitchFilter =
+          '[0:v]fps=30,format=yuv420p[iv];' +
+          'anullsrc=channel_layout=stereo:sample_rate=48000:duration=3.5[ia];' +
+          '[1:v]fps=30,format=yuv420p[mv];' +
+          '[1:a]aresample=48000[ma];' +
+          '[iv][ia][mv][ma]concat=n=2:v=1:a=1[vout][aout]';
+
+        // Safety timeout: reject if FFmpeg stalls for >3 min
+        const hangGuard = setTimeout(
+          () => reject(new Error('stitchIntro: FFmpeg timed out after 3 minutes')),
+          3 * 60 * 1000
+        );
         ffmpeg()
           .input(introVideo)
           .input(tempRawOut)
-          .complexFilter([
-            // Normalize intro to yuv420p at 30fps, pad silent audio
-            '[0:v]fps=30,format=yuv420p[iv];',
-            'aevalsrc=0:c=stereo:s=48000:d=3.5[ia];',
-            // Main demo video + audio pass-through
-            '[1:v]fps=30,format=yuv420p[mv];',
-            '[1:a]aresample=48000[ma];',
-            // Concatenate: intro then demo
-            '[iv][ia][mv][ma]concat=n=2:v=1:a=1[vout][aout]'
+          .outputOptions([
+            '-filter_complex', stitchFilter,
+            '-map', '[vout]',
+            '-map', '[aout]',
+            '-c:v', 'libx264',
+            '-profile:v', 'high',
+            '-level:v', '4.2',
+            '-crf', '18',
+            '-preset', 'medium',
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac',
+            '-movflags', '+faststart',
+            '-metadata', `title=${metadataTitle}`,
           ])
-          .outputOptions(['-map [vout]', '-map [aout]', '-c:v libx264', '-crf 18',
-                          '-preset ultrafast', '-pix_fmt yuv420p', '-c:a aac',
-                          '-movflags +faststart'])
           .save(finalOutput)
-          .on('end', resolve)
-          .on('error', reject);
+          .on('stderr', () => process.stdout.write('.'))
+          .on('end', () => { clearTimeout(hangGuard); resolve(null); })
+          .on('error', (e: Error) => { clearTimeout(hangGuard); reject(e); });
       });
 
       console.log(`✨ Intro stitched successfully!`);

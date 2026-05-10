@@ -10,14 +10,19 @@ import { pass3 } from './pass3-cinematic-record';
 
 dotenv.config();
 
+if (!process.env.GEMINI_API_KEY) {
+  console.error("Error: GEMINI_API_KEY environment variable is not set.");
+  process.exit(1);
+}
+
 /**
  * V4.4 Cinematic Pipeline Reference (Modularized Engine + JIT Layout)
- * Defines UI interactions via a JSON array. 
- * Grabs live bounding boxes Just-In-Time (JIT) during recording 
+ * Defines UI interactions via a JSON array.
+ * Grabs live bounding boxes Just-In-Time (JIT) during recording
  * to perfectly handle dynamic layouts, ads, and responsive shifts.
  */
 
-const ai = new GoogleGenAI({});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // --- CONFIGURATION (Passed via JSON file as first CLI argument) ---
 const configFile = process.argv[2];
