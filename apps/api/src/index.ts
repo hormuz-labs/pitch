@@ -8,6 +8,8 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { clerkMiddleware, getAuth } from '@clerk/express';
+import crypto from 'crypto';
+import cookieParser from 'cookie-parser';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,8 +22,71 @@ if (!process.env.CLERK_PUBLISHABLE_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY
 }
 
 const app = express();
+
+// ⚠️ Stripe webhook MUST be registered before express.json() —
+// it needs the raw request body to verify the HMAC signature.
+app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'] as string;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret || !sig) {
+    return res.status(400).send('Missing webhook secret or signature');
+  }
+
+  let event: any;
+  try {
+    const Stripe = (await import('stripe')).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2024-04-10' as any });
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err: any) {
+    console.error('[Stripe Webhook] Signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as any;
+    const userId    = session.metadata?.clerk_user_id;
+    const credits   = parseInt(session.metadata?.credits || '0', 10);
+    const affCookie = session.metadata?.affiliate_cookie;
+
+    // 1. Top up the user's credit balance
+    if (userId && credits > 0) {
+      await db.addCredits(userId, credits, `stripe_checkout:${session.id}`);
+      console.log(`[Stripe] Added ${credits} credits to user ${userId}`);
+    }
+
+    // 2. Affiliate attribution (only on first purchase by this user)
+    if (userId && affCookie) {
+      const [affiliateId, clickId] = affCookie.split(':');
+      if (affiliateId) {
+        const affiliate = await db.prisma.affiliate.findUnique({ where: { id: affiliateId } });
+        if (affiliate && affiliate.status === 'active' && affiliate.userId !== userId) {
+          const alreadyConverted = await db.hasExistingConversion(affiliateId, userId);
+          if (!alreadyConverted) {
+            const saleAmountUsd = (session.amount_total || 0) / 100;
+            const commissionAmt = saleAmountUsd * (affiliate.commissionPct / 100);
+            await db.createAffiliateConversion({
+              affiliateId,
+              clickId: clickId || undefined,
+              referredUserId: userId,
+              saleAmountUsd,
+              commissionAmt,
+              stripeSessionId: session.id,
+            });
+            console.log(`[Affiliate] $${commissionAmt.toFixed(2)} commission queued for affiliate ${affiliateId}`);
+          }
+        }
+      }
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// Global middleware (after webhook — needs parsed JSON for all other routes)
 app.use(express.json());
 app.use(cors());
+app.use(cookieParser());
 app.use(clerkMiddleware());
 
 // Serve the demo directory as static
@@ -229,6 +294,158 @@ app.post('/users/sync', async (req, res) => {
   try {
     const profile = await db.upsertUser({ id: userId, email, firstName, lastName, imageUrl });
     res.json(profile);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ── Stripe Checkout ────────────────────────────────────────────────────────────
+
+// Credit pack definitions — matches the pricing UI
+const CREDIT_PACKS = {
+  starter:    { credits: 10,  priceUsd: 10,  label: '10 Credits' },
+  pro:        { credits: 50,  priceUsd: 40,  label: '50 Credits' },
+  enterprise: { credits: 200, priceUsd: 130, label: '200 Credits' },
+} as const;
+type PackKey = keyof typeof CREDIT_PACKS;
+
+// POST /checkout — creates a Stripe Checkout session and returns the URL
+app.post('/checkout', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { pack } = req.body as { pack?: PackKey };
+  const chosen = CREDIT_PACKS[pack ?? 'starter'];
+  if (!chosen) return res.status(400).json({ error: 'Invalid pack' });
+
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) return res.status(503).json({ error: 'Stripe not configured' });
+
+  try {
+    const Stripe = (await import('stripe')).default;
+    const stripe = new Stripe(stripeKey, { apiVersion: '2024-04-10' as any });
+
+    // Read the affiliate attribution cookie if present
+    const affCookie = (req as any).cookies?.aff || '';
+
+    const appUrl = process.env.APP_URL || 'https://trypitch.co';
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            unit_amount: chosen.priceUsd * 100, // Stripe uses cents
+            product_data: {
+              name: `TryPitch — ${chosen.label}`,
+              description: `${chosen.credits} video generation credits for TryPitch`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        clerk_user_id: userId,
+        credits: chosen.credits.toString(),
+        pack: pack ?? 'starter',
+        affiliate_cookie: affCookie, // e.g. "affiliateId:clickId" — used by webhook for attribution
+      },
+      success_url: `${appUrl}/dashboard?checkout=success&credits=${chosen.credits}`,
+      cancel_url:  `${appUrl}/pricing?checkout=cancelled`,
+    });
+
+    res.json({ url: session.url });
+  } catch (error: any) {
+    console.error('[Stripe Checkout] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ── Affiliate Program Routes ──────────────────────────────────────────────────
+
+// Public redirect — the actual referral link (e.g. trypitch.co/r/MUKUND-X7K2)
+app.get('/r/:code', async (req, res) => {
+  const affiliate = await db.getAffiliateByCode(req.params.code);
+  if (!affiliate || affiliate.status !== 'active') {
+    return res.redirect(302, 'https://trypitch.co');
+  }
+
+  // Hash the IP for privacy compliance (GDPR / PDPB)
+  const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || '';
+  const hashedIp = crypto.createHash('sha256').update(rawIp + (process.env.IP_SALT || 'salt')).digest('hex');
+
+  const platform = (req.query.utm_source as string) || 'direct';
+  const refPage  = (req.query.landing as string) || '/';
+
+  const click = await db.createAffiliateClick({
+    affiliateId: affiliate.id,
+    ip: hashedIp,
+    userAgent: req.headers['user-agent']?.slice(0, 250),
+    platform,
+    refPage,
+  });
+
+  // 30-day attribution cookie (httpOnly, secure, sameSite=lax)
+  res.cookie('aff', `${affiliate.id}:${click.id}`, {
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  });
+
+  const appUrl = process.env.APP_URL || 'https://trypitch.co';
+  res.redirect(302, `${appUrl}?ref=${req.params.code}`);
+});
+
+// Register as an affiliate (requires Clerk auth)
+app.post('/affiliate/register', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const profile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
+    const firstName = profile?.firstName || 'User';
+    const affiliate = await db.registerAffiliate(userId, firstName);
+    res.json(affiliate);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get the current user's affiliate profile + stats
+app.get('/affiliate/me', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const affiliate = await db.getAffiliateByUserId(userId);
+    if (!affiliate) return res.status(404).json({ error: 'Not an affiliate yet' });
+
+    const stats = await db.getAffiliateStats(affiliate.id);
+    res.json({ ...affiliate, stats });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Request a payout (minimum $10 threshold)
+app.post('/affiliate/me/payout', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const affiliate = await db.getAffiliateByUserId(userId);
+    if (!affiliate) return res.status(404).json({ error: 'Not an affiliate' });
+
+    const stats = await db.getAffiliateStats(affiliate.id);
+    if (stats.pendingPayout < 10) {
+      return res.status(400).json({ error: 'Minimum payout is $10', pending: stats.pendingPayout });
+    }
+
+    const payout = await db.requestAffiliatePayout(affiliate.id, stats.pendingPayout);
+    res.json(payout);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

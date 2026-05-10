@@ -62,3 +62,63 @@ model Job {
 
   @@index([orgId])
 }
+
+model Affiliate {
+  id            String                @id() @default(cuid())
+  userId        String                @unique()
+  code          String                @unique()
+  commissionPct Float                 @default(20.0)
+  status        String                @default("active")
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt()
+  clicks        AffiliateClick[]
+  conversions   AffiliateConversion[]
+  payouts       AffiliatePayout[]
+}
+
+model AffiliateClick {
+  id          String    @id() @default(cuid())
+  affiliateId String
+  ip          String?
+  userAgent   String?
+  platform    String?
+  refPage     String?
+  clickedAt   DateTime  @default(now())
+  convertedAt DateTime?
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
+  @@index([clickedAt])
+}
+
+model AffiliateConversion {
+  id              String    @id() @default(cuid())
+  affiliateId     String
+  clickId         String?
+  referredUserId  String
+  saleAmountUsd   Float
+  commissionAmt   Float
+  status          String    @default("pending")
+  stripeSessionId String?
+  createdAt       DateTime  @default(now())
+  affiliate       Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@unique([affiliateId, referredUserId])
+  @@index([affiliateId])
+  @@index([referredUserId])
+}
+
+model AffiliatePayout {
+  id          String    @id() @default(cuid())
+  affiliateId String
+  amount      Float
+  currency    String    @default("USD")
+  method      String
+  status      String    @default("requested")
+  reference   String?
+  requestedAt DateTime  @default(now())
+  paidAt      DateTime?
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
+}

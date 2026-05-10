@@ -211,3 +211,100 @@ export async function upsertUser(data: UserProfileData) {
     },
   });
 }
+
+// ── Affiliate Program ─────────────────────────────────────────────────────────
+
+import { randomBytes } from 'crypto';
+
+/** Generate a unique, human-readable affiliate code like "MUKUND-X7K2" */
+export function generateAffiliateCode(firstName: string): string {
+  const prefix = firstName.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) || 'REF';
+  const suffix = randomBytes(2).toString('hex').toUpperCase();
+  return `${prefix}-${suffix}`;
+}
+
+/** Register a new influencer — idempotent, returns existing if already registered */
+export async function registerAffiliate(userId: string, firstName: string) {
+  const existing = await prisma.affiliate.findUnique({ where: { userId } });
+  if (existing) return existing;
+
+  // Collision-safe: retry if generated code already exists
+  let code = generateAffiliateCode(firstName);
+  while (await prisma.affiliate.findUnique({ where: { code } })) {
+    code = generateAffiliateCode(firstName);
+  }
+
+  return prisma.affiliate.create({ data: { userId, code } });
+}
+
+/** Get an affiliate by userId */
+export async function getAffiliateByUserId(userId: string) {
+  return prisma.affiliate.findUnique({ where: { userId } });
+}
+
+/** Get an affiliate by their referral code (public lookup for redirect) */
+export async function getAffiliateByCode(code: string) {
+  return prisma.affiliate.findUnique({ where: { code } });
+}
+
+/** Record a single link click */
+export async function createAffiliateClick(data: {
+  affiliateId: string;
+  ip?: string;
+  userAgent?: string;
+  platform?: string;
+  refPage?: string;
+}) {
+  return prisma.affiliateClick.create({ data });
+}
+
+/** Record a confirmed conversion (sale) attributed to an influencer */
+export async function createAffiliateConversion(data: {
+  affiliateId: string;
+  clickId?: string;
+  referredUserId: string;
+  saleAmountUsd: number;
+  commissionAmt: number;
+  stripeSessionId?: string;
+}) {
+  return prisma.affiliateConversion.create({ data });
+}
+
+/** Check if a given user has already been attributed to this affiliate (prevents double commission) */
+export async function hasExistingConversion(affiliateId: string, referredUserId: string) {
+  const existing = await prisma.affiliateConversion.findUnique({
+    where: { affiliateId_referredUserId: { affiliateId, referredUserId } },
+  });
+  return !!existing;
+}
+
+/** Get aggregated stats for the influencer dashboard */
+export async function getAffiliateStats(affiliateId: string) {
+  const [clicks, conversions, payouts] = await Promise.all([
+    prisma.affiliateClick.count({ where: { affiliateId } }),
+    prisma.affiliateConversion.findMany({ where: { affiliateId } }),
+    prisma.affiliatePayout.findMany({ where: { affiliateId }, orderBy: { requestedAt: 'desc' } }),
+  ]);
+
+  const totalRevenue = conversions.reduce((s, c) => s + c.saleAmountUsd, 0);
+  const totalCommission = conversions.reduce((s, c) => s + c.commissionAmt, 0);
+  const paidOut = payouts.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+  const pendingPayout = totalCommission - paidOut;
+
+  return { clicks, signups: conversions.length, totalRevenue, totalCommission, paidOut, pendingPayout, payouts };
+}
+
+/** Request a payout for pending commission earnings */
+export async function requestAffiliatePayout(affiliateId: string, amount: number) {
+  return prisma.affiliatePayout.create({
+    data: { affiliateId, amount, method: 'stripe', status: 'requested' },
+  });
+}
+
+/** Mark a conversion as approved (called 7 days after sale, auto or by admin) */
+export async function approveConversion(conversionId: string) {
+  return prisma.affiliateConversion.update({
+    where: { id: conversionId },
+    data: { status: 'approved' },
+  });
+}
