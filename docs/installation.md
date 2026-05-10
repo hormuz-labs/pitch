@@ -28,6 +28,20 @@ If the plugin is disabled after a server reboot, re-enable it:
 docker plugin enable loki
 ```
 
+### Important: Log Driver URL
+
+The Loki Docker log driver runs as a **host process**, not inside a container. This means it cannot resolve Docker service names like `loki`. The `loki-url` in `docker-compose.yml` must point to the **host-mapped port**:
+
+```
+# Correct
+loki-url: http://localhost:3101/loki/api/v1/push
+
+# Wrong — the plugin cannot resolve Docker hostnames
+loki-url: http://loki:3100/loki/api/v1/push
+```
+
+`3101` is the host port mapped to Loki's container port `3100` (see `docker-compose.yml`).
+
 ---
 
 ## Environment Setup
