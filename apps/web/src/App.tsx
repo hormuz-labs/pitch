@@ -405,9 +405,12 @@ function AppContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Sync user profile to the database on sign-in
+  // Sync user profile to the database once per session (on sign-in, not on every refresh)
   useEffect(() => {
     if (!isLoaded || !userId || !user) return;
+
+    const sessionKey = `user_synced_${userId}`;
+    if (sessionStorage.getItem(sessionKey)) return;
 
     const syncUser = async () => {
       try {
@@ -427,6 +430,7 @@ function AppContent() {
             imageUrl: user.imageUrl,
           }),
         });
+        sessionStorage.setItem(sessionKey, '1');
       } catch (err) {
         console.error('Failed to sync user profile:', err);
       }
