@@ -74,36 +74,90 @@ export function springOvershootExpr(
   return `if(lt(${evalVar},${midPoint}),${riseExpr},${fallExpr})`;
 }
 
+type GpuVendor = 'amd' | 'nvidia' | 'apple' | 'windows' | 'none';
+
 /**
- * Automatically detects if the host has a hardware GPU exposed
- * and returns the optimal Chromium launch arguments.
+ * Detects the GPU vendor/platform and returns the optimal Chromium launch
+ * arguments for that hardware.
+ *
+ * Linux vendor detection:
+ *   - /dev/dri present  → AMD / Intel (DRM device node)
+ *   - /dev/nvidia0 present → Nvidia
+ * macOS → Metal via ANGLE
+ * Windows → D3D11 via ANGLE
+ * No GPU detected → base stability flags only (software rasterisation)
  */
 export function getChromiumGpuFlags(): string[] {
-  const platform = os.platform();
-  let hasGpu = false;
-
-  if (platform === 'linux') {
-    // Check for exposed GPU devices in Docker/Linux
-    // /dev/dri for AMD/Intel, /dev/nvidia0 for Nvidia
-    hasGpu = fs.existsSync('/dev/dri') || fs.existsSync('/dev/nvidia0');
-  } else {
-    // macOS / Windows natively handle GPU hardware well
-    hasGpu = true;
-  }
-
-  // Base stability flags for Chromium in Docker
+  // Base stability flags for Chromium in Docker / headless environments
   const flags = [
     '--disable-dev-shm-usage',
     '--no-sandbox',
   ];
 
-  if (hasGpu) {
-    flags.push(
-      '--use-gl=egl',
-      '--enable-unsafe-webgpu',
-      '--ignore-gpu-blocklist'
-    );
+  const vendor = detectGpuVendor();
+
+  switch (vendor) {
+    case 'amd':
+      // AMD Linux: Vulkan is the best-supported ANGLE backend on RDNA hardware
+      flags.push(
+        '--use-gl=angle',
+        '--use-angle=vulkan',
+        '--enable-gpu-rasterization',
+        '--enable-unsafe-webgpu',
+        '--ignore-gpu-blocklist',
+      );
+      break;
+
+    case 'nvidia':
+      // Nvidia Linux: OpenGL ANGLE backend is more stable than Vulkan on Nvidia
+      flags.push(
+        '--use-gl=angle',
+        '--use-angle=gl',
+        '--enable-gpu-rasterization',
+        '--enable-unsafe-webgpu',
+        '--ignore-gpu-blocklist',
+      );
+      break;
+
+    case 'apple':
+      // macOS: Metal backend gives best performance on Apple Silicon / Intel Macs
+      flags.push(
+        '--use-gl=angle',
+        '--use-angle=metal',
+        '--enable-gpu-rasterization',
+        '--ignore-gpu-blocklist',
+      );
+      break;
+
+    case 'windows':
+      // Windows: D3D11 is the most stable ANGLE backend
+      flags.push(
+        '--use-gl=angle',
+        '--use-angle=d3d11',
+        '--enable-gpu-rasterization',
+        '--ignore-gpu-blocklist',
+      );
+      break;
+
+    case 'none':
+      // No GPU detected — let Chromium use software rasterisation
+      break;
   }
 
   return flags;
+}
+
+/** @internal */
+export function detectGpuVendor(): GpuVendor {
+  const platform = os.platform();
+
+  if (platform === 'darwin') return 'apple';
+  if (platform === 'win32') return 'windows';
+
+  if (platform === 'linux') {
+    if (fs.existsSync('/dev/nvidia0')) return 'nvidia';
+    if (fs.existsSync('/dev/dri'))     return 'amd';   // covers AMD + Intel DRM
+  }
+
+  return 'none';
 }
