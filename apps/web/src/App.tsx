@@ -202,15 +202,13 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <div className="mb-2">
-            <NavItem
-              icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
-              label="Dashboard"
-              active={selectedKey === 'dashboard'}
-              onClick={() => go('/dashboard')}
-            />
-          </div>
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+          <NavItem
+            icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
+            label="Dashboard"
+            active={selectedKey === 'dashboard'}
+            onClick={() => go('/dashboard')}
+          />
           <NavItem
             icon={<IconVideo />}
             label="New Video"
