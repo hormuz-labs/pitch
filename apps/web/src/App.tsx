@@ -17,6 +17,7 @@ import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
 import { AboutUs } from './components/AboutUs';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { API_URL } from './config';
 
 import tabLogoB from './assets/tabLogoB.svg';
 import { PitchLogoAnimation } from './components/PitchLogoAnimation';
@@ -427,7 +428,7 @@ function AppContent() {
         const token = await getToken();
         const primaryEmail = user.primaryEmailAddress?.emailAddress;
         if (!primaryEmail) return;
-        await fetch('/api/users/sync', {
+        await fetch(`${API_URL}/users/sync`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -456,7 +457,7 @@ function AppContent() {
     const fetchJobs = async () => {
       try {
         const token = await getToken();
-        const res = await fetch('/api/jobs', {
+        const res = await fetch(`${API_URL}/jobs`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -473,7 +474,7 @@ function AppContent() {
   useEffect(() => {
     if (!isLoaded || !userId) return;
     
-    const sse = new EventSource('/api/jobs/stream');
+    const sse = new EventSource(`${API_URL}/jobs/stream`);
 
     sse.onmessage = (event) => {
       try {
@@ -545,7 +546,7 @@ function AppContent() {
     setIsSubmitting(true);
     try {
       const token = await getToken();
-      const res = await fetch('/api/jobs', {
+      const res = await fetch(`${API_URL}/jobs`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -573,7 +574,7 @@ function AppContent() {
   const handleDelete = async (id: string) => {
     try {
       const token = await getToken();
-      await fetch(`/api/jobs/${id}`, { 
+      await fetch(`${API_URL}/jobs/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -668,7 +669,9 @@ function AppContent() {
   );
 }
 
-export default function App() {
+export default App;
+
+function App() {
   return (
     <BrowserRouter>
       <ToastShell>

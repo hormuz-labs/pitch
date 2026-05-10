@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
 import walletIcon from '../assets/wallet.svg';
+import { API_URL } from '../config';
 
 export const CreditPopover = () => {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ export const CreditPopover = () => {
     const fetchBalance = async () => {
       try {
         const token = await getToken();
-        const res = await fetch('/api/credits', {
+        const res = await fetch(`${API_URL}/credits`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {

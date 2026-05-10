@@ -43,6 +43,8 @@ const PACKS: { key: PackKey; name: string; price: number; credits: number; desc:
   },
 ];
 
+import { API_URL } from '../config';
+
 export const PricingView = () => {
   const { getToken } = useAuth();
   const [loading, setLoading] = useState<PackKey | null>(null);
@@ -54,7 +56,7 @@ export const PricingView = () => {
     setError(null);
     try {
       const token = await getToken();
-      const res = await fetch('/api/checkout', {
+      const res = await fetch(`${API_URL}/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ pack }),

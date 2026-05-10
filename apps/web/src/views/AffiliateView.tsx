@@ -76,6 +76,8 @@ function PayoutBadge({ status }: { status: string }) {
   );
 }
 
+import { API_URL } from '../config';
+
 export function AffiliateView() {
   const { getToken } = useAuth();
   const [data, setData] = useState<AffiliateData | null>(null);
@@ -91,7 +93,7 @@ export function AffiliateView() {
   const fetchData = useCallback(async () => {
     try {
       const token = await getToken();
-      const res = await fetch('/api/affiliate/me', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/affiliate/me`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 404) { setData(null); setLoading(false); return; }
       if (!res.ok) throw new Error('Failed to fetch affiliate data');
       setData(await res.json());
@@ -109,7 +111,7 @@ export function AffiliateView() {
     setError(null);
     try {
       const token = await getToken();
-      const res = await fetch('/api/affiliate/register', {
+      const res = await fetch(`${API_URL}/affiliate/register`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
@@ -127,7 +129,7 @@ export function AffiliateView() {
     setPayoutMsg(null);
     try {
       const token = await getToken();
-      const res = await fetch('/api/affiliate/me/payout', {
+      const res = await fetch(`${API_URL}/affiliate/me/payout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });

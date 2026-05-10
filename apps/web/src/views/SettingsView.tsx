@@ -3,6 +3,7 @@ import { UserProfile, OrganizationProfile, useOrganization, useAuth } from '@cle
 import { DollarSignIcon, User, Building, CreditCard } from 'lucide-react';
 import walletIcon from '../assets/wallet.svg';
 import { OptionPicker } from '../components/OptionPicker';
+import { API_URL } from '../config';
 
 const TAB_OPTIONS = [
   { id: 'profile', label: 'My Profile', icon: User },
@@ -30,7 +31,7 @@ export const SettingsView = () => {
     const fetchCredits = async () => {
       try {
         const token = await getToken();
-        const res = await fetch('/api/credits', {
+        const res = await fetch(`${API_URL}/credits`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
