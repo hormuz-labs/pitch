@@ -114,7 +114,7 @@ services:
       # AMD RX 5500 XT (gfx1012) — override to nearest supported ROCm target
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
     volumes:
-      - ./opencode-logs:/root/.local/share/opencode/log
+       - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
     devices:
       # Expose AMD GPU to the container
       - /dev/kfd:/dev/kfd
