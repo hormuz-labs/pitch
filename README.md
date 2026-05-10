@@ -77,6 +77,8 @@ Structured for scale using **Bun Workspaces**.
 
 ## ▌ INITIALIZATION PROTOCOL
 
+> **Before deploying, follow the [Installation Guide](./docs/installation.md)** to install the Loki Docker logging driver. This is required for centralized logging and must be done **before** running `docker compose`.
+
 #### 01. Environment Configuration
 Duplicate the configuration template and provide your active credentials.
 ```bash
@@ -90,11 +92,13 @@ Utilize Bun for rapid dependency tree resolution across all workspaces.
 bun install
 ```
 
-#### 03. Ignite the Pipeline
-Start the entire matrix in development mode.
+#### 03. Deploy the Stack
+Start all services via Docker Compose:
 ```bash
-bun run dev
+docker compose up -d
 ```
+
+> See [docs/installation.md](./docs/installation.md) for full setup instructions including Cloudflare Tunnel configuration.
 
 <br>
 
