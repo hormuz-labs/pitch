@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/clerk-react';
 import { Copy, Check, TrendingUp, Users, DollarSign, Wallet, ExternalLink, Share2 } from 'lucide-react';
 
 interface AffiliateStats {
@@ -78,7 +78,6 @@ function PayoutBadge({ status }: { status: string }) {
 
 export function AffiliateView() {
   const { getToken } = useAuth();
-  const { user } = useUser();
   const [data, setData] = useState<AffiliateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);

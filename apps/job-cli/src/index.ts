@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import * as db from '@saas/db';
 import * as storage from '@saas/storage';
 import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email';
-import { JobStatus, JOB_UPDATES_CHANNEL } from '@saas/shared';
+import { JobStatus, JOB_UPDATES_CHANNEL, sendTelegramMessage } from '@saas/shared';
 import { Redis } from 'ioredis';
 import dotenv from 'dotenv';
 
@@ -59,6 +59,15 @@ program
       
       console.log(`✅ Database updated for job ${jobId}`);
 
+      // Fetch user profile for notification
+      const userProfile = await db.prisma.userProfile.findUnique({ where: { id: updatedJob.userId } });
+      const email = userProfile?.email || updatedJob.userId;
+      const urlParam = updatedJob.parameters?.url || 'N/A';
+      const instructions = updatedJob.parameters?.instructions ? `\nPrompt: <i>${updatedJob.parameters.instructions}</i>` : '';
+
+      // Telegram hook
+      await sendTelegramMessage(`✅ <b>Video Creation Completed</b>\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}`);
+
       // 5. Send email notification to the user
       try {
         const userEmail = await getClerkUserEmail(updatedJob.userId);
@@ -89,6 +98,14 @@ program
       try {
         const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
         await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+        
+        const userProfile = await db.prisma.userProfile.findUnique({ where: { id: failedJob.userId } });
+        const email = userProfile?.email || failedJob.userId;
+        const urlParam = failedJob.parameters?.url || 'N/A';
+        const instructions = failedJob.parameters?.instructions ? `\nPrompt: <i>${failedJob.parameters.instructions}</i>` : '';
+
+        await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (CLI error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
+        
         const tenantId = failedJob.orgId || failedJob.userId;
         await db.addCredits(tenantId, 1, 'job_failed_refund', jobId);
         console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
@@ -119,6 +136,17 @@ program
       
       // Notify subscribers
       await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+
+      const userProfile = await db.prisma.userProfile.findUnique({ where: { id: updatedJob.userId } });
+      const email = userProfile?.email || updatedJob.userId;
+      const urlParam = updatedJob.parameters?.url || 'N/A';
+      const instructions = updatedJob.parameters?.instructions ? `\nPrompt: <i>${updatedJob.parameters.instructions}</i>` : '';
+
+      if (jobStatus === JobStatus.COMPLETED) {
+        await sendTelegramMessage(`✅ <b>Video Creation Completed</b> (Status manual update)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}`);
+      } else if (jobStatus === JobStatus.FAILED) {
+        await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Status manual update)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}`);
+      }
 
       // Refund 1 credit if the job is being marked as FAILED
       if (jobStatus === JobStatus.FAILED) {
