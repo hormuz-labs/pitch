@@ -7,6 +7,8 @@ import { JobStatus, JOB_UPDATES_CHANNEL } from '@saas/shared';
 import { Redis } from 'ioredis';
 import dotenv from 'dotenv';
 
+import { input, select } from '@inquirer/prompts';
+
 dotenv.config();
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
@@ -75,6 +77,7 @@ program
       // Clean up any files that were already uploaded to avoid orphaned objects
       for (const url of uploadedUrls) {
         try {
+// @ts-ignore
           await storage.deleteFile(url, bucket);
           console.log(`🗑️  Cleaned up uploaded file: ${url}`);
         } catch (cleanupError: any) {
@@ -145,12 +148,19 @@ const creditsCmd = program
 creditsCmd
   .command('add')
   .description('Add credits to a tenant (orgId or userId)')
-  .requiredOption('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
-  .requiredOption('-n, --amount <number>', 'Number of credits to add', parseInt)
-  .option('-r, --reason <string>', 'Reason for adjustment', 'admin_adjustment')
+  .option('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .option('-n, --amount <number>', 'Number of credits to add', parseInt)
+  .option('-r, --reason <string>', 'Reason for adjustment')
   .action(async (options) => {
-    const { tenant, amount, reason } = options;
     try {
+      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (orgId or userId):' });
+      const amountStr = options.amount !== undefined ? options.amount : await input({ 
+        message: 'Enter amount of credits to add:', 
+        validate: (value) => !isNaN(parseInt(value)) ? true : 'Please enter a valid number' 
+      });
+      const amount = typeof amountStr === 'number' ? amountStr : parseInt(amountStr, 10);
+      const reason = options.reason || await input({ message: 'Reason for adjustment:', default: 'admin_adjustment' });
+
       const newBalance = await db.addCredits(tenant, amount, reason);
       console.log(`✅ Added ${amount} credit(s) to tenant ${tenant}. New balance: ${newBalance}`);
       process.exit(0);
@@ -163,12 +173,19 @@ creditsCmd
 creditsCmd
   .command('remove')
   .description('Remove credits from a tenant (orgId or userId)')
-  .requiredOption('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
-  .requiredOption('-n, --amount <number>', 'Number of credits to remove', parseInt)
-  .option('-r, --reason <string>', 'Reason for adjustment', 'admin_adjustment')
+  .option('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .option('-n, --amount <number>', 'Number of credits to remove', parseInt)
+  .option('-r, --reason <string>', 'Reason for adjustment')
   .action(async (options) => {
-    const { tenant, amount, reason } = options;
     try {
+      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (orgId or userId):' });
+      const amountStr = options.amount !== undefined ? options.amount : await input({ 
+        message: 'Enter amount of credits to remove:', 
+        validate: (value) => !isNaN(parseInt(value)) ? true : 'Please enter a valid number' 
+      });
+      const amount = typeof amountStr === 'number' ? amountStr : parseInt(amountStr, 10);
+      const reason = options.reason || await input({ message: 'Reason for adjustment:', default: 'admin_adjustment' });
+
       const newBalance = await db.deductCredit(tenant, amount, reason);
       console.log(`✅ Removed ${amount} credit(s) from tenant ${tenant}. New balance: ${newBalance}`);
       process.exit(0);
@@ -181,10 +198,10 @@ creditsCmd
 creditsCmd
   .command('balance')
   .description('Check the credit balance for a tenant')
-  .requiredOption('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .option('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
   .action(async (options) => {
-    const { tenant } = options;
     try {
+      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (orgId or userId):' });
       const balance = await db.getCreditBalance(tenant);
       const transactions = await db.getCreditTransactions(tenant);
       console.log(`\nTenant: ${tenant}`);
