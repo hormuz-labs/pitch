@@ -26,7 +26,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /opt/pitch/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d pitch"]
       interval: 5s
@@ -40,7 +40,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - /opt/pitch/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -58,7 +58,7 @@ services:
     ports:
       - "9002:9000"
     volumes:
-      - minio_data:/data
+      - /opt/pitch/minio:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -174,9 +174,3 @@ services:
       loki:
         condition: service_healthy
 
-volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
-  loki_data:
-  grafana_data:
