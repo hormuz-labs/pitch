@@ -37,11 +37,11 @@ Channels are great for keeping system logs separated from your personal messages
 2. **Add your Bot as an Administrator** to the channel. (Bots cannot post in channels unless they are admins).
 3. Determine the `chat_id`:
    - **If the channel is Public:** The `chat_id` is simply the channel's username, including the `@` symbol (e.g., `@PitchAlerts`).
-   - **If the channel is Private:** 
-     1. Send a test message (e.g., "hello") into your private channel.
-     2. Forward that test message to a helper bot like **[@RawDataBot](https://t.me/RawDataBot)**.
-     3. The helper bot will reply with a JSON payload. Look for the `"forward_from_chat"` section and find the `"id"`.
-     4. It will be a negative number starting with `-100` (e.g., `-1001234567890`). This is your `TELEGRAM_CHAT_ID`.
+   - **If the channel or group is Private:** 
+     1. Open Telegram Web (https://web.telegram.org) or Telegram Desktop.
+     2. Go to your private channel/group.
+     3. Look at the URL in your browser (or click the group info on desktop to view the invite link / URL if accessible). It will look like `https://web.telegram.org/a/#-1001234567890`.
+     4. The `-100...` part is your `TELEGRAM_CHAT_ID`.
 
 ### Option B: Send Alerts via Direct Message (DM)
 If you just want the alerts sent to you personally:
