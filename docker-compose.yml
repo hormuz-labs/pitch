@@ -1,15 +1,6 @@
 services:
   # ---------------------------------------------------------------------------
   # Cloudflare Tunnel — zero-trust ingress, no open ports required
-# Routes api.trypitch.co → api:3000, minio.trypitch.co → minio:9001, s3.trypitch.co → minio:9000
-#
-# Setup:
-#   1. Go to https://one.dash.cloudflare.com → Networks → Tunnels → Create tunnel
-#   2. Copy the tunnel token and set TUNNEL_TOKEN in your .env file
-#   3. In the tunnel's Public Hostname tab add:
-#        api.trypitch.co   → http://api:3000
-#        minio.trypitch.co → http://minio:9001
-#        s3.trypitch.co    → http://minio:9000
   # ---------------------------------------------------------------------------
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -21,6 +12,8 @@ services:
     depends_on:
       - api
       - minio
+      - loki
+      - grafana
 
   postgres:
     image: postgres:15-alpine
@@ -60,7 +53,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9002:9000"   # S3 API — used internally by api/worker
+      - "9002:9000"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -69,14 +62,39 @@ services:
       timeout: 5s
       retries: 5
 
-  adminer:
-    image: adminer:latest
-    container_name: pitch_adminer
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: pitch_loki
     restart: unless-stopped
+    user: "10001:10001"
     ports:
-      - "8081:8080"
+      - "3101:3100"
+    volumes:
+      - /opt/pitch/loki:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: pitch_grafana
+    restart: unless-stopped
+    user: "472:0"
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - /opt/pitch/grafana:/var/lib/grafana
+      - /opt/pitch/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - /opt/pitch/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
     depends_on:
-      postgres:
+      loki:
         condition: service_healthy
 
   api:
@@ -88,16 +106,27 @@ services:
     env_file:
       - .env
     environment:
-      # Override localhost-based URLs to use Docker service names
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
+    logging:
+      driver: loki
+      options:
+        loki-url: http://loki:3100/loki/api/v1/push
+        loki-batch-size: "400"
+        loki-timeout: "10s"
+        loki-retries: "3"
+        loki-external-labels: "job=api,container_name={{.Name}}"
+        labels: "job=api"
+        env: "SERVICE_NAME,HOSTNAME"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      loki:
         condition: service_healthy
 
   worker:
@@ -111,19 +140,27 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
-      # AMD RX 5500 XT (gfx1012) — override to nearest supported ROCm target
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+    logging:
+      driver: loki
+      options:
+        loki-url: http://loki:3100/loki/api/v1/push
+        loki-batch-size: "400"
+        loki-timeout: "10s"
+        loki-retries: "3"
+        loki-external-labels: "job=worker,container_name={{.Name}}"
+        labels: "job=worker"
+        env: "SERVICE_NAME,HOSTNAME"
     volumes:
-       - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
+      - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
     devices:
-      # Expose AMD GPU to the container
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
     group_add:
       - video
       - render
     deploy:
-      replicas: 1   # increase to scale horizontally, e.g. docker compose up --scale worker=3
+      replicas: 1
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,8 +168,12 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      loki:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  loki_data:
+  grafana_data:
