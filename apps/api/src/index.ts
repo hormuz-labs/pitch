@@ -1,7 +1,7 @@
 import express from 'express';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest, JobStatus } from '@saas/shared';
+import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest, JobStatus, createLogger } from '@saas/shared';
 import * as db from '@saas/db';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -10,6 +10,8 @@ import { fileURLToPath } from 'url';
 import { clerkMiddleware, getAuth } from '@clerk/express';
 import crypto from 'crypto';
 import cookieParser from 'cookie-parser';
+import { pinoHttp, type Options as PinoHttpOptions } from 'pino-http';
+import type { IncomingMessage, ServerResponse } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +22,8 @@ dotenv.config({ path: path.join(rootDir, '.env') });
 if (!process.env.CLERK_PUBLISHABLE_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY) {
   process.env.CLERK_PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY;
 }
+
+const logger = createLogger('api');
 
 const app = express();
 
@@ -89,6 +93,28 @@ app.use(cors());
 app.use(cookieParser());
 app.use(clerkMiddleware());
 
+// Structured HTTP request logging — every request logged with method, url, status, responseTime
+app.use(pinoHttp({
+  logger,
+  // Don't log SSE stream endpoint on every keepalive tick
+  autoLogging: {
+    ignore: (req: IncomingMessage) => req.url === '/jobs/stream',
+  },
+  customLogLevel: (_req: IncomingMessage, res: ServerResponse) => {
+    if (res.statusCode >= 500) return 'error';
+    if (res.statusCode >= 400) return 'warn';
+    return 'info';
+  },
+  serializers: {
+    req(req: IncomingMessage) {
+      return { method: (req as any).method, url: (req as any).url };
+    },
+    res(res: ServerResponse) {
+      return { statusCode: res.statusCode };
+    },
+  },
+} as PinoHttpOptions));
+
 // Serve the demo directory as static
 app.use('/demo', express.static(path.join(rootDir, 'demo')));
 
@@ -113,6 +139,7 @@ app.get('/jobs', async (req, res) => {
     const jobs = await db.listJobs({ id: userId, orgId });
     res.json(jobs);
   } catch (error: any) {
+    logger.error({ err: error, userId, orgId }, 'Failed to list jobs');
     res.status(500).json({ error: error.message });
   }
 });
@@ -131,6 +158,7 @@ app.post('/jobs', async (req, res) => {
     // Check credit balance — hard block if 0
     const balance = await db.getCreditBalance(tenantId);
     if (balance < 1) {
+      logger.warn({ userId, tenantId, balance }, 'Job creation blocked: insufficient credits');
       return res.status(402).json({ error: 'Insufficient credits', balance });
     }
 
@@ -144,9 +172,11 @@ app.post('/jobs', async (req, res) => {
     
     // Notify subscribers
     await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job));
-    
+
+    logger.info({ jobId: job.id, userId, tenantId }, 'Job created and queued');
     res.status(201).json(job);
   } catch (error: any) {
+    logger.error({ err: error, userId, orgId }, 'Failed to create job');
     res.status(500).json({ error: error.message });
   }
 });
@@ -163,18 +193,18 @@ app.get('/jobs/stream', (req, res) => {
   res.flushHeaders();
 
   const currentTenantId = orgId || userId;
+  logger.info({ userId, tenantId: currentTenantId }, 'SSE stream connected');
 
   const handler = (channel: string, message: string) => {
     if (channel === JOB_UPDATES_CHANNEL) {
       try {
         const data = JSON.parse(message);
         // Only broadcast if the job belongs to the current tenant (org or user)
-        // Check for Job objects or Log objects that have an orgId/userId
         if (data.orgId === currentTenantId || data.userId === userId || data.job?.orgId === currentTenantId) {
           res.write(`data: ${message}\n\n`);
         }
       } catch (e) {
-        console.error('Failed to parse SSE message', e);
+        logger.error({ err: e, userId }, 'Failed to parse SSE message');
       }
     }
   };
@@ -184,6 +214,7 @@ app.get('/jobs/stream', (req, res) => {
 
   req.on('close', () => {
     subscriber.off('message', handler);
+    logger.info({ userId, tenantId: currentTenantId }, 'SSE stream disconnected');
   });
 });
 
@@ -199,6 +230,7 @@ app.get('/jobs/:id', async (req, res) => {
     if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    logger.error({ err: error, jobId: req.params.id, userId }, 'Failed to get job');
     res.status(500).json({ error: error.message });
   }
 });
@@ -223,18 +255,21 @@ app.post('/jobs/:id/retrigger', async (req, res) => {
     const existingJob = await videoQueue.getJob(id);
     if (existingJob) {
       await existingJob.remove();
+      logger.info({ jobId: id, userId }, 'Removed stale BullMQ job before retrigger');
     }
 
     await videoQueue.add('generate-video', { jobId: updatedJob.id, userId: updatedJob.userId, parameters: updatedJob.parameters }, { jobId: updatedJob.id });
     
     // Notify subscribers
     await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
-    
+
+    logger.info({ jobId: id, userId }, 'Job retriggered');
     res.json(updatedJob);
   } catch (error: any) {
     if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    logger.error({ err: error, jobId: id, userId }, 'Failed to retrigger job');
     res.status(500).json({ error: error.message });
   }
 });
@@ -249,16 +284,18 @@ app.delete('/jobs/:id', async (req, res) => {
     const bullJob = await videoQueue.getJob(id);
     if (bullJob) {
       await bullJob.remove();
-      console.log(`[Queue] Removed job ${id} from BullMQ`);
+      logger.info({ jobId: id, userId }, 'Removed job from BullMQ queue');
     }
 
     // ZenStack will automatically throw a P2004 error if unauthorized to delete
     await db.deleteJob(id, { id: userId, orgId });
+    logger.info({ jobId: id, userId }, 'Job deleted');
     res.status(204).send();
   } catch (error: any) {
     if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    logger.error({ err: error, jobId: id, userId }, 'Failed to delete job');
     res.status(500).json({ error: error.message });
   }
 });
@@ -273,6 +310,7 @@ app.get('/credits', async (req, res) => {
     const transactions = await db.getCreditTransactions(tenantId);
     res.json({ balance, transactions });
   } catch (error: any) {
+    logger.error({ err: error, userId, orgId }, 'Failed to fetch credits');
     res.status(500).json({ error: error.message });
   }
 });
@@ -293,8 +331,10 @@ app.post('/users/sync', async (req, res) => {
 
   try {
     const profile = await db.upsertUser({ id: userId, email, firstName, lastName, imageUrl });
+    logger.info({ userId }, 'User profile synced');
     res.json(profile);
   } catch (error: any) {
+    logger.error({ err: error, userId }, 'Failed to sync user profile');
     res.status(500).json({ error: error.message });
   }
 });
@@ -453,5 +493,5 @@ app.post('/affiliate/me/payout', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`API running on http://localhost:${PORT}`);
+  logger.info({ port: PORT }, 'API server started');
 });

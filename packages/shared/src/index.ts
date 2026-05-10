@@ -1,3 +1,30 @@
+import pino from 'pino';
+
+/**
+ * Creates a structured pino logger bound to a specific service.
+ * Logs as JSON to stdout — picked up by the Loki Docker logging driver.
+ * Every log line carries `service`, `env`, and any extra `bindings` as
+ * indexed Loki labels / structured fields.
+ */
+export function createLogger(service: string, bindings: Record<string, string> = {}) {
+  return pino({
+    level: process.env.LOG_LEVEL || 'info',
+    base: {
+      service,
+      env: process.env.NODE_ENV || 'production',
+      ...bindings,
+    },
+    timestamp: pino.stdTimeFunctions.isoTime,
+    formatters: {
+      level(label) {
+        return { level: label };
+      },
+    },
+  });
+}
+
+export type Logger = ReturnType<typeof createLogger>;
+
 export enum JobStatus {
   PENDING = 'PENDING',
   PROCESSING = 'PROCESSING',
