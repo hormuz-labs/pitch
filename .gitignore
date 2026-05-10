@@ -39,6 +39,9 @@ yarn-debug.log*
 pnpm-debug.log*
 sse-output.log
 
+# OpenCode logs (bind-mounted from worker container)
+opencode-logs/
+
 # IDEs
 .vscode/
 .idea/

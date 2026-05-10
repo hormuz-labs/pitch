@@ -19,6 +19,9 @@ coverage/
 *.log
 npm-debug.log*
 
+# OpenCode logs (bind-mounted from worker container)
+opencode-logs/
+
 # OS
 .DS_Store
 Thumbs.db
