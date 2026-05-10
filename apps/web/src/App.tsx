@@ -6,7 +6,8 @@ import {
   UserButton, 
   OrganizationSwitcher,
   useAuth,
-  useClerk
+  useClerk,
+  useUser
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
@@ -378,6 +379,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 function AppContent() {
   const { getToken, isLoaded, userId, orgId } = useAuth();
   const { signOut } = useClerk();
+  const { user } = useUser();
   const { toast } = useToast();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [collapsed, setCollapsed] = useState(window.innerWidth < 1024);
@@ -402,6 +404,36 @@ function AppContent() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Sync user profile to the database on sign-in
+  useEffect(() => {
+    if (!isLoaded || !userId || !user) return;
+
+    const syncUser = async () => {
+      try {
+        const token = await getToken();
+        const primaryEmail = user.primaryEmailAddress?.emailAddress;
+        if (!primaryEmail) return;
+        await fetch('/api/users/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            email: primaryEmail,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            imageUrl: user.imageUrl,
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to sync user profile:', err);
+      }
+    };
+
+    syncUser();
+  }, [isLoaded, userId, user, getToken]);
 
   // Fetch initial jobs
   useEffect(() => {

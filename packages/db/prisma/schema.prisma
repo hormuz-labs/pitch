@@ -20,6 +20,16 @@ model User {
   @@ignore()
 }
 
+model UserProfile {
+  id        String   @id()
+  email     String
+  firstName String?
+  lastName  String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
 model CreditBalance {
   tenantId     String              @id()
   balance      Int                 @default(0)

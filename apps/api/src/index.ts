@@ -212,6 +212,28 @@ app.get('/credits', async (req, res) => {
   }
 });
 
+// Upsert the authenticated user's profile — called from the frontend on sign-in
+app.post('/users/sync', async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { email, firstName, lastName, imageUrl } = req.body as {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    imageUrl?: string;
+  };
+
+  if (!email) return res.status(400).json({ error: 'email is required' });
+
+  try {
+    const profile = await db.upsertUser({ id: userId, email, firstName, lastName, imageUrl });
+    res.json(profile);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);

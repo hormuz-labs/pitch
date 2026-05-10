@@ -177,3 +177,37 @@ export async function getCreditTransactions(tenantId: string) {
     orderBy: { createdAt: 'desc' },
   });
 }
+
+// ─── User Profiles ────────────────────────────────────────────────────────────
+
+export interface UserProfileData {
+  id: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  imageUrl?: string | null;
+}
+
+/**
+ * Upserts a Clerk user's profile into the database.
+ * Called on every sign-in to keep details up to date.
+ */
+export async function upsertUser(data: UserProfileData) {
+  console.log(`[DB] Upserting user profile for ${data.id} (${data.email})`);
+  return prisma.userProfile.upsert({
+    where: { id: data.id },
+    create: {
+      id: data.id,
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      imageUrl: data.imageUrl,
+    },
+    update: {
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      imageUrl: data.imageUrl,
+    },
+  });
+}

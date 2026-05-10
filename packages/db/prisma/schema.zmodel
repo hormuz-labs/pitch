@@ -28,6 +28,17 @@ model User {
   @@ignore()
 }
 
+// Stores Clerk user details synced on sign-in
+model UserProfile {
+  id        String   @id           // Clerk user ID
+  email     String
+  firstName String?
+  lastName  String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Credit balance per tenant (orgId or userId when no org)
 model CreditBalance {
   tenantId  String   @id         // orgId if in an org, otherwise userId
