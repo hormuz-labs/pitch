@@ -8,25 +8,12 @@ import { pass1 } from './pass1-dry-run';
 import { pass2 } from './pass2-voiceover';
 import { pass3 } from './pass3-cinematic-record';
 
-// Walk up from cwd to find the nearest .env containing GEMINI_API_KEY.
-// This makes the pipeline work whether run from the project root or from
-// a nested demos/<name>/ folder without needing a local .env copy.
-function loadRootEnv() {
-  let dir = process.cwd();
-  for (let i = 0; i < 10; i++) {
-    const candidate = path.join(dir, '.env');
-    if (fs.existsSync(candidate) && fs.readFileSync(candidate, 'utf8').includes('GEMINI_API_KEY')) {
-      dotenv.config({ path: candidate, override: true });
-      console.log(`Loaded env from: ${candidate}`);
-      return;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  dotenv.config(); // fallback to local .env
+dotenv.config();
+
+if (!process.env.GEMINI_API_KEY) {
+  console.error("Error: GEMINI_API_KEY environment variable is not set.");
+  process.exit(1);
 }
-loadRootEnv();
 
 /**
  * V4.4 Cinematic Pipeline Reference (Modularized Engine + JIT Layout)

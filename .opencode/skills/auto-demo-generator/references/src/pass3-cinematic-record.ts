@@ -20,26 +20,28 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   const cursorStyle = config.cursorStyle || 'black';
   const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
   const cursorPng = path.join(demoDir, 'cursor.png');
-  if (fs.existsSync(cursorFile)) {
-    try {
-      const cursorContext = await browser.newContext();
-      const cursorPage = await cursorContext.newPage();
-      let svgContent = fs.readFileSync(cursorFile, 'utf8');
-      // Ensure the SVG scales correctly to 48x48
-      svgContent = svgContent.replace(/width="\d+"/i, 'width="48"').replace(/height="\d+"/i, 'height="48"');
-      await cursorPage.setContent(`
-        <style>body { margin: 0; background: transparent; } svg { width: 48px; height: 48px; display: block; }</style>
-        ${svgContent}
-      `);
-      const svgEl = await cursorPage.locator('svg');
-      await svgEl.screenshot({ path: cursorPng, omitBackground: true });
-      await cursorContext.close();
-      console.log(`✅ Cursor PNG rasterized: ${cursorPng}`);
-    } catch (e) {
-      console.error(`⚠️  Cursor rasterization failed: ${e}`);
-    }
-  } else {
-    console.warn(`⚠️  Cursor SVG not found at: ${cursorFile}`);
+  if (!fs.existsSync(cursorFile)) {
+    console.error(`Error: Cursor SVG not found at: ${cursorFile}`);
+    console.error(`Make sure cursor-${cursorStyle}.svg exists in assets/icons/ before running the pipeline.`);
+    process.exit(1);
+  }
+  try {
+    const cursorContext = await browser.newContext();
+    const cursorPage = await cursorContext.newPage();
+    let svgContent = fs.readFileSync(cursorFile, 'utf8');
+    // Ensure the SVG scales correctly to 48x48
+    svgContent = svgContent.replace(/width="\d+"/i, 'width="48"').replace(/height="\d+"/i, 'height="48"');
+    await cursorPage.setContent(`
+      <style>body { margin: 0; background: transparent; } svg { width: 48px; height: 48px; display: block; }</style>
+      ${svgContent}
+    `);
+    const svgEl = await cursorPage.locator('svg');
+    await svgEl.screenshot({ path: cursorPng, omitBackground: true });
+    await cursorContext.close();
+    console.log(`✅ Cursor PNG rasterized: ${cursorPng}`);
+  } catch (e) {
+    console.error(`Error: Cursor rasterization failed: ${e}`);
+    process.exit(1);
   }
 
   const context = await browser.newContext({
@@ -53,8 +55,7 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   await page.waitForTimeout(100);
 
   const videoStartTime = Date.now();
-  // Use networkidle + generous timeout so slow-loading pages don't abort the recording
-  await page.goto(startUrl, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.goto(startUrl, { waitUntil: 'networkidle' });
 
   // Wait for layout to settle
   await page.waitForTimeout(2000);
