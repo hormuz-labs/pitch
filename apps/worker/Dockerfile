@@ -9,15 +9,14 @@ COPY . .
 RUN rm -rf packages/*/dist apps/*/dist \
  && bun install --ignore-scripts \
  && ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile \
- && bun run --cwd packages/shared build \
- && bun run --cwd packages/db build
+ && ./node_modules/.bin/tsc -b --force packages/shared packages/db
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM oven/bun:1-debian AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl unzip ffmpeg ca-certificates \
-    mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl1-mesa \
+    mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -9,8 +9,7 @@ COPY . .
 RUN rm -rf packages/*/dist apps/*/dist \
  && bun install --ignore-scripts \
  && ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile \
- && bun run --cwd packages/shared build \
- && bun run --cwd packages/db build
+ && ./node_modules/.bin/tsc -b --force packages/shared packages/db
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM oven/bun:1-debian AS runtime
