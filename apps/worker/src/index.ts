@@ -1,6 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUE_NAME, JobStatus, JOB_UPDATES_CHANNEL } from '@saas/shared';
+import { QUEUE_NAME, JobStatus, JOB_UPDATES_CHANNEL, createLogger } from '@saas/shared';
 import * as db from '@saas/db';
 import { createOpencode } from '@opencode-ai/sdk';
 import dotenv from 'dotenv';
@@ -14,6 +14,8 @@ const rootDir = path.resolve(__dirname, '../../..');
 
 dotenv.config({ path: path.resolve(rootDir, '.env') });
 
+const logger = createLogger('worker');
+
 const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
 });
@@ -22,7 +24,9 @@ const worker = new Worker(
   QUEUE_NAME,
   async (job: Job) => {
     const { jobId, userId, parameters } = job.data;
-    console.log(`[Worker] Processing job ${jobId} for user ${userId}`);
+    const jobLogger = logger.child({ jobId, userId });
+
+    jobLogger.info('Processing job');
 
     // Update status to PROCESSING
     const updatedJob = await db.updateJob(jobId, { status: JobStatus.PROCESSING });
@@ -33,7 +37,7 @@ const worker = new Worker(
     let opencode;
     try {
       // 1. Start OpenCode server and get client (dynamic port)
-      console.log(`[Worker] Starting OpenCode server for job ${jobId} in ${targetDir}...`);
+      jobLogger.info({ targetDir }, 'Starting OpenCode server');
       opencode = await createOpencode({ timeout: 60000 });
       const { client, server } = opencode;
 
@@ -46,7 +50,7 @@ const worker = new Worker(
         throw new Error("Failed to create OpenCode session: " + JSON.stringify(sessionResponse.error));
       }
       const session = sessionResponse.data;
-      console.log(`[Worker] Created session ${session.id} for job ${jobId}`);
+      jobLogger.info({ sessionId: session.id }, 'OpenCode session created');
 
       // 3. Subscribe to events and stream to Redis
       const events = await client.event.subscribe({
@@ -59,17 +63,16 @@ const worker = new Worker(
             await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify({
               type: 'LOG',
               jobId,
-              userId, // Added userId here
+              userId,
               event
             }));
           }
         } catch (e: any) {
-          console.error(`[Worker] Stream error for job ${jobId}:`, e.message);
+          jobLogger.error({ err: e }, 'Event stream error');
         }
       })();
 
       // 4. Send prompt to OpenCode
-      // We instruct OpenCode to process the parameters, and then use the job-cli to complete the job.
       const promptText = `
 Please execute the following video generation task for Job ${jobId}.
 Parameters:
@@ -92,14 +95,14 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         throw new Error("OpenCode prompt failed: " + JSON.stringify(promptResponse.error));
       }
       
-      console.log(`[Worker] OpenCode completed prompt for job ${jobId}`);
+      jobLogger.info('OpenCode prompt completed');
       
       // Stop the server once done
       server.close();
       await streamPromise;
 
     } catch (error: any) {
-      console.error(`[Worker] Failed to process job ${jobId} via OpenCode:`, error.message);
+      jobLogger.error({ err: error }, 'Job processing failed');
       
       const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
       await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
@@ -114,12 +117,11 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
 );
 
 worker.on('completed', (job) => {
-  console.log(`[Worker] Job ${job.id} completed`);
+  logger.info({ jobId: job.id }, 'Job completed');
 });
 
 worker.on('failed', (job, err) => {
-  console.error(`[Worker] Job ${job?.id} failed:`, err.message);
+  logger.error({ jobId: job?.id, err }, 'Job failed');
 });
 
-console.log('Worker started, listening for jobs...');
-
+logger.info('Worker started, listening for jobs');

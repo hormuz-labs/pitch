@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "@opencode-ai/sdk": "latest",
-    "@saas/shared": "workspace:*",
     "@saas/db": "workspace:*",
-    "bullmq": "^5.0.0",
-    "ioredis": "^5.3.2",
+    "@saas/shared": "workspace:*",
     "axios": "^1.4.0",
-    "dotenv": "^16.0.3"
+    "bullmq": "^5.0.0",
+    "dotenv": "^16.0.3",
+    "ioredis": "^5.3.2",
+    "pino": "^10.3.1"
   }
 }

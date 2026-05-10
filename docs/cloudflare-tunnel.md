@@ -64,12 +64,15 @@ The `cloudflared` service in `docker-compose.yml` reads this variable automatica
 
 ## Step 4 — Configure public hostnames
 
-Back in the Cloudflare dashboard, open the tunnel you just created and go to the **Public Hostname** tab. Add two entries:
+Back in the Cloudflare dashboard, open the tunnel you just created and go to the **Public Hostname** tab. Add these entries:
 
-| Subdomain | Domain      | Type | URL             |
-|-----------|-------------|------|-----------------|
-| `api`     | trypitch.co | HTTP | `api:3000`      |
-| `minio`   | trypitch.co | HTTP | `minio:9001`    |
+| Subdomain | Domain      | Type | URL                  |
+|----------|-------------|------|----------------------|
+| `api`     | trypitch.co | HTTP | `http://api:3000`    |
+| `minio`   | trypitch.co | HTTP | `http://minio:9001`  |
+| `s3`      | trypitch.co | HTTP | `http://minio:9000`  |
+| `loki`    | trypitch.co | HTTP | `http://loki:3100`   |
+| `grafana` | trypitch.co | HTTP | `http://grafana:3000`|
 
 > Use `http://` (not `https://`) for the internal service URL — traffic between `cloudflared` and your containers stays inside the Docker network and does not need TLS.
 
