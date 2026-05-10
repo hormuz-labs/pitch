@@ -21,7 +21,6 @@ describe.skip('Job Queue and Worker End-to-End Flow', () => {
     const dbUrl = `file:${TEST_DB_PATH}`;
     process.env.DATABASE_URL = dbUrl;
     process.env.REDIS_URL = 'redis://localhost:6379/2'; // Use DB 2 for tests
-    process.env.OPENCODE_SERVER_URL = 'http://localhost:8081/generate';
 
     // Cleanup old test DB
     if (fs.existsSync(TEST_DB_PATH)) {
