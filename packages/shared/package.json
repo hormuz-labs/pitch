@@ -6,5 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --build"
+  },
+  "dependencies": {
+    "pino": "^10.3.1"
   }
 }
