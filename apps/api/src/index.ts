@@ -491,6 +491,10 @@ app.post('/affiliate/me/payout', async (req, res) => {
   }
 });
 
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info({ port: PORT }, 'API server started');
