@@ -1,6 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUE_NAME, JobStatus, JOB_UPDATES_CHANNEL, createLogger } from '@saas/shared';
+import { QUEUE_NAME, JobStatus, JOB_UPDATES_CHANNEL, createLogger, sendTelegramMessage } from '@saas/shared';
 import * as db from '@saas/db';
 import { createOpencode } from '@opencode-ai/sdk';
 import dotenv from 'dotenv';
@@ -106,6 +106,13 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       
       const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
       await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+      
+      const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
+      const email = userProfile?.email || userId;
+      const urlParam = parameters?.url || 'N/A';
+      const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
+
+      await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
       
       if (opencode?.server) {
         opencode.server.close();

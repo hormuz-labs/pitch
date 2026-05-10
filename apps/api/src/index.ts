@@ -1,7 +1,7 @@
 import express from 'express';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest, JobStatus, createLogger } from '@saas/shared';
+import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest, JobStatus, createLogger, sendTelegramMessage } from '@saas/shared';
 import * as db from '@saas/db';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -174,6 +174,14 @@ app.post('/jobs', async (req, res) => {
     await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job));
 
     logger.info({ jobId: job.id, userId, tenantId }, 'Job created and queued');
+
+    // Telegram hook (fire and forget)
+    db.prisma.userProfile.findUnique({ where: { id: userId } }).then(user => {
+      const email = user?.email || userId;
+      const url = parameters?.url || 'N/A';
+      const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
+      sendTelegramMessage(`🎬 <b>New Video Creation Started</b>\nJob ID: <code>${job.id}</code>\nUser: ${email}\nURL: ${url}${instructions}`);
+    }).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for job creation'));
     res.status(201).json(job);
   } catch (error: any) {
     logger.error({ err: error, userId, orgId }, 'Failed to create job');
@@ -330,8 +338,15 @@ app.post('/users/sync', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'email is required' });
 
   try {
+    const existingUser = await db.prisma.userProfile.findUnique({ where: { id: userId } });
     const profile = await db.upsertUser({ id: userId, email, firstName, lastName, imageUrl });
     logger.info({ userId }, 'User profile synced');
+    
+    if (!existingUser) {
+      sendTelegramMessage(`👋 <b>New User Sign Up</b>\nEmail: ${email}\nName: ${firstName || ''} ${lastName || ''}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign up'));
+    } else {
+      sendTelegramMessage(`🔑 <b>User Sign In</b>\nEmail: ${email}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign in'));
+    }
     res.json(profile);
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to sync user profile');
