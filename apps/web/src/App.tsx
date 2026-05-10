@@ -11,7 +11,7 @@ import {
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
-import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView } from './views';
+import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView } from './views';
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
@@ -127,6 +127,12 @@ const IconDownload = () => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
   </svg>
 );
+const Share2Icon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+  </svg>
+);
 
 // ── Nav Item ─────────────────────────────────────────────────────────────────
 interface NavItemProps {
@@ -196,20 +202,24 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <div className="mb-2">
-            <NavItem
-              icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
-              label="Dashboard"
-              active={selectedKey === 'dashboard'}
-              onClick={() => go('/dashboard')}
-            />
-          </div>
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+          <NavItem
+            icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
+            label="Dashboard"
+            active={selectedKey === 'dashboard'}
+            onClick={() => go('/dashboard')}
+          />
           <NavItem
             icon={<IconVideo />}
             label="New Video"
             active={selectedKey === 'create'}
             onClick={() => go('/new')}
+          />
+          <NavItem
+            icon={<Share2Icon />}
+            label="Affiliate"
+            active={selectedKey === 'affiliate'}
+            onClick={() => go('/affiliate')}
           />
         </nav>
 
@@ -593,6 +603,8 @@ function AppContent() {
     selectedKey = 'settings';
   } else if (location.pathname.startsWith('/pricing')) {
     selectedKey = 'pricing';
+  } else if (location.pathname.startsWith('/affiliate')) {
+    selectedKey = 'affiliate';
   }
 
   if (!isLoaded) return <div className="h-screen w-screen bg-[#FDFDFD]"></div>;
@@ -634,6 +646,7 @@ function AppContent() {
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
+                <Route path="/affiliate" element={<AffiliateView />} />
                 <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />

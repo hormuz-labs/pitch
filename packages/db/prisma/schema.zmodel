@@ -85,3 +85,73 @@ model Job {
   @@allow('all', auth().orgId != null && orgId == auth().orgId)
   @@allow('all', auth().orgId == null && userId == auth().id)
 }
+
+// ── Affiliate Program ─────────────────────────────────────────────────────────
+
+// One record per influencer who has joined the affiliate program
+model Affiliate {
+  id            String   @id @default(cuid())
+  userId        String   @unique        // Clerk user ID
+  code          String   @unique        // e.g. "MUKUND-X7K2" — human-readable, URL-safe
+  commissionPct Float    @default(20.0) // Percentage of sale credited as commission
+  status        String   @default("active")  // active | suspended | pending
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  clicks      AffiliateClick[]
+  conversions AffiliateConversion[]
+  payouts     AffiliatePayout[]
+}
+
+// Every click on an affiliate link — used for analytics and attribution
+model AffiliateClick {
+  id          String    @id @default(cuid())
+  affiliateId String
+  ip          String?   // SHA-256 hashed — never raw IP (GDPR/PDPB compliant)
+  userAgent   String?
+  platform    String?   // e.g. "instagram" | "youtube" | "direct"
+  refPage     String?   // landing page URL they arrived on
+  clickedAt   DateTime  @default(now())
+  convertedAt DateTime? // set when this click results in a conversion
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
+  @@index([clickedAt])
+}
+
+// A confirmed sale attributed to an influencer (first purchase only)
+model AffiliateConversion {
+  id            String   @id @default(cuid())
+  affiliateId   String
+  clickId       String?  // which specific click led to this conversion
+  referredUserId String  // Clerk userId of the person who signed up & purchased
+  saleAmountUsd Float    // sale amount in USD (Stripe reports in USD cents → convert)
+  commissionAmt Float    // saleAmountUsd * commissionPct / 100
+  status        String   @default("pending") // pending | approved | paid | rejected
+  stripeSessionId String? // Stripe Checkout session ID for audit trail
+  createdAt     DateTime @default(now())
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@unique([affiliateId, referredUserId]) // one commission per referred user, ever
+  @@index([affiliateId])
+  @@index([referredUserId])
+}
+
+// A payout request from an influencer, settled via Stripe Connect or bank transfer
+model AffiliatePayout {
+  id          String   @id @default(cuid())
+  affiliateId String
+  amount      Float    // total USD amount
+  currency    String   @default("USD")
+  method      String   // "stripe" | "bank"
+  status      String   @default("requested") // requested | processing | paid | failed
+  reference   String?  // Stripe transfer ID or bank ref
+  requestedAt DateTime @default(now())
+  paidAt      DateTime?
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
+}

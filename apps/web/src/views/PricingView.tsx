@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 const IconCheck = () => (
@@ -6,153 +7,163 @@ const IconCheck = () => (
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
+const IconZap = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+type PackKey = 'starter' | 'pro' | 'enterprise';
+
+const PACKS: { key: PackKey; name: string; price: number; credits: number; desc: string; features: string[]; popular?: boolean }[] = [
+  {
+    key: 'starter',
+    name: 'Starter',
+    price: 10,
+    credits: 10,
+    desc: 'Perfect for trying out AI-powered demo generation.',
+    features: ['10 video generation credits', '1 credit = 1 full demo', 'Up to 1080p exports', 'Priority queue access'],
+  },
+  {
+    key: 'pro',
+    name: 'Pro',
+    price: 40,
+    credits: 50,
+    desc: 'For creators and professionals — best value per credit.',
+    popular: true,
+    features: ['50 video generation credits', '20% savings vs. Starter', 'Up to 1080p exports', 'Custom agent instructions', 'Remove watermarks'],
+  },
+  {
+    key: 'enterprise',
+    name: 'Enterprise',
+    price: 130,
+    credits: 200,
+    desc: 'High-volume teams and agencies who need scale.',
+    features: ['200 video generation credits', '35% savings vs. Starter', 'Up to 1080p exports', 'Custom agent fine-tuning', 'SSO / SAML', 'Dedicated account manager'],
+  },
+];
 
 export const PricingView = () => {
-  const [hoveredCard, setHoveredCard] = useState<'pro' | 'enterprise' | null>(null);
+  const { getToken } = useAuth();
+  const [loading, setLoading] = useState<PackKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<PackKey | null>(null);
 
-  const isEnterpriseHovered = hoveredCard === 'enterprise';
-  
-  // Pro is active by default, or when explicitly hovered.
-  // It only shrinks when Enterprise is hovered.
-  const proIsActive = !isEnterpriseHovered;
-  const entIsActive = isEnterpriseHovered;
+  const handleCheckout = async (pack: PackKey) => {
+    setLoading(pack);
+    setError(null);
+    try {
+      const token = await getToken();
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pack }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Checkout failed');
+      window.location.href = data.url; // redirect to Stripe Checkout
+    } catch (e: any) {
+      setError(e.message);
+      setLoading(null);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-full p-4 md:p-8 max-w-5xl mx-auto w-full font-sans">
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
-          Flexible plans that grow with you
+          Buy credits, generate demos
         </h1>
         <p className="text-base text-gray-500 max-w-xl mx-auto leading-relaxed">
-          Start for free, no credit card required.<br />
-          Upgrade when you need a plan that fits your needs.
+          No subscriptions. Pay once, use whenever.<br />
+          Each credit generates one full AI-powered demo video.
         </p>
       </div>
 
+      {/* Error banner */}
+      {error && (
+        <div className="mb-6 w-full max-w-4xl px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl text-center">
+          {error}
+        </div>
+      )}
+
       {/* Pricing Grid */}
-      <div className="grid md:grid-cols-2 gap-6 max-w-4xl w-full">
-        
-        {/* Pro Plan */}
-        <div 
-          className={`bg-white rounded-2xl p-6 flex flex-col relative overflow-hidden transition-all duration-300 ease-in-out cursor-default ${
-            proIsActive 
-              ? 'border-2 border-gray-900 shadow-lg transform scale-105 z-10' 
-              : 'border border-gray-200 shadow-sm transform scale-100 z-0'
-          }`}
-          onMouseEnter={() => setHoveredCard('pro')}
-          onMouseLeave={() => setHoveredCard(null)}
-        >
-          <div className={`absolute top-0 right-0 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-bl-lg transition-opacity duration-300 ${proIsActive ? 'opacity-100' : 'opacity-0'}`}>POPULAR</div>
-          <div className="mb-5 mt-2">
-            <h2 className="text-xl font-bold text-gray-900 mb-1 relative inline-block">
-              Pro
-              <svg className={`absolute -bottom-1.5 left-0 w-full transition-opacity duration-300 ${proIsActive ? 'opacity-100' : 'opacity-0'}`} viewBox="0 0 100 20" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 15Q30 5 95 15" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="text-rose-500"/>
-              </svg>
-            </h2>
-            <div className="flex items-baseline gap-1 mb-2">
-              <span className="text-3xl font-bold text-gray-900">$10</span>
-              <span className="text-sm font-medium text-gray-500">per month</span>
+      <div className="grid md:grid-cols-3 gap-5 max-w-4xl w-full">
+        {PACKS.map(pack => {
+          const isHovered = hoveredCard === pack.key;
+          const isActive = pack.popular ? hoveredCard !== 'enterprise' && hoveredCard !== 'starter' : isHovered;
+
+          return (
+            <div
+              key={pack.key}
+              className={`bg-white rounded-2xl p-6 flex flex-col relative overflow-hidden transition-all duration-300 ease-in-out cursor-default ${
+                isActive || (!hoveredCard && pack.popular)
+                  ? 'border-2 border-gray-900 shadow-lg scale-105 z-10'
+                  : 'border border-gray-200 shadow-sm scale-100 z-0'
+              }`}
+              onMouseEnter={() => setHoveredCard(pack.key)}
+              onMouseLeave={() => setHoveredCard(null)}
+            >
+              {/* Popular badge */}
+              {pack.popular && (
+                <div className={`absolute top-0 right-0 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-bl-lg transition-opacity duration-300 ${(isActive || !hoveredCard) ? 'opacity-100' : 'opacity-0'}`}>
+                  POPULAR
+                </div>
+              )}
+
+              <div className="mb-5 mt-2">
+                <h2 className="text-xl font-bold text-gray-900 mb-3">{pack.name}</h2>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-3xl font-bold text-gray-900">${pack.price}</span>
+                  <span className="text-sm font-medium text-gray-500">one-time</span>
+                </div>
+                <div className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
+                  <IconZap />
+                  {pack.credits} credits
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">{pack.desc}</p>
+              </div>
+
+              <button
+                id={`checkout-btn-${pack.key}`}
+                onClick={() => handleCheckout(pack.key)}
+                disabled={loading !== null}
+                className={`w-full py-2.5 px-4 font-semibold text-sm rounded-xl transition-all mb-6 cursor-pointer border-none flex items-center justify-center gap-2 ${
+                  (isActive || (!hoveredCard && pack.popular))
+                    ? 'bg-gray-900 hover:bg-gray-700 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                {loading === pack.key ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Redirecting…
+                  </>
+                ) : (
+                  `Buy ${pack.credits} Credits`
+                )}
+              </button>
+
+              <div className="flex-1">
+                <ul className="space-y-3 text-sm text-gray-600">
+                  {pack.features.map(f => (
+                    <li key={f} className="flex items-center gap-3">
+                      <IconCheck />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <p className="text-xs text-gray-600 h-8">
-              For creators and professionals needing advanced video generation features.
-            </p>
-          </div>
-
-          <button className={`w-full py-2.5 px-4 font-medium text-sm rounded-xl transition-colors mb-6 cursor-pointer ${
-            proIsActive ? 'bg-gray-900 hover:bg-gray-800 text-white' : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50'
-          }`}>
-            Get started
-          </button>
-
-          <div className="flex-1">
-            <ul className="space-y-3 text-sm text-gray-600">
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span className="font-medium text-gray-900">1 credit = $1</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Up to 1080p video exports</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Priority queue access</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Custom agent instructions</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Remove watermarks</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Enterprise Plan */}
-        <div 
-          className={`bg-white rounded-2xl p-6 flex flex-col relative transition-all duration-300 ease-in-out cursor-default ${
-            entIsActive 
-              ? 'border-2 border-gray-900 shadow-lg transform scale-105 z-10' 
-              : 'border border-gray-200 shadow-sm transform scale-100 z-0'
-          }`}
-          onMouseEnter={() => setHoveredCard('enterprise')}
-          onMouseLeave={() => setHoveredCard(null)}
-        >
-          <div className="mb-5 mt-2">
-            <h2 className="text-xl font-bold text-gray-900 mb-1 relative inline-block">
-              Enterprise
-              <svg className={`absolute -bottom-2 left-0 w-full transition-opacity duration-300 ${entIsActive ? 'opacity-100' : 'opacity-0'}`} viewBox="0 0 100 20" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 15Q30 5 95 15" stroke="#e6e6e6" strokeWidth="4" strokeLinecap="round" />
-              </svg>
-            </h2>
-            <div className="flex items-baseline gap-1 mb-2 h-9 items-end">
-              <span className="text-3xl font-bold text-gray-900">Custom</span>
-            </div>
-            <p className="text-xs text-gray-600 h-8">
-              For large organizations and governments with custom needs and high volume.
-            </p>
-          </div>
-
-          <button
-            className={`w-full py-2.5 px-4 text-gray-900 text-sm font-medium rounded-xl transition-all hover:brightness-95 mb-6 cursor-pointer ${
-              entIsActive ? 'bg-gray-900 hover:bg-gray-800 text-white border-none' : 'border border-gray-200'
-            }`}
-            style={{ backgroundColor: entIsActive ? '' : '#e6e6e6' }}
-          >
-            Schedule a meeting
-          </button>
-
-          <div className="flex-1">
-            <ul className="space-y-3 text-sm text-gray-600">
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Unlimited concurrent generations</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Custom agent fine-tuning</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>SSO / SAML authentication</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Dedicated account manager</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <IconCheck />
-                <span>Custom SLAs</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
+          );
+        })}
       </div>
+
+      <p className="mt-8 text-xs text-gray-400 text-center">
+        Secure payment via Stripe · Credits never expire · Need a custom volume deal?{' '}
+        <a href="mailto:officialtrypitch@gmail.com" className="text-gray-600 underline underline-offset-2 hover:text-gray-900">Contact us</a>
+      </p>
     </div>
   );
 };
