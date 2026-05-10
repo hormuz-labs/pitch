@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
-import { smoothstepExpr, springOvershootExpr } from './utils';
+import { smoothstepExpr, springOvershootExpr, getChromiumGpuFlags } from './utils';
 
 export async function pass3(config: DemoConfig, startUrl: string, demoSteps: DemoStep[], demoDir: string) {
   console.log("== Pass 3: Raw Video Recording & JIT Tracking ==");
@@ -14,7 +14,10 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   const CENTER_X = VIDEO_WIDTH / 2;
   const CENTER_Y = VIDEO_HEIGHT / 2;
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ 
+    headless: true,
+    args: getChromiumGpuFlags()
+  });
   
   // Rasterize cursor to PNG for FFmpeg
   const cursorStyle = config.cursorStyle || 'black';

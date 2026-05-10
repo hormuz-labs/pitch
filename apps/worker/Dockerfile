@@ -9,27 +9,26 @@ COPY . .
 RUN rm -rf packages/*/dist apps/*/dist \
  && bun install --ignore-scripts \
  && ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel --no-compile \
- && bun run --cwd packages/shared build \
- && bun run --cwd packages/db build
+ && ./node_modules/.bin/tsc -b --force packages/shared packages/db
 
-# ── Stage 2: runtime (AMD ROCm for RX 5500 XT) ───────────────────────────────
-FROM rocm/dev-ubuntu-22.04:6.1 AS runtime
+# ── Stage 2: runtime ──────────────────────────────────────────────────────────
+FROM oven/bun:1-debian AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl unzip ffmpeg ca-certificates \
-    && curl -fsSL https://bun.sh/install | bash \
+    mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-ENV PATH="/root/.bun/bin:${PATH}"
 
 WORKDIR /app
 
 COPY --from=builder /app .
 
-ENV NODE_ENV=production
-# AMD RX 5500 XT (gfx1012) — override to nearest supported ROCm target
-ENV HSA_OVERRIDE_GFX_VERSION=10.3.0
+# Install Playwright browser and its Linux UI dependencies
+RUN bunx playwright install chromium --with-deps
 
+# Allow the container user to access GPU devices (/dev/dri)
 RUN groupadd -f render && usermod -aG render,video root
+
+ENV NODE_ENV=production
 
 CMD ["bun", "apps/worker/src/index.ts"]
