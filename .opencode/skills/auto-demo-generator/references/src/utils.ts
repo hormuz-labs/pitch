@@ -71,3 +71,39 @@ export function springOvershootExpr(
   const fallExpr = smoothstepExpr(evalVar, target + overshoot, target, midPoint, fallDur);
   return `if(lt(${evalVar},${midPoint}),${riseExpr},${fallExpr})`;
 }
+
+/**
+ * Automatically detects if the host has a hardware GPU exposed
+ * and returns the optimal Chromium launch arguments.
+ */
+export function getChromiumGpuFlags(): string[] {
+  const fs = require('fs');
+  const os = require('os');
+  const platform = os.platform();
+  let hasGpu = false;
+
+  if (platform === 'linux') {
+    // Check for exposed GPU devices in Docker/Linux
+    // /dev/dri for AMD/Intel, /dev/nvidia0 for Nvidia
+    hasGpu = fs.existsSync('/dev/dri') || fs.existsSync('/dev/nvidia0');
+  } else {
+    // macOS / Windows natively handle GPU hardware well
+    hasGpu = true;
+  }
+
+  // Base stability flags for Chromium in Docker
+  const flags = [
+    '--disable-dev-shm-usage',
+    '--no-sandbox',
+  ];
+
+  if (hasGpu) {
+    flags.push(
+      '--use-gl=egl',
+      '--enable-unsafe-webgpu',
+      '--ignore-gpu-blocklist'
+    );
+  }
+
+  return flags;
+}
