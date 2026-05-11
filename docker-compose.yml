@@ -22,11 +22,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: pitch
+      POSTGRES_DB: silverfish
     ports:
       - "5433:5432"
     volumes:
-      - /opt/pitch/postgres:/var/lib/postgresql/data
+      - ./docker-data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d pitch"]
       interval: 5s
@@ -40,7 +40,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - /opt/pitch/redis:/data
+      - ./docker-data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -58,7 +58,7 @@ services:
     ports:
       - "9002:9000"
     volumes:
-      - /opt/pitch/minio:/data
+      - ./docker-data/minio:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -73,7 +73,7 @@ services:
     ports:
       - "3101:3100"
     volumes:
-      - /opt/pitch/loki:/loki
+      - ./docker-data/loki:/loki
     command: -config.file=/etc/loki/local-config.yaml
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
@@ -93,9 +93,9 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
-      - /opt/pitch/grafana:/var/lib/grafana
-      - /opt/pitch/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-      - /opt/pitch/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./docker-data/grafana:/var/lib/grafana
+      - ./docker-data/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./docker-data/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
     depends_on:
       loki:
         condition: service_healthy
@@ -155,13 +155,13 @@ services:
         labels: "job=worker"
         env: "SERVICE_NAME,HOSTNAME"
     volumes:
-      - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - video
-      - render
+      - ./docker-data/opencode-logs:/root/.local/share/opencode/log
+#    devices:
+#      - /dev/kfd:/dev/kfd
+#      - /dev/dri:/dev/dri
+#    group_add:
+#      - video
+#      - render
     deploy:
       replicas: 1
     depends_on:

@@ -91,6 +91,15 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 app.use(express.json());
 app.use(cors());
 app.use(cookieParser());
+
+// Extract token from query for SSE streams before clerkMiddleware
+app.use((req, res, next) => {
+  if (req.path === '/jobs/stream' && req.query.token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+});
+
 app.use(clerkMiddleware());
 
 // Structured HTTP request logging — every request logged with method, url, status, responseTime
@@ -190,10 +199,6 @@ app.post('/jobs', async (req, res) => {
 });
 
 app.get('/jobs/stream', (req, res) => {
-  // EventSource cannot send headers, so we accept the token as a query param
-  if (req.query.token && !req.headers.authorization) {
-    req.headers.authorization = `Bearer ${req.query.token}`;
-  }
   const { orgId, userId } = getAuth(req);
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
