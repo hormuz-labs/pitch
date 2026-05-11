@@ -55,7 +55,11 @@ From there, the AI should:
 1. Create and modify the `demo-config.json` inside the `demos/<demo-name>` folder.
 2. Modify any of the underlying TypeScript code (`src/`) if the specific demo requires custom logic or tweaks to make the right kind of demo. Remember, you must ONLY edit the copies located inside the `demos/` folder.
 3. NEVER run `npm install` or `bun install`.
-4. **Handling Errors/Resuming:** If an error occurs during execution (e.g., in Pass 2 or 3) and you need to retry, do not blindly redo the entire pipeline from scratch. You have context of what succeeded! Manually edit the `src/index.ts` file in the generated demo folder to comment out the passes (e.g., `// await pass1(...)`) that have already successfully completed, so you resume exactly from where the error occurred.
+4. **Handling Errors/Resuming:** If an error occurs during ANY phase of execution (Phase 0, 1, 2, 3, or 4) and you need to retry, you MUST NOT blindly redo the entire pipeline from scratch. You must manually edit the `src/index.ts` file in the generated demo folder and comment out EVERY pass that has already successfully completed before running the script again. 
+   - If `pass0` succeeded but `pass1` failed, comment out `// await pass0(...)` and fix `pass1`.
+   - If `pass1` succeeded but `pass2` failed, comment out `// await pass0(...)` AND `// await pass1(...)`.
+   - If `pass2` succeeded but `pass3` failed, comment out `pass0`, `pass1`, and `pass2`.
+   This ensures we never waste time or API costs regenerating the cinematic intro (`pass0`), validating selectors (`pass1`), or generating voiceovers (`pass2`) if they are already done.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 

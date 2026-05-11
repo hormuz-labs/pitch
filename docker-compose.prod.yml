@@ -1,0 +1,33 @@
+# Production overrides — applied on the Linux host via: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Remaps volumes to stable /opt/pitch paths and re-enables AMD GPU access for the worker.
+
+services:
+  postgres:
+    volumes:
+      - /opt/pitch/postgres:/var/lib/postgresql/data
+
+  redis:
+    volumes:
+      - /opt/pitch/redis:/data
+
+  minio:
+    volumes:
+      - /opt/pitch/minio:/data
+
+  loki:
+    volumes:
+      - /opt/pitch/loki:/loki
+
+  grafana:
+    volumes:
+      - /opt/pitch/grafana:/var/lib/grafana
+      - /opt/pitch/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - /opt/pitch/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+
+  worker:
+    volumes:
+      - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+

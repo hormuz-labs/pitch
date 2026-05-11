@@ -43,3 +43,7 @@ Thumbs.db
 # App-specific generated / transient files
 apps/web/public/videos/
 apps/web/dist/
+demos/
+*.webm
+*.mp4
+demos/

@@ -4,7 +4,6 @@ import {
   SignedIn, 
   SignedOut, 
   UserButton, 
-  OrganizationSwitcher,
   useAuth,
   useClerk,
   useUser
@@ -298,19 +297,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
         <h2 className="text-lg font-bold text-gray-900 ml-1">Pricing</h2>
       ) : (
         <div className="hidden sm:flex items-center h-8 shrink-0 sm:w-48">
-          <OrganizationSwitcher 
-            appearance={{
-              elements: {
-                rootBox: "w-full h-full flex items-center",
-                organizationSwitcherTrigger: "w-full h-full flex justify-between items-center py-1 px-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer",
-                organizationPreview: "flex items-center gap-2",
-                organizationPreviewTextContainer: "flex flex-col hidden sm:flex",
-                organizationPreviewMainIdentifier: "text-sm font-bold text-gray-900 leading-none truncate",
-                organizationPreviewSecondaryIdentifier: "text-[10px] text-gray-400 mt-0.5 truncate",
-                organizationSwitcherTriggerIcon: "w-4 h-4 text-gray-400 shrink-0"
-              }
-            }}
-          />
+          {/* OrganizationSwitcher removed because it is disabled in Clerk dashboard */}
         </div>
       )}
     </div>
