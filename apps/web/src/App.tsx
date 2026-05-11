@@ -391,6 +391,26 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Wrapper: always fetches a fresh token; on 401 retries once with force-refresh
+  const authFetch = async (input: string, init: RequestInit = {}): Promise<Response> => {
+    const token = await getToken();
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch(input, {
+      ...init,
+      headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) {
+      // Force Clerk to refresh the session token and retry once
+      const freshToken = await getToken({ skipCache: true });
+      if (!freshToken) throw new Error('Not authenticated');
+      return fetch(input, {
+        ...init,
+        headers: { ...(init.headers ?? {}), Authorization: `Bearer ${freshToken}` },
+      });
+    }
+    return res;
+  };
+
   // Responsive
   useEffect(() => {
     const handleResize = () => {
@@ -412,15 +432,11 @@ function AppContent() {
 
     const syncUser = async () => {
       try {
-        const token = await getToken();
         const primaryEmail = user.primaryEmailAddress?.emailAddress;
         if (!primaryEmail) return;
-        await fetch(`${API_URL}/users/sync`, {
+        await authFetch(`${API_URL}/users/sync`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: primaryEmail,
             firstName: user.firstName,
@@ -443,10 +459,7 @@ function AppContent() {
 
     const fetchJobs = async () => {
       try {
-        const token = await getToken();
-        const res = await fetch(`${API_URL}/jobs`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await authFetch(`${API_URL}/jobs`);
         const data = await res.json();
         if (Array.isArray(data)) setProjects(data);
       } catch (err) {
@@ -457,15 +470,15 @@ function AppContent() {
     fetchJobs();
   }, [isLoaded, userId, orgId, getToken]);
 
-  // Listen to SSE updates
+  // Listen to SSE updates — reconnects automatically with a fresh token on close/error
   useEffect(() => {
     if (!isLoaded || !userId) return;
-    
-    let sse: EventSource;
-    getToken().then(token => {
-      sse = new EventSource(`${API_URL}/jobs/stream?token=${token}`);
 
-      sse.onmessage = (event) => {
+    let sse: EventSource | null = null;
+    let destroyed = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         const currentTenantId = orgId || userId;
@@ -528,21 +541,38 @@ function AppContent() {
       }
     };
 
-    });
+    const connect = async () => {
+      if (destroyed) return;
+      // Always fetch a fresh token so the SSE URL never carries an expired JWT
+      const token = await getToken();
+      if (!token || destroyed) return;
+      sse = new EventSource(`${API_URL}/jobs/stream?token=${token}`);
+      sse.onmessage = handleMessage;
+      sse.onerror = () => {
+        sse?.close();
+        sse = null;
+        if (!destroyed) {
+          // Reconnect after 3 s with a brand-new token
+          retryTimeout = setTimeout(connect, 3000);
+        }
+      };
+    };
 
-    return () => sse?.close();
+    connect();
+
+    return () => {
+      destroyed = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      sse?.close();
+    };
   }, [isLoaded, userId, orgId]);
 
   const handleQueueJob = async (values: any) => {
     setIsSubmitting(true);
     try {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/jobs`, {
+      const res = await authFetch(`${API_URL}/jobs`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           parameters: { url: values.url, instructions: values.instructions, script: values.script }
         })
@@ -564,11 +594,7 @@ function AppContent() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = await getToken();
-      await fetch(`${API_URL}/jobs/${id}`, { 
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await authFetch(`${API_URL}/jobs/${id}`, { method: 'DELETE' });
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch {
       toast('Failed to delete job', 'error');
