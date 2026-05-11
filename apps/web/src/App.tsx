@@ -588,6 +588,9 @@ function AppContent() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) {
+        if (res.status === 402) {
+          throw new Error('You have no credits remaining. Please top up to retry generating videos.');
+        }
         throw new Error('Failed to retry job');
       }
       const updatedJob = await res.json();

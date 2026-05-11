@@ -266,7 +266,13 @@ app.post('/jobs/:id/retrigger', async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
+    const balance = await db.getCreditBalance(userId);
+    if (balance < 3) {
+      return res.status(402).json({ error: 'Insufficient credits', balance });
+    }
+
     const updatedJob = await db.updateJob(id, { status: JobStatus.PENDING, videoUrl: undefined });
+    await db.deductCredit(userId, 3, 'job_retriggered', updatedJob.id);
     
     // Ensure we remove the old job from queue if it's there (e.g. failed state)
     const existingJob = await videoQueue.getJob(id);

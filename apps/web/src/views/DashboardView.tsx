@@ -172,7 +172,14 @@ const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProp
               </div>
             ) : (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (project.status === 'FAILED') {
+                    setIsPendingDelete(true);
+                  } else {
+                    setShowModal(true); 
+                  }
+                }}
                 className="p-1.5 rounded-md text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center cursor-pointer"
                 id={`delete-btn-${project.id}`}
                 title="Delete"
@@ -198,7 +205,7 @@ const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProp
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Video</h3>
             <p className="text-sm text-gray-500 mb-6 text-balance leading-relaxed">
-              Are you sure you want to delete this video? Please note that the credits used for this generation are <span className="font-semibold text-gray-700">non-refundable</span>.<br/><br/>If you want to retry a failed generation, you can click the retry button on the card and <span className="font-semibold text-gray-700">no additional credits</span> will be deducted.
+              Are you sure you want to delete this video? Please note that the credits used for this generation are <span className="font-semibold text-gray-700">non-refundable</span> because the video has already started rendering or is completed.
             </p>
             <div className="flex gap-3 w-full">
               <button 
