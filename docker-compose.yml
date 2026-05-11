@@ -156,12 +156,12 @@ services:
         env: "SERVICE_NAME,HOSTNAME"
     volumes:
       - ./docker-data/opencode-logs:/root/.local/share/opencode/log
-#    devices:
-#      - /dev/kfd:/dev/kfd
-#      - /dev/dri:/dev/dri
-#    group_add:
-#      - video
-#      - render
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
     deploy:
       replicas: 1
     depends_on:
