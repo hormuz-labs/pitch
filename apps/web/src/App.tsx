@@ -559,6 +559,7 @@ function AppContent() {
       });
       setFormValues({});
       navigate('/dashboard');
+      window.dispatchEvent(new Event('credits-changed'));
     } catch (err: any) {
       toast(err.message || 'An error occurred', 'error');
     } finally {
@@ -598,6 +599,7 @@ function AppContent() {
         return exists ? prev.map(p => p.id === updatedJob.id ? updatedJob : p) : [...prev, updatedJob];
       });
       toast('Job queued for retry', 'success');
+      window.dispatchEvent(new Event('credits-changed'));
     } catch (err: any) {
       toast(err.message || 'An error occurred', 'error');
     }

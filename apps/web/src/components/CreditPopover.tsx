@@ -27,6 +27,13 @@ export const CreditPopover = () => {
       }
     };
     fetchBalance();
+
+    const handleCreditsChanged = () => {
+      fetchBalance();
+    };
+
+    window.addEventListener('credits-changed', handleCreditsChanged);
+    return () => window.removeEventListener('credits-changed', handleCreditsChanged);
   }, [getToken]);
 
   return (
