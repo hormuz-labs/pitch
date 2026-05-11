@@ -31,6 +31,7 @@ export const SettingsView = () => {
     const fetchCredits = async () => {
       try {
         const token = await getToken();
+        if (!token) return;
         const res = await fetch(`${API_URL}/credits`, {
           headers: { Authorization: `Bearer ${token}` },
         });
