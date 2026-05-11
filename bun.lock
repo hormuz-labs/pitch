@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "silverfish",
+      "name": "pitch",
       "dependencies": {
         "@google/genai": "",
         "dotenv": "",
