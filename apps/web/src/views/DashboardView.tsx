@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import type { Project } from '../types';
 import { TimedUndoAction } from '../components/TimedUndoAction';
@@ -86,6 +87,7 @@ interface VideoCardProps {
 
 const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
   const [isPendingDelete, setIsPendingDelete] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [duration, setDuration] = useState<number | null>(null);
 
   const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -170,7 +172,7 @@ const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProp
               </div>
             ) : (
               <button
-                onClick={(e) => { e.stopPropagation(); setIsPendingDelete(true); }}
+                onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
                 className="p-1.5 rounded-md text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center cursor-pointer"
                 id={`delete-btn-${project.id}`}
                 title="Delete"
@@ -181,6 +183,41 @@ const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProp
           </div>
         </div>
       </div>
+
+      {showModal && createPortal(
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={(e) => { e.stopPropagation(); setShowModal(false); }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <IconTrashSm />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Video</h3>
+            <p className="text-sm text-gray-500 mb-6 text-balance leading-relaxed">
+              Are you sure you want to delete this video? Please note that the credits used for this generation are <span className="font-semibold text-gray-700">non-refundable</span>.<br/><br/>If you want to retry a failed generation, you can click the retry button on the card and <span className="font-semibold text-gray-700">no additional credits</span> will be deducted.
+            </p>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-gray-200"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => { setShowModal(false); setIsPendingDelete(true); }}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-red-700"
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

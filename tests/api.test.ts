@@ -297,21 +297,11 @@ describe('POST /jobs/:id/retrigger', () => {
 
   it('re-enqueues and returns updated job', async () => {
     vi.mocked(db.getJob).mockResolvedValue(makeJob() as any);
-    vi.mocked(db.getCreditBalance).mockResolvedValue(3);
     vi.mocked(db.updateJob).mockResolvedValue(makeJob({ status: JobStatus.PENDING }) as any);
 
     const res = await request(app).post('/jobs/job_1/retrigger');
     expect(res.status).toBe(200);
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.PENDING, videoUrl: undefined });
-    expect(db.deductCredit).toHaveBeenCalledWith('user_test', 3, 'job_retriggered', 'job_1');
-  });
-
-  it('returns 402 if insufficient credits', async () => {
-    vi.mocked(db.getJob).mockResolvedValue(makeJob() as any);
-    vi.mocked(db.getCreditBalance).mockResolvedValue(0);
-
-    const res = await request(app).post('/jobs/job_1/retrigger');
-    expect(res.status).toBe(402);
   });
 });
 
