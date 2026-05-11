@@ -49,6 +49,11 @@ dev:
 			echo "  $(GREEN)Waiting for services to be healthy...$(RESET)"; \
 			sleep 3; \
 			echo ""; \
+			if [ ! -d node_modules ] || [ bun.lock -nt node_modules ]; then \
+				echo "  $(GREEN)Installing dependencies...$(RESET)"; \
+				bun install; \
+				echo ""; \
+			fi; \
 			echo "  $(GREEN)Starting bun dev servers (Ctrl+C to stop all)...$(RESET)"; \
 			echo ""; \
 			bun run dev ;; \
