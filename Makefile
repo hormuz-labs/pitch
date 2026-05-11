@@ -70,6 +70,9 @@ prod:
 	@echo ""
 	@echo "  $(BOLD)$(CYAN)Starting production stack...$(RESET)"
 	@echo ""
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml stop api worker
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml rm -f api worker
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache api worker
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 	@echo ""
 	@echo "  $(GREEN)Production stack is up. Run 'make logs' to tail output.$(RESET)"
@@ -83,7 +86,7 @@ down:
 	@echo ""
 
 logs:
-	docker compose logs -f
+	docker compose logs -f api worker
 
 ps:
 	docker compose ps
