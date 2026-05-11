@@ -56,3 +56,4 @@ opencode-logs/
 demos/**
 .vercel
 .playwright-cli/
+docker-data/
