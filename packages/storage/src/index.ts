@@ -54,7 +54,7 @@ async function ensureBucketExists(bucketName: string) {
 export async function uploadFile(localPath: string, bucketOverride?: string) {
   const targetBucket = bucketOverride ?? bucket;
   const filename = path.basename(localPath);
-  const fileStream = fs.createReadStream(localPath);
+  const fileStream = fs.readFileSync(localPath);
   const contentType = localPath.endsWith('.mp4')
     ? 'video/mp4'
     : localPath.endsWith('.wav') || localPath.endsWith('.mp3')

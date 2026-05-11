@@ -15,8 +15,7 @@ generator client {
 }
 
 model User {
-  id    String  @id()
-  orgId String?
+  id String @id()
 
   @@ignore()
 }
@@ -53,7 +52,6 @@ model CreditTransaction {
 model Job {
   id         String   @id() @default(cuid())
   userId     String
-  orgId      String
   status     String
   videoUrl   String?
   audioUrl   String?
@@ -61,7 +59,7 @@ model Job {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt()
 
-  @@index([orgId])
+  @@index([userId])
 }
 
 model Affiliate {

@@ -375,7 +375,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 
 // ── App Content ───────────────────────────────────────────────────────────────
 function AppContent() {
-  const { getToken, isLoaded, userId, orgId } = useAuth();
+  const { getToken, isLoaded, userId } = useAuth();
   const { signOut } = useClerk();
   const { user } = useUser();
   const { toast } = useToast();
@@ -455,7 +455,7 @@ function AppContent() {
     };
     
     fetchJobs();
-  }, [isLoaded, userId, orgId, getToken]);
+  }, [isLoaded, userId, getToken]);
 
   // Listen to SSE updates
   useEffect(() => {
@@ -468,8 +468,7 @@ function AppContent() {
       sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        const currentTenantId = orgId || userId;
-        if (data.orgId !== currentTenantId && data.userId !== userId) return;
+        if (data.userId !== userId) return;
 
         if (data.type === 'LOG') {
           const { jobId, event: opencodeEvent } = data;
@@ -531,7 +530,7 @@ function AppContent() {
     });
 
     return () => sse?.close();
-  }, [isLoaded, userId, orgId]);
+  }, [isLoaded, userId]);
 
   const handleQueueJob = async (values: any) => {
     setIsSubmitting(true);
@@ -553,6 +552,11 @@ function AppContent() {
         }
         throw new Error('Failed to queue job');
       }
+      const newJob = await res.json();
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === newJob.id);
+        return exists ? prev.map(p => p.id === newJob.id ? newJob : p) : [...prev, newJob];
+      });
       setFormValues({});
       navigate('/dashboard');
     } catch (err: any) {

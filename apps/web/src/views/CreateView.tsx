@@ -57,6 +57,7 @@ interface CreateViewProps {
 export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob }: CreateViewProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAudioPreview, setShowAudioPreview] = useState(false);
+  const [isValidatingUrl, setIsValidatingUrl] = useState(false);
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value });
@@ -64,10 +65,32 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
     if (errors[key]) setErrors(e => { const n = { ...e }; delete n[key]; return n; });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (!formValues.url?.trim()) errs.url = 'Please enter a URL';
+    const url = formValues.url?.trim();
+    
+    if (!url) {
+      errs.url = 'Please enter a URL';
+    } else {
+      try {
+        // First check if it's a validly formatted URL
+        new URL(url);
+        
+        // Then check reachability
+        setIsValidatingUrl(true);
+        try {
+          await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+        } catch (err) {
+          errs.url = 'URL appears to be unreachable. Please check the address.';
+        } finally {
+          setIsValidatingUrl(false);
+        }
+      } catch {
+        errs.url = 'Please enter a valid URL (e.g. https://example.com)';
+      }
+    }
+
     if (!formValues.instructions?.trim()) errs.instructions = 'Please provide instructions';
     if (Object.keys(errs).length) { setErrors(errs); return; }
     onQueueJob({ 
@@ -216,12 +239,12 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
             {/* Submit */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isValidatingUrl}
               id="generate-demo-btn"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-500 ease-out disabled:opacity-50 flex items-center justify-center gap-2 border-none cursor-pointer bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] text-white hover:[background-position:99%_center] shadow-lg shadow-black/5 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? <IconLoader /> : <IconPlay />}
-              {isSubmitting ? 'Queuing…' : 'Generate Demo'}
+              {isSubmitting || isValidatingUrl ? <IconLoader /> : <IconPlay />}
+              {isSubmitting ? 'Queuing…' : isValidatingUrl ? 'Validating URL…' : 'Generate Demo'}
             </button>
           </form>
         </div>

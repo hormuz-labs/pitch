@@ -39,7 +39,7 @@ const PACKS: { key: PackKey; name: string; price: number; credits: number; desc:
     price: 130,
     credits: 200,
     desc: 'High-volume teams and agencies who need scale.',
-    features: ['200 AI credits', '35% savings vs. Starter', 'Up to 1080p exports', 'Custom agent fine-tuning', 'SSO / SAML', 'Dedicated account manager'],
+    features: ['Custom AI credits volume', 'Volume discounts', 'Up to 1080p exports', 'Custom agent fine-tuning', 'Dedicated account manager'],
   },
 ];
 
@@ -116,14 +116,28 @@ export const PricingView = () => {
 
               <div className="mb-5 mt-2">
                 <h2 className="text-xl font-bold text-gray-900 mb-3">{pack.name}</h2>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-3xl font-bold text-gray-900">${pack.price}</span>
-                  <span className="text-sm font-medium text-gray-500">one-time</span>
-                </div>
-                <div className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
-                  <IconZap />
-                  {pack.credits} credits
-                </div>
+                {pack.key === 'enterprise' ? (
+                  <>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-3xl font-bold text-gray-900">Custom</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
+                      <IconZap />
+                      Volume deal
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-3xl font-bold text-gray-900">${pack.price}</span>
+                      <span className="text-sm font-medium text-gray-500">one-time</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
+                      <IconZap />
+                      {pack.credits} credits
+                    </div>
+                  </>
+                )}
                 <p className="text-xs text-gray-500 leading-relaxed">{pack.desc}</p>
               </div>
 

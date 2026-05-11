@@ -68,7 +68,7 @@ async function pushAction(options: { jobId: string; file: string; audio?: string
     try {
       const failedJob = await (db.updateJob as any)(jobId, { status: JobStatus.FAILED });
       await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
-      const tenantId = failedJob.orgId || failedJob.userId;
+      const tenantId = failedJob.userId;
       await (db.addCredits as any)(tenantId, 3, 'job_failed_refund', jobId);
     } catch { /* swallow refund errors */ }
     return { success: false, error: error.message };
@@ -84,7 +84,7 @@ async function statusAction(options: { jobId: string; status: string }) {
   await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
 
   if (jobStatus === JobStatus.FAILED) {
-    const tenantId = updatedJob.orgId || updatedJob.userId;
+    const tenantId = updatedJob.userId;
     await (db.addCredits as any)(tenantId, 3, 'job_failed_refund', jobId);
   }
 
@@ -95,8 +95,7 @@ async function statusAction(options: { jobId: string; status: string }) {
 const makeJob = (overrides: Record<string, any> = {}) => ({
   id:        'job_1',
   userId:    'user_test',
-  orgId:     'org_abc',
-  status:    JobStatus.PENDING,
+    status:    JobStatus.PENDING,
   parameters: {},
   videoUrl:  undefined,
   audioUrl:  undefined,
@@ -166,7 +165,7 @@ describe('push action — partial upload failure', () => {
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.FAILED });
 
     // Credit must be refunded — user is not charged for a partial failure
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('user_test', 3, 'job_failed_refund', 'job_1');
   });
 
   it('does not call deleteFile when video upload itself fails (nothing was uploaded)', async () => {
@@ -181,7 +180,7 @@ describe('push action — partial upload failure', () => {
     // Nothing was uploaded so nothing should be cleaned up
     expect(storage.deleteFile).not.toHaveBeenCalled();
     // Still refunds credit
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('user_test', 3, 'job_failed_refund', 'job_1');
   });
 
   it('cleans up both video and audio when db update fails after both uploads succeed', async () => {
@@ -203,7 +202,7 @@ describe('push action — partial upload failure', () => {
     expect(storage.deleteFile).toHaveBeenCalledTimes(2);
 
     // Credit refunded
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('user_test', 3, 'job_failed_refund', 'job_1');
   });
 });
 
@@ -220,12 +219,12 @@ describe('push action — failure path (credit refund)', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe('S3 timeout');
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.FAILED });
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('user_test', 3, 'job_failed_refund', 'job_1');
   });
 
-  it('uses userId as tenantId when orgId is empty', async () => {
+  it('uses userId as tenantId', async () => {
     vi.mocked(storage.uploadFile as any).mockRejectedValue(new Error('network error'));
-    const failedJob = makeJob({ orgId: '', userId: 'user_solo', status: JobStatus.FAILED });
+    const failedJob = makeJob({ userId: 'user_solo', status: JobStatus.FAILED });
     vi.mocked(db.updateJob as any).mockResolvedValue(failedJob);
     vi.mocked(db.addCredits as any).mockResolvedValue(1);
 
@@ -261,7 +260,7 @@ describe('status action — FAILED triggers refund', () => {
     await statusAction({ jobId: 'job_1', status: 'FAILED' });
 
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.FAILED });
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('user_test', 3, 'job_failed_refund', 'job_1');
   });
 
   it('does NOT refund when status is set to COMPLETED', async () => {

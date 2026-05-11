@@ -138,23 +138,23 @@ const subscriber = new Redis(redisUrl);
 const videoQueue = new Queue(QUEUE_NAME, { connection });
 
 app.get('/jobs', async (req, res) => {
-  const { orgId, userId } = getAuth(req);
+  const { userId } = getAuth(req);
   
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
-    const jobs = await db.listJobs({ id: userId, orgId });
+    const jobs = await db.listJobs({ id: userId });
     res.json(jobs);
   } catch (error: any) {
-    logger.error({ err: error, userId, orgId }, 'Failed to list jobs');
+    logger.error({ err: error, userId }, 'Failed to list jobs');
     res.status(500).json({ error: error.message });
   }
 });
 
 app.post('/jobs', async (req, res) => {
-  const { orgId, userId } = getAuth(req);
+  const { userId } = getAuth(req);
   const { parameters } = req.body as { parameters: any };
   
   if (!userId) {
@@ -162,7 +162,7 @@ app.post('/jobs', async (req, res) => {
   }
 
   try {
-    const tenantId = orgId || userId;
+    const tenantId = userId;
 
     // Check credit balance — hard block if 0
     const balance = await db.getCreditBalance(tenantId);
@@ -171,7 +171,7 @@ app.post('/jobs', async (req, res) => {
       return res.status(402).json({ error: 'Insufficient credits', balance });
     }
 
-    const job = await db.createJob({ userId, orgId: tenantId, parameters }, { id: userId, orgId });
+    const job = await db.createJob({ userId, parameters }, { id: userId });
 
     // Deduct 3 credits atomically
     await db.deductCredit(tenantId, 3, 'job_created', job.id);
@@ -193,13 +193,13 @@ app.post('/jobs', async (req, res) => {
     }).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for job creation'));
     res.status(201).json(job);
   } catch (error: any) {
-    logger.error({ err: error, userId, orgId }, 'Failed to create job');
+    logger.error({ err: error, userId }, 'Failed to create job');
     res.status(500).json({ error: error.message });
   }
 });
 
 app.get('/jobs/stream', (req, res) => {
-  const { orgId, userId } = getAuth(req);
+  const { userId } = getAuth(req);
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -209,15 +209,15 @@ app.get('/jobs/stream', (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const currentTenantId = orgId || userId;
-  logger.info({ userId, tenantId: currentTenantId }, 'SSE stream connected');
+  const currentTenantId = userId;
+  logger.info({ userId, tenantId: userId }, 'SSE stream connected');
 
   const handler = (channel: string, message: string) => {
     if (channel === JOB_UPDATES_CHANNEL) {
       try {
         const data = JSON.parse(message);
         // Only broadcast if the job belongs to the current tenant (org or user)
-        if (data.orgId === currentTenantId || data.userId === userId || data.job?.orgId === currentTenantId) {
+        if (data.userId === userId || data.job?.userId === userId) {
           res.write(`data: ${message}\n\n`);
         }
       } catch (e) {
@@ -231,16 +231,16 @@ app.get('/jobs/stream', (req, res) => {
 
   req.on('close', () => {
     subscriber.off('message', handler);
-    logger.info({ userId, tenantId: currentTenantId }, 'SSE stream disconnected');
+    logger.info({ userId, tenantId: userId }, 'SSE stream disconnected');
   });
 });
 
 app.get('/jobs/:id', async (req, res) => {
-  const { orgId, userId } = getAuth(req);
+  const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    const job = await db.getJob(req.params.id, { id: userId, orgId });
+    const job = await db.getJob(req.params.id, { id: userId });
     if (!job) return res.status(404).json({ error: 'Job not found' });
     res.json(job);
   } catch (error: any) {
@@ -253,14 +253,14 @@ app.get('/jobs/:id', async (req, res) => {
 });
 
 app.post('/jobs/:id/retrigger', async (req, res) => {
-  const { orgId, userId } = getAuth(req);
+  const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   const { id } = req.params;
   
   try {
     // getJob will use ZenStack to verify the user has access
-    const job = await db.getJob(id, { id: userId, orgId });
+    const job = await db.getJob(id, { id: userId });
     
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
@@ -292,7 +292,7 @@ app.post('/jobs/:id/retrigger', async (req, res) => {
 });
 
 app.delete('/jobs/:id', async (req, res) => {
-  const { orgId, userId } = getAuth(req);
+  const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   const { id } = req.params;
@@ -300,12 +300,16 @@ app.delete('/jobs/:id', async (req, res) => {
     // Attempt to remove from BullMQ first
     const bullJob = await videoQueue.getJob(id);
     if (bullJob) {
-      await bullJob.remove();
-      logger.info({ jobId: id, userId }, 'Removed job from BullMQ queue');
+      try {
+        await bullJob.remove();
+        logger.info({ jobId: id, userId }, 'Removed job from BullMQ queue');
+      } catch (err: any) {
+        logger.warn({ jobId: id, userId, err: err.message }, 'Failed to remove job from BullMQ (possibly locked/active)');
+      }
     }
 
     // ZenStack will automatically throw a P2004 error if unauthorized to delete
-    await db.deleteJob(id, { id: userId, orgId });
+    await db.deleteJob(id, { id: userId });
     logger.info({ jobId: id, userId }, 'Job deleted');
     res.status(204).send();
   } catch (error: any) {
@@ -318,16 +322,16 @@ app.delete('/jobs/:id', async (req, res) => {
 });
 
 app.get('/credits', async (req, res) => {
-  const { orgId, userId } = getAuth(req);
+  const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    const tenantId = orgId || userId;
+    const tenantId = userId;
     const balance = await db.getCreditBalance(tenantId);
     const transactions = await db.getCreditTransactions(tenantId);
     res.json({ balance, transactions });
   } catch (error: any) {
-    logger.error({ err: error, userId, orgId }, 'Failed to fetch credits');
+    logger.error({ err: error, userId }, 'Failed to fetch credits');
     res.status(500).json({ error: error.message });
   }
 });

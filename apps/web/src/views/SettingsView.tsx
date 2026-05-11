@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, OrganizationProfile, useOrganization, useAuth } from '@clerk/clerk-react';
-import { DollarSignIcon, User, Building, CreditCard } from 'lucide-react';
+import { UserProfile, useAuth } from '@clerk/clerk-react';
+import { DollarSignIcon, User, CreditCard } from 'lucide-react';
 import walletIcon from '../assets/wallet.svg';
 import { OptionPicker } from '../components/OptionPicker';
 import { API_URL } from '../config';
 
 const TAB_OPTIONS = [
   { id: 'profile', label: 'My Profile', icon: User },
-  { id: 'organization', label: 'Organization', icon: Building },
-  { id: 'billing', label: 'Billing & Credits', icon: CreditCard },
+    { id: 'billing', label: 'Billing & Credits', icon: CreditCard },
 ];
 
 interface CreditTransaction {
@@ -20,8 +19,7 @@ interface CreditTransaction {
 }
 
 export const SettingsView = () => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'billing'>('profile');
-  const { organization } = useOrganization();
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
   const { getToken } = useAuth();
   const [balance, setBalance] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
@@ -74,13 +72,6 @@ export const SettingsView = () => {
               My Profile
             </button>
             <button
-              onClick={() => setActiveTab('organization')}
-              className={`flex items-center shrink-0 gap-2 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'organization' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
-            >
-              <Building className="w-4 h-4" />
-              Organization
-            </button>
-            <button
               onClick={() => setActiveTab('billing')}
               className={`flex items-center shrink-0 gap-2 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'billing' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
             >
@@ -106,34 +97,6 @@ export const SettingsView = () => {
                    }
                  }} 
                />
-             </div>
-          )}
-          {activeTab === 'organization' && (
-             <div className="w-full h-full overflow-y-auto">
-               {organization ? (
-                 <OrganizationProfile 
-                   routing="hash"
-                   appearance={{
-                     elements: {
-                       rootBox: "w-full",
-                       cardBox: "w-full shadow-sm rounded-2xl border border-gray-200",
-                     }
-                   }}
-                 />
-               ) : (
-                 <div className="w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center mx-auto mt-8">
-                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-                       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                       <circle cx="9" cy="7" r="4" />
-                       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                     </svg>
-                   </div>
-                   <h3 className="text-lg font-bold text-gray-900 mb-2">No Active Organization</h3>
-                   <p className="text-gray-500 mb-6 max-w-sm mx-auto">You are not currently active in any organization. Switch to an organization using the switcher in the sidebar.</p>
-                 </div>
-               )}
              </div>
           )}
           {activeTab === 'billing' && (
