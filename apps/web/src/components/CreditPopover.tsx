@@ -14,7 +14,7 @@ export const CreditPopover = () => {
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const token = await getToken();
+        const token = await getToken({ skipCache: true });
         if (!token) return;
         const res = await fetch(`${API_URL}/credits`, {
           headers: { Authorization: `Bearer ${token}` },

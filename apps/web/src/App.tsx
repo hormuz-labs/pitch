@@ -391,6 +391,26 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Wrapper: always fetches a fresh token; on 401 retries once with force-refresh
+  const authFetch = async (input: string, init: RequestInit = {}): Promise<Response> => {
+    const token = await getToken();
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch(input, {
+      ...init,
+      headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) {
+      // Force Clerk to refresh the session token and retry once
+      const freshToken = await getToken({ skipCache: true });
+      if (!freshToken) throw new Error('Not authenticated');
+      return fetch(input, {
+        ...init,
+        headers: { ...(init.headers ?? {}), Authorization: `Bearer ${freshToken}` },
+      });
+    }
+    return res;
+  };
+
   // Responsive
   useEffect(() => {
     const handleResize = () => {
@@ -412,15 +432,11 @@ function AppContent() {
 
     const syncUser = async () => {
       try {
-        const token = await getToken();
         const primaryEmail = user.primaryEmailAddress?.emailAddress;
-        if (!token || !primaryEmail) return;
-        await fetch(`${API_URL}/users/sync`, {
+        if (!primaryEmail) return;
+        await authFetch(`${API_URL}/users/sync`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: primaryEmail,
             firstName: user.firstName,
@@ -443,11 +459,7 @@ function AppContent() {
 
     const fetchJobs = async () => {
       try {
-        const token = await getToken();
-        if (!token) return;
-        const res = await fetch(`${API_URL}/jobs`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await authFetch(`${API_URL}/jobs`);
         const data = await res.json();
         if (Array.isArray(data)) setProjects(data);
       } catch (err) {
@@ -557,14 +569,9 @@ function AppContent() {
   const handleQueueJob = async (values: any) => {
     setIsSubmitting(true);
     try {
-      const token = await getToken();
-      if (!token) throw new Error('Not authenticated');
-      const res = await fetch(`${API_URL}/jobs`, {
+      const res = await authFetch(`${API_URL}/jobs`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           parameters: { url: values.url, instructions: values.instructions, script: values.script }
         })
@@ -592,12 +599,7 @@ function AppContent() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = await getToken();
-      if (!token) return;
-      await fetch(`${API_URL}/jobs/${id}`, { 
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await authFetch(`${API_URL}/jobs/${id}`, { method: 'DELETE' });
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch {
       toast('Failed to delete job', 'error');

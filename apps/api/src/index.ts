@@ -100,7 +100,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(clerkMiddleware());
+app.use(clerkMiddleware({ clockSkewInMs: 60_000 }));
 
 // Structured HTTP request logging — every request logged with method, url, status, responseTime
 app.use(pinoHttp({
