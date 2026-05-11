@@ -15,7 +15,7 @@ plugin prisma {
 
 plugin enhancer {
   provider = "@core/enhancer"
-  output = "../node_modules/@zenstackhq/runtime"
+  output = "../../../node_modules/@zenstackhq/runtime"
 }
 
 // Dummy user model for ZenStack auth type-checking

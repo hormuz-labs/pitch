@@ -190,6 +190,10 @@ app.post('/jobs', async (req, res) => {
 });
 
 app.get('/jobs/stream', (req, res) => {
+  // EventSource cannot send headers, so we accept the token as a query param
+  if (req.query.token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
   const { orgId, userId } = getAuth(req);
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });

@@ -474,9 +474,11 @@ function AppContent() {
   useEffect(() => {
     if (!isLoaded || !userId) return;
     
-    const sse = new EventSource(`${API_URL}/jobs/stream`);
+    let sse: EventSource;
+    getToken().then(token => {
+      sse = new EventSource(`${API_URL}/jobs/stream?token=${token}`);
 
-    sse.onmessage = (event) => {
+      sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         const currentTenantId = orgId || userId;
@@ -539,7 +541,9 @@ function AppContent() {
       }
     };
 
-    return () => sse.close();
+    });
+
+    return () => sse?.close();
   }, [isLoaded, userId, orgId]);
 
   const handleQueueJob = async (values: any) => {
