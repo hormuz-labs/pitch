@@ -129,7 +129,13 @@ function buildApp() {
     try {
       const job = await (db.getJob as any)(req.params.id, { id: userId });
       if (!job) return res.status(404).json({ error: 'Job not found' });
+      
+      const balance = await (db.getCreditBalance as any)(userId);
+      if (balance < 3) return res.status(402).json({ error: 'Insufficient credits', balance });
+
       const updated = await (db.updateJob as any)(req.params.id, { status: JobStatus.PENDING, videoUrl: undefined });
+      await (db.deductCredit as any)(userId, 3, 'job_retriggered', updated.id);
+      
       const existing = await videoQueue.getJob(req.params.id);
       if (existing) await existing.remove();
       await videoQueue.add('generate-video', { jobId: updated.id, userId: updated.userId, parameters: updated.parameters }, { jobId: updated.id });
@@ -291,11 +297,21 @@ describe('POST /jobs/:id/retrigger', () => {
 
   it('re-enqueues and returns updated job', async () => {
     vi.mocked(db.getJob).mockResolvedValue(makeJob() as any);
+    vi.mocked(db.getCreditBalance).mockResolvedValue(3);
     vi.mocked(db.updateJob).mockResolvedValue(makeJob({ status: JobStatus.PENDING }) as any);
 
     const res = await request(app).post('/jobs/job_1/retrigger');
     expect(res.status).toBe(200);
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.PENDING, videoUrl: undefined });
+    expect(db.deductCredit).toHaveBeenCalledWith('user_test', 3, 'job_retriggered', 'job_1');
+  });
+
+  it('returns 402 if insufficient credits', async () => {
+    vi.mocked(db.getJob).mockResolvedValue(makeJob() as any);
+    vi.mocked(db.getCreditBalance).mockResolvedValue(0);
+
+    const res = await request(app).post('/jobs/job_1/retrigger');
+    expect(res.status).toBe(402);
   });
 });
 

@@ -579,6 +579,30 @@ function AppContent() {
     }
   };
 
+  const handleRetry = async (id: string) => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/jobs/${id}/retrigger`, { 
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        if (res.status === 402) {
+          throw new Error('You have no credits remaining. Please top up to retry generating videos.');
+        }
+        throw new Error('Failed to retry job');
+      }
+      const updatedJob = await res.json();
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === updatedJob.id);
+        return exists ? prev.map(p => p.id === updatedJob.id ? updatedJob : p) : [...prev, updatedJob];
+      });
+      toast('Job queued for retry', 'success');
+    } catch (err: any) {
+      toast(err.message || 'An error occurred', 'error');
+    }
+  };
+
   let selectedKey = 'dashboard';
   let projectTitle;
   let onDownload;
@@ -638,7 +662,7 @@ function AppContent() {
             <main className="flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} />} />
+                <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} onRetry={handleRetry} />} />
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />

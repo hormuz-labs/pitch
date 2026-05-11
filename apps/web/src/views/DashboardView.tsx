@@ -81,9 +81,10 @@ interface VideoCardProps {
   project: Project;
   onClick: () => void;
   onConfirmDelete: () => void;
+  onRetry: () => void;
 }
 
-const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
+const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
   const [isPendingDelete, setIsPendingDelete] = useState(false);
   const [duration, setDuration] = useState<number | null>(null);
 
@@ -134,7 +135,22 @@ const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
         <div className="flex items-center justify-between h-8">
           <StatusBadge status={project.status} />
           
-          <div className="flex justify-end relative h-full items-center">
+          <div className="flex justify-end relative h-full items-center gap-1.5">
+            {project.status === 'FAILED' && !isPendingDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRetry(); }}
+                className="p-1.5 rounded-md text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center justify-center cursor-pointer"
+                title="Retry"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                  <path d="M16 16h5v5"/>
+                </svg>
+              </button>
+            )}
+            
             {isPendingDelete ? (
               <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-1/2 -translate-y-1/2 origin-right whitespace-nowrap z-10">
                 <TimedUndoAction
@@ -175,9 +191,10 @@ interface DashboardViewProps {
   searchQuery: string;
   isMobile: boolean;
   onDelete: (id: string) => void;
+  onRetry: (id: string) => void;
 }
 
-export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: DashboardViewProps) => {
+export const DashboardView = ({ projects, searchQuery, isMobile, onDelete, onRetry }: DashboardViewProps) => {
   const navigate = useNavigate();
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
@@ -272,6 +289,7 @@ export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: Das
               project={project}
               onClick={() => navigate(`/editor/${project.id}`)}
               onConfirmDelete={() => onDelete(project.id)}
+              onRetry={() => onRetry(project.id)}
             />
           ))}
         </div>
