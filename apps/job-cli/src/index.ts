@@ -107,7 +107,7 @@ program
         await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (CLI error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
         
         const tenantId = failedJob.orgId || failedJob.userId;
-        await db.addCredits(tenantId, 1, 'job_failed_refund', jobId);
+        await db.addCredits(tenantId, 3, 'job_failed_refund', jobId);
         console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
       } catch (refundError: any) {
         console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
@@ -148,11 +148,11 @@ program
         await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Status manual update)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}`);
       }
 
-      // Refund 1 credit if the job is being marked as FAILED
+      // Refund 3 credits if the job is being marked as FAILED
       if (jobStatus === JobStatus.FAILED) {
         try {
           const tenantId = updatedJob.orgId || updatedJob.userId;
-          await db.addCredits(tenantId, 1, 'job_failed_refund', jobId);
+          await db.addCredits(tenantId, 3, 'job_failed_refund', jobId);
           console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
         } catch (refundError: any) {
           console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);

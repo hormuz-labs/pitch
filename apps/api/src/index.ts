@@ -166,15 +166,15 @@ app.post('/jobs', async (req, res) => {
 
     // Check credit balance — hard block if 0
     const balance = await db.getCreditBalance(tenantId);
-    if (balance < 1) {
+    if (balance < 3) {
       logger.warn({ userId, tenantId, balance }, 'Job creation blocked: insufficient credits');
       return res.status(402).json({ error: 'Insufficient credits', balance });
     }
 
     const job = await db.createJob({ userId, orgId: tenantId, parameters }, { id: userId, orgId });
 
-    // Deduct 1 credit atomically
-    await db.deductCredit(tenantId, 1, 'job_created', job.id);
+    // Deduct 3 credits atomically
+    await db.deductCredit(tenantId, 3, 'job_created', job.id);
     
     // IMPORTANT: we explicitly set the bullmq jobId to match our db job.id
     await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters }, { jobId: job.id });

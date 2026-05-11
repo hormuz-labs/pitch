@@ -69,7 +69,7 @@ async function pushAction(options: { jobId: string; file: string; audio?: string
       const failedJob = await (db.updateJob as any)(jobId, { status: JobStatus.FAILED });
       await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
       const tenantId = failedJob.orgId || failedJob.userId;
-      await (db.addCredits as any)(tenantId, 1, 'job_failed_refund', jobId);
+      await (db.addCredits as any)(tenantId, 3, 'job_failed_refund', jobId);
     } catch { /* swallow refund errors */ }
     return { success: false, error: error.message };
   }
@@ -85,7 +85,7 @@ async function statusAction(options: { jobId: string; status: string }) {
 
   if (jobStatus === JobStatus.FAILED) {
     const tenantId = updatedJob.orgId || updatedJob.userId;
-    await (db.addCredits as any)(tenantId, 1, 'job_failed_refund', jobId);
+    await (db.addCredits as any)(tenantId, 3, 'job_failed_refund', jobId);
   }
 
   return updatedJob;
@@ -166,7 +166,7 @@ describe('push action — partial upload failure', () => {
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.FAILED });
 
     // Credit must be refunded — user is not charged for a partial failure
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 1, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
   });
 
   it('does not call deleteFile when video upload itself fails (nothing was uploaded)', async () => {
@@ -181,7 +181,7 @@ describe('push action — partial upload failure', () => {
     // Nothing was uploaded so nothing should be cleaned up
     expect(storage.deleteFile).not.toHaveBeenCalled();
     // Still refunds credit
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 1, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
   });
 
   it('cleans up both video and audio when db update fails after both uploads succeed', async () => {
@@ -203,7 +203,7 @@ describe('push action — partial upload failure', () => {
     expect(storage.deleteFile).toHaveBeenCalledTimes(2);
 
     // Credit refunded
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 1, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
   });
 });
 
@@ -220,7 +220,7 @@ describe('push action — failure path (credit refund)', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe('S3 timeout');
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.FAILED });
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 1, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
   });
 
   it('uses userId as tenantId when orgId is empty', async () => {
@@ -231,7 +231,7 @@ describe('push action — failure path (credit refund)', () => {
 
     await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4' });
 
-    expect(db.addCredits).toHaveBeenCalledWith('user_solo', 1, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('user_solo', 3, 'job_failed_refund', 'job_1');
   });
 
   it('publishes FAILED status to redis after upload error', async () => {
@@ -261,7 +261,7 @@ describe('status action — FAILED triggers refund', () => {
     await statusAction({ jobId: 'job_1', status: 'FAILED' });
 
     expect(db.updateJob).toHaveBeenCalledWith('job_1', { status: JobStatus.FAILED });
-    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 1, 'job_failed_refund', 'job_1');
+    expect(db.addCredits).toHaveBeenCalledWith('org_abc', 3, 'job_failed_refund', 'job_1');
   });
 
   it('does NOT refund when status is set to COMPLETED', async () => {

@@ -90,9 +90,9 @@ function buildApp() {
     try {
       const tenantId = orgId || userId;
       const balance = await (db.getCreditBalance as any)(tenantId);
-      if (balance < 1) return res.status(402).json({ error: 'Insufficient credits', balance });
+      if (balance < 3) return res.status(402).json({ error: 'Insufficient credits', balance });
       const job = await (db.createJob as any)({ userId, orgId: tenantId, parameters }, { id: userId, orgId });
-      await (db.deductCredit as any)(tenantId, 1, 'job_created', job.id);
+      await (db.deductCredit as any)(tenantId, 3, 'job_created', job.id);
       await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters }, { jobId: job.id });
       await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job));
       res.status(201).json(job);
@@ -235,7 +235,7 @@ describe('POST /jobs', () => {
     expect(db.createJob).not.toHaveBeenCalled();
   });
 
-  it('creates job, deducts 1 credit, enqueues, returns 201', async () => {
+  it('creates job, deducts 3 credits, enqueues, returns 201', async () => {
     const job = makeJob();
     vi.mocked(db.getCreditBalance).mockResolvedValue(5);
     vi.mocked(db.createJob).mockResolvedValue(job as any);
@@ -245,7 +245,7 @@ describe('POST /jobs', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBe('job_1');
-    expect(db.deductCredit).toHaveBeenCalledWith('user_test', 1, 'job_created', 'job_1');
+    expect(db.deductCredit).toHaveBeenCalledWith('user_test', 3, 'job_created', 'job_1');
   });
 
   it('uses orgId as tenantId when in an org', async () => {
@@ -257,7 +257,7 @@ describe('POST /jobs', () => {
     await request(app).post('/jobs').send({ parameters: {} });
 
     expect(db.getCreditBalance).toHaveBeenCalledWith('org_abc');
-    expect(db.deductCredit).toHaveBeenCalledWith('org_abc', 1, 'job_created', expect.any(String));
+    expect(db.deductCredit).toHaveBeenCalledWith('org_abc', 3, 'job_created', expect.any(String));
   });
 });
 

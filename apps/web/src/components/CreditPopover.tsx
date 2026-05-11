@@ -61,7 +61,7 @@ export const CreditPopover = () => {
             </div>
             
             <p className="text-[13px] leading-relaxed text-gray-500">
-              Each video generation costs 1 credit. Credits never expire.
+              Each video generation costs 3 credits. Credits never expire.
             </p>
 
             <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 mt-1">
