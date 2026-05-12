@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { startServer, restartServer, checkServerHealth, type OpencodeServer } from './opencode.js';
-import { createJobProcessor } from './job-processor.js';
+import { createJobProcessor, startCancellationListener } from './job-processor.js';
 import type { OpencodeClient } from '@opencode-ai/sdk';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +44,12 @@ async function initServer() {
 await initServer();
 
 const processJob = createJobProcessor(connection, targetDir);
+
+// Start a dedicated Redis subscriber that listens for job cancellations
+// published by the API when a user deletes a running job. The listener will
+// abort and delete the active OpenCode session for any matching in-flight job.
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const cancellationSubscriber = startCancellationListener(redisUrl, () => client, targetDir);
 
 let isProcessingJob = false;
 let isShuttingDown = false;
@@ -106,6 +112,11 @@ async function shutdown(signal: string) {
   }
   try {
     server.close();
+  } catch {
+    // ignore
+  }
+  try {
+    await cancellationSubscriber.quit();
   } catch {
     // ignore
   }

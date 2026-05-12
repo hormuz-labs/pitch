@@ -1,11 +1,68 @@
 import type { Job } from 'bullmq';
-import type { Redis } from 'ioredis';
+import { Redis } from 'ioredis';
 import type { OpencodeClient } from '@opencode-ai/sdk';
-import { JobStatus, JOB_UPDATES_CHANNEL, createLogger, sendTelegramMessage } from '@saas/shared';
+import { JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, createLogger, sendTelegramMessage } from '@saas/shared';
 import * as db from '@saas/db';
 import { getSessionIdFromEvent } from './opencode.js';
 
 const logger = createLogger('worker:job');
+
+// Tracks the active OpenCode session ID for each in-flight job so the
+// cancellation handler can abort it immediately.
+const activeSessionsByJobId = new Map<string, string>();
+
+/**
+ * Start a Redis subscriber that listens on JOB_CANCELLATIONS_CHANNEL.
+ * When a cancellation message arrives for a job that is currently being
+ * processed, the running OpenCode session is aborted and then deleted so
+ * that no further LLM/tool calls are made on behalf of the deleted job.
+ */
+export function startCancellationListener(redisUrl: string, getClient: () => OpencodeClient, targetDir: string) {
+  const subscriber = new Redis(redisUrl, { maxRetriesPerRequest: null });
+  const cancelLogger = createLogger('worker:cancel');
+
+  subscriber.subscribe(JOB_CANCELLATIONS_CHANNEL, (err) => {
+    if (err) {
+      cancelLogger.error({ err }, 'Failed to subscribe to job-cancellations channel');
+    } else {
+      cancelLogger.info('Subscribed to job-cancellations channel');
+    }
+  });
+
+  subscriber.on('message', async (_channel: string, message: string) => {
+    let jobId: string;
+    try {
+      ({ jobId } = JSON.parse(message));
+    } catch {
+      return;
+    }
+
+    const sessionId = activeSessionsByJobId.get(jobId);
+    if (!sessionId) {
+      // Job is not currently being processed on this worker — nothing to do.
+      return;
+    }
+
+    cancelLogger.info({ jobId, sessionId }, 'Cancellation received — aborting OpenCode session');
+    const client = getClient();
+
+    try {
+      await client.session.abort({ path: { id: sessionId } });
+      cancelLogger.info({ jobId, sessionId }, 'OpenCode session aborted');
+    } catch (e: any) {
+      cancelLogger.warn({ err: e, jobId, sessionId }, 'Failed to abort OpenCode session (may have already finished)');
+    }
+
+    try {
+      await client.session.delete({ path: { id: sessionId } });
+      cancelLogger.info({ jobId, sessionId }, 'OpenCode session deleted after cancellation');
+    } catch (e: any) {
+      cancelLogger.warn({ err: e, jobId, sessionId }, 'Failed to delete OpenCode session after cancellation');
+    }
+  });
+
+  return subscriber;
+}
 
 export function createJobProcessor(connection: Redis, targetDir: string) {
   return async function processJob(job: Job, client: OpencodeClient) {
@@ -31,6 +88,10 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       }
       session = sessionResponse.data;
       jobLogger.info({ sessionId: session.id }, 'OpenCode session created');
+
+      // Register the session so the cancellation listener can abort it if the
+      // job is deleted while processing.
+      activeSessionsByJobId.set(jobId, session.id);
 
       // 2. Subscribe to global events and filter by session ID.
       // The /event stream is global; we only forward events that belong to
@@ -97,20 +158,29 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
     } catch (error: any) {
       jobLogger.error({ err: error }, 'Job processing failed');
 
-      const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
-      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+      // Don't try to update a job that has already been deleted from the DB.
+      try {
+        const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
+        await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
 
-      const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
-      const email = userProfile?.email || userId;
-      const urlParam = parameters?.url || 'N/A';
-      const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
+        const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
+        const email = userProfile?.email || userId;
+        const urlParam = parameters?.url || 'N/A';
+        const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
 
-      await sendTelegramMessage(
-        `❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`
-      );
+        await sendTelegramMessage(
+          `❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`
+        );
+      } catch (updateErr: any) {
+        jobLogger.warn({ err: updateErr }, 'Could not update job status after failure (job may have been deleted)');
+      }
 
       throw error;
     } finally {
+      // Remove from the active-session registry so cancellation messages for
+      // this job are ignored from now on.
+      activeSessionsByJobId.delete(jobId);
+
       // Clean up per-job resources
       if (eventAbortController && !eventAbortController.signal.aborted) {
         eventAbortController.abort();
