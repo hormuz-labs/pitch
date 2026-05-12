@@ -34,7 +34,7 @@ const worker = new Worker(
 
     const targetDir = process.env.WORKSPACE_DIR || rootDir;
 
-    let opencode;
+    let opencode: any;
     try {
       // 1. Start OpenCode server and get client (dynamic port)
       jobLogger.info({ targetDir }, 'Starting OpenCode server');
@@ -83,16 +83,31 @@ If an audio/voiceover file was generated separately, include it with the --audio
 Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GENERATED_VIDEO> [--audio <PATH_TO_GENERATED_AUDIO>]
 `;
 
-      const promptResponse = await client.session.prompt({
-        path: { id: session.id },
-        query: { directory: targetDir },
-        body: {
-          parts: [{ type: 'text', text: promptText }]
+      let isAborted = false;
+      const checkInterval = setInterval(async () => {
+        const jobExists = await db.prisma.job.findUnique({ where: { id: jobId } });
+        if (!jobExists) {
+           jobLogger.info("Job deleted from DB, aborting worker...");
+           isAborted = true;
+           if (opencode?.server) opencode.server.close();
+           clearInterval(checkInterval);
         }
-      });
-      
-      if (promptResponse.error) {
-        throw new Error("OpenCode prompt failed: " + JSON.stringify(promptResponse.error));
+      }, 5000);
+
+      try {
+        const promptResponse = await client.session.prompt({
+          path: { id: session.id },
+          query: { directory: targetDir },
+          body: {
+            parts: [{ type: 'text', text: promptText }]
+          }
+        });
+        
+        if (promptResponse.error) {
+          throw new Error("OpenCode prompt failed: " + JSON.stringify(promptResponse.error));
+        }
+      } finally {
+        clearInterval(checkInterval);
       }
       
       jobLogger.info('OpenCode prompt completed');
@@ -104,15 +119,20 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
     } catch (error: any) {
       jobLogger.error({ err: error }, 'Job processing failed');
       
-      const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
-      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
-      
-      const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
-      const email = userProfile?.email || userId;
-      const urlParam = parameters?.url || 'N/A';
-      const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
+      const jobExists = await db.prisma.job.findUnique({ where: { id: jobId } });
+      if (jobExists) {
+        const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
+        await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+        
+        const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
+        const email = userProfile?.email || userId;
+        const urlParam = parameters?.url || 'N/A';
+        const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
 
-      await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
+        await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
+      } else {
+        jobLogger.info('Job was deleted from DB, skipping failure update and telegram alert');
+      }
       
       if (opencode?.server) {
         opencode.server.close();

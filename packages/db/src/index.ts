@@ -20,7 +20,6 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export interface AuthUser extends Record<string, unknown> {
   id: string;
-  orgId?: string | null;
 }
 
 export function getEnhancedPrisma(user?: AuthUser) {
@@ -48,14 +47,13 @@ export async function updateJob(id: string, data: { status?: JobStatus; videoUrl
   };
 }
 
-export async function createJob(data: { userId: string; orgId: string; parameters: any }, user?: AuthUser): Promise<Job> {
-  console.log(`[DB] Creating job for user ${data.userId} in org ${data.orgId}`);
+export async function createJob(data: { userId: string; parameters: any }, user?: AuthUser): Promise<Job> {
+  console.log(`[DB] Creating job for user ${data.userId}`);
   
   const client = getEnhancedPrisma(user);
   const created = await client.job.create({
     data: {
       userId: data.userId,
-      orgId: data.orgId,
       status: JobStatus.PENDING,
       parameters: JSON.stringify(data.parameters),
     },

@@ -35,7 +35,6 @@ export enum JobStatus {
 export interface Job {
   id: string;
   userId: string;
-  orgId: string;
   status: JobStatus;
   videoUrl?: string;
   audioUrl?: string;
@@ -46,7 +45,6 @@ export interface Job {
 
 export interface CreateJobRequest {
   userId: string;
-  orgId: string;
   parameters: Record<string, any>;
 }
 

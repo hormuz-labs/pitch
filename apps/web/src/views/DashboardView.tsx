@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import type { Project } from '../types';
 import { TimedUndoAction } from '../components/TimedUndoAction';
@@ -81,10 +82,12 @@ interface VideoCardProps {
   project: Project;
   onClick: () => void;
   onConfirmDelete: () => void;
+  onRetry: () => void;
 }
 
-const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
+const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
   const [isPendingDelete, setIsPendingDelete] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [duration, setDuration] = useState<number | null>(null);
 
   const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -134,7 +137,22 @@ const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
         <div className="flex items-center justify-between h-8">
           <StatusBadge status={project.status} />
           
-          <div className="flex justify-end relative h-full items-center">
+          <div className="flex justify-end relative h-full items-center gap-1.5">
+            {project.status === 'FAILED' && !isPendingDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRetry(); }}
+                className="p-1.5 rounded-md text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center justify-center cursor-pointer"
+                title="Retry"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                  <path d="M16 16h5v5"/>
+                </svg>
+              </button>
+            )}
+            
             {isPendingDelete ? (
               <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-1/2 -translate-y-1/2 origin-right whitespace-nowrap z-10">
                 <TimedUndoAction
@@ -154,7 +172,14 @@ const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
               </div>
             ) : (
               <button
-                onClick={(e) => { e.stopPropagation(); setIsPendingDelete(true); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (project.status === 'FAILED') {
+                    setIsPendingDelete(true);
+                  } else {
+                    setShowModal(true); 
+                  }
+                }}
                 className="p-1.5 rounded-md text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center cursor-pointer"
                 id={`delete-btn-${project.id}`}
                 title="Delete"
@@ -165,6 +190,41 @@ const VideoCard = ({ project, onClick, onConfirmDelete }: VideoCardProps) => {
           </div>
         </div>
       </div>
+
+      {showModal && createPortal(
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={(e) => { e.stopPropagation(); setShowModal(false); }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <IconTrashSm />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Video</h3>
+            <p className="text-sm text-gray-500 mb-6 text-balance leading-relaxed">
+              Are you sure you want to delete this video? Please note that the credits used for this generation are <span className="font-semibold text-gray-700">non-refundable</span> because the video has already started rendering or is completed.
+            </p>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-gray-200"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => { setShowModal(false); setIsPendingDelete(true); }}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-red-700"
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
@@ -175,9 +235,10 @@ interface DashboardViewProps {
   searchQuery: string;
   isMobile: boolean;
   onDelete: (id: string) => void;
+  onRetry: (id: string) => void;
 }
 
-export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: DashboardViewProps) => {
+export const DashboardView = ({ projects, searchQuery, isMobile, onDelete, onRetry }: DashboardViewProps) => {
   const navigate = useNavigate();
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
@@ -272,6 +333,7 @@ export const DashboardView = ({ projects, searchQuery, isMobile, onDelete }: Das
               project={project}
               onClick={() => navigate(`/editor/${project.id}`)}
               onConfirmDelete={() => onDelete(project.id)}
+              onRetry={() => onRetry(project.id)}
             />
           ))}
         </div>

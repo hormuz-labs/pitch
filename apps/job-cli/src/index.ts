@@ -106,8 +106,8 @@ program
 
         await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (CLI error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
         
-        const tenantId = failedJob.orgId || failedJob.userId;
-        await db.addCredits(tenantId, 1, 'job_failed_refund', jobId);
+        const tenantId = failedJob.userId;
+        await db.addCredits(tenantId, 3, 'job_failed_refund', jobId);
         console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
       } catch (refundError: any) {
         console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
@@ -148,11 +148,11 @@ program
         await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Status manual update)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}`);
       }
 
-      // Refund 1 credit if the job is being marked as FAILED
+      // Refund 3 credits if the job is being marked as FAILED
       if (jobStatus === JobStatus.FAILED) {
         try {
-          const tenantId = updatedJob.orgId || updatedJob.userId;
-          await db.addCredits(tenantId, 1, 'job_failed_refund', jobId);
+          const tenantId = updatedJob.userId;
+          await db.addCredits(tenantId, 3, 'job_failed_refund', jobId);
           console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
         } catch (refundError: any) {
           console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
@@ -175,13 +175,13 @@ const creditsCmd = program
 
 creditsCmd
   .command('add')
-  .description('Add credits to a tenant (orgId or userId)')
-  .option('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .description('Add credits to a tenant (userId)')
+  .option('-t, --tenant <string>', 'Tenant ID (userId)')
   .option('-n, --amount <number>', 'Number of credits to add', parseInt)
   .option('-r, --reason <string>', 'Reason for adjustment')
   .action(async (options) => {
     try {
-      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (orgId or userId):' });
+      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (userId):' });
       const amountStr = options.amount !== undefined ? options.amount : await input({ 
         message: 'Enter amount of credits to add:', 
         validate: (value) => !isNaN(parseInt(value)) ? true : 'Please enter a valid number' 
@@ -200,13 +200,13 @@ creditsCmd
 
 creditsCmd
   .command('remove')
-  .description('Remove credits from a tenant (orgId or userId)')
-  .option('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .description('Remove credits from a tenant (userId)')
+  .option('-t, --tenant <string>', 'Tenant ID (userId)')
   .option('-n, --amount <number>', 'Number of credits to remove', parseInt)
   .option('-r, --reason <string>', 'Reason for adjustment')
   .action(async (options) => {
     try {
-      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (orgId or userId):' });
+      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (userId):' });
       const amountStr = options.amount !== undefined ? options.amount : await input({ 
         message: 'Enter amount of credits to remove:', 
         validate: (value) => !isNaN(parseInt(value)) ? true : 'Please enter a valid number' 
@@ -226,10 +226,10 @@ creditsCmd
 creditsCmd
   .command('balance')
   .description('Check the credit balance for a tenant')
-  .option('-t, --tenant <string>', 'Tenant ID (orgId or userId)')
+  .option('-t, --tenant <string>', 'Tenant ID (userId)')
   .action(async (options) => {
     try {
-      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (orgId or userId):' });
+      const tenant = options.tenant || await input({ message: 'Enter Tenant ID (userId):' });
       const balance = await db.getCreditBalance(tenant);
       const transactions = await db.getCreditTransactions(tenant);
       console.log(`\nTenant: ${tenant}`);

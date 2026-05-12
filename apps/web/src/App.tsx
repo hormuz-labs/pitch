@@ -375,7 +375,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 
 // ── App Content ───────────────────────────────────────────────────────────────
 function AppContent() {
-  const { getToken, isLoaded, userId, orgId } = useAuth();
+  const { getToken, isLoaded, userId } = useAuth();
   const { signOut } = useClerk();
   const { user } = useUser();
   const { toast } = useToast();
@@ -468,7 +468,7 @@ function AppContent() {
     };
     
     fetchJobs();
-  }, [isLoaded, userId, orgId, getToken]);
+  }, [isLoaded, userId, getToken]);
 
   // Listen to SSE updates — reconnects automatically with a fresh token on close/error
   useEffect(() => {
@@ -481,8 +481,7 @@ function AppContent() {
     const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
-        const currentTenantId = orgId || userId;
-        if (data.orgId !== currentTenantId && data.userId !== userId) return;
+        if (data.userId !== userId) return;
 
         if (data.type === 'LOG') {
           const { jobId, event: opencodeEvent } = data;
@@ -565,7 +564,7 @@ function AppContent() {
       if (retryTimeout) clearTimeout(retryTimeout);
       sse?.close();
     };
-  }, [isLoaded, userId, orgId]);
+  }, [isLoaded, userId]);
 
   const handleQueueJob = async (values: any) => {
     setIsSubmitting(true);
@@ -583,8 +582,14 @@ function AppContent() {
         }
         throw new Error('Failed to queue job');
       }
+      const newJob = await res.json();
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === newJob.id);
+        return exists ? prev.map(p => p.id === newJob.id ? newJob : p) : [...prev, newJob];
+      });
       setFormValues({});
       navigate('/dashboard');
+      window.dispatchEvent(new Event('credits-changed'));
     } catch (err: any) {
       toast(err.message || 'An error occurred', 'error');
     } finally {
@@ -598,6 +603,31 @@ function AppContent() {
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch {
       toast('Failed to delete job', 'error');
+    }
+  };
+
+  const handleRetry = async (id: string) => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/jobs/${id}/retrigger`, { 
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        if (res.status === 402) {
+          throw new Error('You have no credits remaining. Please top up to retry generating videos.');
+        }
+        throw new Error('Failed to retry job');
+      }
+      const updatedJob = await res.json();
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === updatedJob.id);
+        return exists ? prev.map(p => p.id === updatedJob.id ? updatedJob : p) : [...prev, updatedJob];
+      });
+      toast('Job queued for retry', 'success');
+      window.dispatchEvent(new Event('credits-changed'));
+    } catch (err: any) {
+      toast(err.message || 'An error occurred', 'error');
     }
   };
 
@@ -660,7 +690,7 @@ function AppContent() {
             <main className="flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} />} />
+                <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} onRetry={handleRetry} />} />
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
