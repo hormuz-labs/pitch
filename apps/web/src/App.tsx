@@ -1,22 +1,26 @@
 import { useState, useEffect, useCallback, useContext, createContext } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
-import { 
-  SignedIn, 
-  SignedOut, 
-  UserButton, 
+import {
+  SignedIn,
+  SignedOut,
+  UserButton,
   useAuth,
   useClerk,
-  useUser
+  useUser,
+  AuthenticateWithRedirectCallback,
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
 import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView } from './views';
+import { AuthView } from './views/AuthView';
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
 import { AboutUs } from './components/AboutUs';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { API_URL } from './config';
+import { api } from './lib/api';
+import { parseSSELog } from './lib/events';
 
 import tabLogoB from './assets/tabLogoB.svg';
 import { PitchLogoAnimation } from './components/PitchLogoAnimation';
@@ -181,6 +185,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
 
       <aside
         className={`
+          app-shell-sidebar
           ${isMobile ? 'fixed top-0 left-0 h-full z-50 rounded-none' : 'relative rounded-2xl'}
           flex flex-col shrink-0 transition-all duration-200 shadow-sm border border-gray-200
           ${isMobile ? (collapsed ? '-translate-x-full' : 'translate-x-0') : ''}
@@ -277,7 +282,7 @@ interface TopHeaderProps {
   onSignOut?: () => void;
 }
 const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, onSignOut }: TopHeaderProps) => (
-  <header className="h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
+  <header className="app-shell-header h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
     {/* Left: logo + search / back */}
     <div className="flex items-center gap-3 shrink-0">
       {isMobile && (
@@ -415,18 +420,11 @@ function AppContent() {
         const token = await getToken();
         const primaryEmail = user.primaryEmailAddress?.emailAddress;
         if (!primaryEmail) return;
-        await fetch(`${API_URL}/users/sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            email: primaryEmail,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            imageUrl: user.imageUrl,
-          }),
+        await api.post('/users/sync', token!, {
+          email: primaryEmail,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          imageUrl: user.imageUrl,
         });
         sessionStorage.setItem(sessionKey, '1');
       } catch (err) {
@@ -444,10 +442,7 @@ function AppContent() {
     const fetchJobs = async () => {
       try {
         const token = await getToken();
-        const res = await fetch(`${API_URL}/jobs`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
+        const data = await api.get<Project[]>('/jobs', token!);
         if (Array.isArray(data)) setProjects(data);
       } catch (err) {
         console.error('Failed to fetch jobs:', err);
@@ -457,10 +452,12 @@ function AppContent() {
     fetchJobs();
   }, [isLoaded, userId, getToken]);
 
-  // Listen to SSE updates
+  // Listen to SSE updates.
+  // EventSource doesn't support Authorization headers, so the token is passed
+  // as a query param. Parsing logic lives in lib/events.ts (parseSSELog).
   useEffect(() => {
     if (!isLoaded || !userId) return;
-    
+
     let sse: EventSource;
     getToken().then(token => {
       sse = new EventSource(`${API_URL}/jobs/stream?token=${token}`);
@@ -472,47 +469,12 @@ function AppContent() {
 
         if (data.type === 'LOG') {
           const { jobId, event: opencodeEvent } = data;
-          let logEntry: LogEntry | null = null;
-
-          if (opencodeEvent.type === 'call' || opencodeEvent.call) {
-            const toolCall = opencodeEvent.call || opencodeEvent;
-            let message = `Calling tool: ${toolCall.name}`;
-            if (toolCall.name === 'run_shell_command') message = `Running: ${toolCall.arguments.command}`;
-            else if (toolCall.name === 'write_file') message = `Writing file: ${toolCall.arguments.file_path}`;
-
-            logEntry = { timestamp: new Date().toLocaleTimeString(), message, type: 'call' };
-
-            const argsString = JSON.stringify(toolCall.arguments);
-            const pngMatch = argsString.match(/demo\/[^"\s]+\.png/);
-            if (pngMatch) logEntry.screenshot = `/${pngMatch[0]}`;
-
-          } else if (opencodeEvent.type === 'response' || opencodeEvent.output) {
-            const response = opencodeEvent.response || opencodeEvent;
-            let message = 'Task step completed';
-            if (response.content && Array.isArray(response.content)) {
-              const textPart = response.content.find((p: any) => p.type === 'text');
-              if (textPart?.text) {
-                const lines = textPart.text.trim().split('\n');
-                message = lines[lines.length - 1];
-              }
-            }
-            logEntry = { timestamp: new Date().toLocaleTimeString(), message, type: 'response' };
-
-          } else if (opencodeEvent.type === 'text' || typeof opencodeEvent.text === 'string') {
-            const text = opencodeEvent.text || opencodeEvent;
-            let message = typeof text === 'string' ? text : text.text || JSON.stringify(text);
-            if (message.includes('Generating Voiceover')) message = '🎙️ Generating AI Voiceover...';
-            if (message.includes('Transcribing')) message = '📝 Transcribing audio...';
-            if (message.includes('Rendering Frames')) message = '🎞️ Rendering video frames...';
-            if (message.includes('Encoding Final Video')) message = '🎬 Encoding final video...';
-            if (message.includes('Navigating')) message = '🌐 Navigating to target site...';
-            logEntry = { timestamp: new Date().toLocaleTimeString(), message, type: 'text' };
-          }
+          const logEntry: LogEntry | null = parseSSELog(opencodeEvent);
 
           if (logEntry) {
             setJobLogs(prev => ({
               ...prev,
-              [jobId]: [...(prev[jobId] || []), logEntry!]
+              [jobId]: [...(prev[jobId] || []), logEntry],
             }));
           }
         } else {
@@ -536,23 +498,9 @@ function AppContent() {
     setIsSubmitting(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/jobs`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          parameters: { url: values.url, instructions: values.instructions, script: values.script }
-        })
+      const newJob = await api.post<Project>('/jobs', token!, {
+        parameters: { url: values.url, instructions: values.instructions, script: values.script },
       });
-      if (!res.ok) {
-        if (res.status === 402) {
-          throw new Error('You have no credits remaining. Please top up to continue generating videos.');
-        }
-        throw new Error('Failed to queue job');
-      }
-      const newJob = await res.json();
       setProjects(prev => {
         const exists = prev.find(p => p.id === newJob.id);
         return exists ? prev.map(p => p.id === newJob.id ? newJob : p) : [...prev, newJob];
@@ -561,7 +509,10 @@ function AppContent() {
       navigate('/dashboard');
       window.dispatchEvent(new Event('credits-changed'));
     } catch (err: any) {
-      toast(err.message || 'An error occurred', 'error');
+      const msg = err.status === 402
+        ? 'You have no credits remaining. Please top up to continue generating videos.'
+        : (err.message || 'An error occurred');
+      toast(msg, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -570,10 +521,7 @@ function AppContent() {
   const handleDelete = async (id: string) => {
     try {
       const token = await getToken();
-      await fetch(`${API_URL}/jobs/${id}`, { 
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await api.delete(`/jobs/${id}`, token!);
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch {
       toast('Failed to delete job', 'error');
@@ -583,17 +531,7 @@ function AppContent() {
   const handleRetry = async (id: string) => {
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/jobs/${id}/retrigger`, { 
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        if (res.status === 402) {
-          throw new Error('You have no credits remaining. Please top up to retry generating videos.');
-        }
-        throw new Error('Failed to retry job');
-      }
-      const updatedJob = await res.json();
+      const updatedJob = await api.post<Project>(`/jobs/${id}/retrigger`, token!);
       setProjects(prev => {
         const exists = prev.find(p => p.id === updatedJob.id);
         return exists ? prev.map(p => p.id === updatedJob.id ? updatedJob : p) : [...prev, updatedJob];
@@ -601,7 +539,10 @@ function AppContent() {
       toast('Job queued for retry', 'success');
       window.dispatchEvent(new Event('credits-changed'));
     } catch (err: any) {
-      toast(err.message || 'An error occurred', 'error');
+      const msg = err.status === 402
+        ? 'You have no credits remaining. Please top up to retry generating videos.'
+        : (err.message || 'An error occurred');
+      toast(msg, 'error');
     }
   };
 
@@ -631,10 +572,20 @@ function AppContent() {
 
   if (!isLoaded) return <div className="h-screen w-screen bg-[#FDFDFD]"></div>;
 
+  // SSO callback — must be outside SignedIn/SignedOut (user is in transitional auth state)
+  if (location.pathname === '/sso-callback') {
+    return <AuthenticateWithRedirectCallback />;
+  }
+
+  // Landing page is always public — render it outside the authenticated app shell
+  if (location.pathname === '/') {
+    return <LandingView />;
+  }
+
   return (
     <>
       <SignedIn>
-        <div className="flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
+        <div className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
           {(!isMobile ? selectedKey !== 'settings' : true) && (
             <Sidebar
               selectedKey={selectedKey}
@@ -645,7 +596,7 @@ function AppContent() {
             />
           )}
 
-          <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
+          <div className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
             <TopHeader
               isMobile={isMobile}
               isDetailPage={selectedKey === 'create' || selectedKey === 'editor' || selectedKey === 'settings'}
@@ -661,9 +612,8 @@ function AppContent() {
               onSignOut={() => signOut()}
             />
 
-            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
+            <main className="app-shell-main flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
               <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} onRetry={handleRetry} />} />
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
                 <Route path="/pricing" element={<PricingView />} />
@@ -679,7 +629,8 @@ function AppContent() {
       </SignedIn>
       <SignedOut>
         <Routes>
-          <Route path="/" element={<LandingView />} />
+          <Route path="/sign-in" element={<AuthView mode="sign-in" />} />
+          <Route path="/sign-up" element={<AuthView mode="sign-up" />} />
           <Route path="/pricing" element={<PublicPricingView />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />

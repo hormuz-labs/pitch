@@ -1,7 +1,10 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/app-shell.css";
 
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
   --color-brand: #111827;
   --color-brand-hover: #374151;
 }
@@ -12,8 +15,8 @@ html, body, #root {
   width: 100%;
   min-height: 100vh;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #e6e6e6;
-  color: #111827;
+  background-color: var(--bg-sunken, #e6e6e6);
+  color: var(--text-primary, #111827);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }

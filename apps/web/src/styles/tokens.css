@@ -1,0 +1,136 @@
+/*
+ * Design token system.
+ * Toggle dark mode by setting data-theme="dark" on <html>.
+ * All components should reference these variables — never hardcode colors.
+ */
+
+/* ── Light theme (default) ────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-page:        #FDFDFD;
+  --bg-surface:     #FFFFFF;
+  --bg-raised:      #F9FAFB;
+  --bg-sunken:      #F3F4F6;
+  --bg-overlay:     rgba(0, 0, 0, 0.5);
+
+  /* Borders */
+  --border-subtle:  #E5E7EB;
+  --border-default: #D1D5DB;
+  --border-strong:  #9CA3AF;
+
+  /* Text */
+  --text-primary:   #111827;
+  --text-secondary: #374151;
+  --text-muted:     #6B7280;
+  --text-faint:     #9CA3AF;
+  --text-inverse:   #FFFFFF;
+
+  /* Accent — orange in light mode */
+  --accent:         #FF5A1F;
+  --accent-hover:   #E04A10;
+  --accent-subtle:  rgba(255, 90, 31, 0.1);
+
+  /* Semantic */
+  --success:        #16A34A;
+  --success-subtle: #DCFCE7;
+  --warning:        #D97706;
+  --warning-subtle: #FEF3C7;
+  --error:          #DC2626;
+  --error-subtle:   #FEE2E2;
+
+  /* Interactive */
+  --interactive-bg:       #111827;
+  --interactive-bg-hover: #374151;
+  --interactive-text:     #FFFFFF;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-xl:  0 16px 48px rgba(0, 0, 0, 0.16);
+
+  /* Logo / pixel art */
+  --logo-fill:  #111111;
+
+  /* Typography */
+  --font-sans:  'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono:  'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Motion */
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:    cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:   150ms;
+  --duration-base:   250ms;
+  --duration-slow:   400ms;
+  --duration-slower: 600ms;
+
+  /* Radius */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-pill: 999px;
+
+  /* Spacing scale */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+}
+
+/* ── Dark theme ───────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-page:        #070709;
+  --bg-surface:     #111113;
+  --bg-raised:      #18181B;
+  --bg-sunken:      #0E0E10;
+  --bg-overlay:     rgba(0, 0, 0, 0.7);
+
+  /* Borders */
+  --border-subtle:  #1F2025;
+  --border-default: #2A2A30;
+  --border-strong:  #3D3D45;
+
+  /* Text */
+  --text-primary:   #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.72);
+  --text-muted:     rgba(255, 255, 255, 0.45);
+  --text-faint:     rgba(255, 255, 255, 0.25);
+  --text-inverse:   #111827;
+
+  /* Accent — blue in dark mode */
+  --accent:         #1DA1F2;
+  --accent-hover:   #38b4ff;
+  --accent-subtle:  rgba(29, 161, 242, 0.15);
+
+  /* Semantic */
+  --success:        #4ADE80;
+  --success-subtle: rgba(74, 222, 128, 0.12);
+  --warning:        #FBBF24;
+  --warning-subtle: rgba(251, 191, 36, 0.12);
+  --error:          #F87171;
+  --error-subtle:   rgba(248, 113, 113, 0.12);
+
+  /* Interactive */
+  --interactive-bg:       rgba(255, 255, 255, 0.1);
+  --interactive-bg-hover: rgba(255, 255, 255, 0.16);
+  --interactive-text:     #FFFFFF;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl:  0 32px 80px rgba(0, 0, 0, 0.6);
+
+  /* Logo */
+  --logo-fill:  #FFFFFF;
+}

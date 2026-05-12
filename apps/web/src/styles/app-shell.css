@@ -1,0 +1,79 @@
+/*
+ * App shell dark-mode overrides.
+ * Activated when data-theme="dark" is set on <html>.
+ * Uses !important to override Tailwind utility classes.
+ */
+
+[data-theme="dark"] .app-shell-bg {
+  background-color: var(--bg-sunken) !important;
+}
+
+[data-theme="dark"] .app-shell-sidebar {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .app-shell-sidebar .border-gray-200,
+[data-theme="dark"] .app-shell-sidebar .border-b {
+  border-color: var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .app-shell-panel {
+  background-color: var(--bg-page) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .app-shell-header {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .app-shell-main {
+  background-color: var(--bg-page) !important;
+}
+
+/* Sidebar nav items */
+[data-theme="dark"] .app-shell-sidebar .text-gray-500 {
+  color: var(--text-muted) !important;
+}
+[data-theme="dark"] .app-shell-sidebar .text-gray-400 {
+  color: var(--text-faint) !important;
+}
+[data-theme="dark"] .app-shell-sidebar .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+/* Sidebar nav item hover bg */
+[data-theme="dark"] .app-shell-sidebar button:hover {
+  background-color: var(--bg-raised) !important;
+}
+
+/* Keep active gradient nav items visually unchanged — they're already dark */
+[data-theme="dark"] .app-shell-sidebar .text-white {
+  color: var(--text-primary) !important;
+}
+
+/* Top header text + inputs */
+[data-theme="dark"] .app-shell-header .text-gray-900 {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .app-shell-header .text-gray-500,
+[data-theme="dark"] .app-shell-header .text-gray-400 {
+  color: var(--text-muted) !important;
+}
+[data-theme="dark"] .app-shell-header .border-gray-200 {
+  border-color: var(--border-subtle) !important;
+}
+[data-theme="dark"] .app-shell-header input {
+  background-color: var(--bg-raised) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .app-shell-header input::placeholder {
+  color: var(--text-faint) !important;
+}
+
+/* Mobile hamburger button */
+[data-theme="dark"] .app-shell-header .bg-white {
+  background-color: var(--bg-raised) !important;
+}
