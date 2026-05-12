@@ -58,4 +58,3 @@ demos/**
 .vercel
 .playwright-cli/
 docker-data/
-.gitignore
