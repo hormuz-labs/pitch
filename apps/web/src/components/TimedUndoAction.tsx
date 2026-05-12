@@ -43,21 +43,23 @@ export const TimedUndoAction: FC<TimedUndoActionProps> = ({
     if (!isDeleting) return;
 
     const interval = setInterval(() => {
-      setCountDown((prev) => {
-        if (prev <= 1) {
-          setIsDeleting(false);
-          onConfirm?.();
-          onDismiss?.();
-          return initialSeconds;
-        }
-        return prev - 1;
-      });
+      setCountDown((prev) => prev - 1);
     }, 1000);
 
     return () => {
       clearInterval(interval);
     };
-  }, [isDeleting, initialSeconds, onConfirm, onDismiss]);
+  }, [isDeleting]);
+
+  useEffect(() => {
+    if (isDeleting && countDown <= 0) {
+      setIsDeleting(false);
+      onConfirm?.();
+      onDismiss?.();
+      // Reset countdown for future renders if component doesn't unmount
+      setCountDown(initialSeconds);
+    }
+  }, [isDeleting, countDown, initialSeconds, onConfirm, onDismiss]);
 
   return (
     <div className="flex w-full items-center justify-center font-sans">

@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/r/(.*)",
+      "destination": "https://api.trypitch.co/r/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

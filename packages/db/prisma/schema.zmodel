@@ -23,7 +23,6 @@ plugin enhancer {
 // We use Clerk for auth, so this doesn't need to be in the database
 model User {
   id    String @id
-  orgId String?
 
   @@auth()
   @@ignore()
@@ -66,7 +65,6 @@ model CreditTransaction {
 model Job {
   id         String   @id @default(cuid())
   userId     String
-  orgId      String
   status     String
   videoUrl   String?
   audioUrl   String?
@@ -74,17 +72,16 @@ model Job {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@index([orgId])
+  @@index([userId])
 
   // Access policies
   // User must be logged in to do anything
   @@deny('all', auth() == null)
 
-  // A user can read/write jobs that belong to their organization, or their own personal jobs if no org
+  // A user can read/write their own personal jobs
   // The auth() object will be passed in when enhancing the prisma client:
-  // enhance(prisma, { user: { id: userId, orgId: orgId } })
-  @@allow('all', auth().orgId != null && orgId == auth().orgId)
-  @@allow('all', auth().orgId == null && userId == auth().id)
+  // enhance(prisma, { user: { id: userId } })
+  @@allow('all', userId == auth().id)
 }
 
 // ── Affiliate Program ─────────────────────────────────────────────────────────

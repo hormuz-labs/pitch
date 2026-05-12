@@ -22,7 +22,7 @@ const PACKS: { key: PackKey; name: string; price: number; credits: number; desc:
     price: 10,
     credits: 10,
     desc: 'Perfect for trying out AI-powered demo generation.',
-    features: ['10 video generation credits', '1 credit = 1 full demo', 'Up to 1080p exports', 'Priority queue access'],
+    features: ['10 AI credits', '3 credits = 1 full demo', 'Up to 1080p exports', 'Priority queue access'],
   },
   {
     key: 'pro',
@@ -31,7 +31,7 @@ const PACKS: { key: PackKey; name: string; price: number; credits: number; desc:
     credits: 50,
     desc: 'For creators and professionals — best value per credit.',
     popular: true,
-    features: ['50 video generation credits', '20% savings vs. Starter', 'Up to 1080p exports', 'Custom agent instructions', 'Remove watermarks'],
+    features: ['50 AI credits', '20% savings vs. Starter', 'Up to 1080p exports', 'Custom agent instructions', 'Remove watermarks'],
   },
   {
     key: 'enterprise',
@@ -39,7 +39,7 @@ const PACKS: { key: PackKey; name: string; price: number; credits: number; desc:
     price: 130,
     credits: 200,
     desc: 'High-volume teams and agencies who need scale.',
-    features: ['200 video generation credits', '35% savings vs. Starter', 'Up to 1080p exports', 'Custom agent fine-tuning', 'SSO / SAML', 'Dedicated account manager'],
+    features: ['Custom AI credits volume', 'Volume discounts', 'Up to 1080p exports', 'Custom agent fine-tuning', 'Dedicated account manager'],
   },
 ];
 
@@ -79,7 +79,7 @@ export const PricingView = () => {
         </h1>
         <p className="text-base text-gray-500 max-w-xl mx-auto leading-relaxed">
           No subscriptions. Pay once, use whenever.<br />
-          Each credit generates one full AI-powered demo video.
+          3 credits generate one full AI-powered demo video.
         </p>
       </div>
 
@@ -116,28 +116,50 @@ export const PricingView = () => {
 
               <div className="mb-5 mt-2">
                 <h2 className="text-xl font-bold text-gray-900 mb-3">{pack.name}</h2>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-3xl font-bold text-gray-900">${pack.price}</span>
-                  <span className="text-sm font-medium text-gray-500">one-time</span>
-                </div>
-                <div className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
-                  <IconZap />
-                  {pack.credits} credits
-                </div>
+                {pack.key === 'enterprise' ? (
+                  <>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-3xl font-bold text-gray-900">Custom</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
+                      <IconZap />
+                      Volume deal
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-3xl font-bold text-gray-900">${pack.price}</span>
+                      <span className="text-sm font-medium text-gray-500">one-time</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full mb-2">
+                      <IconZap />
+                      {pack.credits} credits
+                    </div>
+                  </>
+                )}
                 <p className="text-xs text-gray-500 leading-relaxed">{pack.desc}</p>
               </div>
 
               <button
                 id={`checkout-btn-${pack.key}`}
-                onClick={() => handleCheckout(pack.key)}
-                disabled={loading !== null}
+                onClick={() => {
+                  if (pack.key === 'enterprise') {
+                    window.location.href = 'mailto:support@trypitch.co';
+                  } else {
+                    handleCheckout(pack.key);
+                  }
+                }}
+                disabled={loading !== null && pack.key !== 'enterprise'}
                 className={`w-full py-2.5 px-4 font-semibold text-sm rounded-xl transition-all mb-6 cursor-pointer border-none flex items-center justify-center gap-2 ${
                   (isActive || (!hoveredCard && pack.popular))
                     ? 'bg-gray-900 hover:bg-gray-700 text-white shadow-sm'
                     : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                 } disabled:opacity-60 disabled:cursor-not-allowed`}
               >
-                {loading === pack.key ? (
+                {pack.key === 'enterprise' ? (
+                  'Book a Meeting'
+                ) : loading === pack.key ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     Redirecting…
