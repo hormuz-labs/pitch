@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "bun src/index.ts",
-    "start": "bun dist/index.js"
+    "start": "bun src/index.ts"
   },
   "dependencies": {
     "@opencode-ai/sdk": "latest",

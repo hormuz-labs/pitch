@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { Command } from 'commander';
 import * as db from '@saas/db';
 import * as storage from '@saas/storage';
