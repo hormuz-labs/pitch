@@ -4,11 +4,24 @@ FROM oven/bun:1-debian AS builder
 
 WORKDIR /app
 
+# Cache dependencies installation layer
+COPY package.json bun.lock ./
+COPY apps/api/package.json apps/api/
+COPY apps/job-cli/package.json apps/job-cli/
+COPY apps/mock-server/package.json apps/mock-server/
+COPY apps/web/package.json apps/web/
+COPY apps/worker/package.json apps/worker/
+COPY packages/db/package.json packages/db/
+COPY packages/email/package.json packages/email/
+COPY packages/shared/package.json packages/shared/
+COPY packages/storage/package.json packages/storage/
+
+RUN bun install --ignore-scripts
+
+# Now copy the rest of the source code
 COPY . .
 
-RUN rm -rf packages/*/dist apps/*/dist \
- && bun install --ignore-scripts \
- && ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
+RUN ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM oven/bun:1-debian AS runtime
