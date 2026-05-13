@@ -12,6 +12,11 @@ import { JobStatus, JOB_UPDATES_CHANNEL } from '../packages/shared/src/index.js'
 vi.mock('../packages/db/src/index.js', () => ({
   updateJob:   vi.fn(),
   addCredits:  vi.fn(),
+  prisma: {
+    job: {
+      findUnique: vi.fn(),
+    }
+  }
 }));
 
 vi.mock('../packages/storage/src/index.js', () => ({
@@ -47,12 +52,20 @@ async function pushAction(options: { jobId: string; file: string; audio?: string
   const uploadedUrls: string[] = [];
 
   try {
-    const videoUrl = await (storage.uploadFile as any)(file, bucket);
+    const job = await (db.prisma as any).job.findUnique({ where: { id: jobId } });
+    if (!job) throw new Error(`Job ${jobId} not found`);
+
+    const parameters = typeof job.parameters === 'string' ? JSON.parse(job.parameters) : job.parameters;
+    const rawUrl = parameters?.url || 'untitled';
+    const projectName = rawUrl.replace(/^https?:\/\//, '').split('/')[0].replace(/[^a-zA-Z0-9-]/g, '_');
+    const prefix = `pitch/${job.userId}/${projectName}/videos`;
+
+    const videoUrl = await (storage.uploadFile as any)(file, bucket, prefix);
     uploadedUrls.push(videoUrl);
 
     let audioUrl: string | undefined;
     if (audio) {
-      audioUrl = await (storage.uploadFile as any)(audio, bucket);
+      audioUrl = await (storage.uploadFile as any)(audio, bucket, prefix);
       uploadedUrls.push(audioUrl);
     }
 
@@ -108,13 +121,14 @@ const makeJob = (overrides: Record<string, any> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (db.prisma as any).job.findUnique.mockResolvedValue(makeJob());
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('push action — success path', () => {
   it('uploads video, marks job COMPLETED, publishes to redis', async () => {
-    vi.mocked(storage.uploadFile as any).mockResolvedValue('https://cdn/video.mp4');
-    vi.mocked(db.updateJob as any).mockResolvedValue(makeJob({ status: JobStatus.COMPLETED, videoUrl: 'https://cdn/video.mp4' }));
+    storage.uploadFile.mockResolvedValue('https://cdn/video.mp4');
+    db.updateJob.mockResolvedValue(makeJob({ status: JobStatus.COMPLETED, videoUrl: 'https://cdn/video.mp4' }));
 
     const result = await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4' });
 
@@ -128,10 +142,10 @@ describe('push action — success path', () => {
   });
 
   it('uploads audio too when audio path is provided', async () => {
-    vi.mocked(storage.uploadFile as any)
+    storage.uploadFile
       .mockResolvedValueOnce('https://cdn/video.mp4')
       .mockResolvedValueOnce('https://cdn/audio.mp3');
-    vi.mocked(db.updateJob as any).mockResolvedValue(makeJob({ status: JobStatus.COMPLETED }));
+    db.updateJob.mockResolvedValue(makeJob({ status: JobStatus.COMPLETED }));
 
     await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4', audio: '/tmp/audio.mp3' });
 
@@ -146,12 +160,12 @@ describe('push action — success path', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('push action — partial upload failure', () => {
   it('cleans up the video when audio upload fails, refunds credit', async () => {
-    vi.mocked(storage.uploadFile as any)
+    storage.uploadFile
       .mockResolvedValueOnce('https://cdn/video.mp4')   // video succeeds
       .mockRejectedValueOnce(new Error('audio upload failed')); // audio fails
     const failedJob = makeJob({ status: JobStatus.FAILED });
-    vi.mocked(db.updateJob as any).mockResolvedValue(failedJob);
-    vi.mocked(db.addCredits as any).mockResolvedValue(1);
+    db.updateJob.mockResolvedValue(failedJob);
+    db.addCredits.mockResolvedValue(1);
 
     const result = await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4', audio: '/tmp/audio.mp3' });
 
@@ -169,10 +183,10 @@ describe('push action — partial upload failure', () => {
   });
 
   it('does not call deleteFile when video upload itself fails (nothing was uploaded)', async () => {
-    vi.mocked(storage.uploadFile as any).mockRejectedValueOnce(new Error('video upload failed'));
+    storage.uploadFile.mockRejectedValueOnce(new Error('video upload failed'));
     const failedJob = makeJob({ status: JobStatus.FAILED });
-    vi.mocked(db.updateJob as any).mockResolvedValue(failedJob);
-    vi.mocked(db.addCredits as any).mockResolvedValue(1);
+    db.updateJob.mockResolvedValue(failedJob);
+    db.addCredits.mockResolvedValue(1);
 
     const result = await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4', audio: '/tmp/audio.mp3' });
 
@@ -184,13 +198,13 @@ describe('push action — partial upload failure', () => {
   });
 
   it('cleans up both video and audio when db update fails after both uploads succeed', async () => {
-    vi.mocked(storage.uploadFile as any)
+    storage.uploadFile
       .mockResolvedValueOnce('https://cdn/video.mp4')
       .mockResolvedValueOnce('https://cdn/audio.mp3');
-    vi.mocked(db.updateJob as any)
+    db.updateJob
       .mockRejectedValueOnce(new Error('db write failed')) // COMPLETED update fails
       .mockResolvedValueOnce(makeJob({ status: JobStatus.FAILED })); // FAILED update succeeds
-    vi.mocked(db.addCredits as any).mockResolvedValue(1);
+    db.addCredits.mockResolvedValue(1);
 
     const result = await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4', audio: '/tmp/audio.mp3' });
 
@@ -209,10 +223,10 @@ describe('push action — partial upload failure', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('push action — failure path (credit refund)', () => {
   it('marks job FAILED and refunds 1 credit when upload fails', async () => {
-    vi.mocked(storage.uploadFile as any).mockRejectedValue(new Error('S3 timeout'));
+    storage.uploadFile.mockRejectedValue(new Error('S3 timeout'));
     const failedJob = makeJob({ status: JobStatus.FAILED });
-    vi.mocked(db.updateJob as any).mockResolvedValue(failedJob);
-    vi.mocked(db.addCredits as any).mockResolvedValue(1);
+    db.updateJob.mockResolvedValue(failedJob);
+    db.addCredits.mockResolvedValue(1);
 
     const result = await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4' });
 
@@ -223,10 +237,10 @@ describe('push action — failure path (credit refund)', () => {
   });
 
   it('uses userId as tenantId', async () => {
-    vi.mocked(storage.uploadFile as any).mockRejectedValue(new Error('network error'));
+    storage.uploadFile.mockRejectedValue(new Error('network error'));
     const failedJob = makeJob({ userId: 'user_solo', status: JobStatus.FAILED });
-    vi.mocked(db.updateJob as any).mockResolvedValue(failedJob);
-    vi.mocked(db.addCredits as any).mockResolvedValue(1);
+    db.updateJob.mockResolvedValue(failedJob);
+    db.addCredits.mockResolvedValue(1);
 
     await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4' });
 
@@ -234,10 +248,10 @@ describe('push action — failure path (credit refund)', () => {
   });
 
   it('publishes FAILED status to redis after upload error', async () => {
-    vi.mocked(storage.uploadFile as any).mockRejectedValue(new Error('boom'));
+    storage.uploadFile.mockRejectedValue(new Error('boom'));
     const failedJob = makeJob({ status: JobStatus.FAILED });
-    vi.mocked(db.updateJob as any).mockResolvedValue(failedJob);
-    vi.mocked(db.addCredits as any).mockResolvedValue(0);
+    db.updateJob.mockResolvedValue(failedJob);
+    db.addCredits.mockResolvedValue(0);
 
     await pushAction({ jobId: 'job_1', file: '/tmp/video.mp4' });
 
@@ -254,8 +268,8 @@ describe('push action — failure path (credit refund)', () => {
 describe('status action — FAILED triggers refund', () => {
   it('refunds 1 credit when status is set to FAILED', async () => {
     const failedJob = makeJob({ status: JobStatus.FAILED });
-    vi.mocked(db.updateJob as any).mockResolvedValue(failedJob);
-    vi.mocked(db.addCredits as any).mockResolvedValue(1);
+    db.updateJob.mockResolvedValue(failedJob);
+    db.addCredits.mockResolvedValue(1);
 
     await statusAction({ jobId: 'job_1', status: 'FAILED' });
 
@@ -264,19 +278,19 @@ describe('status action — FAILED triggers refund', () => {
   });
 
   it('does NOT refund when status is set to COMPLETED', async () => {
-    vi.mocked(db.updateJob as any).mockResolvedValue(makeJob({ status: JobStatus.COMPLETED }));
+    db.updateJob.mockResolvedValue(makeJob({ status: JobStatus.COMPLETED }));
     await statusAction({ jobId: 'job_1', status: 'COMPLETED' });
     expect(db.addCredits).not.toHaveBeenCalled();
   });
 
   it('does NOT refund when status is set to PROCESSING', async () => {
-    vi.mocked(db.updateJob as any).mockResolvedValue(makeJob({ status: JobStatus.PROCESSING }));
+    db.updateJob.mockResolvedValue(makeJob({ status: JobStatus.PROCESSING }));
     await statusAction({ jobId: 'job_1', status: 'PROCESSING' });
     expect(db.addCredits).not.toHaveBeenCalled();
   });
 
   it('does NOT refund when status is set to PENDING', async () => {
-    vi.mocked(db.updateJob as any).mockResolvedValue(makeJob({ status: JobStatus.PENDING }));
+    db.updateJob.mockResolvedValue(makeJob({ status: JobStatus.PENDING }));
     await statusAction({ jobId: 'job_1', status: 'PENDING' });
     expect(db.addCredits).not.toHaveBeenCalled();
   });
