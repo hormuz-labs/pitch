@@ -34,15 +34,26 @@ program
     const uploadedUrls: string[] = [];
 
     try {
+      // Fetch job to get userId and parameters for path prefix
+      const job = await db.prisma.job.findUnique({ where: { id: jobId } });
+      if (!job) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+      
+      const parameters = typeof job.parameters === 'string' ? JSON.parse(job.parameters) : job.parameters;
+      const rawUrl = parameters?.url || 'untitled';
+      const projectName = rawUrl.replace(/^https?:\/\//, '').split('/')[0].replace(/[^a-zA-Z0-9-]/g, '_');
+      const prefix = `pitch/${job.userId}/${projectName}/videos`;
+
       // 1. Upload video to GCS/Storage
-      const videoUrl = await storage.uploadFile(file, bucket);
+      const videoUrl = await storage.uploadFile(file, bucket, prefix);
       uploadedUrls.push(videoUrl);
       console.log(`✅ Video uploaded: ${videoUrl}`);
 
       // 2. Upload audio if provided
       let audioUrl: string | undefined;
       if (audio) {
-        audioUrl = await storage.uploadFile(audio, bucket);
+        audioUrl = await storage.uploadFile(audio, bucket, prefix);
         uploadedUrls.push(audioUrl);
         console.log(`✅ Audio uploaded: ${audioUrl}`);
       }

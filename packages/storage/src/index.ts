@@ -51,7 +51,7 @@ async function ensureBucketExists(bucketName: string) {
   }
 }
 
-export async function uploadFile(localPath: string, bucketOverride?: string) {
+export async function uploadFile(localPath: string, bucketOverride?: string, prefix?: string) {
   const targetBucket = bucketOverride ?? bucket;
   const filename = path.basename(localPath);
   const fileStream = fs.readFileSync(localPath);
@@ -65,16 +65,18 @@ export async function uploadFile(localPath: string, bucketOverride?: string) {
 
   console.log(`[Storage] Uploading ${filename} to MinIO bucket "${targetBucket}"...`);
 
+  const key = prefix ? path.join(prefix, filename) : filename;
+
   await client.send(
     new PutObjectCommand({
       Bucket: targetBucket,
-      Key: filename,
+      Key: key,
       Body: fileStream,
       ContentType: contentType,
     })
   );
 
-  const url = `${publicUrl}/${targetBucket}/${filename}`;
+  const url = `${publicUrl}/${targetBucket}/${key}`;
   console.log(`[Storage] Upload complete. Public URL: ${url}`);
   return url;
 }
