@@ -57,3 +57,4 @@ demos/**
 .vercel
 .playwright-cli/
 docker-data/
+actions-runner/
