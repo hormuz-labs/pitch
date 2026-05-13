@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { PitchWordmark } from './PitchWordmark';
-import { useTheme } from '../contexts/ThemeContext';
 
 const SOCIAL_LINKS = [
   {
@@ -19,104 +18,91 @@ const SOCIAL_LINKS = [
   },
 ];
 
-const NAV_COLS = [
-  { heading: 'Product', links: ['How It Works', 'Pricing', 'Examples', 'Changelog'] },
-  { heading: 'Company', links: ['Blog', 'Careers', 'Contact'] },
+const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = [
+  {
+    heading: 'Product',
+    links: [
+      { label: 'Pricing',      to: '/pricing' },
+    ],
+  },
+  {
+    heading: 'Company',
+    links: [
+      { label: 'About Us', to: '/about' },
+      { label: 'Contact',  to: 'mailto:support@trypitch.co' },
+    ],
+  },
 ];
 
-export const Footer = () => {
-  const footerRef = useRef<HTMLElement>(null);
-  const spotRef   = useRef<HTMLDivElement>(null);
-  const trailRef  = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
+export const LandingFooter = () => {
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const footer = footerRef.current;
-    const spot   = spotRef.current;
-    const trail  = trailRef.current;
-    if (!footer || !spot || !trail) return;
+    const wrap = wrapRef.current;
+    if (!wrap) return;
 
-    const cur    = { x: 0, y: 0 };
-    const lag    = { x: 0, y: 0 };
-    const target = { x: 0, y: 0 };
-    let raf      = 0;
-
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-    const isDark = () => document.documentElement.dataset.theme === 'dark';
-
-    const tick = () => {
-      cur.x = lerp(cur.x, target.x, 0.9);
-      cur.y = lerp(cur.y, target.y, 0.9);
-      lag.x = lerp(lag.x, target.x, 0.18);
-      lag.y = lerp(lag.y, target.y, 0.18);
-
-      const c = isDark() ? '255,255,255' : '60,60,60';
-
-      gsap.set(spot, {
-        background: `radial-gradient(circle at ${cur.x}px ${cur.y}px,
-          rgba(${c},0.55) 0%,
-          rgba(${c},0.20) 8%,
-          transparent 15%)`,
-      });
-      gsap.set(trail, {
-        background: `radial-gradient(circle at ${lag.x}px ${lag.y}px,
-          rgba(${c},0.30) 0%,
-          rgba(${c},0.10) 10%,
-          transparent 18%)`,
-      });
-
-      raf = requestAnimationFrame(tick);
-    };
+    const RADIUS = 180;
+    const STRENGTH = 0.5;
 
     const onMove = (e: MouseEvent) => {
-      const r  = footer.getBoundingClientRect();
-      target.x = e.clientX - r.left;
-      target.y = e.clientY - r.top;
+      if (window.innerWidth < 1024) return;
+      const rect = wrap.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < RADIUS) {
+        const t = 1 - dist / RADIUS;
+        gsap.to(wrap, {
+          x: dx * STRENGTH * t,
+          y: dy * STRENGTH * t,
+          // color drives currentColor on the SVG inside
+          color: `rgba(255,255,255,${0.45 + t * 0.55})`,
+          duration: 0.3,
+          ease: 'power2.out',
+          overwrite: 'auto',
+        });
+      } else {
+        gsap.to(wrap, {
+          x: 0,
+          y: 0,
+          color: 'rgba(255,255,255,1)',
+          duration: 0.7,
+          ease: 'elastic.out(1,0.45)',
+          overwrite: 'auto',
+        });
+      }
     };
 
-    const onEnter = () => {
-      gsap.to([spot, trail], { opacity: 1, duration: 0.5, ease: 'power2.out' });
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(tick);
-    };
-
-    const onLeave = () => {
-      gsap.to([spot, trail], { opacity: 0, duration: 0.8, ease: 'power2.inOut' });
-      cancelAnimationFrame(raf);
-    };
-
-    footer.addEventListener('mouseenter', onEnter);
-    footer.addEventListener('mousemove',  onMove);
-    footer.addEventListener('mouseleave', onLeave);
-
-    return () => {
-      footer.removeEventListener('mouseenter', onEnter);
-      footer.removeEventListener('mousemove',  onMove);
-      footer.removeEventListener('mouseleave', onLeave);
-      cancelAnimationFrame(raf);
-    };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
   return (
-    <footer ref={footerRef} className="landing-footer">
-
-      <div ref={spotRef}  aria-hidden="true" className="landing-footer-glow landing-footer-glow--spot" />
-      <div ref={trailRef} aria-hidden="true" className="landing-footer-glow landing-footer-glow--trail" />
-
+    <footer className="landing-footer">
       <div className="landing-footer-inner">
         <div className="landing-footer-top">
 
           {/* Brand column */}
           <div className="landing-footer-brand">
-            <div className="landing-footer-wordmark" aria-label="Pitch">
+            {/*
+              GSAP animates `color` on this wrapper.
+              PitchWordmark uses fill="currentColor" so it inherits it.
+              Initial color is dim; brightens as cursor approaches.
+            */}
+            <div
+              ref={wrapRef}
+              className="landing-footer-wordmark"
+              aria-label="Pitch"
+              style={{ color: 'rgba(255,255,255,1)' }}
+            >
               <PitchWordmark />
             </div>
 
             <p className="landing-footer-tagline">
-              The AI agent that turns your product URL into a cinematic{' '}
-              <span style={{ fontStyle: 'italic', textDecoration: 'underline', textUnderlineOffset: '3px', fontWeight: 500 }}>pitch</span>
-              {' '}video in minutes.
+              The AI agent that turns your product URL into a cinematic pitch video in minutes.
             </p>
 
             <div className="landing-footer-socials">
@@ -136,9 +122,12 @@ export const Footer = () => {
               <div key={heading} className="landing-footer-nav-col">
                 <p className="landing-footer-nav-heading">{heading}</p>
                 <ul className="landing-footer-nav-list">
-                  {links.map((item) => (
-                    <li key={item}>
-                      <Link to="/pricing" className="landing-footer-nav-link">{item}</Link>
+                  {links.map(({ label, to }) => (
+                    <li key={label}>
+                      {to.startsWith('mailto:')
+                        ? <a href={to} className="landing-footer-nav-link">{label}</a>
+                        : <Link to={to} className="landing-footer-nav-link">{label}</Link>
+                      }
                     </li>
                   ))}
                 </ul>

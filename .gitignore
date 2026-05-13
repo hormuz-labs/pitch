@@ -45,6 +45,7 @@ opencode-logs/
 # IDEs
 .vscode/
 .idea/
+.claude/*
 
 # Project specific: Generated frames and cinematic outputs
 **/demo-cinematic-*/

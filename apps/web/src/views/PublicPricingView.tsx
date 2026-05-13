@@ -1,7 +1,7 @@
 import { useClerk } from '@clerk/clerk-react';
 import { useEffect } from 'react';
-import { PublicNavbar } from '../components/PublicNavbar';
-import { Footer } from '../components/Footer';
+import { LandingNav } from '../components/LandingNav';
+import { LandingFooter } from '../components/LandingFooter';
 import { PricingView } from './PricingView';
 
 export const PublicPricingView = () => {
@@ -23,11 +23,11 @@ export const PublicPricingView = () => {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] text-gray-900 font-sans selection:bg-gray-200 flex flex-col overflow-x-hidden overflow-y-auto">
-      <PublicNavbar />
-      <main className="flex-1 flex flex-col pt-16 pb-24">
+      <LandingNav />
+      <main className="flex-1 flex flex-col">
         <PricingView />
       </main>
-      <Footer />
+      <LandingFooter />
     </div>
   );
 };

@@ -8,17 +8,19 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev prod down logs ps
+.PHONY: help dev prod down logs ps test test-watch
 
 help:
 	@echo ""
 	@echo "  $(BOLD)$(CYAN)Pitch — available targets$(RESET)"
 	@echo ""
-	@echo "  $(GREEN)make dev$(RESET)   — start in development mode (interactive)"
-	@echo "  $(GREEN)make prod$(RESET)  — start all containers in production mode"
-	@echo "  $(GREEN)make down$(RESET)  — stop and remove all containers"
-	@echo "  $(GREEN)make logs$(RESET)  — tail logs for all running containers"
-	@echo "  $(GREEN)make ps$(RESET)    — list container status"
+	@echo "  $(GREEN)make dev$(RESET)        — start in development mode (interactive)"
+	@echo "  $(GREEN)make prod$(RESET)       — start all containers in production mode"
+	@echo "  $(GREEN)make down$(RESET)       — stop and remove all containers"
+	@echo "  $(GREEN)make logs$(RESET)       — tail logs for all running containers"
+	@echo "  $(GREEN)make ps$(RESET)         — list container status"
+	@echo "  $(GREEN)make test$(RESET)       — run all tests once (vitest run)"
+	@echo "  $(GREEN)make test-watch$(RESET) — run tests in watch mode (vitest)"
 	@echo ""
 
 # ─── Development ──────────────────────────────────────────────────────────────
@@ -90,3 +92,17 @@ logs:
 
 ps:
 	docker compose ps
+
+# ─── Testing ──────────────────────────────────────────────────────────────────
+test:
+	@echo ""
+	@echo "  $(BOLD)$(CYAN)Running tests...$(RESET)"
+	@echo ""
+	bun run test
+	@echo ""
+
+test-watch:
+	@echo ""
+	@echo "  $(BOLD)$(CYAN)Running tests in watch mode...$(RESET)"
+	@echo ""
+	bun run test:watch

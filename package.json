@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/supertest": "^7.2.0",
     "@zenstackhq/runtime": "^2.22.1",
     "axios": "^1.15.2",
     "bullmq": "^5.76.3",
@@ -31,6 +32,7 @@
     "dotenv-cli": "^11.0.0",
     "ioredis": "^5.10.1",
     "rimraf": "^5.0.0",
+    "supertest": "^7.2.2",
     "typescript": "^5.0.0",
     "vitest": "^4.1.5",
     "zenstack": "^2.22.1"
@@ -39,6 +41,7 @@
     "@google/genai": "",
     "dotenv": "",
     "fluent-ffmpeg": "",
+    "gsap": "^3.15.0",
     "mime": "",
     "ogl": "^1.0.11",
     "playwright": "^1.59.1",
