@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
-import { smoothstepExpr, springOvershootExpr, getChromiumGpuFlags } from './utils';
+import { smoothstepExpr, springOvershootExpr, getChromiumGpuFlags, getFFmpegHwAccelOptions } from './utils';
 
 export async function pass3(config: DemoConfig, startUrl: string, demoSteps: DemoStep[], demoDir: string) {
   console.log("== Pass 3: Raw Video Recording & JIT Tracking ==");
@@ -213,6 +213,8 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   fs.writeFileSync(path.join(demoDir, 'tracking.json'), JSON.stringify(trackingData, null, 2));
 
   // --- FFmpeg POST-PROCESSING ---
+  const { hasVaapi, hwFilterSuffix, hwOutputOpts } = getFFmpegHwAccelOptions();
+
   const trimSeconds = (initDurationMs / 1000).toFixed(3);
   console.log(`⏱️ Syncing Audio... Trimming page load dead time: ${trimSeconds}s`);
   console.log(`🎬 Encoding Final Video with FFmpeg Effects...`);
@@ -373,9 +375,9 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   if (fs.existsSync(cursorPng)) {
     filterString += `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${cursorAlphaExpr})'[cur];`;
     filterString += `[vfps][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
-    filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
+    filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30${hwFilterSuffix}[vout];`;
   } else {
-    filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30[vout];`;
+    filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30${hwFilterSuffix}[vout];`;
   }
 
   // Audio Mix
@@ -429,6 +431,7 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   fs.writeFileSync(filterScriptPath, filterString);
 
   await new Promise((resolve, reject) => {
+    if (hasVaapi) command.addOption('-vaapi_device', '/dev/dri/renderD128');
     command
       .outputOptions([
         '-filter_complex_script', filterScriptPath,
@@ -441,14 +444,11 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
         // never use space-containing values in a single outputOptions string.
         '-map', '[vout]',
         '-map', '[aout]',
-        '-c:v', 'libx264',
+        ...hwOutputOpts,
         '-profile:v', 'high',
         '-level:v', '4.2',
-        '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',
         '-r', '30',
-        '-crf', '18',
-        '-preset', 'medium',
         '-movflags', '+faststart',
         '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
       ])
@@ -476,26 +476,25 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
           'anullsrc=channel_layout=stereo:sample_rate=48000:duration=3.5[ia];' +
           '[1:v]fps=30,format=yuv420p[mv];' +
           '[1:a]aresample=48000[ma];' +
-          '[iv][ia][mv][ma]concat=n=2:v=1:a=1[vout][aout]';
+          `[iv][ia][mv][ma]concat=n=2:v=1:a=1${hasVaapi ? '[v_concat][aout];[v_concat]format=nv12,hwupload[vout]' : '[vout][aout]'}`;
 
         // Safety timeout: reject if FFmpeg stalls for >3 min
         const hangGuard = setTimeout(
           () => reject(new Error('stitchIntro: FFmpeg timed out after 3 minutes')),
           3 * 60 * 1000
         );
-        ffmpeg()
-          .input(introVideo)
-          .input(tempRawOut)
+        
+        const stitchCmd = ffmpeg().input(introVideo).input(tempRawOut);
+        if (hasVaapi) stitchCmd.addOption('-vaapi_device', '/dev/dri/renderD128');
+        
+        stitchCmd
           .outputOptions([
             '-filter_complex', stitchFilter,
             '-map', '[vout]',
             '-map', '[aout]',
-            '-c:v', 'libx264',
+            ...hwOutputOpts,
             '-profile:v', 'high',
             '-level:v', '4.2',
-            '-crf', '18',
-            '-preset', 'medium',
-            '-pix_fmt', 'yuv420p',
             '-c:a', 'aac',
             '-movflags', '+faststart',
             '-metadata', `title=${metadataTitle}`,
