@@ -25,15 +25,8 @@ jobs:
           export ENV_FILE="/workspace/.env"
           echo "Deploying commit: $IMAGE_TAG"
           
-          # Build api and worker in parallel
-          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build api &
-          PID_API=$!
-          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build worker &
-          PID_WORKER=$!
-          
-          # Wait for both builds to finish
-          wait $PID_API
-          wait $PID_WORKER
+          # Build api and worker (Docker Compose V2 builds in parallel automatically via BuildKit)
+          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build api worker
           
           # Recreate containers with the specific image tag
           docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml up -d
