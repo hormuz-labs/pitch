@@ -101,6 +101,7 @@ services:
         condition: service_healthy
 
   api:
+    image: pitch-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -133,6 +134,7 @@ services:
         condition: service_healthy
 
   worker:
+    image: pitch-worker:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
