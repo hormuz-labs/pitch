@@ -29,7 +29,7 @@ const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = 
     heading: 'Company',
     links: [
       { label: 'About Us', to: '/about' },
-      { label: 'Contact',  to: '/contact' },
+      { label: 'Contact',  to: 'mailto:support@trypitch.co' },
     ],
   },
 ];
@@ -67,7 +67,7 @@ export const LandingFooter = () => {
         gsap.to(wrap, {
           x: 0,
           y: 0,
-          color: 'rgba(255,255,255,0.45)',
+          color: 'rgba(255,255,255,1)',
           duration: 0.7,
           ease: 'elastic.out(1,0.45)',
           overwrite: 'auto',
@@ -95,7 +95,7 @@ export const LandingFooter = () => {
               ref={wrapRef}
               className="landing-footer-wordmark"
               aria-label="Pitch"
-              style={{ color: 'rgba(255,255,255,0.45)' }}
+              style={{ color: 'rgba(255,255,255,1)' }}
             >
               <PitchWordmark />
             </div>
@@ -123,7 +123,10 @@ export const LandingFooter = () => {
                 <ul className="landing-footer-nav-list">
                   {links.map(({ label, to }) => (
                     <li key={label}>
-                      <Link to={to} className="landing-footer-nav-link">{label}</Link>
+                      {to.startsWith('mailto:')
+                        ? <a href={to} className="landing-footer-nav-link">{label}</a>
+                        : <Link to={to} className="landing-footer-nav-link">{label}</Link>
+                      }
                     </li>
                   ))}
                 </ul>

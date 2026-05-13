@@ -186,7 +186,7 @@ export const PricingView = () => {
 
       <p className="mt-8 text-xs text-gray-400 text-center">
         Secure payment via Stripe · Credits never expire · Need a custom volume deal?{' '}
-        <a href="mailto:officialtrypitch@gmail.com" className="text-gray-600 underline underline-offset-2 hover:text-gray-900">Contact us</a>
+        <a href="mailto:support@trypitch.co" className="text-gray-600 underline underline-offset-2 hover:text-gray-900">Contact us</a>
       </p>
     </div>
   );

@@ -12,8 +12,8 @@ export const PitchWordmark = ({
   <svg
     className={className}
     style={style}
-    width="72"
-    height="22"
+    width="96"
+    height="30"
     viewBox="20 20 580 140"
     xmlns="http://www.w3.org/2000/svg"
     aria-label="Pitch"

@@ -618,8 +618,9 @@ function AppContent() {
     return <AuthenticateWithRedirectCallback />;
   }
 
-  // Landing page is always public — render it outside the authenticated app shell
+  // Landing page — signed-in users go straight to dashboard
   if (location.pathname === '/') {
+    if (userId) return <Navigate to="/dashboard" replace />;
     return <LandingView />;
   }
 

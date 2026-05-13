@@ -84,7 +84,7 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     tl.to(cursor, { scale: 0.78, duration: 0.08, ease: 'power2.in' }, '+=0.06');
     tl.to(ripple, { opacity: 0.5, scale: 1,   duration: 0.15, ease: 'power2.out' }, '<');
     tl.to(ripple, { opacity: 0,   scale: 1.6, duration: 0.25, ease: 'power2.in' });
-    tl.to(cursor, { scale: 1,     duration: 0.15, ease: 'back.out(3)' }, '<');
+    tl.to(cursor, { opacity: 0,   duration: 0.12, ease: 'power2.in' }, '<');
 
     return () => { tl.kill(); };
   }, []);
@@ -100,7 +100,7 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
   });
 
   return (
-    <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
+    <div className="fixed inset-0 z-[10000] pointer-events-none overflow-hidden">
 
       {/* Stair columns */}
       <div className="absolute inset-0 flex w-full h-full">
