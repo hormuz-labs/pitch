@@ -22,12 +22,13 @@ jobs:
       - name: Build and deploy containers
         run: |
           export IMAGE_TAG=${{ github.sha }}
+          export ENV_FILE="/workspace/.env"
           echo "Deploying commit: $IMAGE_TAG"
           
           # Build api and worker in parallel
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml build api &
+          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build api &
           PID_API=$!
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml build worker &
+          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build worker &
           PID_WORKER=$!
           
           # Wait for both builds to finish
@@ -35,7 +36,7 @@ jobs:
           wait $PID_WORKER
           
           # Recreate containers with the specific image tag
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml up -d
           
           # Clean up unused containers, networks, and dangling images
           docker system prune -f
