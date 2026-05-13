@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import logoWhite from '../assets/logo.svg';
 import logoBlack from '../assets/logoB.svg';
+import '../styles/auth.css';
 
 const CALLBACK_URL = `${window.location.origin}/sso-callback`;
 
@@ -39,18 +40,6 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const bg          = isDark ? '#080808' : '#f5f5f5';
-  const cardBg      = isDark ? '#121212' : '#ffffff';
-  const cardBorder  = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)';
-  const textPrimary = isDark ? '#ffffff' : '#111111';
-  const textMuted   = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.38)';
-  const accent      = isDark ? '#1DA1F2' : '#FF5A1F';
-  const btnBorder   = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.09)';
-  const btnBg       = isDark ? 'rgba(255,255,255,0.05)' : '#fff';
-  const btnText     = isDark ? 'rgba(255,255,255,0.85)' : '#222';
-  const glowA       = isDark ? 'rgba(29,161,242,0.35)' : 'rgba(255,90,31,0.28)';
-  const glowB       = isDark ? 'rgba(29,161,242,0.12)' : 'rgba(255,90,31,0.10)';
-
   const oauth = async (strategy: 'oauth_google' | 'oauth_github' | 'oauth_linkedin_oidc') => {
     setLoading(strategy);
     try {
@@ -66,153 +55,101 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
     }
   };
 
-  const btnStyle = (provider: string): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    width: '100%',
-    padding: '12px 20px',
-    border: `1px solid ${btnBorder}`,
-    borderRadius: 99,
-    background: btnBg,
-    color: btnText,
-    fontSize: 14,
-    fontWeight: 500,
-    fontFamily: 'var(--font-sans)',
-    cursor: loading ? 'not-allowed' : 'pointer',
-    opacity: loading && loading !== provider ? 0.5 : 1,
-    transition: 'opacity 0.15s, background 0.15s',
-  });
+  const btnOpacity = (provider: string) =>
+    loading && loading !== provider ? 0.45 : 1;
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: bg,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: 'var(--font-sans)',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
+    <div className="auth-page">
+      <div className="auth-dot-grid" />
+      <div className="auth-vignette" />
 
-      {/* Dot grid texture */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: `radial-gradient(circle, ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} 1px, transparent 1px)`,
-        backgroundSize: '28px 28px',
-        pointerEvents: 'none',
-        maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)',
-        WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)',
-      }} />
-
-      {isDark ? (
+      {isDark && (
         <>
-          {/* Dark mode: radial glow from bottom */}
-          <div style={{
-            position: 'absolute',
-            bottom: -350, left: '50%',
-            transform: 'translateX(-50%)',
-            width: '180vw', height: '110vh',
-            background: `radial-gradient(ellipse at center bottom, ${glowA} 0%, ${glowB} 35%, transparent 65%)`,
-            pointerEvents: 'none',
-          }} />
-          <div style={{
-            position: 'absolute',
-            top: -200, left: '50%',
-            transform: 'translateX(-50%)',
-            width: '100vw', height: '50vh',
-            background: `radial-gradient(ellipse at center top, ${glowB} 0%, transparent 65%)`,
-            pointerEvents: 'none',
-          }} />
+          <div className="auth-glow-bottom" />
+          <div className="auth-glow-top" />
         </>
-      ) : (
-        /* Light mode: rising horizontal lines of decreasing thickness */
-        <svg
-          style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 340, pointerEvents: 'none' }}
-          viewBox="0 0 1000 340"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          {/* thick + opaque at bottom → thin + faint going up */}
-          {[
-            { y: 308, h: 22  },
-            { y: 278, h: 17  },
-            { y: 252, h: 13  },
-            { y: 230, h: 10  },
-            { y: 212, h: 7.5 },
-            { y: 197, h: 5.5 },
-            { y: 184, h: 4   },
-            { y: 173, h: 2.8 },
-            { y: 164, h: 1.8 },
-            { y: 157, h: 1.2 },
-            { y: 151, h: 0.8 },
-          ].map((line, i, arr) => (
-            <rect
-              key={i}
-              x={0} y={line.y} width={1000} height={line.h}
-              fill="#FF5A1F"
-              opacity={0.90 - (i / (arr.length - 1)) * 0.72}
-            />
-          ))}
-        </svg>
       )}
 
-      {/* Logo wordmark */}
-      <a href="/" style={{ display: 'block', marginBottom: 24, textDecoration: 'none', position: 'relative', zIndex: 1 }}>
+      <a href="/" className="auth-logo-link">
         <img
           src={isDark ? logoWhite : logoBlack}
           alt="PITCH"
-          style={{ height: 38, width: 'auto', display: 'block' }}
+          className="auth-logo-img"
         />
       </a>
 
-      {/* Card */}
-      <div style={{
-        position: 'relative', zIndex: 1,
-        width: '100%', maxWidth: 380,
-        background: cardBg,
-        border: `1px solid ${cardBorder}`,
-        borderRadius: 20,
-        padding: '36px 32px 32px',
-        boxShadow: isDark
-          ? '0 0 0 1px rgba(255,255,255,0.06), 0 8px 16px rgba(0,0,0,0.4), 0 32px 80px rgba(0,0,0,0.6)'
-          : '0 0 0 1px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.04), 0 24px 60px rgba(0,0,0,0.10)',
-      }}>
-        <h1 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 700, color: textPrimary, letterSpacing: '-0.4px', textAlign: 'center', fontFamily: 'var(--font-sans)' }}>
-          {tab === 'sign-in' ? 'Sign in' : 'Create account'}
-        </h1>
-        <p style={{ margin: '0 0 28px', fontSize: 13, color: textMuted, textAlign: 'center' }}>
+      <div className="auth-card">
+        {/* Tab switcher */}
+        <div className="auth-tabs">
+          {(['sign-in', 'sign-up'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`auth-tab ${tab === t ? 'auth-tab--active' : 'auth-tab--inactive'}`}
+            >
+              {t === 'sign-in' ? 'Sign in' : 'Sign up'}
+            </button>
+          ))}
+        </div>
+
+        <p className="auth-subtitle">
           {tab === 'sign-in' ? 'Welcome back to Pitch.' : 'Start pitching in minutes.'}
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button style={btnStyle('oauth_google')} onClick={() => oauth('oauth_google')} disabled={!!loading}>
+        <div className="auth-providers">
+          <button
+            className="auth-btn auth-btn--social"
+            style={{ opacity: btnOpacity('oauth_google') }}
+            onClick={() => oauth('oauth_google')}
+            disabled={!!loading}
+          >
             <GoogleIcon />
             <span>Continue with Google</span>
           </button>
-          <button style={btnStyle('oauth_github')} onClick={() => oauth('oauth_github')} disabled={!!loading}>
-            <GitHubIcon color={isDark ? 'rgba(255,255,255,0.85)' : '#222'} />
+
+          <button
+            className={`auth-btn ${isDark ? 'auth-btn--github-dark' : 'auth-btn--github-light'}`}
+            style={{ opacity: btnOpacity('oauth_github') }}
+            onClick={() => oauth('oauth_github')}
+            disabled={!!loading}
+          >
+            <GitHubIcon color={isDark ? '#1a1a1a' : '#ffffff'} />
             <span>Continue with GitHub</span>
           </button>
-          <button style={btnStyle('oauth_linkedin_oidc')} onClick={() => oauth('oauth_linkedin_oidc')} disabled={!!loading}>
+
+          <button
+            className="auth-btn auth-btn--social"
+            style={{ opacity: btnOpacity('oauth_linkedin_oidc') }}
+            onClick={() => oauth('oauth_linkedin_oidc')}
+            disabled={!!loading}
+          >
             <LinkedInIcon />
             <span>Continue with LinkedIn</span>
           </button>
         </div>
+
+        <div className="auth-divider">
+          <div className="auth-divider-line" />
+          <span className="auth-divider-label">or</span>
+          <div className="auth-divider-line" />
+        </div>
+
+        <p className="auth-switch">
+          {tab === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
+          <button
+            className="auth-switch-btn"
+            onClick={() => setTab(tab === 'sign-in' ? 'sign-up' : 'sign-in')}
+          >
+            {tab === 'sign-in' ? 'Create account' : 'Sign in'}
+          </button>
+        </p>
       </div>
 
-      {/* Switch mode */}
-      <p style={{ position: 'relative', zIndex: 1, marginTop: 20, fontSize: 13, color: textMuted }}>
-        {tab === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
-        <button
-          onClick={() => setTab(tab === 'sign-in' ? 'sign-up' : 'sign-in')}
-          style={{ background: 'none', border: 'none', padding: 0, color: accent, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}
-        >
-          {tab === 'sign-in' ? 'Create account' : 'Sign in'}
-        </button>
+      <p className="auth-footer-note">
+        By continuing, you agree to our{' '}
+        <a href="/privacy">Privacy Policy</a>
+        {' '}and{' '}
+        <a href="#">Terms</a>.
       </p>
     </div>
   );

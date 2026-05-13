@@ -12,10 +12,6 @@ const ThemeContext = createContext<ThemeCtx | null>(null);
 const STORAGE_KEY = 'pitch-theme';
 
 function getInitial(): Theme {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'dark' || stored === 'light') return stored;
-  } catch {}
   return 'light';
 }
 

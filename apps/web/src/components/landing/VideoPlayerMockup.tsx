@@ -27,8 +27,8 @@ export const VideoPlayerMockup = () => (
       {/* Body */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Left Sidebar */}
-        <div className="w-64 bg-[#252525] border-r border-[#3D3D3D] flex flex-col p-3 gap-4 text-[#CCCCCC]">
+        {/* Left Sidebar — hidden on small screens */}
+        <div className="hidden md:flex w-64 bg-[#252525] border-r border-[#3D3D3D] flex-col p-3 gap-4 text-[#CCCCCC]">
           <div className="flex items-center gap-2 text-white font-bold px-2">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -104,8 +104,8 @@ export const VideoPlayerMockup = () => (
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 bg-[#1A1A1A] border-l border-[#3D3D3D] flex flex-col">
+        {/* Right Sidebar — hidden on medium and smaller screens */}
+        <div className="hidden lg:flex w-80 bg-[#1A1A1A] border-l border-[#3D3D3D] flex-col">
           <div className="p-3 border-b border-[#3D3D3D] bg-[#162B1D] text-green-400 flex items-center justify-between rounded-tr-lg">
             <div className="font-bold flex items-center gap-2">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

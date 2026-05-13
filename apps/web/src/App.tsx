@@ -439,6 +439,7 @@ function AppContent() {
       try {
         const primaryEmail = user.primaryEmailAddress?.emailAddress;
         if (!primaryEmail) return;
+        const token = await getToken();
         await api.post('/users/sync', token!, {
           email: primaryEmail,
           firstName: user.firstName,

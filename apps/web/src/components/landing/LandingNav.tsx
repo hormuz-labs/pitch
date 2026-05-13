@@ -1,26 +1,8 @@
 import { useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
-import tabLogoB from '../../assets/tabLogoB.svg';
 import tabLogoW from '../../assets/tabLogoW.svg';
-import logoBlack from '../../assets/logoB.svg';
-import logoWhite from '../../assets/logo.svg';
-import { useTheme } from '../../contexts/ThemeContext';
-
-const SunIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-  </svg>
-);
-
-const MoonIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-  </svg>
-);
 
 export const LandingNav = () => {
-  const { theme, toggle } = useTheme();
   const { isSignedIn } = useAuth();
 
   return (
@@ -35,8 +17,7 @@ export const LandingNav = () => {
       <nav className="landing-nav" aria-label="Main navigation">
         <div className="landing-nav-inner">
           <Link to="/" aria-label="Pitch home" className="landing-nav-logo">
-            <img src={theme === 'dark' ? tabLogoW : tabLogoB} alt="" aria-hidden="true" className="landing-nav-logo-img" />
-            <img src={theme === 'dark' ? logoWhite : logoBlack} alt="PITCH" className="landing-nav-logo-wordmark" />
+            <img src={tabLogoW} alt="Pitch" className="landing-nav-logo-img" />
           </Link>
 
           <div className="landing-nav-links" role="list">
@@ -48,14 +29,6 @@ export const LandingNav = () => {
           </div>
 
           <div className="landing-nav-actions">
-            <button
-              className="landing-nav-theme-toggle"
-              onClick={toggle}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </button>
-
             {isSignedIn ? (
               <Link to="/dashboard" className="landing-nav-cta">Dashboard</Link>
             ) : (
