@@ -34,7 +34,8 @@ jobs:
           docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build api worker
           
           # Recreate containers with the specific image tag
-          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml up -d
+          # Using --remove-orphans prevents conflicts if old containers exist with the same name
+          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
           
           # Clean up unused containers, networks, and dangling images
           docker system prune -f
