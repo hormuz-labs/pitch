@@ -56,4 +56,5 @@ export interface UpdateJobRequest {
 
 export const QUEUE_NAME = 'video-generation';
 export const JOB_UPDATES_CHANNEL = 'job-updates';
+export const JOB_CANCELLATIONS_CHANNEL = 'job-cancellations';
 export * from './telegram.js';

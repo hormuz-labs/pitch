@@ -4,10 +4,10 @@
   "type": "module",
   "private": true,
   "bin": {
-    "job-cli": "./dist/index.js"
+    "job-cli": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js"
+    "build": "tsc"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.4.2",

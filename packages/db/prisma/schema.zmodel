@@ -1,6 +1,5 @@
 generator client {
   provider      = "prisma-client-js"
-  output        = "../../../node_modules/.prisma/client"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -16,7 +15,6 @@ plugin prisma {
 
 plugin enhancer {
   provider = "@core/enhancer"
-  output = "../../../node_modules/@zenstackhq/runtime"
 }
 
 // Dummy user model for ZenStack auth type-checking

@@ -396,6 +396,26 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Wrapper: always fetches a fresh token; on 401 retries once with force-refresh
+  const authFetch = async (input: string, init: RequestInit = {}): Promise<Response> => {
+    const token = await getToken();
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch(input, {
+      ...init,
+      headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) {
+      // Force Clerk to refresh the session token and retry once
+      const freshToken = await getToken({ skipCache: true });
+      if (!freshToken) throw new Error('Not authenticated');
+      return fetch(input, {
+        ...init,
+        headers: { ...(init.headers ?? {}), Authorization: `Bearer ${freshToken}` },
+      });
+    }
+    return res;
+  };
+
   // Responsive
   useEffect(() => {
     const handleResize = () => {
@@ -417,7 +437,6 @@ function AppContent() {
 
     const syncUser = async () => {
       try {
-        const token = await getToken();
         const primaryEmail = user.primaryEmailAddress?.emailAddress;
         if (!primaryEmail) return;
         await api.post('/users/sync', token!, {
@@ -452,17 +471,17 @@ function AppContent() {
     fetchJobs();
   }, [isLoaded, userId, getToken]);
 
-  // Listen to SSE updates.
-  // EventSource doesn't support Authorization headers, so the token is passed
-  // as a query param. Parsing logic lives in lib/events.ts (parseSSELog).
+  // Listen to SSE updates — reconnects automatically with a fresh token on close/error.
+  // EventSource doesn't support Authorization headers, so the token is passed as a query param.
+  // Parsing logic lives in lib/events.ts (parseSSELog).
   useEffect(() => {
     if (!isLoaded || !userId) return;
 
-    let sse: EventSource;
-    getToken().then(token => {
-      sse = new EventSource(`${API_URL}/jobs/stream?token=${token}`);
+    let sse: EventSource | null = null;
+    let destroyed = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
-      sse.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         if (data.userId !== userId) return;
@@ -489,9 +508,30 @@ function AppContent() {
       }
     };
 
-    });
+    const connect = async () => {
+      if (destroyed) return;
+      // Always fetch a fresh token so the SSE URL never carries an expired JWT
+      const token = await getToken();
+      if (!token || destroyed) return;
+      sse = new EventSource(`${API_URL}/jobs/stream?token=${token}`);
+      sse.onmessage = handleMessage;
+      sse.onerror = () => {
+        sse?.close();
+        sse = null;
+        if (!destroyed) {
+          // Reconnect after 3 s with a brand-new token
+          retryTimeout = setTimeout(connect, 3000);
+        }
+      };
+    };
 
-    return () => sse?.close();
+    connect();
+
+    return () => {
+      destroyed = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      sse?.close();
+    };
   }, [isLoaded, userId]);
 
   const handleQueueJob = async (values: any) => {

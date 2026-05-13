@@ -1,15 +1,15 @@
-import { Worker, Job } from 'bullmq';
+import { Worker } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUE_NAME, JobStatus, JOB_UPDATES_CHANNEL, createLogger, sendTelegramMessage } from '@saas/shared';
-import * as db from '@saas/db';
-import { createOpencode } from '@opencode-ai/sdk';
+import { QUEUE_NAME, createLogger } from '@saas/shared';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startServer, restartServer, checkServerHealth, type OpencodeServer } from './opencode.js';
+import { createJobProcessor, startCancellationListener } from './job-processor.js';
+import type { OpencodeClient } from '@opencode-ai/sdk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// __dirname is apps/worker/src
 const rootDir = path.resolve(__dirname, '../../..');
 
 dotenv.config({ path: path.resolve(rootDir, '.env') });
@@ -20,124 +20,154 @@ const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', 
   maxRetriesPerRequest: null,
 });
 
+const targetDir = process.env.WORKSPACE_DIR || rootDir;
+
+// ── Healthcheck configuration ───────────────────────────────────────
+const HEALTHCHECK_INTERVAL_MS = Number(process.env.HEALTHCHECK_INTERVAL_MS || '10000');
+const HEALTHCHECK_TIMEOUT_MS = Number(process.env.HEALTHCHECK_TIMEOUT_MS || '5000');
+const HEALTHCHECK_MAX_FAILURES = Number(process.env.HEALTHCHECK_MAX_FAILURES || '3');
+const SERVER_RESTART_MAX_RETRIES = Number(process.env.SERVER_RESTART_MAX_RETRIES || '3');
+
+// ── Singleton OpenCode server & client ──────────────────────────────
+// The OpenCode server supports multiple concurrent sessions. Starting one
+// server per worker process and creating a session per job eliminates the
+// massive overhead of spawning/killing a child process for every job.
+let server: OpencodeServer;
+let client: OpencodeClient;
+
+async function initServer() {
+  const result = await startServer(targetDir);
+  server = result.server;
+  client = result.client;
+}
+
+await initServer();
+
+const processJob = createJobProcessor(connection, targetDir);
+
+// Start a dedicated Redis subscriber that listens for job cancellations
+// published by the API when a user deletes a running job. The listener will
+// abort and delete the active OpenCode session for any matching in-flight job.
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const cancellationSubscriber = startCancellationListener(redisUrl, () => client, targetDir);
+
+let isProcessingJob = false;
+let isShuttingDown = false;
+let consecutiveFailures = 0;
+let healthCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+// ── Background healthcheck ──────────────────────────────────────────
+function startHealthCheck() {
+  healthCheckTimer = setInterval(async () => {
+    if (isShuttingDown || isProcessingJob) return;
+
+    const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS);
+    if (healthy) {
+      if (consecutiveFailures > 0) {
+        logger.info('OpenCode server healthcheck recovered');
+      }
+      consecutiveFailures = 0;
+      return;
+    }
+
+    consecutiveFailures++;
+    logger.error(
+      { consecutiveFailures, maxFailures: HEALTHCHECK_MAX_FAILURES },
+      'OpenCode server healthcheck failed'
+    );
+
+    if (consecutiveFailures >= HEALTHCHECK_MAX_FAILURES) {
+      try {
+        const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES);
+        server = result.server;
+        client = result.client;
+        consecutiveFailures = 0;
+        logger.info({ url: server.url }, 'OpenCode server restarted successfully');
+      } catch {
+        await shutdown('HEALTHCHECK_FAILURE');
+      }
+    }
+  }, HEALTHCHECK_INTERVAL_MS);
+}
+
+function stopHealthCheck() {
+  if (healthCheckTimer) {
+    clearInterval(healthCheckTimer);
+    healthCheckTimer = null;
+  }
+}
+
+startHealthCheck();
+
+async function shutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  logger.info({ signal }, 'Shutting down worker');
+  stopHealthCheck();
+  try {
+    await worker.close();
+  } catch (e) {
+    logger.error({ err: e }, 'Error closing worker');
+  }
+  try {
+    server.close();
+  } catch {
+    // ignore
+  }
+  try {
+    await cancellationSubscriber.quit();
+  } catch {
+    // ignore
+  }
+  try {
+    await connection.quit();
+  } catch {
+    // ignore
+  }
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// ── BullMQ Worker ───────────────────────────────────────────────────
 const worker = new Worker(
   QUEUE_NAME,
-  async (job: Job) => {
-    const { jobId, userId, parameters } = job.data;
-    const jobLogger = logger.child({ jobId, userId });
-
-    jobLogger.info('Processing job');
-
-    // Update status to PROCESSING
-    const updatedJob = await db.updateJob(jobId, { status: JobStatus.PROCESSING });
-    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
-
-    const targetDir = process.env.WORKSPACE_DIR || rootDir;
-
-    let opencode: any;
+  async (job) => {
+    isProcessingJob = true;
     try {
-      // 1. Start OpenCode server and get client (dynamic port)
-      jobLogger.info({ targetDir }, 'Starting OpenCode server');
-      opencode = await createOpencode({ timeout: 60000 });
-      const { client, server } = opencode;
-
-      // 2. Create session associated with this job
-      const sessionResponse = await client.session.create({
-        query: { directory: targetDir },
-        body: { title: `Job ${jobId} for user ${userId}` }
-      });
-      if (sessionResponse.error || !sessionResponse.data) {
-        throw new Error("Failed to create OpenCode session: " + JSON.stringify(sessionResponse.error));
-      }
-      const session = sessionResponse.data;
-      jobLogger.info({ sessionId: session.id }, 'OpenCode session created');
-
-      // 3. Subscribe to events and stream to Redis
-      const events = await client.event.subscribe({
-        query: { directory: targetDir }
-      });
-      
-      const streamPromise = (async () => {
+      // Quick pre-flight healthcheck. If the server died while we were idle,
+      // try to restart it before accepting the job.
+      const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS);
+      if (!healthy) {
         try {
-          for await (const event of events.stream) {
-            await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify({
-              type: 'LOG',
-              jobId,
-              userId,
-              event
-            }));
-          }
-        } catch (e: any) {
-          jobLogger.error({ err: e }, 'Event stream error');
+          const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES);
+          server = result.server;
+          client = result.client;
+          logger.info({ url: server.url }, 'OpenCode server restarted before job');
+        } catch {
+          throw new Error('OpenCode server is not responding and could not be restarted');
         }
-      })();
+      }
 
-      // 4. Send prompt to OpenCode
-      const promptText = `
-Please execute the following video generation task for Job ${jobId}.
-Parameters:
-${JSON.stringify(parameters, null, 2)}
+      await processJob(job, client);
+    } finally {
+      isProcessingJob = false;
 
-IMPORTANT: Once the ENTIRE video generation pipeline is complete (including the final FFmpeg concatenation of the intro and the main video), you MUST run the job-cli to complete the job and upload the final concatenated results. Do NOT push incomplete or un-stitched videos.
-If an audio/voiceover file was generated separately, include it with the --audio flag.
-Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GENERATED_VIDEO> [--audio <PATH_TO_GENERATED_AUDIO>]
-`;
-
-      let isAborted = false;
-      const checkInterval = setInterval(async () => {
-        const jobExists = await db.prisma.job.findUnique({ where: { id: jobId } });
-        if (!jobExists) {
-           jobLogger.info("Job deleted from DB, aborting worker...");
-           isAborted = true;
-           if (opencode?.server) opencode.server.close();
-           clearInterval(checkInterval);
+      // Post-job healthcheck: if the server died during the job, trigger a
+      // restart now while we are idle so the next job starts on a fresh server.
+      const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS);
+      if (!healthy) {
+        logger.error('OpenCode server unresponsive after job; attempting restart');
+        try {
+          const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES);
+          server = result.server;
+          client = result.client;
+        } catch {
+          await shutdown('POST_JOB_FAILURE');
         }
-      }, 5000);
-
-      try {
-        const promptResponse = await client.session.prompt({
-          path: { id: session.id },
-          query: { directory: targetDir },
-          body: {
-            parts: [{ type: 'text', text: promptText }]
-          }
-        });
-        
-        if (promptResponse.error) {
-          throw new Error("OpenCode prompt failed: " + JSON.stringify(promptResponse.error));
-        }
-      } finally {
-        clearInterval(checkInterval);
       }
-      
-      jobLogger.info('OpenCode prompt completed');
-      
-      // Stop the server once done
-      server.close();
-      await streamPromise;
-
-    } catch (error: any) {
-      jobLogger.error({ err: error }, 'Job processing failed');
-      
-      const jobExists = await db.prisma.job.findUnique({ where: { id: jobId } });
-      if (jobExists) {
-        const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
-        await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
-        
-        const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
-        const email = userProfile?.email || userId;
-        const urlParam = parameters?.url || 'N/A';
-        const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
-
-        await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
-      } else {
-        jobLogger.info('Job was deleted from DB, skipping failure update and telegram alert');
-      }
-      
-      if (opencode?.server) {
-        opencode.server.close();
-      }
-      throw error;
     }
   },
   { connection }

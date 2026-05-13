@@ -1,7 +1,7 @@
 import express from 'express';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUE_NAME, JOB_UPDATES_CHANNEL, CreateJobRequest, JobStatus, createLogger, sendTelegramMessage } from '@saas/shared';
+import { QUEUE_NAME, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, CreateJobRequest, JobStatus, createLogger, sendTelegramMessage } from '@saas/shared';
 import * as db from '@saas/db';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -100,7 +100,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(clerkMiddleware());
+app.use(clerkMiddleware({ clockSkewInMs: 60_000 }));
 
 // Structured HTTP request logging — every request logged with method, url, status, responseTime
 app.use(pinoHttp({
@@ -303,6 +303,12 @@ app.delete('/jobs/:id', async (req, res) => {
 
   const { id } = req.params;
   try {
+    // Signal the worker to abort any active OpenCode session for this job
+    // before we touch the queue or the database. The worker subscribes to this
+    // channel and will call session.abort() + session.delete() immediately.
+    await connection.publish(JOB_CANCELLATIONS_CHANNEL, JSON.stringify({ jobId: id }));
+    logger.info({ jobId: id, userId }, 'Published job cancellation signal');
+
     // Attempt to remove from BullMQ first
     const bullJob = await videoQueue.getJob(id);
     if (bullJob) {
