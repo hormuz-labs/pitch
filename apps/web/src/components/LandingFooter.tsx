@@ -45,6 +45,7 @@ export const LandingFooter = () => {
     const STRENGTH = 0.5;
 
     const onMove = (e: MouseEvent) => {
+      if (window.innerWidth < 1024) return;
       const rect = wrap.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;

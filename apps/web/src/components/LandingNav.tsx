@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import tabLogoB from '/tabLogoB.svg';
 
 const NAV_LINKS = [
-  { label: 'Showcase', to: '/#showcase' },
-  { label: 'Roadmap',  to: '/#roadmap'  },
-  { label: 'Pricing',  to: '/pricing'   },
+  { label: 'Showcase', to: '/#showcase', match: (p: string, h: string) => p === '/' && h === '#showcase' },
+  { label: 'Roadmap',  to: '/#roadmap',  match: (p: string, h: string) => p === '/' && h === '#roadmap'  },
+  { label: 'Pricing',  to: '/pricing',   match: (p: string)            => p === '/pricing'               },
 ];
 
 export const LandingNav = () => {
   const { isSignedIn } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]   = useState(false);
+  const { pathname, hash } = useLocation();
+
+  const isActive = (link: typeof NAV_LINKS[number]) =>
+    link.match(pathname, hash);
 
   return (
     <>
@@ -32,9 +36,15 @@ export const LandingNav = () => {
 
           {/* Desktop links */}
           <div className="landing-nav-links" role="list">
-            {NAV_LINKS.map(({ label, to }) => (
-              <Link key={label} to={to} className="landing-nav-link" role="listitem">
-                {label}
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.label}
+                to={link.to}
+                role="listitem"
+                className={`landing-nav-link${isActive(link) ? ' landing-nav-link--active' : ''}`}
+              >
+                {isActive(link) && <span className="landing-nav-link-dot" aria-hidden="true" />}
+                {link.label}
               </Link>
             ))}
           </div>
@@ -67,14 +77,15 @@ export const LandingNav = () => {
       <div className={`landing-nav-drawer${open ? ' is-open' : ''}`} aria-hidden={!open}>
         <div className="landing-nav-drawer-inner">
           <nav className="landing-nav-drawer-links">
-            {NAV_LINKS.map(({ label, to }) => (
+            {NAV_LINKS.map((link) => (
               <Link
-                key={label}
-                to={to}
-                className="landing-nav-drawer-link"
+                key={link.label}
+                to={link.to}
+                className={`landing-nav-drawer-link${isActive(link) ? ' is-active' : ''}`}
                 onClick={() => setOpen(false)}
               >
-                {label}
+                {isActive(link) && <span className="landing-nav-link-dot" aria-hidden="true" />}
+                {link.label}
               </Link>
             ))}
           </nav>

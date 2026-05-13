@@ -144,6 +144,26 @@
 
 .landing-nav-link:hover { color: rgba(0, 0, 0, 0.85); }
 
+.landing-nav-link--active {
+  color: rgba(0, 0, 0, 0.85);
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 99px;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.landing-nav-link-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #111111;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
 .landing-nav-actions {
   display: flex;
   align-items: center;
@@ -1287,6 +1307,14 @@
 
 .landing-nav-drawer-link:last-child { border-bottom: none; }
 .landing-nav-drawer-link:hover { color: rgba(0,0,0,0.45); }
+
+.landing-nav-drawer-link.is-active {
+  color: #111111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 
 .landing-nav-drawer-actions {
   display: flex;

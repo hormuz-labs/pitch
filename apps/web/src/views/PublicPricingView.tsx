@@ -24,7 +24,7 @@ export const PublicPricingView = () => {
   return (
     <div className="min-h-screen bg-[#FDFDFD] text-gray-900 font-sans selection:bg-gray-200 flex flex-col overflow-x-hidden overflow-y-auto">
       <LandingNav />
-      <main className="flex-1 flex flex-col pt-16 pb-24">
+      <main className="flex-1 flex flex-col">
         <PricingView />
       </main>
       <LandingFooter />
