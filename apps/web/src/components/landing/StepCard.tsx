@@ -27,7 +27,7 @@ export const StepCard = ({ numeral, step, title, description, children }: StepCa
 
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-    const isDark = () => document.documentElement.dataset.theme === 'dark';
+    let glowRgb = '60,60,60';
 
     const tick = () => {
       cur.x = lerp(cur.x, target.x, 0.9);
@@ -35,7 +35,7 @@ export const StepCard = ({ numeral, step, title, description, children }: StepCa
       lag.x = lerp(lag.x, target.x, 0.18);
       lag.y = lerp(lag.y, target.y, 0.18);
 
-      const c = isDark() ? '255,255,255' : '60,60,60';
+      const c = glowRgb;
 
       gsap.set(spot, {
         background: `radial-gradient(circle at ${cur.x}px ${cur.y}px,
@@ -60,6 +60,7 @@ export const StepCard = ({ numeral, step, title, description, children }: StepCa
     };
 
     const onEnter = () => {
+      glowRgb = getComputedStyle(card).getPropertyValue('--card-glow-rgb').trim() || '60,60,60';
       gsap.to([spot, trail], { opacity: 1, duration: 0.5, ease: 'power2.out' });
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(tick);

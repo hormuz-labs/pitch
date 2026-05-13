@@ -52,6 +52,9 @@
   /* Logo / pixel art */
   --logo-fill:  #111111;
 
+  /* Step card hover glow */
+  --card-glow-rgb: 60, 60, 60;
+
   /* Typography */
   --font-sans:  'Inter', system-ui, -apple-system, sans-serif;
   --font-serif: 'Instrument Serif', Georgia, serif;
@@ -133,4 +136,7 @@
 
   /* Logo */
   --logo-fill:  #FFFFFF;
+
+  /* Step card hover glow */
+  --card-glow-rgb: 255, 255, 255;
 }

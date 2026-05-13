@@ -1,5 +1,6 @@
 import { useClerk, useAuth } from '@clerk/clerk-react';
 import { useEffect, useRef, useState } from 'react';
+import { useStepSequence } from '../hooks/useStepSequence';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
@@ -19,7 +20,7 @@ export const LandingView = () => {
   const clerk = useClerk();
   const { isSignedIn } = useAuth();
   const [preloaderDone, setPreloaderDone] = useState(false);
-  const [activeCard, setActiveCard] = useState<0 | 1 | 2 | 3>(0);
+  const seq    = useStepSequence(3);
   const hiwRef = useRef<HTMLElement>(null);
 
   // GSAP ScrollTrigger — How It Works section
@@ -65,10 +66,10 @@ export const LandingView = () => {
       trigger: hiwRef.current,
       start: 'top 70%',
       once: true,
-      onEnter: () => setActiveCard(1),
+      onEnter: () => seq.start(),
     });
     return () => st.kill();
-  }, []);
+  }, [seq.start]);
 
   // Keyboard shortcut: G → open sign-in modal
   useEffect(() => {
@@ -145,17 +146,17 @@ export const LandingView = () => {
             <div className="landing-hiw-grid">
               <StepCard numeral="i." step="Step 01" title="Drop your URL"
                 description="Point the agent at your live product. It opens a real browser, navigates flows, and waits for state.">
-                <Step1Illustration active={activeCard === 1} onComplete={() => setActiveCard(2)} />
+                <Step1Illustration {...seq.stepProps(0)} />
               </StepCard>
 
               <StepCard numeral="ii." step="Step 02" title="Direct the scene"
                 description="Tell the agent in plain English. Pick a voice, a theme, the pace. Subtitles optional.">
-                <Step2Illustration active={activeCard === 2} onComplete={() => setActiveCard(3)} />
+                <Step2Illustration {...seq.stepProps(1)} />
               </StepCard>
 
               <StepCard numeral="iii." step="Step 03" title="Receive the cut"
                 description="Get a narrated, scored, color-graded 1080p MP4. Edit captions, swap voices, or re-render any scene.">
-                <Step3Illustration active={activeCard === 3} onComplete={() => setActiveCard(0)} />
+                <Step3Illustration {...seq.stepProps(2)} />
               </StepCard>
             </div>
           </div>
