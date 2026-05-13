@@ -12,6 +12,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         
+      - name: Prepare environment variables
+        run: |
+          # Copy the .env file from the original project directory to the runner's workspace
+          cp /workspace/.env .env
+        
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
