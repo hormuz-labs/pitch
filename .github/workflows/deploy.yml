@@ -23,5 +23,5 @@ jobs:
           # Recreate containers with the specific image tag
           docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
           
-          # Clean up old images
-          docker image prune -f
+          # Clean up unused containers, networks, and dangling images
+          docker system prune -f
