@@ -11,5 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install agent-browser globally and run its install command
 RUN bun install -g agent-browser && agent-browser install
 
+# Trigger CI rebuild
 ENV PATH="/root/.opencode/bin:${PATH}"
 
