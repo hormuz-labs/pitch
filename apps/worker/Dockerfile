@@ -36,8 +36,7 @@ WORKDIR /app
 
 COPY --from=builder /app .
 
-# Install Playwright browser and its Linux UI dependencies
-RUN bunx playwright install chromium --with-deps
+
 
 # Allow the container user to access GPU devices (/dev/dri)
 RUN groupadd -f render && usermod -aG render,video root
