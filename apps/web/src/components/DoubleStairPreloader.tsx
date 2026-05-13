@@ -66,9 +66,10 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     const tl = gsap.timeline({ delay: CURSOR_START });
 
     tl.call(() => {
-      const r  = pitches.getBoundingClientRect();
+      const r       = pitches.getBoundingClientRect();
+      const isMobile = window.innerWidth < 768;
       const tx = r.left + r.width / 2 - 10;
-      const ty = r.top  + r.height / 2 - 10;
+      const ty = r.top  + r.height / 2 + (isMobile ? 2 : 8);
       gsap.set(cursor, { x: tx + 90, y: ty + 55, opacity: 0, scale: 1 });
       gsap.set(ripple, { x: tx, y: ty, opacity: 0, scale: 0 });
     });
@@ -76,7 +77,7 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     tl.to(cursor, { opacity: 1, duration: 0.18, ease: 'power2.out' });
     tl.to(cursor, {
       x: () => pitchesRef.current!.getBoundingClientRect().left + pitchesRef.current!.getBoundingClientRect().width / 2 - 10,
-      y: () => pitchesRef.current!.getBoundingClientRect().top  + pitchesRef.current!.getBoundingClientRect().height / 2 - 10,
+      y: () => { const isMobile = window.innerWidth < 768; return pitchesRef.current!.getBoundingClientRect().top + pitchesRef.current!.getBoundingClientRect().height / 2 + (isMobile ? 2 : 8); },
       duration: 0.45,
       ease: 'power3.out',
     }, '+=0.05');
@@ -140,7 +141,7 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
       >
         <div
           ref={textRef}
-          className="flex flex-wrap justify-center gap-x-1.5 sm:gap-x-3 md:gap-x-4 lg:gap-x-6"
+          className="flex flex-nowrap justify-center gap-x-1.5 sm:gap-x-3 md:gap-x-4 lg:gap-x-6"
           aria-label="Automating cinematic product pitches."
         >
           {WORD_GROUPS.map(({ chars, italic }, wi) => (
@@ -158,7 +159,7 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
                 <span
                   key={ci}
                   className="pre-char font-mono font-bold tracking-tight text-white"
-                  style={{ fontSize: 'clamp(22px, 3.5vw, 35px)', opacity: 0, whiteSpace: 'pre' }}
+                  style={{ fontSize: 'clamp(10px, 3.5vw, 35px)', opacity: 0, whiteSpace: 'pre' }}
                 >
                   {ch}
                 </span>

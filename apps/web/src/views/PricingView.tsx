@@ -27,7 +27,7 @@ const PACKS: {
     credits: 10,
     badge: null,
     desc: 'Perfect for trying out AI-powered demo generation.',
-    features: ['10 AI credits', '3 credits = 1 full demo', 'Up to 1080p exports', 'Priority queue access'],
+    features: ['10 AI credits', '9 credits = 3 videos', 'Up to 1080p exports', 'Priority queue access'],
   },
   {
     key: 'pro',

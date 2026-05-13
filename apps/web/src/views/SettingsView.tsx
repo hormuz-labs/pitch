@@ -112,13 +112,13 @@ export const SettingsView = () => {
                        <span>{balance ?? '—'}</span>
                      </div>
                    </div>
-                   <div className="text-sm text-gray-500 mt-4">1 credit = $1. 3 credits used per video generation.</div>
+                    <div className="text-sm text-gray-500 mt-4">3 credits per video.</div>
                  </div>
 
                  <div className="p-8 rounded-2xl border border-gray-100 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
                    <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Current Plan</div>
                    <div className="text-3xl font-bold text-gray-900 mb-2">Early Access</div>
-                   <div className="text-sm font-medium text-gray-500">Pay as you go — 3 credits per video</div>
+                    <div className="text-sm font-medium text-gray-500">Pay as you go — 3 credits per video</div>
                  </div>
                </div>
 
