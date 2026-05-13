@@ -24,7 +24,7 @@ COPY . .
 RUN ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM oven/bun:1-debian AS runtime
+FROM ghcr.io/hormuz-labs/pitch-base:latest AS runtime
 
 WORKDIR /app
 
