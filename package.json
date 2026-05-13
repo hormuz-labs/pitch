@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "setup": "bun run db:up && echo 'Waiting for databases to start...' && sleep 3 && bun run db:migrate",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
+    "db:up": "docker compose -p pitch up -d",
+    "db:down": "docker compose -p pitch down",
     "db:migrate": "./node_modules/.bin/dotenv -o -e .env -- ./node_modules/.bin/prisma migrate dev --schema=packages/db/prisma/schema.prisma --name init",
     "db:sync": "./node_modules/.bin/dotenv -o -e .env -- ./node_modules/.bin/prisma migrate deploy --schema=packages/db/prisma/schema.prisma",
     "db:studio": "./node_modules/.bin/dotenv -o -e .env -- bunx @zenstackhq/proxy --schema=packages/db/prisma/schema.zmodel",

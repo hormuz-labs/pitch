@@ -46,7 +46,7 @@ dev:
 	case "$$choice" in \
 		essential) \
 			echo "  $(GREEN)Starting essential containers (postgres, redis, minio)...$(RESET)"; \
-			docker compose up -d postgres redis minio; \
+			docker compose -p pitch up -d postgres redis minio; \
 			echo ""; \
 			echo "  $(GREEN)Waiting for services to be healthy...$(RESET)"; \
 			sleep 3; \
@@ -61,7 +61,7 @@ dev:
 			bun run dev ;; \
 		all) \
 			echo "  $(GREEN)Starting full stack in Docker...$(RESET)"; \
-			docker compose up -d; \
+			docker compose -p pitch up -d; \
 			echo ""; \
 			echo "  $(GREEN)All containers started. Run 'make logs' to tail output.$(RESET)"; \
 			echo "" ;; \
@@ -72,10 +72,10 @@ prod:
 	@echo ""
 	@echo "  $(BOLD)$(CYAN)Starting production stack...$(RESET)"
 	@echo ""
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml stop api worker
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml rm -f api worker
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache api worker
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml stop api worker
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml rm -f api worker
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml build --no-cache api worker
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml up -d
 	@echo ""
 	@echo "  $(GREEN)Production stack is up. Run 'make logs' to tail output.$(RESET)"
 	@echo ""
@@ -84,14 +84,14 @@ prod:
 down:
 	@echo ""
 	@echo "  Stopping all containers..."
-	docker compose down
+	docker compose -p pitch down
 	@echo ""
 
 logs:
-	docker compose logs -f api worker
+	docker compose -p pitch logs -f api worker
 
 ps:
-	docker compose ps
+	docker compose -p pitch ps
 
 # ─── Testing ──────────────────────────────────────────────────────────────────
 test:
