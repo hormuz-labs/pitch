@@ -24,13 +24,7 @@ COPY . .
 RUN ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM oven/bun:1-debian AS runtime
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl unzip ffmpeg ca-certificates \
-    mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl1 \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL https://opencode.ai/install | bash
+FROM ghcr.io/hormuz-labs/pitch-base:latest AS runtime
 
 WORKDIR /app
 
