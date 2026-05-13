@@ -18,6 +18,23 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Check for base image changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            base:
+              - 'Dockerfile.base'
+
+      - name: Build and push base image
+        if: steps.filter.outputs.base == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.base
+          push: true
+          tags: ghcr.io/${{ github.repository }}-base:latest
         
       - name: Build and deploy containers
         run: |
