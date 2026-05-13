@@ -161,3 +161,13 @@ export function detectGpuVendor(): GpuVendor {
 
   return 'none';
 }
+
+export function getFFmpegHwAccelOptions(): { hasVaapi: boolean, hwFilterSuffix: string, hwOutputOpts: string[] } {
+  const hasVaapi = fs.existsSync('/dev/dri/renderD128') && os.platform() === 'linux';
+  const hwFilterSuffix = hasVaapi ? ',format=nv12,hwupload' : '';
+  const hwOutputOpts = hasVaapi 
+    ? ['-c:v', 'h264_vaapi', '-qp', '18']
+    : ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p'];
+
+  return { hasVaapi, hwFilterSuffix, hwOutputOpts };
+}

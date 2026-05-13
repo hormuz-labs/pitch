@@ -10,7 +10,12 @@ export interface OpencodeServer {
 
 export async function startServer(targetDir: string): Promise<{ server: OpencodeServer; client: OpencodeClient }> {
   logger.info({ targetDir }, 'Starting OpenCode server');
-  const server = await createOpencodeServer({ timeout: 60000 });
+  const server = await createOpencodeServer({ 
+    timeout: 60000,
+    config: {
+      model: "google/gemini-3.1-pro-preview"
+    }
+  });
   const client = createOpencodeClient({ baseUrl: server.url });
   logger.info({ url: server.url }, 'OpenCode server ready');
   return { server, client };
