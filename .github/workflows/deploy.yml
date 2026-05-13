@@ -17,11 +17,18 @@ jobs:
           export IMAGE_TAG=${{ github.sha }}
           echo "Deploying commit: $IMAGE_TAG"
           
-          # Build ONLY api and worker
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml build api worker
+          # Build api and worker in parallel
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml build api &
+          PID_API=$!
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml build worker &
+          PID_WORKER=$!
+          
+          # Wait for both builds to finish
+          wait $PID_API
+          wait $PID_WORKER
           
           # Recreate containers with the specific image tag
           docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
           
-          # Clean up old images
-          docker image prune -f
+          # Clean up unused containers, networks, and dangling images
+          docker system prune -f
