@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
-import { PitchWordmark } from '../PitchWordmark';
+import { PitchWordmark } from './PitchWordmark';
 
 const SOCIAL_LINKS = [
   {
@@ -18,9 +18,20 @@ const SOCIAL_LINKS = [
   },
 ];
 
-const NAV_COLS = [
-  { heading: 'Product', links: ['How It Works', 'Pricing', 'Examples', 'Changelog'] },
-  { heading: 'Company', links: ['Blog', 'Careers', 'Contact'] },
+const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = [
+  {
+    heading: 'Product',
+    links: [
+      { label: 'Pricing',      to: '/pricing' },
+    ],
+  },
+  {
+    heading: 'Company',
+    links: [
+      { label: 'About Us', to: '/about' },
+      { label: 'Contact',  to: '/contact' },
+    ],
+  },
 ];
 
 export const LandingFooter = () => {
@@ -110,9 +121,9 @@ export const LandingFooter = () => {
               <div key={heading} className="landing-footer-nav-col">
                 <p className="landing-footer-nav-heading">{heading}</p>
                 <ul className="landing-footer-nav-list">
-                  {links.map((item) => (
-                    <li key={item}>
-                      <Link to="/pricing" className="landing-footer-nav-link">{item}</Link>
+                  {links.map(({ label, to }) => (
+                    <li key={label}>
+                      <Link to={to} className="landing-footer-nav-link">{label}</Link>
                     </li>
                   ))}
                 </ul>

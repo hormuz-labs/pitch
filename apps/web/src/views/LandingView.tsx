@@ -5,13 +5,13 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
 import { DoubleStairPreloader } from '../components/DoubleStairPreloader';
-import { LandingNav } from '../components/landing/LandingNav';
+import { LandingNav } from '../components/LandingNav';
+import { LandingFooter } from '../components/LandingFooter';
 import { VideoPlayerMockup } from '../components/landing/VideoPlayerMockup';
 import { StepCard } from '../components/landing/StepCard';
 import { Step1Illustration } from '../components/landing/Step1Illustration';
 import { Step2Illustration } from '../components/landing/Step2Illustration';
 import { Step3Illustration } from '../components/landing/Step3Illustration';
-import { Footer } from '../components/Footer';
 import '../styles/landing.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -145,24 +145,27 @@ export const LandingView = () => {
 
             <div className="landing-hiw-grid">
               <StepCard numeral="i." step="Step 01" title="Drop your URL"
-                description="Point the agent at your live product. It opens a real browser, navigates flows, and waits for state.">
+                description="Point the agent at your live product. It opens a real browser, navigates flows, and waits for state."
+                {...seq.cardProps(0)}>
                 <Step1Illustration {...seq.stepProps(0)} />
               </StepCard>
 
               <StepCard numeral="ii." step="Step 02" title="Direct the scene"
-                description="Tell the agent in plain English. Pick a voice, a theme, the pace. Subtitles optional.">
+                description="Tell the agent in plain English. Pick a voice, a theme, the pace. Subtitles optional."
+                {...seq.cardProps(1)}>
                 <Step2Illustration {...seq.stepProps(1)} />
               </StepCard>
 
               <StepCard numeral="iii." step="Step 03" title="Receive the cut"
-                description="Get a narrated, scored, color-graded 1080p MP4. Edit captions, swap voices, or re-render any scene.">
+                description="Get a narrated, scored, color-graded 1080p MP4. Edit captions, swap voices, or re-render any scene."
+                {...seq.cardProps(2)}>
                 <Step3Illustration {...seq.stepProps(2)} />
               </StepCard>
             </div>
           </div>
         </section>
 
-        <Footer />
+        <LandingFooter />
       </div>
     </>
   );

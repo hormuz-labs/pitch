@@ -1,5 +1,5 @@
-import { PublicNavbar } from './PublicNavbar';
-import { Footer } from './Footer';
+import { LandingNav } from './LandingNav';
+import { LandingFooter } from './LandingFooter';
 import { useAuth } from '@clerk/clerk-react';
 
 export const AboutUs = () => {
@@ -7,7 +7,7 @@ export const AboutUs = () => {
 
   return (
     <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
-      {!isSignedIn && <PublicNavbar />}
+      {!isSignedIn && <LandingNav />}
       <div className="max-w-3xl mx-auto px-6 py-16 text-gray-800 flex-1">
         <div className="relative inline-block mb-8">
           <h1 className="text-3xl font-bold">About Us</h1>
@@ -37,7 +37,7 @@ export const AboutUs = () => {
           </p>
         </section>
       </div>
-      {!isSignedIn && <Footer />}
+      {!isSignedIn && <LandingFooter />}
     </div>
   );
 };

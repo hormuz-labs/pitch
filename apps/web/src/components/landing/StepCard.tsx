@@ -6,14 +6,36 @@ interface StepCardProps {
   step: string;
   title: string;
   description: string;
+  active?: boolean;
+  done?: boolean;
   children: React.ReactNode;
 }
 
-export const StepCard = ({ numeral, step, title, description, children }: StepCardProps) => {
-  const cardRef  = useRef<HTMLDivElement>(null);
-  const spotRef  = useRef<HTMLDivElement>(null);
-  const trailRef = useRef<HTMLDivElement>(null);
+export const StepCard = ({ numeral, step, title, description, active = false, done = false, children }: StepCardProps) => {
+  const cardRef   = useRef<HTMLDivElement>(null);
+  const spotRef   = useRef<HTMLDivElement>(null);
+  const trailRef  = useRef<HTMLDivElement>(null);
+  const strokeRef = useRef<HTMLDivElement>(null);
 
+  // Stroke fade + card lift
+  useEffect(() => {
+    const card   = cardRef.current;
+    const stroke = strokeRef.current;
+    if (!card || !stroke) return;
+
+    if (active) {
+      gsap.to(stroke, { opacity: 1, duration: 0.4,  ease: 'power2.out' });
+      gsap.to(card,   { y: -8,      duration: 0.55, ease: 'power3.out' });
+    } else if (done) {
+      gsap.to(stroke, { opacity: 1, duration: 0.2,  ease: 'none' });
+      gsap.to(card,   { y: 0,       duration: 0.7,  ease: 'elastic.out(1, 0.55)' });
+    } else {
+      gsap.set(stroke, { opacity: 0 });
+      gsap.set(card,   { y: 0 });
+    }
+  }, [active, done]);
+
+  // Mouse glow
   useEffect(() => {
     const card  = cardRef.current;
     const spot  = spotRef.current;
@@ -26,7 +48,6 @@ export const StepCard = ({ numeral, step, title, description, children }: StepCa
     let raf      = 0;
 
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
     let glowRgb = '60,60,60';
 
     const tick = () => {
@@ -36,36 +57,28 @@ export const StepCard = ({ numeral, step, title, description, children }: StepCa
       lag.y = lerp(lag.y, target.y, 0.18);
 
       const c = glowRgb;
-
       gsap.set(spot, {
         background: `radial-gradient(circle at ${cur.x}px ${cur.y}px,
-          rgba(${c},0.55) 0%,
-          rgba(${c},0.20) 8%,
-          transparent 15%)`,
+          rgba(${c},0.55) 0%, rgba(${c},0.20) 8%, transparent 15%)`,
       });
       gsap.set(trail, {
         background: `radial-gradient(circle at ${lag.x}px ${lag.y}px,
-          rgba(${c},0.30) 0%,
-          rgba(${c},0.10) 10%,
-          transparent 18%)`,
+          rgba(${c},0.30) 0%, rgba(${c},0.10) 10%, transparent 18%)`,
       });
-
       raf = requestAnimationFrame(tick);
     };
 
-    const onMove = (e: MouseEvent) => {
+    const onMove  = (e: MouseEvent) => {
       const r  = card.getBoundingClientRect();
       target.x = e.clientX - r.left;
       target.y = e.clientY - r.top;
     };
-
     const onEnter = () => {
       glowRgb = getComputedStyle(card).getPropertyValue('--card-glow-rgb').trim() || '60,60,60';
       gsap.to([spot, trail], { opacity: 1, duration: 0.5, ease: 'power2.out' });
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(tick);
     };
-
     const onLeave = () => {
       gsap.to([spot, trail], { opacity: 0, duration: 0.8, ease: 'power2.inOut' });
       cancelAnimationFrame(raf);
@@ -74,7 +87,6 @@ export const StepCard = ({ numeral, step, title, description, children }: StepCa
     card.addEventListener('mouseenter', onEnter);
     card.addEventListener('mousemove',  onMove);
     card.addEventListener('mouseleave', onLeave);
-
     return () => {
       card.removeEventListener('mouseenter', onEnter);
       card.removeEventListener('mousemove',  onMove);
@@ -87,6 +99,9 @@ export const StepCard = ({ numeral, step, title, description, children }: StepCa
     <div ref={cardRef} className="landing-step-card">
       <div ref={spotRef}  aria-hidden="true" className="landing-step-card-glow landing-step-card-glow--spot" />
       <div ref={trailRef} aria-hidden="true" className="landing-step-card-glow landing-step-card-glow--trail" />
+
+      {/* Fade-in border stroke */}
+      <div ref={strokeRef} aria-hidden="true" className="landing-step-card-stroke" />
 
       <div className="landing-step-card-header">
         <span className="landing-step-numeral" aria-hidden="true">{numeral}</span>

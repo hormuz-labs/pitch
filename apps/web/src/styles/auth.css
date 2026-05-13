@@ -84,6 +84,25 @@
   box-shadow: var(--auth-card-shadow);
 }
 
+/* Logo inside card */
+.auth-card-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.auth-card-logo a {
+  display: block;
+  line-height: 0;
+}
+
+.auth-card-logo-img {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: block;
+}
+
 /* Tab switcher */
 .auth-tabs {
   display: flex;

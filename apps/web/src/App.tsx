@@ -670,6 +670,7 @@ function AppContent() {
       </SignedIn>
       <SignedOut>
         <Routes>
+          <Route path="/" element={<LandingView />} />
           <Route path="/sign-in" element={<AuthView mode="sign-in" />} />
           <Route path="/sign-up" element={<AuthView mode="sign-up" />} />
           <Route path="/pricing" element={<PublicPricingView />} />

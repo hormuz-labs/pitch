@@ -35,12 +35,12 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 5px 16px;
   background: linear-gradient(90deg, #0d8fd9 0%, #1DA1F2 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.85);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   flex-shrink: 0;
   white-space: nowrap;
@@ -708,6 +708,20 @@
 
 [data-theme="light"] .landing-step-card-glow { mix-blend-mode: multiply; }
 
+/* Animated border stroke */
+.landing-step-card-stroke {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1.5px solid rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 4;
+}
+[data-theme="dark"] .landing-step-card-stroke {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
 /* Grain on step cards — sits above glow, below content */
 .landing-step-card::before {
   content: '';
@@ -730,9 +744,9 @@
 
 .landing-step-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  padding: 20px 20px 16px;
+  padding: 24px 24px 18px;
 }
 
 .landing-step-numeral {
@@ -753,7 +767,7 @@
 }
 
 .landing-step-body {
-  padding: 0 20px 20px;
+  padding: 0 24px 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;

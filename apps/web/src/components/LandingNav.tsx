@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
-import tabLogoW from '../../assets/tabLogoW.svg';
+import tabLogoW from '../assets/tabLogoW.svg';
 
 export const LandingNav = () => {
   const { isSignedIn } = useAuth();
