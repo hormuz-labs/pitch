@@ -38,6 +38,9 @@ RUN groupadd -f render && usermod -aG render,video root
 # Make job-cli globally available
 RUN chmod +x /app/apps/job-cli/src/index.ts && ln -s /app/apps/job-cli/src/index.ts /usr/local/bin/job-cli
 
+# Install agent-browser globally and run its install command (for playwright browsers, etc.)
+RUN bun install -g agent-browser && agent-browser install
+
 ENV NODE_ENV=production
 ENV PATH="/root/.opencode/bin:${PATH}"
 

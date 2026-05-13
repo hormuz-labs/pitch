@@ -187,12 +187,13 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       }
 
       if (session) {
-        try {
-          await client.session.delete({ path: { id: session.id } });
-          jobLogger.info({ sessionId: session.id }, 'OpenCode session deleted');
-        } catch (e: any) {
-          jobLogger.warn({ err: e, sessionId: session.id }, 'Failed to delete OpenCode session');
-        }
+        // Commented out so the session is not deleted upon completion/failure
+        // try {
+        //   await client.session.delete({ path: { id: session.id } });
+        //   jobLogger.info({ sessionId: session.id }, 'OpenCode session deleted');
+        // } catch (e: any) {
+        //   jobLogger.warn({ err: e, sessionId: session.id }, 'Failed to delete OpenCode session');
+        // }
       }
     }
   };
