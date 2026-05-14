@@ -27,6 +27,28 @@ const logger = createLogger('api');
 
 const app = express();
 
+const requireAuth = (req: express.Request, res: express.Response) => {
+  const auth = getAuth(req);
+  if (!auth.userId) {
+    let reason = 'Token missing, expired, or invalid';
+    const debug = typeof (auth as any).debug === 'function' ? (auth as any).debug() : {};
+    if (debug && debug.message) {
+      reason = debug.message;
+    } else if (auth.sessionStatus) {
+      reason = `Session status: ${auth.sessionStatus}`;
+    }
+    
+    // Log the detail in the backend
+    logger.error({ auth: { ...auth, getToken: undefined }, debug, path: req.path }, `401 Unauthorized: ${reason}`);
+    
+    // Send reason to frontend
+    res.status(401).json({ error: 'Unauthorized', reason, debug });
+    return null;
+  }
+  return auth.userId;
+};
+
+
 // ⚠️ Stripe webhook MUST be registered before express.json() —
 // it needs the raw request body to verify the HMAC signature.
 app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -138,11 +160,8 @@ const subscriber = new Redis(redisUrl);
 const videoQueue = new Queue(QUEUE_NAME, { connection });
 
 app.get('/jobs', async (req, res) => {
-  const { userId } = getAuth(req);
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   try {
     const jobs = await db.listJobs({ id: userId });
@@ -154,12 +173,9 @@ app.get('/jobs', async (req, res) => {
 });
 
 app.post('/jobs', async (req, res) => {
-  const { userId } = getAuth(req);
+  const userId = requireAuth(req, res);
+  if (!userId) return;
   const { parameters } = req.body as { parameters: any };
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
 
   try {
     const tenantId = userId;
@@ -199,10 +215,8 @@ app.post('/jobs', async (req, res) => {
 });
 
 app.get('/jobs/stream', (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -236,8 +250,8 @@ app.get('/jobs/stream', (req, res) => {
 });
 
 app.get('/jobs/:id', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   try {
     const job = await db.getJob(req.params.id, { id: userId });
@@ -253,8 +267,8 @@ app.get('/jobs/:id', async (req, res) => {
 });
 
 app.post('/jobs/:id/retrigger', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   const { id } = req.params;
   
@@ -298,8 +312,8 @@ app.post('/jobs/:id/retrigger', async (req, res) => {
 });
 
 app.delete('/jobs/:id', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   const { id } = req.params;
   try {
@@ -334,8 +348,8 @@ app.delete('/jobs/:id', async (req, res) => {
 });
 
 app.get('/credits', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   try {
     const tenantId = userId;
@@ -350,8 +364,8 @@ app.get('/credits', async (req, res) => {
 
 // Upsert the authenticated user's profile — called from the frontend on sign-in
 app.post('/users/sync', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   const { email, firstName, lastName, imageUrl } = req.body as {
     email: string;
@@ -391,8 +405,8 @@ type PackKey = keyof typeof CREDIT_PACKS;
 
 // POST /checkout — creates a Stripe Checkout session and returns the URL
 app.post('/checkout', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   const { pack } = req.body as { pack?: PackKey };
   const chosen = CREDIT_PACKS[pack ?? 'starter'];
@@ -481,8 +495,8 @@ app.get('/r/:code', async (req, res) => {
 
 // Register as an affiliate (requires Clerk auth)
 app.post('/affiliate/register', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   try {
     const profile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
@@ -496,8 +510,8 @@ app.post('/affiliate/register', async (req, res) => {
 
 // Get the current user's affiliate profile + stats
 app.get('/affiliate/me', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   try {
     const affiliate = await db.getAffiliateByUserId(userId);
@@ -512,8 +526,8 @@ app.get('/affiliate/me', async (req, res) => {
 
 // Request a payout (minimum $10 threshold)
 app.post('/affiliate/me/payout', async (req, res) => {
-  const { userId } = getAuth(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
   try {
     const affiliate = await db.getAffiliateByUserId(userId);
