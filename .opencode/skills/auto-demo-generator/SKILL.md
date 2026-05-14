@@ -44,6 +44,11 @@ bun run src/index.ts demo-config.json
 ## Workflow
 
 ### Phase 0.1 — Demo Workspace Initialization
+**[🛑 STOP AND READ - ABSOLUTELY CRITICAL]**
+Before doing anything else, you MUST manually report the `workspace_init` phase via the `job-cli`. If you forget this, the frontend progress bar will break.
+```bash
+bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase workspace_init --status running
+```
 The `references/` directory contains the template files. 
 
 Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
@@ -60,8 +65,18 @@ From there, the AI should:
    - If `pass1` succeeded but `pass2` failed, comment out `// await pass0(...)` AND `// await pass1(...)`.
    - If `pass2` succeeded but `pass3` failed, comment out `pass0`, `pass1`, and `pass2`.
    This ensures we never waste time or API costs regenerating the cinematic intro (`pass0`), validating selectors (`pass1`), or generating voiceovers (`pass2`) if they are already done.
+   **Note on Progress Reporting:** The modified `src/index.ts` engine is smart enough to automatically backfill and "tick" (mark as completed) all prior phases in the UI if you resume from a later phase. For example, if you resume at `video_recording`, the engine will automatically report `voiceover_generation`, `flow_validation`, etc., as completed so the frontend UI stays perfectly synced.
+
+5. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-cinematic-record.ts` to include a dynamic `try/catch` block that locates and clicks the dismiss button (e.g. `✕`) after `page.goto()`.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
+
+**[🛑 STOP AND READ - ABSOLUTELY CRITICAL]**
+Before starting selector collection, you MUST manually report the `selector_collection` phase via the `job-cli`.
+```bash
+bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection --status running
+```
+
 Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 
 
 **CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
@@ -109,3 +124,49 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 
 ## Reference Implementation
 See the **perfected, generic pipeline modularized** in the `references/` directory. It acts as an automation engine that processes JSON steps rather than hardcoded Playwright scripts, making it infinitely reusable across any website.
+
+## Phase Progress Reporting (MANDATORY)
+
+**[🛑 DO NOT FORGET THIS]**
+Every demo run MUST report phase progress in real time so the `/editor` page shows an accurate live progress widget to the user. The `references/src/index.ts` already handles this automatically via the `reportPhase()` helper. However, Phases 0.1 and 0.2 (workspace init and selector collection) happen **before** `index.ts` runs and MUST be reported manually by the agent. If you do not report them, the user will stare at a broken loading screen.
+
+### Reporting Format
+```bash
+bun apps/job-cli/src/index.ts phase --job-id <JOB_ID> --phase <PHASE_KEY> --status <running|completed|failed>
+```
+
+### Phase Keys (in execution order)
+| Phase Key | When to call |
+|-----------|-------------|
+| `workspace_init` | Before + after creating the `demos/<name>/` folder and copying `src/` files |
+| `selector_collection` | Before + after agent-browser navigates and collects selectors |
+| `intro_sequence` | Automatically handled by `references/src/index.ts` |
+| `flow_validation` | Automatically handled by `references/src/index.ts` |
+| `voiceover_generation` | Automatically handled by `references/src/index.ts` |
+| `video_recording` | Automatically handled by `references/src/index.ts` |
+| `ffmpeg_postprocessing` | Automatically handled by `references/src/index.ts` |
+
+### Critical Rules
+1. **FIRE-AND-FORGET**: If a phase report command fails, DO NOT stop the pipeline. Log the error and continue.
+2. **Always report running THEN completed**: Never skip the `running` call — the frontend uses it to animate the current step.
+3. **Set JOB_ID env var**: When running `bun run src/index.ts demo-config.json`, prepend `JOB_ID=<JOB_ID>` so the auto-reporting inside `index.ts` knows the job ID.
+   ```bash
+   JOB_ID=<JOB_ID> bun run src/index.ts demos/<name>/demo-config.json
+   ```
+
+### Minimal Example (Phases 0.1 + 0.2 that you report manually)
+```bash
+# Phase 0.1 — workspace init
+bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase workspace_init --status running
+# ... create demo folder, copy src/ files ...
+bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase workspace_init --status completed
+
+# Phase 0.2 — selector collection
+bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection --status running
+# ... run agent-browser, collect selectors, generate demo-config.json ...
+bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection --status completed
+
+# Run the main pipeline (auto-reports phases 0.5 → 4)
+JOB_ID=$JOB_ID bun run src/index.ts demos/<name>/demo-config.json
+```
+

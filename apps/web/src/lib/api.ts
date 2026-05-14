@@ -24,6 +24,10 @@ async function request<T>(method: Method, path: string, token: string, body?: un
     throw err;
   }
 
+  if (res.status === 204) {
+    return null as unknown as T;
+  }
+
   return res.json() as Promise<T>;
 }
 
