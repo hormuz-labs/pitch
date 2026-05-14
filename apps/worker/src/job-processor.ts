@@ -132,7 +132,29 @@ Please execute the following video generation task for Job ${jobId}.
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
 
-IMPORTANT: Once the ENTIRE video generation pipeline is complete (including the final FFmpeg concatenation of the intro and the main video), you MUST run the job-cli to complete the job and upload the final concatenated results. Do NOT push incomplete or un-stitched videos.
+## MANDATORY: Phase Progress Reporting
+You MUST report the status of each pipeline phase using the job-cli. Call this at the START and END of each phase.
+IMPORTANT: These commands are FIRE-AND-FORGET — even if they fail, do NOT stop the pipeline. Always continue.
+
+Phase reporting command format:
+  bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase <PHASE_KEY> --status <running|completed|failed>
+
+Phase keys (call in this order):
+  1. workspace_init        — Phase 0.1: Creating demo workspace folder and copying files
+  2. selector_collection   — Phase 0.2: Agent-browser navigating website and collecting selectors
+  3. intro_sequence        — Phase 0.5: Generating the cinematic intro sequence
+  4. flow_validation       — Phase 1: Playwright dry-run validating all selectors
+  5. voiceover_generation  — Phase 2+2.5: Generating voiceover and mapping timeline
+  6. video_recording       — Phase 3: Recording the final video with Playwright
+  7. ffmpeg_postprocessing — Phase 4: FFmpeg post-processing and stitching
+
+Example usage:
+  bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase workspace_init --status running
+  # ... do the work ...
+  bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase workspace_init --status completed
+
+## MANDATORY: Final Push
+Once the ENTIRE video generation pipeline is complete (including the final FFmpeg concatenation of the intro and the main video), you MUST run the job-cli to complete the job and upload the final concatenated results. Do NOT push incomplete or un-stitched videos.
 If an audio/voiceover file was generated separately, include it with the --audio flag.
 Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GENERATED_VIDEO> [--audio <PATH_TO_GENERATED_AUDIO>]
 `;

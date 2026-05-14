@@ -29,19 +29,34 @@ export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoSte
   console.log("📝 Script:", scriptText);
 
   console.log("🎙️ Generating Voiceover...");
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-flash-tts-preview',
-    config: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } } },
-    contents: [{ role: 'user', parts: [{ text: scriptText }] }],
+  const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const ttsReqBody = {
+    model: "gemini-3.1-flash-tts-preview",
+    contents: [{ role: "user", parts: [{ text: scriptText }] }],
+    config: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } } }
+  };
+  
+  const ttsRes = await fetch(ttsUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ttsReqBody)
   });
+  
+  if (!ttsRes.ok) {
+    const errText = await ttsRes.text();
+    throw new Error(`TTS API failed: ${ttsRes.status} ${errText}`);
+  }
+  
+  const ttsData = await ttsRes.json();
+  const inlineData = ttsData.candidates?.[0]?.content?.parts?.[0]?.inlineData || ttsData.inlineData;
+  
+  if (!inlineData || !inlineData.data) {
+     console.error(JSON.stringify(ttsData, null, 2));
+     throw new Error("TTS failed to return inlineData in response.");
+  }
 
   let finalAudioBuffer: Buffer;
   let responseMimeType = 'audio/pcm;rate=24000';
-  
-  const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-  if (!inlineData || !inlineData.data) {
-     throw new Error("Failed to get audio data from model");
-  }
   if (inlineData.mimeType) responseMimeType = inlineData.mimeType;
   
   const rawPcmBuffer = Buffer.from(inlineData.data, 'base64');

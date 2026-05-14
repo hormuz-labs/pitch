@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
 import { LiquidChrome } from '../components/LiquidChrome';
+import { VideoProgressWidget } from '../components/VideoProgressWidget';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 const IconCheck = () => (
@@ -95,6 +96,11 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Generating your video…</h2>
                 <p className="text-sm text-gray-500 mt-1">This typically takes 1–2 minutes. Hang tight!</p>
+
+                {/* Real-time phase progress widget — always visible during processing */}
+                <div className="mt-5 w-full max-w-md mx-auto">
+                  <VideoProgressWidget project={selectedProject} />
+                </div>
               </div>
 
               {latestScreenshot && (
