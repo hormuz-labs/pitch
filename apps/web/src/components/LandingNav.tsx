@@ -73,8 +73,24 @@ export const LandingNav = () => {
         </div>
       </nav>
 
+      {/* Mobile drawer overlay */}
+      <div 
+        className={`landing-nav-overlay${open ? ' is-open' : ''}`} 
+        onClick={() => setOpen(false)}
+        aria-hidden="true"
+      />
+
       {/* Mobile drawer */}
       <div className={`landing-nav-drawer${open ? ' is-open' : ''}`} aria-hidden={!open}>
+        <div className="landing-nav-drawer-top">
+          <button
+            className="landing-nav-hamburger is-open"
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+          >
+            <span /><span /><span />
+          </button>
+        </div>
         <div className="landing-nav-drawer-inner">
           <nav className="landing-nav-drawer-links">
             {NAV_LINKS.map((link) => (
@@ -92,7 +108,7 @@ export const LandingNav = () => {
 
           <div className="landing-nav-drawer-actions">
             {isSignedIn ? (
-              <Link to="/dashboard" className="landing-nav-cta landing-nav-cta--full" onClick={() => setOpen(false)}>
+              <Link to="/dashboard" className="landing-nav-cta landing-nav-cta--premium landing-nav-cta--full" onClick={() => setOpen(false)}>
                 Dashboard
               </Link>
             ) : (
@@ -100,7 +116,7 @@ export const LandingNav = () => {
                 <Link to="/sign-in" className="landing-nav-cta landing-nav-cta--ghost landing-nav-cta--full" onClick={() => setOpen(false)}>
                   Sign in
                 </Link>
-                <Link to="/sign-up" className="landing-nav-cta landing-nav-cta--full" onClick={() => setOpen(false)}>
+                <Link to="/sign-up" className="landing-nav-cta landing-nav-cta--premium landing-nav-cta--full" onClick={() => setOpen(false)}>
                   Get started
                 </Link>
               </>

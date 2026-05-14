@@ -337,7 +337,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 
     {/* Right: Download / CTA / Menu */}
     <div className="flex items-center gap-2 md:gap-3 shrink-0">
-      {!isMobile && !isSettingsPage && <CreditPopover />}
+      {!isSettingsPage && <CreditPopover />}
       {isSettingsPage && onSignOut ? (
         <button
           onClick={onSignOut}
