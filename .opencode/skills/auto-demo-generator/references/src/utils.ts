@@ -164,10 +164,19 @@ export function detectGpuVendor(): GpuVendor {
 
 export function getFFmpegHwAccelOptions(): { hasVaapi: boolean, hwFilterSuffix: string, hwOutputOpts: string[] } {
   const hasVaapi = fs.existsSync('/dev/dri/renderD128') && os.platform() === 'linux';
-  const hwFilterSuffix = hasVaapi ? ',format=nv12,hwupload' : '';
-  const hwOutputOpts = hasVaapi 
-    ? ['-c:v', 'h264_vaapi', '-qp', '18']
-    : ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p'];
+  const hasVideotoolbox = os.platform() === 'darwin';
+
+  let hwFilterSuffix = '';
+  let hwOutputOpts = ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p'];
+
+  if (hasVaapi) {
+    hwFilterSuffix = ',format=nv12,hwupload';
+    hwOutputOpts = ['-c:v', 'h264_vaapi', '-qp', '18'];
+  } else if (hasVideotoolbox) {
+    hwFilterSuffix = ',format=yuv420p';
+    // Videotoolbox uses -q:v for quality (~65 is visually lossless)
+    hwOutputOpts = ['-c:v', 'h264_videotoolbox', '-q:v', '65', '-pix_fmt', 'yuv420p'];
+  }
 
   return { hasVaapi, hwFilterSuffix, hwOutputOpts };
 }
