@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import * as db from '@saas/db';
 import * as storage from '@saas/storage';
 import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email';
-import { JobStatus, JOB_UPDATES_CHANNEL, sendTelegramMessage } from '@saas/shared';
+import { JobStatus, JOB_UPDATES_CHANNEL, sendTelegramMessage, PhaseUpdate, PHASE_WEIGHTS, PHASE_LABELS, type JobPhaseEvent } from '@saas/shared';
 import { Redis } from 'ioredis';
 import dotenv from 'dotenv';
 
@@ -261,5 +261,91 @@ creditsCmd
     }
   });
 
+// ─── Phase Progress Command ───────────────────────────────────────────────────
+// The OpenCode agent calls this CLI at the START and END of every pipeline phase.
+// Example:
+//   bun apps/job-cli/src/index.ts phase --job-id <ID> --phase flow_validation --status running
+//   bun apps/job-cli/src/index.ts phase --job-id <ID> --phase flow_validation --status completed
+
+program
+  .command('phase')
+  .description('Report a phase progress update for a running job')
+  .requiredOption('-j, --job-id <string>', 'The ID of the job')
+  .requiredOption('-p, --phase <string>', `Phase key. One of: ${Object.keys(PHASE_LABELS).join(', ')}`)
+  .requiredOption('-s, --status <string>', 'Phase status: running | completed | failed')
+  .action(async (options) => {
+    const { jobId, phase: phaseKey, status } = options;
+
+    const validStatuses = ['running', 'completed', 'failed'];
+    if (!validStatuses.includes(status)) {
+      console.error(`❌ Invalid status "${status}". Must be one of: ${validStatuses.join(', ')}`);
+      process.exit(1);
+    }
+
+    if (!PHASE_LABELS[phaseKey]) {
+      console.warn(`⚠️  Unknown phase key "${phaseKey}". Valid keys: ${Object.keys(PHASE_LABELS).join(', ')}`);
+      // Don't exit — allow unknown phases to pass through gracefully
+    }
+
+    try {
+      // 1. Load the job to get userId and current phases
+      const job = await db.prisma.job.findUnique({ where: { id: jobId } });
+      if (!job) {
+        console.error(`❌ Job ${jobId} not found`);
+        process.exit(1);
+      }
+
+      // 2. Parse existing phases (or start fresh)
+      const currentPhases: PhaseUpdate[] = job.phases ? JSON.parse(job.phases as string) : [];
+
+      // 3. Upsert this phase
+      const updatedPhase: PhaseUpdate = {
+        phase: phaseKey,
+        label: PHASE_LABELS[phaseKey] ?? phaseKey,
+        status: status as PhaseUpdate['status'],
+        ...(status === 'completed' ? { completedAt: new Date().toISOString() } : {}),
+      };
+
+      const existingIdx = currentPhases.findIndex(p => p.phase === phaseKey);
+      const newPhases: PhaseUpdate[] = existingIdx >= 0
+        ? currentPhases.map((p, i) => (i === existingIdx ? updatedPhase : p))
+        : [...currentPhases, updatedPhase];
+
+      // 4. Compute weighted progress from completed phases
+      const progress = newPhases
+        .filter(p => p.status === 'completed')
+        .reduce((acc, p) => acc + (PHASE_WEIGHTS[p.phase] ?? 0), 0);
+
+      // 5. Persist to DB (using raw prisma — system-level, no auth check needed)
+      await db.prisma.job.update({
+        where: { id: jobId },
+        data: { phases: JSON.stringify(newPhases) },
+      });
+
+      // 6. Broadcast phase_update over the existing SSE channel
+      const event: JobPhaseEvent = {
+        type: 'phase_update',
+        jobId,
+        userId: job.userId,
+        phase: updatedPhase,
+        allPhases: newPhases,
+        progress,
+      };
+      await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(event));
+
+      const emoji = status === 'completed' ? '✅' : status === 'failed' ? '❌' : '🔄';
+      console.log(`${emoji} Phase [${phaseKey}] → ${status} (progress: ${progress}%) for job ${jobId}`);
+
+      await redis.quit();
+      process.exit(0);
+    } catch (error: any) {
+      console.error(`❌ Failed to update phase for job ${jobId}:`, error.message);
+      // Non-fatal: don't block the pipeline on a reporting failure
+      await redis.quit().catch(() => {});
+      process.exit(0); // exit 0 so the agent script continues
+    }
+  });
+
 program.parse();
+
 

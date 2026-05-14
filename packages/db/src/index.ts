@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { enhance } from '@zenstackhq/runtime';
-import { JobStatus, Job } from '@saas/shared';
+import { JobStatus, Job, PhaseUpdate, PHASE_WEIGHTS } from '@saas/shared';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -26,8 +26,22 @@ export function getEnhancedPrisma(user?: AuthUser) {
   return enhance(prisma, { user });
 }
 
-export async function updateJob(id: string, data: { status?: JobStatus; videoUrl?: string; audioUrl?: string }) {
-  console.log(`[DB] Updating job ${id}:`, data);
+/** Parse the raw phases JSON string and compute weighted progress 0–100 */
+function parseJobPhases(rawPhases: string | null | undefined): { phases: PhaseUpdate[]; progress: number } {
+  const phases: PhaseUpdate[] = rawPhases ? JSON.parse(rawPhases) : [];
+  const progress = phases
+    .filter(p => p.status === 'completed')
+    .reduce((acc, p) => acc + (PHASE_WEIGHTS[p.phase] ?? 0), 0);
+  return { phases, progress };
+}
+
+export async function updateJob(id: string, data: {
+  status?: JobStatus;
+  videoUrl?: string;
+  audioUrl?: string;
+  phases?: string; // raw JSON string from publishPhaseUpdate
+}) {
+  console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined });
   // System-level bypass for webhook/worker updates
   const updated = await prisma.job.update({
     where: { id },
@@ -35,15 +49,19 @@ export async function updateJob(id: string, data: { status?: JobStatus; videoUrl
       status: data.status,
       videoUrl: data.videoUrl,
       audioUrl: data.audioUrl,
+      ...(data.phases !== undefined ? { phases: data.phases } : {}),
     },
   });
   
+  const { phases, progress } = parseJobPhases((updated as any).phases);
   return {
     ...updated,
     videoUrl: updated.videoUrl ?? undefined,
     audioUrl: updated.audioUrl ?? undefined,
     status: updated.status as JobStatus,
-    parameters: JSON.parse(updated.parameters)
+    parameters: JSON.parse(updated.parameters),
+    phases,
+    progress,
   };
 }
 
@@ -59,12 +77,15 @@ export async function createJob(data: { userId: string; parameters: any }, user?
     },
   });
   
+  const { phases, progress } = parseJobPhases((created as any).phases);
   return {
     ...created,
     videoUrl: created.videoUrl ?? undefined,
     audioUrl: created.audioUrl ?? undefined,
     status: created.status as JobStatus,
-    parameters: JSON.parse(created.parameters)
+    parameters: JSON.parse(created.parameters),
+    phases,
+    progress,
   };
 }
 
@@ -74,12 +95,15 @@ export async function getJob(id: string, user?: AuthUser): Promise<Job | null> {
   
   if (!job) return null;
   
+  const { phases, progress } = parseJobPhases((job as any).phases);
   return {
     ...job,
     videoUrl: job.videoUrl ?? undefined,
     audioUrl: job.audioUrl ?? undefined,
     status: job.status as JobStatus,
-    parameters: JSON.parse(job.parameters)
+    parameters: JSON.parse(job.parameters),
+    phases,
+    progress,
   };
 }
 
@@ -89,13 +113,18 @@ export async function listJobs(user?: AuthUser): Promise<Job[]> {
     orderBy: { createdAt: 'desc' }
   });
   
-  return jobs.map((job: any) => ({
-    ...job,
-    videoUrl: job.videoUrl ?? undefined,
-    audioUrl: job.audioUrl ?? undefined,
-    status: job.status as JobStatus,
-    parameters: JSON.parse(job.parameters)
-  }));
+  return jobs.map((job: any) => {
+    const { phases, progress } = parseJobPhases(job.phases);
+    return {
+      ...job,
+      videoUrl: job.videoUrl ?? undefined,
+      audioUrl: job.audioUrl ?? undefined,
+      status: job.status as JobStatus,
+      parameters: JSON.parse(job.parameters),
+      phases,
+      progress,
+    };
+  });
 }
 
 export async function deleteJob(id: string, user?: AuthUser) {

@@ -497,6 +497,16 @@ function AppContent() {
               [jobId]: [...(prev[jobId] || []), logEntry],
             }));
           }
+        } else if (data.type === 'phase_update') {
+          // Real-time phase progress — update only phases & progress on the matching project
+          const { jobId, allPhases, progress } = data;
+          setProjects(prev =>
+            prev.map(p =>
+              p.id === jobId
+                ? { ...p, phases: allPhases, progress }
+                : p
+            )
+          );
         } else {
           const updatedJob = data;
           setProjects(prev => {

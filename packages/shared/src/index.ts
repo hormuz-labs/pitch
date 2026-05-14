@@ -32,6 +32,57 @@ export enum JobStatus {
   FAILED = 'FAILED'
 }
 
+// ── Phase Progress Tracking ───────────────────────────────────────────────────
+
+/**
+ * Represents the state of a single video generation phase.
+ * Persisted as JSON in Job.phases and broadcast over SSE.
+ */
+export interface PhaseUpdate {
+  phase: string;           // e.g. "flow_validation"
+  label: string;           // Human-readable: "Flow Validation"
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  completedAt?: string;    // ISO timestamp, set when status = 'completed'
+}
+
+/**
+ * SSE event payload for a phase progress update.
+ * type = 'phase_update' distinguishes it from full job object updates.
+ */
+export interface JobPhaseEvent {
+  type: 'phase_update';
+  jobId: string;
+  userId: string;
+  phase: PhaseUpdate;
+  allPhases: PhaseUpdate[];
+  progress: number;        // 0–100 weighted sum of completed phases
+}
+
+/**
+ * The contribution of each phase to overall progress (must sum to 100).
+ * Heavier phases (recording, voiceover) contribute more %.
+ */
+export const PHASE_WEIGHTS: Record<string, number> = {
+  workspace_init:         5,
+  selector_collection:   15,
+  intro_sequence:        10,
+  flow_validation:       10,
+  voiceover_generation:  20,
+  video_recording:       25,
+  ffmpeg_postprocessing: 15,
+};
+
+/** Human-readable label for each phase key */
+export const PHASE_LABELS: Record<string, string> = {
+  workspace_init:         'Workspace Initialization',
+  selector_collection:    'Selector Collection',
+  intro_sequence:         'Cinematic Intro',
+  flow_validation:        'Flow Validation',
+  voiceover_generation:   'Voiceover Generation',
+  video_recording:        'Video Recording',
+  ffmpeg_postprocessing:  'FFmpeg Post-Processing',
+};
+
 export interface Job {
   id: string;
   userId: string;
@@ -39,6 +90,8 @@ export interface Job {
   videoUrl?: string;
   audioUrl?: string;
   parameters: Record<string, any>;
+  phases?: PhaseUpdate[];  // parsed from DB JSON string
+  progress?: number;       // 0–100 computed
   createdAt: Date;
   updatedAt: Date;
 }
