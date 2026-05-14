@@ -202,6 +202,14 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
 
   await introPage.setContent(html);
   await introPage.waitForFunction(() => (window as any).__fontsLoaded === true, { timeout: 5000 }).catch(() => {});
+
+  // Wait until animations are fully settled (~1.5s) then capture thumbnail
+  await introPage.waitForTimeout(1500);
+  const thumbnailPath = path.join(demoDir, 'thumbnail.jpg');
+  await introPage.screenshot({ path: thumbnailPath, type: 'jpeg', quality: 90 });
+  fs.writeFileSync(path.join(demoDir, 'thumbnail-path.txt'), thumbnailPath);
+  console.log(`✅ Thumbnail captured: ${thumbnailPath}`);
+
   await introPage.waitForFunction(() => (window as any).__introDone === true, { timeout: 6000 }).catch(() => {});
 
   const introVideoPath = await introPage.video()?.path();

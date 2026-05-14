@@ -89,6 +89,7 @@ export interface Job {
   status: JobStatus;
   videoUrl?: string;
   audioUrl?: string;
+  thumbnailUrl?: string;
   parameters: Record<string, any>;
   phases?: PhaseUpdate[];  // parsed from DB JSON string
   progress?: number;       // 0–100 computed

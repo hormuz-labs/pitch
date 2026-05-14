@@ -64,7 +64,13 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
     >
       {/* Thumbnail */}
       <div className="relative h-40 bg-gray-100 overflow-hidden">
-        {project.status === 'COMPLETED' && project.videoUrl ? (
+        {project.thumbnailUrl ? (
+          <img
+            src={project.thumbnailUrl}
+            alt="thumbnail"
+            className="w-full h-full object-cover"
+          />
+        ) : project.status === 'COMPLETED' && project.videoUrl ? (
           <video
             src={project.videoUrl}
             className="w-full h-full object-cover"
