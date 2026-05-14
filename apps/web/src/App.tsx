@@ -550,7 +550,14 @@ function AppContent() {
     try {
       const token = await getToken();
       const newJob = await api.post<Project>('/jobs', token!, {
-        parameters: { url: values.url, instructions: values.instructions, script: values.script },
+        parameters: {
+          url: values.url,
+          instructions: values.instructions,
+          script: values.script,
+          voice: values.audio || 'Puck',
+          subtitles: values.subtitles,
+          theme: values.theme || 'light',
+        },
       });
       setProjects(prev => {
         const exists = prev.find(p => p.id === newJob.id);

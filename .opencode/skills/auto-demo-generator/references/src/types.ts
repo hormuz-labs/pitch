@@ -7,6 +7,7 @@ export interface DemoConfig {
   introBg?: 'auto' | 'white' | 'black';
   width?: number;
   height?: number;
+  voice?: string;
   steps: DemoStep[];
 }
 

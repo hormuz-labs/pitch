@@ -124,7 +124,7 @@ async function main() {
   // Phase 2 + 2.5 — Voiceover Generation & Timeline Mapping
   reportPhase('voiceover_generation', 'running');
   try {
-    await pass2(ai, config.userReq, config.steps, DEMO_DIR);
+    await pass2(ai, config.userReq, config.steps, DEMO_DIR, config.voice);
     reportPhase('voiceover_generation', 'completed');
   } catch (e) {
     reportPhase('voiceover_generation', 'failed');
