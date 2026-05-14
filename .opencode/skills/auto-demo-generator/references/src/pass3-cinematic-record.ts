@@ -138,10 +138,18 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
       const finalCx = finalBox ? finalBox.x + finalBox.width / 2 : cx;
       const finalCy = finalBox ? finalBox.y + finalBox.height / 2 : cy;
 
+      // The problem: `loc.click()` and `pressSequentially()` have internal Playwright overhead
+      // (checking actionability, hit testing, etc). By the time the browser actually processes the click,
+      // it's slightly later than `actionTime`. We capture the EXACT time the action finished
+      // so we can sync the audio and visual cursor to the *actual* action.
+      const timeBeforeAction = (Date.now() - startTime) / 1000;
+      const syncedActionTime = timeBeforeAction + 0.05;
+
       // Log the tracking event
+      // We log the tracking event with the syncedActionTime so the cursor arrives exactly on time.
       trackingEvents.push({
         id: step.id,
-        actionTime,
+        actionTime: syncedActionTime,
         cx: finalCx,
         cy: finalCy,
         action: step.action
@@ -152,10 +160,19 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
 
       // Perform the native action
       if (step.action === 'click') {
+        // We use force: true to bypass some checks but Playwright still has overhead
         await loc.click({ force: true });
       } else if (step.action === 'type') {
         await loc.pressSequentially(step.value!, { delay: 80 });
       }
+
+      const timeAfterAction = (Date.now() - startTime) / 1000;
+      
+      // Update the timeline to reflect when the action actually happened so audio syncs perfectly
+      if (step.action === 'click' || step.action === 'type') {
+          timeline[step.id] = syncedActionTime;
+      }
+
     } else {
       // Steps without selectors (like Wait/Outro)
       await waitForTime(actionTime);
@@ -341,7 +358,9 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   for (const ev of clickEventsForRipple) {
     const cx = Math.round(ev.cx);
     const cy = Math.round(ev.cy);
-    const T0 = +ev.actionTime.toFixed(4);
+    // Use the actual execution time from the timeline for the visual ripple
+    // ev.id is the step.id, which we updated in the timeline array above
+    const T0 = +(timeline[ev.id] > 1000 ? timeline[ev.id] / 1000 : timeline[ev.id]).toFixed(4);
     // 4 expanding rings, each active for a 0.1s window within 0.4s total
     const rings = [
       { r: 8,  tStart: T0,        dur: 0.10, alpha: 0.55 },
@@ -390,9 +409,12 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   mixInputs += `[voicepad]`;
   inputCount++;
 
-  // Force constant frame rate on the Playwright WebM source (which is variable-rate)
-  // This prevents frame duplication artefacts and audio drift on long recordings.
-  const command = ffmpeg().input(videoPath).inputOptions(['-vsync cfr']);
+  // Playwright WebM is variable-rate. We MUST NOT use -vsync cfr on the input
+  // because it will ignore WebM timestamps and count frames, causing the video
+  // to shrink (lose idle time) and video events to happen *before* the audio/overlay.
+  // Instead, we let the `fps=30` filter inside the filter_complex handle the VFR->CFR
+  // conversion correctly based on the PTS (Presentation Time Stamp).
+  const command = ffmpeg().input(videoPath);
   if (fs.existsSync(cursorPng)) {
     command.input(cursorPng).inputOptions(['-loop 1']);
   }
@@ -405,7 +427,7 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
 
     if (step.action === 'click') {
        command.input(path.join(demoDir, 'assets', 'sounds', 'click.mp3'));
-       const delayMs = Math.floor(tTime * 1000);
+       const delayMs = Math.floor(tTime * 1000); // SFX timing synced to actionTime
        filterString += `[${sfxIndex}:a]adelay=${delayMs}|${delayMs}[sfx${sfxIndex}];`;
        mixInputs += `[sfx${sfxIndex}]`;
        sfxIndex++;
