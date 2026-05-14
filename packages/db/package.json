@@ -8,12 +8,12 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.0.0",
     "@saas/shared": "workspace:*",
     "@zenstackhq/runtime": "^2.22.1",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "prisma": "^5.22.0"
+    "prisma": "^6.0.0"
   }
 }
