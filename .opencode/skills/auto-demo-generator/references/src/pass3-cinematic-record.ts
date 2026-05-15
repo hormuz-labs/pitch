@@ -3,7 +3,14 @@ import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
-import { smoothstepExpr, springOvershootExpr, getChromiumGpuFlags, getFFmpegHwAccelOptions } from './utils';
+import {
+  getChromiumGpuFlags,
+  getFFmpegHwAccelOptions,
+  buildCursorAnimationExprs,
+  buildCursorAlphaExpr,
+  buildRippleChain,
+  buildFilterString,
+} from './utils';
 
 export async function pass3(config: DemoConfig, startUrl: string, demoSteps: DemoStep[], demoDir: string) {
   console.log("== Pass 3: Raw Video Recording & JIT Tracking ==");
@@ -240,174 +247,32 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   const tempRawOut = finalOutput.replace('.mp4', '-raw.mp4');
   
   // Build cursor and zoom animations using FFmpeg math expressions
-  let overlayXExpr = `${CENTER_X}`;
-  let overlayYExpr = `${CENTER_Y}`;
-  let zoomZExpr = "1";
-  let panXExpr = "0";
-  let panYExpr = "0";
-  
-  let prevCx = CENTER_X;
-  let prevCy = CENTER_Y;
-  let prevZoom = 1;
-  // Running pan state persists across loop iterations (needed for park/fade post-process)
-  let runningPanX = 0;
-  let runningPanY = 0;
-
   // Sort events by time so synthetic scroll events are ordered correctly
   trackingEvents.sort((a, b) => a.actionTime - b.actionTime);
 
-  for (let i = 0; i < trackingEvents.length; i++) {
-    const ev = trackingEvents[i];
-    const tTime = ev.actionTime;
-    const moveDuration = 1.0;
-    const moveStart = Math.max(0, tTime - moveDuration);
+  const { overlayXExpr, overlayYExpr, zoomZExpr, panXExpr, panYExpr } =
+    buildCursorAnimationExprs(trackingEvents, VIDEO_WIDTH, VIDEO_HEIGHT);
 
-    // ── Scroll events: only update camera pan, no cursor/zoom change ──────────
-    if (ev.action === 'scroll') {
-      if (prevZoom <= 1.0) continue; // Skip scroll pan when not zoomed
+  const cursorAlphaExpr = buildCursorAlphaExpr(trackingEvents);
 
-      const scrolledY = ev.scrollY ?? 0;
-      const targetScrollPanY = Math.min(Math.max(0, scrolledY - CENTER_Y / prevZoom), VIDEO_HEIGHT - VIDEO_HEIGHT / prevZoom);
-      panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetScrollPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetScrollPanY},${panYExpr}))`;
-      runningPanY = targetScrollPanY;
-      continue; // skip cursor and zoom update for scroll-only events
-    }
+  const rippleChain = buildRippleChain(trackingEvents, timeline);
 
-    const targetZoom = ev.action === 'wait' ? 1.0 : 1.2;
-
-    // ── Cursor overlay (smoothstep easing, evaluates 't') ────────────────────
-    overlayXExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
-    overlayYExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCy, ev.cy, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
-
-    // ── Zoom (spring overshoot on zoom-in, plain smoothstep on zoom-out) ─────
-    const OVERSHOOT_FRACTION = 0.1; // 10% of the zoom delta
-    const overshootAmt = targetZoom > prevZoom 
-      ? (targetZoom - prevZoom) * OVERSHOOT_FRACTION 
-      : 0;
-    const zoomInterp = (targetZoom !== prevZoom)
-      ? springOvershootExpr('time', prevZoom, targetZoom, overshootAmt, moveStart, moveDuration)
-      : `${targetZoom}`;
-    zoomZExpr = `if(between(time,${moveStart},${tTime}),${zoomInterp},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
-
-    // ── Pan (smoothstep easing, evaluates 'time') ────────────────────────────
-    const targetPanX = Math.min(Math.max(0, ev.cx - VIDEO_WIDTH / (2 * targetZoom)), VIDEO_WIDTH - VIDEO_WIDTH / targetZoom);
-    const targetPanY = Math.min(Math.max(0, ev.cy - VIDEO_HEIGHT / (2 * targetZoom)), VIDEO_HEIGHT - VIDEO_HEIGHT / targetZoom);
-
-    panXExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanX, targetPanX, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanX},${panXExpr}))`;
-    panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanY},${panYExpr}))`;
-
-    prevCx = ev.cx;
-    prevCy = ev.cy;
-    prevZoom = targetZoom;
-    runningPanX = targetPanX;
-    runningPanY = targetPanY;
-  }
-
-  // Ensure zoom doesn't break if no events exist
-  if (trackingEvents.length === 0) {
-    zoomZExpr = "1";
-    panXExpr = "0";
-    panYExpr = "0";
-  }
-
-  // ── Cursor Park / Fade ─────────────────────────────────────────────────────
-  // When no interaction is happening for >4s, the cursor fades out in place,
-  // and fades back in 1s before the next interaction begins.
-  const FADE_OUT_DUR = 0.4;
-  const FADE_IN_DUR  = 1.0;
-  const PARK_GAP_MIN = 4.0; 
-
-  let cursorAlphaExpr = "1";
-
-  const activeEvents = trackingEvents.filter(e => e.action !== 'scroll');
-  for (let i = 0; i < activeEvents.length; i++) {
-    const ev   = activeEvents[i];
-    const next = activeEvents[i + 1];
-
-    const fadeOutStart = ev.actionTime + PARK_GAP_MIN;
-    const fadeOutEnd   = fadeOutStart + FADE_OUT_DUR;
-    // Fade in ends 1s before next move starts
-    // BUG FIX: when there is no next event (last action), the old code set
-    // fadeInEnd = fadeOutEnd + 100 — a timestamp 100s beyond the video end.
-    // zoompan/geq would then try to process frames up to that phantom time,
-    // hanging FFmpeg indefinitely. For the last event we only fade out; no fade-in.
-    if (!next) {
-      const fadeOut = smoothstepExpr('T', 1, 0, fadeOutStart, FADE_OUT_DUR);
-      cursorAlphaExpr = `if(between(T,${fadeOutStart},${fadeOutEnd}),${fadeOut},if(gt(T,${fadeOutEnd}),0,${cursorAlphaExpr}))`;
-      continue;
-    }
-
-    const fadeInEnd   = next.actionTime - 1.0;
-    const fadeInStart = fadeInEnd - FADE_IN_DUR;
-
-    // Only apply if the gap between fade out and fade in is large enough
-    if (fadeInStart - fadeOutEnd < 0.5) continue;
-
-    const fadeOut = smoothstepExpr('T', 1, 0, fadeOutStart, FADE_OUT_DUR);
-    const fadeIn  = smoothstepExpr('T', 0, 1, fadeInStart, FADE_IN_DUR);
-
-    cursorAlphaExpr = `if(between(T,${fadeOutStart},${fadeOutEnd}),${fadeOut},if(between(T,${fadeOutEnd},${fadeInStart}),0,if(between(T,${fadeInStart},${fadeInEnd}),${fadeIn},${cursorAlphaExpr})))`;
-  }
-
-  // ── Click Ripple Builder (drawbox — fast, no per-pixel math) ─────────────
-  // Replaces the old geq-based circular ring which evaluated sqrt/pow per pixel
-  // at 1920×1080 × 30fps — roughly 60M pixel ops/sec per click, making FFmpeg
-  // encode a 60s video in 10+ minutes. drawbox with enable= is ~30× faster.
-  const clickEventsForRipple = trackingEvents.filter(e => e.action === 'click');
-  const rippleDrawboxParts: string[] = [];
-  for (const ev of clickEventsForRipple) {
-    const cx = Math.round(ev.cx);
-    const cy = Math.round(ev.cy);
-    // Use the actual execution time from the timeline for the visual ripple
-    // ev.id is the step.id, which we updated in the timeline array above
-    const T0 = +(timeline[ev.id] > 1000 ? timeline[ev.id] / 1000 : timeline[ev.id]).toFixed(4);
-    // 4 expanding rings, each active for a 0.1s window within 0.4s total
-    const rings = [
-      { r: 8,  tStart: T0,        dur: 0.10, alpha: 0.55 },
-      { r: 16, tStart: T0 + 0.10, dur: 0.10, alpha: 0.38 },
-      { r: 26, tStart: T0 + 0.20, dur: 0.10, alpha: 0.22 },
-      { r: 36, tStart: T0 + 0.30, dur: 0.10, alpha: 0.10 },
-    ];
-    for (const ring of rings) {
-      const x = cx - ring.r;
-      const y = cy - ring.r;
-      const w = ring.r * 2;
-      const tEnd = +(ring.tStart + ring.dur).toFixed(4);
-      rippleDrawboxParts.push(
-        `drawbox=x=${x}:y=${y}:w=${w}:h=${w}:color=white@${ring.alpha}:t=2:enable='between(t,${ring.tStart},${tEnd})'`
-      );
-    }
-  }
-  const rippleChain = rippleDrawboxParts.join(',');
-
-  // ── Construct Filtergraph ──────────────────────────────────────────────────
-  // Z-order: raw_video → [drawbox ripples inline] → [cursor overlay] → [zoompan] → [vout]
-  // drawbox filters are chained inline on the stream (no intermediate label needed).
-  // Cursor geq only operates on the tiny 48×48 cursor PNG — NOT the full 1920×1080 frame.
-  let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30`;
-
-  if (rippleChain) {
-    filterString += `,${rippleChain}`;
-  }
-  filterString += `[vfps];`;
-
-  if (fs.existsSync(cursorPng)) {
-    filterString += `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${cursorAlphaExpr})'[cur];`;
-    filterString += `[vfps][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
-    filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30${hwFilterSuffix}[vout];`;
-  } else {
-    filterString += `[vfps]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${VIDEO_WIDTH}x${VIDEO_HEIGHT}:fps=30${hwFilterSuffix}[vout];`;
-  }
-
-  // Audio Mix
-  let mixInputs = '';
-  let inputCount = 0;
-
-  // Voiceover track
-  const voInputIdx = fs.existsSync(cursorPng) ? 2 : 1;
-  filterString += `[${voInputIdx}:a]apad=pad_dur=2[voicepad];`;
-  mixInputs += `[voicepad]`;
-  inputCount++;
+  const { filterString } = buildFilterString({
+    trimSeconds,
+    rippleChain,
+    cursorPngExists: fs.existsSync(cursorPng),
+    cursorAlphaExpr,
+    overlayXExpr,
+    overlayYExpr,
+    zoomZExpr,
+    panXExpr,
+    panYExpr,
+    hwFilterSuffix,
+    videoWidth: VIDEO_WIDTH,
+    videoHeight: VIDEO_HEIGHT,
+    demoSteps,
+    timeline,
+  });
 
   // Playwright WebM is variable-rate. We MUST NOT use -vsync cfr on the input
   // because it will ignore WebM timestamps and count frames, causing the video
@@ -415,37 +280,21 @@ export async function pass3(config: DemoConfig, startUrl: string, demoSteps: Dem
   // Instead, we let the `fps=30` filter inside the filter_complex handle the VFR->CFR
   // conversion correctly based on the PTS (Presentation Time Stamp).
   const command = ffmpeg().input(videoPath);
-  if (fs.existsSync(cursorPng)) {
+  const cursorPngExists = fs.existsSync(cursorPng);
+  if (cursorPngExists) {
     command.input(cursorPng).inputOptions(['-loop 1']);
   }
   command.input(path.join(demoDir, 'voiceover.wav'));
 
-  let sfxIndex = voInputIdx + 1;
+  // Attach SFX inputs in the same order that buildFilterString indexed them
   for (const step of demoSteps) {
-    let tTime = timeline[step.id];
-    if (tTime > 1000) tTime = tTime / 1000; // normalize to seconds
-
     if (step.action === 'click') {
-       command.input(path.join(demoDir, 'assets', 'sounds', 'click.mp3'));
-       const delayMs = Math.floor(tTime * 1000); // SFX timing synced to actionTime
-       filterString += `[${sfxIndex}:a]adelay=${delayMs}|${delayMs}[sfx${sfxIndex}];`;
-       mixInputs += `[sfx${sfxIndex}]`;
-       sfxIndex++;
-       inputCount++;
+      command.input(path.join(demoDir, 'assets', 'sounds', 'click.mp3'));
     } else if (step.action === 'type') {
-       // Loop the 8-second keyboard.mp3 infinitely so we never run out of audio for long text
-       command.input(path.join(demoDir, 'assets', 'sounds', 'keyboard.mp3')).inputOptions(['-stream_loop -1']);
-       const delayMs = Math.floor(tTime * 1000);
-       // Calculate exact typing duration: 80ms per character
-       const typeDuration = ((step.value?.length || 10) * 0.08).toFixed(2);
-       filterString += `[${sfxIndex}:a]atrim=0:${typeDuration},asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs}[sfx${sfxIndex}];`;
-       mixInputs += `[sfx${sfxIndex}]`;
-       sfxIndex++;
-       inputCount++;
+      // Loop the 8-second keyboard.mp3 infinitely so we never run out of audio for long text
+      command.input(path.join(demoDir, 'assets', 'sounds', 'keyboard.mp3')).inputOptions(['-stream_loop -1']);
     }
   }
-  
-  filterString += `${mixInputs}amix=inputs=${inputCount}:duration=first:normalize=0[aout]`;
 
   // Write the filter graph to a script file to avoid shell argument length limits
   // (the geq ripple expressions alone can be several kilobytes for many clicks)
