@@ -49,15 +49,16 @@ model CreditTransaction {
 }
 
 model Job {
-  id         String   @id() @default(cuid())
-  userId     String
-  status     String
-  videoUrl   String?
-  audioUrl   String?
-  parameters String
-  phases     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt()
+  id           String   @id() @default(cuid())
+  userId       String
+  status       String
+  videoUrl     String?
+  audioUrl     String?
+  thumbnailUrl String?
+  parameters   String
+  phases       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt()
 
   @@index([userId])
 }

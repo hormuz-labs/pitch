@@ -61,15 +61,16 @@ model CreditTransaction {
 }
 
 model Job {
-  id         String   @id @default(cuid())
-  userId     String
-  status     String
-  videoUrl   String?
-  audioUrl   String?
-  parameters String
-  phases     String?  // JSON: PhaseUpdate[] — persisted for page-refresh resilience
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  status       String
+  videoUrl     String?
+  audioUrl     String?
+  thumbnailUrl String?  // S3/MinIO URL of the intro screenshot — uploaded early so dashboard shows branded thumbnail immediately
+  parameters   String
+  phases       String?  // JSON: PhaseUpdate[] — persisted for page-refresh resilience
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([userId])
 

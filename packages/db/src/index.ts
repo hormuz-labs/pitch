@@ -39,6 +39,7 @@ export async function updateJob(id: string, data: {
   status?: JobStatus;
   videoUrl?: string;
   audioUrl?: string;
+  thumbnailUrl?: string;
   phases?: string; // raw JSON string from publishPhaseUpdate
 }) {
   console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined });
@@ -49,6 +50,7 @@ export async function updateJob(id: string, data: {
       status: data.status,
       videoUrl: data.videoUrl,
       audioUrl: data.audioUrl,
+      thumbnailUrl: data.thumbnailUrl,
       ...(data.phases !== undefined ? { phases: data.phases } : {}),
     },
   });
@@ -58,6 +60,7 @@ export async function updateJob(id: string, data: {
     ...updated,
     videoUrl: updated.videoUrl ?? undefined,
     audioUrl: updated.audioUrl ?? undefined,
+    thumbnailUrl: (updated as any).thumbnailUrl ?? undefined,
     status: updated.status as JobStatus,
     parameters: JSON.parse(updated.parameters),
     phases,
@@ -82,6 +85,7 @@ export async function createJob(data: { userId: string; parameters: any }, user?
     ...created,
     videoUrl: created.videoUrl ?? undefined,
     audioUrl: created.audioUrl ?? undefined,
+    thumbnailUrl: (created as any).thumbnailUrl ?? undefined,
     status: created.status as JobStatus,
     parameters: JSON.parse(created.parameters),
     phases,
@@ -100,6 +104,7 @@ export async function getJob(id: string, user?: AuthUser): Promise<Job | null> {
     ...job,
     videoUrl: job.videoUrl ?? undefined,
     audioUrl: job.audioUrl ?? undefined,
+    thumbnailUrl: (job as any).thumbnailUrl ?? undefined,
     status: job.status as JobStatus,
     parameters: JSON.parse(job.parameters),
     phases,
@@ -119,6 +124,7 @@ export async function listJobs(user?: AuthUser): Promise<Job[]> {
       ...job,
       videoUrl: job.videoUrl ?? undefined,
       audioUrl: job.audioUrl ?? undefined,
+      thumbnailUrl: job.thumbnailUrl ?? undefined,
       status: job.status as JobStatus,
       parameters: JSON.parse(job.parameters),
       phases,

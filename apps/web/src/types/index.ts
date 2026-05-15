@@ -11,6 +11,7 @@ export interface Project {
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   videoUrl?: string;
   audioUrl?: string;
+  thumbnailUrl?: string;
   parameters: Record<string, any>;
   phases?: PhaseUpdate[];    // real-time phase progress from SSE
   progress?: number;         // 0–100 weighted progress

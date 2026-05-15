@@ -106,6 +106,28 @@ async function main() {
   try {
     await pass0(config, config.startUrl, DEMO_DIR);
     reportPhase('intro_sequence', 'completed');
+
+    // Upload thumbnail immediately after intro so the dashboard shows a branded
+    // preview while the rest of the pipeline is still running.
+    if (JOB_ID) {
+      const thumbnailPathFile = path.join(DEMO_DIR, 'thumbnail-path.txt');
+      if (fs.existsSync(thumbnailPathFile)) {
+        const thumbnailFile = fs.readFileSync(thumbnailPathFile, 'utf8').trim();
+        if (fs.existsSync(thumbnailFile)) {
+          try {
+            const repoRoot = path.resolve(__dirname, '../../..');
+            execSync(
+              `bun apps/job-cli/src/index.ts thumbnail --job-id ${JOB_ID} --file "${thumbnailFile}"`,
+              { cwd: repoRoot, stdio: 'inherit', timeout: 30000 }
+            );
+            console.log('✅ Thumbnail uploaded to dashboard');
+          } catch (thumbErr: any) {
+            // Non-fatal: thumbnail upload failure should never abort the pipeline
+            console.warn(`⚠️  Thumbnail upload failed (non-fatal): ${thumbErr.message}`);
+          }
+        }
+      }
+    }
   } catch (e) {
     reportPhase('intro_sequence', 'failed');
     throw e;
