@@ -140,7 +140,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                   id="url-input"
                   type="url"
                   className={`${inputBase} ${errors.url ? inputError : ''}`}
-                  placeholder="https://trypitch.in"
+                  placeholder="https://trypitch.co"
                   value={formValues.url || ''}
                   onChange={e => update('url', e.target.value)}
                 />
