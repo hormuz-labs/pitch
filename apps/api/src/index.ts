@@ -27,7 +27,7 @@ const logger = createLogger('api');
 
 const app = express();
 
-const requireAuth = (req: express.Request, res: express.Response) => {
+export const requireAuth = (req: express.Request, res: express.Response) => {
   const auth = getAuth(req);
   if (!auth.userId) {
     let reason = 'Token missing, expired, or invalid';
@@ -151,13 +151,13 @@ app.use('/demo', express.static(path.join(rootDir, 'demo')));
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
-const connection = new Redis(redisUrl, {
+export const connection = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
 });
 
 const subscriber = new Redis(redisUrl);
 
-const videoQueue = new Queue(QUEUE_NAME, { connection });
+export const videoQueue = new Queue(QUEUE_NAME, { connection });
 
 app.get('/jobs', async (req, res) => {
   const userId = requireAuth(req, res);
@@ -549,6 +549,9 @@ app.post('/affiliate/me/payout', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+import adminRoutes from './routes/admin.js';
+app.use('/admin', adminRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -182,8 +182,19 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
 
       // Don't try to update a job that has already been deleted from the DB.
       try {
-        const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
+        const failedJob = await db.updateJob(jobId, { 
+          status: JobStatus.FAILED,
+          error: error.message || 'Worker processing failed unexpectedly'
+        });
         await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+        
+        // Ensure refund is given if the worker errors out directly
+        try {
+          await db.addCredits(userId, 3, 'job_failed_refund', jobId);
+          jobLogger.info('Refunded 3 credits due to worker error');
+        } catch (refundError: any) {
+          jobLogger.warn({ err: refundError }, 'Failed to issue refund during worker error handling');
+        }
 
         const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
         const email = userProfile?.email || userId;

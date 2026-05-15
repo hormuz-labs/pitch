@@ -41,6 +41,7 @@ export async function updateJob(id: string, data: {
   audioUrl?: string;
   thumbnailUrl?: string;
   phases?: string; // raw JSON string from publishPhaseUpdate
+  error?: string;
 }) {
   console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined });
   // System-level bypass for webhook/worker updates
@@ -51,6 +52,7 @@ export async function updateJob(id: string, data: {
       videoUrl: data.videoUrl,
       audioUrl: data.audioUrl,
       thumbnailUrl: data.thumbnailUrl,
+      error: data.error,
       ...(data.phases !== undefined ? { phases: data.phases } : {}),
     },
   });
@@ -157,6 +159,18 @@ export async function getCreditBalance(tenantId: string): Promise<number> {
  * Records a CreditTransaction with the given reason.
  */
 export async function addCredits(tenantId: string, amount: number, reason: string, jobId?: string): Promise<number> {
+  // Prevent double-refunds for the exact same job ID and reason
+  if (jobId && reason === 'job_failed_refund') {
+    const existingRefund = await prisma.creditTransaction.findFirst({
+      where: { tenantId, jobId, reason }
+    });
+    if (existingRefund) {
+      console.log(`[Credits] Skipped double refund for job ${jobId}`);
+      const row = await prisma.creditBalance.findUnique({ where: { tenantId } });
+      return row?.balance ?? 0;
+    }
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     const row = await tx.creditBalance.upsert({
       where: { tenantId },
