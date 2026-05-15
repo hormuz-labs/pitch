@@ -192,9 +192,9 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
       <aside
         className={`
           app-shell-sidebar
-          ${isMobile ? 'fixed top-0 left-0 h-full z-50 rounded-none' : 'relative rounded-2xl'}
+          ${isMobile ? 'fixed top-3 left-3 bottom-3 z-50 rounded-2xl' : 'relative rounded-2xl'}
           flex flex-col shrink-0 transition-all duration-200 shadow-sm border border-gray-200
-          ${isMobile ? (collapsed ? '-translate-x-full' : 'translate-x-0') : ''}
+          ${isMobile ? (collapsed ? '-translate-x-[150%]' : 'translate-x-0') : ''}
         `}
         style={{ width: 220, backgroundColor: '#f5f5f5' }}
       >
