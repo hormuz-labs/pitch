@@ -111,7 +111,7 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 
 // Global middleware (after webhook — needs parsed JSON for all other routes)
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 
 // Extract token from query for SSE streams before clerkMiddleware
@@ -382,6 +382,11 @@ app.post('/users/sync', async (req, res) => {
     logger.info({ userId }, 'User profile synced');
     
     if (!existingUser) {
+      if (req.cookies?.beta_promo === '1') {
+        await db.addCredits(userId, 5, 'beta_promo_signup');
+        logger.info({ userId }, 'Applied beta promo credits (5)');
+        res.cookie('beta_promo', '', { maxAge: 0 }); // clear cookie
+      }
       sendTelegramMessage(`👋 <b>New User Sign Up</b>\nEmail: ${email}\nName: ${firstName || ''} ${lastName || ''}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign up'));
     } else {
       sendTelegramMessage(`🔑 <b>User Sign In</b>\nEmail: ${email}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign in'));
