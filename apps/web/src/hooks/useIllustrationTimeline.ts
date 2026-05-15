@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-
-type TimelineBuilder = (root: HTMLElement, onComplete: () => void) => gsap.core.Timeline;
+type TimelineBuilder = (root: HTMLElement, onComplete: () => void) => any;
 
 /**
  * Manages the two-effect GSAP pattern shared by all step illustrations:
@@ -11,9 +9,9 @@ export function useIllustrationTimeline(
   builder: TimelineBuilder,
   active: boolean,
   onComplete?: () => void,
-): React.RefObject<HTMLDivElement> {
+): React.RefObject<HTMLDivElement | null> {
   const rootRef = useRef<HTMLDivElement>(null);
-  const tlRef   = useRef<gsap.core.Timeline | null>(null);
+  const tlRef   = useRef<any | null>(null);
   const cbRef   = useRef(onComplete);
   cbRef.current = onComplete;
 

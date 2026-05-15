@@ -31,7 +31,7 @@ export const Footer = () => {
   const footerRef = useRef<HTMLElement>(null);
   const spotRef   = useRef<HTMLDivElement>(null);
   const trailRef  = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
+  const { } = useTheme();
 
   useEffect(() => {
     const footer = footerRef.current;

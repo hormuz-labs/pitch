@@ -49,8 +49,28 @@ function findLogoInIconsDir(demoDir: string): { filePath: string; mimeType: stri
   return { filePath, mimeType, dataUrl };
 }
 
+// ── Preflight ────────────────────────────────────────────────────────────────
+function preflight(demoDir: string): void {
+  if (!fs.existsSync(demoDir)) throw new Error(`[pass0-intro] demoDir does not exist: ${demoDir}`);
+  const iconsDir = path.join(demoDir, 'assets', 'icons');
+  if (!fs.existsSync(iconsDir)) throw new Error(`[pass0-intro] assets/icons/ not found. Agent-browser must download logo.svg there first. Expected: ${iconsDir}`);
+}
+
 export async function pass0(config: DemoConfig, startUrl: string, demoDir: string) {
-  console.log("== Phase 0.5: Cinematic Intro Generation ==");
+  preflight(demoDir);
+
+  // Skip if intro + thumbnail already recorded
+  const introPathFile = path.join(demoDir, 'intro-path.txt');
+  const thumbnailPathFile = path.join(demoDir, 'thumbnail-path.txt');
+  if (fs.existsSync(introPathFile) && fs.existsSync(thumbnailPathFile)) {
+    const introVideo = fs.readFileSync(introPathFile, 'utf8').trim();
+    if (fs.existsSync(introVideo)) {
+      console.log('⏭️  [pass0-intro] Intro + thumbnail already exist — skipping.');
+      return;
+    }
+  }
+
+  console.log("== Pass 0: Cinematic Intro Generation ==");
 
   // --- 1. Resolve Company Name ---
   let companyName = config.companyName;

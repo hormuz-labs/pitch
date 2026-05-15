@@ -116,3 +116,7 @@ For an **official commercial license**, reach out at [officialtrypitch@gmail.com
   <i>"Code as Cinema."</i> <br><br>
   <b>© 2026 Hormuz Labs</b> · Free for personal use · <a href="mailto:officialtrypitch@gmail.com">Commercial license</a>
 </div>
+
+
+
+https://docs.google.com/document/d/1hTKFxtE9bxD2-EvfgymjGI5sJKrS06O5O7E5OOJ5vjs/edit?usp=sharing

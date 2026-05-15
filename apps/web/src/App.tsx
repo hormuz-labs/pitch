@@ -397,6 +397,7 @@ function AppContent() {
   const location = useLocation();
 
   // Wrapper: always fetches a fresh token; on 401 retries once with force-refresh
+  // @ts-ignore - unused variable but kept for reference
   const authFetch = async (input: string, init: RequestInit = {}): Promise<Response> => {
     const token = await getToken();
     if (!token) throw new Error('Not authenticated');
