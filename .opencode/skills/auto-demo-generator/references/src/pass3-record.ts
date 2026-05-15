@@ -44,6 +44,10 @@ export async function pass3Record(
 
   console.log('== Pass 5: Raw Video Recording & JIT Tracking ==');
   const timeline = JSON.parse(fs.readFileSync(path.join(demoDir, 'timeline.json'), 'utf8'));
+  // Snapshot the LLM-predicted timeline before the recording loop mutates it with real
+  // wall-clock execution times. This is the voiceover's reference clock and must be
+  // preserved so pass4 can align SFX to the narration rather than to actual execution.
+  const originalTimeline: Record<string, number> = { ...timeline };
 
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
@@ -178,7 +182,7 @@ export async function pass3Record(
   if (!videoPathCapture || !fs.existsSync(videoPathCapture)) throw new Error('[pass3-record] Raw video not found after recording!');
 
   // Write outputs
-  const trackingData: TrackingData = { initDurationMs, events: trackingEvents };
+  const trackingData: TrackingData = { initDurationMs, events: trackingEvents, originalTimeline };
   fs.writeFileSync(trackingPath, JSON.stringify(trackingData, null, 2));
   fs.writeFileSync(rawVideoPointer, videoPathCapture);
   // Also write updated timeline (actions get synced timestamps during recording)

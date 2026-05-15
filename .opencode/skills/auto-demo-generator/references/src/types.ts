@@ -38,4 +38,11 @@ export interface TrackingEvent {
 export interface TrackingData {
   initDurationMs: number;
   events: TrackingEvent[];
+  /**
+   * The original LLM-predicted timeline (seconds), captured before pass3 mutates it
+   * with real wall-clock execution times. Used by pass4 to position SFX relative to
+   * the voiceover narration rather than relative to actual execution time, preventing
+   * cumulative drift between narration and SFX on long videos.
+   */
+  originalTimeline: Record<string, number>;
 }

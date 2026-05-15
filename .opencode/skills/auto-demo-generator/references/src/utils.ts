@@ -379,6 +379,15 @@ export interface FilterStringOptions {
   videoHeight: number;
   demoSteps: DemoStep[];
   timeline: Record<string, number>;
+  /**
+   * The original LLM-predicted timeline (seconds), captured in pass3 before wall-clock
+   * execution times overwrote it. SFX adelay must be computed from this, not from
+   * the mutated `timeline`, so that click/keyboard sounds fire in sync with the
+   * voiceover narration rather than at the moment of actual DOM execution. Using the
+   * mutated times would cause SFX to drift progressively later on long videos as each
+   * step's real execution overruns its scheduled narration window.
+   */
+  originalTimeline: Record<string, number>;
 }
 
 /**
@@ -400,7 +409,7 @@ export function buildFilterString(opts: FilterStringOptions): {
     trimSeconds, rippleChain, cursorPngExists,
     cursorAlphaExpr, overlayXExpr, overlayYExpr,
     zoomZExpr, panXExpr, panYExpr, hwFilterSuffix,
-    videoWidth, videoHeight, demoSteps, timeline,
+    videoWidth, videoHeight, demoSteps, timeline, originalTimeline,
   } = opts;
 
   // ── Construct Filtergraph ──────────────────────────────────────────────────
@@ -437,11 +446,15 @@ export function buildFilterString(opts: FilterStringOptions): {
   let sfxIndex = sfxStartIndex;
 
   for (const step of demoSteps) {
-    let tTime = timeline[step.id];
-    if (tTime > 1000) tTime = tTime / 1000; // normalize to seconds
+    // Use the original LLM-predicted time for SFX adelay so click/keyboard sounds
+    // fire in sync with the narration. The mutated `timeline` values reflect actual
+    // wall-clock execution and would cause cumulative drift on long videos.
+    let tTime = originalTimeline[step.id];
+    if (tTime === undefined) tTime = timeline[step.id]; // fallback for wait steps (never mutated)
+    if (tTime > 1000) tTime = tTime / 1000; // normalize ms → s (defensive)
 
     if (step.action === 'click') {
-      const delayMs = Math.floor(tTime * 1000); // SFX timing synced to actionTime
+      const delayMs = Math.floor(tTime * 1000); // SFX timing locked to voiceover narration
       filterString += `[${sfxIndex}:a]adelay=${delayMs}|${delayMs}[sfx${sfxIndex}];`;
       mixInputs += `[sfx${sfxIndex}]`;
       sfxIndex++;

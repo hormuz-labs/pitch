@@ -51,7 +51,7 @@ export async function pass4Ffmpeg(
   const videoPath = fs.readFileSync(path.join(demoDir, 'raw-video-path.txt'), 'utf8').trim();
   const trackingData = JSON.parse(fs.readFileSync(path.join(demoDir, 'tracking.json'), 'utf8'));
   const timeline: Record<string, number> = JSON.parse(fs.readFileSync(path.join(demoDir, 'timeline.json'), 'utf8'));
-  const { initDurationMs, events: trackingEvents } = trackingData;
+  const { initDurationMs, events: trackingEvents, originalTimeline } = trackingData;
 
   const cursorPng = path.join(demoDir, 'cursor.png');
   const { hasVaapi, hwFilterSuffix, hwOutputOpts } = getFFmpegHwAccelOptions();
@@ -82,6 +82,7 @@ export async function pass4Ffmpeg(
     videoHeight: VIDEO_HEIGHT,
     demoSteps,
     timeline,
+    originalTimeline: originalTimeline ?? timeline,
   });
 
   const finalOutput = config.outputPath
