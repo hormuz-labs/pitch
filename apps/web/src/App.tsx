@@ -196,7 +196,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
           flex flex-col shrink-0 transition-all duration-200 shadow-sm border border-gray-200
           ${isMobile ? (collapsed ? '-translate-x-[150%]' : 'translate-x-0') : ''}
         `}
-        style={{ width: 220, backgroundColor: isMobile ? '#ffffff' : '#f5f5f5' }}
+        style={{ width: 220, backgroundColor: '#f5f5f5' }}
       >
         {/* Brand */}
         <div className="px-3 h-16 border-b border-gray-200 shrink-0 flex items-center">
@@ -291,9 +291,10 @@ interface TopHeaderProps {
   onDownload?: () => void;
   isPricingPage?: boolean;
   isSettingsPage?: boolean;
+  isNewPage?: boolean;
   onSignOut?: () => void;
 }
-const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, onSignOut }: TopHeaderProps) => (
+const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, isNewPage, onSignOut }: TopHeaderProps) => (
   <header className="app-shell-header h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
     {/* Left: logo + search / back */}
     <div className="flex items-center gap-3 shrink-0">
@@ -308,7 +309,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
           className="flex items-center gap-2 text-base font-medium text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer p-0"
           id="header-back-btn"
         >
-          <IconArrowLeft /> Back to Dashboard
+          <IconArrowLeft /> {(isMobile && isNewPage) ? "Dashboard" : "Back to Dashboard"}
         </button>
       ) : isPricingPage ? (
         <h2 className="text-lg font-bold text-gray-900 ml-1">Pricing</h2>
@@ -681,6 +682,7 @@ function AppContent() {
               onDownload={onDownload}
               isPricingPage={selectedKey === 'pricing'}
               isSettingsPage={selectedKey === 'settings'}
+              isNewPage={selectedKey === 'create'}
               onSignOut={() => signOut()}
             />
 
