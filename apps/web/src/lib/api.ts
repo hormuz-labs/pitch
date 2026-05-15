@@ -15,6 +15,7 @@ async function request<T>(method: Method, path: string, token: string, body?: un
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
+    credentials: 'include',
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 

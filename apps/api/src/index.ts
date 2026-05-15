@@ -111,7 +111,7 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 
 // Global middleware (after webhook — needs parsed JSON for all other routes)
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 
 // Extract token from query for SSE streams before clerkMiddleware
