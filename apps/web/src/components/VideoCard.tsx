@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project } from '../types';
 import { TimedUndoAction } from './TimedUndoAction';
+import { ShareSheet } from './ShareSheet';
 
 const IconVideoPlaceholder = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
@@ -45,6 +46,16 @@ export interface VideoCardProps {
   onRetry: () => void;
 }
 
+import { FaWhatsapp, FaXTwitter, FaInstagram } from 'react-icons/fa6';
+import { FiLink } from 'react-icons/fi';
+
+const shareOptions = [
+  { id: 'copy', name: 'Copy URL', icon: <FiLink size={14} /> },
+  { id: 'whatsapp', name: 'WhatsApp', icon: <FaWhatsapp size={14} className="text-[#25D366]" /> },
+  { id: 'twitter', name: 'Twitter / X', icon: <FaXTwitter size={14} /> },
+  { id: 'instagram', name: 'Instagram', icon: <FaInstagram size={14} className="text-[#E1306C]" /> },
+];
+
 export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
   const [isPendingDelete, setIsPendingDelete] = useState(false);
   const [showModal, setShowModal]             = useState(false);
@@ -55,21 +66,50 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
     ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
     : 'Untitled Job';
 
+  const handleShareComplete = (option: { id: string; name: string }, videoUrl: string) => {
+    const text = encodeURIComponent("Check out this video I made with Pitch!");
+    const url = encodeURIComponent(videoUrl);
+
+    if (option.id === 'copy') {
+      navigator.clipboard.writeText(videoUrl);
+    } else if (option.id === 'whatsapp') {
+      window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+    } else if (option.id === 'twitter') {
+      window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+    } else if (option.id === 'instagram') {
+      navigator.clipboard.writeText(videoUrl);
+      alert('Video URL copied! Open Instagram to share.');
+    }
+  };
+
   return (
     <div
       onClick={!isPendingDelete ? onClick : undefined}
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-gray-300 transition-all duration-200 group"
+      className="bg-white rounded-xl cursor-pointer hover:shadow-md transition-all duration-200 group relative flex flex-col"
       id={`video-card-${project.id}`}
       style={{ cursor: isPendingDelete ? 'default' : 'pointer' }}
     >
+      {/* Overlay Border to ensure perfectly smooth rounded corners without clipping dropdowns */}
+      <div className="absolute inset-0 rounded-xl border border-gray-200 group-hover:border-gray-300 pointer-events-none z-10 transition-colors duration-200" />
+
       {/* Thumbnail */}
-      <div className="relative h-40 bg-gray-100 overflow-hidden">
+      <div className="relative h-40 bg-gray-100 overflow-hidden group/thumb rounded-t-xl">
         {project.thumbnailUrl ? (
-          <img
-            src={project.thumbnailUrl}
-            alt="thumbnail"
-            className="w-full h-full object-cover"
-          />
+          <>
+            <img
+              src={project.thumbnailUrl}
+              alt="thumbnail"
+              className="w-full h-full object-cover"
+            />
+            {project.status === 'COMPLETED' && project.videoUrl && (
+              <video
+                src={project.videoUrl}
+                preload="metadata"
+                className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+              />
+            )}
+          </>
         ) : project.status === 'COMPLETED' && project.videoUrl ? (
           <video
             src={project.videoUrl}
@@ -82,11 +122,13 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
             <IconVideoPlaceholder />
           </div>
         )}
+        
         {project.status === 'FAILED' && (
           <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
             <span className="text-red-500 text-xs font-semibold bg-white px-2 py-1 rounded-md">Failed</span>
           </div>
         )}
+        
         {project.status === 'COMPLETED' && (
           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-mono">
             {duration ? `${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}` : '—:——'}
@@ -152,6 +194,15 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
           </div>
         </div>
       </div>
+
+      {project.status === 'COMPLETED' && project.videoUrl && (
+        <div className="absolute top-3 right-3 z-20">
+          <ShareSheet
+            users={shareOptions}
+            onShareComplete={(option) => handleShareComplete(option, project.videoUrl!)}
+          />
+        </div>
+      )}
 
       {showModal && createPortal(
         <div
