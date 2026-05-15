@@ -7,6 +7,8 @@ export interface DemoConfig {
   introBg?: 'auto' | 'white' | 'black';
   width?: number;
   height?: number;
+  /** Gemini TTS voice name (e.g. "Puck", "Aoede"). Defaults to "Puck". */
+  voiceName?: string;
   steps: DemoStep[];
 }
 

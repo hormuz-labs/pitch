@@ -2,6 +2,66 @@ import { WavConversionOptions } from './types';
 import fs from 'fs';
 import os from 'os';
 
+/**
+ * Splits a voiceover script into sentence-boundary-aligned chunks that each
+ * represent roughly TARGET_WORDS words (~30 seconds of speech at ~2.5 words/s).
+ *
+ * Strategy:
+ *  1. Split on paragraph breaks (double newline) first — these are the
+ *     strongest natural boundaries.
+ *  2. Within paragraphs, accumulate sentences until the chunk would exceed
+ *     TARGET_WORDS, then flush.
+ *  3. A sentence is defined as text ending with `.`, `!`, `?`, or `...`.
+ */
+export function splitScriptIntoChunks(script: string, targetWords = 75): string[] {
+  const TARGET_WORDS = targetWords;
+
+  // Normalise line endings, split on blank lines to get paragraphs
+  const paragraphs = script
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  // Sentence splitter — keeps the delimiter attached to the preceding sentence
+  const splitSentences = (text: string): string[] =>
+    text
+      .split(/(?<=[.!?](?:\.\.)?)\s+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let wordCount = 0;
+
+  const flush = () => {
+    if (current.length > 0) {
+      chunks.push(current.join(' '));
+      current = [];
+      wordCount = 0;
+    }
+  };
+
+  for (const para of paragraphs) {
+    const sentences = splitSentences(para);
+    for (const sentence of sentences) {
+      const words = sentence.split(/\s+/).length;
+      // If adding this sentence would exceed the target AND we already have
+      // content, flush first so we don't create excessively long chunks.
+      if (wordCount + words > TARGET_WORDS && wordCount > 0) {
+        flush();
+      }
+      current.push(sentence);
+      wordCount += words;
+    }
+    // Treat a paragraph boundary as a natural flush point
+    flush();
+  }
+
+  flush(); // catch any remainder
+  return chunks;
+}
+
 export function parseMimeType(mimeType: string): WavConversionOptions {
   const [fileType, ...params] = mimeType.split(';').map(s => s.trim());
   const [_, format] = fileType.split('/');

@@ -122,6 +122,10 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 3.  **Disable Normalization (`normalize=0`):** Without `apad` on the SFX, standard `amix` behavior would volume-jump the voiceover whenever an SFX stops. `normalize=0` prevents volume shifting!
 4.  **End on Voiceover (`duration=first`):** Ensure the mix stops when the main padded voiceover stops.
 
+## Reference Files
+
+- **[`references/playwright-selector-gotchas.md`](references/playwright-selector-gotchas.md)** — Common selector mistakes that cause silent timeouts: `:has-text()` vs `>> text=`, `/`-in-class-names, href mismatches. **Read this before writing any `demo-config.json` selectors.**
+
 ## Reference Implementation
 See the **perfected, generic pipeline modularized** in the `references/` directory. It acts as an automation engine that processes JSON steps rather than hardcoded Playwright scripts, making it infinitely reusable across any website.
 
