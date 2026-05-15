@@ -91,6 +91,26 @@ function ToastShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ── Beta Redirect ─────────────────────────────────────────────────────────────
+
+function BetaRedirect() {
+  useEffect(() => {
+    document.cookie = "beta_promo=1; path=/; max-age=86400"; // 1 day
+    window.location.href = "/sign-up";
+  }, []);
+  
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-12 h-12 flex items-center justify-center">
+          <PitchLogoAnimation loop startAnimation />
+        </div>
+        <p className="text-sm font-medium text-gray-500 animate-pulse">Activating beta promo...</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
 const IconVideo = () => (
@@ -690,6 +710,7 @@ function AppContent() {
       <SignedOut>
         <Routes>
           <Route path="/" element={<LandingView />} />
+          <Route path="/beta" element={<BetaRedirect />} />
           <Route path="/sign-in" element={<AuthView mode="sign-in" />} />
           <Route path="/sign-up" element={<AuthView mode="sign-up" />} />
           <Route path="/pricing" element={<PublicPricingView />} />

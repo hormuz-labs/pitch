@@ -382,6 +382,11 @@ app.post('/users/sync', async (req, res) => {
     logger.info({ userId }, 'User profile synced');
     
     if (!existingUser) {
+      if (req.cookies?.beta_promo === '1') {
+        await db.addCredits(userId, 5, 'beta_promo_signup');
+        logger.info({ userId }, 'Applied beta promo credits (5)');
+        res.cookie('beta_promo', '', { maxAge: 0 }); // clear cookie
+      }
       sendTelegramMessage(`👋 <b>New User Sign Up</b>\nEmail: ${email}\nName: ${firstName || ''} ${lastName || ''}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign up'));
     } else {
       sendTelegramMessage(`🔑 <b>User Sign In</b>\nEmail: ${email}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign in'));
