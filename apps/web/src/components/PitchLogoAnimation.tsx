@@ -3,9 +3,11 @@ import { useEffect, useRef } from 'react';
 export const PitchLogoAnimation = ({
   startAnimation = true,
   color = 'var(--logo-fill, #111111)',
+  loop = false,
 }: {
   startAnimation?: boolean;
   color?: string;
+  loop?: boolean;
 }) => {
   const containerRef = useRef<SVGSVGElement>(null);
 
@@ -24,11 +26,20 @@ export const PitchLogoAnimation = ({
       blocks.forEach((b) => b.classList.remove('visible'));
 
       // Start stagger
+      let maxDelay = 0;
       blocks.forEach((block) => {
         const delay = parseInt(block.getAttribute('data-delay') || '0', 10) * 0.6; // Faster stagger
+        maxDelay = Math.max(maxDelay, delay);
         const t = setTimeout(() => block.classList.add('visible'), delay);
         timers.push(t);
       });
+
+      if (loop) {
+        const resetT = setTimeout(() => {
+          runAnimation();
+        }, maxDelay + 1000); // 1 second pause before looping
+        timers.push(resetT);
+      }
     };
 
     // Auto-start

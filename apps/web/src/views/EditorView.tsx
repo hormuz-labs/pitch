@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
 import { LiquidChrome } from '../components/LiquidChrome';
+import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
 import { VideoProgressWidget } from '../components/VideoProgressWidget';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -46,12 +47,15 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
   if (!selectedProject) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-12">
-        <p className="text-gray-500 mb-4">Project not found or loading…</p>
+        <div className="w-48 sm:w-64 mb-8">
+          <PitchLogoAnimation startAnimation={true} loop={true} />
+        </div>
+        <p className="font-bold text-gray-900 tracking-tight leading-none text-xl mb-4 animate-pulse">Loading project…</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
+          className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors border-none cursor-pointer mt-2"
         >
-          Back to Dashboard
+          Cancel
         </button>
       </div>
     );
