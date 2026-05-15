@@ -5,7 +5,7 @@ import path from 'path';
 import { DemoStep } from './types';
 import { parseMimeType, createWavHeader } from './utils';
 
-export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoStep[], demoDir: string) {
+export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoStep[], demoDir: string, voiceName: string = 'Puck') {
   console.log("== Pass 2: Generating Speech & Timestamps ==");
   
   const flowDescriptions = demoSteps.map(s => `- ${s.id}: ${s.description}`).join('\n');
@@ -33,7 +33,7 @@ export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoSte
   const ttsReqBody = {
     model: "gemini-3.1-flash-tts-preview",
     contents: [{ role: "user", parts: [{ text: scriptText }] }],
-    config: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } } }
+    config: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } } }
   };
   
   const ttsRes = await fetch(ttsUrl, {
