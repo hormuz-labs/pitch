@@ -6,3 +6,4 @@ export { LandingView } from './LandingView';
 export { PublicPricingView } from './PublicPricingView';
 export { SettingsView } from './SettingsView';
 export { AffiliateView } from './AffiliateView';
+export { AdminView } from './AdminView';

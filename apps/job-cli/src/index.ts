@@ -168,8 +168,9 @@ program
   .description('Update the status of a job')
   .requiredOption('-j, --job-id <string>', 'The ID of the job')
   .requiredOption('-s, --status <string>', 'New status (PENDING, PROCESSING, COMPLETED, FAILED)')
+  .option('-e, --error <string>', 'Reason for failure (if status is FAILED)')
   .action(async (options) => {
-    const { jobId, status } = options;
+    const { jobId, status, error: errorReason } = options;
     const jobStatus = status.toUpperCase() as JobStatus;
     
     if (!Object.values(JobStatus).includes(jobStatus)) {
@@ -178,7 +179,10 @@ program
     }
 
     try {
-      const updatedJob = await db.updateJob(jobId, { status: jobStatus });
+      const updatedJob = await db.updateJob(jobId, { 
+        status: jobStatus,
+        ...(jobStatus === JobStatus.FAILED && errorReason ? { error: errorReason } : {})
+      });
       
       // Notify subscribers
       await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));

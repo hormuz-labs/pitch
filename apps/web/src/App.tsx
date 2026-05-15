@@ -11,7 +11,7 @@ import {
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
-import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView } from './views';
+import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView, AdminView } from './views';
 import { AuthView } from './views/AuthView';
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
@@ -656,6 +656,8 @@ function AppContent() {
     }
   } else if (location.pathname.startsWith('/settings')) {
     selectedKey = 'settings';
+  } else if (location.pathname.startsWith('/admin')) {
+    selectedKey = 'admin';
   } else if (location.pathname.startsWith('/pricing')) {
     selectedKey = 'pricing';
   } else if (location.pathname.startsWith('/affiliate')) {
@@ -713,6 +715,7 @@ function AppContent() {
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
                 <Route path="/affiliate" element={<AffiliateView />} />
+                <Route path="/admin" element={<AdminView />} />
                 <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
