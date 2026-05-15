@@ -1,10 +1,10 @@
-import { Router } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import * as db from '@saas/db';
 import { requireAuth, videoQueue, connection } from '../index.js';
 import { createLogger, JOB_CANCELLATIONS_CHANNEL } from '@saas/shared';
 
 const logger = createLogger('admin-routes');
-const router = Router();
+export const router: Router = Router();
 
 const requireAdmin = async (req: any, res: any, next: any) => {
   const userId = requireAuth(req, res);

@@ -4,6 +4,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk';
 import { JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, createLogger, sendTelegramMessage } from '@saas/shared';
 import * as db from '@saas/db';
 import { getSessionIdFromEvent } from './opencode.js';
+import * as os from 'os';
 
 const logger = createLogger('worker:job');
 
@@ -71,7 +72,8 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     jobLogger.info('Processing job');
 
-    const updatedJob = await db.updateJob(jobId, { status: JobStatus.PROCESSING });
+    const workerHostname = process.env.HOSTNAME || os.hostname();
+    const updatedJob = await db.updateJob(jobId, { status: JobStatus.PROCESSING, workerId: workerHostname });
     await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
 
     let session: { id: string } | null = null;

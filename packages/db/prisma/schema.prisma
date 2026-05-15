@@ -58,6 +58,7 @@ model Job {
   parameters   String
   phases       String?
   error        String?
+  workerId     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt()
 

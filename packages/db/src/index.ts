@@ -42,6 +42,7 @@ export async function updateJob(id: string, data: {
   thumbnailUrl?: string;
   phases?: string; // raw JSON string from publishPhaseUpdate
   error?: string;
+  workerId?: string;
 }) {
   console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined });
   // System-level bypass for webhook/worker updates

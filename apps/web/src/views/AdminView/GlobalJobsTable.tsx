@@ -12,6 +12,7 @@ export function GlobalJobsTable({ jobs, onSelectJob }: { jobs: any[], onSelectJo
           <tr>
             <th className="px-5 py-3 font-medium">Job ID / URL</th>
             <th className="px-5 py-3 font-medium">User</th>
+            <th className="px-5 py-3 font-medium">Worker</th>
             <th className="px-5 py-3 font-medium">Status</th>
             <th className="px-5 py-3 font-medium">Created (IST)</th>
             <th className="px-5 py-3 font-medium">Duration</th>
@@ -33,6 +34,9 @@ export function GlobalJobsTable({ jobs, onSelectJob }: { jobs: any[], onSelectJo
               <td className="px-5 py-3">
                 <div className="font-medium text-gray-900">{job.userName || 'Unknown'}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{job.userEmail}</div>
+              </td>
+              <td className="px-5 py-3">
+                <div className="font-mono text-xs text-gray-500">{job.workerId || '-'}</div>
               </td>
               <td className="px-5 py-3">
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${

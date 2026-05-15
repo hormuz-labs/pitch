@@ -25,6 +25,8 @@ services:
       - /opt/pitch/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
 
   worker:
+    deploy:
+      replicas: 4
     volumes:
       - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
     devices:

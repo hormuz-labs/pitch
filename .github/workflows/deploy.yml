@@ -41,6 +41,11 @@ jobs:
         
       - name: Build and deploy containers
         run: |
+          # Generate Prisma schema from ZenStack before building containers
+          # so that the host has the latest schema for the build context if needed
+          bun install
+          bunx zenstack generate --schema packages/db/prisma/schema.zmodel
+
           # The docker-compose.yml file hardcodes `env_file: - .env`
           # We must create a symlink or copy the env file to the runner's workspace directory
           # so docker-compose can find it exactly where it expects it.

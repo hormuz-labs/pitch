@@ -70,6 +70,7 @@ model Job {
   parameters   String
   phases       String?  // JSON: PhaseUpdate[] — persisted for page-refresh resilience
   error        String?  // Reason for failure, if any
+  workerId     String?  // Hostname/ID of the worker that processed the job
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
