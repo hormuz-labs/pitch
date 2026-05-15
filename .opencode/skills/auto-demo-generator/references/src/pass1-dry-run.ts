@@ -1,8 +1,18 @@
 import { chromium } from 'playwright';
+import fs from 'fs';
+import path from 'path';
 import { DemoConfig, DemoStep } from './types';
 
+// ── Preflight ────────────────────────────────────────────────────────────────
+function preflight(config: DemoConfig): void {
+  if (!config.startUrl) throw new Error('[pass1-dry-run] config.startUrl is required.');
+  if (!config.steps || config.steps.length === 0) throw new Error('[pass1-dry-run] config.steps is empty.');
+}
+
 export async function pass1(config: DemoConfig, startUrl: string, demoSteps: DemoStep[]) {
-  console.log("== Pass 1: Generic Flow Validation ==");
+  preflight(config);
+
+  console.log("== Pass 1: Flow Validation (Dry Run) ==");
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
   
