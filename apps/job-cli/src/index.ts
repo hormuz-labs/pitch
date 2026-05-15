@@ -129,6 +129,41 @@ program
   });
 
 program
+  .command('thumbnail')
+  .description('Upload a thumbnail image and update the job record immediately')
+  .requiredOption('-j, --job-id <string>', 'The ID of the job')
+  .requiredOption('-f, --file <string>', 'Path to the local thumbnail image (jpg/png)')
+  .option('-b, --bucket <string>', 'Storage bucket name')
+  .action(async (options) => {
+    const { jobId, file, bucket } = options;
+    console.log(`🖼️  Uploading thumbnail for job ${jobId}...`);
+
+    try {
+      const job = await db.prisma.job.findUnique({ where: { id: jobId } });
+      if (!job) throw new Error(`Job ${jobId} not found`);
+
+      const parameters = typeof job.parameters === 'string' ? JSON.parse(job.parameters) : job.parameters;
+      const rawUrl = parameters?.url || 'untitled';
+      const projectName = rawUrl.replace(/^https?:\/\//, '').split('/')[0].replace(/[^a-zA-Z0-9-]/g, '_');
+      const prefix = `pitch/${job.userId}/${projectName}/thumbnails`;
+
+      const thumbnailUrl = await storage.uploadFile(file, bucket, prefix);
+      console.log(`✅ Thumbnail uploaded: ${thumbnailUrl}`);
+
+      const updatedJob = await db.updateJob(jobId, { thumbnailUrl });
+      await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+
+      console.log(`✅ Job ${jobId} thumbnailUrl updated`);
+      await redis.quit();
+      process.exit(0);
+    } catch (error: any) {
+      console.error(`❌ Failed to upload thumbnail for job ${jobId}:`, error.message);
+      await redis.quit().catch(() => {});
+      process.exit(1);
+    }
+  });
+
+program
   .command('status')
   .description('Update the status of a job')
   .requiredOption('-j, --job-id <string>', 'The ID of the job')

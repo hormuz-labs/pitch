@@ -1,10 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
+import mime from 'mime';
 import fs from 'fs';
 import path from 'path';
 import { DemoStep } from './types';
 import { parseMimeType, createWavHeader } from './utils';
 
-export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoStep[], demoDir: string, voiceName = 'Puck') {
+export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoStep[], demoDir: string, voiceName: string = 'Puck') {
   console.log("== Pass 2: Generating Speech & Timestamps ==");
   
   const flowDescriptions = demoSteps.map(s => `- ${s.id}: ${s.description}`).join('\n');
@@ -23,37 +24,52 @@ export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoSte
   
   Do NOT include any stage directions or markdown like [clicks] or **bold**.
   `;
-  const scriptRes = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: scriptPrompt });
+  const scriptRes = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: scriptPrompt });
   const scriptText = scriptRes.text!.trim();
   console.log("📝 Script:", scriptText);
 
   console.log("🎙️ Generating Voiceover...");
-  const ttsRes = await ai.models.generateContent({
-    model: 'gemini-3.1-flash-tts-preview',
-    contents: [{ role: 'user', parts: [{ text: scriptText }] }],
-    config: {
-      speechConfig: {
-        voiceConfig: { prebuiltVoiceConfig: { voiceName } },
-      },
-    },
+  const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const ttsReqBody = {
+    model: "gemini-3.1-flash-tts-preview",
+    contents: [{ role: "user", parts: [{ text: scriptText }] }],
+    config: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } } }
+  };
+  
+  const ttsRes = await fetch(ttsUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ttsReqBody)
   });
-
-  const inlineData = ttsRes.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-  if (!inlineData?.data) {
-    console.error(JSON.stringify(ttsRes, null, 2));
-    throw new Error('TTS response missing inlineData.');
+  
+  if (!ttsRes.ok) {
+    const errText = await ttsRes.text();
+    throw new Error(`TTS API failed: ${ttsRes.status} ${errText}`);
+  }
+  
+  const ttsData = await ttsRes.json();
+  const inlineData = ttsData.candidates?.[0]?.content?.parts?.[0]?.inlineData || ttsData.inlineData;
+  
+  if (!inlineData || !inlineData.data) {
+     console.error(JSON.stringify(ttsData, null, 2));
+     throw new Error("TTS failed to return inlineData in response.");
   }
 
-  const mimeType: string = inlineData.mimeType ?? 'audio/pcm;rate=24000';
+  let finalAudioBuffer: Buffer;
+  let responseMimeType = 'audio/pcm;rate=24000';
+  if (inlineData.mimeType) responseMimeType = inlineData.mimeType;
+  
   const rawPcmBuffer = Buffer.from(inlineData.data, 'base64');
-  const options = parseMimeType(mimeType);
-  const finalAudioBuffer = Buffer.concat([createWavHeader(rawPcmBuffer.length, options), rawPcmBuffer]);
+  finalAudioBuffer = rawPcmBuffer;
+  if (mime.getExtension(responseMimeType) !== 'wav') {
+    const options = parseMimeType(responseMimeType);
+    finalAudioBuffer = Buffer.concat([createWavHeader(rawPcmBuffer.length, options), rawPcmBuffer]);
+  }
   fs.writeFileSync(path.join(demoDir, 'voiceover.wav'), finalAudioBuffer);
 
   console.log("📝 Transcribing Voiceover...");
-  const transcribeAi = new GoogleGenAI({ apiKey: process.env.GEMINI_TTS_API_KEY_2 });
-  const transcribeRes = await transcribeAi.models.generateContent({
-    model: 'gemini-3-flash-preview',
+  const transcribeRes = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
     contents: [{
       role: 'user',
       parts: [
@@ -95,7 +111,7 @@ export async function pass2(ai: GoogleGenAI, userReq: string, demoSteps: DemoSte
   requiredKeys.forEach(k => properties[k] = { type: "NUMBER" });
 
   const mappingRes = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.5-flash',
     contents: mappingPrompt,
     config: {
       responseMimeType: "application/json",
