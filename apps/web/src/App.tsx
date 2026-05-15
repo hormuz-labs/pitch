@@ -196,7 +196,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
           flex flex-col shrink-0 transition-all duration-200 shadow-sm border border-gray-200
           ${isMobile ? (collapsed ? '-translate-x-[150%]' : 'translate-x-0') : ''}
         `}
-        style={{ width: 220, backgroundColor: '#f5f5f5' }}
+        style={{ width: 220, backgroundColor: isMobile ? '#ffffff' : '#f5f5f5' }}
       >
         {/* Brand */}
         <div className="px-3 h-16 border-b border-gray-200 shrink-0 flex items-center">
