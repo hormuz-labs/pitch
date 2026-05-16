@@ -159,6 +159,22 @@ const subscriber = new Redis(redisUrl);
 
 export const videoQueue = new Queue(QUEUE_NAME, { connection });
 
+app.get('/users/me', async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  try {
+    const user = await db.prisma.userProfile.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+    res.json(user);
+  } catch (error: any) {
+    logger.error({ err: error, userId }, 'Failed to fetch user profile');
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/jobs', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;

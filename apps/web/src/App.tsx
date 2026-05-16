@@ -118,6 +118,11 @@ const IconVideo = () => (
     <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
   </svg>
 );
+const IconAdmin = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  </svg>
+);
 const IconSettings = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"/>
@@ -192,8 +197,9 @@ interface SidebarProps {
   isMobile: boolean;
   collapsed: boolean;
   onClose: () => void;
+  isAdmin?: boolean;
 }
-const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: SidebarProps) => {
+const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin }: SidebarProps) => {
   const go = (path: string) => {
     navigate(path);
     if (isMobile) onClose();
@@ -252,6 +258,14 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose }: Sideba
             active={selectedKey === 'affiliate'}
             onClick={() => go('/affiliate')}
           />
+          {isAdmin && (
+            <NavItem
+              icon={<IconAdmin />}
+              label="Admin"
+              active={selectedKey === 'admin'}
+              onClick={() => go('/admin')}
+            />
+          )}
         </nav>
 
         {/* Bottom actions */}
@@ -425,6 +439,7 @@ function AppContent() {
   const [jobLogs, setJobLogs] = useState<Record<string, LogEntry[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -498,8 +513,14 @@ function AppContent() {
         const token = await getToken();
         const data = await api.get<Project[]>('/jobs', token!);
         if (Array.isArray(data)) setProjects(data);
+
+        // Fetch user profile to check role
+        const profile = await api.get<any>('/users/me', token!);
+        if (profile && profile.role === 'admin') {
+          setIsAdmin(true);
+        }
       } catch (err) {
-        console.error('Failed to fetch jobs:', err);
+        console.error('Failed to fetch jobs or profile:', err);
       }
     };
     
@@ -684,10 +705,14 @@ function AppContent() {
           {(!isMobile ? selectedKey !== 'settings' : true) && (
             <Sidebar
               selectedKey={selectedKey}
-              navigate={navigate}
+              navigate={(path) => {
+                navigate(path);
+                if (isMobile) setCollapsed(true);
+              }}
               isMobile={isMobile}
               collapsed={collapsed}
               onClose={() => setCollapsed(true)}
+              isAdmin={isAdmin}
             />
           )}
 

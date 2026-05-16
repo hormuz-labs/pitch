@@ -14,6 +14,7 @@ export function GlobalJobsTable({ jobs, onSelectJob }: { jobs: any[], onSelectJo
             <th className="px-5 py-3 font-medium">User</th>
             <th className="px-5 py-3 font-medium">Worker</th>
             <th className="px-5 py-3 font-medium">Status</th>
+            <th className="px-5 py-3 font-medium">Cost</th>
             <th className="px-5 py-3 font-medium">Created (IST)</th>
             <th className="px-5 py-3 font-medium">Duration</th>
           </tr>
@@ -47,6 +48,9 @@ export function GlobalJobsTable({ jobs, onSelectJob }: { jobs: any[], onSelectJo
                   {job.status}
                 </span>
                 {job.isRefunded && <div className="text-[10px] text-purple-600 font-medium mt-1">REFUNDED</div>}
+              </td>
+              <td className="px-5 py-3 text-gray-600 text-xs font-medium">
+                {job.cost ? `$${job.cost.toFixed(4)}` : '-'}
               </td>
               <td className="px-5 py-3 text-gray-600 text-xs whitespace-nowrap">
                 {formatIST(job.createdAt)}

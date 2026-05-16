@@ -78,6 +78,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     let session: { id: string } | null = null;
     let eventAbortController: AbortController | null = null;
+    let currentCost = 0;
 
     try {
       // 1. Create a new session for this job
@@ -112,6 +113,15 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
             if (eventSessionId && eventSessionId !== session!.id) {
               continue;
             }
+
+            // Track cost if it's a message update
+            if (event.type === 'message.updated' && event.properties.info.role === 'assistant') {
+              const msg = event.properties.info as any;
+              if (msg.time?.completed !== undefined && msg.cost !== undefined) {
+                currentCost = Math.max(currentCost, msg.cost);
+              }
+            }
+
             await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify({
               type: 'LOG',
               jobId,
@@ -179,6 +189,12 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       eventAbortController.abort();
       await streamPromise;
 
+      // Update final cost
+      if (currentCost > 0) {
+        await db.updateJob(jobId, { cost: currentCost });
+        jobLogger.info({ cost: currentCost }, 'Job cost updated');
+      }
+
     } catch (error: any) {
       jobLogger.error({ err: error }, 'Job processing failed');
 
@@ -208,6 +224,15 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         );
       } catch (updateErr: any) {
         jobLogger.warn({ err: updateErr }, 'Could not update job status after failure (job may have been deleted)');
+      }
+
+      // Ensure cost is still logged even on failure
+      if (currentCost > 0) {
+        try {
+          await db.updateJob(jobId, { cost: currentCost });
+        } catch (e) {
+          // ignore
+        }
       }
 
       throw error;

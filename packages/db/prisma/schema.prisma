@@ -25,6 +25,7 @@ model UserProfile {
   firstName String?
   lastName  String?
   imageUrl  String?
+  role      String   @default("user")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 }
@@ -59,6 +60,7 @@ model Job {
   phases       String?
   error        String?
   workerId     String?
+  cost         Float    @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt()
 

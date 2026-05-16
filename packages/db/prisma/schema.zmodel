@@ -33,6 +33,7 @@ model UserProfile {
   firstName String?
   lastName  String?
   imageUrl  String?
+  role      String   @default("user") // "user" or "admin"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -71,6 +72,7 @@ model Job {
   phases       String?  // JSON: PhaseUpdate[] — persisted for page-refresh resilience
   error        String?  // Reason for failure, if any
   workerId     String?  // Hostname/ID of the worker that processed the job
+  cost         Float    @default(0) // Total cost of the opencode session in USD
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
