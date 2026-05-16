@@ -6,7 +6,7 @@ import {
   getFFmpegHwAccelOptions,
   buildCursorAnimationExprs,
   buildCursorAlphaExpr,
-  buildRippleChain,
+  buildCursorScaleExpr,
   buildFilterString,
 } from './utils';
 
@@ -65,11 +65,11 @@ export async function pass4Ffmpeg(
     buildCursorAnimationExprs(trackingEvents, VIDEO_WIDTH, VIDEO_HEIGHT);
 
   const cursorAlphaExpr = buildCursorAlphaExpr(trackingEvents);
-  const rippleChain = buildRippleChain(trackingEvents, timeline);
+  const cursorScaleExpr = buildCursorScaleExpr(trackingEvents, timeline);
 
   const { filterString, sfxStartIndex } = buildFilterString({
     trimSeconds,
-    rippleChain,
+    cursorScaleExpr,
     cursorPngExists: fs.existsSync(cursorPng),
     cursorAlphaExpr,
     overlayXExpr,
