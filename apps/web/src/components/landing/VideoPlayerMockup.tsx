@@ -1,155 +1,70 @@
-export const VideoPlayerMockup = () => (
-  <div className="w-full" style={{
-    maxWidth: 800,
-    borderRadius: 14,
-    boxShadow: '0 32px 80px rgba(0,0,0,0.22), 0 8px 24px rgba(0,0,0,0.12)',
-  }}>
-    <div className="rounded-[14px] border border-[#3D3D3D] bg-[#1E1E1E] overflow-hidden flex flex-col font-mono text-sm" style={{ height: 380 }}>
+import { useState, useRef } from 'react';
+import demoVideo from '../../assets/demo.mp4';
+import thumbnail from '../../assets/demo-thumbnail.jpg';
 
-      {/* Top Bar */}
-      <div className="h-12 bg-[#2D2D2D] border-b border-[#3D3D3D] flex items-center px-4 justify-between shrink-0">
-        <div className="flex gap-2">
-          <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
-          <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
-          <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
+export const VideoPlayerMockup = () => {
+  const [hasStarted, setHasStarted] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handlePlay = () => {
+    setHasStarted(true);
+    videoRef.current?.play();
+  };
+
+  return (
+    <div className="w-full flex flex-col items-center">
+      <div className="w-full flex justify-center" style={{ width: '80vw', maxWidth: 'none' }}>
+        <div 
+          className="rounded-lg sm:rounded-[14px] border border-[#3D3D3D] bg-white overflow-hidden flex flex-col w-full relative z-10" 
+          style={{ 
+            boxShadow: '0 20px 40px rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.1)'
+          }}
+        >
+          {/* Top Bar */}
+          <div className="h-8 sm:h-10 md:h-12 bg-black border-b border-[#3D3D3D] flex items-center px-3 sm:px-4 justify-between shrink-0">
+            <div className="flex gap-1.5 sm:gap-2">
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full bg-[#FF5F56]" />
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full bg-[#FFBD2E]" />
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full bg-[#27C93F]" />
+            </div>
+            <div className="w-8 sm:w-12" />
+          </div>
+
+          {/* Body */}
+          <div className="relative group bg-white">
+            <video 
+              ref={videoRef}
+              src={demoVideo} 
+              controls 
+              className="w-full h-auto block bg-black"
+              onPlay={() => setHasStarted(true)}
+            />
+            {!hasStarted && (
+              <div 
+                className="absolute inset-0 bg-black flex items-center justify-center cursor-pointer"
+                onClick={handlePlay}
+              >
+                <img src={thumbnail} alt="Pitch Demo" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-black/80 rounded-full flex items-center justify-center text-white shadow-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="ml-1 sm:w-6 sm:h-6">
+                      <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1 bg-[#1A1A1A] rounded text-[#A0A0A0] text-xs">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-          pitch-workspace-v3
-        </div>
-        <div className="w-12" />
       </div>
 
-      {/* Body */}
-      <div className="flex-1 flex overflow-hidden">
-
-        {/* Left Sidebar — hidden on small screens */}
-        <div className="hidden md:flex w-64 bg-[#252525] border-r border-[#3D3D3D] flex-col p-3 gap-4 text-[#CCCCCC]">
-          <div className="flex items-center gap-2 text-white font-bold px-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            Home
-          </div>
-          <div>
-            <div className="text-[#808080] text-xs font-bold px-2 mb-2 uppercase tracking-wider">conductor</div>
-            <div className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#333333] rounded cursor-pointer">
-              + New workspace
-            </div>
-            <div className="mt-2">
-              <div className="flex items-center justify-between px-2 py-1.5 bg-[#333333] rounded text-white">
-                <div className="flex items-center gap-2 truncate">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3" />
-                    <line x1="3" y1="12" x2="9" y2="12" />
-                    <line x1="15" y1="12" x2="21" y2="12" />
-                  </svg>
-                  <span className="truncate">pitch-workspace-v3</span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px]">
-                  <span className="text-green-400 bg-green-400/10 px-1 rounded">+312</span>
-                  <span className="text-red-400 bg-red-400/10 px-1 rounded">-332</span>
-                </div>
-              </div>
-              <div className="pl-8 text-xs text-green-400 mt-1">Ready to merge</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col bg-[#1E1E1E]">
-          <div className="h-12 border-b border-[#3D3D3D] flex items-center px-4 gap-4 text-[#A0A0A0]">
-            <div className="flex items-center gap-2 border-b-2 border-white text-white pb-3 pt-3">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-              All changes
-            </div>
-            <div className="flex items-center gap-2 pb-3 pt-3 hover:text-white cursor-pointer">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-              Debugging VideoRenderError
-            </div>
-          </div>
-          <div className="p-6 flex-1 overflow-y-auto">
-            <div className="bg-[#2D2D2D] border border-[#3D3D3D] rounded-lg p-4 mb-4 text-[#E0E0E0]">
-              <span className="text-red-400">VideoRenderError:</span> Can't find codec: libx264 in @VideoRenderer.ts
-            </div>
-            <div className="text-[#A0A0A0] text-xs mb-2">
-              13 tool calls, 7 messages
-            </div>
-            <div className="text-[#E0E0E0]">
-              Perfect! I've added the missing ffmpeg configuration. Now let me run the rendering pipeline to make sure everything compiles correctly:
-            </div>
-            <div className="mt-4 bg-black/30 p-4 rounded border border-[#3D3D3D] font-mono text-xs text-green-400">
-              $ bun run build:video<br />
-              [1/3] Compiling video assets... DONE<br />
-              [2/3] Encoding with libx264... DONE<br />
-              [3/3] Finalizing MP4 output... DONE<br />
-              <br />
-              ✨  Done in 12.4s.
-            </div>
-          </div>
-        </div>
-
-        {/* Right Sidebar — hidden on medium and smaller screens */}
-        <div className="hidden lg:flex w-80 bg-[#1A1A1A] border-l border-[#3D3D3D] flex-col">
-          <div className="p-3 border-b border-[#3D3D3D] bg-[#162B1D] text-green-400 flex items-center justify-between rounded-tr-lg">
-            <div className="font-bold flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Ready to export
-            </div>
-            <button className="bg-green-500 text-white px-3 py-1 rounded text-xs font-bold">
-              Export Video
-            </button>
-          </div>
-          <div className="p-3 text-[#E0E0E0] text-xs">
-            <div className="flex items-center justify-between text-[#808080] mb-3">
-              <span>Changes 10</span>
-              <div className="flex gap-3">
-                <span className="hover:text-white cursor-pointer">All files</span>
-                <span className="hover:text-white cursor-pointer">Review</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between py-1 hover:bg-[#2A2A2A] px-2 rounded cursor-pointer">
-                <span className="truncate pr-4">src/App.tsx</span>
-                <span className="text-green-400 shrink-0">+2</span>
-              </div>
-              <div className="flex items-center justify-between py-1 hover:bg-[#2A2A2A] px-2 rounded cursor-pointer">
-                <span className="truncate pr-4">src/core/video/VideoAPI.ts</span>
-                <span className="text-green-400 shrink-0">+53</span>
-              </div>
-              <div className="flex items-center justify-between py-1 hover:bg-[#2A2A2A] px-2 rounded cursor-pointer">
-                <span className="truncate pr-4">src/ui/components/Timeline.tsx</span>
-                <span className="text-red-400 shrink-0">-3</span>
-              </div>
-              <div className="flex items-center justify-between py-1 hover:bg-[#2A2A2A] px-2 rounded cursor-pointer bg-[#2A2A2A]">
-                <span className="truncate pr-4">src/ui/components/VideoRenderer.ts</span>
-                <div className="flex gap-2 shrink-0">
-                  <span className="text-green-400">+225</span>
-                  <span className="text-red-400">-117</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="flex items-center justify-end gap-2.5 mt-3 self-end mr-4 sm:mr-10 xl:mr-[10vw] text-gray-500 w-full max-w-[80vw]">
+        <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="transform -translate-y-1">
+          <path d="M18 22 C 22 40 35 55 52 55" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+          <path d="M18 22 L 12 32 M 18 22 L 28 26" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+        </svg>
+        <span className="font-sans text-sm font-medium">this video was made using <span className="font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded ml-0.5">PITCH</span></span>
       </div>
     </div>
-  </div>
-);
+  );
+};

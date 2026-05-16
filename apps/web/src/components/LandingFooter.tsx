@@ -35,6 +35,13 @@ const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = 
       { label: 'Contact',  to: 'mailto:support@trypitch.co' },
     ],
   },
+  {
+    heading: 'Legal',
+    links: [
+      { label: 'Privacy Policy', to: '/privacy' },
+      { label: 'Terms of Service', to: '/terms' },
+    ],
+  },
 ];
 
 export const LandingFooter = () => {
@@ -149,10 +156,6 @@ export const LandingFooter = () => {
         {/* Bottom bar */}
         <div className="landing-footer-bottom">
           <p className="landing-footer-copy">© {new Date().getFullYear()} Pitch. All rights reserved.</p>
-          <div className="landing-footer-legal">
-            <Link to="/privacy" className="landing-footer-legal-link">Privacy Policy</Link>
-            <a href="#" className="landing-footer-legal-link">Terms of Service</a>
-          </div>
         </div>
       </div>
     </footer>

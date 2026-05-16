@@ -22,9 +22,10 @@ const SOCIAL_LINKS = [
   },
 ];
 
-const NAV_COLS = [
-  { heading: 'Product', links: ['How It Works', 'Pricing', 'Examples', 'Changelog'] },
-  { heading: 'Company', links: ['Blog', 'Careers', 'Contact'] },
+const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = [
+  { heading: 'Product', links: [{ label: 'How It Works', to: '/pricing' }, { label: 'Pricing', to: '/pricing' }, { label: 'Examples', to: '/pricing' }, { label: 'Changelog', to: '/pricing' }] },
+  { heading: 'Company', links: [{ label: 'Blog', to: '/pricing' }, { label: 'Careers', to: '/pricing' }, { label: 'Contact', to: '/pricing' }] },
+  { heading: 'Legal', links: [{ label: 'Privacy Policy', to: '/privacy' }, { label: 'Terms of Service', to: '/terms' }] },
 ];
 
 export const Footer = () => {
@@ -147,8 +148,8 @@ export const Footer = () => {
                 <p className="landing-footer-nav-heading">{heading}</p>
                 <ul className="landing-footer-nav-list">
                   {links.map((item) => (
-                    <li key={item}>
-                      <Link to="/pricing" className="landing-footer-nav-link">{item}</Link>
+                    <li key={item.label}>
+                      <Link to={item.to} className="landing-footer-nav-link">{item.label}</Link>
                     </li>
                   ))}
                 </ul>
@@ -160,10 +161,6 @@ export const Footer = () => {
         {/* Bottom bar */}
         <div className="landing-footer-bottom">
           <p className="landing-footer-copy">© {new Date().getFullYear()} Pitch. All rights reserved.</p>
-          <div className="landing-footer-legal">
-            <Link to="/privacy" className="landing-footer-legal-link">Privacy Policy</Link>
-            <a href="#" className="landing-footer-legal-link">Terms of Service</a>
-          </div>
         </div>
       </div>
     </footer>

@@ -18,6 +18,7 @@ import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
 import { AboutUs } from './components/AboutUs';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { TermsOfService } from './components/TermsOfService';
 import { API_URL } from './config';
 import { api } from './lib/api';
 import { parseSSELog } from './lib/events';
@@ -744,6 +745,7 @@ function AppContent() {
                 <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
               </Routes>
             </main>
           </div>
@@ -758,6 +760,7 @@ function AppContent() {
           <Route path="/pricing" element={<PublicPricingView />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </SignedOut>
@@ -767,9 +770,18 @@ function AppContent() {
 
 export default App;
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <ToastShell>
         <AppContent />
       </ToastShell>

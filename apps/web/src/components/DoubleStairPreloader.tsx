@@ -25,7 +25,6 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
   const textRef    = useRef<HTMLDivElement>(null);
   const pitchesRef = useRef<HTMLSpanElement>(null);
   const cursorRef      = useRef<HTMLDivElement>(null);
-  const rippleRef      = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (alreadySeen) onComplete?.();
@@ -46,22 +45,23 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     const el = textRef.current;
     if (!el) return;
     const chars = el.querySelectorAll<HTMLElement>('.pre-char');
-    gsap.set(chars, { opacity: 0 });
-    gsap.to(chars, {
-      opacity: 1,
-      duration: 0.01,
-      stagger: STAGGER,
-      ease: 'none',
-      delay: TYPE_DELAY,
-    });
+    if (chars.length > 0) {
+      gsap.set(chars, { opacity: 0 });
+      gsap.to(chars, {
+        opacity: 1,
+        duration: 0.01,
+        stagger: STAGGER,
+        ease: 'none',
+        delay: TYPE_DELAY,
+      });
+    }
   }, []);
 
   // Cursor glide + click → hide _ on click
   useEffect(() => {
     const pitches = pitchesRef.current;
     const cursor  = cursorRef.current;
-    const ripple  = rippleRef.current;
-    if (!pitches || !cursor || !ripple) return;
+    if (!pitches || !cursor) return;
 
     const tl = gsap.timeline({ delay: CURSOR_START });
 
@@ -71,7 +71,6 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
       const tx = r.left + r.width / 2 - 10;
       const ty = r.top  + r.height / 2 + (isMobile ? 2 : 8);
       gsap.set(cursor, { x: tx + 90, y: ty + 55, opacity: 0, scale: 1 });
-      gsap.set(ripple, { x: tx, y: ty, opacity: 0, scale: 0 });
     });
 
     tl.to(cursor, { opacity: 1, duration: 0.18, ease: 'power2.out' });
@@ -83,9 +82,7 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     }, '+=0.05');
 
     tl.to(cursor, { scale: 0.78, duration: 0.08, ease: 'power2.in' }, '+=0.06');
-    tl.to(ripple, { opacity: 0.5, scale: 1,   duration: 0.15, ease: 'power2.out' }, '<');
-    tl.to(ripple, { opacity: 0,   scale: 1.6, duration: 0.25, ease: 'power2.in' });
-    tl.to(cursor, { opacity: 0,   duration: 0.12, ease: 'power2.in' }, '<');
+    tl.to(cursor, { opacity: 0,   duration: 0.12, ease: 'power2.in' });
 
     return () => { tl.kill(); };
   }, []);
@@ -187,19 +184,6 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
         </svg>
       </div>
 
-      {/* Click ripple */}
-      <div
-        ref={rippleRef}
-        style={{
-          position: 'fixed', top: 0, left: 0,
-          width: 28, height: 28,
-          marginLeft: -4, marginTop: -4,
-          borderRadius: '50%',
-          border: '2px solid rgba(255,255,255,0.8)',
-          pointerEvents: 'none', zIndex: 59,
-          opacity: 0, transformOrigin: 'center',
-        }}
-      />
     </div>
   );
 };

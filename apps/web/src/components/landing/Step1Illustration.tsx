@@ -169,7 +169,7 @@ export const Step1Illustration = ({ active, onComplete }: Props) => {
         }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 9, fontWeight: 900, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', letterSpacing: '-0.5px', lineHeight: 1, marginBottom: 2 }}>PITCH</div>
-            <div style={{ fontSize: 8, fontStyle: 'italic', fontFamily: 'var(--font-serif)', color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1 }}>incredible.</div>
+            <div style={{ fontSize: 8, fontWeight: 700, fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1 }}>incredible.</div>
             <div style={{ display: 'flex', gap: 4 }}>
               <div style={{ padding: '2px 6px', background: 'var(--text-primary)', borderRadius: 99, fontSize: 5, color: 'var(--bg-page)', fontFamily: 'var(--font-sans)', fontWeight: 600, whiteSpace: 'nowrap' }}>Generate a demo</div>
               <div style={{ padding: '2px 6px', border: '1px solid var(--border-default)', borderRadius: 99, fontSize: 5, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>Watch a sample</div>
