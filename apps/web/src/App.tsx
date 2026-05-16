@@ -516,12 +516,19 @@ function AppContent() {
         if (Array.isArray(data)) setProjects(data);
 
         // Fetch user profile to check role
-        const profile = await api.get<any>('/users/me', token!);
-        if (profile && profile.role === 'admin') {
-          setIsAdmin(true);
+        try {
+          const profile = await api.get<any>('/users/me', token!);
+          if (profile && profile.role === 'admin') {
+            setIsAdmin(true);
+          }
+        } catch (profileErr: any) {
+          // Ignore 404 as the profile might not be fully synced yet on first login
+          if (profileErr.status !== 404) {
+            console.error('Failed to fetch user profile:', profileErr);
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch jobs or profile:', err);
+        console.error('Failed to fetch jobs:', err);
       }
     };
     

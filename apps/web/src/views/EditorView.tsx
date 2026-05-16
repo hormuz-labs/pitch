@@ -1,6 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
-import { LiquidChrome } from '../components/LiquidChrome';
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
 import { VideoProgressWidget } from '../components/VideoProgressWidget';
 
@@ -42,7 +41,6 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
   const selectedProject = projects.find(p => p.id === id);
   const logs = jobLogs[id || ''] || [];
   const latestScreenshot = [...logs].reverse().find(l => l.screenshot)?.screenshot;
-  const displayLogs = logs.filter(l => l.type === 'text' || l.type === 'call').slice(-5);
 
   if (!selectedProject) {
     return (
@@ -73,36 +71,13 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
 
           {/* Processing state */}
           {isProcessing && (
-            <div className="bg-white border border-gray-200 rounded-xl p-8">
+            <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-8">
               <div className="flex flex-col items-center text-center mb-8">
-                <div className="w-full aspect-video max-w-[1920px] max-h-[1080px] relative rounded-xl overflow-hidden mb-6 border border-gray-200/50 shadow-2xl bg-black">
-                  <LiquidChrome
-                    baseColor={[0.031, 0.490, 0.820]}
-                    speed={0.3}
-                    amplitude={0.5}
-                    interactive={true}
-                  />
-                  
-                  {/* Logs Overlay */}
-                  <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 md:p-10 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none text-left">
-                    <div className="max-w-3xl w-full">
-                      <p className="text-[10px] sm:text-xs font-bold text-white/70 uppercase tracking-widest mb-2 sm:mb-3 drop-shadow-md">Current Status</p>
-                      <div className="space-y-1.5 sm:space-y-2 max-h-[40%] overflow-hidden">
-                        {(displayLogs.length > 0 ? displayLogs : [{ message: 'Initializing agent…', timestamp: '', type: 'info' } as LogEntry]).map((item, i) => (
-                          <div key={i} className="flex items-start gap-2 sm:gap-3 text-xs sm:text-sm md:text-base">
-                            <span className="text-white/60 font-mono text-[10px] sm:text-xs md:text-sm mt-0.5 shrink-0 drop-shadow-md">{item.timestamp}</span>
-                            <span className="text-white font-medium leading-snug drop-shadow-lg line-clamp-2">{item.message}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
                 <h2 className="text-lg font-bold text-gray-900">Generating your video…</h2>
-                <p className="text-sm text-gray-500 mt-1">This typically takes 1–2 minutes. Hang tight!</p>
+                <p className="text-sm text-gray-500 mt-1">This typically takes 5–10 minutes. Hang tight!</p>
 
                 {/* Real-time phase progress widget — always visible during processing */}
-                <div className="mt-5 w-full max-w-md mx-auto">
+                <div className="mt-5 w-full max-w-2xl mx-auto">
                   <VideoProgressWidget project={selectedProject} />
                 </div>
               </div>
