@@ -46,14 +46,16 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     const el = textRef.current;
     if (!el) return;
     const chars = el.querySelectorAll<HTMLElement>('.pre-char');
-    gsap.set(chars, { opacity: 0 });
-    gsap.to(chars, {
-      opacity: 1,
-      duration: 0.01,
-      stagger: STAGGER,
-      ease: 'none',
-      delay: TYPE_DELAY,
-    });
+    if (chars.length > 0) {
+      gsap.set(chars, { opacity: 0 });
+      gsap.to(chars, {
+        opacity: 1,
+        duration: 0.01,
+        stagger: STAGGER,
+        ease: 'none',
+        delay: TYPE_DELAY,
+      });
+    }
   }, []);
 
   // Cursor glide + click → hide _ on click

@@ -12,6 +12,7 @@ import { StepCard } from '../components/landing/StepCard';
 import { Step1Illustration } from '../components/landing/Step1Illustration';
 import { Step2Illustration } from '../components/landing/Step2Illustration';
 import { Step3Illustration } from '../components/landing/Step3Illustration';
+import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import '../styles/landing.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -29,31 +30,37 @@ export const LandingView = () => {
 
     const ctx = gsap.context(() => {
       // Header
-      gsap.from('.landing-hiw-header', {
-        opacity: 0,
-        y: 40,
-        duration: 0.8,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: '.landing-hiw-header',
-          start: 'top 85%',
-          toggleActions: 'play none none none',
-        },
-      });
+      const hiwHeader = gsap.utils.toArray('.landing-hiw-header');
+      if (hiwHeader.length > 0) {
+        gsap.from(hiwHeader, {
+          opacity: 0,
+          y: 40,
+          duration: 0.8,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: '.landing-hiw-header',
+            start: 'top 85%',
+            toggleActions: 'play none none none',
+          },
+        });
+      }
 
       // Step cards — staggered
-      gsap.from('.gsap-fade-up', {
-        opacity: 0,
-        y: 52,
-        duration: 0.75,
-        ease: 'power3.out',
-        stagger: 0.13,
-        scrollTrigger: {
-          trigger: '.landing-hiw-grid',
-          start: 'top 75%',
-          toggleActions: 'play none none none',
-        },
-      });
+      const stepCards = gsap.utils.toArray('.landing-step-card');
+      if (stepCards.length > 0) {
+        gsap.from(stepCards, {
+          opacity: 0,
+          y: 52,
+          duration: 0.75,
+          ease: 'power3.out',
+          stagger: 0.13,
+          scrollTrigger: {
+            trigger: '.landing-hiw-grid',
+            start: 'top 75%',
+            toggleActions: 'play none none none',
+          },
+        });
+      }
     }, hiwRef);
 
     return () => ctx.revert();
@@ -96,16 +103,11 @@ export const LandingView = () => {
               <PitchLogoAnimation startAnimation={preloaderDone} />
             </div>
 
-            <h1 id="hero-heading" className="landing-headline-serif landing-animate-2">
-              incredible.
-            </h1>
-
-            <p className="landing-subtitle landing-animate-3">
-              What if your website could <strong>pitch itself</strong>? Just drop your URL,
-              describe what you want, and our <strong>AI agent</strong> does the rest —
-              visiting your site, crafting the script, and delivering a professional,{' '}
-              <strong>narrated pitch video</strong> in minutes.
-            </p>
+            <TextGenerateEffect 
+              words="What if your website could pitch itself? Just drop your URL, describe what you want, and our AI agent does the rest — visiting your site, crafting the script, and delivering a professional, narrated pitch video in minutes."
+              highlights={["pitch", "itself", "AI", "agent", "narrated", "video"]}
+              className="landing-subtitle landing-animate-3 mt-4" 
+            />
 
             <div className="landing-ctas landing-animate-4">
               {isSignedIn ? (
