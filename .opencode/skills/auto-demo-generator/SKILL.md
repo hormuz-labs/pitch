@@ -172,6 +172,8 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection
 bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection --status completed
 
 # Run the main pipeline (auto-reports phases 0.5 → 4)
+# NOTE: Ensure you set a high timeout (e.g., 900000ms / 15 minutes) if running this via a tool call,
+# as FFmpeg post-processing is highly computationally intensive and can easily exceed 5 minutes.
 JOB_ID=$JOB_ID bun run src/index.ts demos/<name>/demo-config.json
 ```
 
