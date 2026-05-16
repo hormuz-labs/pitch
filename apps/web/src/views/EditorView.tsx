@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
 import { VideoProgressWidget } from '../components/VideoProgressWidget';
+import { FeedbackComponent } from '../components/FeedbackComponent';
+import { api } from '../lib/api';
+import { useAuth } from '@clerk/clerk-react';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 const IconCheck = () => (
@@ -37,8 +41,10 @@ interface EditorViewProps {
 export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { getToken } = useAuth();
 
   const selectedProject = projects.find(p => p.id === id);
+  const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false);
   const logs = jobLogs[id || ''] || [];
   const latestScreenshot = [...logs].reverse().find(l => l.screenshot)?.screenshot;
 
@@ -62,6 +68,17 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
   const isProcessing = selectedProject.status === 'PROCESSING' || selectedProject.status === 'PENDING';
   const isCompleted  = selectedProject.status === 'COMPLETED';
   const isFailed     = selectedProject.status === 'FAILED';
+
+  const handleFeedbackSubmit = async (data: { rating: 'up' | 'down'; feedback: string }) => {
+    console.log('Feedback submitted:', data);
+    setIsFeedbackSubmitted(true);
+    try {
+      const token = await getToken();
+      await api.post(`/jobs/${selectedProject?.id}/feedback`, token!, data);
+    } catch (err) {
+      console.error('Error submitting feedback:', err);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -118,6 +135,13 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
                       className="w-full block"
                     />
                   </div>
+
+                  {/* Feedback Component */}
+                  {!(isFeedbackSubmitted || selectedProject.rating) && (
+                    <div className="mt-4 flex items-center justify-start">
+                      <FeedbackComponent onSubmit={handleFeedbackSubmit} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Download + details */}

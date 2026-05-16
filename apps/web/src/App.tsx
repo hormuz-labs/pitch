@@ -327,9 +327,10 @@ interface TopHeaderProps {
   isPricingPage?: boolean;
   isSettingsPage?: boolean;
   isNewPage?: boolean;
+  isEditorPage?: boolean;
   onSignOut?: () => void;
 }
-const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, isNewPage, onSignOut }: TopHeaderProps) => (
+const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, isNewPage, isEditorPage, onSignOut }: TopHeaderProps) => (
   <header className="app-shell-header h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
     {/* Left: logo + search / back */}
     <div className="flex items-center gap-3 shrink-0">
@@ -385,7 +386,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
 
     {/* Right: Download / CTA / Menu */}
     <div className="flex items-center gap-2 md:gap-3 shrink-0">
-      {!isSettingsPage && <CreditPopover />}
+      {(!isSettingsPage && !(isMobile && isEditorPage)) && <CreditPopover />}
       {isSettingsPage && onSignOut ? (
         <button
           onClick={onSignOut}
@@ -394,7 +395,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           <span className="hidden sm:inline">Sign Out</span>
         </button>
-      ) : onDownload ? (
+      ) : (onDownload && !(isMobile && isEditorPage)) ? (
         <button
           onClick={onDownload}
           className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors border-none cursor-pointer shadow-sm"
@@ -738,6 +739,7 @@ function AppContent() {
               isPricingPage={selectedKey === 'pricing'}
               isSettingsPage={selectedKey === 'settings'}
               isNewPage={selectedKey === 'create'}
+              isEditorPage={selectedKey === 'editor'}
               onSignOut={() => signOut()}
             />
 

@@ -166,7 +166,7 @@ app.get('/users/me', async (req, res) => {
   try {
     const user = await db.prisma.userProfile.findUnique({ where: { id: userId } });
     if (!user) {
-      return res.status(404).json({ error: 'User profile not found' });
+      return res.json(null);
     }
     res.json(user);
   } catch (error: any) {
@@ -323,6 +323,31 @@ app.post('/jobs/:id/retrigger', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     logger.error({ err: error, jobId: id, userId }, 'Failed to retrigger job');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/jobs/:id/feedback', async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const { id } = req.params;
+  const { rating, feedback } = req.body;
+
+  try {
+    const job = await db.getJob(id, { id: userId });
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const updatedJob = await db.updateJob(id, { rating, feedback });
+    logger.info({ jobId: id, userId, rating }, 'Job feedback updated');
+    res.json(updatedJob);
+  } catch (error: any) {
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    logger.error({ err: error, jobId: id, userId }, 'Failed to save job feedback');
     res.status(500).json({ error: error.message });
   }
 });
