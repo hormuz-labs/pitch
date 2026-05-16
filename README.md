@@ -118,5 +118,3 @@ For an **official commercial license**, reach out at [officialtrypitch@gmail.com
 </div>
 
 
-
-https://docs.google.com/document/d/1hTKFxtE9bxD2-EvfgymjGI5sJKrS06O5O7E5OOJ5vjs/edit?usp=sharing

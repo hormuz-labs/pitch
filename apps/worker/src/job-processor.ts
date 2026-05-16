@@ -140,6 +140,14 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
       // 3. Send prompt
       const promptText = `
+## MANDATORY: Read These Skills First
+Before doing anything else, you MUST read the following skills:
+1. agent-browser skill
+2. playwright-cli skill (including playwright gotchas)
+3. auto-demo-generator skill
+
+Do NOT proceed until all three skills have been read.
+
 Please execute the following video generation task for Job ${jobId}.
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
