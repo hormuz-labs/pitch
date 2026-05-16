@@ -1,11 +1,10 @@
 /**
  * video-budget plugin
  *
- * Enforces two hard limits on every opencode session:
- *   - Wall-clock time:  20 minutes (MAX_MINUTES)
+ * Enforces a hard limit on every opencode session:
  *   - Cumulative cost:  $4.00      (MAX_COST_USD)
  *
- * When either limit is hit the plugin:
+ * When the limit is hit the plugin:
  *   1. Denies ALL further tool calls for that session.
  *   2. Injects a notice into the system prompt so the model knows why.
  *
@@ -17,14 +16,10 @@
 import type { Plugin } from "@opencode-ai/plugin";
 
 // ── tuneable limits ────────────────────────────────────────────────────────────
-const MAX_MINUTES = 20;
 const MAX_COST_USD = 4.0;
 // ──────────────────────────────────────────────────────────────────────────────
 
-const MAX_MS = MAX_MINUTES * 60 * 1_000;
-
 type SessionBudget = {
-  startedAt: number;   // Date.now() when the session first appeared
   cost: number;        // cumulative USD across all assistant messages
   blocked: boolean;    // true once a limit has been breached
 };
@@ -33,23 +28,14 @@ const sessions = new Map<string, SessionBudget>();
 
 function getOrCreate(sessionID: string): SessionBudget {
   if (!sessions.has(sessionID)) {
-    sessions.set(sessionID, { startedAt: Date.now(), cost: 0, blocked: false });
+    sessions.set(sessionID, { cost: 0, blocked: false });
   }
   return sessions.get(sessionID)!;
 }
 
 function formatReason(budget: SessionBudget): string {
-  const elapsedMin = ((Date.now() - budget.startedAt) / 60_000).toFixed(1);
   const costStr = budget.cost.toFixed(4);
-
-  const reasons: string[] = [];
-  if (budget.cost >= MAX_COST_USD) {
-    reasons.push(`cost limit reached ($${costStr} >= $${MAX_COST_USD})`);
-  }
-  if (Date.now() - budget.startedAt >= MAX_MS) {
-    reasons.push(`time limit reached (${elapsedMin} min >= ${MAX_MINUTES} min)`);
-  }
-  return reasons.join(" and ");
+  return `cost limit reached ($${costStr} >= $${MAX_COST_USD})`;
 }
 
 const plugin: Plugin = async (_input) => {
@@ -73,11 +59,9 @@ const plugin: Plugin = async (_input) => {
         budget.cost += (msg as any).cost ?? 0;
       }
 
-      const now = Date.now();
       const overCost = budget.cost >= MAX_COST_USD;
-      const overTime = now - budget.startedAt >= MAX_MS;
 
-      if (overCost || overTime) {
+      if (overCost) {
         budget.blocked = true;
         const reason = formatReason(budget);
         console.error(
@@ -92,9 +76,8 @@ const plugin: Plugin = async (_input) => {
       // The per-session block is enforced via permission.ask below.
       const lines = [
         `BUDGET POLICY (enforced automatically):`,
-        `  • Max wall-clock time per session : ${MAX_MINUTES} minutes`,
         `  • Max cost per session            : $${MAX_COST_USD.toFixed(2)} USD`,
-        `Once either limit is reached all tool calls are denied and you must`,
+        `Once the limit is reached all tool calls are denied and you must`,
         `stop and inform the user.`,
       ];
       output.system.push(lines.join("\n"));
@@ -108,11 +91,9 @@ const plugin: Plugin = async (_input) => {
       const budget = sessions.get(sessionID);
       if (!budget?.blocked) return;
 
-      // Check again in case time ticked over between event and permission check
-      const overTime = Date.now() - budget.startedAt >= MAX_MS;
       const overCost = budget.cost >= MAX_COST_USD;
 
-      if (overTime || overCost) {
+      if (overCost) {
         output.status = "deny";
         const reason = formatReason(budget);
         console.error(
@@ -125,10 +106,9 @@ const plugin: Plugin = async (_input) => {
     async "chat.params"(input, output) {
       const budget = getOrCreate(input.sessionID);
 
-      const overTime = Date.now() - budget.startedAt >= MAX_MS;
       const overCost = budget.cost >= MAX_COST_USD;
 
-      if (overTime || overCost) {
+      if (overCost) {
         budget.blocked = true;
         const reason = formatReason(budget);
         // Cap output tokens to 1 to force an almost-free response; the model

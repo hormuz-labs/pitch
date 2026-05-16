@@ -15,6 +15,8 @@ export interface Project {
   parameters: Record<string, any>;
   phases?: PhaseUpdate[];    // real-time phase progress from SSE
   progress?: number;         // 0–100 weighted progress
+  cost?: number;             // cost of opencode session in USD
+  workerId?: string;         // id of the worker that processed the job
   createdAt: string;
   updatedAt: string;
 }

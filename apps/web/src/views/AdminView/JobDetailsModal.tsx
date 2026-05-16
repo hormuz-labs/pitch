@@ -87,6 +87,12 @@ export function JobDetailsModal({ job, onClose, onDelete }: { job: any, onClose:
                 {job.timeTakenMs !== null && (
                   <div className="text-sm text-gray-600 mt-1">Duration: <span className="font-medium text-gray-900">{formatDuration(job.timeTakenMs)}</span></div>
                 )}
+                {job.workerId && (
+                  <div className="text-sm text-gray-600 mt-1">Worker: <span className="font-mono text-xs text-gray-900 bg-gray-100 px-1 py-0.5 rounded">{job.workerId}</span></div>
+                )}
+                {job.cost !== undefined && job.cost > 0 && (
+                  <div className="text-sm text-gray-600 mt-1">Cost: <span className="font-medium text-green-700 bg-green-50 px-1 py-0.5 rounded">${job.cost.toFixed(4)}</span></div>
+                )}
               </div>
             </div>
 

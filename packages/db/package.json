@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "build": "tsc --build"
+    "build": "echo 'Skipping build, using bun natively'"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
