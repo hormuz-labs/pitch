@@ -321,52 +321,41 @@ export function buildCursorAlphaExpr(trackingEvents: TrackingEvent[]): string {
 }
 
 /**
- * Builds a comma-separated chain of FFmpeg drawbox filters that render
- * expanding click-ripple rings at each click event's position and time.
- *
- * Replaces the old geq-based circular ring which evaluated sqrt/pow per pixel
- * at 1920×1080 × 30fps — roughly 60M pixel ops/sec per click. drawbox with
- * enable= is ~30× faster.
+ * Builds an FFmpeg expression that scales the cursor down and back up on click.
  *
  * @param trackingEvents  All tracking events (non-click events are ignored)
  * @param timeline        The timeline map (step.id → time in s or ms)
  */
-export function buildRippleChain(
+export function buildCursorScaleExpr(
   trackingEvents: TrackingEvent[],
   timeline: Record<string, number>
 ): string {
   const clickEvents = trackingEvents.filter(e => e.action === 'click');
-  const parts: string[] = [];
+  if (clickEvents.length === 0) return "1";
+
+  let scaleExpr = "1";
 
   for (const ev of clickEvents) {
-    const cx = Math.round(ev.cx);
-    const cy = Math.round(ev.cy);
-    // Use the actual execution time from the timeline for the visual ripple
+    // Use the actual execution time from the timeline
     const T0 = +(timeline[ev.id] > 1000 ? timeline[ev.id] / 1000 : timeline[ev.id]).toFixed(4);
-    // 4 expanding rings, each active for a 0.1s window within 0.4s total
-    const rings = [
-      { r: 8,  tStart: T0,        dur: 0.10, alpha: 0.55 },
-      { r: 16, tStart: T0 + 0.10, dur: 0.10, alpha: 0.38 },
-      { r: 26, tStart: T0 + 0.20, dur: 0.10, alpha: 0.22 },
-      { r: 36, tStart: T0 + 0.30, dur: 0.10, alpha: 0.10 },
-    ];
-    for (const ring of rings) {
-      const x = cx - ring.r;
-      const y = cy - ring.r;
-      const w = ring.r * 2;
-      const tEnd = +(ring.tStart + ring.dur).toFixed(4);
-      parts.push(
-        `drawbox=x=${x}:y=${y}:w=${w}:h=${w}:color=white@${ring.alpha}:t=2:enable='between(t,${ring.tStart},${tEnd})'`
-      );
-    }
+    
+    // Natural shrink and expand
+    const shrinkDur = 0.05;
+    const expandDur = 0.15;
+    const minScale = 0.7; // Shrink to 70%
+
+    const shrinkExpr = smoothstepExpr('t', 1.0, minScale, T0, shrinkDur);
+    const expandExpr = smoothstepExpr('t', minScale, 1.0, T0 + shrinkDur, expandDur);
+    
+    scaleExpr = `if(between(t,${T0},${+(T0 + shrinkDur).toFixed(4)}),${shrinkExpr},if(between(t,${+(T0 + shrinkDur).toFixed(4)},${+(T0 + shrinkDur + expandDur).toFixed(4)}),${expandExpr},${scaleExpr}))`;
   }
 
-  return parts.join(',');
+  return scaleExpr;
 }
 
 export interface FilterStringOptions {
   trimSeconds: string;
-  rippleChain: string;
+  cursorScaleExpr: string;
   cursorPngExists: boolean;
   cursorAlphaExpr: string;
   overlayXExpr: string;
@@ -406,25 +395,20 @@ export function buildFilterString(opts: FilterStringOptions): {
   mixInputs: string;
 } {
   const {
-    trimSeconds, rippleChain, cursorPngExists,
+    trimSeconds, cursorScaleExpr, cursorPngExists,
     cursorAlphaExpr, overlayXExpr, overlayYExpr,
     zoomZExpr, panXExpr, panYExpr, hwFilterSuffix,
     videoWidth, videoHeight, demoSteps, timeline, originalTimeline,
   } = opts;
 
   // ── Construct Filtergraph ──────────────────────────────────────────────────
-  // Z-order: raw_video → [drawbox ripples inline] → [cursor overlay] → [zoompan] → [vout]
-  // drawbox filters are chained inline on the stream (no intermediate label needed).
-  // Cursor geq only operates on the tiny 48×48 cursor PNG — NOT the full video frame.
-  let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30`;
-
-  if (rippleChain) {
-    filterString += `,${rippleChain}`;
-  }
-  filterString += `[vfps];`;
+  // Z-order: raw_video → [cursor overlay] → [zoompan] → [vout]
+  // Cursor geq operates on the tiny 48×48 cursor PNG.
+  let filterString = `[0:v]trim=start=${trimSeconds},setpts=PTS-STARTPTS,fps=30[vfps];`;
 
   if (cursorPngExists) {
-    filterString += `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${cursorAlphaExpr})'[cur];`;
+    filterString += `[1:v]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*(${cursorAlphaExpr})'[cur_alpha];`;
+    filterString += `[cur_alpha]scale=w='iw*(${cursorScaleExpr})':h='ih*(${cursorScaleExpr})':eval=frame[cur];`;
     filterString += `[vfps][cur]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:shortest=1[withcursor];`;
     filterString += `[withcursor]zoompan=z='${zoomZExpr}':x='${panXExpr}':y='${panYExpr}':d=1:s=${videoWidth}x${videoHeight}:fps=30${hwFilterSuffix}[vout];`;
   } else {
