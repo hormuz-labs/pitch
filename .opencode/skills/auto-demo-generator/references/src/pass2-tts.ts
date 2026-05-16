@@ -42,7 +42,7 @@ export async function pass2Tts(
     const ttsReqBody = {
       model: 'gemini-3.1-flash-tts-preview',
       contents: [{ role: 'user', parts: [{ text: scriptText }] }],
-      config: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } },
+      generationConfig: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } },
     };
 
     const ttsRes = await fetch(ttsUrl, {
