@@ -54,6 +54,28 @@ export function smoothstepExpr(
 }
 
 /**
+ * Ease-out cubic — 1-(1-t)³.
+ * Fast start with smooth deceleration into the target. Feels natural for cursor movement.
+ * @param evalVar     FFmpeg time variable: 't' (overlay) or 'time' (zoompan)
+ * @param prev        Starting value
+ * @param target      Ending value
+ * @param moveStart   Segment start in seconds
+ * @param moveDuration Segment length in seconds
+ */
+export function easeOutCubicExpr(
+  evalVar: 't' | 'time' | 'T',
+  prev: number,
+  target: number,
+  moveStart: number,
+  moveDuration: number
+): string {
+  const p = `min(1,max(0,(${evalVar}-${moveStart})/${moveDuration}))`;
+  const inv = `(1-${p})`;
+  const s = `(1-${inv}*${inv}*${inv})`;
+  return `${prev}+(${target - prev})*${s}`;
+}
+
+/**
  * Spring overshoot — smoothstep to (target + overshoot) in the first 60% of
  * the window, then smoothstep back to (target) in the remaining 40%.
  * Only applied on zoom-in transitions for an elastic, premium feel.
@@ -236,17 +258,13 @@ export function buildCursorAnimationExprs(
 
     const targetZoom = ev.action === 'wait' ? 1.0 : 1.2;
 
-    // ── Cursor overlay (smoothstep easing, evaluates 't') ────────────────────
-    overlayXExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
-    overlayYExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCy, ev.cy, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
+    // ── Cursor overlay (ease-out cubic, evaluates 't') ───────────────────────
+    overlayXExpr = `if(between(t,${moveStart},${tTime}),${easeOutCubicExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
+    overlayYExpr = `if(between(t,${moveStart},${tTime}),${easeOutCubicExpr('t', prevCy, ev.cy, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
 
-    // ── Zoom (spring overshoot on zoom-in, plain smoothstep on zoom-out) ─────
-    const OVERSHOOT_FRACTION = 0.1; // 10% of the zoom delta
-    const overshootAmt = targetZoom > prevZoom
-      ? (targetZoom - prevZoom) * OVERSHOOT_FRACTION
-      : 0;
+    // ── Zoom (linear interpolation) ───────────────────────────────────────────
     const zoomInterp = (targetZoom !== prevZoom)
-      ? springOvershootExpr('time', prevZoom, targetZoom, overshootAmt, moveStart, moveDuration)
+      ? `${prevZoom}+(${targetZoom - prevZoom})*min(1,max(0,(time-${moveStart})/${moveDuration}))`
       : `${targetZoom}`;
     zoomZExpr = `if(between(time,${moveStart},${tTime}),${zoomInterp},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
 
