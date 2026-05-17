@@ -14,6 +14,7 @@ services:
       - minio
       - loki
       - grafana
+      - pgweb
 
   postgres:
     image: postgres:15-alpine
@@ -32,6 +33,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  pgweb:
+    image: sosedoff/pgweb:latest
+    container_name: pitch_pgweb
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://postgres:password@postgres:5432/pitch?sslmode=disable
+      - AUTH_USER=${PGWEB_USER:-admin}
+      - AUTH_PASS=${PGWEB_PASSWORD:-supersecret123}
+    # Removed host port mapping to avoid conflicts and force traffic through Cloudflare Tunnel
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
