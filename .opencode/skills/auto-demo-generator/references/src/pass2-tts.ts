@@ -7,7 +7,7 @@ import { parseMimeType, createWavHeader } from './utils';
 // ── Preflight ────────────────────────────────────────────────────────────────
 function preflight(demoDir: string): void {
   if (!process.env.GEMINI_API_KEY) throw new Error('[pass2-tts] GEMINI_API_KEY is not set.');
-  if (!process.env.GEMINI_TTS_API_KEY_2) throw new Error('[pass2-tts] GEMINI_TTS_API_KEY_2 is not set (needed for transcription).');
+  if (!process.env.TRANSCRIPTION_SERVICE_URL) throw new Error('[pass2-tts] TRANSCRIPTION_SERVICE_URL is not set in .env');
   const scriptPath = path.join(demoDir, 'script.txt');
   if (!fs.existsSync(scriptPath)) throw new Error(`[pass2-tts] script.txt not found — run pass2-script first. Expected: ${scriptPath}`);
 }
@@ -80,36 +80,26 @@ export async function pass2Tts(
 
   // ── Transcription ──────────────────────────────────────────────────────────
   if (!fs.existsSync(timestampsPath)) {
-    console.log('== Pass 3: Transcription ==');
+    console.log('== Pass 3: Transcription (Local Microservice) ==');
     const finalAudioBuffer = fs.readFileSync(voicePath);
-    const transcribeAi = new GoogleGenAI({ apiKey: process.env.GEMINI_TTS_API_KEY_2 });
-    const transcribeRes = await transcribeAi.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          { inlineData: { mimeType: 'audio/wav', data: finalAudioBuffer.toString('base64') } },
-          { text: 'Listen to the audio and provide a complete transcript. Each object must have keys: "word", "startMs", "endMs".' },
-        ],
-      }],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'ARRAY',
-          items: {
-            type: 'OBJECT',
-            properties: {
-              word: { type: 'STRING' },
-              startMs: { type: 'NUMBER' },
-              endMs: { type: 'NUMBER' },
-            },
-            required: ['word', 'startMs', 'endMs'],
-          },
-        },
-      },
-    });
-    fs.writeFileSync(timestampsPath, transcribeRes.text!);
-    console.log('✅ timestamps.json saved.');
+    
+    try {
+      const transcribeRes = await fetch(process.env.TRANSCRIPTION_SERVICE_URL!, {
+        method: 'POST',
+        body: finalAudioBuffer,
+        headers: { 'Content-Type': 'audio/wav' }
+      });
+
+      if (!transcribeRes.ok) {
+        throw new Error(`[pass2-tts] Transcription service failed: ${transcribeRes.status} ${await transcribeRes.text()}`);
+      }
+
+      const timestamps = await transcribeRes.json();
+      fs.writeFileSync(timestampsPath, JSON.stringify(timestamps, null, 2));
+      console.log('✅ timestamps.json saved.');
+    } catch (e: any) {
+      throw new Error(`[pass2-tts] Failed to connect to local transcription service. Is it running on port 4000? Error: ${e.message}`);
+    }
   } else {
     console.log('⏭️  [pass2-tts] timestamps.json already exists — skipping transcription.');
   }

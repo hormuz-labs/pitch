@@ -19,6 +19,10 @@ if (!process.env.GEMINI_API_KEY) {
   console.error('❌ GEMINI_API_KEY is not set. Aborting.');
   process.exit(1);
 }
+if (!process.env.TRANSCRIPTION_SERVICE_URL) {
+  console.error('❌ TRANSCRIPTION_SERVICE_URL is not set in .env. Aborting.');
+  process.exit(1);
+}
 
 const configFile = process.argv[2];
 if (!configFile || !fs.existsSync(configFile)) {
@@ -98,6 +102,23 @@ function reportPhase(phase: string, status: 'running' | 'completed' | 'failed'):
 
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 async function main() {
+  // ── Async Preflight: Check Transcription Service Health ────────────────────
+  try {
+    const healthUrl = new URL('/health', process.env.TRANSCRIPTION_SERVICE_URL!).toString();
+    const healthRes = await fetch(healthUrl, { method: 'GET' });
+    if (!healthRes.ok) {
+      if (healthRes.status === 503) {
+        console.error('❌ Transcription service is running but model is still loading into memory. Wait a moment and retry.');
+      } else {
+        console.error(`❌ Transcription service returned HTTP ${healthRes.status}`);
+      }
+      process.exit(1);
+    }
+  } catch (e: any) {
+    console.error(`❌ Transcription service at ${process.env.TRANSCRIPTION_SERVICE_URL} is unreachable! Start it first before running jobs. (${e.message})`);
+    process.exit(1);
+  }
+
   // Pass 0 — Cinematic Intro
   reportPhase('intro_sequence', 'running');
   try {
