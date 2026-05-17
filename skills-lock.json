@@ -6,6 +6,54 @@
       "sourceType": "github",
       "skillPath": "skills/agent-browser/SKILL.md",
       "computedHash": "228f87d57035100d9dc6efcfc05aafd4b6e3962adacaa04b8217ab2fadb15dc8"
+    },
+    "billing-sdk": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/billing-sdk/SKILL.md",
+      "computedHash": "38ba24500996f9bbc33e61a757a583f57cc2f7af3b8dfe57bc684b1ec7b9fbb5"
+    },
+    "checkout-integration": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/checkout-integration/SKILL.md",
+      "computedHash": "8cf6940ab614a7d1ea3b400edc43c910f7bec9d8cba207facad2d75e2ab9de40"
+    },
+    "credit-based-billing": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/credit-based-billing/SKILL.md",
+      "computedHash": "d9f11fe73bc87eec7eff4303a0f93ab01eac321a7a00f06c6eb5689da26c13c7"
+    },
+    "dodo-best-practices": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/best-practices/SKILL.md",
+      "computedHash": "3eff4916cbee50e3508233c7ca5f631d85e1a11a59464e7a44af479c0eb4c35a"
+    },
+    "license-keys": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/license-keys/SKILL.md",
+      "computedHash": "99481ad83e2827b715189d189adff615e9b65ddc38da74373509b72c1823a169"
+    },
+    "subscription-integration": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/subscription-integration/SKILL.md",
+      "computedHash": "50703028194d3cfd0c13950dda704d6568f5b6c682995ee660bacf6c17e63035"
+    },
+    "usage-based-billing": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/usage-based-billing/SKILL.md",
+      "computedHash": "e16ace6a5624ffd2276edb760aebcdf8ce55f30beef423716a9a6003fc9eb48b"
+    },
+    "webhook-integration": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/webhook-integration/SKILL.md",
+      "computedHash": "e67e26dc8c509a9dc768d2b63f5a7dc0e91be74d929e26193afb49956bf6dd1e"
     }
   }
 }

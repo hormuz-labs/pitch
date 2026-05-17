@@ -316,7 +316,7 @@ export async function createAffiliateConversion(data: {
   referredUserId: string;
   saleAmountUsd: number;
   commissionAmt: number;
-  stripeSessionId?: string;
+  dodoSessionId?: string;
 }) {
   return prisma.affiliateConversion.create({ data });
 }
@@ -348,7 +348,7 @@ export async function getAffiliateStats(affiliateId: string) {
 /** Request a payout for pending commission earnings */
 export async function requestAffiliatePayout(affiliateId: string, amount: number) {
   return prisma.affiliatePayout.create({
-    data: { affiliateId, amount, method: 'stripe', status: 'requested' },
+    data: { affiliateId, amount, method: 'dodo', status: 'requested' },
   });
 }
 
