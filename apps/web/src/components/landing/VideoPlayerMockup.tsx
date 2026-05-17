@@ -13,6 +13,14 @@ export const VideoPlayerMockup = () => {
 
   return (
     <div className="w-full flex flex-col items-center">
+      <div className="flex items-center justify-end gap-2.5 mb-3 self-end mr-4 sm:mr-10 xl:mr-[10vw] text-gray-500 w-full max-w-[80vw]">
+        <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="transform -scale-y-100 translate-y-1">
+          <path d="M18 22 C 22 40 35 55 52 55" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+          <path d="M18 22 L 12 32 M 18 22 L 28 26" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+        </svg>
+        <span className="font-sans text-sm font-medium">this video was made using <span className="font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded ml-0.5">PITCH</span></span>
+      </div>
+
       <div className="w-full flex justify-center" style={{ width: '80vw', maxWidth: 'none' }}>
         <div 
           className="rounded-lg sm:rounded-[14px] border border-[#3D3D3D] bg-white overflow-hidden flex flex-col w-full relative z-10" 
@@ -56,14 +64,6 @@ export const VideoPlayerMockup = () => {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex items-center justify-end gap-2.5 mt-3 self-end mr-4 sm:mr-10 xl:mr-[10vw] text-gray-500 w-full max-w-[80vw]">
-        <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="transform -translate-y-1">
-          <path d="M18 22 C 22 40 35 55 52 55" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
-          <path d="M18 22 L 12 32 M 18 22 L 28 26" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
-        </svg>
-        <span className="font-sans text-sm font-medium">this video was made using <span className="font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded ml-0.5">PITCH</span></span>
       </div>
     </div>
   );
