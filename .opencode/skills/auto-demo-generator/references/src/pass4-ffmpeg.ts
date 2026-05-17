@@ -86,9 +86,15 @@ export async function pass4Ffmpeg(
   });
 
   const finalOutput = config.outputPath
-    ? path.resolve(demoDir, config.outputPath)
+    ? path.resolve(demoDir, path.basename(config.outputPath))
     : path.join(demoDir, 'demo-final.mp4');
   const tempRawOut = finalOutput.replace('.mp4', '-raw.mp4');
+
+  // Preflight check: Ensure the output directory exists
+  const finalOutputDir = path.dirname(finalOutput);
+  if (!fs.existsSync(finalOutputDir)) {
+    fs.mkdirSync(finalOutputDir, { recursive: true });
+  }
 
   // ── Assemble FFmpeg command ────────────────────────────────────────────────
   const filterScriptPath = path.join(demoDir, 'filters.txt');

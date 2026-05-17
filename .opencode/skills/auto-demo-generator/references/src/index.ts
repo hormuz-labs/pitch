@@ -39,6 +39,21 @@ if (!config.steps?.length) { console.error('❌ config.steps must be a non-empty
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+// ── Strict Preflight Checks ───────────────────────────────────────────────────
+const cursorStyle = config.cursorStyle || 'black';
+const cursorFile = path.join(DEMO_DIR, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
+if (!fs.existsSync(cursorFile)) {
+  console.error(`❌ Missing cursor SVG! Expected: ${cursorFile}\nDid you forget to copy the assets/ directory?`);
+  process.exit(1);
+}
+
+const clickSfx = path.join(DEMO_DIR, 'assets', 'sounds', 'click.mp3');
+const keySfx = path.join(DEMO_DIR, 'assets', 'sounds', 'keyboard.mp3');
+if (!fs.existsSync(clickSfx) || !fs.existsSync(keySfx)) {
+  console.error(`❌ Missing SFX files! Expected:\n- ${clickSfx}\n- ${keySfx}\nDid you forget to copy the assets/ directory?`);
+  process.exit(1);
+}
+
 // ── Phase reporting ───────────────────────────────────────────────────────────
 const JOB_ID = process.env.JOB_ID;
 

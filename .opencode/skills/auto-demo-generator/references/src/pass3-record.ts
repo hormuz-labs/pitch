@@ -105,7 +105,7 @@ export async function pass3Record(
       const loc = page.locator(step.selector).first();
 
       await waitForTime(actionTime - 2.0);
-      await loc.waitFor({ state: 'visible', timeout: 5000 });
+      await loc.waitFor({ state: 'visible', timeout: 15000 });
 
       const scrollYBefore = await page.evaluate(() => window.scrollY);
       await loc.evaluate((node) => node.scrollIntoView({ behavior: 'smooth', block: 'center' }))

@@ -24,7 +24,7 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
 {
   "startUrl": "https://example.com",
   "userReq": "Show me how to use the search feature on example.com",
-  "outputPath": "example-demo.mp4",
+  "outputPath": "example-demo.mp4", 
   "cursorStyle": "black",
   "steps": [
     { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
@@ -33,6 +33,7 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   ]
 }
 ```
+*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`), NEVER a relative or absolute path (e.g. `demos/foo/video.mp4`), because the engine resolves it relative to the demo folder automatically.*
 
 **Execution:**
 ```bash
@@ -54,13 +55,20 @@ The `references/` directory contains the template files.
 Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
 
 **CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the immutable templates. 
-The agent MUST copy ONLY the TypeScript files and assets (the `src/`  and assets/ directory) from the `references/` folder into the new `demos/<demo-name>/` folder. Do NOT copy `package.json` or any other dependency files. All dependencies are already globally installed, so you do NOT need to install them.
+The agent MUST copy BOTH the TypeScript files and the assets directory (`src/` and `assets/`) from the `references/` folder into the new `demos/<demo-name>/` folder. Do NOT copy `package.json` or any other dependency files. All dependencies are already globally installed, so you do NOT need to install them.
+
+**MANDATORY COPY COMMAND:**
+```bash
+cp -r .opencode/skills/auto-demo-generator/references/src .opencode/skills/auto-demo-generator/references/assets demos/<demo-name>/
+```
+*(If you forget the `assets/` directory, the engine will crash with a missing cursor SVG error!)*
 
 From there, the AI should:
 1. Create and modify the `demo-config.json` inside the `demos/<demo-name>` folder.
 2. Modify any of the underlying TypeScript code (`src/`) if the specific demo requires custom logic or tweaks to make the right kind of demo. Remember, you must ONLY edit the copies located inside the `demos/` folder.
 3. NEVER run `npm install` or `bun install`.
-4. **Handling Errors/Resuming:** If an error occurs during ANY phase of execution (Phase 0, 1, 2, 3, or 4) and you need to retry, you MUST NOT blindly redo the entire pipeline from scratch. You must manually edit the `src/index.ts` file in the generated demo folder and comment out EVERY pass that has already successfully completed before running the script again. 
+4. **NEVER attempt to optimize or modify the FFmpeg post-processing logic (e.g., `pass4-ffmpeg.ts` or `utils.ts`) just because it is taking a long time. The cinematic effects (`zoompan`, `geq` overlay, etc.) are highly computationally intensive and it is completely normal for pass 6 to take over 5 minutes. Set a high tool timeout (`timeout: 900000`) and let it run.**
+5. **Handling Errors/Resuming:** If an error occurs during ANY phase of execution (Phase 0, 1, 2, 3, or 4) and you need to retry, you MUST NOT blindly redo the entire pipeline from scratch. You must manually edit the `src/index.ts` file in the generated demo folder and comment out EVERY pass that has already successfully completed before running the script again. 
    - If `pass0` succeeded but `pass1` failed, comment out `// await pass0(...)` and fix `pass1`.
    - If `pass1` succeeded but `pass2` failed, comment out `// await pass0(...)` AND `// await pass1(...)`.
    - If `pass2` succeeded but `pass3` failed, comment out `pass0`, `pass1`, and `pass2`.
@@ -81,7 +89,7 @@ Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` 
 
 **CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
 
-**MANDATORY — Logo Download:**  While the agent-browser is already on the website, it MUST find and download the website's primary logo file and save it into `demos/<demo-name>/assets/icons/`. The logo can be in any format (`.svg`, `.png`, `.webp`, `.jpg`, `.ico`). Prefer the highest-resolution or vector (`.svg`) version available. Look in the header/navigation area first, then check `<link rel="apple-touch-icon">` as a fallback. If you find a URL to an SVG or PNG logo, download it via `fetch()` or copy its source and save it to the `assets/icons/` folder. This is REQUIRED for the cinematic intro to work in Phase 0.5.
+**MANDATORY — Logo Download:**  While the agent-browser is already on the website, it MUST find and download the website's primary logo file and save it into `demos/<demo-name>/assets/icons/`. **CRITICAL**: You MUST name the file starting with `logo.` (e.g., `logo.svg`, `logo.png`, `logo.webp`). Do NOT name it `company.png` or `favicon.ico`. The engine strictly looks for files matching `logo.*`. Prefer the highest-resolution or vector (`.svg`) version available. Look in the header/navigation area first, then check `<link rel="apple-touch-icon">` as a fallback. If you find a URL to an SVG or PNG logo, download it via `fetch()` or copy its source and save it to the `assets/icons/` folder. This is REQUIRED for the cinematic intro to work in Phase 0.5.
 
 Once the agent has successfully verified and collected all the necessary stable working selectors, it will dynamically generate the `demo-config.json` file inside the new demo folder.
 
