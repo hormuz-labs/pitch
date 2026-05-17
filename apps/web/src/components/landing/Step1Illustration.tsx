@@ -1,16 +1,16 @@
 import gsap from 'gsap';
 import { useIllustrationTimeline } from '../../hooks/useIllustrationTimeline';
 
-const URL_CHARS = [...'https://acme.com'];
+const URL_TEXT = 'https://trypitch.co';
 
 function buildTimeline(root: HTMLElement, onComplete: () => void): gsap.core.Timeline {
   const card = root.querySelector<HTMLElement>('.s1-card');
-  const chars = root.querySelectorAll<HTMLElement>('.s1-char');
+  const typed = root.querySelector<HTMLSpanElement>('.s1-typed');
   const cursor = root.querySelector<HTMLElement>('.s1-cursor');
   const doneWrap = root.querySelector<HTMLElement>('.s1-done-wrap');
   const doneCheck = root.querySelector<SVGPolylineElement>('.s1-done-check');
 
-  if (!card || !chars.length || !cursor || !doneWrap || !doneCheck) {
+  if (!card || !typed || !cursor || !doneWrap || !doneCheck) {
     return gsap.timeline({ paused: true });
   }
 
@@ -19,15 +19,20 @@ function buildTimeline(root: HTMLElement, onComplete: () => void): gsap.core.Tim
   gsap.set(doneCheck, { strokeDasharray: 16, strokeDashoffset: 16 });
 
   tl.set(card, { opacity: 0, y: 10 })
-    .set(chars, { opacity: 0 })
     .set(cursor, { opacity: 0 })
     .set(doneWrap, { opacity: 0, scale: 0 });
+  tl.call(() => { typed.textContent = ''; });
 
   tl.to(card, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' });
   tl.to(cursor, { opacity: 1, duration: 0.05 }, '+=0.1');
   tl.to(cursor, { opacity: 0, duration: 0.15, repeat: 2, yoyo: true });
   tl.to(cursor, { opacity: 1, duration: 0.05 });
-  tl.to(chars, { opacity: 1, duration: 0.01, stagger: 0.04, ease: 'none' }, '+=0.1');
+
+  const chars = [...URL_TEXT];
+  chars.forEach((_, i) => {
+    tl.call(() => { typed.textContent = URL_TEXT.slice(0, i + 1); }, [], '+=0.04');
+  });
+
   tl.to(cursor, { opacity: 0, duration: 0.15, repeat: 2, yoyo: true }, '+=0.2');
   tl.to(doneWrap, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' }, '+=0.1');
   tl.to(doneCheck, { strokeDashoffset: 0, duration: 0.3, ease: 'power2.out' });
@@ -58,11 +63,7 @@ export const Step1Illustration = ({ active, onComplete }: Props) => {
         
         <div className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs text-gray-900 bg-gray-50 flex items-center shadow-inner relative overflow-hidden h-9">
           <div className="flex items-center w-full">
-            {URL_CHARS.map((ch, i) => (
-              <span key={i} className="s1-char font-mono text-[11px] text-gray-900 opacity-0 whitespace-pre">
-                {ch}
-              </span>
-            ))}
+            <span className="s1-typed font-mono text-[11px] text-gray-900 whitespace-pre"></span>
             <span className="s1-cursor inline-block w-[1.5px] h-[12px] bg-blue-500 ml-[1px] opacity-0" />
           </div>
           
