@@ -19,7 +19,7 @@ const PHASE_LABELS: Record<string, string> = {
   flow_validation:        'Flow Validation',
   voiceover_generation:   'Voiceover Generation',
   video_recording:        'Video Recording',
-  ffmpeg_postprocessing:  'FFmpeg Post-Processing',
+  ffmpeg_postprocessing:  'Encoding',
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -118,47 +118,31 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
         }
       `}</style>
 
-      <div style={{
-        background: '#fff',
-        border: '1.5px solid #e5e7eb',
-        borderRadius: 20,
-        padding: '20px 22px',
-        width: '100%',
-        boxShadow: '0 4px 24px 0 rgba(0,0,0,0.07)',
-        fontFamily: 'inherit',
-        userSelect: 'none',
-      }}>
+      <div className="w-full bg-white border-[1.5px] border-gray-200 rounded-2xl p-4 sm:p-5 shadow-[0_4px_24px_0_rgba(0,0,0,0.07)] select-none font-inherit">
 
         {/* ── Header row ──────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 sm:gap-0">
+          <div className="flex items-center gap-2.5">
             {/* Icon box */}
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              border: '1.5px solid #e5e7eb', background: '#f9fafb',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+            <div className="w-10 h-10 rounded-xl border-[1.5px] border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
               </svg>
             </div>
-            <span style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Video Generation</span>
+            <span className="font-bold text-base text-gray-900">Video Generation</span>
           </div>
 
-          {/* Progress pill */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Progress pill - moved to bottom for mobile */}
+          <div className="hidden sm:flex items-center gap-2 ml-0">
             {/* Mini bar */}
-            <div style={{
-              width: 80, height: 7, borderRadius: 99,
-              background: '#f3f4f6', overflow: 'hidden', position: 'relative',
-            }}>
-              <div style={{
-                height: '100%', borderRadius: 99,
-                background: progress === 100 ? '#16a34a' : '#3b82f6',
-                width: `${progress}%`,
-                transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
-                position: 'relative', overflow: 'hidden',
-              }}>
+            <div className="w-20 h-2 rounded-full bg-gray-100 overflow-hidden relative">
+              <div 
+                className="h-full rounded-full relative overflow-hidden transition-all duration-600 ease-in-out"
+                style={{
+                  background: progress === 100 ? '#16a34a' : '#3b82f6',
+                  width: `${progress}%`,
+                }}
+              >
                 <div style={{
                   position: 'absolute', inset: 0,
                   background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
@@ -166,93 +150,46 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
                 }} />
               </div>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', minWidth: 32, textAlign: 'right' }}>
+            <span className="text-[13px] font-semibold text-gray-500 min-w-[32px] text-right">
               {progress}%
             </span>
           </div>
         </div>
 
-        {/* ── Progress counter + full bar ──────────────────────────────────── */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: '#f9fafb', border: '1.5px solid #e5e7eb',
-          borderRadius: 99, padding: '5px 12px',
-          marginBottom: 20, width: 'fit-content',
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>
-            <span style={{ color: '#374151' }}>{completedCount}</span> of {totalCount} phases
-          </span>
-          <div style={{
-            width: 80, height: 6, borderRadius: 99,
-            background: '#e5e7eb', overflow: 'hidden', position: 'relative',
-          }}>
-            <div style={{
-              height: '100%', borderRadius: 99,
-              background: progress === 100 ? '#16a34a' : '#3b82f6',
-              width: `${progress}%`,
-              transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
-              position: 'relative', overflow: 'hidden',
-            }}>
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
-                animation: 'vpw-shimmer 1.6s linear infinite',
-              }} />
-            </div>
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{progress}%</span>
-        </div>
-
         {/* ── Phase subtask list ────────────────────────────────────────────── */}
-        <div style={{ position: 'relative', marginLeft: 10, paddingLeft: 24, marginBottom: 20 }}>
+        <div className="relative ml-2.5 pl-6 mb-5">
           {/* Vertical connector line */}
-          <div style={{
-            position: 'absolute', left: 0, top: 4, bottom: 20,
-            width: 2, background: '#e5e7eb', borderRadius: 1,
-          }} />
+          <div className="absolute left-0 top-1 bottom-5 w-[2px] bg-gray-200 rounded-sm overflow-hidden">
+            <div 
+              className="absolute top-0 left-0 w-full transition-all duration-500 bg-green-500"
+              style={{ height: `${completedCount === 0 ? 0 : ((completedCount - 1) / (totalCount - 1)) * 100}%` }}
+            />
+          </div>
 
           {phaseList.map((p, idx) => (
             <div
               key={p.key}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                marginBottom: idx < phaseList.length - 1 ? 14 : 0,
-                position: 'relative',
-              }}
+              className={`flex flex-wrap items-center gap-2.5 relative ${idx < phaseList.length - 1 ? 'mb-3.5' : ''}`}
             >
               {/* L-shaped connector */}
-              <div style={{
-                position: 'absolute', left: -24, top: -8,
-                width: 18, height: 24,
-                borderBottom: '2px solid #e5e7eb',
-                borderLeft: '2px solid #e5e7eb',
-                borderBottomLeftRadius: 6,
-              }} />
+              <div className={`absolute -left-6 -top-2 w-[18px] h-6 border-b-2 border-l-2 rounded-bl-md transition-colors duration-500 ${
+                p.status === 'completed' 
+                  ? 'border-green-500' 
+                  : p.status === 'running' 
+                    ? 'border-blue-500' 
+                    : 'border-gray-200'
+              }`} />
 
               <PhaseIcon status={p.status} />
 
-              <span style={{
-                fontSize: 14, fontWeight: 500,
-                color: p.status === 'completed'
-                  ? '#9ca3af'
-                  : p.status === 'running'
-                    ? '#1d4ed8'
-                    : '#374151',
-                transition: 'color 0.3s',
-              }}>
+              <span className={`text-sm font-medium transition-colors ${
+                p.status === 'completed' ? 'text-gray-400' : p.status === 'running' ? 'text-blue-700' : 'text-gray-700'
+              }`}>
                 {p.label}
               </span>
 
               {p.status === 'running' && (
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: '#2563eb',
-                  background: '#eff6ff', borderRadius: 99, padding: '1px 8px',
-                  border: '1px solid #bfdbfe', letterSpacing: 0.5,
-                  textTransform: 'uppercase',
-                }}>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-[1px] tracking-wide uppercase">
                   Running
                 </span>
               )}
@@ -261,28 +198,61 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
         </div>
 
         {/* ── Status + Priority badges ──────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: '#fef3c7', border: '1px solid #fde68a',
-            borderRadius: 8, padding: '5px 12px',
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" stroke="none">
-              <path d="M3 3h2v13H3V3zm4 0l10 6.5L7 16V3z"/>
-            </svg>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>High Priority</span>
-          </div>
-
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: '#eff6ff', border: '1px solid #bfdbfe',
-            borderRadius: 8, padding: '5px 12px',
-          }}>
+        <div className="flex gap-2.5 flex-wrap">
+          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg py-1 px-3">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#1e40af' }}>{statusLabel}</span>
+            <span className="text-xs font-bold text-blue-800">{statusLabel}</span>
           </div>
+        </div>
+
+        {/* ── Progress counter + full bar ──────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2 bg-gray-50 border-[1.5px] border-gray-200 rounded-xl sm:rounded-full py-1.5 px-3 mt-5 w-fit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <span className="text-[13px] font-semibold text-gray-400">
+            <span className="text-gray-700">{completedCount}</span> of {totalCount} phases
+          </span>
+          <div className="w-20 h-1.5 rounded-full bg-gray-200 overflow-hidden relative shrink-0">
+            <div 
+              className="h-full rounded-full relative overflow-hidden transition-all duration-600 ease-in-out"
+              style={{
+                background: progress === 100 ? '#16a34a' : '#3b82f6',
+                width: `${progress}%`,
+              }}
+            >
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
+                animation: 'vpw-shimmer 1.6s linear infinite',
+              }} />
+            </div>
+          </div>
+          <span className="text-[13px] font-bold text-gray-700">{progress}%</span>
+        </div>
+
+        {/* ── Mobile Progress Pill (bottom) ─────────────────────────────────── */}
+        <div className="sm:hidden flex items-center gap-2 mt-5">
+          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden relative">
+            <div 
+              className="h-full rounded-full relative overflow-hidden transition-all duration-600 ease-in-out"
+              style={{
+                background: progress === 100 ? '#16a34a' : '#3b82f6',
+                width: `${progress}%`,
+              }}
+            >
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
+                animation: 'vpw-shimmer 1.6s linear infinite',
+              }} />
+            </div>
+          </div>
+          <span className="text-[13px] font-semibold text-gray-500 min-w-[32px] text-right">
+            {progress}%
+          </span>
         </div>
       </div>
     </>

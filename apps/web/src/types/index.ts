@@ -17,6 +17,8 @@ export interface Project {
   progress?: number;         // 0–100 weighted progress
   cost?: number;             // cost of opencode session in USD
   workerId?: string;         // id of the worker that processed the job
+  rating?: string;           // 'up' or 'down' rating for the generated video
+  feedback?: string;         // Optional text feedback from the user
   createdAt: string;
   updatedAt: string;
 }
