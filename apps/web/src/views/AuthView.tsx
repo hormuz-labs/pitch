@@ -85,6 +85,8 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
           </button>
         </div>
 
+        <div id="clerk-captcha" />
+
         <p className="auth-switch" style={{ marginTop: 16 }}>
           {tab === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
           <button

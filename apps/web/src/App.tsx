@@ -95,18 +95,25 @@ function ToastShell({ children }: { children: React.ReactNode }) {
 // ── Beta Redirect ─────────────────────────────────────────────────────────────
 
 function BetaRedirect() {
+  const navigate = useNavigate();
   useEffect(() => {
     document.cookie = "beta_promo=1; path=/; max-age=86400"; // 1 day
-    window.location.href = "/sign-up";
-  }, []);
+    
+    // Add a small 1.5s delay so the user can see the activation screen
+    const timer = setTimeout(() => {
+      navigate('/sign-up', { replace: true });
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, [navigate]);
   
   return (
     <div className="flex h-screen w-full items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-12 h-12 flex items-center justify-center">
-          <PitchLogoAnimation loop startAnimation />
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-16 h-16 flex items-center justify-center">
+          <PitchLogoAnimation loop startAnimation color="#111" />
         </div>
-        <p className="text-sm font-medium text-gray-500 animate-pulse">Activating beta promo...</p>
+        <p className="text-sm font-bold text-gray-600 animate-pulse uppercase tracking-widest">Activating $5 Beta Promo...</p>
       </div>
     </div>
   );
@@ -524,8 +531,26 @@ function AppContent() {
             setIsAdmin(true);
           }
         } catch (profileErr: any) {
-          // Ignore 404 as the profile might not be fully synced yet on first login
-          if (profileErr.status !== 404) {
+          if (profileErr.status === 404) {
+            // DB was wiped or user is missing. Force a re-sync.
+            sessionStorage.removeItem(`user_synced_${userId}`);
+            
+            try {
+              const primaryEmail = user?.primaryEmailAddress?.emailAddress;
+              if (primaryEmail) {
+                await api.post('/users/sync', token!, {
+                  email: primaryEmail,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  imageUrl: user.imageUrl,
+                });
+                sessionStorage.setItem(`user_synced_${userId}`, '1');
+                window.dispatchEvent(new Event('credits-changed'));
+              }
+            } catch (syncErr) {
+              console.error('Failed to force sync user:', syncErr);
+            }
+          } else {
             console.error('Failed to fetch user profile:', profileErr);
           }
         }
