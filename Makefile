@@ -29,13 +29,13 @@ dev:
 	@echo "  $(BOLD)Development mode$(RESET)"
 	@echo ""
 	@if command -v fzf > /dev/null 2>&1; then \
-		choice=$$(printf "essential — postgres, redis & minio in Docker; run web/api/worker with bun\nall       — full stack in Docker" \
+		choice=$$(printf "essential — postgres, redis, minio & transcription in Docker; run web/api/worker with bun\nall       — full stack in Docker" \
 			| fzf --ansi --no-info --height=4 --prompt="  How do you want to run? " \
 			| awk '{print $$1}'); \
 	else \
 		echo "  $(YELLOW)tip: install fzf for a nicer dropdown (brew install fzf)$(RESET)"; \
 		echo ""; \
-		printf "  [1] essential — postgres, redis & minio in Docker; run web/api/worker with bun\n"; \
+		printf "  [1] essential — postgres, redis, minio & transcription in Docker; run web/api/worker with bun\n"; \
 		printf "  [2] all       — full stack in Docker\n"; \
 		echo ""; \
 		printf "  Choice [1/2]: "; \
@@ -45,8 +45,8 @@ dev:
 	echo ""; \
 	case "$$choice" in \
 		essential) \
-			echo "  $(GREEN)Starting essential containers (postgres, redis, minio)...$(RESET)"; \
-			docker compose -p pitch up -d postgres redis minio; \
+			echo "  $(GREEN)Starting essential containers (postgres, redis, minio, transcription)...$(RESET)"; \
+			docker compose -p pitch up -d postgres redis minio transcription; \
 			echo ""; \
 			echo "  $(GREEN)Waiting for services to be healthy...$(RESET)"; \
 			sleep 3; \
