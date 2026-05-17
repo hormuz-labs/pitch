@@ -98,16 +98,16 @@ model AffiliateClick {
 }
 
 model AffiliateConversion {
-  id              String    @id() @default(cuid())
-  affiliateId     String
-  clickId         String?
-  referredUserId  String
-  saleAmountUsd   Float
-  commissionAmt   Float
-  status          String    @default("pending")
-  stripeSessionId String?
-  createdAt       DateTime  @default(now())
-  affiliate       Affiliate @relation(fields: [affiliateId], references: [id])
+  id             String    @id() @default(cuid())
+  affiliateId    String
+  clickId        String?
+  referredUserId String
+  saleAmountUsd  Float
+  commissionAmt  Float
+  status         String    @default("pending")
+  dodoSessionId  String?
+  createdAt      DateTime  @default(now())
+  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@unique([affiliateId, referredUserId])
   @@index([affiliateId])

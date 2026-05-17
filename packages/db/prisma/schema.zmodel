@@ -130,10 +130,10 @@ model AffiliateConversion {
   affiliateId   String
   clickId       String?  // which specific click led to this conversion
   referredUserId String  // Clerk userId of the person who signed up & purchased
-  saleAmountUsd Float    // sale amount in USD (Stripe reports in USD cents → convert)
+  saleAmountUsd Float    // sale amount in USD (Dodo reports in USD cents → convert)
   commissionAmt Float    // saleAmountUsd * commissionPct / 100
   status        String   @default("pending") // pending | approved | paid | rejected
-  stripeSessionId String? // Stripe Checkout session ID for audit trail
+  dodoSessionId String? // Dodo Checkout session ID for audit trail
   createdAt     DateTime @default(now())
 
   affiliate Affiliate @relation(fields: [affiliateId], references: [id])
@@ -143,15 +143,15 @@ model AffiliateConversion {
   @@index([referredUserId])
 }
 
-// A payout request from an influencer, settled via Stripe Connect or bank transfer
+// A payout request from an influencer, settled via Dodo or bank transfer
 model AffiliatePayout {
   id          String   @id @default(cuid())
   affiliateId String
   amount      Float    // total USD amount
   currency    String   @default("USD")
-  method      String   // "stripe" | "bank"
+  method      String   // "dodo" | "bank"
   status      String   @default("requested") // requested | processing | paid | failed
-  reference   String?  // Stripe transfer ID or bank ref
+  reference   String?  // Dodo transfer ID or bank ref
   requestedAt DateTime @default(now())
   paidAt      DateTime?
 

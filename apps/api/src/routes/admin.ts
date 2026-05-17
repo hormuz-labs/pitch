@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import * as db from '@saas/db';
-import { requireAuth, videoQueue, connection } from '../index.js';
+import { requireAuth } from '../middleware/auth.js';
+import { videoQueue, connection } from '../config.js';
 import { createLogger, JOB_CANCELLATIONS_CHANNEL } from '@saas/shared';
 
 const logger = createLogger('admin-routes');
