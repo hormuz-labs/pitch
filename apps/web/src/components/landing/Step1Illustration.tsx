@@ -56,19 +56,19 @@ export const Step1Illustration = ({ active, onComplete }: Props) => {
       style={{ overflow: 'hidden' }}
       aria-hidden="true"
     >
-      <div className="s1-card w-full max-w-[280px] bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative opacity-0">
-        <label className="flex items-center gap-1.5 text-[11px] font-medium text-gray-700 mb-1.5">
+      <div className="s1-card w-full bg-white border border-gray-200 rounded-xl p-3 md:p-4 shadow-sm relative opacity-0">
+        <label className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-medium text-gray-700 mb-1.5">
           <span className="text-red-500">*</span> Product URL
         </label>
         
-        <div className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs text-gray-900 bg-gray-50 flex items-center shadow-inner relative overflow-hidden h-9">
-          <div className="flex items-center w-full">
-            <span className="s1-typed font-mono text-[11px] text-gray-900 whitespace-pre"></span>
-            <span className="s1-cursor inline-block w-[1.5px] h-[12px] bg-blue-500 ml-[1px] opacity-0" />
+        <div className="w-full border border-gray-200 rounded-lg px-2.5 md:px-3 py-2 md:py-2.5 text-[10px] md:text-xs text-gray-900 bg-gray-50 flex items-center shadow-inner relative overflow-hidden h-8 md:h-9">
+          <div className="flex items-center w-full min-w-0">
+            <span className="s1-typed font-mono text-[10px] md:text-[11px] text-gray-900 whitespace-nowrap overflow-hidden"></span>
+            <span className="s1-cursor inline-block w-[1.5px] h-[10px] md:h-[12px] bg-blue-500 ml-[1px] opacity-0 shrink-0" />
           </div>
           
-          <div className="s1-done-wrap absolute right-3 opacity-0 scale-0">
-            <svg width="16" height="16" viewBox="0 0 16 16">
+          <div className="s1-done-wrap absolute right-2 md:right-3 opacity-0 scale-0 bg-gray-50 pl-1">
+            <svg width="14" height="14" viewBox="0 0 16 16" className="md:w-4 md:h-4">
               <circle cx="8" cy="8" r="8" fill="#16a34a" />
               <polyline 
                 className="s1-done-check" 

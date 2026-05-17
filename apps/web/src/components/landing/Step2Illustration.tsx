@@ -51,24 +51,24 @@ export const Step2Illustration = ({ active, onComplete }: Props) => {
       style={{ overflow: 'hidden' }}
       aria-hidden="true"
     >
-      <div className="s2-card w-full max-w-[280px] bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative opacity-0">
-        <label className="flex items-center gap-1.5 text-[11px] font-medium text-gray-700 mb-1.5">
+      <div className="s2-card w-full bg-white border border-gray-200 rounded-xl p-3 md:p-4 shadow-sm relative opacity-0">
+        <label className="flex items-center gap-1.5 text-[10px] md:text-[11px] font-medium text-gray-700 mb-1.5">
           <span className="text-red-500">*</span> What should the AI agent do?
         </label>
         
-        <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 bg-gray-50 min-h-[50px] shadow-inner text-left leading-relaxed break-words">
+        <div className="w-full border border-gray-200 rounded-lg px-2.5 md:px-3 py-2 text-[11px] md:text-xs text-gray-600 bg-gray-50 min-h-[48px] md:min-h-[50px] shadow-inner text-left leading-relaxed break-words">
           <span className="s2-typed font-sans text-gray-800 font-medium" />
-          <span className="s2-cursor inline-block w-[1.5px] h-[12px] bg-blue-500 ml-[1px] opacity-0 align-middle" />
+          <span className="s2-cursor inline-block w-[1.5px] h-[11px] md:h-[12px] bg-blue-500 ml-[1px] opacity-0 align-middle" />
         </div>
 
-        <div className="flex gap-2 mt-3">
-          <div className="s2-option flex items-center gap-1.5 bg-white border border-gray-200 rounded-md px-2.5 py-1 shadow-sm opacity-0">
-            <span className="text-[10px] text-gray-400 font-medium">Voice</span>
-            <span className="text-[10px] text-gray-700 font-bold">Orus</span>
+        <div className="flex flex-wrap gap-1.5 md:gap-2 mt-3">
+          <div className="s2-option flex items-center gap-1.5 bg-white border border-gray-200 rounded-md px-2 md:px-2.5 py-1 shadow-sm opacity-0">
+            <span className="text-[9px] md:text-[10px] text-gray-400 font-medium">Voice</span>
+            <span className="text-[9px] md:text-[10px] text-gray-700 font-bold">Orus</span>
           </div>
-          <div className="s2-option flex items-center gap-1.5 bg-white border border-gray-200 rounded-md px-2.5 py-1 shadow-sm opacity-0">
-            <span className="text-[10px] text-gray-400 font-medium">Theme</span>
-            <span className="text-[10px] text-gray-700 font-bold">Cinematic</span>
+          <div className="s2-option flex items-center gap-1.5 bg-white border border-gray-200 rounded-md px-2 md:px-2.5 py-1 shadow-sm opacity-0">
+            <span className="text-[9px] md:text-[10px] text-gray-400 font-medium">Theme</span>
+            <span className="text-[9px] md:text-[10px] text-gray-700 font-bold">Cinematic</span>
           </div>
         </div>
       </div>

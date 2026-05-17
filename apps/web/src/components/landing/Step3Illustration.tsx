@@ -111,58 +111,48 @@ export const Step3Illustration = ({ active, onComplete }: Props) => {
       style={{ overflow: 'hidden' }}
       aria-hidden="true"
     >
-      <div className="s3-card w-full max-w-[320px] bg-white border-[1.5px] border-gray-200 rounded-2xl p-4 sm:p-5 shadow-[0_4px_24px_0_rgba(0,0,0,0.07)] select-none opacity-0">
+      <div className="s3-card w-full bg-white border-[1.5px] border-gray-200 rounded-xl md:rounded-2xl p-3 md:p-4 lg:p-5 shadow-[0_4px_24px_0_rgba(0,0,0,0.07)] select-none opacity-0">
         
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 sm:gap-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl border-[1.5px] border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex flex-wrap items-center justify-between mb-3 md:mb-4 gap-2">
+          <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl border-[1.5px] border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="md:w-5 md:h-5">
                 <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
               </svg>
             </div>
-            <span className="font-bold text-base text-gray-900 leading-none">Video Generation</span>
-          </div>
-          
-          {/* Progress pill - Desktop */}
-          <div className="hidden sm:flex items-center gap-2 ml-0">
-            <div className="w-16 h-2 rounded-full bg-gray-100 overflow-hidden relative">
-              <div className="s3-progress-bar h-full rounded-full relative overflow-hidden transition-all duration-600 ease-in-out" style={{ width: '0%', backgroundColor: '#3b82f6' }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)', animation: 'vpw-shimmer 1.6s linear infinite' }} />
-              </div>
-            </div>
-            <span className="s3-progress-text text-[12px] font-semibold text-gray-500 min-w-[28px] text-right">0%</span>
+            <span className="font-bold text-sm md:text-base text-gray-900 leading-none truncate">Video Generation</span>
           </div>
         </div>
 
         {/* Phases list */}
-        <div className="relative ml-2.5 pl-6 mb-5">
+        <div className="relative ml-1.5 md:ml-2.5 pl-5 md:pl-6 mb-4 md:mb-5">
           {/* Vertical connector line */}
           <div className="absolute left-0 top-1 bottom-5 w-[2px] bg-gray-200 rounded-sm overflow-hidden">
             <div className="s3-vertical-line absolute top-0 left-0 w-full bg-green-500 transition-all duration-500" style={{ height: '0%' }} />
           </div>
 
           {PHASES.map((label, idx) => (
-            <div key={idx} className={`flex flex-wrap items-center gap-2.5 relative ${idx < PHASES.length - 1 ? 'mb-3.5' : ''}`}>
+            <div key={idx} className={`flex flex-wrap items-center gap-1.5 md:gap-2.5 relative ${idx < PHASES.length - 1 ? 'mb-2.5 md:mb-3.5' : ''}`}>
               {/* L-shaped connector */}
-              <div className="s3-l-connector absolute -left-6 -top-2 w-[18px] h-6 border-b-2 border-l-2 rounded-bl-md border-gray-200 transition-colors duration-500" />
+              <div className="s3-l-connector absolute -left-5 md:-left-6 -top-2 w-[14px] md:w-[18px] h-5 md:h-6 border-b-[1.5px] md:border-b-2 border-l-[1.5px] md:border-l-2 rounded-bl-sm md:rounded-bl-md border-gray-200 transition-colors duration-500" />
 
               {/* Status Icons */}
-              <span className="s3-icon-pending flex items-center justify-center w-5 h-5 rounded-full border-2 border-gray-300 shrink-0 bg-white z-10" />
-              <span className="s3-icon-active hidden items-center justify-center w-5 h-5 rounded-full border-2 border-blue-500 shrink-0 bg-white z-10">
-                <span className="w-2 h-2 rounded-full bg-blue-500" style={{ animation: 'vpw-pulse 1.2s ease-in-out infinite' }} />
+              <span className="s3-icon-pending flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-full border-[1.5px] md:border-2 border-gray-300 shrink-0 bg-white z-10" />
+              <span className="s3-icon-active hidden items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-full border-[1.5px] md:border-2 border-blue-500 shrink-0 bg-white z-10">
+                <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-blue-500" style={{ animation: 'vpw-pulse 1.2s ease-in-out infinite' }} />
               </span>
-              <span className="s3-icon-done hidden items-center justify-center w-5 h-5 rounded-full bg-green-600 shrink-0 z-10 scale-0">
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <span className="s3-icon-done hidden items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-full bg-green-600 shrink-0 z-10 scale-0">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className="md:w-[11px] md:h-[11px]">
                   <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </span>
 
-              <span className="s3-phase-text text-sm font-medium text-gray-700 transition-colors">
+              <span className="s3-phase-text text-[11px] md:text-sm font-medium text-gray-700 transition-colors">
                 {label}
               </span>
 
-              <span className="s3-running-badge text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-[1px] tracking-wide uppercase hidden">
+              <span className="s3-running-badge text-[8px] md:text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-1.5 md:px-2 py-[1px] tracking-wide uppercase hidden">
                 Running
               </span>
             </div>
@@ -170,29 +160,26 @@ export const Step3Illustration = ({ active, onComplete }: Props) => {
         </div>
 
         {/* Status Badge */}
-        <div className="flex gap-2.5 flex-wrap mb-4">
-          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg py-1 px-3">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex gap-2 flex-wrap mb-3 md:mb-4">
+          <div className="flex items-center gap-1 md:gap-1.5 bg-blue-50 border border-blue-200 rounded-md md:rounded-lg py-0.5 md:py-1 px-2 md:px-3">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:w-3.5 md:h-3.5">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            <span className="s3-status-label text-xs font-bold text-blue-800">Queued</span>
+            <span className="s3-status-label text-[10px] md:text-xs font-bold text-blue-800">Queued</span>
           </div>
         </div>
 
         {/* Progress counter + full bar */}
-        <div className="flex flex-wrap items-center gap-2 bg-gray-50 border-[1.5px] border-gray-200 rounded-xl sm:rounded-full py-1.5 px-3 w-fit">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-          <span className="text-[13px] font-semibold text-gray-400">
-            <span className="s3-completed-count text-gray-700">0</span> of {PHASES.length} phases
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 bg-gray-50 border border-gray-200 rounded-lg md:rounded-full py-1.5 px-2 md:px-3 w-full">
+          <span className="text-[10px] md:text-[13px] font-semibold text-gray-400 whitespace-nowrap">
+            <span className="s3-completed-count text-gray-700">0</span>/{PHASES.length}
           </span>
-          <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden relative shrink-0 ml-1">
+          <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden relative min-w-[40px]">
             <div className="s3-progress-bar h-full rounded-full relative overflow-hidden transition-all duration-600 ease-in-out" style={{ width: '0%', backgroundColor: '#3b82f6' }}>
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)', animation: 'vpw-shimmer 1.6s linear infinite' }} />
             </div>
           </div>
-          <span className="s3-progress-text text-[13px] font-bold text-gray-700">0%</span>
+          <span className="s3-progress-text text-[10px] md:text-[13px] font-bold text-gray-700 whitespace-nowrap">0%</span>
         </div>
 
       </div>
