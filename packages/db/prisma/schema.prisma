@@ -30,23 +30,50 @@ model UserProfile {
   updatedAt DateTime @updatedAt()
 }
 
-model CreditBalance {
-  tenantId     String              @id()
-  balance      Int                 @default(0)
-  updatedAt    DateTime            @updatedAt()
-  transactions CreditTransaction[]
+model Subscription {
+  id                 String    @id() @default(cuid())
+  userId             String
+  dodoSubscriptionId String    @unique()
+  planKey            String
+  status             String    @default("active")
+  creditsPerCycle    Int
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt()
+
+  @@index([userId])
+  @@index([dodoSubscriptionId])
+}
+
+model TopUpPurchase {
+  id            String   @id() @default(cuid())
+  userId        String
+  dodoPaymentId String   @unique()
+  packKey       String
+  credits       Int
+  amountUsd     Float
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([dodoPaymentId])
 }
 
 model CreditTransaction {
-  id        String        @id() @default(cuid())
-  tenantId  String
-  delta     Int
-  reason    String
-  jobId     String?
-  createdAt DateTime      @default(now())
-  balance   CreditBalance @relation(fields: [tenantId], references: [tenantId])
+  id             String   @id() @default(cuid())
+  userId         String
+  delta          Int
+  type           String
+  description    String
+  jobId          String?
+  subscriptionId String?
+  topUpId        String?
+  idempotencyKey String?  @unique()
+  createdAt      DateTime @default(now())
 
-  @@index([tenantId])
+  @@index([userId])
+  @@index([idempotencyKey])
 }
 
 model Job {

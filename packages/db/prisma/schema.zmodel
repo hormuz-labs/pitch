@@ -38,27 +38,71 @@ model UserProfile {
   updatedAt DateTime @updatedAt
 }
 
-// Credit balance per tenant (orgId or userId when no org)
-model CreditBalance {
-  tenantId  String   @id         // orgId if in an org, otherwise userId
-  balance   Int      @default(0)
-  updatedAt DateTime @updatedAt
+// ── Subscription (Dodo recurring product) ────────────────────────────────────
+//
+// One row per active or historical Dodo subscription for a user.
+// When a subscription is created or renewed we also write a CreditTransaction.
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String                        // Clerk user ID
+  dodoSubscriptionId String @unique             // Dodo subscription_id (sub_xxx)
+  planKey         String                        // "starter" | "pro" | "enterprise"
+  status          String    @default("active")  // active | cancelled | past_due | paused
+  creditsPerCycle Int                           // credits granted each billing cycle
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  transactions CreditTransaction[]
+  @@index([userId])
+  @@index([dodoSubscriptionId])
 }
 
-// Immutable ledger of every credit change
+// ── TopUpPurchase (Dodo one-time payment) ─────────────────────────────────────
+//
+// One row per completed one-time top-up purchase.
+// Each row represents real money spent — used for audit and support.
+model TopUpPurchase {
+  id            String   @id @default(cuid())
+  userId        String                       // Clerk user ID
+  dodoPaymentId String   @unique             // Dodo payment_id (pay_xxx)
+  packKey       String                       // "topup_10" | "topup_50"
+  credits       Int                          // credits granted
+  amountUsd     Float                        // amount paid in USD
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([dodoPaymentId])
+}
+
+// ── CreditTransaction (immutable ledger) ──────────────────────────────────────
+//
+// Every credit movement in the system is recorded here.
+// The current balance is always SUM(delta) WHERE userId = ?
+// — there is no separate mutable balance counter.
+//
+// type values:
+//   subscription_grant  — monthly credits from an active subscription cycle
+//   topup_grant         — credits from a one-time top-up purchase
+//   usage               — credits spent on a job
+//   refund              — credits returned when a job fails
+//   admin_adjustment    — manual grant or deduction by an admin
+//   promo               — promotional credits (e.g. beta sign-up bonus)
 model CreditTransaction {
-  id        String   @id @default(cuid())
-  tenantId  String
-  delta     Int                        // positive = added, negative = deducted
-  reason    String                     // e.g. "job_created", "job_failed_refund", "admin_adjustment"
-  jobId     String?                    // reference to the related job if applicable
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String                        // Clerk user ID
+  delta          Int                           // positive = credit, negative = debit
+  type           String                        // see values above
+  description    String                        // human-readable reason
+  jobId          String?                       // set for usage / refund transactions
+  subscriptionId String?                       // set for subscription_grant transactions (FK to Subscription.id)
+  topUpId        String?                       // set for topup_grant transactions (FK to TopUpPurchase.id)
+  idempotencyKey String?  @unique              // prevents double-grants (e.g. dodo event id)
+  createdAt      DateTime @default(now())
 
-  balance   CreditBalance @relation(fields: [tenantId], references: [tenantId])
-
-  @@index([tenantId])
+  @@index([userId])
+  @@index([idempotencyKey])
 }
 
 model Job {

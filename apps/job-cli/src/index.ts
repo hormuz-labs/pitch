@@ -118,7 +118,7 @@ program
         await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (CLI error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`);
         
         const tenantId = failedJob.userId;
-        await db.addCredits(tenantId, 3, 'job_failed_refund', jobId);
+        await db.addCredits(tenantId, 3, 'refund', 'Refund: video generation failed (CLI)', { jobId });
         console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
       } catch (refundError: any) {
         console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
@@ -202,7 +202,7 @@ program
       if (jobStatus === JobStatus.FAILED) {
         try {
           const tenantId = updatedJob.userId;
-          await db.addCredits(tenantId, 3, 'job_failed_refund', jobId);
+          await db.addCredits(tenantId, 3, 'refund', 'Refund: video generation failed (admin)', { jobId });
           console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
         } catch (refundError: any) {
           console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
@@ -239,7 +239,7 @@ creditsCmd
       const amount = typeof amountStr === 'number' ? amountStr : parseInt(amountStr, 10);
       const reason = options.reason || await input({ message: 'Reason for adjustment:', default: 'admin_adjustment' });
 
-      const newBalance = await db.addCredits(tenant, amount, reason);
+      const newBalance = await db.addCredits(tenant, amount, 'admin_adjustment', reason || 'Manual admin adjustment');
       console.log(`✅ Added ${amount} credit(s) to tenant ${tenant}. New balance: ${newBalance}`);
       process.exit(0);
     } catch (error: any) {
@@ -264,7 +264,7 @@ creditsCmd
       const amount = typeof amountStr === 'number' ? amountStr : parseInt(amountStr, 10);
       const reason = options.reason || await input({ message: 'Reason for adjustment:', default: 'admin_adjustment' });
 
-      const newBalance = await db.deductCredit(tenant, amount, reason);
+      const newBalance = await db.deductCredit(tenant, amount, reason || 'Manual admin deduction');
       console.log(`✅ Removed ${amount} credit(s) from tenant ${tenant}. New balance: ${newBalance}`);
       process.exit(0);
     } catch (error: any) {
@@ -288,7 +288,7 @@ creditsCmd
         console.log('Transaction History:');
         transactions.forEach(tx => {
           const sign = tx.delta > 0 ? '+' : '';
-          console.log(`  ${tx.createdAt.toISOString()}  ${sign}${tx.delta}  ${tx.reason}${tx.jobId ? `  (job: ${tx.jobId})` : ''}`);
+          console.log(`  ${tx.createdAt.toISOString()}  ${sign}${tx.delta}  [${tx.type}] ${tx.description}${tx.jobId ? `  (job: ${tx.jobId})` : ''}`);
         });
       } else {
         console.log('No transactions yet.');

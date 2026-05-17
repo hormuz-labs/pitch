@@ -216,7 +216,7 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         
         // Ensure refund is given if the worker errors out directly
         try {
-          await db.addCredits(userId, 3, 'job_failed_refund', jobId);
+          await db.addCredits(userId, 3, 'refund', 'Refund: video generation failed', { jobId });
           jobLogger.info('Refunded 3 credits due to worker error');
         } catch (refundError: any) {
           jobLogger.warn({ err: refundError }, 'Failed to issue refund during worker error handling');

@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
 
     const job = await db.createJob({ userId, parameters }, { id: userId });
 
-    await db.deductCredit(tenantId, 3, 'job_created', job.id);
+    await db.deductCredit(tenantId, 3, 'Video generation', { jobId: job.id });
 
     await videoQueue.add('generate-video', { jobId: job.id, userId: job.userId, parameters }, { jobId: job.id });
 
@@ -128,7 +128,7 @@ router.post('/:id/retrigger', async (req, res) => {
     }
 
     const updatedJob = await db.updateJob(id, { status: JobStatus.PENDING, videoUrl: undefined });
-    await db.deductCredit(userId, 3, 'job_retriggered', updatedJob.id);
+    await db.deductCredit(userId, 3, 'Video generation (retry)', { jobId: updatedJob.id });
 
     const existingJob = await videoQueue.getJob(id);
     if (existingJob) {

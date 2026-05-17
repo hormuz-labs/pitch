@@ -50,11 +50,9 @@ router.post('/', async (req, res) => {
         affiliate_cookie: affCookie,
       },
       // Dodo appends subscription_id and payment_id to the return_url automatically.
-      // There is no {CHECKOUT_SESSION_ID} template substitution — use the Dodo-appended params instead.
       return_url: `${appUrl}/dashboard?checkout=success`,
     });
 
-    // Dodo sessions use session.checkout_url
     res.json({ url: session.checkout_url });
   } catch (error: unknown) {
     logger.error({ err: error instanceof Error ? error.message : String(error) }, '[Dodo Checkout] Error');
@@ -88,7 +86,7 @@ router.get('/status', async (req, res) => {
   if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' });
 
   try {
-    const { prisma, addCredits } = await import('@saas/db');
+    const { prisma, upsertSubscription, recordTopUp } = await import('@saas/db');
 
     const dodoClient = () => new DodoPayments({
       bearerToken: dodoKey,
@@ -97,22 +95,27 @@ router.get('/status', async (req, res) => {
 
     // --- 1. Check DB first (webhook may have already processed it) ---
     if (subscriptionId) {
-      const tx = await prisma.creditTransaction.findFirst({
-        where: { reason: `dodo_subscription:${subscriptionId}` }
+      const sub = await prisma.subscription.findUnique({
+        where: { dodoSubscriptionId: subscriptionId },
       });
-      if (tx) return res.json({ status: 'succeeded' });
+      if (sub) return res.json({ status: 'succeeded' });
     }
 
     if (paymentId) {
-      const tx = await prisma.creditTransaction.findFirst({
-        where: { reason: `dodo_topup:${paymentId}` }
+      const topUp = await prisma.topUpPurchase.findUnique({
+        where: { dodoPaymentId: paymentId },
       });
-      if (tx) return res.json({ status: 'succeeded' });
+      if (topUp) return res.json({ status: 'succeeded' });
     }
 
     if (sessionId) {
+      // Check by idempotency key pattern
       const tx = await prisma.creditTransaction.findFirst({
-        where: { reason: { startsWith: `dodo_`, endsWith: `:${sessionId}` } }
+        where: {
+          OR: [
+            { idempotencyKey: { contains: `:${sessionId}` } },
+          ],
+        },
       });
       if (tx) return res.json({ status: 'succeeded' });
     }
@@ -125,6 +128,7 @@ router.get('/status', async (req, res) => {
       if (payment.status === 'succeeded') {
         const metadata = (payment.metadata || {}) as Record<string, string>;
         const payUserId = metadata.clerk_user_id;
+        const packKey   = metadata.pack as keyof typeof TOPUP_PACKS;
         const credits   = parseInt(metadata.credits || '0', 10);
 
         if (!payUserId) {
@@ -135,8 +139,15 @@ router.get('/status', async (req, res) => {
         }
 
         if (credits > 0) {
-          await addCredits(payUserId, credits, `dodo_topup:${paymentId}`);
-          logger.info({ userId: payUserId, credits, paymentId }, '[Checkout] Topup credits granted via polling fallback');
+          const pack = TOPUP_PACKS[packKey];
+          await recordTopUp({
+            userId: payUserId,
+            dodoPaymentId: paymentId,
+            packKey: packKey || 'topup_10',
+            credits,
+            amountUsd: pack?.priceUsd ?? credits * 1.2,
+          });
+          logger.info({ userId: payUserId, credits, paymentId }, '[Checkout] Top-up credits granted via polling fallback');
         }
 
         return res.json({ status: 'succeeded', credits_granted: credits });
@@ -151,6 +162,7 @@ router.get('/status', async (req, res) => {
       if (subscription.status === 'active' || subscription.status === 'on_hold') {
         const metadata  = (subscription.metadata || {}) as Record<string, string>;
         const subUserId = metadata.clerk_user_id;
+        const planKey   = metadata.pack || 'starter';
         const credits   = parseInt(metadata.credits || '0', 10);
 
         if (!subUserId) {
@@ -161,7 +173,18 @@ router.get('/status', async (req, res) => {
         }
 
         if (credits > 0) {
-          await addCredits(subUserId, credits, `dodo_subscription:${subscriptionId}`);
+          const periodStart = new Date();
+          const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          await upsertSubscription({
+            userId: subUserId,
+            dodoSubscriptionId: subscriptionId,
+            planKey,
+            status: 'active',
+            creditsPerCycle: credits,
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd,
+            idempotencyKey: `sub_grant:${subscriptionId}:${periodStart.toISOString()}`,
+          });
           logger.info({ userId: subUserId, credits, subscriptionId }, '[Checkout] Subscription credits granted via polling fallback');
         }
 
