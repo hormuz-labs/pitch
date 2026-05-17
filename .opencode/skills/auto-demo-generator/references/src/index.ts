@@ -19,6 +19,10 @@ if (!process.env.GEMINI_API_KEY) {
   console.error('❌ GEMINI_API_KEY is not set. Aborting.');
   process.exit(1);
 }
+if (!process.env.TRANSCRIPTION_SERVICE_URL) {
+  console.error('❌ TRANSCRIPTION_SERVICE_URL is not set in .env. Aborting.');
+  process.exit(1);
+}
 
 const configFile = process.argv[2];
 if (!configFile || !fs.existsSync(configFile)) {
@@ -38,6 +42,21 @@ if (!config.userReq)     { console.error('❌ config.userReq is required.');    
 if (!config.steps?.length) { console.error('❌ config.steps must be a non-empty array.'); process.exit(1); }
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// ── Strict Preflight Checks ───────────────────────────────────────────────────
+const cursorStyle = config.cursorStyle || 'black';
+const cursorFile = path.join(DEMO_DIR, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
+if (!fs.existsSync(cursorFile)) {
+  console.error(`❌ Missing cursor SVG! Expected: ${cursorFile}\nDid you forget to copy the assets/ directory?`);
+  process.exit(1);
+}
+
+const clickSfx = path.join(DEMO_DIR, 'assets', 'sounds', 'click.mp3');
+const keySfx = path.join(DEMO_DIR, 'assets', 'sounds', 'keyboard.mp3');
+if (!fs.existsSync(clickSfx) || !fs.existsSync(keySfx)) {
+  console.error(`❌ Missing SFX files! Expected:\n- ${clickSfx}\n- ${keySfx}\nDid you forget to copy the assets/ directory?`);
+  process.exit(1);
+}
 
 // ── Phase reporting ───────────────────────────────────────────────────────────
 const JOB_ID = process.env.JOB_ID;
@@ -83,6 +102,23 @@ function reportPhase(phase: string, status: 'running' | 'completed' | 'failed'):
 
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 async function main() {
+  // ── Async Preflight: Check Transcription Service Health ────────────────────
+  try {
+    const healthUrl = new URL('/health', process.env.TRANSCRIPTION_SERVICE_URL!).toString();
+    const healthRes = await fetch(healthUrl, { method: 'GET' });
+    if (!healthRes.ok) {
+      if (healthRes.status === 503) {
+        console.error('❌ Transcription service is running but model is still loading into memory. Wait a moment and retry.');
+      } else {
+        console.error(`❌ Transcription service returned HTTP ${healthRes.status}`);
+      }
+      process.exit(1);
+    }
+  } catch (e: any) {
+    console.error(`❌ Transcription service at ${process.env.TRANSCRIPTION_SERVICE_URL} is unreachable! Start it first before running jobs. (${e.message})`);
+    process.exit(1);
+  }
+
   // Pass 0 — Cinematic Intro
   reportPhase('intro_sequence', 'running');
   try {

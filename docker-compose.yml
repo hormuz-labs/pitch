@@ -114,6 +114,20 @@ services:
       loki:
         condition: service_healthy
 
+  transcription:
+    build:
+      context: apps/transcription-service
+      dockerfile: Dockerfile
+    container_name: pitch_transcription
+    restart: always
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   api:
     image: pitch-api:${IMAGE_TAG:-latest}
     build:
@@ -127,6 +141,7 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
+      TRANSCRIPTION_SERVICE_URL: http://transcription:4000/transcribe
     logging:
       driver: loki
       options:
@@ -146,6 +161,8 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
+      transcription:
+        condition: service_healthy
 
   worker:
     image: pitch-worker:${IMAGE_TAG:-latest}
@@ -159,6 +176,7 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
+      TRANSCRIPTION_SERVICE_URL: http://transcription:4000/transcribe
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
     logging:
       driver: loki
@@ -188,5 +206,7 @@ services:
       minio:
         condition: service_healthy
       loki:
+        condition: service_healthy
+      transcription:
         condition: service_healthy
 
