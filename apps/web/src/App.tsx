@@ -498,6 +498,7 @@ function AppContent() {
           imageUrl: user.imageUrl,
         });
         sessionStorage.setItem(sessionKey, '1');
+        window.dispatchEvent(new Event('credits-changed')); // Trigger credit fetch after sync
       } catch (err) {
         console.error('Failed to sync user profile:', err);
       }
