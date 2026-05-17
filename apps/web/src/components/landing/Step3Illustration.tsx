@@ -1,80 +1,77 @@
 import gsap from 'gsap';
 import { useIllustrationTimeline } from '../../hooks/useIllustrationTimeline';
 
-const STEPS = [
-  'Analyze content & extract messages',
-  'Generate voiceover & narration',
-  'Render & export video',
-];
-const STEP_TIMING = [800, 600, 500];
+const PHASES = ['Workspace Init', 'Video Recording', 'Encoding'];
+const PHASE_PROGRESS = [15, 75, 100]; // target progress %
 
 function buildTimeline(root: HTMLElement, onComplete: () => void): gsap.core.Timeline {
-  const header  = root.querySelector<HTMLElement>('.s3-header');
-  const counter = root.querySelector<HTMLElement>('.s3-counter');
-  const items   = root.querySelectorAll<HTMLElement>('.s3-item');
-  const dlWrap  = root.querySelector<HTMLElement>('.s3-dl-wrap');
-  const dlCirc  = root.querySelector<SVGCircleElement>('.s3-dl-circ');
-  const dlFill  = root.querySelector<SVGCircleElement>('.s3-dl-fill');
-  const dlCheck = root.querySelector<SVGPolylineElement>('.s3-dl-check');
-  const dlBar   = root.querySelector<HTMLElement>('.s3-dl-bar');
+  const card = root.querySelector<HTMLElement>('.s3-card');
+  const progressText = root.querySelector<HTMLElement>('.s3-progress-text');
+  const progressBar = root.querySelector<HTMLElement>('.s3-progress-bar');
+  const pendingIcons = root.querySelectorAll<HTMLElement>('.s3-icon-pending');
+  const activeIcons = root.querySelectorAll<HTMLElement>('.s3-icon-active');
+  const doneIcons = root.querySelectorAll<HTMLElement>('.s3-icon-done');
+  const phaseTexts = root.querySelectorAll<HTMLElement>('.s3-phase-text');
+  const runningBadges = root.querySelectorAll<HTMLElement>('.s3-running-badge');
+  const statusLabel = root.querySelector<HTMLElement>('.s3-status-label');
 
-  if (!header || !counter || !items.length || !dlWrap || !dlCirc || !dlFill || !dlCheck) {
+  if (!card || !progressText || !progressBar) {
     return gsap.timeline({ paused: true });
   }
 
-  const pendingIcons = root.querySelectorAll<HTMLElement>('.s3-icon-pending');
-  const activeIcons  = root.querySelectorAll<HTMLElement>('.s3-icon-active');
-  const doneIcons    = root.querySelectorAll<HTMLElement>('.s3-icon-done');
-  const itemTexts    = root.querySelectorAll<HTMLElement>('.s3-item-text');
-
-  const R = 13;
-  const CIRC = 2 * Math.PI * R;
-
-  gsap.set(dlCirc,  { strokeDasharray: CIRC, strokeDashoffset: CIRC });
-  gsap.set(dlFill,  { opacity: 0, scale: 0, transformOrigin: '50% 50%' });
-  gsap.set(dlCheck, { strokeDasharray: 22, strokeDashoffset: 22 });
-  if (dlBar) gsap.set(dlBar, { scaleX: 0 });
-
   const tl = gsap.timeline({ paused: true, onComplete });
 
-  tl.set(header,       { opacity: 0, y: 6 })
-    .set(items,        { opacity: 0 })
-    .set(activeIcons,  { opacity: 0 })
-    .set(doneIcons,    { opacity: 0, scale: 0 })
+  tl.set(card, { opacity: 0, y: 10 })
+    .set(progressBar, { width: '0%', backgroundColor: '#3b82f6' })
     .set(pendingIcons, { opacity: 1 })
-    .set(itemTexts,    { textDecoration: 'none', opacity: 0.45 })
-    .set(dlWrap,       { opacity: 0, y: 8 })
-    .set(dlCirc,       { strokeDashoffset: CIRC })
-    .set(dlFill,       { opacity: 0, scale: 0 })
-    .set(dlCheck,      { strokeDashoffset: 22 });
-  if (dlBar) tl.set(dlBar, { scaleX: 0 });
+    .set(activeIcons, { opacity: 0 })
+    .set(doneIcons, { opacity: 0, scale: 0 })
+    .set(phaseTexts, { color: '#9ca3af' }) // text-gray-400
+    .set(runningBadges, { opacity: 0, y: 5, display: 'none' });
 
-  tl.to(header, { opacity: 1, y: 0, duration: 0.3, ease: 'power3.out' });
-  tl.to(items,  { opacity: 1, duration: 0.25, stagger: 0.07 }, '+=0.1');
-
-  STEPS.forEach((_, i) => {
-    const activeMs = STEP_TIMING[i] / 1000;
-
-    tl.set(pendingIcons[i], { opacity: 0 });
-    tl.set(activeIcons[i],  { opacity: 1 });
-    tl.set(itemTexts[i],    { opacity: 1 });
-    tl.to({}, { duration: activeMs });
-    tl.set(activeIcons[i],  { opacity: 0 });
-    tl.to(doneIcons[i], {
-      opacity: 1, scale: 1,
-      duration: 0.25, ease: 'back.out(2.5)',
-      transformOrigin: '50% 50%',
-    });
-    tl.set(itemTexts[i], { textDecoration: 'line-through', opacity: 0.4 });
-    tl.call(() => { if (counter) counter.textContent = `${i + 1} / ${STEPS.length}`; });
-    tl.to({}, { duration: 0.15 });
+  tl.call(() => {
+    if (progressText) progressText.textContent = '0%';
+    if (statusLabel) statusLabel.textContent = 'Queued';
   });
 
-  tl.to(dlWrap, { opacity: 1, y: 0, duration: 0.4, ease: 'back.out(2)' }, '+=0.2');
-  tl.to(dlCirc, { strokeDashoffset: 0, duration: 0.45, ease: 'power2.inOut' }, '+=0.15');
-  tl.to(dlFill, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)', transformOrigin: '50% 50%' });
-  if (dlBar) tl.to(dlBar, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' }, '<');
-  tl.to(dlCheck, { strokeDashoffset: 0, duration: 0.35, ease: 'power2.out' }, '+=0.05');
+  tl.to(card, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' });
+
+  // Dummy object for animating progress text
+  const proxy = { p: 0 };
+  const updateProgress = () => {
+    if (progressText) progressText.textContent = `${Math.round(proxy.p)}%`;
+    if (progressBar) progressBar.style.width = `${proxy.p}%`;
+  };
+
+  PHASES.forEach((_, i) => {
+    const targetP = PHASE_PROGRESS[i];
+    const duration = i === 0 ? 0.5 : i === 1 ? 1.2 : 0.8;
+
+    tl.call(() => { if (statusLabel) statusLabel.textContent = i === 2 ? 'Finishing up…' : 'Running'; });
+    tl.set(pendingIcons[i], { opacity: 0 });
+    tl.set(activeIcons[i], { opacity: 1 });
+    tl.set(phaseTexts[i], { color: '#1d4ed8' }); // text-blue-700
+    tl.set(runningBadges[i], { display: 'block' });
+    tl.to(runningBadges[i], { opacity: 1, y: 0, duration: 0.2 });
+
+    tl.to(proxy, {
+      p: targetP,
+      duration: duration,
+      ease: 'linear',
+      onUpdate: updateProgress
+    });
+
+    tl.to(runningBadges[i], { opacity: 0, duration: 0.1 });
+    tl.set(runningBadges[i], { display: 'none' });
+    tl.set(activeIcons[i], { opacity: 0 });
+    tl.to(doneIcons[i], { opacity: 1, scale: 1, duration: 0.2, ease: 'back.out(2)' });
+    tl.set(phaseTexts[i], { color: '#9ca3af' }); // text-gray-400
+  });
+
+  tl.to(progressBar, { backgroundColor: '#16a34a', duration: 0.3 }); // turn green
+  tl.call(() => { if (statusLabel) statusLabel.textContent = 'Completed'; });
+  
+  tl.to({}, { duration: 0.5 }); // buffer at end
 
   return tl;
 }
@@ -90,133 +87,60 @@ export const Step3Illustration = ({ active, onComplete }: Props) => {
   return (
     <div
       ref={rootRef}
-      className="landing-step-illustration"
-      style={{ gap: 8, position: 'relative', overflow: 'hidden', padding: '12px 14px 0' }}
+      className="landing-step-illustration flex items-center justify-center p-6 h-full w-full"
+      style={{ overflow: 'hidden' }}
       aria-hidden="true"
     >
-      {/* Header */}
-      <div className="s3-header" style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 4, opacity: 0,
-      }}>
-        <span style={{
-          fontSize: 11, fontWeight: 700,
-          color: 'var(--text-primary)',
-          fontFamily: 'var(--font-sans)',
-        }}>
-          Generate pitch video
-        </span>
-        <span className="s3-counter" style={{
-          fontSize: 11, fontWeight: 600,
-          color: 'var(--text-faint)',
-          fontFamily: 'var(--font-mono)',
-        }}>
-          0 / {STEPS.length}
-        </span>
-      </div>
-
-      {/* Checklist */}
-      {STEPS.map((label, i) => (
-        <div key={label} className="s3-item" style={{
-          display: 'flex', alignItems: 'center', gap: 9,
-          padding: '4px 0', opacity: 0,
-          borderBottom: i < STEPS.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-        }}>
-          <div style={{ width: 18, height: 18, position: 'relative', flexShrink: 0 }}>
-            <svg className="s3-icon-pending" width="18" height="18" viewBox="0 0 18 18" style={{ position: 'absolute', inset: 0 }}>
-              <circle cx="9" cy="9" r="7.5" fill="none" stroke="var(--border-default)" strokeWidth="1.5" />
-            </svg>
-            <svg className="s3-icon-active" width="18" height="18" viewBox="0 0 18 18" style={{ position: 'absolute', inset: 0, opacity: 0 }}>
-              <circle
-                className="s3-spinner-ring"
-                cx="9" cy="9" r="7.5"
-                fill="none"
-                stroke="var(--accent)"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeDasharray="12 35"
-              />
-            </svg>
-            <div className="s3-icon-done" style={{
-              position: 'absolute', inset: 0,
-              opacity: 0, transform: 'scale(0)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="18" height="18" viewBox="0 0 18 18">
-                <circle cx="9" cy="9" r="9" fill="var(--accent)" />
-                <polyline
-                  points="4.5,9 7.5,12 13.5,6"
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+      <div className="s3-card w-full max-w-[280px] bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative text-left opacity-0">
+        
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg border-[1.5px] border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
               </svg>
             </div>
+            <div>
+              <div className="font-bold text-[13px] text-gray-900">Video Generation</div>
+              <div className="text-[10px] font-medium text-blue-600 s3-status-label">Queued</div>
+            </div>
           </div>
-
-          <span className="s3-item-text" style={{
-            fontSize: 11,
-            fontFamily: 'var(--font-sans)',
-            color: 'var(--text-muted)',
-            lineHeight: 1.3,
-            flex: 1,
-            minWidth: 0,
-          }}>
-            {label}
-          </span>
-        </div>
-      ))}
-
-      {/* Download success */}
-      <div className="s3-dl-wrap" style={{
-        marginTop: 8, marginBottom: 0, opacity: 0,
-        padding: '10px 12px',
-        background: 'rgba(74,222,128,0.06)',
-        border: '1px solid rgba(74,222,128,0.18)',
-        borderRadius: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: 'rgba(74,222,128,0.12)',
-            border: '1px solid rgba(74,222,128,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 1 1 1 1 23 23 23 23 7" />
-              <polyline points="16 1 16 7 23 7" />
-              <line x1="12" y1="10" x2="12" y2="18" />
-              <polyline points="9 15 12 18 15 15" />
-            </svg>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              render_v3.mp4
-            </p>
-            <p style={{ margin: 0, fontSize: 10, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-              1080p · 48 MB
-            </p>
-          </div>
-          <svg width="22" height="22" viewBox="0 0 30 30" style={{ flexShrink: 0 }}>
-            <circle className="s3-dl-circ" cx="15" cy="15" r={13} fill="none" stroke="rgba(74,222,128,0.3)" strokeWidth="2" strokeLinecap="round" />
-            <circle className="s3-dl-fill" cx="15" cy="15" r={13} fill="#4ADE80" stroke="#4ADE80" strokeWidth="2" opacity="0" />
-            <polyline className="s3-dl-check" points="8,15 13,20 22,10" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
         </div>
 
-        <div style={{ height: 3, borderRadius: 99, background: 'rgba(74,222,128,0.15)', overflow: 'hidden' }}>
-          <div className="s3-dl-bar" style={{
-            height: '100%', width: '100%',
-            background: 'linear-gradient(90deg, #4ADE80, #22c55e)',
-            borderRadius: 99,
-            transformOrigin: 'left center',
-          }} />
+        {/* Phases list */}
+        <div className="relative ml-1.5 pl-5 mb-4 border-l-2 border-gray-100 flex flex-col gap-3">
+          {PHASES.map((label, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2 relative">
+              {/* Phase icon container overlapping the left border */}
+              <div className="absolute -left-[27px] w-4 h-4 bg-white flex items-center justify-center">
+                <svg className="s3-icon-pending w-3 h-3 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                </svg>
+                <svg className="s3-icon-active w-3 h-3 text-blue-500 absolute opacity-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" strokeDasharray="16 48" className="animate-spin" />
+                </svg>
+                <svg className="s3-icon-done w-3.5 h-3.5 text-green-500 absolute opacity-0 scale-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+              <span className="s3-phase-text text-[11px] font-medium text-gray-400 transition-colors flex items-center">
+                {label}
+              </span>
+              <div className="s3-running-badge text-[8px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-[1px] uppercase hidden">
+                Running
+              </div>
+            </div>
+          ))}
         </div>
-        <p style={{ margin: '6px 0 0', fontSize: 10, color: '#4ADE80', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-          Ready to download
-        </p>
+
+        {/* Progress bar footer */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden relative">
+            <div className="s3-progress-bar h-full rounded-full transition-all" style={{ width: '0%', backgroundColor: '#3b82f6' }} />
+          </div>
+          <span className="s3-progress-text text-[11px] font-bold text-gray-500 w-8 text-right">0%</span>
+        </div>
       </div>
     </div>
   );
