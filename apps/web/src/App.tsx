@@ -601,6 +601,74 @@ function AppContent() {
     };
   }, [isLoaded, userId]);
 
+  // Poll /checkout/status after a successful checkout redirect.
+  // Dodo passes subscription_id (and optionally session_id) in the return URL.
+  // If the webhook hasn't fired yet, the backend will call Dodo's API directly
+  // and grant credits as a fallback, making the flow webhook-independent.
+  useEffect(() => {
+    if (!isLoaded || !userId) return;
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('checkout') !== 'success') return;
+
+    const subscriptionId = params.get('subscription_id');
+    const sessionId = params.get('session_id');
+
+    if (!subscriptionId && !sessionId) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+    const POLL_INTERVAL_MS = 2000;
+
+    const poll = async () => {
+      if (cancelled || attempts >= MAX_ATTEMPTS) {
+        if (attempts >= MAX_ATTEMPTS) {
+          toast('Could not confirm your subscription. Please refresh or contact support.', 'error');
+        }
+        return;
+      }
+      attempts++;
+
+      try {
+        const token = await getToken();
+        if (!token || cancelled) return;
+
+        const qs = new URLSearchParams();
+        if (subscriptionId) qs.set('subscription_id', subscriptionId);
+        else if (sessionId) qs.set('session_id', sessionId);
+
+        const result = await api.get<{ status: string; credits_granted?: number }>(
+          `/checkout/status?${qs.toString()}`,
+          token
+        );
+
+        if (result.status === 'succeeded' || result.status === 'active') {
+          toast('Subscription activated! Your credits have been added.', 'success');
+          window.dispatchEvent(new Event('credits-changed'));
+          // Clean up the URL params without a full page reload
+          const cleanUrl = `${window.location.pathname}`;
+          window.history.replaceState({}, '', cleanUrl);
+          return;
+        }
+
+        // Keep polling if still pending
+        if (!cancelled) {
+          setTimeout(poll, POLL_INTERVAL_MS);
+        }
+      } catch (err) {
+        console.error('[Checkout Poll] Error:', err);
+        if (!cancelled) {
+          setTimeout(poll, POLL_INTERVAL_MS);
+        }
+      }
+    };
+
+    poll();
+
+    return () => { cancelled = true; };
+  }, [isLoaded, userId, location.search]);
+
   const handleQueueJob = async (values: any) => {
     setIsSubmitting(true);
     try {
