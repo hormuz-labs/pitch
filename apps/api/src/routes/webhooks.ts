@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 import * as db from '@saas/db';
 import { createLogger } from '@saas/shared';
 import crypto from 'crypto';
+import { CREDIT_PACKS, TOPUP_PACKS } from '../config.js';
 
 const logger = createLogger('api');
 
@@ -30,7 +31,6 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
     return res.status(400).send('Missing webhook secret or signature');
   }
 
-  // Dodo docs say use manual crypto verification
   const isValid = verifyWebhook(req.body.toString('utf8'), signature as string, webhookSecret);
   if (!isValid) {
     return res.status(400).send('Webhook Error: Invalid signature');
@@ -43,52 +43,161 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
     return res.status(400).send('Webhook Error: Invalid JSON');
   }
 
-  // Handle subscription and payment events
   const data = event.data as Record<string, any>;
-  
-  // We want to handle subscription active/renewed since we want to give credits!
-  // Also handle payment.succeeded for one-time top-ups
-  const isTopupPayment = event.type === 'payment.succeeded' && data.metadata?.type === 'topup';
-  
-  if (event.type === 'subscription.active' || event.type === 'subscription.renewed' || isTopupPayment) {
-    // When a subscription is active or renewed, or top-up is bought, grant the user credits.
-    const metadata = data.metadata || {};
-    const userId    = metadata.clerk_user_id;
-    const credits   = parseInt(metadata.credits || '0', 10);
-    const affCookie = metadata.affiliate_cookie;
+  const metadata = (data.metadata || {}) as Record<string, string>;
+  const userId = metadata.clerk_user_id;
 
-    const eventId = isTopupPayment ? data.payment_id : data.subscription_id;
+  logger.info({ type: event.type, userId }, '[Dodo Webhook] Received event');
 
-    if (userId && credits > 0) {
-      await db.addCredits(userId, credits, `dodo_${metadata.type || 'subscription'}:${eventId}`);
-      console.log(`[Dodo] Added ${credits} credits to user ${userId} on ${event.type}`);
+  try {
+    // ── Subscription activated (first payment) ────────────────────────────────
+    if (event.type === 'subscription.active') {
+      if (!userId) {
+        logger.warn({ data }, '[Dodo Webhook] subscription.active missing clerk_user_id');
+        return res.json({ received: true });
+      }
+
+      const subscriptionId: string = data.subscription_id;
+      const planKey = metadata.pack || 'starter';
+      const pack = CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS];
+      const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10);
+
+      // Determine billing period. Dodo provides these on the subscription object.
+      // Fall back to now / +30d if not present.
+      const periodStart = data.current_period_start
+        ? new Date(data.current_period_start as string)
+        : new Date();
+      const periodEnd = data.current_period_end
+        ? new Date(data.current_period_end as string)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      await db.upsertSubscription({
+        userId,
+        dodoSubscriptionId: subscriptionId,
+        planKey,
+        status: 'active',
+        creditsPerCycle: credits,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        // idempotency key includes period start so renewals re-grant correctly
+        idempotencyKey: `sub_grant:${subscriptionId}:${periodStart.toISOString()}`,
+      });
+
+      logger.info({ userId, planKey, credits, subscriptionId }, '[Dodo] Subscription activated');
+      await handleAffiliateConversion(data, metadata, userId, event.type as string);
     }
 
-    if (userId && affCookie && (event.type === 'subscription.active' || isTopupPayment)) {
-      // Only do affiliate conversion on first active subscription to avoid duplicate conversions per month?
-      // Or we do it on every renewal? Typically affiliate is just on initial sale. Let's do it on initial sale.
-      const [affiliateId, clickId] = affCookie.split(':');
-      if (affiliateId) {
-        const affiliate = await db.prisma.affiliate.findUnique({ where: { id: affiliateId } });
-        if (affiliate && affiliate.status === 'active' && affiliate.userId !== userId) {
-          const alreadyConverted = await db.hasExistingConversion(affiliateId, userId);
-          if (!alreadyConverted) {
-            const saleAmountUsd = (data.recurring_pre_tax_amount || data.total_amount || 0) / 100; 
-            const commissionAmt = saleAmountUsd * (affiliate.commissionPct / 100);
-            await db.createAffiliateConversion({
-              affiliateId,
-              clickId: clickId || undefined,
-              referredUserId: userId,
-              saleAmountUsd,
-              commissionAmt,
-              dodoSessionId: eventId, // we reuse this field for dodopayments subscription id or payment id
-            });
-            console.log(`[Affiliate] $${commissionAmt.toFixed(2)} commission queued for affiliate ${affiliateId}`);
-          }
-        }
+    // ── Subscription renewed ─────────────────────────────────────────────────
+    else if (event.type === 'subscription.renewed') {
+      if (!userId) {
+        logger.warn({ data }, '[Dodo Webhook] subscription.renewed missing clerk_user_id');
+        return res.json({ received: true });
+      }
+
+      const subscriptionId: string = data.subscription_id;
+      const planKey = metadata.pack || 'starter';
+      const pack = CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS];
+      const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10);
+
+      const periodStart = data.current_period_start
+        ? new Date(data.current_period_start as string)
+        : new Date();
+      const periodEnd = data.current_period_end
+        ? new Date(data.current_period_end as string)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      await db.upsertSubscription({
+        userId,
+        dodoSubscriptionId: subscriptionId,
+        planKey,
+        status: 'active',
+        creditsPerCycle: credits,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        idempotencyKey: `sub_grant:${subscriptionId}:${periodStart.toISOString()}`,
+      });
+
+      logger.info({ userId, planKey, credits, subscriptionId }, '[Dodo] Subscription renewed');
+    }
+
+    // ── Subscription cancelled ────────────────────────────────────────────────
+    else if (event.type === 'subscription.cancelled') {
+      const subscriptionId: string = data.subscription_id;
+      if (subscriptionId) {
+        await db.cancelSubscription(subscriptionId);
+        logger.info({ subscriptionId }, '[Dodo] Subscription cancelled');
       }
     }
+
+    // ── One-time top-up payment succeeded ─────────────────────────────────────
+    else if (event.type === 'payment.succeeded' && metadata.type === 'topup') {
+      if (!userId) {
+        logger.warn({ data }, '[Dodo Webhook] payment.succeeded (topup) missing clerk_user_id');
+        return res.json({ received: true });
+      }
+
+      const paymentId: string = data.payment_id;
+      const packKey = metadata.pack as keyof typeof TOPUP_PACKS;
+      const pack = TOPUP_PACKS[packKey];
+      const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10);
+      const amountUsd = (data.total_amount || 0) / 100;
+
+      await db.recordTopUp({
+        userId,
+        dodoPaymentId: paymentId,
+        packKey: packKey || 'topup_10',
+        credits,
+        amountUsd,
+      });
+
+      logger.info({ userId, packKey, credits, paymentId, amountUsd }, '[Dodo] Top-up purchased');
+      await handleAffiliateConversion(data, metadata, userId, event.type as string);
+    }
+  } catch (err: unknown) {
+    logger.error({ err: err instanceof Error ? err.message : String(err), type: event.type }, '[Dodo Webhook] Handler error');
+    // Return 200 anyway to prevent Dodo from retrying an already-applied event
+    return res.json({ received: true, error: 'Internal handler error' });
   }
 
   res.json({ received: true });
 });
+
+// ── Affiliate conversion helper ───────────────────────────────────────────────
+
+async function handleAffiliateConversion(
+  data: Record<string, any>,
+  metadata: Record<string, string>,
+  userId: string,
+  eventType: string
+) {
+  const affCookie = metadata.affiliate_cookie;
+  if (!affCookie) return;
+
+  const [affiliateId, clickId] = affCookie.split(':');
+  if (!affiliateId) return;
+
+  try {
+    const affiliate = await db.prisma.affiliate.findUnique({ where: { id: affiliateId } });
+    if (!affiliate || affiliate.status !== 'active' || affiliate.userId === userId) return;
+
+    const alreadyConverted = await db.hasExistingConversion(affiliateId, userId);
+    if (alreadyConverted) return;
+
+    const saleAmountUsd = (data.recurring_pre_tax_amount || data.total_amount || 0) / 100;
+    const commissionAmt = saleAmountUsd * (affiliate.commissionPct / 100);
+    const eventId = data.subscription_id || data.payment_id;
+
+    await db.createAffiliateConversion({
+      affiliateId,
+      clickId: clickId || undefined,
+      referredUserId: userId,
+      saleAmountUsd,
+      commissionAmt,
+      dodoSessionId: eventId,
+    });
+
+    console.log(`[Affiliate] $${commissionAmt.toFixed(2)} commission queued for affiliate ${affiliateId}`);
+  } catch (err) {
+    console.error('[Affiliate] Conversion error:', err);
+  }
+}

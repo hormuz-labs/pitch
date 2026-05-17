@@ -43,7 +43,7 @@ router.post('/sync', async (req, res) => {
 
     if (!existingUser) {
       if (req.cookies?.beta_promo === '1') {
-        await db.addCredits(userId, 5, 'beta_promo_signup');
+        await db.addCredits(userId, 5, 'promo', 'Beta early-access signup bonus');
         logger.info({ userId }, 'Applied beta promo credits (5)');
         res.cookie('beta_promo', '', { maxAge: 0 });
       }

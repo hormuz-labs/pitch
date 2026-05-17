@@ -46,15 +46,22 @@ router.get('/dashboard', async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    const balances = await db.prisma.creditBalance.findMany();
-    const transactions = await db.prisma.creditTransaction.findMany({
-      where: { delta: { gt: 0 } }, 
+    // Fetch balances via ledger aggregate
+    const creditAggregates = await db.prisma.creditTransaction.groupBy({
+      by: ['userId'],
+      _sum: { delta: true },
+    });
+    const positiveTxAggregates = await db.prisma.creditTransaction.groupBy({
+      by: ['userId'],
+      where: { delta: { gt: 0 } },
+      _sum: { delta: true },
     });
 
     const usersData = users.map(u => {
-      const bal = balances.find(b => b.tenantId === u.id);
-      const userTxs = transactions.filter(t => t.tenantId === u.id);
-      const creditsBought = userTxs.reduce((acc, t) => acc + t.delta, 0);
+      const balAgg = creditAggregates.find(b => b.userId === u.id);
+      const posTxAgg = positiveTxAggregates.find(b => b.userId === u.id);
+      const creditsRemaining = balAgg?._sum?.delta ?? 0;
+      const creditsBought = posTxAgg?._sum?.delta ?? 0;
 
       return {
         id: u.id,
@@ -62,7 +69,7 @@ router.get('/dashboard', async (req, res) => {
         firstName: u.firstName,
         lastName: u.lastName,
         createdAt: u.createdAt,
-        creditsRemaining: bal?.balance ?? 0,
+        creditsRemaining,
         creditsBought
       };
     });
@@ -100,7 +107,7 @@ router.get('/jobs', async (req, res) => {
     });
 
     const refunds = await db.prisma.creditTransaction.findMany({
-      where: { reason: 'job_failed_refund' }
+      where: { type: 'refund' }
     });
 
     const jobsData = jobs.map((job: any) => {
@@ -139,7 +146,7 @@ router.get('/users/:id/jobs', async (req, res) => {
     });
 
     const refunds = await db.prisma.creditTransaction.findMany({
-      where: { tenantId: targetUserId, reason: 'job_failed_refund' }
+      where: { userId: targetUserId, type: 'refund' }
     });
     
     const jobsData = jobs.map((job: any) => {
