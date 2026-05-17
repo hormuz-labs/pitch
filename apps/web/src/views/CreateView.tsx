@@ -39,7 +39,7 @@ const FieldLabel = ({ required, label, tooltip }: { required?: boolean; label: s
 
 const AI_AGENT_PROMPTS = [
   "Go to flipkart.com, search for 'iPhone 15', click the first result, and highlight the key specs for a product review.",
-  "Navigate to stripe.com, click 'Docs', search for 'Payment Intents', and summarize the integration steps.",
+  "Navigate to dodopayments.com, click 'Docs', search for 'Payment Intents', and summarize the integration steps.",
   "Open our startup's landing page, click 'Get Started', fill the signup form, and walk through the onboarding dashboard.",
   "Go to github.com, search for 'React', navigate to 'Issues', and show how to filter for 'good first issues'.",
   "Visit the company intranet, click 'HR Portal', navigate to 'Leave Requests', and submit a time-off application."

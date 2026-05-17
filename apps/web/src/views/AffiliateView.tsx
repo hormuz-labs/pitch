@@ -171,7 +171,7 @@ export function AffiliateView() {
         <ul className="text-sm text-gray-500 mb-8 space-y-1">
           <li>✅ Unique referral link instantly</li>
           <li>✅ Real-time click & conversion tracking</li>
-          <li>✅ Payout via Stripe once you hit $10</li>
+          <li>✅ Payout via Dodo once you hit $10</li>
           <li>✅ 30-day attribution window</li>
         </ul>
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}

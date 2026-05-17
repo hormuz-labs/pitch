@@ -14,7 +14,33 @@ const IconZap = () => (
 );
 
 type PackKey = 'starter' | 'pro' | 'enterprise';
+type TopupKey = 'topup_10' | 'topup_50';
 
+const TOPUP_PACKS: {
+  key: TopupKey; name: string; price: number;
+  credits: number; badge: string | null;
+  desc: string; features: string[]; popular?: boolean;
+}[] = [
+  {
+    key: 'topup_10',
+    name: '10 Credits Top-up',
+    price: 12,
+    credits: 10,
+    badge: null,
+    desc: 'Just need a few extra videos to finish a project.',
+    features: ['10 AI credits', 'One-time payment, no expiry'],
+  },
+  {
+    key: 'topup_50',
+    name: '50 Credits Top-up',
+    price: 45,
+    credits: 50,
+    badge: null,
+    popular: true,
+    desc: 'The quickest way to refill your account balance.',
+    features: ['50 AI credits', 'Better value per credit', 'One-time payment, no expiry'],
+  },
+];
 const PACKS: {
   key: PackKey; name: string; price: number | null;
   credits: number | null; badge: string | null;
@@ -27,7 +53,7 @@ const PACKS: {
     credits: 10,
     badge: null,
     desc: 'Perfect for trying out AI-powered demo generation.',
-    features: ['10 AI credits', '9 credits = 3 videos', 'Up to 1080p exports', 'Priority queue access'],
+    features: ['10 AI credits per month', '9 credits = 3 videos', 'Up to 1080p exports', 'Priority queue access'],
   },
   {
     key: 'pro',
@@ -37,7 +63,7 @@ const PACKS: {
     badge: null,
     popular: true,
     desc: 'For creators and professionals — best value per credit.',
-    features: ['50 AI credits', '20% savings vs. Starter', 'Up to 1080p exports', 'Custom agent instructions', 'Remove watermarks'],
+    features: ['50 AI credits per month', '20% savings vs. Starter', 'Up to 1080p exports', 'Custom agent instructions', 'Remove watermarks'],
   },
   {
     key: 'enterprise',
@@ -52,19 +78,21 @@ const PACKS: {
 
 export const PricingView = () => {
   const { getToken } = useAuth();
-  const [loading, setLoading] = useState<PackKey | null>(null);
+  const [loading, setLoading] = useState<PackKey | TopupKey | null>(null);
   const [error, setError]     = useState<string | null>(null);
-  const [hovered, setHovered] = useState<PackKey | null>(null);
+  const [hovered, setHovered] = useState<PackKey | TopupKey | null>(null);
 
-  const handleCheckout = async (pack: PackKey) => {
-    setLoading(pack);
+  const [mode, setMode] = useState<'subscription' | 'topup'>('subscription');
+
+  const handleCheckout = async (key: PackKey | TopupKey, isTopup = false) => {
+    setLoading(key);
     setError(null);
     try {
       const token = await getToken();
       const res = await fetch(`${API_URL}/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ pack }),
+        body: JSON.stringify(isTopup ? { topup: key } : { pack: key }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Checkout failed');
@@ -78,7 +106,7 @@ export const PricingView = () => {
   // A card is "active" (highlighted) when:
   // - it is hovered, OR
   // - nothing is hovered and it's the popular card
-  const isActive = (key: PackKey, popular?: boolean) =>
+  const isActive = (key: PackKey | TopupKey, popular?: boolean) =>
     hovered === key || (!hovered && !!popular);
 
   return (
@@ -89,10 +117,29 @@ export const PricingView = () => {
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 tracking-tight">
           Buy credits, generate demos
         </h1>
-        <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed">
-          No subscriptions. Pay once, use whenever.<br className="hidden sm:block" />
+        <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed mb-6">
+          Subscribe for monthly credits, or buy top-ups whenever you need more.<br className="hidden sm:block" />
           3 credits generate one full AI-powered demo video.
         </p>
+
+        <div className="inline-flex bg-gray-100 p-1 rounded-xl">
+          <button
+            onClick={() => setMode('subscription')}
+            className={`px-6 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+              mode === 'subscription' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Monthly Subscriptions
+          </button>
+          <button
+            onClick={() => setMode('topup')}
+            className={`px-6 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+              mode === 'topup' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            One-time Top-ups
+          </button>
+        </div>
       </div>
 
       {/* Error banner */}
@@ -104,7 +151,7 @@ export const PricingView = () => {
 
       {/* Cards — no overflow-visible on mobile so scale stays clipped */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
-        {PACKS.map(pack => {
+        {(mode === 'subscription' ? PACKS : TOPUP_PACKS).map(pack => {
           const active = isActive(pack.key, pack.popular);
 
           return (
@@ -137,7 +184,7 @@ export const PricingView = () => {
                 ) : (
                   <div className="flex items-baseline gap-1 mb-2">
                     <span className="text-2xl sm:text-3xl font-bold text-gray-900">${pack.price}</span>
-                    <span className="text-xs sm:text-sm font-medium text-gray-500">one-time</span>
+                    <span className="text-xs sm:text-sm font-medium text-gray-500">{mode === 'subscription' ? '/month' : 'one-time'}</span>
                   </div>
                 )}
 
@@ -155,7 +202,7 @@ export const PricingView = () => {
                   if (pack.key === 'enterprise') {
                     window.location.href = 'mailto:support@trypitch.co';
                   } else {
-                    handleCheckout(pack.key);
+                    handleCheckout(pack.key as any, mode === 'topup');
                   }
                 }}
                 disabled={loading !== null && pack.key !== 'enterprise'}
@@ -189,7 +236,7 @@ export const PricingView = () => {
       </div>
 
       <p className="mt-8 text-xs text-gray-400 text-center">
-        Secure payment via Stripe · Credits never expire · Need a custom volume deal?{' '}
+        Secure payment via Dodo Payments · Credits never expire · Need a custom volume deal?{' '}
         <a href="mailto:support@trypitch.co" className="text-gray-600 underline underline-offset-2 hover:text-gray-900">
           Contact us
         </a>
