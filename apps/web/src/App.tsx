@@ -252,6 +252,12 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1">
           <NavItem
+            icon={<IconSettings />}
+            label="Settings"
+            active={selectedKey === 'settings'}
+            onClick={() => go('/settings')}
+          />
+          <NavItem
             icon={<IconSupport />}
             label="Support"
             active={false}
@@ -281,12 +287,6 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
               />
             </div>
           </div>
-          <NavItem
-            icon={<IconSettings />}
-            label="Settings"
-            active={selectedKey === 'settings'}
-            onClick={() => go('/settings')}
-          />
         </div>
       </aside>
     </>
