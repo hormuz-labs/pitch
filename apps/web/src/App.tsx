@@ -92,33 +92,6 @@ function ToastShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Beta Redirect ─────────────────────────────────────────────────────────────
-
-function BetaRedirect() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    document.cookie = "beta_promo=1; path=/; max-age=86400"; // 1 day
-    
-    // Add a small 1.5s delay so the user can see the activation screen
-    const timer = setTimeout(() => {
-      navigate('/sign-up', { replace: true });
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, [navigate]);
-  
-  return (
-    <div className="flex h-screen w-full items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-16 h-16 flex items-center justify-center">
-          <PitchLogoAnimation loop startAnimation color="#111" />
-        </div>
-        <p className="text-sm font-bold text-gray-600 animate-pulse uppercase tracking-widest">Activating $5 Beta Promo...</p>
-      </div>
-    </div>
-  );
-}
-
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
 const IconVideo = () => (
@@ -860,7 +833,6 @@ function AppContent() {
       <SignedOut>
         <Routes>
           <Route path="/" element={<LandingView />} />
-          <Route path="/beta" element={<BetaRedirect />} />
           <Route path="/sign-in" element={<AuthView mode="sign-in" />} />
           <Route path="/sign-up" element={<AuthView mode="sign-up" />} />
           <Route path="/pricing" element={<PublicPricingView />} />

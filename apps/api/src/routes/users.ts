@@ -49,32 +49,10 @@ router.post('/sync', async (req, res) => {
     logger.info({ userId }, 'User profile synced');
 
     if (!existingUser) {
-      if (req.cookies?.beta_promo === '1' || req.headers.cookie?.includes('beta_promo=1')) {
-        // Find all past and present user IDs associated with this exact email
-        const allProfilesWithEmail = await db.prisma.userProfile.findMany({ 
-          where: { email }, 
-          select: { id: true } 
-        });
-        const userIdsWithEmail = allProfilesWithEmail.map(p => p.id);
-
-        // Prevent race conditions and email-reuse farming by ensuring this email 
-        // has NEVER received the beta promo across any of its Clerk accounts
-        const existingPromo = await db.prisma.creditTransaction.findFirst({
-          where: { 
-            userId: { in: userIdsWithEmail }, 
-            type: 'promo', 
-            description: 'Beta early-access signup bonus' 
-          }
-        });
-        
-        if (!existingPromo) {
-          await db.addCredits(userId, 5, 'promo', 'Beta early-access signup bonus', {
-            idempotencyKey: `beta_promo:${email.toLowerCase()}`
-          });
-          logger.info({ userId }, 'Applied beta promo credits (5)');
-        }
-        res.cookie('beta_promo', '', { maxAge: 0, path: '/' });
-      }
+      await db.addCredits(userId, 5, 'promo', 'New user signup bonus', {
+        idempotencyKey: `signup_bonus:${userId}`
+      });
+      logger.info({ userId }, 'Applied signup bonus credits (5)');
       sendTelegramMessage(`👋 <b>New User Sign Up</b>\nEmail: ${email}\nName: ${firstName || ''} ${lastName || ''}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign up'));
     } else {
       sendTelegramMessage(`🔑 <b>User Sign In</b>\nEmail: ${email}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign in'));

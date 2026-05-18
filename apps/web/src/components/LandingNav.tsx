@@ -15,8 +15,8 @@ export const LandingNav = () => {
     <>
       {/* Announcement bar */}
       <div className="landing-announcement" role="banner">
-        <span>Claim $5 worth of free credits!</span>
-        <Link to="/beta" className="landing-announcement-cta">Claim now</Link>
+        <span>Get $5 worth of free credits when you sign up!</span>
+        <Link to="/sign-up" className="landing-announcement-cta">Get Started</Link>
       </div>
 
       {/* Navbar */}
