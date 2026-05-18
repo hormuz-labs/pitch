@@ -14,6 +14,7 @@ import { Step2Illustration } from '../components/landing/Step2Illustration';
 import { Step3Illustration } from '../components/landing/Step3Illustration';
 import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import '../styles/landing.css';
+import demoVideo from '../assets/demo.mp4';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -21,8 +22,17 @@ export const LandingView = () => {
   const clerk = useClerk();
   const { isSignedIn } = useAuth();
   const [preloaderDone, setPreloaderDone] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
   const seq    = useStepSequence(3);
   const hiwRef = useRef<HTMLElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setVideoOpen(false); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // GSAP ScrollTrigger — How It Works section
   useEffect(() => {
@@ -115,7 +125,7 @@ export const LandingView = () => {
               ) : (
                 <a href="/sign-up" className="landing-btn-primary">Generate a demo</a>
               )}
-              <button className="landing-btn-secondary">Watch a sample</button>
+              <button className="landing-btn-secondary" onClick={() => setVideoOpen(true)}>Watch a sample</button>
             </div>
           </div>
 
@@ -169,6 +179,43 @@ export const LandingView = () => {
 
         <LandingFooter />
       </div>
+
+      {/* ── Video Modal ─────────────────────────────────────────────────────── */}
+      {videoOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setVideoOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl"
+            style={{ aspectRatio: '16/9' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setVideoOpen(false)}
+              className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors border-none cursor-pointer"
+              aria-label="Close video"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+
+            <video
+              ref={videoRef}
+              src={demoVideo}
+              className="w-full h-full object-cover"
+              autoPlay
+              controls
+              playsInline
+            />
+          </div>
+        </div>
+      )}
+
     </>
   );
 };

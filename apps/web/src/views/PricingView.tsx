@@ -110,7 +110,7 @@ export const PricingView = () => {
     hovered === key || (!hovered && !!popular);
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 font-sans">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 sm:pb-16 font-sans">
 
       {/* Header */}
       <div className="text-center mb-10 sm:mb-12">
