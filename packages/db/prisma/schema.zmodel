@@ -36,6 +36,12 @@ model UserProfile {
   role      String   @default("user") // "user" or "admin"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  subscriptions      Subscription[]
+  topUpPurchases     TopUpPurchase[]
+  creditTransactions CreditTransaction[]
+  jobs               Job[]
+  affiliate          Affiliate?
 }
 
 // ── Subscription (Dodo recurring product) ────────────────────────────────────
@@ -55,6 +61,9 @@ model Subscription {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  userProfile     UserProfile @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
+
   @@index([userId])
   @@index([dodoSubscriptionId])
 }
@@ -71,6 +80,9 @@ model TopUpPurchase {
   credits       Int                          // credits granted
   amountUsd     Float                        // amount paid in USD
   createdAt     DateTime @default(now())
+
+  userProfile   UserProfile @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
 
   @@index([userId])
   @@index([dodoPaymentId])
@@ -101,6 +113,11 @@ model CreditTransaction {
   idempotencyKey String?  @unique              // prevents double-grants (e.g. dodo event id)
   createdAt      DateTime @default(now())
 
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  job            Job?           @relation(fields: [jobId], references: [id])
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
+  topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
+
   @@index([userId])
   @@index([idempotencyKey])
 }
@@ -121,6 +138,9 @@ model Job {
   feedback     String?  // User's written review
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
 
   @@index([userId])
 
@@ -146,6 +166,7 @@ model Affiliate {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  userProfile UserProfile           @relation(fields: [userId], references: [id])
   clicks      AffiliateClick[]
   conversions AffiliateConversion[]
   payouts     AffiliatePayout[]
