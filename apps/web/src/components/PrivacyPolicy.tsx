@@ -8,7 +8,7 @@ export const PrivacyPolicy = () => {
   return (
     <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
       {!isSignedIn && <LandingNav />}
-      <div className="max-w-3xl mx-auto px-6 py-16 text-gray-800 flex-1">
+      <div className="max-w-3xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1">
         <div className="relative inline-block mb-8">
           <h1 className="text-3xl font-bold">Privacy Policy</h1>
           <svg className="absolute w-[110%] h-3 -bottom-2 -left-[5%] text-gray-800" viewBox="0 0 100 10" preserveAspectRatio="none">
