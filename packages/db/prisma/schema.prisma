@@ -20,48 +20,57 @@ model User {
 }
 
 model UserProfile {
-  id        String   @id()
-  email     String
-  firstName String?
-  lastName  String?
-  imageUrl  String?
-  role      String   @default("user")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt()
+  id                 String              @id()
+  email              String
+  firstName          String?
+  lastName           String?
+  imageUrl           String?
+  role               String              @default("user")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
+  subscriptions      Subscription[]
+  topUpPurchases     TopUpPurchase[]
+  creditTransactions CreditTransaction[]
+  jobs               Job[]
+  affiliate          Affiliate?
 }
 
 model Subscription {
-  id                 String    @id() @default(cuid())
+  id                 String              @id() @default(cuid())
   userId             String
-  dodoSubscriptionId String    @unique()
+  dodoSubscriptionId String              @unique()
   planKey            String
-  status             String    @default("active")
+  status             String              @default("active")
   creditsPerCycle    Int
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
   cancelledAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt()
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
 
   @@index([userId])
   @@index([dodoSubscriptionId])
 }
 
 model TopUpPurchase {
-  id            String   @id() @default(cuid())
-  userId        String
-  dodoPaymentId String   @unique()
-  packKey       String
-  credits       Int
-  amountUsd     Float
-  createdAt     DateTime @default(now())
+  id                 String              @id() @default(cuid())
+  userId             String
+  dodoPaymentId      String              @unique()
+  packKey            String
+  credits            Int
+  amountUsd          Float
+  createdAt          DateTime            @default(now())
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
 
   @@index([userId])
   @@index([dodoPaymentId])
 }
 
 model CreditTransaction {
-  id             String   @id() @default(cuid())
+  id             String         @id() @default(cuid())
   userId         String
   delta          Int
   type           String
@@ -69,29 +78,35 @@ model CreditTransaction {
   jobId          String?
   subscriptionId String?
   topUpId        String?
-  idempotencyKey String?  @unique()
-  createdAt      DateTime @default(now())
+  idempotencyKey String?        @unique()
+  createdAt      DateTime       @default(now())
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  job            Job?           @relation(fields: [jobId], references: [id])
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
+  topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
 
   @@index([userId])
   @@index([idempotencyKey])
 }
 
 model Job {
-  id           String   @id() @default(cuid())
-  userId       String
-  status       String
-  videoUrl     String?
-  audioUrl     String?
-  thumbnailUrl String?
-  parameters   String
-  phases       String?
-  error        String?
-  workerId     String?
-  cost         Float    @default(0)
-  rating       String?
-  feedback     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt()
+  id                 String              @id() @default(cuid())
+  userId             String
+  status             String
+  videoUrl           String?
+  audioUrl           String?
+  thumbnailUrl       String?
+  parameters         String
+  phases             String?
+  error              String?
+  workerId           String?
+  cost               Float               @default(0)
+  rating             String?
+  feedback           String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
 
   @@index([userId])
 }
@@ -104,6 +119,7 @@ model Affiliate {
   status        String                @default("active")
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt()
+  userProfile   UserProfile           @relation(fields: [userId], references: [id])
   clicks        AffiliateClick[]
   conversions   AffiliateConversion[]
   payouts       AffiliatePayout[]
