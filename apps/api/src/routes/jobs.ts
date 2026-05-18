@@ -109,6 +109,32 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.post('/:id/feedback', async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const { id } = req.params;
+  const { rating, feedback } = req.body;
+
+  try {
+    const job = await db.getJob(id, { id: userId });
+
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const updatedJob = await db.updateJob(id, { rating, feedback });
+    logger.info({ jobId: id, userId, rating }, 'Job feedback submitted');
+    res.json(updatedJob);
+  } catch (error: any) {
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    logger.error({ err: error, jobId: id, userId }, 'Failed to submit feedback');
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/:id/retrigger', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
