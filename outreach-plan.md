@@ -8,23 +8,23 @@
 
 ### Product Marketing Context
 - [x] Create `.agents/product-marketing.md` — centralized positioning doc
-- [ ] Build messaging hierarchy (one-liner, value props, proof points per persona)
-- [ ] Create competitor battle cards (Loom, Synthesia, HeyGen, Navattic, Walnut)
+- [x] Build messaging hierarchy (one-liner, value props, proof points per persona) — in `.agents/product-marketing.md`
+- [x] Create competitor battle cards (Loom, Synthesia, HeyGen, Navattic, Walnut) — `.agents/competitor-battle-cards.md`
 
 ### Website & Conversion Optimization
-- [ ] Add `/pricing.md` machine-readable file for AI agents
-- [ ] Add `/llms.txt` for AI system context
-- [ ] Implement FAQ schema on landing page
-- [ ] Add social proof section (logos, testimonials, use cases)
-- [ ] Create demo video gallery (3-5 sample videos across industries)
-- [ ] Add "Powered by Pitch" watermark with link on free tier videos
+- [x] Add `/pricing.md` machine-readable file for AI agents — `apps/web/public/pricing.md`
+- [x] Add `/llms.txt` for AI system context — `apps/web/public/llms.txt`
+- [x] Implement FAQ schema on landing page — visible FAQ section + FAQPage JSON-LD in `index.html`
+- [ ] Add social proof section (logos, testimonials, use cases) — blocked on real logos/quotes
+- [ ] Create demo video gallery (3-5 sample videos across industries) — blocked on sample video URLs
+- [ ] Add "Powered by Pitch" watermark with link on free tier videos — backend render change, separate task
 
 ### Technical SEO & AI Visibility
-- [ ] Robots.txt: Allow GPTBot, PerplexityBot, ClaudeBot, Google-Extended
-- [ ] Submit sitemap to Google Search Console
-- [ ] Set up GA4 with conversion tracking (sign-up, first video generated)
-- [ ] Create `llms.txt` and `pricing.md` files
-- [ ] Add structured data (Product, FAQ, HowTo schemas)
+- [x] Robots.txt: Allow GPTBot, PerplexityBot, ClaudeBot, Google-Extended — `apps/web/public/robots.txt` (also OAI, Apple, CCBot, cohere)
+- [ ] Submit sitemap to Google Search Console — sitemap.xml shipped, GSC submission must be done from your account
+- [x] Set up GA4 with conversion tracking (sign-up, first video generated) — gtag G-VC3NZ72GWY wired in `index.html`; conversion events still need to be defined in GA4
+- [x] Create `llms.txt` and `pricing.md` files
+- [x] Add structured data (Product, FAQ, HowTo schemas) — JSON-LD @graph in `index.html` (Organization, WebSite, SoftwareApplication+Offers, HowTo, FAQPage)
 
 ---
 

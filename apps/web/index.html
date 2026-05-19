@@ -5,7 +5,170 @@
     <link rel="icon" type="image/svg+xml" href="/tabLogoB.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Pitch — Automated cinematic product pitches. Generate AI-powered product demo videos in minutes." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Pitch — Turn any URL into a cinematic product demo video" />
+    <meta property="og:description" content="An AI agent navigates your live product, writes the script, and renders a narrated 1080p demo video in minutes. No recording. No editing." />
+    <meta property="og:url" content="https://trypitch.co/" />
+    <meta property="og:site_name" content="Pitch" />
+    <meta property="og:image" content="https://trypitch.co/tabLogoB.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Pitch — Turn any URL into a cinematic product demo video" />
+    <meta name="twitter:description" content="An AI agent navigates your live product, writes the script, and renders a narrated 1080p demo video in minutes." />
+    <link rel="canonical" href="https://trypitch.co/" />
     <title>Pitch - Automated cinematic product pitches</title>
+
+    <!-- Structured data: Organization + SoftwareApplication + HowTo + FAQ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://trypitch.co/#org",
+          "name": "Pitch",
+          "url": "https://trypitch.co/",
+          "logo": "https://trypitch.co/tabLogoB.svg",
+          "email": "support@trypitch.co"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://trypitch.co/#site",
+          "url": "https://trypitch.co/",
+          "name": "Pitch",
+          "publisher": { "@id": "https://trypitch.co/#org" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Pitch",
+          "applicationCategory": "MultimediaApplication",
+          "operatingSystem": "Web",
+          "description": "Pitch turns any website URL into a cinematic, narrated product demo video. An autonomous AI agent navigates your product, writes the script, and renders a 1080p MP4 in minutes.",
+          "url": "https://trypitch.co/",
+          "offers": [
+            {
+              "@type": "Offer",
+              "name": "Starter",
+              "price": "10",
+              "priceCurrency": "USD",
+              "category": "Subscription",
+              "description": "10 AI credits per month (~3 videos). Up to 1080p exports."
+            },
+            {
+              "@type": "Offer",
+              "name": "Pro",
+              "price": "40",
+              "priceCurrency": "USD",
+              "category": "Subscription",
+              "description": "50 AI credits per month (~16 videos). Watermark removed."
+            },
+            {
+              "@type": "Offer",
+              "name": "10 Credits Top-up",
+              "price": "12",
+              "priceCurrency": "USD",
+              "category": "OneTime",
+              "description": "10 AI credits, one-time purchase. Never expire."
+            },
+            {
+              "@type": "Offer",
+              "name": "50 Credits Top-up",
+              "price": "45",
+              "priceCurrency": "USD",
+              "category": "OneTime",
+              "description": "50 AI credits, one-time purchase. Never expire."
+            }
+          ]
+        },
+        {
+          "@type": "HowTo",
+          "name": "How to generate a product demo video with Pitch",
+          "description": "Turn any website URL into a narrated, cinematic product demo video in three steps.",
+          "totalTime": "PT10M",
+          "step": [
+            {
+              "@type": "HowToStep",
+              "position": 1,
+              "name": "Drop your URL",
+              "text": "Point the agent at your live product. It opens a real browser, navigates flows, and waits for state."
+            },
+            {
+              "@type": "HowToStep",
+              "position": 2,
+              "name": "Direct the scene",
+              "text": "Tell the agent in plain English what to show. Pick a voice, a theme, and the pace. Subtitles optional."
+            },
+            {
+              "@type": "HowToStep",
+              "position": 3,
+              "name": "Receive the cut",
+              "text": "Get a narrated, scored, color-graded 1080p MP4. Edit captions, swap voices, or re-render any scene."
+            }
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How is Pitch different from Loom or other screen recorders?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Loom records you clicking around your product. Pitch is autonomous — an AI agent opens a real browser, navigates your product, writes the script, and produces a polished, narrated video with cinematic cursor motion and color grading. No recording, no editing."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How is Pitch different from Synthesia or HeyGen?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Synthesia and HeyGen generate talking-head avatars. Pitch shows your actual product — the AI agent navigates your real website and narrates what is happening on screen. It is a product demo, not an avatar presentation."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How long does it take to generate a video?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Most videos generate in minutes once you submit your URL and instructions. Longer or more complex flows can take a bit more, but you do not stay in the editor waiting on it."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What does a video cost?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A full AI-generated demo video uses 3 credits. On Starter ($10/mo) that is roughly $3 per video. On Pro ($40/mo for 50 credits) it works out to about $2.40 per video. One-time top-ups are available from $12 for 10 credits. Credits never expire."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Do I need to install anything or instrument my site?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. You just provide a public URL. The agent uses a real browser to navigate the live product, so there is nothing to install, no SDK to embed, and no code change required."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I edit the video after it's generated?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. You can edit captions, swap voices, or re-render individual scenes without regenerating the entire video."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Will the video have a watermark?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Free and Starter tier videos include a small \"Powered by Pitch\" watermark. The Pro and Enterprise plans remove it."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
