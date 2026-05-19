@@ -1,6 +1,7 @@
 <div align="center">
 
 <pre>
+
     ____  ______________  __
    / __ \/  _/_  __/ __ \/ / /
   / /_/ // /  / / / / / / /_/ / 
@@ -13,7 +14,7 @@
 ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 *A distributed execution engine that transforms procedural web interactions into studio-quality, narrated MP4s.*
-trypitch.co
+https://trypitch.co
 </div>
 
 <br>
