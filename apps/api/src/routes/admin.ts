@@ -17,11 +17,16 @@ const requireAdmin = async (req: any, res: any, next: any) => {
       return res.status(403).json({ error: 'User profile not found' });
     }
     
-    if (process.env.ADMIN_EMAILS) {
-      const admins = process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase());
-      if (!admins.includes(profile.email.toLowerCase())) {
-        return res.status(403).json({ error: 'Not authorized as admin' });
-      }
+    // SECURITY: fail closed. If ADMIN_EMAILS is not configured we must refuse
+    // every request rather than treating "no allow-list" as "anyone is admin".
+    const rawAdmins = (process.env.ADMIN_EMAILS ?? '').trim();
+    if (!rawAdmins) {
+      logger.error('ADMIN_EMAILS is not configured — refusing admin access');
+      return res.status(503).json({ error: 'Admin access not configured' });
+    }
+    const admins = rawAdmins.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (admins.length === 0 || !admins.includes(profile.email.toLowerCase())) {
+      return res.status(403).json({ error: 'Not authorized as admin' });
     }
     req.adminUser = profile;
     next();

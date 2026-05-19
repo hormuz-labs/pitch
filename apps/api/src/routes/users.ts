@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { clerkClient } from '@clerk/express';
 import * as db from '@saas/db';
 import { createLogger, sendTelegramMessage } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
@@ -34,14 +35,30 @@ router.post('/sync', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { email, firstName, lastName, imageUrl } = req.body as {
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    imageUrl?: string;
-  };
-
-  if (!email) return res.status(400).json({ error: 'email is required' });
+  // SECURITY: never trust client-supplied email. Always read the verified
+  // primary email directly from Clerk — otherwise a user could overwrite their
+  // stored email to an admin address and escalate privileges via requireAdmin.
+  let email: string;
+  let firstName: string | undefined;
+  let lastName: string | undefined;
+  let imageUrl: string | undefined;
+  try {
+    const clerkUser = await clerkClient.users.getUser(userId);
+    const primary = clerkUser.emailAddresses.find(
+      (e) => e.id === clerkUser.primaryEmailAddressId
+    );
+    if (!primary?.emailAddress) {
+      logger.error({ userId }, 'Clerk user has no primary email');
+      return res.status(400).json({ error: 'No verified primary email on Clerk account' });
+    }
+    email = primary.emailAddress;
+    firstName = clerkUser.firstName ?? undefined;
+    lastName = clerkUser.lastName ?? undefined;
+    imageUrl = clerkUser.imageUrl ?? undefined;
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to fetch Clerk user for sync');
+    return res.status(500).json({ error: 'Failed to verify identity' });
+  }
 
   try {
     const existingUser = await db.prisma.userProfile.findUnique({ where: { id: userId } });
