@@ -1,6 +1,7 @@
 import { useSignIn, useSignUp } from '@clerk/clerk-react';
 import { useState } from 'react';
 import logoTab from '../assets/logoTab.png';
+import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
 import '../styles/auth.css';
 
 const CALLBACK_URL = `${window.location.origin}/sso-callback`;
@@ -47,6 +48,15 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
     <div className="auth-page">
       <div className="auth-dot-grid" />
       <div className="auth-vignette" />
+
+      {loading && (
+        <div className="auth-loader-overlay" aria-busy="true" aria-live="polite">
+          <div className="auth-loader-logo">
+            <PitchLogoAnimation startAnimation loop color="#ffffff" />
+          </div>
+          <p className="auth-loader-caption">Redirecting to Google…</p>
+        </div>
+      )}
 
       <div className="auth-card">
         {/* Logo */}
