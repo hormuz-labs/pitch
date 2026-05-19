@@ -96,4 +96,20 @@ describe('requireAdmin middleware', () => {
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/not authorized/i);
   });
+
+  it('allows access when the authenticated user IS in ADMIN_EMAILS (case-insensitive)', async () => {
+    process.env.ADMIN_EMAILS = 'Admin@TryPitch.co, other@example.com';
+    vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({
+      id: 'user_test',
+      email: 'admin@trypitch.co',
+    });
+    vi.mocked((db as any).prisma.userProfile.findMany ??= vi.fn()).mockResolvedValue?.([]);
+    (db as any).prisma.userProfile.findMany = vi.fn().mockResolvedValue([]);
+
+    const res = await request(app).get('/admin/dashboard');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('stats');
+    expect(res.body).toHaveProperty('users');
+  });
 });

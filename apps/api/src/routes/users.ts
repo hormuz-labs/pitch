@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { clerkClient } from '@clerk/express';
 import * as db from '@saas/db';
 import { createLogger, sendTelegramMessage } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
+import { getVerifiedClerkProfile } from '../lib/clerk.js';
 
 const logger = createLogger('api');
 
@@ -43,20 +43,13 @@ router.post('/sync', async (req, res) => {
   let lastName: string | undefined;
   let imageUrl: string | undefined;
   try {
-    const clerkUser = await clerkClient.users.getUser(userId);
-    const primary = clerkUser.emailAddresses.find(
-      (e) => e.id === clerkUser.primaryEmailAddressId
-    );
-    if (!primary?.emailAddress) {
-      logger.error({ userId }, 'Clerk user has no primary email');
-      return res.status(400).json({ error: 'No verified primary email on Clerk account' });
-    }
-    email = primary.emailAddress;
-    firstName = clerkUser.firstName ?? undefined;
-    lastName = clerkUser.lastName ?? undefined;
-    imageUrl = clerkUser.imageUrl ?? undefined;
+    const verified = await getVerifiedClerkProfile(userId);
+    email = verified.email;
+    firstName = verified.firstName;
+    lastName = verified.lastName;
+    imageUrl = verified.imageUrl;
   } catch (err: any) {
-    logger.error({ err, userId }, 'Failed to fetch Clerk user for sync');
+    logger.error({ err, userId }, 'Failed to fetch verified Clerk profile');
     return res.status(500).json({ error: 'Failed to verify identity' });
   }
 
