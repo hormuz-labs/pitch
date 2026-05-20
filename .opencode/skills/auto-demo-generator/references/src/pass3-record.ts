@@ -151,7 +151,7 @@ export async function pass3Record(
 
       const syncedActionTime = (Date.now() - startTime) / 1000 + 0.05;
 
-      trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action });
+      trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: step.zoom });
       prevCursorX = finalCx;
       prevCursorY = finalCy;
 
@@ -166,7 +166,7 @@ export async function pass3Record(
       }
     } else {
       await waitForTime(actionTime);
-      trackingEvents.push({ id: step.id, actionTime, cx: CENTER_X, cy: CENTER_Y, action: 'wait' });
+      trackingEvents.push({ id: step.id, actionTime, cx: CENTER_X, cy: CENTER_Y, action: 'wait', zoom: step.zoom });
       if (step.id === 'tOutro') await page.waitForTimeout(2000);
     }
   }

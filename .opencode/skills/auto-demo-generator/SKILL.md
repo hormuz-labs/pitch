@@ -27,13 +27,13 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   "outputPath": "example-demo.mp4", 
   "cursorStyle": "black",
   "steps": [
-    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
-    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion" },
-    { "id": "tOutro", "description": "Conclude the demo", "action": "wait" }
+    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search", "zoom": 1.5 },
+    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion", "zoom": 1.2 },
+    { "id": "tOutro", "description": "Conclude the demo", "action": "wait", "zoom": 1.0 }
   ]
 }
 ```
-*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`), NEVER a relative or absolute path (e.g. `demos/foo/video.mp4`), because the engine resolves it relative to the demo folder automatically.*
+*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional (defaults to 1.2 for actions, 1.0 for wait). Set `zoom` to values between 1.0 and 2.0 based on how closely the user needs to see the action.*
 
 **Execution:**
 ```bash

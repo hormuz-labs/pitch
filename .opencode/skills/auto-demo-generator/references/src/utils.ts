@@ -246,7 +246,9 @@ export function buildCursorAnimationExprs(
       continue; // skip cursor and zoom update for scroll-only events
     }
 
-    const targetZoom = (ev.action === 'wait' || ev.action === 'navigate') ? 1.0 : 1.2;
+    const targetZoom = ev.zoom !== undefined 
+      ? ev.zoom 
+      : ((ev.action === 'wait' || ev.action === 'navigate') ? 1.0 : 1.2);
 
     // ── Cursor overlay (smoothstep easing, evaluates 't') ────────────────────
     overlayXExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;

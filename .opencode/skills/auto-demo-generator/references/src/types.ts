@@ -18,6 +18,7 @@ export interface DemoStep {
   action: 'click' | 'type' | 'wait';
   selector?: string;
   value?: string;
+  zoom?: number;
 }
 
 export interface WavConversionOptions {
@@ -33,6 +34,7 @@ export interface TrackingEvent {
   cy: number;
   action: 'click' | 'type' | 'wait' | 'scroll' | 'navigate';
   scrollY?: number; // absolute window.scrollY at time of scroll (scroll events only)
+  zoom?: number;
 }
 
 export interface TrackingData {
