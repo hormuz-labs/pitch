@@ -13,14 +13,14 @@ export const subscriber = new Redis(redisUrl);
 export const videoQueue = new Queue(QUEUE_NAME, { connection });
 
 export const CREDIT_PACKS = {
-  starter:    { credits: 10,  priceUsd: 10,  label: '10 Credits/mo', productId: 'pdt_0Nf0dKdBN6HnWpCSGT0MO' },
-  pro:        { credits: 50,  priceUsd: 40,  label: '50 Credits/mo', productId: 'pdt_0Nf0dKdqu4BpQLYOg2ejC' },
-  enterprise: { credits: 200, priceUsd: 130, label: '200 Credits/mo', productId: 'pdt_0Nf0dKeZUi9JwPEP7Lv7I' },
+  starter:    { credits: 10,  priceUsd: 10,  label: '10 Credits/mo', productId: 'pdt_0NfE1TTRkMmGD1uSRKGMG' },
+  pro:        { credits: 50,  priceUsd: 40,  label: '50 Credits/mo', productId: 'pdt_0NfE1TUQyO6q0uRvtQa6W' },
+  enterprise: { credits: 200, priceUsd: 130, label: '200 Credits/mo', productId: 'pdt_0NfE1TY7rCS3QSWsUiMny' },
 } as const;
 
 export const TOPUP_PACKS = {
-  topup_10:  { credits: 10,  priceUsd: 12, label: '10 Credits (One-time)', productId: 'pdt_0Nf0csCgGaZqU0e8OSOPF' },
-  topup_50:  { credits: 50,  priceUsd: 45, label: '50 Credits (One-time)', productId: 'pdt_0Nf0csDWPJdbh1c9MBQg7' },
+  topup_10:  { credits: 10,  priceUsd: 12, label: '10 Credits (One-time)', productId: 'pdt_0NfE1TZ3GNquhi63E2E1K' },
+  topup_50:  { credits: 50,  priceUsd: 45, label: '50 Credits (One-time)', productId: 'pdt_0NfE1Ta1jXmcchFVWSVnG' },
 } as const;
 
 export type PackKey = keyof typeof CREDIT_PACKS;
