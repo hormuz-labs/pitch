@@ -1,7 +1,5 @@
 import { useState } from 'react';
 
-import { Switch } from '../components/Switch';
-import { ThemeSwitch } from '../components/ThemeSwitch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select';
 import { WaveformScrub } from '../components/WaveformScrub';
 import { ContainerTextFlip } from '../components/ContainerTextFlip';

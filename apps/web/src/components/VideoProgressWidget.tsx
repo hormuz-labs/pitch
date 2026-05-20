@@ -62,7 +62,7 @@ const PhaseIcon = ({ status }: { status: PhaseUpdate['status'] | 'pending' }) =>
       <span style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         width: 20, height: 20, borderRadius: '50%',
-        background: '#dc2626', flexShrink: 0,
+        background: '#ca8a04', flexShrink: 0,
       }}>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M2 2l6 6M8 2l-6 6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
@@ -86,7 +86,7 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
   const progress = project.progress ?? 0;
 
   // Build full phase list with status for every phase in canonical order
-  const phaseList = PHASE_ORDER.map(key => {
+  const rawPhaseList = PHASE_ORDER.map(key => {
     const found = phases.find(p => p.phase === key);
     return {
       key,
@@ -95,14 +95,25 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
     };
   });
 
+  const runningIdx = rawPhaseList.findIndex(p => p.status === 'running');
+  const phaseList = rawPhaseList.map((p, idx) => {
+    if (runningIdx !== -1 && idx > runningIdx) {
+      return { ...p, status: 'pending' as const };
+    }
+    return p;
+  });
+
   const completedCount = phaseList.filter(p => p.status === 'completed').length;
   const totalCount = PHASE_ORDER.length;
   const runningPhase = phaseList.find(p => p.status === 'running');
+  const hasFailedPhase = phaseList.some(p => p.status === 'failed');
   const statusLabel = runningPhase
     ? runningPhase.label
-    : progress === 100
-      ? 'Finishing up…'
-      : 'Queued';
+    : hasFailedPhase
+      ? 'Retrying...'
+      : progress === 100
+        ? 'Finishing up…'
+        : 'Thinking';
 
   return (
     <>
@@ -172,12 +183,16 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
               className={`flex flex-wrap items-center gap-2.5 relative ${idx < phaseList.length - 1 ? 'mb-3.5' : ''}`}
             >
               {/* L-shaped connector */}
-              <div className={`absolute -left-6 -top-2 w-[18px] h-6 border-b-2 border-l-2 rounded-bl-md transition-colors duration-500 ${
-                p.status === 'completed' 
-                  ? 'border-green-500' 
-                  : p.status === 'running' 
-                    ? 'border-blue-500' 
-                    : 'border-gray-200'
+              <div className={`absolute -left-6 w-[18px] border-b-2 border-l-2 rounded-bl-md transition-all duration-500 ${
+                p.status === 'running' && idx > 0
+                  ? '-top-[22px] h-[38px] border-blue-500'
+                  : `-top-2 h-6 ${
+                      p.status === 'completed' 
+                        ? 'border-green-500' 
+                        : p.status === 'running' 
+                          ? 'border-blue-500' 
+                          : 'border-gray-200'
+                    }`
               }`} />
 
               <PhaseIcon status={p.status} />
@@ -199,11 +214,24 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
 
         {/* ── Status + Priority badges ──────────────────────────────────────── */}
         <div className="flex gap-2.5 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg py-1 px-3">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className={`flex items-center gap-1.5 border rounded-lg py-1 px-3 transition-colors duration-300 ${
+            statusLabel === 'Thinking'
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+            <svg 
+              width="14" 
+              height="14" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke={statusLabel === 'Thinking' ? '#d97706' : '#3b82f6'} 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            <span className="text-xs font-bold text-blue-800">{statusLabel}</span>
+            <span className="text-xs font-bold">{statusLabel}</span>
           </div>
         </div>
 
