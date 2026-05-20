@@ -1,5 +1,6 @@
 import { useSignIn, useSignUp } from '@clerk/clerk-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import logoTab from '../assets/logoTab.png';
 import '../styles/auth.css';
 
@@ -24,6 +25,11 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
   const [loading, setLoading] = useState<string | null>(null);
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setTab(mode);
+  }, [mode]);
 
   const oauth = async (strategy: 'oauth_google') => {
     setLoading(strategy);
@@ -61,7 +67,7 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
           {(['sign-in', 'sign-up'] as const).map(t => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => navigate(`/${t}`)}
               className={`auth-tab ${tab === t ? 'auth-tab--active' : 'auth-tab--inactive'}`}
             >
               {t === 'sign-in' ? 'Sign in' : 'Sign up'}
@@ -91,7 +97,7 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
           {tab === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
           <button
             className="auth-switch-btn"
-            onClick={() => setTab(tab === 'sign-in' ? 'sign-up' : 'sign-in')}
+            onClick={() => navigate(tab === 'sign-in' ? '/sign-up' : '/sign-in')}
           >
             {tab === 'sign-in' ? 'Create account' : 'Sign in'}
           </button>

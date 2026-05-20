@@ -250,7 +250,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
         </nav>
 
         {/* Bottom actions */}
-        <div className="px-3 pb-3 space-y-1">
+        <div className="px-3 pb-3 space-y-1.5">
           <NavItem
             icon={<IconSupport />}
             label="Support"
@@ -258,6 +258,12 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
             onClick={() => { window.location.href = 'mailto:support@trypitch.co'; }}
           />
           <div className="border-t border-gray-200 my-2 -mx-3" />
+          <NavItem
+            icon={<IconSettings />}
+            label="Settings"
+            active={selectedKey === 'settings'}
+            onClick={() => go('/settings')}
+          />
 
           <div className="mb-2 flex items-center gap-2">
             <button
@@ -281,12 +287,6 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
               />
             </div>
           </div>
-          <NavItem
-            icon={<IconSettings />}
-            label="Settings"
-            active={selectedKey === 'settings'}
-            onClick={() => go('/settings')}
-          />
         </div>
       </aside>
     </>

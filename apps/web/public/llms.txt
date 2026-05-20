@@ -1,0 +1,30 @@
+# Pitch
+
+> Pitch turns any website URL into a cinematic, narrated product demo video. An autonomous AI agent opens a real browser, navigates the product, writes the script, records the screen with smooth cursor motion, and renders a 1080p MP4 — in minutes, with no recording or editing.
+
+Pitch is built for founders, product marketers, and agencies who need polished product demo videos without the cost or turnaround of traditional production. Typical use cases include website hero videos, investor updates, demo-day pitches, sales outreach, onboarding walkthroughs, and changelog announcements.
+
+## How it works
+
+1. Drop your URL — the agent opens a real browser and navigates your live product.
+2. Direct the scene — describe what to show in plain English, pick a voice, theme, and pace.
+3. Receive the cut — a narrated, scored, color-graded 1080p MP4, editable scene-by-scene.
+
+## Pricing
+
+- Starter — $10/month, 10 credits (3 videos)
+- Pro — $40/month, 50 credits (~16 videos), watermark removed
+- Enterprise — custom volume
+- One-time top-ups: 10 credits / $12, 50 credits / $45
+- 3 credits = one full AI-generated demo video. Credits never expire.
+
+## Docs
+
+- [Landing page](https://trypitch.co/): product overview, sample video, how it works
+- [Pricing](https://trypitch.co/pricing): subscriptions and one-time top-ups
+- [Machine-readable pricing](https://trypitch.co/pricing.md): structured pricing for AI agents
+
+## Contact
+
+- Email: support@trypitch.co
+- Site: https://trypitch.co
