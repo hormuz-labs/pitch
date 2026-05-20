@@ -6,7 +6,7 @@ description: >
   or any automated "show me how to use X" video. Triggers on: "make a demo video", "record
   a walkthrough", "create a tutorial video", "automate a product demo", "screencast of X",
   "show how to use X", or any request to produce an MP4 of web interactions.
-compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, playwright. System: ffmpeg binary. Env: GEMINI_API_KEY (required)."
+compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, playwright. System: ffmpeg binary. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required)."
 ---
 
 # Auto-Demo Generator
@@ -27,16 +27,29 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   "outputPath": "example-demo.mp4", 
   "cursorStyle": "black",
   "steps": [
-    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
-    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion" },
-    { "id": "tOutro", "description": "Conclude the demo", "action": "wait" }
+    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search", "zoom": 1.5 },
+    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion", "zoom": 1.2 },
+    { "id": "tOutro", "description": "Conclude the demo", "action": "wait", "zoom": 1.0 }
   ]
 }
 ```
-*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`), NEVER a relative or absolute path (e.g. `demos/foo/video.mp4`), because the engine resolves it relative to the demo folder automatically.*
+*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional (defaults to 1.2 for actions, 1.0 for wait).*
+
+### 🎥 Zoom Scheduling & Cinematography Guide (CRITICAL)
+To produce the most engaging, professional, and visually premium videos, the AI Agent must **dynamically choreograph the zoom levels** across steps rather than using a single static value. Adhere to these exact tiers:
+1. **`1.0` (Wide Overview / Dashboard Context)**:
+   * **When to use**: During page load, initial landing, full dashboard overview transitions, return navigation steps (like "Back to Roles"), or concluding outro steps.
+   * **Why**: It zooms completely out, giving the viewer's eyes a resting break and structural context of where they are in the app.
+2. **`1.2` (Component Groups / Broad Panels)**:
+   * **When to use**: Clicking large cards, selecting sidebar links, navigating standard tabs, or interacting with medium-sized panels.
+   * **Why**: It centers the viewer's focus on the active area while maintaining surrounding layout readability.
+3. **`1.5` (Micro-Focus / Tiny Inputs & Controls)**:
+   * **When to use**: Typing into narrow text inputs/areas, selecting tiny dropdown menu items, clicking standalone action icons (like pencil/trash edit buttons), or clicking switch/checkbox toggles.
+   * **Why**: It tightly locks onto the minute action, making tiny elements and typed characters crystal clear on standard screen displays.
 
 **Execution:**
 ```bash
+cd demos/<demo-name>
 bun run src/index.ts demo-config.json
 ```
 
@@ -75,7 +88,7 @@ From there, the AI should:
    This ensures we never waste time or API costs regenerating the cinematic intro (`pass0`), validating selectors (`pass1`), or generating voiceovers (`pass2`) if they are already done.
    **Note on Progress Reporting:** The modified `src/index.ts` engine is smart enough to automatically backfill and "tick" (mark as completed) all prior phases in the UI if you resume from a later phase. For example, if you resume at `video_recording`, the engine will automatically report `voiceover_generation`, `flow_validation`, etc., as completed so the frontend UI stays perfectly synced.
 
-5. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-cinematic-record.ts` to include a dynamic `try/catch` block that locates and clicks the dismiss button (e.g. `✕`) after `page.goto()`.
+5. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-record.ts` to include a dynamic `try/catch` block that locates and clicks the dismiss button (e.g. `✕`) after `page.goto()`.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 
@@ -89,6 +102,14 @@ Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` 
 
 **CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
 
+**SELECTOR SAFETY RULES — NEVER SKIP THESE:**
+1. **Never guess attributes**: Do NOT guess inputs' placeholders, name tags, or IDs. Always execute `agent-browser get attr @ref placeholder/name/id` first to get the exact strings. Labels do not always equal placeholders.
+2. **Never mix Playwright operators (`>>`) inside CSS functional pseudo-classes**: Browser engine CSS engines do not support `>>` inside `:has(...)` or `:not(...)` and will crash.
+   * *Wrong:* `div:has(h3 >> text='X')`
+   * *Right:* `h3:has-text('X') >> xpath=../.. >> .class`
+3. **Prefer tag-agnostic selectors for inputs**: A field looking like a standard text box may be built with a `<textarea>` or custom element. Use `[name='salary']` instead of `input[name='salary']` to be safe.
+4. **Enforce aggressive, low timeouts (3 to 5 seconds) on custom/exploratory scripts**: Default 30-second delays heavily extend feedback loops on failure. Always set short timeouts (e.g., `{ timeout: 3000 }` on clicks/waits) in ad-hoc explorer files. Fail fast, adjust, and continue instantly.
+
 **MANDATORY — Logo Download:**  While the agent-browser is already on the website, it MUST find and download the website's primary logo file and save it into `demos/<demo-name>/assets/icons/`. **CRITICAL**: You MUST name the file starting with `logo.` (e.g., `logo.svg`, `logo.png`, `logo.webp`). Do NOT name it `company.png` or `favicon.ico`. The engine strictly looks for files matching `logo.*`. Prefer the highest-resolution or vector (`.svg`) version available. Look in the header/navigation area first, then check `<link rel="apple-touch-icon">` as a fallback. If you find a URL to an SVG or PNG logo, download it via `fetch()` or copy its source and save it to the `assets/icons/` folder. This is REQUIRED for the cinematic intro to work in Phase 0.5.
 
 Once the agent has successfully verified and collected all the necessary stable working selectors, it will dynamically generate the `demo-config.json` file inside the new demo folder.
@@ -100,7 +121,7 @@ Before running the validation or generation passes, `pass0-intro.ts` automatical
 *   **Logo Source:** Reads the logo file directly from `assets/icons/` (placed there by agent-browser in Phase 0.2). Supports `.svg`, `.png`, `.webp`, `.jpg`, `.jpeg`, `.avif`, `.gif`, `.ico`. Prefers SVG (infinite resolution) over raster formats.
 *   **Adaptive Background:** Analyzes the logo's non-transparent pixels using canvas pixel math. Dark logo → white `#FFFFFF` background. Light logo → deep `#0A0A0A` background. Can be forced via `introBg: 'white' | 'black'` in `demo-config.json`.
 *   **Cinematic Animation:** Renders an HTML page via Playwright `recordVideo` featuring an Apple-style staggered slide-in (cubic-bezier easing): logo blooms in → divider draws down → company name slides in from left. Font: `Inter Bold 700`, 72px, -0.03em tracking.
-*   **Thumbnail Capture:** At ~1.5s into the animation (when logo + name are fully visible), a JPEG screenshot is saved as `thumbnail.jpg` in the demo directory and its path written to `thumbnail-path.txt`. The `references/src/index.ts` pipeline immediately uploads this via `job-cli thumbnail` so the dashboard shows the branded preview while the rest of the pipeline is still running.
+*   **Thumbnail Capture:** At ~1.5s into the animation (when logo + name are fully visible), a JPEG screenshot is saved as `thumbnail.jpg` in the demo directory and its path written to `thumbnail-path.txt`. The `src/index.ts` pipeline immediately uploads this via `job-cli thumbnail` so the dashboard shows the branded preview while the rest of the pipeline is still running.
 *   **Stitching:** The generated `intro.webm` is seamlessly concatenated at the very end of Phase 4 into the final `.mp4` via FFmpeg's `concat` filter.
 
 ### Phase 1 — Flow Validation (Playwright Dry Run)
@@ -108,7 +129,7 @@ The generic engine loops through `demoSteps`. For every step with a selector, it
 
 ### Phase 2 — Voiceover Generation & Transcription
 Use `gemini-3.1-flash-tts-preview` (or fallback to `gemini-2.5-flash` if unavailable) to generate the `.wav` narration (default voice: `Puck`).
-Use `gemini-2.5-flash` to transcribe that `.wav` into a JSON array containing `word`, `startMs`, and `endMs`.
+The generated `.wav` is automatically transcribed into a JSON array (`timestamps.json`) via the local microservice defined in `TRANSCRIPTION_SERVICE_URL`.
 
 ### Phase 2.5 — LLM-Driven Timeline Mapping
 Pass the raw transcription and the `demoSteps` descriptions to an LLM (`gemini-2.5-flash`). The LLM semantically maps the steps to exact timestamps in seconds. Save this to `timeline.json`. 
@@ -141,7 +162,7 @@ See the **perfected, generic pipeline modularized** in the `references/` directo
 ## Phase Progress Reporting (MANDATORY)
 
 **[🛑 DO NOT FORGET THIS]**
-Every demo run MUST report phase progress in real time so the `/editor` page shows an accurate live progress widget to the user. The `references/src/index.ts` already handles this automatically via the `reportPhase()` helper. However, Phases 0.1 and 0.2 (workspace init and selector collection) happen **before** `index.ts` runs and MUST be reported manually by the agent. If you do not report them, the user will stare at a broken loading screen.
+Every demo run MUST report phase progress in real time so the `/editor` page shows an accurate live progress widget to the user. The `src/index.ts` pipeline already handles this automatically via the `reportPhase()` helper. However, Phases 0.1 and 0.2 (workspace init and selector collection) happen **before** `index.ts` runs and MUST be reported manually by the agent. If you do not report them, the user will stare at a broken loading screen.
 
 ### Reporting Format
 ```bash
@@ -153,11 +174,11 @@ bun apps/job-cli/src/index.ts phase --job-id <JOB_ID> --phase <PHASE_KEY> --stat
 |-----------|-------------|
 | `workspace_init` | Before + after creating the `demos/<name>/` folder and copying `src/` files |
 | `selector_collection` | Before + after agent-browser navigates and collects selectors |
-| `intro_sequence` | Automatically handled by `references/src/index.ts` |
-| `flow_validation` | Automatically handled by `references/src/index.ts` |
-| `voiceover_generation` | Automatically handled by `references/src/index.ts` |
-| `video_recording` | Automatically handled by `references/src/index.ts` |
-| `ffmpeg_postprocessing` | Automatically handled by `references/src/index.ts` |
+| `intro_sequence` | Automatically handled by `src/index.ts` |
+| `flow_validation` | Automatically handled by `src/index.ts` |
+| `voiceover_generation` | Automatically handled by `src/index.ts` |
+| `video_recording` | Automatically handled by `src/index.ts` |
+| `ffmpeg_postprocessing` | Automatically handled by `src/index.ts` |
 
 ### Critical Rules
 1. **FIRE-AND-FORGET**: If a phase report command fails, DO NOT stop the pipeline. Log the error and continue.
@@ -182,6 +203,7 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection
 # Run the main pipeline (auto-reports phases 0.5 → 4)
 # NOTE: Ensure you set a high timeout (e.g., 900000ms / 15 minutes) if running this via a tool call,
 # as FFmpeg post-processing is highly computationally intensive and can easily exceed 5 minutes.
-JOB_ID=$JOB_ID bun run src/index.ts demos/<name>/demo-config.json
+cd demos/<name>
+JOB_ID=$JOB_ID bun run src/index.ts demo-config.json
 ```
 
