@@ -13,7 +13,7 @@ export async function startServer(targetDir: string): Promise<{ server: Opencode
   const server = await createOpencodeServer({ 
     timeout: 60000,
     config: {
-      model: "google/gemini-3-flash-preview"
+      model: "google/gemini-3.1-pro-preview"
     }
   });
   const client = createOpencodeClient({ baseUrl: server.url });
