@@ -91,6 +91,21 @@ export async function pass3Record(
   let prevCursorX = CENTER_X;
   let prevCursorY = CENTER_Y;
 
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) {
+      const actionTime = (Date.now() - startTime) / 1000;
+      if (actionTime > 0) {
+        trackingEvents.push({
+          id: `nav_${Date.now()}`,
+          actionTime,
+          cx: prevCursorX,
+          cy: prevCursorY,
+          action: 'navigate'
+        });
+      }
+    }
+  });
+
   const waitForTime = async (targetSeconds: number) => {
     const targetMs = targetSeconds * 1000;
     const elapsed = Date.now() - startTime;

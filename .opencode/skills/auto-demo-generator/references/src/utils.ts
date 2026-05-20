@@ -216,25 +216,37 @@ export function buildCursorAnimationExprs(
   let prevZoom = 1;
   let runningPanX = 0;
   let runningPanY = 0;
+  let prevTime = 0;
 
-  for (let i = 0; i < trackingEvents.length; i++) {
-    const ev = trackingEvents[i];
+  const sortedEvents = [...trackingEvents].sort((a, b) => a.actionTime - b.actionTime);
+
+  for (let i = 0; i < sortedEvents.length; i++) {
+    const ev = sortedEvents[i];
     const tTime = ev.actionTime;
-    const moveDuration = 1.0;
-    const moveStart = Math.max(0, tTime - moveDuration);
+    let moveDuration = 1.0;
+    let moveStart = Math.max(prevTime, tTime - moveDuration);
+    
+    // Adjust duration if moveStart was clamped
+    if (moveStart > tTime - moveDuration) {
+      moveDuration = Math.max(0.01, tTime - moveStart);
+    }
 
     // ── Scroll events: only update camera pan, no cursor/zoom change ──────────
     if (ev.action === 'scroll') {
-      if (prevZoom <= 1.0) continue; // Skip scroll pan when not zoomed
+      if (prevZoom <= 1.0) {
+        prevTime = tTime;
+        continue; // Skip scroll pan when not zoomed
+      }
 
       const scrolledY = ev.scrollY ?? 0;
       const targetScrollPanY = Math.min(Math.max(0, scrolledY - CENTER_Y / prevZoom), videoHeight - videoHeight / prevZoom);
       panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetScrollPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetScrollPanY},${panYExpr}))`;
       runningPanY = targetScrollPanY;
+      prevTime = tTime;
       continue; // skip cursor and zoom update for scroll-only events
     }
 
-    const targetZoom = ev.action === 'wait' ? 1.0 : 1.2;
+    const targetZoom = (ev.action === 'wait' || ev.action === 'navigate') ? 1.0 : 1.2;
 
     // ── Cursor overlay (smoothstep easing, evaluates 't') ────────────────────
     overlayXExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
@@ -246,7 +258,9 @@ export function buildCursorAnimationExprs(
       ? (targetZoom - prevZoom) * OVERSHOOT_FRACTION
       : 0;
     const zoomInterp = (targetZoom !== prevZoom)
-      ? springOvershootExpr('time', prevZoom, targetZoom, overshootAmt, moveStart, moveDuration)
+      ? (targetZoom > prevZoom 
+          ? springOvershootExpr('time', prevZoom, targetZoom, overshootAmt, moveStart, moveDuration)
+          : smoothstepExpr('time', prevZoom, targetZoom, moveStart, moveDuration))
       : `${targetZoom}`;
     zoomZExpr = `if(between(time,${moveStart},${tTime}),${zoomInterp},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
 
@@ -262,6 +276,7 @@ export function buildCursorAnimationExprs(
     prevZoom = targetZoom;
     runningPanX = targetPanX;
     runningPanY = targetPanY;
+    prevTime = tTime;
   }
 
   // Ensure zoom doesn't break if no events exist
@@ -287,7 +302,9 @@ export function buildCursorAlphaExpr(trackingEvents: TrackingEvent[]): string {
 
   let cursorAlphaExpr = "1";
 
-  const activeEvents = trackingEvents.filter(e => e.action !== 'scroll');
+  const activeEvents = [...trackingEvents]
+    .sort((a, b) => a.actionTime - b.actionTime)
+    .filter(e => e.action !== 'scroll' && e.action !== 'navigate');
   for (let i = 0; i < activeEvents.length; i++) {
     const ev   = activeEvents[i];
     const next = activeEvents[i + 1];
