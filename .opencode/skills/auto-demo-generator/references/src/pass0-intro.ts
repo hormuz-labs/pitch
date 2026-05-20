@@ -99,38 +99,44 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
     textColor = isDark ? '#F5F5F5' : '#111111';
     dividerColor = isDark ? '#2A2A2A' : '#E0E0E0';
   } else {
-    // Spin up a tiny browser just to run the pixel analysis — no page load needed
-    const analysisBrowser = await chromium.launch({ headless: true });
-    const analysisCtx = await analysisBrowser.newContext();
-    const analysisPage = await analysisCtx.newPage();
+    let avgBrightness = 128;
+    try {
+      // Spin up a tiny browser just to run the pixel analysis — no page load needed
+      const analysisBrowser = await chromium.launch({ headless: true });
+      const analysisCtx = await analysisBrowser.newContext();
+      const analysisPage = await analysisCtx.newPage();
 
-    const avgBrightness = await analysisPage.evaluate(async (dataUrl) => {
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise(r => img.onload = r);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
-      const data = ctx.getImageData(0, 0, img.width, img.height).data;
-      let total = 0, count = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] > 10) { // non-transparent pixels only
-          total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          count++;
+      avgBrightness = await analysisPage.evaluate(async (dataUrl) => {
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise(r => img.onload = r);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width; canvas.height = img.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(0, 0, img.width, img.height).data;
+        let total = 0, count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] > 10) { // non-transparent pixels only
+            total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            count++;
+          }
         }
-      }
-      return count > 0 ? total / count : 128;
-    }, logo.dataUrl);
+        return count > 0 ? total / count : 128;
+      }, logo.dataUrl);
 
-    await analysisBrowser.close();
+      await analysisBrowser.close();
+      console.log(`Logo brightness: ${avgBrightness.toFixed(1)}`);
+    } catch (err: any) {
+      console.warn(`⚠️ Brightness analysis failed (non-fatal): ${err.message}. Falling back to default.`);
+    }
 
     if (avgBrightness > 140) { // Logo is light → use dark background
       bg = '#0A0A0A';
       textColor = '#F5F5F5';
       dividerColor = '#2A2A2A';
     }
-    console.log(`Logo brightness: ${avgBrightness.toFixed(1)} → background: ${bg}`);
+    console.log(`Logo background theme selected: ${bg}`);
   }
 
   // --- 4. Record Cinematic Intro via Playwright ---

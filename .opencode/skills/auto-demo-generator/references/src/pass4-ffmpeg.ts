@@ -134,7 +134,17 @@ export async function pass4Ffmpeg(
         '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
       ])
       .save(tempRawOut)
-      .on('end', () => resolve())
+      .on('progress', (progress) => {
+        if (progress.percent !== undefined) {
+          process.stdout.write(`Encoding: ${progress.percent.toFixed(1)}%\r`);
+        } else if (progress.frames) {
+          process.stdout.write(`Encoding frame: ${progress.frames}\r`);
+        }
+      })
+      .on('end', () => {
+        console.log('\n✅ Encoding complete.');
+        resolve();
+      })
       .on('error', reject);
   });
 

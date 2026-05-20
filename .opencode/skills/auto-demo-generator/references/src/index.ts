@@ -178,6 +178,8 @@ async function main() {
   try {
     await pass4Ffmpeg(config, config.steps, DEMO_DIR);
     reportPhase('ffmpeg_postprocessing', 'completed');
+    console.log('🎉 Demo pipeline completed successfully!');
+    process.exit(0);
   } catch (e) { reportPhase('ffmpeg_postprocessing', 'failed'); throw e; }
 }
 
