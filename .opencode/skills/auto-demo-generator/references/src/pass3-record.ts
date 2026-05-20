@@ -91,21 +91,6 @@ export async function pass3Record(
   let prevCursorX = CENTER_X;
   let prevCursorY = CENTER_Y;
 
-  page.on('framenavigated', (frame) => {
-    if (frame === page.mainFrame()) {
-      const actionTime = (Date.now() - startTime) / 1000;
-      if (actionTime > 0) {
-        trackingEvents.push({
-          id: `nav_${Date.now()}`,
-          actionTime,
-          cx: prevCursorX,
-          cy: prevCursorY,
-          action: 'navigate'
-        });
-      }
-    }
-  });
-
   const waitForTime = async (targetSeconds: number) => {
     const targetMs = targetSeconds * 1000;
     const elapsed = Date.now() - startTime;
@@ -158,6 +143,13 @@ export async function pass3Record(
       if (step.action === 'click') {
         await loc.click({ force: true });
       } else if (step.action === 'type') {
+        // Focus and select all existing text to clear it before typing
+        await loc.focus();
+        await page.keyboard.down('Control');
+        await page.keyboard.press('a');
+        await page.keyboard.up('Control');
+        await page.keyboard.press('Backspace');
+        await page.waitForTimeout(200);
         await loc.pressSequentially(step.value!, { delay: 80 });
       }
 

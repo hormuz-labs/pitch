@@ -33,7 +33,19 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   ]
 }
 ```
-*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional (defaults to 1.2 for actions, 1.0 for wait). Set `zoom` to values between 1.0 and 2.0 based on how closely the user needs to see the action.*
+*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional (defaults to 1.2 for actions, 1.0 for wait).*
+
+### 🎥 Zoom Scheduling & Cinematography Guide (CRITICAL)
+To produce the most engaging, professional, and visually premium videos, the AI Agent must **dynamically choreograph the zoom levels** across steps rather than using a single static value. Adhere to these exact tiers:
+1. **`1.0` (Wide Overview / Dashboard Context)**:
+   * **When to use**: During page load, initial landing, full dashboard overview transitions, return navigation steps (like "Back to Roles"), or concluding outro steps.
+   * **Why**: It zooms completely out, giving the viewer's eyes a resting break and structural context of where they are in the app.
+2. **`1.2` (Component Groups / Broad Panels)**:
+   * **When to use**: Clicking large cards, selecting sidebar links, navigating standard tabs, or interacting with medium-sized panels.
+   * **Why**: It centers the viewer's focus on the active area while maintaining surrounding layout readability.
+3. **`1.5` (Micro-Focus / Tiny Inputs & Controls)**:
+   * **When to use**: Typing into narrow text inputs/areas, selecting tiny dropdown menu items, clicking standalone action icons (like pencil/trash edit buttons), or clicking switch/checkbox toggles.
+   * **Why**: It tightly locks onto the minute action, making tiny elements and typed characters crystal clear on standard screen displays.
 
 **Execution:**
 ```bash
@@ -89,6 +101,14 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection
 Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 
 
 **CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
+
+**SELECTOR SAFETY RULES — NEVER SKIP THESE:**
+1. **Never guess attributes**: Do NOT guess inputs' placeholders, name tags, or IDs. Always execute `agent-browser get attr @ref placeholder/name/id` first to get the exact strings. Labels do not always equal placeholders.
+2. **Never mix Playwright operators (`>>`) inside CSS functional pseudo-classes**: Browser engine CSS engines do not support `>>` inside `:has(...)` or `:not(...)` and will crash.
+   * *Wrong:* `div:has(h3 >> text='X')`
+   * *Right:* `h3:has-text('X') >> xpath=../.. >> .class`
+3. **Prefer tag-agnostic selectors for inputs**: A field looking like a standard text box may be built with a `<textarea>` or custom element. Use `[name='salary']` instead of `input[name='salary']` to be safe.
+4. **Enforce aggressive, low timeouts (3 to 5 seconds) on custom/exploratory scripts**: Default 30-second delays heavily extend feedback loops on failure. Always set short timeouts (e.g., `{ timeout: 3000 }` on clicks/waits) in ad-hoc explorer files. Fail fast, adjust, and continue instantly.
 
 **MANDATORY — Logo Download:**  While the agent-browser is already on the website, it MUST find and download the website's primary logo file and save it into `demos/<demo-name>/assets/icons/`. **CRITICAL**: You MUST name the file starting with `logo.` (e.g., `logo.svg`, `logo.png`, `logo.webp`). Do NOT name it `company.png` or `favicon.ico`. The engine strictly looks for files matching `logo.*`. Prefer the highest-resolution or vector (`.svg`) version available. Look in the header/navigation area first, then check `<link rel="apple-touch-icon">` as a fallback. If you find a URL to an SVG or PNG logo, download it via `fetch()` or copy its source and save it to the `assets/icons/` folder. This is REQUIRED for the cinematic intro to work in Phase 0.5.
 
