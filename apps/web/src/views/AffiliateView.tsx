@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { Copy, Check, TrendingUp, Users, DollarSign, Wallet, ExternalLink, Share2, ArrowUpRight } from 'lucide-react';
+import { Copy, Check, TrendingUp, Users, DollarSign, Wallet, ExternalLink, ArrowUpRight } from 'lucide-react';
 
 interface AffiliateStats {
   clicks: number;

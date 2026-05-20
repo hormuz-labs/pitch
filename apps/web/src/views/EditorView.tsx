@@ -199,19 +199,27 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
 
           {/* Failed state */}
           {isFailed && (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4 text-red-400">
-                <IconXCircle />
+            <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-8">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4 text-red-400">
+                  <IconXCircle />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Generation Failed</h2>
+                <p className="text-sm text-gray-500 mt-1">Something went wrong during the video generation process.</p>
+
+                {/* Real-time phase progress widget — visible even during failure to show where it failed */}
+                <div className="mt-5 w-full max-w-2xl mx-auto">
+                  <VideoProgressWidget project={selectedProject} />
+                </div>
+
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer mt-6"
+                  id="failed-back-btn"
+                >
+                  Back to Dashboard
+                </button>
               </div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">Generation Failed</h3>
-              <p className="text-sm text-gray-500 mb-6 max-w-xs">Something went wrong during the video generation process.</p>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
-                id="failed-back-btn"
-              >
-                Back to Dashboard
-              </button>
             </div>
           )}
 

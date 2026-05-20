@@ -78,6 +78,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     let session: { id: string } | null = null;
     let eventAbortController: AbortController | null = null;
+    const messageCosts = new Map<string, number>();
     let currentCost = 0;
 
     try {
@@ -117,8 +118,9 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
             // Track cost if it's a message update
             if (event.type === 'message.updated' && event.properties.info.role === 'assistant') {
               const msg = event.properties.info as any;
-              if (msg.time?.completed !== undefined && msg.cost !== undefined) {
-                currentCost = Math.max(currentCost, msg.cost);
+              if (msg.cost !== undefined) {
+                messageCosts.set(msg.id, msg.cost);
+                currentCost = Array.from(messageCosts.values()).reduce((sum, cost) => sum + cost, 0);
               }
             }
 
@@ -193,7 +195,25 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
 
       jobLogger.info('OpenCode prompt completed');
 
-      // 4. Stop listening to events and drain the stream
+      // 4. Fetch final session messages to get ground-truth cost before aborting/draining
+      try {
+        const msgsRes = await client.session.messages({
+          path: { id: session.id },
+          query: { directory: targetDir }
+        });
+        if (msgsRes.data) {
+          const apiCost = msgsRes.data
+            .filter((m: any) => m.info?.role === 'assistant' && m.info?.cost !== undefined)
+            .reduce((sum: number, m: any) => sum + m.info.cost, 0);
+          if (apiCost > 0) {
+            currentCost = apiCost;
+          }
+        }
+      } catch (err: any) {
+        jobLogger.warn({ err }, 'Failed to fetch final session messages for cost tracking');
+      }
+
+      // 5. Stop listening to events and drain the stream
       eventAbortController.abort();
       await streamPromise;
 
@@ -234,7 +254,26 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         jobLogger.warn({ err: updateErr }, 'Could not update job status after failure (job may have been deleted)');
       }
 
-      // Ensure cost is still logged even on failure
+      // Ensure cost is still logged even on failure, fetching final session messages if possible
+      try {
+        if (session) {
+          const msgsRes = await client.session.messages({
+            path: { id: session.id },
+            query: { directory: targetDir }
+          }).catch(() => null);
+          if (msgsRes?.data) {
+            const apiCost = msgsRes.data
+              .filter((m: any) => m.info?.role === 'assistant' && m.info?.cost !== undefined)
+              .reduce((sum: number, m: any) => sum + m.info.cost, 0);
+            if (apiCost > 0) {
+              currentCost = apiCost;
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
       if (currentCost > 0) {
         try {
           await db.updateJob(jobId, { cost: currentCost });
