@@ -347,7 +347,7 @@ export function buildCursorScaleExpr(
   trackingEvents: TrackingEvent[],
   timeline: Record<string, number>
 ): string {
-  const clickEvents = trackingEvents.filter(e => e.action === 'click');
+  const clickEvents = trackingEvents.filter(e => e.action === 'click' || e.action === 'type');
   if (clickEvents.length === 0) return "1";
 
   let scaleExpr = "1";
