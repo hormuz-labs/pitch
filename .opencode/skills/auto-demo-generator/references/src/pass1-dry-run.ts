@@ -37,10 +37,19 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
       await page.waitForTimeout(200);
 
       if (step.action === 'click') {
-        // force: true bypasses Playwright's actionability checks (pointer-events,
-        // covered-by-overlay) which can time out for elements inside dialogs /
-        // cmdk command-palettes that are technically "covered" by their own backdrop.
-        await loc.click({ force: true });
+        if (step.selector && step.selector.startsWith('a >> text=')) {
+          // It's a sidebar navigation link. Wait for layout, click normally, and poll for URL change.
+          await page.waitForTimeout(500);
+          await loc.scrollIntoViewIfNeeded();
+          await loc.click().catch(() => loc.click({ force: true }));
+          
+          for (let i = 0; i < 20; i++) {
+            if (page.url() !== prevUrl) break;
+            await page.waitForTimeout(100);
+          }
+        } else {
+          await loc.click({ force: true });
+        }
         await page.waitForTimeout(600);
 
         // Wait for any client-side navigation to settle
