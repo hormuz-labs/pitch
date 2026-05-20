@@ -185,5 +185,15 @@ async function main() {
 
 main().catch(e => {
   console.error(e);
+  
+  // Try to send telegram alert on total failure
+  try {
+    const root = path.resolve(__dirname, '../../..');
+    const msg = `🚨 Fatal Pipeline Crash for Job ${JOB_ID || 'Unknown'}: ${e.message}`;
+    execSync(`bun run .opencode/skills/auto-demo-generator/references/scripts/notify.ts --message "${msg}"`, { cwd: root, stdio: 'inherit', timeout: 15000 });
+  } catch (notifyErr) {
+    console.warn(`Failed to send telegram crash report:`, notifyErr);
+  }
+  
   process.exit(1);
 });

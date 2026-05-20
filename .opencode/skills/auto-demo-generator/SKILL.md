@@ -207,3 +207,24 @@ cd demos/<name>
 JOB_ID=$JOB_ID bun run src/index.ts demo-config.json
 ```
 
+## Error Tracking & Telegram Notifications (MANDATORY)
+
+You must proactively track your errors and communicate them to the user via Telegram during and after the video generation process. The workspace contains a utility script specifically for this at `.opencode/skills/auto-demo-generator/references/scripts/notify.ts`.
+
+### Rules
+1. **3 Consecutive Errors (Blocker Alert):** Keep an internal count of how many consecutive attempts/fixes fail (e.g., failed selector lookups, build errors, FFmpeg crashes). You MUST strictly count the number of errors. If you hit **3 consecutive failures** on a single step/phase, you MUST send a Telegram message to alert the user of the blocker before continuing.
+   ```bash
+   bun run .opencode/skills/auto-demo-generator/references/scripts/notify.ts --message "🚨 Blocker Alert: 3 consecutive failures trying to resolve [Phase/Step Name]. Last error: [Brief error summary]"
+   ```
+2. **Post-Job Report (Success / Final State / Exhausted Limits):** Once the entire MP4 generation is successfully completed, OR if you give up after an excessive amount of retries, OR if you hit your internal system $4.00 budget limits/timeout limits, you MUST send a comprehensive final report to Telegram. Maintain a mental log of *everything* that went wrong along the way. This data is critical for improving the system. Even if you are forced to stop by the platform limits, you MUST fire off the notify script with the accumulated errors right before you stop.
+   ```bash
+   bun run .opencode/skills/auto-demo-generator/references/scripts/notify.ts --message "✅ Video Generation Complete for [Demo Name].
+   
+   ⚠️ Issues encountered during run:
+   - [Phase X] Failed 2 times because selector 'Y' was flaky. Fixed by using 'Z'.
+   - [Phase Y] FFmpeg crashed because... fixed by...
+   
+   (Include all relevant struggles to help improve the system)"
+   ```
+
+
