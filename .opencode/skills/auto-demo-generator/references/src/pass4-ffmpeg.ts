@@ -148,50 +148,63 @@ export async function pass4Ffmpeg(
       .on('error', reject);
   });
 
-  // ── Stitch intro ───────────────────────────────────────────────────────────
+  // ── Stitch intro & outro ──────────────────────────────────────────────────
   const introPathFile = path.join(demoDir, 'intro-path.txt');
-  let hasStitched = false;
+  const outroPathFile = path.join(demoDir, 'outro-path.txt');
+  let currentInput = tempRawOut;
 
-  if (fs.existsSync(introPathFile)) {
-    const introVideo = fs.readFileSync(introPathFile, 'utf8').trim();
-    if (fs.existsSync(introVideo)) {
-      console.log('🎬 Stitching cinematic intro...');
-      const stitchFilter =
-        '[0:v]fps=30,format=yuv420p[iv];' +
-        'anullsrc=channel_layout=stereo:sample_rate=48000:duration=3.5[ia];' +
-        '[1:v]fps=30,format=yuv420p[mv];' +
-        '[1:a]aresample=48000[ma];' +
-        `[iv][ia][mv][ma]concat=n=2:v=1:a=1${hasVaapi ? '[v_concat][aout];[v_concat]format=nv12,hwupload[vout]' : '[vout][aout]'}`;
+  async function concatClips(inputA: string, inputB: string, outputPath: string, label: string): Promise<void> {
+    console.log(`🎬 Stitching ${label}...`);
+    const clipFilter =
+      '[0:v]fps=30,format=yuv420p[av];' +
+      '[0:a]aresample=48000[aa];' +
+      '[1:v]fps=30,format=yuv420p[bv];' +
+      'anullsrc=channel_layout=stereo:sample_rate=48000:duration=4[ba];' +
+      `[av][aa][bv][ba]concat=n=2:v=1:a=1${hasVaapi ? '[v_concat][aout];[v_concat]format=nv12,hwupload[vout]' : '[vout][aout]'}`;
 
-      await new Promise<void>((resolve, reject) => {
-        const hangGuard = setTimeout(() => reject(new Error('[pass4-ffmpeg] Intro stitch timed out after 3 min')), 3 * 60 * 1000);
-        const stitchCmd = ffmpeg().input(introVideo).input(tempRawOut);
-        if (hasVaapi) stitchCmd.addOption('-vaapi_device', '/dev/dri/renderD128');
-        stitchCmd
-          .outputOptions([
-            '-filter_complex', stitchFilter,
-            '-map', '[vout]',
-            '-map', '[aout]',
-            ...hwOutputOpts,
-            '-profile:v', 'high',
-            '-level:v', '4.2',
-            '-c:a', 'aac',
-            '-movflags', '+faststart',
-            '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
-          ])
-          .save(finalOutput)
-          .on('stderr', () => process.stdout.write('.'))
-          .on('end', () => { clearTimeout(hangGuard); resolve(); })
-          .on('error', (e: Error) => { clearTimeout(hangGuard); reject(e); });
-      });
-
-      console.log('\n✅ Intro stitched.');
-      hasStitched = true;
-      if (fs.existsSync(tempRawOut)) fs.unlinkSync(tempRawOut);
-    }
+    await new Promise<void>((resolve, reject) => {
+      const hangGuard = setTimeout(() => reject(new Error(`[pass4-ffmpeg] ${label} stitch timed out after 3 min`)), 3 * 60 * 1000);
+      const cmd = ffmpeg().input(inputA).input(inputB);
+      if (hasVaapi) cmd.addOption('-vaapi_device', '/dev/dri/renderD128');
+      cmd
+        .outputOptions([
+          '-filter_complex', clipFilter,
+          '-map', '[vout]',
+          '-map', '[aout]',
+          ...hwOutputOpts,
+          '-profile:v', 'high',
+          '-level:v', '4.2',
+          '-c:a', 'aac',
+          '-movflags', '+faststart',
+          '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
+        ])
+        .save(outputPath)
+        .on('stderr', () => process.stdout.write('.'))
+        .on('end', () => { clearTimeout(hangGuard); resolve(); })
+        .on('error', (e: Error) => { clearTimeout(hangGuard); reject(e); });
+    });
+    console.log(`\n✅ ${label} stitched.`);
   }
 
-  if (!hasStitched) fs.renameSync(tempRawOut, finalOutput);
+  const hasIntro = fs.existsSync(introPathFile) && fs.existsSync(fs.readFileSync(introPathFile, 'utf8').trim());
+  const hasOutro = fs.existsSync(outroPathFile) && fs.existsSync(fs.readFileSync(outroPathFile, 'utf8').trim());
+
+  if (hasIntro && hasOutro) {
+    // Two-step stitch: intro+main → temp, then +outro → final
+    const tempStitched = finalOutput.replace('.mp4', '-stitched.mp4');
+    await concatClips(fs.readFileSync(introPathFile, 'utf8').trim(), tempRawOut, tempStitched, 'intro');
+    await concatClips(tempStitched, fs.readFileSync(outroPathFile, 'utf8').trim(), finalOutput, 'outro');
+    if (fs.existsSync(tempStitched)) fs.unlinkSync(tempStitched);
+    if (fs.existsSync(tempRawOut)) fs.unlinkSync(tempRawOut);
+  } else if (hasIntro) {
+    await concatClips(fs.readFileSync(introPathFile, 'utf8').trim(), tempRawOut, finalOutput, 'intro');
+    if (fs.existsSync(tempRawOut)) fs.unlinkSync(tempRawOut);
+  } else if (hasOutro) {
+    await concatClips(tempRawOut, fs.readFileSync(outroPathFile, 'utf8').trim(), finalOutput, 'outro');
+    if (fs.existsSync(tempRawOut)) fs.unlinkSync(tempRawOut);
+  } else {
+    fs.renameSync(tempRawOut, finalOutput);
+  }
 
   console.log(`✨ Done! Final video: ${finalOutput}`);
 }

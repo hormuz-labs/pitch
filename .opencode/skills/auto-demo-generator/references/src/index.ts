@@ -101,6 +101,28 @@ function reportPhase(phase: string, status: 'running' | 'completed' | 'failed'):
   }
 }
 
+// ── Resume helpers ─────────────────────────────────────────────────────────────
+function artifactFile(name: string): string { return path.join(DEMO_DIR, name); }
+
+function artifactExists(name: string): boolean {
+  const file = artifactFile(name);
+  if (!fs.existsSync(file)) return false;
+  // Binary outputs (mp4, wav, webm, png) just need to exist
+  const binaryExts = ['.mp4', '.wav', '.webm', '.png'];
+  if (binaryExts.some(ext => name.endsWith(ext))) return true;
+  // Text artifacts: read content to verify integrity
+  try {
+    const content = fs.readFileSync(file, 'utf8').trim();
+    if (content.length === 0) return false;
+    return content.startsWith('/') ? fs.existsSync(content) : true;
+  } catch { return false; }
+}
+
+function removeArtifact(name: string): void {
+  const file = artifactFile(name);
+  if (fs.existsSync(file)) fs.unlinkSync(file);
+}
+
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 async function main() {
   // ── Async Preflight: Check Transcription Service Health ────────────────────
@@ -121,34 +143,43 @@ async function main() {
   }
 
   // Pass 0 — Cinematic Intro
-  reportPhase('intro_sequence', 'running');
-  try {
-    await pass0(config, config.startUrl, DEMO_DIR);
+  if (artifactExists('intro-path.txt')) {
+    console.log('⏭️  [resume] Intro already exists — skipping.');
     reportPhase('intro_sequence', 'completed');
+  } else {
+    reportPhase('intro_sequence', 'running');
+    try {
+      await pass0(config, config.startUrl, DEMO_DIR);
+      reportPhase('intro_sequence', 'completed');
 
-    // Upload thumbnail immediately so the dashboard shows a branded preview
-    // while the rest of the pipeline is still running.
-    if (JOB_ID) {
-      const thumbnailPathFile = path.join(DEMO_DIR, 'thumbnail-path.txt');
-      if (fs.existsSync(thumbnailPathFile)) {
-        const thumbnailFile = fs.readFileSync(thumbnailPathFile, 'utf8').trim();
-        if (fs.existsSync(thumbnailFile)) {
-          try {
-            const root = path.resolve(__dirname, '../../..');
-            execSync(`bun apps/job-cli/src/index.ts thumbnail --job-id ${JOB_ID} --file "${thumbnailFile}"`, { cwd: root, stdio: 'inherit', timeout: 30000 });
-            console.log('✅ Thumbnail uploaded.');
-          } catch (e: any) { console.warn(`⚠️  Thumbnail upload failed (non-fatal): ${e.message}`); }
+      // Upload thumbnail immediately so the dashboard shows a branded preview
+      // while the rest of the pipeline is still running.
+      if (JOB_ID) {
+        const thumbnailPathFile = path.join(DEMO_DIR, 'thumbnail-path.txt');
+        if (fs.existsSync(thumbnailPathFile)) {
+          const thumbnailFile = fs.readFileSync(thumbnailPathFile, 'utf8').trim();
+          if (fs.existsSync(thumbnailFile)) {
+            try {
+              const root = path.resolve(__dirname, '../../..');
+              execSync(`bun apps/job-cli/src/index.ts thumbnail --job-id ${JOB_ID} --file "${thumbnailFile}"`, { cwd: root, stdio: 'inherit', timeout: 30000 });
+              console.log('✅ Thumbnail uploaded.');
+            } catch (e: any) { console.warn(`⚠️  Thumbnail upload failed (non-fatal): ${e.message}`); }
+          }
         }
       }
-    }
-  } catch (e) { reportPhase('intro_sequence', 'failed'); throw e; }
+    } catch (e) { reportPhase('intro_sequence', 'failed'); throw e; }
+  }
 
   // Pass 0.5 — Cinematic Outro
-  try {
-    await generateOutro(config, DEMO_DIR);
-  } catch (e: any) { console.warn(`⚠️ Outro generation failed (non-fatal): ${e.message}`); }
+  if (artifactExists('outro-path.txt')) {
+    console.log('⏭️  [resume] Outro already exists — skipping.');
+  } else {
+    try {
+      await generateOutro(config, DEMO_DIR);
+    } catch (e: any) { console.warn(`⚠️ Outro generation failed (non-fatal): ${e.message}`); }
+  }
 
-  // Pass 1 — Flow Validation
+  // Pass 1 — Flow Validation (always re-run — fast and cheap)
   reportPhase('flow_validation', 'running');
   try {
     await pass1(config, config.startUrl, config.steps);
@@ -156,37 +187,61 @@ async function main() {
   } catch (e) { reportPhase('flow_validation', 'failed'); throw e; }
 
   // Pass 2 — Script Generation
-  reportPhase('voiceover_generation', 'running');
-  try {
-    await pass2Script(ai, config.userReq, config.steps, DEMO_DIR);
-  } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
+  if (artifactExists('script.txt')) {
+    console.log('⏭️  [resume] Script already exists — skipping.');
+  } else {
+    reportPhase('voiceover_generation', 'running');
+    try {
+      await pass2Script(ai, config.userReq, config.steps, DEMO_DIR);
+    } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
+  }
 
   // Pass 3 — TTS + Transcription
-  try {
-    await pass2Tts(ai, DEMO_DIR, config.voice ?? 'Puck');
-  } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
+  if (artifactExists('voiceover.wav') && artifactExists('timestamps.json')) {
+    console.log('⏭️  [resume] Voiceover + transcription already exist — skipping.');
+  } else {
+    try {
+      await pass2Tts(ai, DEMO_DIR, config.voice ?? 'Puck');
+    } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
+  }
 
   // Pass 4 — Timeline Mapping
-  try {
-    await pass2Timeline(ai, config.steps, DEMO_DIR);
-    reportPhase('voiceover_generation', 'completed');
-  } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
+  if (artifactExists('timeline.json')) {
+    console.log('⏭️  [resume] Timeline already exists — skipping.');
+  } else {
+    try {
+      await pass2Timeline(ai, config.steps, DEMO_DIR);
+      reportPhase('voiceover_generation', 'completed');
+    } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
+  }
 
   // Pass 5 — Raw Video Recording
-  reportPhase('video_recording', 'running');
-  try {
-    await pass3Record(config, config.startUrl, config.steps, DEMO_DIR);
+  if (artifactExists('raw-video-path.txt')) {
+    console.log('⏭️  [resume] Raw video already recorded — skipping.');
     reportPhase('video_recording', 'completed');
-  } catch (e) { reportPhase('video_recording', 'failed'); throw e; }
+  } else {
+    reportPhase('video_recording', 'running');
+    try {
+      await pass3Record(config, config.startUrl, config.steps, DEMO_DIR);
+      reportPhase('video_recording', 'completed');
+    } catch (e) { reportPhase('video_recording', 'failed'); throw e; }
+  }
 
   // Pass 6 — FFmpeg Post-Processing
-  reportPhase('ffmpeg_postprocessing', 'running');
-  try {
-    await pass4Ffmpeg(config, config.steps, DEMO_DIR);
+  const outputFilename = config.outputPath || 'demo-final.mp4';
+  if (artifactExists(outputFilename)) {
+    console.log('⏭️  [resume] Final video already exists — skipping.');
+    console.log(`✨ Final video: ${artifactFile(outputFilename)}`);
     reportPhase('ffmpeg_postprocessing', 'completed');
-    console.log('🎉 Demo pipeline completed successfully!');
-    process.exit(0);
-  } catch (e) { reportPhase('ffmpeg_postprocessing', 'failed'); throw e; }
+  } else {
+    reportPhase('ffmpeg_postprocessing', 'running');
+    try {
+      await pass4Ffmpeg(config, config.steps, DEMO_DIR);
+      reportPhase('ffmpeg_postprocessing', 'completed');
+      console.log('🎉 Demo pipeline completed successfully!');
+      process.exit(0);
+    } catch (e) { reportPhase('ffmpeg_postprocessing', 'failed'); throw e; }
+  }
 }
 
 main().catch(e => {

@@ -33,13 +33,14 @@ export async function generateOutro(
   }
 
   if (!config.companyName) throw new Error('config.companyName is required');
-  if (!config.width || !config.height) throw new Error('config.width and config.height are required');
+  const w = config.width || 1920;
+  const h = config.height || 1080;
 
   const html = buildOutroCardHtml({
     companyName: config.companyName,
     url: 'ui.shadcn.com',
-    width: config.width,
-    height: config.height,
+    width: w,
+    height: h,
     bg: '#0A0A0A',
     textColor: '#F5F5F5',
     logoDataUrl,
@@ -47,8 +48,8 @@ export async function generateOutro(
 
   const outroBrowser = await chromium.launch({ headless: true });
   const outroContext = await outroBrowser.newContext({
-    recordVideo: { dir: demoDir, size: { width: config.width || 1920, height: config.height || 1080 } },
-    viewport: { width: config.width || 1920, height: config.height || 1080 },
+    recordVideo: { dir: demoDir, size: { width: w, height: h } },
+    viewport: { width: w, height: h },
   });
   const outroPage = await outroContext.newPage();
 
