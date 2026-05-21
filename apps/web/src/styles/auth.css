@@ -293,30 +293,31 @@
   --auth-btn-text:         rgba(255, 255, 255, 0.85);
 }
 
-/* ── OAuth redirect loader overlay ────────────────────────────────── */
-.auth-loader-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+/* ── OAuth redirect inline banner ──────────────────────────────────── */
+.auth-redirect-banner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 24px;
+  gap: 8px;
+  margin-bottom: 20px;
+  animation: auth-banner-in 0.25s var(--ease-out) both;
 }
 
-.auth-loader-logo {
-  width: min(420px, 70vw);
+@keyframes auth-banner-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.auth-redirect-banner-logo {
+  width: min(200px, 50vw);
   height: auto;
+  color: var(--auth-text-muted);
 }
 
-.auth-loader-caption {
-  font-size: 13px;
+.auth-redirect-banner-caption {
+  font-size: 12px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--auth-text-muted);
   letter-spacing: 0.02em;
   margin: 0;
 }

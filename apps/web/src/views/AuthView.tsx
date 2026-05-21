@@ -56,11 +56,11 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
       <div className="auth-vignette" />
 
       {loading && (
-        <div className="auth-loader-overlay" aria-busy="true" aria-live="polite">
-          <div className="auth-loader-logo">
-            <PitchLogoAnimation startAnimation loop color="#ffffff" />
+        <div className="auth-redirect-banner" aria-busy="true" aria-live="polite">
+          <div className="auth-redirect-banner-logo">
+            <PitchLogoAnimation startAnimation loop color="currentColor" />
           </div>
-          <p className="auth-loader-caption">Redirecting to Google…</p>
+          <p className="auth-redirect-banner-caption">Redirecting to Google…</p>
         </div>
       )}
 
