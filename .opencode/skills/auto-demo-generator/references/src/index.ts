@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { execSync } from 'child_process';
 import { DemoConfig } from './types';
 import { pass0 } from './pass0-intro';
+import { generateOutro } from './pass0-outro';
 import { pass1 } from './pass1-dry-run';
 import { pass2Script } from './pass2-script';
 import { pass2Tts } from './pass2-tts';
@@ -141,6 +142,11 @@ async function main() {
       }
     }
   } catch (e) { reportPhase('intro_sequence', 'failed'); throw e; }
+
+  // Pass 0.5 — Cinematic Outro
+  try {
+    await generateOutro(config, DEMO_DIR);
+  } catch (e: any) { console.warn(`⚠️ Outro generation failed (non-fatal): ${e.message}`); }
 
   // Pass 1 — Flow Validation
   reportPhase('flow_validation', 'running');
