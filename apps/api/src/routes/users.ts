@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as db from '@saas/db';
 import { createLogger, sendTelegramMessage } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
+import { getVerifiedClerkProfile } from '../lib/clerk.js';
 
 const logger = createLogger('api');
 
@@ -34,14 +35,23 @@ router.post('/sync', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { email, firstName, lastName, imageUrl } = req.body as {
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    imageUrl?: string;
-  };
-
-  if (!email) return res.status(400).json({ error: 'email is required' });
+  // SECURITY: never trust client-supplied email. Always read the verified
+  // primary email directly from Clerk — otherwise a user could overwrite their
+  // stored email to an admin address and escalate privileges via requireAdmin.
+  let email: string;
+  let firstName: string | undefined;
+  let lastName: string | undefined;
+  let imageUrl: string | undefined;
+  try {
+    const verified = await getVerifiedClerkProfile(userId);
+    email = verified.email;
+    firstName = verified.firstName;
+    lastName = verified.lastName;
+    imageUrl = verified.imageUrl;
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to fetch verified Clerk profile');
+    return res.status(500).json({ error: 'Failed to verify identity' });
+  }
 
   try {
     const existingUser = await db.prisma.userProfile.findUnique({ where: { id: userId } });
