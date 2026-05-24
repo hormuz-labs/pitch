@@ -1,15 +1,17 @@
 import * as Popover from '@radix-ui/react-popover';
-import { DollarSignIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
-import { useEffect, useState } from 'react';
-import walletIcon from '../assets/wallet.svg';
+import { useEffect, useRef, useState } from 'react';
+import pCoinIcon from '../assets/pCoin.svg';
 import { API_URL } from '../config';
 
 export const CreditPopover = () => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const [credits, setCredits] = useState<number | null>(null);
+  const [spinning, setSpinning] = useState(false);
+  const isFirstLoad = useRef(true);
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -37,18 +39,38 @@ export const CreditPopover = () => {
     return () => window.removeEventListener('credits-changed', handleCreditsChanged);
   }, [getToken]);
 
+  // Spin the coin once whenever credits changes (skip the very first load)
+  useEffect(() => {
+    if (credits === null) return;
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      return;
+    }
+    // Clear any previous timer so rapid updates don't stack
+    if (spinTimer.current) clearTimeout(spinTimer.current);
+    setSpinning(false);
+    // Use a tiny delay so removing/re-adding the class always re-triggers the animation
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setSpinning(true);
+        spinTimer.current = setTimeout(() => setSpinning(false), 650);
+      });
+    });
+  }, [credits]);
+
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
-          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 border border-gray-200 text-gray-700 bg-white rounded-lg transition-all hover:bg-gray-50 active:scale-95 cursor-pointer font-medium text-sm shadow-sm"
+          className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-1 border border-gray-200 text-gray-700 bg-white rounded-lg transition-all hover:bg-gray-50 active:scale-95 cursor-pointer font-semibold text-base md:text-lg shadow-sm"
           id="header-credits-btn"
         >
-          <img src={walletIcon} alt="Wallet" className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <div className="flex items-center -ml-1">
-            <DollarSignIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-700 -mr-0.5" />
-            <span>{credits ?? '—'}</span>
-          </div>
+          <img
+            src={pCoinIcon}
+            alt="Credits"
+            className={`w-[18px] h-[18px] md:w-[22px] md:h-[22px]${spinning ? ' pcoin-spin' : ''}`}
+          />
+          <span>{credits ?? '—'}</span>
         </button>
       </Popover.Trigger>
       
@@ -93,4 +115,3 @@ export const CreditPopover = () => {
     </Popover.Root>
   );
 };
-

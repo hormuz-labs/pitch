@@ -390,7 +390,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
           id="new-project-btn"
         >
           <IconPlus />
-          <span className="hidden sm:inline">New Project</span>
+          <span className="hidden sm:inline">New Video</span>
         </button>
       ) : null}
       

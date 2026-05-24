@@ -24,3 +24,12 @@ html, body, #root {
 /* Scrollbar */
 ::-webkit-scrollbar { display: none; }
 * { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* pCoin credit-update spin animation */
+@keyframes pcoin-spin {
+  0%   { transform: perspective(400px) rotateY(0deg); }
+  100% { transform: perspective(400px) rotateY(360deg); }
+}
+.pcoin-spin {
+  animation: pcoin-spin 0.6s ease-in-out 1 forwards;
+}

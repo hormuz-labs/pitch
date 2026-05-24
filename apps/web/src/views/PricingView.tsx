@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { API_URL } from '../config';
+import pCoinIcon from '../assets/pCoin.svg';
 
 const IconCheck = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-900 shrink-0 mt-0.5">
@@ -114,8 +115,10 @@ export const PricingView = () => {
 
       {/* Header */}
       <div className="text-center mb-10 sm:mb-12">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 tracking-tight">
-          Buy credits, generate demos
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 tracking-tight flex items-center justify-center gap-3">
+          Buy
+          <img src={pCoinIcon} alt="Credits" className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 shrink-0" />
+          credits, generate demos
         </h1>
         <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed mb-6">
           Subscribe for monthly credits, or buy top-ups whenever you need more.<br className="hidden sm:block" />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { UserProfile, useAuth } from '@clerk/clerk-react';
 import { User, CreditCard, Zap, RefreshCw, TrendingUp, Package } from 'lucide-react';
-import walletIcon from '../assets/wallet.svg';
+import pCoinIcon from '../assets/pCoin.svg';
 import { OptionPicker } from '../components/OptionPicker';
 import { API_URL } from '../config';
 
@@ -183,7 +183,7 @@ export const SettingsView = () => {
                         Available Credits
                       </div>
                       <div className="flex items-center gap-3 mb-2">
-                        <img src={walletIcon} alt="Wallet" className="w-7 h-7 opacity-70" />
+                        <img src={pCoinIcon} alt="Credits" className="w-10 h-10" />
                         <span className="text-5xl font-black text-gray-900">
                           {summary?.balance ?? '—'}
                         </span>
