@@ -13,6 +13,7 @@ import { Step1Illustration } from '../components/landing/Step1Illustration';
 import { Step2Illustration } from '../components/landing/Step2Illustration';
 import { Step3Illustration } from '../components/landing/Step3Illustration';
 import { TextGenerateEffect } from '../components/ui/text-generate-effect';
+import { LandingFaqAccordion } from '../components/landing/LandingFaqAccordion';
 import '../styles/landing.css';
 import demoVideo from '../assets/demo.mp4';
 
@@ -177,7 +178,7 @@ export const LandingView = () => {
           </div>
         </section>
 
-        {/* ── FAQ ─────────────────────────────────────────────────── */}
+        {/* ── FAQ ────────────────────────────────────────────────── */}
         <section className="landing-faq" aria-labelledby="faq-heading">
           <div className="landing-faq-inner">
             <div className="landing-faq-header">
@@ -192,47 +193,7 @@ export const LandingView = () => {
             </div>
 
             <div className="landing-faq-list">
-              {[
-                {
-                  q: 'How is Pitch different from Loom?',
-                  a: 'Loom records you clicking around your product. Pitch is autonomous — an AI agent opens a real browser, navigates your product, writes the script, and produces a polished, narrated video with cinematic cursor motion and color grading. Loom is what you record. Pitch is what you publish.',
-                },
-                {
-                  q: 'How is Pitch different from Synthesia or HeyGen?',
-                  a: 'Synthesia and HeyGen generate talking-head avatars. Pitch shows your actual product — the AI agent navigates your real website and narrates what is happening on screen. It is a product demo, not an avatar presentation.',
-                },
-                {
-                  q: 'How long does it take to generate a video?',
-                  a: 'Most videos generate in minutes once you submit your URL and instructions. Longer or more complex flows take a bit more, but you do not stay in the editor waiting on it.',
-                },
-                {
-                  q: 'What does a video cost?',
-                  a: 'A full AI-generated demo video uses 3 credits. On Starter ($10/mo) that is roughly $3 per video. On Pro ($40/mo for 50 credits) it works out to about $2.40 per video. One-time top-ups start at $12 for 10 credits. Credits never expire.',
-                },
-                {
-                  q: 'Do I need to install anything or instrument my site?',
-                  a: 'No. You just provide a public URL. The agent uses a real browser to navigate the live product, so there is nothing to install, no SDK to embed, and no code change required.',
-                },
-                {
-                  q: 'Can I edit the video after it is generated?',
-                  a: 'Yes. You can edit captions, swap voices, or re-render individual scenes without regenerating the entire video.',
-                },
-                {
-                  q: 'Will the video have a watermark?',
-                  a: 'Free and Starter tier videos include a small "Powered by Pitch" watermark. The Pro and Enterprise plans remove it.',
-                },
-              ].map(({ q, a }) => (
-                <details key={q} className="landing-faq-item">
-                  <summary className="landing-faq-q">
-                    <span>{q}</span>
-                    <svg className="landing-faq-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </summary>
-                  <p className="landing-faq-a">{a}</p>
-                </details>
-              ))}
+              <LandingFaqAccordion />
             </div>
           </div>
         </section>
