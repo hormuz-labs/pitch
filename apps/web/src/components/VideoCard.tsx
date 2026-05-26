@@ -6,29 +6,29 @@ import { ShareSheet } from './ShareSheet';
 
 const IconVideoPlaceholder = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
-    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
-    <line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/>
-    <line x1="2" y1="12" x2="22" y2="12"/>
-    <line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/>
-    <line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>
+    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+    <line x1="7" y1="2" x2="7" y2="22" /><line x1="17" y1="2" x2="17" y2="22" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <line x1="2" y1="7" x2="7" y2="7" /><line x1="2" y1="17" x2="7" y2="17" />
+    <line x1="17" y1="17" x2="22" y2="17" /><line x1="17" y1="7" x2="22" y2="7" />
   </svg>
 );
 
 const IconTrashSm = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/>
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-    <path d="M10 11v6"/><path d="M14 11v6"/>
-    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" /><path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 );
 
 const StatusBadge = ({ status }: { status: Project['status'] }) => {
   const map: Record<string, { label: string; className: string }> = {
-    COMPLETED:  { label: 'Ready',      className: 'bg-green-50 text-green-700 border border-green-200' },
-    FAILED:     { label: 'Failed',     className: 'bg-red-50 text-red-600 border border-red-200' },
+    COMPLETED: { label: 'Ready', className: 'bg-green-50 text-green-700 border border-green-200' },
+    FAILED: { label: 'Failed', className: 'bg-red-50 text-red-600 border border-red-200' },
     PROCESSING: { label: 'Rendering…', className: 'bg-amber-50 text-amber-600 border border-amber-200' },
-    PENDING:    { label: 'Draft',      className: 'bg-gray-100 text-gray-500 border border-gray-200' },
+    PENDING: { label: 'Draft', className: 'bg-gray-100 text-gray-500 border border-gray-200' },
   };
   const cfg = map[status] ?? { label: status, className: 'bg-gray-100 text-gray-500 border border-gray-200' };
   return (
@@ -58,16 +58,16 @@ const shareOptions = [
 
 export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
   const [isPendingDelete, setIsPendingDelete] = useState(false);
-  const [showModal, setShowModal]             = useState(false);
-  const [duration, setDuration]               = useState<number | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [duration, setDuration] = useState<number | null>(null);
 
   const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const title   = project.parameters?.url
+  const title = project.parameters?.url
     ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
     : 'Untitled Job';
 
   const handleShareComplete = (option: { id: string; name: string }, videoUrl: string) => {
-    const text = encodeURIComponent("Check out this video I made with Pitch!");
+    const text = encodeURIComponent("Just generated a cinematic product demo using Pitch. Create your own at https://trypitch.co 🚀");
     const url = encodeURIComponent(videoUrl);
 
     if (option.id === 'copy') {
@@ -122,13 +122,13 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
             <IconVideoPlaceholder />
           </div>
         )}
-        
+
         {project.status === 'FAILED' && (
           <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
             <span className="text-red-500 text-xs font-semibold bg-white px-2 py-1 rounded-md">Failed</span>
           </div>
         )}
-        
+
         {project.status === 'COMPLETED' && (
           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-mono">
             {duration ? `${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}` : '—:——'}
@@ -152,10 +152,10 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
                 title="Retry"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                  <path d="M3 3v5h5"/>
-                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-                  <path d="M16 16h5v5"/>
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                  <path d="M16 16h5v5" />
                 </svg>
               </button>
             )}

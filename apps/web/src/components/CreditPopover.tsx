@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useEffect, useRef, useState } from 'react';
 import pCoinIcon from '../assets/pCoin.svg';
+import { LoadingCoin } from './LoadingCoin';
 import { API_URL } from '../config';
 
 export const CreditPopover = () => {
@@ -62,15 +63,19 @@ export const CreditPopover = () => {
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
-          className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-1 border border-gray-200 text-gray-700 bg-white rounded-lg transition-all hover:bg-gray-50 active:scale-95 cursor-pointer font-semibold text-base md:text-lg shadow-sm"
+          className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-1 border border-gray-200 text-gray-700 bg-white rounded-lg transition-all hover:bg-gray-50 active:scale-95 cursor-pointer font-semibold text-base md:text-lg"
           id="header-credits-btn"
         >
-          <img
-            src={pCoinIcon}
-            alt="Credits"
-            className={`w-[18px] h-[18px] md:w-[22px] md:h-[22px]${spinning ? ' pcoin-spin' : ''}`}
-          />
-          <span>{credits ?? '—'}</span>
+          {credits === null ? (
+            <LoadingCoin className="w-[18px] h-[18px] md:w-[22px] md:h-[22px]" />
+          ) : (
+            <img
+              src={pCoinIcon}
+              alt="Credits"
+              className={`w-[18px] h-[18px] md:w-[22px] md:h-[22px]${spinning ? ' pcoin-spin' : ''}`}
+            />
+          )}
+          {credits !== null && <span>{credits}</span>}
         </button>
       </Popover.Trigger>
       
