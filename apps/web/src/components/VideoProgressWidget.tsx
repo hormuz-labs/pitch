@@ -183,10 +183,10 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
               className={`flex flex-wrap items-center gap-2.5 relative ${idx < phaseList.length - 1 ? 'mb-3.5' : ''}`}
             >
               {/* L-shaped connector */}
-              <div className={`absolute -left-6 w-[18px] border-b-2 border-l-2 rounded-bl-md transition-all duration-500 ${
+              <div className={`absolute -left-6 w-6 border-b-2 border-l-2 rounded-bl-md transition-all duration-500 ${
                 p.status === 'running' && idx > 0
-                  ? '-top-[22px] h-[38px] border-blue-500'
-                  : `-top-2 h-6 ${
+                  ? '-top-6 h-[35px] border-blue-500'
+                  : `-top-2 h-[19px] ${
                       p.status === 'completed' 
                         ? 'border-green-500' 
                         : p.status === 'running' 

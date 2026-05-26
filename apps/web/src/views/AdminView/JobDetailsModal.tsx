@@ -205,12 +205,16 @@ export function JobDetailsModal({ job, onClose, onDelete }: { job: any; onClose:
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-inner space-y-2">
                   {(job.phases as any[]).map((phase, idx, arr) => {
                     let durationStr = '—';
-                    if (phase.status === 'completed' && phase.completedAt) {
-                      const startStr = phase.startedAt || (idx === 0 ? job.createdAt : (arr[idx - 1].completedAt || job.createdAt));
-                      const start = new Date(startStr).getTime();
-                      const end = new Date(phase.completedAt).getTime();
-                      const diff = end - start;
-                      if (diff >= 0) durationStr = formatDuration(diff);
+                    if (phase.status === 'completed') {
+                      if (phase.durationMs !== undefined) {
+                        durationStr = formatDuration(phase.durationMs);
+                      } else if (phase.completedAt) {
+                        const startStr = phase.startedAt || (idx === 0 ? job.createdAt : (arr[idx - 1].completedAt || job.createdAt));
+                        const start = new Date(startStr).getTime();
+                        const end = new Date(phase.completedAt).getTime();
+                        const diff = end - start;
+                        if (diff >= 0) durationStr = formatDuration(diff);
+                      }
                       if (phase.retryDurationMs) {
                         const retryText = phase.retryCount ? `${phase.retryCount} failed retries` : 'Failed retries';
                         durationStr += ` (${retryText}: ${formatDuration(phase.retryDurationMs)})`;
