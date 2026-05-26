@@ -68,6 +68,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
 
   const handleShareComplete = (option: { id: string; name: string }, videoUrl: string) => {
     const text = encodeURIComponent("Just generated a cinematic product demo using Pitch. Create your own at https://trypitch.co 🚀");
+    const twitterText = encodeURIComponent("Just generated a cinematic product demo using @trypitchdotco. Create your own at https://trypitch.co 🚀");
     const url = encodeURIComponent(videoUrl);
 
     if (option.id === 'copy') {
@@ -75,7 +76,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
     } else if (option.id === 'whatsapp') {
       window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
     } else if (option.id === 'twitter') {
-      window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+      window.open(`https://twitter.com/intent/tweet?text=${twitterText}&url=${url}`, '_blank');
     } else if (option.id === 'instagram') {
       navigator.clipboard.writeText(videoUrl);
       alert('Video URL copied! Open Instagram to share.');
