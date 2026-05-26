@@ -202,10 +202,40 @@ export function JobDetailsModal({ job, onClose, onDelete }: { job: any; onClose:
                 Processing Phases
               </button>
               {phasesExpanded && (
-                <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto shadow-inner">
-                  <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">
-                    {JSON.stringify(job.phases, null, 2)}
-                  </pre>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-inner space-y-2">
+                  {(job.phases as any[]).map((phase, idx, arr) => {
+                    let durationStr = '—';
+                    if (phase.status === 'completed' && phase.completedAt) {
+                      const startStr = idx === 0 ? job.createdAt : (arr[idx - 1].completedAt || job.createdAt);
+                      const start = new Date(startStr).getTime();
+                      const end = new Date(phase.completedAt).getTime();
+                      const diff = end - start;
+                      if (diff >= 0) durationStr = formatDuration(diff);
+                    } else if (phase.status === 'running') {
+                      durationStr = 'Running…';
+                    } else if (phase.status === 'failed') {
+                      durationStr = 'Failed';
+                    }
+
+                    return (
+                      <div key={phase.phase} className="flex items-center justify-between text-sm border-b border-gray-100 last:border-0 pb-2 last:pb-0">
+                        <div className="flex items-center gap-2">
+                          <span className={
+                            phase.status === 'completed' ? 'text-green-600' :
+                            phase.status === 'failed' ? 'text-red-600' :
+                            phase.status === 'running' ? 'text-blue-600' :
+                            'text-gray-400'
+                          }>
+                            {phase.status === 'completed' ? '✅' :
+                             phase.status === 'failed' ? '❌' :
+                             phase.status === 'running' ? '🔄' : '⏳'}
+                          </span>
+                          <span className="text-gray-800 font-medium">{phase.label || phase.phase}</span>
+                        </div>
+                        <span className="text-gray-500 font-mono text-xs">{durationStr}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
