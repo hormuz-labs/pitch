@@ -1423,7 +1423,7 @@
 
 /* Desktop hero: larger padding */
 @media (min-width: 1024px) {
-  .landing-hero { padding: 48px 40px 72px; }
+  .landing-hero { padding: 16px 40px 72px; }
 }
 
 /* Footer nav: wrap on mobile */
@@ -1560,4 +1560,49 @@
 
 @media (max-width: 640px) {
   .landing-faq-inner { padding: 56px 20px 72px; }
+}
+
+/* ── Process section ─────────────────────────────────────────────── */
+.landing-process-section {
+  width: 100%;
+  position: relative;
+  background: var(--bg-page);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.landing-process-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 80px 24px 48px;
+  position: relative;
+}
+
+.landing-process-header {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-bottom: 0;
+  padding-bottom: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.landing-process-content {
+  margin-top: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .landing-process-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+@media (max-width: 767px) {
+  .landing-process-inner {
+    padding: 56px 20px 32px;
+  }
 }
