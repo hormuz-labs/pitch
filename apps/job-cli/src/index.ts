@@ -83,7 +83,8 @@ program
       try {
         const userEmail = await getClerkUserEmail(updatedJob.userId);
         if (userEmail && videoUrl) {
-          await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl });
+          const videoTitle = urlParam !== 'N/A' ? new URL(urlParam).hostname : 'pitch.com';
+          await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl, videoTitle });
         }
       } catch (emailError: any) {
         // Email failure should never block job completion
