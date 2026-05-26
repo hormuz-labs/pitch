@@ -57,6 +57,25 @@ export function GlobalJobsTable({ jobs, onSelectJob }: { jobs: any[]; onSelectJo
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ${statusStyle(job.status)}`}>
                     {job.status}
                   </span>
+                  {job.phases && job.phases.length > 0 && (
+                    <div className="flex items-center gap-1 mt-2">
+                      {job.phases.map((p: any, i: number) => (
+                        <span key={i} title={`${p.label}: ${p.status}`} className={`w-1.5 h-1.5 rounded-full ${
+                          p.status === 'completed' ? 'bg-emerald-500' :
+                          p.status === 'running' ? 'bg-blue-500 animate-pulse' :
+                          p.status === 'failed' ? 'bg-red-500' :
+                          'bg-gray-200'
+                        }`} />
+                      ))}
+                    </div>
+                  )}
+                  {job.status === 'PROCESSING' && job.phases && (() => {
+                    const runningPhase = job.phases.find((p: any) => p.status === 'running');
+                    if (runningPhase) {
+                      return <div className="text-[9px] text-blue-600 font-semibold mt-1 uppercase tracking-wider truncate max-w-[120px]" title={runningPhase.label}>{runningPhase.label}</div>;
+                    }
+                    return null;
+                  })()}
                   {job.isRefunded && (
                     <div className="text-[10px] text-purple-600 font-semibold mt-1">↩ REFUNDED</div>
                   )}

@@ -397,7 +397,7 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
       {isMobile && (
         <button
           onClick={onToggle}
-          className="text-gray-900 transition-colors w-9 h-9 flex items-center justify-center ml-1 rounded-lg border border-gray-200 hover:bg-gray-50 bg-white cursor-pointer shadow-sm"
+          className="text-gray-900 transition-colors w-9 h-9 flex items-center justify-center ml-1 rounded-lg border border-gray-200 hover:bg-gray-50 bg-white cursor-pointer"
           id="sidebar-toggle-btn"
         >
           <IconMenu />

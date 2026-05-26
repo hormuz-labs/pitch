@@ -14,6 +14,7 @@ import { Step2Illustration } from '../components/landing/Step2Illustration';
 import { Step3Illustration } from '../components/landing/Step3Illustration';
 import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import { LandingFaqAccordion } from '../components/landing/LandingFaqAccordion';
+import { Process } from '../components/Process';
 import '../styles/landing.css';
 import demoVideo from '../assets/demo.mp4';
 
@@ -109,24 +110,32 @@ export const LandingView = () => {
 
         {/* ── Hero ─────────────────────────────────────────────── */}
         <section className="landing-hero" aria-labelledby="hero-heading">
-          <div className="landing-hero-left">
-            <div className="landing-hero-logo-wrap landing-animate-1" aria-hidden="true">
-              <PitchLogoAnimation startAnimation={preloaderDone} />
-            </div>
+          <div className="landing-hero-left" style={{ maxWidth: '100%' }}>
+            <div className="flex flex-col lg:flex-row items-center justify-between w-full gap-8 lg:gap-16 mt-4">
+              <div className="flex flex-col items-center text-center flex-1 max-w-xl">
+                <div className="landing-hero-logo-wrap landing-animate-1" aria-hidden="true" style={{ margin: '0 auto 24px auto' }}>
+                  <PitchLogoAnimation startAnimation={preloaderDone} />
+                </div>
 
-            <TextGenerateEffect 
-              words="What if your website could pitch itself? Just drop your URL, describe what you want, and our AI agent does the rest — visiting your site, crafting the script, and delivering a professional, narrated pitch video in minutes."
-              highlights={["pitch", "itself", "AI", "agent", "narrated", "video"]}
-              className="landing-subtitle landing-animate-3 mt-4" 
-            />
+                <TextGenerateEffect 
+                  words="What if your website could pitch itself? Just drop your URL, describe what you want, and our AI agent does the rest — visiting your site, crafting the script, and delivering a professional, narrated pitch video in minutes."
+                  highlights={["pitch", "itself", "AI", "agent", "narrated", "video"]}
+                  className="landing-subtitle landing-animate-3 !m-0" 
+                />
 
-            <div className="landing-ctas landing-animate-4">
-              {isSignedIn ? (
-                <a href="/dashboard" className="landing-btn-primary">Go to dashboard</a>
-              ) : (
-                <a href="/sign-up" className="landing-btn-primary">Generate a demo</a>
-              )}
-              <button className="landing-btn-secondary" onClick={() => setVideoOpen(true)}>Watch a sample</button>
+                <div className="landing-ctas landing-animate-4 mt-8 flex-wrap justify-center w-full">
+                  {isSignedIn ? (
+                    <a href="/dashboard" className="landing-btn-primary">Go to dashboard</a>
+                  ) : (
+                    <a href="/sign-up" className="landing-btn-primary">Generate a demo</a>
+                  )}
+                  <button className="landing-btn-secondary" onClick={() => setVideoOpen(true)}>Watch a sample</button>
+                </div>
+              </div>
+
+              <div className="flex-1 w-full max-w-3xl landing-animate-5">
+                <Process />
+              </div>
             </div>
           </div>
 

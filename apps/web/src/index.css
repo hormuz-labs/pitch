@@ -33,3 +33,6 @@ html, body, #root {
 .pcoin-spin {
   animation: pcoin-spin 0.6s ease-in-out 1 forwards;
 }
+.pcoin-spin-infinite {
+  animation: pcoin-spin 1s linear infinite;
+}

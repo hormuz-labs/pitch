@@ -162,6 +162,25 @@ export function UserJobsModal({
                           }`}>
                             {job.status}
                           </span>
+                          {job.phases && job.phases.length > 0 && (
+                            <div className="flex items-center gap-1 ml-1 mr-1">
+                              {job.phases.map((p: any, i: number) => (
+                                <span key={i} title={`${p.label}: ${p.status}`} className={`w-1.5 h-1.5 rounded-full ${
+                                  p.status === 'completed' ? 'bg-emerald-500' :
+                                  p.status === 'running' ? 'bg-blue-500 animate-pulse' :
+                                  p.status === 'failed' ? 'bg-red-500' :
+                                  'bg-gray-200'
+                                }`} />
+                              ))}
+                            </div>
+                          )}
+                          {job.status === 'PROCESSING' && job.phases && (() => {
+                            const runningPhase = job.phases.find((p: any) => p.status === 'running');
+                            if (runningPhase) {
+                              return <span className="text-[10px] text-blue-600 font-semibold uppercase tracking-wider truncate max-w-[120px]" title={runningPhase.label}>{runningPhase.label}</span>;
+                            }
+                            return null;
+                          })()}
                           {job.isRefunded && (
                             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">↩ Refunded</span>
                           )}

@@ -83,7 +83,8 @@ program
       try {
         const userEmail = await getClerkUserEmail(updatedJob.userId);
         if (userEmail && videoUrl) {
-          await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl });
+          const videoTitle = urlParam !== 'N/A' ? new URL(urlParam).hostname : 'pitch.com';
+          await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl, videoTitle });
         }
       } catch (emailError: any) {
         // Email failure should never block job completion
@@ -312,8 +313,9 @@ program
   .requiredOption('-j, --job-id <string>', 'The ID of the job')
   .requiredOption('-p, --phase <string>', `Phase key. One of: ${Object.keys(PHASE_LABELS).join(', ')}`)
   .requiredOption('-s, --status <string>', 'Phase status: running | completed | failed')
+  .option('-d, --duration <number>', 'Duration in milliseconds', parseInt)
   .action(async (options) => {
-    const { jobId, phase: phaseKey, status } = options;
+    const { jobId, phase: phaseKey, status, duration } = options;
 
     const validStatuses = ['running', 'completed', 'failed'];
     if (!validStatuses.includes(status)) {
@@ -338,14 +340,59 @@ program
       const currentPhases: PhaseUpdate[] = job.phases ? JSON.parse(job.phases as string) : [];
 
       // 3. Upsert this phase
+      const existingIdx = currentPhases.findIndex(p => p.phase === phaseKey);
+      const existingPhase = existingIdx >= 0 ? currentPhases[existingIdx] : null;
+
+      // If already completed in the DB, ignore any retroactive updates to preserve original duration
+      if (existingPhase?.status === 'completed') {
+        console.log(`✅ Phase [${phaseKey}] already completed for job ${jobId}. Ignoring retroactive ${status} update.`);
+        await redis.quit();
+        process.exit(0);
+      }
+
+      let newRetryDuration = existingPhase?.retryDurationMs || 0;
+      let newRetryCount = existingPhase?.retryCount || 0;
+      const failedAttempts = existingPhase?.failedAttempts || [];
+      if (status === 'failed') {
+        newRetryCount += 1;
+        if (duration !== undefined) {
+           newRetryDuration += duration;
+           failedAttempts.push({ durationMs: duration, status: 'failed' });
+        } else if (existingPhase?.startedAt) {
+          const endedAt = new Date().toISOString();
+          const durationMs = new Date(endedAt).getTime() - new Date(existingPhase.startedAt).getTime();
+          newRetryDuration += durationMs;
+          failedAttempts.push({ startedAt: existingPhase.startedAt, endedAt, durationMs, status: 'failed' });
+        }
+      } else if (status === 'completed' && duration !== undefined) {
+         failedAttempts.push({ durationMs: duration, status: 'completed' });
+      }
+
+      const now = new Date().toISOString();
+      const startedAt = status === 'running' ? (existingPhase?.startedAt || now) : existingPhase?.startedAt;
+      const completedAt = status === 'completed' ? now : existingPhase?.completedAt;
+      
+      let computedDurationMs = existingPhase?.durationMs;
+      if (status === 'completed') {
+        if (duration !== undefined) {
+          computedDurationMs = duration;
+        } else if (startedAt) {
+          computedDurationMs = new Date(completedAt!).getTime() - new Date(startedAt).getTime();
+        }
+      }
+
       const updatedPhase: PhaseUpdate = {
         phase: phaseKey,
         label: PHASE_LABELS[phaseKey] ?? phaseKey,
         status: status as PhaseUpdate['status'],
-        ...(status === 'completed' ? { completedAt: new Date().toISOString() } : {}),
+        ...(startedAt ? { startedAt } : {}),
+        ...(completedAt ? { completedAt } : {}),
+        ...(computedDurationMs !== undefined ? { durationMs: computedDurationMs } : {}),
+        ...(newRetryDuration > 0 ? { retryDurationMs: newRetryDuration } : {}),
+        ...(newRetryCount > 0 ? { retryCount: newRetryCount } : {}),
+        ...(failedAttempts.length > 0 ? { failedAttempts } : {}),
       };
 
-      const existingIdx = currentPhases.findIndex(p => p.phase === phaseKey);
       const newPhases: PhaseUpdate[] = existingIdx >= 0
         ? currentPhases.map((p, i) => (i === existingIdx ? updatedPhase : p))
         : [...currentPhases, updatedPhase];
