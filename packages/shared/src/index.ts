@@ -42,7 +42,11 @@ export interface PhaseUpdate {
   phase: string;           // e.g. "flow_validation"
   label: string;           // Human-readable: "Flow Validation"
   status: 'pending' | 'running' | 'completed' | 'failed';
+  startedAt?: string;      // ISO timestamp, set when status = 'running'
   completedAt?: string;    // ISO timestamp, set when status = 'completed'
+  retryDurationMs?: number; // Total time spent in failed attempts
+  retryCount?: number;     // Number of failed attempts
+  failedAttempts?: { startedAt: string; endedAt: string; durationMs: number }[];
 }
 
 /**

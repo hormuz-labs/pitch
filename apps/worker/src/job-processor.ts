@@ -223,6 +223,12 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         jobLogger.info({ cost: currentCost }, 'Job cost updated');
       }
 
+      // Check if job completed successfully. If it's still PROCESSING, push was never called.
+      const finalJob = await db.prisma.job.findUnique({ where: { id: jobId } });
+      if (finalJob?.status === JobStatus.PROCESSING) {
+        throw new Error('Video creation pipeline was aborted or failed to complete (e.g. budget limit reached).');
+      }
+
     } catch (error: any) {
       jobLogger.error({ err: error }, 'Job processing failed');
 

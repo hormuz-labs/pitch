@@ -2,7 +2,11 @@ export interface PhaseUpdate {
   phase: string;
   label: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
+  startedAt?: string;
   completedAt?: string;
+  retryDurationMs?: number;
+  retryCount?: number;
+  failedAttempts?: { startedAt: string; endedAt: string; durationMs: number }[];
 }
 
 export interface Project {

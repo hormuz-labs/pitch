@@ -206,33 +206,67 @@ export function JobDetailsModal({ job, onClose, onDelete }: { job: any; onClose:
                   {(job.phases as any[]).map((phase, idx, arr) => {
                     let durationStr = '—';
                     if (phase.status === 'completed' && phase.completedAt) {
-                      const startStr = idx === 0 ? job.createdAt : (arr[idx - 1].completedAt || job.createdAt);
+                      const startStr = phase.startedAt || (idx === 0 ? job.createdAt : (arr[idx - 1].completedAt || job.createdAt));
                       const start = new Date(startStr).getTime();
                       const end = new Date(phase.completedAt).getTime();
                       const diff = end - start;
                       if (diff >= 0) durationStr = formatDuration(diff);
+                      if (phase.retryDurationMs) {
+                        const retryText = phase.retryCount ? `${phase.retryCount} failed retries` : 'Failed retries';
+                        durationStr += ` (${retryText}: ${formatDuration(phase.retryDurationMs)})`;
+                      }
                     } else if (phase.status === 'running') {
-                      durationStr = 'Running…';
+                      let liveDuration = '';
+                      if (phase.startedAt) {
+                        const start = new Date(phase.startedAt).getTime();
+                        const diff = Date.now() - start;
+                        if (diff >= 0) liveDuration = formatDuration(diff);
+                      }
+                      durationStr = liveDuration ? `Running… (${liveDuration})` : 'Running…';
+                      if (phase.retryDurationMs) {
+                        const retryText = phase.retryCount ? `${phase.retryCount} retries` : 'Retries';
+                        durationStr += ` | ${retryText}: ${formatDuration(phase.retryDurationMs)}`;
+                      }
                     } else if (phase.status === 'failed') {
                       durationStr = 'Failed';
+                      if (phase.retryDurationMs) {
+                        const retryText = phase.retryCount ? `${phase.retryCount} attempts` : 'Total time';
+                        durationStr += ` (${retryText}: ${formatDuration(phase.retryDurationMs)})`;
+                      }
                     }
 
                     return (
-                      <div key={phase.phase} className="flex items-center justify-between text-sm border-b border-gray-100 last:border-0 pb-2 last:pb-0">
-                        <div className="flex items-center gap-2">
-                          <span className={
-                            phase.status === 'completed' ? 'text-green-600' :
-                            phase.status === 'failed' ? 'text-red-600' :
-                            phase.status === 'running' ? 'text-blue-600' :
-                            'text-gray-400'
-                          }>
-                            {phase.status === 'completed' ? '✅' :
-                             phase.status === 'failed' ? '❌' :
-                             phase.status === 'running' ? '🔄' : '⏳'}
-                          </span>
-                          <span className="text-gray-800 font-medium">{phase.label || phase.phase}</span>
+                      <div key={phase.phase} className="flex flex-col text-sm border-b border-gray-100 last:border-0 pb-2 last:pb-0 gap-1.5 pt-2 first:pt-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={
+                              phase.status === 'completed' ? 'text-green-600' :
+                              phase.status === 'failed' ? 'text-red-600' :
+                              phase.status === 'running' ? 'text-blue-600' :
+                              'text-gray-400'
+                            }>
+                              {phase.status === 'completed' ? '✅' :
+                               phase.status === 'failed' ? '❌' :
+                               phase.status === 'running' ? '🔄' : '⏳'}
+                            </span>
+                            <span className="text-gray-800 font-medium">{phase.label || phase.phase}</span>
+                          </div>
+                          <span className="text-gray-500 font-mono text-xs">{durationStr}</span>
                         </div>
-                        <span className="text-gray-500 font-mono text-xs">{durationStr}</span>
+                        {phase.failedAttempts && phase.failedAttempts.length > 0 && (
+                          <div className="pl-6 space-y-1 mt-0.5">
+                            {phase.failedAttempts.map((attempt: any, i: number) => {
+                              const startStr = new Date(attempt.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+                              const endStr = new Date(attempt.endedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+                              return (
+                                <div key={i} className="flex items-center justify-between text-[11px] text-gray-500 bg-gray-100/50 px-2 py-1 rounded-md">
+                                  <span>{i + 1}{i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'} retry: {formatDuration(attempt.durationMs)}</span>
+                                  <span className="font-mono text-gray-400">{startStr} - {endStr}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

@@ -338,14 +338,33 @@ program
       const currentPhases: PhaseUpdate[] = job.phases ? JSON.parse(job.phases as string) : [];
 
       // 3. Upsert this phase
+      const existingIdx = currentPhases.findIndex(p => p.phase === phaseKey);
+      const existingPhase = existingIdx >= 0 ? currentPhases[existingIdx] : null;
+
+      let newRetryDuration = existingPhase?.retryDurationMs || 0;
+      let newRetryCount = existingPhase?.retryCount || 0;
+      const failedAttempts = existingPhase?.failedAttempts || [];
+      if (status === 'failed') {
+        newRetryCount += 1;
+        if (existingPhase?.startedAt) {
+          const endedAt = new Date().toISOString();
+          const durationMs = new Date(endedAt).getTime() - new Date(existingPhase.startedAt).getTime();
+          newRetryDuration += durationMs;
+          failedAttempts.push({ startedAt: existingPhase.startedAt, endedAt, durationMs });
+        }
+      }
+
       const updatedPhase: PhaseUpdate = {
         phase: phaseKey,
         label: PHASE_LABELS[phaseKey] ?? phaseKey,
         status: status as PhaseUpdate['status'],
+        startedAt: status === 'running' ? new Date().toISOString() : existingPhase?.startedAt,
         ...(status === 'completed' ? { completedAt: new Date().toISOString() } : {}),
+        ...(newRetryDuration > 0 ? { retryDurationMs: newRetryDuration } : {}),
+        ...(newRetryCount > 0 ? { retryCount: newRetryCount } : {}),
+        ...(failedAttempts.length > 0 ? { failedAttempts } : {}),
       };
 
-      const existingIdx = currentPhases.findIndex(p => p.phase === phaseKey);
       const newPhases: PhaseUpdate[] = existingIdx >= 0
         ? currentPhases.map((p, i) => (i === existingIdx ? updatedPhase : p))
         : [...currentPhases, updatedPhase];
