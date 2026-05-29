@@ -115,20 +115,23 @@ export const PricingView = () => {
 
       {/* Header */}
       <div className="text-center mb-10 sm:mb-12">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 tracking-tight flex items-center justify-center gap-3">
-          Buy
-          <img src={pCoinIcon} alt="Credits" className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 shrink-0" />
-          credits, generate demos
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 tracking-tight flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            Buy
+            <img src={pCoinIcon} alt="Credits" className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 shrink-0" />
+            credit,
+          </div>
+          <span>generate demos</span>
         </h1>
-        <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed mb-6">
+        <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed mb-6 px-4">
           Subscribe for monthly credits, or buy top-ups whenever you need more.<br className="hidden sm:block" />
           3 credits generate one full AI-powered demo video.
         </p>
 
-        <div className="inline-flex bg-gray-100 p-1 rounded-xl">
+        <div className="inline-flex bg-gray-100 p-1 rounded-xl overflow-x-auto max-w-full">
           <button
             onClick={() => setMode('subscription')}
-            className={`px-6 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+            className={`px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
               mode === 'subscription' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -136,7 +139,7 @@ export const PricingView = () => {
           </button>
           <button
             onClick={() => setMode('topup')}
-            className={`px-6 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+            className={`px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
               mode === 'topup' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
             }`}
           >

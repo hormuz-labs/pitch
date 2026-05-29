@@ -18,80 +18,120 @@ export const Process = () => {
   const threads: ProcessThread[] = [
     {
       id: 0,
-      word1: 'Asset',
-      word2: 'Ingestion',
-      gradientId: 'grad-cyan-blue',
+      word1: "Asset",
+      word2: "Ingestion",
+      gradientId: "grad-cyan-blue",
       // Unified shades of vivid blue
-      colors: ['#3B82F6', '#60A5FA', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1D4ED8'],
-      path: 'M 120 80 C 310 80, 310 305, 480 305',
+      colors: [
+        "#3B82F6",
+        "#60A5FA",
+        "#93C5FD",
+        "#60A5FA",
+        "#3B82F6",
+        "#2563EB",
+        "#1D4ED8",
+      ],
+      path: "M 120 80 C 310 80, 310 305, 480 305",
       y: 80,
-      delay: '0s',
+      delay: "0s",
       highlightX1: -54,
       highlightX2: 105,
       highlightQx: 25,
-      timeLabel: '15 minutes',
+      timeLabel: "15 minutes",
     },
     {
       id: 1,
-      word1: 'Script',
-      word2: 'Synthesis',
-      gradientId: 'grad-amber-orange',
+      word1: "Script",
+      word2: "Synthesis",
+      gradientId: "grad-amber-orange",
       // Unified shades of warm orange
-      colors: ['#F97316', '#FDBA74', '#FCD34D', '#FDBA74', '#F97316', '#EA580C', '#C2410C'],
-      path: 'M 36 200 C 310 200, 310 315, 480 315',
+      colors: [
+        "#F97316",
+        "#FDBA74",
+        "#FCD34D",
+        "#FDBA74",
+        "#F97316",
+        "#EA580C",
+        "#C2410C",
+      ],
+      path: "M 36 200 C 310 200, 310 315, 480 315",
       y: 200,
-      delay: '-0.6s',
+      delay: "-0.6s",
       highlightX1: -149,
       highlightX2: 21,
       highlightQx: -64,
       textX: 24,
-      timeLabel: '20 minutes',
+      timeLabel: "20 minutes",
     },
     {
       id: 2,
-      word1: 'Voiceover',
-      word2: 'AI',
-      gradientId: 'grad-violet-purple',
+      word1: "Voiceover",
+      word2: "AI",
+      gradientId: "grad-violet-purple",
       // Unified shades of rich purple
-      colors: ['#8B5CF6', '#C084FC', '#E9D5FF', '#C084FC', '#8B5CF6', '#7C3AED', '#6D28D9'],
-      path: 'M 120 325 C 260 335, 360 315, 480 325',
+      colors: [
+        "#8B5CF6",
+        "#C084FC",
+        "#E9D5FF",
+        "#C084FC",
+        "#8B5CF6",
+        "#7C3AED",
+        "#6D28D9",
+      ],
+      path: "M 120 325 C 260 335, 360 315, 480 325",
       y: 325,
-      delay: '-1.2s',
+      delay: "-1.2s",
       highlightX1: -27,
       highlightX2: 105,
       highlightQx: 39,
-      timeLabel: '10 minutes',
+      timeLabel: "10 minutes",
     },
     {
       id: 3,
-      word1: 'Scene',
-      word2: 'Capture',
-      gradientId: 'grad-emerald-teal',
+      word1: "Scene",
+      word2: "Capture",
+      gradientId: "grad-emerald-teal",
       // Unified shades of vibrant green
-      colors: ['#10B981', '#6EE7B7', '#A7F3D0', '#6EE7B7', '#10B981', '#059669', '#047857'],
-      path: 'M 60 450 C 310 450, 310 335, 480 335',
+      colors: [
+        "#10B981",
+        "#6EE7B7",
+        "#A7F3D0",
+        "#6EE7B7",
+        "#10B981",
+        "#059669",
+        "#047857",
+      ],
+      path: "M 60 450 C 310 450, 310 335, 480 335",
       y: 450,
-      delay: '-1.8s',
+      delay: "-1.8s",
       highlightX1: -102,
       highlightX2: 45,
       highlightQx: -28,
       textX: 48,
-      timeLabel: '25 minutes',
+      timeLabel: "25 minutes",
     },
     {
       id: 4,
-      word1: 'Post',
-      word2: 'Production',
-      gradientId: 'grad-pink-rose',
+      word1: "Post",
+      word2: "Production",
+      gradientId: "grad-pink-rose",
       // Unified shades of hot pink/rose
-      colors: ['#EC4899', '#F472B6', '#FBCFE8', '#F472B6', '#EC4899', '#D946EF', '#C026D3'],
-      path: 'M 120 570 C 310 570, 310 345, 480 345',
+      colors: [
+        "#EC4899",
+        "#F472B6",
+        "#FBCFE8",
+        "#F472B6",
+        "#EC4899",
+        "#D946EF",
+        "#C026D3",
+      ],
+      path: "M 120 570 C 310 570, 310 345, 480 345",
       y: 570,
-      delay: '-2.4s',
+      delay: "-2.4s",
       highlightX1: -54,
       highlightX2: 105,
       highlightQx: 25,
-      timeLabel: '30 minutes',
+      timeLabel: "30 minutes",
     },
   ];
 
@@ -143,22 +183,23 @@ export const Process = () => {
             font-weight: 700;
           }
 
-          /* Monochrome Output Theme stop colors */
+          /* Premium Black Output Theme stop colors */
           :root {
-            --output-stop-start: #374151;
-            --output-stop-mid:   #6B7280;
-            --output-stop-end:   #9CA3AF;
+            --output-stop-start: #0A0A0A;
+            --output-stop-mid:   #2A2A2A;
+            --output-stop-end:   #B0B0B0;
           }
 
           [data-theme="dark"] {
-            --output-stop-start: #9CA3AF;
-            --output-stop-mid:   #E5E7EB;
-            --output-stop-end:   #FFFFFF;
+            --output-stop-start: #1A1A1A;
+            --output-stop-mid:   #888888;
+            --output-stop-end:   #E8E8E8;
           }
 
           @media (max-width: 640px) {
             .process-svg-wrapper {
-              transform: scale(1.35);
+              transform: scale(1.35) translateX(3%);
+              transform-origin: center center;
               padding: 10px;
             }
             .logo-center-card {
@@ -198,36 +239,45 @@ export const Process = () => {
               </linearGradient>
             ))}
 
-            {/* Combined Output Gradient — using userSpaceOnUse for robust horizontal line rendering */}
+            {/* Combined Output Gradient — premium black with silver sheen */}
             <linearGradient
               id="grad-output"
               gradientUnits="userSpaceOnUse"
               x1="520"
               y1="0"
-              x2="883"
+              x2="882"
               y2="0"
             >
-              <stop offset="0%" stopColor="var(--output-stop-start)" />
-              <stop offset="50%" stopColor="var(--output-stop-mid)" />
-              <stop offset="100%" stopColor="var(--output-stop-end)" />
+              <stop offset="0%" stopColor="#0A0A0A" />
+              <stop offset="25%" stopColor="#1C1C1C" />
+              <stop offset="50%" stopColor="#C0C0C0" />
+              <stop offset="75%" stopColor="#1C1C1C" />
+              <stop offset="100%" stopColor="#0A0A0A" />
             </linearGradient>
 
-            {/* Dedicated Gradient for Right Highlighter */}
+            {/* Dedicated Gradient for Right Highlighter — subtle dark underlay */}
             <linearGradient
               id="grad-right-highlighter"
               gradientUnits="userSpaceOnUse"
-              x1="883"
+              x1="783"
               y1="0"
-              x2="1072"
+              x2="972"
               y2="0"
             >
-              <stop offset="0%" stopColor="var(--output-stop-start)" />
-              <stop offset="50%" stopColor="var(--output-stop-mid)" />
-              <stop offset="100%" stopColor="var(--output-stop-end)" />
+              <stop offset="0%" stopColor="#111111" stopOpacity="0" />
+              <stop offset="20%" stopColor="#1A1A1A" stopOpacity="1" />
+              <stop offset="80%" stopColor="#1A1A1A" stopOpacity="1" />
+              <stop offset="100%" stopColor="#111111" stopOpacity="0" />
             </linearGradient>
 
             {/* Tight Neon Glow filter with large bounds to prevent clipping */}
-            <filter id="svg-blur-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <filter
+              id="svg-blur-glow"
+              x="-50%"
+              y="-50%"
+              width="200%"
+              height="200%"
+            >
               <feGaussianBlur stdDeviation="3.0" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
@@ -248,7 +298,7 @@ export const Process = () => {
             {/* Reference path for right output thread cursive label */}
             <path
               id="output-curve"
-              d="M 520 325 C 640 345, 740 305, 883 325"
+              d="M 520 325 C 640 355, 760 295, 882 323"
               fill="none"
             />
           </defs>
@@ -305,17 +355,21 @@ export const Process = () => {
                   textAnchor="end"
                   className="svg-text-label"
                 >
-                  <tspan fill={t.colors[0]} fontWeight="800">{t.word1}</tspan>
-                  <tspan fill={t.colors[0]} fontWeight="800"> {t.word2}</tspan>
+                  <tspan fill={t.colors[0]} fontWeight="800">
+                    {t.word1}
+                  </tspan>
+                  <tspan fill={t.colors[0]} fontWeight="800">
+                    {" "}
+                    {t.word2}
+                  </tspan>
                 </text>
 
                 {/* Cursive '15 minutes' label along each thread's curve */}
                 <text className="svg-cursive-label" opacity={1}>
-                  <textPath
-                    href={`#thread-curve-${t.id}`}
-                    startOffset="18%"
-                  >
-                    <tspan fill={t.colors[1]} dy="-14">{t.timeLabel}</tspan>
+                  <textPath href={`#thread-curve-${t.id}`} startOffset="18%">
+                    <tspan fill={t.colors[1]} dy="-14">
+                      {t.timeLabel}
+                    </tspan>
                   </textPath>
                 </text>
               </g>
@@ -326,7 +380,7 @@ export const Process = () => {
           <g className="transition-all duration-300">
             {/* 1. Base Static Path */}
             <path
-              d="M 520 325 C 640 345, 740 305, 883 325"
+              d="M 520 325 C 640 355, 760 295, 882 323"
               fill="none"
               stroke="url(#grad-output)"
               strokeWidth={5.5}
@@ -335,7 +389,7 @@ export const Process = () => {
 
             {/* 2. Soft Outer Glowing Path */}
             <path
-              d="M 520 325 C 640 345, 740 305, 883 325"
+              d="M 520 325 C 640 355, 760 295, 882 323"
               fill="none"
               stroke="url(#grad-output)"
               strokeWidth={10}
@@ -346,38 +400,40 @@ export const Process = () => {
 
             {/* 3. Bright Core Flowing Path */}
             <path
-              d="M 520 325 C 640 345, 740 305, 883 325"
+              d="M 520 325 C 640 355, 760 295, 882 323"
               fill="none"
               stroke="url(#grad-output)"
               strokeWidth={4.5}
               className="thread-flow-line"
             />
 
-            {/* Curvy Highlighter for Output Text (covers entire text now) */}
+            {/* Curvy Highlighter for Output Text — solid black pill */}
             <path
-              d="M 898 319 Q 978 325, 1057 318"
+              d="M 798 319 Q 884 325, 967 318"
               fill="none"
-              stroke="url(#grad-right-highlighter)"
-              strokeWidth={30}
-              opacity={0.15}
+              stroke="#000000"
+              strokeWidth={28}
+              opacity={1}
               strokeLinecap="round"
             />
 
             {/* Right Text Label */}
-            <text
-              x={895}
-              y={331}
-              textAnchor="start"
-              className="svg-text-label"
-            >
-              <tspan fill="var(--text-primary)" fontWeight="800">Cinematic</tspan>
-              <tspan fill="var(--text-primary)" fontWeight="800"> Video</tspan>
+            <text x={795} y={331} textAnchor="start" className="svg-text-label">
+              <tspan fill="#FFFFFF" fontWeight="800">
+                Cinematic
+              </tspan>
+              <tspan fill="#FFFFFF" fontWeight="800">
+                {" "}
+                Video
+              </tspan>
             </text>
 
             {/* Cursive '10 minutes' label along output curve */}
             <text className="svg-cursive-label" opacity={1} textAnchor="middle">
               <textPath href="#output-curve" startOffset="50%">
-                <tspan fill="var(--output-stop-mid)" dy="-14">10 minutes</tspan>
+                <tspan fill="var(--output-stop-mid)" dy="-14">
+                  10 minutes
+                </tspan>
               </textPath>
             </text>
           </g>
@@ -385,9 +441,7 @@ export const Process = () => {
           {/* ── CENTER LOGO BADGE (p-0 to allow SVG to fully touch the card boundary) ── */}
           <foreignObject x={450} y={275} width={100} height={100}>
             <div className="w-full h-full flex items-center justify-center logo-center-card">
-              <div
-                className="relative w-16 h-16 rounded-2xl overflow-hidden border transition-all duration-500 flex items-center justify-center p-0 bg-[#111111] scale-110 border-[#8B5CF6]/40"
-              >
+              <div className="relative w-16 h-16 rounded-2xl overflow-hidden border transition-all duration-500 flex items-center justify-center p-0 bg-[#111111] scale-110 border-[#8B5CF6]/40">
                 <img
                   src="/tabLogoB.svg"
                   alt="Pitch Logo"
