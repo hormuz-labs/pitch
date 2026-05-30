@@ -25,6 +25,7 @@ import { parseSSELog } from './lib/events';
 
 import tabLogoB from './assets/tabLogoB.svg';
 import { PitchLogoAnimation } from './components/PitchLogoAnimation';
+import PaymentReceipt, { type PaymentReceiptStatus } from './components/printer';
 import * as ToastPrimitive from '@radix-ui/react-toast';
 import { X } from 'lucide-react';
 import { cn } from './lib/utils';
@@ -423,6 +424,11 @@ function AppContent() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Dodo Payments callback receipt overlay (success / failure).
+  const [checkoutReceipt, setCheckoutReceipt] = useState<
+    { status: PaymentReceiptStatus; credits?: number } | null
+  >(null);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -616,7 +622,18 @@ function AppContent() {
     if (!isLoaded || !userId) return;
 
     const params = new URLSearchParams(location.search);
-    if (params.get('checkout') !== 'success') return;
+    const checkout = params.get('checkout');
+    const statusParam = params.get('status');
+
+    // Dodo redirects back to a failure/cancel URL — show the failed receipt.
+    if (checkout === 'failed' || checkout === 'cancelled' ||
+        statusParam === 'failed' || statusParam === 'cancelled') {
+      setCheckoutReceipt({ status: 'failed' });
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    if (checkout !== 'success') return;
 
     const subscriptionId = params.get('subscription_id');
     const paymentId      = params.get('payment_id');
@@ -632,7 +649,8 @@ function AppContent() {
     const poll = async () => {
       if (cancelled || attempts >= MAX_ATTEMPTS) {
         if (attempts >= MAX_ATTEMPTS) {
-          toast('Could not confirm your payment. Please refresh or contact support.', 'error');
+          setCheckoutReceipt({ status: 'failed' });
+          window.history.replaceState({}, '', window.location.pathname);
         }
         return;
       }
@@ -653,10 +671,7 @@ function AppContent() {
         );
 
         if (result.status === 'succeeded' || result.status === 'active') {
-          const msg = paymentId
-            ? 'Top-up successful! Your credits have been added.'
-            : 'Subscription activated! Your credits have been added.';
-          toast(msg, 'success');
+          setCheckoutReceipt({ status: 'success', credits: result.credits_granted });
           window.dispatchEvent(new Event('credits-changed'));
           window.history.replaceState({}, '', window.location.pathname);
           return;
@@ -779,6 +794,15 @@ function AppContent() {
 
   return (
     <>
+      {checkoutReceipt && (
+        <PaymentReceipt
+          status={checkoutReceipt.status}
+          credits={checkoutReceipt.credits ?? 50}
+          payerName={user?.fullName || 'there'}
+          onClose={() => { setCheckoutReceipt(null); navigate('/dashboard'); }}
+          onRetry={() => { setCheckoutReceipt(null); navigate('/pricing'); }}
+        />
+      )}
       <SignedIn>
         <div className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
           {(!isMobile ? selectedKey !== 'settings' : true) && (
