@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { toPng } from 'html-to-image';
 
 /* ─────────────────────────────────────────────
    PAYMENT RECEIPT — animated thermal-printer receipt shown on the
@@ -147,23 +148,33 @@ const Avatar = ({ initials }: { initials: string }) => (
   }}>{initials}</div>
 );
 
-/* Payment method tile — UPI (tri-color letters on white) */
-const PayTile = () => (
-  <div style={{
-    width:32, height:32, borderRadius:8,
-    background:'#fff',
-    border:'1px solid #ececec',
-    display:'flex', alignItems:'center', justifyContent:'center',
-    flexShrink:0,
-    boxShadow:'0 1px 2px rgba(0,0,0,0.06)',
-  }}>
-    <svg width="24" height="14" viewBox="0 0 60 28" fill="none">
-      <text x="2"  y="22" fontFamily="'DM Sans',sans-serif" fontWeight="800" fontSize="22" fill="#f97316">U</text>
-      <text x="22" y="22" fontFamily="'DM Sans',sans-serif" fontWeight="800" fontSize="22" fill="#15803d">P</text>
-      <text x="42" y="22" fontFamily="'DM Sans',sans-serif" fontWeight="800" fontSize="22" fill="#1e40af">I</text>
-    </svg>
-  </div>
-);
+/* Payment method tile — UPI letters for UPI, otherwise a generic card glyph */
+const PayTile = ({ method = '' }: { method?: string }) => {
+  const isUpi = /upi/i.test(method);
+  return (
+    <div style={{
+      width:32, height:32, borderRadius:8,
+      background:'#fff',
+      border:'1px solid #ececec',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      flexShrink:0,
+      boxShadow:'0 1px 2px rgba(0,0,0,0.06)',
+    }}>
+      {isUpi ? (
+        <svg width="24" height="14" viewBox="0 0 60 28" fill="none">
+          <text x="2"  y="22" fontFamily="'DM Sans',sans-serif" fontWeight="800" fontSize="22" fill="#f97316">U</text>
+          <text x="22" y="22" fontFamily="'DM Sans',sans-serif" fontWeight="800" fontSize="22" fill="#15803d">P</text>
+          <text x="42" y="22" fontFamily="'DM Sans',sans-serif" fontWeight="800" fontSize="22" fill="#1e40af">I</text>
+        </svg>
+      ) : (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth={2}>
+          <rect x="2" y="5" width="20" height="14" rx="2.5"/>
+          <path d="M2 10h20" stroke="#6b7280" strokeWidth={2.4}/>
+        </svg>
+      )}
+    </div>
+  );
+};
 
 /* Coin SVG — high-quality black coin with pixel-block P logo (used everywhere) */
 const CoinSVG = ({ size = 32 }: { size?: number }) => (
@@ -450,20 +461,21 @@ function initialsOf(name: string) {
 
 export default function PaymentReceipt({
   status,
-  amount = '$45.00',
+  amount,
   credits = 50,
-  payerName = 'Adnan Shakeel',
-  method = 'UPI Payment',
+  payerName = 'Customer',
+  method,
   date,
-  balance = 13521,
+  balance,
   onClose,
   onRetry,
 }: PaymentReceiptProps) {
   const isSuccess = status === 'success';
   const receiptDate = date || defaultDate();
+  const hasBalance = typeof balance === 'number';
 
   const [phase, setPhase] = useState('idle');
-  const [points, setPoints] = useState(balance);
+  const [points, setPoints] = useState(balance ?? 0);
   const [flyingCoins, setFlyingCoins] = useState<FlyingCoinItem[]>([]);
   const [pointsFlash, setPointsFlash] = useState(false);
   const [receiptHeight, setReceiptHeight] = useState(500);
@@ -545,11 +557,34 @@ export default function PaymentReceipt({
     coins.forEach((c, i) => {
       setTimeout(() => {
         setPointsFlash(true);
-        setPoints(prev => i === coinCount-1 ? balance + credits : Math.round(prev + addPerCoin));
+        setPoints(prev => i === coinCount-1 ? (balance ?? 0) + credits : Math.round(prev + addPerCoin));
         setTimeout(() => { setPointsFlash(false); }, 120);
       }, (c.delay + 0.58) * 1000);
     });
   }, [swipeRange, dragX, credits, balance]);
+
+  const [saving, setSaving] = useState(false);
+  const saveReceipt = useCallback(async () => {
+    if (!receiptRef.current || saving) return;
+    setSaving(true);
+    try {
+      const dataUrl = await toPng(receiptRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        // Skip interactive controls (slider, buttons) so the saved image is clean.
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.noExport === 'true'),
+      });
+      const a = document.createElement('a');
+      a.download = `trypitch-receipt-${Date.now()}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch (err) {
+      console.error('[Receipt] Failed to save', err);
+    } finally {
+      setSaving(false);
+    }
+  }, [saving]);
 
   const isPrinting  = phase === 'printing';
   const isRevealed  = ['revealed','claimable','claimed'].includes(phase);
@@ -704,14 +739,16 @@ export default function PaymentReceipt({
 
                 {/* TOTAL */}
                 <div style={{ textAlign:'center', padding:'10px 0 14px' }}>
-                  <div style={{
-                    fontSize:34, fontWeight:800, letterSpacing:'-0.02em',
-                    color: isSuccess ? '#0a0a0a' : '#b91c1c',
-                    textDecoration: isSuccess ? 'none' : 'line-through',
-                    textDecorationThickness: '2px',
-                  }}>
-                    {amount}
-                  </div>
+                  {amount && (
+                    <div style={{
+                      fontSize:34, fontWeight:800, letterSpacing:'-0.02em',
+                      color: isSuccess ? '#0a0a0a' : '#b91c1c',
+                      textDecoration: isSuccess ? 'none' : 'line-through',
+                      textDecorationThickness: '2px',
+                    }}>
+                      {amount}
+                    </div>
+                  )}
                   {!isSuccess && (
                     <div style={{ marginTop:6, fontSize:13, fontWeight:700, letterSpacing:'0.08em',
                       color:'#dc2626', textTransform:'uppercase' }}>
@@ -740,7 +777,7 @@ export default function PaymentReceipt({
                 <Row>
                   <Avatar initials={initialsOf(payerName)}/>
                   <span style={rowText}>{payerName}</span>
-                  {isSuccess && (
+                  {isSuccess && hasBalance && (
                     <motion.div ref={bubbleRef}
                       animate={{
                         scale: pointsFlash ? [1,1.18,1] : 1,
@@ -768,10 +805,12 @@ export default function PaymentReceipt({
                 </Row>
 
                 {/* Row: payment method */}
-                <Row>
-                  <PayTile/>
-                  <span style={rowText}>{method}</span>
-                </Row>
+                {method && (
+                  <Row>
+                    <PayTile method={method}/>
+                    <span style={rowText}>{method}</span>
+                  </Row>
+                )}
 
                 {/* Date row */}
                 <div style={{ padding:'14px 4px 6px', fontSize:17, color:'#1f2937', fontWeight:500 }}>
@@ -781,34 +820,57 @@ export default function PaymentReceipt({
                 {/* Action area */}
                 <div style={{ paddingTop:6, paddingBottom:8 }}>
                   {isSuccess ? (
-                    !isClaimed ? (
-                      <div ref={sliderRef} style={{ opacity: isClaimable ? 1 : 0.55, transition:'opacity 0.3s' }}>
-                        <PeelTrack
-                          swipeRange={swipeRange}
-                          handleWidth={handleWidth}
-                          dragX={dragX}
-                          textOpacity={textOpacity}
-                          trackFill={trackFill}
-                          onDragEnd={isClaimable ? handleDragEnd : ()=>{}}
-                        />
-                      </div>
-                    ) : (
-                      <motion.div
-                        initial={{scale:0.92,opacity:0}} animate={{scale:1,opacity:1}}
-                        transition={{type:'spring',damping:14}}
-                        style={{ height:48, background:'linear-gradient(135deg,#0a2a1a,#064e3b)',
-                          borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center',
-                          boxShadow:'0 4px 14px rgba(6,78,59,0.28)', gap:8 }}
-                      >
-                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        <span style={{ fontSize:14, fontWeight:600, color:'#a7f3d0',
-                          letterSpacing:'0.04em', fontFamily:"'DM Sans',sans-serif" }}>
-                          +{credits} credits claimed
-                        </span>
-                      </motion.div>
-                    )
+                    <>
+                      {!isClaimed ? (
+                        <div ref={sliderRef} data-no-export="true" style={{ opacity: isClaimable ? 1 : 0.55, transition:'opacity 0.3s' }}>
+                          <PeelTrack
+                            swipeRange={swipeRange}
+                            handleWidth={handleWidth}
+                            dragX={dragX}
+                            textOpacity={textOpacity}
+                            trackFill={trackFill}
+                            onDragEnd={isClaimable ? handleDragEnd : ()=>{}}
+                          />
+                        </div>
+                      ) : (
+                        <motion.div
+                          initial={{scale:0.92,opacity:0}} animate={{scale:1,opacity:1}}
+                          transition={{type:'spring',damping:14}}
+                          style={{ height:48, background:'linear-gradient(135deg,#0a2a1a,#064e3b)',
+                            borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center',
+                            boxShadow:'0 4px 14px rgba(6,78,59,0.28)', gap:8 }}
+                        >
+                          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                          </svg>
+                          <span style={{ fontSize:14, fontWeight:600, color:'#a7f3d0',
+                            letterSpacing:'0.04em', fontFamily:"'DM Sans',sans-serif" }}>
+                            +{credits} credits claimed
+                          </span>
+                        </motion.div>
+                      )}
+
+                      {/* Save / download the receipt as an image */}
+                      {isRevealed && (
+                        <button
+                          data-no-export="true"
+                          onClick={saveReceipt}
+                          disabled={saving}
+                          style={{ marginTop:10, height:44, width:'100%',
+                            cursor: saving ? 'default' : 'pointer',
+                            background:'#fff', color:'#374151', borderRadius:999,
+                            border:'1.5px solid #e5e7eb', fontSize:14, fontWeight:600,
+                            fontFamily:"'DM Sans',sans-serif", display:'flex',
+                            alignItems:'center', justifyContent:'center', gap:8,
+                            opacity: saving ? 0.6 : 1 }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                          </svg>
+                          {saving ? 'Saving…' : 'Save receipt'}
+                        </button>
+                      )}
+                    </>
                   ) : (
                     isRevealed && (
                       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>

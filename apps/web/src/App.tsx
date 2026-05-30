@@ -426,7 +426,14 @@ function AppContent() {
 
   // Dodo Payments callback receipt overlay (success / failure).
   const [checkoutReceipt, setCheckoutReceipt] = useState<
-    { status: PaymentReceiptStatus; credits?: number } | null
+    {
+      status: PaymentReceiptStatus;
+      credits?: number;
+      amount?: string;
+      method?: string;
+      balance?: number;
+      date?: string;
+    } | null
   >(null);
 
   const navigate = useNavigate();
@@ -665,13 +672,24 @@ function AppContent() {
         else if (paymentId)  qs.set('payment_id', paymentId);
         else if (sessionId)  qs.set('session_id', sessionId);
 
-        const result = await api.get<{ status: string; credits_granted?: number }>(
+        const result = await api.get<{
+          status: string;
+          credits_granted?: number;
+          receipt?: { amount: string; credits: number; method: string; balance: number; date: string };
+        }>(
           `/checkout/status?${qs.toString()}`,
           token
         );
 
         if (result.status === 'succeeded' || result.status === 'active') {
-          setCheckoutReceipt({ status: 'success', credits: result.credits_granted });
+          setCheckoutReceipt({
+            status: 'success',
+            credits: result.receipt?.credits ?? result.credits_granted,
+            amount: result.receipt?.amount,
+            method: result.receipt?.method,
+            balance: result.receipt?.balance,
+            date: result.receipt?.date,
+          });
           window.dispatchEvent(new Event('credits-changed'));
           window.history.replaceState({}, '', window.location.pathname);
           return;
@@ -798,6 +816,10 @@ function AppContent() {
         <PaymentReceipt
           status={checkoutReceipt.status}
           credits={checkoutReceipt.credits ?? 50}
+          amount={checkoutReceipt.amount}
+          method={checkoutReceipt.method}
+          balance={checkoutReceipt.balance}
+          date={checkoutReceipt.date}
           payerName={user?.fullName || 'there'}
           onClose={() => { setCheckoutReceipt(null); navigate('/dashboard'); }}
           onRetry={() => { setCheckoutReceipt(null); navigate('/pricing'); }}

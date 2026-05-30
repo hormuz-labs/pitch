@@ -8,6 +8,55 @@ const logger = createLogger('api');
 
 export const router = Router();
 
+// Single source of truth for the Dodo environment so the checkout-create and
+// status-poll clients can never target different environments (a mismatch makes
+// a live checkout session unverifiable from a test-mode client, and vice versa).
+// Explicit DODO_ENVIRONMENT always wins (lets dev opt into live_mode); when unset
+// we default to live in production and test elsewhere, matching prior behavior.
+function dodoEnvironment(): 'live_mode' | 'test_mode' {
+  if (process.env.DODO_ENVIRONMENT === 'live_mode') return 'live_mode';
+  if (process.env.DODO_ENVIRONMENT === 'test_mode') return 'test_mode';
+  return process.env.NODE_ENV === 'production' ? 'live_mode' : 'test_mode';
+}
+
+// ── Receipt formatting helpers ────────────────────────────────────────────────
+// Dodo amounts are in the smallest currency unit (e.g. cents), so divide by 100.
+function formatAmount(minorUnits: number, currency: string): string {
+  const value = (minorUnits ?? 0) / 100;
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(value);
+  } catch {
+    return `$${value.toFixed(2)}`;
+  }
+}
+
+// Dodo's `payment_method` is the category ("card", "upi", "bank_transfer"),
+// while card_network/card_last_four describe a card specifically.
+function formatMethod(
+  paymentMethod?: string | null,
+  cardNetwork?: string | null,
+  cardLast4?: string | null,
+): string {
+  const pm = (paymentMethod || '').toLowerCase();
+  if (pm.includes('card') || cardLast4) {
+    const net = cardNetwork
+      ? cardNetwork.charAt(0).toUpperCase() + cardNetwork.slice(1).toLowerCase()
+      : 'Card';
+    return cardLast4 ? `${net} •••• ${cardLast4}` : net;
+  }
+  if (pm.includes('upi')) return 'UPI';
+  if (!paymentMethod) return 'Card';
+  return paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatReceiptDate(iso: string): string {
+  const d = iso ? new Date(iso) : new Date();
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const day = d.getDate();
+  const suffix = (n: number) => (n % 10 === 1 && n !== 11) ? 'st' : (n % 10 === 2 && n !== 12) ? 'nd' : (n % 10 === 3 && n !== 13) ? 'rd' : 'th';
+  return `${months[d.getMonth()]} ${day}${suffix(day)}, ${d.getFullYear()}`;
+}
+
 router.post('/', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -32,7 +81,7 @@ router.post('/', async (req, res) => {
   try {
     const client = new DodoPayments({
       bearerToken: dodoKey,
-      environment: process.env.NODE_ENV === 'production' && process.env.DODO_ENVIRONMENT !== 'test_mode' ? 'live_mode' : 'test_mode',
+      environment: dodoEnvironment(),
     });
 
     const affCookie = (req as any).cookies?.aff || '';
@@ -86,93 +135,84 @@ router.get('/status', async (req, res) => {
   if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' });
 
   try {
-    const { prisma, upsertSubscription, recordTopUp } = await import('@saas/db');
+    const { prisma, upsertSubscription, recordTopUp, getCreditBalance } = await import('@saas/db');
 
     const dodoClient = () => new DodoPayments({
       bearerToken: dodoKey,
-      environment: process.env.NODE_ENV === 'production' && process.env.DODO_ENVIRONMENT !== 'test_mode' ? 'live_mode' : 'test_mode',
+      environment: dodoEnvironment(),
     });
 
-    // --- 1. Check DB first (webhook may have already processed it) ---
-    if (subscriptionId) {
-      const sub = await prisma.subscription.findUnique({
-        where: { dodoSubscriptionId: subscriptionId },
-      });
-      if (sub) return res.json({ status: 'succeeded' });
-    }
-
-    if (paymentId) {
-      const topUp = await prisma.topUpPurchase.findUnique({
-        where: { dodoPaymentId: paymentId },
-      });
-      if (topUp) return res.json({ status: 'succeeded' });
-    }
-
-    if (sessionId) {
-      // Check by idempotency key pattern
-      const tx = await prisma.creditTransaction.findFirst({
-        where: {
-          OR: [
-            { idempotencyKey: { contains: `:${sessionId}` } },
-          ],
-        },
-      });
-      if (tx) return res.json({ status: 'succeeded' });
-    }
-
-    // --- 2. Webhook not received — fetch directly from Dodo and grant credits ---
-
+    // --- One-time top-up (payment_id) ---
+    // recordTopUp is idempotent, so we always fetch from Dodo to build the
+    // receipt and (re)attempt the grant; a late webhook is a harmless no-op.
     if (paymentId) {
       const payment = await dodoClient().payments.retrieve(paymentId);
 
-      if (payment.status === 'succeeded') {
-        const metadata = (payment.metadata || {}) as Record<string, string>;
-        const payUserId = metadata.clerk_user_id;
-        const packKey   = metadata.pack as keyof typeof TOPUP_PACKS;
-        const credits   = parseInt(metadata.credits || '0', 10);
-
-        if (!payUserId) {
-          return res.status(400).json({ error: 'Payment metadata missing clerk_user_id' });
-        }
-        if (payUserId !== userId) {
-          return res.status(403).json({ error: 'Payment does not belong to this user' });
-        }
-
-        if (credits > 0) {
-          const pack = TOPUP_PACKS[packKey];
-          await recordTopUp({
-            userId: payUserId,
-            dodoPaymentId: paymentId,
-            packKey: packKey || 'topup_10',
-            credits,
-            amountUsd: pack?.priceUsd ?? credits * 1.2,
-          });
-          logger.info({ userId: payUserId, credits, paymentId }, '[Checkout] Top-up credits granted via polling fallback');
-        }
-
-        return res.json({ status: 'succeeded', credits_granted: credits });
+      if (payment.status !== 'succeeded') {
+        return res.json({ status: payment.status ?? 'pending' });
       }
 
-      return res.json({ status: payment.status ?? 'pending' });
+      const metadata = (payment.metadata || {}) as Record<string, string>;
+      const payUserId = metadata.clerk_user_id;
+      const packKey   = metadata.pack as keyof typeof TOPUP_PACKS;
+      const credits   = parseInt(metadata.credits || '0', 10);
+
+      if (!payUserId) {
+        return res.status(400).json({ error: 'Payment metadata missing clerk_user_id' });
+      }
+      if (payUserId !== userId) {
+        return res.status(403).json({ error: 'Payment does not belong to this user' });
+      }
+
+      if (credits > 0) {
+        const pack = TOPUP_PACKS[packKey];
+        await recordTopUp({
+          userId: payUserId,
+          dodoPaymentId: paymentId,
+          packKey: packKey || 'topup_10',
+          credits,
+          amountUsd: pack?.priceUsd ?? credits * 1.2,
+        });
+      }
+
+      const balance = await getCreditBalance(payUserId);
+      return res.json({
+        status: 'succeeded',
+        credits_granted: credits,
+        receipt: {
+          amount: formatAmount(payment.total_amount, payment.currency),
+          credits,
+          method: formatMethod(payment.payment_method, payment.card_network, payment.card_last_four),
+          balance,
+          date: formatReceiptDate(payment.created_at),
+        },
+      });
     }
 
+    // --- Subscription (subscription_id) ---
     if (subscriptionId) {
       const subscription = await dodoClient().subscriptions.retrieve(subscriptionId);
 
-      if (subscription.status === 'active' || subscription.status === 'on_hold') {
-        const metadata  = (subscription.metadata || {}) as Record<string, string>;
-        const subUserId = metadata.clerk_user_id;
-        const planKey   = metadata.pack || 'starter';
-        const credits   = parseInt(metadata.credits || '0', 10);
+      const metadata  = (subscription.metadata || {}) as Record<string, string>;
+      const subUserId = metadata.clerk_user_id;
+      const planKey   = metadata.pack || 'starter';
+      const credits   = parseInt(metadata.credits || '0', 10);
 
+      if (subUserId && subUserId !== userId) {
+        return res.status(403).json({ error: 'Subscription does not belong to this user' });
+      }
+
+      if (subscription.status === 'active' || subscription.status === 'on_hold') {
         if (!subUserId) {
           return res.status(400).json({ error: 'Subscription metadata missing clerk_user_id' });
         }
-        if (subUserId !== userId) {
-          return res.status(403).json({ error: 'Subscription does not belong to this user' });
-        }
 
-        if (credits > 0) {
+        // The subscription grant is not idempotent across polls (period start is
+        // "now"), so only grant when we haven't recorded this subscription yet.
+        const existing = await prisma.subscription.findUnique({
+          where: { dodoSubscriptionId: subscriptionId },
+        });
+        if (!existing && credits > 0) {
           const periodStart = new Date();
           const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
           await upsertSubscription({
@@ -188,13 +228,31 @@ router.get('/status', async (req, res) => {
           logger.info({ userId: subUserId, credits, subscriptionId }, '[Checkout] Subscription credits granted via polling fallback');
         }
 
-        return res.json({ status: 'succeeded', credits_granted: credits });
+        const balance = await getCreditBalance(subUserId);
+        return res.json({
+          status: 'succeeded',
+          credits_granted: credits,
+          receipt: {
+            amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
+            credits,
+            method: 'Subscription',
+            balance,
+            date: formatReceiptDate(subscription.created_at),
+          },
+        });
       }
 
       return res.json({ status: subscription.status });
     }
 
-    // --- 3. Only had a session_id and it wasn't in DB — still pending ---
+    // --- Only had a session_id — confirm grant landed, no receipt details ---
+    if (sessionId) {
+      const tx = await prisma.creditTransaction.findFirst({
+        where: { OR: [ { idempotencyKey: { contains: `:${sessionId}` } } ] },
+      });
+      if (tx) return res.json({ status: 'succeeded' });
+    }
+
     return res.json({ status: 'pending' });
 
   } catch (error: unknown) {
