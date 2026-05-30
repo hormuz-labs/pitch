@@ -10,11 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2t64 libfreetype6 libfontconfig1 libdbus-1-3 libnss3 libnspr4 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
     libatspi2.0-0 libcups2 libxshmfence1 libgbm1 fonts-noto-color-emoji fonts-noto-cjk fonts-freefont-ttf \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL https://opencode.ai/install | bash
+    && curl -fsSL https://opencode.ai/install | bash \
+    && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh \
+    && /root/.rtk/bin/rtk init -g --gemini
 
 # Install agent-browser globally and run its install command
 RUN bun install -g agent-browser && agent-browser install
 
 # Trigger CI rebuild
-ENV PATH="/root/.opencode/bin:${PATH}"
+ENV PATH="/root/.rtk/bin:/root/.opencode/bin:${PATH}"
 
