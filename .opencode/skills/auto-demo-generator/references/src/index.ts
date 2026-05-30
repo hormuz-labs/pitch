@@ -41,6 +41,7 @@ const config: DemoConfig = JSON.parse(fs.readFileSync(configFile, 'utf8'));
 if (!config.startUrl)    { console.error('❌ config.startUrl is required.');              process.exit(1); }
 if (!config.userReq)     { console.error('❌ config.userReq is required.');               process.exit(1); }
 if (!config.steps?.length) { console.error('❌ config.steps must be a non-empty array.'); process.exit(1); }
+if (!config.companyName) { console.error('❌ config.companyName is required (used by outro card).'); process.exit(1); }
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -171,12 +172,10 @@ async function main() {
   }
 
   // Pass 0.5 — Cinematic Outro
-  if (artifactExists('outro-path.txt')) {
-    console.log('⏭️  [resume] Outro already exists — skipping.');
+  if (!artifactExists('outro-path.txt')) {
+    await generateOutro(config, DEMO_DIR);
   } else {
-    try {
-      await generateOutro(config, DEMO_DIR);
-    } catch (e: any) { console.warn(`⚠️ Outro generation failed (non-fatal): ${e.message}`); }
+    console.log('⏭️  [resume] Outro already exists — skipping.');
   }
 
   // Pass 1 — Flow Validation (always re-run — fast and cheap)
