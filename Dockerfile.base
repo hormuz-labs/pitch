@@ -2,7 +2,7 @@
 FROM oven/bun:1-debian
 
 # Make install dirs available to subsequent RUN commands
-ENV PATH="/root/.rtk/bin:/root/.opencode/bin:${PATH}"
+ENV PATH="/root/.local/bin:/root/.opencode/bin:${PATH}"
 
 # Install runtime dependencies for browser automation, media processing, and opencode
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://opencode.ai/install | bash \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh \
-    && /root/.rtk/bin/rtk init -g --opencode
+    && /root/.local/bin/rtk init -g --opencode
 
 # Install agent-browser globally and run its install command
 RUN bun install -g agent-browser && agent-browser install
