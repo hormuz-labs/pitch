@@ -77,12 +77,8 @@ export async function generateOutro(
   const outroVideoPath = path.resolve(demoDir, 'outro.webm');
   const files = fs.readdirSync(demoDir).filter(f => f.endsWith('.webm') && !f.includes('intro'));
   const latestWebm = files.sort((a, b) => fs.statSync(path.join(demoDir, b)).mtimeMs - fs.statSync(path.join(demoDir, a)).mtimeMs)[0];
-  if (latestWebm) {
-    const fullPath = path.join(demoDir, latestWebm);
-    fs.renameSync(fullPath, outroVideoPath);
-    fs.writeFileSync(outroPathFile, outroVideoPath);
-    console.log(`✅ Outro recorded: ${outroVideoPath}`);
-  } else {
-    console.log('⚠️  Outro video file not found.');
-  }
+  if (!latestWebm) throw new Error('[generate-outro] No .webm output found in demo dir after recording.');
+  fs.renameSync(path.join(demoDir, latestWebm), outroVideoPath);
+  fs.writeFileSync(outroPathFile, outroVideoPath);
+  console.log(`✅ Outro recorded: ${outroVideoPath}`);
 }
