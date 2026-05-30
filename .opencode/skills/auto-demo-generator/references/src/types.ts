@@ -5,6 +5,10 @@ export interface DemoConfig {
   cursorStyle?: 'black' | 'white';
   companyName?: string;
   introBg?: 'auto' | 'white' | 'black';
+  outroUrl?: string;
+  outroBg?: string;
+  outroTextColor?: string;
+  outroText?: string;
   width?: number;
   height?: number;
   /** Gemini TTS voice name (e.g. "Puck", "Aoede"). Defaults to "Puck". */
