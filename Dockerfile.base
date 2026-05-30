@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://opencode.ai/install | bash \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh \
-    && /root/.rtk/bin/rtk init -g --gemini
+    && /root/.rtk/bin/rtk init -g --opencode
 
 # Install agent-browser globally and run its install command
 RUN bun install -g agent-browser && agent-browser install
