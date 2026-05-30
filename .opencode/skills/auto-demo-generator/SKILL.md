@@ -68,13 +68,13 @@ The `references/` directory contains the template files.
 Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
 
 **CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the immutable templates. 
-The agent MUST copy BOTH the TypeScript files and the assets directory (`src/` and `assets/`) from the `references/` folder into the new `demos/<demo-name>/` folder. Do NOT copy `package.json` or any other dependency files. All dependencies are already globally installed, so you do NOT need to install them.
+The agent MUST copy the TypeScript files, the assets directory, and the templates directory (`src/`, `assets/`, and `templates/`) from the `references/` folder into the new `demos/<demo-name>/` folder. Do NOT copy `package.json` or any other dependency files. All dependencies are already globally installed, so you do NOT need to install them.
 
 **MANDATORY COPY COMMAND:**
 ```bash
-cp -r .opencode/skills/auto-demo-generator/references/src .opencode/skills/auto-demo-generator/references/assets demos/<demo-name>/
+cp -r .opencode/skills/auto-demo-generator/references/src .opencode/skills/auto-demo-generator/references/assets .opencode/skills/auto-demo-generator/references/templates demos/<demo-name>/
 ```
-*(If you forget the `assets/` directory, the engine will crash with a missing cursor SVG error!)*
+*(If you forget the `assets/` directory, the engine will crash with a missing cursor SVG error! If you forget the `templates/` directory, the outro card generation will crash!)*
 
 From there, the AI should:
 1. Create and modify the `demo-config.json` inside the `demos/<demo-name>` folder.
@@ -122,6 +122,10 @@ Before running the validation or generation passes, `pass0-intro.ts` automatical
 *   **Adaptive Background:** Analyzes the logo's non-transparent pixels using canvas pixel math. Dark logo → white `#FFFFFF` background. Light logo → deep `#0A0A0A` background. Can be forced via `introBg: 'white' | 'black'` in `demo-config.json`.
 *   **Cinematic Animation:** Renders an HTML page via Playwright `recordVideo` featuring an Apple-style staggered slide-in (cubic-bezier easing): logo blooms in → divider draws down → company name slides in from left. Font: `Inter Bold 700`, 72px, -0.03em tracking.
 *   **Thumbnail Capture:** At ~1.5s into the animation (when logo + name are fully visible), a JPEG screenshot is saved as `thumbnail.jpg` in the demo directory and its path written to `thumbnail-path.txt`. The `src/index.ts` pipeline immediately uploads this via `job-cli thumbnail` so the dashboard shows the branded preview while the rest of the pipeline is still running.
+*   **Visual QA Verification (CRITICAL):**
+    *   **Background/Font Color:** Always verify that the automatically selected background color and font colors are correct, readable, and visually appealing. If the logo has a transparent background, ensure the adaptive background algorithm chooses the correct theme (e.g., dark logo on white background, light logo on black background).
+    *   **Override settings:** If the automatically selected background does not look good, manually set `"introBg": "black"` or `"introBg": "white"` and `"outroBg": "#0A0A0A"` in `demo-config.json` to override the defaults.
+    *   **Outro Card Text Replacement:** Ensure the `{{THANKS_TEXT}}` and `{{URL}}` variables inside `templates/outro-card.html` are correctly replaced and do not render literally in the output video. Check the generated `outro.webm` file using visual QA or checking `pass0-outro.ts` logs.
 *   **Stitching:** The generated `intro.webm` is seamlessly concatenated at the very end of Phase 4 into the final `.mp4` via FFmpeg's `concat` filter.
 
 ### Phase 1 — Flow Validation (Playwright Dry Run)

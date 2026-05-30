@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs';
 import path from 'path';
@@ -117,49 +118,78 @@ export async function pass4Ffmpeg(
     }
   }
 
-  console.log('🎬 Encoding final video...');
-  await new Promise<void>((resolve, reject) => {
-    if (hasVaapi) command.addOption('-vaapi_device', '/dev/dri/renderD128');
-    command
-      .outputOptions([
-        '-filter_complex_script', filterScriptPath,
-        '-map', '[vout]',
-        '-map', '[aout]',
-        ...hwOutputOpts,
-        '-profile:v', 'high',
-        '-level:v', '4.2',
-        '-c:a', 'aac',
-        '-r', '30',
-        '-movflags', '+faststart',
-        '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
-      ])
-      .save(tempRawOut)
-      .on('progress', (progress) => {
-        if (progress.percent !== undefined) {
-          process.stdout.write(`Encoding: ${progress.percent.toFixed(1)}%\r`);
-        } else if (progress.frames) {
-          process.stdout.write(`Encoding frame: ${progress.frames}\r`);
-        }
-      })
-      .on('end', () => {
-        console.log('\n✅ Encoding complete.');
-        resolve();
-      })
-      .on('error', reject);
-  });
+  const rawAlreadyExists = fs.existsSync(tempRawOut) && fs.statSync(tempRawOut).size > 0;
+  if (rawAlreadyExists) {
+    console.log('⏭️  [pass4] Raw output already exists — skipping re-encode.');
+  } else {
+    console.log('🎬 Encoding final video...');
+    await new Promise<void>((resolve, reject) => {
+      if (hasVaapi) command.addOption('-vaapi_device', '/dev/dri/renderD128');
+      command
+        .outputOptions([
+          '-filter_complex_script', filterScriptPath,
+          '-map', '[vout]',
+          '-map', '[aout]',
+          ...hwOutputOpts,
+          '-profile:v', 'high',
+          '-level:v', '4.2',
+          '-c:a', 'aac',
+          '-r', '30',
+          '-movflags', '+faststart',
+          '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
+        ])
+        .save(tempRawOut)
+        .on('progress', (progress) => {
+          if (progress.percent !== undefined) {
+            process.stdout.write(`Encoding: ${progress.percent.toFixed(1)}%\r`);
+          } else if (progress.frames) {
+            process.stdout.write(`Encoding frame: ${progress.frames}\r`);
+          }
+        })
+        .on('end', () => {
+          console.log('\n✅ Encoding complete.');
+          resolve();
+        })
+        .on('error', reject);
+    });
+  }
 
   // ── Stitch intro & outro ──────────────────────────────────────────────────
   const introPathFile = path.join(demoDir, 'intro-path.txt');
   const outroPathFile = path.join(demoDir, 'outro-path.txt');
   let currentInput = tempRawOut;
 
+  function hasAudioStream(filePath: string): boolean {
+    try {
+      const result = execSync(
+        `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${filePath}"`,
+        { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
+      ).trim();
+      return result === 'audio';
+    } catch { return false; }
+  }
+
+  function getVideoDuration(filePath: string): number {
+    try {
+      const result = execSync(
+        `ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
+        { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
+      ).trim();
+      return parseFloat(result) || 0;
+    } catch { return 0; }
+  }
+
   async function concatClips(inputA: string, inputB: string, outputPath: string, label: string): Promise<void> {
     console.log(`🎬 Stitching ${label}...`);
+    const aAudio = hasAudioStream(inputA);
+    const bAudio = hasAudioStream(inputB);
+    const aDur = getVideoDuration(inputA);
+    const bDur = getVideoDuration(inputB);
     const clipFilter =
       '[0:v]fps=30,format=yuv420p[av];' +
-      '[0:a]aresample=48000[aa];' +
+      (aAudio ? '[0:a]aresample=48000[aa];' : `anullsrc=channel_layout=stereo:sample_rate=48000:duration=${aDur.toFixed(1)}[aa];`) +
       '[1:v]fps=30,format=yuv420p[bv];' +
-      'anullsrc=channel_layout=stereo:sample_rate=48000:duration=4[ba];' +
+      (bAudio ? '[1:a]aresample=48000[ba];' : `anullsrc=channel_layout=stereo:sample_rate=48000:duration=${bDur.toFixed(1)}[ba];`) +
       `[av][aa][bv][ba]concat=n=2:v=1:a=1${hasVaapi ? '[v_concat][aout];[v_concat]format=nv12,hwupload[vout]' : '[vout][aout]'}`;
 
     await new Promise<void>((resolve, reject) => {
@@ -179,6 +209,7 @@ export async function pass4Ffmpeg(
           '-metadata', `title=${config.outputPath ? path.basename(config.outputPath, '.mp4') : 'demo'}`,
         ])
         .save(outputPath)
+        .on('start', (cmdLine) => console.log(`\n🚀 Spawned: ${cmdLine}`))
         .on('stderr', () => process.stdout.write('.'))
         .on('end', () => { clearTimeout(hangGuard); resolve(); })
         .on('error', (e: Error) => { clearTimeout(hangGuard); reject(e); });

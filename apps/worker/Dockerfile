@@ -39,6 +39,6 @@ RUN groupadd -f render && usermod -aG render,video root
 RUN chmod +x /app/apps/job-cli/src/index.ts && ln -s /app/apps/job-cli/src/index.ts /usr/local/bin/job-cli
 
 ENV NODE_ENV=production
-ENV PATH="/root/.opencode/bin:${PATH}"
+ENV PATH="/root/.rtk/bin:/root/.opencode/bin:${PATH}"
 
 CMD ["sh", "-c", "bunx prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/worker/src/index.ts"]

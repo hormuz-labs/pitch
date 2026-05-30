@@ -36,13 +36,25 @@ export async function generateOutro(
   const w = config.width || 1920;
   const h = config.height || 1080;
 
+  let displayUrl = config.outroUrl;
+  if (!displayUrl && config.startUrl) {
+    try {
+      const urlObj = new URL(config.startUrl.startsWith('http') ? config.startUrl : `https://${config.startUrl}`);
+      displayUrl = urlObj.hostname.replace('www.', '');
+    } catch (e) {
+      displayUrl = 'ui.shadcn.com';
+    }
+  }
+  if (!displayUrl) displayUrl = 'ui.shadcn.com';
+
   const html = buildOutroCardHtml({
     companyName: config.companyName,
-    url: 'ui.shadcn.com',
+    url: displayUrl,
+    thanksText: config.outroText || 'Thanks for watching',
     width: w,
     height: h,
-    bg: '#0A0A0A',
-    textColor: '#F5F5F5',
+    bg: config.outroBg || '#0A0A0A',
+    textColor: config.outroTextColor || '#F5F5F5',
     logoDataUrl,
   });
 
@@ -53,7 +65,8 @@ export async function generateOutro(
   });
   const outroPage = await outroContext.newPage();
 
-  await outroPage.setContent('<html><body style="background:#0A0A0A;"></body></html>');
+  const finalBg = config.outroBg || '#0A0A0A';
+  await outroPage.setContent(`<html><body style="background:${finalBg};"></body></html>`);
   await outroPage.waitForTimeout(100);
 
   await outroPage.setContent(html);
