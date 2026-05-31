@@ -49,9 +49,9 @@ To produce the most engaging, professional, and visually premium videos, the AI 
 
 **Execution:**
 ```bash
-cd demos/<demo-name>
-bun run src/index.ts demo-config.json
+JOB_ID=$JOB_ID bun run src/index.ts demos/<demo-name>/demo-config.json
 ```
+*Note: The engine automatically creates a unique run directory (`demos/<demo-name>-<JOB_ID>/`) to avoid name conflicts. See Phase 0.1.*
 
 **Just-In-Time (JIT) Element Resolution:** Bounding boxes are NOT extracted in a previous pass. Because modern web pages load dynamically and ads/banners can shift the layout, the engine resolves the selector's live coordinates directly during the video recording right before the camera moves. This ensures 100% precision.
 
@@ -65,7 +65,7 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase workspace_init --st
 ```
 The `references/` directory contains the template files. 
 
-Before creating the config, the AI Agent MUST create a dedicated folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
+Before creating the config, the AI Agent MUST create a project folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`). This is a **project key** — a short descriptive name for the website being demoed. The engine will automatically create a unique **run directory** (`demos/shadcn-demo-<JOB_ID>/`) when you execute, preventing folder name conflicts between multiple runs.
 
 **CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the immutable templates. 
 The agent MUST copy the TypeScript files, the assets directory, and the templates directory (`src/`, `assets/`, and `templates/`) from the `references/` folder into the new `demos/<demo-name>/` folder. Do NOT copy `package.json` or any other dependency files. All dependencies are already globally installed, so you do NOT need to install them.
@@ -88,7 +88,7 @@ From there, the AI should:
    This ensures we never waste time or API costs regenerating the cinematic intro (`pass0`), validating selectors (`pass1`), or generating voiceovers (`pass2`) if they are already done.
    **Note on Progress Reporting:** The modified `src/index.ts` engine is smart enough to automatically backfill and "tick" (mark as completed) all prior phases in the UI if you resume from a later phase. For example, if you resume at `video_recording`, the engine will automatically report `voiceover_generation`, `flow_validation`, etc., as completed so the frontend UI stays perfectly synced.
 
-5. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-record.ts` to include a dynamic `try/catch` block that locates and clicks the dismiss button (e.g. `✕`) after `page.goto()`.
+6. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-record.ts` to dismiss it (e.g. locate and click the `✕` button) after `page.goto()`.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 
@@ -156,9 +156,53 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 3.  **Disable Normalization (`normalize=0`):** Without `apad` on the SFX, standard `amix` behavior would volume-jump the voiceover whenever an SFX stops. `normalize=0` prevents volume shifting!
 4.  **End on Voiceover (`duration=first`):** Ensure the mix stops when the main padded voiceover stops.
 
-## Reference Files
+## Reference Files — Playwright Selector Gotchas
 
-- **[`references/playwright-selector-gotchas.md`](references/playwright-selector-gotchas.md)** — Common selector mistakes that cause silent timeouts: `:has-text()` vs `>> text=`, `/`-in-class-names, href mismatches. **Read this before writing any `demo-config.json` selectors.**
+**Read this before writing any `demo-config.json` selectors.** Common selector mistakes that cause silent timeouts:
+
+**`:has-text()` is not standard CSS inside `:has()`** — Playwright combinators (`>>`) and custom pseudo-classes like `:has-text()` or `:text()` are handled by Playwright's engine. Passing them inside standard functional CSS pseudo-classes like `:has(...)` or `:not(...)` will cause syntax errors.
+* Use Playwright's split `>>` operator instead, or use XPath relative axes:
+```
+❌ "div:has(h3 >> text='Test Nurse') >> .button"
+❌ "div:has(h3:has-text('Test Nurse')) >> .button"
+✅ "h3:has-text('Test Nurse') >> xpath=../.. >> .button"
+✅ "button >> text='Return policy?'"
+✅ "button:text('Return policy?')"
+```
+
+**Never guess element attributes (Email, Password, etc.)** — Always use `agent-browser` (specifically `agent-browser get attr <ref> placeholder/name/id`) to fetch exact attribute values before writing selectors. Labels and placeholders are frequently different from visual text (e.g. "Email" visually vs. placeholder="Enter your email or phone number").
+
+**Prefer Tag-Agnostic Selectors for Inputs** — Avoid prepending `input` to attribute selectors like `input[name='benefits']`. Features looking like text fields might be implemented as `<textarea>` or custom elements. Omitting the tag name makes the selector robust:
+```
+❌ "input[name='benefits']"
+✅ "[name='benefits']"
+```
+
+**Verify hrefs with agent-browser** — sites redirect URLs (e.g. `/docs/components/command` → `/docs/components/radix/command`). Always confirm the exact `href` value before using `a[href='...']`.
+
+**Avoid class names with `/`** — Tailwind classes like `group/accordion-trigger` are invalid CSS selectors. Use a structural parent (`h3 button`) or ARIA role instead.
+
+**⏱️ Fail Fast: Use Aggressive Timeouts for Exploration & Scraping**
+By default, Playwright waits **30 seconds** (`30000ms`) for elements before throwing an error. When writing custom scripts or performing live explorations (e.g., `explore.ts`), waiting 30 seconds for a missing element severely slows down the agent's feedback loop and costs valuable reasoning time.
+* **The Rule**: Always set a short, aggressive timeout (e.g., **3 to 5 seconds**) on wait and action methods when writing ad-hoc scripts. If the element is not there, let the script crash immediately so you can self-correct instantly.
+* **How to implement**:
+  ```typescript
+  // BAD: Stalls the agent for 30 seconds on failure
+  await page.click('text="Test Nurse"'); 
+  
+  // GOOD: Fails in 3 seconds, triggering immediate correction
+  await page.click('text="Test Nurse"', { timeout: 3000 }); 
+  
+  // GOOD: Short wait before acting
+  await page.waitForSelector('text="Test Nurse"', { timeout: 3000 });
+  ```
+
+| Intent | Selector |
+|---|---|
+| Button by text | `button >> text='Submit'` |
+| Tab by label | `[role='tablist'] [role='tab'] >> text='Analytics'` |
+| Input by placeholder | `[placeholder='Search...']` |
+| Link by text | `a >> text='Command'` |
 
 ## Reference Implementation
 See the **perfected, generic pipeline modularized** in the `references/` directory. It acts as an automation engine that processes JSON steps rather than hardcoded Playwright scripts, making it infinitely reusable across any website.
@@ -185,9 +229,9 @@ bun apps/job-cli/src/index.ts phase --job-id <JOB_ID> --phase <PHASE_KEY> --stat
 | `ffmpeg_postprocessing` | Automatically handled by `src/index.ts` |
 
 ### Critical Rules
-1. **FIRE-AND-FORGET**: If a phase report command fails, DO NOT stop the pipeline. Log the error and continue.
+1. **Phase reporting is fail-fast**: If a phase report command fails, it will crash the pipeline. Ensure the job-cli is running and JOB_ID is correct.
 2. **Always report running THEN completed**: Never skip the `running` call — the frontend uses it to animate the current step.
-3. **Set JOB_ID env var**: When running `bun run src/index.ts demo-config.json`, prepend `JOB_ID=<JOB_ID>` so the auto-reporting inside `index.ts` knows the job ID.
+3. **Set JOB_ID env var**: When running `bun run src/index.ts demos/<name>/demo-config.json`, prepend `JOB_ID=<JOB_ID>` so the auto-reporting inside `index.ts` knows the job ID. The engine also uses JOB_ID to derive a unique run directory — this means each run gets its own workspace with no name conflicts.
    ```bash
    JOB_ID=<JOB_ID> bun run src/index.ts demos/<name>/demo-config.json
    ```
@@ -207,8 +251,9 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection
 # Run the main pipeline (auto-reports phases 0.5 → 4)
 # NOTE: Ensure you set a high timeout (e.g., 900000ms / 15 minutes) if running this via a tool call,
 # as FFmpeg post-processing is highly computationally intensive and can easily exceed 5 minutes.
-cd demos/<name>
-JOB_ID=$JOB_ID bun run src/index.ts demo-config.json
+# The engine auto-creates a unique run directory (demos/<name>-<JOB_ID>/) and bootstraps it with src/assets/templates
+# from the project folder, so you never need to worry about name conflicts.
+JOB_ID=$JOB_ID bun run src/index.ts demos/<name>/demo-config.json
 ```
 
 ## Error Tracking & Telegram Notifications (MANDATORY)

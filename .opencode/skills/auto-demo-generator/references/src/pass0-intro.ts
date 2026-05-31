@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import { DemoConfig } from './types';
 
-// Supported logo formats and their MIME types
 const MIME_MAP: Record<string, string> = {
   '.png':  'image/png',
   '.jpg':  'image/jpeg',
@@ -32,7 +31,6 @@ function findLogoInIconsDir(demoDir: string): { filePath: string; mimeType: stri
     return null;
   }
 
-  // Prefer SVG (infinite resolution) → PNG → WebP → others
   const preferenceOrder = ['.svg', '.png', '.webp', '.jpg', '.jpeg', '.avif', '.gif', '.ico'];
   files.sort((a, b) => {
     const ai = preferenceOrder.indexOf(path.extname(a).toLowerCase());
@@ -49,7 +47,6 @@ function findLogoInIconsDir(demoDir: string): { filePath: string; mimeType: stri
   return { filePath, mimeType, dataUrl };
 }
 
-// ── Preflight ────────────────────────────────────────────────────────────────
 function preflight(demoDir: string): void {
   if (!fs.existsSync(demoDir)) throw new Error(`[pass0-intro] demoDir does not exist: ${demoDir}`);
   const iconsDir = path.join(demoDir, 'assets', 'icons');
@@ -59,7 +56,6 @@ function preflight(demoDir: string): void {
 export async function pass0(config: DemoConfig, startUrl: string, demoDir: string) {
   preflight(demoDir);
 
-  // Skip if intro + thumbnail already recorded
   const introPathFile = path.join(demoDir, 'intro-path.txt');
   const thumbnailPathFile = path.join(demoDir, 'thumbnail-path.txt');
   if (fs.existsSync(introPathFile) && fs.existsSync(thumbnailPathFile)) {
@@ -72,23 +68,19 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
 
   console.log("== Pass 0: Cinematic Intro Generation ==");
 
-  // --- 1. Resolve Company Name ---
   let companyName = config.companyName;
   if (!companyName) {
-    // Derive from URL (no browser needed — no network cost)
     const urlObj = new URL(startUrl.startsWith('http') ? startUrl : `https://${startUrl}`);
     const parts = urlObj.hostname.replace('www.', '').split('.');
     companyName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
   }
 
-  // --- 2. Find Logo from assets/icons/ (placed there by agent-browser) ---
   const logo = findLogoInIconsDir(demoDir);
   if (!logo) {
     console.log("Skipping cinematic intro — no logo in assets/icons/.");
     return;
   }
 
-  // --- 3. Analyze Brightness (using Node.js Canvas via Playwright evaluate) ---
   let bg = '#FFFFFF';
   let textColor = '#111111';
   let dividerColor = '#E0E0E0';
@@ -99,39 +91,33 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
     textColor = isDark ? '#F5F5F5' : '#111111';
     dividerColor = isDark ? '#2A2A2A' : '#E0E0E0';
   } else {
-    let avgBrightness = 128;
-    try {
-      // Spin up a tiny browser just to run the pixel analysis — no page load needed
-      const analysisBrowser = await chromium.launch({ headless: true });
-      const analysisCtx = await analysisBrowser.newContext();
-      const analysisPage = await analysisCtx.newPage();
+    const analysisBrowser = await chromium.launch({ headless: true });
+    const analysisCtx = await analysisBrowser.newContext();
+    const analysisPage = await analysisCtx.newPage();
 
-      avgBrightness = await analysisPage.evaluate(async (dataUrl) => {
-        const img = new Image();
-        img.src = dataUrl;
-        await new Promise(r => img.onload = r);
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width; canvas.height = img.height;
-        const ctx = canvas.getContext('2d')!;
-        ctx.drawImage(img, 0, 0);
-        const data = ctx.getImageData(0, 0, img.width, img.height).data;
-        let total = 0, count = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 3] > 10) { // non-transparent pixels only
-            total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            count++;
-          }
+    const avgBrightness = await analysisPage.evaluate(async (dataUrl) => {
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise(r => img.onload = r);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, img.width, img.height).data;
+      let total = 0, count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] > 10) {
+          total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          count++;
         }
-        return count > 0 ? total / count : 128;
-      }, logo.dataUrl);
+      }
+      return count > 0 ? total / count : 128;
+    }, logo.dataUrl);
 
-      await analysisBrowser.close();
-      console.log(`Logo brightness: ${avgBrightness.toFixed(1)}`);
-    } catch (err: any) {
-      console.warn(`⚠️ Brightness analysis failed (non-fatal): ${err.message}. Falling back to default.`);
-    }
+    await analysisBrowser.close();
+    console.log(`Logo brightness: ${avgBrightness.toFixed(1)}`);
 
-    if (avgBrightness > 140) { // Logo is light → use dark background
+    if (avgBrightness > 140) {
       bg = '#0A0A0A';
       textColor = '#F5F5F5';
       dividerColor = '#2A2A2A';
@@ -139,7 +125,6 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
     console.log(`Logo background theme selected: ${bg}`);
   }
 
-  // --- 4. Record Cinematic Intro via Playwright ---
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
   const introBrowser = await chromium.launch({ headless: true });
@@ -176,7 +161,6 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
   @keyframes logoIn {
     to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
   }
-  /* SVGs and PNGs both render perfectly as <img> with data URLs */
   .logo-wrap img { height: 100px; width: auto; display: block; max-width: 500px; object-fit: contain; }
 
   .divider {
@@ -200,7 +184,6 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
     line-height: 1; white-space: nowrap;
   }
 
-  /* Fade out the whole frame at the end */
   body { animation: bodyFadeOut 0.7s ease 2.8s forwards; }
   @keyframes bodyFadeOut { to { opacity: 0; } }
 </style>
@@ -222,21 +205,19 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
 </body>
 </html>`;
 
-  // Prime the recorder with a first frame before the real content
   await introPage.setContent('<html><body style="background:white;"></body></html>');
   await introPage.waitForTimeout(100);
 
   await introPage.setContent(html);
-  await introPage.waitForFunction(() => (window as any).__fontsLoaded === true, { timeout: 5000 }).catch(() => {});
+  await introPage.waitForFunction(() => (window as any).__fontsLoaded === true, { timeout: 5000 });
 
-  // Wait until animations are fully settled (~1.5s) then capture thumbnail
   await introPage.waitForTimeout(1500);
   const thumbnailPath = path.join(demoDir, 'thumbnail.jpg');
   await introPage.screenshot({ path: thumbnailPath, type: 'jpeg', quality: 90 });
   fs.writeFileSync(path.join(demoDir, 'thumbnail-path.txt'), thumbnailPath);
   console.log(`✅ Thumbnail captured: ${thumbnailPath}`);
 
-  await introPage.waitForFunction(() => (window as any).__introDone === true, { timeout: 6000 }).catch(() => {});
+  await introPage.waitForFunction(() => (window as any).__introDone === true, { timeout: 6000 });
 
   const introVideoPath = await introPage.video()?.path();
   await introContext.close();

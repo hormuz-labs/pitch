@@ -3,17 +3,11 @@ import fs from 'fs';
 import path from 'path';
 import { DemoStep } from './types';
 
-// ── Preflight ────────────────────────────────────────────────────────────────
 function preflight(demoDir: string): void {
   if (!process.env.GEMINI_API_KEY) throw new Error('[pass2-script] GEMINI_API_KEY is not set.');
   if (!fs.existsSync(demoDir)) throw new Error(`[pass2-script] demoDir does not exist: ${demoDir}`);
 }
 
-/**
- * Pass 2 — Script Generation
- * Outputs: script.txt
- * Skips if script.txt already exists.
- */
 export async function pass2Script(
   ai: GoogleGenAI,
   userReq: string,
@@ -21,7 +15,6 @@ export async function pass2Script(
   demoDir: string
 ): Promise<string> {
   preflight(demoDir);
-
   const scriptPath = path.join(demoDir, 'script.txt');
   if (fs.existsSync(scriptPath)) {
     const cached = fs.readFileSync(scriptPath, 'utf8').trim();

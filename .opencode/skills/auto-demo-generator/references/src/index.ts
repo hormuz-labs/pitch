@@ -15,7 +15,6 @@ import { pass4Ffmpeg } from './pass4-ffmpeg';
 
 dotenv.config();
 
-// ── Global preflight ──────────────────────────────────────────────────────────
 if (!process.env.GEMINI_API_KEY) {
   console.error('❌ GEMINI_API_KEY is not set. Aborting.');
   process.exit(1);
@@ -31,12 +30,26 @@ if (!configFile || !fs.existsSync(configFile)) {
   process.exit(1);
 }
 
-// DEMO_DIR is the directory containing demo-config.json.
-// All intermediate artifacts (script.txt, voiceover.wav, …) land here.
-const DEMO_DIR = path.dirname(path.resolve(configFile));
-if (!fs.existsSync(DEMO_DIR)) fs.mkdirSync(DEMO_DIR, { recursive: true });
+const rawConfigPath = path.resolve(configFile);
+const configDir = path.dirname(rawConfigPath);
 
-const config: DemoConfig = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+const runSuffix = process.env.JOB_ID || `run-${Date.now().toString(36).slice(-6)}`;
+const projectName = path.basename(configDir);
+const runName = `${projectName}-${runSuffix}`;
+const DEMO_DIR = path.resolve(configDir, '..', runName);
+
+if (!fs.existsSync(DEMO_DIR)) {
+  fs.mkdirSync(DEMO_DIR, { recursive: true });
+  for (const dir of ['src', 'assets', 'templates']) {
+    const srcPath = path.join(configDir, dir);
+    if (fs.existsSync(srcPath)) {
+      execSync(`cp -r "${srcPath}" "${DEMO_DIR}/"`);
+    }
+  }
+  fs.copyFileSync(rawConfigPath, path.join(DEMO_DIR, 'demo-config.json'));
+}
+
+const config: DemoConfig = JSON.parse(fs.readFileSync(rawConfigPath, 'utf8'));
 
 if (!config.startUrl)    { console.error('❌ config.startUrl is required.');              process.exit(1); }
 if (!config.userReq)     { console.error('❌ config.userReq is required.');               process.exit(1); }
@@ -45,7 +58,6 @@ if (!config.companyName) { console.error('❌ config.companyName is required (us
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// ── Strict Preflight Checks ───────────────────────────────────────────────────
 const cursorStyle = config.cursorStyle || 'black';
 const cursorFile = path.join(DEMO_DIR, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
 if (!fs.existsSync(cursorFile)) {
@@ -60,7 +72,6 @@ if (!fs.existsSync(clickSfx) || !fs.existsSync(keySfx)) {
   process.exit(1);
 }
 
-// ── Phase reporting ───────────────────────────────────────────────────────────
 const JOB_ID = process.env.JOB_ID;
 
 const PHASE_SEQUENCE = [
@@ -78,45 +89,33 @@ const completedPhases = new Set<string>();
 function reportPhase(phase: string, status: 'running' | 'completed' | 'failed'): void {
   if (!JOB_ID) return;
 
-  // Retroactively mark all prior phases completed when resuming mid-pipeline
   const currentIndex = PHASE_SEQUENCE.indexOf(phase);
   if (currentIndex > 0) {
     for (let i = 0; i < currentIndex; i++) {
       const prior = PHASE_SEQUENCE[i];
       if (!completedPhases.has(prior)) {
-        try {
-          const root = path.resolve(__dirname, '../../..');
-          execSync(`bun apps/job-cli/src/index.ts phase --job-id ${JOB_ID} --phase ${prior} --status completed`, { cwd: root, stdio: 'inherit', timeout: 15000 });
-          completedPhases.add(prior);
-        } catch { /* non-fatal */ }
+        const root = path.resolve(__dirname, '../../..');
+        execSync(`bun apps/job-cli/src/index.ts phase --job-id ${JOB_ID} --phase ${prior} --status completed`, { cwd: root, stdio: 'inherit', timeout: 15000 });
+        completedPhases.add(prior);
       }
     }
   }
 
-  try {
-    const root = path.resolve(__dirname, '../../..');
-    execSync(`bun apps/job-cli/src/index.ts phase --job-id ${JOB_ID} --phase ${phase} --status ${status}`, { cwd: root, stdio: 'inherit', timeout: 15000 });
-    if (status === 'completed') completedPhases.add(phase);
-  } catch (e: any) {
-    console.warn(`[phase-reporter] Failed to report [${phase}=${status}]: ${e.message}`);
-  }
+  const root = path.resolve(__dirname, '../../..');
+  execSync(`bun apps/job-cli/src/index.ts phase --job-id ${JOB_ID} --phase ${phase} --status ${status}`, { cwd: root, stdio: 'inherit', timeout: 15000 });
+  if (status === 'completed') completedPhases.add(phase);
 }
 
-// ── Resume helpers ─────────────────────────────────────────────────────────────
 function artifactFile(name: string): string { return path.join(DEMO_DIR, name); }
 
 function artifactExists(name: string): boolean {
   const file = artifactFile(name);
   if (!fs.existsSync(file)) return false;
-  // Binary outputs (mp4, wav, webm, png) just need to exist
   const binaryExts = ['.mp4', '.wav', '.webm', '.png'];
   if (binaryExts.some(ext => name.endsWith(ext))) return true;
-  // Text artifacts: read content to verify integrity
-  try {
-    const content = fs.readFileSync(file, 'utf8').trim();
-    if (content.length === 0) return false;
-    return content.startsWith('/') ? fs.existsSync(content) : true;
-  } catch { return false; }
+  const content = fs.readFileSync(file, 'utf8').trim();
+  if (content.length === 0) return false;
+  return content.startsWith('/') ? fs.existsSync(content) : true;
 }
 
 function removeArtifact(name: string): void {
@@ -124,26 +123,18 @@ function removeArtifact(name: string): void {
   if (fs.existsSync(file)) fs.unlinkSync(file);
 }
 
-// ── Pipeline ──────────────────────────────────────────────────────────────────
 async function main() {
-  // ── Async Preflight: Check Transcription Service Health ────────────────────
-  try {
-    const healthUrl = new URL('/health', process.env.TRANSCRIPTION_SERVICE_URL!).toString();
-    const healthRes = await fetch(healthUrl, { method: 'GET' });
-    if (!healthRes.ok) {
-      if (healthRes.status === 503) {
-        console.error('❌ Transcription service is running but model is still loading into memory. Wait a moment and retry.');
-      } else {
-        console.error(`❌ Transcription service returned HTTP ${healthRes.status}`);
-      }
-      process.exit(1);
+  const healthUrl = new URL('/health', process.env.TRANSCRIPTION_SERVICE_URL!).toString();
+  const healthRes = await fetch(healthUrl, { method: 'GET' });
+  if (!healthRes.ok) {
+    if (healthRes.status === 503) {
+      console.error('❌ Transcription service is running but model is still loading into memory. Wait a moment and retry.');
+    } else {
+      console.error(`❌ Transcription service returned HTTP ${healthRes.status}`);
     }
-  } catch (e: any) {
-    console.error(`❌ Transcription service at ${process.env.TRANSCRIPTION_SERVICE_URL} is unreachable! Start it first before running jobs. (${e.message})`);
     process.exit(1);
   }
 
-  // Pass 0 — Cinematic Intro
   if (artifactExists('intro-path.txt')) {
     console.log('⏭️  [resume] Intro already exists — skipping.');
     reportPhase('intro_sequence', 'completed');
@@ -152,40 +143,32 @@ async function main() {
     try {
       await pass0(config, config.startUrl, DEMO_DIR);
       reportPhase('intro_sequence', 'completed');
-
-      // Upload thumbnail immediately so the dashboard shows a branded preview
-      // while the rest of the pipeline is still running.
       if (JOB_ID) {
         const thumbnailPathFile = path.join(DEMO_DIR, 'thumbnail-path.txt');
         if (fs.existsSync(thumbnailPathFile)) {
           const thumbnailFile = fs.readFileSync(thumbnailPathFile, 'utf8').trim();
           if (fs.existsSync(thumbnailFile)) {
-            try {
-              const root = path.resolve(__dirname, '../../..');
-              execSync(`bun apps/job-cli/src/index.ts thumbnail --job-id ${JOB_ID} --file "${thumbnailFile}"`, { cwd: root, stdio: 'inherit', timeout: 30000 });
-              console.log('✅ Thumbnail uploaded.');
-            } catch (e: any) { console.warn(`⚠️  Thumbnail upload failed (non-fatal): ${e.message}`); }
+            const root = path.resolve(__dirname, '../../..');
+            execSync(`bun apps/job-cli/src/index.ts thumbnail --job-id ${JOB_ID} --file "${thumbnailFile}"`, { cwd: root, stdio: 'inherit', timeout: 30000 });
+            console.log('✅ Thumbnail uploaded.');
           }
         }
       }
     } catch (e) { reportPhase('intro_sequence', 'failed'); throw e; }
   }
 
-  // Pass 0.5 — Cinematic Outro
   if (!artifactExists('outro-path.txt')) {
     await generateOutro(config, DEMO_DIR);
   } else {
     console.log('⏭️  [resume] Outro already exists — skipping.');
   }
 
-  // Pass 1 — Flow Validation (always re-run — fast and cheap)
   reportPhase('flow_validation', 'running');
   try {
     await pass1(config, config.startUrl, config.steps);
     reportPhase('flow_validation', 'completed');
   } catch (e) { reportPhase('flow_validation', 'failed'); throw e; }
 
-  // Pass 2 — Script Generation
   if (artifactExists('script.txt')) {
     console.log('⏭️  [resume] Script already exists — skipping.');
   } else {
@@ -195,7 +178,6 @@ async function main() {
     } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
   }
 
-  // Pass 3 — TTS + Transcription
   if (artifactExists('voiceover.wav') && artifactExists('timestamps.json')) {
     console.log('⏭️  [resume] Voiceover + transcription already exist — skipping.');
   } else {
@@ -204,7 +186,6 @@ async function main() {
     } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
   }
 
-  // Pass 4 — Timeline Mapping
   if (artifactExists('timeline.json')) {
     console.log('⏭️  [resume] Timeline already exists — skipping.');
   } else {
@@ -214,7 +195,6 @@ async function main() {
     } catch (e) { reportPhase('voiceover_generation', 'failed'); throw e; }
   }
 
-  // Pass 5 — Raw Video Recording
   if (artifactExists('raw-video-path.txt')) {
     console.log('⏭️  [resume] Raw video already recorded — skipping.');
     reportPhase('video_recording', 'completed');
@@ -226,7 +206,6 @@ async function main() {
     } catch (e) { reportPhase('video_recording', 'failed'); throw e; }
   }
 
-  // Pass 6 — FFmpeg Post-Processing
   const outputFilename = config.outputPath || 'demo-final.mp4';
   if (artifactExists(outputFilename)) {
     console.log('⏭️  [resume] Final video already exists — skipping.');
@@ -245,15 +224,8 @@ async function main() {
 
 main().catch(e => {
   console.error(e);
-  
-  // Try to send telegram alert on total failure
-  try {
-    const root = path.resolve(__dirname, '../../..');
-    const msg = `🚨 Fatal Pipeline Crash for Job ${JOB_ID || 'Unknown'}: ${e.message}`;
-    execSync(`bun run .opencode/skills/auto-demo-generator/references/scripts/notify.ts --message "${msg}"`, { cwd: root, stdio: 'inherit', timeout: 15000 });
-  } catch (notifyErr) {
-    console.warn(`Failed to send telegram crash report:`, notifyErr);
-  }
-  
+  const root = path.resolve(__dirname, '../../..');
+  const msg = `🚨 Fatal Pipeline Crash for Job ${JOB_ID || 'Unknown'}: ${e.message}`;
+  execSync(`bun run .opencode/skills/auto-demo-generator/references/scripts/notify.ts --message "${msg}"`, { cwd: root, stdio: 'inherit', timeout: 15000 });
   process.exit(1);
 });

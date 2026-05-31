@@ -38,12 +38,8 @@ export async function generateOutro(
 
   let displayUrl = config.outroUrl;
   if (!displayUrl && config.startUrl) {
-    try {
-      const urlObj = new URL(config.startUrl.startsWith('http') ? config.startUrl : `https://${config.startUrl}`);
-      displayUrl = urlObj.hostname.replace('www.', '');
-    } catch (e) {
-      displayUrl = 'ui.shadcn.com';
-    }
+    const urlObj = new URL(config.startUrl.startsWith('http') ? config.startUrl : `https://${config.startUrl}`);
+    displayUrl = urlObj.hostname.replace('www.', '');
   }
   if (!displayUrl) displayUrl = 'ui.shadcn.com';
 
