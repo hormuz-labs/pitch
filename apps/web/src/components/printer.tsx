@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { toPng } from 'html-to-image';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
+import { downloadReceiptPdf } from '../lib/receiptPdf';
 
 /* ─────────────────────────────────────────────
    PAYMENT RECEIPT — animated thermal-printer receipt shown on the
@@ -27,6 +27,12 @@ export interface PaymentReceiptProps {
   date?: string;
   /** Running credit balance shown in the points pill (success only). */
   balance?: number;
+  /** Dodo transaction id, shown on the receipt + official PDF. */
+  receiptId?: string;
+  /** Billing email, shown on the official PDF. */
+  email?: string;
+  /** Plan/pack label, e.g. "50 Credits/mo". */
+  label?: string;
   /** Dismiss the overlay. */
   onClose?: () => void;
   /** Retry the checkout (failure only). */
@@ -467,15 +473,21 @@ export default function PaymentReceipt({
   method,
   date,
   balance,
+  receiptId,
+  email,
+  label,
   onClose,
   onRetry,
 }: PaymentReceiptProps) {
   const isSuccess = status === 'success';
   const receiptDate = date || defaultDate();
   const hasBalance = typeof balance === 'number';
+  // The server balance already includes this purchase, so the pill starts at the
+  // pre-purchase amount and the claim animation lands the credits up to `balance`.
+  const startBalance = hasBalance ? Math.max(0, (balance as number) - credits) : 0;
 
   const [phase, setPhase] = useState('idle');
-  const [points, setPoints] = useState(balance ?? 0);
+  const [points, setPoints] = useState(startBalance);
   const [flyingCoins, setFlyingCoins] = useState<FlyingCoinItem[]>([]);
   const [pointsFlash, setPointsFlash] = useState(false);
   const [receiptHeight, setReceiptHeight] = useState(500);
@@ -520,14 +532,15 @@ export default function PaymentReceipt({
     }
   }, []);
 
-  const handleDragEnd = useCallback((_e: unknown, info: { offset: { x: number } }) => {
-    // Lower threshold so it triggers easily
-    if (info.offset.x < swipeRange * 0.4) { dragX.set(0); return; }
+  const claimedRef = useRef(false);
+  const runClaim = useCallback(() => {
+    if (claimedRef.current) return;
+    claimedRef.current = true;
     dragX.set(swipeRange);
-    setPhase('claimed');
 
     const sRect = sliderRef.current?.getBoundingClientRect();
     const bRect = bubbleRef.current?.getBoundingClientRect();
+    setPhase('claimed');
     if (!sRect || !bRect) return;
 
     const originX = sRect.right - 28;
@@ -557,34 +570,41 @@ export default function PaymentReceipt({
     coins.forEach((c, i) => {
       setTimeout(() => {
         setPointsFlash(true);
-        setPoints(prev => i === coinCount-1 ? (balance ?? 0) + credits : Math.round(prev + addPerCoin));
+        // Land on the true server balance on the last coin (no double counting).
+        setPoints(prev => i === coinCount-1 ? (balance ?? 0) : Math.round(prev + addPerCoin));
         setTimeout(() => { setPointsFlash(false); }, 120);
       }, (c.delay + 0.58) * 1000);
     });
   }, [swipeRange, dragX, credits, balance]);
 
+  const handleDragEnd = useCallback((_e: unknown, info: { offset: { x: number } }) => {
+    if (info.offset.x < swipeRange * 0.4) { dragX.set(0); return; }
+    runClaim();
+  }, [swipeRange, dragX, runClaim]);
+
+  // Auto-claim: credits are already granted server-side, so the peel is pure
+  // celebration — slide it automatically shortly after it becomes claimable.
+  useEffect(() => {
+    if (phase !== 'claimable' || !isSuccess) return;
+    const t = setTimeout(() => {
+      animate(dragX, swipeRange, { duration: 0.5, ease: [0.4, 0, 0.2, 1] });
+      setTimeout(runClaim, 380);
+    }, 650);
+    return () => clearTimeout(t);
+  }, [phase, isSuccess, dragX, swipeRange, runClaim]);
+
   const [saving, setSaving] = useState(false);
   const saveReceipt = useCallback(async () => {
-    if (!receiptRef.current || saving) return;
+    if (saving) return;
     setSaving(true);
     try {
-      const dataUrl = await toPng(receiptRef.current, {
-        pixelRatio: 2,
-        cacheBust: true,
-        backgroundColor: '#ffffff',
-        // Skip interactive controls (slider, buttons) so the saved image is clean.
-        filter: (node) => !(node instanceof HTMLElement && node.dataset.noExport === 'true'),
-      });
-      const a = document.createElement('a');
-      a.download = `trypitch-receipt-${Date.now()}.png`;
-      a.href = dataUrl;
-      a.click();
+      await downloadReceiptPdf({ receiptId, payerName, email, amount, method, date: receiptDate, label, credits });
     } catch (err) {
-      console.error('[Receipt] Failed to save', err);
+      console.error('[Receipt] Failed to save PDF', err);
     } finally {
       setSaving(false);
     }
-  }, [saving]);
+  }, [saving, receiptId, payerName, email, amount, method, receiptDate, label, credits]);
 
   const isPrinting  = phase === 'printing';
   const isRevealed  = ['revealed','claimable','claimed'].includes(phase);
@@ -813,9 +833,15 @@ export default function PaymentReceipt({
                 )}
 
                 {/* Date row */}
-                <div style={{ padding:'14px 4px 6px', fontSize:17, color:'#1f2937', fontWeight:500 }}>
+                <div style={{ padding:'14px 4px 2px', fontSize:17, color:'#1f2937', fontWeight:500 }}>
                   {receiptDate}
                 </div>
+                {receiptId && (
+                  <div style={{ padding:'0 4px 6px', fontSize:11, color:'#9ca3af',
+                    fontFamily:"'DM Mono',monospace", letterSpacing:'0.02em' }}>
+                    Receipt #{receiptId}
+                  </div>
+                )}
 
                 {/* Action area */}
                 <div style={{ paddingTop:6, paddingBottom:8 }}>
@@ -867,7 +893,7 @@ export default function PaymentReceipt({
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
                           </svg>
-                          {saving ? 'Saving…' : 'Save receipt'}
+                          {saving ? 'Generating PDF…' : 'Download receipt'}
                         </button>
                       )}
                     </>

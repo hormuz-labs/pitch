@@ -1,23 +1,12 @@
 import { Router } from 'express';
 import { createLogger } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
-import { CREDIT_PACKS, TOPUP_PACKS, type PackKey, type TopupKey } from '../config.js';
+import { CREDIT_PACKS, TOPUP_PACKS, DODO_ENV, type PackKey, type TopupKey } from '../config.js';
 import DodoPayments from 'dodopayments';
 
 const logger = createLogger('api');
 
 export const router = Router();
-
-// Single source of truth for the Dodo environment so the checkout-create and
-// status-poll clients can never target different environments (a mismatch makes
-// a live checkout session unverifiable from a test-mode client, and vice versa).
-// Explicit DODO_ENVIRONMENT always wins (lets dev opt into live_mode); when unset
-// we default to live in production and test elsewhere, matching prior behavior.
-function dodoEnvironment(): 'live_mode' | 'test_mode' {
-  if (process.env.DODO_ENVIRONMENT === 'live_mode') return 'live_mode';
-  if (process.env.DODO_ENVIRONMENT === 'test_mode') return 'test_mode';
-  return process.env.NODE_ENV === 'production' ? 'live_mode' : 'test_mode';
-}
 
 // ── Receipt formatting helpers ────────────────────────────────────────────────
 // Dodo amounts are in the smallest currency unit (e.g. cents), so divide by 100.
@@ -81,7 +70,7 @@ router.post('/', async (req, res) => {
   try {
     const client = new DodoPayments({
       bearerToken: dodoKey,
-      environment: dodoEnvironment(),
+      environment: DODO_ENV,
     });
 
     const affCookie = (req as any).cookies?.aff || '';
@@ -99,7 +88,7 @@ router.post('/', async (req, res) => {
         affiliate_cookie: affCookie,
       },
       // Dodo appends subscription_id and payment_id to the return_url automatically.
-      return_url: `${appUrl}/dashboard?checkout=success`,
+      return_url: `${appUrl}/checkout/return?checkout=success`,
     });
 
     res.json({ url: session.checkout_url });
@@ -139,7 +128,7 @@ router.get('/status', async (req, res) => {
 
     const dodoClient = () => new DodoPayments({
       bearerToken: dodoKey,
-      environment: dodoEnvironment(),
+      environment: DODO_ENV,
     });
 
     // --- One-time top-up (payment_id) ---
@@ -180,11 +169,15 @@ router.get('/status', async (req, res) => {
         status: 'succeeded',
         credits_granted: credits,
         receipt: {
+          id: payment.payment_id ?? paymentId,
           amount: formatAmount(payment.total_amount, payment.currency),
           credits,
           method: formatMethod(payment.payment_method, payment.card_network, payment.card_last_four),
           balance,
           date: formatReceiptDate(payment.created_at),
+          email: payment.customer?.email ?? null,
+          name: payment.customer?.name ?? null,
+          label: TOPUP_PACKS[packKey]?.label ?? `${credits} Credits`,
         },
       });
     }
@@ -233,11 +226,15 @@ router.get('/status', async (req, res) => {
           status: 'succeeded',
           credits_granted: credits,
           receipt: {
+            id: subscription.subscription_id ?? subscriptionId,
             amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
             credits,
             method: 'Subscription',
             balance,
             date: formatReceiptDate(subscription.created_at),
+            email: subscription.customer?.email ?? null,
+            name: subscription.customer?.name ?? null,
+            label: CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ?? `${credits} Credits / mo`,
           },
         });
       }
@@ -257,6 +254,81 @@ router.get('/status', async (req, res) => {
 
   } catch (error: unknown) {
     logger.error({ err: error instanceof Error ? error.message : String(error) }, '[Dodo Checkout Status] Error');
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+/**
+ * GET /checkout/receipt?payment_id=pay_xxx
+ * GET /checkout/receipt?subscription_id=sub_xxx
+ *
+ * Read-only: rebuilds the receipt for a past purchase so it can be re-downloaded
+ * from billing history. Unlike /status it never grants credits.
+ */
+router.get('/receipt', async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const subscriptionId = req.query.subscription_id as string | undefined;
+  const paymentId      = req.query.payment_id      as string | undefined;
+
+  if (!subscriptionId && !paymentId) {
+    return res.status(400).json({ error: 'Missing payment_id or subscription_id' });
+  }
+
+  const dodoKey = process.env.DODO_PAYMENTS_API_KEY;
+  if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' });
+
+  try {
+    const { getCreditBalance } = await import('@saas/db');
+    const client = new DodoPayments({ bearerToken: dodoKey, environment: DODO_ENV });
+    const balance = await getCreditBalance(userId);
+
+    if (paymentId) {
+      const payment = await client.payments.retrieve(paymentId);
+      const metadata = (payment.metadata || {}) as Record<string, string>;
+      if (metadata.clerk_user_id && metadata.clerk_user_id !== userId) {
+        return res.status(403).json({ error: 'Payment does not belong to this user' });
+      }
+      const credits = parseInt(metadata.credits || '0', 10);
+      const packKey = metadata.pack as keyof typeof TOPUP_PACKS;
+      return res.json({
+        receipt: {
+          id: payment.payment_id ?? paymentId,
+          amount: formatAmount(payment.total_amount, payment.currency),
+          credits,
+          method: formatMethod(payment.payment_method, payment.card_network, payment.card_last_four),
+          balance,
+          date: formatReceiptDate(payment.created_at),
+          email: payment.customer?.email ?? null,
+          name: payment.customer?.name ?? null,
+          label: TOPUP_PACKS[packKey]?.label ?? `${credits} Credits`,
+        },
+      });
+    }
+
+    const subscription = await client.subscriptions.retrieve(subscriptionId!);
+    const metadata = (subscription.metadata || {}) as Record<string, string>;
+    if (metadata.clerk_user_id && metadata.clerk_user_id !== userId) {
+      return res.status(403).json({ error: 'Subscription does not belong to this user' });
+    }
+    const credits = parseInt(metadata.credits || '0', 10);
+    const planKey = metadata.pack || 'starter';
+    return res.json({
+      receipt: {
+        id: subscription.subscription_id ?? subscriptionId,
+        amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
+        credits,
+        method: 'Subscription',
+        balance,
+        date: formatReceiptDate(subscription.created_at),
+        email: subscription.customer?.email ?? null,
+        name: subscription.customer?.name ?? null,
+        label: CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ?? `${credits} Credits / mo`,
+      },
+    });
+  } catch (error: unknown) {
+    logger.error({ err: error instanceof Error ? error.message : String(error) }, '[Dodo Receipt] Error');
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });

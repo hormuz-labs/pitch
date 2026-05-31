@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, useAuth } from '@clerk/clerk-react';
-import { User, CreditCard, Zap, RefreshCw, TrendingUp, Package } from 'lucide-react';
+import { UserProfile, useAuth, useUser } from '@clerk/clerk-react';
+import { User, CreditCard, Zap, RefreshCw, TrendingUp, Package, Download } from 'lucide-react';
 import pCoinIcon from '../assets/pCoin.svg';
 import { OptionPicker } from '../components/OptionPicker';
 import { API_URL } from '../config';
+import { downloadReceiptPdf } from '../lib/receiptPdf';
 
 const TAB_OPTIONS = [
   { id: 'profile', label: 'My Profile', icon: User },
@@ -23,6 +24,7 @@ interface CreditTransaction {
 
 interface Subscription {
   id: string;
+  dodoSubscriptionId?: string;
   planKey: string;
   status: string;
   creditsPerCycle: number;
@@ -34,6 +36,7 @@ interface Subscription {
 
 interface TopUpPurchase {
   id: string;
+  dodoPaymentId?: string;
   packKey: string;
   credits: number;
   amountUsd: number;
@@ -81,8 +84,60 @@ const TX_TYPE_COLORS: Record<string, string> = {
 export const SettingsView = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
   const { getToken } = useAuth();
+  const { user } = useUser();
   const [summary, setSummary] = useState<CreditSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // Re-fetch the receipt from Dodo (accurate amount/method) and download as PDF.
+  const downloadReceipt = async (
+    rowKey: string,
+    params: { paymentId?: string; subscriptionId?: string },
+  ) => {
+    if (downloadingId) return;
+    setDownloadingId(rowKey);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const qs = new URLSearchParams();
+      if (params.paymentId) qs.set('payment_id', params.paymentId);
+      else if (params.subscriptionId) qs.set('subscription_id', params.subscriptionId);
+      const res = await fetch(`${API_URL}/checkout/receipt?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch receipt');
+      const { receipt } = await res.json();
+      await downloadReceiptPdf({
+        receiptId: receipt.id,
+        payerName: receipt.name || user?.fullName || 'Customer',
+        email: receipt.email || user?.primaryEmailAddress?.emailAddress,
+        amount: receipt.amount,
+        method: receipt.method,
+        date: receipt.date,
+        label: receipt.label,
+        credits: receipt.credits,
+      });
+    } catch (err) {
+      console.error('[Receipt] download failed', err);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const ReceiptBtn = ({ rowKey, params }: { rowKey: string; params: { paymentId?: string; subscriptionId?: string } }) => {
+    if (!params.paymentId && !params.subscriptionId) return null;
+    const busy = downloadingId === rowKey;
+    return (
+      <button
+        onClick={() => downloadReceipt(rowKey, params)}
+        disabled={!!downloadingId}
+        title="Download receipt (PDF)"
+        className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition disabled:opacity-50"
+      >
+        {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+      </button>
+    );
+  };
 
   useEffect(() => {
     if (activeTab !== 'billing') return;
@@ -123,7 +178,7 @@ export const SettingsView = () => {
             <OptionPicker
               options={TAB_OPTIONS}
               selectedId={activeTab}
-              onSelect={(id: string) => setActiveTab(id as any)}
+              onSelect={(id: string) => setActiveTab(id as 'profile' | 'billing')}
             />
           </div>
 
@@ -289,6 +344,7 @@ export const SettingsView = () => {
                               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${PLAN_COLORS[sub.planKey] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                                 {sub.status}
                               </span>
+                              <ReceiptBtn rowKey={`sub-${sub.id}`} params={{ subscriptionId: sub.dodoSubscriptionId }} />
                             </div>
                           </div>
                         ))}
@@ -309,7 +365,10 @@ export const SettingsView = () => {
                               <span className="font-medium text-gray-800">{topUp.credits} credits</span>
                               <span className="text-xs text-gray-400 ml-2">${topUp.amountUsd.toFixed(2)}</span>
                             </div>
-                            <span className="text-xs text-gray-400">{new Date(topUp.createdAt).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-gray-400">{new Date(topUp.createdAt).toLocaleDateString()}</span>
+                              <ReceiptBtn rowKey={`topup-${topUp.id}`} params={{ paymentId: topUp.dodoPaymentId }} />
+                            </div>
                           </div>
                         ))}
                       </div>

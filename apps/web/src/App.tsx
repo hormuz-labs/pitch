@@ -11,7 +11,7 @@ import {
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
-import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView, AdminView } from './views';
+import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView, AdminView, CheckoutReturnView } from './views';
 import { AuthView } from './views/AuthView';
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
@@ -25,7 +25,6 @@ import { parseSSELog } from './lib/events';
 
 import tabLogoB from './assets/tabLogoB.svg';
 import { PitchLogoAnimation } from './components/PitchLogoAnimation';
-import PaymentReceipt, { type PaymentReceiptStatus } from './components/printer';
 import * as ToastPrimitive from '@radix-ui/react-toast';
 import { X } from 'lucide-react';
 import { cn } from './lib/utils';
@@ -424,18 +423,6 @@ function AppContent() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Dodo Payments callback receipt overlay (success / failure).
-  const [checkoutReceipt, setCheckoutReceipt] = useState<
-    {
-      status: PaymentReceiptStatus;
-      credits?: number;
-      amount?: string;
-      method?: string;
-      balance?: number;
-      date?: string;
-    } | null
-  >(null);
-
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -621,97 +608,6 @@ function AppContent() {
     };
   }, [isLoaded, userId]);
 
-  // Poll /checkout/status after a successful checkout redirect.
-  // Dodo appends subscription_id for subscriptions, payment_id for one-time topups.
-  // If the webhook hasn't fired yet, the backend calls Dodo's API directly
-  // and grants credits as a fallback, making the flow webhook-independent.
-  useEffect(() => {
-    if (!isLoaded || !userId) return;
-
-    const params = new URLSearchParams(location.search);
-    const checkout = params.get('checkout');
-    const statusParam = params.get('status');
-
-    // Dodo redirects back to a failure/cancel URL — show the failed receipt.
-    if (checkout === 'failed' || checkout === 'cancelled' ||
-        statusParam === 'failed' || statusParam === 'cancelled') {
-      setCheckoutReceipt({ status: 'failed' });
-      window.history.replaceState({}, '', window.location.pathname);
-      return;
-    }
-
-    if (checkout !== 'success') return;
-
-    const subscriptionId = params.get('subscription_id');
-    const paymentId      = params.get('payment_id');
-    const sessionId      = params.get('session_id');
-
-    if (!subscriptionId && !paymentId && !sessionId) return;
-
-    let cancelled = false;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 10;
-    const POLL_INTERVAL_MS = 2000;
-
-    const poll = async () => {
-      if (cancelled || attempts >= MAX_ATTEMPTS) {
-        if (attempts >= MAX_ATTEMPTS) {
-          setCheckoutReceipt({ status: 'failed' });
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-        return;
-      }
-      attempts++;
-
-      try {
-        const token = await getToken();
-        if (!token || cancelled) return;
-
-        const qs = new URLSearchParams();
-        if (subscriptionId) qs.set('subscription_id', subscriptionId);
-        else if (paymentId)  qs.set('payment_id', paymentId);
-        else if (sessionId)  qs.set('session_id', sessionId);
-
-        const result = await api.get<{
-          status: string;
-          credits_granted?: number;
-          receipt?: { amount: string; credits: number; method: string; balance: number; date: string };
-        }>(
-          `/checkout/status?${qs.toString()}`,
-          token
-        );
-
-        if (result.status === 'succeeded' || result.status === 'active') {
-          setCheckoutReceipt({
-            status: 'success',
-            credits: result.receipt?.credits ?? result.credits_granted,
-            amount: result.receipt?.amount,
-            method: result.receipt?.method,
-            balance: result.receipt?.balance,
-            date: result.receipt?.date,
-          });
-          window.dispatchEvent(new Event('credits-changed'));
-          window.history.replaceState({}, '', window.location.pathname);
-          return;
-        }
-
-        // Keep polling if still pending
-        if (!cancelled) {
-          setTimeout(poll, POLL_INTERVAL_MS);
-        }
-      } catch (err) {
-        console.error('[Checkout Poll] Error:', err);
-        if (!cancelled) {
-          setTimeout(poll, POLL_INTERVAL_MS);
-        }
-      }
-    };
-
-    poll();
-
-    return () => { cancelled = true; };
-  }, [isLoaded, userId, location.search]);
-
   const handleQueueJob = async (values: any) => {
     setIsSubmitting(true);
     try {
@@ -804,6 +700,16 @@ function AppContent() {
     return <AuthenticateWithRedirectCallback />;
   }
 
+  // Checkout return — full-screen receipt page Dodo redirects to after payment.
+  if (location.pathname === '/checkout/return') {
+    return (
+      <>
+        <SignedIn><CheckoutReturnView /></SignedIn>
+        <SignedOut><Navigate to="/sign-in" replace /></SignedOut>
+      </>
+    );
+  }
+
   // Landing page — signed-in users go straight to dashboard
   if (location.pathname === '/') {
     if (userId) return <Navigate to="/dashboard" replace />;
@@ -812,19 +718,6 @@ function AppContent() {
 
   return (
     <>
-      {checkoutReceipt && (
-        <PaymentReceipt
-          status={checkoutReceipt.status}
-          credits={checkoutReceipt.credits ?? 50}
-          amount={checkoutReceipt.amount}
-          method={checkoutReceipt.method}
-          balance={checkoutReceipt.balance}
-          date={checkoutReceipt.date}
-          payerName={user?.fullName || 'there'}
-          onClose={() => { setCheckoutReceipt(null); navigate('/dashboard'); }}
-          onRetry={() => { setCheckoutReceipt(null); navigate('/pricing'); }}
-        />
-      )}
       <SignedIn>
         <div className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3" style={{ backgroundColor: '#e6e6e6' }}>
           {(!isMobile ? selectedKey !== 'settings' : true) && (
