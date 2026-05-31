@@ -16,6 +16,7 @@ import { router as userRoutes } from './routes/users.js';
 import { router as checkoutRoutes } from './routes/checkout.js';
 import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js';
 import adminRoutes from './routes/admin.js';
+import { router as newsletterRoutes } from './routes/newsletter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,6 +77,7 @@ app.use('/checkout', checkoutRoutes);
 app.use(redirectRouter);
 app.use('/affiliate', affiliateRoutes);
 app.use('/admin', adminRoutes);
+app.use('/newsletter', newsletterRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

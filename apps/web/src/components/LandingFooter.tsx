@@ -27,6 +27,7 @@ const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = 
     heading: 'Company',
     links: [
       { label: 'About Us', to: '/about' },
+      { label: 'Blog',     to: '/blog' },
       { label: 'Contact',  to: 'mailto:support@trypitch.co' },
     ],
   },

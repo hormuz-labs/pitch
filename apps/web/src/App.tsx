@@ -17,6 +17,7 @@ import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon';
 import { AboutUs } from './components/AboutUs';
+import { Blog, BlogPostView } from './components/Blog';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfService } from './components/TermsOfService';
 import { API_URL } from './config';
@@ -823,6 +824,8 @@ function AppContent() {
                 <Route path="/admin" element={<AdminView />} />
                 <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
                 <Route path="/about" element={<AboutUs />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPostView />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
               </Routes>
@@ -837,6 +840,8 @@ function AppContent() {
           <Route path="/sign-up" element={<AuthView mode="sign-up" />} />
           <Route path="/pricing" element={<PublicPricingView />} />
           <Route path="/about" element={<AboutUs />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPostView />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -224,3 +224,14 @@ model AffiliatePayout {
 
   @@index([affiliateId])
 }
+
+// ── Newsletter Subscribers ────────────────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  // Allow anyone to subscribe (create) without auth
+  @@allow('create', true)
+}
