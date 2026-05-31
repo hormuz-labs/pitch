@@ -7,3 +7,4 @@ export { PublicPricingView } from './PublicPricingView';
 export { SettingsView } from './SettingsView';
 export { AffiliateView } from './AffiliateView';
 export { AdminView } from './AdminView';
+export { CheckoutReturnView } from './CheckoutReturnView';

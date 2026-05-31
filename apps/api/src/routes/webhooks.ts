@@ -1,46 +1,39 @@
 import express, { Router } from 'express';
 import * as db from '@saas/db';
 import { createLogger } from '@saas/shared';
-import crypto from 'crypto';
-import { CREDIT_PACKS, TOPUP_PACKS } from '../config.js';
+import { Webhook } from 'standardwebhooks';
+import DodoPayments from 'dodopayments';
+import { CREDIT_PACKS, TOPUP_PACKS, DODO_ENV } from '../config.js';
 
 const logger = createLogger('api');
 
 export const router = Router();
 
-function verifyWebhook(payload: string, signature: string, secret: string): boolean {
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
-  
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
-}
-
 router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['webhook-signature'] || req.headers['x-dodo-signature'] || req.headers['authorization'];
-  if (Array.isArray(sig)) return res.status(400).send('Invalid signature header');
-  const signature = sig ? sig.replace('Bearer ', '') : '';
-
   const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET;
-
-  if (!webhookSecret || !signature) {
-    return res.status(400).send('Missing webhook secret or signature');
+  if (!webhookSecret) {
+    logger.error('[Dodo Webhook] DODO_PAYMENTS_WEBHOOK_SECRET not configured');
+    return res.status(503).send('Webhook secret not configured');
   }
 
-  const isValid = verifyWebhook(req.body.toString('utf8'), signature as string, webhookSecret);
-  if (!isValid) {
-    return res.status(400).send('Webhook Error: Invalid signature');
-  }
+  // Dodo Payments signs webhooks with the Standard Webhooks spec:
+  //   sign( `${webhook-id}.${webhook-timestamp}.${rawBody}` ) -> HMAC-SHA256 -> base64
+  // The library handles the `whsec_` prefix, base64 key decode, the `v1,<sig>`
+  // header format, constant-time compare, and timestamp replay tolerance.
+  const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body);
+  const webhookHeaders = {
+    'webhook-id': (req.headers['webhook-id'] as string) || '',
+    'webhook-timestamp': (req.headers['webhook-timestamp'] as string) || '',
+    'webhook-signature': (req.headers['webhook-signature'] as string) || '',
+  };
 
   let event: Record<string, unknown>;
   try {
-    event = JSON.parse(req.body.toString('utf8'));
+    const wh = new Webhook(webhookSecret);
+    event = wh.verify(rawBody, webhookHeaders) as Record<string, unknown>;
   } catch (err: unknown) {
-    return res.status(400).send('Webhook Error: Invalid JSON');
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[Dodo Webhook] Signature verification failed');
+    return res.status(400).send('Webhook Error: Invalid signature');
   }
 
   const data = event.data as Record<string, any>;
@@ -70,6 +63,10 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       const periodEnd = data.current_period_end
         ? new Date(data.current_period_end as string)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      // Guard: if user already has a different active subscription, cancel the old one
+      // to prevent duplicate-billing scenarios from race-condition checkout sessions.
+      await cancelOtherActiveSubs(userId, subscriptionId);
 
       await db.upsertSubscription({
         userId,
@@ -105,6 +102,9 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       const periodEnd = data.current_period_end
         ? new Date(data.current_period_end as string)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      // Guard: if user somehow got a duplicate active sub, cancel the old one
+      await cancelOtherActiveSubs(userId, subscriptionId);
 
       await db.upsertSubscription({
         userId,
@@ -161,6 +161,50 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
 
   res.json({ received: true });
 });
+
+// ── Duplicate subscription guard ──────────────────────────────────────────────
+// Belt-and-suspenders: even if the POST /checkout guard hits a race condition,
+// the webhook handler ensures a user never has two active subscriptions at once.
+
+async function cancelOtherActiveSubs(userId: string, keepSubscriptionId: string) {
+  const others = await db.prisma.subscription.findMany({
+    where: { userId, status: 'active', dodoSubscriptionId: { not: keepSubscriptionId } },
+  });
+  if (others.length === 0) return;
+
+  const dodoKey = process.env.DODO_PAYMENTS_API_KEY;
+  const client = dodoKey
+    ? new DodoPayments({ bearerToken: dodoKey, environment: DODO_ENV })
+    : null;
+
+  for (const sub of others) {
+    logger.warn(
+      { userId, oldSubId: sub.dodoSubscriptionId, newSubId: keepSubscriptionId },
+      '[Dodo] Cancelling duplicate active subscription',
+    );
+
+    if (client) {
+      try {
+        await client.subscriptions.update(sub.dodoSubscriptionId, {
+          status: 'cancelled',
+        });
+      } catch (err) {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err), dodoSubscriptionId: sub.dodoSubscriptionId },
+          '[Dodo] Failed to cancel duplicate sub at Dodo — DB update skipped to avoid de-sync',
+        );
+        // Don't mark cancelled locally if Dodo is still billing — otherwise the user
+        // loses access while still being charged. Requires manual reconciliation.
+        continue;
+      }
+    }
+
+    await db.prisma.subscription.update({
+      where: { id: sub.id },
+      data: { status: 'cancelled', cancelledAt: new Date() },
+    });
+  }
+}
 
 // ── Affiliate conversion helper ───────────────────────────────────────────────
 

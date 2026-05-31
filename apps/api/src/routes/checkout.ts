@@ -1,12 +1,122 @@
 import { Router } from 'express';
 import { createLogger } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
-import { CREDIT_PACKS, TOPUP_PACKS, type PackKey, type TopupKey } from '../config.js';
+import { CREDIT_PACKS, TOPUP_PACKS, DODO_ENV, type PackKey, type TopupKey } from '../config.js';
 import DodoPayments from 'dodopayments';
 
 const logger = createLogger('api');
 
 export const router = Router();
+
+// ── Receipt formatting helpers ────────────────────────────────────────────────
+// Dodo amounts are in the smallest currency unit (e.g. cents), so divide by 100.
+function formatAmount(minorUnits: number, currency: string): string {
+  const value = (minorUnits ?? 0) / 100;
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(value);
+  } catch {
+    return `$${value.toFixed(2)}`;
+  }
+}
+
+// Dodo's `payment_method` is the category ("card", "upi", "bank_transfer"),
+// while card_network/card_last_four describe a card specifically.
+function formatMethod(
+  paymentMethod?: string | null,
+  cardNetwork?: string | null,
+  cardLast4?: string | null,
+): string {
+  const pm = (paymentMethod || '').toLowerCase();
+  if (pm.includes('card') || cardLast4) {
+    const net = cardNetwork
+      ? cardNetwork.charAt(0).toUpperCase() + cardNetwork.slice(1).toLowerCase()
+      : 'Card';
+    return cardLast4 ? `${net} •••• ${cardLast4}` : net;
+  }
+  if (pm.includes('upi')) return 'UPI';
+  if (!paymentMethod) return 'Card';
+  return paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatReceiptDate(iso: string): string {
+  const d = iso ? new Date(iso) : new Date();
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const day = d.getDate();
+  const suffix = (n: number) => (n % 10 === 1 && n !== 11) ? 'st' : (n % 10 === 2 && n !== 12) ? 'nd' : (n % 10 === 3 && n !== 13) ? 'rd' : 'th';
+  return `${months[d.getMonth()]} ${day}${suffix(day)}, ${d.getFullYear()}`;
+}
+
+// ── Receipt builders ──────────────────────────────────────────────────────────
+// Shared by /status (grant + receipt) and /receipt (re-download). Narrow structural
+// types so the Dodo SDK objects pass without an explicit `any`.
+interface ReceiptPayload {
+  id: string;
+  amount: string;
+  credits: number;
+  method: string;
+  balance: number;
+  date: string;
+  email: string | null;
+  name: string | null;
+  label: string;
+}
+
+type DodoCustomer = { email?: string | null; name?: string | null } | null;
+
+type DodoPaymentObj = {
+  payment_id?: string;
+  total_amount: number;
+  currency: string;
+  payment_method?: string | null;
+  card_network?: string | null;
+  card_last_four?: string | null;
+  created_at: string;
+  metadata?: Record<string, string> | null;
+  customer?: DodoCustomer;
+};
+
+type DodoSubscriptionObj = {
+  subscription_id?: string;
+  recurring_pre_tax_amount: number;
+  currency: string;
+  created_at: string;
+  metadata?: Record<string, string> | null;
+  customer?: DodoCustomer;
+};
+
+function buildPaymentReceipt(payment: DodoPaymentObj, balance: number): ReceiptPayload {
+  const metadata = (payment.metadata || {}) as Record<string, string>;
+  const credits = parseInt(metadata.credits || '0', 10);
+  const packKey = metadata.pack as keyof typeof TOPUP_PACKS;
+  return {
+    id: payment.payment_id ?? '',
+    amount: formatAmount(payment.total_amount, payment.currency),
+    credits,
+    method: formatMethod(payment.payment_method, payment.card_network, payment.card_last_four),
+    balance,
+    date: formatReceiptDate(payment.created_at),
+    email: payment.customer?.email ?? null,
+    name: payment.customer?.name ?? null,
+    label: TOPUP_PACKS[packKey]?.label ?? `${credits} Credits`,
+  };
+}
+
+function buildSubscriptionReceipt(subscription: DodoSubscriptionObj, balance: number): ReceiptPayload {
+  const metadata = (subscription.metadata || {}) as Record<string, string>;
+  const credits = parseInt(metadata.credits || '0', 10);
+  const planKey = metadata.pack || 'starter';
+  return {
+    id: subscription.subscription_id ?? '',
+    amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
+    credits,
+    method: 'Subscription',
+    balance,
+    date: formatReceiptDate(subscription.created_at),
+    email: subscription.customer?.email ?? null,
+    name: subscription.customer?.name ?? null,
+    label: CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ?? `${credits} Credits / mo`,
+  };
+}
 
 router.post('/', async (req, res) => {
   const userId = requireAuth(req, res);
@@ -30,12 +140,24 @@ router.post('/', async (req, res) => {
   if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' });
 
   try {
+    // Block duplicate active subscriptions — every subscribe creates a NEW Dodo
+    // subscription, so without this guard a user ends up double-billed.
+    if (pack) {
+      const { getActiveSubscription } = await import('@saas/db');
+      const existing = await getActiveSubscription(userId);
+      if (existing) {
+        return res.status(409).json({
+          error: 'You already have an active subscription. Cancel or manage it in Settings before changing plans.',
+        });
+      }
+    }
+
     const client = new DodoPayments({
       bearerToken: dodoKey,
-      environment: process.env.NODE_ENV === 'production' && process.env.DODO_ENVIRONMENT !== 'test_mode' ? 'live_mode' : 'test_mode',
+      environment: DODO_ENV,
     });
 
-    const affCookie = (req as any).cookies?.aff || '';
+    const affCookie = (req.cookies as Record<string, string> | undefined)?.aff || '';
     const appUrl = process.env.APP_URL || 'https://trypitch.co';
 
     const session = await client.checkoutSessions.create({
@@ -50,7 +172,7 @@ router.post('/', async (req, res) => {
         affiliate_cookie: affCookie,
       },
       // Dodo appends subscription_id and payment_id to the return_url automatically.
-      return_url: `${appUrl}/dashboard?checkout=success`,
+      return_url: `${appUrl}/checkout/return?checkout=success`,
     });
 
     res.json({ url: session.checkout_url });
@@ -86,93 +208,75 @@ router.get('/status', async (req, res) => {
   if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' });
 
   try {
-    const { prisma, upsertSubscription, recordTopUp } = await import('@saas/db');
+    const { prisma, upsertSubscription, recordTopUp, getCreditBalance } = await import('@saas/db');
 
     const dodoClient = () => new DodoPayments({
       bearerToken: dodoKey,
-      environment: process.env.NODE_ENV === 'production' && process.env.DODO_ENVIRONMENT !== 'test_mode' ? 'live_mode' : 'test_mode',
+      environment: DODO_ENV,
     });
 
-    // --- 1. Check DB first (webhook may have already processed it) ---
-    if (subscriptionId) {
-      const sub = await prisma.subscription.findUnique({
-        where: { dodoSubscriptionId: subscriptionId },
-      });
-      if (sub) return res.json({ status: 'succeeded' });
-    }
-
-    if (paymentId) {
-      const topUp = await prisma.topUpPurchase.findUnique({
-        where: { dodoPaymentId: paymentId },
-      });
-      if (topUp) return res.json({ status: 'succeeded' });
-    }
-
-    if (sessionId) {
-      // Check by idempotency key pattern
-      const tx = await prisma.creditTransaction.findFirst({
-        where: {
-          OR: [
-            { idempotencyKey: { contains: `:${sessionId}` } },
-          ],
-        },
-      });
-      if (tx) return res.json({ status: 'succeeded' });
-    }
-
-    // --- 2. Webhook not received — fetch directly from Dodo and grant credits ---
-
+    // --- One-time top-up (payment_id) ---
+    // recordTopUp is idempotent, so we always fetch from Dodo to build the
+    // receipt and (re)attempt the grant; a late webhook is a harmless no-op.
     if (paymentId) {
       const payment = await dodoClient().payments.retrieve(paymentId);
 
-      if (payment.status === 'succeeded') {
-        const metadata = (payment.metadata || {}) as Record<string, string>;
-        const payUserId = metadata.clerk_user_id;
-        const packKey   = metadata.pack as keyof typeof TOPUP_PACKS;
-        const credits   = parseInt(metadata.credits || '0', 10);
-
-        if (!payUserId) {
-          return res.status(400).json({ error: 'Payment metadata missing clerk_user_id' });
-        }
-        if (payUserId !== userId) {
-          return res.status(403).json({ error: 'Payment does not belong to this user' });
-        }
-
-        if (credits > 0) {
-          const pack = TOPUP_PACKS[packKey];
-          await recordTopUp({
-            userId: payUserId,
-            dodoPaymentId: paymentId,
-            packKey: packKey || 'topup_10',
-            credits,
-            amountUsd: pack?.priceUsd ?? credits * 1.2,
-          });
-          logger.info({ userId: payUserId, credits, paymentId }, '[Checkout] Top-up credits granted via polling fallback');
-        }
-
-        return res.json({ status: 'succeeded', credits_granted: credits });
+      if (payment.status !== 'succeeded') {
+        return res.json({ status: payment.status ?? 'pending' });
       }
 
-      return res.json({ status: payment.status ?? 'pending' });
+      const metadata = (payment.metadata || {}) as Record<string, string>;
+      const payUserId = metadata.clerk_user_id;
+      const packKey   = metadata.pack as keyof typeof TOPUP_PACKS;
+      const credits   = parseInt(metadata.credits || '0', 10);
+
+      if (!payUserId) {
+        return res.status(400).json({ error: 'Payment metadata missing clerk_user_id' });
+      }
+      if (payUserId !== userId) {
+        return res.status(403).json({ error: 'Payment does not belong to this user' });
+      }
+
+      if (credits > 0) {
+        const pack = TOPUP_PACKS[packKey];
+        await recordTopUp({
+          userId: payUserId,
+          dodoPaymentId: paymentId,
+          packKey: packKey || 'topup_10',
+          credits,
+          amountUsd: pack?.priceUsd ?? credits * 1.2,
+        });
+      }
+
+      const balance = await getCreditBalance(payUserId);
+      const receipt = buildPaymentReceipt(payment, balance);
+      return res.json({ status: 'succeeded', credits_granted: credits, receipt });
     }
 
+    // --- Subscription (subscription_id) ---
     if (subscriptionId) {
       const subscription = await dodoClient().subscriptions.retrieve(subscriptionId);
 
-      if (subscription.status === 'active' || subscription.status === 'on_hold') {
-        const metadata  = (subscription.metadata || {}) as Record<string, string>;
-        const subUserId = metadata.clerk_user_id;
-        const planKey   = metadata.pack || 'starter';
-        const credits   = parseInt(metadata.credits || '0', 10);
+      const metadata  = (subscription.metadata || {}) as Record<string, string>;
+      const subUserId = metadata.clerk_user_id;
+      const planKey   = metadata.pack || 'starter';
+      const credits   = parseInt(metadata.credits || '0', 10);
 
+      if (subUserId && subUserId !== userId) {
+        return res.status(403).json({ error: 'Subscription does not belong to this user' });
+      }
+
+      if (subscription.status === 'active' || subscription.status === 'on_hold') {
         if (!subUserId) {
           return res.status(400).json({ error: 'Subscription metadata missing clerk_user_id' });
         }
-        if (subUserId !== userId) {
-          return res.status(403).json({ error: 'Subscription does not belong to this user' });
-        }
 
-        if (credits > 0) {
+        // The subscription grant is not idempotent across polls (period start is
+        // "now"), so only grant when we haven't recorded this subscription yet.
+        const existing = await prisma.subscription.findUnique({
+          where: { dodoSubscriptionId: subscriptionId },
+        });
+        if (!existing && credits > 0) {
           const periodStart = new Date();
           const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
           await upsertSubscription({
@@ -188,17 +292,75 @@ router.get('/status', async (req, res) => {
           logger.info({ userId: subUserId, credits, subscriptionId }, '[Checkout] Subscription credits granted via polling fallback');
         }
 
-        return res.json({ status: 'succeeded', credits_granted: credits });
+        const balance = await getCreditBalance(subUserId);
+        const receipt = buildSubscriptionReceipt(subscription, balance);
+        return res.json({ status: 'succeeded', credits_granted: credits, receipt });
       }
 
       return res.json({ status: subscription.status });
     }
 
-    // --- 3. Only had a session_id and it wasn't in DB — still pending ---
+    // --- Only had a session_id — confirm grant landed, no receipt details ---
+    if (sessionId) {
+      const tx = await prisma.creditTransaction.findFirst({
+        where: { OR: [ { idempotencyKey: { contains: `:${sessionId}` } } ] },
+      });
+      if (tx) return res.json({ status: 'succeeded' });
+    }
+
     return res.json({ status: 'pending' });
 
   } catch (error: unknown) {
     logger.error({ err: error instanceof Error ? error.message : String(error) }, '[Dodo Checkout Status] Error');
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+/**
+ * GET /checkout/receipt?payment_id=pay_xxx
+ * GET /checkout/receipt?subscription_id=sub_xxx
+ *
+ * Read-only: rebuilds the receipt for a past purchase so it can be re-downloaded
+ * from billing history. Unlike /status it never grants credits.
+ */
+router.get('/receipt', async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const subscriptionId = req.query.subscription_id as string | undefined;
+  const paymentId      = req.query.payment_id      as string | undefined;
+
+  if (!subscriptionId && !paymentId) {
+    return res.status(400).json({ error: 'Missing payment_id or subscription_id' });
+  }
+
+  const dodoKey = process.env.DODO_PAYMENTS_API_KEY;
+  if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' });
+
+  try {
+    const { getCreditBalance } = await import('@saas/db');
+    const client = new DodoPayments({ bearerToken: dodoKey, environment: DODO_ENV });
+    const balance = await getCreditBalance(userId);
+
+    if (paymentId) {
+      const payment = await client.payments.retrieve(paymentId);
+      const metadata = (payment.metadata || {}) as Record<string, string>;
+      if (metadata.clerk_user_id && metadata.clerk_user_id !== userId) {
+        return res.status(403).json({ error: 'Payment does not belong to this user' });
+      }
+      const receipt = buildPaymentReceipt(payment, balance);
+      return res.json({ receipt });
+    }
+
+    const subscription = await client.subscriptions.retrieve(subscriptionId!);
+    const metadata = (subscription.metadata || {}) as Record<string, string>;
+    if (metadata.clerk_user_id && metadata.clerk_user_id !== userId) {
+      return res.status(403).json({ error: 'Subscription does not belong to this user' });
+    }
+    const receipt = buildSubscriptionReceipt(subscription, balance);
+    return res.json({ receipt });
+  } catch (error: unknown) {
+    logger.error({ err: error instanceof Error ? error.message : String(error) }, '[Dodo Receipt] Error');
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
