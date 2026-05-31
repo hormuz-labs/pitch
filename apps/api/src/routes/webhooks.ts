@@ -2,7 +2,8 @@ import express, { Router } from 'express';
 import * as db from '@saas/db';
 import { createLogger } from '@saas/shared';
 import { Webhook } from 'standardwebhooks';
-import { CREDIT_PACKS, TOPUP_PACKS } from '../config.js';
+import DodoPayments from 'dodopayments';
+import { CREDIT_PACKS, TOPUP_PACKS, DODO_ENV } from '../config.js';
 
 const logger = createLogger('api');
 
@@ -63,6 +64,10 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
         ? new Date(data.current_period_end as string)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+      // Guard: if user already has a different active subscription, cancel the old one
+      // to prevent duplicate-billing scenarios from race-condition checkout sessions.
+      await cancelOtherActiveSubs(userId, subscriptionId);
+
       await db.upsertSubscription({
         userId,
         dodoSubscriptionId: subscriptionId,
@@ -97,6 +102,9 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       const periodEnd = data.current_period_end
         ? new Date(data.current_period_end as string)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      // Guard: if user somehow got a duplicate active sub, cancel the old one
+      await cancelOtherActiveSubs(userId, subscriptionId);
 
       await db.upsertSubscription({
         userId,
@@ -153,6 +161,50 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
 
   res.json({ received: true });
 });
+
+// ── Duplicate subscription guard ──────────────────────────────────────────────
+// Belt-and-suspenders: even if the POST /checkout guard hits a race condition,
+// the webhook handler ensures a user never has two active subscriptions at once.
+
+async function cancelOtherActiveSubs(userId: string, keepSubscriptionId: string) {
+  const others = await db.prisma.subscription.findMany({
+    where: { userId, status: 'active', dodoSubscriptionId: { not: keepSubscriptionId } },
+  });
+  if (others.length === 0) return;
+
+  const dodoKey = process.env.DODO_PAYMENTS_API_KEY;
+  const client = dodoKey
+    ? new DodoPayments({ bearerToken: dodoKey, environment: DODO_ENV })
+    : null;
+
+  for (const sub of others) {
+    logger.warn(
+      { userId, oldSubId: sub.dodoSubscriptionId, newSubId: keepSubscriptionId },
+      '[Dodo] Cancelling duplicate active subscription',
+    );
+
+    if (client) {
+      try {
+        await client.subscriptions.update(sub.dodoSubscriptionId, {
+          status: 'cancelled',
+        });
+      } catch (err) {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err), dodoSubscriptionId: sub.dodoSubscriptionId },
+          '[Dodo] Failed to cancel duplicate sub at Dodo — DB update skipped to avoid de-sync',
+        );
+        // Don't mark cancelled locally if Dodo is still billing — otherwise the user
+        // loses access while still being charged. Requires manual reconciliation.
+        continue;
+      }
+    }
+
+    await db.prisma.subscription.update({
+      where: { id: sub.id },
+      data: { status: 'cancelled', cancelledAt: new Date() },
+    });
+  }
+}
 
 // ── Affiliate conversion helper ───────────────────────────────────────────────
 

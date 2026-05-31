@@ -46,6 +46,78 @@ function formatReceiptDate(iso: string): string {
   return `${months[d.getMonth()]} ${day}${suffix(day)}, ${d.getFullYear()}`;
 }
 
+// ── Receipt builders ──────────────────────────────────────────────────────────
+// Shared by /status (grant + receipt) and /receipt (re-download). Narrow structural
+// types so the Dodo SDK objects pass without an explicit `any`.
+interface ReceiptPayload {
+  id: string;
+  amount: string;
+  credits: number;
+  method: string;
+  balance: number;
+  date: string;
+  email: string | null;
+  name: string | null;
+  label: string;
+}
+
+type DodoCustomer = { email?: string | null; name?: string | null } | null;
+
+type DodoPaymentObj = {
+  payment_id?: string;
+  total_amount: number;
+  currency: string;
+  payment_method?: string | null;
+  card_network?: string | null;
+  card_last_four?: string | null;
+  created_at: string;
+  metadata?: Record<string, string> | null;
+  customer?: DodoCustomer;
+};
+
+type DodoSubscriptionObj = {
+  subscription_id?: string;
+  recurring_pre_tax_amount: number;
+  currency: string;
+  created_at: string;
+  metadata?: Record<string, string> | null;
+  customer?: DodoCustomer;
+};
+
+function buildPaymentReceipt(payment: DodoPaymentObj, balance: number): ReceiptPayload {
+  const metadata = (payment.metadata || {}) as Record<string, string>;
+  const credits = parseInt(metadata.credits || '0', 10);
+  const packKey = metadata.pack as keyof typeof TOPUP_PACKS;
+  return {
+    id: payment.payment_id ?? '',
+    amount: formatAmount(payment.total_amount, payment.currency),
+    credits,
+    method: formatMethod(payment.payment_method, payment.card_network, payment.card_last_four),
+    balance,
+    date: formatReceiptDate(payment.created_at),
+    email: payment.customer?.email ?? null,
+    name: payment.customer?.name ?? null,
+    label: TOPUP_PACKS[packKey]?.label ?? `${credits} Credits`,
+  };
+}
+
+function buildSubscriptionReceipt(subscription: DodoSubscriptionObj, balance: number): ReceiptPayload {
+  const metadata = (subscription.metadata || {}) as Record<string, string>;
+  const credits = parseInt(metadata.credits || '0', 10);
+  const planKey = metadata.pack || 'starter';
+  return {
+    id: subscription.subscription_id ?? '',
+    amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
+    credits,
+    method: 'Subscription',
+    balance,
+    date: formatReceiptDate(subscription.created_at),
+    email: subscription.customer?.email ?? null,
+    name: subscription.customer?.name ?? null,
+    label: CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ?? `${credits} Credits / mo`,
+  };
+}
+
 router.post('/', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -68,12 +140,24 @@ router.post('/', async (req, res) => {
   if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' });
 
   try {
+    // Block duplicate active subscriptions — every subscribe creates a NEW Dodo
+    // subscription, so without this guard a user ends up double-billed.
+    if (pack) {
+      const { getActiveSubscription } = await import('@saas/db');
+      const existing = await getActiveSubscription(userId);
+      if (existing) {
+        return res.status(409).json({
+          error: 'You already have an active subscription. Cancel or manage it in Settings before changing plans.',
+        });
+      }
+    }
+
     const client = new DodoPayments({
       bearerToken: dodoKey,
       environment: DODO_ENV,
     });
 
-    const affCookie = (req as any).cookies?.aff || '';
+    const affCookie = (req.cookies as Record<string, string> | undefined)?.aff || '';
     const appUrl = process.env.APP_URL || 'https://trypitch.co';
 
     const session = await client.checkoutSessions.create({
@@ -165,21 +249,8 @@ router.get('/status', async (req, res) => {
       }
 
       const balance = await getCreditBalance(payUserId);
-      return res.json({
-        status: 'succeeded',
-        credits_granted: credits,
-        receipt: {
-          id: payment.payment_id ?? paymentId,
-          amount: formatAmount(payment.total_amount, payment.currency),
-          credits,
-          method: formatMethod(payment.payment_method, payment.card_network, payment.card_last_four),
-          balance,
-          date: formatReceiptDate(payment.created_at),
-          email: payment.customer?.email ?? null,
-          name: payment.customer?.name ?? null,
-          label: TOPUP_PACKS[packKey]?.label ?? `${credits} Credits`,
-        },
-      });
+      const receipt = buildPaymentReceipt(payment, balance);
+      return res.json({ status: 'succeeded', credits_granted: credits, receipt });
     }
 
     // --- Subscription (subscription_id) ---
@@ -222,21 +293,8 @@ router.get('/status', async (req, res) => {
         }
 
         const balance = await getCreditBalance(subUserId);
-        return res.json({
-          status: 'succeeded',
-          credits_granted: credits,
-          receipt: {
-            id: subscription.subscription_id ?? subscriptionId,
-            amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
-            credits,
-            method: 'Subscription',
-            balance,
-            date: formatReceiptDate(subscription.created_at),
-            email: subscription.customer?.email ?? null,
-            name: subscription.customer?.name ?? null,
-            label: CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ?? `${credits} Credits / mo`,
-          },
-        });
+        const receipt = buildSubscriptionReceipt(subscription, balance);
+        return res.json({ status: 'succeeded', credits_granted: credits, receipt });
       }
 
       return res.json({ status: subscription.status });
@@ -290,21 +348,8 @@ router.get('/receipt', async (req, res) => {
       if (metadata.clerk_user_id && metadata.clerk_user_id !== userId) {
         return res.status(403).json({ error: 'Payment does not belong to this user' });
       }
-      const credits = parseInt(metadata.credits || '0', 10);
-      const packKey = metadata.pack as keyof typeof TOPUP_PACKS;
-      return res.json({
-        receipt: {
-          id: payment.payment_id ?? paymentId,
-          amount: formatAmount(payment.total_amount, payment.currency),
-          credits,
-          method: formatMethod(payment.payment_method, payment.card_network, payment.card_last_four),
-          balance,
-          date: formatReceiptDate(payment.created_at),
-          email: payment.customer?.email ?? null,
-          name: payment.customer?.name ?? null,
-          label: TOPUP_PACKS[packKey]?.label ?? `${credits} Credits`,
-        },
-      });
+      const receipt = buildPaymentReceipt(payment, balance);
+      return res.json({ receipt });
     }
 
     const subscription = await client.subscriptions.retrieve(subscriptionId!);
@@ -312,21 +357,8 @@ router.get('/receipt', async (req, res) => {
     if (metadata.clerk_user_id && metadata.clerk_user_id !== userId) {
       return res.status(403).json({ error: 'Subscription does not belong to this user' });
     }
-    const credits = parseInt(metadata.credits || '0', 10);
-    const planKey = metadata.pack || 'starter';
-    return res.json({
-      receipt: {
-        id: subscription.subscription_id ?? subscriptionId,
-        amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
-        credits,
-        method: 'Subscription',
-        balance,
-        date: formatReceiptDate(subscription.created_at),
-        email: subscription.customer?.email ?? null,
-        name: subscription.customer?.name ?? null,
-        label: CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ?? `${credits} Credits / mo`,
-      },
-    });
+    const receipt = buildSubscriptionReceipt(subscription, balance);
+    return res.json({ receipt });
   } catch (error: unknown) {
     logger.error({ err: error instanceof Error ? error.message : String(error) }, '[Dodo Receipt] Error');
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
