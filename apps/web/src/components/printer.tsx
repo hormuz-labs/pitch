@@ -281,7 +281,7 @@ const ZigzagBottom = ({ width }: { width: number }) => {
    CONFETTI
 ───────────────────────────────────────────── */
 const Confetti = () => (
-  <div style={{position:'absolute',inset:0,pointerEvents:'none',overflow:'hidden',zIndex:1}}>
+  <div aria-hidden="true" style={{position:'absolute',inset:0,pointerEvents:'none',overflow:'hidden',zIndex:1}}>
     {[...Array(24)].map((_,i) => {
       const colors = ['#34d399','#6ee7b7','#10b981','#a7f3d0'];
       const color = colors[i % colors.length];
@@ -312,7 +312,7 @@ const hashRand = (seed: number) => {
 };
 
 /* CONFETTI BURST — one-shot pop at celebration moment */
-const BURST_COLORS = ['#34d399','#6ee7b7','#10b981','#a7f3d0','#fbbf24','#f97316','#a855f7','#ec4899','#38bdf8'];
+const BURST_COLORS = ['#34d399','#6ee7b7','#10b981','#a7f3d0','#059669','#bbf7d0'];
 const ConfettiBurst = () => {
   const N = 56;
   const particles = useMemo(() => Array.from({length:N}, (_,i) => {
@@ -332,7 +332,7 @@ const ConfettiBurst = () => {
     };
   }), []);
   return (
-    <div style={{
+    <div aria-hidden="true" style={{
       position:'fixed', top:'50%', left:'50%',
       width:0, height:0, pointerEvents:'none', zIndex:7,
     }}>
@@ -495,8 +495,25 @@ export default function PaymentReceipt({
   const receiptRef = useRef<HTMLDivElement>(null);
   const sliderRef  = useRef<HTMLDivElement>(null);
   const bubbleRef  = useRef<HTMLDivElement>(null);
+  const dialogRef  = useRef<HTMLDivElement>(null);
 
-  const trackWidth  = 380;
+  // Responsive sizing — the receipt + printer scale to fit phones and tablets
+  // instead of overflowing a fixed 440px width.
+  const [vw, setVw] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1024));
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  // Move focus into the dialog on open so keyboard users land here (Escape closes).
+  useEffect(() => { dialogRef.current?.focus(); }, []);
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const RECEIPT_W = Math.min(400, vw - 56);
+  const LIP_W     = Math.min(RECEIPT_W + 64, vw - 16);
+
+  const trackWidth  = RECEIPT_W - 56; // inside the paper's 28px horizontal padding
   const handleWidth = 56;
   const swipeRange  = trackWidth - handleWidth - 6;
 
@@ -537,10 +554,13 @@ export default function PaymentReceipt({
     if (claimedRef.current) return;
     claimedRef.current = true;
     dragX.set(swipeRange);
+    setPhase('claimed');
+
+    // Reduced motion: skip the flying-coin animation, just land the balance.
+    if (prefersReducedMotion) { setPoints(balance ?? 0); return; }
 
     const sRect = sliderRef.current?.getBoundingClientRect();
     const bRect = bubbleRef.current?.getBoundingClientRect();
-    setPhase('claimed');
     if (!sRect || !bRect) return;
 
     const originX = sRect.right - 28;
@@ -575,7 +595,7 @@ export default function PaymentReceipt({
         setTimeout(() => { setPointsFlash(false); }, 120);
       }, (c.delay + 0.58) * 1000);
     });
-  }, [swipeRange, dragX, credits, balance]);
+  }, [swipeRange, dragX, credits, balance, prefersReducedMotion]);
 
   const handleDragEnd = useCallback((_e: unknown, info: { offset: { x: number } }) => {
     if (info.offset.x < swipeRange * 0.4) { dragX.set(0); return; }
@@ -586,12 +606,16 @@ export default function PaymentReceipt({
   // celebration — slide it automatically shortly after it becomes claimable.
   useEffect(() => {
     if (phase !== 'claimable' || !isSuccess) return;
+    if (prefersReducedMotion) {
+      const tr = setTimeout(runClaim, 0);
+      return () => clearTimeout(tr);
+    }
     const t = setTimeout(() => {
       animate(dragX, swipeRange, { duration: 0.5, ease: [0.4, 0, 0.2, 1] });
       setTimeout(runClaim, 380);
     }, 650);
     return () => clearTimeout(t);
-  }, [phase, isSuccess, dragX, swipeRange, runClaim]);
+  }, [phase, isSuccess, dragX, swipeRange, runClaim, prefersReducedMotion]);
 
   const [saving, setSaving] = useState(false);
   const saveReceipt = useCallback(async () => {
@@ -616,8 +640,6 @@ export default function PaymentReceipt({
   const badgeBig    = phase === 'celebrating';
   const showPrinter = !['idle','celebrating'].includes(phase);
 
-  const RECEIPT_W = 440;
-
   // Theme by status
   const accent   = isSuccess ? '#059669' : '#dc2626';
   const accentHi = isSuccess ? '#34d399' : '#f87171';
@@ -626,29 +648,41 @@ export default function PaymentReceipt({
     : 'linear-gradient(170deg,#fef4f4 0%,#fafafa 55%,#f0eeee 100%)';
 
   return (
-    <div style={{
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={isSuccess ? 'Payment complete receipt' : 'Payment failed'}
+      tabIndex={-1}
+      onKeyDown={(e) => { if (e.key === 'Escape' && onClose) onClose(); }}
+      style={{
       position:'fixed', inset:0, zIndex:2000,
       background: bg,
       display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start',
-      paddingTop: 56, paddingBottom: 100,
+      paddingTop: 'max(40px, env(safe-area-inset-top))',
+      paddingBottom: 'max(80px, env(safe-area-inset-bottom))',
+      paddingLeft: 'env(safe-area-inset-left)',
+      paddingRight: 'env(safe-area-inset-right)',
       fontFamily:"'DM Sans','Helvetica Neue',sans-serif",
       overflowY:'auto', overflowX:'hidden', userSelect:'none',
+      outline:'none',
     }}>
 
-      <AnimatePresence>{showBadge && isSuccess && <Confetti/>}</AnimatePresence>
-      <AnimatePresence>{badgeBig && isSuccess && <ConfettiBurst/>}</AnimatePresence>
+      <AnimatePresence>{showBadge && isSuccess && !prefersReducedMotion && <Confetti/>}</AnimatePresence>
+      <AnimatePresence>{badgeBig && isSuccess && !prefersReducedMotion && <ConfettiBurst/>}</AnimatePresence>
 
       {/* Close button */}
       {onClose && (
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label="Close receipt"
           style={{
-            position:'fixed', top:18, right:18, zIndex:50,
+            position:'fixed', top:'max(18px, env(safe-area-inset-top))', right:'max(18px, env(safe-area-inset-right))', zIndex:50,
             width:38, height:38, borderRadius:999,
             background:'rgba(255,255,255,0.8)', border:'1px solid rgba(0,0,0,0.08)',
             display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer',
             boxShadow:'0 2px 8px rgba(0,0,0,0.08)', backdropFilter:'blur(6px)',
+            touchAction:'manipulation',
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth={2.2}>
@@ -678,12 +712,15 @@ export default function PaymentReceipt({
           transformOrigin:'center',
         }}
       >
-        <motion.div
-          animate={{ scale:[1,1.25,1], opacity:[0,0.25,0] }}
-          transition={{ duration:2, repeat:Infinity }}
-          style={{ position:'absolute', width:90, height:90, borderRadius:'50%',
-            background:`radial-gradient(${accentHi}88,transparent 70%)` }}
-        />
+        {!prefersReducedMotion && (
+          <motion.div
+            aria-hidden="true"
+            animate={{ scale:[1,1.25,1], opacity:[0,0.25,0] }}
+            transition={{ duration:2, repeat:Infinity }}
+            style={{ position:'absolute', width:90, height:90, borderRadius:'50%',
+              background:`radial-gradient(${accentHi}88,transparent 70%)` }}
+          />
+        )}
         <div style={{
           width:64, height:64, borderRadius:'50%',
           background:`linear-gradient(135deg,${accentHi},${accent})`,
@@ -691,7 +728,7 @@ export default function PaymentReceipt({
           boxShadow:`0 10px 30px ${isSuccess ? 'rgba(16,185,129,0.35)' : 'rgba(220,38,38,0.35)'}`,
           position:'relative', zIndex:1,
         }}>
-          <svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
+          <svg aria-hidden="true" width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
             {isSuccess ? (
               <motion.path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"
                 initial={{ pathLength:0 }}
@@ -725,7 +762,7 @@ export default function PaymentReceipt({
 
         {/* PRINTER LIP */}
         <div style={{ position:'relative', zIndex:30 }}>
-          <PrinterLip printing={isPrinting} width={RECEIPT_W + 80}/>
+          <PrinterLip printing={isPrinting && !prefersReducedMotion} width={LIP_W}/>
         </div>
 
         {/* RECEIPT FEED WINDOW — clips so the receipt appears to slide out of the slot */}
@@ -738,7 +775,7 @@ export default function PaymentReceipt({
             initial={{ y: -(receiptHeight + 30) }}
             animate={{ y: feedOut ? 0 : -(receiptHeight + 30) }}
             transition={{
-              duration: isPrinting ? 4.8 : 0.01,
+              duration: isPrinting ? (prefersReducedMotion ? 0.3 : 4.8) : 0.01,
               ease: isPrinting ? [0.45, 0.05, 0.55, 1] : 'linear',
             }}
           >
@@ -882,15 +919,16 @@ export default function PaymentReceipt({
                           data-no-export="true"
                           onClick={saveReceipt}
                           disabled={saving}
+                          aria-label={saving ? 'Generating PDF receipt' : 'Download receipt as PDF'}
                           style={{ marginTop:10, height:44, width:'100%',
                             cursor: saving ? 'default' : 'pointer',
                             background:'#fff', color:'#374151', borderRadius:999,
                             border:'1.5px solid #e5e7eb', fontSize:14, fontWeight:600,
                             fontFamily:"'DM Sans',sans-serif", display:'flex',
                             alignItems:'center', justifyContent:'center', gap:8,
-                            opacity: saving ? 0.6 : 1 }}
+                            opacity: saving ? 0.6 : 1, touchAction:'manipulation' }}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
                           </svg>
                           {saving ? 'Generating PDF…' : 'Download receipt'}
@@ -905,7 +943,7 @@ export default function PaymentReceipt({
                           style={{ height:48, width:'100%', border:'none', cursor:'pointer',
                             background:'linear-gradient(180deg,#ef4444 0%,#b91c1c 100%)',
                             color:'#fff', borderRadius:999, fontSize:15, fontWeight:700,
-                            fontFamily:"'DM Sans',sans-serif",
+                            fontFamily:"'DM Sans',sans-serif", touchAction:'manipulation',
                             boxShadow:'0 4px 14px rgba(185,28,28,0.28)' }}
                         >
                           Try again
@@ -915,7 +953,7 @@ export default function PaymentReceipt({
                           style={{ height:44, width:'100%', cursor:'pointer',
                             background:'#fff', color:'#6b7280', borderRadius:999,
                             border:'1.5px solid #e5e7eb', fontSize:14, fontWeight:600,
-                            fontFamily:"'DM Sans',sans-serif" }}
+                            fontFamily:"'DM Sans',sans-serif", touchAction:'manipulation' }}
                         >
                           Back to pricing
                         </button>
@@ -936,7 +974,11 @@ export default function PaymentReceipt({
       </motion.div>
 
       {/* Flying coins */}
-      {flyingCoins.map(({ id, ...c }) => <FlyingCoin key={id} {...c}/>)}
+      {!prefersReducedMotion && (
+        <div aria-hidden="true">
+          {flyingCoins.map(({ id, ...c }) => <FlyingCoin key={id} {...c}/>)}
+        </div>
+      )}
     </div>
   );
 }

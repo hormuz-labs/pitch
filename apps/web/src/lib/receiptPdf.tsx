@@ -22,7 +22,15 @@ export async function downloadReceiptPdf(data: OfficialReceiptData): Promise<voi
     // Give the browser a couple of frames to lay out and load fonts.
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
-    const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true, backgroundColor: '#ffffff' });
+    // skipFonts avoids html-to-image trying to read cross-origin stylesheets
+    // (e.g. Google Fonts), which throws a SecurityError on cssRules access.
+    // The receipt's font stack falls back to Helvetica/Arial, which is fine.
+    const dataUrl = await toPng(node, {
+      pixelRatio: 2,
+      cacheBust: true,
+      backgroundColor: '#ffffff',
+      skipFonts: true,
+    });
     const img = new Image();
     img.src = dataUrl;
     await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = reject; });

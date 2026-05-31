@@ -1,46 +1,38 @@
 import express, { Router } from 'express';
 import * as db from '@saas/db';
 import { createLogger } from '@saas/shared';
-import crypto from 'crypto';
+import { Webhook } from 'standardwebhooks';
 import { CREDIT_PACKS, TOPUP_PACKS } from '../config.js';
 
 const logger = createLogger('api');
 
 export const router = Router();
 
-function verifyWebhook(payload: string, signature: string, secret: string): boolean {
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
-  
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
-}
-
 router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['webhook-signature'] || req.headers['x-dodo-signature'] || req.headers['authorization'];
-  if (Array.isArray(sig)) return res.status(400).send('Invalid signature header');
-  const signature = sig ? sig.replace('Bearer ', '') : '';
-
   const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET;
-
-  if (!webhookSecret || !signature) {
-    return res.status(400).send('Missing webhook secret or signature');
+  if (!webhookSecret) {
+    logger.error('[Dodo Webhook] DODO_PAYMENTS_WEBHOOK_SECRET not configured');
+    return res.status(503).send('Webhook secret not configured');
   }
 
-  const isValid = verifyWebhook(req.body.toString('utf8'), signature as string, webhookSecret);
-  if (!isValid) {
-    return res.status(400).send('Webhook Error: Invalid signature');
-  }
+  // Dodo Payments signs webhooks with the Standard Webhooks spec:
+  //   sign( `${webhook-id}.${webhook-timestamp}.${rawBody}` ) -> HMAC-SHA256 -> base64
+  // The library handles the `whsec_` prefix, base64 key decode, the `v1,<sig>`
+  // header format, constant-time compare, and timestamp replay tolerance.
+  const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body);
+  const webhookHeaders = {
+    'webhook-id': (req.headers['webhook-id'] as string) || '',
+    'webhook-timestamp': (req.headers['webhook-timestamp'] as string) || '',
+    'webhook-signature': (req.headers['webhook-signature'] as string) || '',
+  };
 
   let event: Record<string, unknown>;
   try {
-    event = JSON.parse(req.body.toString('utf8'));
+    const wh = new Webhook(webhookSecret);
+    event = wh.verify(rawBody, webhookHeaders) as Record<string, unknown>;
   } catch (err: unknown) {
-    return res.status(400).send('Webhook Error: Invalid JSON');
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[Dodo Webhook] Signature verification failed');
+    return res.status(400).send('Webhook Error: Invalid signature');
   }
 
   const data = event.data as Record<string, any>;

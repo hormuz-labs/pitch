@@ -38,13 +38,19 @@ type ReceiptPayload = {
 };
 
 const LoadingState = () => (
-  <div style={{
-    position: 'fixed', inset: 0, zIndex: 2000,
-    background: 'linear-gradient(170deg,#f7faf9 0%,#fafafa 55%,#eef0ee 100%)',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: 18, fontFamily: "'DM Sans','Helvetica Neue',sans-serif", userSelect: 'none',
-  }}>
-    <div className="animate-spin" style={{
+  <div
+    role="status"
+    aria-live="polite"
+    aria-label="Confirming your payment"
+    style={{
+      position: 'fixed', inset: 0, zIndex: 2000,
+      background: 'linear-gradient(170deg,#f7faf9 0%,#fafafa 55%,#eef0ee 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 18, padding: '24px', textAlign: 'center',
+      fontFamily: "'DM Sans','Helvetica Neue',sans-serif", userSelect: 'none',
+    }}
+  >
+    <div className="animate-spin motion-reduce:animate-none" aria-hidden="true" style={{
       width: 44, height: 44, borderRadius: '50%',
       border: '3px solid rgba(0,0,0,0.08)', borderTopColor: '#059669',
     }} />
