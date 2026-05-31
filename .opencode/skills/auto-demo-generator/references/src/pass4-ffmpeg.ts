@@ -11,7 +11,6 @@ import {
   buildFilterString,
 } from './utils';
 
-// ── Preflight ────────────────────────────────────────────────────────────────
 function preflight(demoDir: string): void {
   const rawVideoPointer = path.join(demoDir, 'raw-video-path.txt');
   if (!fs.existsSync(rawVideoPointer)) throw new Error(`[pass4-ffmpeg] raw-video-path.txt not found — run pass3-record first. Expected: ${rawVideoPointer}`);
@@ -33,12 +32,6 @@ function preflight(demoDir: string): void {
   if (!fs.existsSync(keySfx)) throw new Error(`[pass4-ffmpeg] keyboard.mp3 not found. Expected: ${keySfx}`);
 }
 
-/**
- * Pass 6 — FFmpeg Post-Processing (Cinematic Overlay + AV Sync + Intro Stitch)
- * Inputs:  raw-video-path.txt, tracking.json, voiceover.wav, timeline.json,
- *          cursor.png, assets/sounds/, intro-path.txt (optional)
- * Outputs: <outputPath>.mp4 (final video)
- */
 export async function pass4Ffmpeg(
   config: DemoConfig,
   demoSteps: DemoStep[],
@@ -61,7 +54,6 @@ export async function pass4Ffmpeg(
   console.log(`== Pass 6: FFmpeg Post-Processing ==`);
   console.log(`⏱️  Trimming page load dead time: ${trimSeconds}s`);
 
-  // ── Build animation expressions ────────────────────────────────────────────
   const { overlayXExpr, overlayYExpr, zoomZExpr, panXExpr, panYExpr } =
     buildCursorAnimationExprs(trackingEvents, VIDEO_WIDTH, VIDEO_HEIGHT);
 
@@ -91,13 +83,11 @@ export async function pass4Ffmpeg(
     : path.join(demoDir, 'demo-final.mp4');
   const tempRawOut = finalOutput.replace('.mp4', '-raw.mp4');
 
-  // Preflight check: Ensure the output directory exists
   const finalOutputDir = path.dirname(finalOutput);
   if (!fs.existsSync(finalOutputDir)) {
     fs.mkdirSync(finalOutputDir, { recursive: true });
   }
 
-  // ── Assemble FFmpeg command ────────────────────────────────────────────────
   const filterScriptPath = path.join(demoDir, 'filters.txt');
   fs.writeFileSync(filterScriptPath, filterString);
 
@@ -154,29 +144,23 @@ export async function pass4Ffmpeg(
     });
   }
 
-  // ── Stitch intro & outro ──────────────────────────────────────────────────
   const introPathFile = path.join(demoDir, 'intro-path.txt');
   const outroPathFile = path.join(demoDir, 'outro-path.txt');
-  let currentInput = tempRawOut;
 
   function hasAudioStream(filePath: string): boolean {
-    try {
-      const result = execSync(
-        `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${filePath}"`,
-        { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
-      ).trim();
-      return result === 'audio';
-    } catch { return false; }
+    const result = execSync(
+      `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${filePath}"`,
+      { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
+    ).trim();
+    return result === 'audio';
   }
 
   function getVideoDuration(filePath: string): number {
-    try {
-      const result = execSync(
-        `ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
-        { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
-      ).trim();
-      return parseFloat(result) || 0;
-    } catch { return 0; }
+    const result = execSync(
+      `ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
+      { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
+    ).trim();
+    return parseFloat(result) || 0;
   }
 
   async function concatClips(inputA: string, inputB: string, outputPath: string, label: string): Promise<void> {
@@ -221,7 +205,6 @@ export async function pass4Ffmpeg(
   const hasOutro = fs.existsSync(outroPathFile) && fs.existsSync(fs.readFileSync(outroPathFile, 'utf8').trim());
 
   if (hasIntro && hasOutro) {
-    // Two-step stitch: intro+main → temp, then +outro → final
     const tempStitched = finalOutput.replace('.mp4', '-stitched.mp4');
     await concatClips(fs.readFileSync(introPathFile, 'utf8').trim(), tempRawOut, tempStitched, 'intro');
     await concatClips(tempStitched, fs.readFileSync(outroPathFile, 'utf8').trim(), finalOutput, 'outro');

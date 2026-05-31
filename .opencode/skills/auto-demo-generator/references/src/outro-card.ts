@@ -15,13 +15,10 @@ export interface OutroCardOptions {
 export function buildOutroCardHtml(options: OutroCardOptions): string {
   const templatePath = path.resolve(__dirname, '../templates/outro-card.html');
   let html = fs.readFileSync(templatePath, 'utf8');
-
   const { companyName, url, thanksText, width, height, bg, textColor, logoDataUrl } = options;
-
   const logoHtml = logoDataUrl
     ? `<div class="logo-wrap"><img src="${logoDataUrl}" alt="logo"/></div>`
     : '';
-
   html = html.replace('{{WIDTH}}', String(width));
   html = html.replace('{{HEIGHT}}', String(height));
   html = html.replace('{{BG}}', bg);
@@ -30,6 +27,5 @@ export function buildOutroCardHtml(options: OutroCardOptions): string {
   html = html.replace('{{URL}}', url);
   html = html.replace('{{THANKS_TEXT}}', thanksText);
   html = html.replace('{{LOGO_HTML}}', logoHtml);
-
   return html;
 }

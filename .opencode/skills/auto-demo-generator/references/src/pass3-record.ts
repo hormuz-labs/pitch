@@ -4,7 +4,6 @@ import path from 'path';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
 import { getChromiumGpuFlags } from './utils';
 
-// ── Preflight ────────────────────────────────────────────────────────────────
 function preflight(demoDir: string, config: DemoConfig): void {
   const timelinePath = path.join(demoDir, 'timeline.json');
   if (!fs.existsSync(timelinePath)) throw new Error(`[pass3-record] timeline.json not found — run pass2-timeline first. Expected: ${timelinePath}`);
@@ -17,12 +16,6 @@ function preflight(demoDir: string, config: DemoConfig): void {
   if (!fs.existsSync(cursorFile)) throw new Error(`[pass3-record] cursor-${cursorStyle}.svg not found. Expected: ${cursorFile}`);
 }
 
-/**
- * Pass 5 — Raw Video Recording & JIT Tracking
- * Inputs:  timeline.json, timestamps.json, assets/icons/cursor-*.svg
- * Outputs: raw-recording.webm (path written to raw-video-path.txt), tracking.json, cursor.png
- * Skips if tracking.json + raw-video-path.txt already exist.
- */
 export async function pass3Record(
   config: DemoConfig,
   startUrl: string,
@@ -44,9 +37,6 @@ export async function pass3Record(
 
   console.log('== Pass 5: Raw Video Recording & JIT Tracking ==');
   const timeline = JSON.parse(fs.readFileSync(path.join(demoDir, 'timeline.json'), 'utf8'));
-  // Snapshot the LLM-predicted timeline before the recording loop mutates it with real
-  // wall-clock execution times. This is the voiceover's reference clock and must be
-  // preserved so pass4 can align SFX to the narration rather than to actual execution.
   const originalTimeline: Record<string, number> = { ...timeline };
 
   const VIDEO_WIDTH = config.width || 1920;
@@ -56,7 +46,6 @@ export async function pass3Record(
 
   const browser = await chromium.launch({ headless: true, args: getChromiumGpuFlags() });
 
-  // Rasterize cursor SVG → PNG for FFmpeg overlay
   const cursorStyle = config.cursorStyle || 'black';
   const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
   const cursorPng = path.join(demoDir, 'cursor.png');
@@ -69,14 +58,12 @@ export async function pass3Record(
   await cursorContext.close();
   console.log(`✅ Cursor PNG rasterized: ${cursorPng}`);
 
-  // Start recording
   const context = await browser.newContext({
     recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
     viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
   });
   const page = await context.newPage();
 
-  // Prime the recorder — forces the video clock to start at ~0
   await page.setContent('<html><body style="background:white;"></body></html>');
   await page.waitForTimeout(100);
 
@@ -99,7 +86,7 @@ export async function pass3Record(
 
   for (const step of demoSteps) {
     let actionTime = timeline[step.id];
-    if (actionTime > 1000) actionTime = actionTime / 1000; // normalize ms → s
+    if (actionTime > 1000) actionTime = actionTime / 1000;
 
     if (step.selector) {
       const loc = page.locator(step.selector).first();
@@ -143,7 +130,6 @@ export async function pass3Record(
       if (step.action === 'click') {
         await loc.click({ force: true });
       } else if (step.action === 'type') {
-        // Focus and select all existing text to clear it before typing
         await loc.focus();
         await page.keyboard.down('Control');
         await page.keyboard.press('a');
@@ -163,7 +149,6 @@ export async function pass3Record(
     }
   }
 
-  // Tail — wait for voiceover to finish before stopping recording
   const timestampsData = JSON.parse(fs.readFileSync(path.join(demoDir, 'timestamps.json'), 'utf8'));
   const totalAudioTimeMs = timestampsData[timestampsData.length - 1].endMs;
   const videoPathCapture = await page.video()?.path();
@@ -172,27 +157,19 @@ export async function pass3Record(
   if (elapsedFinal < totalAudioTimeMs) {
     const timeToWait = totalAudioTimeMs - elapsedFinal + 2000;
     const frameInterval = setInterval(() => {
-      page.evaluate(() => {
-        const el = document.createElement('div');
-        el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;background:rgba(0,0,0,0.01);z-index:9999999;';
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), 50);
-      }).catch(() => {});
     }, 500);
     await page.waitForTimeout(timeToWait);
     clearInterval(frameInterval);
   }
 
-  await context.close().catch(() => {});
-  await browser.close().catch(() => {});
+  await context.close();
+  await browser.close();
 
   if (!videoPathCapture || !fs.existsSync(videoPathCapture)) throw new Error('[pass3-record] Raw video not found after recording!');
 
-  // Write outputs
   const trackingData: TrackingData = { initDurationMs, events: trackingEvents, originalTimeline };
   fs.writeFileSync(trackingPath, JSON.stringify(trackingData, null, 2));
   fs.writeFileSync(rawVideoPointer, videoPathCapture);
-  // Also write updated timeline (actions get synced timestamps during recording)
   fs.writeFileSync(path.join(demoDir, 'timeline.json'), JSON.stringify(timeline, null, 2));
 
   console.log(`✅ Raw recording saved: ${videoPathCapture}`);
