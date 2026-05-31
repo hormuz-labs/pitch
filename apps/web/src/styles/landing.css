@@ -1107,20 +1107,16 @@
 .landing-footer-social {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
   text-decoration: none;
-  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
 .landing-footer-social:hover {
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.15);
 }
 
 .landing-footer-nav {
