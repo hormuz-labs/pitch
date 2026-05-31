@@ -51,7 +51,6 @@ To produce the most engaging, professional, and visually premium videos, the AI 
 ```bash
 JOB_ID=$JOB_ID bun run src/index.ts demos/<demo-name>/demo-config.json
 ```
-*Note: The engine automatically creates a unique run directory (`demos/<demo-name>-<JOB_ID>/`) to avoid name conflicts. See Phase 0.1.*
 
 **Just-In-Time (JIT) Element Resolution:** Bounding boxes are NOT extracted in a previous pass. Because modern web pages load dynamically and ads/banners can shift the layout, the engine resolves the selector's live coordinates directly during the video recording right before the camera moves. This ensures 100% precision.
 
@@ -65,7 +64,7 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase workspace_init --st
 ```
 The `references/` directory contains the template files. 
 
-Before creating the config, the AI Agent MUST create a project folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`). This is a **project key** — a short descriptive name for the website being demoed. The engine will automatically create a unique **run directory** (`demos/shadcn-demo-<JOB_ID>/`) when you execute, preventing folder name conflicts between multiple runs.
+Before creating the config, the AI Agent MUST create a project folder for the demo in the project root's `demos/` directory (e.g., `demos/shadcn-demo/`).
 
 **CRITICAL RULE ON FILES:** You MUST NEVER run or modify the scripts directly from the `.opencode/` directory. The `.opencode` versions are the immutable templates. 
 The agent MUST copy the TypeScript files, the assets directory, and the templates directory (`src/`, `assets/`, and `templates/`) from the `references/` folder into the new `demos/<demo-name>/` folder. Do NOT copy `package.json` or any other dependency files. All dependencies are already globally installed, so you do NOT need to install them.
@@ -182,6 +181,20 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 
 **Avoid class names with `/`** — Tailwind classes like `group/accordion-trigger` are invalid CSS selectors. Use a structural parent (`h3 button`) or ARIA role instead.
 
+**Never assume `type="submit"` on search/form buttons** — Many sites (including Wikipedia, GitHub, and others using web components or custom design systems) render their submit buttons **without** a `type="submit"` attribute. Using `button[type='submit']` as a selector will silently timeout even though the button is clearly visible. Instead:
+* Always inspect the button's actual HTML with `agent-browser eval` before writing the selector.
+* Use class-based or text-based selectors as a fallback:
+```
+❌ "button[type='submit'].cdx-search-input__end-button"   ← breaks on Wikipedia & similar
+✅ "button.cdx-search-input__end-button"                  ← class-only, no type assumption
+✅ "#searchform button"                                    ← parent-scoped, robust
+✅ "button >> text='Search'"                              ← text-based, universal
+```
+* For **autocomplete/typeahead flows**, prefer clicking the first suggestion over submitting the form — it's more cinematic and avoids the `type` attribute problem entirely:
+```
+✅ "[role='option']:first-of-type"    ← clicks the first autocomplete suggestion
+```
+
 **⏱️ Fail Fast: Use Aggressive Timeouts for Exploration & Scraping**
 By default, Playwright waits **30 seconds** (`30000ms`) for elements before throwing an error. When writing custom scripts or performing live explorations (e.g., `explore.ts`), waiting 30 seconds for a missing element severely slows down the agent's feedback loop and costs valuable reasoning time.
 * **The Rule**: Always set a short, aggressive timeout (e.g., **3 to 5 seconds**) on wait and action methods when writing ad-hoc scripts. If the element is not there, let the script crash immediately so you can self-correct instantly.
@@ -203,6 +216,8 @@ By default, Playwright waits **30 seconds** (`30000ms`) for elements before thro
 | Tab by label | `[role='tablist'] [role='tab'] >> text='Analytics'` |
 | Input by placeholder | `[placeholder='Search...']` |
 | Link by text | `a >> text='Command'` |
+| Search button (no type attr) | `#searchform button` or `button.search-end-button` |
+| First autocomplete suggestion | `[role='option']:first-of-type` |
 
 ## Reference Implementation
 See the **perfected, generic pipeline modularized** in the `references/` directory. It acts as an automation engine that processes JSON steps rather than hardcoded Playwright scripts, making it infinitely reusable across any website.
@@ -231,7 +246,7 @@ bun apps/job-cli/src/index.ts phase --job-id <JOB_ID> --phase <PHASE_KEY> --stat
 ### Critical Rules
 1. **Phase reporting is fail-fast**: If a phase report command fails, it will crash the pipeline. Ensure the job-cli is running and JOB_ID is correct.
 2. **Always report running THEN completed**: Never skip the `running` call — the frontend uses it to animate the current step.
-3. **Set JOB_ID env var**: When running `bun run src/index.ts demos/<name>/demo-config.json`, prepend `JOB_ID=<JOB_ID>` so the auto-reporting inside `index.ts` knows the job ID. The engine also uses JOB_ID to derive a unique run directory — this means each run gets its own workspace with no name conflicts.
+3. **Set JOB_ID env var**: When running `bun run src/index.ts demos/<name>/demo-config.json`, prepend `JOB_ID=<JOB_ID>` so the auto-reporting inside `index.ts` knows the job ID.
    ```bash
    JOB_ID=<JOB_ID> bun run src/index.ts demos/<name>/demo-config.json
    ```
@@ -251,8 +266,6 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection
 # Run the main pipeline (auto-reports phases 0.5 → 4)
 # NOTE: Ensure you set a high timeout (e.g., 900000ms / 15 minutes) if running this via a tool call,
 # as FFmpeg post-processing is highly computationally intensive and can easily exceed 5 minutes.
-# The engine auto-creates a unique run directory (demos/<name>-<JOB_ID>/) and bootstraps it with src/assets/templates
-# from the project folder, so you never need to worry about name conflicts.
 JOB_ID=$JOB_ID bun run src/index.ts demos/<name>/demo-config.json
 ```
 

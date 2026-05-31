@@ -33,21 +33,7 @@ if (!configFile || !fs.existsSync(configFile)) {
 const rawConfigPath = path.resolve(configFile);
 const configDir = path.dirname(rawConfigPath);
 
-const runSuffix = process.env.JOB_ID || `run-${Date.now().toString(36).slice(-6)}`;
-const projectName = path.basename(configDir);
-const runName = `${projectName}-${runSuffix}`;
-const DEMO_DIR = path.resolve(configDir, '..', runName);
-
-if (!fs.existsSync(DEMO_DIR)) {
-  fs.mkdirSync(DEMO_DIR, { recursive: true });
-  for (const dir of ['src', 'assets', 'templates']) {
-    const srcPath = path.join(configDir, dir);
-    if (fs.existsSync(srcPath)) {
-      execSync(`cp -r "${srcPath}" "${DEMO_DIR}/"`);
-    }
-  }
-  fs.copyFileSync(rawConfigPath, path.join(DEMO_DIR, 'demo-config.json'));
-}
+const DEMO_DIR = configDir;
 
 const config: DemoConfig = JSON.parse(fs.readFileSync(rawConfigPath, 'utf8'));
 
