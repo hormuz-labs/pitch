@@ -62,6 +62,46 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
   const [showAudioPreview, setShowAudioPreview] = useState(false);
   const [headerPairs, setHeaderPairs] = useState<{ key: string, value: string }[]>([]);
   const [cookiePairs, setCookiePairs] = useState<{ key: string, value: string }[]>([]);
+  const [curlInput, setCurlInput] = useState('');
+
+  const handleCurlImport = () => {
+    if (!curlInput.trim()) return;
+
+    // 1. Extract URL
+    const urlMatch = curlInput.match(/(?:https?:\/\/[^\s'"]+)/);
+    if (urlMatch) {
+      update('url', urlMatch[0]);
+    }
+
+    // 2. Extract Headers
+    const headers: { key: string, value: string }[] = [];
+    const headerRegex = /-(?:H|-header)\s+['"]([^'"]+)['"]/g;
+    let hMatch;
+    while ((hMatch = headerRegex.exec(curlInput)) !== null) {
+      const parts = hMatch[1].split(/:(.*)/s);
+      if (parts.length >= 2) {
+        headers.push({ key: parts[0].trim(), value: parts[1].trim() });
+      }
+    }
+    if (headers.length > 0) setHeaderPairs(headers);
+
+    // 3. Extract Cookies
+    const cookies: { key: string, value: string }[] = [];
+    const cookieRegex = /-(?:b|-cookie)\s+['"]([^'"]+)['"]/g;
+    let cMatch = cookieRegex.exec(curlInput);
+    if (cMatch) {
+      const cookieStr = cMatch[1];
+      cookieStr.split(';').forEach(c => {
+        const [k, ...v] = c.split('=');
+        if (k) {
+          cookies.push({ key: k.trim(), value: v.join('=').trim() });
+        }
+      });
+    }
+    if (cookies.length > 0) setCookiePairs(cookies);
+    
+    setCurlInput('');
+  };
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value });
@@ -233,6 +273,38 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                 />
               </div>
               {errors.instructions && <p className="text-xs text-red-500 mt-1">{errors.instructions}</p>}
+            </div>
+
+            {/* Quick Setup: cURL Import */}
+            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                  </div>
+                  <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">Quick Setup: Import from cURL</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCurlImport}
+                  disabled={!curlInput.trim()}
+                  className="px-3 py-1 bg-blue-600 text-white text-[11px] font-bold rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors uppercase"
+                >
+                  Import Data
+                </button>
+              </div>
+              <textarea
+                rows={2}
+                className="w-full bg-white/80 border border-blue-100 rounded-lg px-3 py-2 text-xs font-mono text-blue-900 placeholder-blue-300 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 resize-none"
+                placeholder="Paste cURL from Chrome (Network -> Copy as cURL)..."
+                value={curlInput}
+                onChange={e => setCurlInput(e.target.value)}
+              />
+              <p className="text-[10px] text-blue-600/70 mt-2">
+                This will automatically extract the URL, Authorization headers, and cookies.
+              </p>
             </div>
 
             {/* Voiceover */}
