@@ -12,8 +12,8 @@ function preflight(demoDir: string, config: DemoConfig): void {
   if (!fs.existsSync(timestampsPath)) throw new Error(`[pass3-record] timestamps.json not found — run pass2-tts first. Expected: ${timestampsPath}`);
 
   const cursorStyle = config.cursorStyle || 'black';
-  const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
-  if (!fs.existsSync(cursorFile)) throw new Error(`[pass3-record] cursor-${cursorStyle}.svg not found. Expected: ${cursorFile}`);
+  const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
+  if (!fs.existsSync(cursorFile)) throw new Error(`[pass3-record] cursor-${cursorStyle}.png not found. Expected: ${cursorFile}`);
 }
 
 export async function pass3Record(
@@ -47,16 +47,10 @@ export async function pass3Record(
   const browser = await chromium.launch({ headless: true, args: getChromiumGpuFlags() });
 
   const cursorStyle = config.cursorStyle || 'black';
-  const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
+  const cursorSrc = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
   const cursorPng = path.join(demoDir, 'cursor.png');
-  const cursorContext = await browser.newContext();
-  const cursorPage = await cursorContext.newPage();
-  let svgContent = fs.readFileSync(cursorFile, 'utf8');
-  svgContent = svgContent.replace(/width="\d+"/i, 'width="48"').replace(/height="\d+"/i, 'height="48"');
-  await cursorPage.setContent(`<style>body{margin:0;background:transparent;}svg{width:48px;height:48px;display:block;}</style>${svgContent}`);
-  await cursorPage.locator('svg').screenshot({ path: cursorPng, omitBackground: true });
-  await cursorContext.close();
-  console.log(`✅ Cursor PNG rasterized: ${cursorPng}`);
+  fs.copyFileSync(cursorSrc, cursorPng);
+  console.log(`✅ Cursor PNG ready: ${cursorPng}`);
 
   const context = await browser.newContext({
     recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
@@ -123,7 +117,15 @@ export async function pass3Record(
 
       const syncedActionTime = (Date.now() - startTime) / 1000 + 0.05;
 
-      trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: step.zoom });
+      // Dynamic zoom: frame the element to fill ~35% of the viewport (with surrounding context)
+      let elemZoom: number | undefined;
+      if (finalBox) {
+        const targetFillRatio = 0.35;
+        const zoomByWidth = (VIDEO_WIDTH * targetFillRatio) / finalBox.width;
+        const zoomByHeight = (VIDEO_HEIGHT * targetFillRatio) / finalBox.height;
+        elemZoom = Math.max(1.0, Math.min(2.5, Math.min(zoomByWidth, zoomByHeight)));
+      }
+      trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: elemZoom });
       prevCursorX = finalCx;
       prevCursorY = finalCy;
 

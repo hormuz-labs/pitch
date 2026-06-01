@@ -27,25 +27,56 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   "outputPath": "example-demo.mp4", 
   "cursorStyle": "black",
   "steps": [
-    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search", "zoom": 1.5 },
-    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion", "zoom": 1.2 },
+    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
+    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion" },
     { "id": "tOutro", "description": "Conclude the demo", "action": "wait", "zoom": 1.0 }
   ]
 }
 ```
-*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional (defaults to 1.2 for actions, 1.0 for wait).*
+*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional — see the cinematography guide below.*
 
-### 🎥 Zoom Scheduling & Cinematography Guide (CRITICAL)
-To produce the most engaging, professional, and visually premium videos, the AI Agent must **dynamically choreograph the zoom levels** across steps rather than using a single static value. Adhere to these exact tiers:
-1. **`1.0` (Wide Overview / Dashboard Context)**:
-   * **When to use**: During page load, initial landing, full dashboard overview transitions, return navigation steps (like "Back to Roles"), or concluding outro steps.
-   * **Why**: It zooms completely out, giving the viewer's eyes a resting break and structural context of where they are in the app.
-2. **`1.2` (Component Groups / Broad Panels)**:
-   * **When to use**: Clicking large cards, selecting sidebar links, navigating standard tabs, or interacting with medium-sized panels.
-   * **Why**: It centers the viewer's focus on the active area while maintaining surrounding layout readability.
-3. **`1.5` (Micro-Focus / Tiny Inputs & Controls)**:
-   * **When to use**: Typing into narrow text inputs/areas, selecting tiny dropdown menu items, clicking standalone action icons (like pencil/trash edit buttons), or clicking switch/checkbox toggles.
-   * **Why**: It tightly locks onto the minute action, making tiny elements and typed characters crystal clear on standard screen displays.
+### 🎥 Zoom & Camera Cinematography Guide (CRITICAL)
+
+The engine uses **two separate mechanisms** for camera movement — you must understand both to choreograph a great demo:
+
+#### 1. Dynamic Auto-Zoom (click/type steps)
+Zoom is **automatically calculated** from the element's actual bounding box at record time — do NOT set `zoom` on click/type steps. The formula:
+```
+zoom = min(videoWidth × 0.35 / elemWidth, videoHeight × 0.35 / elemHeight)
+```
+clamped to [1.0, 2.5]. This frames the element filling ~35% of the viewport with surrounding context.
+
+- A tiny 40×20 icon → ~2.5x (tight closeup)
+- A 150×30 menu item → ~2.5x (closeup)  
+- A 300×80 button → ~2.25x (medium)
+- A 900×600 panel → ~1.0x (wide)
+
+#### 2. Manual Zoom-Out (wait / navigate steps)
+**CRITICAL**: Set `"zoom": 1.0` on wait and navigate steps between interactions. This zooms the camera back out to full-page context, giving the viewer's eyes a structural resting point. Without this, the camera stays zoomed in from the previous action.
+
+**Cinematography rhythm — ALWAYS follow this pattern:**
+```
+action (auto-zoom in) → wait with zoom:1.0 (zoom out to context) → action (auto-zoom in) → ...
+```
+
+**Exception — form filling / sequential typing:**
+When the user fills a multi-field form (e.g., Name → Email → Password), do NOT insert zoom-out waits between them. Let the engine chain the type steps so the camera stays smoothly zoomed in across the form:
+```json
+{ "id": "tName", "description": "Type name", "action": "type", "selector": "#name", "value": "John" },
+{ "id": "tEmail", "description": "Type email", "action": "type", "selector": "#email", "value": "john@test.com" },
+{ "id": "tAfterForm", "description": "Form complete", "action": "wait", "zoom": 1.0 }
+```
+
+#### 3. Camera Pan Tracking
+The camera **always follows the cursor** — the viewport is automatically panned so the cursor position stays centered. You do NOT need to configure anything. This ensures the user's eye is always on the element being interacted with.
+
+#### Summary: when to set `zoom`
+| Step type | Set zoom? | Value |
+|-----------|-----------|-------|
+| click / type | ❌ Omit — auto-calculated | — |
+| wait (between actions) | ✅ Yes | `1.0` |
+| wait (outro / conclusion) | ✅ Yes | `1.0` |
+| wait (initial landing) | ✅ Yes | `1.0` |
 
 **Execution:**
 ```bash
@@ -145,8 +176,9 @@ Run the final Playwright instance with `recordVideo` enabled (1920x1080).
 
 ### Phase 4 — FFmpeg Post-Processing (Cinematic Overlay, Zoom & AV Sync) — V4.5
 Multiplex the resulting `.webm` video from Playwright with the voiceover, typing, and click SFX.
-*   **Smoothstep Easing (3t²−2t³):** All cursor movement and camera pan transitions use cubic hermite interpolation (zero velocity at start & end) for a natural, human-feeling mouse glide. Helper: `smoothstepExpr()` in `utils.ts`.
-*   **Spring Zoom Overshoot:** On zoom-in, the camera overshoots to `1.22x` at 60% of the transition window then settles back to `1.20x`, giving an elastic spring feel. Implemented via `springOvershootExpr()` in `utils.ts`.
+*   **Linear Camera Movement:** All zoom, pan, and cursor movement transitions are pure linear interpolation (constant velocity, no easing). Helper: `smoothstepExpr()` in `utils.ts`.
+*   **Dynamic Auto-Zoom:** Zoom is computed per-step from the element's bounding box at record time — small elements get tighter zooms, large panels stay wide. No manual zoom levels needed for actions.
+*   **Camera Pan Tracking:** The camera viewport automatically pans to keep the cursor centered on screen at all times.
 *   **Scroll-Tracking Camera Pan:** When `scrollIntoView` shifts the page by >20px, a synthetic `scroll` event is pushed to `tracking.json`. Phase 4 reads these to emit a smooth `panY` drift so the camera follows the page scroll naturally.
 *   **Click Shrink Animation:** Each `click` event generates a natural cursor shrink-and-expand effect (scales down to 70% over 0.05s, expands back over 0.15s). This is evaluated dynamically using the `scale` filter applied directly to the cursor overlay element.
 *   **Cursor Park & Fade:** During idle gaps >4s, the cursor gracefully fades out in place over 0.4s via dynamic alpha channel masking (`geq` filter), and fades back in 1s before the next interaction begins. All done as post-processing on top of the cursor overlay expressions.
