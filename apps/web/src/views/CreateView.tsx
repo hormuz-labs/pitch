@@ -63,6 +63,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
   const [headerPairs, setHeaderPairs] = useState<{ key: string, value: string }[]>([]);
   const [cookiePairs, setCookiePairs] = useState<{ key: string, value: string }[]>([]);
   const [curlInput, setCurlInput] = useState('');
+  const [activeAuthTab, setActiveAuthTab] = useState<'quick' | 'manual'>('quick');
 
   const handleCurlImport = () => {
     if (!curlInput.trim()) return;
@@ -101,6 +102,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
     if (cookies.length > 0) setCookiePairs(cookies);
     
     setCurlInput('');
+    setActiveAuthTab('manual');
   };
 
   const update = (key: string, value: string) => {
@@ -275,164 +277,177 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
               {errors.instructions && <p className="text-xs text-red-500 mt-1">{errors.instructions}</p>}
             </div>
 
-            {/* Quick Setup: cURL Import */}
-            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                  </div>
-                  <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">Quick Setup: Import from cURL</h4>
+            {/* Authentication & Session Setup */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 mb-1">
+                <FieldLabel label="Authentication & Session" tooltip="Configure how the AI agent should authenticate with the target website." />
+              </div>
+              
+              <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+                {/* Tabs Header */}
+                <div className="flex border-b border-gray-200 bg-gray-50/50">
+                  <button
+                    type="button"
+                    onClick={() => setActiveAuthTab('quick')}
+                    className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      activeAuthTab === 'quick' 
+                        ? 'bg-white text-gray-900 border-r border-gray-200' 
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Quick Import (cURL)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAuthTab('manual')}
+                    className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      activeAuthTab === 'manual' 
+                        ? 'bg-white text-gray-900 border-l border-gray-200' 
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Manual Setup { (headerPairs.length > 0 || cookiePairs.length > 0) && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500 inline-block" /> }
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCurlImport}
-                  disabled={!curlInput.trim()}
-                  className="px-3 py-1 bg-blue-600 text-white text-[11px] font-bold rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors uppercase"
-                >
-                  Import Data
-                </button>
-              </div>
-              <textarea
-                rows={2}
-                className="w-full bg-white/80 border border-blue-100 rounded-lg px-3 py-2 text-xs font-mono text-blue-900 placeholder-blue-300 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 resize-none"
-                placeholder="Paste cURL from Chrome (Network -> Copy as cURL)..."
-                value={curlInput}
-                onChange={e => setCurlInput(e.target.value)}
-              />
-              <p className="text-[10px] text-blue-600/70 mt-2">
-                This will automatically extract the URL, Authorization headers, and cookies.
-              </p>
-            </div>
 
-            {/* Voiceover */}
-            <div>
-              <FieldLabel label="Voiceover Script (Optional)" tooltip="Leave blank to let the AI generate one automatically." />
-              <textarea
-                id="voiceover-input"
-                rows={4}
-                className={`${inputBase} resize-none`}
-                placeholder="Start by welcoming the user..."
-                value={formValues.script || ''}
-                onChange={e => update('script', e.target.value)}
-              />
-            </div>
+                <div className="p-4 bg-white">
+                  {activeAuthTab === 'quick' ? (
+                    <div className="space-y-3">
+                      <textarea
+                        rows={3}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-800 placeholder-gray-400 outline-none focus:ring-2 focus:ring-gray-900/5 focus:border-gray-400 resize-none transition-all"
+                        placeholder="Paste cURL from Chrome (Network -> Copy as cURL)..."
+                        value={curlInput}
+                        onChange={e => setCurlInput(e.target.value)}
+                      />
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-gray-500">
+                          Extracts URL, Tokens, and Cookies automatically.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleCurlImport}
+                          disabled={!curlInput.trim()}
+                          className="px-4 py-1.5 bg-gray-900 text-white text-[11px] font-bold rounded-lg hover:bg-gray-800 disabled:opacity-30 transition-all uppercase tracking-tight"
+                        >
+                          Import Data
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      {/* Custom Headers */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">HTTP Headers</h5>
+                          <button
+                            type="button"
+                            onClick={() => setHeaderPairs([...headerPairs, { key: '', value: '' }])}
+                            className="text-[10px] font-bold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1 uppercase"
+                          >
+                            <IconPlus /> Add Header
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {headerPairs.map((pair, idx) => (
+                            <div key={idx} className="flex gap-2 items-start group">
+                              <input
+                                type="text"
+                                placeholder="Header Key"
+                                className={`${inputBase} flex-1 !py-1.5 !text-xs font-mono`}
+                                value={pair.key}
+                                onChange={e => {
+                                  const newPairs = [...headerPairs];
+                                  newPairs[idx].key = e.target.value;
+                                  setHeaderPairs(newPairs);
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Value"
+                                className={`${inputBase} flex-2 !py-1.5 !text-xs font-mono`}
+                                value={pair.value}
+                                onChange={e => {
+                                  const newPairs = [...headerPairs];
+                                  newPairs[idx].value = e.target.value;
+                                  setHeaderPairs(newPairs);
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setHeaderPairs(headerPairs.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                          {headerPairs.length === 0 && (
+                            <p className="text-[10px] text-gray-400 italic py-1">No custom headers.</p>
+                          )}
+                        </div>
+                      </div>
 
-            {/* Custom Headers (Key-Value) */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <FieldLabel 
-                  label="Custom Headers" 
-                  tooltip="Use this for websites requiring authentication. Add pairs like Key: 'Authorization' and Value: 'Bearer your_token_here'. These headers will be used by the AI agent to access the site." 
-                />
-                <button
-                  type="button"
-                  onClick={() => setHeaderPairs([...headerPairs, { key: '', value: '' }])}
-                  className="text-xs font-semibold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1"
-                >
-                  <IconPlus /> Add Header
-                </button>
-              </div>
-              
-              <div className="space-y-2">
-                {headerPairs.map((pair, idx) => (
-                  <div key={idx} className="flex gap-2 items-start">
-                    <input
-                      type="text"
-                      placeholder="Header Key (e.g. Authorization)"
-                      className={`${inputBase} flex-1`}
-                      value={pair.key}
-                      onChange={e => {
-                        const newPairs = [...headerPairs];
-                        newPairs[idx].key = e.target.value;
-                        setHeaderPairs(newPairs);
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Value"
-                      className={`${inputBase} flex-2`}
-                      value={pair.value}
-                      onChange={e => {
-                        const newPairs = [...headerPairs];
-                        newPairs[idx].value = e.target.value;
-                        setHeaderPairs(newPairs);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setHeaderPairs(headerPairs.filter((_, i) => i !== idx))}
-                      className="p-2.5 text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-                {headerPairs.length === 0 && (
-                  <p className="text-[11px] text-gray-400 italic">No custom headers added.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Custom Cookies (Key-Value) */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <FieldLabel 
-                  label="Custom Cookies" 
-                  tooltip="Optional: Add browser cookies to maintain your login session. Add pairs like Key: '_session' and Value: 'eyJhbGci...'." 
-                />
-                <button
-                  type="button"
-                  onClick={() => setCookiePairs([...cookiePairs, { key: '', value: '' }])}
-                  className="text-xs font-semibold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1"
-                >
-                  <IconPlus /> Add Cookie
-                </button>
-              </div>
-              
-              <div className="space-y-2">
-                {cookiePairs.map((pair, idx) => (
-                  <div key={idx} className="flex gap-2 items-start">
-                    <input
-                      type="text"
-                      placeholder="Cookie Name"
-                      className={`${inputBase} flex-1`}
-                      value={pair.key}
-                      onChange={e => {
-                        const newPairs = [...cookiePairs];
-                        newPairs[idx].key = e.target.value;
-                        setCookiePairs(newPairs);
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Value"
-                      className={`${inputBase} flex-2`}
-                      value={pair.value}
-                      onChange={e => {
-                        const newPairs = [...cookiePairs];
-                        newPairs[idx].value = e.target.value;
-                        setCookiePairs(newPairs);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCookiePairs(cookiePairs.filter((_, i) => i !== idx))}
-                      className="p-2.5 text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-                {cookiePairs.length === 0 && (
-                  <p className="text-[11px] text-gray-400 italic">No custom cookies added.</p>
-                )}
+                      {/* Custom Cookies */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Browser Cookies</h5>
+                          <button
+                            type="button"
+                            onClick={() => setCookiePairs([...cookiePairs, { key: '', value: '' }])}
+                            className="text-[10px] font-bold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1 uppercase"
+                          >
+                            <IconPlus /> Add Cookie
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {cookiePairs.map((pair, idx) => (
+                            <div key={idx} className="flex gap-2 items-start group">
+                              <input
+                                type="text"
+                                placeholder="Cookie Name"
+                                className={`${inputBase} flex-1 !py-1.5 !text-xs font-mono`}
+                                value={pair.key}
+                                onChange={e => {
+                                  const newPairs = [...cookiePairs];
+                                  newPairs[idx].key = e.target.value;
+                                  setCookiePairs(newPairs);
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Value"
+                                className={`${inputBase} flex-2 !py-1.5 !text-xs font-mono`}
+                                value={pair.value}
+                                onChange={e => {
+                                  const newPairs = [...cookiePairs];
+                                  newPairs[idx].value = e.target.value;
+                                  setCookiePairs(newPairs);
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setCookiePairs(cookiePairs.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                          {cookiePairs.length === 0 && (
+                            <p className="text-[10px] text-gray-400 italic py-1">No custom cookies.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
