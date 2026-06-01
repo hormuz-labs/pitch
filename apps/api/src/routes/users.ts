@@ -3,6 +3,7 @@ import * as db from '@saas/db';
 import { createLogger, sendTelegramMessage } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
 import { getVerifiedClerkProfile } from '../lib/clerk.js';
+import { SIGNUP_BONUS_CREDITS, REFERRAL_REWARDS } from '../config.js';
 
 const logger = createLogger('api');
 
@@ -59,10 +60,28 @@ router.post('/sync', async (req, res) => {
     logger.info({ userId }, 'User profile synced');
 
     if (!existingUser) {
-      await db.addCredits(userId, 5, 'promo', 'New user signup bonus', {
+      await db.addCredits(userId, SIGNUP_BONUS_CREDITS, 'promo', 'New user signup bonus', {
         idempotencyKey: `signup_bonus:${userId}`
       });
-      logger.info({ userId }, 'Applied signup bonus credits (5)');
+      logger.info({ userId }, `Applied signup bonus credits (${SIGNUP_BONUS_CREDITS})`);
+
+      // Referral attribution: if this user arrived through an affiliate link, the
+      // `aff` cookie (affiliateId:clickId) was set at click time. Reward the new
+      // user and the referrer in credits. Failures must never block signup.
+      const affCookie = (req.cookies as Record<string, string> | undefined)?.aff;
+      if (affCookie) {
+        const [affiliateId, clickId] = affCookie.split(':');
+        if (affiliateId) {
+          await db.recordReferralSignup({
+            affiliateId,
+            clickId: clickId || undefined,
+            newUserId: userId,
+            newUserReward: REFERRAL_REWARDS.newUserBonus,
+            referrerReward: REFERRAL_REWARDS.referrerSignup,
+          }).catch((err) => logger.error({ err, userId }, 'Failed to record referral signup'));
+        }
+      }
+
       sendTelegramMessage(`👋 <b>New User Sign Up</b>\nEmail: ${email}\nName: ${firstName || ''} ${lastName || ''}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign up'));
     } else {
       sendTelegramMessage(`🔑 <b>User Sign In</b>\nEmail: ${email}`).catch((err) => logger.error({ err }, 'Failed to send Telegram notification for user sign in'));

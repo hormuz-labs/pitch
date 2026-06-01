@@ -279,10 +279,23 @@ router.get('/users/:id/affiliate', async (req, res) => {
       include: {
         clicks: { orderBy: { clickedAt: 'desc' }, take: 100 },
         conversions: { orderBy: { createdAt: 'desc' } },
-        payouts: { orderBy: { requestedAt: 'desc' } },
+        _count: { select: { leads: true } },
       },
     });
-    res.json(affiliate || null);
+    if (!affiliate) return res.json(null);
+
+    const creditAgg = await db.prisma.creditTransaction.aggregate({
+      where: { userId: id, type: 'referral' },
+      _sum: { delta: true },
+    });
+    const creditsEarned = creditAgg._sum.delta ?? 0;
+
+    res.json({
+      ...affiliate,
+      signups: affiliate._count.leads,
+      creditsEarned,
+      videosEarned: Math.floor(creditsEarned / 3),
+    });
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch user affiliate');
     res.status(500).json({ error: error.message });
@@ -292,13 +305,13 @@ router.get('/users/:id/affiliate', async (req, res) => {
 // 8. Analytics: feedback summary + affiliates overview
 router.get('/analytics', async (req, res) => {
   try {
-    const [affiliatesRaw, jobsWithFeedbackRaw] = await Promise.all([
+    const [affiliatesRaw, jobsWithFeedbackRaw, referralCreditRows] = await Promise.all([
       db.prisma.affiliate.findMany({
         include: {
           userProfile: { select: { email: true, firstName: true, lastName: true, imageUrl: true } },
           clicks: true,
           conversions: true,
-          payouts: true,
+          _count: { select: { leads: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -318,28 +331,36 @@ router.get('/analytics', async (req, res) => {
           userProfile: { select: { email: true, firstName: true, lastName: true } },
         },
       }),
+      // Referral credits earned, summed per affiliate user.
+      db.prisma.creditTransaction.groupBy({
+        by: ['userId'],
+        where: { type: 'referral', delta: { gt: 0 } },
+        _sum: { delta: true },
+      }),
     ]);
 
-    const affiliates = affiliatesRaw.map(a => ({
-      id: a.id,
-      code: a.code,
-      commissionPct: a.commissionPct,
-      status: a.status,
-      createdAt: a.createdAt,
-      user: a.userProfile,
-      totalClicks: a.clicks.length,
-      totalConversions: a.conversions.length,
-      conversionRate: a.clicks.length > 0
-        ? ((a.conversions.length / a.clicks.length) * 100).toFixed(1)
-        : '0.0',
-      totalRevenue: a.conversions.reduce((s, c) => s + c.saleAmountUsd, 0),
-      totalCommission: a.conversions.reduce((s, c) => s + c.commissionAmt, 0),
-      pendingCommission: a.conversions
-        .filter(c => c.status === 'pending' || c.status === 'approved')
-        .reduce((s, c) => s + c.commissionAmt, 0),
-      payouts: a.payouts,
-      conversions: a.conversions,
-    }));
+    const creditsByUser = new Map(referralCreditRows.map(r => [r.userId, r._sum.delta ?? 0]));
+
+    const affiliates = affiliatesRaw.map(a => {
+      const creditsEarned = creditsByUser.get(a.userId) ?? 0;
+      return {
+        id: a.id,
+        code: a.code,
+        status: a.status,
+        createdAt: a.createdAt,
+        user: a.userProfile,
+        totalClicks: a.clicks.length,
+        totalSignups: a._count.leads,
+        totalConversions: a.conversions.length,
+        conversionRate: a.clicks.length > 0
+          ? ((a.conversions.length / a.clicks.length) * 100).toFixed(1)
+          : '0.0',
+        totalRevenue: a.conversions.reduce((s, c) => s + c.saleAmountUsd, 0),
+        creditsEarned,
+        videosEarned: Math.floor(creditsEarned / 3),
+        conversions: a.conversions,
+      };
+    });
 
     const jobsWithFeedback = jobsWithFeedbackRaw.map(j => ({
       ...j,

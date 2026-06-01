@@ -135,6 +135,33 @@ export const CreditPopover = () => {
               Each video generation costs 3 credits. Credits never expire.
             </p>
 
+            {/* Near-miss nudge: when the balance isn't a clean multiple of 3, the
+                user is 1–2 credits from another free video. Reframe it and offer
+                the free path (refer → +1) alongside the paid path (top up). */}
+            {credits !== null && credits % 3 !== 0 && (
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5">
+                <p className="text-[13px] font-semibold text-amber-900 leading-snug">
+                  You're {3 - (credits % 3)} credit{3 - (credits % 3) === 1 ? '' : 's'} from another free video.
+                </p>
+                <p className="text-[11px] text-amber-700 mt-0.5 mb-2.5">
+                  Refer a friend to earn +1 credit each — or top up below.
+                </p>
+                <button
+                  onClick={() => {
+                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                    navigate('/affiliate');
+                  }}
+                  className={[
+                    'w-full py-2 px-3 bg-gray-900 text-white text-xs font-semibold rounded-lg',
+                    'transition-colors duration-150 cursor-pointer hover:bg-gray-800 active:bg-black',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Refer a friend &nbsp;+1 credit
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
               <span className="text-xs text-gray-500 font-medium">Current plan</span>
               {plan ? (

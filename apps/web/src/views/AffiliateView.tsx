@@ -5,31 +5,21 @@ import { Copy, Check, TrendingUp, Users, DollarSign, Wallet, ExternalLink, Arrow
 interface AffiliateStats {
   clicks: number;
   signups: number;
-  totalRevenue: number;
-  totalCommission: number;
-  pendingPayout: number;
-  paidOut: number;
-  payouts: Payout[];
-}
-
-interface Payout {
-  id: string;
-  amount: number;
-  status: string;
-  requestedAt: string;
-  paidAt?: string;
+  conversions: number;
+  creditsEarned: number;
+  videosEarned: number;
 }
 
 interface AffiliateData {
   id: string;
   code: string;
-  commissionPct: number;
   status: string;
   createdAt: string;
   stats: AffiliateStats;
 }
 
-const MIN_PAYOUT = 10;
+// 1 free video = 3 credits.
+const CREDITS_PER_VIDEO = 3;
 
 function StatCard({
   icon,
@@ -88,20 +78,6 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function PayoutBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    requested:  'bg-amber-50 text-amber-700 border border-amber-200',
-    processing: 'bg-blue-50 text-blue-700 border border-blue-200',
-    paid:       'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    failed:     'bg-red-50 text-red-700 border border-red-200',
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase ${map[status] ?? 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
-      {status}
-    </span>
-  );
-}
-
 import { API_URL } from '../config';
 
 export function AffiliateView() {
@@ -109,9 +85,7 @@ export function AffiliateView() {
   const [data, setData] = useState<AffiliateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
-  const [requestingPayout, setRequestingPayout] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [payoutMsg, setPayoutMsg] = useState<string | null>(null);
 
   const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://trypitch.co';
   const referralUrl = data ? `${baseUrl}/r/${data.code}` : '';
@@ -147,26 +121,6 @@ export function AffiliateView() {
       setError(e.message);
     } finally {
       setRegistering(false);
-    }
-  };
-
-  const handlePayout = async () => {
-    setRequestingPayout(true);
-    setPayoutMsg(null);
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/affiliate/me/payout`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Payout failed');
-      setPayoutMsg("Payout requested! We'll process it within 3-5 business days.");
-      await fetchData();
-    } catch (e: any) {
-      setPayoutMsg(e.message);
-    } finally {
-      setRequestingPayout(false);
     }
   };
 
@@ -229,20 +183,20 @@ export function AffiliateView() {
 
           <div className="relative z-10">
             <div className="inline-flex items-start">
-              <span className="text-[64px] font-black text-black leading-none tracking-tighter">20</span>
-              <span className="text-2xl font-bold text-black mt-3 ml-0.5">%</span>
+              <span className="text-[64px] font-black text-black leading-none tracking-tighter">8</span>
+              <span className="text-2xl font-bold text-black mt-3 ml-1">cr</span>
             </div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">Commission per referral</p>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">Credits per referral upgrade</p>
           </div>
         </div>
 
         {/* Headline + subtitle */}
         <div className="max-w-sm">
           <h1 className="text-2xl font-bold text-black tracking-tight leading-snug mb-1.5">
-            Turn referrals into revenue
+            Turn referrals into free videos
           </h1>
           <p className="text-gray-500 text-sm leading-relaxed">
-            Share your unique link, track conversions in real time, and get paid when they subscribe.
+            Share your link — your friends get free starter credits, and you earn credits every time one signs up or upgrades.
           </p>
         </div>
 
@@ -251,7 +205,7 @@ export function AffiliateView() {
           {[
             { icon: '🔗', label: 'Unique referral link' },
             { icon: '📊', label: 'Real-time tracking' },
-            { icon: '💸', label: '$10 min payout' },
+            { icon: '🎬', label: 'Earn free videos' },
             { icon: '🗓', label: '30-day attribution' },
           ].map(({ icon, label }) => (
             <div
@@ -296,7 +250,7 @@ export function AffiliateView() {
         <div className="flex items-center gap-4 pt-3 border-t border-gray-100">
           {[
             { val: '30 days', label: 'Attribution' },
-            { val: '$10', label: 'Min. payout' },
+            { val: 'Credits', label: 'Paid in product' },
             { val: 'Instant', label: 'Link creation' },
           ].map(({ val, label }, i, arr) => (
             <div key={label} className="flex items-center gap-4">
@@ -316,8 +270,7 @@ export function AffiliateView() {
 
   // ── Affiliate Dashboard ──────────────────────────────────────────────────────
   const stats = data.stats;
-  const payoutProgress = Math.min(100, (stats.pendingPayout / MIN_PAYOUT) * 100);
-  const canPayout = stats.pendingPayout >= MIN_PAYOUT;
+  const creditsToNextVideo = (CREDITS_PER_VIDEO - (stats.creditsEarned % CREDITS_PER_VIDEO)) % CREDITS_PER_VIDEO;
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -327,7 +280,7 @@ export function AffiliateView() {
         <div>
           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Affiliate Portal</p>
           <h1 className="text-xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Earning {data.commissionPct}% commission on every referred sale.</p>
+          <p className="text-sm text-gray-500 mt-0.5">Earn free video credits for every friend you refer.</p>
         </div>
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -375,103 +328,49 @@ export function AffiliateView() {
         />
         <StatCard
           icon={<Users className="w-4 h-4" />}
-          label="Conversions"
+          label="Signups"
           value={stats.signups.toLocaleString()}
-          sub={`${stats.clicks > 0 ? ((stats.signups / stats.clicks) * 100).toFixed(1) : 0}% rate`}
+          sub={`${stats.clicks > 0 ? ((stats.signups / stats.clicks) * 100).toFixed(1) : 0}% of clicks`}
           accent="violet"
         />
         <StatCard
           icon={<DollarSign className="w-4 h-4" />}
-          label="Revenue Driven"
-          value={`$${stats.totalRevenue.toFixed(2)}`}
-          sub="Total sales generated"
+          label="Conversions"
+          value={stats.conversions.toLocaleString()}
+          sub="Referrals who upgraded"
           accent="orange"
         />
         <StatCard
           icon={<Wallet className="w-4 h-4" />}
-          label="Commission Earned"
-          value={`$${stats.totalCommission.toFixed(2)}`}
-          sub={`$${stats.paidOut.toFixed(2)} paid out`}
+          label="Credits Earned"
+          value={stats.creditsEarned.toLocaleString()}
+          sub={`${stats.videosEarned} free video${stats.videosEarned === 1 ? '' : 's'}`}
           accent="green"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Payout Card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Available for Payout</p>
-              <p className="text-3xl font-bold text-gray-900 tracking-tight">${stats.pendingPayout.toFixed(2)}</p>
-            </div>
-            <button
-              onClick={handlePayout}
-              disabled={!canPayout || requestingPayout}
-              className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none shadow-sm"
-            >
-              {requestingPayout ? 'Requesting…' : 'Request Payout'}
-            </button>
-          </div>
-
-          {!canPayout && (
-            <div>
-              <div className="flex justify-between text-xs text-gray-400 mb-2">
-                <span>Minimum payout threshold</span>
-                <span>${stats.pendingPayout.toFixed(2)} / ${MIN_PAYOUT}</span>
-              </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gray-900 rounded-full transition-all duration-700"
-                  style={{ width: `${payoutProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-2">${(MIN_PAYOUT - stats.pendingPayout).toFixed(2)} more to unlock payout</p>
-            </div>
-          )}
-
-          {payoutMsg && (
-            <div className="flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-600">
-              <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>
-              {payoutMsg}
-            </div>
-          )}
+      {/* Credits earned — summary strip */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Credits Earned</p>
+          <p className="text-3xl font-bold text-gray-900 tracking-tight">
+            {stats.creditsEarned.toLocaleString()}
+            <span className="text-sm font-medium text-gray-400 ml-2">
+              = {stats.videosEarned} free video{stats.videosEarned === 1 ? '' : 's'}
+            </span>
+          </p>
+          <p className="text-xs text-gray-400 mt-1.5">
+            Credits land in your wallet automatically — spend them on video generations.
+          </p>
         </div>
-
-        {/* Payout History */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Payout History</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Recent settlements to your account.</p>
-            </div>
+        {creditsToNextVideo > 0 && (
+          <div className="sm:text-right">
+            <p className="text-xs text-gray-400">Next free video in</p>
+            <p className="text-sm font-semibold text-gray-700">
+              {creditsToNextVideo} credit{creditsToNextVideo === 1 ? '' : 's'}
+            </p>
           </div>
-
-          {stats.payouts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center flex-1">
-              <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                <Wallet className="w-5 h-5 text-gray-400" />
-              </div>
-              <p className="text-sm font-medium text-gray-500">No payouts yet</p>
-              <p className="text-xs text-gray-400 mt-1">Earnings will appear here once processed.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-50 flex-1 overflow-y-auto max-h-[280px]">
-              {stats.payouts.map((p) => (
-                <div key={p.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">${p.amount.toFixed(2)}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(p.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                  <PayoutBadge status={p.status} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
+        )}
       </div>
 
       {/* How it works — subtle info strip */}
@@ -480,8 +379,8 @@ export function AffiliateView() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           {[
             { step: '01', title: 'Share your link', desc: 'Post on socials, embed in content, or email your audience.' },
-            { step: '02', title: 'They sign up', desc: "When someone clicks and subscribes, it's attributed to you for 30 days." },
-            { step: '03', title: 'You get paid', desc: `Earn ${data.commissionPct}% of every sale. Request payout once you hit $${MIN_PAYOUT}.` },
+            { step: '02', title: 'They sign up', desc: 'Your friend gets free starter credits, and you earn credits too — attributed for 30 days.' },
+            { step: '03', title: 'They upgrade', desc: 'Earn a bigger credit bonus when a referral buys a plan. 3 credits = 1 free video.' },
           ].map((item) => (
             <div key={item.step} className="flex gap-3">
               <span className="text-[11px] font-bold text-gray-300 tabular-nums mt-0.5 shrink-0">{item.step}</span>

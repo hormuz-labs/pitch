@@ -368,8 +368,8 @@ export function UserJobsModal({
                         <span className="font-mono text-lg font-bold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl">{affiliateData.code}</span>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-gray-400 mb-1">Commission</p>
-                        <span className="text-2xl font-bold text-gray-900">{affiliateData.commissionPct}%</span>
+                        <p className="text-xs text-gray-400 mb-1">Credits Earned</p>
+                        <span className="text-2xl font-bold text-gray-900">{affiliateData.creditsEarned ?? 0}</span>
                       </div>
                       <div>
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase ${
@@ -387,9 +387,9 @@ export function UserJobsModal({
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
                       {[
                         { label: 'Clicks', value: affiliateData.clicks?.length ?? 0, color: 'text-blue-600' },
+                        { label: 'Signups', value: affiliateData.signups ?? 0, color: 'text-violet-600' },
                         { label: 'Conversions', value: affiliateData.conversions?.length ?? 0, color: 'text-emerald-600' },
-                        { label: 'Revenue', value: `$${(affiliateData.conversions?.reduce((s: number, c: any) => s + c.saleAmountUsd, 0) || 0).toFixed(2)}`, color: 'text-purple-600' },
-                        { label: 'Commission', value: `$${(affiliateData.conversions?.reduce((s: number, c: any) => s + c.commissionAmt, 0) || 0).toFixed(2)}`, color: 'text-amber-600' },
+                        { label: 'Credits', value: affiliateData.creditsEarned ?? 0, color: 'text-amber-600' },
                       ].map(s => (
                         <div key={s.label} className="bg-gray-50 rounded-xl p-2.5 text-center">
                           <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
@@ -412,7 +412,6 @@ export function UserJobsModal({
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-semibold text-gray-900">${c.saleAmountUsd.toFixed(2)}</p>
-                              <p className="text-xs text-purple-600 font-medium">+${c.commissionAmt.toFixed(2)}</p>
                             </div>
                             <span className={`ml-3 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                               c.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
@@ -421,31 +420,6 @@ export function UserJobsModal({
                               'bg-gray-100 text-gray-500'
                             }`}>
                               {c.status}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {/* Payouts */}
-                  {affiliateData.payouts?.length > 0 && (
-                    <section>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Payouts</h4>
-                      <div className="space-y-2">
-                        {affiliateData.payouts.map((p: any) => (
-                          <div key={p.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900">${p.amount.toFixed(2)} {p.currency}</p>
-                              <p className="text-xs text-gray-400">{p.method.toUpperCase()} · {formatIST(p.requestedAt)}</p>
-                            </div>
-                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                              p.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-                              p.status === 'processing' ? 'bg-blue-100 text-blue-700' :
-                              p.status === 'failed' ? 'bg-red-100 text-red-600' :
-                              'bg-amber-100 text-amber-700'
-                            }`}>
-                              {p.status}
                             </span>
                           </div>
                         ))}
