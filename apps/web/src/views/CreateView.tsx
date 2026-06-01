@@ -61,6 +61,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAudioPreview, setShowAudioPreview] = useState(false);
   const [headerPairs, setHeaderPairs] = useState<{ key: string, value: string }[]>([]);
+  const [cookiePairs, setCookiePairs] = useState<{ key: string, value: string }[]>([]);
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value });
@@ -93,6 +94,13 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
       }
     });
 
+    const cookiesObj: Record<string, string> = {};
+    cookiePairs.forEach(pair => {
+      if (pair.key.trim()) {
+        cookiesObj[pair.key.trim()] = pair.value;
+      }
+    });
+
     if (Object.keys(errs).length) { setErrors(errs); return; }
     onQueueJob({ 
       url: formValues.url, 
@@ -103,7 +111,8 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
         ? `${formValues.instructions} (Please ensure subtitles are included in the final video)` 
         : formValues.instructions, 
       script: formValues.script,
-      headers: Object.keys(headersObj).length > 0 ? JSON.stringify(headersObj) : undefined
+      headers: Object.keys(headersObj).length > 0 ? JSON.stringify(headersObj) : undefined,
+      cookies: Object.keys(cookiesObj).length > 0 ? JSON.stringify(cookiesObj) : undefined
     });
   };
 
@@ -293,6 +302,64 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                 ))}
                 {headerPairs.length === 0 && (
                   <p className="text-[11px] text-gray-400 italic">No custom headers added.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Custom Cookies (Key-Value) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <FieldLabel 
+                  label="Custom Cookies" 
+                  tooltip="Optional: Add browser cookies to maintain your login session. Add pairs like Key: '_session' and Value: 'eyJhbGci...'." 
+                />
+                <button
+                  type="button"
+                  onClick={() => setCookiePairs([...cookiePairs, { key: '', value: '' }])}
+                  className="text-xs font-semibold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1"
+                >
+                  <IconPlus /> Add Cookie
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                {cookiePairs.map((pair, idx) => (
+                  <div key={idx} className="flex gap-2 items-start">
+                    <input
+                      type="text"
+                      placeholder="Cookie Name"
+                      className={`${inputBase} flex-1`}
+                      value={pair.key}
+                      onChange={e => {
+                        const newPairs = [...cookiePairs];
+                        newPairs[idx].key = e.target.value;
+                        setCookiePairs(newPairs);
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Value"
+                      className={`${inputBase} flex-2`}
+                      value={pair.value}
+                      onChange={e => {
+                        const newPairs = [...cookiePairs];
+                        newPairs[idx].value = e.target.value;
+                        setCookiePairs(newPairs);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCookiePairs(cookiePairs.filter((_, i) => i !== idx))}
+                      className="p-2.5 text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                {cookiePairs.length === 0 && (
+                  <p className="text-[11px] text-gray-400 italic">No custom cookies added.</p>
                 )}
               </div>
             </div>

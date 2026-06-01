@@ -13,6 +13,7 @@ export interface DemoConfig {
   height?: number;
   voice?: string;
   extraHTTPHeaders?: Record<string, string>;
+  extraCookies?: { name: string, value: string, domain?: string, path?: string, url?: string }[];
   steps: DemoStep[];
 }
 

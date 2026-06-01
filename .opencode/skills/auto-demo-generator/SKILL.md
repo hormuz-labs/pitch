@@ -29,6 +29,9 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   "extraHTTPHeaders": {
     "Authorization": "Bearer YOUR_TOKEN_HERE"
   },
+  "extraCookies": [
+    { "name": "__session", "value": "eyJhbGci..." }
+  ],
   "steps": [
     { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
     { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion" },

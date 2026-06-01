@@ -57,6 +57,13 @@ export async function pass3Record(
     viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
     extraHTTPHeaders: config.extraHTTPHeaders
   });
+  if (config.extraCookies && config.extraCookies.length > 0) {
+    const cookies = config.extraCookies.map(c => ({
+      ...c,
+      url: c.url || (c.domain ? undefined : startUrl)
+    }));
+    await context.addCookies(cookies as any);
+  }
   const page = await context.newPage();
 
   await page.setContent('<html><body style="background:white;"></body></html>');
