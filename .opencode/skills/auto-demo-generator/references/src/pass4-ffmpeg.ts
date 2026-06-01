@@ -1,5 +1,7 @@
 import { execSync } from 'child_process';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
+import ffprobeStatic from 'ffprobe-static';
 import fs from 'fs';
 import path from 'path';
 import { DemoConfig, DemoStep } from './types';
@@ -10,6 +12,14 @@ import {
   buildCursorScaleExpr,
   buildFilterString,
 } from './utils';
+
+const FFMPEG_PATH = ffmpegStatic;
+const FFPROBE_PATH = ffprobeStatic.path;
+ffmpeg.setFfmpegPath(FFMPEG_PATH);
+ffmpeg.setFfprobePath(FFPROBE_PATH);
+
+if (!fs.existsSync(FFMPEG_PATH)) throw new Error(`Static ffmpeg not found at: ${FFMPEG_PATH}`);
+if (!fs.existsSync(FFPROBE_PATH)) throw new Error(`Static ffprobe not found at: ${FFPROBE_PATH}`);
 
 function preflight(demoDir: string): void {
   const rawVideoPointer = path.join(demoDir, 'raw-video-path.txt');
@@ -114,6 +124,7 @@ export async function pass4Ffmpeg(
   } else {
     console.log('🎬 Encoding final video...');
     await new Promise<void>((resolve, reject) => {
+      const hangGuard = setTimeout(() => reject(new Error('[pass4-ffmpeg] Encoding hung — no progress for 10 minutes.')), 10 * 60 * 1000);
       if (hasVaapi) command.addOption('-vaapi_device', '/dev/dri/renderD128');
       command
         .outputOptions([
@@ -137,10 +148,14 @@ export async function pass4Ffmpeg(
           }
         })
         .on('end', () => {
+          clearTimeout(hangGuard);
           console.log('\n✅ Encoding complete.');
           resolve();
         })
-        .on('error', reject);
+        .on('error', (e: Error) => {
+          clearTimeout(hangGuard);
+          reject(e);
+        });
     });
   }
 
@@ -149,7 +164,7 @@ export async function pass4Ffmpeg(
 
   function hasAudioStream(filePath: string): boolean {
     const result = execSync(
-      `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${filePath}"`,
+      `"${FFPROBE_PATH}" -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${filePath}"`,
       { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
     ).trim();
     return result === 'audio';
@@ -157,7 +172,7 @@ export async function pass4Ffmpeg(
 
   function getVideoDuration(filePath: string): number {
     const result = execSync(
-      `ffprobe -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
+      `"${FFPROBE_PATH}" -v error -show_entries format=duration -of csv=p=0 "${filePath}"`,
       { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }
     ).trim();
     return parseFloat(result) || 0;

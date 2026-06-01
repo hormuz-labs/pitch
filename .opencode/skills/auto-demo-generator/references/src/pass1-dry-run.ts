@@ -14,8 +14,8 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } });
   const page = await context.newPage();
-  await page.goto(startUrl);
-  await page.waitForLoadState('networkidle');
+  await page.goto(startUrl, { waitUntil: 'load' });
+  await page.waitForTimeout(5000);
   let prevUrl = page.url();
 
   for (const step of demoSteps) {
@@ -42,8 +42,7 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
         const newUrl = page.url();
         if (newUrl !== prevUrl) {
           console.log(`  → Navigated to: ${newUrl}`);
-          await page.waitForLoadState('networkidle');
-          await page.waitForTimeout(1000);
+          await page.waitForTimeout(5000);
           prevUrl = newUrl;
         }
       } else if (step.action === 'type') {

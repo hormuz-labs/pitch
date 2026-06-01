@@ -68,7 +68,7 @@ export async function pass3Record(
   await page.waitForTimeout(100);
 
   const videoStartTime = Date.now();
-  await page.goto(startUrl, { waitUntil: 'networkidle' });
+  await page.goto(startUrl, { waitUntil: 'load', timeout: 30000 });
   await page.waitForTimeout(2000);
 
   const startTime = Date.now();

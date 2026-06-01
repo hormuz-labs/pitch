@@ -6,7 +6,7 @@ description: >
   or any automated "show me how to use X" video. Triggers on: "make a demo video", "record
   a walkthrough", "create a tutorial video", "automate a product demo", "screencast of X",
   "show how to use X", or any request to produce an MP4 of web interactions.
-compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, playwright. System: ffmpeg binary. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required)."
+compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, ffmpeg-static, ffprobe-static, dotenv, playwright. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required)."
 ---
 
 # Auto-Demo Generator
