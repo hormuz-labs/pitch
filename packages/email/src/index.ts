@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // ─── Clerk: fetch user email ──────────────────────────────────────────────────
 
@@ -37,16 +37,14 @@ export async function getClerkUserEmail(userId: string): Promise<string | null> 
   return primary?.email_address ?? user.email_addresses[0]?.email_address ?? null;
 }
 
-// ─── Gmail SMTP transport ─────────────────────────────────────────────────────
+// ─── Resend client ────────────────────────────────────────────────────────────
 
-function createTransport() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD, // Gmail App Password (not your real password)
-    },
-  });
+function createResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+  return new Resend(apiKey);
 }
 
 // ─── Email templates ──────────────────────────────────────────────────────────
@@ -57,7 +55,7 @@ function createTransport() {
  * 1. TABLE-BASED LAYOUT  — Gmail strips CSS classes/flexbox; tables render correctly everywhere.
  * 2. INLINE STYLES ONLY  — External/embedded stylesheets are stripped by many clients.
  * 3. PLAIN-TEXT PARITY   — A full text alternative is sent alongside HTML (required by RFC 2822 & Gmail policy).
- * 4. REAL SENDER ADDRESS — `from` matches GMAIL_USER exactly; no spoofed domains.
+ * 4. REAL SENDER ADDRESS — `from` uses noreply@trypitch.co with verified Resend domain.
  * 5. SINGLE CTA LINK     — Multiple raw URLs trigger spam filters; one prominent button + one fallback.
  * 6. NO SPAM TRIGGER WORDS — No "FREE", "CLICK NOW", "URGENT", "WINNER", exclamation overuse, etc.
  * 7. PROPER PREHEADER    — Hidden preheader text shows in inbox preview before the subject.
@@ -111,10 +109,31 @@ function jobCompleteHtml(videoUrl: string, recipientEmail: string, videoTitle?: 
             <td style="height:4px;background-color:#1a1a2e;font-size:0;line-height:0;">&nbsp;</td>
           </tr>
 
-          <!-- Logo header -->
+          <!-- Logo header — real Pitch icon + wordmark -->
           <tr>
             <td style="padding:24px 36px 0 36px;">
-              <h1 style="margin:0;font-size:24px;color:#1a1a2e;font-weight:600;letter-spacing:-0.5px;">Pitch</h1>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:12px;">
+                    <svg width="32" height="32" viewBox="0 0 210 210" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                      <rect width="200" height="200" x="5" y="5" rx="36" fill="#111111"/>
+                      <rect fill="#ffffff" x="58" y="50" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="91" y="50" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="124" y="50" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="58" y="73" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="124" y="73" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="58" y="96" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="91" y="96" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="124" y="96" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="58" y="119" width="28" height="18" rx="3"/>
+                      <rect fill="#ffffff" x="58" y="142" width="28" height="18" rx="3"/>
+                    </svg>
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <h1 style="margin:0;font-size:22px;color:#1a1a2e;font-weight:700;letter-spacing:-0.3px;">Pitch</h1>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
@@ -240,7 +259,9 @@ function jobCompleteHtml(videoUrl: string, recipientEmail: string, videoTitle?: 
                   <!-- Share -->
                   <td align="center" width="50%" style="padding:16px 8px;">
                     <a href="${videoUrl}" target="_blank" style="text-decoration:none;">
-                      <p style="margin:0 0 4px;font-size:18px;line-height:1;color:#1a1a2e;">&#8679;</p>
+                      <p style="margin:0 0 4px;font-size:22px;line-height:1;color:#1a1a2e;">
+                        &#128279;
+                      </p>
                       <p style="margin:0;font-size:11px;color:#888888;">Share link</p>
                     </a>
                   </td>
@@ -249,9 +270,68 @@ function jobCompleteHtml(videoUrl: string, recipientEmail: string, videoTitle?: 
                   <!-- Download -->
                   <td align="center" width="50%" style="padding:16px 8px;">
                     <a href="${videoUrl}" download="demo.mp4" target="_blank" style="text-decoration:none;">
-                      <p style="margin:0 0 4px;font-size:18px;line-height:1;color:#1a1a2e;">&#8681;</p>
+                      <p style="margin:0 0 4px;font-size:22px;line-height:1;color:#1a1a2e;">
+                        &#128229;
+                      </p>
                       <p style="margin:0;font-size:11px;color:#888888;">Download MP4</p>
                     </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Community section -->
+          <tr>
+            <td style="padding:24px 36px 0 36px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:#f7f7f8;border-radius:10px;border:1px solid #ebebeb;">
+                <tr>
+                  <td align="center" style="padding:20px 20px 16px 20px;">
+                    <p style="margin:0 0 2px;font-size:15px;font-weight:700;color:#1a1a2e;letter-spacing:-0.01em;">
+                      Join the community
+                    </p>
+                    <p style="margin:0;font-size:12px;color:#888888;">
+                      Get updates, share feedback, and connect with other makers.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 12px 16px 12px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <!-- Discord -->
+                        <td align="center" width="33.33%" style="padding:6px;">
+                          <a href="https://discord.gg/uMeBrWBW" target="_blank" rel="noopener noreferrer"
+                             style="display:block;padding:14px 4px 10px;border-radius:8px;
+                                    background-color:#5865F2;color:#ffffff;text-decoration:none;">
+                            <span style="display:block;font-size:26px;line-height:1.2;margin-bottom:2px;">&#128293;</span>
+                            <span style="display:block;font-size:13px;font-weight:600;">Discord</span>
+                            <span style="display:block;font-size:10px;opacity:0.8;margin-top:2px;">Chat with us</span>
+                          </a>
+                        </td>
+                        <!-- X / Twitter -->
+                        <td align="center" width="33.33%" style="padding:6px;">
+                          <a href="https://x.com/trypitchdotco" target="_blank" rel="noopener noreferrer"
+                             style="display:block;padding:14px 4px 10px;border-radius:8px;
+                                    background-color:#000000;color:#ffffff;text-decoration:none;">
+                            <span style="display:block;font-size:26px;line-height:1.2;margin-bottom:2px;">&#120143;</span>
+                            <span style="display:block;font-size:13px;font-weight:600;">X / Twitter</span>
+                            <span style="display:block;font-size:10px;opacity:0.8;margin-top:2px;">Follow @trypitchdotco</span>
+                          </a>
+                        </td>
+                        <!-- LinkedIn -->
+                        <td align="center" width="33.33%" style="padding:6px;">
+                          <a href="https://www.linkedin.com/company/trypitchdotco/" target="_blank" rel="noopener noreferrer"
+                             style="display:block;padding:14px 4px 10px;border-radius:8px;
+                                    background-color:#0A66C2;color:#ffffff;text-decoration:none;">
+                            <span style="display:block;font-size:26px;line-height:1.2;margin-bottom:2px;">&#128188;</span>
+                            <span style="display:block;font-size:13px;font-weight:600;">LinkedIn</span>
+                            <span style="display:block;font-size:10px;opacity:0.8;margin-top:2px;">Connect with us</span>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -312,6 +392,11 @@ What you can do next:
 - Share a link with stakeholders
 - Download an MP4 for offline use
 
+Join our community:
+- Discord: https://discord.gg/uMeBrWBW
+- X / Twitter: https://x.com/trypitchdotco
+- LinkedIn: https://www.linkedin.com/company/trypitchdotco/
+
 --
 Pitch — Automated Product Demos
 
@@ -332,44 +417,35 @@ export async function sendJobCompleteEmail({
   videoUrl: string;
   videoTitle?: string; // e.g. "razorpay.com" — shown inside the thumbnail block
 }): Promise<void> {
-  const from = process.env.GMAIL_USER;
-  if (!from) {
-    console.warn('[Email] GMAIL_USER not set — skipping email notification');
+  const resend = createResend();
+  if (!resend) {
+    console.warn('[Email] RESEND_API_KEY not set — skipping email notification');
     return;
   }
 
-  const transport = createTransport();
+  const from = 'Pitch <noreply@trypitch.co>';
 
-  await transport.sendMail({
-    // ── Sender ──────────────────────────────────────────────────────────────
-    from: `Pitch <${from}>`,        // Display name + exact Gmail address
+  const { error } = await resend.emails.send({
+    from,
     to,
-    replyTo: from,                  // Ensures replies reach the same address
+    replyTo: 'support@trypitch.co',
 
-    // ── Subject ─────────────────────────────────────────────────────────────
-    // Keep it short, no ALL-CAPS, no symbols, no spam trigger words
     subject: 'Your demo video is ready',
 
-    // ── Content ─────────────────────────────────────────────────────────────
-    // RFC 2822 requires both parts; Gmail uses text if HTML is blocked
     text: jobCompleteText(videoUrl, jobId),
     html: jobCompleteHtml(videoUrl, to, videoTitle),
 
-    // ── Anti-spam headers ────────────────────────────────────────────────────
     headers: {
-      // Google Bulk Sender policy (Feb 2024): one-click unsubscribe required
-      // for senders of >5 000 messages/day. Add now so you're compliant at scale.
-      'List-Unsubscribe': `<${process.env.UNSUBSCRIBE_BASE_URL ?? 'https://yourapp.com'}/unsubscribe?email=${encodeURIComponent(to)}>`,
+      'List-Unsubscribe': `<${process.env.UNSUBSCRIBE_BASE_URL ?? 'https://trypitch.co'}/unsubscribe?email=${encodeURIComponent(to)}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-
-      // Precedence: transactional (not bulk) — helps deliverability for
-      // event-triggered emails (job complete notifications)
       'Precedence': 'transactional',
-
-      // X-Mailer: identify the sending agent (optional but professional)
-      'X-Mailer': 'Pitch/1.0 Nodemailer',
+      'X-Mailer': 'Pitch/1.0 Resend',
     },
   });
 
-  console.log(`[Email] Sent job-complete notification to ${to} for job ${jobId}`);
+  if (error) {
+    console.warn(`[Email] Failed to send job-complete notification to ${to}:`, error.message);
+  } else {
+    console.log(`[Email] Sent job-complete notification to ${to} for job ${jobId}`);
+  }
 }
