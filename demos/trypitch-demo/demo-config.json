@@ -1,0 +1,52 @@
+{
+  "startUrl": "https://www.trypitch.co/",
+  "userReq": "Create a short demo video of trypitch.co showing: the homepage hero section, then navigate to the pricing page to see the Starter/Pro/Enterprise plans, and finally the About Us page to see their mission and vision.",
+  "outputPath": "trypitch-demo.mp4",
+  "companyName": "Pitch",
+  "cursorStyle": "white",
+  "introBg": "black",
+  "steps": [
+    {
+      "id": "tHero",
+      "description": "Land on the homepage and show the hero section with the 'Lights. Script. Render.' tagline and the sample demo video",
+      "action": "wait",
+      "zoom": 1.0
+    },
+    {
+      "id": "tClickPricing",
+      "description": "Click the Pricing link in the footer navigation to go to the pricing page",
+      "action": "click",
+      "selector": "a[href='/pricing']"
+    },
+    {
+      "id": "tPricingPage",
+      "description": "Show the pricing page with tabs for Monthly Subscriptions and One-time Top-ups, Starter at $10/mo, Pro at $40/mo, and Enterprise for custom volume",
+      "action": "wait",
+      "zoom": 1.0
+    },
+    {
+      "id": "tProPlan",
+      "description": "Click on the Pro plan 'Buy 50 Credits' button to highlight the best value plan",
+      "action": "click",
+      "selector": "button >> text='Buy 50 Credits'"
+    },
+    {
+      "id": "tClickAbout",
+      "description": "Click the About Us link in the footer to go to the About page",
+      "action": "click",
+      "selector": "a[href='/about']"
+    },
+    {
+      "id": "tAboutPage",
+      "description": "Show the About Us page with Our Mission, What We Do, and Our Vision sections",
+      "action": "wait",
+      "zoom": 1.0
+    },
+    {
+      "id": "tOutro",
+      "description": "Conclude the demo — Pitch turns any URL into a cinematic product demo in minutes",
+      "action": "wait",
+      "zoom": 1.0
+    }
+  ]
+}

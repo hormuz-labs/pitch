@@ -21,6 +21,11 @@ const IconLoader = () => (
     <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
   </svg>
 );
+const IconPlus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
 
 // ── Label with tooltip ─────────────────────────────────────────────────────────
 const FieldLabel = ({ required, label, tooltip }: { required?: boolean; label: string; tooltip?: string }) => (
@@ -55,6 +60,50 @@ interface CreateViewProps {
 export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob }: CreateViewProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAudioPreview, setShowAudioPreview] = useState(false);
+  const [headerPairs, setHeaderPairs] = useState<{ key: string, value: string }[]>([]);
+  const [cookiePairs, setCookiePairs] = useState<{ key: string, value: string }[]>([]);
+  const [curlInput, setCurlInput] = useState('');
+  const [activeAuthTab, setActiveAuthTab] = useState<'quick' | 'manual'>('quick');
+
+  const handleCurlImport = () => {
+    if (!curlInput.trim()) return;
+
+    // 1. Extract URL
+    const urlMatch = curlInput.match(/(?:https?:\/\/[^\s'"]+)/);
+    if (urlMatch) {
+      update('url', urlMatch[0]);
+    }
+
+    // 2. Extract Headers
+    const headers: { key: string, value: string }[] = [];
+    const headerRegex = /-(?:H|-header)\s+['"]([^'"]+)['"]/g;
+    let hMatch;
+    while ((hMatch = headerRegex.exec(curlInput)) !== null) {
+      const parts = hMatch[1].split(/:(.*)/s);
+      if (parts.length >= 2) {
+        headers.push({ key: parts[0].trim(), value: parts[1].trim() });
+      }
+    }
+    if (headers.length > 0) setHeaderPairs(headers);
+
+    // 3. Extract Cookies
+    const cookies: { key: string, value: string }[] = [];
+    const cookieRegex = /-(?:b|-cookie)\s+['"]([^'"]+)['"]/g;
+    let cMatch = cookieRegex.exec(curlInput);
+    if (cMatch) {
+      const cookieStr = cMatch[1];
+      cookieStr.split(';').forEach(c => {
+        const [k, ...v] = c.split('=');
+        if (k) {
+          cookies.push({ key: k.trim(), value: v.join('=').trim() });
+        }
+      });
+    }
+    if (cookies.length > 0) setCookiePairs(cookies);
+    
+    setCurlInput('');
+    setActiveAuthTab('manual');
+  };
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value });
@@ -79,6 +128,21 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
     }
 
     if (!formValues.instructions?.trim()) errs.instructions = 'Please provide instructions';
+
+    const headersObj: Record<string, string> = {};
+    headerPairs.forEach(pair => {
+      if (pair.key.trim()) {
+        headersObj[pair.key.trim()] = pair.value;
+      }
+    });
+
+    const cookiesObj: Record<string, string> = {};
+    cookiePairs.forEach(pair => {
+      if (pair.key.trim()) {
+        cookiesObj[pair.key.trim()] = pair.value;
+      }
+    });
+
     if (Object.keys(errs).length) { setErrors(errs); return; }
     onQueueJob({ 
       url: formValues.url, 
@@ -88,7 +152,9 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
       instructions: formValues.subtitles === 'true' 
         ? `${formValues.instructions} (Please ensure subtitles are included in the final video)` 
         : formValues.instructions, 
-      script: formValues.script 
+      script: formValues.script,
+      headers: Object.keys(headersObj).length > 0 ? JSON.stringify(headersObj) : undefined,
+      cookies: Object.keys(cookiesObj).length > 0 ? JSON.stringify(cookiesObj) : undefined
     });
   };
 
@@ -211,17 +277,178 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
               {errors.instructions && <p className="text-xs text-red-500 mt-1">{errors.instructions}</p>}
             </div>
 
-            {/* Voiceover */}
-            <div>
-              <FieldLabel label="Voiceover Script (Optional)" tooltip="Leave blank to let the AI generate one automatically." />
-              <textarea
-                id="voiceover-input"
-                rows={4}
-                className={`${inputBase} resize-none`}
-                placeholder="Start by welcoming the user..."
-                value={formValues.script || ''}
-                onChange={e => update('script', e.target.value)}
-              />
+            {/* Authentication & Session Setup */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 mb-1">
+                <FieldLabel label="Authentication & Session" tooltip="Configure how the AI agent should authenticate with the target website." />
+              </div>
+              
+              <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+                {/* Tabs Header */}
+                <div className="flex border-b border-gray-200 bg-gray-50/50">
+                  <button
+                    type="button"
+                    onClick={() => setActiveAuthTab('quick')}
+                    className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      activeAuthTab === 'quick' 
+                        ? 'bg-white text-gray-900 border-r border-gray-200' 
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Quick Import (cURL)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAuthTab('manual')}
+                    className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      activeAuthTab === 'manual' 
+                        ? 'bg-white text-gray-900 border-l border-gray-200' 
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Manual Setup { (headerPairs.length > 0 || cookiePairs.length > 0) && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500 inline-block" /> }
+                  </button>
+                </div>
+
+                <div className="p-4 bg-white">
+                  {activeAuthTab === 'quick' ? (
+                    <div className="space-y-3">
+                      <textarea
+                        rows={3}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-800 placeholder-gray-400 outline-none focus:ring-2 focus:ring-gray-900/5 focus:border-gray-400 resize-none transition-all"
+                        placeholder="Paste cURL from Chrome (Network -> Copy as cURL)..."
+                        value={curlInput}
+                        onChange={e => setCurlInput(e.target.value)}
+                      />
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-gray-500">
+                          Extracts URL, Tokens, and Cookies automatically.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleCurlImport}
+                          disabled={!curlInput.trim()}
+                          className="px-4 py-1.5 bg-gray-900 text-white text-[11px] font-bold rounded-lg hover:bg-gray-800 disabled:opacity-30 transition-all uppercase tracking-tight"
+                        >
+                          Import Data
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      {/* Custom Headers */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">HTTP Headers</h5>
+                          <button
+                            type="button"
+                            onClick={() => setHeaderPairs([...headerPairs, { key: '', value: '' }])}
+                            className="text-[10px] font-bold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1 uppercase"
+                          >
+                            <IconPlus /> Add Header
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {headerPairs.map((pair, idx) => (
+                            <div key={idx} className="flex gap-2 items-start group">
+                              <input
+                                type="text"
+                                placeholder="Header Key"
+                                className={`${inputBase} flex-1 !py-1.5 !text-xs font-mono`}
+                                value={pair.key}
+                                onChange={e => {
+                                  const newPairs = [...headerPairs];
+                                  newPairs[idx].key = e.target.value;
+                                  setHeaderPairs(newPairs);
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Value"
+                                className={`${inputBase} flex-2 !py-1.5 !text-xs font-mono`}
+                                value={pair.value}
+                                onChange={e => {
+                                  const newPairs = [...headerPairs];
+                                  newPairs[idx].value = e.target.value;
+                                  setHeaderPairs(newPairs);
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setHeaderPairs(headerPairs.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                          {headerPairs.length === 0 && (
+                            <p className="text-[10px] text-gray-400 italic py-1">No custom headers.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Custom Cookies */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Browser Cookies</h5>
+                          <button
+                            type="button"
+                            onClick={() => setCookiePairs([...cookiePairs, { key: '', value: '' }])}
+                            className="text-[10px] font-bold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1 uppercase"
+                          >
+                            <IconPlus /> Add Cookie
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {cookiePairs.map((pair, idx) => (
+                            <div key={idx} className="flex gap-2 items-start group">
+                              <input
+                                type="text"
+                                placeholder="Cookie Name"
+                                className={`${inputBase} flex-1 !py-1.5 !text-xs font-mono`}
+                                value={pair.key}
+                                onChange={e => {
+                                  const newPairs = [...cookiePairs];
+                                  newPairs[idx].key = e.target.value;
+                                  setCookiePairs(newPairs);
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Value"
+                                className={`${inputBase} flex-2 !py-1.5 !text-xs font-mono`}
+                                value={pair.value}
+                                onChange={e => {
+                                  const newPairs = [...cookiePairs];
+                                  newPairs[idx].value = e.target.value;
+                                  setCookiePairs(newPairs);
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setCookiePairs(cookiePairs.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                          {cookiePairs.length === 0 && (
+                            <p className="text-[10px] text-gray-400 italic py-1">No custom cookies.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Submit */}
