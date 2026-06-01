@@ -55,6 +55,7 @@ export async function pass3Record(
   const context = await browser.newContext({
     recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
     viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
+    extraHTTPHeaders: config.extraHTTPHeaders
   });
   const page = await context.newPage();
 

@@ -12,7 +12,10 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } });
+  const context = await browser.newContext({ 
+    viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
+    extraHTTPHeaders: config.extraHTTPHeaders
+  });
   const page = await context.newPage();
   await page.goto(startUrl, { waitUntil: 'load' });
   await page.waitForTimeout(5000);

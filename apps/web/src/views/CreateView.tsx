@@ -21,6 +21,11 @@ const IconLoader = () => (
     <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
   </svg>
 );
+const IconPlus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
 
 // ── Label with tooltip ─────────────────────────────────────────────────────────
 const FieldLabel = ({ required, label, tooltip }: { required?: boolean; label: string; tooltip?: string }) => (
@@ -55,6 +60,7 @@ interface CreateViewProps {
 export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob }: CreateViewProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAudioPreview, setShowAudioPreview] = useState(false);
+  const [headerPairs, setHeaderPairs] = useState<{ key: string, value: string }[]>([]);
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value });
@@ -79,6 +85,14 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
     }
 
     if (!formValues.instructions?.trim()) errs.instructions = 'Please provide instructions';
+
+    const headersObj: Record<string, string> = {};
+    headerPairs.forEach(pair => {
+      if (pair.key.trim()) {
+        headersObj[pair.key.trim()] = pair.value;
+      }
+    });
+
     if (Object.keys(errs).length) { setErrors(errs); return; }
     onQueueJob({ 
       url: formValues.url, 
@@ -88,7 +102,8 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
       instructions: formValues.subtitles === 'true' 
         ? `${formValues.instructions} (Please ensure subtitles are included in the final video)` 
         : formValues.instructions, 
-      script: formValues.script 
+      script: formValues.script,
+      headers: Object.keys(headersObj).length > 0 ? JSON.stringify(headersObj) : undefined
     });
   };
 
@@ -222,6 +237,64 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                 value={formValues.script || ''}
                 onChange={e => update('script', e.target.value)}
               />
+            </div>
+
+            {/* Custom Headers (Key-Value) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <FieldLabel 
+                  label="Custom Headers" 
+                  tooltip="Use this for websites requiring authentication. Add pairs like Key: 'Authorization' and Value: 'Bearer your_token_here'. These headers will be used by the AI agent to access the site." 
+                />
+                <button
+                  type="button"
+                  onClick={() => setHeaderPairs([...headerPairs, { key: '', value: '' }])}
+                  className="text-xs font-semibold text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-1"
+                >
+                  <IconPlus /> Add Header
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                {headerPairs.map((pair, idx) => (
+                  <div key={idx} className="flex gap-2 items-start">
+                    <input
+                      type="text"
+                      placeholder="Header Key (e.g. Authorization)"
+                      className={`${inputBase} flex-1`}
+                      value={pair.key}
+                      onChange={e => {
+                        const newPairs = [...headerPairs];
+                        newPairs[idx].key = e.target.value;
+                        setHeaderPairs(newPairs);
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Value"
+                      className={`${inputBase} flex-2`}
+                      value={pair.value}
+                      onChange={e => {
+                        const newPairs = [...headerPairs];
+                        newPairs[idx].value = e.target.value;
+                        setHeaderPairs(newPairs);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setHeaderPairs(headerPairs.filter((_, i) => i !== idx))}
+                      className="p-2.5 text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                {headerPairs.length === 0 && (
+                  <p className="text-[11px] text-gray-400 italic">No custom headers added.</p>
+                )}
+              </div>
             </div>
 
             {/* Submit */}

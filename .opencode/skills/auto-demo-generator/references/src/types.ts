@@ -12,6 +12,7 @@ export interface DemoConfig {
   width?: number;
   height?: number;
   voice?: string;
+  extraHTTPHeaders?: Record<string, string>;
   steps: DemoStep[];
 }
 

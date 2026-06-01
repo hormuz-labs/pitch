@@ -26,6 +26,9 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   "userReq": "Show me how to use the search feature on example.com",
   "outputPath": "example-demo.mp4", 
   "cursorStyle": "black",
+  "extraHTTPHeaders": {
+    "Authorization": "Bearer YOUR_TOKEN_HERE"
+  },
   "steps": [
     { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
     { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion" },

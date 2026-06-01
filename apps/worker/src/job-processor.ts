@@ -154,6 +154,12 @@ Please execute the following video generation task for Job ${jobId}.
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
 
+## Custom Headers
+If the "headers" parameter is provided in the JSON above, you MUST use these HTTP headers for ALL browser navigations and requests during the demo generation process. 
+- For agent-browser: Pass them using the \`--headers '<JSON_STRING>'\` flag.
+- For Playwright scripts: Set them in the browser context using \`extraHTTPHeaders\`.
+- For dry-runs and recording: The engine will handle them if you include them in the demo-config.json.
+
 ## MANDATORY: Phase Progress Reporting
 You MUST report the status of each pipeline phase using the job-cli. Call this at the START and END of each phase.
 IMPORTANT: These commands are FIRE-AND-FORGET — even if they fail, do NOT stop the pipeline. Always continue.
