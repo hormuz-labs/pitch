@@ -8,9 +8,6 @@
     "build": "tsc"
   },
   "dependencies": {
-    "nodemailer": "^6.10.1"
-  },
-  "devDependencies": {
-    "@types/nodemailer": "^6.4.0"
+    "resend": "^6.12.4"
   }
 }

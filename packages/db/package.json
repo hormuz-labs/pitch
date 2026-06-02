@@ -8,12 +8,12 @@
     "build": "echo 'Skipping build, using bun natively'"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0",
+    "@prisma/client": "6.19.3",
     "@saas/shared": "workspace:*",
     "@zenstackhq/runtime": "^2.22.1",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "prisma": "^6.0.0"
+    "prisma": "6.19.3"
   }
 }
