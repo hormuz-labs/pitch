@@ -25,7 +25,12 @@ RUN bun install --frozen-lockfile --ignore-scripts
 # Now copy the rest of the source code
 COPY . .
 
-RUN ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
+# zenstack spawns `prisma generate` via a shell. prisma is a packages/db devDep
+# and (with --ignore-scripts) isn't hoisted to the root node_modules/.bin, so the
+# shell finds no local prisma and pulls Prisma 7.x from the network — which rejects
+# `url = env(...)` in the schema (P1012). Put the workspace bin on PATH so it uses
+# the pinned Prisma 6.19.3.
+RUN PATH="/app/packages/db/node_modules/.bin:$PATH" ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM ghcr.io/hormuz-labs/pitch-base:latest AS runtime
@@ -40,4 +45,8 @@ RUN chmod +x /app/apps/job-cli/src/index.ts && ln -s /app/apps/job-cli/src/index
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["sh", "-c", "bunx prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/api/src/index.ts"]
+# Use the workspace-local prisma (packages/db devDep, not hoisted to root) rather
+# than `bunx prisma`, which would fetch Prisma 7.x from the network at startup and
+# fail migrate deploy on `url = env(...)` (P1012). The 6.19.3 schema engine ships
+# in the package, so this runs offline.
+CMD ["sh", "-c", "/app/packages/db/node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/api/src/index.ts"]
