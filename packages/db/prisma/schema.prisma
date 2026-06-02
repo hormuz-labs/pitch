@@ -33,6 +33,42 @@ model UserProfile {
   creditTransactions CreditTransaction[]
   jobs               Job[]
   affiliate          Affiliate?
+  browserProfile     BrowserProfile?
+  browserSessions    BrowserSession[]
+}
+
+model BrowserProfile {
+  id              String           @id() @default(cuid())
+  userId          String           @unique()
+  profileDir      String
+  storageStateKey String?
+  loggedInOrigins String           @default("[]")
+  lastSyncedAt    DateTime?
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt()
+  userProfile     UserProfile      @relation(fields: [userId], references: [id])
+  sessions        BrowserSession[]
+}
+
+model BrowserSession {
+  id             String         @id() @default(cuid())
+  userId         String
+  profileId      String
+  status         String         @default("STARTING")
+  startUrl       String?
+  cdpPort        Int?
+  noVncUrl       String?
+  pid            Int?
+  error          String?
+  startedAt      DateTime       @default(now())
+  readyAt        DateTime?
+  closedAt       DateTime?
+  expiresAt      DateTime
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  browserProfile BrowserProfile @relation(fields: [profileId], references: [id])
+
+  @@index([userId, status])
 }
 
 model Subscription {

@@ -4,6 +4,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk';
 import { JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, createLogger, sendTelegramMessage } from '@saas/shared';
 import * as db from '@saas/db';
 import { getSessionIdFromEvent } from './opencode.js';
+import { startBrowserContext, type BrowserContextHandle } from './browser-context.js';
 import * as os from 'os';
 
 const logger = createLogger('worker:job');
@@ -78,11 +79,13 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     let session: { id: string } | null = null;
     let eventAbortController: AbortController | null = null;
+    let browserCtx: BrowserContextHandle | null = null;
     const messageCosts = new Map<string, number>();
     let currentCost = 0;
 
     try {
       // 1. Create a new session for this job
+      const browserCtx = await startBrowserContext(userId);
       const sessionResponse = await client.session.create({
         query: { directory: targetDir },
         body: { title: `Job ${jobId} for user ${userId}` },
@@ -141,7 +144,20 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       })();
 
       // 3. Send prompt
-      const promptText = `
+      const stealthContextBlock = browserCtx
+        ? `\n## Stealth Browser Context (Authenticated)\n` +
+          `Your user has saved login state for some sites. A stealth Chromium with that profile is ` +
+          `running at ${browserCtx.cdpUrl}. USE THIS CONNECTION whenever the target site requires ` +
+          `authentication so cookies/storage are honored.\n\n` +
+          `To connect, start agent-browser with:\n` +
+          `  agent-browser --cdp-url ${browserCtx.cdpUrl} open <URL>\n` +
+          `If you launch any Playwright scripts, set \`chromium.connectOverCDP({ endpointURL: '${browserCtx.cdpUrl}' })\` instead of ` +
+          `launching a new browser.\n`
+        : `\n## Browser Context\n` +
+          `No authenticated profile is available for this user. Use the standard agent-browser ` +
+          `flow (which launches its own browser). The target site must not require login.\n`;
+
+      const promptText = stealthContextBlock + `
 ## MANDATORY: Read These Skills First
 Before doing anything else, you MUST read the following skills:
 1. agent-browser skill
@@ -303,6 +319,12 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       // Remove from the active-session registry so cancellation messages for
       // this job are ignored from now on.
       activeSessionsByJobId.delete(jobId);
+
+      // The browser context is intentionally kept warm across jobs from the
+      // same user (handled by browser-context.ts's idle GC) so we don't tear
+      // it down here. We do bump lastUsedAt via startBrowserContext on the
+      // next job; the GC reaper will close it after CONTEXT_TTL_MS idle.
+      void browserCtx; // keep handle in scope; the GC owns lifecycle
 
       // Clean up per-job resources
       if (eventAbortController && !eventAbortController.signal.aborted) {
