@@ -1,7 +1,7 @@
-import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { DemoConfig } from './types';
+import { openBrowser } from './browser';
 
 const MIME_MAP: Record<string, string> = {
   '.png':  'image/png',
@@ -91,9 +91,8 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
     textColor = isDark ? '#F5F5F5' : '#111111';
     dividerColor = isDark ? '#2A2A2A' : '#E0E0E0';
   } else {
-    const analysisBrowser = await chromium.launch({ headless: true });
-    const analysisCtx = await analysisBrowser.newContext();
-    const analysisPage = await analysisCtx.newPage();
+    const analysisSession = await openBrowser();
+    const analysisPage = await analysisSession.context.newPage();
 
     const avgBrightness = await analysisPage.evaluate(async (dataUrl) => {
       const img = new Image();
@@ -114,7 +113,7 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
       return count > 0 ? total / count : 128;
     }, logo.dataUrl);
 
-    await analysisBrowser.close();
+    await analysisSession.close();
     console.log(`Logo brightness: ${avgBrightness.toFixed(1)}`);
 
     if (avgBrightness > 140) {
@@ -127,11 +126,13 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
 
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
-  const introBrowser = await chromium.launch({ headless: true });
-  const introContext = await introBrowser.newContext({
-    recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
-    viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT }
+  const introSession = await openBrowser({
+    contextOptions: {
+      recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
+      viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
+    },
   });
+  const introContext = introSession.context;
   const introPage = await introContext.newPage();
 
   const html = `<!DOCTYPE html>
@@ -221,7 +222,7 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
 
   const introVideoPath = await introPage.video()?.path();
   await introContext.close();
-  await introBrowser.close();
+  await introSession.close();
 
   if (introVideoPath) {
     fs.writeFileSync(path.join(demoDir, 'intro-path.txt'), introVideoPath);

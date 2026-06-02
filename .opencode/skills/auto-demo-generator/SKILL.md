@@ -6,7 +6,7 @@ description: >
   or any automated "show me how to use X" video. Triggers on: "make a demo video", "record
   a walkthrough", "create a tutorial video", "automate a product demo", "screencast of X",
   "show how to use X", or any request to produce an MP4 of web interactions.
-compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, ffmpeg-static, ffprobe-static, dotenv, playwright. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required)."
+compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, ffmpeg-static, ffprobe-static, dotenv, cloakbrowser, playwright-core. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required). Optional: CLOAK_CDP_URL, CLOAK_PROFILE_DIR."
 ---
 
 # Auto-Demo Generator
@@ -151,6 +151,40 @@ Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` 
 Once the agent has successfully verified and collected all the necessary stable working selectors, it will dynamically generate the `demo-config.json` file inside the new demo folder.
 
 **Note on Scrolling:** During the video recording phase, the engine automatically checks if the element is in the viewport. It will ONLY scroll the component into the viewport if it is not already visible. If it is in the viewport, it won't scroll. This ensures a clean cinematic experience.
+
+### Stealth Browser Support (CloakBrowser)
+
+Every pass in this engine (`pass0-intro`, `pass0-outro`, `pass1-dry-run`, `pass3-record`) opens its browser through the `browser.ts` helper, which transparently picks the right backend based on environment variables:
+
+| Env var set | Behavior |
+| --- | --- |
+| `CLOAK_CDP_URL=http://127.0.0.1:PORT` | **Attach** to a running CloakBrowser via `playwright-core`'s `chromium.connectOverCDP`. All passes share the same authenticated Chromium. The worker injects this whenever a per-user stealth context is alive (see `apps/worker/src/browser-context.ts`). |
+| `CLOAK_PROFILE_DIR=/path/to/user-data` (no CDP) | **Launch** a fresh `cloakbrowser.launchPersistentContext` against the user's saved profile. Each pass still re-launches (matches the original per-pass lifecycle) but cookies/storage persist between runs. |
+| Neither set | **Launch** an ephemeral headless Chromium via `playwright-core` (the legacy behavior). Used for standalone / dev runs. |
+
+**For agent-browser in Phase 0.2:** when the worker is running, ALWAYS attach agent-browser to the same stealth Chromium so the selector-collection session and the recording session use the *same* browser, *same* cookies, and *same* fingerprint:
+
+```bash
+# If CLOAK_CDP_URL is set in the env (worker injects it), use it:
+agent-browser --cdp-url "$CLOAK_CDP_URL" open <startUrl>
+agent-browser --cdp-url "$CLOAK_CDP_URL" snapshot
+agent-browser --cdp-url "$CLOAK_CDP_URL" get attr @ref1 placeholder
+
+# If CLOAK_CDP_URL is not set (standalone dev), launch your own:
+agent-browser open <startUrl>
+```
+
+The same rule applies to the `extraCookies` and `extraHTTPHeaders` block in `demo-config.json`: when a stealth context is in use, those overrides are unnecessary for sites the user is already logged into — and may even conflict with the existing cookies.
+
+**Reference files updated to use the helper:**
+
+- `src/browser.ts` — new shared helper (this is the only file that touches CDP / persistent context).
+- `src/pass0-intro.ts` — uses `openBrowser()` (analysis + intro render).
+- `src/pass0-outro.ts` — uses `openBrowser()` (outro render).
+- `src/pass1-dry-run.ts` — uses `openBrowser()` (flow validation).
+- `src/pass3-record.ts` — uses `openBrowser()` (raw recording with `recordVideo`).
+
+When `CLOAK_CDP_URL` is set, `context.close()` followed by `session.close()` flushes the recorded `.webm` and detaches from the remote Chromium without killing it — the worker's stealth context stays alive for the next job.
 
 ### Phase 0.5 — Cinematic Intro Sequence (V4.6)
 Before running the validation or generation passes, `pass0-intro.ts` automatically generates a 3.5-second premium intro card.

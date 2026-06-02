@@ -1,5 +1,5 @@
-import { chromium } from 'playwright';
 import { DemoConfig, DemoStep } from './types';
+import { openBrowser } from './browser';
 
 function preflight(config: DemoConfig): void {
   if (!config.startUrl) throw new Error('[pass1-dry-run] config.startUrl is required.');
@@ -11,11 +11,13 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
   console.log("== Pass 1: Flow Validation (Dry Run) ==");
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ 
-    viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
-    extraHTTPHeaders: config.extraHTTPHeaders
+  const session = await openBrowser({
+    contextOptions: {
+      viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
+      extraHTTPHeaders: config.extraHTTPHeaders,
+    },
   });
+  const { context } = session;
   if (config.extraCookies && config.extraCookies.length > 0) {
     const cookies = config.extraCookies.map(c => ({
       ...c,
@@ -64,6 +66,6 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
     }
   }
 
-  await browser.close();
+  await session.close();
   console.log("✅ Flow validated successfully.");
 }

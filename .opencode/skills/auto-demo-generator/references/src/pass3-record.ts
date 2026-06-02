@@ -1,8 +1,8 @@
-import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
 import { getChromiumGpuFlags } from './utils';
+import { openBrowser } from './browser';
 
 function preflight(demoDir: string, config: DemoConfig): void {
   const timelinePath = path.join(demoDir, 'timeline.json');
@@ -44,7 +44,15 @@ export async function pass3Record(
   const CENTER_X = VIDEO_WIDTH / 2;
   const CENTER_Y = VIDEO_HEIGHT / 2;
 
-  const browser = await chromium.launch({ headless: true, args: getChromiumGpuFlags() });
+  const session = await openBrowser({
+    headless: true,
+    launchArgs: getChromiumGpuFlags(),
+    contextOptions: {
+      recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
+      viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
+      extraHTTPHeaders: config.extraHTTPHeaders,
+    },
+  });
 
   const cursorStyle = config.cursorStyle || 'black';
   const cursorSrc = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
@@ -52,11 +60,7 @@ export async function pass3Record(
   fs.copyFileSync(cursorSrc, cursorPng);
   console.log(`✅ Cursor PNG ready: ${cursorPng}`);
 
-  const context = await browser.newContext({
-    recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
-    viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
-    extraHTTPHeaders: config.extraHTTPHeaders
-  });
+  const { context } = session;
   if (config.extraCookies && config.extraCookies.length > 0) {
     const cookies = config.extraCookies.map(c => ({
       ...c,
@@ -173,7 +177,11 @@ export async function pass3Record(
   }
 
   await context.close();
-  await browser.close();
+  await session.close();
+  // Note: when attached to CDP, context.close() above flushes the recorded
+  // webm and session.close() detaches the CDP session without killing the
+  // remote browser — the worker's stealth context stays alive for the next
+  // job.
 
   if (!videoPathCapture || !fs.existsSync(videoPathCapture)) throw new Error('[pass3-record] Raw video not found after recording!');
 

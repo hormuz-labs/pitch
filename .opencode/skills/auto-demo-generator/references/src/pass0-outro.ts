@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { chromium } from 'playwright';
 import { DemoConfig } from './types';
 import { buildOutroCardHtml } from './outro-card';
+import { openBrowser } from './browser';
 
 export async function generateOutro(
   config: DemoConfig,
@@ -54,11 +54,13 @@ export async function generateOutro(
     logoDataUrl,
   });
 
-  const outroBrowser = await chromium.launch({ headless: true });
-  const outroContext = await outroBrowser.newContext({
-    recordVideo: { dir: demoDir, size: { width: w, height: h } },
-    viewport: { width: w, height: h },
+  const outroSession = await openBrowser({
+    contextOptions: {
+      recordVideo: { dir: demoDir, size: { width: w, height: h } },
+      viewport: { width: w, height: h },
+    },
   });
+  const outroContext = outroSession.context;
   const outroPage = await outroContext.newPage();
 
   const finalBg = config.outroBg || '#0A0A0A';
@@ -68,7 +70,7 @@ export async function generateOutro(
   await outroPage.setContent(html);
   await outroPage.waitForTimeout(3000);
   await outroContext.close();
-  await outroBrowser.close();
+  await outroSession.close();
 
   const outroVideoPath = path.resolve(demoDir, 'outro.webm');
   const files = fs.readdirSync(demoDir).filter(f => f.endsWith('.webm') && !f.includes('intro'));

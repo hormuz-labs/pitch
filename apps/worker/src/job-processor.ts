@@ -149,13 +149,19 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
           `Your user has saved login state for some sites. A stealth Chromium with that profile is ` +
           `running at ${browserCtx.cdpUrl}. USE THIS CONNECTION whenever the target site requires ` +
           `authentication so cookies/storage are honored.\n\n` +
-          `To connect, start agent-browser with:\n` +
+          `To connect agent-browser to it, pass --cdp-url:\n` +
           `  agent-browser --cdp-url ${browserCtx.cdpUrl} open <URL>\n` +
-          `If you launch any Playwright scripts, set \`chromium.connectOverCDP({ endpointURL: '${browserCtx.cdpUrl}' })\` instead of ` +
-          `launching a new browser.\n`
+          `  agent-browser --cdp-url ${browserCtx.cdpUrl} snapshot\n\n` +
+          `For the auto-demo engine passes (pass0 / pass1 / pass3), export CLOAK_CDP_URL in your shell ` +
+          `before running the pipeline — the engine reads it via the shared browser helper:\n` +
+          `  export CLOAK_CDP_URL=${browserCtx.cdpUrl}\n` +
+          `  bun run src/index.ts demos/<name>/demo-config.json\n` +
+          `If you write ad-hoc Playwright scripts, use \`chromium.connectOverCDP('${browserCtx.cdpUrl}')\` ` +
+          `from playwright-core instead of launching a new browser.\n`
         : `\n## Browser Context\n` +
           `No authenticated profile is available for this user. Use the standard agent-browser ` +
-          `flow (which launches its own browser). The target site must not require login.\n`;
+          `flow (which launches its own browser). The target site must not require login. ` +
+          `Do NOT set CLOAK_CDP_URL — let the engine launch its own ephemeral Chromium.\n`;
 
       const promptText = stealthContextBlock + `
 ## MANDATORY: Read These Skills First
