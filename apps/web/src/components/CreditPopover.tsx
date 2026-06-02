@@ -20,9 +20,11 @@ const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
 
 export const CreditPopover = () => {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const [credits, setCredits] = useState<number | null>(null);
   const [plan, setPlan] = useState<string | null>(null);
+  // Credits newly earned from referrals since this user last saw the coin.
+  const [referralNudge, setReferralNudge] = useState<number | null>(null);
   const [spinning, setSpinning] = useState(false);
   const isFirstLoad = useRef(true);
   const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,6 +41,22 @@ export const CreditPopover = () => {
           const data = await res.json();
           setCredits(data.balance);
           setPlan(data.activeSubscription?.planKey ?? null);
+
+          // Surface a one-time nudge when referral earnings have grown since the
+          // user last loaded the coin (the reward is granted while they're away,
+          // when a friend signs up or upgrades). Tracked per-user in localStorage.
+          if (userId && Array.isArray(data.transactions)) {
+            const earned = data.transactions
+              .filter((t: any) => t.type === 'referral' && t.delta > 0)
+              .reduce((s: number, t: any) => s + t.delta, 0);
+            const key = `pitch:seenReferralCredits:${userId}`;
+            const seenRaw = localStorage.getItem(key);
+            if (seenRaw !== null) {
+              const seen = parseInt(seenRaw, 10) || 0;
+              if (earned > seen) setReferralNudge(earned - seen);
+            }
+            localStorage.setItem(key, String(earned));
+          }
         }
       } catch {
         // silently fail — UI falls back to dash
@@ -48,7 +66,7 @@ export const CreditPopover = () => {
 
     window.addEventListener('credits-changed', fetchBalance);
     return () => window.removeEventListener('credits-changed', fetchBalance);
-  }, [getToken]);
+  }, [getToken, userId]);
 
   // Spin the coin once whenever credits changes (skip very first load).
   // Respects prefers-reduced-motion — skip animation if user prefers it.
@@ -72,12 +90,20 @@ export const CreditPopover = () => {
     });
   }, [credits]);
 
+  // Auto-dismiss the referral nudge after a few seconds.
+  useEffect(() => {
+    if (referralNudge === null) return;
+    const t = setTimeout(() => setReferralNudge(null), 9000);
+    return () => clearTimeout(t);
+  }, [referralNudge]);
+
   const planLabel = plan ? (PLAN_LABELS[plan] ?? plan) : 'Free';
   const triggerLabel = credits !== null
     ? `${credits} credits available — ${planLabel} plan`
     : 'Credits loading';
 
   return (
+    <div className="relative">
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
@@ -199,5 +225,33 @@ export const CreditPopover = () => {
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+
+      {/* Referral reward nudge — anchored under the coin */}
+      {referralNudge !== null && (
+        <div
+          role="status"
+          className="absolute right-0 top-full mt-2 z-50 w-64 rounded-2xl border border-amber-200 bg-white p-3.5 shadow-2xl font-sans animate-in fade-in slide-in-from-top-1"
+        >
+          <button
+            aria-label="Dismiss"
+            onClick={() => setReferralNudge(null)}
+            className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 cursor-pointer text-sm leading-none"
+          >
+            ✕
+          </button>
+          <div className="flex items-start gap-2.5 pr-3">
+            <span className="text-xl leading-none mt-0.5">🎉</span>
+            <div>
+              <p className="text-[13px] font-bold text-gray-900 leading-snug">
+                You earned {referralNudge} credit{referralNudge === 1 ? '' : 's'}!
+              </p>
+              <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
+                A friend joined with your referral link. Added to your balance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

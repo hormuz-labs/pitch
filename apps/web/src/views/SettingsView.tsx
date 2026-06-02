@@ -70,6 +70,7 @@ const TX_TYPE_LABELS: Record<string, string> = {
   refund: 'Refund',
   admin_adjustment: 'Admin',
   promo: 'Promo',
+  referral: 'Referral',
 };
 
 const TX_TYPE_COLORS: Record<string, string> = {
@@ -79,6 +80,7 @@ const TX_TYPE_COLORS: Record<string, string> = {
   refund: 'text-emerald-600',
   admin_adjustment: 'text-amber-600',
   promo: 'text-emerald-600',
+  referral: 'text-amber-600',
 };
 
 export const SettingsView = () => {
@@ -261,6 +263,9 @@ export const SettingsView = () => {
                             const usedCredits = summary.transactions
                               .filter(t => t.type === 'usage')
                               .reduce((a, t) => a + t.delta, 0);
+                            const referralCredits = summary.transactions
+                              .filter(t => t.type === 'referral')
+                              .reduce((a, t) => a + t.delta, 0);
                             return (
                               <>
                                 {subCredits > 0 && (
@@ -279,6 +284,12 @@ export const SettingsView = () => {
                                   <div className="flex justify-between text-xs text-gray-500">
                                     <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Promo / refunds</span>
                                     <span className="font-medium text-emerald-600">+{promoCredits}</span>
+                                  </div>
+                                )}
+                                {referralCredits > 0 && (
+                                  <div className="flex justify-between text-xs text-gray-500">
+                                    <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Referral rewards</span>
+                                    <span className="font-medium text-amber-600">+{referralCredits}</span>
                                   </div>
                                 )}
                                 {usedCredits < 0 && (
