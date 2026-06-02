@@ -161,13 +161,16 @@ export const CreditPopover = () => {
               Each video generation costs 3 credits. Credits never expire.
             </p>
 
-            {/* Near-miss nudge: when the balance isn't a clean multiple of 3, the
-                user is 1–2 credits from another free video. Reframe it and offer
-                the free path (refer → +1) alongside the paid path (top up). */}
-            {credits !== null && credits % 3 !== 0 && (
+            {/* Near-miss nudge: only when the user can't yet afford a video
+                (< 3 credits, so they're 1–2 short). Above that they already have
+                enough for at least one video and the nudge reads as noise. We
+                don't call it a "free" video — a video always costs 3 credits;
+                we just point at the cheapest paths to the next one (refer → +1,
+                or top up). */}
+            {credits !== null && credits > 0 && credits < 3 && (
               <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5">
                 <p className="text-[13px] font-semibold text-amber-900 leading-snug">
-                  You're {3 - (credits % 3)} credit{3 - (credits % 3) === 1 ? '' : 's'} from another free video.
+                  You're {3 - credits} credit{3 - credits === 1 ? '' : 's'} from your next video.
                 </p>
                 <p className="text-[11px] text-amber-700 mt-0.5 mb-2.5">
                   Refer a friend to earn +1 credit each — or top up below.
