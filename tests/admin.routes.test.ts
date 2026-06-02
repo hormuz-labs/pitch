@@ -1,7 +1,14 @@
 /**
  * Security regression tests for `requireAdmin` middleware in
  * apps/api/src/routes/admin.ts. Mounts the REAL router (not a reimplementation)
- * so the tests actually exercise the production code path.
+ * so the tests exercise the production authorization path.
+ *
+ * Authorization is role-based: a request is allowed only when the caller's
+ * UserProfile has role === 'admin'. To test the gate in isolation (decoupled
+ * from any specific admin handler's data needs), requests hit an unknown admin
+ * path — a blocked request is rejected by requireAdmin (401/403) and never
+ * reaches routing, while an allowed request passes the middleware and falls
+ * through to a 404.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -25,8 +32,6 @@ const __setUserId = (u: string | null) => { _userId = u; };
 vi.mock('@saas/db', () => ({
   prisma: {
     userProfile: { findUnique: vi.fn() },
-    creditTransaction: { groupBy: vi.fn().mockResolvedValue([]) },
-    job: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -54,6 +59,10 @@ vi.mock('../apps/api/src/config.js', () => ({
 import * as db from '@saas/db';
 import { router as adminRouter } from '../apps/api/src/routes/admin.js';
 
+// An admin path with no matching handler — used to observe ONLY the gate:
+// reaching it (404) proves requireAdmin called next(); a 401/403 proves it blocked.
+const GATE_PROBE = '/admin/__gate_probe__';
+
 function buildApp() {
   const app = express();
   app.use(express.json());
@@ -66,50 +75,51 @@ let app: express.Express;
 beforeEach(() => {
   vi.clearAllMocks();
   __setUserId('user_test');
-  delete process.env.ADMIN_EMAILS;
   app = buildApp();
 });
 
 describe('requireAdmin middleware', () => {
-  it('fails closed with 503 when ADMIN_EMAILS is not configured', async () => {
-    delete process.env.ADMIN_EMAILS;
+  it('returns 401 when the request is unauthenticated', async () => {
+    __setUserId(null);
+
+    const res = await request(app).get(GATE_PROBE);
+
+    expect(res.status).toBe(401);
+    expect(db.prisma.userProfile.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when the user has no profile', async () => {
+    vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue(null);
+
+    const res = await request(app).get(GATE_PROBE);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/profile not found/i);
+  });
+
+  it('returns 403 when the user is not an admin', async () => {
     vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({
       id: 'user_test',
       email: 'someone@example.com',
+      role: 'user',
     });
 
-    const res = await request(app).get('/admin/dashboard');
-
-    expect(res.status).toBe(503);
-    expect(res.body.error).toMatch(/not configured/i);
-  });
-
-  it('returns 403 when the authenticated user is not in ADMIN_EMAILS', async () => {
-    process.env.ADMIN_EMAILS = 'admin@trypitch.co';
-    vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({
-      id: 'user_test',
-      email: 'someone-else@example.com',
-    });
-
-    const res = await request(app).get('/admin/dashboard');
+    const res = await request(app).get(GATE_PROBE);
 
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/not authorized/i);
   });
 
-  it('allows access when the authenticated user IS in ADMIN_EMAILS (case-insensitive)', async () => {
-    process.env.ADMIN_EMAILS = 'Admin@TryPitch.co, other@example.com';
+  it('passes the gate when the user role is admin', async () => {
     vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({
       id: 'user_test',
-      email: 'admin@trypitch.co',
+      email: 'admin@example.com',
+      role: 'admin',
     });
-    vi.mocked((db as any).prisma.userProfile.findMany ??= vi.fn()).mockResolvedValue?.([]);
-    (db as any).prisma.userProfile.findMany = vi.fn().mockResolvedValue([]);
 
-    const res = await request(app).get('/admin/dashboard');
+    const res = await request(app).get(GATE_PROBE);
 
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('stats');
-    expect(res.body).toHaveProperty('users');
+    // requireAdmin called next() → no handler for this path → 404 (NOT 401/403).
+    expect(res.status).toBe(404);
   });
 });
