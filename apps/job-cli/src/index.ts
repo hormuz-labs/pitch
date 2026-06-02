@@ -108,7 +108,22 @@ program
 
       // Mark job as FAILED and refund the credit
       try {
-        const failedJob = await db.updateJob(jobId, { status: JobStatus.FAILED });
+        const existingJob = await db.prisma.job.findUnique({ where: { id: jobId } });
+        let newPhases: PhaseUpdate[] = [];
+        if (existingJob && existingJob.phases) {
+          const parsedPhases: PhaseUpdate[] = JSON.parse(existingJob.phases as string);
+          newPhases = parsedPhases.map(p => {
+            if (p.status === 'running') {
+              return { ...p, status: 'failed', completedAt: new Date().toISOString() };
+            }
+            return p;
+          });
+        }
+
+        const failedJob = await db.updateJob(jobId, { 
+          status: JobStatus.FAILED,
+          ...(newPhases.length > 0 ? { phases: JSON.stringify(newPhases) } : {})
+        });
         await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
         
         const userProfile = await db.prisma.userProfile.findUnique({ where: { id: failedJob.userId } });

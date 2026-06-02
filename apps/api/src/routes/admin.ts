@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import * as db from '@saas/db';
 import { requireAuth } from '../middleware/auth.js';
 import { videoQueue, connection } from '../config.js';
-import { createLogger, JOB_CANCELLATIONS_CHANNEL } from '@saas/shared';
+import { createLogger, JOB_CANCELLATIONS_CHANNEL, JobStatus, JOB_UPDATES_CHANNEL, type PhaseUpdate } from '@saas/shared';
 
 const logger = createLogger('admin-routes');
 export const router: Router = Router();
@@ -218,8 +218,30 @@ router.delete('/jobs/:id', async (req, res) => {
       await bullJob.remove().catch(e => logger.warn({err: e}, 'Failed to remove job from BullMQ'));
     }
 
-    // 3. Force delete from Database
-    await db.prisma.job.delete({ where: { id } });
+    // 3. Mark as FAILED if currently PROCESSING, otherwise delete
+    const job = await db.getJob(id);
+    if (job && job.status === JobStatus.PROCESSING) {
+      let newPhases: PhaseUpdate[] = [];
+      if (job.phases) {
+        newPhases = job.phases.map(p => {
+          if (p.status === 'running') {
+            return { ...p, status: 'failed', completedAt: new Date().toISOString() };
+          }
+          return p;
+        });
+      }
+      const failedJob = await db.updateJob(id, {
+        status: JobStatus.FAILED,
+        error: 'Video generation was cancelled/aborted by the administrator.',
+        ...(newPhases.length > 0 ? { phases: JSON.stringify(newPhases) } : {})
+      });
+      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+      await db.addCredits(job.userId, 3, 'refund', 'Refund: video generation cancelled by admin', { jobId: id });
+      logger.info({ jobId: id }, 'Job marked as failed by admin and credits refunded');
+    } else {
+      await db.prisma.job.delete({ where: { id } });
+      logger.info({ jobId: id }, 'Job deleted by admin');
+    }
     
     res.status(204).send();
   } catch (error: any) {
