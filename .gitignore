@@ -53,8 +53,10 @@ opencode-logs/
 *.mp4
 *.wav
 *.mov
-\n# Generated Demos\ndemo/\n
-demos/**
+
+# Generated Demos
+demos/
+
 .vercel
 .playwright-cli/
 docker-data/
