@@ -206,10 +206,10 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
 </body>
 </html>`;
 
-  await introPage.setContent('<html><body style="background:white;"></body></html>');
+  await introPage.goto('data:text/html,' + encodeURIComponent('<html><body style="background:white;"></body></html>'));
   await introPage.waitForTimeout(100);
 
-  await introPage.setContent(html);
+  await introPage.goto('data:text/html,' + encodeURIComponent(html));
   await introPage.waitForFunction(() => (window as any).__fontsLoaded === true, { timeout: 5000 });
 
   await introPage.waitForTimeout(1500);

@@ -160,7 +160,13 @@ Every pass in this engine (`pass0-intro`, `pass0-outro`, `pass1-dry-run`, `pass3
 | --- | --- |
 | `CLOAK_CDP_URL=http://127.0.0.1:PORT` | **Attach** to a running CloakBrowser via `playwright-core`'s `chromium.connectOverCDP`. All passes share the same authenticated Chromium. The worker injects this whenever a per-user stealth context is alive (see `apps/worker/src/browser-context.ts`). |
 | `CLOAK_PROFILE_DIR=/path/to/user-data` (no CDP) | **Launch** a fresh `cloakbrowser.launchPersistentContext` against the user's saved profile. Each pass still re-launches (matches the original per-pass lifecycle) but cookies/storage persist between runs. |
-| Neither set | **Launch** an ephemeral headless Chromium via `playwright-core` (the legacy behavior). Used for standalone / dev runs. |
+| Neither set | **Launch** an ephemeral CloakBrowser via `cloakbrowser.launch()` (the recommended fallback). Used for standalone / dev runs. |
+
+**⚠️ `page.setContent()` does NOT work with CloakBrowser's `launch()`** — it silently times out. All reference files use `page.goto('data:text/html,' + encodeURIComponent(html))` instead. If you write any custom pass or modify existing ones, always use `goto` with data URLs to set page content.
+
+**⚠️ Sequential `close()` + `launch()` works fine with CloakBrowser** — each `browser.close()` fully terminates the process, and a subsequent `launch()` creates a clean fresh instance. You do NOT need to worry about profile locks when using the ephemeral path.
+
+**CDP connect quirk:** `playwright-core`'s `connectOverCDP` may fail with CloakBrowser Chrome 145+ due to WebSocket version skew. The ephemeral `launch()` path is the most reliable for standalone/dev runs. The CDP attach path is only recommended when the worker manages the browser lifecycle (production).
 
 **For agent-browser in Phase 0.2:** when the worker is running, ALWAYS attach agent-browser to the same stealth Chromium so the selector-collection session and the recording session use the *same* browser, *same* cookies, and *same* fingerprint:
 
@@ -266,6 +272,14 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 ```
 ✅ "[role='option']:first-of-type"    ← clicks the first autocomplete suggestion
 ```
+
+**⚠️ Verify selectors survive click interactions** — Some sites (notably Wikipedia's search widget) dynamically re-render their inputs when clicked, removing the original `#searchInput` element from the DOM and replacing it with a new one that has no `id`. If your flow is click → type on the same input, the selector used for `click` may no longer exist for `type`.
+```
+❌ click #searchInput → type #searchInput    ← element gone after click
+✅ click #searchInput → type [name='search']  ← tag-agnostic, survives re-render
+✅ click [name='search'] → type [name='search']  ← stable across interaction
+```
+Always verify with agent-browser that the element's selector remains valid after the click action. Prefer `[name='...']` attribute selectors when available — they are more resilient than `#id` selectors for dynamically re-rendered widgets.
 
 **⏱️ Fail Fast: Use Aggressive Timeouts for Exploration & Scraping**
 By default, Playwright waits **30 seconds** (`30000ms`) for elements before throwing an error. When writing custom scripts or performing live explorations (e.g., `explore.ts`), waiting 30 seconds for a missing element severely slows down the agent's feedback loop and costs valuable reasoning time.

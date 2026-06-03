@@ -64,10 +64,10 @@ export async function generateOutro(
   const outroPage = await outroContext.newPage();
 
   const finalBg = config.outroBg || '#0A0A0A';
-  await outroPage.setContent(`<html><body style="background:${finalBg};"></body></html>`);
+  await outroPage.goto('data:text/html,' + encodeURIComponent(`<html><body style="background:${finalBg};"></body></html>`));
   await outroPage.waitForTimeout(100);
 
-  await outroPage.setContent(html);
+  await outroPage.goto('data:text/html,' + encodeURIComponent(html));
   await outroPage.waitForTimeout(3000);
   await outroContext.close();
   await outroSession.close();

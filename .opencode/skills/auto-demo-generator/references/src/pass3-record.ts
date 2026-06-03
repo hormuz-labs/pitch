@@ -70,7 +70,7 @@ export async function pass3Record(
   }
   const page = await context.newPage();
 
-  await page.setContent('<html><body style="background:white;"></body></html>');
+  await page.goto('data:text/html,' + encodeURIComponent('<html><body style="background:white;"></body></html>'));
   await page.waitForTimeout(100);
 
   const videoStartTime = Date.now();

@@ -1,5 +1,5 @@
-import { chromium as pwChromium, type Browser, type BrowserContext } from 'playwright-core';
-import { launchPersistentContext as cloakLaunchPersistentContext } from 'cloakbrowser';
+import { type Browser, type BrowserContext } from 'playwright-core';
+import { launch as cloakLaunch, launchPersistentContext as cloakLaunchPersistentContext } from 'cloakbrowser';
 
 export type BrowserSession =
   | { kind: 'ephemeral'; browser: Browser; context: BrowserContext; close: () => Promise<void> }
@@ -80,8 +80,8 @@ export async function openBrowser(opts: OpenBrowserOptions = {}): Promise<Browse
     };
   }
 
-  console.log('[browser] No CLOAK_CDP_URL or CLOAK_PROFILE_DIR set — launching ephemeral headless browser');
-  const browser = await pwChromium.launch({
+  console.log('[browser] No CLOAK_CDP_URL or CLOAK_PROFILE_DIR set — launching CloakBrowser stealth browser');
+  const browser = await cloakLaunch({
     headless: opts.headless ?? true,
     args: opts.launchArgs,
   });
