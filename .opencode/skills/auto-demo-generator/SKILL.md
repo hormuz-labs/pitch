@@ -154,19 +154,30 @@ Once the agent has successfully verified and collected all the necessary stable 
 
 ### Stealth Browser Support (CloakBrowser)
 
-Every pass in this engine (`pass0-intro`, `pass0-outro`, `pass1-dry-run`, `pass3-record`) opens its browser through the `browser.ts` helper, which transparently picks the right backend based on environment variables:
+Every pass in this engine opens its browser through the `browser.ts` helper. The helper uses `cloakbrowser.launch()` (NOT `launchPersistentContext`) for all paths, because **`cloakbrowser.launchPersistentContext` does NOT support `recordVideo`** — no video files are produced when using it.
 
 | Env var set | Behavior |
 | --- | --- |
-| `CLOAK_CDP_URL=http://127.0.0.1:PORT` | **Attach** to a running CloakBrowser via `playwright-core`'s `chromium.connectOverCDP`. All passes share the same authenticated Chromium. The worker injects this whenever a per-user stealth context is alive (see `apps/worker/src/browser-context.ts`). |
-| `CLOAK_PROFILE_DIR=/path/to/user-data` (no CDP) | **Launch** a fresh `cloakbrowser.launchPersistentContext` against the user's saved profile. Each pass still re-launches (matches the original per-pass lifecycle) but cookies/storage persist between runs. |
-| Neither set | **Launch** an ephemeral CloakBrowser via `cloakbrowser.launch()` (the recommended fallback). Used for standalone / dev runs. |
+| `CLOAK_PROFILE_DIR=/path/to/user-data` | **Launch** a fresh CloakBrowser via `cloakbrowser.launch()`, then load `storage_state.json` from the profile dir into the context (cookies/localStorage restored). Each pass still re-launches but cookies/storage persist between runs. |
+| Neither set | **Launch** an ephemeral CloakBrowser via `cloakbrowser.launch()` (the default). Used for standalone / dev runs. |
+
+**🚫 Removed: `CLOAK_CDP_URL` attach path** — `playwright-core`'s `connectOverCDP` has WebSocket version-skew issues with CloakBrowser Chrome 145+. The `launch()` path is the only reliable approach. For production worker integration, use `CLOAK_PROFILE_DIR` instead.
 
 **⚠️ `page.setContent()` does NOT work with CloakBrowser's `launch()`** — it silently times out. All reference files use `page.goto('data:text/html,' + encodeURIComponent(html))` instead. If you write any custom pass or modify existing ones, always use `goto` with data URLs to set page content.
 
-**⚠️ Sequential `close()` + `launch()` works fine with CloakBrowser** — each `browser.close()` fully terminates the process, and a subsequent `launch()` creates a clean fresh instance. You do NOT need to worry about profile locks when using the ephemeral path.
+**⚠️ Sequential `close()` + `launch()` works fine with CloakBrowser** — each `browser.close()` fully terminates the process, and a subsequent `launch()` creates a clean fresh instance. You do NOT need to worry about profile locks when using `launch()`.
 
-**CDP connect quirk:** `playwright-core`'s `connectOverCDP` may fail with CloakBrowser Chrome 145+ due to WebSocket version skew. The ephemeral `launch()` path is the most reliable for standalone/dev runs. The CDP attach path is only recommended when the worker manages the browser lifecycle (production).
+**Profile storage state persistence:** The `CLOAK_PROFILE_DIR` path looks for `<profileDir>/storage_state.json` (saved by the `cloak-launch.mjs` script on SIGTERM). If the file doesn't exist yet, it starts fresh — no crash. Run the launcher once with `--headless` to generate it:
+```bash
+mkdir -p ~/.cloak-profiles/my-site
+bun apps/api/scripts/cloak-launch.mjs \
+  --profile-dir ~/.cloak-profiles/my-site \
+  --port 9242 \
+  --start-url https://example.com \
+  --headless
+# Ctrl-C or kill -TERM to save storage_state.json
+```
+Then set `CLOAK_PROFILE_DIR=~/.cloak-profiles/my-site` when running the pipeline.
 
 **For agent-browser in Phase 0.2:** when the worker is running, ALWAYS attach agent-browser to the same stealth Chromium so the selector-collection session and the recording session use the *same* browser, *same* cookies, and *same* fingerprint:
 
@@ -276,10 +287,10 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 **⚠️ Verify selectors survive click interactions** — Some sites (notably Wikipedia's search widget) dynamically re-render their inputs when clicked, removing the original `#searchInput` element from the DOM and replacing it with a new one that has no `id`. If your flow is click → type on the same input, the selector used for `click` may no longer exist for `type`.
 ```
 ❌ click #searchInput → type #searchInput    ← element gone after click
-✅ click #searchInput → type [name='search']  ← tag-agnostic, survives re-render
-✅ click [name='search'] → type [name='search']  ← stable across interaction
+❌ click #searchInput → type [name='search']  ← locator goes stale after re-render
+✅ type [name='search'] → click #searchform button  ← skip the separate click step entirely
 ```
-Always verify with agent-browser that the element's selector remains valid after the click action. Prefer `[name='...']` attribute selectors when available — they are more resilient than `#id` selectors for dynamically re-rendered widgets.
+**Worse: the locator goes stale even when the selector itself still matches.** After the click triggers a re-render, Playwright's `locator.first()` still references the OLD (removed) element. Any subsequent `boundingBox()` or `waitFor()` on that locator will time out because the old element is detached. The fix is to **not click the input separately** — just use `type` directly on `[name='search']` and proceed to the submit button. Always verify with agent-browser that the element's selector remains valid after click. Prefer `[name='...']` attribute selectors over `#id` for dynamically re-rendered widgets.
 
 **⏱️ Fail Fast: Use Aggressive Timeouts for Exploration & Scraping**
 By default, Playwright waits **30 seconds** (`30000ms`) for elements before throwing an error. When writing custom scripts or performing live explorations (e.g., `explore.ts`), waiting 30 seconds for a missing element severely slows down the agent's feedback loop and costs valuable reasoning time.
