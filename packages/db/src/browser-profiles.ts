@@ -180,3 +180,22 @@ export async function expireStaleBrowserSessions(): Promise<number> {
   });
   return result.count;
 }
+
+/**
+ * Persist the S3 key for the user's latest storage_state.json.
+ * Called by the worker after a successful S3 upload so the DB stays in sync.
+ */
+export async function updateStorageStateKey(
+  userId: string,
+  storageStateKey: string,
+): Promise<BrowserProfilePayload> {
+  const row = await prisma.browserProfile.update({
+    where: { userId },
+    data: {
+      storageStateKey,
+      lastSyncedAt: new Date(),
+      version: { increment: 1 },
+    },
+  });
+  return shapeProfile(row);
+}

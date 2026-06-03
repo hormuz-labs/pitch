@@ -1,10 +1,12 @@
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import type { Readable } from 'node:stream';
 import { createServer } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '@saas/shared';
 import * as db from '@saas/db';
+import { uploadStorageState } from '@saas/storage';
 
 type LauncherProc = ChildProcessByStdio<null, Readable, Readable>;
 
@@ -259,9 +261,20 @@ export async function closeSession(sessionId: string, userId: string): Promise<C
 
   if (capturedOrigins.length > 0) {
     const profileDir = handle?.profileDir;
-    const storageStatePath = profileDir ? path.join(profileDir, 'storage_state.json') : null;
+    let s3Key: string | null = null;
+    if (profileDir) {
+      const stateFile = path.join(profileDir, 'storage_state.json');
+      if (existsSync(stateFile)) {
+        try {
+          s3Key = await uploadStorageState(stateFile, userId);
+          logger.info({ userId, s3Key }, 'storage_state.json pushed to S3 after session close');
+        } catch (err) {
+          logger.warn({ err, userId }, 'failed to upload storage_state to S3');
+        }
+      }
+    }
     await db.recordLoggedInOrigins(userId, capturedOrigins, {
-      storageStateKey: storageStatePath,
+      storageStateKey: s3Key,
     });
   }
 

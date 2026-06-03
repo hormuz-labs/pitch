@@ -4,10 +4,13 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
   CreateBucketCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   PutBucketPolicyCommand,
 } from '@aws-sdk/client-s3';
+import type { Readable } from 'stream';
 
 const endpoint = process.env.MINIO_ENDPOINT ?? 'http://localhost:9000';
 const bucket = process.env.MINIO_BUCKET ?? 'pitch-videos';
@@ -96,4 +99,93 @@ export async function deleteFile(publicFileUrl: string, bucketOverride?: string)
   const key = publicFileUrl.slice(prefix.length);
   await client.send(new DeleteObjectCommand({ Bucket: targetBucket, Key: key }));
   console.log(`[Storage] Deleted object: ${key} from bucket "${targetBucket}"`);
+}
+
+// ---------------------------------------------------------------------------
+// Browser profile storage_state.json sync (MinIO ↔ local filesystem)
+//
+// Each user gets a single S3 object:
+//   browser-profiles/<userId>/storage_state.json
+//
+// Upload happens when the user authenticates via the Browser Sessions tab
+// (closeSession in browser-host.ts). Workers download before each job so the
+// latest cookies are available regardless of which worker last ran for that user.
+// ---------------------------------------------------------------------------
+
+const PROFILES_BUCKET = process.env.MINIO_PROFILES_BUCKET ?? 'browser-profiles';
+
+function storageStateKey(userId: string): string {
+  return `${userId}/storage_state.json`;
+}
+
+async function ensurePrivateBucketExists(bucketName: string) {
+  try {
+    await client.send(new HeadBucketCommand({ Bucket: bucketName }));
+  } catch {
+    await client.send(new CreateBucketCommand({ Bucket: bucketName }));
+    console.log(`[Storage] Created private bucket: ${bucketName}`);
+  }
+}
+
+/**
+ * Upload a local storage_state.json to MinIO for the given user.
+ * Called by the worker after the stealth browser shuts down so the latest
+ * cookies are persisted for the next job (possibly on a different worker).
+ *
+ * Returns the S3 key that was written.
+ */
+export async function uploadStorageState(localPath: string, userId: string): Promise<string> {
+  const key = storageStateKey(userId);
+  const body = fs.readFileSync(localPath);
+  await ensurePrivateBucketExists(PROFILES_BUCKET);
+  await client.send(new PutObjectCommand({
+    Bucket: PROFILES_BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: 'application/json',
+  }));
+  console.log(`[Storage] Uploaded storage_state for user ${userId} → ${PROFILES_BUCKET}/${key}`);
+  return key;
+}
+
+/**
+ * Download storage_state.json from MinIO into a local file.
+ * Called by the worker before launching the stealth browser so the latest
+ * cookies are available regardless of which worker last ran a job.
+ *
+ * Returns true if the file was downloaded, false if no object exists yet.
+ */
+export async function downloadStorageState(userId: string, destPath: string): Promise<boolean> {
+  const key = storageStateKey(userId);
+  try {
+    const res = await client.send(new GetObjectCommand({ Bucket: PROFILES_BUCKET, Key: key }));
+    const dir = path.dirname(destPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const chunks: Buffer[] = [];
+    for await (const chunk of res.Body as Readable) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    fs.writeFileSync(destPath, Buffer.concat(chunks));
+    console.log(`[Storage] Downloaded storage_state for user ${userId} → ${destPath}`);
+    return true;
+  } catch (e: any) {
+    if (e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404) {
+      console.log(`[Storage] No storage_state in S3 for user ${userId} — starting fresh`);
+      return false;
+    }
+    throw e;
+  }
+}
+
+/**
+ * Returns true when a storage_state.json exists in S3 for the given user.
+ * Cheap HEAD check — does not download the object.
+ */
+export async function storageStateExists(userId: string): Promise<boolean> {
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: PROFILES_BUCKET, Key: storageStateKey(userId) }));
+    return true;
+  } catch {
+    return false;
+  }
 }

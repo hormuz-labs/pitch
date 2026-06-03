@@ -85,7 +85,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     try {
       // 1. Create a new session for this job
-      const browserCtx = await startBrowserContext(userId);
+      browserCtx = await startBrowserContext(userId);
       const sessionResponse = await client.session.create({
         query: { directory: targetDir },
         body: { title: `Job ${jobId} for user ${userId}` },
@@ -144,24 +144,28 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       })();
 
       // 3. Send prompt
-      const stealthContextBlock = browserCtx
-        ? `\n## Stealth Browser Context (Authenticated)\n` +
-          `Your user has saved login state for some sites. A stealth Chromium with that profile is ` +
-          `running at ${browserCtx.cdpUrl}. USE THIS CONNECTION whenever the target site requires ` +
-          `authentication so cookies/storage are honored.\n\n` +
-          `To connect agent-browser to it, pass --cdp-url:\n` +
-          `  agent-browser --cdp-url ${browserCtx.cdpUrl} open <URL>\n` +
-          `  agent-browser --cdp-url ${browserCtx.cdpUrl} snapshot\n\n` +
-          `For the auto-demo engine passes (pass0 / pass1 / pass3), export CLOAK_CDP_URL in your shell ` +
-          `before running the pipeline — the engine reads it via the shared browser helper:\n` +
-          `  export CLOAK_CDP_URL=${browserCtx.cdpUrl}\n` +
-          `  bun run src/index.ts demos/<name>/demo-config.json\n` +
-          `If you write ad-hoc Playwright scripts, use \`chromium.connectOverCDP('${browserCtx.cdpUrl}')\` ` +
-          `from playwright-core instead of launching a new browser.\n`
-        : `\n## Browser Context\n` +
-          `No authenticated profile is available for this user. Use the standard agent-browser ` +
-          `flow (which launches its own browser). The target site must not require login. ` +
-          `Do NOT set CLOAK_CDP_URL — let the engine launch its own ephemeral Chromium.\n`;
+      //
+      // Every job gets a unique per-user CloakBrowser profile dir.  The dir is
+      // pre-populated with the latest storage_state.json from S3 before this
+      // point, so all cookies from previous authenticated sessions are available.
+      // The auto-demo engine reads CLOAK_PROFILE_DIR and loads cookies from
+      // storage_state.json via browser.ts — no long-running CDP process needed.
+      const stealthContextBlock =
+        `\n## Stealth Browser Profile (CloakBrowser)\n` +
+        `A per-user CloakBrowser profile dir has been prepared for this job at:\n` +
+        `  ${browserCtx.profileDir}\n\n` +
+        `The latest cookies and session storage have already been pulled from S3 ` +
+        `into that directory (storage_state.json). Set this environment variable ` +
+        `before running the auto-demo pipeline so the engine loads the saved state:\n\n` +
+        `  export CLOAK_PROFILE_DIR=${browserCtx.profileDir}\n` +
+        `  bun run src/index.ts demos/<name>/demo-config.json\n\n` +
+        `The engine's browser.ts will:\n` +
+        `  1. Launch a fresh CloakBrowser via cloakbrowser.launch()\n` +
+        `  2. Read storage_state.json from the profile dir and inject the saved cookies\n` +
+        `  3. Navigate and record the demo with full authentication\n\n` +
+        `For agent-browser selector collection (Phase 0.2), simply set the env var in\n` +
+        `the same shell — no --cdp-url flag needed:\n` +
+        `  agent-browser open <URL>   # launches its own browser (no CDP required)\n`;
 
       const promptText = stealthContextBlock + `
 ## MANDATORY: Read These Skills First
@@ -326,11 +330,11 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       // this job are ignored from now on.
       activeSessionsByJobId.delete(jobId);
 
-      // The browser context is intentionally kept warm across jobs from the
-      // same user (handled by browser-context.ts's idle GC) so we don't tear
-      // it down here. We do bump lastUsedAt via startBrowserContext on the
-      // next job; the GC reaper will close it after CONTEXT_TTL_MS idle.
-      void browserCtx; // keep handle in scope; the GC owns lifecycle
+      // Shut down the browser context (removes from warm cache).
+      // The GC will also evict it if shutdown wasn't called yet.
+      if (browserCtx) {
+        browserCtx.shutdown();
+      }
 
       // Clean up per-job resources
       if (eventAbortController && !eventAbortController.signal.aborted) {
