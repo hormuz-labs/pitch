@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import type { Readable } from 'node:stream';
 import { createServer } from 'node:net';
 import path from 'node:path';
@@ -232,16 +232,22 @@ export async function closeSession(sessionId: string, userId: string): Promise<C
 
   const handle = active.get(sessionId);
   let capturedOrigins: string[] = [];
+  let storageStatePath: string | null = null;
 
   if (handle) {
-    // Capture origins from CDP before shutdown.
-    capturedOrigins = await captureOriginsViaCdp(handle.port).catch((err) => {
-      logger.warn({ err, sessionId }, 'failed to capture origins via CDP');
-      return [];
+    // Capture cookies + save storage_state.json via CDP *before* SIGTERM,
+    // while the browser is still healthy. The launcher's SIGTERM handler
+    // also tries to save but often fails because Chromium is already
+    // shutting down by then ("Failed to open a new tab").
+    const result = await captureStorageStateViaCdp(handle.port, handle.profileDir).catch((err) => {
+      logger.warn({ err, sessionId }, 'failed to capture storage state via CDP');
+      return { origins: [], storageStatePath: null };
     });
+    capturedOrigins = result.origins;
+    storageStatePath = result.storageStatePath;
 
     handle.proc.kill('SIGTERM');
-    // Give the launcher up to 8s to save storage_state and exit gracefully.
+    // Give the launcher up to 8s to exit gracefully.
     await new Promise<void>((resolve) => {
       const t = setTimeout(() => {
         try { handle.proc.kill('SIGKILL'); } catch {}
@@ -260,17 +266,13 @@ export async function closeSession(sessionId: string, userId: string): Promise<C
   });
 
   if (capturedOrigins.length > 0) {
-    const profileDir = handle?.profileDir;
     let s3Key: string | null = null;
-    if (profileDir) {
-      const stateFile = path.join(profileDir, 'storage_state.json');
-      if (existsSync(stateFile)) {
-        try {
-          s3Key = await uploadStorageState(stateFile, userId);
-          logger.info({ userId, s3Key }, 'storage_state.json pushed to S3 after session close');
-        } catch (err) {
-          logger.warn({ err, userId }, 'failed to upload storage_state to S3');
-        }
+    if (storageStatePath && existsSync(storageStatePath)) {
+      try {
+        s3Key = await uploadStorageState(storageStatePath, userId);
+        logger.info({ userId, s3Key }, 'storage_state.json pushed to S3 after session close');
+      } catch (err) {
+        logger.warn({ err, userId }, 'failed to upload storage_state to S3');
       }
     }
     await db.recordLoggedInOrigins(userId, capturedOrigins, {
@@ -285,45 +287,88 @@ export async function closeSession(sessionId: string, userId: string): Promise<C
   };
 }
 
-async function captureOriginsViaCdp(port: number): Promise<string[]> {
+interface CdpStorageResult {
+  origins: string[];
+  storageStatePath: string | null;
+}
+
+/**
+ * Connect to the browser via CDP while it's healthy, capture all cookies,
+ * write them as a Playwright-compatible storage_state.json, and return the
+ * list of origins that have cookies.
+ */
+async function captureStorageStateViaCdp(port: number, profileDir: string): Promise<CdpStorageResult> {
+  const stateFile = path.join(profileDir, 'storage_state.json');
+
   const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
     signal: AbortSignal.timeout(2_000),
   });
-  if (!res.ok) return [];
+  if (!res.ok) return { origins: [], storageStatePath: null };
   const { webSocketDebuggerUrl } = await res.json() as { webSocketDebuggerUrl: string };
-  if (!webSocketDebuggerUrl) return [];
+  if (!webSocketDebuggerUrl) return { origins: [], storageStatePath: null };
 
-  return new Promise<string[]>((resolve) => {
+  return new Promise<CdpStorageResult>((resolve) => {
     const ws = new WebSocket(webSocketDebuggerUrl);
     const origins = new Set<string>();
     const timeout = setTimeout(() => {
       try { ws.close(); } catch {}
-      resolve(Array.from(origins).sort());
+      resolve({ origins: Array.from(origins).sort(), storageStatePath: null });
     }, 5_000);
 
     ws.addEventListener('open', () => {
       ws.send(JSON.stringify({ id: 1, method: 'Storage.getCookies' }));
     });
+
     ws.addEventListener('message', (event) => {
       try {
         const msg = JSON.parse(event.data as string);
         if (msg.id === 1 && msg.result?.cookies) {
-          for (const c of msg.result.cookies) {
+          const cookies = msg.result.cookies as Array<{
+            name: string;
+            value: string;
+            domain: string;
+            path: string;
+            expires?: number;
+            httpOnly?: boolean;
+            secure?: boolean;
+            sameSite?: string;
+          }>;
+
+          // Build the Playwright-compatible storage_state.json
+          const cookiesOut = cookies.map((c) => ({
+            name: c.name,
+            value: c.value,
+            domain: c.domain,
+            path: c.path,
+            expires: c.expires ?? -1,
+            httpOnly: c.httpOnly ?? false,
+            secure: c.secure ?? false,
+            sameSite: (c.sameSite ?? 'None') as 'Strict' | 'Lax' | 'None',
+          }));
+
+          const state = { cookies: cookiesOut, origins: [] };
+          writeFileSync(stateFile, JSON.stringify(state, null, 2));
+          logger.info({ path: stateFile, count: cookies.length }, 'storage_state.json saved via CDP');
+
+          // Extract origins from cookie domains
+          for (const c of cookies) {
             if (!c.domain) continue;
             const host = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
             origins.add(`https://${host}`);
           }
+
           clearTimeout(timeout);
           try { ws.close(); } catch {}
-          resolve(Array.from(origins).sort());
+          resolve({ origins: Array.from(origins).sort(), storageStatePath: stateFile });
         }
       } catch {
         // ignore
       }
     });
+
     ws.addEventListener('error', () => {
       clearTimeout(timeout);
-      resolve([]);
+      resolve({ origins: [], storageStatePath: null });
     });
   });
 }
