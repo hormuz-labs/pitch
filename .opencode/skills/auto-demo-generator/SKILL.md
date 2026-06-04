@@ -122,25 +122,32 @@ From there, the AI should:
 6. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-record.ts` to dismiss it (e.g. locate and click the `✕` button) after `page.goto()`.
 
 7. **Environment Variable & CloakBrowser Setup (CRITICAL):** Before running any pipeline pass, you MUST ensure the following:
-   *   **`CLOAK_PROFILE_DIR` env var is set** — If the job parameters include a `cloakProfileDir`, export it as `CLOAK_PROFILE_DIR` before invoking `src/index.ts`. This is required for pass1 and pass3 to restore cookies for authenticated sessions.
-   *   **If `CLOAK_PROFILE_DIR` is NOT set** — You MUST find the CloakBrowser binary and set it up manually. Run `which cloakbrowser` or check common install locations (`~/.bun/bin/cloakbrowser`, `/usr/local/bin/cloakbrowser`). If missing, install it: `bun add -g cloakbrowser`. Then create a profile directory at `~/.cloak-profiles/<job-id>` and launch CloakBrowser to capture the session:
-       ```bash
-       mkdir -p ~/.cloak-profiles/<job-id>
-       cloakbrowser launch --profile-dir ~/.cloak-profiles/<job-id> --start-url <startUrl> --port 9242
-       # Perform login manually (the agent-browser tool can do this), then Ctrl-C
-       # The storage_state.json will be auto-saved
-       ```
-       Then export: `export CLOAK_PROFILE_DIR=~/.cloak-profiles/<job-id>`
-   *   **Cloudflare Turnstile / Anti-Bot Detection:** If the target site presents a Cloudflare Turnstile challenge, bot detection page, or any anti-automation wall, CloakBrowser's stealth fingerprinting is your best bet. Set `AGENT_BROWSER_ARGS` to include fingerprint flags:
-       ```bash
-       export AGENT_BROWSER_ARGS="--fingerprint --fingerprint-platform=macos"
-       ```
-       If Turnstile still blocks, launch CloakBrowser in headed mode and solve the challenge manually, then save the state:
-       ```bash
-       cloakbrowser launch --profile-dir ~/.cloak-profiles/<job-id> --start-url <startUrl> --port 9242 --headed
-       # Solve the Turnstile manually in the visible browser window, then Ctrl-C
-       ```
-       The saved `storage_state.json` from that authenticated session will bypass the challenge on subsequent automated runs.
+    *   **All browser launches now go through CloakBrowser.** Every `chromium.launch()` in the reference scripts (pass0-intro, pass0-outro, pass1-dry-run, pass3-record) routes through `src/cloak-launcher.ts`, which resolves the bundled Chromium binary, applies stealth fingerprinting args, and supports both headless and headed modes. This is how we bypass Cloudflare Turnstile and similar bot-detection walls by default — no extra config required.
+    *   **Install CloakBrowser once** (if not already present):
+        ```bash
+        bun add -g cloakbrowser
+        ```
+        Verify the binary is detected:
+        ```bash
+        cloakbrowser info
+        # Binary: /Users/<you>/.cloakbrowser/chromium-<version>/Chromium.app/Contents/MacOS/Chromium
+        ```
+        The launcher tries (in order): `CLOAK_BROWSER_PATH` env var → `cloakbrowser info` output → `~/.cloakbrowser/chromium-*/Chromium.app/Contents/MacOS/Chromium`. Override with `CLOAK_BROWSER_PATH=/path/to/Chromium` if needed.
+    *   **Stealth / fingerprint args** — read from `AGENT_BROWSER_ARGS` (comma-separated). The launcher always prepends `--fingerprint` and appends `--fingerprint-platform=macos` if not present. Add more via:
+        ```bash
+        export AGENT_BROWSER_ARGS="--no-sandbox,--fingerprint-platform=macos"
+        ```
+    *   **Headed vs. headless** — headless by default. Set `CLOAK_HEADED=1` to pop a visible window (useful for local debugging or for watching the Cloudflare interstitial clear in real time).
+    *   **`CLOAK_PROFILE_DIR` env var is set** — If the job parameters include a `cloakProfileDir`, export it as `CLOAK_PROFILE_DIR` before invoking `src/index.ts`. This is required for pass1 and pass3 to restore cookies for authenticated sessions.
+    *   **If `CLOAK_PROFILE_DIR` is NOT set** — the engine still works for anonymous/public flows. For authenticated sessions, you need to capture a profile first:
+        ```bash
+        mkdir -p ~/.cloak-profiles/<job-id>
+        CLOAK_HEADED=1 bun run src/index.ts demos/<demo-name>/demo-config.json
+        # Solve login / Turnstile manually in the visible CloakBrowser window, then Ctrl-C
+        # Re-run with CLOAK_PROFILE_DIR exported to skip the manual step next time
+        ```
+        Then export: `export CLOAK_PROFILE_DIR=~/.cloak-profiles/<job-id>`
+    *   **Cloudflare Turnstile / Anti-Bot Detection:** The bundled CloakBrowser Chromium already includes fingerprint randomization that bypasses most Turnstile and bot-detection challenges. If a specific site still blocks you, set `CLOAK_HEADED=1` and solve the challenge manually in the visible window — the resulting `storage_state.json` is reused on subsequent runs.
 
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 

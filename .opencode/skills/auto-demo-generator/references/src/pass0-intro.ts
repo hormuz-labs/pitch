@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { DemoConfig } from './types';
+import { cloakLaunchOptions } from './cloak-launcher';
 
 const MIME_MAP: Record<string, string> = {
   '.png':  'image/png',
@@ -91,43 +92,17 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
     textColor = isDark ? '#F5F5F5' : '#111111';
     dividerColor = isDark ? '#2A2A2A' : '#E0E0E0';
   } else {
-    const analysisBrowser = await chromium.launch({ headless: true });
-    const analysisCtx = await analysisBrowser.newContext();
-    const analysisPage = await analysisCtx.newPage();
-
-    const avgBrightness = await analysisPage.evaluate(async (dataUrl) => {
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise(r => img.onload = r);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
-      const data = ctx.getImageData(0, 0, img.width, img.height).data;
-      let total = 0, count = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] > 10) {
-          total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          count++;
-        }
-      }
-      return count > 0 ? total / count : 128;
-    }, logo.dataUrl);
-
-    await analysisBrowser.close();
-    console.log(`Logo brightness: ${avgBrightness.toFixed(1)}`);
-
-    if (avgBrightness > 140) {
-      bg = '#0A0A0A';
-      textColor = '#F5F5F5';
-      dividerColor = '#2A2A2A';
-    }
-    console.log(`Logo background theme selected: ${bg}`);
+    // Default to a light background. CloakBrowser's fingerprinted Chromium
+    // destroys the JS execution context when an async canvas+Image evaluate
+    // runs on a fresh page, so we skip the previous in-browser brightness
+    // analysis. To force a dark background, set "introBg": "black" in
+    // demo-config.json.
+    console.log('Logo background theme: light (default). Set "introBg": "black" in demo-config.json to force dark.');
   }
 
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
-  const introBrowser = await chromium.launch({ headless: true });
+  const introBrowser = await chromium.launch(cloakLaunchOptions());
   const introContext = await introBrowser.newContext({
     recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
     viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT }
@@ -205,10 +180,12 @@ export async function pass0(config: DemoConfig, startUrl: string, demoDir: strin
 </body>
 </html>`;
 
-  await introPage.setContent('<html><body style="background:white;"></body></html>');
+  // Use data: URLs instead of setContent — setContent hangs on a fresh
+  // CloakBrowser page (its fingerprinted Chromium never resolves "load").
+  await introPage.goto('data:text/html;charset=utf-8,' + encodeURIComponent('<body style="background:white;"></body>'), { waitUntil: 'load' });
   await introPage.waitForTimeout(100);
 
-  await introPage.setContent(html);
+  await introPage.goto('data:text/html;charset=utf-8,' + encodeURIComponent(html), { waitUntil: 'load' });
   await introPage.waitForFunction(() => (window as any).__fontsLoaded === true, { timeout: 5000 });
 
   await introPage.waitForTimeout(1500);

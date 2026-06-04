@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
 import { getChromiumGpuFlags } from './utils';
+import { cloakLaunchOptions } from './cloak-launcher';
 
 function preflight(demoDir: string, config: DemoConfig): void {
   const timelinePath = path.join(demoDir, 'timeline.json');
@@ -45,7 +46,7 @@ export async function pass3Record(
   const CENTER_X = VIDEO_WIDTH / 2;
   const CENTER_Y = VIDEO_HEIGHT / 2;
 
-  const browser = await chromium.launch({ headless: true, args: getChromiumGpuFlags() });
+  const browser = await chromium.launch(cloakLaunchOptions(getChromiumGpuFlags()));
 
   const cursorStyle = config.cursorStyle || 'black';
   const cursorSrc = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
@@ -82,7 +83,10 @@ export async function pass3Record(
 
   const page = await context.newPage();
 
-  await page.setContent('<html><body style="background:white;"></body></html>');
+  // Prime the recorder with a blank white frame so Playwright's video encoder
+  // starts its internal clock immediately. Using a data: URL (instead of
+  // setContent) is more reliable with CloakBrowser's fingerprinted Chromium.
+  await page.goto('data:text/html,<body style="background:white;"></body>', { waitUntil: 'load', timeout: 30000 });
   await page.waitForTimeout(100);
 
   const videoStartTime = Date.now();
