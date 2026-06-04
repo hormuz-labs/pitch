@@ -33,8 +33,7 @@ export function createWavHeader(dataLength: number, options: WavConversionOption
 }
 
 /**
- * Smoothstep easing — cubic hermite interpolation (3t²−2t³).
- * Produces natural acceleration → deceleration. Zero velocity at both endpoints.
+ * Linear interpolation — straight-line from prev to target.
  * @param evalVar  FFmpeg time variable: 't' (overlay/drawbox) or 'time' (zoompan)
  * @param prev        Starting value
  * @param target      Ending value
@@ -49,14 +48,11 @@ export function smoothstepExpr(
   moveDuration: number
 ): string {
   const p = `min(1,max(0,(${evalVar}-${moveStart})/${moveDuration}))`;
-  const s = `(3*${p}*${p}-2*${p}*${p}*${p})`;
-  return `${prev}+(${target - prev})*${s}`;
+  return `${prev}+(${target - prev})*${p}`;
 }
 
 /**
- * Spring overshoot — smoothstep to (target + overshoot) in the first 60% of
- * the window, then smoothstep back to (target) in the remaining 40%.
- * Only applied on zoom-in transitions for an elastic, premium feel.
+ * Linear zoom — delegates to smoothstepExpr (now linear) for zoom-in transitions.
  */
 export function springOvershootExpr(
   evalVar: 'time',
@@ -66,12 +62,7 @@ export function springOvershootExpr(
   moveStart: number,
   moveDuration: number
 ): string {
-  const midPoint = +(moveStart + moveDuration * 0.6).toFixed(4);
-  const riseDur  = +(moveDuration * 0.6).toFixed(4);
-  const fallDur  = +(moveDuration * 0.4).toFixed(4);
-  const riseExpr = smoothstepExpr(evalVar, prev, target + overshoot, moveStart, riseDur);
-  const fallExpr = smoothstepExpr(evalVar, target + overshoot, target, midPoint, fallDur);
-  return `if(lt(${evalVar},${midPoint}),${riseExpr},${fallExpr})`;
+  return smoothstepExpr(evalVar, prev, target, moveStart, moveDuration);
 }
 
 type GpuVendor = 'amd' | 'nvidia' | 'apple' | 'windows' | 'none';

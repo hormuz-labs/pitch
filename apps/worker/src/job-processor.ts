@@ -180,15 +180,8 @@ Please execute the following video generation task for Job ${jobId}.
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
 
-## Custom Headers & Cookies
-If the "headers" or "cookies" parameters are provided in the JSON above, you MUST use them for ALL browser navigations and requests during the demo generation process. 
-- For agent-browser: 
-  - Headers: Pass them using the \`--headers '<JSON_STRING>'\` flag.
-  - Cookies: Pass them using the \`cookies set --name <name> --value <value> --url <startUrl>\` command for each cookie.
-- For Playwright scripts: 
-  - Headers: Set them in the browser context using \`extraHTTPHeaders\`.
-  - Cookies: Set them using \`await context.addCookies([...])\`.
-- For dry-runs and recording: The engine will handle them if you include them in the demo-config.json as \`extraHTTPHeaders\` and \`extraCookies\`.
+## Authentication
+If the demo requires a logged-in session, use **CloakBrowser** to capture a session before the pipeline runs and point the engine at it via the \`CLOAK_PROFILE_DIR\` environment variable. See the \`Authenticated Sessions (Optional — CLOAK_PROFILE_DIR)\` section in the auto-demo-generator skill for the full capture-and-restore flow. If the parameter includes a \`cloakProfileDir\`, export it as \`CLOAK_PROFILE_DIR\` before invoking \`src/index.ts\` so pass1 and pass3 can restore the captured cookies.
 
 ## MANDATORY: Phase Progress Reporting
 You MUST report the status of each pipeline phase using the job-cli. Call this at the START and END of each phase.
