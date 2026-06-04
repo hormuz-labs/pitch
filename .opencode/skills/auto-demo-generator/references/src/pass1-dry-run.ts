@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { DemoConfig, DemoStep } from './types';
 
 function preflight(config: DemoConfig): void {
@@ -16,10 +17,12 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } });
 
-  // If a CloakBrowser session was captured, load its storage_state.json to restore
-  // cookies and localStorage so the automation runs as an authenticated user.
-  const profileDir = process.env.CLOAK_PROFILE_DIR;
-  if (profileDir) {
+  // If a CloakBrowser profile exists, load its storage_state.json to restore
+  // cookies so the automation runs as an authenticated user.
+  const PROFILE_ROOT = process.env.CLOAK_PROFILE_ROOT || path.join(os.homedir(), '.cloak-profiles');
+  const safe = config.userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const profileDir = path.join(PROFILE_ROOT, `user-${safe}`);
+  if (fs.existsSync(profileDir)) {
     const storageFile = path.join(profileDir, 'storage_state.json');
     if (fs.existsSync(storageFile)) {
       try {
@@ -32,7 +35,7 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
         console.warn(`[pass1] Failed to load storage state:`, e);
       }
     } else {
-      console.log(`[pass1] CLOAK_PROFILE_DIR set but no storage_state.json found at ${storageFile} — proceeding unauthenticated`);
+      console.log(`[pass1] No storage_state.json found at ${storageFile} — proceeding unauthenticated`);
     }
   }
 

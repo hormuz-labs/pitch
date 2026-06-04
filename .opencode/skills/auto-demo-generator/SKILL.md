@@ -26,6 +26,7 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   "userReq": "Show me how to use the search feature on example.com",
   "outputPath": "example-demo.mp4", 
   "cursorStyle": "black",
+  "userId": "<clerk-user-id>",
   "steps": [
     { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
     { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion" },
@@ -120,6 +121,27 @@ From there, the AI should:
 
 6. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-record.ts` to dismiss it (e.g. locate and click the `✕` button) after `page.goto()`.
 
+7. **Environment Variable & CloakBrowser Setup (CRITICAL):** Before running any pipeline pass, you MUST ensure the following:
+   *   **`CLOAK_PROFILE_DIR` env var is set** — If the job parameters include a `cloakProfileDir`, export it as `CLOAK_PROFILE_DIR` before invoking `src/index.ts`. This is required for pass1 and pass3 to restore cookies for authenticated sessions.
+   *   **If `CLOAK_PROFILE_DIR` is NOT set** — You MUST find the CloakBrowser binary and set it up manually. Run `which cloakbrowser` or check common install locations (`~/.bun/bin/cloakbrowser`, `/usr/local/bin/cloakbrowser`). If missing, install it: `bun add -g cloakbrowser`. Then create a profile directory at `~/.cloak-profiles/<job-id>` and launch CloakBrowser to capture the session:
+       ```bash
+       mkdir -p ~/.cloak-profiles/<job-id>
+       cloakbrowser launch --profile-dir ~/.cloak-profiles/<job-id> --start-url <startUrl> --port 9242
+       # Perform login manually (the agent-browser tool can do this), then Ctrl-C
+       # The storage_state.json will be auto-saved
+       ```
+       Then export: `export CLOAK_PROFILE_DIR=~/.cloak-profiles/<job-id>`
+   *   **Cloudflare Turnstile / Anti-Bot Detection:** If the target site presents a Cloudflare Turnstile challenge, bot detection page, or any anti-automation wall, CloakBrowser's stealth fingerprinting is your best bet. Set `AGENT_BROWSER_ARGS` to include fingerprint flags:
+       ```bash
+       export AGENT_BROWSER_ARGS="--fingerprint --fingerprint-platform=macos"
+       ```
+       If Turnstile still blocks, launch CloakBrowser in headed mode and solve the challenge manually, then save the state:
+       ```bash
+       cloakbrowser launch --profile-dir ~/.cloak-profiles/<job-id> --start-url <startUrl> --port 9242 --headed
+       # Solve the Turnstile manually in the visible browser window, then Ctrl-C
+       ```
+       The saved `storage_state.json` from that authenticated session will bypass the challenge on subsequent automated runs.
+
 ### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
 
 **[🛑 STOP AND READ - ABSOLUTELY CRITICAL]**
@@ -145,30 +167,6 @@ Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` 
 Once the agent has successfully verified and collected all the necessary stable working selectors, it will dynamically generate the `demo-config.json` file inside the new demo folder.
 
 **Note on Scrolling:** During the video recording phase, the engine automatically checks if the element is in the viewport. It will ONLY scroll the component into the viewport if it is not already visible. If it is in the viewport, it won't scroll. This ensures a clean cinematic experience.
-
-### Authenticated Sessions (Optional — `CLOAK_PROFILE_DIR`)
-
-For demos that require a logged-in state, use **CloakBrowser** once to capture a `storage_state.json` file, then point all subsequent runs at it via the `CLOAK_PROFILE_DIR` env var. The pipeline (`pass1-dry-run.ts` and `pass3-record.ts`) runs as plain Playwright (`chromium.launch`) and simply restores the saved cookies from that file before navigating to the target URL.
-
-**Step 1 — Capture a session with CloakBrowser:**
-```bash
-mkdir -p ~/.cloak-profiles/my-site
-bun apps/api/scripts/cloak-launch.mjs \
-  --profile-dir ~/.cloak-profiles/my-site \
-  --port 9242 \
-  --start-url https://example.com \
-  --headless
-# Log in manually inside the browser, then Ctrl-C to save storage_state.json
-```
-
-**Step 2 — Run the pipeline with the saved session:**
-```bash
-CLOAK_PROFILE_DIR=~/.cloak-profiles/my-site JOB_ID=$JOB_ID bun run src/index.ts demos/<name>/demo-config.json
-```
-
-Both pass1 (dry run) and pass3 (recording) will automatically find `$CLOAK_PROFILE_DIR/storage_state.json`, restore its cookies into the Playwright context, and navigate to the site as the authenticated user. If `CLOAK_PROFILE_DIR` is not set, both passes run as a normal unauthenticated browser — no changes needed to `demo-config.json`.
-
-**Tip:** After restoring cookies, always verify the landing URL during selector collection (`agent-browser eval 'window.location.href'`) — you may already be redirected to the dashboard and won't need to click any login button.
 
 ### Phase 0.5 — Cinematic Intro Sequence (V4.6)
 Before running the validation or generation passes, `pass0-intro.ts` automatically generates a 3.5-second premium intro card.

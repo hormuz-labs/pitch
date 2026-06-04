@@ -13,6 +13,8 @@ export interface DemoConfig {
   height?: number;
   voice?: string;
   steps: DemoStep[];
+  /** Clerk user ID — used to resolve the CloakBrowser profile dir. */
+  userId: string;
 }
 
 export interface DemoStep {

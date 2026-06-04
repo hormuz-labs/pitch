@@ -6,6 +6,7 @@ import * as db from '@saas/db';
 import { getSessionIdFromEvent } from './opencode.js';
 import { startBrowserContext, type BrowserContextHandle } from './browser-context.js';
 import * as os from 'os';
+import { ensureBinary } from 'cloakbrowser';
 
 const logger = createLogger('worker:job');
 
@@ -86,6 +87,10 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
     try {
       // 1. Create a new session for this job
       browserCtx = await startBrowserContext(userId);
+
+      // Ensure agent-browser always uses CloakBrowser's stealth Chromium
+      process.env.AGENT_BROWSER_EXECUTABLE_PATH = await ensureBinary();
+
       const sessionResponse = await client.session.create({
         query: { directory: targetDir },
         body: { title: `Job ${jobId} for user ${userId}` },
@@ -144,30 +149,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       })();
 
       // 3. Send prompt
-      //
-      // Every job gets a unique per-user CloakBrowser profile dir.  The dir is
-      // pre-populated with the latest storage_state.json from S3 before this
-      // point, so all cookies from previous authenticated sessions are available.
-      // The auto-demo engine reads CLOAK_PROFILE_DIR and loads cookies from
-      // storage_state.json via browser.ts — no long-running CDP process needed.
-      const stealthContextBlock =
-        `\n## Stealth Browser Profile (CloakBrowser)\n` +
-        `A per-user CloakBrowser profile dir has been prepared for this job at:\n` +
-        `  ${browserCtx.profileDir}\n\n` +
-        `The latest cookies and session storage have already been pulled from S3 ` +
-        `into that directory (storage_state.json). Set this environment variable ` +
-        `before running the auto-demo pipeline so the engine loads the saved state:\n\n` +
-        `  export CLOAK_PROFILE_DIR=${browserCtx.profileDir}\n` +
-        `  bun run src/index.ts demos/<name>/demo-config.json\n\n` +
-        `The engine's browser.ts will:\n` +
-        `  1. Launch a fresh CloakBrowser via cloakbrowser.launch()\n` +
-        `  2. Read storage_state.json from the profile dir and inject the saved cookies\n` +
-        `  3. Navigate and record the demo with full authentication\n\n` +
-        `For agent-browser selector collection (Phase 0.2), simply set the env var in\n` +
-        `the same shell — no --cdp-url flag needed:\n` +
-        `  agent-browser open <URL>   # launches its own browser (no CDP required)\n`;
-
-      const promptText = stealthContextBlock + `
+      const promptText = `
 ## MANDATORY: Read These Skills First
 Before doing anything else, you MUST read the following skills:
 1. agent-browser skill
@@ -177,12 +159,10 @@ Before doing anything else, you MUST read the following skills:
 Do NOT proceed until all three skills have been read.
 
 Please execute the following video generation task for Job ${jobId}.
+User ID: ${userId}
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
-
-## Authentication
-If the demo requires a logged-in session, use **CloakBrowser** to capture a session before the pipeline runs and point the engine at it via the \`CLOAK_PROFILE_DIR\` environment variable. See the \`Authenticated Sessions (Optional — CLOAK_PROFILE_DIR)\` section in the auto-demo-generator skill for the full capture-and-restore flow. If the parameter includes a \`cloakProfileDir\`, export it as \`CLOAK_PROFILE_DIR\` before invoking \`src/index.ts\` so pass1 and pass3 can restore the captured cookies.
-
+ 
 ## MANDATORY: Phase Progress Reporting
 You MUST report the status of each pipeline phase using the job-cli. Call this at the START and END of each phase.
 IMPORTANT: These commands are FIRE-AND-FORGET — even if they fail, do NOT stop the pipeline. Always continue.
