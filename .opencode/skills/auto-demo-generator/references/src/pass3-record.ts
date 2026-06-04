@@ -1,8 +1,8 @@
+import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
 import { getChromiumGpuFlags } from './utils';
-import { openBrowser } from './browser';
 
 function preflight(demoDir: string, config: DemoConfig): void {
   const timelinePath = path.join(demoDir, 'timeline.json');
@@ -12,8 +12,8 @@ function preflight(demoDir: string, config: DemoConfig): void {
   if (!fs.existsSync(timestampsPath)) throw new Error(`[pass3-record] timestamps.json not found — run pass2-tts first. Expected: ${timestampsPath}`);
 
   const cursorStyle = config.cursorStyle || 'black';
-  const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
-  if (!fs.existsSync(cursorFile)) throw new Error(`[pass3-record] cursor-${cursorStyle}.png not found. Expected: ${cursorFile}`);
+  const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
+  if (!fs.existsSync(cursorFile)) throw new Error(`[pass3-record] cursor-${cursorStyle}.svg not found. Expected: ${cursorFile}`);
 }
 
 export async function pass3Record(
@@ -44,33 +44,48 @@ export async function pass3Record(
   const CENTER_X = VIDEO_WIDTH / 2;
   const CENTER_Y = VIDEO_HEIGHT / 2;
 
-  const session = await openBrowser({
-    headless: true,
-    launchArgs: getChromiumGpuFlags(),
-    contextOptions: {
-      recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
-      viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
-      extraHTTPHeaders: config.extraHTTPHeaders,
-    },
-  });
+  const browser = await chromium.launch({ headless: true, args: getChromiumGpuFlags() });
 
   const cursorStyle = config.cursorStyle || 'black';
-  const cursorSrc = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
+  const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
   const cursorPng = path.join(demoDir, 'cursor.png');
-  fs.copyFileSync(cursorSrc, cursorPng);
-  console.log(`✅ Cursor PNG ready: ${cursorPng}`);
+  const cursorContext = await browser.newContext();
+  const cursorPage = await cursorContext.newPage();
+  let svgContent = fs.readFileSync(cursorFile, 'utf8');
+  svgContent = svgContent.replace(/width="\d+"/i, 'width="48"').replace(/height="\d+"/i, 'height="48"');
+  await cursorPage.setContent(`<style>body{margin:0;background:transparent;}svg{width:48px;height:48px;display:block;}</style>${svgContent}`);
+  await cursorPage.locator('svg').screenshot({ path: cursorPng, omitBackground: true });
+  await cursorContext.close();
+  console.log(`✅ Cursor PNG rasterized: ${cursorPng}`);
 
-  const { context } = session;
-  if (config.extraCookies && config.extraCookies.length > 0) {
-    const cookies = config.extraCookies.map(c => ({
-      ...c,
-      url: c.url || (c.domain ? undefined : startUrl)
-    }));
-    await context.addCookies(cookies as any);
+  const context = await browser.newContext({
+    recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
+    viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
+  });
+
+  // If a CloakBrowser session was captured, load its storage_state.json to restore
+  // cookies and localStorage so the recording runs as an authenticated user.
+  const profileDir = process.env.CLOAK_PROFILE_DIR;
+  if (profileDir) {
+    const storageFile = path.join(profileDir, 'storage_state.json');
+    if (fs.existsSync(storageFile)) {
+      try {
+        const state = JSON.parse(fs.readFileSync(storageFile, 'utf8'));
+        if (state.cookies?.length) {
+          await context.addCookies(state.cookies);
+          console.log(`[pass3] Restored ${state.cookies.length} cookies from ${storageFile}`);
+        }
+      } catch (e) {
+        console.warn(`[pass3] Failed to load storage state:`, e);
+      }
+    } else {
+      console.log(`[pass3] CLOAK_PROFILE_DIR set but no storage_state.json found at ${storageFile} — proceeding unauthenticated`);
+    }
   }
+
   const page = await context.newPage();
 
-  await page.goto('data:text/html,' + encodeURIComponent('<html><body style="background:white;"></body></html>'));
+  await page.setContent('<html><body style="background:white;"></body></html>');
   await page.waitForTimeout(100);
 
   const videoStartTime = Date.now();
@@ -129,15 +144,7 @@ export async function pass3Record(
 
       const syncedActionTime = (Date.now() - startTime) / 1000 + 0.05;
 
-      // Dynamic zoom: frame the element to fill ~35% of the viewport (with surrounding context)
-      let elemZoom: number | undefined;
-      if (finalBox) {
-        const targetFillRatio = 0.35;
-        const zoomByWidth = (VIDEO_WIDTH * targetFillRatio) / finalBox.width;
-        const zoomByHeight = (VIDEO_HEIGHT * targetFillRatio) / finalBox.height;
-        elemZoom = Math.max(1.0, Math.min(2.5, Math.min(zoomByWidth, zoomByHeight)));
-      }
-      trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: elemZoom });
+      trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: step.zoom });
       prevCursorX = finalCx;
       prevCursorY = finalCy;
 
@@ -177,11 +184,7 @@ export async function pass3Record(
   }
 
   await context.close();
-  await session.close();
-  // Note: when attached to CDP, context.close() above flushes the recorded
-  // webm and session.close() detaches the CDP session without killing the
-  // remote browser — the worker's stealth context stays alive for the next
-  // job.
+  await browser.close();
 
   if (!videoPathCapture || !fs.existsSync(videoPathCapture)) throw new Error('[pass3-record] Raw video not found after recording!');
 

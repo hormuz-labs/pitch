@@ -6,7 +6,7 @@ description: >
   or any automated "show me how to use X" video. Triggers on: "make a demo video", "record
   a walkthrough", "create a tutorial video", "automate a product demo", "screencast of X",
   "show how to use X", or any request to produce an MP4 of web interactions.
-compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, ffmpeg-static, ffprobe-static, dotenv, cloakbrowser, playwright-core. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required). Optional: CLOAK_CDP_URL, CLOAK_PROFILE_DIR."
+compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, ffmpeg-static, ffprobe-static, dotenv, playwright. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required)."
 ---
 
 # Auto-Demo Generator
@@ -26,63 +26,26 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
   "userReq": "Show me how to use the search feature on example.com",
   "outputPath": "example-demo.mp4", 
   "cursorStyle": "black",
-  "extraHTTPHeaders": {
-    "Authorization": "Bearer YOUR_TOKEN_HERE"
-  },
-  "extraCookies": [
-    { "name": "__session", "value": "eyJhbGci..." }
-  ],
   "steps": [
-    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search" },
-    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion" },
+    { "id": "tSearchClick", "description": "Click the search bar", "action": "click", "selector": "button.search", "zoom": 1.5 },
+    { "id": "tSearchType", "description": "Type 'accordion'", "action": "type", "selector": "input.search", "value": "accordion", "zoom": 1.2 },
     { "id": "tOutro", "description": "Conclude the demo", "action": "wait", "zoom": 1.0 }
   ]
 }
 ```
-*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional — see the cinematography guide below.*
+*Note: `outputPath` MUST be a flat filename (e.g. `video.mp4`). The `zoom` property is optional (defaults to 1.2 for actions, 1.0 for wait).*
 
-### 🎥 Zoom & Camera Cinematography Guide (CRITICAL)
-
-The engine uses **two separate mechanisms** for camera movement — you must understand both to choreograph a great demo:
-
-#### 1. Dynamic Auto-Zoom (click/type steps)
-Zoom is **automatically calculated** from the element's actual bounding box at record time — do NOT set `zoom` on click/type steps. The formula:
-```
-zoom = min(videoWidth × 0.35 / elemWidth, videoHeight × 0.35 / elemHeight)
-```
-clamped to [1.0, 2.5]. This frames the element filling ~35% of the viewport with surrounding context.
-
-- A tiny 40×20 icon → ~2.5x (tight closeup)
-- A 150×30 menu item → ~2.5x (closeup)  
-- A 300×80 button → ~2.25x (medium)
-- A 900×600 panel → ~1.0x (wide)
-
-#### 2. Manual Zoom-Out (wait / navigate steps)
-**CRITICAL**: Set `"zoom": 1.0` on wait and navigate steps between interactions. This zooms the camera back out to full-page context, giving the viewer's eyes a structural resting point. Without this, the camera stays zoomed in from the previous action.
-
-**Cinematography rhythm — ALWAYS follow this pattern:**
-```
-action (auto-zoom in) → wait with zoom:1.0 (zoom out to context) → action (auto-zoom in) → ...
-```
-
-**Exception — form filling / sequential typing:**
-When the user fills a multi-field form (e.g., Name → Email → Password), do NOT insert zoom-out waits between them. Let the engine chain the type steps so the camera stays smoothly zoomed in across the form:
-```json
-{ "id": "tName", "description": "Type name", "action": "type", "selector": "#name", "value": "John" },
-{ "id": "tEmail", "description": "Type email", "action": "type", "selector": "#email", "value": "john@test.com" },
-{ "id": "tAfterForm", "description": "Form complete", "action": "wait", "zoom": 1.0 }
-```
-
-#### 3. Camera Pan Tracking
-The camera **always follows the cursor** — the viewport is automatically panned so the cursor position stays centered. You do NOT need to configure anything. This ensures the user's eye is always on the element being interacted with.
-
-#### Summary: when to set `zoom`
-| Step type | Set zoom? | Value |
-|-----------|-----------|-------|
-| click / type | ❌ Omit — auto-calculated | — |
-| wait (between actions) | ✅ Yes | `1.0` |
-| wait (outro / conclusion) | ✅ Yes | `1.0` |
-| wait (initial landing) | ✅ Yes | `1.0` |
+### 🎥 Zoom Scheduling & Cinematography Guide (CRITICAL)
+To produce the most engaging, professional, and visually premium videos, the AI Agent must **dynamically choreograph the zoom levels** across steps rather than using a single static value. Adhere to these exact tiers:
+1. **`1.0` (Wide Overview / Dashboard Context)**:
+   * **When to use**: During page load, initial landing, full dashboard overview transitions, return navigation steps (like "Back to Roles"), or concluding outro steps.
+   * **Why**: It zooms completely out, giving the viewer's eyes a resting break and structural context of where they are in the app.
+2. **`1.2` (Component Groups / Broad Panels)**:
+   * **When to use**: Clicking large cards, selecting sidebar links, navigating standard tabs, or interacting with medium-sized panels.
+   * **Why**: It centers the viewer's focus on the active area while maintaining surrounding layout readability.
+3. **`1.5` (Micro-Focus / Tiny Inputs & Controls)**:
+   * **When to use**: Typing into narrow text inputs/areas, selecting tiny dropdown menu items, clicking standalone action icons (like pencil/trash edit buttons), or clicking switch/checkbox toggles.
+   * **Why**: It tightly locks onto the minute action, making tiny elements and typed characters crystal clear on standard screen displays.
 
 **Execution:**
 ```bash
@@ -152,22 +115,11 @@ Once the agent has successfully verified and collected all the necessary stable 
 
 **Note on Scrolling:** During the video recording phase, the engine automatically checks if the element is in the viewport. It will ONLY scroll the component into the viewport if it is not already visible. If it is in the viewport, it won't scroll. This ensures a clean cinematic experience.
 
-### Stealth Browser Support (CloakBrowser)
+### Authenticated Sessions (Optional — `CLOAK_PROFILE_DIR`)
 
-Every pass in this engine opens its browser through the `browser.ts` helper. The helper uses `cloakbrowser.launch()` (NOT `launchPersistentContext`) for all paths, because **`cloakbrowser.launchPersistentContext` does NOT support `recordVideo`** — no video files are produced when using it.
+For demos that require a logged-in state, use **CloakBrowser** once to capture a `storage_state.json` file, then point all subsequent runs at it via the `CLOAK_PROFILE_DIR` env var. The pipeline (`pass1-dry-run.ts` and `pass3-record.ts`) runs as plain Playwright (`chromium.launch`) and simply restores the saved cookies from that file before navigating to the target URL.
 
-| Env var set | Behavior |
-| --- | --- |
-| `CLOAK_PROFILE_DIR=/path/to/user-data` | **Launch** a fresh CloakBrowser via `cloakbrowser.launch()`, then load `storage_state.json` from the profile dir into the context (cookies/localStorage restored). Each pass still re-launches but cookies/storage persist between runs. |
-| Neither set | **Launch** an ephemeral CloakBrowser via `cloakbrowser.launch()` (the default). Used for standalone / dev runs. |
-
-**🚫 Removed: `CLOAK_CDP_URL` attach path** — `playwright-core`'s `connectOverCDP` has WebSocket version-skew issues with CloakBrowser Chrome 145+. The `launch()` path is the only reliable approach. For production worker integration, use `CLOAK_PROFILE_DIR` instead.
-
-**⚠️ `page.setContent()` does NOT work with CloakBrowser's `launch()`** — it silently times out. All reference files use `page.goto('data:text/html,' + encodeURIComponent(html))` instead. If you write any custom pass or modify existing ones, always use `goto` with data URLs to set page content.
-
-**⚠️ Sequential `close()` + `launch()` works fine with CloakBrowser** — each `browser.close()` fully terminates the process, and a subsequent `launch()` creates a clean fresh instance. You do NOT need to worry about profile locks when using `launch()`.
-
-**Profile storage state persistence:** The `CLOAK_PROFILE_DIR` path looks for `<profileDir>/storage_state.json` (saved by the `cloak-launch.mjs` script on SIGTERM). If the file doesn't exist yet, it starts fresh — no crash. Run the launcher once with `--headless` to generate it:
+**Step 1 — Capture a session with CloakBrowser:**
 ```bash
 mkdir -p ~/.cloak-profiles/my-site
 bun apps/api/scripts/cloak-launch.mjs \
@@ -175,33 +127,17 @@ bun apps/api/scripts/cloak-launch.mjs \
   --port 9242 \
   --start-url https://example.com \
   --headless
-# Ctrl-C or kill -TERM to save storage_state.json
+# Log in manually inside the browser, then Ctrl-C to save storage_state.json
 ```
-Then set `CLOAK_PROFILE_DIR=~/.cloak-profiles/my-site` when running the pipeline.
 
-**For agent-browser in Phase 0.2:** when the worker is running, ALWAYS attach agent-browser to the same stealth Chromium so the selector-collection session and the recording session use the *same* browser, *same* cookies, and *same* fingerprint:
-
+**Step 2 — Run the pipeline with the saved session:**
 ```bash
-# If CLOAK_CDP_URL is set in the env (worker injects it), use it:
-agent-browser --cdp-url "$CLOAK_CDP_URL" open <startUrl>
-agent-browser --cdp-url "$CLOAK_CDP_URL" snapshot
-agent-browser --cdp-url "$CLOAK_CDP_URL" get attr @ref1 placeholder
-
-# If CLOAK_CDP_URL is not set (standalone dev), launch your own:
-agent-browser open <startUrl>
+CLOAK_PROFILE_DIR=~/.cloak-profiles/my-site JOB_ID=$JOB_ID bun run src/index.ts demos/<name>/demo-config.json
 ```
 
-The same rule applies to the `extraCookies` and `extraHTTPHeaders` block in `demo-config.json`: when a stealth context is in use, those overrides are unnecessary for sites the user is already logged into — and may even conflict with the existing cookies.
+Both pass1 (dry run) and pass3 (recording) will automatically find `$CLOAK_PROFILE_DIR/storage_state.json`, restore its cookies into the Playwright context, and navigate to the site as the authenticated user. If `CLOAK_PROFILE_DIR` is not set, both passes run as a normal unauthenticated browser — no changes needed to `demo-config.json`.
 
-**Reference files updated to use the helper:**
-
-- `src/browser.ts` — new shared helper (this is the only file that touches CDP / persistent context).
-- `src/pass0-intro.ts` — uses `openBrowser()` (analysis + intro render).
-- `src/pass0-outro.ts` — uses `openBrowser()` (outro render).
-- `src/pass1-dry-run.ts` — uses `openBrowser()` (flow validation).
-- `src/pass3-record.ts` — uses `openBrowser()` (raw recording with `recordVideo`).
-
-When `CLOAK_CDP_URL` is set, `context.close()` followed by `session.close()` flushes the recorded `.webm` and detaches from the remote Chromium without killing it — the worker's stealth context stays alive for the next job.
+**Tip:** After restoring cookies, always verify the landing URL during selector collection (`agent-browser eval 'window.location.href'`) — you may already be redirected to the dashboard and won't need to click any login button.
 
 ### Phase 0.5 — Cinematic Intro Sequence (V4.6)
 Before running the validation or generation passes, `pass0-intro.ts` automatically generates a 3.5-second premium intro card.
@@ -233,9 +169,8 @@ Run the final Playwright instance with `recordVideo` enabled (1920x1080).
 
 ### Phase 4 — FFmpeg Post-Processing (Cinematic Overlay, Zoom & AV Sync) — V4.5
 Multiplex the resulting `.webm` video from Playwright with the voiceover, typing, and click SFX.
-*   **Linear Camera Movement:** All zoom, pan, and cursor movement transitions are pure linear interpolation (constant velocity, no easing). Helper: `smoothstepExpr()` in `utils.ts`.
-*   **Dynamic Auto-Zoom:** Zoom is computed per-step from the element's bounding box at record time — small elements get tighter zooms, large panels stay wide. No manual zoom levels needed for actions.
-*   **Camera Pan Tracking:** The camera viewport automatically pans to keep the cursor centered on screen at all times.
+*   **Smoothstep Easing (3t²−2t³):** All cursor movement and camera pan transitions use cubic hermite interpolation (zero velocity at start & end) for a natural, human-feeling mouse glide. Helper: `smoothstepExpr()` in `utils.ts`.
+*   **Spring Zoom Overshoot:** On zoom-in, the camera overshoots to `1.22x` at 60% of the transition window then settles back to `1.20x`, giving an elastic spring feel. Implemented via `springOvershootExpr()` in `utils.ts`.
 *   **Scroll-Tracking Camera Pan:** When `scrollIntoView` shifts the page by >20px, a synthetic `scroll` event is pushed to `tracking.json`. Phase 4 reads these to emit a smooth `panY` drift so the camera follows the page scroll naturally.
 *   **Click Shrink Animation:** Each `click` event generates a natural cursor shrink-and-expand effect (scales down to 70% over 0.05s, expands back over 0.15s). This is evaluated dynamically using the `scale` filter applied directly to the cursor overlay element.
 *   **Cursor Park & Fade:** During idle gaps >4s, the cursor gracefully fades out in place over 0.4s via dynamic alpha channel masking (`geq` filter), and fades back in 1s before the next interaction begins. All done as post-processing on top of the cursor overlay expressions.
@@ -283,14 +218,6 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 ```
 ✅ "[role='option']:first-of-type"    ← clicks the first autocomplete suggestion
 ```
-
-**⚠️ Verify selectors survive click interactions** — Some sites (notably Wikipedia's search widget) dynamically re-render their inputs when clicked, removing the original `#searchInput` element from the DOM and replacing it with a new one that has no `id`. If your flow is click → type on the same input, the selector used for `click` may no longer exist for `type`.
-```
-❌ click #searchInput → type #searchInput    ← element gone after click
-❌ click #searchInput → type [name='search']  ← locator goes stale after re-render
-✅ type [name='search'] → click #searchform button  ← skip the separate click step entirely
-```
-**Worse: the locator goes stale even when the selector itself still matches.** After the click triggers a re-render, Playwright's `locator.first()` still references the OLD (removed) element. Any subsequent `boundingBox()` or `waitFor()` on that locator will time out because the old element is detached. The fix is to **not click the input separately** — just use `type` directly on `[name='search']` and proceed to the submit button. Always verify with agent-browser that the element's selector remains valid after click. Prefer `[name='...']` attribute selectors over `#id` for dynamically re-rendered widgets.
 
 **⏱️ Fail Fast: Use Aggressive Timeouts for Exploration & Scraping**
 By default, Playwright waits **30 seconds** (`30000ms`) for elements before throwing an error. When writing custom scripts or performing live explorations (e.g., `explore.ts`), waiting 30 seconds for a missing element severely slows down the agent's feedback loop and costs valuable reasoning time.

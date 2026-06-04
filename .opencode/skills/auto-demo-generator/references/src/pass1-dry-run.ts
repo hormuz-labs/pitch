@@ -1,5 +1,7 @@
+import { chromium } from 'playwright';
+import fs from 'fs';
+import path from 'path';
 import { DemoConfig, DemoStep } from './types';
-import { openBrowser } from './browser';
 
 function preflight(config: DemoConfig): void {
   if (!config.startUrl) throw new Error('[pass1-dry-run] config.startUrl is required.');
@@ -11,20 +13,29 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
   console.log("== Pass 1: Flow Validation (Dry Run) ==");
   const VIDEO_WIDTH = config.width || 1920;
   const VIDEO_HEIGHT = config.height || 1080;
-  const session = await openBrowser({
-    contextOptions: {
-      viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
-      extraHTTPHeaders: config.extraHTTPHeaders,
-    },
-  });
-  const { context } = session;
-  if (config.extraCookies && config.extraCookies.length > 0) {
-    const cookies = config.extraCookies.map(c => ({
-      ...c,
-      url: c.url || (c.domain ? undefined : startUrl)
-    }));
-    await context.addCookies(cookies as any);
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } });
+
+  // If a CloakBrowser session was captured, load its storage_state.json to restore
+  // cookies and localStorage so the automation runs as an authenticated user.
+  const profileDir = process.env.CLOAK_PROFILE_DIR;
+  if (profileDir) {
+    const storageFile = path.join(profileDir, 'storage_state.json');
+    if (fs.existsSync(storageFile)) {
+      try {
+        const state = JSON.parse(fs.readFileSync(storageFile, 'utf8'));
+        if (state.cookies?.length) {
+          await context.addCookies(state.cookies);
+          console.log(`[pass1] Restored ${state.cookies.length} cookies from ${storageFile}`);
+        }
+      } catch (e) {
+        console.warn(`[pass1] Failed to load storage state:`, e);
+      }
+    } else {
+      console.log(`[pass1] CLOAK_PROFILE_DIR set but no storage_state.json found at ${storageFile} — proceeding unauthenticated`);
+    }
   }
+
   const page = await context.newPage();
   await page.goto(startUrl, { waitUntil: 'load' });
   await page.waitForTimeout(5000);
@@ -66,6 +77,6 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
     }
   }
 
-  await session.close();
+  await browser.close();
   console.log("✅ Flow validated successfully.");
 }
