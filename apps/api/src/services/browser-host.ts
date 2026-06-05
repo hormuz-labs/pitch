@@ -1,7 +1,7 @@
 import { createLogger } from '@saas/shared';
 import * as db from '@saas/db';
 import { uploadStorageState } from '@saas/storage';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { WebSocket } from 'ws';
 
@@ -269,6 +269,9 @@ async function captureStorageStateViaManagerCdp(profileId: string, profileDir: s
           }));
 
           const state = { cookies: cookiesOut, origins: [] };
+          if (!existsSync(profileDir)) {
+            mkdirSync(profileDir, { recursive: true });
+          }
           writeFileSync(stateFile, JSON.stringify(state, null, 2));
           logger.info({ path: stateFile, count: cookies.length }, 'storage_state.json saved via Manager CDP');
 
