@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { formatIST } from './JobDetailsModal';
 
 interface FeedbackJob {
@@ -24,6 +25,30 @@ interface Analytics {
   affiliates: any[];
   feedbackSummary: FeedbackSummary;
   jobsWithFeedback: FeedbackJob[];
+}
+
+function FeedbackCell({ feedback }: { feedback: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLong = feedback.length > 80;
+
+  return (
+    <div className="text-xs text-gray-700">
+      <p
+        className="italic"
+        style={isExpanded ? {} : { overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as any}
+      >
+        "{feedback}"
+      </p>
+      {isLong && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="mt-1 text-[10px] font-bold text-gray-500 hover:text-gray-900 uppercase tracking-wider cursor-pointer border-none bg-transparent p-0 block transition-colors"
+        >
+          {isExpanded ? 'Read Less' : 'Read More'}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function FeedbackPanel({ analytics }: { analytics: Analytics | null }) {
@@ -146,14 +171,9 @@ export function FeedbackPanel({ analytics }: { analytics: Analytics | null }) {
                     <span className="text-xs text-gray-400">—</span>
                   )}
                 </td>
-                <td className="px-4 py-3" style={{ maxWidth: 200 }}>
+                <td className="px-4 py-3" style={{ maxWidth: 260 }}>
                   {job.feedback ? (
-                    <p
-                      className="text-xs text-gray-700 italic"
-                      style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as any}
-                    >
-                      "{job.feedback}"
-                    </p>
+                    <FeedbackCell feedback={job.feedback} />
                   ) : (
                     <span className="text-xs text-gray-300">—</span>
                   )}

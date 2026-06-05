@@ -109,17 +109,18 @@ export const CreditPopover = () => {
         <button
           aria-label={triggerLabel}
           className={[
-            'flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-1',
+            'flex items-center justify-center gap-1 md:gap-1.5 px-2 md:px-3 h-9',
             'border border-gray-200 text-gray-700 bg-white rounded-lg',
             'transition-colors duration-150',
-            'hover:bg-gray-50 cursor-pointer font-semibold text-base md:text-lg',
+            'hover:bg-gray-50 cursor-pointer font-semibold text-base md:text-sm',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1',
             'motion-safe:active:scale-95',
+            'min-w-[56px] shrink-0',
           ].join(' ')}
           id="header-credits-btn"
         >
           {credits === null ? (
-            <LoadingCoin className="w-[18px] h-[18px] md:w-[22px] md:h-[22px]" aria-hidden="true" />
+            <LoadingCoin className="w-[22px] h-[22px] shrink-0" aria-hidden="true" />
           ) : (
             <img
               src={pCoinIcon}
@@ -127,7 +128,7 @@ export const CreditPopover = () => {
               aria-hidden="true"
               width="22"
               height="22"
-              className={`w-[18px] h-[18px] md:w-[22px] md:h-[22px]${spinning ? ' pcoin-spin' : ''}`}
+              className={`w-[22px] h-[22px] shrink-0${spinning ? ' pcoin-spin' : ''}`}
             />
           )}
           {credits !== null && (

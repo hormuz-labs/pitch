@@ -188,7 +188,37 @@ interface SidebarProps {
   onClose: () => void;
   isAdmin?: boolean;
 }
+const PLAN_LABELS: Record<string, string> = {
+  starter: 'Starter',
+  pro: 'Pro',
+  enterprise: 'Enterprise',
+};
+
 const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin }: SidebarProps) => {
+  const { getToken } = useAuth();
+  const [plan, setPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPlan = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        if (!token) return;
+        const res = await fetch(`${API_URL}/credits`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPlan(data.activeSubscription?.planKey ?? null);
+        }
+      } catch {
+        // silently fail
+      }
+    };
+    fetchPlan();
+    window.addEventListener('credits-changed', fetchPlan);
+    return () => window.removeEventListener('credits-changed', fetchPlan);
+  }, [getToken]);
+
   const go = (path: string) => {
     navigate(path);
     if (isMobile) onClose();
@@ -215,12 +245,12 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
       >
         {/* Brand */}
         <div className="px-3 h-16 border-b border-gray-200 shrink-0 flex items-center">
-          <Link to="/" className="flex flex-1 items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#e6e6e6] transition-colors cursor-pointer no-underline group">
-            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+          <Link to="/" className="flex flex-1 items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-[#e6e6e6] transition-colors cursor-pointer no-underline group mt-1">
+            <div className="w-[30px] h-[30px] flex items-center justify-center shrink-0">
                <img src={tabLogoB} alt="Pitch" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
             </div>
             <div className="flex-1 min-w-0 flex items-center">
-              <div className="w-[96px] flex items-center pb-1">
+              <div className="w-[120px] flex items-center pb-1">
                 <PitchLogoAnimation startAnimation={true} />
               </div>
             </div>
@@ -286,7 +316,7 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
               id="upgrade-pro-btn"
             >
               <span className="text-sm font-medium text-white whitespace-nowrap" style={{ color: '#ffffff' }}>
-                Upgrade Pro
+                {plan ? (plan === 'starter' ? 'Starter Plan' : (PLAN_LABELS[plan] ?? plan)) : 'Upgrade Pro'}
               </span>
               <BiSolidZap className="w-4 h-4 text-gray-300" />
             </button>
@@ -777,7 +807,7 @@ function AppContent() {
                 <Route path="/sessions" element={<SessionsView />} />
                 <Route path="/affiliate" element={<AffiliateView />} />
                 <Route path="/admin" element={<AdminView />} />
-                <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
+                <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} onDelete={handleDelete} />} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPostView />} />
