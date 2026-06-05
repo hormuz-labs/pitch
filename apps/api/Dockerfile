@@ -16,7 +16,7 @@ COPY packages/email/package.json packages/email/
 COPY packages/shared/package.json packages/shared/
 COPY packages/storage/package.json packages/storage/
 
-RUN bun install --ignore-scripts
+RUN bun install --ignore-scripts --verbose
 
 # Now copy the rest of the source code
 COPY . .

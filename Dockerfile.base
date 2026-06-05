@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh \
     && /root/.local/bin/rtk init -g --opencode
 
-# Install agent-browser globally. Skip its post-install browser download on ARM64 since we install chromium via apt.
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-RUN bun install -g agent-browser && (agent-browser install || true)
+# Install agent-browser globally. Playwright only provides binaries for amd64 Linux.
+# On arm64 (Apple Silicon local builds), skip the download since we use the apt-installed chromium.
+RUN if [ "$(uname -m)" = "aarch64" ]; then export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1; fi \
+    && bun install -g agent-browser && (agent-browser install || true)
 
