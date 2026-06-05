@@ -42,6 +42,72 @@ model UserProfile {
   creditTransactions CreditTransaction[]
   jobs               Job[]
   affiliate          Affiliate?
+  browserProfile     BrowserProfile?
+  browserSessions    BrowserSession[]
+}
+
+// ── BrowserProfile ────────────────────────────────────────────────────────────
+//
+// One stealth-browser profile per user. The profile dir is a real Chromium
+// user-data-dir managed by CloakBrowser — cookies, localStorage, IndexedDB and
+// site permissions persist across sessions and across jobs.
+//
+// `profileDir` is the absolute path on the host that runs the browser-host
+// service (Phase 1: dev machine; Phase 2: shared volume; Phase 3: rehydrated
+// from `storageStateKey` in S3 on each worker).
+//
+// `loggedInOrigins` is a JSON string array of origins where the user has
+// completed a login flow — used to render badges on the /sessions UI.
+model BrowserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  profileDir      String                     // absolute path on the browser-host
+  storageStateKey String?                    // S3 key for the serialised storage_state.json (phase 3)
+  loggedInOrigins String   @default("[]")    // JSON: string[]
+  lastSyncedAt    DateTime?
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userProfile UserProfile      @relation(fields: [userId], references: [id])
+  sessions    BrowserSession[]
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
+}
+
+// ── BrowserSession ────────────────────────────────────────────────────────────
+//
+// A transient handle on a running CloakBrowser process. One row per
+// "Authenticate" click. Lifecycle:
+//   STARTING → READY → CLOSED   (happy path)
+//                  ↘ ERROR      (spawn or capture failure)
+//                  ↘ EXPIRED    (idle GC)
+//
+// `cdpPort` is the local CDP debugging port; agent-browser connects here.
+// `noVncUrl` is filled in Phase 2 when we start streaming the headed window.
+model BrowserSession {
+  id          String    @id @default(cuid())
+  userId      String
+  profileId   String
+  status      String    @default("STARTING") // STARTING | READY | CLOSED | ERROR | EXPIRED
+  startUrl    String?
+  cdpPort     Int?
+  noVncUrl    String?
+  pid         Int?
+  error       String?
+  startedAt   DateTime  @default(now())
+  readyAt     DateTime?
+  closedAt    DateTime?
+  expiresAt   DateTime
+
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  browserProfile BrowserProfile @relation(fields: [profileId], references: [id])
+
+  @@index([userId, status])
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
 }
 
 // ── Subscription (Dodo recurring product) ────────────────────────────────────

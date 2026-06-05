@@ -3,6 +3,7 @@ import path from 'path';
 import { chromium } from 'playwright';
 import { DemoConfig } from './types';
 import { buildOutroCardHtml } from './outro-card';
+import { cloakLaunchOptions } from './cloak-launcher';
 
 export async function generateOutro(
   config: DemoConfig,
@@ -54,7 +55,7 @@ export async function generateOutro(
     logoDataUrl,
   });
 
-  const outroBrowser = await chromium.launch({ headless: true });
+  const outroBrowser = await chromium.launch(cloakLaunchOptions());
   const outroContext = await outroBrowser.newContext({
     recordVideo: { dir: demoDir, size: { width: w, height: h } },
     viewport: { width: w, height: h },
@@ -62,10 +63,12 @@ export async function generateOutro(
   const outroPage = await outroContext.newPage();
 
   const finalBg = config.outroBg || '#0A0A0A';
-  await outroPage.setContent(`<html><body style="background:${finalBg};"></body></html>`);
+  // Use data: URLs instead of setContent — setContent hangs on a fresh
+  // CloakBrowser page (its fingerprinted Chromium never resolves "load").
+  await outroPage.goto('data:text/html;charset=utf-8,' + encodeURIComponent(`<body style="background:${finalBg};"></body>`), { waitUntil: 'load' });
   await outroPage.waitForTimeout(100);
 
-  await outroPage.setContent(html);
+  await outroPage.goto('data:text/html;charset=utf-8,' + encodeURIComponent(html), { waitUntil: 'load' });
   await outroPage.waitForTimeout(3000);
   await outroContext.close();
   await outroBrowser.close();

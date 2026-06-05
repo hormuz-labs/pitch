@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { startServer, restartServer, checkServerHealth, type OpencodeServer } from './opencode.js';
 import { createJobProcessor, startCancellationListener } from './job-processor.js';
+import { startBrowserContextGC, stopAllBrowserContexts } from './browser-context.js';
 import type { OpencodeClient } from '@opencode-ai/sdk';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +45,9 @@ async function initServer() {
 await initServer();
 
 const processJob = createJobProcessor(connection, targetDir);
+
+// Reap idle stealth browser contexts so they don't accumulate across jobs.
+startBrowserContextGC();
 
 // Start a dedicated Redis subscriber that listens for job cancellations
 // published by the API when a user deletes a running job. The listener will
@@ -117,6 +121,11 @@ async function shutdown(signal: string) {
   }
   try {
     await cancellationSubscriber.quit();
+  } catch {
+    // ignore
+  }
+  try {
+    stopAllBrowserContexts();
   } catch {
     // ignore
   }

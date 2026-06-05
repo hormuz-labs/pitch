@@ -12,9 +12,9 @@ export interface DemoConfig {
   width?: number;
   height?: number;
   voice?: string;
-  extraHTTPHeaders?: Record<string, string>;
-  extraCookies?: { name: string, value: string, domain?: string, path?: string, url?: string }[];
   steps: DemoStep[];
+  /** Clerk user ID — used to resolve the CloakBrowser profile dir. */
+  userId: string;
 }
 
 export interface DemoStep {

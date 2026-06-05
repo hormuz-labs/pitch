@@ -17,6 +17,7 @@ import { router as checkoutRoutes } from './routes/checkout.js';
 import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js';
 import adminRoutes from './routes/admin.js';
 import { router as newsletterRoutes } from './routes/newsletter.js';
+import { router as browserRoutes } from './routes/browser.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,6 +79,7 @@ app.use(redirectRouter);
 app.use('/affiliate', affiliateRoutes);
 app.use('/admin', adminRoutes);
 app.use('/newsletter', newsletterRoutes);
+app.use('/browser', browserRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -87,3 +89,16 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info({ port: PORT }, 'API server started');
 });
+
+const gracefulShutdown = async (signal: string) => {
+  logger.info({ signal }, 'shutting down API — closing browser sessions');
+  try {
+    const { shutdownAllSessions } = await import('./services/browser-host.js');
+    await shutdownAllSessions();
+  } catch (err) {
+    logger.warn({ err }, 'browser-host shutdown failed');
+  }
+  process.exit(0);
+};
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

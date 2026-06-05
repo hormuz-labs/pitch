@@ -1,50 +1,77 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project, LogEntry } from '../types';
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
 import { VideoProgressWidget } from '../components/VideoProgressWidget';
 import { FeedbackComponent } from '../components/FeedbackComponent';
+import { TimedUndoAction } from '../components/TimedUndoAction';
+import { ShareSheet } from '../components/ShareSheet';
+import { Button35 } from '../components/ui/button-35';
+import { Alert27 } from '../components/ui/alert-27';
 import { api } from '../lib/api';
 import { useAuth } from '@clerk/clerk-react';
+import { FaWhatsapp, FaXTwitter, FaInstagram } from 'react-icons/fa6';
+import { FiLink } from 'react-icons/fi';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
-const IconCheck = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-    <polyline points="22 4 12 14.01 9 11.01"/>
-  </svg>
-);
 const IconXCircle = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
   </svg>
 );
-const IconVideo = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const IconVideo = ({ className, size = 15 }: { className?: string; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
   </svg>
 );
-const IconAudio = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const IconAudio = ({ className, size = 15 }: { className?: string; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
     <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
   </svg>
 );
+const IconShare = ({ className, size = 15 }: { className?: string; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <polyline points="16 6 12 2 8 6" />
+    <line x1="12" y1="2" x2="12" y2="15" />
+  </svg>
+);
+const IconTrashSm = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" /><path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
+
+const shareOptions = [
+  { id: 'copy', name: 'Copy URL', icon: <FiLink size={14} /> },
+  { id: 'whatsapp', name: 'WhatsApp', icon: <FaWhatsapp size={14} className="text-[#25D366]" /> },
+  { id: 'twitter', name: 'Twitter / X', icon: <FaXTwitter size={14} /> },
+  { id: 'instagram', name: 'Instagram', icon: <FaInstagram size={14} className="text-[#E1306C]" /> },
+];
 
 // ── Editor View ────────────────────────────────────────────────────────────────
 interface EditorViewProps {
   projects: Project[];
   jobLogs: Record<string, LogEntry[]>;
   isMobile: boolean;
+  onDelete: (id: string) => Promise<void>;
 }
 
-export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => {
+export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorViewProps) => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { getToken } = useAuth();
 
   const selectedProject = projects.find(p => p.id === id);
   const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false);
+  const [isPendingDelete, setIsPendingDelete] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const logs = jobLogs[id || ''] || [];
   const latestScreenshot = [...logs].reverse().find(l => l.screenshot)?.screenshot;
 
@@ -77,6 +104,32 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
       await api.post(`/jobs/${selectedProject?.id}/feedback`, token!, data);
     } catch (err) {
       console.error('Error submitting feedback:', err);
+    }
+  };
+
+  const handleShareComplete = (option: { id: string; name: string }, videoUrl: string) => {
+    const text = encodeURIComponent("Just generated a cinematic product demo using Pitch. Create your own at https://trypitch.co 🚀");
+    const twitterText = encodeURIComponent("Just generated a cinematic product demo using @trypitchdotco. Create your own at https://trypitch.co 🚀");
+    const url = encodeURIComponent(videoUrl);
+
+    if (option.id === 'copy') {
+      navigator.clipboard.writeText(videoUrl);
+    } else if (option.id === 'whatsapp') {
+      window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+    } else if (option.id === 'twitter') {
+      window.open(`https://twitter.com/intent/tweet?text=${twitterText}&url=${url}`, '_blank');
+    } else if (option.id === 'instagram') {
+      navigator.clipboard.writeText(videoUrl);
+      alert('Video URL copied! Open Instagram to share.');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await onDelete(selectedProject.id);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Failed to delete video:', err);
     }
   };
 
@@ -114,52 +167,42 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
 
           {/* Completed state */}
           {isCompleted && (
-            <div className="space-y-6">
-              {/* Success banner */}
-              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
-                <span className="text-green-500"><IconCheck /></span>
-                <div>
-                  <p className="text-sm font-semibold text-green-800">Video is Ready!</p>
-                  <p className="text-xs text-green-600 mt-0.5">Successfully generated and ready for download.</p>
-                </div>
+            <div className="space-y-4">
+
+              {/* Success banner — top */}
+              <Alert27
+                title="Video is Ready!"
+                description="Successfully generated and ready for download."
+              />
+
+              {/* Video player — full width */}
+              <div className="rounded-xl overflow-hidden border border-gray-200 bg-black">
+                <video
+                  src={selectedProject.videoUrl}
+                  controls
+                  autoPlay
+                  className="w-full block"
+                />
               </div>
 
-              <div className={`flex gap-6 ${isMobile ? 'flex-col' : 'flex-row items-start'}`}>
-                {/* Video player */}
-                <div className="flex-[2] min-w-0">
-                  <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-black">
-                    <video
-                      src={selectedProject.videoUrl}
-                      controls
-                      autoPlay
-                      className="w-full block"
-                    />
-                  </div>
-
-                  {/* Feedback Component */}
-                  {!(isFeedbackSubmitted || selectedProject.rating) && (
-                    <div className="mt-4 flex items-center justify-start">
-                      <FeedbackComponent onSubmit={handleFeedbackSubmit} />
-                    </div>
-                  )}
+              {/* Feedback */}
+              {!(isFeedbackSubmitted || selectedProject.rating) && (
+                <div className="flex items-center justify-start">
+                  <FeedbackComponent onSubmit={handleFeedbackSubmit} />
                 </div>
+              )}
 
-                {/* Download + details */}
-                <div className="flex-1 min-w-0 space-y-3">
-                  <p className="text-sm font-semibold text-gray-800">Download Assets</p>
-
+              {/* Action buttons */}
+              <div>
+                <p className="text-sm font-semibold text-gray-800 mb-2.5">Download Assets</p>
+                <div className="grid grid-cols-4 gap-2.5 w-full">
                   <button
                     onClick={() => window.open(selectedProject.videoUrl)}
-                    className="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all text-left cursor-pointer"
+                    className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors border border-transparent cursor-pointer"
                     id="download-video-asset-btn"
                   >
-                    <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 shrink-0">
-                      <IconVideo />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Download Video</p>
-                      <p className="text-xs text-gray-400">MP4 format · High Quality</p>
-                    </div>
+                    <IconVideo className="shrink-0" />
+                    <span className="truncate hidden sm:inline">Video</span>
                   </button>
 
                   <button
@@ -168,34 +211,165 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
                       if (audioUrl) window.open(audioUrl);
                     }}
                     disabled={!selectedProject.audioUrl && !selectedProject.videoUrl}
-                    className="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     id="download-audio-btn"
                   >
-                    <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 shrink-0">
-                      <IconAudio />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Download Voiceover</p>
-                      <p className="text-xs text-gray-400">WAV format · AI Narration</p>
-                    </div>
+                    <IconAudio className="shrink-0" />
+                    <span className="truncate hidden sm:inline">Voiceover</span>
                   </button>
 
-                  {/* Project details */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2">
-                    <p className="font-semibold text-gray-700 mb-2">Project Details</p>
-                    <div>
-                      <span className="text-gray-400">Target URL</span>
-                      <p className="text-gray-700 font-medium mt-0.5 break-all">{selectedProject.parameters.url}</p>
+                  <ShareSheet
+                    users={shareOptions}
+                    onShareComplete={(option) => handleShareComplete(option, selectedProject.videoUrl!)}
+                    containerClassName="w-full"
+                    className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                    triggerContent={
+                      <>
+                        <IconShare className="shrink-0" />
+                        <span className="truncate hidden sm:inline">Share Video</span>
+                      </>
+                    }
+                  />
+
+                  {isPendingDelete ? (
+                    <div className="w-full flex items-center justify-center h-[38px] bg-red-50/10 border border-dashed border-red-200 rounded-lg">
+                      <TimedUndoAction
+                        initialSeconds={5}
+                        deleteLabel="Deleting..."
+                        undoLabel="Cancel"
+                        icon={
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                            <path d="M3 7v6h6" />
+                            <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                          </svg>
+                        }
+                        onConfirm={handleConfirmDelete}
+                        onUndo={() => setIsPendingDelete(false)}
+                        onDismiss={() => setIsPendingDelete(false)}
+                      />
                     </div>
-                    <div>
-                      <span className="text-gray-400">Generated</span>
-                      <p className="text-gray-700 font-medium mt-0.5">{new Date(selectedProject.updatedAt).toLocaleString()}</p>
-                    </div>
-                  </div>
+                  ) : (
+                    <Button35
+                      onClick={() => {
+                        if (selectedProject.status === 'FAILED') setIsPendingDelete(true);
+                        else setShowModal(true);
+                      }}
+                      className="w-full"
+                      id="delete-video-btn"
+                      title="Delete"
+                    >
+                      <span className="hidden sm:inline">Delete Video</span>
+                    </Button35>
+                  )}
                 </div>
               </div>
+
+              {/* Project details — collapsible */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden text-xs">
+                <button
+                  onClick={() => setIsDetailsOpen(o => !o)}
+                  className="w-full flex items-center justify-between px-4 py-3 cursor-pointer bg-transparent border-none text-left hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-sm font-semibold text-gray-700">Project Details</span>
+                  <svg
+                    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    className={`text-gray-400 transition-transform duration-200 ${isDetailsOpen ? 'rotate-180' : ''}`}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {isDetailsOpen && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
+
+                    <div className="pt-3">
+                      <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Target URL</span>
+                      <p className="text-gray-700 font-medium mt-0.5 break-all">{selectedProject.parameters.url}</p>
+                    </div>
+
+                    {selectedProject.parameters.instructions && (
+                      <div>
+                        <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Instructions</span>
+                        <p className="text-gray-700 mt-0.5 leading-relaxed line-clamp-4">{selectedProject.parameters.instructions}</p>
+                      </div>
+                    )}
+
+                    {selectedProject.parameters.script && (
+                      <div>
+                        <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Custom Script</span>
+                        <p className="text-gray-700 mt-0.5 leading-relaxed line-clamp-3">{selectedProject.parameters.script}</p>
+                      </div>
+                    )}
+
+                    {selectedProject.parameters.audio && (
+                      <div>
+                        <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Voice / Audio</span>
+                        <p className="text-gray-700 font-medium mt-0.5 capitalize">{selectedProject.parameters.audio}</p>
+                      </div>
+                    )}
+
+                    {(selectedProject.parameters.theme || selectedProject.parameters.subtitles !== undefined) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedProject.parameters.theme && (
+                          <div>
+                            <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Theme</span>
+                            <p className="text-gray-700 font-medium mt-0.5 capitalize">{selectedProject.parameters.theme}</p>
+                          </div>
+                        )}
+                        {selectedProject.parameters.subtitles !== undefined && (
+                          <div>
+                            <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Subtitles</span>
+                            <p className="text-gray-700 font-medium mt-0.5">{selectedProject.parameters.subtitles ? 'Enabled' : 'Disabled'}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedProject.parameters.headers && (
+                      <div>
+                        <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Custom Headers</span>
+                        <pre className="text-gray-700 mt-0.5 whitespace-pre-wrap break-all font-mono text-[10px] bg-gray-50 rounded-md p-2 border border-gray-100 max-h-24 overflow-y-auto">
+                          {typeof selectedProject.parameters.headers === 'string'
+                            ? JSON.stringify(JSON.parse(selectedProject.parameters.headers), null, 2)
+                            : JSON.stringify(selectedProject.parameters.headers, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+
+                    {selectedProject.parameters.cookies && (
+                      <div>
+                        <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Cookies</span>
+                        <pre className="text-gray-700 mt-0.5 whitespace-pre-wrap break-all font-mono text-[10px] bg-gray-50 rounded-md p-2 border border-gray-100 max-h-24 overflow-y-auto">
+                          {typeof selectedProject.parameters.cookies === 'string'
+                            ? JSON.stringify(JSON.parse(selectedProject.parameters.cookies), null, 2)
+                            : JSON.stringify(selectedProject.parameters.cookies, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                      <div>
+                        <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Created</span>
+                        <p className="text-gray-700 font-medium mt-0.5">
+                          {new Date(selectedProject.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 uppercase tracking-wide text-[10px] font-semibold">Completed</span>
+                        <p className="text-gray-700 font-medium mt-0.5">
+                          {new Date(selectedProject.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
+
 
           {/* Failed state */}
           {isFailed && (
@@ -225,6 +399,42 @@ export const EditorView = ({ projects, jobLogs, isMobile }: EditorViewProps) => 
 
         </div>
       </div>
+
+      {showModal && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={(e) => { e.stopPropagation(); setShowModal(false); }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <IconTrashSm />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Video</h3>
+            <p className="text-sm text-gray-500 mb-6 text-balance leading-relaxed">
+              Are you sure you want to delete this video? Please note that the credits used for this generation are{' '}
+              <span className="font-semibold text-gray-700">non-refundable</span> because the video has already started rendering or is completed.
+            </p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowModal(false); setIsPendingDelete(true); }}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-red-700"
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 };

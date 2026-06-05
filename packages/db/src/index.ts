@@ -651,3 +651,5 @@ export async function getAffiliateStats(affiliateId: string) {
     videosEarned: Math.floor(creditsEarned / 3),
   };
 }
+
+export * from './browser-profiles.js';

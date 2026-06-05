@@ -312,7 +312,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: var(--accent);
+  background: #000000;
   color: #ffffff;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
@@ -327,7 +327,7 @@
 }
 
 .landing-btn-primary:hover {
-  background: var(--accent-hover);
+  background: #222222;
 }
 
 .landing-btn-secondary {

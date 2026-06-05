@@ -1,105 +1,215 @@
-import { Link } from 'react-router-dom';
+import { type ReactNode } from 'react';
+import { motion, type Variants } from 'framer-motion';
 import { PitchWordmark } from './PitchWordmark';
+import { Link } from 'react-router-dom';
 import { FaXTwitter, FaLinkedinIn } from 'react-icons/fa6';
 
-const SOCIAL_LINKS = [
+export interface Footer15Link {
+  label: string;
+  href: string;
+  icon?: React.ComponentType<{ className?: string; size?: number }>;
+}
+
+export interface Footer15Column {
+  title: string;
+  links: Footer15Link[];
+}
+
+export interface Footer15Props {
+  /** Custom logo mark element */
+  logoIcon?: ReactNode;
+  /** Short brand description / tagline */
+  description?: string;
+  /** Navigation columns */
+  columns?: Footer15Column[];
+}
+
+const defaultColumns: Footer15Column[] = [
   {
-    label: 'X (Twitter)',
-    href: 'https://x.com/trypitchdotco',
-    icon: FaXTwitter,
+    title: 'Company',
+    links: [
+      { label: 'About Us', href: '/about' },
+      { label: 'Blog', href: '/blog' },
+      { label: 'Contact', href: 'mailto:support@trypitch.co' },
+    ],
   },
   {
-    label: 'LinkedIn',
-    href: 'https://www.linkedin.com/company/trypitchdotco/',
-    icon: FaLinkedinIn,
+    title: 'Legal',
+    links: [
+      { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Terms of Service', href: '/terms' },
+    ],
+  },
+  {
+    title: 'Product',
+    links: [
+      { label: 'Pricing', href: '/pricing' },
+    ],
+  },
+  {
+    title: 'Social',
+    links: [
+      { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: FaXTwitter },
+      { label: 'LinkedIn', href: 'https://www.linkedin.com/company/trypitchdotco/', icon: FaLinkedinIn },
+    ],
   },
 ];
 
-const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = [
-  {
-    heading: 'Product',
-    links: [
-      { label: 'Pricing',      to: '/pricing' },
-    ],
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.09,
+      delayChildren: 0.05,
+    },
   },
-  {
-    heading: 'Company',
-    links: [
-      { label: 'About Us', to: '/about' },
-      { label: 'Blog',     to: '/blog' },
-      { label: 'Contact',  to: 'mailto:support@trypitch.co' },
-    ],
-  },
-  {
-    heading: 'Legal',
-    links: [
-      { label: 'Privacy Policy', to: '/privacy' },
-      { label: 'Terms of Service', to: '/terms' },
-    ],
-  },
-];
+};
 
-export const LandingFooter = () => {
+const navStagger: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.07,
+      delayChildren: 0.02,
+    },
+  },
+};
+
+const riseItem: Variants = {
+  hidden: { opacity: 0, y: 18, filter: 'blur(6px)' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { type: 'spring', duration: 0.6, bounce: 0 },
+  },
+};
+
+const linkStagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+};
+
+const linkItem: Variants = {
+  hidden: { opacity: 0, y: 5 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', duration: 0.4, bounce: 0 },
+  },
+};
+
+export function Footer15({
+  logoIcon,
+  description = 'The AI agent that turns your product URL into a cinematic pitch video in minutes.',
+  columns = defaultColumns,
+}: Footer15Props) {
   return (
-    <footer className="landing-footer">
-      <div className="landing-footer-inner">
-        <div className="landing-footer-top">
-
-          {/* Brand column */}
-          <div className="landing-footer-brand">
-            <div
-              className="landing-footer-wordmark"
-              aria-label="Pitch"
-              style={{ color: 'rgba(255,255,255,1)' }}
-            >
-              <PitchWordmark />
+    <footer className="w-full overflow-hidden rounded-t-4xl bg-black text-white font-sans antialiased sm:rounded-t-[2.5rem] md:rounded-t-[3rem]">
+      <motion.div
+        variants={staggerContainer}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.1 }}
+        className="px-6 pt-6 pb-2 sm:px-10 sm:pt-8 lg:px-14 lg:pt-10 xl:px-20"
+      >
+        <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-center gap-8 text-center">
+          <motion.div
+            variants={riseItem}
+            className="flex shrink-0 flex-col items-center text-center gap-5"
+          >
+            <div className="flex items-center justify-center w-full">
+              <span className="shrink-0 text-white">
+                {logoIcon ?? <PitchWordmark className="text-white" style={{ height: '40px', width: 'auto' }} />}
+              </span>
             </div>
 
-            <p className="landing-footer-tagline">
-              The AI agent that turns your product URL into a cinematic pitch video in minutes.
+            <p className="text-xs leading-relaxed font-light tracking-wide sm:whitespace-nowrap text-zinc-400">
+              {description}
             </p>
+          </motion.div>
 
-            <div className="landing-footer-socials">
-              {SOCIAL_LINKS.map(({ label, href, icon: Icon }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  className="landing-footer-social"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Icon size={16} />
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Nav columns */}
-          <nav className="landing-footer-nav" aria-label="Footer navigation">
-            {NAV_COLS.map(({ heading, links }) => (
-              <div key={heading} className="landing-footer-nav-col">
-                <p className="landing-footer-nav-heading">{heading}</p>
-                <ul className="landing-footer-nav-list">
-                  {links.map(({ label, to }) => (
-                    <li key={label}>
-                      {to.startsWith('mailto:')
-                        ? <a href={to} className="landing-footer-nav-link">{label}</a>
-                        : <Link to={to} className="landing-footer-nav-link">{label}</Link>
-                      }
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <motion.nav
+            variants={navStagger}
+            aria-label="Footer navigation"
+            className="grid w-full max-w-4xl grid-cols-2 sm:grid-cols-4 gap-x-12 gap-y-8"
+          >
+            {columns.map((col) => (
+              <motion.div key={col.title} variants={riseItem} className="text-center sm:text-left">
+                <h3 className="text-[10px] leading-none font-bold tracking-widest uppercase text-zinc-100">
+                  {col.title}
+                </h3>
+                {col.title === 'Social' ? (
+                  <div className="flex flex-row gap-4 justify-center sm:justify-start items-center mt-4 leading-none">
+                    {col.links.map((link) => {
+                      const Icon = link.icon;
+                      return (
+                        <motion.a
+                          key={link.label}
+                          href={link.href}
+                          variants={linkItem}
+                          whileHover={{ scale: 1.15 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center text-white hover:text-zinc-300 transition-colors duration-200"
+                          aria-label={link.label}
+                        >
+                          {Icon && <Icon className="size-3.5" />}
+                        </motion.a>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <motion.ul
+                    variants={linkStagger}
+                    className="mt-3 flex flex-col gap-3"
+                  >
+                    {col.links.map((link) => (
+                      <motion.li key={link.label} variants={linkItem}>
+                        {link.href.startsWith('/') && !link.href.startsWith('//') ? (
+                          <Link
+                            to={link.href}
+                            className="inline-block text-xs leading-none font-light tracking-wide text-zinc-400 transition-colors duration-200 hover:text-white"
+                          >
+                            {link.label}
+                          </Link>
+                        ) : (
+                          <a
+                            href={link.href}
+                            className="inline-block text-xs leading-none font-light tracking-wide text-zinc-400 transition-colors duration-200 hover:text-white"
+                            target={link.href.startsWith('http') ? '_blank' : undefined}
+                            rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                          >
+                            {link.label}
+                          </a>
+                        )}
+                      </motion.li>
+                    ))}
+                  </motion.ul>
+                )}
+              </motion.div>
             ))}
-          </nav>
+          </motion.nav>
         </div>
+      </motion.div>
 
-        {/* Bottom bar */}
-        <div className="landing-footer-bottom">
-          <p className="landing-footer-copy">© {new Date().getFullYear()} Pitch. All rights reserved.</p>
+      {/* Copyright row */}
+      <div className="mt-6 border-t border-zinc-900 px-6 py-4 sm:px-10 lg:px-14 xl:px-20">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-center text-center text-xs text-zinc-500">
+          <p className="text-[10px] leading-none font-light tracking-widest uppercase text-zinc-500">© {new Date().getFullYear()} Pitch. All rights reserved.</p>
         </div>
       </div>
     </footer>
+  );
+}
+
+export const LandingFooter = () => {
+  return (
+    <div className="flex w-full items-end">
+      <Footer15 />
+    </div>
   );
 };

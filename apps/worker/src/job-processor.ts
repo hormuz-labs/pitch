@@ -4,7 +4,9 @@ import type { OpencodeClient } from '@opencode-ai/sdk';
 import { JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, createLogger, sendTelegramMessage, type PhaseUpdate } from '@saas/shared';
 import * as db from '@saas/db';
 import { getSessionIdFromEvent } from './opencode.js';
+import { startBrowserContext, type BrowserContextHandle } from './browser-context.js';
 import * as os from 'os';
+import { ensureBinary } from 'cloakbrowser';
 
 const logger = createLogger('worker:job');
 
@@ -78,6 +80,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     let session: { id: string } | null = null;
     let eventAbortController: AbortController | null = null;
+    let browserCtx: BrowserContextHandle | null = null;
     const messageCosts = new Map<string, number>();
     let currentCost = 0;
     let budgetLimitBreached = false;
@@ -98,6 +101,11 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     try {
       // 1. Create a new session for this job
+      browserCtx = await startBrowserContext(userId);
+
+      // Ensure agent-browser always uses CloakBrowser's stealth Chromium
+      process.env.AGENT_BROWSER_EXECUTABLE_PATH = await ensureBinary();
+
       const sessionResponse = await client.session.create({
         query: { directory: targetDir },
         body: { title: `Job ${jobId} for user ${userId}` },
@@ -185,19 +193,10 @@ Before doing anything else, you MUST read the following skills:
 Do NOT proceed until all three skills have been read.
 
 Please execute the following video generation task for Job ${jobId}.
+User ID: ${userId}
 Parameters:
 ${JSON.stringify(parameters, null, 2)}
-
-## Custom Headers & Cookies
-If the "headers" or "cookies" parameters are provided in the JSON above, you MUST use them for ALL browser navigations and requests during the demo generation process. 
-- For agent-browser: 
-  - Headers: Pass them using the \`--headers '<JSON_STRING>'\` flag.
-  - Cookies: Pass them using the \`cookies set --name <name> --value <value> --url <startUrl>\` command for each cookie.
-- For Playwright scripts: 
-  - Headers: Set them in the browser context using \`extraHTTPHeaders\`.
-  - Cookies: Set them using \`await context.addCookies([...])\`.
-- For dry-runs and recording: The engine will handle them if you include them in the demo-config.json as \`extraHTTPHeaders\` and \`extraCookies\`.
-
+ 
 ## MANDATORY: Phase Progress Reporting
 You MUST report the status of each pipeline phase using the job-cli. Call this at the START and END of each phase.
 IMPORTANT: These commands are FIRE-AND-FORGET — even if they fail, do NOT stop the pipeline. Always continue.
@@ -381,6 +380,12 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       // Remove from the active-session registry so cancellation messages for
       // this job are ignored from now on.
       activeSessionsByJobId.delete(jobId);
+
+      // Shut down the browser context (removes from warm cache).
+      // The GC will also evict it if shutdown wasn't called yet.
+      if (browserCtx) {
+        browserCtx.shutdown();
+      }
 
       // Clean up per-job resources
       if (eventAbortController && !eventAbortController.signal.aborted) {

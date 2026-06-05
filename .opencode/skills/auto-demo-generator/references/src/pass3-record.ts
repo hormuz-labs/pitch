@@ -1,8 +1,10 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
 import { getChromiumGpuFlags } from './utils';
+import { cloakLaunchOptions } from './cloak-launcher';
 
 function preflight(demoDir: string, config: DemoConfig): void {
   const timelinePath = path.join(demoDir, 'timeline.json');
@@ -44,7 +46,7 @@ export async function pass3Record(
   const CENTER_X = VIDEO_WIDTH / 2;
   const CENTER_Y = VIDEO_HEIGHT / 2;
 
-  const browser = await chromium.launch({ headless: true, args: getChromiumGpuFlags() });
+  const browser = await chromium.launch(cloakLaunchOptions(getChromiumGpuFlags()));
 
   const cursorStyle = config.cursorStyle || 'black';
   const cursorSrc = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
@@ -55,18 +57,36 @@ export async function pass3Record(
   const context = await browser.newContext({
     recordVideo: { dir: demoDir, size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT } },
     viewport: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
-    extraHTTPHeaders: config.extraHTTPHeaders
   });
-  if (config.extraCookies && config.extraCookies.length > 0) {
-    const cookies = config.extraCookies.map(c => ({
-      ...c,
-      url: c.url || (c.domain ? undefined : startUrl)
-    }));
-    await context.addCookies(cookies as any);
+
+  // If a CloakBrowser profile exists, load its storage_state.json to restore
+  // cookies so the recording runs as an authenticated user.
+  const PROFILE_ROOT = process.env.CLOAK_PROFILE_ROOT || path.join(os.homedir(), '.cloak-profiles');
+  const safe = config.userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const profileDir = path.join(PROFILE_ROOT, `user-${safe}`);
+  if (fs.existsSync(profileDir)) {
+    const storageFile = path.join(profileDir, 'storage_state.json');
+    if (fs.existsSync(storageFile)) {
+      try {
+        const state = JSON.parse(fs.readFileSync(storageFile, 'utf8'));
+        if (state.cookies?.length) {
+          await context.addCookies(state.cookies);
+          console.log(`[pass3] Restored ${state.cookies.length} cookies from ${storageFile}`);
+        }
+      } catch (e) {
+        console.warn(`[pass3] Failed to load storage state:`, e);
+      }
+    } else {
+      console.log(`[pass3] No storage_state.json found at ${storageFile} — proceeding unauthenticated`);
+    }
   }
+
   const page = await context.newPage();
 
-  await page.setContent('<html><body style="background:white;"></body></html>');
+  // Prime the recorder with a blank white frame so Playwright's video encoder
+  // starts its internal clock immediately. Using a data: URL (instead of
+  // setContent) is more reliable with CloakBrowser's fingerprinted Chromium.
+  await page.goto('data:text/html,<body style="background:white;"></body>', { waitUntil: 'load', timeout: 30000 });
   await page.waitForTimeout(100);
 
   const videoStartTime = Date.now();
@@ -166,13 +186,21 @@ export async function pass3Record(
   const elapsedFinal = Date.now() - startTime;
   if (elapsedFinal < totalAudioTimeMs) {
     const timeToWait = totalAudioTimeMs - elapsedFinal + 2000;
-    const frameInterval = setInterval(() => {
-    }, 500);
     await page.waitForTimeout(timeToWait);
-    clearInterval(frameInterval);
   }
 
-  await context.close();
+  // Close page first with timeout — Playwright's recordVideo encoder can hang on close
+  await Promise.race([
+    page.close(),
+    new Promise(resolve => setTimeout(resolve, 10000))
+  ]).catch(() => {});
+
+  // Close context with timeout — same reason
+  await Promise.race([
+    context.close(),
+    new Promise(resolve => setTimeout(resolve, 10000))
+  ]).catch(() => {});
+
   await browser.close();
 
   if (!videoPathCapture || !fs.existsSync(videoPathCapture)) throw new Error('[pass3-record] Raw video not found after recording!');

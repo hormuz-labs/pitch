@@ -11,7 +11,7 @@ import {
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
-import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView, AdminView, CheckoutReturnView } from './views';
+import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView, AdminView, CheckoutReturnView, SessionsView } from './views';
 import { AuthView } from './views/AuthView';
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
@@ -103,6 +103,13 @@ const IconVideo = () => (
 const IconAdmin = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  </svg>
+);
+const IconSessions = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="14" rx="2"/>
+    <circle cx="12" cy="11" r="2.5"/>
+    <path d="M12 13.5V16"/>
   </svg>
 );
 const IconSettings = () => (
@@ -239,6 +246,12 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
             label="Affiliate"
             active={selectedKey === 'affiliate'}
             onClick={() => go('/affiliate')}
+          />
+          <NavItem
+            icon={<IconSessions />}
+            label="Browser Sessions"
+            active={selectedKey === 'sessions'}
+            onClick={() => go('/sessions')}
           />
           {isAdmin && (
             <NavItem
@@ -686,6 +699,8 @@ function AppContent() {
     }
   } else if (location.pathname.startsWith('/settings')) {
     selectedKey = 'settings';
+  } else if (location.pathname.startsWith('/sessions')) {
+    selectedKey = 'sessions';
   } else if (location.pathname.startsWith('/admin')) {
     selectedKey = 'admin';
   } else if (location.pathname.startsWith('/pricing')) {
@@ -759,6 +774,7 @@ function AppContent() {
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
+                <Route path="/sessions" element={<SessionsView />} />
                 <Route path="/affiliate" element={<AffiliateView />} />
                 <Route path="/admin" element={<AdminView />} />
                 <Route path="/editor/:id" element={<EditorView projects={projects} jobLogs={jobLogs} isMobile={isMobile} />} />
