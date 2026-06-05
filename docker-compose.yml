@@ -129,6 +129,17 @@ services:
       retries: 6
       start_period: 30s
 
+  cloakbrowser-manager:
+    image: cloakhq/cloakbrowser-manager
+    container_name: cloakbrowser_manager
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTH_TOKEN=${CLOAK_MANAGER_AUTH_TOKEN}
+    volumes:
+      - cloakprofiles:/data
+
   api:
     image: pitch-api:${IMAGE_TAG:-latest}
     build:
@@ -211,3 +222,5 @@ services:
       transcription:
         condition: service_healthy
 
+volumes:
+  cloakprofiles:

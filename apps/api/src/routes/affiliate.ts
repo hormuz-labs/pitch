@@ -70,22 +70,3 @@ router.get('/me', async (req, res) => {
   }
 });
 
-router.post('/me/payout', async (req, res) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
-
-  try {
-    const affiliate = await db.getAffiliateByUserId(userId);
-    if (!affiliate) return res.status(404).json({ error: 'Not an affiliate' });
-
-    const stats = await db.getAffiliateStats(affiliate.id);
-    if (stats.pendingPayout < 10) {
-      return res.status(400).json({ error: 'Minimum payout is $10', pending: stats.pendingPayout });
-    }
-
-    const payout = await db.requestAffiliatePayout(affiliate.id, stats.pendingPayout);
-    res.json(payout);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as db from '@saas/db';
-import { createLogger, JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, sendTelegramMessage } from '@saas/shared';
+import { createLogger, JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, sendTelegramMessage, type PhaseUpdate } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
 import { connection, videoQueue, subscriber } from '../config.js';
 
@@ -196,8 +196,32 @@ router.delete('/:id', async (req, res) => {
       }
     }
 
-    await db.deleteJob(id, { id: userId });
-    logger.info({ jobId: id, userId }, 'Job deleted');
+    const job = await db.getJob(id, { id: userId });
+    if (job && job.status === JobStatus.PROCESSING) {
+      let newPhases: PhaseUpdate[] = [];
+      if (job.phases) {
+        newPhases = job.phases.map(p => {
+          if (p.status === 'running') {
+            return { ...p, status: 'failed', completedAt: new Date().toISOString() };
+          }
+          return p;
+        });
+      }
+
+      const failedJob = await db.updateJob(id, {
+        status: JobStatus.FAILED,
+        error: 'Video generation was cancelled/aborted by the user.',
+        ...(newPhases.length > 0 ? { phases: JSON.stringify(newPhases) } : {})
+      });
+      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+
+      // Refund credits
+      await db.addCredits(userId, 3, 'refund', 'Refund: video generation cancelled', { jobId: id });
+      logger.info({ jobId: id, userId }, 'Job marked as failed and credits refunded');
+    } else {
+      await db.deleteJob(id, { id: userId });
+      logger.info({ jobId: id, userId }, 'Job deleted');
+    }
     res.status(204).send();
   } catch (error: any) {
     if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {

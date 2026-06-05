@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import * as db from '@saas/db';
 import { requireAuth } from '../middleware/auth.js';
 import { videoQueue, connection } from '../config.js';
-import { createLogger, JOB_CANCELLATIONS_CHANNEL } from '@saas/shared';
+import { createLogger, JOB_CANCELLATIONS_CHANNEL, JobStatus, JOB_UPDATES_CHANNEL, type PhaseUpdate } from '@saas/shared';
 
 const logger = createLogger('admin-routes');
 export const router: Router = Router();
@@ -218,8 +218,30 @@ router.delete('/jobs/:id', async (req, res) => {
       await bullJob.remove().catch(e => logger.warn({err: e}, 'Failed to remove job from BullMQ'));
     }
 
-    // 3. Force delete from Database
-    await db.prisma.job.delete({ where: { id } });
+    // 3. Mark as FAILED if currently PROCESSING, otherwise delete
+    const job = await db.getJob(id);
+    if (job && job.status === JobStatus.PROCESSING) {
+      let newPhases: PhaseUpdate[] = [];
+      if (job.phases) {
+        newPhases = job.phases.map(p => {
+          if (p.status === 'running') {
+            return { ...p, status: 'failed', completedAt: new Date().toISOString() };
+          }
+          return p;
+        });
+      }
+      const failedJob = await db.updateJob(id, {
+        status: JobStatus.FAILED,
+        error: 'Video generation was cancelled/aborted by the administrator.',
+        ...(newPhases.length > 0 ? { phases: JSON.stringify(newPhases) } : {})
+      });
+      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+      await db.addCredits(job.userId, 3, 'refund', 'Refund: video generation cancelled by admin', { jobId: id });
+      logger.info({ jobId: id }, 'Job marked as failed by admin and credits refunded');
+    } else {
+      await db.prisma.job.delete({ where: { id } });
+      logger.info({ jobId: id }, 'Job deleted by admin');
+    }
     
     res.status(204).send();
   } catch (error: any) {
@@ -279,10 +301,23 @@ router.get('/users/:id/affiliate', async (req, res) => {
       include: {
         clicks: { orderBy: { clickedAt: 'desc' }, take: 100 },
         conversions: { orderBy: { createdAt: 'desc' } },
-        payouts: { orderBy: { requestedAt: 'desc' } },
+        _count: { select: { leads: true } },
       },
     });
-    res.json(affiliate || null);
+    if (!affiliate) return res.json(null);
+
+    const creditAgg = await db.prisma.creditTransaction.aggregate({
+      where: { userId: id, type: 'referral' },
+      _sum: { delta: true },
+    });
+    const creditsEarned = creditAgg._sum.delta ?? 0;
+
+    res.json({
+      ...affiliate,
+      signups: affiliate._count.leads,
+      creditsEarned,
+      videosEarned: Math.floor(creditsEarned / 3),
+    });
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch user affiliate');
     res.status(500).json({ error: error.message });
@@ -292,13 +327,13 @@ router.get('/users/:id/affiliate', async (req, res) => {
 // 8. Analytics: feedback summary + affiliates overview
 router.get('/analytics', async (req, res) => {
   try {
-    const [affiliatesRaw, jobsWithFeedbackRaw] = await Promise.all([
+    const [affiliatesRaw, jobsWithFeedbackRaw, referralCreditRows] = await Promise.all([
       db.prisma.affiliate.findMany({
         include: {
           userProfile: { select: { email: true, firstName: true, lastName: true, imageUrl: true } },
           clicks: true,
           conversions: true,
-          payouts: true,
+          _count: { select: { leads: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -318,28 +353,36 @@ router.get('/analytics', async (req, res) => {
           userProfile: { select: { email: true, firstName: true, lastName: true } },
         },
       }),
+      // Referral credits earned, summed per affiliate user.
+      db.prisma.creditTransaction.groupBy({
+        by: ['userId'],
+        where: { type: 'referral', delta: { gt: 0 } },
+        _sum: { delta: true },
+      }),
     ]);
 
-    const affiliates = affiliatesRaw.map(a => ({
-      id: a.id,
-      code: a.code,
-      commissionPct: a.commissionPct,
-      status: a.status,
-      createdAt: a.createdAt,
-      user: a.userProfile,
-      totalClicks: a.clicks.length,
-      totalConversions: a.conversions.length,
-      conversionRate: a.clicks.length > 0
-        ? ((a.conversions.length / a.clicks.length) * 100).toFixed(1)
-        : '0.0',
-      totalRevenue: a.conversions.reduce((s, c) => s + c.saleAmountUsd, 0),
-      totalCommission: a.conversions.reduce((s, c) => s + c.commissionAmt, 0),
-      pendingCommission: a.conversions
-        .filter(c => c.status === 'pending' || c.status === 'approved')
-        .reduce((s, c) => s + c.commissionAmt, 0),
-      payouts: a.payouts,
-      conversions: a.conversions,
-    }));
+    const creditsByUser = new Map(referralCreditRows.map(r => [r.userId, r._sum.delta ?? 0]));
+
+    const affiliates = affiliatesRaw.map(a => {
+      const creditsEarned = creditsByUser.get(a.userId) ?? 0;
+      return {
+        id: a.id,
+        code: a.code,
+        status: a.status,
+        createdAt: a.createdAt,
+        user: a.userProfile,
+        totalClicks: a.clicks.length,
+        totalSignups: a._count.leads,
+        totalConversions: a.conversions.length,
+        conversionRate: a.clicks.length > 0
+          ? ((a.conversions.length / a.clicks.length) * 100).toFixed(1)
+          : '0.0',
+        totalRevenue: a.conversions.reduce((s, c) => s + c.saleAmountUsd, 0),
+        creditsEarned,
+        videosEarned: Math.floor(creditsEarned / 3),
+        conversions: a.conversions,
+      };
+    });
 
     const jobsWithFeedback = jobsWithFeedbackRaw.map(j => ({
       ...j,

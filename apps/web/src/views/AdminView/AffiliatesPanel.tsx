@@ -1,22 +1,10 @@
 import React from 'react';
 import { formatIST } from './JobDetailsModal';
 
-interface Payout {
-  id: string;
-  amount: number;
-  currency: string;
-  method: string;
-  status: string;
-  reference?: string;
-  requestedAt: string;
-  paidAt?: string;
-}
-
 interface Conversion {
   id: string;
   referredUserId: string;
   saleAmountUsd: number;
-  commissionAmt: number;
   status: string;
   createdAt: string;
 }
@@ -24,17 +12,16 @@ interface Conversion {
 interface Affiliate {
   id: string;
   code: string;
-  commissionPct: number;
   status: string;
   createdAt: string;
   user: { email: string; firstName?: string; lastName?: string; imageUrl?: string };
   totalClicks: number;
+  totalSignups: number;
   totalConversions: number;
   conversionRate: string;
   totalRevenue: number;
-  totalCommission: number;
-  pendingCommission: number;
-  payouts: Payout[];
+  creditsEarned: number;
+  videosEarned: number;
   conversions: Conversion[];
 }
 
@@ -101,11 +88,11 @@ function AffiliateDetailModal({ affiliate, onClose }: { affiliate: Affiliate; on
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: 'Total Clicks',    value: affiliate.totalClicks,                               color: 'text-blue-600',   bg: 'bg-blue-50' },
+              { label: 'Signups',         value: affiliate.totalSignups,                              color: 'text-violet-600', bg: 'bg-violet-50' },
               { label: 'Conversions',     value: affiliate.totalConversions,                          color: 'text-emerald-600', bg: 'bg-emerald-50' },
               { label: 'Total Revenue',   value: `$${affiliate.totalRevenue.toFixed(2)}`,             color: 'text-purple-600', bg: 'bg-purple-50' },
-              { label: 'Commission',      value: `$${affiliate.totalCommission.toFixed(2)}`,          color: 'text-amber-600',  bg: 'bg-amber-50' },
+              { label: 'Credits Earned',  value: affiliate.creditsEarned,                             color: 'text-amber-600',  bg: 'bg-amber-50' },
               { label: 'Conversion Rate', value: `${affiliate.conversionRate}%`,                      color: 'text-indigo-600', bg: 'bg-indigo-50' },
-              { label: 'Commission %',    value: `${affiliate.commissionPct}%`,                       color: 'text-gray-700',   bg: 'bg-gray-50' },
             ].map(s => (
               <div key={s.label} className={`${s.bg} rounded-xl p-3 border border-white`}>
                 <p className="text-xs text-gray-500 mb-1 font-medium">{s.label}</p>
@@ -126,11 +113,11 @@ function AffiliateDetailModal({ affiliate, onClose }: { affiliate: Affiliate; on
             </div>
           </div>
 
-          {/* Pending commission alert */}
-          {affiliate.pendingCommission > 0 && (
+          {/* Credits earned alert */}
+          {affiliate.creditsEarned > 0 && (
             <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex items-center justify-between">
-              <p className="text-xs font-semibold text-amber-700">Pending Commission</p>
-              <p className="text-sm font-bold text-amber-700">${affiliate.pendingCommission.toFixed(2)}</p>
+              <p className="text-xs font-semibold text-amber-700">Credits Earned</p>
+              <p className="text-sm font-bold text-amber-700">{affiliate.creditsEarned} · {affiliate.videosEarned} free video{affiliate.videosEarned === 1 ? '' : 's'}</p>
             </div>
           )}
 
@@ -150,7 +137,6 @@ function AffiliateDetailModal({ affiliate, onClose }: { affiliate: Affiliate; on
                     </div>
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
                       <p className="text-xs text-gray-500">Sale: <span className="font-bold text-gray-800">${c.saleAmountUsd.toFixed(2)}</span></p>
-                      <p className="text-xs text-purple-600 font-bold">+${c.commissionAmt.toFixed(2)} commission</p>
                     </div>
                   </div>
                 ))}
@@ -158,32 +144,8 @@ function AffiliateDetailModal({ affiliate, onClose }: { affiliate: Affiliate; on
             </section>
           )}
 
-          {/* Payouts */}
-          {affiliate.payouts.length > 0 && (
-            <section>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Payouts ({affiliate.payouts.length})</p>
-              <div className="space-y-2">
-                {affiliate.payouts.map(p => (
-                  <div key={p.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-900">${p.amount.toFixed(2)} {p.currency}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{p.method.toUpperCase()} · {formatIST(p.requestedAt)}</p>
-                        {p.reference && <p className="text-[10px] font-mono text-gray-300 mt-0.5 truncate">{p.reference}</p>}
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <StatusBadge status={p.status} />
-                        {p.paidAt && <p className="text-[10px] text-gray-300 mt-1">Paid {new Date(p.paidAt).toLocaleDateString()}</p>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {affiliate.conversions.length === 0 && affiliate.payouts.length === 0 && (
-            <div className="text-center py-8 text-gray-400 text-sm">No conversions or payouts yet.</div>
+          {affiliate.conversions.length === 0 && (
+            <div className="text-center py-8 text-gray-400 text-sm">No conversions yet.</div>
           )}
         </div>
       </div>
@@ -219,7 +181,7 @@ export function AffiliatesPanel({ analytics }: { analytics: Analytics | null }) 
   const totalClicks      = affiliates.reduce((s, a) => s + a.totalClicks, 0);
   const totalConversions = affiliates.reduce((s, a) => s + a.totalConversions, 0);
   const totalRevenue     = affiliates.reduce((s, a) => s + a.totalRevenue, 0);
-  const totalCommission  = affiliates.reduce((s, a) => s + a.totalCommission, 0);
+  const totalCredits     = affiliates.reduce((s, a) => s + a.creditsEarned, 0);
 
   return (
     <div className="p-4 sm:p-5 space-y-5">
@@ -229,7 +191,7 @@ export function AffiliatesPanel({ analytics }: { analytics: Analytics | null }) 
           { label: 'Total Affiliates', value: affiliates.length,                   icon: '👥', color: 'text-purple-700', bg: 'from-purple-50 to-purple-100/50 border-purple-100' },
           { label: 'Total Clicks',     value: totalClicks,                          icon: '🖱️', color: 'text-blue-700',   bg: 'from-blue-50 to-blue-100/50 border-blue-100' },
           { label: 'Conversions',      value: totalConversions,                     icon: '🎯', color: 'text-emerald-700', bg: 'from-emerald-50 to-emerald-100/50 border-emerald-100' },
-          { label: 'Commission Owed',  value: `$${totalCommission.toFixed(2)}`,     icon: '💰', color: 'text-amber-700',  bg: 'from-amber-50 to-amber-100/50 border-amber-100' },
+          { label: 'Credits Earned',   value: totalCredits,                         icon: '🎬', color: 'text-amber-700',  bg: 'from-amber-50 to-amber-100/50 border-amber-100' },
         ].map(s => (
           <div key={s.label} className={`bg-gradient-to-br ${s.bg} border rounded-2xl p-4`}>
             <span className="text-xl">{s.icon}</span>
@@ -273,11 +235,11 @@ export function AffiliatesPanel({ analytics }: { analytics: Analytics | null }) 
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-px bg-gray-100 border-t border-gray-100">
               {[
                 { label: 'Clicks',       value: a.totalClicks,                            color: 'text-blue-600' },
+                { label: 'Signups',      value: a.totalSignups,                           color: 'text-violet-600' },
                 { label: 'Converts',     value: a.totalConversions,                       color: 'text-emerald-600' },
                 { label: 'Rate',         value: `${a.conversionRate}%`,                   color: 'text-indigo-600' },
                 { label: 'Revenue',      value: `$${a.totalRevenue.toFixed(2)}`,           color: 'text-gray-800' },
-                { label: 'Commission',   value: `$${a.totalCommission.toFixed(2)}`,        color: 'text-purple-600' },
-                { label: 'Comm. %',      value: `${a.commissionPct}%`,                    color: 'text-amber-600' },
+                { label: 'Credits',      value: a.creditsEarned,                          color: 'text-amber-600' },
               ].map(s => (
                 <div key={s.label} className="bg-white px-3 py-2.5 text-center">
                   <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
@@ -289,12 +251,12 @@ export function AffiliatesPanel({ analytics }: { analytics: Analytics | null }) 
             {/* Pending commission + action */}
             <div className="flex items-center justify-between px-4 py-3 bg-gray-50/60 border-t border-gray-100 gap-3">
               <div className="min-w-0">
-                {a.pendingCommission > 0 ? (
+                {a.creditsEarned > 0 ? (
                   <p className="text-xs text-amber-600 font-semibold">
-                    ${a.pendingCommission.toFixed(2)} commission pending
+                    {a.creditsEarned} credits · {a.videosEarned} free video{a.videosEarned === 1 ? '' : 's'}
                   </p>
                 ) : (
-                  <p className="text-xs text-gray-400">{a.conversions.length} conversions · {a.payouts.length} payouts</p>
+                  <p className="text-xs text-gray-400">{a.totalSignups} signups · {a.conversions.length} conversions</p>
                 )}
               </div>
               <button
@@ -315,8 +277,8 @@ export function AffiliatesPanel({ analytics }: { analytics: Analytics | null }) 
           <p className="text-2xl font-bold text-gray-900">${totalRevenue.toFixed(2)}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-400 font-medium">Total Commission Owed</p>
-          <p className="text-2xl font-bold text-purple-600">${totalCommission.toFixed(2)}</p>
+          <p className="text-xs text-gray-400 font-medium">Total Credits Earned</p>
+          <p className="text-2xl font-bold text-purple-600">{totalCredits}</p>
         </div>
         <div>
           <p className="text-xs text-gray-400 font-medium">Avg. Conversion Rate</p>

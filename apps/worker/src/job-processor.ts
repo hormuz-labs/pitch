@@ -1,7 +1,7 @@
 import type { Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import type { OpencodeClient } from '@opencode-ai/sdk';
-import { JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, createLogger, sendTelegramMessage } from '@saas/shared';
+import { JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, createLogger, sendTelegramMessage, type PhaseUpdate } from '@saas/shared';
 import * as db from '@saas/db';
 import { getSessionIdFromEvent } from './opencode.js';
 import { startBrowserContext, type BrowserContextHandle } from './browser-context.js';
@@ -83,6 +83,21 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
     let browserCtx: BrowserContextHandle | null = null;
     const messageCosts = new Map<string, number>();
     let currentCost = 0;
+    let budgetLimitBreached = false;
+    let timeoutExceeded = false;
+    const promptAbortController = new AbortController();
+
+    const timeout = setTimeout(() => {
+      timeoutExceeded = true;
+      jobLogger.error('Execution timeout of 50 minutes exceeded. Aborting session.');
+      if (session) {
+        client.session.abort({ path: { id: session.id } }).catch((err) => {
+          jobLogger.warn({ err }, 'Failed to abort OpenCode session on timeout');
+        });
+      }
+      eventAbortController?.abort();
+      promptAbortController.abort();
+    }, 50 * 60 * 1000);
 
     try {
       // 1. Create a new session for this job
@@ -129,6 +144,25 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
               if (msg.cost !== undefined) {
                 messageCosts.set(msg.id, msg.cost);
                 currentCost = Array.from(messageCosts.values()).reduce((sum, cost) => sum + cost, 0);
+              }
+
+              // Check if cost exceeded the $4.00 budget limit
+              if (currentCost >= 4.0) {
+                budgetLimitBreached = true;
+                jobLogger.error({ currentCost }, 'Budget limit of $4.00 exceeded. Aborting session immediately.');
+                
+                // Abort the session on the OpenCode server to stop the LLM instantly
+                if (session) {
+                  client.session.abort({ path: { id: session.id } }).catch((err) => {
+                    jobLogger.warn({ err }, 'Failed to abort OpenCode session');
+                  });
+                }
+                
+                // Abort the local event subscriber stream
+                eventAbortController?.abort();
+
+                // Abort the prompt request to make it reject immediately (in case OpenCode is frozen)
+                promptAbortController.abort();
               }
             }
 
@@ -196,6 +230,7 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         body: {
           parts: [{ type: 'text', text: promptText }],
         },
+        signal: promptAbortController.signal,
       });
 
       if (promptResponse.error) {
@@ -235,38 +270,79 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       // Check if job completed successfully. If it's still PROCESSING, push was never called.
       const finalJob = await db.prisma.job.findUnique({ where: { id: jobId } });
       if (finalJob?.status === JobStatus.PROCESSING) {
+        if (budgetLimitBreached) {
+          throw new Error('OpenCode budget limit of $4.00 was exceeded.');
+        }
+        if (timeoutExceeded) {
+          throw new Error('Execution timeout of 50 minutes was exceeded.');
+        }
         throw new Error('Video creation pipeline was aborted or failed to complete (e.g. budget limit reached).');
       }
 
     } catch (error: any) {
       jobLogger.error({ err: error }, 'Job processing failed');
 
-      // Don't try to update a job that has already been deleted from the DB.
+      let errorMessage = error.message || 'Worker processing failed unexpectedly';
+      if (budgetLimitBreached) {
+        errorMessage = 'OpenCode budget limit of $4.00 was exceeded.';
+      } else if (timeoutExceeded) {
+        errorMessage = 'Execution timeout of 50 minutes was exceeded.';
+      }
+
+      // Check if job was cancelled/aborted (so it was already handled and refunded by the API)
+      let isAlreadyCancelled = false;
+      let existingJob: any = null;
       try {
-        const failedJob = await db.updateJob(jobId, { 
-          status: JobStatus.FAILED,
-          error: error.message || 'Worker processing failed unexpectedly'
-        });
-        await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
-        
-        // Ensure refund is given if the worker errors out directly
-        try {
-          await db.addCredits(userId, 3, 'refund', 'Refund: video generation failed', { jobId });
-          jobLogger.info('Refunded 3 credits due to worker error');
-        } catch (refundError: any) {
-          jobLogger.warn({ err: refundError }, 'Failed to issue refund during worker error handling');
+        existingJob = await db.prisma.job.findUnique({ where: { id: jobId } });
+        if (existingJob && existingJob.status === JobStatus.FAILED && existingJob.error?.includes('cancelled')) {
+          isAlreadyCancelled = true;
         }
+      } catch (dbErr) {
+        // ignore
+      }
 
-        const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
-        const email = userProfile?.email || userId;
-        const urlParam = parameters?.url || 'N/A';
-        const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
+      if (!isAlreadyCancelled) {
+        // Don't try to update a job that has already been deleted from the DB.
+        try {
+          let newPhases: PhaseUpdate[] = [];
+          if (existingJob && existingJob.phases) {
+            const parsedPhases: PhaseUpdate[] = JSON.parse(existingJob.phases as string);
+            newPhases = parsedPhases.map(p => {
+              if (p.status === 'running') {
+                return { ...p, status: 'failed', completedAt: new Date().toISOString() };
+              }
+              return p;
+            });
+          }
 
-        await sendTelegramMessage(
-          `❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${error.message}`
-        );
-      } catch (updateErr: any) {
-        jobLogger.warn({ err: updateErr }, 'Could not update job status after failure (job may have been deleted)');
+          const failedJob = await db.updateJob(jobId, { 
+            status: JobStatus.FAILED,
+            error: errorMessage,
+            ...(newPhases.length > 0 ? { phases: JSON.stringify(newPhases) } : {})
+          });
+          await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+          
+          // Ensure refund is given if the worker errors out directly
+          try {
+            await db.addCredits(userId, 3, 'refund', 'Refund: video generation failed', { jobId });
+            jobLogger.info('Refunded 3 credits due to worker error');
+          } catch (refundError: any) {
+            jobLogger.warn({ err: refundError }, 'Failed to issue refund during worker error handling');
+          }
+
+          const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
+          const email = userProfile?.email || userId;
+          const urlParam = parameters?.url || 'N/A';
+          const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
+
+          await sendTelegramMessage(
+            `❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${errorMessage}`
+          );
+        } catch (updateErr: any) {
+          jobLogger.warn({ err: updateErr }, 'Could not update job status after failure (job may have been deleted)');
+        }
+      } else {
+        jobLogger.info('Job was already aborted/cancelled and refunded by the API route. Skipping worker refund.');
       }
 
       // Ensure cost is still logged even on failure, fetching final session messages if possible
@@ -299,6 +375,8 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
 
       throw error;
     } finally {
+      clearTimeout(timeout);
+
       // Remove from the active-session registry so cancellation messages for
       // this job are ignored from now on.
       activeSessionsByJobId.delete(jobId);
