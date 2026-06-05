@@ -277,6 +277,22 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
               {errors.instructions && <p className="text-xs text-red-500 mt-1">{errors.instructions}</p>}
             </div>
 
+            {/* Voiceover Script */}
+            <div>
+              <FieldLabel
+                label="Voiceover Script"
+                tooltip="Custom narration script for the AI voiceover. If left blank, the AI will generate one automatically."
+              />
+              <textarea
+                id="script-input"
+                rows={4}
+                className={`${inputBase} resize-none`}
+                placeholder="Write the exact words you want the AI to say as it narrates the demo… (optional)"
+                value={formValues.script || ''}
+                onChange={e => update('script', e.target.value)}
+              />
+            </div>
+
             {/* Submit */}
             <button
               type="submit"

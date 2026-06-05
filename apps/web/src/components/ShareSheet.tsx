@@ -13,6 +13,9 @@ interface User {
 interface ShareSheetProps {
   users: User[];
   onShareComplete?: (user: User) => void;
+  className?: string;
+  triggerContent?: React.ReactNode;
+  containerClassName?: string;
 }
 
 const springTransition = {
@@ -22,7 +25,7 @@ const springTransition = {
   mass: 1,
 } as const;
 
-export const ShareSheet = ({ users, onShareComplete }: ShareSheetProps) => {
+export const ShareSheet = ({ users, onShareComplete, className, triggerContent, containerClassName }: ShareSheetProps) => {
   const [status, setStatus] = useState<'idle' | 'open' | 'sending' | 'success'>('idle');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -43,13 +46,13 @@ export const ShareSheet = ({ users, onShareComplete }: ShareSheetProps) => {
   };
 
   return (
-    <div className="relative flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+    <div className={cn("relative", containerClassName)} onClick={(e) => e.stopPropagation()}>
       <motion.button
         onClick={(e) => {
           e.stopPropagation();
           if (status === 'idle') setStatus('open');
         }}
-        className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-black/70 text-white drop-shadow-md hover:bg-black transition-colors"
+        className={className || "relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-black/70 text-white drop-shadow-md hover:bg-black transition-colors"}
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={springTransition}
@@ -61,8 +64,9 @@ export const ShareSheet = ({ users, onShareComplete }: ShareSheetProps) => {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -40 }}
+              className="flex items-center justify-center gap-2 w-full h-full"
             >
-              <FiShare size={13} strokeWidth={2.5} />
+              {triggerContent || <FiShare size={13} strokeWidth={2.5} />}
             </motion.div>
           )}
 
@@ -77,10 +81,13 @@ export const ShareSheet = ({ users, onShareComplete }: ShareSheetProps) => {
                 stiffness: 400,
                 damping: 25,
               }}
-              className="absolute inset-0 m-auto flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-black/70 text-white shadow-sm"
+              className={cn(
+                "absolute inset-0 m-auto flex items-center justify-center overflow-hidden bg-black/70 text-white shadow-sm",
+                className ? "h-full w-full rounded-lg" : "h-7 w-7 rounded-md"
+              )}
             >
               <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-                <svg className="pointer-events-none absolute inset-0 h-full w-full -rotate-90">
+                <svg className="pointer-events-none absolute inset-0 m-auto h-7 w-7 -rotate-90">
                   <rect
                     x="4"
                     y="4"
@@ -118,7 +125,7 @@ export const ShareSheet = ({ users, onShareComplete }: ShareSheetProps) => {
                   >
                     {selectedUser.icon}
                   </motion.div>
-                ) : selectedUser?.avatar && (
+                ) : selectedUser?.avatar ? (
                   <motion.img
                     key="sending-avatar"
                     layoutId="avatar-morph"
@@ -127,6 +134,8 @@ export const ShareSheet = ({ users, onShareComplete }: ShareSheetProps) => {
                     exit={{ opacity: 0, scale: 0.6 }}
                     transition={{ duration: 0.3 }}
                   />
+                ) : (
+                  <div className="text-gray-500 font-bold text-[10px]">{selectedUser?.name.charAt(0)}</div>
                 )}
 
                 <AnimatePresence mode="wait">
