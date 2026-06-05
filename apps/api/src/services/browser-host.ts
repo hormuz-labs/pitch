@@ -74,16 +74,15 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
   if (startUrl) {
     try {
       const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
-      const { WebSocket } = await import('ws');
       
       for (let i = 0; i < 5; i++) {
         try {
           await new Promise<void>((resolve, reject) => {
             const ws = new WebSocket(cdpUrl, {
               headers: getManagerHeaders(),
-            });
+            } as any);
             const timeout = setTimeout(() => {
-              ws.terminate();
+              ws.close();
               reject(new Error('CDP navigation timeout'));
             }, 5000);
 
@@ -238,15 +237,14 @@ interface CdpStorageResult {
 async function captureStorageStateViaManagerCdp(profileId: string, profileDir: string): Promise<CdpStorageResult> {
   const stateFile = path.join(profileDir, 'storage_state.json');
   const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
-  const { WebSocket } = await import('ws');
 
   return new Promise<CdpStorageResult>((resolve) => {
     const ws = new WebSocket(cdpUrl, {
       headers: getManagerHeaders(),
-    });
+    } as any);
     const origins = new Set<string>();
     const timeout = setTimeout(() => {
-      ws.terminate();
+      ws.close();
       resolve({ origins: Array.from(origins).sort(), storageStatePath: null });
     }, 10_000);
 
