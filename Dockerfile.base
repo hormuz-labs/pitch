@@ -17,13 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh \
     && /root/.local/bin/rtk init -g --opencode
 
-# Download static FFmpeg build (includes ffmpeg + ffprobe)
-RUN curl -fsSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o /tmp/ffmpeg.tar.xz \
-    && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp \
-    && cp /tmp/ffmpeg-*-amd64-static/ffmpeg /tmp/ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ \
-    && chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe \
-    && rm -rf /tmp/ffmpeg*
-
 # Install agent-browser globally and run its install command
 RUN bun install -g agent-browser && agent-browser install
 
