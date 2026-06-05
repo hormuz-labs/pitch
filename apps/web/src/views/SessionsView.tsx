@@ -28,6 +28,8 @@ const IconSpinner = () => (
   </svg>
 );
 
+import { BrowserViewer } from './BrowserViewer';
+
 interface BrowserProfile {
   id: string;
   userId: string;
@@ -65,6 +67,7 @@ interface StartSessionResponse {
   sessionId: string;
   status: BrowserSession['status'];
   cdpPort: number;
+  noVncUrl: string | null;
   profileDir: string;
   startedAt: string;
   expiresAt: string;
@@ -307,34 +310,53 @@ interface ActiveSessionPanelProps {
 
 const ActiveSessionPanel = ({ session, onClose, closing }: ActiveSessionPanelProps) => {
   const startUrl = session.startUrl;
-  const port = session.cdpPort;
+  const managerProfileId = session.noVncUrl;
+
   return (
-    <div className="mb-6 px-5 py-4 rounded-xl border border-amber-200 bg-amber-50">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
-          <span className="mt-0.5 text-amber-600"><IconSpinner /></span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-amber-900">
-              Stealth browser is running — finish logging in
-            </h3>
-            <p className="mt-1 text-xs text-amber-800">
-              A CloakBrowser window is open on the API host{startUrl && <> at <code className="px-1 py-0.5 rounded bg-amber-100 text-amber-900">{startUrl}</code></>}.
-              Complete the login flow there, then click <span className="font-medium">I&apos;m done</span>.
+    <div className="mb-10 group">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 text-amber-600">
+            <IconSpinner />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Live Authentication Session</h3>
+            <p className="text-[11px] text-gray-500 font-medium">
+              {startUrl ? `Authenticated to ${startUrl}` : 'Browser ready'} · Expires {formatRelativeTime(session.expiresAt)}
             </p>
-            {port && (
-              <p className="mt-1 text-[11px] text-amber-700">
-                CDP port <code className="px-1 py-0.5 rounded bg-amber-100">{port}</code> · expires {formatRelativeTime(session.expiresAt)}
-              </p>
-            )}
           </div>
         </div>
         <button
           onClick={onClose}
           disabled={closing}
-          className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 text-xs font-bold rounded-lg border border-gray-200 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
         >
-          {closing ? 'Saving…' : 'I\'m done'}
+          {closing ? <IconSpinner /> : <IconCheck />}
+          {closing ? 'Finishing...' : 'Complete & Save'}
         </button>
+      </div>
+
+      <div className="relative aspect-video w-full max-w-4xl mx-auto overflow-hidden rounded-2xl border border-gray-200 bg-gray-900 shadow-2xl transition-all group-hover:border-gray-300">
+        {managerProfileId ? (
+          <BrowserViewer 
+            profileId={managerProfileId} 
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <IconSpinner />
+              <p className="text-xs text-white/40 font-medium">Initializing Remote Display...</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 max-w-4xl mx-auto px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
+        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+        <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+          The browser above is running in a secure, isolated container. Your interactions are encrypted and private. 
+          Complete your login flow, then click <strong>Complete & Save</strong> to persist the session.
+        </p>
       </div>
     </div>
   );
