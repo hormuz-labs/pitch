@@ -148,17 +148,28 @@ model Job {
 }
 
 model Affiliate {
-  id            String                @id() @default(cuid())
-  userId        String                @unique()
-  code          String                @unique()
-  commissionPct Float                 @default(20.0)
-  status        String                @default("active")
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt()
-  userProfile   UserProfile           @relation(fields: [userId], references: [id])
-  clicks        AffiliateClick[]
-  conversions   AffiliateConversion[]
-  payouts       AffiliatePayout[]
+  id          String                @id() @default(cuid())
+  userId      String                @unique()
+  code        String                @unique()
+  status      String                @default("active")
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt()
+  userProfile UserProfile           @relation(fields: [userId], references: [id])
+  clicks      AffiliateClick[]
+  leads       AffiliateLead[]
+  conversions AffiliateConversion[]
+  payouts     AffiliatePayout[]
+}
+
+model AffiliateLead {
+  id             String    @id() @default(cuid())
+  affiliateId    String
+  clickId        String?
+  referredUserId String    @unique()
+  createdAt      DateTime  @default(now())
+  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
 }
 
 model AffiliateClick {
@@ -182,7 +193,6 @@ model AffiliateConversion {
   clickId        String?
   referredUserId String
   saleAmountUsd  Float
-  commissionAmt  Float
   status         String    @default("pending")
   dodoSessionId  String?
   createdAt      DateTime  @default(now())

@@ -52,3 +52,18 @@ export const TOPUP_PACKS = {
 
 export type PackKey = keyof typeof CREDIT_PACKS;
 export type TopupKey = keyof typeof TOPUP_PACKS;
+
+// ── Referral program ──────────────────────────────────────────────────────────
+// Welcome credits every new user gets on signup (organic). 5 = one free video
+// (3 credits) + 2 leftover — a deliberate "near-miss" nudge to top up or refer a
+// friend (earning +1, the referrerSignup reward) to reach 3 for another video.
+export const SIGNUP_BONUS_CREDITS = 5;
+
+// Launch-phase referral rewards (paid in credits, no cash). A referred new user
+// gets SIGNUP_BONUS_CREDITS + newUserBonus = 6 total (a clean two free videos).
+// Taper toward steady-state later by editing these numbers — no schema/logic change.
+export const REFERRAL_REWARDS = {
+  newUserBonus: 1,      // EXTRA credits for signing up via a referral link (5 + 1 = 6 total)
+  referrerSignup: 1,    // credits to the referrer per referred signup
+  referrerPurchase: 8,  // credits to the referrer when a referred user first purchases (2 videos + 2 leftover = "1 away" from a 3rd, same near-miss nudge as the organic 5)
+} as const;

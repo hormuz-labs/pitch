@@ -3,7 +3,7 @@ import * as db from '@saas/db';
 import { createLogger } from '@saas/shared';
 import { Webhook } from 'standardwebhooks';
 import DodoPayments from 'dodopayments';
-import { CREDIT_PACKS, TOPUP_PACKS, DODO_ENV } from '../config.js';
+import { CREDIT_PACKS, TOPUP_PACKS, DODO_ENV, REFERRAL_REWARDS } from '../config.js';
 
 const logger = createLogger('api');
 
@@ -221,26 +221,24 @@ async function handleAffiliateConversion(
   if (!affiliateId) return;
 
   try {
-    const affiliate = await db.prisma.affiliate.findUnique({ where: { id: affiliateId } });
-    if (!affiliate || affiliate.status !== 'active' || affiliate.userId === userId) return;
-
-    const alreadyConverted = await db.hasExistingConversion(affiliateId, userId);
-    if (alreadyConverted) return;
-
     const saleAmountUsd = (data.recurring_pre_tax_amount || data.total_amount || 0) / 100;
-    const commissionAmt = saleAmountUsd * (affiliate.commissionPct / 100);
     const eventId = data.subscription_id || data.payment_id;
 
-    await db.createAffiliateConversion({
+    // No cash commission — reward the referrer in credits on the referred
+    // user's first purchase. Guards (active affiliate, self-referral, dedupe)
+    // live inside recordReferralConversion.
+    const result = await db.recordReferralConversion({
       affiliateId,
       clickId: clickId || undefined,
       referredUserId: userId,
+      referrerReward: REFERRAL_REWARDS.referrerPurchase,
       saleAmountUsd,
-      commissionAmt,
       dodoSessionId: eventId,
     });
 
-    console.log(`[Affiliate] $${commissionAmt.toFixed(2)} commission queued for affiliate ${affiliateId}`);
+    if (result.rewarded) {
+      console.log(`[Affiliate] +${REFERRAL_REWARDS.referrerPurchase} credits to affiliate ${affiliateId} for referred purchase`);
+    }
   } catch (err) {
     console.error('[Affiliate] Conversion error:', err);
   }

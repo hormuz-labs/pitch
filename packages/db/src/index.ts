@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { enhance } from '@zenstackhq/runtime';
 import { JobStatus, Job, PhaseUpdate, PHASE_WEIGHTS } from '@saas/shared';
 import * as dotenv from 'dotenv';
@@ -170,14 +170,18 @@ export type CreditTransactionType =
   | 'usage'
   | 'refund'
   | 'admin_adjustment'
-  | 'promo';
+  | 'promo'
+  | 'referral';
 
 /**
  * Calculates the current credit balance for a user from the ledger.
  * Returns 0 if the user has no transactions yet.
  */
-export async function getCreditBalance(userId: string): Promise<number> {
-  const agg = await prisma.creditTransaction.aggregate({
+export async function getCreditBalance(
+  userId: string,
+  client: PrismaClient | Prisma.TransactionClient = prisma,
+): Promise<number> {
+  const agg = await client.creditTransaction.aggregate({
     where: { userId },
     _sum: { delta: true },
   });
@@ -199,20 +203,24 @@ export async function addCredits(
     subscriptionId?: string;
     topUpId?: string;
     idempotencyKey?: string;
+    // Run inside an existing transaction so the grant is atomic with its caller.
+    tx?: Prisma.TransactionClient;
   }
 ): Promise<number> {
+  const client = opts?.tx ?? prisma;
+
   // Check idempotency — skip if we've already processed this key
   if (opts?.idempotencyKey) {
-    const existing = await prisma.creditTransaction.findUnique({
+    const existing = await client.creditTransaction.findUnique({
       where: { idempotencyKey: opts.idempotencyKey },
     });
     if (existing) {
       console.log(`[Credits] Skipped duplicate grant (key: ${opts.idempotencyKey})`);
-      return getCreditBalance(userId);
+      return getCreditBalance(userId, client);
     }
   }
 
-  await prisma.creditTransaction.create({
+  await client.creditTransaction.create({
     data: {
       userId,
       delta: amount,
@@ -225,7 +233,7 @@ export async function addCredits(
     },
   });
 
-  const newBalance = await getCreditBalance(userId);
+  const newBalance = await getCreditBalance(userId, client);
   console.log(`[Credits] +${amount} (${type}) for user ${userId}. New balance: ${newBalance}`);
   return newBalance;
 }
@@ -520,55 +528,128 @@ export async function createAffiliateClick(data: {
   return prisma.affiliateClick.create({ data });
 }
 
-/** Record a confirmed conversion (sale) attributed to an influencer */
-export async function createAffiliateConversion(data: {
+/**
+ * Records a referred signup and grants the launch referral rewards in credits.
+ * The new user gets `newUserReward`, the referrer gets `referrerReward`.
+ * No-op (returns { rewarded: false }) for an inactive/missing affiliate, a
+ * self-referral, or a user who has already been recorded as a lead.
+ */
+export async function recordReferralSignup(data: {
   affiliateId: string;
   clickId?: string;
-  referredUserId: string;
-  saleAmountUsd: number;
-  commissionAmt: number;
-  dodoSessionId?: string;
-}) {
-  return prisma.affiliateConversion.create({ data });
-}
+  newUserId: string;
+  newUserReward: number;
+  referrerReward: number;
+}): Promise<{ rewarded: boolean }> {
+  const affiliate = await prisma.affiliate.findUnique({ where: { id: data.affiliateId } });
+  if (!affiliate || affiliate.status !== 'active') return { rewarded: false };
+  if (affiliate.userId === data.newUserId) return { rewarded: false }; // self-referral
 
-/** Check if a given user has already been attributed to this affiliate (prevents double commission) */
-export async function hasExistingConversion(affiliateId: string, referredUserId: string) {
-  const existing = await prisma.affiliateConversion.findUnique({
-    where: { affiliateId_referredUserId: { affiliateId, referredUserId } },
+  const existing = await prisma.affiliateLead.findUnique({ where: { referredUserId: data.newUserId } });
+  if (existing) return { rewarded: false }; // already attributed — idempotent
+
+  // Lead + both credit grants are atomic: a failure rolls everything back, so we
+  // never leave an orphan lead that would block the rewards from ever landing.
+  // The new-user bonus is a 'promo' welcome credit (not a referrer earning), so
+  // affiliate "credits earned" stats (which sum type:'referral') exclude it.
+  await prisma.$transaction(async (tx) => {
+    await tx.affiliateLead.create({
+      data: { affiliateId: data.affiliateId, clickId: data.clickId, referredUserId: data.newUserId },
+    });
+
+    if (data.newUserReward > 0) {
+      await addCredits(data.newUserId, data.newUserReward, 'promo', 'Referral signup bonus', {
+        idempotencyKey: `ref_signup_user:${data.newUserId}`,
+        tx,
+      });
+    }
+    if (data.referrerReward > 0) {
+      await addCredits(affiliate.userId, data.referrerReward, 'referral', 'Referral signup reward', {
+        idempotencyKey: `ref_signup_aff:${data.newUserId}`,
+        tx,
+      });
+    }
   });
-  return !!existing;
+
+  return { rewarded: true };
 }
 
-/** Get aggregated stats for the influencer dashboard */
+/**
+ * Records a referred user's first purchase and grants the referrer
+ * `referrerReward` credits. No cash commission. No-op for an inactive/missing
+ * affiliate, a self-referral, or a user who has already converted.
+ */
+export async function recordReferralConversion(data: {
+  affiliateId: string;
+  referredUserId: string;
+  referrerReward: number;
+  clickId?: string;
+  saleAmountUsd?: number;
+  dodoSessionId?: string;
+}): Promise<{ rewarded: boolean }> {
+  const affiliate = await prisma.affiliate.findUnique({ where: { id: data.affiliateId } });
+  if (!affiliate || affiliate.status !== 'active') return { rewarded: false };
+  if (affiliate.userId === data.referredUserId) return { rewarded: false }; // self-referral
+
+  const existing = await prisma.affiliateConversion.findUnique({
+    where: { affiliateId_referredUserId: { affiliateId: data.affiliateId, referredUserId: data.referredUserId } },
+  });
+  if (existing) return { rewarded: false }; // already converted — idempotent
+
+  // Conversion record + referrer reward are atomic: a failure rolls both back,
+  // so we never leave a conversion row that would block the reward on retry.
+  await prisma.$transaction(async (tx) => {
+    await tx.affiliateConversion.create({
+      data: {
+        affiliateId: data.affiliateId,
+        clickId: data.clickId,
+        referredUserId: data.referredUserId,
+        saleAmountUsd: data.saleAmountUsd ?? 0,
+        status: 'approved',
+        dodoSessionId: data.dodoSessionId,
+      },
+    });
+
+    if (data.referrerReward > 0) {
+      await addCredits(affiliate.userId, data.referrerReward, 'referral', 'Referral purchase reward', {
+        idempotencyKey: `ref_purchase:${data.affiliateId}:${data.referredUserId}`,
+        tx,
+      });
+    }
+  });
+
+  return { rewarded: true };
+}
+
+/**
+ * Aggregated stats for the referral dashboard. Rewards are paid in credits, so
+ * we report counts plus the credits the referrer has earned (and the equivalent
+ * number of free videos). No cash/commission/payout figures.
+ */
 export async function getAffiliateStats(affiliateId: string) {
-  const [clicks, conversions, payouts] = await Promise.all([
+  const affiliate = await prisma.affiliate.findUnique({ where: { id: affiliateId } });
+
+  const [clicks, signups, conversions, creditAgg] = await Promise.all([
     prisma.affiliateClick.count({ where: { affiliateId } }),
-    prisma.affiliateConversion.findMany({ where: { affiliateId } }),
-    prisma.affiliatePayout.findMany({ where: { affiliateId }, orderBy: { requestedAt: 'desc' } }),
+    prisma.affiliateLead.count({ where: { affiliateId } }),
+    prisma.affiliateConversion.count({ where: { affiliateId } }),
+    affiliate
+      ? prisma.creditTransaction.aggregate({
+          where: { userId: affiliate.userId, type: 'referral' },
+          _sum: { delta: true },
+        })
+      : Promise.resolve({ _sum: { delta: 0 } }),
   ]);
 
-  const totalRevenue = conversions.reduce((s, c) => s + c.saleAmountUsd, 0);
-  const totalCommission = conversions.reduce((s, c) => s + c.commissionAmt, 0);
-  const paidOut = payouts.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-  const pendingPayout = totalCommission - paidOut;
+  const creditsEarned = creditAgg._sum.delta ?? 0;
 
-  return { clicks, signups: conversions.length, totalRevenue, totalCommission, paidOut, pendingPayout, payouts };
-}
-
-/** Request a payout for pending commission earnings */
-export async function requestAffiliatePayout(affiliateId: string, amount: number) {
-  return prisma.affiliatePayout.create({
-    data: { affiliateId, amount, method: 'dodo', status: 'requested' },
-  });
-}
-
-/** Mark a conversion as approved (called 7 days after sale, auto or by admin) */
-export async function approveConversion(conversionId: string) {
-  return prisma.affiliateConversion.update({
-    where: { id: conversionId },
-    data: { status: 'approved' },
-  });
+  return {
+    clicks,
+    signups,
+    conversions,
+    creditsEarned,
+    videosEarned: Math.floor(creditsEarned / 3),
+  };
 }
 
 export * from './browser-profiles.js';

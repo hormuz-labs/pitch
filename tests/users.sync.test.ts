@@ -58,6 +58,9 @@ vi.mock('../apps/api/src/config.js', () => ({
   },
   connection: { publish: vi.fn().mockResolvedValue(1) },
   subscriber: { subscribe: vi.fn(), on: vi.fn(), off: vi.fn() },
+  // Referral config consumed by users.ts /sync (signup bonus + referral attribution).
+  SIGNUP_BONUS_CREDITS: 3,
+  REFERRAL_REWARDS: { newUserBonus: 3, referrerSignup: 1, referrerPurchase: 8 },
 }));
 
 import * as db from '@saas/db';

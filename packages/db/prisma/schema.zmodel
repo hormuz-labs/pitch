@@ -227,15 +227,29 @@ model Affiliate {
   id            String   @id @default(cuid())
   userId        String   @unique        // Clerk user ID
   code          String   @unique        // e.g. "MUKUND-X7K2" — human-readable, URL-safe
-  commissionPct Float    @default(20.0) // Percentage of sale credited as commission
   status        String   @default("active")  // active | suspended | pending
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   userProfile UserProfile           @relation(fields: [userId], references: [id])
   clicks      AffiliateClick[]
+  leads       AffiliateLead[]
   conversions AffiliateConversion[]
   payouts     AffiliatePayout[]
+}
+
+// A referred signup attributed to an affiliate (paid or not) — drives the
+// "signups" count and rewards. One row per referred user (first-touch).
+model AffiliateLead {
+  id             String   @id @default(cuid())
+  affiliateId    String
+  clickId        String?  // which click led to this signup, if known
+  referredUserId String   @unique // Clerk userId of the referred user
+  createdAt      DateTime @default(now())
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
 }
 
 // Every click on an affiliate link — used for analytics and attribution
@@ -255,21 +269,22 @@ model AffiliateClick {
   @@index([clickedAt])
 }
 
-// A confirmed sale attributed to an influencer (first purchase only)
+// A referred user's first purchase. Used to dedupe the purchase reward (one per
+// referred user, ever) and to surface revenue driven. Rewards are paid in
+// credits, not cash — there is no commission field.
 model AffiliateConversion {
   id            String   @id @default(cuid())
   affiliateId   String
   clickId       String?  // which specific click led to this conversion
   referredUserId String  // Clerk userId of the person who signed up & purchased
   saleAmountUsd Float    // sale amount in USD (Dodo reports in USD cents → convert)
-  commissionAmt Float    // saleAmountUsd * commissionPct / 100
-  status        String   @default("pending") // pending | approved | paid | rejected
+  status        String   @default("pending") // pending | approved | rejected
   dodoSessionId String? // Dodo Checkout session ID for audit trail
   createdAt     DateTime @default(now())
 
   affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
-  @@unique([affiliateId, referredUserId]) // one commission per referred user, ever
+  @@unique([affiliateId, referredUserId]) // one reward per referred user, ever
   @@index([affiliateId])
   @@index([referredUserId])
 }
