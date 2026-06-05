@@ -20,7 +20,7 @@ COPY packages/storage/package.json packages/storage/
 # --frozen-lockfile: every workspace package.json above must be present, or the
 # install aborts loudly instead of silently re-resolving (which previously drifted
 # Prisma 6 → 7 and broke the schema). Add a COPY line when adding a workspace.
-RUN bun install --frozen-lockfile --ignore-scripts --verbose
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Now copy the rest of the source code
 COPY . .
