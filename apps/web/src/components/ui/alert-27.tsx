@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { FaCheckCircle } from "react-icons/fa";
 
 interface Alert27Props {
   title?: string;
   description?: string;
   className?: string;
-  /** Called after the alert is dismissed (by user or auto-timer) */
   onDismiss?: () => void;
-  /** Seconds before auto-dismiss. Default: 5 */
   duration?: number;
 }
 
@@ -44,12 +41,20 @@ export const Alert27 = ({
     <div
       className={`transition-all duration-300 ${fading ? "opacity-0 -translate-y-1" : "opacity-100 translate-y-0"}`}
     >
-      <Alert
-        className={`border-none bg-green-600 text-white dark:bg-green-400 relative pr-10 overflow-hidden ${className || ""}`}
+      <div
+        role="alert"
+        className={`relative rounded-lg bg-green-600 dark:bg-green-400 px-4 py-3 pr-10 overflow-hidden text-white flex flex-col gap-0.5 ${className || ""}`}
       >
-        <FaCheckCircle className="size-4 shrink-0" />
-        <AlertTitle>{title}</AlertTitle>
-        <AlertDescription className="text-white/80">{description}</AlertDescription>
+        {/* Row 1: icon + title */}
+        <div className="flex flex-row items-center gap-2">
+          <FaCheckCircle className="size-4 shrink-0" />
+          <span className="text-sm font-semibold leading-none">{title}</span>
+        </div>
+
+        {/* Row 2: description centered */}
+        <p className="text-xs text-white/80 font-normal text-left leading-none mt-1">
+          {description}
+        </p>
 
         {/* Close button */}
         <button
@@ -70,7 +75,7 @@ export const Alert27 = ({
             style={{ animation: `alert27-shrink ${duration}s linear forwards` }}
           />
         </div>
-      </Alert>
+      </div>
 
       <style>{`
         @keyframes alert27-shrink {
