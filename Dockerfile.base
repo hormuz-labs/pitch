@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh \
     && /root/.local/bin/rtk init -g --opencode
 
-# Install agent-browser globally and run its install command (this downloads Chrome on amd64)
-RUN bun install -g agent-browser && agent-browser install
+# Install agent-browser globally (skipping the local browser download since we use cloakbrowser-manager)
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+RUN bun install -g agent-browser
 
