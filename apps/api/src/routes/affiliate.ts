@@ -20,19 +20,20 @@ redirectRouter.get('/r/:code', async (req, res) => {
   const platform = (req.query.utm_source as string) || 'direct';
   const refPage  = (req.query.landing as string) || '/';
 
-  const click = await db.createAffiliateClick({
+  // Record the click for analytics. Attribution itself flows through the
+  // `?ref=<CODE>` query param on the redirect target — the web app captures
+  // it and forwards it to /users/sync and /checkout in the request body.
+  // The `aff` httpOnly cookie this route used to set is no longer the
+  // attribution channel: in production Vercel proxies /r/<CODE> from
+  // trypitch.co to api.trypitch.co, and the cross-origin rewrite doesn't
+  // deliver the Set-Cookie to the browser, so the API never sees it on
+  // subsequent requests. The body param is robust against any proxy/CDN.
+  await db.createAffiliateClick({
     affiliateId: affiliate.id,
     ip: hashedIp,
     userAgent: req.headers['user-agent']?.slice(0, 250),
     platform,
     refPage,
-  });
-
-  res.cookie('aff', `${affiliate.id}:${click.id}`, {
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
   });
 
   const appUrl = process.env.APP_URL || 'https://trypitch.co';

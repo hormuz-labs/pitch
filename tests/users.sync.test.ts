@@ -37,6 +37,8 @@ vi.mock('@saas/db', () => ({
   },
   upsertUser:  vi.fn(),
   addCredits:  vi.fn().mockResolvedValue(undefined),
+  getAffiliateByCode:    vi.fn(),
+  recordReferralSignup:  vi.fn().mockResolvedValue({ rewarded: true }),
 }));
 
 vi.mock('@saas/shared', () => ({
@@ -152,5 +154,100 @@ describe('POST /users/sync', () => {
     // 2) Subsequent admin request must be rejected.
     const admin = await request(combined).get('/admin/dashboard');
     expect(admin.status).toBe(403);
+  });
+});
+
+/**
+ * Referral attribution on /users/sync via the `refCode` body field.
+ *
+ * Regression coverage for the cross-origin cookie bug: the `aff` httpOnly
+ * cookie set by the /r/<CODE> redirect never reaches the API in production
+ * (Vercel proxies across origins and strips the Set-Cookie). The web app
+ * therefore forwards the captured `?ref=<CODE>` value in the sync body, and
+ * the API resolves it back to the affiliate to record the lead + credits.
+ */
+describe('POST /users/sync — referral attribution via refCode', () => {
+  beforeEach(() => {
+    _verifiedProfile = {
+      email: 'newuser@example.com',
+      firstName: 'New',
+      lastName: 'User',
+    };
+    vi.mocked((db as any).getAffiliateByCode).mockReset();
+    vi.mocked((db as any).recordReferralSignup).mockReset();
+    vi.mocked((db as any).recordReferralSignup).mockResolvedValue({ rewarded: true });
+  });
+
+  it('records a referral lead and grants new-user + referrer credits when refCode matches an active affiliate', async () => {
+    vi.mocked((db as any).getAffiliateByCode).mockResolvedValue({
+      id: 'aff_1', userId: 'referrer_user', status: 'active', code: 'ADNANS-4BA5',
+    });
+
+    const res = await request(app)
+      .post('/users/sync')
+      .send({ refCode: 'adnans-4ba5' }); // case-insensitive on input
+
+    expect(res.status).toBe(200);
+
+    // The code is normalised to uppercase before lookup.
+    expect(db.getAffiliateByCode).toHaveBeenCalledWith('ADNANS-4BA5');
+
+    // Lead + credits are recorded against the resolved affiliate.
+    expect(db.recordReferralSignup).toHaveBeenCalledTimes(1);
+    expect(db.recordReferralSignup).toHaveBeenCalledWith(expect.objectContaining({
+      affiliateId: 'aff_1',
+      newUserId: 'user_attacker',
+      newUserReward: 3,   // REFERRAL_REWARDS.newUserBonus from the test config mock
+      referrerReward: 1,  // REFERRAL_REWARDS.referrerSignup
+    }));
+  });
+
+  it('records nothing when refCode is absent (organic signup)', async () => {
+    const res = await request(app).post('/users/sync').send({});
+    expect(res.status).toBe(200);
+    expect(db.getAffiliateByCode).not.toHaveBeenCalled();
+    expect(db.recordReferralSignup).not.toHaveBeenCalled();
+  });
+
+  it('records nothing when refCode does not resolve to an active affiliate', async () => {
+    vi.mocked((db as any).getAffiliateByCode).mockResolvedValue(null);
+
+    const res = await request(app).post('/users/sync').send({ refCode: 'NOPE-0000' });
+    expect(res.status).toBe(200);
+    expect(db.getAffiliateByCode).toHaveBeenCalledWith('NOPE-0000');
+    expect(db.recordReferralSignup).not.toHaveBeenCalled();
+  });
+
+  it('records nothing when the resolved affiliate is suspended', async () => {
+    vi.mocked((db as any).getAffiliateByCode).mockResolvedValue({
+      id: 'aff_1', userId: 'referrer_user', status: 'suspended', code: 'OLD-0000',
+    });
+
+    const res = await request(app).post('/users/sync').send({ refCode: 'OLD-0000' });
+    expect(res.status).toBe(200);
+    expect(db.recordReferralSignup).not.toHaveBeenCalled();
+  });
+
+  it('ignores non-string refCode values (defensive)', async () => {
+    const res = await request(app).post('/users/sync').send({ refCode: 12345 });
+    expect(res.status).toBe(200);
+    expect(db.getAffiliateByCode).not.toHaveBeenCalled();
+    expect(db.recordReferralSignup).not.toHaveBeenCalled();
+  });
+
+  it('does not block signup when the affiliate lookup throws (never-block-signup invariant)', async () => {
+    // Simulate a DB blip on the affiliate table. The route must catch the
+    // failure, log it, and still return 200 so the user can sign up — the
+    // "Failures must never block signup" contract in users.ts.
+    vi.mocked((db as any).getAffiliateByCode).mockRejectedValue(new Error('affiliate table unavailable'));
+
+    const res = await request(app).post('/users/sync').send({ refCode: 'ADNANS-4BA5' });
+
+    expect(res.status).toBe(200);
+    // The signup bonus is still applied (the addCredits call sits outside
+    // the attribution try/catch and ran before the throw).
+    expect(db.addCredits).toHaveBeenCalled();
+    // No referral is recorded when the lookup itself blew up.
+    expect(db.recordReferralSignup).not.toHaveBeenCalled();
   });
 });

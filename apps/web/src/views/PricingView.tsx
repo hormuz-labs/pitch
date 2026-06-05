@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { API_URL } from '../config';
+import { getRefCode } from '../lib/referral';
 import pCoinIcon from '../assets/pCoin.svg';
 
 const IconCheck = () => (
@@ -116,7 +117,10 @@ export const PricingView = () => {
       const res = await fetch(`${API_URL}/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(isTopup ? { topup: key } : { pack: key }),
+        body: JSON.stringify({
+          ...(isTopup ? { topup: key } : { pack: key }),
+          refCode: getRefCode() ?? undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Checkout failed');

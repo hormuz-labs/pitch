@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
+import assert from 'node:assert/strict';
 import { createLogger } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
 import { CREDIT_PACKS, TOPUP_PACKS, DODO_ENV, type PackKey, type TopupKey } from '../config.js';
@@ -118,6 +119,46 @@ function buildSubscriptionReceipt(subscription: DodoSubscriptionObj, balance: nu
   };
 }
 
+/**
+ * Builds the `affiliate_cookie` value for the Dodo session metadata. Best-
+ * effort: never throws to the caller — a DB blip is logged and yields `''`,
+ * so the payment flow always proceeds (the webhook then no-ops and no
+ * conversion is recorded). Postcondition (asserted at the call site): the
+ * returned string is either empty or matches `<affiliateId>` or
+ * `<affiliateId>:<clickId>`.
+ *
+ * Preference order:
+ *   1. Legacy `aff` httpOnly cookie — dead in production (cross-origin) but
+ *      kept for local-dev compatibility.
+ *   2. `refCode` from the body (the `?ref=<CODE>` captured by the web app).
+ *      Resolved back to the affiliate, with the most recent click for that
+ *      affiliate recovered as a best-effort clickId (last-touch heuristic).
+ */
+async function resolveCheckoutAttribution(req: Request, userId: string): Promise<string> {
+  try {
+    const affCookie = (req.cookies as Record<string, string> | undefined)?.aff;
+    if (affCookie) return affCookie;
+
+    const refCodeRaw = (req.body as { refCode?: unknown } | undefined)?.refCode;
+    const refCode = typeof refCodeRaw === 'string' ? refCodeRaw.trim().toUpperCase() : '';
+    if (!refCode) return '';
+
+    const { prisma: db, getAffiliateByCode } = await import('@saas/db');
+    const aff = await getAffiliateByCode(refCode);
+    if (!aff || aff.status !== 'active' || aff.userId === userId) return '';
+
+    const latestClick = await db.affiliateClick.findFirst({
+      where: { affiliateId: aff.id },
+      orderBy: { clickedAt: 'desc' },
+      select: { id: true },
+    });
+    return latestClick?.id ? `${aff.id}:${latestClick.id}` : aff.id;
+  } catch (err) {
+    logger.error({ err }, 'resolveCheckoutAttribution: lookup failed; continuing without attribution');
+    return '';
+  }
+}
+
 router.post('/', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -157,7 +198,15 @@ router.post('/', async (req, res) => {
       environment: DODO_ENV,
     });
 
-    const affCookie = (req.cookies as Record<string, string> | undefined)?.aff || '';
+    // Build the affiliate attribution payload for the Dodo session metadata.
+    // Resolved by `resolveCheckoutAttribution` so the main flow stays linear;
+    // attribution failures there never block the payment.
+    const affCookie = await resolveCheckoutAttribution(req, userId);
+    assert(
+      affCookie === ''
+        || /^[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)?$/.test(affCookie),
+      'resolveCheckoutAttribution returned a malformed cookie value',
+    );
     const appUrl = process.env.APP_URL || 'https://trypitch.co';
 
     const session = await client.checkoutSessions.create({

@@ -23,6 +23,7 @@ import { TermsOfService } from './components/TermsOfService';
 import { API_URL } from './config';
 import { api } from './lib/api';
 import { parseSSELog } from './lib/events';
+import { captureRefFromUrl, getRefCode } from './lib/referral';
 
 import tabLogoB from './assets/tabLogoB.svg';
 import { PitchLogoAnimation } from './components/PitchLogoAnimation';
@@ -503,6 +504,17 @@ function AppContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Capture any `?ref=<CODE>` from the landing URL on first load, and again
+  // on every route change so a `?ref=` that appears on a later page (e.g.
+  // /sign-up?ref=CODE) is still picked up. captureRefFromUrl is idempotent
+  // and a no-op when the param is absent, and the most recent valid ref
+  // wins (last-touch attribution). The code is persisted in localStorage so
+  // it survives Clerk's OAuth round-trip and subsequent SPA navigations.
+  // `location` is already declared at the top of AppContent.
+  useEffect(() => {
+    captureRefFromUrl();
+  }, [location.search]);
+
   // Sync user profile to the database once per session (on sign-in, not on every refresh)
   useEffect(() => {
     if (!isLoaded || !userId || !user) return;
@@ -520,6 +532,7 @@ function AppContent() {
           firstName: user.firstName,
           lastName: user.lastName,
           imageUrl: user.imageUrl,
+          refCode: getRefCode() ?? undefined,
         });
         sessionStorage.setItem(sessionKey, '1');
         window.dispatchEvent(new Event('credits-changed')); // Trigger credit fetch after sync
@@ -560,6 +573,7 @@ function AppContent() {
                   firstName: user.firstName,
                   lastName: user.lastName,
                   imageUrl: user.imageUrl,
+                  refCode: getRefCode() ?? undefined,
                 });
                 sessionStorage.setItem(`user_synced_${userId}`, '1');
                 window.dispatchEvent(new Event('credits-changed'));
