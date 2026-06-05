@@ -143,8 +143,8 @@ services:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
     group_add:
-      - video
-      - render
+      - "44"
+      - "992"
 
   api:
     image: pitch-api:${IMAGE_TAG:-latest}
@@ -212,8 +212,8 @@ services:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
     group_add:
-      - video
-      - render
+      - "44"
+      - "992"
     deploy:
       replicas: 1
     depends_on:
