@@ -26,10 +26,21 @@ export interface StartSessionResult {
 }
 
 const MANAGER_BASE_URL = process.env.CLOAK_MANAGER_URL || 'http://127.0.0.1:8080';
+const MANAGER_AUTH_TOKEN = process.env.CLOAK_MANAGER_AUTH_TOKEN;
+
+function getManagerHeaders(headers: Record<string, string> = {}) {
+  const h = { ...headers };
+  if (MANAGER_AUTH_TOKEN) {
+    h['Authorization'] = `Bearer ${MANAGER_AUTH_TOKEN}`;
+  }
+  return h;
+}
 
 async function getManagerProfile(userId: string): Promise<any | null> {
   try {
-    const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`);
+    const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
+      headers: getManagerHeaders(),
+    });
     if (!res.ok) return null;
     const profiles = await res.json() as any[];
     return profiles.find(p => p.name === userId) || null;
@@ -42,7 +53,7 @@ async function getManagerProfile(userId: string): Promise<any | null> {
 async function createManagerProfile(userId: string): Promise<any> {
   const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getManagerHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       name: userId,
       platform: 'windows',
@@ -55,7 +66,7 @@ async function createManagerProfile(userId: string): Promise<any> {
 async function launchManagerProfile(profileId: string, startUrl?: string | null): Promise<any> {
   const res = await fetch(`${MANAGER_BASE_URL}/api/profiles/${profileId}/launch`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getManagerHeaders({ 'Content-Type': 'application/json' }),
   });
   if (!res.ok) throw new Error(`Failed to launch manager profile: ${await res.text()}`);
   const data = await res.json();
@@ -63,25 +74,28 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
   if (startUrl) {
     try {
       const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
+      const { WebSocket } = await import('ws');
       
       for (let i = 0; i < 5; i++) {
         try {
           await new Promise<void>((resolve, reject) => {
-            const ws = new WebSocket(cdpUrl);
+            const ws = new WebSocket(cdpUrl, {
+              headers: getManagerHeaders(),
+            });
             const timeout = setTimeout(() => {
-              ws.close();
+              ws.terminate();
               reject(new Error('CDP navigation timeout'));
             }, 5000);
 
-            ws.onopen = () => {
+            ws.on('open', () => {
               ws.send(JSON.stringify({
                 id: 10,
                 method: 'Target.getTargets'
               }));
-            };
+            });
 
-            ws.onmessage = (event) => {
-              const msg = JSON.parse(event.data.toString());
+            ws.on('message', (data) => {
+              const msg = JSON.parse(data.toString());
               
               if (msg.id === 10) {
                 const targets = msg.result?.targetInfos || [];
@@ -113,12 +127,12 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
                   resolve();
                 }, 500);
               }
-            };
+            });
 
-            ws.onerror = (err) => {
+            ws.on('error', (err) => {
               clearTimeout(timeout);
               reject(err);
-            };
+            });
           });
           break; 
         } catch (err) {
@@ -136,7 +150,10 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
 
 async function stopManagerProfile(profileId: string): Promise<void> {
   try {
-    await fetch(`${MANAGER_BASE_URL}/api/profiles/${profileId}/stop`, { method: 'POST' });
+    await fetch(`${MANAGER_BASE_URL}/api/profiles/${profileId}/stop`, { 
+      method: 'POST',
+      headers: getManagerHeaders(),
+    });
   } catch (err) {
     logger.warn({ err, profileId }, 'failed to stop manager profile');
   }
@@ -221,22 +238,25 @@ interface CdpStorageResult {
 async function captureStorageStateViaManagerCdp(profileId: string, profileDir: string): Promise<CdpStorageResult> {
   const stateFile = path.join(profileDir, 'storage_state.json');
   const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
+  const { WebSocket } = await import('ws');
 
   return new Promise<CdpStorageResult>((resolve) => {
-    const ws = new WebSocket(cdpUrl);
+    const ws = new WebSocket(cdpUrl, {
+      headers: getManagerHeaders(),
+    });
     const origins = new Set<string>();
     const timeout = setTimeout(() => {
-      ws.close();
+      ws.terminate();
       resolve({ origins: Array.from(origins).sort(), storageStatePath: null });
     }, 10_000);
 
-    ws.onopen = () => {
+    ws.on('open', () => {
       ws.send(JSON.stringify({ id: 100, method: 'Storage.getCookies' }));
-    };
+    });
 
-    ws.onmessage = async (event) => {
+    ws.on('message', async (data) => {
       try {
-        const msg = JSON.parse(event.data.toString());
+        const msg = JSON.parse(data.toString());
         if (msg.id === 100 && msg.result?.cookies) {
           const cookies = msg.result.cookies as Array<{
             name: string;
@@ -282,12 +302,12 @@ async function captureStorageStateViaManagerCdp(profileId: string, profileDir: s
       } catch (err) {
         logger.warn({ err }, 'failed to parse CDP message during storage capture');
       }
-    };
+    });
 
-    ws.onerror = (err) => {
+    ws.on('error', (err) => {
       clearTimeout(timeout);
       resolve({ origins: [], storageStatePath: null });
-    };
+    });
   });
 }
 
@@ -346,6 +366,10 @@ export function listActiveInMemory(): any[] {
 
 export async function shutdownAllSessions(): Promise<void> {
   // Global shutdown not easily supported via manager API without listing all
+}
+
+export function getManagerToken(): string | undefined {
+  return MANAGER_AUTH_TOKEN;
 }
 
 export class HostError extends Error {

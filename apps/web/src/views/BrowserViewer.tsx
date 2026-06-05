@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
+import { api } from '../lib/api';
 
 interface BrowserViewerProps {
   profileId: string;
@@ -14,10 +16,11 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
   onDisconnect,
   onError,
 }) => {
+  const { getToken } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const rfbRef = useRef<any>(null);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error' | 'authenticating'>('connecting');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -47,6 +50,35 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
       if (!containerRef.current || !profileId) return;
 
       try {
+        // 1. Check Manager Auth status and login if needed
+        setStatus('authenticating');
+        const pitchToken = await getToken();
+        if (!pitchToken && active) {
+            setStatus('error');
+            return;
+        }
+
+        const { token: managerToken } = await api.get<{ token?: string }>('/browser/manager-config', pitchToken!);
+        
+        if (managerToken) {
+            // Check if we already have a valid session
+            const authStatus = await fetch('/manager-api/auth/status').then(r => r.json());
+            if (authStatus.auth_required && !authStatus.authenticated) {
+                console.log('Logging in to Manager...');
+                const loginRes = await fetch('/manager-api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: managerToken }),
+                });
+                if (!loginRes.ok) {
+                    throw new Error('Manager login failed');
+                }
+            }
+        }
+
+        if (!active) return;
+        setStatus('connecting');
+
         // Dynamic import to avoid build-time issues with noVNC's non-standard ESM structure
         const RFBModule = await import('@novnc/novnc');
         const RFB = RFBModule.default;
@@ -108,7 +140,7 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
         rfbRef.current = null;
       }
     };
-  }, [profileId]);
+  }, [profileId, getToken]);
 
   return (
     <div ref={wrapperRef} className="relative w-full h-full bg-black flex flex-col overflow-hidden rounded-lg group">
@@ -128,11 +160,13 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
         style={{ minHeight: 0 }}
       />
 
-      {status === 'connecting' && (
+      {(status === 'connecting' || status === 'authenticating') && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm z-0">
           <div className="flex flex-col items-center gap-3">
             <div className="w-6 h-6 border-2 border-white/10 border-t-white/80 rounded-full animate-spin" />
-            <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Linking...</p>
+            <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                {status === 'authenticating' ? 'Authenticating...' : 'Linking...'}
+            </p>
           </div>
         </div>
       )}

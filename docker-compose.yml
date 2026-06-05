@@ -135,6 +135,8 @@ services:
     restart: always
     ports:
       - "8080:8080"
+    environment:
+      - AUTH_TOKEN=${CLOAK_MANAGER_AUTH_TOKEN}
     volumes:
       - cloakprofiles:/data
 
