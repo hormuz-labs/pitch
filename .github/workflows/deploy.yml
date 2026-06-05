@@ -38,24 +38,45 @@ jobs:
           file: Dockerfile.base
           push: true
           tags: ghcr.io/${{ github.repository }}-base:latest
-        
-      - name: Build and deploy containers
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: pitch-api:${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+          provenance: false
+
+      - name: Build Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/worker/Dockerfile
+          push: false
+          load: true
+          tags: pitch-worker:${{ github.sha }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,scope=worker,mode=max
+          provenance: false
+
+      - name: Deploy containers
         run: |
           # The docker-compose.yml file hardcodes `env_file: - .env`
           # We must create a symlink or copy the env file to the runner's workspace directory
           # so docker-compose can find it exactly where it expects it.
           cp /workspace/.env .env
-          
+
           export IMAGE_TAG=${{ github.sha }}
           export ENV_FILE="/workspace/.env"
           echo "Deploying commit: $IMAGE_TAG"
-          
-          # Build api and worker (Docker Compose V2 builds in parallel automatically via BuildKit)
-          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build api worker
-          
+
           # Recreate containers with the specific image tag
           # Using --remove-orphans prevents conflicts if old containers exist with the same name
           docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
-          
+
           # Clean up unused containers, networks, and dangling images
           docker system prune -f

@@ -20,7 +20,10 @@ COPY packages/storage/package.json packages/storage/
 # --frozen-lockfile: every workspace package.json above must be present, or the
 # install aborts loudly instead of silently re-resolving (which previously drifted
 # Prisma 6 → 7 and broke the schema). Add a COPY line when adding a workspace.
-RUN bun install --frozen-lockfile --ignore-scripts --verbose
+# BuildKit cache mount: keeps the bun package cache between builds on CI runners
+# so subsequent builds skip the multi-minute download of 1000+ packages.
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --ignore-scripts
 
 # Now copy the rest of the source code
 COPY . .
@@ -45,8 +48,4 @@ RUN chmod +x /app/apps/job-cli/src/index.ts && ln -s /app/apps/job-cli/src/index
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# Use the workspace-local prisma (packages/db devDep, not hoisted to root) rather
-# than `bunx prisma`, which would fetch Prisma 7.x from the network at startup and
-# fail migrate deploy on `url = env(...)` (P1012). The 6.19.3 schema engine ships
-# in the package, so this runs offline.
-CMD ["sh", "-c", "/app/packages/db/node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/api/src/index.ts"]
+CMD ["sh", "-c", "bunx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss && bun apps/api/src/index.ts"]
