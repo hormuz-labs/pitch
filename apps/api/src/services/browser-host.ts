@@ -1,9 +1,9 @@
 import { createLogger } from '@saas/shared';
 import * as db from '@saas/db';
 import { uploadStorageState } from '@saas/storage';
-import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { WebSocket } from 'ws';
 
 const logger = createLogger('api:browser-host');
 
@@ -63,48 +63,41 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
   if (startUrl) {
     try {
       const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
-      const { WebSocket } = await import('ws');
       
       for (let i = 0; i < 5; i++) {
         try {
           await new Promise<void>((resolve, reject) => {
             const ws = new WebSocket(cdpUrl);
             const timeout = setTimeout(() => {
-              ws.terminate();
+              ws.close();
               reject(new Error('CDP navigation timeout'));
             }, 5000);
 
-            ws.on('open', () => {
-              // 1. Get existing targets to find the initial blank page
+            ws.onopen = () => {
               ws.send(JSON.stringify({
                 id: 10,
                 method: 'Target.getTargets'
               }));
-            });
+            };
 
-            ws.on('message', (data) => {
-              const msg = JSON.parse(data.toString());
+            ws.onmessage = (event) => {
+              const msg = JSON.parse(event.data.toString());
               
               if (msg.id === 10) {
                 const targets = msg.result?.targetInfos || [];
-                // Find all page targets (usually just one about:blank)
                 const initialPageIds = targets
                   .filter((t: any) => t.type === 'page')
                   .map((t: any) => t.targetId);
 
-                // 2. Create the new target with our URL
                 ws.send(JSON.stringify({
                   id: 11,
                   method: 'Target.createTarget',
                   params: { url: startUrl },
-                  // We'll store the old IDs in a closure-accessible variable
                 }));
                 
-                // Store for the next handler
                 (ws as any)._initialPageIds = initialPageIds;
               } 
               else if (msg.id === 11) {
-                // 3. New target created, now close the old ones
                 const oldIds = (ws as any)._initialPageIds || [];
                 for (const targetId of oldIds) {
                   ws.send(JSON.stringify({
@@ -120,12 +113,12 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
                   resolve();
                 }, 500);
               }
-            });
+            };
 
-            ws.on('error', (err) => {
+            ws.onerror = (err) => {
               clearTimeout(timeout);
               reject(err);
-            });
+            };
           });
           break; 
         } catch (err) {
@@ -229,21 +222,21 @@ async function captureStorageStateViaManagerCdp(profileId: string, profileDir: s
   const stateFile = path.join(profileDir, 'storage_state.json');
   const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
 
-  return new Promise<CdpStorageResult>((resolve, reject) => {
+  return new Promise<CdpStorageResult>((resolve) => {
     const ws = new WebSocket(cdpUrl);
     const origins = new Set<string>();
     const timeout = setTimeout(() => {
-      ws.terminate();
+      ws.close();
       resolve({ origins: Array.from(origins).sort(), storageStatePath: null });
     }, 10_000);
 
-    ws.on('open', () => {
+    ws.onopen = () => {
       ws.send(JSON.stringify({ id: 100, method: 'Storage.getCookies' }));
-    });
+    };
 
-    ws.on('message', (data) => {
+    ws.onmessage = async (event) => {
       try {
-        const msg = JSON.parse(data.toString());
+        const msg = JSON.parse(event.data.toString());
         if (msg.id === 100 && msg.result?.cookies) {
           const cookies = msg.result.cookies as Array<{
             name: string;
@@ -269,10 +262,10 @@ async function captureStorageStateViaManagerCdp(profileId: string, profileDir: s
           }));
 
           const state = { cookies: cookiesOut, origins: [] };
-          if (!existsSync(profileDir)) {
-            mkdirSync(profileDir, { recursive: true });
-          }
-          writeFileSync(stateFile, JSON.stringify(state, null, 2));
+          
+          await mkdir(profileDir, { recursive: true });
+          await Bun.write(stateFile, JSON.stringify(state, null, 2));
+          
           logger.info({ path: stateFile, count: cookies.length }, 'storage_state.json saved via Manager CDP');
 
           // Extract origins from cookie domains
@@ -289,12 +282,12 @@ async function captureStorageStateViaManagerCdp(profileId: string, profileDir: s
       } catch (err) {
         logger.warn({ err }, 'failed to parse CDP message during storage capture');
       }
-    });
+    };
 
-    ws.on('error', (err) => {
+    ws.onerror = (err) => {
       clearTimeout(timeout);
-      reject(err);
-    });
+      resolve({ origins: [], storageStatePath: null });
+    };
   });
 }
 
