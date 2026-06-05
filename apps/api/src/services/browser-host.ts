@@ -1,5 +1,9 @@
 import { createLogger } from '@saas/shared';
 import * as db from '@saas/db';
+import { uploadStorageState } from '@saas/storage';
+import { existsSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { WebSocket } from 'ws';
 
 const logger = createLogger('api:browser-host');
 
@@ -211,12 +215,105 @@ export interface CloseSessionResult {
   loggedInOrigins: string[];
 }
 
+interface CdpStorageResult {
+  origins: string[];
+  storageStatePath: string | null;
+}
+
+/**
+ * Connect to the browser via CDP proxy while it's healthy, capture all cookies,
+ * write them as a Playwright-compatible storage_state.json, and return the
+ * list of origins that have cookies.
+ */
+async function captureStorageStateViaManagerCdp(profileId: string, profileDir: string): Promise<CdpStorageResult> {
+  const stateFile = path.join(profileDir, 'storage_state.json');
+  const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
+
+  return new Promise<CdpStorageResult>((resolve, reject) => {
+    const ws = new WebSocket(cdpUrl);
+    const origins = new Set<string>();
+    const timeout = setTimeout(() => {
+      ws.terminate();
+      resolve({ origins: Array.from(origins).sort(), storageStatePath: null });
+    }, 10_000);
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ id: 100, method: 'Storage.getCookies' }));
+    });
+
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg.id === 100 && msg.result?.cookies) {
+          const cookies = msg.result.cookies as Array<{
+            name: string;
+            value: string;
+            domain: string;
+            path: string;
+            expires?: number;
+            httpOnly?: boolean;
+            secure?: boolean;
+            sameSite?: string;
+          }>;
+
+          // Build the Playwright-compatible storage_state.json
+          const cookiesOut = cookies.map((c) => ({
+            name: c.name,
+            value: c.value,
+            domain: c.domain,
+            path: c.path,
+            expires: c.expires ?? -1,
+            httpOnly: c.httpOnly ?? false,
+            secure: c.secure ?? false,
+            sameSite: (c.sameSite ?? 'None') as 'Strict' | 'Lax' | 'None',
+          }));
+
+          const state = { cookies: cookiesOut, origins: [] };
+          writeFileSync(stateFile, JSON.stringify(state, null, 2));
+          logger.info({ path: stateFile, count: cookies.length }, 'storage_state.json saved via Manager CDP');
+
+          // Extract origins from cookie domains
+          for (const c of cookies) {
+            if (!c.domain) continue;
+            const host = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
+            origins.add(`https://${host}`);
+          }
+
+          clearTimeout(timeout);
+          ws.close();
+          resolve({ origins: Array.from(origins).sort(), storageStatePath: stateFile });
+        }
+      } catch (err) {
+        logger.warn({ err }, 'failed to parse CDP message during storage capture');
+      }
+    });
+
+    ws.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+  });
+}
+
 export async function closeSession(sessionId: string, userId: string): Promise<CloseSessionResult> {
   const session = await db.getBrowserSession(sessionId, { id: userId });
   if (!session) throw new HostError('NOT_FOUND', 'Session not found');
   if (session.userId !== userId) throw new HostError('FORBIDDEN', 'Session belongs to another user');
 
-  if (session.noVncUrl) {
+  const profile = await db.getBrowserProfile(userId);
+  let capturedOrigins: string[] = [];
+  let storageStatePath: string | null = null;
+
+  if (session.noVncUrl && profile) {
+    // Capture state before stopping
+    try {
+      const result = await captureStorageStateViaManagerCdp(session.noVncUrl, profile.profileDir);
+      capturedOrigins = result.origins;
+      storageStatePath = result.storageStatePath;
+    } catch (err) {
+      logger.warn({ err, sessionId }, 'failed to capture storage state via Manager CDP');
+    }
+
     await stopManagerProfile(session.noVncUrl);
   }
 
@@ -225,10 +322,25 @@ export async function closeSession(sessionId: string, userId: string): Promise<C
     closedAt: new Date(),
   });
 
+  if (capturedOrigins.length > 0) {
+    let s3Key: string | null = null;
+    if (storageStatePath && existsSync(storageStatePath)) {
+      try {
+        s3Key = await uploadStorageState(storageStatePath, userId);
+        logger.info({ userId, s3Key }, 'storage_state.json pushed to S3 after session close');
+      } catch (err) {
+        logger.warn({ err, userId }, 'failed to upload storage_state to S3');
+      }
+    }
+    await db.recordLoggedInOrigins(userId, capturedOrigins, {
+      storageStateKey: s3Key,
+    });
+  }
+
   return {
     sessionId: updated.id,
     status: updated.status as any,
-    loggedInOrigins: [],
+    loggedInOrigins: capturedOrigins,
   };
 }
 
