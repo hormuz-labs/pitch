@@ -4,6 +4,11 @@ import { uploadStorageState } from '@saas/storage';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+// Use the ws client (not the global WebSocket): the global one can't send the
+// Authorization header or expose `.on`, so every CDP call (navigation + storage
+// capture) was failing silently — leaving sessions on about:blank and saving
+// nothing on close.
+import { WebSocket } from 'ws';
 
 const logger = createLogger('api:browser-host');
 
@@ -96,45 +101,43 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
               reject(new Error('CDP navigation timeout'));
             }, 5000);
 
+            const finish = () => {
+              setTimeout(() => {
+                ws.close();
+                clearTimeout(timeout);
+                resolve();
+              }, 500);
+            };
+
             ws.on('open', () => {
-              ws.send(JSON.stringify({
-                id: 10,
-                method: 'Target.getTargets'
-              }));
+              ws.send(JSON.stringify({ id: 10, method: 'Target.getTargets' }));
             });
 
             ws.on('message', (data) => {
               const msg = JSON.parse(data.toString());
-              
-              if (msg.id === 10) {
-                const targets = msg.result?.targetInfos || [];
-                const initialPageIds = targets
-                  .filter((t: any) => t.type === 'page')
-                  .map((t: any) => t.targetId);
 
-                ws.send(JSON.stringify({
-                  id: 11,
-                  method: 'Target.createTarget',
-                  params: { url: startUrl },
-                }));
-                
-                (ws as any)._initialPageIds = initialPageIds;
-              } 
-              else if (msg.id === 11) {
-                const oldIds = (ws as any)._initialPageIds || [];
-                for (const targetId of oldIds) {
-                  ws.send(JSON.stringify({
-                    id: 12,
-                    method: 'Target.closeTarget',
-                    params: { targetId }
-                  }));
+              if (msg.id === 10) {
+                // Navigate the tab the user is already looking at, in place.
+                // Opening a new tab and closing the old one is racy and can
+                // leave the browser's default about:blank tab focused in VNC.
+                const pages = (msg.result?.targetInfos || []).filter((t: any) => t.type === 'page');
+                const target = pages[0];
+                if (target) {
+                  ws.send(JSON.stringify({ id: 11, method: 'Target.activateTarget', params: { targetId: target.targetId } }));
+                  ws.send(JSON.stringify({ id: 12, method: 'Target.attachToTarget', params: { targetId: target.targetId, flatten: true } }));
+                } else {
+                  // Browser hasn't opened a page yet — open one at the start URL.
+                  ws.send(JSON.stringify({ id: 13, method: 'Target.createTarget', params: { url: startUrl } }));
                 }
-                
-                setTimeout(() => {
-                  ws.close();
-                  clearTimeout(timeout);
-                  resolve();
-                }, 500);
+              } else if (msg.id === 12) {
+                const sessionId = msg.result?.sessionId;
+                if (sessionId) {
+                  ws.send(JSON.stringify({ sessionId, id: 14, method: 'Page.navigate', params: { url: startUrl } }));
+                } else {
+                  ws.send(JSON.stringify({ id: 13, method: 'Target.createTarget', params: { url: startUrl } }));
+                }
+              } else if (msg.id === 13 || msg.id === 14) {
+                finish();
               }
             });
 
