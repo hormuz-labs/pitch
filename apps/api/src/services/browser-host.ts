@@ -36,6 +36,16 @@ export function getManagerHeaders(headers: Record<string, string> = {}) {
   return h;
 }
 
+/**
+ * CDP WebSocket URL for a manager profile, derived from MANAGER_BASE_URL.
+ * Must NOT hardcode 127.0.0.1:8080 — in production (and any setup where the
+ * manager is a separate host) that address is unreachable from the API, which
+ * silently breaks start-URL navigation and storage capture.
+ */
+function managerCdpUrl(profileId: string): string {
+  return `${MANAGER_BASE_URL.replace(/^http/, 'ws')}/api/profiles/${profileId}/cdp`;
+}
+
 async function getManagerProfile(userId: string): Promise<any | null> {
   try {
     const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
@@ -73,7 +83,7 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
 
   if (startUrl) {
     try {
-      const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
+      const cdpUrl = managerCdpUrl(profileId);
       
       for (let i = 0; i < 5; i++) {
         try {
@@ -236,7 +246,7 @@ interface CdpStorageResult {
  */
 async function captureStorageStateViaManagerCdp(profileId: string, profileDir: string): Promise<CdpStorageResult> {
   const stateFile = path.join(profileDir, 'storage_state.json');
-  const cdpUrl = `ws://127.0.0.1:8080/api/profiles/${profileId}/cdp`;
+  const cdpUrl = managerCdpUrl(profileId);
 
   return new Promise<CdpStorageResult>((resolve) => {
     const ws = new WebSocket(cdpUrl, {
