@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { prettyHost } from '../lib/authOrigins';
 
 const IconShield = () => (
   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
@@ -25,6 +27,21 @@ const IconGlobe = () => (
 const IconSpinner = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
     <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+  </svg>
+);
+const IconArrowLeft = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+  </svg>
+);
+const IconArrowRight = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+  </svg>
+);
+const IconLock = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
   </svg>
 );
 
@@ -109,6 +126,26 @@ export const SessionsView = () => {
   const [closing, setClosing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [returnToNew, setReturnToNew] = useState(false);
+  const [justSaved, setJustSaved] = useState<string[] | null>(null);
+
+  // Deep-link from /new (?url=<site>&from=new): prefill + open the auth modal,
+  // then strip the params so a refresh or back-nav doesn't re-fire it.
+  useEffect(() => {
+    const url = searchParams.get('url');
+    if (!url) return;
+    setTargetUrl(url);
+    setAuthModalOpen(true);
+    if (searchParams.get('from') === 'new') setReturnToNew(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('url');
+    next.delete('from');
+    setSearchParams(next, { replace: true });
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -200,6 +237,7 @@ export const SessionsView = () => {
       if (!token) throw new Error('Not authenticated');
       const result = await api.post<CloseSessionResponse>(`/browser/sessions/${activeSession.sessionId ?? (activeSession as BrowserSession).id}/close`, token, {});
       setActiveSession(null);
+      if (returnToNew) setJustSaved(result.loggedInOrigins ?? []);
       if (profile) {
         setProfile({
           ...profile,
@@ -219,11 +257,46 @@ export const SessionsView = () => {
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+      {justSaved ? (
+        <div role="status" className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"><IconCheck /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-emerald-900">
+              {justSaved.length ? `${justSaved.map(formatOrigin).join(', ')} is ready` : 'Session saved'}
+            </p>
+            <p className="text-xs text-emerald-700/80">Your login is stored — every demo job will reuse it.</p>
+          </div>
+          <button
+            onClick={() => navigate('/new')}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+          >
+            Return to your demo <IconArrowRight size={13} />
+          </button>
+        </div>
+      ) : returnToNew ? (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white"><IconLock /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-gray-900">Authenticating for your demo</p>
+            <p className="text-xs text-gray-500">
+              Sign in to the site below, then click <strong className="font-semibold text-gray-700">Complete&nbsp;&amp;&nbsp;Save</strong> — we’ll bring you back.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/new')}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+          >
+            <IconArrowLeft size={13} /> Back to demo
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 leading-tight">Browser Sessions</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Log in once on any site — your session is reused by every automation job.
+          <p className="text-sm text-gray-500 mt-1 max-w-xl">
+            Some sites sit behind a login or bot check. Authenticate one once in a stealth browser and
+            every automation job reuses it — public sites need nothing here.
           </p>
         </div>
         <button
@@ -372,23 +445,70 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: AuthModalProps) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const host = prettyHost(url);
+
+  // Accessibility: focus the input on open, trap Tab within the dialog, close on
+  // Escape, lock background scroll, and restore focus to the trigger on unmount.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    inputRef.current?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const nodes = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const list = nodes ? Array.from(nodes).filter((el) => !el.hasAttribute('disabled')) : [];
+      if (list.length === 0) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-[fadeIn_160ms_ease-out]"
+      onClick={onClose}
+    >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        aria-describedby="auth-modal-desc"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Authenticate with URL</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          We&apos;ll open a stealth browser to this URL so you can log in. Session is saved to your profile and reused by every job.
+        <div className="flex items-center gap-2.5 mb-1.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white"><IconLock size={15} /></span>
+          <h2 id="auth-modal-title" className="text-lg font-semibold text-gray-900">Authenticate a site</h2>
+        </div>
+        <p id="auth-modal-desc" className="text-sm text-gray-500 mb-4">
+          We&apos;ll open a stealth browser so you can log in and clear any bot check. The session is saved to your profile and reused by every job.
         </p>
-        <label className="block text-xs font-medium text-gray-700 mb-1.5">Site URL</label>
+        <label htmlFor="auth-url-input" className="block text-xs font-medium text-gray-700 mb-1.5">Site URL</label>
         <input
+          id="auth-url-input"
+          ref={inputRef}
           type="url"
-          autoFocus
           placeholder="https://chat.deepseek.com"
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
+          aria-invalid={!!urlError}
+          aria-describedby={urlError ? 'auth-url-error' : undefined}
           className={`w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors ${
             urlError ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-gray-400'
           }`}
@@ -396,23 +516,23 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
             if (e.key === 'Enter' && !starting) onStart();
           }}
         />
-        {urlError && <p className="mt-1.5 text-xs text-red-600">{urlError}</p>}
+        {urlError && <p id="auth-url-error" className="mt-1.5 text-xs text-red-600">{urlError}</p>}
 
         <div className="flex items-center justify-end gap-2 mt-5">
           <button
             onClick={onClose}
             disabled={starting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
           >
             Cancel
           </button>
           <button
             onClick={onStart}
             disabled={starting}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
           >
             {starting && <IconSpinner />}
-            {starting ? 'Starting browser…' : 'Open browser'}
+            {starting ? 'Starting browser…' : host ? `Open ${host}` : 'Open browser'}
           </button>
         </div>
       </div>
