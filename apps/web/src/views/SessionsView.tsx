@@ -3,6 +3,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { prettyHost } from '../lib/authOrigins';
+import { CreditChip } from '../components/CreditChip';
 
 const IconShield = () => (
   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
@@ -34,14 +35,14 @@ const IconArrowLeft = ({ size = 14 }: { size?: number }) => (
     <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
   </svg>
 );
-const IconArrowRight = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-  </svg>
-);
 const IconLock = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
+const IconTrash = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
   </svg>
 );
 
@@ -129,7 +130,9 @@ export const SessionsView = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [returnToNew, setReturnToNew] = useState(false);
-  const [justSaved, setJustSaved] = useState<string[] | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [redirectIn, setRedirectIn] = useState<number | null>(null);
+  const [deletingOrigin, setDeletingOrigin] = useState<string | null>(null);
 
   // Deep-link from /new (?url=<site>&from=new): prefill + open the auth modal,
   // then strip the params so a refresh or back-nav doesn't re-fire it.
@@ -191,6 +194,15 @@ export const SessionsView = () => {
     };
   }, [activeSession, getToken]);
 
+  // Cancellable auto-redirect back to /new after a save (when we came from there).
+  // Ticks down once a second; reaching 0 navigates. Cancelling sets it to null.
+  useEffect(() => {
+    if (redirectIn === null) return;
+    if (redirectIn <= 0) { navigate('/new'); return; }
+    const t = window.setTimeout(() => setRedirectIn((n) => (n === null ? null : n - 1)), 1000);
+    return () => window.clearTimeout(t);
+  }, [redirectIn, navigate]);
+
   const handleStart = async () => {
     setActionError(null);
     setUrlError(null);
@@ -218,9 +230,13 @@ export const SessionsView = () => {
       setActiveSession(session);
       setAuthModalOpen(false);
       setTargetUrl('');
+      // 2 credits were spent starting the session — refresh the header balance.
+      window.dispatchEvent(new Event('credits-changed'));
     } catch (err: any) {
       const msg = err?.status === 409
         ? 'You already have an active session. Close it first.'
+        : err?.status === 402
+        ? 'Not enough credits — authenticating a site costs 2.'
         : err?.message ?? 'Failed to start session';
       setActionError(msg);
     } finally {
@@ -237,7 +253,6 @@ export const SessionsView = () => {
       if (!token) throw new Error('Not authenticated');
       const result = await api.post<CloseSessionResponse>(`/browser/sessions/${activeSession.sessionId ?? (activeSession as BrowserSession).id}/close`, token, {});
       setActiveSession(null);
-      if (returnToNew) setJustSaved(result.loggedInOrigins ?? []);
       if (profile) {
         setProfile({
           ...profile,
@@ -246,6 +261,12 @@ export const SessionsView = () => {
         });
       }
       await fetchProfile();
+      // Came here from /new — offer a short, cancellable hop back to the demo so
+      // the user can still re-auth or delete a saved login before leaving.
+      if (returnToNew) {
+        setSaved(true);
+        setRedirectIn(5);
+      }
     } catch (err: any) {
       setActionError(err?.message ?? 'Failed to close session');
     } finally {
@@ -253,24 +274,62 @@ export const SessionsView = () => {
     }
   };
 
+  const handleDeleteOrigin = async (origin: string) => {
+    setRedirectIn(null); // don't yank the user away mid-action
+    setActionError(null);
+    setDeletingOrigin(origin);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+      await api.delete(`/browser/origins?origin=${encodeURIComponent(origin)}`, token);
+      setProfile((p) => (p ? { ...p, loggedInOrigins: p.loggedInOrigins.filter((o) => o !== origin) } : p));
+    } catch (err: any) {
+      setActionError(err?.message ?? 'Failed to remove login');
+    } finally {
+      setDeletingOrigin(null);
+    }
+  };
+
   const origins = useMemo(() => profile?.loggedInOrigins ?? [], [profile]);
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
-      {justSaved ? (
-        <div role="status" className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+      {redirectIn !== null ? (
+        <div role="status" aria-live="polite" className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"><IconCheck /></span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-emerald-900">
-              {justSaved.length ? `${justSaved.map(formatOrigin).join(', ')} is ready` : 'Session saved'}
+            <p className="text-sm font-semibold text-emerald-900">Login saved</p>
+            <p className="text-xs text-emerald-700/80">
+              Returning to your demo in <span className="font-semibold tabular-nums">{redirectIn}s</span> — or stay to re-authenticate / remove a site below.
             </p>
-            <p className="text-xs text-emerald-700/80">Your login is stored — every demo job will reuse it.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setRedirectIn(null)}
+              className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
+            >
+              Stay here
+            </button>
+            <button
+              onClick={() => navigate('/new')}
+              className="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+            >
+              Go now
+            </button>
+          </div>
+        </div>
+      ) : saved ? (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"><IconCheck /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-emerald-900">Login saved</p>
+            <p className="text-xs text-emerald-700/80">Re-authenticate or remove a site below, or head back to your demo.</p>
           </div>
           <button
             onClick={() => navigate('/new')}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
           >
-            Return to your demo <IconArrowRight size={13} />
+            Return to your demo
           </button>
         </div>
       ) : returnToNew ? (
@@ -300,12 +359,13 @@ export const SessionsView = () => {
           </p>
         </div>
         <button
-          onClick={() => { setActionError(null); setUrlError(null); setAuthModalOpen(true); }}
+          onClick={() => { setActionError(null); setUrlError(null); setRedirectIn(null); setAuthModalOpen(true); }}
           disabled={!!activeSession}
           className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           id="add-login-btn"
         >
           <IconPlus /> Authenticate with URL
+          <CreditChip amount={2} className="bg-white text-gray-900" />
         </button>
       </div>
 
@@ -343,13 +403,22 @@ export const SessionsView = () => {
             {origins.map((origin) => (
               <li
                 key={origin}
-                className="flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg"
+                className="group flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg transition-colors hover:border-gray-300"
               >
-                <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><IconCheck /></span>
+                <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><IconCheck /></span>
                 <span className="flex-1 min-w-0 flex items-center gap-1.5 text-sm text-gray-800 truncate">
                   <IconGlobe />
                   {formatOrigin(origin)}
                 </span>
+                <button
+                  onClick={() => handleDeleteOrigin(origin)}
+                  disabled={deletingOrigin === origin}
+                  aria-label={`Remove saved login for ${formatOrigin(origin)}`}
+                  title="Remove saved login"
+                  className="shrink-0 rounded-md p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50 md:opacity-0 md:group-hover:opacity-100"
+                >
+                  {deletingOrigin === origin ? <IconSpinner /> : <IconTrash size={15} />}
+                </button>
               </li>
             ))}
           </ul>
@@ -518,6 +587,10 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
         />
         {urlError && <p id="auth-url-error" className="mt-1.5 text-xs text-red-600">{urlError}</p>}
 
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          Each authentication session costs <strong>2 credits</strong> — re-authenticating a removed site charges again.
+        </div>
+
         <div className="flex items-center justify-end gap-2 mt-5">
           <button
             onClick={onClose}
@@ -533,6 +606,7 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
           >
             {starting && <IconSpinner />}
             {starting ? 'Starting browser…' : host ? `Open ${host}` : 'Open browser'}
+            {!starting && <CreditChip amount={2} className="bg-white text-gray-900" />}
           </button>
         </div>
       </div>

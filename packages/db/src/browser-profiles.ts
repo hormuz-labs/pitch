@@ -116,6 +116,28 @@ export async function recordLoggedInOrigins(
   return shapeProfile(row);
 }
 
+/**
+ * Forget a saved login: drop one origin from the profile's logged-in list.
+ * (The cookie blob in storage_state.json is overwritten on the next capture;
+ * removing the origin stops it from being surfaced/relied on as authenticated.)
+ */
+export async function removeLoggedInOrigin(
+  userId: string,
+  origin: string,
+): Promise<BrowserProfilePayload> {
+  const profile = await getOrCreateBrowserProfile(userId);
+  const remaining = profile.loggedInOrigins.filter((o) => o !== origin);
+  const row = await prisma.browserProfile.update({
+    where: { userId },
+    data: {
+      loggedInOrigins: JSON.stringify(remaining),
+      lastSyncedAt: new Date(),
+      version: { increment: 1 },
+    },
+  });
+  return shapeProfile(row);
+}
+
 export async function createBrowserSession(data: {
   userId: string;
   profileId: string;
