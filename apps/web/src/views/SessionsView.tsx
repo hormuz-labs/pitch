@@ -415,7 +415,7 @@ export const SessionsView = () => {
                   disabled={deletingOrigin === origin}
                   aria-label={`Remove saved login for ${formatOrigin(origin)}`}
                   title="Remove saved login"
-                  className="shrink-0 rounded-md p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50 md:opacity-0 md:group-hover:opacity-100"
+                  className="shrink-0 rounded-md p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50"
                 >
                   {deletingOrigin === origin ? <IconSpinner /> : <IconTrash size={15} />}
                 </button>
