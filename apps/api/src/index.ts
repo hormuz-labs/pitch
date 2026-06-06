@@ -18,6 +18,7 @@ import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js
 import adminRoutes from './routes/admin.js';
 import { router as newsletterRoutes } from './routes/newsletter.js';
 import { router as browserRoutes } from './routes/browser.js';
+import { attachVncProxy } from './lib/vnc-proxy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,9 +87,13 @@ app.get('/health', (_req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info({ port: PORT }, 'API server started');
 });
+
+// Bridge browser VNC WebSockets to the CloakBrowser Manager (handles manager
+// auth + CSWSH so the browser never talks to the manager directly).
+attachVncProxy(server);
 
 const gracefulShutdown = async (signal: string) => {
   logger.info({ signal }, 'shutting down API — closing browser sessions');

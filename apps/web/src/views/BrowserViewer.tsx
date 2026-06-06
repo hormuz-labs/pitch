@@ -1,27 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
-import { api } from '../lib/api';
-import { MANAGER_URL } from '../config';
+import { API_URL } from '../config';
 
-// Build a CloakBrowser Manager HTTP URL. In dev MANAGER_URL is empty and we use
-// the relative `/manager-api` path that vite.config.ts proxies to the manager's
-// `/api`. In production MANAGER_URL is the manager's public origin, so we hit
-// `${MANAGER_URL}/api/...` directly (Vercel can't proxy these paths).
-function managerHttpUrl(path: string): string {
-  return MANAGER_URL ? `${MANAGER_URL}/api${path}` : `/manager-api${path}`;
-}
-
-// Build the noVNC WebSocket URL. In dev it's same-origin (proxied by the
-// `/api/profiles` ws rule in vite.config.ts); in production it points straight
-// at the manager origin, upgrading http(s) -> ws(s).
-function managerWsUrl(profileId: string): string {
-  const vncPath = `/api/profiles/${profileId}/vnc`;
-  if (MANAGER_URL) {
-    return MANAGER_URL.replace(/^http/, 'ws') + vncPath;
+// Build the VNC WebSocket URL pointing at the Pitch API's manager proxy.
+// The browser never talks to the CloakBrowser Manager directly: the API
+// authenticates the Clerk token (passed as `?token=`, since browsers can't set
+// headers on a WebSocket), authorizes the session, then bridges to the manager
+// while injecting the manager Bearer token and omitting Origin server-side —
+// which clears the manager's CSWSH check and the cross-origin CORS problem.
+// In dev API_URL is '/api' and vite proxies the upgrade to the local API; in
+// prod it's the absolute api origin (e.g. https://api.trypitch.co).
+function vncProxyUrl(profileId: string, token: string): string {
+  const path = `/browser/profiles/${profileId}/vnc?token=${encodeURIComponent(token)}`;
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/^http/, 'ws') + path;
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}${vncPath}`;
+  return `${protocol}//${window.location.host}${API_URL}${path}`;
 }
 
 interface BrowserViewerProps {
@@ -71,34 +67,11 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
       if (!containerRef.current || !profileId) return;
 
       try {
-        // 1. Check Manager Auth status and login if needed
         setStatus('authenticating');
         const pitchToken = await getToken();
-        if (!pitchToken && active) {
-            setStatus('error');
+        if (!pitchToken) {
+            if (active) setStatus('error');
             return;
-        }
-
-        const { token: managerToken } = await api.get<{ token?: string }>('/browser/manager-config', pitchToken!);
-        
-        if (managerToken) {
-            // Check if we already have a valid session. credentials:'include'
-            // so the manager's session cookie is sent/stored cross-origin in prod.
-            const authStatus = await fetch(managerHttpUrl('/auth/status'), {
-                credentials: 'include',
-            }).then(r => r.json());
-            if (authStatus.auth_required && !authStatus.authenticated) {
-                console.log('Logging in to Manager...');
-                const loginRes = await fetch(managerHttpUrl('/auth/login'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ token: managerToken }),
-                });
-                if (!loginRes.ok) {
-                    throw new Error('Manager login failed');
-                }
-            }
         }
 
         if (!active) return;
@@ -110,9 +83,10 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
 
         if (!active) return;
 
-        const wsUrl = managerWsUrl(profileId);
+        // Connect through the Pitch API proxy (handles manager auth + CSWSH/CORS).
+        const wsUrl = vncProxyUrl(profileId, pitchToken);
 
-        console.log('Connecting to VNC:', wsUrl);
+        console.log('Connecting to VNC via API proxy');
 
         rfb = new RFB(containerRef.current, wsUrl, {
           wsProtocols: ['binary'],

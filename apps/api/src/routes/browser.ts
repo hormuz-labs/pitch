@@ -5,18 +5,11 @@ import { requireAuth } from '../middleware/auth.js';
 import {
   startSession,
   closeSession,
-  getManagerToken,
   HostError,
 } from '../services/browser-host.js';
 
 const logger = createLogger('api:browser');
 export const router = Router();
-
-router.get('/manager-config', async (req, res) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
-  res.json({ token: getManagerToken() });
-});
 
 router.get('/profile', async (req, res) => {
   const userId = requireAuth(req, res);

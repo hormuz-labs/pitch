@@ -25,10 +25,10 @@ export interface StartSessionResult {
   expiresAt: Date;
 }
 
-const MANAGER_BASE_URL = process.env.CLOAK_MANAGER_URL || 'http://127.0.0.1:8080';
+export const MANAGER_BASE_URL = process.env.CLOAK_MANAGER_URL || 'http://127.0.0.1:8080';
 const MANAGER_AUTH_TOKEN = process.env.CLOAK_MANAGER_AUTH_TOKEN;
 
-function getManagerHeaders(headers: Record<string, string> = {}) {
+export function getManagerHeaders(headers: Record<string, string> = {}) {
   const h = { ...headers };
   if (MANAGER_AUTH_TOKEN) {
     h['Authorization'] = `Bearer ${MANAGER_AUTH_TOKEN}`;
@@ -364,10 +364,6 @@ export function listActiveInMemory(): any[] {
 
 export async function shutdownAllSessions(): Promise<void> {
   // Global shutdown not easily supported via manager API without listing all
-}
-
-export function getManagerToken(): string | undefined {
-  return MANAGER_AUTH_TOKEN;
 }
 
 export class HostError extends Error {
