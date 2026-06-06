@@ -2,6 +2,27 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { api } from '../lib/api';
+import { MANAGER_URL } from '../config';
+
+// Build a CloakBrowser Manager HTTP URL. In dev MANAGER_URL is empty and we use
+// the relative `/manager-api` path that vite.config.ts proxies to the manager's
+// `/api`. In production MANAGER_URL is the manager's public origin, so we hit
+// `${MANAGER_URL}/api/...` directly (Vercel can't proxy these paths).
+function managerHttpUrl(path: string): string {
+  return MANAGER_URL ? `${MANAGER_URL}/api${path}` : `/manager-api${path}`;
+}
+
+// Build the noVNC WebSocket URL. In dev it's same-origin (proxied by the
+// `/api/profiles` ws rule in vite.config.ts); in production it points straight
+// at the manager origin, upgrading http(s) -> ws(s).
+function managerWsUrl(profileId: string): string {
+  const vncPath = `/api/profiles/${profileId}/vnc`;
+  if (MANAGER_URL) {
+    return MANAGER_URL.replace(/^http/, 'ws') + vncPath;
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}${vncPath}`;
+}
 
 interface BrowserViewerProps {
   profileId: string;
@@ -61,13 +82,17 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
         const { token: managerToken } = await api.get<{ token?: string }>('/browser/manager-config', pitchToken!);
         
         if (managerToken) {
-            // Check if we already have a valid session
-            const authStatus = await fetch('/manager-api/auth/status').then(r => r.json());
+            // Check if we already have a valid session. credentials:'include'
+            // so the manager's session cookie is sent/stored cross-origin in prod.
+            const authStatus = await fetch(managerHttpUrl('/auth/status'), {
+                credentials: 'include',
+            }).then(r => r.json());
             if (authStatus.auth_required && !authStatus.authenticated) {
                 console.log('Logging in to Manager...');
-                const loginRes = await fetch('/manager-api/auth/login', {
+                const loginRes = await fetch(managerHttpUrl('/auth/login'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ token: managerToken }),
                 });
                 if (!loginRes.ok) {
@@ -85,9 +110,7 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
 
         if (!active) return;
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/api/profiles/${profileId}/vnc`;
+        const wsUrl = managerWsUrl(profileId);
 
         console.log('Connecting to VNC:', wsUrl);
 
