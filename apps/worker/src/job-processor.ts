@@ -103,6 +103,12 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // 1. Create a new session for this job
       browserCtx = await startBrowserContext(userId);
 
+      // Point the demo engine (pass1/pass3) at the user's profile dir so it
+      // restores the authenticated storage_state.json that startBrowserContext
+      // just pulled from S3. Without this the engine runs unauthenticated.
+      // Inherited by the OpenCode-spawned bash, same as the var below.
+      process.env.CLOAK_PROFILE_DIR = browserCtx.profileDir;
+
       // Ensure agent-browser always uses CloakBrowser's stealth Chromium
       process.env.AGENT_BROWSER_EXECUTABLE_PATH = await ensureBinary();
 
