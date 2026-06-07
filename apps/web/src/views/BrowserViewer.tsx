@@ -144,10 +144,11 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
       {status === 'connected' && (
         <button
           onClick={toggleFullscreen}
-          className="absolute top-4 right-4 z-20 p-2 bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10 rounded-lg text-white/70 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+          className="absolute bottom-4 right-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10 rounded-lg text-white/70 hover:text-white text-xs font-medium transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
           title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
         >
-          {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+          {isFullscreen ? "Exit full screen" : "Full screen"}
         </button>
       )}
       

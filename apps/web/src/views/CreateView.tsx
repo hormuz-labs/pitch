@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select';
 import { WaveformScrub } from '../components/WaveformScrub';
 import { ContainerTextFlip } from '../components/ContainerTextFlip';
 import { PlaceholdersAndVanishInput } from '../components/PlaceholdersAndVanishInput';
+import { useBrowserProfile } from '../hooks/useBrowserProfile';
+import { isAuthenticatedFor, prettyHost, hostOf } from '../lib/authOrigins';
+import { CreditChip } from '../components/CreditChip';
 
 
 const IconPlay = () => (
@@ -26,6 +30,85 @@ const IconPlus = () => (
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
+const IconShieldCheck = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
+  </svg>
+);
+const IconKey = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m15.5 7.5 3 3L22 7l-3-3"/><path d="m18.5 10.5-7.793 7.793a2.121 2.121 0 0 1-3-3L15.5 7.5"/><circle cx="7.5" cy="15.5" r="3.5"/>
+  </svg>
+);
+// ── Auth assist: inline, non-blocking hint under the Product URL. ───────────────
+// Public sites need nothing; for sites behind a login or bot-wall, it offers a
+// jump to /sessions (URL prefilled) and reassures once signed in.
+const AuthAssist = ({ url, origins, loading, dismissedHost, onAuthenticate, onDismiss }: {
+  url: string;
+  origins: string[];
+  loading: boolean;
+  dismissedHost: string | null;
+  onAuthenticate: () => void;
+  onDismiss: () => void;
+}) => {
+  const host = hostOf(url);
+  if (!host) return null; // nothing typed yet — stay out of the way
+
+  const label = prettyHost(url);
+
+  // Don't flash the "needs auth" prompt before we know the saved logins.
+  if (loading) {
+    return (
+      <div className="mt-2 flex items-center gap-2 px-1 text-xs text-gray-400" aria-live="polite">
+        <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-gray-200 border-t-gray-400" />
+        Checking saved logins…
+      </div>
+    );
+  }
+
+  if (isAuthenticatedFor(url, origins)) {
+    return (
+      <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-emerald-800 animate-[fadeIn_240ms_ease-out]">
+        <IconShieldCheck size={15} />
+        <p className="text-xs leading-snug">
+          <span className="font-semibold">Signed in to {label}.</span>{' '}
+          <span className="text-emerald-700/80">The agent will reuse your login.</span>
+        </p>
+      </div>
+    );
+  }
+
+  if (dismissedHost === host) return null; // user said this site is public
+
+  return (
+    <div className="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/70 px-3 py-2.5 animate-[fadeIn_240ms_ease-out]">
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 shrink-0 text-amber-600"><IconKey size={15} /></span>
+        <p className="text-xs leading-snug text-amber-900">
+          Does <span className="font-semibold">{label}</span> need a login or bot check?
+        </p>
+      </div>
+      <div className="mt-2.5 flex items-center gap-2 pl-[23px]">
+        <button
+          type="button"
+          onClick={onAuthenticate}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 disabled:opacity-50"
+        >
+          Authenticate
+          <CreditChip amount={2} className="bg-white text-gray-900" />
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30"
+        >
+          No auth needed
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // ── Label with tooltip ─────────────────────────────────────────────────────────
 const FieldLabel = ({ required, label, tooltip }: { required?: boolean; label: string; tooltip?: string }) => (
@@ -64,6 +147,9 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
   const [cookiePairs, setCookiePairs] = useState<{ key: string, value: string }[]>([]);
   const [curlInput, setCurlInput] = useState('');
   const [activeAuthTab, setActiveAuthTab] = useState<'quick' | 'manual'>('quick');
+  const navigate = useNavigate();
+  const { origins, loading: originsLoading } = useBrowserProfile();
+  const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null);
 
   const handleCurlImport = () => {
     if (!curlInput.trim()) return;
@@ -198,6 +284,17 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
                   onChange={e => update('url', e.target.value)}
                 />
                 {errors.url && <p className="text-xs text-red-500 mt-1">{errors.url}</p>}
+                <AuthAssist
+                  url={formValues.url || ''}
+                  origins={origins}
+                  loading={originsLoading}
+                  dismissedHost={dismissedAuthHost}
+                  onAuthenticate={() => {
+                    const u = (formValues.url || '').trim();
+                    navigate(`/sessions?url=${encodeURIComponent(u)}&from=new`);
+                  }}
+                  onDismiss={() => setDismissedAuthHost(hostOf(formValues.url || ''))}
+                />
               </div>
 
               {/* Audio Track */}
@@ -302,6 +399,7 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
             >
               {isSubmitting ? <IconLoader /> : <IconPlay />}
               {isSubmitting ? 'Queuing…' : 'Generate Demo'}
+              {!isSubmitting && <CreditChip amount={3} className="bg-white text-gray-900" />}
             </button>
           </form>
         </div>
