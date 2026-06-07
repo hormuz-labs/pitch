@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { prettyHost } from '../lib/authOrigins';
+import { CreditChip } from '../components/CreditChip';
 
 const IconShield = () => (
   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
@@ -25,6 +28,21 @@ const IconGlobe = () => (
 const IconSpinner = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
     <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+  </svg>
+);
+const IconArrowLeft = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+  </svg>
+);
+const IconLock = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
+const IconTrash = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
   </svg>
 );
 
@@ -109,6 +127,28 @@ export const SessionsView = () => {
   const [closing, setClosing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [returnToNew, setReturnToNew] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [redirectIn, setRedirectIn] = useState<number | null>(null);
+  const [deletingOrigin, setDeletingOrigin] = useState<string | null>(null);
+
+  // Deep-link from /new (?url=<site>&from=new): prefill + open the auth modal,
+  // then strip the params so a refresh or back-nav doesn't re-fire it.
+  useEffect(() => {
+    const url = searchParams.get('url');
+    if (!url) return;
+    setTargetUrl(url);
+    setAuthModalOpen(true);
+    if (searchParams.get('from') === 'new') setReturnToNew(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('url');
+    next.delete('from');
+    setSearchParams(next, { replace: true });
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -154,6 +194,15 @@ export const SessionsView = () => {
     };
   }, [activeSession, getToken]);
 
+  // Cancellable auto-redirect back to /new after a save (when we came from there).
+  // Ticks down once a second; reaching 0 navigates. Cancelling sets it to null.
+  useEffect(() => {
+    if (redirectIn === null) return;
+    if (redirectIn <= 0) { navigate('/new'); return; }
+    const t = window.setTimeout(() => setRedirectIn((n) => (n === null ? null : n - 1)), 1000);
+    return () => window.clearTimeout(t);
+  }, [redirectIn, navigate]);
+
   const handleStart = async () => {
     setActionError(null);
     setUrlError(null);
@@ -181,9 +230,13 @@ export const SessionsView = () => {
       setActiveSession(session);
       setAuthModalOpen(false);
       setTargetUrl('');
+      // 2 credits were spent starting the session — refresh the header balance.
+      window.dispatchEvent(new Event('credits-changed'));
     } catch (err: any) {
       const msg = err?.status === 409
         ? 'You already have an active session. Close it first.'
+        : err?.status === 402
+        ? 'Not enough credits — authenticating a site costs 2.'
         : err?.message ?? 'Failed to start session';
       setActionError(msg);
     } finally {
@@ -208,6 +261,12 @@ export const SessionsView = () => {
         });
       }
       await fetchProfile();
+      // Came here from /new — offer a short, cancellable hop back to the demo so
+      // the user can still re-auth or delete a saved login before leaving.
+      if (returnToNew) {
+        setSaved(true);
+        setRedirectIn(5);
+      }
     } catch (err: any) {
       setActionError(err?.message ?? 'Failed to close session');
     } finally {
@@ -215,24 +274,98 @@ export const SessionsView = () => {
     }
   };
 
+  const handleDeleteOrigin = async (origin: string) => {
+    setRedirectIn(null); // don't yank the user away mid-action
+    setActionError(null);
+    setDeletingOrigin(origin);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+      await api.delete(`/browser/origins?origin=${encodeURIComponent(origin)}`, token);
+      setProfile((p) => (p ? { ...p, loggedInOrigins: p.loggedInOrigins.filter((o) => o !== origin) } : p));
+    } catch (err: any) {
+      setActionError(err?.message ?? 'Failed to remove login');
+    } finally {
+      setDeletingOrigin(null);
+    }
+  };
+
   const origins = useMemo(() => profile?.loggedInOrigins ?? [], [profile]);
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+      {redirectIn !== null ? (
+        <div role="status" aria-live="polite" className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"><IconCheck /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-emerald-900">Login saved</p>
+            <p className="text-xs text-emerald-700/80">
+              Returning to your demo in <span className="font-semibold tabular-nums">{redirectIn}s</span> — or stay to re-authenticate / remove a site below.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setRedirectIn(null)}
+              className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
+            >
+              Stay here
+            </button>
+            <button
+              onClick={() => navigate('/new')}
+              className="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+            >
+              Go now
+            </button>
+          </div>
+        </div>
+      ) : saved ? (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"><IconCheck /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-emerald-900">Login saved</p>
+            <p className="text-xs text-emerald-700/80">Re-authenticate or remove a site below, or head back to your demo.</p>
+          </div>
+          <button
+            onClick={() => navigate('/new')}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+          >
+            Return to your demo
+          </button>
+        </div>
+      ) : returnToNew ? (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white"><IconLock /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-gray-900">Authenticating for your demo</p>
+            <p className="text-xs text-gray-500">
+              Sign in to the site below, then click <strong className="font-semibold text-gray-700">Complete&nbsp;&amp;&nbsp;Save</strong> — we’ll bring you back.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/new')}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+          >
+            <IconArrowLeft size={13} /> Back to demo
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 leading-tight">Browser Sessions</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Log in once on any site — your session is reused by every automation job.
+          <p className="text-sm text-gray-500 mt-1 max-w-xl">
+            Some sites sit behind a login or bot check. Authenticate one once in a stealth browser and
+            every automation job reuses it — public sites need nothing here.
           </p>
         </div>
         <button
-          onClick={() => { setActionError(null); setUrlError(null); setAuthModalOpen(true); }}
+          onClick={() => { setActionError(null); setUrlError(null); setRedirectIn(null); setAuthModalOpen(true); }}
           disabled={!!activeSession}
           className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           id="add-login-btn"
         >
           <IconPlus /> Authenticate with URL
+          <CreditChip amount={2} className="bg-white text-gray-900" />
         </button>
       </div>
 
@@ -270,13 +403,22 @@ export const SessionsView = () => {
             {origins.map((origin) => (
               <li
                 key={origin}
-                className="flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg"
+                className="group flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg transition-colors hover:border-gray-300"
               >
-                <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><IconCheck /></span>
+                <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><IconCheck /></span>
                 <span className="flex-1 min-w-0 flex items-center gap-1.5 text-sm text-gray-800 truncate">
                   <IconGlobe />
                   {formatOrigin(origin)}
                 </span>
+                <button
+                  onClick={() => handleDeleteOrigin(origin)}
+                  disabled={deletingOrigin === origin}
+                  aria-label={`Remove saved login for ${formatOrigin(origin)}`}
+                  title="Remove saved login"
+                  className="shrink-0 rounded-md p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50"
+                >
+                  {deletingOrigin === origin ? <IconSpinner /> : <IconTrash size={15} />}
+                </button>
               </li>
             ))}
           </ul>
@@ -372,23 +514,70 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: AuthModalProps) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const host = prettyHost(url);
+
+  // Accessibility: focus the input on open, trap Tab within the dialog, close on
+  // Escape, lock background scroll, and restore focus to the trigger on unmount.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    inputRef.current?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const nodes = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const list = nodes ? Array.from(nodes).filter((el) => !el.hasAttribute('disabled')) : [];
+      if (list.length === 0) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-[fadeIn_160ms_ease-out]"
+      onClick={onClose}
+    >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        aria-describedby="auth-modal-desc"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Authenticate with URL</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          We&apos;ll open a stealth browser to this URL so you can log in. Session is saved to your profile and reused by every job.
+        <div className="flex items-center gap-2.5 mb-1.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white"><IconLock size={15} /></span>
+          <h2 id="auth-modal-title" className="text-lg font-semibold text-gray-900">Authenticate a site</h2>
+        </div>
+        <p id="auth-modal-desc" className="text-sm text-gray-500 mb-4">
+          We&apos;ll open a stealth browser so you can log in and clear any bot check. The session is saved to your profile and reused by every job.
         </p>
-        <label className="block text-xs font-medium text-gray-700 mb-1.5">Site URL</label>
+        <label htmlFor="auth-url-input" className="block text-xs font-medium text-gray-700 mb-1.5">Site URL</label>
         <input
+          id="auth-url-input"
+          ref={inputRef}
           type="url"
-          autoFocus
           placeholder="https://chat.deepseek.com"
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
+          aria-invalid={!!urlError}
+          aria-describedby={urlError ? 'auth-url-error' : undefined}
           className={`w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors ${
             urlError ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-gray-400'
           }`}
@@ -396,23 +585,28 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
             if (e.key === 'Enter' && !starting) onStart();
           }}
         />
-        {urlError && <p className="mt-1.5 text-xs text-red-600">{urlError}</p>}
+        {urlError && <p id="auth-url-error" className="mt-1.5 text-xs text-red-600">{urlError}</p>}
+
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          Each authentication session costs <strong>2 credits</strong> — re-authenticating a removed site charges again.
+        </div>
 
         <div className="flex items-center justify-end gap-2 mt-5">
           <button
             onClick={onClose}
             disabled={starting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
           >
             Cancel
           </button>
           <button
             onClick={onStart}
             disabled={starting}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
           >
             {starting && <IconSpinner />}
-            {starting ? 'Starting browser…' : 'Open browser'}
+            {starting ? 'Starting browser…' : host ? `Open ${host}` : 'Open browser'}
+            {!starting && <CreditChip amount={2} className="bg-white text-gray-900" />}
           </button>
         </div>
       </div>

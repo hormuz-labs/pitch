@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as db from '@saas/db';
+import { pruneStorageStateCookies } from '@saas/storage';
 import { createLogger } from '@saas/shared';
 import { requireAuth } from '../middleware/auth.js';
 import {
@@ -11,6 +12,10 @@ import {
 const logger = createLogger('api:browser');
 export const router = Router();
 
+// Credits charged once per stealth authentication session (kept in sync with the
+// CreditChip amount shown on the Authenticate / Open-browser buttons).
+const AUTH_SESSION_COST = 2;
+
 router.get('/profile', async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -20,6 +25,30 @@ router.get('/profile', async (req, res) => {
     res.json({ profile, activeSessions: active });
   } catch (err: any) {
     logger.error({ err, userId }, 'failed to load browser profile');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Forget a saved login (e.g. to re-authenticate fresh, or remove a stale one).
+router.delete('/origins', async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const origin = (req.query.origin as string | undefined)?.trim();
+  if (!origin) return res.status(400).json({ error: 'origin is required' });
+  try {
+    const profile = await db.removeLoggedInOrigin(userId, origin);
+    // Also purge the matching cookies from the stored session in S3 — a real
+    // delete, not just hiding it from the list.
+    try {
+      let host = origin;
+      try { host = new URL(origin).hostname; } catch { /* origin may be a bare host */ }
+      await pruneStorageStateCookies(userId, host);
+    } catch (pruneErr) {
+      logger.warn({ err: pruneErr, userId, origin }, 'failed to prune storage_state cookies from S3');
+    }
+    res.json({ loggedInOrigins: profile.loggedInOrigins });
+  } catch (err: any) {
+    logger.error({ err, userId, origin }, 'failed to remove logged-in origin');
     res.status(500).json({ error: err.message });
   }
 });
@@ -40,12 +69,30 @@ router.post('/sessions', async (req, res) => {
     }
   }
 
+  // Gate on credits before spinning up the stealth browser (same pattern as jobs).
+  const balance = await db.getCreditBalance(userId);
+  if (balance < AUTH_SESSION_COST) {
+    logger.warn({ userId, balance }, 'Auth session blocked: insufficient credits');
+    return res.status(402).json({ error: 'Insufficient credits', balance, cost: AUTH_SESSION_COST });
+  }
+
   try {
     const result = await startSession({
       userId,
       startUrl: startUrl ?? null,
       headless: !!headless,
     });
+
+    // Charge once for the session. Balance was checked above; if the deduction
+    // still races to a failure, keep the running session and just log it.
+    try {
+      await db.deductCredit(userId, AUTH_SESSION_COST, 'Browser authentication session', {
+        idempotencyKey: result.sessionId,
+      });
+    } catch (creditErr: any) {
+      logger.error({ err: creditErr, userId, sessionId: result.sessionId }, 'failed to charge for auth session');
+    }
+
     res.status(201).json(result);
   } catch (err: any) {
     if (err instanceof HostError) {
