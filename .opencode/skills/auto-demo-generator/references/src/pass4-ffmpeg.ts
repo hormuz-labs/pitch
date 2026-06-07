@@ -57,7 +57,7 @@ export async function pass4Ffmpeg(
   const timeline: Record<string, number> = JSON.parse(fs.readFileSync(path.join(demoDir, 'timeline.json'), 'utf8'));
   const { initDurationMs, events: trackingEvents, originalTimeline } = trackingData;
 
-  const cursorPng = path.join(demoDir, 'cursor.png');
+  const cursorFile = path.join(demoDir, 'cursor.png');
   const { hasVaapi, hwFilterSuffix, hwOutputOpts } = getFFmpegHwAccelOptions();
 
   const trimSeconds = (initDurationMs / 1000).toFixed(3);
@@ -73,7 +73,7 @@ export async function pass4Ffmpeg(
   const { filterString, sfxStartIndex } = buildFilterString({
     trimSeconds,
     cursorScaleExpr,
-    cursorPngExists: fs.existsSync(cursorPng),
+    cursorPngExists: fs.existsSync(cursorFile),
     cursorAlphaExpr,
     overlayXExpr,
     overlayYExpr,
@@ -102,7 +102,7 @@ export async function pass4Ffmpeg(
   fs.writeFileSync(filterScriptPath, filterString);
 
   const command = ffmpeg().input(videoPath);
-  if (fs.existsSync(cursorPng)) command.input(cursorPng).inputOptions(['-loop 1']);
+  if (fs.existsSync(cursorFile)) command.input(cursorFile).inputOptions(['-loop 1']);
   command.input(path.join(demoDir, 'voiceover.wav'));
 
   let sfxIndex = sfxStartIndex;

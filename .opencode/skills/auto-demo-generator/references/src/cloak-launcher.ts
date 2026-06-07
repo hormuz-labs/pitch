@@ -1,7 +1,10 @@
+import { humanType, resolveConfig } from 'cloakbrowser/human';
+import type { Locator, Page } from 'playwright';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { chromium } from 'playwright';
 
 type Platform = 'macos' | 'linux' | 'windows';
 
@@ -103,4 +106,16 @@ export function cloakLaunchOptions(extraArgs: string[] = []) {
     headless: !headed,
     args: unique,
   };
+}
+
+export async function humanizedType(page: Page, locator: Locator, text: string): Promise<void> {
+  await locator.waitFor({ state: 'visible', timeout: 15000 });
+  await locator.click();
+  const rawKb = {
+    down: (key: string) => page.keyboard.down(key),
+    up: (key: string) => page.keyboard.up(key),
+    insertText: (t: string) => page.keyboard.insertText(t),
+  };
+  const config = resolveConfig('default', { typing_delay: 60, typing_delay_spread: 30 });
+  await humanType(page, rawKb, text, config);
 }

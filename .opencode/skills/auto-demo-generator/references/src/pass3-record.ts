@@ -4,7 +4,44 @@ import path from 'path';
 import os from 'os';
 import { DemoConfig, DemoStep, TrackingEvent, TrackingData } from './types';
 import { getChromiumGpuFlags } from './utils';
-import { cloakLaunchOptions } from './cloak-launcher';
+import { cloakLaunchOptions, humanizedType } from './cloak-launcher';
+
+function getCursorFilePath(demoDir: string, config: DemoConfig): string {
+  const cursorStyle = config.cursorStyle || 'black';
+  let cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
+  if (!fs.existsSync(cursorFile)) {
+    cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
+  }
+  if (!fs.existsSync(cursorFile)) {
+    cursorFile = path.join(demoDir, 'assets', 'icons', 'cursor.svg');
+  }
+  if (!fs.existsSync(cursorFile)) {
+    cursorFile = path.join(demoDir, 'assets', 'icons', 'cursor.png');
+  }
+  return cursorFile;
+}
+
+async function renderSvgToPng(svgPath: string, pngPath: string): Promise<void> {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const svgContent = fs.readFileSync(svgPath, 'utf8');
+    await page.setContent(`
+      <html>
+        <body style="margin: 0; padding: 0; background: transparent; overflow: hidden;">
+          <div id="svg-container" style="display: inline-block; width: 24px; height: 24px;">
+            ${svgContent}
+          </div>
+        </body>
+      </html>
+    `);
+    const element = await page.$('#svg-container');
+    if (!element) throw new Error('Failed to find SVG container element');
+    await element.screenshot({ path: pngPath, omitBackground: true });
+  } finally {
+    await browser.close();
+  }
+}
 
 function preflight(demoDir: string, config: DemoConfig): void {
   const timelinePath = path.join(demoDir, 'timeline.json');
@@ -13,9 +50,8 @@ function preflight(demoDir: string, config: DemoConfig): void {
   const timestampsPath = path.join(demoDir, 'timestamps.json');
   if (!fs.existsSync(timestampsPath)) throw new Error(`[pass3-record] timestamps.json not found — run pass2-tts first. Expected: ${timestampsPath}`);
 
-  const cursorStyle = config.cursorStyle || 'black';
-  const cursorFile = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
-  if (!fs.existsSync(cursorFile)) throw new Error(`[pass3-record] cursor-${cursorStyle}.png not found. Expected: ${cursorFile}`);
+  const cursorFile = getCursorFilePath(demoDir, config);
+  if (!fs.existsSync(cursorFile)) throw new Error(`[pass3-record] cursor file (PNG or SVG) not found. Expected in assets/icons/`);
 }
 
 export async function pass3Record(
@@ -48,10 +84,16 @@ export async function pass3Record(
 
   const browser = await chromium.launch(cloakLaunchOptions(getChromiumGpuFlags()));
 
-  const cursorStyle = config.cursorStyle || 'black';
-  const cursorSrc = path.join(demoDir, 'assets', 'icons', `cursor-${cursorStyle}.png`);
+  const cursorSrc = getCursorFilePath(demoDir, config);
+  const ext = path.extname(cursorSrc);
   const cursorPng = path.join(demoDir, 'cursor.png');
-  fs.copyFileSync(cursorSrc, cursorPng);
+  
+  if (ext === '.svg') {
+    console.log(`🎨 Rendering SVG cursor ${cursorSrc} to PNG...`);
+    await renderSvgToPng(cursorSrc, cursorPng);
+  } else {
+    fs.copyFileSync(cursorSrc, cursorPng);
+  }
   console.log(`✅ Cursor PNG ready: ${cursorPng}`);
 
   const context = await browser.newContext({
@@ -60,7 +102,7 @@ export async function pass3Record(
   });
 
   // If a CloakBrowser profile exists, load its storage_state.json to restore
-  // cookies so the recording runs as an authenticated user.
+  // cookies so the automation runs as an authenticated user.
   const PROFILE_ROOT = process.env.CLOAK_PROFILE_ROOT || path.join(os.homedir(), '.cloak-profiles');
   const safe = config.userId.replace(/[^a-zA-Z0-9_-]/g, '_');
   const profileDir = path.join(PROFILE_ROOT, `user-${safe}`);
@@ -99,6 +141,8 @@ export async function pass3Record(
   const trackingEvents: TrackingEvent[] = [];
   let prevCursorX = CENTER_X;
   let prevCursorY = CENTER_Y;
+  let prevAction: 'click' | 'type' | 'wait' | undefined;
+  let prevZoom = 1.0;
 
   const waitForTime = async (targetSeconds: number) => {
     const targetMs = targetSeconds * 1000;
@@ -114,7 +158,7 @@ export async function pass3Record(
       const loc = page.locator(step.selector).first();
 
       await waitForTime(actionTime - 2.0);
-      await loc.waitFor({ state: 'visible', timeout: 15000 });
+      await loc.waitFor({ state: 'attached', timeout: 15000 });
 
       const scrollYBefore = await page.evaluate(() => window.scrollY);
       await loc.evaluate((node) => node.scrollIntoView({ behavior: 'smooth', block: 'center' }))
@@ -145,28 +189,71 @@ export async function pass3Record(
 
       const syncedActionTime = (Date.now() - startTime) / 1000 + 0.05;
 
-      // Dynamic zoom: frame the element to fill ~35% of the viewport (with surrounding context)
+      // Dynamic auto-zoom: frame the element to fill ~50% of the viewport, capped at 1.8×.
+      // Tuned conservatively so text inputs/buttons don't dominate the frame.
       let elemZoom: number | undefined;
       if (finalBox) {
-        const targetFillRatio = 0.35;
+        const targetFillRatio = 0.5;
         const zoomByWidth = (VIDEO_WIDTH * targetFillRatio) / finalBox.width;
         const zoomByHeight = (VIDEO_HEIGHT * targetFillRatio) / finalBox.height;
-        elemZoom = Math.max(1.0, Math.min(2.5, Math.min(zoomByWidth, zoomByHeight)));
+        elemZoom = Math.max(1.0, Math.min(1.8, Math.min(zoomByWidth, zoomByHeight)));
       }
+
+      // Form chaining: when a `type` step follows another `type` step, carry the
+      // previous zoom forward so the camera pans smoothly across form fields
+      // instead of bouncing in/out for each input.
+      if (step.action === 'type' && prevAction === 'type') {
+        elemZoom = prevZoom;
+      }
+
+      // Pre-navigate transition: when a click will trigger navigation, inject a
+      // zoom-in → zoom-out pair centered on the click target so the camera
+      // settles to 1.0× *before* the new page paints, giving the viewer's eye
+      // a structural resting point across the page change.
+      let isPreNavigate = step.preNavigate === true;
+      if (!isPreNavigate && step.action === 'click') {
+        isPreNavigate = await loc
+          .evaluate((node) => node.tagName === 'A' || !!node.closest('a') || !!node.getAttribute('href'))
+          .catch(() => false);
+      }
+      if (isPreNavigate && step.action === 'click') {
+        const zoomInLevel = Math.max(elemZoom ?? 1.4, 1.4);
+        const ZOOM_IN_OFFSET = 1.5; // s before click — zoom peaks here
+        if (syncedActionTime - ZOOM_IN_OFFSET > 0) {
+          trackingEvents.push({
+            id: `${step.id}__pre_nav_in`,
+            actionTime: syncedActionTime - ZOOM_IN_OFFSET,
+            cx: finalCx,
+            cy: finalCy,
+            action: 'move',
+            zoom: zoomInLevel,
+          });
+        }
+        elemZoom = zoomInLevel;
+      }
+
       trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: elemZoom });
       prevCursorX = finalCx;
       prevCursorY = finalCy;
+      prevAction = step.action;
+      prevZoom = elemZoom ?? prevZoom;
+
+      if (isPreNavigate && step.action === 'click') {
+        const ZOOM_OUT_DELAY = 1.0; // s after click — zoom returns to 1.0
+        trackingEvents.push({
+          id: `${step.id}__post_nav_out`,
+          actionTime: syncedActionTime + ZOOM_OUT_DELAY,
+          cx: finalCx,
+          cy: finalCy,
+          action: 'move',
+          zoom: 1.0,
+        });
+      }
 
       if (step.action === 'click') {
         await loc.click({ force: true });
       } else if (step.action === 'type') {
-        await loc.focus();
-        await page.keyboard.down('Control');
-        await page.keyboard.press('a');
-        await page.keyboard.up('Control');
-        await page.keyboard.press('Backspace');
-        await page.waitForTimeout(200);
-        await loc.pressSequentially(step.value!, { delay: 80 });
+        await humanizedType(page, loc, step.value!);
       }
 
       if (step.action === 'click' || step.action === 'type') {
@@ -174,8 +261,10 @@ export async function pass3Record(
       }
     } else {
       await waitForTime(actionTime);
-      trackingEvents.push({ id: step.id, actionTime, cx: CENTER_X, cy: CENTER_Y, action: 'wait', zoom: step.zoom });
-      if (step.id === 'tOutro') await page.waitForTimeout(2000);
+      trackingEvents.push({ id: step.id, actionTime, cx: prevCursorX, cy: prevCursorY, action: 'wait', zoom: step.zoom });
+      if (step.id === 'tOutro') {
+        try { await page.waitForTimeout(2000); } catch (e) { /* ignore */ }
+      }
     }
   }
 
@@ -186,7 +275,7 @@ export async function pass3Record(
   const elapsedFinal = Date.now() - startTime;
   if (elapsedFinal < totalAudioTimeMs) {
     const timeToWait = totalAudioTimeMs - elapsedFinal + 2000;
-    await page.waitForTimeout(timeToWait);
+    try { await page.waitForTimeout(timeToWait); } catch (e) { /* ignore */ }
   }
 
   // Close page first with timeout — Playwright's recordVideo encoder can hang on close

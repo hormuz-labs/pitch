@@ -24,6 +24,14 @@ export interface DemoStep {
   selector?: string;
   value?: string;
   zoom?: number;
+  /**
+   * Hint that this click will trigger navigation (e.g. an <a> link, a button that
+   * opens a new route, or a redirect). When set (or auto-detected from the
+   * target being an <a>/href-bearing element), pass3-record injects a synthetic
+   * zoom-in → zoom-out transition so the camera settles to 1.0× before the new
+   * page paints. Defaults to auto-detection.
+   */
+  preNavigate?: boolean;
 }
 
 export interface WavConversionOptions {
@@ -37,7 +45,7 @@ export interface TrackingEvent {
   actionTime: number;
   cx: number;
   cy: number;
-  action: 'click' | 'type' | 'wait' | 'scroll' | 'navigate';
+  action: 'click' | 'type' | 'wait' | 'scroll' | 'move';
   scrollY?: number;
   zoom?: number;
 }

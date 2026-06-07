@@ -38,46 +38,54 @@ The engine is driven by a single JSON configuration file. Instead of writing cus
 
 ### 🎥 Zoom & Camera Cinematography Guide (CRITICAL)
 
-The engine uses **two separate mechanisms** for camera movement — you must understand both to choreograph a great demo:
+The engine handles camera movement **automatically** — you do NOT need to compute zoom values for click/type steps. There are only a few rules to follow when authoring `demo-config.json`.
 
-#### 1. Dynamic Auto-Zoom (click/type steps)
-Zoom is **automatically calculated** from the element's actual bounding box at record time — do NOT set `zoom` on click/type steps. The formula:
+#### 1. Auto-zoom on click / type (default)
+Zoom is calculated per-step from the element's bounding box at record time:
 ```
-zoom = min(videoWidth × 0.35 / elemWidth, videoHeight × 0.35 / elemHeight)
+zoom = clamp(min(videoWidth × 0.5 / elemWidth, videoHeight × 0.5 / elemHeight), 1.0, 1.8)
 ```
-clamped to [1.0, 2.5]. This frames the element filling ~35% of the viewport with surrounding context.
+The element fills ~50% of the viewport with surrounding context. **Do NOT set `zoom` on click/type steps.**
 
-- A tiny 40×20 icon → ~2.5x (tight closeup)
-- A 150×30 menu item → ~2.5x (closeup)  
-- A 300×80 button → ~2.25x (medium)
-- A 900×600 panel → ~1.0x (wide)
+| Element | Approx. zoom |
+|---|---|
+| 40×20 icon | 1.8× (capped) |
+| 200×30 text input | 1.8× (capped) |
+| 300×80 button | 1.6× |
+| 900×600 panel | 1.0× (wide) |
 
-#### 2. Manual Zoom-Out (wait / navigate steps)
-**CRITICAL**: Set `"zoom": 1.0` on wait and navigate steps between interactions. This zooms the camera back out to full-page context, giving the viewer's eyes a structural resting point. Without this, the camera stays zoomed in from the previous action.
-
-**Cinematography rhythm — ALWAYS follow this pattern:**
-```
-action (auto-zoom in) → wait with zoom:1.0 (zoom out to context) → action (auto-zoom in) → ...
-```
-
-**Exception — form filling / sequential typing:**
-When the user fills a multi-field form (e.g., Name → Email → Password), do NOT insert zoom-out waits between them. Let the engine chain the type steps so the camera stays smoothly zoomed in across the form:
+#### 2. Form chaining (consecutive `type` steps)
+When a `type` step follows another `type` step, the engine **carries the previous zoom level forward** so the camera pans smoothly across form fields instead of bouncing in/out for each input. No config needed — just chain them:
 ```json
-{ "id": "tName", "description": "Type name", "action": "type", "selector": "#name", "value": "John" },
-{ "id": "tEmail", "description": "Type email", "action": "type", "selector": "#email", "value": "john@test.com" },
-{ "id": "tAfterForm", "description": "Form complete", "action": "wait", "zoom": 1.0 }
+{ "id": "tName",  "action": "type", "selector": "#name",  "value": "John" },
+{ "id": "tEmail", "action": "type", "selector": "#email", "value": "john@test.com" },
+{ "id": "tAfter", "action": "wait", "zoom": 1.0 }
 ```
+The first `type` zooms in; subsequent ones just pan to the next field at the same zoom; the `wait` zooms out.
 
-#### 3. Camera Pan Tracking
-The camera **always follows the cursor** — the viewport is automatically panned so the cursor position stays centered. You do NOT need to configure anything. This ensures the user's eye is always on the element being interacted with.
+#### 3. Pre-navigation transition (auto-detected for `<a>` / `href`)
+When a `click` step's target is an `<a>` element (or has an `href`), the engine **auto-detects navigation** and injects a synthetic zoom-in → zoom-out pair centered on the click target, so the camera settles to 1.0× *before* the new page paints. The viewer sees a smooth settle rather than an abrupt cut at high zoom.
+
+The transition timing is tuned for smoothness:
+- **Zoom-in** peaks at 2.0s before the click (1.0s transition to 1.4−1.8×)
+- **Zoom-out** starts 0.8s before the click (1.0s transition back to 1.0×)
+- The 1.2s gap between offsets ensures the zoom-in fully completes before the zoom-out begins, avoiding overlapping abrupt transitions.
+
+Override per-step with `"preNavigate": true | false` if auto-detection is wrong.
+
+#### 4. Manual zoom-out on `wait` steps
+Set `"zoom": 1.0` on every `wait` step that sits between interactions. This zooms the camera back out to full-page context. Without it, the camera stays at the previous action's zoom level.
+
+#### 5. Camera pan tracking
+The camera **always follows the cursor** — the viewport pans so the cursor stays roughly centered. No config needed.
 
 #### Summary: when to set `zoom`
-| Step type | Set zoom? | Value |
-|-----------|-----------|-------|
-| click / type | ❌ Omit — auto-calculated | — |
-| wait (between actions) | ✅ Yes | `1.0` |
-| wait (outro / conclusion) | ✅ Yes | `1.0` |
-| wait (initial landing) | ✅ Yes | `1.0` |
+| Step | `zoom` value |
+|---|---|
+| `click` / `type` | ❌ Omit — auto-calculated |
+| `wait` (between actions) | ✅ `1.0` |
+| `wait` (initial landing / outro) | ✅ `1.0` |
+| `preNavigate` override | Optional `true` / `false` on click steps |
 
 **Execution:**
 ```bash
@@ -122,7 +130,9 @@ From there, the AI should:
 6. **Handling Blockers/Popups:** If a login popup, cookie banner, or newsletter overlay blocks the automation during execution, the AI Agent must proactively patch `pass1-dry-run.ts` and `pass3-record.ts` to dismiss it (e.g. locate and click the `✕` button) after `page.goto()`.
 
 7. **Environment Variable & CloakBrowser Setup (CRITICAL):** Before running any pipeline pass, you MUST ensure the following:
-    *   **All browser launches now go through CloakBrowser.** Every `chromium.launch()` in the reference scripts (pass0-intro, pass0-outro, pass1-dry-run, pass3-record) routes through `src/cloak-launcher.ts`, which resolves the bundled Chromium binary, applies stealth fingerprinting args, and supports both headless and headed modes. This is how we bypass Cloudflare Turnstile and similar bot-detection walls by default — no extra config required.
+    *   **All browser launches now go through CloakBrowser.** Every `chromium.launch()` in the reference scripts routes through `src/cloak-launcher.ts`, which resolves the bundled Chromium binary, applies stealth fingerprinting args, and supports both headless and headed modes. This is how we bypass Cloudflare Turnstile and similar bot-detection walls by default — no extra config required.
+    *   **Humanized typing for `type` steps:** The `humanizedType()` function in `cloak-launcher.ts` uses CloakBrowser's `humanType()` from `cloakbrowser/human` to type character-by-character with realistic delays (60ms avg, 30ms spread), thinking pauses, and natural per-character key events. It's called from `pass3-record.ts` for all `type` steps. Click and scroll remain using standard Playwright methods — only typing is humanized.
+    *   **`recordVideo` compatibility:** The `humanize: true` browser-level flag conflicts with Playwright's `recordVideo`. Instead, the engine uses the standard CloakBrowser launch (`chromium.launch(cloakLaunchOptions())`) and selectively applies human typing via `humanizedType()`. This keeps video recording stable while still producing natural-looking input on screen.
     *   **Install CloakBrowser once** (if not already present):
         ```bash
         bun add -g cloakbrowser
@@ -192,16 +202,17 @@ The generic engine loops through `demoSteps`. For every step with a selector, it
 
 ### Phase 2 — Voiceover Generation & Transcription
 Use `gemini-3.1-flash-tts-preview` (or fallback to `gemini-2.5-flash` if unavailable) to generate the `.wav` narration (default voice: `Puck`).
-The generated `.wav` is automatically transcribed into a JSON array (`timestamps.json`) via the local microservice defined in `TRANSCRIPTION_SERVICE_URL`.
+The generated `.wav` is automatically transcribed into a JSON array (`timestamps.json`) via the local microservice defined in `TRANSCRIPTION_SERVICE_URL`. The engine appends `/transcribe` to the URL internally, so `TRANSCRIPTION_SERVICE_URL` should be just the base (e.g., `http://localhost:4000`), not including the path.
 
 ### Phase 2.5 — LLM-Driven Timeline Mapping
 Pass the raw transcription and the `demoSteps` descriptions to an LLM (`gemini-2.5-flash`). The LLM semantically maps the steps to exact timestamps in seconds. Save this to `timeline.json`. 
 
 ### Phase 3 — Raw Video Recording & JIT Tracking
 Run the final Playwright instance with `recordVideo` enabled (1920x1080).
+*   **Humanized Typing:** For `type` steps, the engine calls `humanizedType()` which uses CloakBrowser's `humanType()` to type character-by-character with realistic delays (60ms avg, 30ms spread), thinking pauses, and natural per-character key events. The browser is launched via standard `chromium.launch(cloakLaunchOptions())` — `recordVideo` is incompatible with CloakBrowser's `humanize: true` flag, so only typing is humanized via the selective wrapper.
 *   **Pure Browser Context:** No CSS or DOM hacks are injected! The browser remains exactly as it naturally is.
 *   **Generic Execution Loop:** The engine loops through `demoSteps` again. For each step, it looks up the timestamp in `timeline.json`. 
-*   **JIT Coordinates:** It waits until `T - 0.5s`, waits for the element to be visible, dynamically grabs `locator.boundingBox()`, and logs the target coordinates into a tracking array. At exact time `T`, it performs the real Playwright `click()` or `pressSequentially()`. All coordinate data is exported to `tracking.json`.
+*   **JIT Coordinates:** It waits until `T - 0.5s`, waits for the element to be visible, dynamically grabs `locator.boundingBox()`, and logs the target coordinates into a tracking array. At exact time `T`, it performs `click()` or `humanizedType()`. All coordinate data is exported to `tracking.json`.
 
 ### Phase 4 — FFmpeg Post-Processing (Cinematic Overlay, Zoom & AV Sync) — V4.5
 Multiplex the resulting `.webm` video from Playwright with the voiceover, typing, and click SFX.
@@ -209,7 +220,7 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 *   **Dynamic Auto-Zoom:** Zoom is computed per-step from the element's bounding box at record time — small elements get tighter zooms, large panels stay wide. No manual zoom levels needed for actions.
 *   **Camera Pan Tracking:** The camera viewport automatically pans to keep the cursor centered on screen at all times.
 *   **Scroll-Tracking Camera Pan:** When `scrollIntoView` shifts the page by >20px, a synthetic `scroll` event is pushed to `tracking.json`. Phase 4 reads these to emit a smooth `panY` drift so the camera follows the page scroll naturally.
-*   **Click Shrink Animation:** Each `click` event generates a natural cursor shrink-and-expand effect (scales down to 70% over 0.05s, expands back over 0.15s). This is evaluated dynamically using the `scale` filter applied directly to the cursor overlay element.
+* **Click Shrink Animation:** Each `click` and `type` event generates a natural cursor shrink-and-expand effect (scales down to 70% over 0.05s, expands back over 0.15s). Synthetic events (`__pre_nav_in`, `__pre_nav_out`, `__scroll`) are automatically skipped since they have no timeline entry — they inject camera transitions, not user interactions.
 *   **Cursor Park & Fade:** During idle gaps >4s, the cursor gracefully fades out in place over 0.4s via dynamic alpha channel masking (`geq` filter), and fades back in 1s before the next interaction begins. All done as post-processing on top of the cursor overlay expressions.
 1.  **A/V Sync (Playwright Offset):** Playwright's `recordVideo` doesn't start its internal clock until the first frame is painted. The engine forces a blank frame immediately to start the clock, calculates `initDurationMs` (the time it takes for the actual page to load), and offsets the voiceover and all SFX by this duration in FFmpeg (`adelay`) to perfectly sync real-time audio with the delayed video.
 2.  **Drop infinite apad:** FFmpeg tends to hang if `apad` is left on all SFX mixing tracks indefinitely. The script now lets SFX end naturally.
