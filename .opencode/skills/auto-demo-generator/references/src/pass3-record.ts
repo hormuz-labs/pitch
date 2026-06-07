@@ -104,23 +104,27 @@ export async function pass3Record(
   // If a CloakBrowser profile exists, load its storage_state.json to restore
   // cookies so the automation runs as an authenticated user.
   const PROFILE_ROOT = process.env.CLOAK_PROFILE_ROOT || path.join(os.homedir(), '.cloak-profiles');
-  const safe = config.userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const profileDir = path.join(PROFILE_ROOT, `user-${safe}`);
-  if (fs.existsSync(profileDir)) {
-    const storageFile = path.join(profileDir, 'storage_state.json');
-    if (fs.existsSync(storageFile)) {
-      try {
-        const state = JSON.parse(fs.readFileSync(storageFile, 'utf8'));
-        if (state.cookies?.length) {
-          await context.addCookies(state.cookies);
-          console.log(`[pass3] Restored ${state.cookies.length} cookies from ${storageFile}`);
+  if (config.userId) {
+    const safe = config.userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const profileDir = path.join(PROFILE_ROOT, `user-${safe}`);
+    if (fs.existsSync(profileDir)) {
+      const storageFile = path.join(profileDir, 'storage_state.json');
+      if (fs.existsSync(storageFile)) {
+        try {
+          const state = JSON.parse(fs.readFileSync(storageFile, 'utf8'));
+          if (state.cookies?.length) {
+            await context.addCookies(state.cookies);
+            console.log(`[pass3] Restored ${state.cookies.length} cookies from ${storageFile}`);
+          }
+        } catch (e) {
+          console.warn(`[pass3] Failed to load storage state:`, e);
         }
-      } catch (e) {
-        console.warn(`[pass3] Failed to load storage state:`, e);
+      } else {
+        console.log(`[pass3] No storage_state.json found at ${storageFile} — proceeding unauthenticated`);
       }
-    } else {
-      console.log(`[pass3] No storage_state.json found at ${storageFile} — proceeding unauthenticated`);
     }
+  } else {
+    console.log('[pass3] No userId set — proceeding unauthenticated');
   }
 
   const page = await context.newPage();
@@ -128,15 +132,18 @@ export async function pass3Record(
   // Prime the recorder with a blank white frame so Playwright's video encoder
   // starts its internal clock immediately. Using a data: URL (instead of
   // setContent) is more reliable with CloakBrowser's fingerprinted Chromium.
+  // Capture videoStartTime BEFORE the first goto so initDurationMs accounts for
+  // ALL dead video time (including the blank frame render + 100ms wait) that
+  // the encoder recorded. Without this, ~150-250ms of dead frames at the start
+  // of the raw video go untrimmed, shifting all overlay/audio events early.
+  const pipelineStart = Date.now();
   await page.goto('data:text/html,<body style="background:white;"></body>', { waitUntil: 'load', timeout: 30000 });
   await page.waitForTimeout(100);
-
-  const videoStartTime = Date.now();
   await page.goto(startUrl, { waitUntil: 'load', timeout: 30000 });
   await page.waitForTimeout(2000);
 
   const startTime = Date.now();
-  const initDurationMs = startTime - videoStartTime;
+  const initDurationMs = startTime - pipelineStart;
 
   const trackingEvents: TrackingEvent[] = [];
   let prevCursorX = CENTER_X;
@@ -187,8 +194,6 @@ export async function pass3Record(
       const finalCx = finalBox ? finalBox.x + finalBox.width / 2 : cx;
       const finalCy = finalBox ? finalBox.y + finalBox.height / 2 : cy;
 
-      const syncedActionTime = (Date.now() - startTime) / 1000 + 0.05;
-
       // Dynamic auto-zoom: frame the element to fill ~50% of the viewport, capped at 1.8×.
       // Tuned conservatively so text inputs/buttons don't dominate the frame.
       let elemZoom: number | undefined;
@@ -206,6 +211,18 @@ export async function pass3Record(
         elemZoom = prevZoom;
       }
 
+      // Execute the action. Capture the timestamp IMMEDIATELY BEFORE so the
+      // cursor animation fires at the action's onset, aligned with both the
+      // click SFX (which uses originalTimeline — the LLM-predicted time) and
+      // the voiceover narration. The old code captured before the click with a
+      // +0.05s guess, causing the overlay to fire 50-100ms early.
+      const preActionTime = (Date.now() - startTime) / 1000;
+      if (step.action === 'click') {
+        await loc.click({ force: true });
+      } else if (step.action === 'type') {
+        await humanizedType(page, loc, step.value!);
+      }
+
       // Pre-navigate transition: when a click will trigger navigation, inject a
       // zoom-in → zoom-out pair centered on the click target so the camera
       // settles to 1.0× *before* the new page paints, giving the viewer's eye
@@ -219,10 +236,10 @@ export async function pass3Record(
       if (isPreNavigate && step.action === 'click') {
         const zoomInLevel = Math.max(elemZoom ?? 1.4, 1.4);
         const ZOOM_IN_OFFSET = 1.5; // s before click — zoom peaks here
-        if (syncedActionTime - ZOOM_IN_OFFSET > 0) {
+        if (preActionTime - ZOOM_IN_OFFSET > 0) {
           trackingEvents.push({
             id: `${step.id}__pre_nav_in`,
-            actionTime: syncedActionTime - ZOOM_IN_OFFSET,
+            actionTime: preActionTime - ZOOM_IN_OFFSET,
             cx: finalCx,
             cy: finalCy,
             action: 'move',
@@ -232,7 +249,7 @@ export async function pass3Record(
         elemZoom = zoomInLevel;
       }
 
-      trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: elemZoom });
+      trackingEvents.push({ id: step.id, actionTime: preActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: elemZoom });
       prevCursorX = finalCx;
       prevCursorY = finalCy;
       prevAction = step.action;
@@ -242,7 +259,7 @@ export async function pass3Record(
         const ZOOM_OUT_DELAY = 1.0; // s after click — zoom returns to 1.0
         trackingEvents.push({
           id: `${step.id}__post_nav_out`,
-          actionTime: syncedActionTime + ZOOM_OUT_DELAY,
+          actionTime: preActionTime + ZOOM_OUT_DELAY,
           cx: finalCx,
           cy: finalCy,
           action: 'move',
@@ -250,14 +267,8 @@ export async function pass3Record(
         });
       }
 
-      if (step.action === 'click') {
-        await loc.click({ force: true });
-      } else if (step.action === 'type') {
-        await humanizedType(page, loc, step.value!);
-      }
-
       if (step.action === 'click' || step.action === 'type') {
-        timeline[step.id] = syncedActionTime;
+        timeline[step.id] = preActionTime;
       }
     } else {
       await waitForTime(actionTime);

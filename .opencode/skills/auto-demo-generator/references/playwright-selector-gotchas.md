@@ -10,7 +10,7 @@
 ✅ "button:text('Return policy?')"
 ```
 
-**Never guess element attributes (Email, Password, etc.)** — Always use `agent-browser` (specifically `agent-browser get attr <ref> placeholder/name/id`) to fetch exact attribute values before writing selectors. Labels and placeholders are frequently different from visual text (e.g. "Email" visually vs. placeholder="Enter your email or phone number").
+**Never guess element attributes (Email, Password, etc.)** — Always use `playwright-cli` (specifically `playwright-cli get attr <ref> placeholder/name/id`) to fetch exact attribute values before writing selectors. Labels and placeholders are frequently different from visual text (e.g. "Email" visually vs. placeholder="Enter your email or phone number").
 
 **Prefer Tag-Agnostic Selectors for Inputs** — Avoid prepending `input` to attribute selectors like `input[name='benefits']`. Features looking like text fields might be implemented as `<textarea>` or custom elements. Omitting the tag name makes the selector robust:
 ```
@@ -18,7 +18,7 @@
 ✅ "[name='benefits']"
 ```
 
-**Verify hrefs with agent-browser** — sites redirect URLs (e.g. `/docs/components/command` → `/docs/components/radix/command`). Always confirm the exact `href` value before using `a[href='...']`.
+**Verify hrefs with playwright-cli** — sites redirect URLs (e.g. `/docs/components/command` → `/docs/components/radix/command`). Always confirm the exact `href` value before using `a[href='...']`.
 
 **Avoid class names with `/`** — Tailwind classes like `group/accordion-trigger` are invalid CSS selectors. Use a structural parent (`h3 button`) or ARIA role instead.
 

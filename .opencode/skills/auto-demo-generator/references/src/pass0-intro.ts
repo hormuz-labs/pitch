@@ -18,7 +18,7 @@ const MIME_MAP: Record<string, string> = {
 function findLogoInIconsDir(demoDir: string): { filePath: string; mimeType: string; dataUrl: string } | null {
   const iconsDir = path.join(demoDir, 'assets', 'icons');
   if (!fs.existsSync(iconsDir)) {
-    console.log(`No assets/icons/ folder found. Agent-browser must download the logo there first.`);
+    console.log(`No assets/icons/ folder found. Playwright-cli must download the logo there first.`);
     return null;
   }
 
@@ -51,7 +51,7 @@ function findLogoInIconsDir(demoDir: string): { filePath: string; mimeType: stri
 function preflight(demoDir: string): void {
   if (!fs.existsSync(demoDir)) throw new Error(`[pass0-intro] demoDir does not exist: ${demoDir}`);
   const iconsDir = path.join(demoDir, 'assets', 'icons');
-  if (!fs.existsSync(iconsDir)) throw new Error(`[pass0-intro] assets/icons/ not found. Agent-browser must download logo.svg there first. Expected: ${iconsDir}`);
+  if (!fs.existsSync(iconsDir)) throw new Error(`[pass0-intro] assets/icons/ not found. Playwright-cli must download logo.svg there first. Expected: ${iconsDir}`);
 }
 
 export async function pass0(config: DemoConfig, startUrl: string, demoDir: string) {

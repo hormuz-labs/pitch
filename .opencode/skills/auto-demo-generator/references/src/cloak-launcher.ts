@@ -81,7 +81,7 @@ export function findCloakBrowserPath(): string {
 }
 
 export function getCloakLaunchArgs(): string[] {
-  const envArgs = (process.env.AGENT_BROWSER_ARGS || '')
+  const envArgs = (process.env.PLAYWRIGHT_CLI_ARGS || '')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);

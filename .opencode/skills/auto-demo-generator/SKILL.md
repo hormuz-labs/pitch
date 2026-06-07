@@ -143,9 +143,9 @@ From there, the AI should:
         # Binary: /Users/<you>/.cloakbrowser/chromium-<version>/Chromium.app/Contents/MacOS/Chromium
         ```
         The launcher tries (in order): `CLOAK_BROWSER_PATH` env var → `cloakbrowser info` output → `~/.cloakbrowser/chromium-*/Chromium.app/Contents/MacOS/Chromium`. Override with `CLOAK_BROWSER_PATH=/path/to/Chromium` if needed.
-    *   **Stealth / fingerprint args** — read from `AGENT_BROWSER_ARGS` (comma-separated). The launcher always prepends `--fingerprint` and appends `--fingerprint-platform=macos` if not present. Add more via:
+    *   **Stealth / fingerprint args** — read from `PLAYWRIGHT_CLI_ARGS` (comma-separated). The launcher always prepends `--fingerprint` and appends `--fingerprint-platform=macos` if not present. Add more via:
         ```bash
-        export AGENT_BROWSER_ARGS="--no-sandbox,--fingerprint-platform=macos"
+        export PLAYWRIGHT_CLI_ARGS="--no-sandbox,--fingerprint-platform=macos"
         ```
     *   **Headed vs. headless** — headless by default. Set `CLOAK_HEADED=1` to pop a visible window (useful for local debugging or for watching the Cloudflare interstitial clear in real time).
     *   **`CLOAK_PROFILE_DIR` env var is set** — If the job parameters include a `cloakProfileDir`, export it as `CLOAK_PROFILE_DIR` before invoking `src/index.ts`. This is required for pass1 and pass3 to restore cookies for authenticated sessions.
@@ -159,7 +159,7 @@ From there, the AI should:
         Then export: `export CLOAK_PROFILE_DIR=~/.cloak-profiles/<job-id>`
     *   **Cloudflare Turnstile / Anti-Bot Detection:** The bundled CloakBrowser Chromium already includes fingerprint randomization that bypasses most Turnstile and bot-detection challenges. If a specific site still blocks you, set `CLOAK_HEADED=1` and solve the challenge manually in the visible window — the resulting `storage_state.json` is reused on subsequent runs.
 
-### Phase 0.2 — Selector Collection via Agent Browser (Prerequisite)
+### Phase 0.2 — Selector Collection via Playwright CLI (Prerequisite)
 
 **[🛑 STOP AND READ - ABSOLUTELY CRITICAL]**
 Before starting selector collection, you MUST manually report the `selector_collection` phase via the `job-cli`.
@@ -167,19 +167,39 @@ Before starting selector collection, you MUST manually report the `selector_coll
 bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection --status running
 ```
 
-Before generating `demo-config.json`, the AI Agent MUST use the `agent-browser` skill to navigate the target website and interact with the elements. 
+Before generating `demo-config.json`, the AI Agent MUST use the `playwright-cli` skill to navigate the target website and interact with the elements. 
+
+**AUTHENTICATION REQUIREMENT:** If the job requires an authenticated flow, you MUST check for and load the user's specific `storage_state.json` file during your selector exploration phase. The file is located in the user's profile directory based on the `userId` in the `demo-config.json` (or job parameters).
+The standard location is: `~/.cloak-profiles/user-<userId>/storage_state.json`.
+
+**IMPORTANT:** This file might NOT exist (e.g., if it's a public demo or the user hasn't authenticated). Do NOT fail or crash if it's missing. Just check if it exists; if it does, load it. If it doesn't, proceed unauthenticated.
+
+Furthermore, standard Playwright Chromium will get blocked by Cloudflare/Turnstile. You MUST force `playwright-cli` to use the CloakBrowser binary via the `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` environment variable.
+
+**MANDATORY COMMANDS FOR EXPLORING AUTHENTICATED SITES:**
+```bash
+# 1. Point Playwright CLI to the stealth CloakBrowser binary
+export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$(cloakbrowser info | awk '/Binary:/ {print $2}')
+
+# 2. Check if state exists, and if so, load it into the CLI
+STATE_FILE=~/.cloak-profiles/user-<userId>/storage_state.json
+if [ -f "$STATE_FILE" ]; then playwright-cli state-load "$STATE_FILE"; else echo "No state found, proceeding unauthenticated"; fi
+
+# 3. Open the target page (authenticated if state existed)
+playwright-cli open https://example.com/dashboard
+```
 
 **CRITICAL:** This step is crucial for discovering precise, reliable DOM selectors required for the actions. Snapshots and internal framework IDs will change between sessions. You must collect highly stable semantic selectors (e.g., specific text contents, stable CSS classes, or ARIA roles). If we run the same automation script on a fresh session, it shouldn't break. Always keep selector stability in mind.
 
 **SELECTOR SAFETY RULES — NEVER SKIP THESE:**
-1. **Never guess attributes**: Do NOT guess inputs' placeholders, name tags, or IDs. Always execute `agent-browser get attr @ref placeholder/name/id` first to get the exact strings. Labels do not always equal placeholders.
+1. **Never guess attributes**: Do NOT guess inputs' placeholders, name tags, or IDs. Always execute `playwright-cli get attr @ref placeholder/name/id` first to get the exact strings. Labels do not always equal placeholders.
 2. **Never mix Playwright operators (`>>`) inside CSS functional pseudo-classes**: Browser engine CSS engines do not support `>>` inside `:has(...)` or `:not(...)` and will crash.
    * *Wrong:* `div:has(h3 >> text='X')`
    * *Right:* `h3:has-text('X') >> xpath=../.. >> .class`
 3. **Prefer tag-agnostic selectors for inputs**: A field looking like a standard text box may be built with a `<textarea>` or custom element. Use `[name='salary']` instead of `input[name='salary']` to be safe.
 4. **Enforce aggressive, low timeouts (3 to 5 seconds) on custom/exploratory scripts**: Default 30-second delays heavily extend feedback loops on failure. Always set short timeouts (e.g., `{ timeout: 3000 }` on clicks/waits) in ad-hoc explorer files. Fail fast, adjust, and continue instantly.
 
-**MANDATORY — Logo Download:**  While the agent-browser is already on the website, it MUST find and download the website's primary logo file and save it into `demos/<demo-name>/assets/icons/`. **CRITICAL**: You MUST name the file starting with `logo.` (e.g., `logo.svg`, `logo.png`, `logo.webp`). Do NOT name it `company.png` or `favicon.ico`. The engine strictly looks for files matching `logo.*`. Prefer the highest-resolution or vector (`.svg`) version available. Look in the header/navigation area first, then check `<link rel="apple-touch-icon">` as a fallback. If you find a URL to an SVG or PNG logo, download it via `fetch()` or copy its source and save it to the `assets/icons/` folder. This is REQUIRED for the cinematic intro to work in Phase 0.5.
+**MANDATORY — Logo Download:**  While the playwright-cli is already on the website, it MUST find and download the website's primary logo file and save it into `demos/<demo-name>/assets/icons/`. **CRITICAL**: You MUST name the file starting with `logo.` (e.g., `logo.svg`, `logo.png`, `logo.webp`). Do NOT name it `company.png` or `favicon.ico`. The engine strictly looks for files matching `logo.*`. Prefer the highest-resolution or vector (`.svg`) version available. Look in the header/navigation area first, then check `<link rel="apple-touch-icon">` as a fallback. If you find a URL to an SVG or PNG logo, download it via `fetch()` or copy its source and save it to the `assets/icons/` folder. This is REQUIRED for the cinematic intro to work in Phase 0.5.
 
 Once the agent has successfully verified and collected all the necessary stable working selectors, it will dynamically generate the `demo-config.json` file inside the new demo folder.
 
@@ -187,7 +207,7 @@ Once the agent has successfully verified and collected all the necessary stable 
 
 ### Phase 0.5 — Cinematic Intro Sequence (V4.6)
 Before running the validation or generation passes, `pass0-intro.ts` automatically generates a 3.5-second premium intro card.
-*   **Logo Source:** Reads the logo file directly from `assets/icons/` (placed there by agent-browser in Phase 0.2). Supports `.svg`, `.png`, `.webp`, `.jpg`, `.jpeg`, `.avif`, `.gif`, `.ico`. Prefers SVG (infinite resolution) over raster formats.
+*   **Logo Source:** Reads the logo file directly from `assets/icons/` (placed there by playwright-cli in Phase 0.2). Supports `.svg`, `.png`, `.webp`, `.jpg`, `.jpeg`, `.avif`, `.gif`, `.ico`. Prefers SVG (infinite resolution) over raster formats.
 *   **Adaptive Background:** Analyzes the logo's non-transparent pixels using canvas pixel math. Dark logo → white `#FFFFFF` background. Light logo → deep `#0A0A0A` background. Can be forced via `introBg: 'white' | 'black'` in `demo-config.json`.
 *   **Cinematic Animation:** Renders an HTML page via Playwright `recordVideo` featuring an Apple-style staggered slide-in (cubic-bezier easing): logo blooms in → divider draws down → company name slides in from left. Font: `Inter Bold 700`, 72px, -0.03em tracking.
 *   **Thumbnail Capture:** At ~1.5s into the animation (when logo + name are fully visible), a JPEG screenshot is saved as `thumbnail.jpg` in the demo directory and its path written to `thumbnail-path.txt`. The `src/index.ts` pipeline immediately uploads this via `job-cli thumbnail` so the dashboard shows the branded preview while the rest of the pipeline is still running.
@@ -241,7 +261,7 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 ✅ "button:text('Return policy?')"
 ```
 
-**Never guess element attributes (Email, Password, etc.)** — Always use `agent-browser` (specifically `agent-browser get attr <ref> placeholder/name/id`) to fetch exact attribute values before writing selectors. Labels and placeholders are frequently different from visual text (e.g. "Email" visually vs. placeholder="Enter your email or phone number").
+**Never guess element attributes (Email, Password, etc.)** — Always use `playwright-cli` (specifically `playwright-cli get attr <ref> placeholder/name/id`) to fetch exact attribute values before writing selectors. Labels and placeholders are frequently different from visual text (e.g. "Email" visually vs. placeholder="Enter your email or phone number").
 
 **Prefer Tag-Agnostic Selectors for Inputs** — Avoid prepending `input` to attribute selectors like `input[name='benefits']`. Features looking like text fields might be implemented as `<textarea>` or custom elements. Omitting the tag name makes the selector robust:
 ```
@@ -249,12 +269,12 @@ Multiplex the resulting `.webm` video from Playwright with the voiceover, typing
 ✅ "[name='benefits']"
 ```
 
-**Verify hrefs with agent-browser** — sites redirect URLs (e.g. `/docs/components/command` → `/docs/components/radix/command`). Always confirm the exact `href` value before using `a[href='...']`.
+**Verify hrefs with playwright-cli** — sites redirect URLs (e.g. `/docs/components/command` → `/docs/components/radix/command`). Always confirm the exact `href` value before using `a[href='...']`.
 
 **Avoid class names with `/`** — Tailwind classes like `group/accordion-trigger` are invalid CSS selectors. Use a structural parent (`h3 button`) or ARIA role instead.
 
 **Never assume `type="submit"` on search/form buttons** — Many sites (including Wikipedia, GitHub, and others using web components or custom design systems) render their submit buttons **without** a `type="submit"` attribute. Using `button[type='submit']` as a selector will silently timeout even though the button is clearly visible. Instead:
-* Always inspect the button's actual HTML with `agent-browser eval` before writing the selector.
+* Always inspect the button's actual HTML with `playwright-cli eval` before writing the selector.
 * Use class-based or text-based selectors as a fallback:
 ```
 ❌ "button[type='submit'].cdx-search-input__end-button"   ← breaks on Wikipedia & similar
@@ -308,7 +328,7 @@ bun apps/job-cli/src/index.ts phase --job-id <JOB_ID> --phase <PHASE_KEY> --stat
 | Phase Key | When to call |
 |-----------|-------------|
 | `workspace_init` | Before + after creating the `demos/<name>/` folder and copying `src/` files |
-| `selector_collection` | Before + after agent-browser navigates and collects selectors |
+| `selector_collection` | Before + after playwright-cli navigates and collects selectors |
 | `intro_sequence` | Automatically handled by `src/index.ts` |
 | `flow_validation` | Automatically handled by `src/index.ts` |
 | `voiceover_generation` | Automatically handled by `src/index.ts` |
@@ -332,7 +352,7 @@ bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase workspace_init --st
 
 # Phase 0.2 — selector collection
 bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection --status running
-# ... run agent-browser, collect selectors, generate demo-config.json ...
+# ... run playwright-cli, collect selectors, generate demo-config.json ...
 bun apps/job-cli/src/index.ts phase --job-id $JOB_ID --phase selector_collection --status completed
 
 # Run the main pipeline (auto-reports phases 0.5 → 4)
