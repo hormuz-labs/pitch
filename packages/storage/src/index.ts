@@ -189,3 +189,61 @@ export async function storageStateExists(userId: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * The S3 side of "forget this login": remove every cookie belonging to `host`
+ * (and its registrable domain) from the user's stored storage_state.json. If no
+ * cookies remain, the object is deleted entirely. Returns true if anything
+ * changed. Done in-memory (get → filter → put/delete), no temp files.
+ */
+export async function pruneStorageStateCookies(userId: string, host: string): Promise<boolean> {
+  const key = storageStateKey(userId);
+
+  let raw: string;
+  try {
+    const res = await client.send(new GetObjectCommand({ Bucket: PROFILES_BUCKET, Key: key }));
+    const chunks: Buffer[] = [];
+    for await (const chunk of res.Body as Readable) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    raw = Buffer.concat(chunks).toString('utf-8');
+  } catch (e: any) {
+    if (e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404) return false;
+    throw e;
+  }
+
+  let state: { cookies?: Array<{ domain?: string }>; origins?: unknown[] };
+  try {
+    state = JSON.parse(raw);
+  } catch {
+    return false; // unparseable — leave it alone
+  }
+
+  const target = host.toLowerCase().replace(/^www\./, '');
+  const reg = target.split('.').slice(-2).join('.');
+  const belongsToHost = (domain?: string): boolean => {
+    if (!domain) return false;
+    const d = domain.replace(/^\./, '').toLowerCase();
+    return d === target || d === reg || d.endsWith(`.${reg}`);
+  };
+
+  const before = state.cookies?.length ?? 0;
+  const remaining = (state.cookies ?? []).filter((c) => !belongsToHost(c.domain));
+  if (remaining.length === before) return false; // nothing matched this host
+
+  if (remaining.length === 0) {
+    await client.send(new DeleteObjectCommand({ Bucket: PROFILES_BUCKET, Key: key }));
+    console.log(`[Storage] Removed storage_state for user ${userId} (no cookies left after pruning ${target})`);
+    return true;
+  }
+
+  state.cookies = remaining;
+  await client.send(new PutObjectCommand({
+    Bucket: PROFILES_BUCKET,
+    Key: key,
+    Body: Buffer.from(JSON.stringify(state)),
+    ContentType: 'application/json',
+  }));
+  console.log(`[Storage] Pruned ${before - remaining.length} cookie(s) for ${target} (user ${userId})`);
+  return true;
+}
