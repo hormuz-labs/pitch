@@ -51,20 +51,6 @@ export function smoothstepExpr(
   return `${prev}+(${target - prev})*${p}`;
 }
 
-/**
- * Linear zoom — delegates to smoothstepExpr (now linear) for zoom-in transitions.
- */
-export function springOvershootExpr(
-  evalVar: 'time',
-  prev: number,
-  target: number,
-  overshoot: number,
-  moveStart: number,
-  moveDuration: number
-): string {
-  return smoothstepExpr(evalVar, prev, target, moveStart, moveDuration);
-}
-
 type GpuVendor = 'amd' | 'nvidia' | 'apple' | 'windows' | 'none';
 
 /**
@@ -237,23 +223,17 @@ export function buildCursorAnimationExprs(
       continue; // skip cursor and zoom update for scroll-only events
     }
 
-    const targetZoom = ev.zoom !== undefined 
-      ? ev.zoom 
-      : ((ev.action === 'wait' || ev.action === 'navigate') ? 1.0 : 1.2);
+    const targetZoom = ev.zoom !== undefined
+      ? ev.zoom
+      : (ev.action === 'wait' ? 1.0 : prevZoom);
 
-    // ── Cursor overlay (smoothstep easing, evaluates 't') ────────────────────
+    // ── Cursor overlay (linear easing, evaluates 't') ────────────────────────
     overlayXExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
     overlayYExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCy, ev.cy, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
 
-    // ── Zoom (spring overshoot on zoom-in, plain smoothstep on zoom-out) ─────
-    const OVERSHOOT_FRACTION = 0.1; // 10% of the zoom delta
-    const overshootAmt = targetZoom > prevZoom
-      ? (targetZoom - prevZoom) * OVERSHOOT_FRACTION
-      : 0;
+    // ── Zoom (linear in/out — no overshoot) ──────────────────────────────────
     const zoomInterp = (targetZoom !== prevZoom)
-      ? (targetZoom > prevZoom 
-          ? springOvershootExpr('time', prevZoom, targetZoom, overshootAmt, moveStart, moveDuration)
-          : smoothstepExpr('time', prevZoom, targetZoom, moveStart, moveDuration))
+      ? smoothstepExpr('time', prevZoom, targetZoom, moveStart, moveDuration)
       : `${targetZoom}`;
     zoomZExpr = `if(between(time,${moveStart},${tTime}),${zoomInterp},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
 
@@ -297,7 +277,7 @@ export function buildCursorAlphaExpr(trackingEvents: TrackingEvent[]): string {
 
   const activeEvents = [...trackingEvents]
     .sort((a, b) => a.actionTime - b.actionTime)
-    .filter(e => e.action !== 'scroll' && e.action !== 'navigate');
+    .filter(e => e.action !== 'scroll');
   for (let i = 0; i < activeEvents.length; i++) {
     const ev   = activeEvents[i];
     const next = activeEvents[i + 1];
@@ -347,7 +327,8 @@ export function buildCursorScaleExpr(
 
   for (const ev of clickEvents) {
     // Use the actual execution time from the timeline
-    const T0 = +(timeline[ev.id] > 1000 ? timeline[ev.id] / 1000 : timeline[ev.id]).toFixed(4);
+    const rawTime = timeline[ev.id] !== undefined ? timeline[ev.id] : ev.actionTime;
+    const T0 = +(rawTime > 1000 ? rawTime / 1000 : rawTime).toFixed(4);
     
     // Natural shrink and expand
     const shrinkDur = 0.05;

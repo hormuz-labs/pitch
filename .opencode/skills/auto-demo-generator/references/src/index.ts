@@ -45,9 +45,18 @@ if (!config.companyName) { console.error('❌ config.companyName is required (us
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const cursorStyle = config.cursorStyle || 'black';
-const cursorFile = path.join(DEMO_DIR, 'assets', 'icons', `cursor-${cursorStyle}.png`);
-if (!fs.existsSync(cursorFile)) {
-  console.error(`❌ Missing cursor PNG! Expected: ${cursorFile}\nDid you forget to copy the assets/ directory?`);
+let cursorFileCandidate = path.join(DEMO_DIR, 'assets', 'icons', `cursor-${cursorStyle}.png`);
+if (!fs.existsSync(cursorFileCandidate)) {
+  cursorFileCandidate = path.join(DEMO_DIR, 'assets', 'icons', `cursor-${cursorStyle}.svg`);
+}
+if (!fs.existsSync(cursorFileCandidate)) {
+  cursorFileCandidate = path.join(DEMO_DIR, 'assets', 'icons', 'cursor.svg');
+}
+if (!fs.existsSync(cursorFileCandidate)) {
+  cursorFileCandidate = path.join(DEMO_DIR, 'assets', 'icons', 'cursor.png');
+}
+if (!fs.existsSync(cursorFileCandidate)) {
+  console.error(`❌ Missing cursor file! Expected cursor in PNG or SVG format.\nDid you forget to copy the assets/ directory?`);
   process.exit(1);
 }
 
