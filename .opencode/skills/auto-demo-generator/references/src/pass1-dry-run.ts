@@ -49,7 +49,7 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
     if (step.selector) {
       console.log(`Validating step: ${step.id} — locating: ${step.selector}`);
       const loc = page.locator(step.selector).first();
-      await loc.waitFor({ state: 'visible', timeout: 20000 });
+      await loc.waitFor({ state: 'attached', timeout: 20000 });
       await loc.scrollIntoViewIfNeeded();
       await page.waitForTimeout(200);
 

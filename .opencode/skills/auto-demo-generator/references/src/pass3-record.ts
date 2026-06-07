@@ -158,7 +158,7 @@ export async function pass3Record(
       const loc = page.locator(step.selector).first();
 
       await waitForTime(actionTime - 2.0);
-      await loc.waitFor({ state: 'visible', timeout: 15000 });
+      await loc.waitFor({ state: 'attached', timeout: 15000 });
 
       const scrollYBefore = await page.evaluate(() => window.scrollY);
       await loc.evaluate((node) => node.scrollIntoView({ behavior: 'smooth', block: 'center' }))
@@ -218,27 +218,18 @@ export async function pass3Record(
       }
       if (isPreNavigate && step.action === 'click') {
         const zoomInLevel = Math.max(elemZoom ?? 1.4, 1.4);
-        const ZOOM_IN_OFFSET = 2.0; // s before click — zoom peaks here
-        const ZOOM_OUT_OFFSET = 0.8; // s before click — zoom returns to 1.0
+        const ZOOM_IN_OFFSET = 1.5; // s before click — zoom peaks here
         if (syncedActionTime - ZOOM_IN_OFFSET > 0) {
           trackingEvents.push({
             id: `${step.id}__pre_nav_in`,
             actionTime: syncedActionTime - ZOOM_IN_OFFSET,
             cx: finalCx,
             cy: finalCy,
-            action: 'click',
+            action: 'move',
             zoom: zoomInLevel,
           });
-          trackingEvents.push({
-            id: `${step.id}__pre_nav_out`,
-            actionTime: syncedActionTime - ZOOM_OUT_OFFSET,
-            cx: finalCx,
-            cy: finalCy,
-            action: 'click',
-            zoom: 1.0,
-          });
         }
-        elemZoom = 1.0;
+        elemZoom = zoomInLevel;
       }
 
       trackingEvents.push({ id: step.id, actionTime: syncedActionTime, cx: finalCx, cy: finalCy, action: step.action, zoom: elemZoom });
@@ -246,6 +237,18 @@ export async function pass3Record(
       prevCursorY = finalCy;
       prevAction = step.action;
       prevZoom = elemZoom ?? prevZoom;
+
+      if (isPreNavigate && step.action === 'click') {
+        const ZOOM_OUT_DELAY = 1.0; // s after click — zoom returns to 1.0
+        trackingEvents.push({
+          id: `${step.id}__post_nav_out`,
+          actionTime: syncedActionTime + ZOOM_OUT_DELAY,
+          cx: finalCx,
+          cy: finalCy,
+          action: 'move',
+          zoom: 1.0,
+        });
+      }
 
       if (step.action === 'click') {
         await loc.click({ force: true });
@@ -258,8 +261,10 @@ export async function pass3Record(
       }
     } else {
       await waitForTime(actionTime);
-      trackingEvents.push({ id: step.id, actionTime, cx: CENTER_X, cy: CENTER_Y, action: 'wait', zoom: step.zoom });
-      if (step.id === 'tOutro') await page.waitForTimeout(2000);
+      trackingEvents.push({ id: step.id, actionTime, cx: prevCursorX, cy: prevCursorY, action: 'wait', zoom: step.zoom });
+      if (step.id === 'tOutro') {
+        try { await page.waitForTimeout(2000); } catch (e) { /* ignore */ }
+      }
     }
   }
 
@@ -270,7 +275,7 @@ export async function pass3Record(
   const elapsedFinal = Date.now() - startTime;
   if (elapsedFinal < totalAudioTimeMs) {
     const timeToWait = totalAudioTimeMs - elapsedFinal + 2000;
-    await page.waitForTimeout(timeToWait);
+    try { await page.waitForTimeout(timeToWait); } catch (e) { /* ignore */ }
   }
 
   // Close page first with timeout — Playwright's recordVideo encoder can hang on close

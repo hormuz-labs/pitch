@@ -188,39 +188,30 @@ export function buildCursorAnimationExprs(
   let panXExpr = "0";
   let panYExpr = "0";
 
+  let cursorXTimeExpr = `${CENTER_X}`;
+  let cursorYTimeExpr = `${CENTER_Y}`;
+
   let prevCx = CENTER_X;
   let prevCy = CENTER_Y;
   let prevZoom = 1;
-  let runningPanX = 0;
-  let runningPanY = 0;
   let prevTime = 0;
 
-  const sortedEvents = [...trackingEvents].sort((a, b) => a.actionTime - b.actionTime);
+  const sortedEvents = [...trackingEvents].filter(e => e.action !== 'scroll').sort((a, b) => a.actionTime - b.actionTime);
 
   for (let i = 0; i < sortedEvents.length; i++) {
     const ev = sortedEvents[i];
     const tTime = ev.actionTime;
     let moveDuration = 1.0;
     let moveStart = Math.max(prevTime, tTime - moveDuration);
+
+    if (ev.action === 'wait') {
+      moveStart = Math.min(prevTime + 0.1, tTime - 0.01); // start moving quickly, but don't exceed tTime
+      moveDuration = Math.max(0.01, Math.min(0.8, tTime - moveStart)); // dart away quickly
+    }
     
     // Adjust duration if moveStart was clamped
-    if (moveStart > tTime - moveDuration) {
+    if (moveStart > tTime - moveDuration && ev.action !== 'wait') {
       moveDuration = Math.max(0.01, tTime - moveStart);
-    }
-
-    // ── Scroll events: only update camera pan, no cursor/zoom change ──────────
-    if (ev.action === 'scroll') {
-      if (prevZoom <= 1.0) {
-        prevTime = tTime;
-        continue; // Skip scroll pan when not zoomed
-      }
-
-      const scrolledY = ev.scrollY ?? 0;
-      const targetScrollPanY = Math.min(Math.max(0, scrolledY - CENTER_Y / prevZoom), videoHeight - videoHeight / prevZoom);
-      panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetScrollPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetScrollPanY},${panYExpr}))`;
-      runningPanY = targetScrollPanY;
-      prevTime = tTime;
-      continue; // skip cursor and zoom update for scroll-only events
     }
 
     const targetZoom = ev.zoom !== undefined
@@ -231,26 +222,26 @@ export function buildCursorAnimationExprs(
     overlayXExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCx, ev.cx, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cx},${overlayXExpr}))`;
     overlayYExpr = `if(between(t,${moveStart},${tTime}),${smoothstepExpr('t', prevCy, ev.cy, moveStart, moveDuration)},if(gt(t,${tTime}),${ev.cy},${overlayYExpr}))`;
 
+    // ── Cursor time expressions for zoompan (evaluates 'time') ───────────────
+    cursorXTimeExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', prevCx, ev.cx, moveStart, moveDuration)},if(gt(time,${tTime}),${ev.cx},${cursorXTimeExpr}))`;
+    cursorYTimeExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', prevCy, ev.cy, moveStart, moveDuration)},if(gt(time,${tTime}),${ev.cy},${cursorYTimeExpr}))`;
+
     // ── Zoom (linear in/out — no overshoot) ──────────────────────────────────
     const zoomInterp = (targetZoom !== prevZoom)
       ? smoothstepExpr('time', prevZoom, targetZoom, moveStart, moveDuration)
       : `${targetZoom}`;
     zoomZExpr = `if(between(time,${moveStart},${tTime}),${zoomInterp},if(gt(time,${tTime}),${targetZoom},${zoomZExpr}))`;
 
-    // ── Pan (smoothstep easing, evaluates 'time') ────────────────────────────
-    const targetPanX = Math.min(Math.max(0, ev.cx - videoWidth / (2 * targetZoom)), videoWidth - videoWidth / targetZoom);
-    const targetPanY = Math.min(Math.max(0, ev.cy - videoHeight / (2 * targetZoom)), videoHeight - videoHeight / targetZoom);
-
-    panXExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanX, targetPanX, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanX},${panXExpr}))`;
-    panYExpr = `if(between(time,${moveStart},${tTime}),${smoothstepExpr('time', runningPanY, targetPanY, moveStart, moveDuration)},if(gt(time,${tTime}),${targetPanY},${panYExpr}))`;
-
     prevCx = ev.cx;
     prevCy = ev.cy;
     prevZoom = targetZoom;
-    runningPanX = targetPanX;
-    runningPanY = targetPanY;
     prevTime = tTime;
   }
+
+  // ── Pan (dynamic track of cursor using current 'z') ────────────────────────
+  // To avoid zoompan 'z' value zero division or nan, wrap with max
+  panXExpr = `min(max(0, (${cursorXTimeExpr}) - ${videoWidth}/(2*max(1,zoom))), ${videoWidth} - ${videoWidth}/max(1,zoom))`;
+  panYExpr = `min(max(0, (${cursorYTimeExpr}) - ${videoHeight}/(2*max(1,zoom))), ${videoHeight} - ${videoHeight}/max(1,zoom))`;
 
   // Ensure zoom doesn't break if no events exist
   if (trackingEvents.length === 0) {
@@ -271,7 +262,7 @@ export function buildCursorAnimationExprs(
 export function buildCursorAlphaExpr(trackingEvents: TrackingEvent[]): string {
   const FADE_OUT_DUR = 0.4;
   const FADE_IN_DUR  = 1.0;
-  const PARK_GAP_MIN = 4.0;
+  const PARK_GAP_MIN = 1.0;
 
   let cursorAlphaExpr = "1";
 

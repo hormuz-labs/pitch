@@ -45,7 +45,7 @@ export interface TrackingEvent {
   actionTime: number;
   cx: number;
   cy: number;
-  action: 'click' | 'type' | 'wait' | 'scroll';
+  action: 'click' | 'type' | 'wait' | 'scroll' | 'move';
   scrollY?: number;
   zoom?: number;
 }
