@@ -115,7 +115,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
       <div className="absolute inset-0 rounded-xl border border-gray-200 group-hover:border-gray-300 pointer-events-none z-10 transition-colors duration-200" />
 
       {/* Thumbnail */}
-      <div className="relative aspect-video w-full bg-gray-100 overflow-hidden group/thumb rounded-t-xl">
+      <div className="relative aspect-video w-full bg-gray-100 overflow-hidden group/thumb rounded-t-xl border-b border-gray-200">
         {project.thumbnailUrl ? (
           <>
             <img
