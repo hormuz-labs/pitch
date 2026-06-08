@@ -154,68 +154,80 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
               ))}
             </motion.div>
           ) : (
-            <motion.div
-              key="modal"
-              layoutId="feedback-card"
-              className="relative z-50 w-full max-w-sm overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-xl"
-              transition={SPRING_CONFIG}
-            >
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ delay: 0.1 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClose();
-                }}
-                className="absolute top-3 right-3 rounded-full bg-gray-50 p-1.5 text-gray-500 transition-all hover:scale-110 hover:text-gray-900 hover:bg-gray-100 active:scale-90"
-              >
-                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </motion.button>
-
+            <>
+              {/* Backdrop */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="relative pt-1"
-              >
-                <h2 className="mb-1 text-base font-bold text-gray-900 pr-8">
-                  Share Feedback
-                </h2>
-
-                <p className="mb-4 text-xs text-gray-500 pr-6">
-                  {activeRating === 'up'
-                    ? 'Let us know what you liked most?'
-                    : 'What can we improve?'}
-                </p>
-
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div>
-                    <textarea
-                      autoFocus
-                      value={feedback}
-                      onChange={(e) => setFeedback(e.target.value)}
-                      placeholder="Type in your feedback (optional)"
-                      className="h-24 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 transition-all outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-gray-800 active:scale-[0.98] disabled:opacity-50"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999]"
+                onClick={handleClose}
+              />
+              <div className="fixed inset-0 flex items-center justify-center z-[10000] pointer-events-none p-4">
+                <motion.div
+                  key="modal"
+                  layoutId="feedback-card"
+                  className="relative pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-2xl"
+                  transition={SPRING_CONFIG}
+                >
+                  <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ delay: 0.1 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClose();
+                    }}
+                    className="absolute top-3 right-3 z-10 rounded-full bg-gray-50 p-1.5 text-gray-500 transition-all hover:scale-110 hover:text-gray-900 hover:bg-gray-100 active:scale-90 cursor-pointer"
                   >
-                    <Send
-                      size={16}
-                      className="fill-current"
-                    />
-                    <span>{isSubmitting ? 'Sending...' : 'Send Now'}</span>
-                  </button>
-                </form>
-              </motion.div>
-            </motion.div>
+                    <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  </motion.button>
+
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="relative pt-1"
+                  >
+                    <h2 className="mb-1 text-base font-bold text-gray-900 pr-8">
+                      Share Feedback
+                    </h2>
+
+                    <p className="mb-4 text-xs text-gray-500 pr-6">
+                      {activeRating === 'up'
+                        ? 'Let us know what you liked most?'
+                        : 'What can we improve?'}
+                    </p>
+
+                    <form onSubmit={handleSubmit} className="space-y-3">
+                      <div>
+                        <textarea
+                          autoFocus
+                          value={feedback}
+                          onChange={(e) => setFeedback(e.target.value)}
+                          placeholder="Type in your feedback (optional)"
+                          className="h-24 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 transition-all outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-gray-800 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                      >
+                        <Send
+                          size={16}
+                          className="fill-current"
+                        />
+                        <span>{isSubmitting ? 'Sending...' : 'Send Now'}</span>
+                      </button>
+                    </form>
+                  </motion.div>
+                </motion.div>
+              </div>
+            </>
           )}
         </AnimatePresence>
       </LayoutGroup>
