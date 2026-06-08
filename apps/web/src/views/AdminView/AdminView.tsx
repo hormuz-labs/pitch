@@ -96,6 +96,14 @@ export function AdminView() {
     fetchDashboard(); // refresh stats
   };
 
+  const handleJobUpdated = (updatedJob: any) => {
+    setGlobalJobs(prev => prev.map(j => j.id === updatedJob.id ? { ...j, ...updatedJob } : j));
+    if (selectedJob?.id === updatedJob.id) {
+      setSelectedJob((prev: any) => (prev ? { ...prev, ...updatedJob } : null));
+    }
+    fetchDashboard(); // refresh stats
+  };
+
   // Filtered lists
   const filteredUsers = React.useMemo(() => {
     if (!data?.users) return [];
@@ -265,6 +273,7 @@ export function AdminView() {
           job={selectedJob}
           onClose={() => setSelectedJob(null)}
           onDelete={handleJobDeleted}
+          onUpdate={handleJobUpdated}
         />
       )}
     </div>

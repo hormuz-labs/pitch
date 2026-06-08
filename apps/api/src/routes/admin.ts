@@ -250,6 +250,36 @@ router.delete('/jobs/:id', async (req, res) => {
   }
 });
 
+// 4b. Update Job Status
+router.post('/jobs/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+  }
+
+  try {
+    const job = await db.prisma.job.findUnique({ where: { id } });
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const updatedJob = await db.updateJob(id, {
+      status: status as any,
+    });
+
+    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+    logger.info({ jobId: id, status }, 'Job status manually updated by admin');
+
+    res.json({ success: true, job: updatedJob });
+  } catch (error: any) {
+    logger.error({ err: error, jobId: id }, 'Failed to update job status as admin');
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 5. Global Queue Pause / Resume
 router.post('/queue/toggle', async (req, res) => {
   try {

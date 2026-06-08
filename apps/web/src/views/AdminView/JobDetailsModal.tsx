@@ -25,12 +25,41 @@ export function formatDuration(ms: number | null) {
   return `${s}s`;
 }
 
-export function JobDetailsModal({ job, onClose, onDelete }: { job: any; onClose: () => void; onDelete: (id: string) => void }) {
+export function JobDetailsModal({ job, onClose, onDelete, onUpdate }: { job: any; onClose: () => void; onDelete: (id: string) => void; onUpdate: (job: any) => void }) {
   const { getToken } = useAuth();
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [phasesExpanded, setPhasesExpanded] = React.useState(false);
+  const [status, setStatus] = React.useState(job?.status || 'PENDING');
+  const [updatingStatus, setUpdatingStatus] = React.useState(false);
+
+  React.useEffect(() => {
+    if (job) setStatus(job.status);
+  }, [job]);
 
   if (!job) return null;
+
+  const handleStatusChange = async (newStatus: string) => {
+    setUpdatingStatus(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      
+      const res = await api.post<{ success: boolean; job: any }>(
+        `/admin/jobs/${job.id}/status`,
+        token,
+        { status: newStatus }
+      );
+
+      if (res.success) {
+        setStatus(newStatus);
+        onUpdate({ ...job, status: newStatus });
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to update job status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to permanently delete/cancel this job?')) return;
@@ -49,9 +78,9 @@ export function JobDetailsModal({ job, onClose, onDelete }: { job: any; onClose:
   };
 
   const statusStyle =
-    job.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-    job.status === 'FAILED'    ? 'bg-red-100 text-red-700' :
-                                 'bg-blue-100 text-blue-700';
+    status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+    status === 'FAILED'    ? 'bg-red-100 text-red-700' :
+                             'bg-blue-100 text-blue-700';
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}>
@@ -113,6 +142,27 @@ export function JobDetailsModal({ job, onClose, onDelete }: { job: any; onClose:
             </div>
 
             <div className="space-y-4">
+              {/* Job Status (Admin Editable) */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Set Job Status</p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={status}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    disabled={updatingStatus}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="PENDING">PENDING</option>
+                    <option value="PROCESSING">PROCESSING</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="FAILED">FAILED</option>
+                  </select>
+                  {updatingStatus && (
+                    <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+                  )}
+                </div>
+              </div>
+
               {/* Cost */}
               {job.cost > 0 && (
                 <div>
