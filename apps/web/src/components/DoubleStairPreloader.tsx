@@ -116,14 +116,14 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
                   onComplete?.();
                 }
               }}
-              className="absolute left-[-1%] w-[102%] h-[51vh] bg-[#111111]"
+              className="absolute left-[-1%] w-[102%] h-[51vh] bg-black"
             />
             <motion.div
               custom={columns - i - 1}
               variants={stairAnim('bottom')}
               initial="initial"
               animate="animate"
-              className="absolute left-[-1%] w-[102%] h-[51vh] bg-[#111111]"
+              className="absolute left-[-1%] w-[102%] h-[51vh] bg-black"
             />
           </div>
         ))}
