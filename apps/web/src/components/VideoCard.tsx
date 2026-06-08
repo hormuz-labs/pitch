@@ -50,10 +50,31 @@ import { FaWhatsapp, FaXTwitter, FaInstagram } from 'react-icons/fa6';
 import { FiLink } from 'react-icons/fi';
 
 const shareOptions = [
-  { id: 'copy', name: 'Copy URL', icon: <FiLink size={14} /> },
-  { id: 'whatsapp', name: 'WhatsApp', icon: <FaWhatsapp size={14} className="text-[#25D366]" /> },
-  { id: 'twitter', name: 'Twitter / X', icon: <FaXTwitter size={14} /> },
-  { id: 'instagram', name: 'Instagram', icon: <FaInstagram size={14} className="text-[#E1306C]" /> },
+  { 
+    id: 'copy', 
+    name: 'Copy URL', 
+    icon: <FiLink size={13} className="text-indigo-600 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-indigo-50 border border-indigo-100/50 text-indigo-600',
+    immediate: true,
+  },
+  { 
+    id: 'whatsapp', 
+    name: 'WhatsApp', 
+    icon: <FaWhatsapp size={14} className="text-emerald-600 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-emerald-50 border border-emerald-100/50 text-emerald-600'
+  },
+  { 
+    id: 'twitter', 
+    name: 'Twitter / X', 
+    icon: <FaXTwitter size={13} className="text-zinc-900 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-zinc-100 border border-zinc-200/50 text-zinc-900'
+  },
+  { 
+    id: 'instagram', 
+    name: 'Instagram', 
+    icon: <FaInstagram size={14} className="text-rose-600 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-rose-50 border border-rose-100/50 text-rose-600'
+  },
 ];
 
 export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
@@ -94,7 +115,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
       <div className="absolute inset-0 rounded-xl border border-gray-200 group-hover:border-gray-300 pointer-events-none z-10 transition-colors duration-200" />
 
       {/* Thumbnail */}
-      <div className="relative h-40 bg-gray-100 overflow-hidden group/thumb rounded-t-xl">
+      <div className="relative aspect-video w-full bg-gray-100 overflow-hidden group/thumb rounded-t-xl">
         {project.thumbnailUrl ? (
           <>
             <img

@@ -29,7 +29,7 @@ async function renderSvgToPng(svgPath: string, pngPath: string): Promise<void> {
     await page.setContent(`
       <html>
         <body style="margin: 0; padding: 0; background: transparent; overflow: hidden;">
-          <div id="svg-container" style="display: inline-block; width: 24px; height: 24px;">
+          <div id="svg-container" style="display: inline-block; width: 31.2px; height: 31.2px;">
             ${svgContent}
           </div>
         </body>

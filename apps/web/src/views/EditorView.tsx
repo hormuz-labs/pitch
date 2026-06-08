@@ -48,10 +48,31 @@ const IconTrashSm = () => (
 );
 
 const shareOptions = [
-  { id: 'copy', name: 'Copy URL', icon: <FiLink size={14} /> },
-  { id: 'whatsapp', name: 'WhatsApp', icon: <FaWhatsapp size={14} className="text-[#25D366]" /> },
-  { id: 'twitter', name: 'Twitter / X', icon: <FaXTwitter size={14} /> },
-  { id: 'instagram', name: 'Instagram', icon: <FaInstagram size={14} className="text-[#E1306C]" /> },
+  { 
+    id: 'copy', 
+    name: 'Copy URL', 
+    icon: <FiLink size={13} className="text-indigo-600 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-indigo-50 border border-indigo-100/50 text-indigo-600',
+    immediate: true,
+  },
+  { 
+    id: 'whatsapp', 
+    name: 'WhatsApp', 
+    icon: <FaWhatsapp size={14} className="text-emerald-600 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-emerald-50 border border-emerald-100/50 text-emerald-600'
+  },
+  { 
+    id: 'twitter', 
+    name: 'Twitter / X', 
+    icon: <FaXTwitter size={13} className="text-zinc-900 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-zinc-100 border border-zinc-200/50 text-zinc-900'
+  },
+  { 
+    id: 'instagram', 
+    name: 'Instagram', 
+    icon: <FaInstagram size={14} className="text-rose-600 transition-transform duration-300 group-hover:scale-110" />,
+    bgClass: 'bg-rose-50 border border-rose-100/50 text-rose-600'
+  },
 ];
 
 // ── Editor View ────────────────────────────────────────────────────────────────
@@ -223,6 +244,7 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
                     onShareComplete={(option) => handleShareComplete(option, selectedProject.videoUrl!)}
                     containerClassName="w-full"
                     className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                    placement="top"
                     triggerContent={
                       <>
                         <IconShare className="shrink-0" />
