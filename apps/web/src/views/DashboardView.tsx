@@ -40,12 +40,11 @@ const IconChevronDown = () => (
 interface DashboardViewProps {
   projects: Project[];
   searchQuery: string;
-  isMobile: boolean;
   onDelete: (id: string) => void;
   onRetry: (id: string) => void;
 }
 
-export const DashboardView = ({ projects, searchQuery, isMobile, onDelete, onRetry }: DashboardViewProps) => {
+export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: DashboardViewProps) => {
   const navigate = useNavigate();
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
@@ -131,9 +130,7 @@ export const DashboardView = ({ projects, searchQuery, isMobile, onDelete, onRet
 
       {/* Card grid */}
       {displayedProjects.length > 0 && (
-        <div className={`grid gap-4 ${
-          isMobile ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-        }`}>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {displayedProjects.map(project => (
             <VideoCard
               key={project.id}

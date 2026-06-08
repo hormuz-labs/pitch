@@ -8,6 +8,9 @@ interface User {
   name: string;
   avatar?: string;
   icon?: React.ReactNode;
+  bgClass?: string;
+  /** If true, onShareComplete is called immediately on click instead of waiting for the animation */
+  immediate?: boolean;
 }
 
 interface ShareSheetProps {
@@ -16,6 +19,7 @@ interface ShareSheetProps {
   className?: string;
   triggerContent?: React.ReactNode;
   containerClassName?: string;
+  placement?: 'top' | 'bottom';
 }
 
 const springTransition = {
@@ -25,7 +29,7 @@ const springTransition = {
   mass: 1,
 } as const;
 
-export const ShareSheet = ({ users, onShareComplete, className, triggerContent, containerClassName }: ShareSheetProps) => {
+export const ShareSheet = ({ users, onShareComplete, className, triggerContent, containerClassName, placement = 'bottom' }: ShareSheetProps) => {
   const [status, setStatus] = useState<'idle' | 'open' | 'sending' | 'success'>('idle');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -34,13 +38,21 @@ export const ShareSheet = ({ users, onShareComplete, className, triggerContent, 
     setSelectedUser(user);
     setStatus('sending');
 
+    // For options like "Copy URL" we fire the action immediately so the
+    // clipboard write happens at the moment of click, not after the animation.
+    if (user.immediate) {
+      onShareComplete?.(user);
+    }
+
     setTimeout(() => {
       setStatus('success');
 
       setTimeout(() => {
         setStatus('idle');
         setSelectedUser(null);
-        onShareComplete?.(user);
+        if (!user.immediate) {
+          onShareComplete?.(user);
+        }
       }, 800);
     }, 1800);
   };
@@ -191,14 +203,21 @@ export const ShareSheet = ({ users, onShareComplete, className, triggerContent, 
         {status === 'open' && (
           <motion.div
             key="dropdown"
-            className="absolute right-0 top-9 z-50 w-[180px] rounded-[16px] bg-white p-1.5 shadow-xl border border-gray-100"
-            initial={{ opacity: 0, scale: 0, transformOrigin: 'top right' }}
+            className={cn(
+              "absolute right-0 z-50 w-[190px] rounded-[16px] bg-white/95 backdrop-blur-md p-2 shadow-2xl border border-zinc-150",
+              placement === 'top' ? "bottom-[46px]" : "top-9"
+            )}
+            initial={{ 
+              opacity: 0, 
+              scale: 0, 
+              transformOrigin: placement === 'top' ? 'bottom right' : 'top right' 
+            }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0 }}
               transition={springTransition}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative flex flex-col">
+              <div className="relative flex flex-col gap-1">
                 {users.map((user) => (
                   <motion.div
                     layout
@@ -207,8 +226,7 @@ export const ShareSheet = ({ users, onShareComplete, className, triggerContent, 
                     onHoverEnd={() => setHoveredId(null)}
                     onClick={() => handleSelectUser(user)}
                     className={cn(
-                      'group relative z-10 flex cursor-pointer items-center gap-2.5 p-1.5',
-                      hoveredId === user.id && 'px-1',
+                      'group relative z-10 flex cursor-pointer items-center gap-3 p-1.5 rounded-[12px] transition-colors',
                     )}
                     animate={{
                       x: hoveredId === user.id ? -4 : 0,
@@ -217,16 +235,19 @@ export const ShareSheet = ({ users, onShareComplete, className, triggerContent, 
                     {hoveredId === user.id && (
                       <motion.div
                         layoutId="hover-bg"
-                        className="absolute inset-y-0 -right-2 -left-2 -z-10 rounded-[14px] bg-gray-50"
+                        className="absolute inset-0 -z-10 rounded-[12px] bg-gradient-to-r from-zinc-50 to-white border border-zinc-100/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
                         transition={springTransition}
                       />
                     )}
 
                     <motion.div
                       layout
-                      className="relative h-6 w-6 overflow-hidden flex items-center justify-center bg-gray-100 rounded-full"
+                      className={cn(
+                        "relative h-7 w-7 overflow-hidden flex items-center justify-center rounded-full transition-all duration-300",
+                        user.bgClass || "bg-gray-100 text-gray-700 border border-gray-200"
+                      )}
                       animate={{
-                        borderRadius: hoveredId === user.id ? '6px' : '12px',
+                        borderRadius: hoveredId === user.id ? '8px' : '14px',
                       }}
                       transition={springTransition}
                     >
@@ -238,7 +259,7 @@ export const ShareSheet = ({ users, onShareComplete, className, triggerContent, 
                               ? 'avatar-morph'
                               : `icon-${user.id}`
                           }
-                          className="h-full w-full flex items-center justify-center text-gray-700 bg-white"
+                          className="h-full w-full flex items-center justify-center bg-transparent"
                         >
                           {user.icon}
                         </motion.div>
@@ -260,7 +281,7 @@ export const ShareSheet = ({ users, onShareComplete, className, triggerContent, 
 
                     <motion.span
                       layout
-                      className="text-xs font-medium tracking-tight text-neutral-800"
+                      className="text-[13px] font-semibold tracking-wide text-zinc-700 antialiased group-hover:text-zinc-900 transition-colors"
                     >
                       {user.name}
                     </motion.span>

@@ -814,7 +814,7 @@ function AppContent() {
 
             <main className="app-shell-main flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
               <Routes>
-                <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} isMobile={isMobile} onDelete={handleDelete} onRetry={handleRetry} />} />
+                <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} onDelete={handleDelete} onRetry={handleRetry} />} />
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />

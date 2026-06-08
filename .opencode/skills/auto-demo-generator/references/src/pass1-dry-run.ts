@@ -21,23 +21,27 @@ export async function pass1(config: DemoConfig, startUrl: string, demoSteps: Dem
   // If a CloakBrowser profile exists, load its storage_state.json to restore
   // cookies so the automation runs as an authenticated user.
   const PROFILE_ROOT = process.env.CLOAK_PROFILE_ROOT || path.join(os.homedir(), '.cloak-profiles');
-  const safe = config.userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const profileDir = path.join(PROFILE_ROOT, `user-${safe}`);
-  if (fs.existsSync(profileDir)) {
-    const storageFile = path.join(profileDir, 'storage_state.json');
-    if (fs.existsSync(storageFile)) {
-      try {
-        const state = JSON.parse(fs.readFileSync(storageFile, 'utf8'));
-        if (state.cookies?.length) {
-          await context.addCookies(state.cookies);
-          console.log(`[pass1] Restored ${state.cookies.length} cookies from ${storageFile}`);
+  if (config.userId) {
+    const safe = config.userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const profileDir = path.join(PROFILE_ROOT, `user-${safe}`);
+    if (fs.existsSync(profileDir)) {
+      const storageFile = path.join(profileDir, 'storage_state.json');
+      if (fs.existsSync(storageFile)) {
+        try {
+          const state = JSON.parse(fs.readFileSync(storageFile, 'utf8'));
+          if (state.cookies?.length) {
+            await context.addCookies(state.cookies);
+            console.log(`[pass1] Restored ${state.cookies.length} cookies from ${storageFile}`);
+          }
+        } catch (e) {
+          console.warn(`[pass1] Failed to load storage state:`, e);
         }
-      } catch (e) {
-        console.warn(`[pass1] Failed to load storage state:`, e);
+      } else {
+        console.log(`[pass1] No storage_state.json found at ${storageFile} — proceeding unauthenticated`);
       }
-    } else {
-      console.log(`[pass1] No storage_state.json found at ${storageFile} — proceeding unauthenticated`);
     }
+  } else {
+    console.log('[pass1] No userId set — proceeding unauthenticated');
   }
 
   const page = await context.newPage();
