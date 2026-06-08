@@ -270,6 +270,16 @@ router.post('/jobs/:id/status', async (req, res) => {
       status: status as any,
     });
 
+    if (status === 'FAILED') {
+      const existingRefund = await db.prisma.creditTransaction.findFirst({
+        where: { jobId: id, type: 'refund' }
+      });
+      if (!existingRefund) {
+        await db.addCredits(job.userId, 3, 'refund', 'Refund: video generation failed (manual admin update)', { jobId: id });
+        logger.info({ jobId: id }, 'Job marked as failed manually and 3 credits refunded');
+      }
+    }
+
     await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
     logger.info({ jobId: id, status }, 'Job status manually updated by admin');
 
