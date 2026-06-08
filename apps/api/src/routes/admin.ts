@@ -275,7 +275,7 @@ router.post('/jobs/:id/status', async (req, res) => {
         where: { jobId: id, type: 'refund' }
       });
       if (!existingRefund) {
-        await db.addCredits(job.userId, 3, 'refund', 'Refund: video generation failed (manual admin update)', { jobId: id });
+        await db.addCredits(job.userId, 3, 'refund', 'Refund: video generation failed', { jobId: id });
         logger.info({ jobId: id }, 'Job marked as failed manually and 3 credits refunded');
       }
     }
