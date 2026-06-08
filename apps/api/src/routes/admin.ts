@@ -266,11 +266,11 @@ router.post('/queue/toggle', async (req, res) => {
   }
 });
 
-// 6. Per-user financials: subscriptions, top-ups, credit ledger
+// 6. Per-user financials: subscriptions, top-ups, credit ledger, balance, and user profile
 router.get('/users/:id/financials', async (req, res) => {
   const { id } = req.params;
   try {
-    const [subscriptions, topUps, transactions] = await Promise.all([
+    const [subscriptions, topUps, transactions, balance, user] = await Promise.all([
       db.prisma.subscription.findMany({
         where: { userId: id },
         orderBy: { createdAt: 'desc' },
@@ -284,10 +284,35 @@ router.get('/users/:id/financials', async (req, res) => {
         orderBy: { createdAt: 'desc' },
         take: 150,
       }),
+      db.getCreditBalance(id),
+      db.prisma.userProfile.findUnique({
+        where: { id },
+      }),
     ]);
-    res.json({ subscriptions, topUps, transactions });
+    res.json({ subscriptions, topUps, transactions, balance, user });
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch user financials');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6b. Manually add or deduct user credits
+router.post('/users/:id/credits', async (req, res) => {
+  const targetUserId = req.params.id;
+  const { amount, description, isDeduction } = req.body;
+
+  if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || !Number.isInteger(amount)) {
+    return res.status(400).json({ error: 'Amount must be a positive integer' });
+  }
+
+  try {
+    const delta = isDeduction ? -amount : amount;
+    const desc = description || `Manual admin adjustment: ${isDeduction ? '-' : '+'}${amount} credits`;
+
+    const newBalance = await db.addCredits(targetUserId, delta, 'admin_adjustment', desc);
+    res.json({ success: true, newBalance });
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to adjust user credits');
     res.status(500).json({ error: error.message });
   }
 });

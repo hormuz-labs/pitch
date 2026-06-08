@@ -35,43 +35,40 @@ export function UserJobsModal({
   const [financials, setFinancials] = React.useState<any | null>(null);
   const [affiliateData, setAffiliateData] = React.useState<any | null>(null);
   const [loadingJobs, setLoadingJobs] = React.useState(true);
-  const [loadingFin, setLoadingFin] = React.useState(false);
   const [loadingAff, setLoadingAff] = React.useState(false);
   const [error, setError] = React.useState('');
 
-  // Fetch jobs on mount
+  // Manual credit adjustment states
+  const [adjustAmount, setAdjustAmount] = React.useState('');
+  const [adjustReason, setAdjustReason] = React.useState('');
+  const [adjusting, setAdjusting] = React.useState(false);
+
+  // Fetch jobs and financials on mount
   React.useEffect(() => {
     let isMounted = true;
-    const fetchJobs = async () => {
+    const loadData = async () => {
       try {
         const token = await getToken();
         if (!token) return;
-        const res = await api.get<any[]>(`/admin/users/${userId}/jobs`, token);
-        if (isMounted) setJobs(res);
+
+        const [jobsRes, financialsRes] = await Promise.all([
+          api.get<any[]>(`/admin/users/${userId}/jobs`, token),
+          api.get<any>(`/admin/users/${userId}/financials`, token)
+        ]);
+
+        if (isMounted) {
+          setJobs(jobsRes);
+          setFinancials(financialsRes);
+        }
       } catch (err: any) {
-        if (isMounted) setError(err.message || 'Failed to load user jobs');
+        if (isMounted) setError(err.message || 'Failed to load user data');
       } finally {
         if (isMounted) setLoadingJobs(false);
       }
     };
-    fetchJobs();
+    loadData();
     return () => { isMounted = false; };
   }, [userId]);
-
-  const loadFinancials = async () => {
-    if (financials) return;
-    setLoadingFin(true);
-    try {
-      const token = await getToken();
-      if (!token) return;
-      const res = await api.get<any>(`/admin/users/${userId}/financials`, token);
-      setFinancials(res);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load financials');
-    } finally {
-      setLoadingFin(false);
-    }
-  };
 
   const loadAffiliate = async () => {
     if (affiliateData !== null) return;
@@ -90,8 +87,45 @@ export function UserJobsModal({
 
   const handleTabChange = (tab: FinancialTab) => {
     setActiveTab(tab);
-    if (tab === 'financials') loadFinancials();
     if (tab === 'affiliate') loadAffiliate();
+  };
+
+  const handleCreditAdjustment = async (isDeduction: boolean) => {
+    const amountVal = parseInt(adjustAmount, 10);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      alert('Please enter a valid positive integer amount of credits.');
+      return;
+    }
+
+    setAdjusting(true);
+    setError('');
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await api.post<{ success: boolean; newBalance: number }>(
+        `/admin/users/${userId}/credits`,
+        token,
+        {
+          amount: amountVal,
+          description: adjustReason.trim() || undefined,
+          isDeduction,
+        }
+      );
+
+      if (res.success) {
+        // Refetch financials state to update balance & ledger
+        const finRes = await api.get<any>(`/admin/users/${userId}/financials`, token);
+        setFinancials(finRes);
+        setAdjustAmount('');
+        setAdjustReason('');
+        alert(`Successfully adjusted credits! New balance: ${res.newBalance} credits.`);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to adjust credits');
+    } finally {
+      setAdjusting(false);
+    }
   };
 
   const tabs: { key: FinancialTab; label: string; icon: string }[] = [
@@ -111,8 +145,21 @@ export function UserJobsModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-          <h3 className="text-base font-semibold text-gray-900">User Inspector</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+          <div className="flex items-center gap-3">
+            <h3 className="text-base font-semibold text-gray-900">User Inspector</h3>
+            {financials?.user && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="text-sm text-gray-500 font-medium truncate max-w-[200px] sm:max-w-none">
+                  {financials.user.firstName ? `${financials.user.firstName} ${financials.user.lastName || ''}` : financials.user.email}
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100/50">
+                  {financials.balance ?? 0} Credits
+                </span>
+              </>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -230,7 +277,7 @@ export function UserJobsModal({
           {/* ── Financials tab ── */}
           {activeTab === 'financials' && (
             <div className="p-4 sm:p-5 space-y-5">
-              {loadingFin ? (
+              {loadingJobs ? (
                 <div className="flex justify-center p-12">
                   <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
                 </div>
@@ -238,6 +285,51 @@ export function UserJobsModal({
                 <div className="text-center text-gray-400 text-sm py-12">No financial data.</div>
               ) : (
                 <>
+                  {/* Manual Credit Adjustment Widget */}
+                  <section className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Manual Credit Adjustment</h4>
+                      <p className="text-xs text-gray-400 mt-1">Directly add or deduct credits for this user. These changes are recorded in the ledger history below.</p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="w-full sm:w-28">
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="Amount"
+                          value={adjustAmount}
+                          onChange={e => setAdjustAmount(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all placeholder:text-gray-400"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          placeholder="Reason / Description (optional)"
+                          value={adjustReason}
+                          onChange={e => setAdjustReason(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all placeholder:text-gray-400"
+                        />
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleCreditAdjustment(false)}
+                          disabled={adjusting}
+                          className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {adjusting ? 'Adjusting...' : 'Add Credits'}
+                        </button>
+                        <button
+                          onClick={() => handleCreditAdjustment(true)}
+                          disabled={adjusting}
+                          className="flex-1 sm:flex-none px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {adjusting ? 'Adjusting...' : 'Deduct Credits'}
+                        </button>
+                      </div>
+                    </div>
+                  </section>
                   {/* Subscriptions */}
                   <section>
                     <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Subscriptions</h4>
