@@ -1,7 +1,5 @@
 import { execSync } from 'child_process';
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegStatic from 'ffmpeg-static';
-import ffprobeStatic from 'ffprobe-static';
 import fs from 'fs';
 import path from 'path';
 import { DemoConfig, DemoStep } from './types';
@@ -13,13 +11,10 @@ import {
   buildFilterString,
 } from './utils';
 
-const FFMPEG_PATH = ffmpegStatic;
-const FFPROBE_PATH = ffprobeStatic.path;
+const FFMPEG_PATH = 'ffmpeg';
+const FFPROBE_PATH = 'ffprobe';
 ffmpeg.setFfmpegPath(FFMPEG_PATH);
 ffmpeg.setFfprobePath(FFPROBE_PATH);
-
-if (!fs.existsSync(FFMPEG_PATH)) throw new Error(`Static ffmpeg not found at: ${FFMPEG_PATH}`);
-if (!fs.existsSync(FFPROBE_PATH)) throw new Error(`Static ffprobe not found at: ${FFPROBE_PATH}`);
 
 function preflight(demoDir: string): void {
   const rawVideoPointer = path.join(demoDir, 'raw-video-path.txt');

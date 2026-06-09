@@ -140,8 +140,28 @@ export function detectGpuVendor(): GpuVendor {
 }
 
 export function getFFmpegHwAccelOptions(): { hasVaapi: boolean, hwFilterSuffix: string, hwOutputOpts: string[] } {
-  const hasVaapi = fs.existsSync('/dev/dri/renderD128') && os.platform() === 'linux';
-  const hasVideotoolbox = os.platform() === 'darwin';
+  // Use a child process check instead of purely checking if /dev/dri/renderD128 exists.
+  // The device can exist without FFmpeg being compiled with actual vaapi support or without
+  // compatible driver bindings inside the container, which previously caused "Unrecognized option vaapi_device".
+  let hasVaapi = false;
+  if (os.platform() === 'linux' && fs.existsSync('/dev/dri/renderD128')) {
+    try {
+      const output = require('child_process').execSync(`ffmpeg -hwaccels 2>/dev/null`).toString();
+      hasVaapi = output.includes('vaapi');
+    } catch (e) {
+      hasVaapi = false;
+    }
+  }
+  
+  let hasVideotoolbox = false;
+  if (os.platform() === 'darwin') {
+    try {
+      const output = require('child_process').execSync(`ffmpeg -hwaccels 2>/dev/null`).toString();
+      hasVideotoolbox = output.includes('videotoolbox');
+    } catch (e) {
+      hasVideotoolbox = false;
+    }
+  }
 
   let hwFilterSuffix = '';
   let hwOutputOpts = ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p'];

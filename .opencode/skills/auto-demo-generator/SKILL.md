@@ -6,7 +6,7 @@ description: >
   or any automated "show me how to use X" video. Triggers on: "make a demo video", "record
   a walkthrough", "create a tutorial video", "automate a product demo", "screencast of X",
   "show how to use X", or any request to produce an MP4 of web interactions.
-compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, ffmpeg-static, ffprobe-static, dotenv, playwright. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required)."
+compatibility: "npm deps: @google/genai, mime, fluent-ffmpeg, dotenv, playwright. Env: GEMINI_API_KEY (required), TRANSCRIPTION_SERVICE_URL (required)."
 ---
 
 # Auto-Demo Generator
@@ -222,7 +222,7 @@ The generic engine loops through `demoSteps`. For every step with a selector, it
 
 ### Phase 2 — Voiceover Generation & Transcription
 Use `gemini-3.1-flash-tts-preview` (or fallback to `gemini-2.5-flash` if unavailable) to generate the `.wav` narration (default voice: `Puck`).
-The generated `.wav` is automatically transcribed into a JSON array (`timestamps.json`) via the local microservice defined in `TRANSCRIPTION_SERVICE_URL`. The engine appends `/transcribe` to the URL internally, so `TRANSCRIPTION_SERVICE_URL` should be just the base (e.g., `http://localhost:4000`), not including the path.
+The generated `.wav` is automatically transcribed into a JSON array (`timestamps.json`) via the local microservice defined in `TRANSCRIPTION_SERVICE_URL`. The URL should be the full endpoint including the path (e.g., `http://localhost:4000/transcribe`).
 
 ### Phase 2.5 — LLM-Driven Timeline Mapping
 Pass the raw transcription and the `demoSteps` descriptions to an LLM (`gemini-2.5-flash`). The LLM semantically maps the steps to exact timestamps in seconds. Save this to `timeline.json`. 

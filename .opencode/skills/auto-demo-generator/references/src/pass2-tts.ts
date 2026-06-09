@@ -72,7 +72,7 @@ export async function pass2Tts(
   if (!fs.existsSync(timestampsPath)) {
     console.log('== Pass 3: Transcription (Local Microservice) ==');
     const finalAudioBuffer = fs.readFileSync(voicePath);
-    const transcribeUrl = `${process.env.TRANSCRIPTION_SERVICE_URL!.replace(/\/+$/, '')}/transcribe`;
+    const transcribeUrl = process.env.TRANSCRIPTION_SERVICE_URL!.replace(/\/+$/, '');
     const transcribeRes = await fetch(transcribeUrl, {
       method: 'POST',
       body: finalAudioBuffer,
