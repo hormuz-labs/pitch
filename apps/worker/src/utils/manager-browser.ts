@@ -10,8 +10,70 @@ import {
   MANAGER_AUTH_TOKEN 
 } from '@saas/shared';
 import net from 'net';
+import { WebSocket } from 'ws';
 
 const logger = createLogger('worker:manager-browser');
+
+/**
+ * Poll the local CDP proxy until both its HTTP endpoint and the WebSocket
+ * debugger URL are reachable. Playwright's connectOverCDP (used by
+ * `playwright-cli attach --cdp`) can hang for 30s if the upstream manager
+ * WebSocket handshake is not ready, so we verify readiness before returning.
+ */
+async function waitForCdpProxyReady(
+  localCdpUrl: string,
+  timeoutMs = 30000,
+  intervalMs = 1000
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${localCdpUrl}/json/version`);
+      if (!res.ok) {
+        throw new Error(`/json/version returned HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as any;
+      const wsUrl = data.webSocketDebuggerUrl;
+      if (!wsUrl || typeof wsUrl !== 'string') {
+        throw new Error('No webSocketDebuggerUrl in /json/version response');
+      }
+
+      // Verify the WebSocket path through the proxy is actually usable.
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(wsUrl);
+        const wsTimeout = setTimeout(() => {
+          ws.close();
+          reject(new Error('WebSocket open timeout'));
+        }, 5000);
+
+        ws.on('open', () => {
+          clearTimeout(wsTimeout);
+          ws.close();
+          resolve();
+        });
+        ws.on('error', (err) => {
+          clearTimeout(wsTimeout);
+          reject(err);
+        });
+      });
+
+      logger.info({ localCdpUrl, wsUrl }, 'CDP proxy is ready for playwright-cli attach');
+      return;
+    } catch (err) {
+      const remaining = deadline - Date.now();
+      logger.debug(
+        { err, localCdpUrl, remainingMs: Math.max(0, remaining) },
+        'CDP proxy not ready yet, retrying...'
+      );
+      if (Date.now() + intervalMs < deadline) {
+        await new Promise((r) => setTimeout(r, intervalMs));
+      }
+    }
+  }
+
+  throw new Error(`CDP proxy at ${localCdpUrl} did not become ready within ${timeoutMs}ms`);
+}
 
 export function getAvailablePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -66,12 +128,29 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
   const localCdpUrl = `http://127.0.0.1:${localPort}`;
   
   logger.info({ userId, managerHttpUrl, localPort }, 'Starting CDP proxy');
-  const proxy = await createCdpProxy({
-    managerHttpUrl,
-    managerWsUrl,
-    authToken: MANAGER_AUTH_TOKEN,
-    port: localPort,
-  });
+  let proxy: CdpProxyHandle;
+  try {
+    proxy = await createCdpProxy({
+      managerHttpUrl,
+      managerWsUrl,
+      authToken: MANAGER_AUTH_TOKEN,
+      port: localPort,
+    });
+  } catch (err) {
+    logger.warn({ err, profileId: profile.id }, 'CDP proxy creation failed, stopping profile');
+    await stopManagerProfile(profile.id).catch(() => {});
+    throw err;
+  }
+
+  try {
+    logger.info({ localCdpUrl }, 'Waiting for CDP proxy to be ready');
+    await waitForCdpProxyReady(localCdpUrl);
+  } catch (err) {
+    logger.warn({ err, profileId: profile.id }, 'CDP proxy readiness check failed, cleaning up');
+    await proxy.close().catch(() => {});
+    await stopManagerProfile(profile.id).catch(() => {});
+    throw err;
+  }
 
   return {
     profileId: profile.id,
