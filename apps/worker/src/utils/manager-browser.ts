@@ -7,7 +7,8 @@ import {
   stopManagerProfile,
   managerCdpUrl,
   managerCdpHttpUrl,
-  MANAGER_AUTH_TOKEN 
+  MANAGER_AUTH_TOKEN,
+  MANAGER_BASE_URL
 } from '@saas/shared';
 import net from 'net';
 import { WebSocket } from 'ws';
@@ -22,10 +23,12 @@ const logger = createLogger('worker:manager-browser');
  */
 async function waitForCdpProxyReady(
   localCdpUrl: string,
-  timeoutMs = 30000,
+  managerUrl: string,
+  timeoutMs = parseInt(process.env.CDP_PROXY_READY_TIMEOUT_MS || '30000', 10),
   intervalMs = 1000
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
+  let lastError: Error | undefined;
 
   while (Date.now() < deadline) {
     try {
@@ -58,12 +61,13 @@ async function waitForCdpProxyReady(
         });
       });
 
-      logger.info({ localCdpUrl, wsUrl }, 'CDP proxy is ready for playwright-cli attach');
+      logger.info({ localCdpUrl, managerUrl, wsUrl }, 'CDP proxy is ready for playwright-cli attach');
       return;
     } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
       const remaining = deadline - Date.now();
       logger.debug(
-        { err, localCdpUrl, remainingMs: Math.max(0, remaining) },
+        { err: lastError, localCdpUrl, managerUrl, remainingMs: Math.max(0, remaining) },
         'CDP proxy not ready yet, retrying...'
       );
       if (Date.now() + intervalMs < deadline) {
@@ -72,7 +76,11 @@ async function waitForCdpProxyReady(
     }
   }
 
-  throw new Error(`CDP proxy at ${localCdpUrl} did not become ready within ${timeoutMs}ms`);
+  throw new Error(
+    `CDP proxy at ${localCdpUrl} (manager: ${managerUrl}) did not become ready within ${timeoutMs}ms. ` +
+    `Last error: ${lastError?.message || 'unknown'}. ` +
+    `If running inside Docker, ensure CLOAK_MANAGER_URL points to the manager container (e.g. http://cloakbrowser-manager:8080), not localhost.`
+  );
 }
 
 export function getAvailablePort(): Promise<number> {
@@ -143,8 +151,8 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
   }
 
   try {
-    logger.info({ localCdpUrl }, 'Waiting for CDP proxy to be ready');
-    await waitForCdpProxyReady(localCdpUrl);
+    logger.info({ localCdpUrl, managerUrl: managerHttpUrl }, 'Waiting for CDP proxy to be ready');
+    await waitForCdpProxyReady(localCdpUrl, managerHttpUrl);
   } catch (err) {
     logger.warn({ err, profileId: profile.id }, 'CDP proxy readiness check failed, cleaning up');
     await proxy.close().catch(() => {});
