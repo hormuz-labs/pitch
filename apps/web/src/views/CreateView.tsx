@@ -25,11 +25,13 @@ const IconLoader = () => (
     <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
   </svg>
 );
+/*
 const IconPlus = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
+*/
 const IconShieldCheck = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
@@ -143,14 +145,15 @@ interface CreateViewProps {
 export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob }: CreateViewProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAudioPreview, setShowAudioPreview] = useState(false);
-  const [headerPairs, setHeaderPairs] = useState<{ key: string, value: string }[]>([]);
-  const [cookiePairs, setCookiePairs] = useState<{ key: string, value: string }[]>([]);
-  const [curlInput, setCurlInput] = useState('');
-  const [activeAuthTab, setActiveAuthTab] = useState<'quick' | 'manual'>('quick');
+  const [headerPairs] = useState<{ key: string, value: string }[]>([]);
+  const [cookiePairs] = useState<{ key: string, value: string }[]>([]);
+  // const [curlInput, setCurlInput] = useState('');
+  // const [activeAuthTab, setActiveAuthTab] = useState<'quick' | 'manual'>('quick');
   const navigate = useNavigate();
   const { origins, loading: originsLoading } = useBrowserProfile();
   const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null);
 
+  /*
   const handleCurlImport = () => {
     if (!curlInput.trim()) return;
 
@@ -163,33 +166,19 @@ export const CreateView = ({ formValues, setFormValues, isSubmitting, onQueueJob
     // 2. Extract Headers
     const headers: { key: string, value: string }[] = [];
     const headerRegex = /-(?:H|-header)\s+['"]([^'"]+)['"]/g;
-    let hMatch;
-    while ((hMatch = headerRegex.exec(curlInput)) !== null) {
-      const parts = hMatch[1].split(/:(.*)/s);
-      if (parts.length >= 2) {
-        headers.push({ key: parts[0].trim(), value: parts[1].trim() });
-      }
+    let match;
+    while ((match = headerRegex.exec(curlInput)) !== null) {
+      const headerStr = match[1];
+      if (!headerStr) continue;
+      const splitIdx = headerStr.indexOf(':');
+      if (splitIdx === -1) continue;
+      const key = headerStr.slice(0, splitIdx).trim();
+      const value = headerStr.slice(splitIdx + 1).trim();
+      headers.push({ key, value });
     }
-    if (headers.length > 0) setHeaderPairs(headers);
-
-    // 3. Extract Cookies
-    const cookies: { key: string, value: string }[] = [];
-    const cookieRegex = /-(?:b|-cookie)\s+['"]([^'"]+)['"]/g;
-    let cMatch = cookieRegex.exec(curlInput);
-    if (cMatch) {
-      const cookieStr = cMatch[1];
-      cookieStr.split(';').forEach(c => {
-        const [k, ...v] = c.split('=');
-        if (k) {
-          cookies.push({ key: k.trim(), value: v.join('=').trim() });
-        }
-      });
-    }
-    if (cookies.length > 0) setCookiePairs(cookies);
-    
-    setCurlInput('');
-    setActiveAuthTab('manual');
+    setHeaderPairs(headers);
   };
+  */
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value });

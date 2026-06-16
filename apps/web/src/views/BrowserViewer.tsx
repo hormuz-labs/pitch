@@ -103,7 +103,7 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
           }
         });
 
-        rfb.addEventListener('disconnect', (e: any) => {
+        rfb.addEventListener('disconnect', (_e: any) => {
           if (active) {
             setStatus('disconnected');
             onDisconnect?.();

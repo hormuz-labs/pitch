@@ -17,7 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh \
     && /root/.local/bin/rtk init -g --opencode
 
-# Install agent-browser globally (skipping the local browser download since we use cloakbrowser-manager)
+# Install playwright-cli globally — the worker invokes it directly to drive the
+# CloakBrowser Manager CDP session. We skip the bundled browser download because
+# the actual browser lives inside the separate cloakbrowser-manager container.
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-RUN bun install -g agent-browser
+RUN bun install -g @playwright/cli
 

@@ -48,24 +48,29 @@ export async function updateJob(id: string, data: {
   feedback?: string;
 }) {
   console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined });
+
+  // Build the Prisma data object dynamically so we never pass `undefined`
+  // for fields that weren't supplied. Passing explicit undefined can cause
+  // ZenStack/Prisma to reject the update with "Invalid invocation".
+  const updateData: Prisma.JobUpdateInput = {};
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl;
+  if (data.audioUrl !== undefined) updateData.audioUrl = data.audioUrl;
+  if (data.thumbnailUrl !== undefined) updateData.thumbnailUrl = data.thumbnailUrl;
+  if (data.error !== undefined) updateData.error = data.error;
+  if (data.workerId !== undefined) updateData.workerId = data.workerId;
+  if (data.cost !== undefined) updateData.cost = data.cost;
+  if (data.rating !== undefined) updateData.rating = data.rating;
+  if (data.feedback !== undefined) updateData.feedback = data.feedback;
+  if (data.phases !== undefined) updateData.phases = data.phases;
+
   // System-level bypass for webhook/worker updates
   const updated = await prisma.job.update({
     where: { id },
-    data: {
-      status: data.status,
-      videoUrl: data.videoUrl,
-      audioUrl: data.audioUrl,
-      thumbnailUrl: data.thumbnailUrl,
-      error: data.error,
-      workerId: data.workerId,
-      cost: data.cost,
-      rating: data.rating,
-      feedback: data.feedback,
-      ...(data.phases !== undefined ? { phases: data.phases } : {}),
-    },
+    data: updateData,
   });
   
-  const { phases, progress } = parseJobPhases((updated as any).phases);
+  const { phases, progress } = parseJobPhases(updated.phases);
   return {
     ...updated,
     videoUrl: updated.videoUrl ?? undefined,

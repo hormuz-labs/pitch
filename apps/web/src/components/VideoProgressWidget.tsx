@@ -4,20 +4,12 @@ import type { Project, PhaseUpdate } from '../types';
 // ── Phase definitions (order matters — displayed top-to-bottom) ────────────────
 const PHASE_ORDER = [
   'workspace_init',
-  'selector_collection',
-  'intro_sequence',
-  'flow_validation',
-  'voiceover_generation',
   'video_recording',
   'ffmpeg_postprocessing',
 ] as const;
 
 const PHASE_LABELS: Record<string, string> = {
   workspace_init:         'Workspace Initialization',
-  selector_collection:    'Selector Collection',
-  intro_sequence:         'Cinematic Intro',
-  flow_validation:        'Flow Validation',
-  voiceover_generation:   'Voiceover Generation',
   video_recording:        'Video Recording',
   ffmpeg_postprocessing:  'Encoding',
 };

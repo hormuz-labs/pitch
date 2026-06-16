@@ -8,8 +8,6 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
 COPY apps/job-cli/package.json apps/job-cli/
-COPY apps/mock-server/package.json apps/mock-server/
-COPY apps/transcription-service/package.json apps/transcription-service/
 COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
 COPY packages/db/package.json packages/db/

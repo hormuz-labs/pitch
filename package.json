@@ -16,6 +16,9 @@
     "postinstall": "bunx zenstack generate --schema packages/db/prisma/schema.zmodel || (test -n \"$VERCEL\" && echo 'Postinstall failed on Vercel, but continuing as only web is required')",
     "build": "bun --filter '*' build",
     "dev": "bun --filter '*' dev",
+    "dev:api": "bun --filter api dev",
+    "dev:worker": "bun --filter worker dev",
+    "dev:web": "bun --filter @pitch/web dev",
     "start": "bun --filter '*' start",
     "job-cli": "bun apps/job-cli/src/index.ts",
     "credits": "bun apps/job-cli/src/index.ts credits",
@@ -38,14 +41,8 @@
     "zenstack": "^2.22.1"
   },
   "dependencies": {
-    "@google/genai": "",
-    "cloakbrowser": "^0.3.31",
     "dotenv": "",
-    "fluent-ffmpeg": "",
     "gsap": "^3.15.0",
-    "mime": "",
-    "ogl": "^1.0.11",
-    "playwright": "^1.59.1",
-    "puppeteer": ""
+    "ogl": "^1.0.11"
   }
 }

@@ -1,13 +1,33 @@
 import type { Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import type { OpencodeClient } from '@opencode-ai/sdk';
-import { JobStatus, JOB_UPDATES_CHANNEL, JOB_CANCELLATIONS_CHANNEL, createLogger, sendTelegramMessage, type PhaseUpdate } from '@saas/shared';
+import { 
+  JobStatus, 
+  JOB_UPDATES_CHANNEL, 
+  JOB_CANCELLATIONS_CHANNEL, 
+  createLogger, 
+  sendTelegramMessage, 
+  type PhaseUpdate,
+  PHASE_LABELS,
+  PHASE_WEIGHTS,
+  type JobPhaseEvent
+} from '@saas/shared';
 import * as db from '@saas/db';
+import * as storage from '@saas/storage';
+import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email';
 import { getSessionIdFromEvent } from './opencode.js';
-import { startBrowserContext, type BrowserContextHandle } from './browser-context.js';
 import * as os from 'os';
-import { ensureBinary } from 'cloakbrowser';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import yaml from 'yaml';
 
+import { startManagerBrowser, type ManagerBrowserHandle } from './utils/manager-browser.js';
+import { processVideo } from './utils/smart_trim.js';
+import { buildContinuousZoomFilter } from './utils/zoom-filter.js';
+
+const execAsync = promisify(exec);
 const logger = createLogger('worker:job');
 
 // Tracks the active OpenCode session ID for each in-flight job so the
@@ -67,12 +87,218 @@ export function startCancellationListener(redisUrl: string, getClient: () => Ope
   return subscriber;
 }
 
+/**
+ * Direct in-process phase reporting. Updates database and publishes progress updates to SSE subscribers.
+ */
+async function reportJobPhase(
+  jobId: string,
+  userId: string,
+  phaseKey: string,
+  status: 'running' | 'completed' | 'failed',
+  connection: Redis
+) {
+  try {
+    const job = await db.prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) {
+      logger.error({ jobId }, 'Job not found in database for phase reporting');
+      return;
+    }
+
+    const currentPhases: PhaseUpdate[] = job.phases ? JSON.parse(job.phases as string) : [];
+    const existingIdx = currentPhases.findIndex(p => p.phase === phaseKey);
+    const existingPhase = existingIdx >= 0 ? currentPhases[existingIdx] : null;
+
+    if (existingPhase?.status === 'completed') {
+      logger.debug({ jobId, phaseKey }, 'Phase already completed. Skipping update.');
+      return;
+    }
+
+    let newRetryDuration = existingPhase?.retryDurationMs || 0;
+    let newRetryCount = existingPhase?.retryCount || 0;
+    const failedAttempts = existingPhase?.failedAttempts || [];
+    if (status === 'failed') {
+      newRetryCount += 1;
+      if (existingPhase?.startedAt) {
+        const endedAt = new Date().toISOString();
+        const durationMs = new Date(endedAt).getTime() - new Date(existingPhase.startedAt).getTime();
+        newRetryDuration += durationMs;
+        failedAttempts.push({ startedAt: existingPhase.startedAt, endedAt, durationMs, status: 'failed' });
+      }
+    }
+
+    const now = new Date().toISOString();
+    const startedAt = status === 'running' ? (existingPhase?.startedAt || now) : existingPhase?.startedAt;
+    const completedAt = status === 'completed' ? now : existingPhase?.completedAt;
+
+    let computedDurationMs = existingPhase?.durationMs;
+    if (status === 'completed' && startedAt) {
+      computedDurationMs = new Date(completedAt!).getTime() - new Date(startedAt).getTime();
+    }
+
+    const updatedPhase: PhaseUpdate = {
+      phase: phaseKey,
+      label: PHASE_LABELS[phaseKey] ?? phaseKey,
+      status: status as PhaseUpdate['status'],
+      ...(startedAt ? { startedAt } : {}),
+      ...(completedAt ? { completedAt } : {}),
+      ...(computedDurationMs !== undefined ? { durationMs: computedDurationMs } : {}),
+      ...(newRetryDuration > 0 ? { retryDurationMs: newRetryDuration } : {}),
+      ...(newRetryCount > 0 ? { retryCount: newRetryCount } : {}),
+      ...(failedAttempts.length > 0 ? { failedAttempts } : {}),
+    };
+
+    const newPhases: PhaseUpdate[] = existingIdx >= 0
+      ? currentPhases.map((p, i) => (i === existingIdx ? updatedPhase : p))
+      : [...currentPhases, updatedPhase];
+
+    const progress = newPhases
+      .filter(p => p.status === 'completed')
+      .reduce((acc, p) => acc + (PHASE_WEIGHTS[p.phase] ?? 0), 0);
+
+    await db.prisma.job.update({
+      where: { id: jobId },
+      data: { phases: JSON.stringify(newPhases) },
+    });
+
+    const event: JobPhaseEvent = {
+      type: 'phase_update',
+      jobId,
+      userId,
+      phase: updatedPhase,
+      allPhases: newPhases,
+      progress,
+    };
+    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(event));
+    logger.info({ jobId, phaseKey, status, progress }, 'Phase update published');
+  } catch (err: any) {
+    logger.warn({ err, jobId, phaseKey, status }, 'Failed to report phase progress');
+  }
+}
+
+/**
+ * Direct in-process result pushing. Uploads final video, notifies via Telegram and email.
+ */
+async function pushJobResult(
+  jobId: string,
+  userId: string,
+  filePath: string,
+  connection: Redis,
+  parameters: any
+) {
+  logger.info({ jobId, userId }, 'Pushing video result directly from worker');
+  
+  const rawUrl = parameters?.url || 'untitled';
+  const projectName = rawUrl.replace(/^https?:\/\//, '').split('/')[0].replace(/[^a-zA-Z0-9-]/g, '_');
+  const prefix = `pitch/${userId}/${projectName}/videos`;
+
+  // 1. Upload video to GCS
+  const videoUrl = await storage.uploadFile(filePath, undefined, prefix);
+  logger.info({ videoUrl }, 'Video successfully uploaded to GCS');
+
+  // 2. Update DB
+  const updatedJob = await db.updateJob(jobId, {
+    status: JobStatus.COMPLETED,
+    videoUrl
+  });
+
+  // 3. Broadcast completion to SSE channels
+  await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+  logger.info({ jobId }, 'Job completion broadcasted');
+
+  // 4. Send Telegram and email notifications
+  try {
+    const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } });
+    const email = userProfile?.email || userId;
+    const urlParam = parameters?.url || 'N/A';
+    const instructions = parameters?.instructions ? `\nPrompt: <i>${parameters.instructions}</i>` : '';
+
+    await sendTelegramMessage(
+      `✅ <b>Video Creation Completed</b>\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}`
+    );
+
+    const userEmail = await getClerkUserEmail(userId);
+    if (userEmail && videoUrl) {
+      const videoTitle = urlParam !== 'N/A' ? new URL(urlParam).hostname : 'pitch.com';
+      await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl, videoTitle });
+    }
+  } catch (err: any) {
+    logger.warn({ err, jobId }, 'Notifications or email failed');
+  }
+}
+
+async function getSourceFps(webmPath: string): Promise<number> {
+  try {
+    const { stdout } = await execAsync(`ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 "${webmPath}"`);
+    const rate = stdout.trim();
+    const [num, den] = rate.split("/").map((s) => parseInt(s.trim(), 10));
+    if (num && den && den !== 0) {
+      const fps = num / den;
+      if (Number.isFinite(fps) && fps > 0) return Math.round(fps);
+    }
+  } catch (e) {
+    logger.warn({ err: e, webmPath }, "Could not detect source fps, using default 30");
+  }
+  return 30;
+}
+
+async function getVideoBirthTimeMs(webmPath: string): Promise<number | null> {
+  try {
+    const stat = fs.statSync(webmPath);
+    const { stdout } = await execAsync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${webmPath}"`);
+    const durationSec = parseFloat(stdout.trim());
+    if (!Number.isFinite(durationSec)) return null;
+    return Math.round(stat.mtimeMs - durationSec * 1000);
+  } catch (e) {
+    logger.warn({ err: e, webmPath }, "Could not determine video birth time");
+    return null;
+  }
+}
+
+interface SkillMetadata {
+  name: string;
+  description: string;
+  path: string;
+}
+
+async function discoverSkills(directories: string[]): Promise<SkillMetadata[]> {
+  const skills: SkillMetadata[] = [];
+  const seenNames = new Set<string>();
+  for (const dir of directories) {
+    let entries;
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const skillDir = path.join(dir, entry.name);
+      const skillFile = path.join(skillDir, "SKILL.md");
+      try {
+        const content = await fs.promises.readFile(skillFile, "utf-8");
+        const frontmatter = yaml.parse(content.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] || "");
+        if (seenNames.has(frontmatter.name)) continue;
+        seenNames.add(frontmatter.name);
+        skills.push({ name: frontmatter.name, description: frontmatter.description, path: skillDir });
+      } catch {
+        continue;
+      }
+    }
+  }
+  return skills;
+}
+
+function buildSkillsPrompt(skills: SkillMetadata[]): string {
+  const skillsList = skills.map((s) => `- ${s.name}: ${s.description}`).join("\n");
+  return `\n## Skills\nUse the \`load_skill\` tool to load a skill when the user's request would benefit from specialized instructions.\nAvailable skills:\n${skillsList}\n`;
+}
+
 export function createJobProcessor(connection: Redis, targetDir: string) {
   return async function processJob(job: Job, client: OpencodeClient) {
     const { jobId, userId, parameters } = job.data;
     const jobLogger = logger.child({ jobId, userId });
 
-    jobLogger.info('Processing job');
+    jobLogger.info('Processing job via One-Pass architecture');
 
     const workerHostname = process.env.HOSTNAME || os.hostname();
     const updatedJob = await db.updateJob(jobId, { status: JobStatus.PROCESSING, workerId: workerHostname });
@@ -80,7 +306,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
     let session: { id: string } | null = null;
     let eventAbortController: AbortController | null = null;
-    let browserCtx: BrowserContextHandle | null = null;
+    let managerBrowser: ManagerBrowserHandle | null = null;
     const messageCosts = new Map<string, number>();
     let currentCost = 0;
     let budgetLimitBreached = false;
@@ -100,21 +326,55 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
     }, 50 * 60 * 1000);
 
     try {
-      // 1. Create a new session for this job
-      browserCtx = await startBrowserContext(userId);
+      // Clean up any old demo.webm files in root/workspace before starting
+      for (const f of fs.readdirSync(targetDir)) {
+        if (f.match(/^demo(?:-\d+)?\.webm$/)) {
+          try {
+            fs.unlinkSync(path.join(targetDir, f));
+          } catch (e) {}
+        }
+      }
 
-      // Point the demo engine (pass1/pass3) at the user's profile dir so it
-      // restores the authenticated storage_state.json that startBrowserContext
-      // just pulled from S3. Without this the engine runs unauthenticated.
-      // Inherited by the OpenCode-spawned bash, same as the var below.
-      process.env.CLOAK_PROFILE_DIR = browserCtx.profileDir;
+      // Recreate the recordings/ folder and its subfolders to start clean
+      const recordingsDir = path.join(targetDir, "recordings");
+      if (fs.existsSync(recordingsDir)) {
+        fs.rmSync(recordingsDir, { recursive: true, force: true });
+      }
+      fs.mkdirSync(recordingsDir, { recursive: true });
+      fs.mkdirSync(path.join(recordingsDir, "audio"), { recursive: true });
+      fs.mkdirSync(path.join(recordingsDir, "videos"), { recursive: true });
 
-      // Ensure agent-browser always uses CloakBrowser's stealth Chromium
-      process.env.AGENT_BROWSER_EXECUTABLE_PATH = await ensureBinary();
+      // Discover available skills
+      const skills = await discoverSkills([
+        path.join(targetDir, ".agents/skills"),
+        path.join(targetDir, ".claude/skills"),
+        path.join(os.homedir(), ".claude/skills"),
+      ]);
 
+      // 1. Start CloakBrowser via Manager and establish CDP Proxy
+      await reportJobPhase(jobId, userId, 'workspace_init', 'running', connection);
+      managerBrowser = await startManagerBrowser(userId);
+      await reportJobPhase(jobId, userId, 'workspace_init', 'completed', connection);
+
+      // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
+      await reportJobPhase(jobId, userId, 'video_recording', 'running', connection);
+      logger.info({ cdpUrl: managerBrowser.localCdpUrl }, 'Attaching playwright-cli to local CDP proxy');
+      await execAsync(`playwright-cli attach --cdp ${managerBrowser.localCdpUrl}`, { cwd: targetDir });
+      
+      logger.info('Starting video recording...');
+      await execAsync(`playwright-cli video-start "demo.webm" --size=1920x1080`, { cwd: targetDir });
+
+      const startTime = Date.now();
+      logger.info(`startTime captured: ${new Date(startTime).toISOString()}`);
+
+      // Write config so the OpenCode plugin knows startTime and skills
+      const configPath = path.join(recordingsDir, "demo-config.json");
+      fs.writeFileSync(configPath, JSON.stringify({ startTime, skills }, null, 2));
+
+      // 3. Create OpenCode Session
       const sessionResponse = await client.session.create({
         query: { directory: targetDir },
-        body: { title: `Job ${jobId} for user ${userId}` },
+        body: { title: `Job ${jobId} for user ${userId} (One-Pass)` },
       });
       if (sessionResponse.error || !sessionResponse.data) {
         throw new Error('Failed to create OpenCode session: ' + JSON.stringify(sessionResponse.error));
@@ -126,10 +386,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // job is deleted while processing.
       activeSessionsByJobId.set(jobId, session.id);
 
-      // 2. Subscribe to global events and filter by session ID.
-      // The /event stream is global; we only forward events that belong to
-      // this job's session so concurrent jobs (if concurrency is ever raised)
-      // do not leak events to one another.
+      // 4. Subscribe to global events and filter by session ID.
       eventAbortController = new AbortController();
       const events = await client.event.subscribe({
         query: { directory: targetDir },
@@ -188,47 +445,25 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         }
       })();
 
-      // 3. Send prompt
-      const promptText = `
-## MANDATORY: Read These Skills First
-Before doing anything else, you MUST read the following skills:
-1. agent-browser skill
-2. playwright-cli skill (including playwright gotchas)
-3. auto-demo-generator skill
+      // 5. Send Prompt
+      const targetUrl = parameters?.url || '';
+      const promptInstructions = parameters?.instructions || '';
+      const userPrompt = `Go to ${targetUrl}. ${promptInstructions}`;
 
-Do NOT proceed until all three skills have been read.
+      const promptText = `You are a professional, engaging web demo agent. Your goal is to guide the user through a web automation task naturally, as if you are a friendly human narrator recording a tutorial.
+User Request: "${userPrompt}"
 
-Please execute the following video generation task for Job ${jobId}.
-User ID: ${userId}
-Parameters:
-${JSON.stringify(parameters, null, 2)}
- 
-## MANDATORY: Phase Progress Reporting
-You MUST report the status of each pipeline phase using the job-cli. Call this at the START and END of each phase.
-IMPORTANT: These commands are FIRE-AND-FORGET — even if they fail, do NOT stop the pipeline. Always continue.
-
-Phase reporting command format:
-  bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase <PHASE_KEY> --status <running|completed|failed>
-
-Phase keys (call in this order):
-  1. workspace_init        — Phase 0.1: Creating demo workspace folder and copying files
-  2. selector_collection   — Phase 0.2: Agent-browser navigating website and collecting selectors
-  3. intro_sequence        — Phase 0.5: Generating the cinematic intro sequence
-  4. flow_validation       — Phase 1: Playwright dry-run validating all selectors
-  5. voiceover_generation  — Phase 2+2.5: Generating voiceover and mapping timeline
-  6. video_recording       — Phase 3: Recording the final video with Playwright
-  7. ffmpeg_postprocessing — Phase 4: FFmpeg post-processing and stitching
-
-Example usage:
-  bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase workspace_init --status running
-  # ... do the work ...
-  bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase workspace_init --status completed
-
-## MANDATORY: Final Push
-Once the ENTIRE video generation pipeline is complete (including the final FFmpeg concatenation of the intro and the main video), you MUST run the job-cli to complete the job and upload the final concatenated results. Do NOT push incomplete or un-stitched videos.
-If an audio/voiceover file was generated separately, include it with the --audio flag.
-Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GENERATED_VIDEO> [--audio <PATH_TO_GENERATED_AUDIO>]
-`;
+Guidelines:
+1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. Start directly with 'playwright-cli goto <url>'.
+2. ELEMENT REFS: Call 'demo_bash' with command "playwright-cli snapshot" to get the current page state. Elements will have refs like [ref=e53].
+   Pass the ref identifier (e.g. "e53") to tools like 'zoom_in' or 'demo_bash' command "playwright-cli click e53".
+3. EXACT SEQUENCE for every main-content interaction:
+   demo_bash({ command: "playwright-cli snapshot" }) -> narrate({ text: "..." }) -> zoom_in({ target: "e53" }) -> demo_bash({ command: "playwright-cli click e53" }) -> zoom_out()
+4. POPUPS: Dismiss them directly with 'demo_bash' command "playwright-cli click". Do not zoom in.
+5. After filling or typing text into an input field, pause briefly with demo_bash({ command: "sleep 1.5" }) so the viewer can clearly see what was entered before moving on. These pauses are preserved during editing.
+6. After navigating or clicking links, use demo_bash({ command: "sleep 3" }) or similar to allow loading. 'playwright-cli' does NOT have a wait command.
+7. The browser is set to 1920x1080 resolution.
+${buildSkillsPrompt(skills)}`;
 
       const promptResponse = await client.session.prompt({
         path: { id: session.id },
@@ -245,7 +480,7 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
 
       jobLogger.info('OpenCode prompt completed');
 
-      // 4. Fetch final session messages to get ground-truth cost before aborting/draining
+      // 6. Fetch final session messages to get ground-truth cost before aborting/draining
       try {
         const msgsRes = await client.session.messages({
           path: { id: session.id },
@@ -263,7 +498,7 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         jobLogger.warn({ err }, 'Failed to fetch final session messages for cost tracking');
       }
 
-      // 5. Stop listening to events and drain the stream
+      // 7. Stop listening to events and drain the stream
       eventAbortController.abort();
       await streamPromise;
 
@@ -273,17 +508,116 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
         jobLogger.info({ cost: currentCost }, 'Job cost updated');
       }
 
-      // Check if job completed successfully. If it's still PROCESSING, push was never called.
-      const finalJob = await db.prisma.job.findUnique({ where: { id: jobId } });
-      if (finalJob?.status === JobStatus.PROCESSING) {
-        if (budgetLimitBreached) {
-          throw new Error('OpenCode budget limit of $4.00 was exceeded.');
-        }
-        if (timeoutExceeded) {
-          throw new Error('Execution timeout of 50 minutes was exceeded.');
-        }
-        throw new Error('Video creation pipeline was aborted or failed to complete (e.g. budget limit reached).');
+      // 8. Gracefully close browser and stop recording
+      await reportJobPhase(jobId, userId, 'video_recording', 'completed', connection);
+      await reportJobPhase(jobId, userId, 'ffmpeg_postprocessing', 'running', connection);
+
+      jobLogger.info('Stopping video recording and playwright session...');
+      try {
+        await execAsync("playwright-cli video-stop", { cwd: targetDir });
+      } catch (e) {
+        jobLogger.warn({ err: e }, 'Failed to stop video recording gracefully');
       }
+      try {
+        await execAsync("playwright-cli close", { cwd: targetDir });
+      } catch (e) {}
+
+      // Clean up CDP Proxy and stop the manager profile
+      if (managerBrowser) {
+        await managerBrowser.close();
+      }
+
+      // 9. Post-Process Video & Audio using Zoom-Filter & Smart-Trim
+      const statePath = path.join(recordingsDir, "demo-state.json");
+      let state: any;
+      if (fs.existsSync(statePath)) {
+        state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+      } else {
+        state = {
+          startTime,
+          audioClips: [],
+          zoomEvents: [],
+          clickEvents: [],
+          tabEvents: [{ tabId: 0, wallSec: 0 }],
+          tabCreationTimes: { 0: 0 },
+          currentTabId: 0,
+          lastTargetCoords: null
+        };
+      }
+
+      const webmPath = path.join(targetDir, 'demo.webm');
+      if (!fs.existsSync(webmPath)) {
+        throw new Error('demo.webm video recording was not found in the workspace');
+      }
+
+      const sourceFps = await getSourceFps(webmPath);
+      logger.info({ sourceFps }, 'Detected source frame rate');
+
+      const cursorPath = path.join(targetDir, "assets", "icons", "cursor.png");
+      const rawVideo = path.join(recordingsDir, "raw_demo.mp4");
+      const finalVideo = path.join(recordingsDir, "final_demo.mp4");
+
+      let videoInputs = `-i "${webmPath}" -i "${cursorPath}"`;
+      let filterComplex = "";
+      let currentVLabel = "[0:v]";
+
+      // Click cursor overlays
+      state.clickEvents.forEach((event: any, i: number) => {
+        const nextVLabel = `[v_cursor${i}]`;
+        const start = Math.max(0, event.videoTimeSec - 0.5);
+        const end = start + 2.0;
+        filterComplex += `${currentVLabel}[1:v]overlay=x=${event.x}:y=${event.y}:enable='between(t,${start},${end})'${nextVLabel};`;
+        currentVLabel = nextVLabel;
+      });
+
+      // Align video timebase with wall-clock startTime
+      const videoBirthTimeMs = await getVideoBirthTimeMs(webmPath);
+      const trimSec = videoBirthTimeMs ? Math.max(0, (startTime - videoBirthTimeMs) / 1000) : 0;
+      if (trimSec > 0) {
+        logger.info({ trimSec }, 'Applying timeline shift to align with prompt startTime');
+      }
+
+      // Build zoom pan filter
+      filterComplex += buildContinuousZoomFilter(state.zoomEvents, trimSec, currentVLabel, sourceFps);
+
+      // Audio narration clips
+      let validClips = 0;
+      state.audioClips.forEach((clip: any, index: number) => {
+        const delayMs = Math.max(0, clip.absoluteTimestamp - startTime);
+        videoInputs += ` -i "${clip.filePath}"`;
+        // Offset by 2 because 0 is webm, 1 is cursor icon
+        filterComplex += `[${2 + index}:a]adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${index}];`;
+        validClips++;
+      });
+
+      if (validClips > 0) {
+        const amixInputs = state.audioClips.map((_: any, i: number) => `[a${i}]`).join("");
+        filterComplex += `${amixInputs}amix=inputs=${validClips}:duration=longest:normalize=0[outa]`;
+      }
+
+      const ffmpegCmd =
+        `ffmpeg -y ${videoInputs} ` +
+        `-filter_complex "${filterComplex}" ` +
+        `-map "[zoomedv]" ${validClips > 0 ? '-map "[outa]"' : ""} ` +
+        `-c:v libx264 -pix_fmt yuv420p ${validClips > 0 ? "-c:a aac -strict experimental" : ""} "${rawVideo}"`;
+
+      logger.info('Assembling and rendering raw video with zoom pans + overlays');
+      await execAsync(ffmpegCmd);
+
+      logger.info('Applying smart trim to remove dead air segments');
+      await processVideo(rawVideo, finalVideo);
+
+      // Clean up raw WebM & Raw MP4 to save space
+      try {
+        fs.unlinkSync(webmPath);
+        fs.unlinkSync(rawVideo);
+      } catch (e) {}
+
+      // 10. Direct Push (GCS upload + database update + email & telegram notifications)
+      await pushJobResult(jobId, userId, finalVideo, connection, parameters);
+
+      await reportJobPhase(jobId, userId, 'ffmpeg_postprocessing', 'completed', connection);
+      logger.info('Video creation successfully complete!');
 
     } catch (error: any) {
       jobLogger.error({ err: error }, 'Job processing failed');
@@ -387,25 +721,16 @@ Command: bun apps/job-cli/src/index.ts push --job-id ${jobId} --file <PATH_TO_GE
       // this job are ignored from now on.
       activeSessionsByJobId.delete(jobId);
 
-      // Shut down the browser context (removes from warm cache).
-      // The GC will also evict it if shutdown wasn't called yet.
-      if (browserCtx) {
-        browserCtx.shutdown();
+      // Shut down the CDP Proxy and stop the manager profile
+      if (managerBrowser) {
+        try {
+          await managerBrowser.close();
+        } catch (e) {}
       }
 
       // Clean up per-job resources
       if (eventAbortController && !eventAbortController.signal.aborted) {
         eventAbortController.abort();
-      }
-
-      if (session) {
-        // Commented out so the session is not deleted upon completion/failure
-        // try {
-        //   await client.session.delete({ path: { id: session.id } });
-        //   jobLogger.info({ sessionId: session.id }, 'OpenCode session deleted');
-        // } catch (e: any) {
-        //   jobLogger.warn({ err: e, sessionId: session.id }, 'Failed to delete OpenCode session');
-        // }
       }
     }
   };

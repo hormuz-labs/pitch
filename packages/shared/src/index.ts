@@ -68,22 +68,14 @@ export interface JobPhaseEvent {
  * Heavier phases (recording, voiceover) contribute more %.
  */
 export const PHASE_WEIGHTS: Record<string, number> = {
-  workspace_init:         5,
-  selector_collection:   15,
-  intro_sequence:        10,
-  flow_validation:       10,
-  voiceover_generation:  20,
-  video_recording:       25,
-  ffmpeg_postprocessing: 15,
+  workspace_init:         10,
+  video_recording:        70,
+  ffmpeg_postprocessing:  20,
 };
 
 /** Human-readable label for each phase key */
 export const PHASE_LABELS: Record<string, string> = {
   workspace_init:         'Workspace Initialization',
-  selector_collection:    'Selector Collection',
-  intro_sequence:         'Cinematic Intro',
-  flow_validation:        'Flow Validation',
-  voiceover_generation:   'Voiceover Generation',
   video_recording:        'Video Recording',
   ffmpeg_postprocessing:  'FFmpeg Post-Processing',
 };
@@ -117,3 +109,4 @@ export const QUEUE_NAME = 'video-generation';
 export const JOB_UPDATES_CHANNEL = 'job-updates';
 export const JOB_CANCELLATIONS_CHANNEL = 'job-cancellations';
 export * from './telegram.js';
+export * from './manager-client.js';

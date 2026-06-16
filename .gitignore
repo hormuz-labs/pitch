@@ -53,6 +53,7 @@ opencode-logs/
 *.mp4
 *.wav
 *.mov
+*.webm
 
 # Generated Demos
 demos/
