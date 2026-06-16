@@ -4,55 +4,22 @@ import {
   createManagerProfile, 
   launchManagerProfile, 
   stopManagerProfile,
-  MANAGER_BASE_URL,
-  MANAGER_AUTH_TOKEN,
+  managerCdpHttpUrl,
 } from '@saas/shared';
 
 const logger = createLogger('worker:manager-browser');
 
 export interface ManagerBrowserHandle {
   profileId: string;
-  /** Browser-level WebSocket CDP URL ready for playwright-cli attach --cdp */
+  /** Manager CDP HTTP URL for playwright-cli attach --cdp */
   cdpUrl: string;
   close: () => Promise<void>;
 }
 
 /**
- * Fetch the browser-level WebSocket CDP URL from the manager's /json/version
- * endpoint and ensure the auth token is present for header-less clients.
- */
-async function getBrowserWebSocketUrl(profileId: string): Promise<string> {
-  const versionUrl = `${MANAGER_BASE_URL}/api/profiles/${profileId}/cdp/json/version`;
-  const headers: Record<string, string> = {};
-  if (MANAGER_AUTH_TOKEN) {
-    headers['Authorization'] = `Bearer ${MANAGER_AUTH_TOKEN}`;
-  }
-
-  const res = await fetch(versionUrl, { headers });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch CDP /json/version: ${res.status} ${await res.text()}`);
-  }
-
-  const data = (await res.json()) as any;
-  let wsUrl = data.webSocketDebuggerUrl;
-  if (!wsUrl || typeof wsUrl !== 'string') {
-    throw new Error('No webSocketDebuggerUrl in /json/version response');
-  }
-
-  // Defensive: some manager versions do not propagate ?token= into the returned
-  // WebSocket URL. Since playwright-cli cannot send headers, force the token
-  // into the URL ourselves before passing it to attach.
-  if (MANAGER_AUTH_TOKEN && !wsUrl.includes('token=')) {
-    const sep = wsUrl.includes('?') ? '&' : '?';
-    wsUrl = `${wsUrl}${sep}token=${encodeURIComponent(MANAGER_AUTH_TOKEN)}`;
-  }
-
-  return wsUrl;
-}
-
-/**
  * Ensures the CloakBrowser Manager profile for the user is running and
- * returns a browser-level WebSocket CDP URL that playwright-cli can use.
+ * returns the manager CDP URL. The manager runs without auth inside the
+ * private Docker network, so no token is needed.
  */
 export async function startManagerBrowser(userId: string): Promise<ManagerBrowserHandle> {
   logger.info({ userId }, 'Ensuring CloakBrowser profile is running');
@@ -76,7 +43,7 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
   logger.info({ userId, profileId: profile.id }, 'Launching CloakBrowser profile');
   await launchManagerProfile(profile.id);
 
-  const cdpUrl = await getBrowserWebSocketUrl(profile.id);
+  const cdpUrl = managerCdpHttpUrl(profile.id);
   logger.info({ userId, profileId: profile.id, cdpUrl }, 'CloakBrowser profile ready');
 
   return {
