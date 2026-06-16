@@ -10,7 +10,7 @@ export const connection = new Redis(redisUrl, {
 
 export const subscriber = new Redis(redisUrl);
 
-export const videoQueue = new Queue(QUEUE_NAME, { connection });
+export const videoQueue = new Queue(QUEUE_NAME, { connection: connection as any });
 
 // Single source of truth for which Dodo environment we target. Explicit
 // DODO_ENVIRONMENT wins (lets dev opt into either mode); when unset we default

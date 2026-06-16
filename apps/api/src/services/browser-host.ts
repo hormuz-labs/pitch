@@ -1,8 +1,16 @@
-import { createLogger } from '@saas/shared';
+import { 
+  createLogger,
+  getManagerProfile,
+  createManagerProfile,
+  stopManagerProfile,
+  getManagerHeaders,
+  managerCdpUrl,
+  MANAGER_BASE_URL
+} from '@saas/shared';
 import * as db from '@saas/db';
 import { uploadStorageState } from '@saas/storage';
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 // Use the ws client (not the global WebSocket): the global one can't send the
 // Authorization header or expose `.on`, so every CDP call (navigation + storage
@@ -28,54 +36,6 @@ export interface StartSessionResult {
   profileDir: string;
   startedAt: Date;
   expiresAt: Date;
-}
-
-export const MANAGER_BASE_URL = process.env.CLOAK_MANAGER_URL || 'http://127.0.0.1:8080';
-const MANAGER_AUTH_TOKEN = process.env.CLOAK_MANAGER_AUTH_TOKEN;
-
-export function getManagerHeaders(headers: Record<string, string> = {}) {
-  const h = { ...headers };
-  if (MANAGER_AUTH_TOKEN) {
-    h['Authorization'] = `Bearer ${MANAGER_AUTH_TOKEN}`;
-  }
-  return h;
-}
-
-/**
- * CDP WebSocket URL for a manager profile, derived from MANAGER_BASE_URL.
- * Must NOT hardcode 127.0.0.1:8080 — in production (and any setup where the
- * manager is a separate host) that address is unreachable from the API, which
- * silently breaks start-URL navigation and storage capture.
- */
-function managerCdpUrl(profileId: string): string {
-  return `${MANAGER_BASE_URL.replace(/^http/, 'ws')}/api/profiles/${profileId}/cdp`;
-}
-
-async function getManagerProfile(userId: string): Promise<any | null> {
-  try {
-    const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
-      headers: getManagerHeaders(),
-    });
-    if (!res.ok) return null;
-    const profiles = await res.json() as any[];
-    return profiles.find(p => p.name === userId) || null;
-  } catch (err) {
-    logger.warn({ err }, 'failed to fetch manager profiles');
-    return null;
-  }
-}
-
-async function createManagerProfile(userId: string): Promise<any> {
-  const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
-    method: 'POST',
-    headers: getManagerHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
-      name: userId,
-      platform: 'windows',
-    }),
-  });
-  if (!res.ok) throw new Error(`Failed to create manager profile: ${await res.text()}`);
-  return res.json();
 }
 
 async function launchManagerProfile(profileId: string, startUrl?: string | null): Promise<any> {
@@ -158,17 +118,6 @@ async function launchManagerProfile(profileId: string, startUrl?: string | null)
   }
 
   return data;
-}
-
-async function stopManagerProfile(profileId: string): Promise<void> {
-  try {
-    await fetch(`${MANAGER_BASE_URL}/api/profiles/${profileId}/stop`, { 
-      method: 'POST',
-      headers: getManagerHeaders(),
-    });
-  } catch (err) {
-    logger.warn({ err, profileId }, 'failed to stop manager profile');
-  }
 }
 
 export async function startSession(input: StartSessionInput): Promise<StartSessionResult> {
@@ -295,7 +244,7 @@ async function captureStorageStateViaManagerCdp(profileId: string, profileDir: s
           const state = { cookies: cookiesOut, origins: [] };
           
           await mkdir(profileDir, { recursive: true });
-          await Bun.write(stateFile, JSON.stringify(state, null, 2));
+          await writeFile(stateFile, JSON.stringify(state, null, 2));
           
           logger.info({ path: stateFile, count: cookies.length }, 'storage_state.json saved via Manager CDP');
 

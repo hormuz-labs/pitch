@@ -19,8 +19,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 import { verifyToken } from '@clerk/backend';
 import * as db from '@saas/db';
-import { createLogger } from '@saas/shared';
-import { MANAGER_BASE_URL, getManagerHeaders } from '../services/browser-host.js';
+import { createLogger, MANAGER_BASE_URL, getManagerHeaders } from '@saas/shared';
 
 const logger = createLogger('api:vnc-proxy');
 

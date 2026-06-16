@@ -251,7 +251,7 @@ export const SessionsView = () => {
     try {
       const token = await getToken();
       if (!token) throw new Error('Not authenticated');
-      const result = await api.post<CloseSessionResponse>(`/browser/sessions/${activeSession.sessionId ?? (activeSession as BrowserSession).id}/close`, token, {});
+      const result = await api.post<CloseSessionResponse>(`/browser/sessions/${(activeSession as any).sessionId ?? (activeSession as BrowserSession).id}/close`, token, {});
       setActiveSession(null);
       if (profile) {
         setProfile({

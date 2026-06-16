@@ -21,3 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN bun install -g agent-browser
 
+# Install playwright-cli globally — the worker invokes it directly to drive the
+# CloakBrowser Manager CDP session.
+RUN bun install -g @playwright/cli
+
