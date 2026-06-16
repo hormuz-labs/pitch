@@ -115,7 +115,7 @@ services:
         condition: service_healthy
 
   cloakbrowser-manager:
-    image: cloakhq/cloakbrowser-manager
+    image: justingaethje/octopus:latest
     container_name: cloakbrowser_manager
     restart: always
     ports:
@@ -144,6 +144,7 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
+      CLOAK_MANAGER_URL: ${CLOAK_MANAGER_URL:-http://cloakbrowser-manager:8080}
     logging:
       driver: loki
       options:
@@ -163,6 +164,8 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
+      cloakbrowser-manager:
+        condition: service_started
 
   worker:
     image: pitch-worker:${IMAGE_TAG:-latest}
@@ -176,6 +179,7 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
+      CLOAK_MANAGER_URL: ${CLOAK_MANAGER_URL:-http://cloakbrowser-manager:8080}
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
     logging:
       driver: loki
@@ -206,6 +210,8 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
+      cloakbrowser-manager:
+        condition: service_started
 
 volumes:
   cloakprofiles:
