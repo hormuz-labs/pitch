@@ -44,7 +44,8 @@ export function createCdpProxy(options: ProxyOptions): Promise<CdpProxyHandle> {
 
   // Regex that matches any manager WS URL for this profile's CDP endpoint.
   const wsRewriteRegex = new RegExp(
-    `^${managerWsOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(.*)$`
+    managerWsOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+    'g'
   );
 
   const upstreamHeaders = (extra: http.IncomingHttpHeaders = {}): http.OutgoingHttpHeaders => {
@@ -56,12 +57,17 @@ export function createCdpProxy(options: ProxyOptions): Promise<CdpProxyHandle> {
   };
 
   const rewriteWsUrls = (body: string): string => {
-    return body.replace(wsRewriteRegex, (_, path: string) => `${localWsOrigin}${path || ''}`);
+    return body.replace(wsRewriteRegex, localWsOrigin);
   };
 
   const proxyHttp = (req: http.IncomingMessage, res: http.ServerResponse) => {
     const requestUrl = new URL(req.url || '/', `http://127.0.0.1:${port}`);
-    const upstreamPath = `${managerHttp.pathname}${requestUrl.pathname}`;
+    let upstreamPath = requestUrl.pathname;
+    if (upstreamPath === '/' || upstreamPath === '') {
+      upstreamPath = managerHttp.pathname;
+    } else if (!upstreamPath.startsWith(managerHttp.pathname)) {
+      upstreamPath = `${managerHttp.pathname}${requestUrl.pathname}`;
+    }
     const upstreamUrl = new URL(upstreamPath + requestUrl.search, managerHttpOrigin);
 
     logger.debug({ path: requestUrl.pathname, upstream: upstreamUrl.toString() }, 'Proxying CDP HTTP request');
@@ -115,7 +121,12 @@ export function createCdpProxy(options: ProxyOptions): Promise<CdpProxyHandle> {
 
   wss.on('connection', (clientWs: WebSocket, req: http.IncomingMessage) => {
     const requestUrl = new URL(req.url || '/', `http://127.0.0.1:${port}`);
-    const upstreamPath = `${managerWs.pathname}${requestUrl.pathname}`;
+    let upstreamPath = requestUrl.pathname;
+    if (upstreamPath === '/' || upstreamPath === '') {
+      upstreamPath = managerWs.pathname;
+    } else if (!upstreamPath.startsWith(managerWs.pathname)) {
+      upstreamPath = `${managerWs.pathname}${requestUrl.pathname}`;
+    }
     const upstreamUrl = `${managerWsOrigin}${upstreamPath}`;
 
     logger.info({ path: requestUrl.pathname, upstream: upstreamUrl }, 'New WebSocket connection to CDP proxy');
