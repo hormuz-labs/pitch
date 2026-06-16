@@ -359,32 +359,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // 2. Attach playwright-cli and start video recording BEFORE prompting the LLM
       await reportJobPhase(jobId, userId, 'video_recording', 'running', connection);
       jobLogger.info({ cdpUrl: managerBrowser.cdpUrl }, 'Attaching playwright-cli to manager CDP');
-      // Retry playwright-cli attach with backoff — the WS endpoint may need a moment
-      // to become fully ready even after the HTTP /json/version check passes.
-      {
-        const maxAttempts = 4;
-        const retryDelayMs = 3000;
-        let lastAttachError: Error | undefined;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            await execAsync(`playwright-cli attach --cdp ${managerBrowser.cdpUrl}`, { cwd: targetDir });
-            lastAttachError = undefined;
-            break;
-          } catch (err) {
-            lastAttachError = err instanceof Error ? err : new Error(String(err));
-            jobLogger.warn(
-              { attempt, maxAttempts, cdpUrl: managerBrowser.cdpUrl, err: lastAttachError.message },
-              'playwright-cli attach failed, retrying...'
-            );
-            if (attempt < maxAttempts) {
-              await new Promise((r) => setTimeout(r, retryDelayMs));
-            }
-          }
-        }
-        if (lastAttachError) {
-          throw lastAttachError;
-        }
-      }
+      await execAsync(`playwright-cli attach --cdp ${managerBrowser.cdpUrl}`, { cwd: targetDir });
       
       logger.info('Starting video recording...');
       await execAsync(`playwright-cli video-start "demo.webm" --size=1920x1080`, { cwd: targetDir });

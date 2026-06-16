@@ -6,12 +6,13 @@ import {
   stopManagerProfile,
   managerCdpHttpUrl,
 } from '@saas/shared';
+import { startCdpProxy } from './cdp-proxy.js';
 
 const logger = createLogger('worker:manager-browser');
 
 export interface ManagerBrowserHandle {
   profileId: string;
-  /** Manager CDP HTTP URL for playwright-cli attach --cdp */
+  /** Local CDP HTTP URL for playwright-cli attach --cdp (proxied, localhost) */
   cdpUrl: string;
   close: () => Promise<void>;
 }
@@ -22,25 +23,26 @@ async function waitForCdpReady(
   intervalMs = 1500
 ): Promise<void> {
   const versionUrl = `${managerCdpHttpUrl(profileId)}/json/version`;
-  const wsUrl = `${managerCdpHttpUrl(profileId).replace(/^http/, 'ws')}`;
   const deadline = Date.now() + timeoutMs;
   let lastError: Error | undefined;
 
-  // Phase 1: wait for HTTP /json/version to respond
   while (Date.now() < deadline) {
     try {
       const res = await fetch(versionUrl);
       if (res.ok) {
-        logger.info({ versionUrl }, 'Manager CDP HTTP endpoint is ready');
-        break;
+        const body = await res.json() as any;
+        if (body?.Browser) {
+          logger.info({ versionUrl, browser: body.Browser }, 'Manager CDP endpoint is ready');
+          return;
+        }
+        throw new Error('CDP /json/version did not return a Browser field yet');
       }
-      throw new Error(`HTTP ${res.status}`);
+      throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      const remaining = deadline - Date.now();
       logger.debug(
-        { versionUrl, remainingMs: Math.max(0, remaining), err: lastError },
-        'Manager CDP HTTP endpoint not ready yet, retrying...'
+        { versionUrl, remainingMs: Math.max(0, deadline - Date.now()), err: lastError.message },
+        'Manager CDP endpoint not ready yet, retrying...'
       );
       if (Date.now() + intervalMs < deadline) {
         await new Promise((r) => setTimeout(r, intervalMs));
@@ -52,46 +54,6 @@ async function waitForCdpReady(
       }
     }
   }
-
-  // Phase 2: verify WebSocket connectivity before returning
-  await new Promise<void>((resolve, reject) => {
-    const wsDeadline = Math.max(0, deadline - Date.now());
-    const timer = setTimeout(() => reject(new Error(`CDP WebSocket ${wsUrl} did not become ready within timeout`)), wsDeadline);
-    let resolved = false;
-    const tryWs = () => {
-      if (Date.now() >= deadline) {
-        clearTimeout(timer);
-        reject(new Error(`CDP WebSocket ${wsUrl} did not become ready within timeout`));
-        return;
-      }
-      const ws = new (globalThis as any).WebSocket(wsUrl);
-      ws.onopen = () => {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timer);
-          ws.close();
-          logger.info({ wsUrl }, 'Manager CDP WebSocket is ready');
-          resolve();
-        }
-      };
-      ws.onerror = () => {
-        ws.close();
-        if (!resolved && Date.now() < deadline) {
-          setTimeout(tryWs, intervalMs);
-        }
-      };
-      ws.onclose = (ev: any) => {
-        if (!resolved && ev.code !== 1000 && Date.now() < deadline) {
-          setTimeout(tryWs, intervalMs);
-        }
-      };
-    };
-    tryWs();
-  }).catch((err) => {
-    // WS check failed — log a warning but don't hard-fail; the HTTP endpoint is up
-    // and playwright-cli attach has its own retry loop.
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'CDP WebSocket readiness check did not confirm; proceeding anyway');
-  });
 }
 
 /**
@@ -124,14 +86,19 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
   logger.info({ profileId: profile.id }, 'Waiting for manager CDP endpoint to be ready');
   await waitForCdpReady(profile.id);
 
-  const cdpUrl = managerCdpHttpUrl(profile.id);
-  logger.info({ userId, profileId: profile.id, cdpUrl }, 'CloakBrowser profile ready');
+  // Start a local CDP proxy so playwright-cli always connects to 127.0.0.1.
+  // The manager rewrites webSocketDebuggerUrl to its public hostname; from
+  // inside Docker that URL is unreachable and causes a 30-second timeout.
+  const upstreamCdpUrl = managerCdpHttpUrl(profile.id);
+  const proxy = await startCdpProxy(upstreamCdpUrl);
+  logger.info({ userId, profileId: profile.id, localCdpUrl: proxy.localCdpUrl }, 'CloakBrowser profile ready (via local proxy)');
 
   return {
     profileId: profile.id,
-    cdpUrl,
+    cdpUrl: proxy.localCdpUrl,
     close: async () => {
-      logger.info({ userId, profileId: profile.id }, 'Stopping CloakBrowser profile');
+      logger.info({ userId, profileId: profile.id }, 'Stopping CloakBrowser profile and CDP proxy');
+      await proxy.close();
       try {
         await stopManagerProfile(profile.id);
       } catch (err) {
