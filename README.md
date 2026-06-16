@@ -71,8 +71,9 @@ Structured for scale using **Bun Workspaces**.
 ■ **Runtime:** `Bun` (Native execution, Workspace orchestration)  
 ■ **Message Broker:** `Redis` + `BullMQ`  
 ■ **Database:** `SQLite` + `Prisma` (Production swappable)  
-■ **AI / Voice:** `@google/genai` (Gemini 3.1 Flash TTS Preview)  
-■ **Rendering:** `Puppeteer` + `FFmpeg` (`fluent-ffmpeg`)  
+■ **AI / Voice:** Google Gemini TTS (`generativelanguage.googleapis.com`)  
+■ **Browser Automation:** `playwright-cli` connected to `cloakbrowser-manager`  
+■ **Rendering:** `FFmpeg`  
 
 <br>
 

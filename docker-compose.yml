@@ -124,9 +124,9 @@ services:
       - AUTH_TOKEN=${CLOAK_MANAGER_AUTH_TOKEN}
     volumes:
       - cloakprofiles:/data
-    # devices:
-    #   - /dev/kfd:/dev/kfd
-    #   - /dev/dri:/dev/dri
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
     group_add:
       - "44"
       - "992"

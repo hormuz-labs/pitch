@@ -41,14 +41,8 @@
     "zenstack": "^2.22.1"
   },
   "dependencies": {
-    "@google/genai": "",
-    "cloakbrowser": "^0.3.31",
     "dotenv": "",
-    "fluent-ffmpeg": "",
     "gsap": "^3.15.0",
-    "mime": "",
-    "ogl": "^1.0.11",
-    "playwright": "^1.59.1",
-    "puppeteer": ""
+    "ogl": "^1.0.11"
   }
 }
