@@ -16,6 +16,42 @@ export interface ManagerBrowserHandle {
   close: () => Promise<void>;
 }
 
+async function waitForCdpReady(
+  profileId: string,
+  timeoutMs = 30000,
+  intervalMs = 1000
+): Promise<void> {
+  const versionUrl = `${managerCdpHttpUrl(profileId)}/json/version`;
+  const deadline = Date.now() + timeoutMs;
+  let lastError: Error | undefined;
+
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(versionUrl);
+      if (res.ok) {
+        logger.info({ versionUrl }, 'Manager CDP endpoint is ready');
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const remaining = deadline - Date.now();
+      logger.debug(
+        { versionUrl, remainingMs: Math.max(0, remaining), err: lastError },
+        'Manager CDP endpoint not ready yet, retrying...'
+      );
+      if (Date.now() + intervalMs < deadline) {
+        await new Promise((r) => setTimeout(r, intervalMs));
+      }
+    }
+  }
+
+  throw new Error(
+    `Manager CDP endpoint ${versionUrl} did not become ready within ${timeoutMs}ms. ` +
+    `Last error: ${lastError?.message || 'unknown'}`
+  );
+}
+
 /**
  * Ensures the CloakBrowser Manager profile for the user is running and
  * returns the manager CDP URL. The manager runs without auth inside the
@@ -42,6 +78,9 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
 
   logger.info({ userId, profileId: profile.id }, 'Launching CloakBrowser profile');
   await launchManagerProfile(profile.id);
+
+  logger.info({ profileId: profile.id }, 'Waiting for manager CDP endpoint to be ready');
+  await waitForCdpReady(profile.id);
 
   const cdpUrl = managerCdpHttpUrl(profile.id);
   logger.info({ userId, profileId: profile.id, cdpUrl }, 'CloakBrowser profile ready');
