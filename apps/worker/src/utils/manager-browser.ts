@@ -18,19 +18,21 @@ export interface ManagerBrowserHandle {
 
 async function waitForCdpReady(
   profileId: string,
-  timeoutMs = 30000,
-  intervalMs = 1000
+  timeoutMs = 45000,
+  intervalMs = 1500
 ): Promise<void> {
   const versionUrl = `${managerCdpHttpUrl(profileId)}/json/version`;
+  const wsUrl = `${managerCdpHttpUrl(profileId).replace(/^http/, 'ws')}`;
   const deadline = Date.now() + timeoutMs;
   let lastError: Error | undefined;
 
+  // Phase 1: wait for HTTP /json/version to respond
   while (Date.now() < deadline) {
     try {
       const res = await fetch(versionUrl);
       if (res.ok) {
-        logger.info({ versionUrl }, 'Manager CDP endpoint is ready');
-        return;
+        logger.info({ versionUrl }, 'Manager CDP HTTP endpoint is ready');
+        break;
       }
       throw new Error(`HTTP ${res.status}`);
     } catch (err) {
@@ -38,18 +40,58 @@ async function waitForCdpReady(
       const remaining = deadline - Date.now();
       logger.debug(
         { versionUrl, remainingMs: Math.max(0, remaining), err: lastError },
-        'Manager CDP endpoint not ready yet, retrying...'
+        'Manager CDP HTTP endpoint not ready yet, retrying...'
       );
       if (Date.now() + intervalMs < deadline) {
         await new Promise((r) => setTimeout(r, intervalMs));
+      } else {
+        throw new Error(
+          `Manager CDP endpoint ${versionUrl} did not become ready within ${timeoutMs}ms. ` +
+          `Last error: ${lastError?.message || 'unknown'}`
+        );
       }
     }
   }
 
-  throw new Error(
-    `Manager CDP endpoint ${versionUrl} did not become ready within ${timeoutMs}ms. ` +
-    `Last error: ${lastError?.message || 'unknown'}`
-  );
+  // Phase 2: verify WebSocket connectivity before returning
+  await new Promise<void>((resolve, reject) => {
+    const wsDeadline = Math.max(0, deadline - Date.now());
+    const timer = setTimeout(() => reject(new Error(`CDP WebSocket ${wsUrl} did not become ready within timeout`)), wsDeadline);
+    let resolved = false;
+    const tryWs = () => {
+      if (Date.now() >= deadline) {
+        clearTimeout(timer);
+        reject(new Error(`CDP WebSocket ${wsUrl} did not become ready within timeout`));
+        return;
+      }
+      const ws = new (globalThis as any).WebSocket(wsUrl);
+      ws.onopen = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          ws.close();
+          logger.info({ wsUrl }, 'Manager CDP WebSocket is ready');
+          resolve();
+        }
+      };
+      ws.onerror = () => {
+        ws.close();
+        if (!resolved && Date.now() < deadline) {
+          setTimeout(tryWs, intervalMs);
+        }
+      };
+      ws.onclose = (ev: any) => {
+        if (!resolved && ev.code !== 1000 && Date.now() < deadline) {
+          setTimeout(tryWs, intervalMs);
+        }
+      };
+    };
+    tryWs();
+  }).catch((err) => {
+    // WS check failed — log a warning but don't hard-fail; the HTTP endpoint is up
+    // and playwright-cli attach has its own retry loop.
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'CDP WebSocket readiness check did not confirm; proceeding anyway');
+  });
 }
 
 /**
