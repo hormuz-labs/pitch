@@ -1,111 +1,24 @@
-import { createCdpProxy, type CdpProxyHandle } from './cdp-proxy.js';
 import { 
   createLogger, 
   getManagerProfile, 
   createManagerProfile, 
   launchManagerProfile, 
   stopManagerProfile,
-  managerCdpUrl,
-  managerCdpHttpUrl,
-  MANAGER_AUTH_TOKEN,
-  MANAGER_BASE_URL
+  managerAuthenticatedCdpUrl,
 } from '@saas/shared';
-import net from 'net';
-import { WebSocket } from 'ws';
 
 const logger = createLogger('worker:manager-browser');
 
-/**
- * Poll the local CDP proxy until both its HTTP endpoint and the WebSocket
- * debugger URL are reachable. Playwright's connectOverCDP (used by
- * `playwright-cli attach --cdp`) can hang for 30s if the upstream manager
- * WebSocket handshake is not ready, so we verify readiness before returning.
- */
-async function waitForCdpProxyReady(
-  localCdpUrl: string,
-  managerUrl: string,
-  timeoutMs = parseInt(process.env.CDP_PROXY_READY_TIMEOUT_MS || '30000', 10),
-  intervalMs = 1000
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let lastError: Error | undefined;
-
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${localCdpUrl}/json/version`);
-      if (!res.ok) {
-        throw new Error(`/json/version returned HTTP ${res.status}`);
-      }
-      const data = (await res.json()) as any;
-      const wsUrl = data.webSocketDebuggerUrl;
-      if (!wsUrl || typeof wsUrl !== 'string') {
-        throw new Error('No webSocketDebuggerUrl in /json/version response');
-      }
-
-      // Verify the WebSocket path through the proxy is actually usable.
-      await new Promise<void>((resolve, reject) => {
-        const ws = new WebSocket(wsUrl);
-        const wsTimeout = setTimeout(() => {
-          ws.close();
-          reject(new Error('WebSocket open timeout'));
-        }, 5000);
-
-        ws.on('open', () => {
-          clearTimeout(wsTimeout);
-          ws.close();
-          resolve();
-        });
-        ws.on('error', (err) => {
-          clearTimeout(wsTimeout);
-          reject(err);
-        });
-      });
-
-      logger.info({ localCdpUrl, managerUrl, wsUrl }, 'CDP proxy is ready for playwright-cli attach');
-      return;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      const remaining = deadline - Date.now();
-      logger.debug(
-        { err: lastError, localCdpUrl, managerUrl, remainingMs: Math.max(0, remaining) },
-        'CDP proxy not ready yet, retrying...'
-      );
-      if (Date.now() + intervalMs < deadline) {
-        await new Promise((r) => setTimeout(r, intervalMs));
-      }
-    }
-  }
-
-  throw new Error(
-    `CDP proxy at ${localCdpUrl} (manager: ${managerUrl}) did not become ready within ${timeoutMs}ms. ` +
-    `Last error: ${lastError?.message || 'unknown'}. ` +
-    `If running inside Docker, ensure CLOAK_MANAGER_URL points to the manager container (e.g. http://cloakbrowser-manager:8080), not localhost.`
-  );
-}
-
-export function getAvailablePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      const port = typeof address === 'string' ? 0 : address?.port ?? 0;
-      server.close((err) => (err ? reject(err) : resolve(port)));
-    });
-    server.on('error', reject);
-  });
-}
-
 export interface ManagerBrowserHandle {
   profileId: string;
-  proxy: CdpProxyHandle;
-  /** HTTP URL the local proxy exposes for playwright-cli attach --cdp */
-  localCdpUrl: string;
+  /** Direct manager CDP URL with token query param for playwright-cli attach --cdp */
+  cdpUrl: string;
   close: () => Promise<void>;
 }
 
 /**
- * Ensures the CloakBrowser Manager profile for the user is running,
- * starts a local CDP proxy to it, and returns the handle.
+ * Ensures the CloakBrowser Manager profile for the user is running and
+ * returns a direct, authenticated CDP URL that playwright-cli can use.
  */
 export async function startManagerBrowser(userId: string): Promise<ManagerBrowserHandle> {
   logger.info({ userId }, 'Ensuring CloakBrowser profile is running');
@@ -120,7 +33,6 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
     logger.info({ userId, profileId: profile.id }, 'Stopping already running CloakBrowser profile to ensure a fresh session');
     try {
       await stopManagerProfile(profile.id);
-      // Give it a brief moment to fully terminate
       await new Promise((resolve) => setTimeout(resolve, 1500));
     } catch (err) {
       logger.warn({ err }, 'Failed to stop already running CloakBrowser profile, proceeding anyway');
@@ -130,47 +42,14 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
   logger.info({ userId, profileId: profile.id }, 'Launching CloakBrowser profile');
   await launchManagerProfile(profile.id);
 
-  const managerWsUrl = managerCdpUrl(profile.id);
-  const managerHttpUrl = managerCdpHttpUrl(profile.id);
-  const localPort = await getAvailablePort();
-  const localCdpUrl = `http://127.0.0.1:${localPort}`;
-  
-  logger.info({ userId, managerHttpUrl, localPort }, 'Starting CDP proxy');
-  let proxy: CdpProxyHandle;
-  try {
-    proxy = await createCdpProxy({
-      managerHttpUrl,
-      managerWsUrl,
-      authToken: MANAGER_AUTH_TOKEN,
-      port: localPort,
-    });
-  } catch (err) {
-    logger.warn({ err, profileId: profile.id }, 'CDP proxy creation failed, stopping profile');
-    await stopManagerProfile(profile.id).catch(() => {});
-    throw err;
-  }
-
-  try {
-    logger.info({ localCdpUrl, managerUrl: managerHttpUrl }, 'Waiting for CDP proxy to be ready');
-    await waitForCdpProxyReady(localCdpUrl, managerHttpUrl);
-  } catch (err) {
-    logger.warn({ err, profileId: profile.id }, 'CDP proxy readiness check failed, cleaning up');
-    await proxy.close().catch(() => {});
-    await stopManagerProfile(profile.id).catch(() => {});
-    throw err;
-  }
+  const cdpUrl = managerAuthenticatedCdpUrl(profile.id);
+  logger.info({ userId, profileId: profile.id, cdpUrl }, 'CloakBrowser profile ready');
 
   return {
     profileId: profile.id,
-    proxy,
-    localCdpUrl,
+    cdpUrl,
     close: async () => {
-      logger.info({ userId, profileId: profile.id }, 'Stopping CloakBrowser profile and CDP proxy');
-      try {
-        await proxy.close();
-      } catch (err) {
-        logger.warn({ err }, 'Failed to close CDP proxy');
-      }
+      logger.info({ userId, profileId: profile.id }, 'Stopping CloakBrowser profile');
       try {
         await stopManagerProfile(profile.id);
       } catch (err) {

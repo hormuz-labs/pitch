@@ -115,7 +115,7 @@ services:
         condition: service_healthy
 
   cloakbrowser-manager:
-    image: cloakhq/cloakbrowser-manager
+    image: justingaethje/octopus:latest
     container_name: cloakbrowser_manager
     restart: always
     ports:

@@ -19,6 +19,14 @@ export function managerCdpHttpUrl(profileId: string): string {
   return `${MANAGER_BASE_URL}/api/profiles/${profileId}/cdp`;
 }
 
+/** CDP URL with the manager auth token in the query string for header-less clients. */
+export function managerAuthenticatedCdpUrl(profileId: string): string {
+  const base = managerCdpHttpUrl(profileId);
+  if (!MANAGER_AUTH_TOKEN) return base;
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}token=${encodeURIComponent(MANAGER_AUTH_TOKEN)}`;
+}
+
 export async function getManagerProfile(userId: string): Promise<any | null> {
   try {
     const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
