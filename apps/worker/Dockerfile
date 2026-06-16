@@ -19,7 +19,7 @@ COPY packages/storage/package.json packages/storage/
 # BuildKit cache mount: keeps the bun package cache between builds on CI runners
 # so subsequent builds skip the multi-minute download of 1000+ packages.
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile --ignore-scripts
+    bun install --frozen-lockfile --ignore-scripts --no-cache
 
 # Now copy the rest of the source code
 COPY . .
