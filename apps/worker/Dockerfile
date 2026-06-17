@@ -33,6 +33,10 @@ WORKDIR /app
 
 COPY --from=builder /app .
 
+# Install Playwright's bundled ffmpeg for video recording.
+# The system ffmpeg is not picked up by Playwright's internal executable registry.
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD= npx playwright install ffmpeg
+
 
 
 # Allow the container user to access GPU devices (/dev/dri)
