@@ -29,3 +29,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm install -g @playwright/cli
 
+# Install Playwright's bundled ffmpeg for video recording.
+# The system ffmpeg (installed via apt-get above) is not picked up by Playwright's
+# internal executable registry — it needs its own managed copy in the ms-playwright cache.
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD= npx playwright install ffmpeg
+
