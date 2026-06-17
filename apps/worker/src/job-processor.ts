@@ -254,6 +254,43 @@ async function getVideoBirthTimeMs(webmPath: string): Promise<number | null> {
   }
 }
 
+/**
+ * Locate the recorded WebM file. Returns the expected path if present,
+ * otherwise searches the workspace for any .webm file and picks the most
+ * recent one. This makes the worker resilient to playwright-cli resolving
+ * relative paths differently inside Docker.
+ */
+function locateWebmFile(expectedPath: string, searchDir: string): string | null {
+  if (fs.existsSync(expectedPath)) {
+    return expectedPath;
+  }
+
+  const candidates: string[] = [];
+  function search(dir: string, depth: number) {
+    if (depth > 3) return;
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          search(fullPath, depth + 1);
+        } else if (entry.name.endsWith('.webm')) {
+          candidates.push(fullPath);
+        }
+      }
+    } catch {
+      // ignore unreadable directories
+    }
+  }
+  search(searchDir, 0);
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  candidates.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  return candidates[0];
+}
+
 interface SkillMetadata {
   name: string;
   description: string;
@@ -386,8 +423,9 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         }
       }
       
-      logger.info('Starting video recording...');
-      await execAsync(`playwright-cli video-start "demo.webm" --size=1920x1080`, { cwd: targetDir });
+      const webmPath = path.join(targetDir, 'demo.webm');
+      logger.info({ webmPath }, 'Starting video recording...');
+      await execAsync(`playwright-cli video-start "${webmPath}" --size=1920x1080`, { cwd: targetDir });
 
       const startTime = Date.now();
       logger.info(`startTime captured: ${new Date(startTime).toISOString()}`);
@@ -570,19 +608,22 @@ ${buildSkillsPrompt(skills)}`;
         };
       }
 
-      const webmPath = path.join(targetDir, 'demo.webm');
-      if (!fs.existsSync(webmPath)) {
+      const foundWebmPath = locateWebmFile(webmPath, targetDir);
+      if (!foundWebmPath) {
         throw new Error('demo.webm video recording was not found in the workspace');
       }
+      if (foundWebmPath !== webmPath) {
+        logger.warn({ expectedPath: webmPath, foundPath: foundWebmPath }, 'WebM recording found at unexpected path');
+      }
 
-      const sourceFps = await getSourceFps(webmPath);
+      const sourceFps = await getSourceFps(foundWebmPath);
       logger.info({ sourceFps }, 'Detected source frame rate');
 
       const cursorPath = path.join(targetDir, "assets", "icons", "cursor.png");
       const rawVideo = path.join(recordingsDir, "raw_demo.mp4");
       const finalVideo = path.join(recordingsDir, "final_demo.mp4");
 
-      let videoInputs = `-i "${webmPath}" -i "${cursorPath}"`;
+      let videoInputs = `-i "${foundWebmPath}" -i "${cursorPath}"`;
       let filterComplex = "";
       let currentVLabel = "[0:v]";
 
@@ -596,7 +637,7 @@ ${buildSkillsPrompt(skills)}`;
       });
 
       // Align video timebase with wall-clock startTime
-      const videoBirthTimeMs = await getVideoBirthTimeMs(webmPath);
+      const videoBirthTimeMs = await getVideoBirthTimeMs(foundWebmPath);
       const trimSec = videoBirthTimeMs ? Math.max(0, (startTime - videoBirthTimeMs) / 1000) : 0;
       if (trimSec > 0) {
         logger.info({ trimSec }, 'Applying timeline shift to align with prompt startTime');
@@ -634,7 +675,7 @@ ${buildSkillsPrompt(skills)}`;
 
       // Clean up raw WebM & Raw MP4 to save space
       try {
-        fs.unlinkSync(webmPath);
+        fs.unlinkSync(foundWebmPath);
         fs.unlinkSync(rawVideo);
       } catch (e) {}
 
