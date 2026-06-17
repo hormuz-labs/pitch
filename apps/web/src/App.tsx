@@ -11,7 +11,7 @@ import {
 } from '@clerk/clerk-react';
 import './index.css';
 import type { Project, LogEntry } from './types';
-import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView, AdminView, CheckoutReturnView, SessionsView } from './views';
+import { DashboardView, CreateView, EditorView, PricingView, LandingView, PublicPricingView, SettingsView, AffiliateView, AdminView, CheckoutReturnView, SessionsView, PdfCreateView, PdfEditorView } from './views';
 import { AuthView } from './views/AuthView';
 import { CreditPopover } from './components/CreditPopover';
 import { BiSolidZap } from 'react-icons/bi';
@@ -271,6 +271,19 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
             label="New Video"
             active={selectedKey === 'create'}
             onClick={() => go('/new')}
+          />
+          <NavItem
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            }
+            label="New PDF"
+            active={selectedKey === 'pdf-create'}
+            onClick={() => go('/pdf')}
           />
           <NavItem
             icon={<Share2Icon />}
@@ -551,8 +564,15 @@ function AppContent() {
     const fetchJobs = async () => {
       try {
         const token = await getToken();
-        const data = await api.get<Project[]>('/jobs', token!);
-        if (Array.isArray(data)) setProjects(data);
+        const [videoJobs, pdfJobs] = await Promise.all([
+          api.get<Project[]>('/jobs', token!),
+          api.get<Project[]>('/pdf-jobs', token!)
+        ]);
+        const combined = [
+          ...(Array.isArray(videoJobs) ? videoJobs : []),
+          ...(Array.isArray(pdfJobs) ? pdfJobs : [])
+        ];
+        setProjects(combined);
 
         // Fetch user profile to check role
         try {
@@ -697,6 +717,33 @@ function AppContent() {
     }
   };
 
+  const handleQueuePdfJob = async (values: { topic: string; slideCount: number; slideHeadings: string[] }) => {
+    setIsSubmitting(true);
+    try {
+      const token = await getToken();
+      const newJob = await api.post<Project>('/pdf-jobs', token!, {
+        parameters: {
+          topic: values.topic,
+          slideCount: values.slideCount,
+          slideHeadings: values.slideHeadings,
+        },
+      });
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === newJob.id);
+        return exists ? prev.map(p => p.id === newJob.id ? newJob : p) : [...prev, newJob];
+      });
+      navigate('/dashboard');
+      window.dispatchEvent(new Event('credits-changed'));
+    } catch (err: any) {
+      const msg = err.status === 402
+        ? 'You have no credits remaining. Please top up to continue generating presentations.'
+        : (err.message || 'An error occurred');
+      toast(msg, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       const token = await getToken();
@@ -731,6 +778,18 @@ function AppContent() {
 
   if (location.pathname.startsWith('/new')) {
     selectedKey = 'create';
+  } else if (location.pathname.startsWith('/pdfeditor')) {
+    selectedKey = 'pdfeditor';
+    const id = location.pathname.split('/pdfeditor/')[1];
+    const project = projects.find(p => p.id === id);
+    if (project) {
+      projectTitle = project.parameters?.topic || 'PDF Presentation';
+      if (project.status === 'COMPLETED' && project.videoUrl) {
+        onDownload = () => window.open(project.videoUrl);
+      }
+    }
+  } else if (location.pathname.startsWith('/pdf')) {
+    selectedKey = 'pdf-create';
   } else if (location.pathname.startsWith('/editor')) {
     selectedKey = 'editor';
     const id = location.pathname.split('/editor/')[1];
@@ -797,7 +856,7 @@ function AppContent() {
           <div className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200" style={{ backgroundColor: '#ffffff' }}>
             <TopHeader
               isMobile={isMobile}
-              isDetailPage={selectedKey === 'create' || selectedKey === 'editor' || selectedKey === 'settings'}
+              isDetailPage={selectedKey === 'create' || selectedKey === 'pdf-create' || selectedKey === 'editor' || selectedKey === 'pdfeditor' || selectedKey === 'settings'}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               onToggle={() => setCollapsed(c => !c)}
@@ -816,6 +875,8 @@ function AppContent() {
               <Routes>
                 <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} onDelete={handleDelete} onRetry={handleRetry} />} />
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
+                <Route path="/pdf" element={<PdfCreateView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />} />
+                <Route path="/pdfeditor/:id" element={<PdfEditorView projects={projects} />} />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
                 <Route path="/sessions" element={<SessionsView />} />

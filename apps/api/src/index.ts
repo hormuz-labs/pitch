@@ -11,6 +11,7 @@ import { createLogger } from '@saas/shared';
 
 import { router as webhookRoutes } from './routes/webhooks.js';
 import { router as jobRoutes } from './routes/jobs.js';
+import { router as pdfJobRoutes } from './routes/pdf-jobs.js';
 import { router as creditRoutes } from './routes/credits.js';
 import { router as userRoutes } from './routes/users.js';
 import { router as checkoutRoutes } from './routes/checkout.js';
@@ -37,7 +38,7 @@ export const app = express();
 // Dodo webhook needs raw body — must come before express.json()
 app.use('/webhooks', webhookRoutes);
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 
@@ -73,6 +74,7 @@ app.use(pinoHttp({
 app.use('/demo', express.static(path.join(rootDir, 'demo')));
 
 app.use('/jobs', jobRoutes);
+app.use('/pdf-jobs', pdfJobRoutes);
 app.use('/credits', creditRoutes);
 app.use('/users', userRoutes);
 app.use('/checkout', checkoutRoutes);

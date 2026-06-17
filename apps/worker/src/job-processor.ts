@@ -32,7 +32,7 @@ const logger = createLogger('worker:job');
 
 // Tracks the active OpenCode session ID for each in-flight job so the
 // cancellation handler can abort it immediately.
-const activeSessionsByJobId = new Map<string, string>();
+export const activeSessionsByJobId = new Map<string, string>();
 
 /**
  * Start a Redis subscriber that listens on JOB_CANCELLATIONS_CHANNEL.
@@ -90,7 +90,7 @@ export function startCancellationListener(redisUrl: string, getClient: () => Ope
 /**
  * Direct in-process phase reporting. Updates database and publishes progress updates to SSE subscribers.
  */
-async function reportJobPhase(
+export async function reportJobPhase(
   jobId: string,
   userId: string,
   phaseKey: string,
@@ -424,6 +424,11 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
   return async function processJob(job: Job, client: OpencodeClient) {
     const { jobId, userId, parameters } = job.data;
     const jobLogger = logger.child({ jobId, userId });
+
+    if (parameters?.jobType === 'pdf') {
+      const { processPdfJob } = await import('./pdf-job-processor.js');
+      return processPdfJob(job, client, connection, targetDir);
+    }
 
     jobLogger.info('Processing job via One-Pass architecture');
 
