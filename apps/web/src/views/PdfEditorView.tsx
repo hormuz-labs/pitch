@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project } from '../types';
 import { PdfProgressWidget } from '../components/PdfProgressWidget';
@@ -23,6 +24,12 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
   const [slides, setSlides] = useState<{ id: number; title: string }[]>([]);
   const [activeSlide, setActiveSlide] = useState<number>(0);
   const [scale, setScale] = useState(1);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    // TopHeader renders #pdf-editor-header-actions when isPdfEditorPage is true
+    setPortalTarget(document.getElementById('pdf-editor-header-actions'));
+  }, []);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -253,30 +260,12 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
 
   return (
     <div className="flex flex-col h-full bg-gray-150 select-none">
-      {/* ── Editor Top Header ─────────────────────────────────────────────── */}
-      <header className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between z-20 shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
-            title="Back to Dashboard"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-            </svg>
-          </button>
-          <div>
-            <h2 className="text-sm font-bold text-gray-900 truncate max-w-xs sm:max-w-md">
-              {selectedProject.parameters?.topic || 'Edit Presentation'}
-            </h2>
-            <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider font-semibold">PDF Editor</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {selectedProject.videoUrl && (
+      {/* ── Portaled Editor Actions ────────────────────────────────────────── */}
+      {portalTarget && createPortal(
+        <>
+          {selectedProject.pdfUrl && (
             <a
-              href={`${selectedProject.videoUrl}?t=${new Date(selectedProject.updatedAt).getTime()}`}
+              href={`${selectedProject.pdfUrl}?t=${new Date(selectedProject.updatedAt).getTime()}`}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors"
@@ -308,8 +297,9 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
             )}
             {saveStatus === 'saving' ? 'Saving Changes...' : saveStatus === 'saved' ? 'Saved!' : saveStatus === 'error' ? 'Failed to Save' : 'Save Changes'}
           </button>
-        </div>
-      </header>
+        </>,
+        portalTarget
+      )}
 
       {/* ── Editor Workspace ──────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden min-h-0">

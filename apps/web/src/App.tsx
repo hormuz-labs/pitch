@@ -366,9 +366,10 @@ interface TopHeaderProps {
   isSettingsPage?: boolean;
   isNewPage?: boolean;
   isEditorPage?: boolean;
+  isPdfEditorPage?: boolean;
   onSignOut?: () => void;
 }
-const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, isNewPage, isEditorPage, onSignOut }: TopHeaderProps) => (
+const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onToggle, onNew, onBack, projectTitle, onDownload, isPricingPage, isSettingsPage, isNewPage, isEditorPage, isPdfEditorPage, onSignOut }: TopHeaderProps) => (
   <header className="app-shell-header h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
     {/* Left: logo + search / back */}
     <div className="flex items-center gap-3 shrink-0">
@@ -433,6 +434,8 @@ const TopHeader = ({ isMobile, isDetailPage, searchQuery, onSearchChange, onTogg
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           <span className="hidden sm:inline">Sign Out</span>
         </button>
+      ) : isPdfEditorPage ? (
+        <div id="pdf-editor-header-actions" className="flex items-center gap-2" />
       ) : (onDownload && !(isMobile && isEditorPage)) ? (
         <button
           onClick={onDownload}
@@ -784,8 +787,8 @@ function AppContent() {
     const project = projects.find(p => p.id === id);
     if (project) {
       projectTitle = project.parameters?.topic || 'PDF Presentation';
-      if (project.status === 'COMPLETED' && project.videoUrl) {
-        onDownload = () => window.open(project.videoUrl);
+      if (project.status === 'COMPLETED' && project.pdfUrl) {
+        onDownload = () => window.open(project.pdfUrl);
       }
     }
   } else if (location.pathname.startsWith('/pdf')) {
@@ -868,6 +871,7 @@ function AppContent() {
               isSettingsPage={selectedKey === 'settings'}
               isNewPage={selectedKey === 'create'}
               isEditorPage={selectedKey === 'editor'}
+              isPdfEditorPage={selectedKey === 'pdfeditor'}
               onSignOut={() => signOut()}
             />
 
