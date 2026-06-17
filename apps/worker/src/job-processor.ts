@@ -255,16 +255,10 @@ async function getVideoBirthTimeMs(webmPath: string): Promise<number | null> {
 }
 
 /**
- * Locate the recorded WebM file. Returns the expected path if present,
- * otherwise searches the workspace for any .webm file and picks the most
- * recent one. This makes the worker resilient to playwright-cli resolving
- * relative paths differently inside Docker.
+ * Locate and combine recorded WebM file(s).
+ * If multiple .webm files exist in the search directory, we chronologically combine them.
  */
-function locateWebmFile(expectedPath: string, searchDir: string): string | null {
-  if (fs.existsSync(expectedPath)) {
-    return expectedPath;
-  }
-
+async function resolveAndCombineWebmFiles(expectedPath: string, searchDir: string, logger: any): Promise<string> {
   const candidates: string[] = [];
   function search(dir: string, depth: number) {
     if (depth > 3) return;
@@ -283,12 +277,108 @@ function locateWebmFile(expectedPath: string, searchDir: string): string | null 
   }
   search(searchDir, 0);
 
-  if (candidates.length === 0) {
-    return null;
+  const uniqueCandidates = Array.from(new Set(candidates)).filter(f => {
+    try {
+      return fs.existsSync(f) && fs.statSync(f).size > 0;
+    } catch {
+      return false;
+    }
+  });
+
+  if (uniqueCandidates.length === 0) {
+    if (fs.existsSync(expectedPath)) {
+      return expectedPath;
+    }
+    throw new Error(`No WebM video recording found in ${searchDir}`);
   }
 
-  candidates.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-  return candidates[0];
+  if (uniqueCandidates.length === 1) {
+    const singleFile = uniqueCandidates[0]!;
+    if (singleFile !== expectedPath) {
+      logger.info({ from: singleFile, to: expectedPath }, 'Moving single WebM file to expected path');
+      fs.renameSync(singleFile, expectedPath);
+    }
+    return expectedPath;
+  }
+
+  // Sort by birth/modification time ascending so we merge chronologically (oldest first, to newest)
+  uniqueCandidates.sort((a, b) => fs.statSync(a).mtimeMs - fs.statSync(b).mtimeMs);
+
+  logger.info({ files: uniqueCandidates }, `Combining ${uniqueCandidates.length} WebM files into ${expectedPath}`);
+
+  const dir = path.dirname(expectedPath);
+  const stamp = Date.now();
+  const listFile = path.join(dir, `__concat_${stamp}_list.txt`);
+  const tempCombinedPath = path.join(dir, `__combined_${stamp}.webm`);
+
+  try {
+    const listContent = uniqueCandidates.map(f => `file '${f.replace(/'/g, "'\\''")}'`).join('\n');
+    fs.writeFileSync(listFile, listContent);
+
+    await execAsync(`ffmpeg -y -f concat -safe 0 -i "${listFile}" -c copy "${tempCombinedPath}"`);
+    logger.info({ tempCombinedPath }, 'Successfully combined WebM files using concat demuxer');
+
+    // Clean up original webm files to avoid clutter
+    for (const f of uniqueCandidates) {
+      try {
+        fs.unlinkSync(f);
+      } catch {}
+    }
+
+    fs.renameSync(tempCombinedPath, expectedPath);
+    return expectedPath;
+  } catch (err) {
+    logger.error({ err, files: uniqueCandidates }, 'Failed to combine WebM files via concat demuxer');
+    if (fs.existsSync(tempCombinedPath)) {
+      try { fs.unlinkSync(tempCombinedPath); } catch {}
+    }
+    throw err;
+  } finally {
+    try {
+      fs.unlinkSync(listFile);
+    } catch {}
+  }
+}
+
+/**
+ * Diagnostic helper: list .webm files in a set of common locations.
+ * Returns the most recently modified candidate found anywhere.
+ */
+function findWebmCandidates(logger: any, targetDir: string): string | null {
+  const candidates: Array<{ path: string; mtimeMs: number }> = [];
+  const searchRoots = [
+    targetDir,
+    process.cwd(),
+    os.homedir(),
+    '/tmp',
+    '/root',
+    '/app',
+  ];
+
+  for (const root of searchRoots) {
+    try {
+      function search(dir: string, depth: number) {
+        if (depth > 3) return;
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            search(fullPath, depth + 1);
+          } else if (entry.name.endsWith('.webm')) {
+            candidates.push({ path: fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs });
+          }
+        }
+      }
+      search(root, 0);
+    } catch {
+      // ignore unreadable roots
+    }
+  }
+
+  logger.info({ candidateCount: candidates.length, candidates: candidates.map(c => c.path) }, 'WebM search diagnostics');
+
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return candidates[0].path;
 }
 
 interface SkillMetadata {
@@ -363,15 +453,6 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
     }, 50 * 60 * 1000);
 
     try {
-      // Clean up any old demo.webm files in root/workspace before starting
-      for (const f of fs.readdirSync(targetDir)) {
-        if (f.match(/^demo(?:-\d+)?\.webm$/)) {
-          try {
-            fs.unlinkSync(path.join(targetDir, f));
-          } catch (e) {}
-        }
-      }
-
       // Recreate the recordings/ folder and its subfolders to start clean
       const recordingsDir = path.join(targetDir, "recordings");
       if (fs.existsSync(recordingsDir)) {
@@ -387,6 +468,47 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         path.join(targetDir, ".claude/skills"),
         path.join(os.homedir(), ".claude/skills"),
       ]);
+
+      // Create OpenCode Session first so we have session.id for recording paths
+      const sessionResponse = await client.session.create({
+        query: { directory: targetDir },
+        body: { title: `Job ${jobId} for user ${userId} (One-Pass)` },
+      });
+      if (sessionResponse.error || !sessionResponse.data) {
+        throw new Error('Failed to create OpenCode session: ' + JSON.stringify(sessionResponse.error));
+      }
+      session = sessionResponse.data;
+      jobLogger.info({ sessionId: session.id }, 'OpenCode session created');
+
+      // Register the session so the cancellation listener can abort it if the
+      // job is deleted while processing.
+      activeSessionsByJobId.set(jobId, session.id);
+
+      // Determine the directory where the video should be recorded using environment variables
+      const recordingDirEnv = process.env.RECORDING_DIR || process.env.VIDEO_DIR;
+      let videoDir = targetDir;
+      if (recordingDirEnv) {
+        videoDir = path.join(recordingDirEnv, session.id);
+      }
+      const webmPath = path.join(videoDir, 'demo.webm');
+
+      // Clean up any old demo.webm files in targetDir and videoDir before starting
+      for (const dirToClean of [targetDir, videoDir]) {
+        try {
+          if (fs.existsSync(dirToClean)) {
+            for (const f of fs.readdirSync(dirToClean)) {
+              if (f.match(/^demo(?:-\d+)?\.webm$/)) {
+                try {
+                  fs.unlinkSync(path.join(dirToClean, f));
+                } catch (e) {}
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // Ensure videoDir exists
+      fs.mkdirSync(videoDir, { recursive: true });
 
       // 1. Start CloakBrowser via Manager and establish CDP Proxy
       await reportJobPhase(jobId, userId, 'workspace_init', 'running', connection);
@@ -423,9 +545,9 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         }
       }
       
-      const webmPath = path.join(targetDir, 'demo.webm');
       logger.info({ webmPath }, 'Starting video recording...');
-      await execAsync(`playwright-cli video-start "${webmPath}" --size=1920x1080`, { cwd: targetDir });
+      const videoStartResult = await execAsync(`playwright-cli video-start "${webmPath}" --size=1920x1080`, { cwd: targetDir });
+      logger.info({ stdout: videoStartResult.stdout, stderr: videoStartResult.stderr }, 'playwright-cli video-start output');
 
       const startTime = Date.now();
       logger.info(`startTime captured: ${new Date(startTime).toISOString()}`);
@@ -433,21 +555,6 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // Write config so the OpenCode plugin knows startTime and skills
       const configPath = path.join(recordingsDir, "demo-config.json");
       fs.writeFileSync(configPath, JSON.stringify({ startTime, skills }, null, 2));
-
-      // 3. Create OpenCode Session
-      const sessionResponse = await client.session.create({
-        query: { directory: targetDir },
-        body: { title: `Job ${jobId} for user ${userId} (One-Pass)` },
-      });
-      if (sessionResponse.error || !sessionResponse.data) {
-        throw new Error('Failed to create OpenCode session: ' + JSON.stringify(sessionResponse.error));
-      }
-      session = sessionResponse.data;
-      jobLogger.info({ sessionId: session.id }, 'OpenCode session created');
-
-      // Register the session so the cancellation listener can abort it if the
-      // job is deleted while processing.
-      activeSessionsByJobId.set(jobId, session.id);
 
       // 4. Subscribe to global events and filter by session ID.
       eventAbortController = new AbortController();
@@ -577,9 +684,18 @@ ${buildSkillsPrompt(skills)}`;
 
       jobLogger.info('Stopping video recording and playwright session...');
       try {
-        await execAsync("playwright-cli video-stop", { cwd: targetDir });
+        const videoStopResult = await execAsync("playwright-cli video-stop", { cwd: targetDir });
+        jobLogger.info({ stdout: videoStopResult.stdout, stderr: videoStopResult.stderr }, 'playwright-cli video-stop output');
       } catch (e) {
         jobLogger.warn({ err: e }, 'Failed to stop video recording gracefully');
+      }
+
+      // Diagnostic dump of the recording directory after recording stopped
+      try {
+        const { stdout: lsStdout } = await execAsync(`find "${videoDir}" -maxdepth 3 -type f \( -name "*.webm" -o -name "*.mp4" \) -printf "%T@ %p\\n" | sort -n`, { cwd: videoDir });
+        jobLogger.info({ files: lsStdout.trim() }, 'Video files in recording directory after stop');
+      } catch (e) {
+        jobLogger.warn({ err: e }, 'Failed to list workspace files');
       }
       try {
         await execAsync("playwright-cli close", { cwd: targetDir });
@@ -608,12 +724,16 @@ ${buildSkillsPrompt(skills)}`;
         };
       }
 
-      const foundWebmPath = locateWebmFile(webmPath, targetDir);
-      if (!foundWebmPath) {
-        throw new Error('demo.webm video recording was not found in the workspace');
-      }
-      if (foundWebmPath !== webmPath) {
-        logger.warn({ expectedPath: webmPath, foundPath: foundWebmPath }, 'WebM recording found at unexpected path');
+      let foundWebmPath: string;
+      try {
+        foundWebmPath = await resolveAndCombineWebmFiles(webmPath, videoDir, jobLogger);
+      } catch (err: any) {
+        jobLogger.warn({ err }, 'resolveAndCombineWebmFiles failed, trying findWebmCandidates fallback');
+        const candidate = findWebmCandidates(jobLogger, videoDir) || findWebmCandidates(jobLogger, targetDir);
+        if (!candidate) {
+          throw new Error('demo.webm video recording was not found');
+        }
+        foundWebmPath = candidate;
       }
 
       const sourceFps = await getSourceFps(foundWebmPath);
