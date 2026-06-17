@@ -130,6 +130,7 @@ model Job {
   userId             String
   status             String
   videoUrl           String?
+  pdfUrl             String?
   audioUrl           String?
   thumbnailUrl       String?
   parameters         String

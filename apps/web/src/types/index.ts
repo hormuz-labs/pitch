@@ -15,6 +15,7 @@ export interface Project {
   userId: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   videoUrl?: string;
+  pdfUrl?: string;
   audioUrl?: string;
   thumbnailUrl?: string;
   parameters: Record<string, any> & {

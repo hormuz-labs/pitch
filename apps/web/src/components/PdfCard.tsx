@@ -109,9 +109,9 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
           <StatusBadge status={project.status} />
 
           <div className="flex justify-end relative h-full items-center gap-1.5">
-            {project.status === 'COMPLETED' && project.videoUrl && (
+            {project.status === 'COMPLETED' && project.pdfUrl && (
               <a
-                href={`${project.videoUrl}?t=${new Date(project.updatedAt).getTime()}`}
+                href={`${project.pdfUrl}?t=${new Date(project.updatedAt).getTime()}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}

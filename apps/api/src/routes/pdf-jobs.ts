@@ -222,7 +222,7 @@ router.post('/:id/save', async (req, res) => {
       logger.warn({ err: e }, 'Failed to clean up temp HTML/PDF edit files');
     }
 
-    // Update the job parameters to include the updated htmlUrl, and update videoUrl with the new pdfUrl
+    // Update the job parameters to include the updated htmlUrl, and update pdfUrl with the new pdfUrl
     const updatedParams = {
       ...parameters,
       htmlUrl,
@@ -232,7 +232,7 @@ router.post('/:id/save', async (req, res) => {
       where: { id: job.id },
       data: { 
         parameters: JSON.stringify(updatedParams),
-        videoUrl: pdfUrl,
+        pdfUrl: pdfUrl,
       },
     });
 

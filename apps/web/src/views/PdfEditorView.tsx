@@ -180,11 +180,6 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
       const editables = cloneDoc.querySelectorAll('[contenteditable="true"]');
       editables.forEach(el => el.removeAttribute('contenteditable'));
 
-      const cleanHtml = '<!DOCTYPE html>\n' + cloneDoc.documentElement.outerHTML;
-      // strip off spellcheck too
-      const editables2 = cloneDoc.querySelectorAll('[spellcheck]');
-      editables2.forEach(el => el.removeAttribute('spellcheck'));
-
       const finalHtml = '<!DOCTYPE html>\n' + cloneDoc.documentElement.outerHTML;
 
       const token = await getToken();

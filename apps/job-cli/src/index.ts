@@ -192,10 +192,10 @@ program
         data: { parameters: JSON.stringify(updatedParams) },
       });
 
-      // 4. Update Database (save pdfUrl in videoUrl field)
+      // 4. Update Database (save pdfUrl in pdfUrl field)
       const updatedJob = await db.updateJob(jobId, {
         status: JobStatus.COMPLETED,
-        videoUrl: pdfUrl,
+        pdfUrl: pdfUrl,
       });
 
       // 5. Notify subscribers
