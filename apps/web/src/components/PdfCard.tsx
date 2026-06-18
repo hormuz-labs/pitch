@@ -75,39 +75,36 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
         <div className="absolute top-0 inset-x-0 h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-gray-50 to-gray-50 pointer-events-none" />
 
         {project.status === 'COMPLETED' ? (
-          <div className="absolute inset-0 p-3 flex flex-col justify-between z-10">
-            {/* Slide Sheet Mockup */}
-            <div className="w-full h-full bg-white rounded-lg border border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-3 flex flex-col justify-between">
-              {/* Header */}
-              <div className="flex items-center justify-between w-full">
-                <span className="text-[8px] font-extrabold uppercase tracking-widest text-gray-400">
-                  PDF Presentation
-                </span>
-                <span className="text-[9px] font-medium text-gray-400">
-                  {slideCount} slides
-                </span>
-              </div>
+          <div className="absolute inset-0 bg-white p-4 flex flex-col justify-between z-10">
+            {/* Header */}
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[8px] font-extrabold uppercase tracking-widest text-gray-400">
+                PDF Presentation
+              </span>
+              <span className="text-[9px] font-medium text-gray-400">
+                {slideCount} slides
+              </span>
+            </div>
 
-              {/* Title */}
-              <div className="my-auto text-left w-full">
-                <h3 className="text-xs font-bold text-gray-800 leading-snug line-clamp-2 font-sans mb-1.5 group-hover:text-gray-900 transition-colors duration-200">
-                  {title}
-                </h3>
-                <div className="w-6 h-0.5 bg-red-500 rounded" />
-              </div>
+            {/* Title */}
+            <div className="my-auto text-left w-full">
+              <h3 className="text-xs font-bold text-gray-800 leading-snug line-clamp-2 font-sans mb-1.5 group-hover:text-gray-950 transition-colors duration-200">
+                {title}
+              </h3>
+              <div className="w-6 h-0.5 bg-red-500 rounded" />
+            </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between w-full border-t border-gray-100 pt-2">
-                <span className="text-[8.5px] text-gray-400 font-medium">
-                  Ready to view
-                </span>
-                <div className="flex items-center gap-1 bg-red-50 text-red-600 font-extrabold text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded shadow-sm border border-red-100/50">
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                  </svg>
-                  PDF
-                </div>
+            {/* Footer */}
+            <div className="flex items-center justify-between w-full border-t border-gray-100 pt-2">
+              <span className="text-[8.5px] text-gray-400 font-medium">
+                Ready to view
+              </span>
+              <div className="flex items-center gap-1 bg-red-50 text-red-600 font-extrabold text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded shadow-sm border border-red-100/50">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                PDF
               </div>
             </div>
           </div>
