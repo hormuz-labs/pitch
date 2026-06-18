@@ -69,71 +69,73 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
     >
       {/* Overlay Border */}
       <div className="absolute inset-0 rounded-xl border border-gray-200 group-hover:border-gray-300 pointer-events-none z-10 transition-colors duration-200" />
-      {/* Thumbnail / PDF Cover Mockup */}
-      <div className="relative aspect-video w-full bg-gradient-to-tr from-neutral-900 via-neutral-950 to-neutral-900 flex flex-col items-center justify-center border-b border-gray-200 rounded-t-xl overflow-hidden select-none">
-        {/* Subtle mesh background glows */}
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-white/[0.02] rounded-full blur-[40px] pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-neutral-800/10 rounded-full blur-[40px] pointer-events-none" />
+      {/* Thumbnail / PDF Cover Mockup (Light Google Theme) */}
+      <div className="relative aspect-video w-full bg-gray-50 flex flex-col items-center justify-center border-b border-gray-200 rounded-t-xl overflow-hidden select-none">
+        {/* Subtle radial gradients for premium feel */}
+        <div className="absolute top-0 inset-x-0 h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-gray-50 to-gray-50 pointer-events-none" />
 
         {project.status === 'COMPLETED' ? (
-          <div className="absolute inset-0 p-4 flex flex-col justify-between z-10">
-            {/* Top row */}
-            <div className="flex items-center justify-between w-full">
-              <span className="text-[9px] font-extrabold uppercase tracking-wider text-neutral-300 bg-neutral-800 border border-neutral-700 px-2 py-0.5 rounded">
-                PDF Deck
-              </span>
-              <span className="text-[10px] font-bold text-neutral-400">
-                {slideCount} slides
-              </span>
-            </div>
+          <div className="absolute inset-0 p-3 flex flex-col justify-between z-10">
+            {/* Slide Sheet Mockup */}
+            <div className="w-full h-full bg-white rounded-lg border border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-3 flex flex-col justify-between">
+              {/* Header */}
+              <div className="flex items-center justify-between w-full">
+                <span className="text-[8px] font-extrabold uppercase tracking-widest text-gray-400">
+                  PDF Presentation
+                </span>
+                <span className="text-[9px] font-medium text-gray-400">
+                  {slideCount} slides
+                </span>
+              </div>
 
-            {/* Title Mockup */}
-            <div className="my-auto text-left max-w-full">
-              <h3 className="text-xs font-bold text-white leading-tight line-clamp-2 tracking-wide font-sans mb-1 group-hover:text-neutral-300 transition-colors duration-200">
-                {title}
-              </h3>
-              <div className="w-8 h-0.5 bg-neutral-400 rounded" />
-            </div>
+              {/* Title */}
+              <div className="my-auto text-left w-full">
+                <h3 className="text-xs font-bold text-gray-800 leading-snug line-clamp-2 font-sans mb-1.5 group-hover:text-gray-900 transition-colors duration-200">
+                  {title}
+                </h3>
+                <div className="w-6 h-0.5 bg-red-500 rounded" />
+              </div>
 
-            {/* Bottom Row */}
-            <div className="flex items-center justify-between w-full border-t border-white/5 pt-2">
-              <span className="text-[9px] text-neutral-500 font-medium truncate max-w-[70%]">
-                Ready to view
-              </span>
-              <div className="flex items-center gap-1 bg-white text-black font-extrabold text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded shadow-sm scale-95 origin-right border border-white">
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                </svg>
-                PDF
+              {/* Footer */}
+              <div className="flex items-center justify-between w-full border-t border-gray-100 pt-2">
+                <span className="text-[8.5px] text-gray-400 font-medium">
+                  Ready to view
+                </span>
+                <div className="flex items-center gap-1 bg-red-50 text-red-600 font-extrabold text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded shadow-sm border border-red-100/50">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  PDF
+                </div>
               </div>
             </div>
           </div>
         ) : (project.status === 'PROCESSING' || project.status === 'PENDING') ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 z-10">
             {/* Blueprint Grid Overlay */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none opacity-60" />
+            <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[size:12px_12px] pointer-events-none opacity-60" />
             
             {/* Animated stacked pages */}
             <div className="relative w-16 h-10 flex items-center justify-center">
-              <div className="absolute w-12 h-8 bg-neutral-900 border border-neutral-800 rounded shadow-[0_0_8px_rgba(255,255,255,0.02)] -rotate-6 transform translate-x-[-2px] translate-y-[-2px]" />
-              <div className="absolute w-12 h-8 bg-neutral-800 border border-neutral-700 rounded shadow-[0_0_12px_rgba(255,255,255,0.05)] rotate-3 transform translate-x-[2px] translate-y-[1px]" />
-              <div className="absolute w-12 h-8 bg-neutral-950 border border-neutral-600 rounded flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+              <div className="absolute w-12 h-8 bg-white border border-gray-200 rounded shadow-[0_1px_3px_rgba(0,0,0,0.02)] -rotate-6 transform translate-x-[-2px] translate-y-[-2px]" />
+              <div className="absolute w-12 h-8 bg-white border border-gray-250 rounded shadow-[0_2px_5px_rgba(0,0,0,0.03)] rotate-3 transform translate-x-[2px] translate-y-[1px]" />
+              <div className="absolute w-12 h-8 bg-white border border-gray-300 rounded flex items-center justify-center shadow-[0_3px_8px_rgba(0,0,0,0.05)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-ping" />
               </div>
             </div>
 
-            <div className="flex flex-col items-center gap-1 select-none">
-              <span className="text-[10px] font-bold text-neutral-300 uppercase tracking-widest animate-pulse">
-                {project.status === 'PROCESSING' ? 'Compiling Deck' : 'Queued'}
+            <div className="flex flex-col items-center gap-0.5 select-none">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest animate-pulse">
+                {project.status === 'PROCESSING' ? 'Generating PDF' : 'Queued'}
               </span>
-              <p className="text-[8px] text-neutral-500 tracking-wider">Please wait...</p>
+              <p className="text-[8px] text-gray-400 tracking-wider">Please wait...</p>
             </div>
           </div>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4 z-10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950">
-            <div className="w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4 z-10 bg-gray-50">
+            <div className="w-9 h-9 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-500 shadow-sm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/>
                 <line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -141,10 +143,10 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
             </div>
             
             <div className="flex flex-col items-center select-none">
-              <span className="text-[10px] font-extrabold text-neutral-300 uppercase tracking-widest">
+              <span className="text-[9px] font-extrabold text-red-600 uppercase tracking-widest">
                 Generation Failed
               </span>
-              <span className="text-[8px] text-neutral-500 mt-0.5 truncate max-w-[150px]">
+              <span className="text-[8px] text-gray-400 mt-0.5 truncate max-w-[150px]">
                 {project.error || 'Unknown error occurred'}
               </span>
             </div>
