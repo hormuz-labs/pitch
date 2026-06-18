@@ -11,6 +11,27 @@ interface PdfEditorViewProps {
   projects: Project[];
 }
 
+const normalizeColor = (col: string): string => {
+  if (!col) return '';
+  const trimmed = col.trim().toLowerCase();
+  if (trimmed === 'transparent' || trimmed === 'rgba(0, 0, 0, 0)') return 'transparent';
+  if (trimmed.startsWith('#')) return trimmed;
+  const match = trimmed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+  if (match) {
+    const r = parseInt(match[1], 10);
+    const g = parseInt(match[2], 10);
+    const b = parseInt(match[3], 10);
+    const a = match[4] ? parseFloat(match[4]) : 1;
+    if (a === 0) return 'transparent';
+    const hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    return hex;
+  }
+  return trimmed;
+};
+
+const TEXT_PRESETS = ['#000000', '#ffffff', '#4b5563', '#9ca3af', '#3b82f6', '#ef4444'];
+const BG_PRESETS = ['transparent', '#ffffff', '#000000', '#f3f4f6', '#e5e7eb', '#1f2937'];
+
 export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -133,11 +154,12 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
         });
         el.classList.add('selected-for-styling');
 
-        setSelectedEl(el as HTMLElement);
-        setElType(el.tagName === 'H1' ? 'Heading' : el.tagName === 'LI' ? 'List Item' : 'Text Block');
-        setSelectedColor(el.style.color || window.getComputedStyle(el).color);
-        setSelectedBgColor(el.style.backgroundColor || window.getComputedStyle(el).backgroundColor);
-        setSelectedFontSize(el.style.fontSize || window.getComputedStyle(el).fontSize);
+        const htmlEl = el as HTMLElement;
+        setSelectedEl(htmlEl);
+        setElType(htmlEl.tagName === 'H1' ? 'Heading' : htmlEl.tagName === 'LI' ? 'List Item' : 'Text Block');
+        setSelectedColor(htmlEl.style.color || window.getComputedStyle(htmlEl).color);
+        setSelectedBgColor(htmlEl.style.backgroundColor || window.getComputedStyle(htmlEl).backgroundColor);
+        setSelectedFontSize(htmlEl.style.fontSize || window.getComputedStyle(htmlEl).fontSize);
       });
     });
 
@@ -157,10 +179,11 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
           });
           slideEl.classList.add('selected-for-styling');
 
-          setSelectedEl(slideEl as HTMLElement);
+          const slideHtmlEl = slideEl as HTMLElement;
+          setSelectedEl(slideHtmlEl);
           setElType('Slide Background');
           setSelectedColor('');
-          setSelectedBgColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
+          setSelectedBgColor(slideHtmlEl.style.backgroundColor || window.getComputedStyle(slideHtmlEl).backgroundColor);
           setSelectedFontSize('');
         }
       });
@@ -414,25 +437,43 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400 font-medium">Text</span>
                 <div className="flex items-center gap-1">
-                  {['#000000', '#ffffff', '#4b5563', '#9ca3af', '#3b82f6', '#ef4444'].map((col) => (
-                    <button
-                      key={col}
-                      onClick={() => changeColor(col)}
-                      style={{ backgroundColor: col }}
-                      className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
-                        selectedColor === col ? 'ring-2 ring-indigo-500 scale-110' : ''
-                      }`}
-                    />
-                  ))}
+                  {TEXT_PRESETS.map((col) => {
+                    const isSelected = normalizeColor(selectedColor) === normalizeColor(col);
+                    return (
+                      <button
+                        key={col}
+                        onClick={() => changeColor(col)}
+                        style={{ backgroundColor: col }}
+                        className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
+                          isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
+                        }`}
+                      />
+                    );
+                  })}
                   {/* Custom color picker */}
-                  <div className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer">
-                    <input
-                      type="color"
-                      value={selectedColor.startsWith('#') && selectedColor.length === 7 ? selectedColor : '#000000'}
-                      onChange={(e) => changeColor(e.target.value)}
-                      className="absolute inset-[-4px] w-[200%] h-[200%] cursor-pointer p-0 border-none"
-                    />
-                  </div>
+                  {(() => {
+                    const normSelectedColor = normalizeColor(selectedColor);
+                    const isCustomColor = selectedColor && !TEXT_PRESETS.map(normalizeColor).includes(normSelectedColor);
+                    return (
+                      <div 
+                        className={`relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center ${
+                          isCustomColor ? 'ring-2 ring-indigo-500 scale-110' : ''
+                        }`}
+                        style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
+                        title="Custom Color Picker"
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
+                        </div>
+                        <input
+                          type="color"
+                          value={normSelectedColor.startsWith('#') && normSelectedColor.length === 7 ? normSelectedColor : '#000000'}
+                          onChange={(e) => changeColor(e.target.value)}
+                          className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -441,27 +482,45 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 font-medium">Background</span>
               <div className="flex items-center gap-1">
-                {['transparent', '#ffffff', '#000000', '#f3f4f6', '#e5e7eb', '#1f2937'].map((col) => (
-                  <button
-                    key={col}
-                    onClick={() => changeBgColor(col)}
-                    style={{ backgroundColor: col === 'transparent' ? 'transparent' : col }}
-                    className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 flex items-center justify-center ${
-                      selectedBgColor === col ? 'ring-2 ring-indigo-500 scale-110' : ''
-                    }`}
-                  >
-                    {col === 'transparent' && <span className="text-[10px] text-gray-400">∅</span>}
-                  </button>
-                ))}
+                {BG_PRESETS.map((col) => {
+                  const isSelected = normalizeColor(selectedBgColor) === normalizeColor(col);
+                  return (
+                    <button
+                      key={col}
+                      onClick={() => changeBgColor(col)}
+                      style={{ backgroundColor: col === 'transparent' ? 'transparent' : col }}
+                      className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 flex items-center justify-center ${
+                        isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
+                      }`}
+                    >
+                      {col === 'transparent' && <span className="text-[10px] text-gray-400">∅</span>}
+                    </button>
+                  );
+                })}
                 {/* Custom bg color picker */}
-                <div className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer">
-                  <input
-                    type="color"
-                    value={selectedBgColor.startsWith('#') && selectedBgColor.length === 7 ? selectedBgColor : '#ffffff'}
-                    onChange={(e) => changeBgColor(e.target.value)}
-                    className="absolute inset-[-4px] w-[200%] h-[200%] cursor-pointer p-0 border-none"
-                  />
-                </div>
+                {(() => {
+                  const normSelectedBgColor = normalizeColor(selectedBgColor);
+                  const isCustomBgColor = selectedBgColor && !BG_PRESETS.map(normalizeColor).includes(normSelectedBgColor);
+                  return (
+                    <div 
+                      className={`relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center ${
+                        isCustomBgColor ? 'ring-2 ring-indigo-500 scale-110' : ''
+                      }`}
+                      style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
+                      title="Custom Background Color"
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
+                      </div>
+                      <input
+                        type="color"
+                        value={normSelectedBgColor.startsWith('#') && normSelectedBgColor.length === 7 ? normSelectedBgColor : '#ffffff'}
+                        onChange={(e) => changeBgColor(e.target.value)}
+                        className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
+                      />
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
