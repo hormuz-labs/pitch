@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project } from '../types';
@@ -34,17 +34,7 @@ const normalizeColor = (col: string): string => {
   return trimmed;
 };
 
-const TEXT_PRESETS = ['#000000', '#ffffff', '#4b5563', '#9ca3af', '#3b82f6', '#ef4444'];
 const BG_PRESETS = ['transparent', '#ffffff', '#000000', '#f3f4f6', '#e5e7eb', '#1f2937'];
-
-const VAR_LABELS: { [name: string]: string } = {
-  '--primary': 'Accent & Bullets',
-  '--bg': 'Slide Background',
-  '--accent': 'Title & Headings',
-  '--secondary': 'Descriptions & Footers',
-  '--text': 'Default Text',
-  '--overlay': 'Background Overlay',
-};
 
 export const PdfEditorView = ({
   projects,
@@ -71,81 +61,14 @@ export const PdfEditorView = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeImageRef = useRef<{ id: string; src: string } | null>(null);
 
+  // Canva-like color extraction and bulk states
+  const [slideColorsHash, setSlideColorsHash] = useState<number>(0);
+
   // Styling editor states
   const [selectedEl, setSelectedEl] = useState<HTMLElement | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>('');
-  const [selectedBgColor, setSelectedBgColor] = useState<string>('');
   const [selectedFontSize, setSelectedFontSize] = useState<string>('');
-  const [elType, setElType] = useState<string>('');
-
-  const updateThemeVariables = useCallback(() => {
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentDocument) return;
-
-    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
-    if (!slideEl) return;
-
-    const vars: { [name: string]: string } = {};
-    try {
-      const doc = iframe.contentDocument;
-      for (let i = 0; i < doc.styleSheets.length; i++) {
-        const sheet = doc.styleSheets[i];
-        try {
-          const rules = sheet.cssRules || sheet.rules;
-          if (!rules) continue;
-          for (let j = 0; j < rules.length; j++) {
-            const rule = rules[j] as CSSStyleRule;
-            if (rule.selectorText === ':root') {
-              const style = rule.style;
-              for (let k = 0; k < style.length; k++) {
-                const name = style[k];
-                if (name.startsWith('--')) {
-                  const val = slideEl.style.getPropertyValue(name) || style.getPropertyValue(name);
-                  if (val) {
-                    vars[name] = val.trim();
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          // Ignore stylesheet rules reading errors
-        }
-      }
-    } catch (e) {
-      // Ignore stylesheet parsing errors
-    }
-    setThemeVariables(vars);
-  }, [activeSlide]);
-
-  const handleThemeVarChange = (name: string, newValue: string) => {
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentDocument) return;
-
-    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
-    if (!slideEl) return;
-
-    slideEl.style.setProperty(name, newValue);
-
-    setThemeVariables(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-
-    setSaveStatus('idle');
-    setSlideColorsHash(prev => prev + 1);
-  };
-
-  // Canva-like color extraction and bulk states
-  const [slideColorsHash, setSlideColorsHash] = useState<number>(0);
-  const [changeAllState, setChangeAllState] = useState<{
-    oldColor: string;
-    newColor: string;
-    type: 'color' | 'bgColor';
-  } | null>(null);
-
-  // States to hold the active CSS custom property variables detected in presentation
-  const [themeVariables, setThemeVariables] = useState<{ [name: string]: string }>({});
+  const [selectedBulletColor, setSelectedBulletColor] = useState<string>('');
 
   const slideColorStats = useMemo(() => {
     const iframe = iframeRef.current;
@@ -197,9 +120,17 @@ export const PdfEditorView = ({
       .sort((a, b) => b.totalCount - a.totalCount);
   }, [activeSlide, slideColorsHash, htmlContent, loadingHtml]);
 
-  const slideColors = useMemo(() => {
-    return slideColorStats.map(stat => stat.color);
-  }, [slideColorStats]);
+
+  const activeSlideBgColor = useMemo(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return '';
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (!slideEl) return '';
+
+    const rawBgColor = slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor || '';
+    return normalizeColor(rawBgColor);
+  }, [activeSlide, slideColorsHash, htmlContent, loadingHtml]);
 
   useEffect(() => {
     // TopHeader renders #pdf-editor-header-actions when isPdfEditorPage is true
@@ -242,13 +173,6 @@ export const PdfEditorView = ({
       if (setOnScrollToPdfSlide) setOnScrollToPdfSlide(null);
     };
   }, [setPdfSlides, setActivePdfSlide, setOnScrollToPdfSlide]);
-
-  // Synchronize CSS custom properties (theme variables) on slide changes
-  useEffect(() => {
-    if (!loadingHtml && htmlContent) {
-      updateThemeVariables();
-    }
-  }, [activeSlide, htmlContent, loadingHtml, updateThemeVariables]);
 
 
   // 1. Handle responsive scaling for the 1280x720 viewport
@@ -332,7 +256,7 @@ export const PdfEditorView = ({
       el.setAttribute('contenteditable', 'true');
       el.setAttribute('spellcheck', 'false');
 
-      // Click listener to select element for styling
+      // Click listener to update active slide context and element selection
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         
@@ -343,13 +267,17 @@ export const PdfEditorView = ({
 
         const htmlEl = el as HTMLElement;
         setSelectedEl(htmlEl);
-        setElType(htmlEl.tagName === 'H1' ? 'Heading' : htmlEl.tagName === 'LI' ? 'List Item' : 'Text Block');
         setSelectedColor(htmlEl.style.color || window.getComputedStyle(htmlEl).color);
-        setSelectedBgColor(htmlEl.style.backgroundColor || window.getComputedStyle(htmlEl).backgroundColor);
         setSelectedFontSize(htmlEl.style.fontSize || window.getComputedStyle(htmlEl).fontSize);
 
-        // Update active slide when element is clicked
-        const parentSlide = htmlEl.closest('.slide');
+        if (htmlEl.tagName === 'LI') {
+          const bulColor = htmlEl.style.getPropertyValue('--primary') || window.getComputedStyle(htmlEl).getPropertyValue('--primary');
+          setSelectedBulletColor(bulColor.trim());
+        } else {
+          setSelectedBulletColor('');
+        }
+
+        const parentSlide = el.closest('.slide');
         if (parentSlide) {
           const slideIdStr = parentSlide.getAttribute('id');
           if (slideIdStr) {
@@ -359,6 +287,12 @@ export const PdfEditorView = ({
             }
           }
         }
+      });
+
+      // Input listener to trigger unsaved changes state
+      el.addEventListener('input', () => {
+        setSaveStatus('idle');
+        setSlideColorsHash(prev => prev + 1);
       });
     });
 
@@ -370,30 +304,13 @@ export const PdfEditorView = ({
       // Add id to slide element for easy scrolling
       slideEl.setAttribute('id', `slide-node-${index}`);
 
-      // Click listener to select slide background for styling
-      slideEl.addEventListener('click', (e) => {
-        if (e.target === slideEl || (e.target as HTMLElement).classList.contains('slide-content') || (e.target as HTMLElement).tagName === 'SECTION') {
-          doc.querySelectorAll('.selected-for-styling').forEach(item => {
-            item.classList.remove('selected-for-styling');
-          });
-          slideEl.classList.add('selected-for-styling');
-
-          const slideHtmlEl = slideEl as HTMLElement;
-          setSelectedEl(slideHtmlEl);
-          setElType('Slide Background');
-          setSelectedColor('');
-          setSelectedBgColor(slideHtmlEl.style.backgroundColor || window.getComputedStyle(slideHtmlEl).backgroundColor);
-          setSelectedFontSize('');
-
-          // Update active slide when slide background is clicked
-          const slideIdStr = slideHtmlEl.getAttribute('id');
-          if (slideIdStr) {
-            const index = parseInt(slideIdStr.replace('slide-node-', ''), 10);
-            if (!isNaN(index)) {
-              setActiveSlide(index);
-            }
-          }
-        }
+      // Click listener to select slide background and deselect elements
+      slideEl.addEventListener('click', () => {
+        setActiveSlide(index);
+        doc.querySelectorAll('.selected-for-styling').forEach(item => {
+          item.classList.remove('selected-for-styling');
+        });
+        setSelectedEl(null);
       });
 
       return { id: index, title };
@@ -409,12 +326,23 @@ export const PdfEditorView = ({
         e.stopPropagation();
         activeImageRef.current = { id: img.id, src: img.src };
         fileInputRef.current?.click();
+
+        // Update active slide when image is clicked
+        const parentSlide = img.closest('.slide');
+        if (parentSlide) {
+          const slideIdStr = parentSlide.getAttribute('id');
+          if (slideIdStr) {
+            const index = parseInt(slideIdStr.replace('slide-node-', ''), 10);
+            if (!isNaN(index)) {
+              setActiveSlide(index);
+            }
+          }
+        }
       });
     });
 
-    // Trigger initial color extraction and variable parsing
+    // Trigger initial color extraction
     setSlideColorsHash(prev => prev + 1);
-    updateThemeVariables();
   };
 
   // 4. Handle image file replacement and load as base64 DataURL
@@ -429,6 +357,7 @@ export const PdfEditorView = ({
       if (targetImg) {
         targetImg.src = base64Data;
         setSaveStatus('idle'); // changes unsaved
+        setSlideColorsHash(prev => prev + 1); // update used colors
       }
     };
     reader.readAsDataURL(file);
@@ -439,7 +368,6 @@ export const PdfEditorView = ({
   // 5. Scroll active slide into view inside the iframe
   const scrollToSlide = (index: number) => {
     setActiveSlide(index);
-    setChangeAllState(null); // Clear bulk swap state
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentDocument) return;
 
@@ -455,8 +383,6 @@ export const PdfEditorView = ({
     if (!iframe || !iframe.contentDocument) return;
 
     setSaveStatus('saving');
-    // Clear selection state before saving
-    setSelectedEl(null);
 
     try {
       // Clean up dynamic editing styles/attributes before saving
@@ -479,151 +405,51 @@ export const PdfEditorView = ({
   };
 
   // 7. Styling mutators
-  const changeColor = (newColor: string) => {
-    if (!selectedEl) return;
-
+  const changeSlideBgColor = (newBgColor: string) => {
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentDocument) return;
 
     const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
     if (slideEl) {
-      const oldNorm = normalizeColor(selectedColor);
-      const newNorm = normalizeColor(newColor);
-
-      if (oldNorm && oldNorm !== 'transparent' && oldNorm !== newNorm) {
-        let matchCount = 0;
-        const children = slideEl.querySelectorAll('*');
-        children.forEach((child) => {
-          if (child === selectedEl) return;
-          const htmlChild = child as HTMLElement;
-          if (!htmlChild.style) return;
-          const childNorm = normalizeColor(htmlChild.style.color || window.getComputedStyle(htmlChild).color);
-          if (childNorm === oldNorm) {
-            matchCount++;
-          }
-        });
-
-        if (matchCount > 0) {
-          setChangeAllState({
-            oldColor: selectedColor,
-            newColor: newColor,
-            type: 'color'
-          });
-        } else {
-          setChangeAllState(null);
-        }
-      } else {
-        setChangeAllState(null);
-      }
+      slideEl.style.backgroundColor = newBgColor;
+      setSaveStatus('idle');
+      setSlideColorsHash(prev => prev + 1);
     }
+  };
 
+
+
+  const changeSelectedColor = (newColor: string) => {
+    if (!selectedEl) return;
     selectedEl.style.color = newColor;
     setSelectedColor(newColor);
     setSaveStatus('idle');
     setSlideColorsHash(prev => prev + 1);
   };
 
-  const changeBgColor = (newBgColor: string) => {
+  const changeSelectedFontSize = (increase: boolean) => {
     if (!selectedEl) return;
+    const currentSizeStr = selectedEl.style.fontSize || window.getComputedStyle(selectedEl).fontSize;
+    const currentSize = parseFloat(currentSizeStr) || 16;
+    const newSize = increase ? currentSize + 2 : Math.max(8, currentSize - 2);
+    selectedEl.style.fontSize = `${newSize}px`;
+    setSelectedFontSize(`${newSize}px`);
+    setSaveStatus('idle');
+  };
 
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentDocument) return;
-
-    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
-    if (slideEl) {
-      const oldNorm = normalizeColor(selectedBgColor);
-      const newNorm = normalizeColor(newBgColor);
-
-      if (oldNorm && oldNorm !== 'transparent' && oldNorm !== newNorm) {
-        let matchCount = 0;
-
-        if (slideEl !== selectedEl) {
-          const slideBgNorm = normalizeColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
-          if (slideBgNorm === oldNorm) {
-            matchCount++;
-          }
-        }
-
-        const children = slideEl.querySelectorAll('*');
-        children.forEach((child) => {
-          if (child === selectedEl) return;
-          const htmlChild = child as HTMLElement;
-          if (!htmlChild.style) return;
-          const childNorm = normalizeColor(htmlChild.style.backgroundColor || window.getComputedStyle(htmlChild).backgroundColor);
-          if (childNorm === oldNorm) {
-            matchCount++;
-          }
-        });
-
-        if (matchCount > 0) {
-          setChangeAllState({
-            oldColor: selectedBgColor,
-            newColor: newBgColor,
-            type: 'bgColor'
-          });
-        } else {
-          setChangeAllState(null);
-        }
-      } else {
-        setChangeAllState(null);
-      }
-    }
-
-    selectedEl.style.backgroundColor = newBgColor;
-    setSelectedBgColor(newBgColor);
+  const changeSelectedBulletColor = (newColor: string) => {
+    if (!selectedEl || selectedEl.tagName !== 'LI') return;
+    selectedEl.style.setProperty('--primary', newColor);
+    setSelectedBulletColor(newColor);
     setSaveStatus('idle');
     setSlideColorsHash(prev => prev + 1);
   };
 
-  const applyChangeAll = () => {
-    if (!changeAllState) return;
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentDocument) return;
-
-    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
-    if (!slideEl) return;
-
-    const { oldColor, newColor, type } = changeAllState;
-    const oldNorm = normalizeColor(oldColor);
-
-    if (type === 'color') {
-      const children = slideEl.querySelectorAll('*');
-      children.forEach((child) => {
-        const htmlChild = child as HTMLElement;
-        if (!htmlChild.style) return;
-        const childNorm = normalizeColor(htmlChild.style.color || window.getComputedStyle(htmlChild).color);
-        if (childNorm === oldNorm) {
-          htmlChild.style.color = newColor;
-        }
-      });
-      if (selectedEl) {
-        selectedEl.style.color = newColor;
-        setSelectedColor(newColor);
-      }
-    } else if (type === 'bgColor') {
-      const slideBgNorm = normalizeColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
-      if (slideBgNorm === oldNorm) {
-        slideEl.style.backgroundColor = newColor;
-      }
-
-      const children = slideEl.querySelectorAll('*');
-      children.forEach((child) => {
-        const htmlChild = child as HTMLElement;
-        if (!htmlChild.style) return;
-        const childNorm = normalizeColor(htmlChild.style.backgroundColor || window.getComputedStyle(htmlChild).backgroundColor);
-        if (childNorm === oldNorm) {
-          htmlChild.style.backgroundColor = newColor;
-        }
-      });
-      if (selectedEl) {
-        selectedEl.style.backgroundColor = newColor;
-        setSelectedBgColor(newColor);
-      }
+  const deselectElement = () => {
+    if (iframeRef.current?.contentDocument) {
+      iframeRef.current.contentDocument.querySelectorAll('.selected-for-styling').forEach(el => el.classList.remove('selected-for-styling'));
     }
-
-    setSaveStatus('idle');
-    setChangeAllState(null);
-    setSlideColorsHash(prev => prev + 1);
+    setSelectedEl(null);
   };
 
   const handleSlideColorSwap = (oldColor: string, newColor: string) => {
@@ -658,34 +484,8 @@ export const PdfEditorView = ({
       slideEl.style.backgroundColor = newColor;
     }
 
-    if (selectedEl) {
-      const currentTextCol = selectedEl.style.color || window.getComputedStyle(selectedEl).color;
-      const currentBgCol = selectedEl.style.backgroundColor || window.getComputedStyle(selectedEl).backgroundColor;
-      setSelectedColor(currentTextCol);
-      setSelectedBgColor(currentBgCol);
-    }
-
     setSaveStatus('idle');
-    setChangeAllState(null);
     setSlideColorsHash(prev => prev + 1);
-  };
-
-  const changeFontSize = (increase: boolean) => {
-    if (!selectedEl || elType === 'Slide Background') return;
-    const currentSizeStr = selectedEl.style.fontSize || window.getComputedStyle(selectedEl).fontSize;
-    const currentSize = parseFloat(currentSizeStr) || 16;
-    const newSize = increase ? currentSize + 2 : Math.max(8, currentSize - 2);
-    selectedEl.style.fontSize = `${newSize}px`;
-    setSelectedFontSize(`${newSize}px`);
-    setSaveStatus('idle');
-  };
-
-  const closeToolbar = () => {
-    if (iframeRef.current?.contentDocument) {
-      iframeRef.current.contentDocument.querySelectorAll('.selected-for-styling').forEach(el => el.classList.remove('selected-for-styling'));
-    }
-    setSelectedEl(null);
-    setChangeAllState(null);
   };
 
   if (!selectedProject) {
@@ -791,169 +591,56 @@ export const PdfEditorView = ({
         portalTarget
       )}
 
-      {/* ── Slide Element Styling Toolbar ─────────────────────────────────────── */}
-      {selectedEl && (
-        <div className="bg-white border-b border-gray-200 px-6 py-3.5 flex flex-col gap-3.5 z-10 shadow-sm shrink-0 transition-all duration-300">
-          {/* Main Controls Row */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
-                {elType}
-              </span>
-              
-              {/* Font Size controls (only for text elements) */}
-              {elType !== 'Slide Background' && (
-                <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4">
-                  <span className="text-xs text-gray-400 font-medium mr-1">Size</span>
-                  <button
-                    onClick={() => changeFontSize(false)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <span className="text-xs font-mono font-bold text-gray-700 min-w-[40px] text-center">
-                    {selectedFontSize || 'N/A'}
-                  </span>
-                  <button
-                    onClick={() => changeFontSize(true)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
-                  >
-                    +
-                  </button>
+      {/* ── Slide Theme & Colors Panel ────────────────────────────────────────── */}
+      {!loadingHtml && htmlContent && (
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col gap-4 z-10 shadow-sm shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            
+            {/* Left Column: Slide Styles (Always Visible) */}
+            <div className="flex flex-wrap items-center gap-6">
+              {/* Active Slide Info */}
+              <div className="flex items-center gap-3 pr-4 border-r border-gray-200">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="9" y1="3" x2="9" y2="21"/>
+                  </svg>
+                  Slide {activeSlide + 1}
+                </span>
+                <div className="hidden sm:block">
+                  <h4 className="text-xs font-bold text-gray-800">Slide Theme & Colors</h4>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <div className="flex items-center gap-6">
-              {/* Text Color Picker (only for text elements) */}
-              {elType !== 'Slide Background' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400 font-medium">Text</span>
-                  <div className="flex items-center gap-1">
-                    {TEXT_PRESETS.map((col) => {
-                      const isSelected = normalizeColor(selectedColor) === normalizeColor(col);
-                      return (
-                        <button
-                          key={col}
-                          onClick={() => changeColor(col)}
-                          style={{ backgroundColor: col }}
-                          className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
-                            isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
-                          }`}
-                        />
-                      );
-                    })}
-
-                    {(() => {
-                      const textPresetsNormalized = TEXT_PRESETS.map(normalizeColor);
-                      const extractedTextColors = slideColors.filter(c => c !== 'transparent' && !textPresetsNormalized.includes(normalizeColor(c)));
-                      if (extractedTextColors.length === 0) return null;
-                      return (
-                        <>
-                          <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-                          {extractedTextColors.map((col) => {
-                            const isSelected = normalizeColor(selectedColor) === normalizeColor(col);
-                            return (
-                              <button
-                                key={col}
-                                onClick={() => changeColor(col)}
-                                style={{ backgroundColor: col }}
-                                className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
-                                  isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
-                                }`}
-                                title="Color used in slide"
-                              />
-                            );
-                          })}
-                        </>
-                      );
-                    })()}
-
-                    {/* Custom color picker */}
-                    {(() => {
-                      const normSelectedColor = normalizeColor(selectedColor);
-                      const textPresetsNormalized = TEXT_PRESETS.map(normalizeColor);
-                      const extractedTextColors = slideColors.filter(c => c !== 'transparent' && !textPresetsNormalized.includes(normalizeColor(c)));
-                      const isCustomColor = selectedColor && !textPresetsNormalized.includes(normSelectedColor) && !extractedTextColors.map(normalizeColor).includes(normSelectedColor);
-                      return (
-                        <div 
-                          className={`relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center ${
-                            isCustomColor ? 'ring-2 ring-indigo-500 scale-110' : ''
-                          }`}
-                          style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
-                          title="Custom Color Picker"
-                        >
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
-                          </div>
-                          <input
-                            type="color"
-                            value={normSelectedColor.startsWith('#') && normSelectedColor.length === 7 ? normSelectedColor : '#000000'}
-                            onChange={(e) => changeColor(e.target.value)}
-                            className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
-                          />
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* Background Color Picker */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 font-medium">Background</span>
-                <div className="flex items-center gap-1">
+              {/* Slide Background Color Control */}
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                <span className="text-xs text-gray-500 font-semibold">Background</span>
+                <div className="flex items-center gap-1.5">
                   {BG_PRESETS.map((col) => {
-                    const isSelected = normalizeColor(selectedBgColor) === normalizeColor(col);
+                    const isSelected = normalizeColor(activeSlideBgColor) === normalizeColor(col);
                     return (
                       <button
                         key={col}
-                        onClick={() => changeBgColor(col)}
+                        onClick={() => changeSlideBgColor(col)}
                         style={{ backgroundColor: col === 'transparent' ? 'transparent' : col }}
-                        className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 flex items-center justify-center ${
+                        className={`w-5 h-5 rounded-full border border-gray-300 shadow-sm transition-all hover:scale-110 flex items-center justify-center ${
                           isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
                         }`}
+                        title={`Background: ${col}`}
                       >
                         {col === 'transparent' && <span className="text-[10px] text-gray-400">∅</span>}
                       </button>
                     );
                   })}
-
+                  {/* Custom Background Color Picker */}
                   {(() => {
+                    const normBgColor = normalizeColor(activeSlideBgColor);
                     const bgPresetsNormalized = BG_PRESETS.map(normalizeColor);
-                    const extractedBgColors = slideColors.filter(c => c !== 'transparent' && !bgPresetsNormalized.includes(normalizeColor(c)));
-                    if (extractedBgColors.length === 0) return null;
-                    return (
-                      <>
-                        <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-                        {extractedBgColors.map((col) => {
-                          const isSelected = normalizeColor(selectedBgColor) === normalizeColor(col);
-                          return (
-                            <button
-                              key={col}
-                              onClick={() => changeBgColor(col)}
-                              style={{ backgroundColor: col }}
-                              className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
-                                isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
-                              }`}
-                              title="Color used in slide"
-                            />
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-
-                  {/* Custom bg color picker */}
-                  {(() => {
-                    const normSelectedBgColor = normalizeColor(selectedBgColor);
-                    const bgPresetsNormalized = BG_PRESETS.map(normalizeColor);
-                    const extractedBgColors = slideColors.filter(c => c !== 'transparent' && !bgPresetsNormalized.includes(normalizeColor(c)));
-                    const isCustomBgColor = selectedBgColor && !BG_PRESETS.map(normalizeColor).includes(normSelectedBgColor) && !extractedBgColors.map(normalizeColor).includes(normSelectedBgColor);
+                    const isCustomBg = normBgColor && !bgPresetsNormalized.includes(normBgColor);
                     return (
                       <div 
                         className={`relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center ${
-                          isCustomBgColor ? 'ring-2 ring-indigo-500 scale-110' : ''
+                          isCustomBg ? 'ring-2 ring-indigo-500 scale-110' : ''
                         }`}
                         style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
                         title="Custom Background Color"
@@ -963,8 +650,8 @@ export const PdfEditorView = ({
                         </div>
                         <input
                           type="color"
-                          value={normSelectedBgColor.startsWith('#') && normSelectedBgColor.length === 7 ? normSelectedBgColor : '#ffffff'}
-                          onChange={(e) => changeBgColor(e.target.value)}
+                          value={normBgColor.startsWith('#') && normBgColor.length === 7 ? normBgColor : '#ffffff'}
+                          onChange={(e) => changeSlideBgColor(e.target.value)}
                           className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
                         />
                       </div>
@@ -972,100 +659,100 @@ export const PdfEditorView = ({
                   })()}
                 </div>
               </div>
-
-              {/* Close / Deselect */}
-              <button
-                onClick={closeToolbar}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg cursor-pointer animate-none"
-                title="Close Toolbar"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
             </div>
-          </div>
 
-          {/* Canva-style Change All Banner */}
-          {changeAllState && (
-            <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5 text-xs text-indigo-700 shadow-inner">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                <span>
-                  Change all <strong>{changeAllState.type === 'color' ? 'text' : 'background'}</strong> colors on this slide from{' '}
-                  <span className="inline-block w-4 h-4 rounded-full align-middle border border-indigo-200 shadow-sm" style={{ backgroundColor: changeAllState.oldColor }} />{' '}
-                  to{' '}
-                  <span className="inline-block w-4 h-4 rounded-full align-middle border border-indigo-200 shadow-sm" style={{ backgroundColor: changeAllState.newColor }} />?
-                </span>
-              </div>
-              <div className="flex gap-2.5">
-                <button
-                  onClick={applyChangeAll}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-colors shadow-sm text-xs border-none"
-                >
-                  Change All
-                </button>
-                <button
-                  onClick={() => setChangeAllState(null)}
-                  className="bg-white border border-gray-250 text-gray-500 hover:bg-gray-50 font-semibold px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-xs"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
+            {/* Right Column: Element-specific editor (Renders only when an element is selected) */}
+            {selectedEl && (
+              <div className="flex items-center gap-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl px-4 py-2 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                    {selectedEl.tagName === 'LI' ? 'List Item' : selectedEl.tagName === 'H1' ? 'Heading' : 'Text Block'}
+                  </span>
+                </div>
 
-          {/* CSS Variables / Theme Palette Editor */}
-          {elType === 'Slide Background' && Object.keys(themeVariables).length > 0 && (
-            <div className="border-t border-gray-100 pt-3.5 flex flex-col gap-2">
-              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Theme Palette overrides (this slide only)</span>
-              <div className="flex flex-wrap gap-4">
-                {Object.entries(themeVariables).map(([name, val]) => {
-                  const label = VAR_LABELS[name] || name.replace('--', '').replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
-                  const normVal = normalizeColor(val);
-                  return (
-                    <div key={name} className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 shadow-sm text-xs">
-                      <span className="font-semibold text-gray-600">{label}:</span>
-                      <div 
-                        className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
-                        style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
-                        title={`Customize ${label}`}
-                      >
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
-                        </div>
-                        <input
-                          type="color"
-                          value={normVal.startsWith('#') && normVal.length === 7 ? normVal : '#ffffff'}
-                          onChange={(e) => handleThemeVarChange(name, e.target.value)}
-                          className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
-                        />
-                      </div>
-                      <span className="font-mono text-[10px] text-gray-400 uppercase">{val}</span>
-                      <div 
-                        className="w-3.5 h-3.5 rounded-full border border-gray-300 shadow-inner shrink-0" 
-                        style={{ backgroundColor: val }}
-                        title="Active Color"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                {/* Font Size Control */}
+                <div className="flex items-center gap-1.5 pr-3 border-r border-emerald-100">
+                  <span className="text-xs text-gray-500 font-medium mr-1">Size</span>
+                  <button
+                    onClick={() => changeSelectedFontSize(false)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="text-xs font-mono font-bold text-gray-700 min-w-[32px] text-center">
+                    {selectedFontSize || 'N/A'}
+                  </span>
+                  <button
+                    onClick={() => changeSelectedFontSize(true)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
 
-          {/* Slide-wide Theme Palette Editor */}
-          {elType === 'Slide Background' && slideColorStats.length > 0 && (
-            <div className="border-t border-gray-100 pt-3.5 flex flex-col gap-2">
-              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Theme colors used in this slide</span>
-              <div className="flex flex-wrap gap-2.5">
-                {slideColorStats.map(({ color, textCount, bgCount }) => (
-                  <div key={color} className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg pl-2 pr-3 py-1.5 transition-colors shadow-sm text-xs select-none">
+                {/* Element Text Color Picker */}
+                <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                  <span className="text-xs text-gray-500 font-medium">Color</span>
+                  <div 
+                    className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                    style={{ backgroundColor: selectedColor || '#000000' }}
+                  >
+                    <input
+                      type="color"
+                      value={normalizeColor(selectedColor).startsWith('#') && normalizeColor(selectedColor).length === 7 ? normalizeColor(selectedColor) : '#000000'}
+                      onChange={(e) => changeSelectedColor(e.target.value)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Bullet Color Picker (Only for List Items) */}
+                {selectedEl.tagName === 'LI' && (
+                  <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                    <span className="text-xs text-gray-500 font-medium">Bullet</span>
                     <div 
                       className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                      style={{ backgroundColor: selectedBulletColor || '#000000' }}
+                    >
+                      <input
+                        type="color"
+                        value={normalizeColor(selectedBulletColor).startsWith('#') && normalizeColor(selectedBulletColor).length === 7 ? normalizeColor(selectedBulletColor) : '#000000'}
+                        onChange={(e) => changeSelectedBulletColor(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Deselect element button */}
+                <button
+                  onClick={deselectElement}
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-emerald-100/50 rounded-lg cursor-pointer"
+                  title="Deselect Element"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+
+          </div>
+
+          {/* Bottom Row: Detected / Used Colors Swapper */}
+          {slideColorStats.length > 0 && (
+            <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Used Colors in this Slide (Click color to swap slide-wide)</span>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {slideColorStats.map(({ color, textCount, bgCount }) => (
+                  <div 
+                    key={color} 
+                    className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg pl-2 pr-3 py-1.5 transition-all hover:border-gray-300 shadow-sm text-xs select-none"
+                  >
+                    <div 
+                      className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
                       style={{ backgroundColor: color }}
                     >
                       <input
@@ -1075,7 +762,7 @@ export const PdfEditorView = ({
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
                     </div>
-                    <span className="font-mono text-[11px] text-gray-600 font-bold uppercase">{color}</span>
+                    <span className="font-mono text-[10px] text-gray-600 font-bold uppercase">{color}</span>
                     <span className="text-[10px] text-gray-400 font-medium">
                       ({textCount > 0 && `${textCount} text`}{textCount > 0 && bgCount > 0 && ', '}{bgCount > 0 && `${bgCount} bg`}{textCount === 0 && bgCount === 0 && '0 items'})
                     </span>
@@ -1084,6 +771,7 @@ export const PdfEditorView = ({
               </div>
             </div>
           )}
+
         </div>
       )}
 
