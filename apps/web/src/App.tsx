@@ -188,6 +188,9 @@ interface SidebarProps {
   collapsed: boolean;
   onClose: () => void;
   isAdmin?: boolean;
+  pdfSlides?: { id: number; title: string }[];
+  activePdfSlide?: number;
+  onScrollToPdfSlide?: (index: number) => void;
 }
 const PLAN_LABELS: Record<string, string> = {
   starter: 'Starter',
@@ -195,7 +198,17 @@ const PLAN_LABELS: Record<string, string> = {
   enterprise: 'Enterprise',
 };
 
-const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin }: SidebarProps) => {
+const Sidebar = ({
+  selectedKey,
+  navigate,
+  isMobile,
+  collapsed,
+  onClose,
+  isAdmin,
+  pdfSlides,
+  activePdfSlide,
+  onScrollToPdfSlide,
+}: SidebarProps) => {
   const { getToken } = useAuth();
   const [plan, setPlan] = useState<string | null>(null);
 
@@ -304,6 +317,38 @@ const Sidebar = ({ selectedKey, navigate, isMobile, collapsed, onClose, isAdmin 
               active={selectedKey === 'admin'}
               onClick={() => go('/admin')}
             />
+          )}
+
+          {/* Active PDF Editor Slides section */}
+          {selectedKey === 'pdfeditor' && pdfSlides && pdfSlides.length > 0 && (
+            <div className="pt-3 mt-3 border-t border-gray-200 flex flex-col min-h-0 flex-1">
+              <div className="px-3 mb-2 shrink-0">
+                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Slides ({pdfSlides.length})</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto pr-1 space-y-1 max-h-[300px]">
+                {pdfSlides.map((slide) => {
+                  const isActive = activePdfSlide === slide.id;
+                  return (
+                    <button
+                      key={slide.id}
+                      onClick={() => onScrollToPdfSlide?.(slide.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-[background-position,color] duration-500 ease-out cursor-pointer border-none outline-none text-left
+                        ${isActive
+                          ? 'bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] hover:[background-position:100%_center] text-white shadow-sm font-semibold'
+                          : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent'
+                        }`}
+                    >
+                      <span className={`text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded leading-none ${
+                        isActive ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {String(slide.id + 1).padStart(2, '0')}
+                      </span>
+                      <span className="truncate flex-1">{slide.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </nav>
 
@@ -483,6 +528,11 @@ function AppContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // States for PDF Editor slide navigation integration in main Sidebar
+  const [pdfSlides, setPdfSlides] = useState<{ id: number; title: string }[]>([]);
+  const [activePdfSlide, setActivePdfSlide] = useState<number>(0);
+  const [onScrollToPdfSlide, setOnScrollToPdfSlide] = useState<((index: number) => void) | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -853,6 +903,9 @@ function AppContent() {
               collapsed={collapsed}
               onClose={() => setCollapsed(true)}
               isAdmin={isAdmin}
+              pdfSlides={pdfSlides}
+              activePdfSlide={activePdfSlide}
+              onScrollToPdfSlide={onScrollToPdfSlide || undefined}
             />
           )}
 
@@ -880,7 +933,18 @@ function AppContent() {
                 <Route path="/dashboard" element={<DashboardView projects={projects} searchQuery={searchQuery} onDelete={handleDelete} onRetry={handleRetry} />} />
                 <Route path="/new" element={<CreateView isMobile={isMobile} formValues={formValues} setFormValues={setFormValues} isSubmitting={isSubmitting} onQueueJob={handleQueueJob} />} />
                 <Route path="/pdf" element={<PdfCreateView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />} />
-                <Route path="/pdfeditor/:id" element={<PdfEditorView projects={projects} />} />
+                <Route 
+                  path="/pdfeditor/:id" 
+                  element={
+                    <PdfEditorView 
+                      projects={projects} 
+                      setPdfSlides={setPdfSlides}
+                      activePdfSlide={activePdfSlide}
+                      setActivePdfSlide={setActivePdfSlide}
+                      setOnScrollToPdfSlide={setOnScrollToPdfSlide}
+                    />
+                  } 
+                />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
                 <Route path="/sessions" element={<SessionsView />} />

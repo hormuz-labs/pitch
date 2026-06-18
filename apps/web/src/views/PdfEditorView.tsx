@@ -9,7 +9,12 @@ import { useAuth } from '@clerk/clerk-react';
 
 interface PdfEditorViewProps {
   projects: Project[];
+  setPdfSlides?: (slides: { id: number; title: string }[]) => void;
+  activePdfSlide?: number;
+  setActivePdfSlide?: (slide: number) => void;
+  setOnScrollToPdfSlide?: (scrollFn: ((index: number) => void) | null) => void;
 }
+
 
 const normalizeColor = (col: string): string => {
   if (!col) return '';
@@ -32,7 +37,12 @@ const normalizeColor = (col: string): string => {
 const TEXT_PRESETS = ['#000000', '#ffffff', '#4b5563', '#9ca3af', '#3b82f6', '#ef4444'];
 const BG_PRESETS = ['transparent', '#ffffff', '#000000', '#f3f4f6', '#e5e7eb', '#1f2937'];
 
-export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
+export const PdfEditorView = ({
+  projects,
+  setPdfSlides,
+  setActivePdfSlide,
+  setOnScrollToPdfSlide,
+}: PdfEditorViewProps) => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { getToken } = useAuth();
@@ -125,6 +135,44 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
     // TopHeader renders #pdf-editor-header-actions when isPdfEditorPage is true
     setPortalTarget(document.getElementById('pdf-editor-header-actions'));
   }, []);
+
+  // Synchronize slides list to the main Sidebar context
+  useEffect(() => {
+    if (setPdfSlides) {
+      setPdfSlides(slides);
+    }
+  }, [slides, setPdfSlides]);
+
+  // Synchronize active slide selection to the main Sidebar context
+  useEffect(() => {
+    if (setActivePdfSlide) {
+      setActivePdfSlide(activeSlide);
+    }
+  }, [activeSlide, setActivePdfSlide]);
+
+  // Expose scroll callback to the main Sidebar context
+  useEffect(() => {
+    if (setOnScrollToPdfSlide) {
+      setOnScrollToPdfSlide(() => (index: number) => {
+        scrollToSlide(index);
+      });
+    }
+    return () => {
+      if (setOnScrollToPdfSlide) {
+        setOnScrollToPdfSlide(null);
+      }
+    };
+  }, [setOnScrollToPdfSlide, htmlContent]);
+
+  // Reset parent navigation state upon unmount
+  useEffect(() => {
+    return () => {
+      if (setPdfSlides) setPdfSlides([]);
+      if (setActivePdfSlide) setActivePdfSlide(0);
+      if (setOnScrollToPdfSlide) setOnScrollToPdfSlide(null);
+    };
+  }, [setPdfSlides, setActivePdfSlide, setOnScrollToPdfSlide]);
+
 
   // 1. Handle responsive scaling for the 1280x720 viewport
   useEffect(() => {
@@ -222,6 +270,18 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
         setSelectedColor(htmlEl.style.color || window.getComputedStyle(htmlEl).color);
         setSelectedBgColor(htmlEl.style.backgroundColor || window.getComputedStyle(htmlEl).backgroundColor);
         setSelectedFontSize(htmlEl.style.fontSize || window.getComputedStyle(htmlEl).fontSize);
+
+        // Update active slide when element is clicked
+        const parentSlide = htmlEl.closest('.slide');
+        if (parentSlide) {
+          const slideIdStr = parentSlide.getAttribute('id');
+          if (slideIdStr) {
+            const index = parseInt(slideIdStr.replace('slide-node-', ''), 10);
+            if (!isNaN(index)) {
+              setActiveSlide(index);
+            }
+          }
+        }
       });
     });
 
@@ -247,6 +307,15 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
           setSelectedColor('');
           setSelectedBgColor(slideHtmlEl.style.backgroundColor || window.getComputedStyle(slideHtmlEl).backgroundColor);
           setSelectedFontSize('');
+
+          // Update active slide when slide background is clicked
+          const slideIdStr = slideHtmlEl.getAttribute('id');
+          if (slideIdStr) {
+            const index = parseInt(slideIdStr.replace('slide-node-', ''), 10);
+            if (!isNaN(index)) {
+              setActiveSlide(index);
+            }
+          }
         }
       });
 
@@ -904,32 +973,7 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
       {/* ── Editor Workspace ──────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         
-        {/* Left Slide Thumbnail Navigation Sidebar */}
-        <aside className="w-64 bg-white border-r border-gray-200 overflow-y-auto z-10 hidden md:block shrink-0">
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Slides ({slides.length})</h3>
-          </div>
-          <div className="p-2.5 space-y-1">
-            {slides.map((slide) => (
-              <button
-                key={slide.id}
-                onClick={() => scrollToSlide(slide.id)}
-                className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-start gap-3 cursor-pointer ${
-                  activeSlide === slide.id
-                    ? 'bg-indigo-50 border border-indigo-100 text-indigo-900 font-semibold'
-                    : 'bg-transparent border border-transparent text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <span className={`text-xs font-mono shrink-0 px-1.5 py-0.5 rounded ${
-                  activeSlide === slide.id ? 'bg-indigo-100/50 text-indigo-700' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {String(slide.id + 1).padStart(2, '0')}
-                </span>
-                <span className="text-xs truncate">{slide.title}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
+
 
         {/* Main Editable Preview Window */}
         <main ref={containerRef} className="flex-1 overflow-auto flex items-center justify-center p-6 bg-gray-50/50 relative">
