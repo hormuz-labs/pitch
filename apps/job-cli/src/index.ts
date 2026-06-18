@@ -332,12 +332,14 @@ program
         await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Status manual update)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}`);
       }
 
-      // Refund 3 credits if the job is being marked as FAILED
+      // Refund credits if the job is being marked as FAILED (1 for PDF, 3 for Video)
       if (jobStatus === JobStatus.FAILED) {
         try {
           const tenantId = updatedJob.userId;
-          await db.addCredits(tenantId, 3, 'refund', 'Refund: video generation failed (admin)', { jobId });
-          console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
+          const isPdf = updatedJob.parameters?.jobType === 'pdf';
+          const refundCredits = isPdf ? 1 : 3;
+          await db.addCredits(tenantId, refundCredits, 'refund', `Refund: ${isPdf ? 'PDF' : 'video'} generation failed (admin)`, { jobId });
+          console.log(`↩️  ${refundCredits} credit(s) refunded for tenant ${tenantId} due to failed job ${jobId}`);
         } catch (refundError: any) {
           console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
         }

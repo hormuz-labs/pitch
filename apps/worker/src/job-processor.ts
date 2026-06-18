@@ -855,8 +855,10 @@ ${buildSkillsPrompt(skills)}`;
           
           // Ensure refund is given if the worker errors out directly
           try {
-            await db.addCredits(userId, 3, 'refund', 'Refund: video generation failed', { jobId });
-            jobLogger.info('Refunded 3 credits due to worker error');
+            const isPdf = parameters?.jobType === 'pdf';
+            const refundCredits = isPdf ? 1 : 3;
+            await db.addCredits(userId, refundCredits, 'refund', `Refund: ${isPdf ? 'PDF' : 'video'} generation failed`, { jobId });
+            jobLogger.info(`Refunded ${refundCredits} credits due to worker error`);
           } catch (refundError: any) {
             jobLogger.warn({ err: refundError }, 'Failed to issue refund during worker error handling');
           }

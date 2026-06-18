@@ -236,8 +236,11 @@ router.delete('/jobs/:id', async (req, res) => {
         ...(newPhases.length > 0 ? { phases: JSON.stringify(newPhases) } : {})
       });
       await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
-      await db.addCredits(job.userId, 3, 'refund', 'Refund: video generation cancelled by admin', { jobId: id });
-      logger.info({ jobId: id }, 'Job marked as failed by admin and credits refunded');
+      
+      const isPdf = job.parameters?.jobType === 'pdf';
+      const refundCredits = isPdf ? 1 : 3;
+      await db.addCredits(job.userId, refundCredits, 'refund', `Refund: ${isPdf ? 'PDF' : 'video'} generation cancelled by admin`, { jobId: id });
+      logger.info({ jobId: id }, `Job marked as failed by admin and ${refundCredits} credits refunded`);
     } else {
       await db.prisma.job.delete({ where: { id } });
       logger.info({ jobId: id }, 'Job deleted by admin');
@@ -275,8 +278,14 @@ router.post('/jobs/:id/status', async (req, res) => {
         where: { jobId: id, type: 'refund' }
       });
       if (!existingRefund) {
-        await db.addCredits(job.userId, 3, 'refund', 'Refund: video generation failed', { jobId: id });
-        logger.info({ jobId: id }, 'Job marked as failed manually and 3 credits refunded');
+        let isPdf = false;
+        try {
+          const parsedParams = JSON.parse(job.parameters);
+          isPdf = parsedParams?.jobType === 'pdf';
+        } catch {}
+        const refundCredits = isPdf ? 1 : 3;
+        await db.addCredits(job.userId, refundCredits, 'refund', `Refund: ${isPdf ? 'PDF' : 'video'} generation failed`, { jobId: id });
+        logger.info({ jobId: id }, `Job marked as failed manually and ${refundCredits} credits refunded`);
       }
     }
 
