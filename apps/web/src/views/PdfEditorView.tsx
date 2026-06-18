@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project } from '../types';
@@ -37,6 +37,15 @@ const normalizeColor = (col: string): string => {
 const TEXT_PRESETS = ['#000000', '#ffffff', '#4b5563', '#9ca3af', '#3b82f6', '#ef4444'];
 const BG_PRESETS = ['transparent', '#ffffff', '#000000', '#f3f4f6', '#e5e7eb', '#1f2937'];
 
+const VAR_LABELS: { [name: string]: string } = {
+  '--primary': 'Accent & Bullets',
+  '--bg': 'Slide Background',
+  '--accent': 'Title & Headings',
+  '--secondary': 'Descriptions & Footers',
+  '--text': 'Default Text',
+  '--overlay': 'Background Overlay',
+};
+
 export const PdfEditorView = ({
   projects,
   setPdfSlides,
@@ -69,6 +78,64 @@ export const PdfEditorView = ({
   const [selectedFontSize, setSelectedFontSize] = useState<string>('');
   const [elType, setElType] = useState<string>('');
 
+  const updateThemeVariables = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (!slideEl) return;
+
+    const vars: { [name: string]: string } = {};
+    try {
+      const doc = iframe.contentDocument;
+      for (let i = 0; i < doc.styleSheets.length; i++) {
+        const sheet = doc.styleSheets[i];
+        try {
+          const rules = sheet.cssRules || sheet.rules;
+          if (!rules) continue;
+          for (let j = 0; j < rules.length; j++) {
+            const rule = rules[j] as CSSStyleRule;
+            if (rule.selectorText === ':root') {
+              const style = rule.style;
+              for (let k = 0; k < style.length; k++) {
+                const name = style[k];
+                if (name.startsWith('--')) {
+                  const val = slideEl.style.getPropertyValue(name) || style.getPropertyValue(name);
+                  if (val) {
+                    vars[name] = val.trim();
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore stylesheet rules reading errors
+        }
+      }
+    } catch (e) {
+      // Ignore stylesheet parsing errors
+    }
+    setThemeVariables(vars);
+  }, [activeSlide]);
+
+  const handleThemeVarChange = (name: string, newValue: string) => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (!slideEl) return;
+
+    slideEl.style.setProperty(name, newValue);
+
+    setThemeVariables(prev => ({
+      ...prev,
+      [name]: newValue
+    }));
+
+    setSaveStatus('idle');
+    setSlideColorsHash(prev => prev + 1);
+  };
+
   // Canva-like color extraction and bulk states
   const [slideColorsHash, setSlideColorsHash] = useState<number>(0);
   const [changeAllState, setChangeAllState] = useState<{
@@ -76,6 +143,9 @@ export const PdfEditorView = ({
     newColor: string;
     type: 'color' | 'bgColor';
   } | null>(null);
+
+  // States to hold the active CSS custom property variables detected in presentation
+  const [themeVariables, setThemeVariables] = useState<{ [name: string]: string }>({});
 
   const slideColorStats = useMemo(() => {
     const iframe = iframeRef.current;
@@ -172,6 +242,13 @@ export const PdfEditorView = ({
       if (setOnScrollToPdfSlide) setOnScrollToPdfSlide(null);
     };
   }, [setPdfSlides, setActivePdfSlide, setOnScrollToPdfSlide]);
+
+  // Synchronize CSS custom properties (theme variables) on slide changes
+  useEffect(() => {
+    if (!loadingHtml && htmlContent) {
+      updateThemeVariables();
+    }
+  }, [activeSlide, htmlContent, loadingHtml, updateThemeVariables]);
 
 
   // 1. Handle responsive scaling for the 1280x720 viewport
@@ -335,8 +412,9 @@ export const PdfEditorView = ({
       });
     });
 
-    // Trigger initial color extraction
+    // Trigger initial color extraction and variable parsing
     setSlideColorsHash(prev => prev + 1);
+    updateThemeVariables();
   };
 
   // 4. Handle image file replacement and load as base64 DataURL
@@ -936,6 +1014,45 @@ export const PdfEditorView = ({
                 >
                   Dismiss
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* CSS Variables / Theme Palette Editor */}
+          {elType === 'Slide Background' && Object.keys(themeVariables).length > 0 && (
+            <div className="border-t border-gray-100 pt-3.5 flex flex-col gap-2">
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Theme Palette overrides (this slide only)</span>
+              <div className="flex flex-wrap gap-4">
+                {Object.entries(themeVariables).map(([name, val]) => {
+                  const label = VAR_LABELS[name] || name.replace('--', '').replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                  const normVal = normalizeColor(val);
+                  return (
+                    <div key={name} className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 shadow-sm text-xs">
+                      <span className="font-semibold text-gray-600">{label}:</span>
+                      <div 
+                        className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                        style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
+                        title={`Customize ${label}`}
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
+                        </div>
+                        <input
+                          type="color"
+                          value={normVal.startsWith('#') && normVal.length === 7 ? normVal : '#ffffff'}
+                          onChange={(e) => handleThemeVarChange(name, e.target.value)}
+                          className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
+                        />
+                      </div>
+                      <span className="font-mono text-[10px] text-gray-400 uppercase">{val}</span>
+                      <div 
+                        className="w-3.5 h-3.5 rounded-full border border-gray-300 shadow-inner shrink-0" 
+                        style={{ backgroundColor: val }}
+                        title="Active Color"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
