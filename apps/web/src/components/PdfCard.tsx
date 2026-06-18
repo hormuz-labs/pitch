@@ -69,39 +69,38 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
     >
       {/* Overlay Border */}
       <div className="absolute inset-0 rounded-xl border border-gray-200 group-hover:border-gray-300 pointer-events-none z-10 transition-colors duration-200" />
-
       {/* Thumbnail / PDF Cover Mockup */}
-      <div className="relative aspect-video w-full bg-gradient-to-tr from-slate-900 via-indigo-950 to-violet-950 flex flex-col items-center justify-center border-b border-gray-200 rounded-t-xl overflow-hidden select-none">
+      <div className="relative aspect-video w-full bg-gradient-to-tr from-neutral-900 via-neutral-950 to-neutral-900 flex flex-col items-center justify-center border-b border-gray-200 rounded-t-xl overflow-hidden select-none">
         {/* Subtle mesh background glows */}
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-violet-500/10 rounded-full blur-[40px] pointer-events-none" />
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-white/[0.02] rounded-full blur-[40px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-neutral-800/10 rounded-full blur-[40px] pointer-events-none" />
 
         {project.status === 'COMPLETED' ? (
           <div className="absolute inset-0 p-4 flex flex-col justify-between z-10">
             {/* Top row */}
             <div className="flex items-center justify-between w-full">
-              <span className="text-[9px] font-extrabold uppercase tracking-wider text-indigo-300/80 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded">
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-neutral-300 bg-neutral-800 border border-neutral-700 px-2 py-0.5 rounded">
                 PDF Deck
               </span>
-              <span className="text-[10px] font-bold text-gray-300">
+              <span className="text-[10px] font-bold text-neutral-400">
                 {slideCount} slides
               </span>
             </div>
 
             {/* Title Mockup */}
             <div className="my-auto text-left max-w-full">
-              <h3 className="text-xs font-bold text-white leading-tight line-clamp-2 tracking-wide font-sans mb-1 group-hover:text-indigo-200 transition-colors duration-200">
+              <h3 className="text-xs font-bold text-white leading-tight line-clamp-2 tracking-wide font-sans mb-1 group-hover:text-neutral-300 transition-colors duration-200">
                 {title}
               </h3>
-              <div className="w-8 h-0.5 bg-gradient-to-r from-red-500 to-amber-500 rounded" />
+              <div className="w-8 h-0.5 bg-neutral-400 rounded" />
             </div>
 
             {/* Bottom Row */}
             <div className="flex items-center justify-between w-full border-t border-white/5 pt-2">
-              <span className="text-[9px] text-gray-400 font-medium truncate max-w-[70%]">
+              <span className="text-[9px] text-neutral-500 font-medium truncate max-w-[70%]">
                 Ready to view
               </span>
-              <div className="flex items-center gap-1 bg-red-600/20 border border-red-500/30 text-red-400 font-extrabold text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded shadow-sm scale-95 origin-right">
+              <div className="flex items-center gap-1 bg-white text-black font-extrabold text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded shadow-sm scale-95 origin-right border border-white">
                 <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
@@ -113,27 +112,27 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
         ) : (project.status === 'PROCESSING' || project.status === 'PENDING') ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 z-10">
             {/* Blueprint Grid Overlay */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none opacity-60" />
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none opacity-60" />
             
             {/* Animated stacked pages */}
             <div className="relative w-16 h-10 flex items-center justify-center">
-              <div className="absolute w-12 h-8 bg-indigo-500/5 border border-indigo-500/20 rounded shadow-[0_0_8px_rgba(99,102,241,0.1)] -rotate-6 transform translate-x-[-2px] translate-y-[-2px]" />
-              <div className="absolute w-12 h-8 bg-violet-500/10 border border-violet-500/30 rounded shadow-[0_0_12px_rgba(139,92,246,0.15)] rotate-3 transform translate-x-[2px] translate-y-[1px]" />
-              <div className="absolute w-12 h-8 bg-slate-900/40 border border-indigo-400/50 rounded flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.25)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+              <div className="absolute w-12 h-8 bg-neutral-900 border border-neutral-800 rounded shadow-[0_0_8px_rgba(255,255,255,0.02)] -rotate-6 transform translate-x-[-2px] translate-y-[-2px]" />
+              <div className="absolute w-12 h-8 bg-neutral-800 border border-neutral-700 rounded shadow-[0_0_12px_rgba(255,255,255,0.05)] rotate-3 transform translate-x-[2px] translate-y-[1px]" />
+              <div className="absolute w-12 h-8 bg-neutral-950 border border-neutral-600 rounded flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
               </div>
             </div>
 
             <div className="flex flex-col items-center gap-1 select-none">
-              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest animate-pulse">
+              <span className="text-[10px] font-bold text-neutral-300 uppercase tracking-widest animate-pulse">
                 {project.status === 'PROCESSING' ? 'Compiling Deck' : 'Queued'}
               </span>
-              <p className="text-[8px] text-gray-500 tracking-wider">Please wait...</p>
+              <p className="text-[8px] text-neutral-500 tracking-wider">Please wait...</p>
             </div>
           </div>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4 z-10 bg-gradient-to-br from-slate-950 via-slate-900 to-rose-950/20">
-            <div className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4 z-10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950">
+            <div className="w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/>
@@ -142,10 +141,10 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
             </div>
             
             <div className="flex flex-col items-center select-none">
-              <span className="text-[10px] font-extrabold text-rose-400 uppercase tracking-widest">
+              <span className="text-[10px] font-extrabold text-neutral-300 uppercase tracking-widest">
                 Generation Failed
               </span>
-              <span className="text-[8px] text-gray-500 mt-0.5 truncate max-w-[150px]">
+              <span className="text-[8px] text-neutral-500 mt-0.5 truncate max-w-[150px]">
                 {project.error || 'Unknown error occurred'}
               </span>
             </div>
