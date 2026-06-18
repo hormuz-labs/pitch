@@ -47,6 +47,11 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
   const [scale, setScale] = useState(1);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeImageRef = useRef<{ id: string; src: string } | null>(null);
+
   // Styling editor states
   const [selectedEl, setSelectedEl] = useState<HTMLElement | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>('');
@@ -120,11 +125,6 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
     // TopHeader renders #pdf-editor-header-actions when isPdfEditorPage is true
     setPortalTarget(document.getElementById('pdf-editor-header-actions'));
   }, []);
-
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const activeImageRef = useRef<{ id: string; src: string } | null>(null);
 
   // 1. Handle responsive scaling for the 1280x720 viewport
   useEffect(() => {
