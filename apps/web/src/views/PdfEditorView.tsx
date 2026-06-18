@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Project } from '../types';
@@ -53,6 +53,68 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
   const [selectedBgColor, setSelectedBgColor] = useState<string>('');
   const [selectedFontSize, setSelectedFontSize] = useState<string>('');
   const [elType, setElType] = useState<string>('');
+
+  // Canva-like color extraction and bulk states
+  const [slideColorsHash, setSlideColorsHash] = useState<number>(0);
+  const [changeAllState, setChangeAllState] = useState<{
+    oldColor: string;
+    newColor: string;
+    type: 'color' | 'bgColor';
+  } | null>(null);
+
+  const slideColorStats = useMemo(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return [];
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (!slideEl) return [];
+
+    const colorCounts: { [color: string]: { textCount: number; bgCount: number } } = {};
+
+    // Check slide background itself
+    const slideBg = normalizeColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
+    if (slideBg && slideBg !== 'transparent') {
+      colorCounts[slideBg] = { textCount: 0, bgCount: 1 };
+    }
+
+    // Find all child elements
+    const children = slideEl.querySelectorAll('*');
+    children.forEach((child) => {
+      const htmlChild = child as HTMLElement;
+      if (!htmlChild.style) return;
+
+      // Extract text color
+      const textColor = normalizeColor(htmlChild.style.color || window.getComputedStyle(htmlChild).color);
+      if (textColor && textColor !== 'transparent') {
+        if (!colorCounts[textColor]) {
+          colorCounts[textColor] = { textCount: 0, bgCount: 0 };
+        }
+        colorCounts[textColor].textCount += 1;
+      }
+
+      // Extract background color
+      const bgColor = normalizeColor(htmlChild.style.backgroundColor || window.getComputedStyle(htmlChild).backgroundColor);
+      if (bgColor && bgColor !== 'transparent') {
+        if (!colorCounts[bgColor]) {
+          colorCounts[bgColor] = { textCount: 0, bgCount: 0 };
+        }
+        colorCounts[bgColor].bgCount += 1;
+      }
+    });
+
+    return Object.entries(colorCounts)
+      .map(([color, stats]) => ({
+        color,
+        textCount: stats.textCount,
+        bgCount: stats.bgCount,
+        totalCount: stats.textCount + stats.bgCount,
+      }))
+      .sort((a, b) => b.totalCount - a.totalCount);
+  }, [activeSlide, slideColorsHash, htmlContent, loadingHtml]);
+
+  const slideColors = useMemo(() => {
+    return slideColorStats.map(stat => stat.color);
+  }, [slideColorStats]);
 
   useEffect(() => {
     // TopHeader renders #pdf-editor-header-actions when isPdfEditorPage is true
@@ -203,6 +265,9 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
         fileInputRef.current?.click();
       });
     });
+
+    // Trigger initial color extraction
+    setSlideColorsHash(prev => prev + 1);
   };
 
   // 4. Handle image file replacement and load as base64 DataURL
@@ -227,6 +292,7 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
   // 5. Scroll active slide into view inside the iframe
   const scrollToSlide = (index: number) => {
     setActiveSlide(index);
+    setChangeAllState(null); // Clear bulk swap state
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentDocument) return;
 
@@ -268,16 +334,193 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
   // 7. Styling mutators
   const changeColor = (newColor: string) => {
     if (!selectedEl) return;
+
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (slideEl) {
+      const oldNorm = normalizeColor(selectedColor);
+      const newNorm = normalizeColor(newColor);
+
+      if (oldNorm && oldNorm !== 'transparent' && oldNorm !== newNorm) {
+        let matchCount = 0;
+        const children = slideEl.querySelectorAll('*');
+        children.forEach((child) => {
+          if (child === selectedEl) return;
+          const htmlChild = child as HTMLElement;
+          if (!htmlChild.style) return;
+          const childNorm = normalizeColor(htmlChild.style.color || window.getComputedStyle(htmlChild).color);
+          if (childNorm === oldNorm) {
+            matchCount++;
+          }
+        });
+
+        if (matchCount > 0) {
+          setChangeAllState({
+            oldColor: selectedColor,
+            newColor: newColor,
+            type: 'color'
+          });
+        } else {
+          setChangeAllState(null);
+        }
+      } else {
+        setChangeAllState(null);
+      }
+    }
+
     selectedEl.style.color = newColor;
     setSelectedColor(newColor);
     setSaveStatus('idle');
+    setSlideColorsHash(prev => prev + 1);
   };
 
   const changeBgColor = (newBgColor: string) => {
     if (!selectedEl) return;
+
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (slideEl) {
+      const oldNorm = normalizeColor(selectedBgColor);
+      const newNorm = normalizeColor(newBgColor);
+
+      if (oldNorm && oldNorm !== 'transparent' && oldNorm !== newNorm) {
+        let matchCount = 0;
+
+        if (slideEl !== selectedEl) {
+          const slideBgNorm = normalizeColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
+          if (slideBgNorm === oldNorm) {
+            matchCount++;
+          }
+        }
+
+        const children = slideEl.querySelectorAll('*');
+        children.forEach((child) => {
+          if (child === selectedEl) return;
+          const htmlChild = child as HTMLElement;
+          if (!htmlChild.style) return;
+          const childNorm = normalizeColor(htmlChild.style.backgroundColor || window.getComputedStyle(htmlChild).backgroundColor);
+          if (childNorm === oldNorm) {
+            matchCount++;
+          }
+        });
+
+        if (matchCount > 0) {
+          setChangeAllState({
+            oldColor: selectedBgColor,
+            newColor: newBgColor,
+            type: 'bgColor'
+          });
+        } else {
+          setChangeAllState(null);
+        }
+      } else {
+        setChangeAllState(null);
+      }
+    }
+
     selectedEl.style.backgroundColor = newBgColor;
     setSelectedBgColor(newBgColor);
     setSaveStatus('idle');
+    setSlideColorsHash(prev => prev + 1);
+  };
+
+  const applyChangeAll = () => {
+    if (!changeAllState) return;
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (!slideEl) return;
+
+    const { oldColor, newColor, type } = changeAllState;
+    const oldNorm = normalizeColor(oldColor);
+
+    if (type === 'color') {
+      const children = slideEl.querySelectorAll('*');
+      children.forEach((child) => {
+        const htmlChild = child as HTMLElement;
+        if (!htmlChild.style) return;
+        const childNorm = normalizeColor(htmlChild.style.color || window.getComputedStyle(htmlChild).color);
+        if (childNorm === oldNorm) {
+          htmlChild.style.color = newColor;
+        }
+      });
+      if (selectedEl) {
+        selectedEl.style.color = newColor;
+        setSelectedColor(newColor);
+      }
+    } else if (type === 'bgColor') {
+      const slideBgNorm = normalizeColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
+      if (slideBgNorm === oldNorm) {
+        slideEl.style.backgroundColor = newColor;
+      }
+
+      const children = slideEl.querySelectorAll('*');
+      children.forEach((child) => {
+        const htmlChild = child as HTMLElement;
+        if (!htmlChild.style) return;
+        const childNorm = normalizeColor(htmlChild.style.backgroundColor || window.getComputedStyle(htmlChild).backgroundColor);
+        if (childNorm === oldNorm) {
+          htmlChild.style.backgroundColor = newColor;
+        }
+      });
+      if (selectedEl) {
+        selectedEl.style.backgroundColor = newColor;
+        setSelectedBgColor(newColor);
+      }
+    }
+
+    setSaveStatus('idle');
+    setChangeAllState(null);
+    setSlideColorsHash(prev => prev + 1);
+  };
+
+  const handleSlideColorSwap = (oldColor: string, newColor: string) => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    const slideEl = iframe.contentDocument.getElementById(`slide-node-${activeSlide}`);
+    if (!slideEl) return;
+
+    const oldNorm = normalizeColor(oldColor);
+    const newNorm = normalizeColor(newColor);
+    if (oldNorm === newNorm) return;
+
+    const children = slideEl.querySelectorAll('*');
+    children.forEach((child) => {
+      const htmlChild = child as HTMLElement;
+      if (!htmlChild.style) return;
+      
+      const textNorm = normalizeColor(htmlChild.style.color || window.getComputedStyle(htmlChild).color);
+      if (textNorm === oldNorm) {
+        htmlChild.style.color = newColor;
+      }
+
+      const bgNorm = normalizeColor(htmlChild.style.backgroundColor || window.getComputedStyle(htmlChild).backgroundColor);
+      if (bgNorm === oldNorm) {
+        htmlChild.style.backgroundColor = newColor;
+      }
+    });
+
+    const slideBgNorm = normalizeColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
+    if (slideBgNorm === oldNorm) {
+      slideEl.style.backgroundColor = newColor;
+    }
+
+    if (selectedEl) {
+      const currentTextCol = selectedEl.style.color || window.getComputedStyle(selectedEl).color;
+      const currentBgCol = selectedEl.style.backgroundColor || window.getComputedStyle(selectedEl).backgroundColor;
+      setSelectedColor(currentTextCol);
+      setSelectedBgColor(currentBgCol);
+    }
+
+    setSaveStatus('idle');
+    setChangeAllState(null);
+    setSlideColorsHash(prev => prev + 1);
   };
 
   const changeFontSize = (increase: boolean) => {
@@ -295,6 +538,7 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
       iframeRef.current.contentDocument.querySelectorAll('.selected-for-styling').forEach(el => el.classList.remove('selected-for-styling'));
     }
     setSelectedEl(null);
+    setChangeAllState(null);
   };
 
   if (!selectedProject) {
@@ -402,73 +646,178 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
 
       {/* ── Slide Element Styling Toolbar ─────────────────────────────────────── */}
       {selectedEl && (
-        <div className="bg-white border-b border-gray-200 px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 z-10 shadow-sm shrink-0">
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
-              {elType}
-            </span>
-            
-            {/* Font Size controls (only for text elements) */}
-            {elType !== 'Slide Background' && (
-              <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4">
-                <span className="text-xs text-gray-400 font-medium mr-1">Size</span>
-                <button
-                  onClick={() => changeFontSize(false)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
-                >
-                  -
-                </button>
-                <span className="text-xs font-mono font-bold text-gray-700 min-w-[40px] text-center">
-                  {selectedFontSize || 'N/A'}
-                </span>
-                <button
-                  onClick={() => changeFontSize(true)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
-                >
-                  +
-                </button>
-              </div>
-            )}
-          </div>
+        <div className="bg-white border-b border-gray-200 px-6 py-3.5 flex flex-col gap-3.5 z-10 shadow-sm shrink-0 transition-all duration-300">
+          {/* Main Controls Row */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
+                {elType}
+              </span>
+              
+              {/* Font Size controls (only for text elements) */}
+              {elType !== 'Slide Background' && (
+                <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4">
+                  <span className="text-xs text-gray-400 font-medium mr-1">Size</span>
+                  <button
+                    onClick={() => changeFontSize(false)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="text-xs font-mono font-bold text-gray-700 min-w-[40px] text-center">
+                    {selectedFontSize || 'N/A'}
+                  </span>
+                  <button
+                    onClick={() => changeFontSize(true)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+            </div>
 
-          <div className="flex items-center gap-6">
-            {/* Text Color Picker (only for text elements) */}
-            {elType !== 'Slide Background' && (
+            <div className="flex items-center gap-6">
+              {/* Text Color Picker (only for text elements) */}
+              {elType !== 'Slide Background' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 font-medium">Text</span>
+                  <div className="flex items-center gap-1">
+                    {TEXT_PRESETS.map((col) => {
+                      const isSelected = normalizeColor(selectedColor) === normalizeColor(col);
+                      return (
+                        <button
+                          key={col}
+                          onClick={() => changeColor(col)}
+                          style={{ backgroundColor: col }}
+                          className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
+                            isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
+                          }`}
+                        />
+                      );
+                    })}
+
+                    {(() => {
+                      const textPresetsNormalized = TEXT_PRESETS.map(normalizeColor);
+                      const extractedTextColors = slideColors.filter(c => c !== 'transparent' && !textPresetsNormalized.includes(normalizeColor(c)));
+                      if (extractedTextColors.length === 0) return null;
+                      return (
+                        <>
+                          <div className="w-[1px] h-4 bg-gray-200 mx-1" />
+                          {extractedTextColors.map((col) => {
+                            const isSelected = normalizeColor(selectedColor) === normalizeColor(col);
+                            return (
+                              <button
+                                key={col}
+                                onClick={() => changeColor(col)}
+                                style={{ backgroundColor: col }}
+                                className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
+                                  isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
+                                }`}
+                                title="Color used in slide"
+                              />
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+
+                    {/* Custom color picker */}
+                    {(() => {
+                      const normSelectedColor = normalizeColor(selectedColor);
+                      const textPresetsNormalized = TEXT_PRESETS.map(normalizeColor);
+                      const extractedTextColors = slideColors.filter(c => c !== 'transparent' && !textPresetsNormalized.includes(normalizeColor(c)));
+                      const isCustomColor = selectedColor && !textPresetsNormalized.includes(normSelectedColor) && !extractedTextColors.map(normalizeColor).includes(normSelectedColor);
+                      return (
+                        <div 
+                          className={`relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center ${
+                            isCustomColor ? 'ring-2 ring-indigo-500 scale-110' : ''
+                          }`}
+                          style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
+                          title="Custom Color Picker"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
+                          </div>
+                          <input
+                            type="color"
+                            value={normSelectedColor.startsWith('#') && normSelectedColor.length === 7 ? normSelectedColor : '#000000'}
+                            onChange={(e) => changeColor(e.target.value)}
+                            className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
+                          />
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Background Color Picker */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 font-medium">Text</span>
+                <span className="text-xs text-gray-400 font-medium">Background</span>
                 <div className="flex items-center gap-1">
-                  {TEXT_PRESETS.map((col) => {
-                    const isSelected = normalizeColor(selectedColor) === normalizeColor(col);
+                  {BG_PRESETS.map((col) => {
+                    const isSelected = normalizeColor(selectedBgColor) === normalizeColor(col);
                     return (
                       <button
                         key={col}
-                        onClick={() => changeColor(col)}
-                        style={{ backgroundColor: col }}
-                        className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
+                        onClick={() => changeBgColor(col)}
+                        style={{ backgroundColor: col === 'transparent' ? 'transparent' : col }}
+                        className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 flex items-center justify-center ${
                           isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
                         }`}
-                      />
+                      >
+                        {col === 'transparent' && <span className="text-[10px] text-gray-400">∅</span>}
+                      </button>
                     );
                   })}
-                  {/* Custom color picker */}
+
                   {(() => {
-                    const normSelectedColor = normalizeColor(selectedColor);
-                    const isCustomColor = selectedColor && !TEXT_PRESETS.map(normalizeColor).includes(normSelectedColor);
+                    const bgPresetsNormalized = BG_PRESETS.map(normalizeColor);
+                    const extractedBgColors = slideColors.filter(c => c !== 'transparent' && !bgPresetsNormalized.includes(normalizeColor(c)));
+                    if (extractedBgColors.length === 0) return null;
+                    return (
+                      <>
+                        <div className="w-[1px] h-4 bg-gray-200 mx-1" />
+                        {extractedBgColors.map((col) => {
+                          const isSelected = normalizeColor(selectedBgColor) === normalizeColor(col);
+                          return (
+                            <button
+                              key={col}
+                              onClick={() => changeBgColor(col)}
+                              style={{ backgroundColor: col }}
+                              className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
+                                isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
+                              }`}
+                              title="Color used in slide"
+                            />
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+
+                  {/* Custom bg color picker */}
+                  {(() => {
+                    const normSelectedBgColor = normalizeColor(selectedBgColor);
+                    const bgPresetsNormalized = BG_PRESETS.map(normalizeColor);
+                    const extractedBgColors = slideColors.filter(c => c !== 'transparent' && !bgPresetsNormalized.includes(normalizeColor(c)));
+                    const isCustomBgColor = selectedBgColor && !BG_PRESETS.map(normalizeColor).includes(normSelectedBgColor) && !extractedBgColors.map(normalizeColor).includes(normSelectedBgColor);
                     return (
                       <div 
                         className={`relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center ${
-                          isCustomColor ? 'ring-2 ring-indigo-500 scale-110' : ''
+                          isCustomBgColor ? 'ring-2 ring-indigo-500 scale-110' : ''
                         }`}
                         style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
-                        title="Custom Color Picker"
+                        title="Custom Background Color"
                       >
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
                         </div>
                         <input
                           type="color"
-                          value={normSelectedColor.startsWith('#') && normSelectedColor.length === 7 ? normSelectedColor : '#000000'}
-                          onChange={(e) => changeColor(e.target.value)}
+                          value={normSelectedBgColor.startsWith('#') && normSelectedBgColor.length === 7 ? normSelectedBgColor : '#ffffff'}
+                          onChange={(e) => changeBgColor(e.target.value)}
                           className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
                         />
                       </div>
@@ -476,65 +825,79 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
                   })()}
                 </div>
               </div>
-            )}
 
-            {/* Background Color Picker */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 font-medium">Background</span>
-              <div className="flex items-center gap-1">
-                {BG_PRESETS.map((col) => {
-                  const isSelected = normalizeColor(selectedBgColor) === normalizeColor(col);
-                  return (
-                    <button
-                      key={col}
-                      onClick={() => changeBgColor(col)}
-                      style={{ backgroundColor: col === 'transparent' ? 'transparent' : col }}
-                      className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 flex items-center justify-center ${
-                        isSelected ? 'ring-2 ring-indigo-500 scale-110' : ''
-                      }`}
-                    >
-                      {col === 'transparent' && <span className="text-[10px] text-gray-400">∅</span>}
-                    </button>
-                  );
-                })}
-                {/* Custom bg color picker */}
-                {(() => {
-                  const normSelectedBgColor = normalizeColor(selectedBgColor);
-                  const isCustomBgColor = selectedBgColor && !BG_PRESETS.map(normalizeColor).includes(normSelectedBgColor);
-                  return (
-                    <div 
-                      className={`relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer flex items-center justify-center ${
-                        isCustomBgColor ? 'ring-2 ring-indigo-500 scale-110' : ''
-                      }`}
-                      style={{ background: 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)' }}
-                      title="Custom Background Color"
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <span className="text-[10px] text-white font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+</span>
-                      </div>
-                      <input
-                        type="color"
-                        value={normSelectedBgColor.startsWith('#') && normSelectedBgColor.length === 7 ? normSelectedBgColor : '#ffffff'}
-                        onChange={(e) => changeBgColor(e.target.value)}
-                        className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
-                      />
-                    </div>
-                  );
-                })()}
+              {/* Close / Deselect */}
+              <button
+                onClick={closeToolbar}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg cursor-pointer animate-none"
+                title="Close Toolbar"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Canva-style Change All Banner */}
+          {changeAllState && (
+            <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5 text-xs text-indigo-700 shadow-inner">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                <span>
+                  Change all <strong>{changeAllState.type === 'color' ? 'text' : 'background'}</strong> colors on this slide from{' '}
+                  <span className="inline-block w-4 h-4 rounded-full align-middle border border-indigo-200 shadow-sm" style={{ backgroundColor: changeAllState.oldColor }} />{' '}
+                  to{' '}
+                  <span className="inline-block w-4 h-4 rounded-full align-middle border border-indigo-200 shadow-sm" style={{ backgroundColor: changeAllState.newColor }} />?
+                </span>
+              </div>
+              <div className="flex gap-2.5">
+                <button
+                  onClick={applyChangeAll}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-colors shadow-sm text-xs border-none"
+                >
+                  Change All
+                </button>
+                <button
+                  onClick={() => setChangeAllState(null)}
+                  className="bg-white border border-gray-250 text-gray-500 hover:bg-gray-50 font-semibold px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-xs"
+                >
+                  Dismiss
+                </button>
               </div>
             </div>
+          )}
 
-            {/* Close / Deselect */}
-            <button
-              onClick={closeToolbar}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg cursor-pointer"
-              title="Close Toolbar"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
+          {/* Slide-wide Theme Palette Editor */}
+          {elType === 'Slide Background' && slideColorStats.length > 0 && (
+            <div className="border-t border-gray-100 pt-3.5 flex flex-col gap-2">
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Theme colors used in this slide</span>
+              <div className="flex flex-wrap gap-2.5">
+                {slideColorStats.map(({ color, textCount, bgCount }) => (
+                  <div key={color} className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg pl-2 pr-3 py-1.5 transition-colors shadow-sm text-xs select-none">
+                    <div 
+                      className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                      style={{ backgroundColor: color }}
+                    >
+                      <input
+                        type="color"
+                        value={color.startsWith('#') && color.length === 7 ? color : '#ffffff'}
+                        onChange={(e) => handleSlideColorSwap(color, e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    <span className="font-mono text-[11px] text-gray-600 font-bold uppercase">{color}</span>
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      ({textCount > 0 && `${textCount} text`}{textCount > 0 && bgCount > 0 && ', '}{bgCount > 0 && `${bgCount} bg`}{textCount === 0 && bgCount === 0 && '0 items'})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
