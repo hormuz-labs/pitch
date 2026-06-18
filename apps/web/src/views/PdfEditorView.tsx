@@ -570,6 +570,7 @@ export const PdfEditorView = ({
     newBorderColor: string
   ) => {
     let text = scriptEl.textContent || '';
+    console.log('[updateChartScript] Before replacement text:', text);
     
     // Replace labels: support optional single/double/no quotes around keys and optional single/double quotes around values
     text = text.replace(/(["']?labels["']?\s*:\s*\[[^\]]*\])/, `"labels":${JSON.stringify(newLabels)}`);
@@ -583,6 +584,7 @@ export const PdfEditorView = ({
     // Replace borderColor: support optional single/double/no quotes around keys and optional single/double quotes around values (including arrays)
     text = text.replace(/(["']?borderColor["']?\s*:\s*(["'][^"']*["']|\[[^\]]*\]))/, `"borderColor":${JSON.stringify(newBorderColor)}`);
     
+    console.log('[updateChartScript] After replacement text:', text);
     scriptEl.textContent = text;
   };
 
@@ -654,10 +656,14 @@ export const PdfEditorView = ({
     const iframe = iframeRef.current;
     const doc = iframe?.contentDocument;
     const iframeWin = doc?.defaultView as any;
-    if (!iframeWin || !iframeWin.Chart) return;
+    if (!iframeWin || !iframeWin.Chart) {
+      console.warn('[updateChartColors] Chart or iframe window not found');
+      return;
+    }
     
     const chart = iframeWin.Chart.getChart(canvas);
     if (chart && chart.data.datasets?.[0]) {
+      console.log('[updateChartColors] Setting chart colors:', bgColor, borderColor);
       chart.data.datasets[0].backgroundColor = bgColor;
       chart.data.datasets[0].borderColor = borderColor;
       chart.update();
@@ -665,6 +671,7 @@ export const PdfEditorView = ({
       setChartBorderColor(borderColor);
       
       const scriptEl = findChartScript(canvas);
+      console.log('[updateChartColors] Found script tag:', !!scriptEl);
       if (scriptEl) {
         updateChartScript(
           scriptEl,
@@ -676,6 +683,8 @@ export const PdfEditorView = ({
       }
       setSaveStatus('idle');
       setSlideColorsHash(prev => prev + 1);
+    } else {
+      console.warn('[updateChartColors] No chart instance or dataset found for canvas');
     }
   };
 
