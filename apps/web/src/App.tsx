@@ -273,59 +273,63 @@ const Sidebar = ({
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
-          <NavItem
-            icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
-            label="Dashboard"
-            active={selectedKey === 'dashboard'}
-            onClick={() => go('/dashboard')}
-          />
-          <NavItem
-            icon={<IconVideo />}
-            label="New Video"
-            active={selectedKey === 'create'}
-            onClick={() => go('/new')}
-          />
-          <NavItem
-            icon={
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-              </svg>
-            }
-            label="New PDF"
-            active={selectedKey === 'pdf-create'}
-            onClick={() => go('/pdf')}
-          />
-          <NavItem
-            icon={<Share2Icon />}
-            label="Affiliate"
-            active={selectedKey === 'affiliate'}
-            onClick={() => go('/affiliate')}
-          />
-          <NavItem
-            icon={<IconSessions />}
-            label="Browser Sessions"
-            active={selectedKey === 'sessions'}
-            onClick={() => go('/sessions')}
-          />
-          {isAdmin && (
-            <NavItem
-              icon={<IconAdmin />}
-              label="Admin"
-              active={selectedKey === 'admin'}
-              onClick={() => go('/admin')}
-            />
+          {selectedKey !== 'pdfeditor' && (
+            <>
+              <NavItem
+                icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
+                label="Dashboard"
+                active={selectedKey === 'dashboard'}
+                onClick={() => go('/dashboard')}
+              />
+              <NavItem
+                icon={<IconVideo />}
+                label="New Video"
+                active={selectedKey === 'create'}
+                onClick={() => go('/new')}
+              />
+              <NavItem
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                }
+                label="New PDF"
+                active={selectedKey === 'pdf-create'}
+                onClick={() => go('/pdf')}
+              />
+              <NavItem
+                icon={<Share2Icon />}
+                label="Affiliate"
+                active={selectedKey === 'affiliate'}
+                onClick={() => go('/affiliate')}
+              />
+              <NavItem
+                icon={<IconSessions />}
+                label="Browser Sessions"
+                active={selectedKey === 'sessions'}
+                onClick={() => go('/sessions')}
+              />
+              {isAdmin && (
+                <NavItem
+                  icon={<IconAdmin />}
+                  label="Admin"
+                  active={selectedKey === 'admin'}
+                  onClick={() => go('/admin')}
+                />
+              )}
+            </>
           )}
 
           {/* Active PDF Editor Slides section */}
           {selectedKey === 'pdfeditor' && pdfSlides && pdfSlides.length > 0 && (
-            <div className="pt-3 mt-3 border-t border-gray-200 flex flex-col min-h-0 flex-1">
+            <div className="flex flex-col min-h-0 flex-1">
               <div className="px-3 mb-2 shrink-0">
                 <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Slides ({pdfSlides.length})</h3>
               </div>
-              <div className="flex-1 overflow-y-auto pr-1 space-y-1 max-h-[300px]">
+              <div className="flex-1 overflow-y-auto pr-1 space-y-1">
                 {pdfSlides.map((slide) => {
                   const isActive = activePdfSlide === slide.id;
                   return (
@@ -354,13 +358,17 @@ const Sidebar = ({
 
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1.5">
-          <NavItem
-            icon={<IconSupport />}
-            label="Support"
-            active={false}
-            onClick={() => { window.location.href = 'mailto:support@trypitch.co'; }}
-          />
-          <div className="border-t border-gray-200 my-2 -mx-3" />
+          {selectedKey !== 'pdfeditor' && (
+            <>
+              <NavItem
+                icon={<IconSupport />}
+                label="Support"
+                active={false}
+                onClick={() => { window.location.href = 'mailto:support@trypitch.co'; }}
+              />
+              <div className="border-t border-gray-200 my-2 -mx-3" />
+            </>
+          )}
           <NavItem
             icon={<IconSettings />}
             label="Settings"
