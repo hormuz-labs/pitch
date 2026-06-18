@@ -69,6 +69,11 @@ export const PdfEditorView = ({
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [selectedFontSize, setSelectedFontSize] = useState<string>('');
   const [selectedBulletColor, setSelectedBulletColor] = useState<string>('');
+  const [selectedBorderColor, setSelectedBorderColor] = useState<string>('');
+  const [chartData, setChartData] = useState<number[]>([]);
+  const [chartLabels, setChartLabels] = useState<string[]>([]);
+  const [chartBgColor, setChartBgColor] = useState<string>('');
+  const [chartBorderColor, setChartBorderColor] = useState<string>('');
 
   const slideColorStats = useMemo(() => {
     const iframe = iframeRef.current;
@@ -240,10 +245,10 @@ export const PdfEditorView = ({
         outline-offset: 2px;
         border-radius: 4px;
       }
-      img:hover {
+      img:hover, canvas:hover {
         box-shadow: 0 0 0 2px #3b82f6 !important;
         cursor: pointer;
-        opacity: 0.9;
+        opacity: 0.95;
         transition: all 0.2s ease-in-out;
       }
     `;
@@ -269,6 +274,15 @@ export const PdfEditorView = ({
         setSelectedEl(htmlEl);
         setSelectedColor(htmlEl.style.color || window.getComputedStyle(htmlEl).color);
         setSelectedFontSize(htmlEl.style.fontSize || window.getComputedStyle(htmlEl).fontSize);
+
+        const computedStyle = window.getComputedStyle(htmlEl);
+        const hasBorder = parseFloat(computedStyle.borderLeftWidth) > 0 || parseFloat(computedStyle.borderTopWidth) > 0;
+        if (hasBorder) {
+          const borderCol = htmlEl.style.borderLeftColor || htmlEl.style.borderTopColor || computedStyle.borderLeftColor || computedStyle.borderTopColor;
+          setSelectedBorderColor(normalizeColor(borderCol));
+        } else {
+          setSelectedBorderColor('');
+        }
 
         if (htmlEl.tagName === 'LI') {
           const bulColor = htmlEl.style.getPropertyValue('--primary') || window.getComputedStyle(htmlEl).getPropertyValue('--primary');
@@ -311,6 +325,11 @@ export const PdfEditorView = ({
           item.classList.remove('selected-for-styling');
         });
         setSelectedEl(null);
+        setSelectedBorderColor('');
+        setChartData([]);
+        setChartLabels([]);
+        setChartBgColor('');
+        setChartBorderColor('');
       });
 
       return { id: index, title };
@@ -329,6 +348,52 @@ export const PdfEditorView = ({
 
         // Update active slide when image is clicked
         const parentSlide = img.closest('.slide');
+        if (parentSlide) {
+          const slideIdStr = parentSlide.getAttribute('id');
+          if (slideIdStr) {
+            const index = parseInt(slideIdStr.replace('slide-node-', ''), 10);
+            if (!isNaN(index)) {
+              setActiveSlide(index);
+            }
+          }
+        }
+      });
+    });
+
+    // Make canvases clickable for chart customization
+    const canvases = doc.querySelectorAll('canvas');
+    canvases.forEach((canvas) => {
+      if (!canvas.id) {
+        canvas.id = 'chart_temp_' + Math.random().toString(36).substr(2, 9);
+      }
+      canvas.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        doc.querySelectorAll('.selected-for-styling').forEach(item => {
+          item.classList.remove('selected-for-styling');
+        });
+        canvas.classList.add('selected-for-styling');
+
+        const htmlEl = canvas as HTMLElement;
+        setSelectedEl(htmlEl);
+        
+        const iframeWin = doc.defaultView as any;
+        if (iframeWin && iframeWin.Chart) {
+          const chart = iframeWin.Chart.getChart(canvas);
+          if (chart && chart.data.datasets?.[0]) {
+            const dataset = chart.data.datasets[0];
+            setChartData([...(dataset.data || [])] as number[]);
+            setChartLabels([...(chart.data.labels || [])] as string[]);
+            
+            const bgCol = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[0] : dataset.backgroundColor;
+            setChartBgColor(normalizeColor(bgCol || '#3b82f6'));
+            
+            const borderCol = Array.isArray(dataset.borderColor) ? dataset.borderColor[0] : dataset.borderColor;
+            setChartBorderColor(normalizeColor(borderCol || '#2563eb'));
+          }
+        }
+
+        const parentSlide = canvas.closest('.slide');
         if (parentSlide) {
           const slideIdStr = parentSlide.getAttribute('id');
           if (slideIdStr) {
@@ -450,6 +515,153 @@ export const PdfEditorView = ({
       iframeRef.current.contentDocument.querySelectorAll('.selected-for-styling').forEach(el => el.classList.remove('selected-for-styling'));
     }
     setSelectedEl(null);
+    setSelectedBorderColor('');
+    setChartData([]);
+    setChartLabels([]);
+    setChartBgColor('');
+    setChartBorderColor('');
+  };
+
+  const changeSelectedBorderColor = (newColor: string) => {
+    if (!selectedEl) return;
+    selectedEl.style.borderLeftColor = newColor;
+    selectedEl.style.borderTopColor = newColor;
+    selectedEl.style.borderRightColor = newColor;
+    selectedEl.style.borderBottomColor = newColor;
+    selectedEl.style.borderColor = newColor;
+    setSelectedBorderColor(newColor);
+    setSaveStatus('idle');
+    setSlideColorsHash(prev => prev + 1);
+  };
+
+  const findChartScript = (canvas: HTMLCanvasElement): HTMLScriptElement | null => {
+    const doc = canvas.ownerDocument;
+    if (!doc) return null;
+    const scripts = doc.querySelectorAll('script:not([src])');
+    for (let i = 0; i < scripts.length; i++) {
+      const s = scripts[i] as HTMLScriptElement;
+      if (s.textContent && s.textContent.includes(canvas.id)) {
+        return s;
+      }
+    }
+    return null;
+  };
+
+  const updateChartScript = (
+    scriptEl: HTMLScriptElement,
+    newData: number[],
+    newLabels: string[],
+    newBgColor: string,
+    newBorderColor: string
+  ) => {
+    let text = scriptEl.textContent || '';
+    
+    // Replace labels
+    text = text.replace(/"labels"\s*:\s*\[[^\]]*\]/, `"labels":${JSON.stringify(newLabels)}`);
+    
+    // Replace data
+    text = text.replace(/"data"\s*:\s*\[[^\]]*\]/, `"data":${JSON.stringify(newData)}`);
+    
+    // Replace backgroundColor
+    text = text.replace(/"backgroundColor"\s*:\s*("[^"]*"|\[[^\]]*\])/, `"backgroundColor":${JSON.stringify(newBgColor)}`);
+    
+    // Replace borderColor
+    text = text.replace(/"borderColor"\s*:\s*("[^"]*"|\[[^\]]*\])/, `"borderColor":${JSON.stringify(newBorderColor)}`);
+    
+    scriptEl.textContent = text;
+  };
+
+  const updateChartDataValue = (index: number, val: number) => {
+    if (!selectedEl || selectedEl.tagName !== 'CANVAS') return;
+    const canvas = selectedEl as HTMLCanvasElement;
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    const iframeWin = doc?.defaultView as any;
+    if (!iframeWin || !iframeWin.Chart) return;
+    
+    const chart = iframeWin.Chart.getChart(canvas);
+    if (chart && chart.data.datasets?.[0]) {
+      const newData = [...chart.data.datasets[0].data];
+      newData[index] = val;
+      chart.data.datasets[0].data = newData;
+      chart.update();
+      setChartData(newData as number[]);
+      
+      const scriptEl = findChartScript(canvas);
+      if (scriptEl) {
+        updateChartScript(
+          scriptEl,
+          newData as number[],
+          chart.data.labels as string[],
+          Array.isArray(chart.data.datasets[0].backgroundColor) ? chart.data.datasets[0].backgroundColor[0] as string : chart.data.datasets[0].backgroundColor as string,
+          Array.isArray(chart.data.datasets[0].borderColor) ? chart.data.datasets[0].borderColor[0] as string : chart.data.datasets[0].borderColor as string
+        );
+      }
+      setSaveStatus('idle');
+      setSlideColorsHash(prev => prev + 1);
+    }
+  };
+
+  const updateChartLabelValue = (index: number, label: string) => {
+    if (!selectedEl || selectedEl.tagName !== 'CANVAS') return;
+    const canvas = selectedEl as HTMLCanvasElement;
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    const iframeWin = doc?.defaultView as any;
+    if (!iframeWin || !iframeWin.Chart) return;
+    
+    const chart = iframeWin.Chart.getChart(canvas);
+    if (chart && chart.data.labels) {
+      const newLabels = [...chart.data.labels];
+      newLabels[index] = label;
+      chart.data.labels = newLabels;
+      chart.update();
+      setChartLabels(newLabels as string[]);
+      
+      const scriptEl = findChartScript(canvas);
+      if (scriptEl) {
+        updateChartScript(
+          scriptEl,
+          chart.data.datasets[0].data as number[],
+          newLabels as string[],
+          Array.isArray(chart.data.datasets[0].backgroundColor) ? chart.data.datasets[0].backgroundColor[0] as string : chart.data.datasets[0].backgroundColor as string,
+          Array.isArray(chart.data.datasets[0].borderColor) ? chart.data.datasets[0].borderColor[0] as string : chart.data.datasets[0].borderColor as string
+        );
+      }
+      setSaveStatus('idle');
+      setSlideColorsHash(prev => prev + 1);
+    }
+  };
+
+  const updateChartColors = (bgColor: string, borderColor: string) => {
+    if (!selectedEl || selectedEl.tagName !== 'CANVAS') return;
+    const canvas = selectedEl as HTMLCanvasElement;
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    const iframeWin = doc?.defaultView as any;
+    if (!iframeWin || !iframeWin.Chart) return;
+    
+    const chart = iframeWin.Chart.getChart(canvas);
+    if (chart && chart.data.datasets?.[0]) {
+      chart.data.datasets[0].backgroundColor = bgColor;
+      chart.data.datasets[0].borderColor = borderColor;
+      chart.update();
+      setChartBgColor(bgColor);
+      setChartBorderColor(borderColor);
+      
+      const scriptEl = findChartScript(canvas);
+      if (scriptEl) {
+        updateChartScript(
+          scriptEl,
+          chart.data.datasets[0].data as number[],
+          chart.data.labels as string[],
+          bgColor,
+          borderColor
+        );
+      }
+      setSaveStatus('idle');
+      setSlideColorsHash(prev => prev + 1);
+    }
   };
 
   const handleSlideColorSwap = (oldColor: string, newColor: string) => {
@@ -663,65 +875,146 @@ export const PdfEditorView = ({
 
             {/* Right Column: Element-specific editor (Renders only when an element is selected) */}
             {selectedEl && (
-              <div className="flex items-center gap-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl px-4 py-2 animate-in fade-in duration-200">
+              <div className="flex flex-wrap items-center gap-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl px-4 py-2 animate-in fade-in duration-200 max-w-full">
                 <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
                   <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-lg uppercase tracking-wider">
-                    {selectedEl.tagName === 'LI' ? 'List Item' : selectedEl.tagName === 'H1' ? 'Heading' : 'Text Block'}
+                    {selectedEl.tagName === 'CANVAS' ? 'Chart' : selectedEl.tagName === 'LI' ? 'List Item' : /^H[1-6]$/.test(selectedEl.tagName) ? 'Heading' : 'Text Block'}
                   </span>
                 </div>
 
-                {/* Font Size Control */}
-                <div className="flex items-center gap-1.5 pr-3 border-r border-emerald-100">
-                  <span className="text-xs text-gray-500 font-medium mr-1">Size</span>
-                  <button
-                    onClick={() => changeSelectedFontSize(false)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <span className="text-xs font-mono font-bold text-gray-700 min-w-[32px] text-center">
-                    {selectedFontSize || 'N/A'}
-                  </span>
-                  <button
-                    onClick={() => changeSelectedFontSize(true)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
-                  >
-                    +
-                  </button>
-                </div>
-
-                {/* Element Text Color Picker */}
-                <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
-                  <span className="text-xs text-gray-500 font-medium">Color</span>
-                  <div 
-                    className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
-                    style={{ backgroundColor: selectedColor || '#000000' }}
-                  >
-                    <input
-                      type="color"
-                      value={normalizeColor(selectedColor).startsWith('#') && normalizeColor(selectedColor).length === 7 ? normalizeColor(selectedColor) : '#000000'}
-                      onChange={(e) => changeSelectedColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                {/* Bullet Color Picker (Only for List Items) */}
-                {selectedEl.tagName === 'LI' && (
-                  <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
-                    <span className="text-xs text-gray-500 font-medium">Bullet</span>
-                    <div 
-                      className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
-                      style={{ backgroundColor: selectedBulletColor || '#000000' }}
-                    >
-                      <input
-                        type="color"
-                        value={normalizeColor(selectedBulletColor).startsWith('#') && normalizeColor(selectedBulletColor).length === 7 ? normalizeColor(selectedBulletColor) : '#000000'}
-                        onChange={(e) => changeSelectedBulletColor(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
+                {selectedEl.tagName === 'CANVAS' ? (
+                  <>
+                    {/* Chart Color Picker */}
+                    <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                      <span className="text-xs text-gray-500 font-medium">Chart Color</span>
+                      <div 
+                        className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                        style={{ backgroundColor: chartBgColor || '#3b82f6' }}
+                      >
+                        <input
+                          type="color"
+                          value={chartBgColor.startsWith('#') && chartBgColor.length === 7 ? chartBgColor : '#3b82f6'}
+                          onChange={(e) => updateChartColors(e.target.value, chartBorderColor)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Chart Border Color Picker */}
+                    <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                      <span className="text-xs text-gray-500 font-medium">Border Color</span>
+                      <div 
+                        className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                        style={{ backgroundColor: chartBorderColor || '#2563eb' }}
+                      >
+                        <input
+                          type="color"
+                          value={chartBorderColor.startsWith('#') && chartBorderColor.length === 7 ? chartBorderColor : '#2563eb'}
+                          onChange={(e) => updateChartColors(chartBgColor, e.target.value)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Chart Data Inputs */}
+                    {chartData.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 max-h-[80px] overflow-y-auto pr-1">
+                        {chartData.map((val, idx) => (
+                          <div key={idx} className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm text-xs">
+                            <input 
+                              type="text" 
+                              value={chartLabels[idx] || ''} 
+                              onChange={(e) => updateChartLabelValue(idx, e.target.value)}
+                              className="w-16 sm:w-20 border-none outline-none font-semibold text-gray-700 bg-transparent text-[11px]"
+                              placeholder="Label"
+                            />
+                            <span className="text-gray-300">:</span>
+                            <input 
+                              type="number" 
+                              value={val} 
+                              onChange={(e) => updateChartDataValue(idx, parseFloat(e.target.value) || 0)}
+                              className="w-10 sm:w-12 border-none outline-none font-bold text-gray-900 bg-transparent text-[11px]"
+                              placeholder="0"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Font Size Control */}
+                    <div className="flex items-center gap-1.5 pr-3 border-r border-emerald-100">
+                      <span className="text-xs text-gray-500 font-medium mr-1">Size</span>
+                      <button
+                        onClick={() => changeSelectedFontSize(false)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                      >
+                        -
+                      </button>
+                      <span className="text-xs font-mono font-bold text-gray-700 min-w-[32px] text-center">
+                        {selectedFontSize || 'N/A'}
+                      </span>
+                      <button
+                        onClick={() => changeSelectedFontSize(true)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Element Text Color Picker */}
+                    <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                      <span className="text-xs text-gray-500 font-medium">Color</span>
+                      <div 
+                        className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                        style={{ backgroundColor: selectedColor || '#000000' }}
+                      >
+                        <input
+                          type="color"
+                          value={normalizeColor(selectedColor).startsWith('#') && normalizeColor(selectedColor).length === 7 ? normalizeColor(selectedColor) : '#000000'}
+                          onChange={(e) => changeSelectedColor(e.target.value)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Border/Accent Color Picker */}
+                    {selectedBorderColor && (
+                      <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                        <span className="text-xs text-gray-500 font-medium">Border/Accent</span>
+                        <div 
+                          className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                          style={{ backgroundColor: selectedBorderColor }}
+                        >
+                          <input
+                            type="color"
+                            value={normalizeColor(selectedBorderColor).startsWith('#') && normalizeColor(selectedBorderColor).length === 7 ? normalizeColor(selectedBorderColor) : '#000000'}
+                            onChange={(e) => changeSelectedBorderColor(e.target.value)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bullet Color Picker (Only for List Items) */}
+                    {selectedEl.tagName === 'LI' && (
+                      <div className="flex items-center gap-2 pr-3 border-r border-emerald-100">
+                        <span className="text-xs text-gray-500 font-medium">Bullet</span>
+                        <div 
+                          className="relative w-5 h-5 rounded-full border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                          style={{ backgroundColor: selectedBulletColor || '#000000' }}
+                        >
+                          <input
+                            type="color"
+                            value={normalizeColor(selectedBulletColor).startsWith('#') && normalizeColor(selectedBulletColor).length === 7 ? normalizeColor(selectedBulletColor) : '#000000'}
+                            onChange={(e) => changeSelectedBulletColor(e.target.value)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Deselect element button */}
