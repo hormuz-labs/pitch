@@ -26,6 +26,13 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
   const [scale, setScale] = useState(1);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
+  // Styling editor states
+  const [selectedEl, setSelectedEl] = useState<HTMLElement | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedBgColor, setSelectedBgColor] = useState<string>('');
+  const [selectedFontSize, setSelectedFontSize] = useState<string>('');
+  const [elType, setElType] = useState<string>('');
+
   useEffect(() => {
     // TopHeader renders #pdf-editor-header-actions when isPdfEditorPage is true
     setPortalTarget(document.getElementById('pdf-editor-header-actions'));
@@ -96,6 +103,11 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
         outline: none;
         border-radius: 4px;
       }
+      .selected-for-styling {
+        outline: 2px solid #10b981 !important; /* Premium emerald selection border */
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
       img:hover {
         box-shadow: 0 0 0 2px #3b82f6 !important;
         cursor: pointer;
@@ -111,6 +123,22 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
     textEls.forEach((el) => {
       el.setAttribute('contenteditable', 'true');
       el.setAttribute('spellcheck', 'false');
+
+      // Click listener to select element for styling
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        doc.querySelectorAll('.selected-for-styling').forEach(item => {
+          item.classList.remove('selected-for-styling');
+        });
+        el.classList.add('selected-for-styling');
+
+        setSelectedEl(el as HTMLElement);
+        setElType(el.tagName === 'H1' ? 'Heading' : el.tagName === 'LI' ? 'List Item' : 'Text Block');
+        setSelectedColor(el.style.color || window.getComputedStyle(el).color);
+        setSelectedBgColor(el.style.backgroundColor || window.getComputedStyle(el).backgroundColor);
+        setSelectedFontSize(el.style.fontSize || window.getComputedStyle(el).fontSize);
+      });
     });
 
     // Tag slide elements and register click mapping
@@ -120,6 +148,23 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
       const title = h1?.textContent?.trim() || `Slide ${index + 1}`;
       // Add id to slide element for easy scrolling
       slideEl.setAttribute('id', `slide-node-${index}`);
+
+      // Click listener to select slide background for styling
+      slideEl.addEventListener('click', (e) => {
+        if (e.target === slideEl || (e.target as HTMLElement).classList.contains('slide-content') || (e.target as HTMLElement).tagName === 'SECTION') {
+          doc.querySelectorAll('.selected-for-styling').forEach(item => {
+            item.classList.remove('selected-for-styling');
+          });
+          slideEl.classList.add('selected-for-styling');
+
+          setSelectedEl(slideEl as HTMLElement);
+          setElType('Slide Background');
+          setSelectedColor('');
+          setSelectedBgColor(slideEl.style.backgroundColor || window.getComputedStyle(slideEl).backgroundColor);
+          setSelectedFontSize('');
+        }
+      });
+
       return { id: index, title };
     });
     setSlides(slideMetaList);
@@ -174,9 +219,13 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
     if (!iframe || !iframe.contentDocument) return;
 
     setSaveStatus('saving');
+    // Clear selection state before saving
+    setSelectedEl(null);
+
     try {
       // Clean up dynamic editing styles/attributes before saving
       const cloneDoc = iframe.contentDocument.cloneNode(true) as Document;
+      cloneDoc.querySelectorAll('.selected-for-styling').forEach(el => el.classList.remove('selected-for-styling'));
       const editables = cloneDoc.querySelectorAll('[contenteditable="true"]');
       editables.forEach(el => el.removeAttribute('contenteditable'));
 
@@ -191,6 +240,38 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
       console.error('Failed to save presentation changes:', err);
       setSaveStatus('error');
     }
+  };
+
+  // 7. Styling mutators
+  const changeColor = (newColor: string) => {
+    if (!selectedEl) return;
+    selectedEl.style.color = newColor;
+    setSelectedColor(newColor);
+    setSaveStatus('idle');
+  };
+
+  const changeBgColor = (newBgColor: string) => {
+    if (!selectedEl) return;
+    selectedEl.style.backgroundColor = newBgColor;
+    setSelectedBgColor(newBgColor);
+    setSaveStatus('idle');
+  };
+
+  const changeFontSize = (increase: boolean) => {
+    if (!selectedEl || elType === 'Slide Background') return;
+    const currentSizeStr = selectedEl.style.fontSize || window.getComputedStyle(selectedEl).fontSize;
+    const currentSize = parseFloat(currentSizeStr) || 16;
+    const newSize = increase ? currentSize + 2 : Math.max(8, currentSize - 2);
+    selectedEl.style.fontSize = `${newSize}px`;
+    setSelectedFontSize(`${newSize}px`);
+    setSaveStatus('idle');
+  };
+
+  const closeToolbar = () => {
+    if (iframeRef.current?.contentDocument) {
+      iframeRef.current.contentDocument.querySelectorAll('.selected-for-styling').forEach(el => el.classList.remove('selected-for-styling'));
+    }
+    setSelectedEl(null);
   };
 
   if (!selectedProject) {
@@ -294,6 +375,108 @@ export const PdfEditorView = ({ projects }: PdfEditorViewProps) => {
           </button>
         </>,
         portalTarget
+      )}
+
+      {/* ── Slide Element Styling Toolbar ─────────────────────────────────────── */}
+      {selectedEl && (
+        <div className="bg-white border-b border-gray-200 px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 z-10 shadow-sm shrink-0">
+          <div className="flex items-center gap-4">
+            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
+              {elType}
+            </span>
+            
+            {/* Font Size controls (only for text elements) */}
+            {elType !== 'Slide Background' && (
+              <div className="flex items-center gap-1.5 border-l border-gray-200 pl-4">
+                <span className="text-xs text-gray-400 font-medium mr-1">Size</span>
+                <button
+                  onClick={() => changeFontSize(false)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                >
+                  -
+                </button>
+                <span className="text-xs font-mono font-bold text-gray-700 min-w-[40px] text-center">
+                  {selectedFontSize || 'N/A'}
+                </span>
+                <button
+                  onClick={() => changeFontSize(true)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-250 bg-white hover:bg-gray-50 text-gray-600 transition-colors text-xs font-bold cursor-pointer"
+                >
+                  +
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-6">
+            {/* Text Color Picker (only for text elements) */}
+            {elType !== 'Slide Background' && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 font-medium">Text</span>
+                <div className="flex items-center gap-1">
+                  {['#000000', '#ffffff', '#4b5563', '#9ca3af', '#3b82f6', '#ef4444'].map((col) => (
+                    <button
+                      key={col}
+                      onClick={() => changeColor(col)}
+                      style={{ backgroundColor: col }}
+                      className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 ${
+                        selectedColor === col ? 'ring-2 ring-indigo-500 scale-110' : ''
+                      }`}
+                    />
+                  ))}
+                  {/* Custom color picker */}
+                  <div className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer">
+                    <input
+                      type="color"
+                      value={selectedColor.startsWith('#') && selectedColor.length === 7 ? selectedColor : '#000000'}
+                      onChange={(e) => changeColor(e.target.value)}
+                      className="absolute inset-[-4px] w-[200%] h-[200%] cursor-pointer p-0 border-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Background Color Picker */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 font-medium">Background</span>
+              <div className="flex items-center gap-1">
+                {['transparent', '#ffffff', '#000000', '#f3f4f6', '#e5e7eb', '#1f2937'].map((col) => (
+                  <button
+                    key={col}
+                    onClick={() => changeBgColor(col)}
+                    style={{ backgroundColor: col === 'transparent' ? 'transparent' : col }}
+                    className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer shadow-sm transition-transform hover:scale-110 flex items-center justify-center ${
+                      selectedBgColor === col ? 'ring-2 ring-indigo-500 scale-110' : ''
+                    }`}
+                  >
+                    {col === 'transparent' && <span className="text-[10px] text-gray-400">∅</span>}
+                  </button>
+                ))}
+                {/* Custom bg color picker */}
+                <div className="relative w-5 h-5 rounded-full overflow-hidden border border-gray-300 shadow-sm hover:scale-110 transition-transform cursor-pointer">
+                  <input
+                    type="color"
+                    value={selectedBgColor.startsWith('#') && selectedBgColor.length === 7 ? selectedBgColor : '#ffffff'}
+                    onChange={(e) => changeBgColor(e.target.value)}
+                    className="absolute inset-[-4px] w-[200%] h-[200%] cursor-pointer p-0 border-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Close / Deselect */}
+            <button
+              onClick={closeToolbar}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg cursor-pointer"
+              title="Close Toolbar"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── Editor Workspace ──────────────────────────────────────────────── */}
