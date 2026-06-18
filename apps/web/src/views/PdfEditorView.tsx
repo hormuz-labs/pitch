@@ -537,13 +537,28 @@ export const PdfEditorView = ({
   const findChartScript = (canvas: HTMLCanvasElement): HTMLScriptElement | null => {
     const doc = canvas.ownerDocument;
     if (!doc) return null;
-    const scripts = doc.querySelectorAll('script:not([src])');
-    for (let i = 0; i < scripts.length; i++) {
-      const s = scripts[i] as HTMLScriptElement;
-      if (s.textContent && s.textContent.includes(canvas.id)) {
-        return s;
+    
+    // 1. Try matching script that mentions the canvas ID
+    if (canvas.id) {
+      const scripts = doc.querySelectorAll('script:not([src])');
+      for (let i = 0; i < scripts.length; i++) {
+        const s = scripts[i] as HTMLScriptElement;
+        if (s.textContent && s.textContent.includes(canvas.id)) {
+          return s;
+        }
       }
     }
+    
+    // 2. Fallback: search for nearby script tag sibling to parent container or same slide
+    let parent = canvas.parentElement;
+    while (parent && !parent.classList.contains('slide')) {
+      const sibling = parent.nextElementSibling;
+      if (sibling && sibling.tagName === 'SCRIPT') {
+        return sibling as HTMLScriptElement;
+      }
+      parent = parent.parentElement;
+    }
+    
     return null;
   };
 
@@ -556,17 +571,17 @@ export const PdfEditorView = ({
   ) => {
     let text = scriptEl.textContent || '';
     
-    // Replace labels
-    text = text.replace(/"labels"\s*:\s*\[[^\]]*\]/, `"labels":${JSON.stringify(newLabels)}`);
+    // Replace labels: support optional single/double/no quotes around keys and optional single/double quotes around values
+    text = text.replace(/(["']?labels["']?\s*:\s*\[[^\]]*\])/, `"labels":${JSON.stringify(newLabels)}`);
     
-    // Replace data
-    text = text.replace(/"data"\s*:\s*\[[^\]]*\]/, `"data":${JSON.stringify(newData)}`);
+    // Replace data: support optional single/double/no quotes around keys and optional single/double quotes around values
+    text = text.replace(/(["']?data["']?\s*:\s*\[[^\]]*\])/, `"data":${JSON.stringify(newData)}`);
     
-    // Replace backgroundColor
-    text = text.replace(/"backgroundColor"\s*:\s*("[^"]*"|\[[^\]]*\])/, `"backgroundColor":${JSON.stringify(newBgColor)}`);
+    // Replace backgroundColor: support optional single/double/no quotes around keys and optional single/double quotes around values (including arrays)
+    text = text.replace(/(["']?backgroundColor["']?\s*:\s*(["'][^"']*["']|\[[^\]]*\]))/, `"backgroundColor":${JSON.stringify(newBgColor)}`);
     
-    // Replace borderColor
-    text = text.replace(/"borderColor"\s*:\s*("[^"]*"|\[[^\]]*\])/, `"borderColor":${JSON.stringify(newBorderColor)}`);
+    // Replace borderColor: support optional single/double/no quotes around keys and optional single/double quotes around values (including arrays)
+    text = text.replace(/(["']?borderColor["']?\s*:\s*(["'][^"']*["']|\[[^\]]*\]))/, `"borderColor":${JSON.stringify(newBorderColor)}`);
     
     scriptEl.textContent = text;
   };
