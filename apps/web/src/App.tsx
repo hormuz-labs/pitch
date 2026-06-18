@@ -359,16 +359,14 @@ const Sidebar = ({
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1.5">
           {selectedKey !== 'pdfeditor' && (
-            <>
-              <NavItem
-                icon={<IconSupport />}
-                label="Support"
-                active={false}
-                onClick={() => { window.location.href = 'mailto:support@trypitch.co'; }}
-              />
-              <div className="border-t border-gray-200 my-2 -mx-3" />
-            </>
+            <NavItem
+              icon={<IconSupport />}
+              label="Support"
+              active={false}
+              onClick={() => { window.location.href = 'mailto:support@trypitch.co'; }}
+            />
           )}
+          <div className="border-t border-gray-200 my-2 -mx-3" />
           <NavItem
             icon={<IconSettings />}
             label="Settings"
