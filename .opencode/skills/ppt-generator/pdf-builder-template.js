@@ -561,28 +561,24 @@ async function build() {
         return text.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 40);
     };
 
-    // Save copies inside the workspace pptx/ folder under separate unique folders
+    // Save copies inside the workspace pptx/ folder for editor access
     const jobId = CONFIG.jobId || 'unknown';
     const folderName = `ppt-${jobId}`;
-    const workspacePptxDir = path.join('/Users/mukundmadhav/pitch/pptx', folderName);
+    const workspacePptxDir = path.join(process.cwd(), 'pptx', folderName);
     
-    if (fs.existsSync('/Users/mukundmadhav/pitch/pptx')) {
-        if (!fs.existsSync(workspacePptxDir)) {
-            fs.mkdirSync(workspacePptxDir, { recursive: true });
-        }
-        
-        // Copy PDF
-        const workspacePdfPath = path.join(workspacePptxDir, 'output.pdf');
-        fs.copyFileSync(localPdfPath, workspacePdfPath);
-        console.log(`[Workspace] Copy of PDF written to ${workspacePdfPath}`);
-        
-        // Copy HTML
-        const localHtmlPath = 'output.html';
-        if (fs.existsSync(localHtmlPath)) {
-            const workspaceHtmlPath = path.join(workspacePptxDir, 'output.html');
-            fs.copyFileSync(localHtmlPath, workspaceHtmlPath);
-            console.log(`[Workspace] Copy of HTML written to ${workspaceHtmlPath}`);
-        }
+    fs.mkdirSync(workspacePptxDir, { recursive: true });
+    
+    // Copy PDF
+    const workspacePdfPath = path.join(workspacePptxDir, 'output.pdf');
+    fs.copyFileSync(localPdfPath, workspacePdfPath);
+    console.log(`[Workspace] Copy of PDF written to ${workspacePdfPath}`);
+    
+    // Copy HTML
+    const localHtmlPath = 'output.html';
+    if (fs.existsSync(localHtmlPath)) {
+        const workspaceHtmlPath = path.join(workspacePptxDir, 'output.html');
+        fs.copyFileSync(localHtmlPath, workspaceHtmlPath);
+        console.log(`[Workspace] Copy of HTML written to ${workspaceHtmlPath}`);
     }
     
     await browser.close();

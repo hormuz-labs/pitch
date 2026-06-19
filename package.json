@@ -20,8 +20,6 @@
     "dev:worker": "bun --filter worker dev",
     "dev:web": "bun --filter @pitch/web dev",
     "start": "bun --filter '*' start",
-    "job-cli": "bun apps/job-cli/src/index.ts",
-    "credits": "bun apps/job-cli/src/index.ts credits",
     "lint": "biome lint",
     "lint:fix": "biome lint --write",
     "format": "biome format --write",
