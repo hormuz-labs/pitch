@@ -500,7 +500,7 @@ const Sidebar = ({
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
-          {selectedKey !== 'pdfeditor' && (
+          {(selectedKey !== 'pdfeditor' || (pdfSlides && pdfSlides.length === 0)) && (
             <>
               <NavItem
                 icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
@@ -836,7 +836,7 @@ const Sidebar = ({
 
         {/* Bottom actions */}
         <div className="px-3 pb-3 space-y-1.5">
-          {selectedKey !== 'pdfeditor' && (
+          {(selectedKey !== 'pdfeditor' || (pdfSlides && pdfSlides.length === 0)) && (
             <NavItem
               icon={<IconSupport />}
               label="Support"

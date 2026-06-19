@@ -122,13 +122,13 @@ export async function uploadFile(localPath: string, bucketOverride?: string, pre
 
     await parallelUpload.done()
   } else {
+    const fileBuffer = fs.readFileSync(localPath)
     await client.send(
       new PutObjectCommand({
         Bucket: targetBucket,
         Key: key,
-        Body: fs.createReadStream(localPath),
+        Body: fileBuffer,
         ContentType: contentType,
-        ContentLength: fileSize,
       }),
     )
   }
