@@ -1,36 +1,28 @@
 # syntax=docker/dockerfile:1
 FROM oven/bun:1-debian
 
-# Make install dirs available to subsequent RUN commands
 ENV PATH="/root/.local/bin:/root/.opencode/bin:${PATH}"
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
-# Install runtime dependencies for browser automation, media processing, and opencode
-RUN apt-get -qq update && apt-get install -y -qq --no-install-recommends \
-    curl unzip ca-certificates xz-utils \
-    mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl1 mesa-va-drivers \
-    libxcb-shm0 libx11-xcb1 libx11-6 libxcb1 libxext6 libxrandr2 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 \
-    libgtk-3-0 libpangocairo-1.0-0 libpango-1.0-0 libatk1.0-0 libcairo-gobject2 libcairo2 libgdk-pixbuf-2.0-0 libxrender1 \
-    libasound2t64 libfreetype6 libfontconfig1 libdbus-1-3 libnss3 libnspr4 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
-    libatspi2.0-0 libcups2 libxshmfence1 libgbm1 fonts-noto-color-emoji fonts-noto-cjk fonts-freefont-ttf ffmpeg \
+# Single RUN layer with BuildKit cache mounts to avoid re-downloading packages
+# across rebuilds. Merged from 4 layers → 1 to eliminate redundant `apt-get update`
+# and keep the final image lean.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,target=/root/.npm \
+    apt-get -qq update \
+    && apt-get install -y -qq --no-install-recommends \
+        curl unzip ca-certificates xz-utils \
+        mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl1 mesa-va-drivers \
+        libxcb-shm0 libx11-xcb1 libx11-6 libxcb1 libxext6 libxrandr2 libxcomposite1 libxcursor1 libxdamage1 libxfixes3 libxi6 \
+        libgtk-3-0 libpangocairo-1.0-0 libpango-1.0-0 libatk1.0-0 libcairo-gobject2 libcairo2 libgdk-pixbuf-2.0-0 libxrender1 \
+        libasound2t64 libfreetype6 libfontconfig1 libdbus-1-3 libnss3 libnspr4 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
+        libatspi2.0-0 libcups2 libxshmfence1 libgbm1 fonts-noto-color-emoji fonts-noto-cjk fonts-freefont-ttf ffmpeg \
+        nodejs npm \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://opencode.ai/install | bash -s -- --quiet \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh -s -- --quiet \
-    && /root/.local/bin/rtk init -g --opencode
-
-# Install nodejs + npm so playwright-cli can run under Node.js.
-# We need this because Playwright's bundled `ws` module doesn't handle
-# HTTP 101 upgrade responses correctly under Bun's Node.js compat layer.
-RUN apt-get -qq update && apt-get install -y -qq --no-install-recommends nodejs npm \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install playwright globally — the worker invokes it directly to drive the
-# CloakBrowser Manager CDP session. We skip the bundled browser download because
-# the actual browser lives inside the separate cloakbrowser-manager container.
-# Note: the `@playwright/cli` package is deprecated; use `playwright` directly.
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-RUN npm install -g playwright --quiet
-
-# Install Playwright's bundled ffmpeg for video recording.
-# The system ffmpeg is not picked up by Playwright's internal executable registry.
-RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD= playwright install ffmpeg
+    && /root/.local/bin/rtk init -g --opencode \
+    && npm install -g playwright --quiet \
+    && playwright install ffmpeg
 
