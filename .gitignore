@@ -63,7 +63,7 @@ demos/
 docker-data/
 actions-runner/
 
-.agents/*output.html
+.agents/
 output.pdf
 pptx/
 qa-renders/
