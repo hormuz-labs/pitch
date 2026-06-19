@@ -599,6 +599,17 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         }
       }
 
+      // Resize browser viewport to match recording size (fixes grey bar on production)
+      logger.info('Resizing browser viewport to 1920x1080...')
+      const resizeResult = await execAsync(
+        `playwright-cli resize 1920 1080`,
+        { cwd: targetDir },
+      )
+      logger.info(
+        { stdout: resizeResult.stdout, stderr: resizeResult.stderr },
+        'playwright-cli resize output',
+      )
+
       logger.info({ webmPath }, 'Starting video recording...')
       const videoStartResult = await execAsync(
         `playwright-cli video-start "${webmPath}" --size=1920x1080`,
