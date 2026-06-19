@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/clerk-react'
 import { toPng } from 'html-to-image'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { PdfProgressWidget } from '../components/PdfProgressWidget'
@@ -104,6 +104,23 @@ export const PdfEditorView = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const activeImageRef = useRef<{ id: string; src: string } | null>(null)
+
+  // Scroll active slide into view within the outer canvas (slides flow as a tall scaled document)
+  const scrollToSlide = useCallback((index: number) => {
+    setActiveSlide(index)
+    const iframe = iframeRef.current
+    const main = containerRef.current
+    if (!iframe?.contentDocument || !main) return
+
+    const targetSlide = iframe.contentDocument.getElementById(
+      `slide-node-${index}`,
+    ) as HTMLElement | null
+    if (targetSlide) {
+      // Map the slide's position inside the (unscaled) iframe to the scaled outer canvas.
+      const top = targetSlide.offsetTop * scaleRef.current
+      main.scrollTo({ top: Math.max(0, top - 24), behavior: 'smooth' })
+    }
+  }, [])
 
   // Canva-like color extraction and bulk states
   const [, setSlideColorsHash] = useState<number>(0)
@@ -232,6 +249,34 @@ export const PdfEditorView = ({
     }
   }
 
+  // Unrotated element size — offsetWidth/Height for HTML, getBoundingClientRect for SVG (no offset*)
+  const elSize = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect()
+    return { w: el.offsetWidth || r.width, h: el.offsetHeight || r.height }
+  }
+
+  const currentAngleDeg = (el: HTMLElement) => {
+    const m = (el.style.transform || '').match(/rotate\(([-\d.]+)deg\)/)
+    return m ? parseFloat(m[1]) : 0
+  }
+
+  // Screen-space oriented box for the selection overlay (center + unrotated size + angle).
+  const computeSelBox = (el: HTMLElement) => {
+    const iframe = iframeRef.current
+    if (!iframe) return null
+    const hostRect = iframe.getBoundingClientRect()
+    const r = el.getBoundingClientRect() // AABB; its center is the element's true center under rotation
+    const s = scaleRef.current
+    const { w, h } = elSize(el)
+    return {
+      cx: hostRect.left + (r.left + r.width / 2) * s,
+      cy: hostRect.top + (r.top + r.height / 2) * s,
+      w: w * s,
+      h: h * s,
+      angle: currentAngleDeg(el),
+    }
+  }
+
   // 1b. Position the floating toolbar + selection box for the selected element (skip charts)
   useEffect(() => {
     if (!selectedEl || selectedEl.tagName === 'CANVAS') {
@@ -275,7 +320,7 @@ export const PdfEditorView = ({
       mainEl?.removeEventListener('scroll', updatePos, true)
       window.removeEventListener('resize', updatePos)
     }
-  }, [selectedEl, computeToolbarPosFor, computeSelBox])
+  }, [selectedEl])
 
   // 1c. Track which slide is in view as the canvas scrolls -> highlight in the thumbnail rail
   useEffect(() => {
@@ -812,33 +857,6 @@ export const PdfEditorView = ({
   }
 
   // ── Google-Slides-style direct manipulation (move / resize / rotate) ─────────
-  const currentAngleDeg = (el: HTMLElement) => {
-    const m = (el.style.transform || '').match(/rotate\(([-\d.]+)deg\)/)
-    return m ? parseFloat(m[1]) : 0
-  }
-
-  // Unrotated element size — offsetWidth/Height for HTML, getBoundingClientRect for SVG (no offset*)
-  const elSize = (el: HTMLElement) => {
-    const r = el.getBoundingClientRect()
-    return { w: el.offsetWidth || r.width, h: el.offsetHeight || r.height }
-  }
-
-  // Screen-space oriented box for the selection overlay (center + unrotated size + angle).
-  const computeSelBox = (el: HTMLElement) => {
-    const iframe = iframeRef.current
-    if (!iframe) return null
-    const hostRect = iframe.getBoundingClientRect()
-    const r = el.getBoundingClientRect() // AABB; its center is the element's true center under rotation
-    const s = scaleRef.current
-    const { w, h } = elSize(el)
-    return {
-      cx: hostRect.left + (r.left + r.width / 2) * s,
-      cy: hostRect.top + (r.top + r.height / 2) * s,
-      w: w * s,
-      h: h * s,
-      angle: currentAngleDeg(el),
-    }
-  }
 
   const refreshOverlays = (el: HTMLElement) => {
     const box = computeSelBox(el)
@@ -1062,24 +1080,7 @@ export const PdfEditorView = ({
     reader.readAsDataURL(file)
   }
 
-  // 5. Scroll active slide into view within the outer canvas (slides flow as a tall scaled document)
-  const scrollToSlide = (index: number) => {
-    setActiveSlide(index)
-    const iframe = iframeRef.current
-    const main = containerRef.current
-    if (!iframe?.contentDocument || !main) return
-
-    const targetSlide = iframe.contentDocument.getElementById(
-      `slide-node-${index}`,
-    ) as HTMLElement | null
-    if (targetSlide) {
-      // Map the slide's position inside the (unscaled) iframe to the scaled outer canvas.
-      const top = targetSlide.offsetTop * scaleRef.current
-      main.scrollTo({ top: Math.max(0, top - 24), behavior: 'smooth' })
-    }
-  }
-
-  // 6. Save modified HTML back to storage
+  // 5. Save modified HTML back to storage
   const handleSave = async () => {
     const iframe = iframeRef.current
     if (!iframe?.contentDocument) return
