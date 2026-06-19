@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import type { Project } from '../types';
 import { PdfProgressWidget } from '../components/PdfProgressWidget';
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation';
@@ -34,6 +33,7 @@ interface PdfEditorViewProps {
   setOnAddPdfSlide?: (fn: ((template: string) => void) | null) => void;
   setOnReorderPdfSlides?: (fn: ((from: number, to: number) => void) | null) => void;
   setOnSetPdfSlideBg?: (fn: ((index: number, color: string) => void) | null) => void;
+  setOnDeletePdfSlide?: (fn: ((index: number) => void) | null) => void;
 }
 
 
@@ -65,6 +65,7 @@ export const PdfEditorView = ({
   setOnAddPdfSlide,
   setOnReorderPdfSlides,
   setOnSetPdfSlideBg,
+  setOnDeletePdfSlide,
 }: PdfEditorViewProps) => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -87,13 +88,18 @@ export const PdfEditorView = ({
   const [tableHover, setTableHover] = useState<{ r: number; c: number }>({ r: 0, c: 0 });
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // When the user requests the server PDF while it's still regenerating in the
+  // background, we flip this on, show "Preparing…", and auto-download once ready.
+  const [awaitingServerPdf, setAwaitingServerPdf] = useState(false);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const scaleRef = useRef(1);
+  const loadedHtmlUrlRef = useRef<string>('');
   const insertFileInputRef = useRef<HTMLInputElement>(null);
   const addSlideRef = useRef<(t: string) => void>(() => {});
   const reorderRef = useRef<(f: number, t: number) => void>(() => {});
   const setSlideBgRef = useRef<(index: number, color: string) => void>(() => {});
+  const deleteSlideRef = useRef<(index: number) => void>(() => {});
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeImageRef = useRef<{ id: string; src: string } | null>(null);
@@ -151,18 +157,20 @@ export const PdfEditorView = ({
     };
   }, [setOnScrollToPdfSlide, htmlContent]);
 
-  // Expose add-slide & reorder callbacks to the Sidebar (stable wrappers → latest via refs)
+  // Expose add-slide, reorder, delete callbacks to the Sidebar (stable wrappers → latest via refs)
   useEffect(() => {
     // Wrap in an outer () => so React stores the function instead of treating it as a state updater
     setOnAddPdfSlide?.(() => (t: string) => addSlideRef.current(t));
     setOnReorderPdfSlides?.(() => (f: number, to: number) => reorderRef.current(f, to));
     setOnSetPdfSlideBg?.(() => (index: number, color: string) => setSlideBgRef.current(index, color));
+    setOnDeletePdfSlide?.(() => (index: number) => deleteSlideRef.current(index));
     return () => {
       setOnAddPdfSlide?.(null);
       setOnReorderPdfSlides?.(null);
       setOnSetPdfSlideBg?.(null);
+      setOnDeletePdfSlide?.(null);
     };
-  }, [setOnAddPdfSlide, setOnReorderPdfSlides, setOnSetPdfSlideBg]);
+  }, [setOnAddPdfSlide, setOnReorderPdfSlides, setOnSetPdfSlideBg, setOnDeletePdfSlide]);
 
   // Reset parent navigation state upon unmount
   useEffect(() => {
@@ -279,7 +287,9 @@ export const PdfEditorView = ({
     };
   }, [htmlContent, docHeight]);
 
-  // 2. Fetch the raw presentation HTML from storage
+  // 2. Fetch the raw presentation HTML from storage.
+  // Guard: skip re-fetch when the URL hasn't changed (e.g. SSE update after save)
+  // so that a completed drag-reorder or any in-progress edit is never overwritten.
   useEffect(() => {
     if (!selectedProject || selectedProject.status !== 'COMPLETED') return;
 
@@ -288,6 +298,9 @@ export const PdfEditorView = ({
       setLoadingHtml(false);
       return;
     }
+
+    if (htmlUrl === loadedHtmlUrlRef.current) return;
+    loadedHtmlUrlRef.current = htmlUrl;
 
     setLoadingHtml(true);
     fetch(htmlUrl)
@@ -662,10 +675,29 @@ export const PdfEditorView = ({
     requestAnimationFrame(rebuildSlidesFromDom);
   };
 
+  const deleteSlide = (index: number) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    const nodes = Array.from(doc.querySelectorAll('.slide'));
+    if (nodes.length <= 1) return; // never delete the last slide
+    const target = nodes[index];
+    if (!target || !target.parentElement) return;
+    target.parentElement.removeChild(target);
+    const nextActive = Math.min(index, nodes.length - 2);
+    setSaveStatus('idle');
+    requestAnimationFrame(() => {
+      rebuildSlidesFromDom();
+      remeasureDoc();
+      setActiveSlide(nextActive);
+      scrollToSlide(nextActive);
+    });
+  };
+
   // Keep refs pointed at the latest closures so the stable callbacks registered below stay fresh
   addSlideRef.current = (t: string) => addSlide(t as SlideTemplate);
   reorderRef.current = reorderSlides;
   setSlideBgRef.current = setSlideBgAt;
+  deleteSlideRef.current = deleteSlide;
 
   // Change the active slide's background colour (right-rail Slide panel)
   const changeSlideBgColor = (color: string) => setSlideBgAt(activeSlide, color);
@@ -1001,6 +1033,39 @@ export const PdfEditorView = ({
     }
   };
 
+  // Trigger an actual browser download of the high-quality server-rendered PDF.
+  const triggerServerPdfDownload = () => {
+    const url = selectedProject?.pdfUrl;
+    if (!url) return;
+    const cacheBusted = `${url}${url.includes('?') ? '&' : '?'}t=${new Date(selectedProject!.updatedAt).getTime()}`;
+    const a = document.createElement('a');
+    a.href = cacheBusted;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.click();
+  };
+
+  // "Download PDF": if a fresh server PDF is still being regenerated, wait for it
+  // (show a "Preparing…" state); otherwise download immediately.
+  const downloadServerPdf = () => {
+    setExportMenuOpen(false);
+    if (selectedProject?.parameters?.pdfGenerating) {
+      setAwaitingServerPdf(true); // effect below downloads once it's ready
+    } else {
+      triggerServerPdfDownload();
+    }
+  };
+
+  // Once the background regeneration finishes (pdfGenerating flips false), auto-download.
+  useEffect(() => {
+    if (!awaitingServerPdf) return;
+    if (selectedProject && !selectedProject.parameters?.pdfGenerating) {
+      setAwaitingServerPdf(false);
+      triggerServerPdfDownload();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingServerPdf, selectedProject?.parameters?.pdfGenerating, selectedProject?.pdfUrl]);
+
   // 6b. Client-side export of the CURRENT (edited) slides ----------------------
   const captureSlides = async (): Promise<string[] | null> => {
     const doc = iframeRef.current?.contentDocument;
@@ -1020,26 +1085,6 @@ export const PdfEditorView = ({
       }));
     }
     return shots;
-  };
-
-  const exportCurrentAsPdf = async () => {
-    setExporting(true);
-    try {
-      const shots = await captureSlides();
-      if (!shots) return;
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1280, 720] });
-      shots.forEach((url, i) => {
-        if (i > 0) pdf.addPage([1280, 720], 'landscape');
-        pdf.addImage(url, 'PNG', 0, 0, 1280, 720);
-      });
-      pdf.save(`${selectedProject?.parameters?.topic || 'presentation'}.pdf`);
-    } catch (err) {
-      console.error('PDF export failed:', err);
-      alert('Could not export to PDF. An external image may be blocking rendering.');
-    } finally {
-      setExporting(false);
-      setExportMenuOpen(false);
-    }
   };
 
   const exportSlidesAsPng = async () => {
@@ -1420,31 +1465,21 @@ export const PdfEditorView = ({
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
                 <div role="menu" className="absolute right-0 top-10 z-50 w-52 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 animate-in fade-in zoom-in-95 duration-150">
-                  <button role="menuitem" onClick={exportCurrentAsPdf} className="w-full flex items-center gap-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg px-2.5 py-2 cursor-pointer transition-colors">
-                    <span className="w-6 h-6 flex items-center justify-center rounded-md bg-red-50 text-red-600 text-[10px] font-bold shrink-0">PDF</span>
-                    Export as PDF
-                  </button>
+                  {(selectedProject.pdfUrl || selectedProject.parameters?.pdfGenerating) && (
+                    <button role="menuitem" onClick={downloadServerPdf} className="w-full flex items-center gap-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg px-2.5 py-2 cursor-pointer transition-colors">
+                      <span className="w-6 h-6 flex items-center justify-center rounded-md bg-red-50 text-red-600 text-[10px] font-bold shrink-0">PDF</span>
+                      <span className="flex flex-col leading-tight">
+                        Download PDF
+                        <span className="text-[10px] text-gray-400 font-normal">High-quality, selectable text</span>
+                      </span>
+                    </button>
+                  )}
                   <button role="menuitem" onClick={exportSlidesAsPng} className="w-full flex items-center gap-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg px-2.5 py-2 cursor-pointer transition-colors">
                     <span className="w-6 h-6 flex items-center justify-center rounded-md bg-violet-50 text-violet-600 shrink-0">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                     </span>
                     Export slides as PNG
                   </button>
-                  {selectedProject.pdfUrl && (
-                    <a
-                      role="menuitem"
-                      href={`${selectedProject.pdfUrl}?t=${new Date(selectedProject.updatedAt).getTime()}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setExportMenuOpen(false)}
-                      className="w-full flex items-center gap-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg px-2.5 py-2 cursor-pointer transition-colors no-underline"
-                    >
-                      <span className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-100 text-gray-500 shrink-0">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                      </span>
-                      Download generated PDF
-                    </a>
-                  )}
                 </div>
               </>
             )}
@@ -2149,6 +2184,26 @@ export const PdfEditorView = ({
         accept="image/*"
         className="hidden"
       />
+
+      {/* "Preparing your PDF…" — shown while waiting for the background regeneration to finish */}
+      {awaitingServerPdf && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl px-7 py-6 flex flex-col items-center gap-3 max-w-xs mx-4 text-center">
+            <span className="w-9 h-9 border-[3px] border-gray-200 border-t-indigo-600 rounded-full animate-spin" />
+            <div>
+              <p className="text-sm font-bold text-gray-900">Preparing your PDF…</p>
+              <p className="text-xs text-gray-500 mt-0.5">Generating a high-quality file. It’ll download automatically when ready.</p>
+            </div>
+            <button
+              onClick={() => setAwaitingServerPdf(false)}
+              className="mt-1 text-xs font-semibold text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 };

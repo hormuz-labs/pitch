@@ -195,6 +195,7 @@ interface SidebarProps {
   onAddPdfSlide?: (template: string) => void;
   onReorderPdfSlides?: (from: number, to: number) => void;
   onSetPdfSlideBg?: (index: number, color: string) => void;
+  onDeletePdfSlide?: (index: number) => void;
 }
 const PLAN_LABELS: Record<string, string> = {
   starter: 'Starter',
@@ -215,6 +216,7 @@ const Sidebar = ({
   onAddPdfSlide,
   onReorderPdfSlides,
   onSetPdfSlideBg,
+  onDeletePdfSlide,
 }: SidebarProps) => {
   const { getToken } = useAuth();
   const [plan, setPlan] = useState<string | null>(null);
@@ -492,6 +494,18 @@ const Sidebar = ({
                             </div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Contains</p>
                             <p className="text-[11px] text-gray-600 leading-snug">{summarizeSlide(slide.srcDoc)}</p>
+                            {onDeletePdfSlide && (pdfSlides?.length ?? 0) > 1 && (
+                              <>
+                                <div className="border-t border-gray-100 my-2 -mx-2.5" />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onDeletePdfSlide(slide.id); setSlideMenu(null); }}
+                                  className="w-full flex items-center gap-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg px-2 py-1.5 cursor-pointer transition-colors text-left"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                  Delete slide
+                                </button>
+                              </>
+                            )}
                           </div>
                         </>
                       )}
@@ -692,6 +706,7 @@ function AppContent() {
   const [onAddPdfSlide, setOnAddPdfSlide] = useState<((template: string) => void) | null>(null);
   const [onReorderPdfSlides, setOnReorderPdfSlides] = useState<((from: number, to: number) => void) | null>(null);
   const [onSetPdfSlideBg, setOnSetPdfSlideBg] = useState<((index: number, color: string) => void) | null>(null);
+  const [onDeletePdfSlide, setOnDeletePdfSlide] = useState<((index: number) => void) | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -1068,6 +1083,7 @@ function AppContent() {
               onAddPdfSlide={onAddPdfSlide || undefined}
               onReorderPdfSlides={onReorderPdfSlides || undefined}
               onSetPdfSlideBg={onSetPdfSlideBg || undefined}
+              onDeletePdfSlide={onDeletePdfSlide || undefined}
             />
           )}
 
@@ -1107,6 +1123,7 @@ function AppContent() {
                       setOnAddPdfSlide={setOnAddPdfSlide}
                       setOnReorderPdfSlides={setOnReorderPdfSlides}
                       setOnSetPdfSlideBg={setOnSetPdfSlideBg}
+                      setOnDeletePdfSlide={setOnDeletePdfSlide}
                     />
                   } 
                 />

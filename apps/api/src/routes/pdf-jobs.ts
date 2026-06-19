@@ -186,81 +186,79 @@ router.post('/:id/save', async (req, res) => {
       if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
       fs.writeFileSync(tempFilePath, html, 'utf-8');
 
-      // ── Best-effort PDF regeneration — never blocks saving the HTML ──────────
-      // The browser is always closed (even on hang/timeout) so no Chromium is left running.
-      let pdfGenerated = false;
-      try {
-        const { chromium } = await import('playwright');
-        const browser = await chromium.launch({
-          headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        });
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        try {
-          const work = (async () => {
-            const page = await browser.newPage();
-            await page.setViewportSize({ width: 1280, height: 720 });
-            // 'domcontentloaded' (not 'load') so a slow/unreachable CDN script (e.g. Chart.js)
-            // can't make setContent hang until navigation timeout.
-            await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
-            await new Promise((resolve) => setTimeout(resolve, 6000));
-            await page.pdf({ path: pdfPath, width: '1280px', height: '720px', printBackground: true });
-            pdfGenerated = true;
-          })();
-          work.catch(() => {}); // swallow late rejection if the timeout wins
-          const timeout = new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error('PDF generation timed out')), 45000);
-          });
-          await Promise.race([work, timeout]);
-        } finally {
-          if (timer) clearTimeout(timer);
-          await browser.close().catch(() => {}); // guarantee no stale Chromium process
-        }
-      } catch (pdfErr) {
-        logger.warn({ err: pdfErr, jobId: job.id }, 'PDF regeneration failed; saving HTML only');
-      }
+      // ── Fast path: upload HTML and respond immediately ────────────────────────
+      const htmlUrl = await storage.uploadFile(tempFilePath, undefined, prefix);
 
       // Keep the local workspace copy in sync (best-effort)
       const workspacePptxDir = path.join(process.cwd(), 'pptx', `ppt-${job.id}`);
       if (fs.existsSync(workspacePptxDir)) {
-        try {
-          fs.copyFileSync(tempFilePath, path.join(workspacePptxDir, 'output.html'));
-          if (pdfGenerated && fs.existsSync(pdfPath)) {
-            fs.copyFileSync(pdfPath, path.join(workspacePptxDir, 'output.pdf'));
-          }
-        } catch (err) {
-          logger.warn({ err }, 'Failed to copy updated files to workspace directory');
-        }
+        try { fs.copyFileSync(tempFilePath, path.join(workspacePptxDir, 'output.html')); }
+        catch (err) { logger.warn({ err }, 'Failed to copy updated HTML to workspace directory'); }
       }
 
-      // ── Persist: HTML always; PDF only if regeneration succeeded ────────────
-      const htmlUrl = await storage.uploadFile(tempFilePath, undefined, prefix);
-      let pdfUrl = job.pdfUrl ?? undefined;
-      if (pdfGenerated && fs.existsSync(pdfPath)) {
-        pdfUrl = await storage.uploadFile(pdfPath, undefined, prefix);
-      }
-
-      const cb = Date.now();
-      const htmlUrlCb = `${htmlUrl}?t=${cb}`;
-      const pdfUrlCb = pdfUrl ? `${pdfUrl}?t=${cb}` : undefined;
-
+      // pdfGenerating: true signals the client that a fresh PDF is being produced
+      // in the background, so a "Download PDF" click can show a "Preparing…" state.
       await db.prisma.job.update({
         where: { id: job.id },
-        data: {
-          parameters: JSON.stringify({ ...parameters, htmlUrl }),
-          ...(pdfUrl ? { pdfUrl } : {}),
-        },
+        data: { parameters: JSON.stringify({ ...parameters, htmlUrl, pdfGenerating: true }) },
       });
 
-      // Broadcast the updated job over SSE so the editor is in sync
       const updatedJob = await db.getJob(job.id, { id: userId });
       if (updatedJob) {
         await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
       }
 
-      res.json({ success: true, htmlUrl: htmlUrlCb, pdfUrl: pdfUrlCb, pdfRegenerated: pdfGenerated });
-    } finally {
+      res.json({ success: true, htmlUrl: `${htmlUrl}?t=${Date.now()}`, pdfGenerating: true });
+
+      // ── Background: regenerate PDF without blocking the response ─────────────
+      // Runs after the HTTP response is already sent; errors are logged only.
+      ;(async () => {
+        let browser: import('playwright').Browser | undefined;
+        let pdfUrl: string | undefined;
+        try {
+          const { chromium } = await import('playwright');
+          browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+          const page = await browser.newPage();
+          await page.setViewportSize({ width: 1280, height: 720 });
+          await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
+          await new Promise((resolve) => setTimeout(resolve, 6000));
+          await page.pdf({ path: pdfPath, width: '1280px', height: '720px', printBackground: true });
+          await browser.close();
+          browser = undefined;
+
+          pdfUrl = await storage.uploadFile(pdfPath, undefined, prefix);
+
+          if (fs.existsSync(workspacePptxDir)) {
+            try { fs.copyFileSync(pdfPath, path.join(workspacePptxDir, 'output.pdf')); }
+            catch (_) { /* best-effort */ }
+          }
+
+          logger.info({ jobId: job.id }, 'Background PDF regeneration complete');
+        } catch (pdfErr) {
+          logger.warn({ err: pdfErr, jobId: job.id }, 'Background PDF regeneration failed');
+        } finally {
+          await browser?.close().catch(() => {});
+          // Always clear pdfGenerating so the client never waits forever;
+          // update pdfUrl only when regeneration actually succeeded.
+          try {
+            await db.prisma.job.update({
+              where: { id: job.id },
+              data: {
+                parameters: JSON.stringify({ ...parameters, htmlUrl, pdfGenerating: false }),
+                ...(pdfUrl ? { pdfUrl } : {}),
+              },
+            });
+            const jobWithPdf = await db.getJob(job.id, { id: userId });
+            if (jobWithPdf) await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(jobWithPdf));
+          } catch (updErr) {
+            logger.warn({ err: updErr, jobId: job.id }, 'Failed to clear pdfGenerating flag');
+          }
+          cleanupTemp();
+        }
+      })();
+    } catch (err) {
       cleanupTemp();
+      throw err;
     }
   } catch (error: any) {
     logger.error({ err: error, jobId: req.params.id }, 'Failed to save PDF HTML changes');

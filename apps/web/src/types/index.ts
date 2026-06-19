@@ -24,6 +24,7 @@ export interface Project {
     topic?: string;
     slideCount?: number;
     slideHeadings?: string[];
+    pdfGenerating?: boolean;   // true while a fresh server PDF is being regenerated after a save
   };
   phases?: PhaseUpdate[];    // real-time phase progress from SSE
   progress?: number;         // 0–100 weighted progress
