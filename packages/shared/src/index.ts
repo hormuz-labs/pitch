@@ -110,6 +110,7 @@ export interface Job {
   userId: string;
   status: JobStatus;
   videoUrl?: string;
+  pdfUrl?: string;
   audioUrl?: string;
   thumbnailUrl?: string;
   parameters: Record<string, any>;
