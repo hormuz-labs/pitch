@@ -14,7 +14,7 @@ import {
   PHASE_LABELS,
   PHASE_WEIGHTS,
   type PhaseUpdate,
-  sendTelegramMessage,
+  sendDiscordMessage,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
@@ -193,7 +193,7 @@ export async function reportJobPhase(
 }
 
 /**
- * Direct in-process result pushing. Uploads final video, notifies via Telegram and email.
+ * Direct in-process result pushing. Uploads final video, notifies via Discord and email.
  */
 async function pushJobResult(
   jobId: string,
@@ -225,17 +225,17 @@ async function pushJobResult(
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
   logger.info({ jobId }, 'Job completion broadcasted')
 
-  // 4. Send Telegram and email notifications
+  // 4. Send Discord and email notifications
   try {
     const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
     const email = userProfile?.email || userId
     const urlParam = parameters?.url || 'N/A'
     const instructions = parameters?.instructions
-      ? `\nPrompt: <i>${parameters.instructions}</i>`
+      ? `\nPrompt: *${parameters.instructions}*`
       : ''
 
-    await sendTelegramMessage(
-      `✅ <b>Video Creation Completed</b>\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}`,
+    await sendDiscordMessage(
+      `✅ **Video Creation Completed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}`,
     )
 
     const userEmail = await getClerkUserEmail(userId)
@@ -891,7 +891,7 @@ ${buildSkillsPrompt(skills)}`
         fs.unlinkSync(rawVideo)
       } catch (_e) {}
 
-      // 10. Direct Push (GCS upload + database update + email & telegram notifications)
+      // 10. Direct Push (GCS upload + database update + email & discord notifications)
       await pushJobResult(jobId, userId, finalVideo, connection, parameters)
 
       await reportJobPhase(jobId, userId, 'ffmpeg_postprocessing', 'completed', connection)
@@ -969,8 +969,8 @@ ${buildSkillsPrompt(skills)}`
             ? `\nPrompt: <i>${parameters.instructions}</i>`
             : ''
 
-          await sendTelegramMessage(
-            `❌ <b>Video Creation Failed</b> (Worker error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${errorMessage}`,
+          await sendDiscordMessage(
+            `❌ **Video Creation Failed** (Worker error)\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${errorMessage}`,
           )
         } catch (updateErr: any) {
           jobLogger.warn(

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import * as db from '@saas/db'
-import { createLogger, sendTelegramMessage } from '@saas/shared'
+import { createLogger, sendDiscordMessage } from '@saas/shared'
 import { type Request, Router } from 'express'
 import { REFERRAL_REWARDS, SIGNUP_BONUS_CREDITS } from '../config.js'
 import { getVerifiedClerkProfile } from '../lib/clerk.js'
@@ -123,12 +123,12 @@ router.post('/sync', async (req, res) => {
           .catch(err => logger.error({ err, userId }, 'Failed to record referral signup'))
       }
 
-      sendTelegramMessage(
-        `👋 <b>New User Sign Up</b>\nEmail: ${email}\nName: ${firstName || ''} ${lastName || ''}`,
-      ).catch(err => logger.error({ err }, 'Failed to send Telegram notification for user sign up'))
+      sendDiscordMessage(
+        `👋 **New User Sign Up**\nEmail: ${email}\nName: ${firstName || ''} ${lastName || ''}`,
+      ).catch(err => logger.error({ err }, 'Failed to send Discord notification for user sign up'))
     } else {
-      sendTelegramMessage(`🔑 <b>User Sign In</b>\nEmail: ${email}`).catch(err =>
-        logger.error({ err }, 'Failed to send Telegram notification for user sign in'),
+      sendDiscordMessage(`🔑 **User Sign In**\nEmail: ${email}`).catch(err =>
+        logger.error({ err }, 'Failed to send Discord notification for user sign in'),
       )
     }
 

@@ -69,7 +69,7 @@ vi.mock('@saas/shared', async () => {
   const actual = await vi.importActual('../packages/shared/src/index.js')
   return {
     ...actual,
-    sendTelegramMessage: vi.fn().mockResolvedValue(undefined),
+    sendDiscordMessage: vi.fn().mockResolvedValue(undefined),
     createLogger: () => ({
       info: vi.fn(),
       warn: vi.fn(),

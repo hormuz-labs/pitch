@@ -5,7 +5,7 @@ import {
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
-  sendTelegramMessage,
+  sendDiscordMessage,
 } from '@saas/shared'
 import { Router } from 'express'
 import { connection, subscriber, videoQueue } from '../config.js'
@@ -63,13 +63,13 @@ router.post('/', async (req, res) => {
         const email = user?.email || userId
         const url = parameters?.url || 'N/A'
         const instructions = parameters?.instructions
-          ? `\nPrompt: <i>${parameters.instructions}</i>`
+          ? `\nPrompt: *${parameters.instructions}*`
           : ''
-        sendTelegramMessage(
-          `🎬 <b>New Video Creation Started</b>\nJob ID: <code>${job.id}</code>\nUser: ${email}\nURL: ${url}${instructions}`,
+        sendDiscordMessage(
+          `🎬 **New Video Creation Started**\nJob ID: \`${job.id}\`\nUser: ${email}\nURL: ${url}${instructions}`,
         )
       })
-      .catch(err => logger.error({ err }, 'Failed to send Telegram notification for job creation'))
+      .catch(err => logger.error({ err }, 'Failed to send Discord notification for job creation'))
     res.status(201).json(job)
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to create job')
