@@ -8,7 +8,7 @@ import {
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
-  sendTelegramMessage,
+  sendDiscordMessage,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
@@ -67,8 +67,8 @@ async function pushPdfResult(
     const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
     const email = userProfile?.email || userId
 
-    await sendTelegramMessage(
-      `✅ <b>PDF Presentation Completed</b>\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTopic: ${topic}\nOutput PDF: ${pdfUrl}`,
+    await sendDiscordMessage(
+      `✅ **PDF Presentation Completed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTopic: ${topic}\nOutput PDF: ${pdfUrl}`,
     )
 
     const userEmail = await getClerkUserEmail(userId)
@@ -365,8 +365,8 @@ Please perform the following actions:
       const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
       const email = userProfile?.email || userId
       const topic = parameters?.topic || 'N/A'
-      await sendTelegramMessage(
-        `❌ <b>PDF Presentation Failed</b>\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTopic: ${topic}\nError: ${error.message}`,
+      await sendDiscordMessage(
+        `❌ **PDF Presentation Failed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTopic: ${topic}\nError: ${error.message}`,
       )
     } catch (refundError: any) {
       jobLogger.error({ err: refundError }, 'Failed to handle PDF job failure cleanup')

@@ -44,7 +44,7 @@ vi.mock('@saas/shared', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
   JOB_CANCELLATIONS_CHANNEL: 'cancel',
   JOB_UPDATES_CHANNEL: 'updates',
-  sendTelegramMessage: vi.fn(() => Promise.resolve()),
+  sendDiscordMessage: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('../apps/api/src/config.js', () => ({
