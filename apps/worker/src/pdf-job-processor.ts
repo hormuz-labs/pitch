@@ -148,12 +148,96 @@ export async function processPdfJob(
       signal: eventAbortController.signal,
     })
 
+    // Phase tracking for real-time progress updates via SSE
+    // Advances through: pdf_research → pdf_writing → pdf_images → pdf_build → pdf_qa
+    const PDF_PHASES = ['pdf_research', 'pdf_writing', 'pdf_images', 'pdf_build', 'pdf_qa'] as const
+    let currentPhaseIdx = 0
+    let buildRunCount = 0
+
     const streamPromise = (async () => {
       try {
         for await (const event of events.stream) {
           const eventSessionId = getSessionIdFromEvent(event)
           if (eventSessionId && eventSessionId !== session!.id) {
             continue
+          }
+
+          // ── Phase detection from tool calls ──────────────────────────────────
+          // Watch for specific tool calls that indicate the AI has moved to a new
+          // phase. This gives users real-time visibility into PDF generation progress.
+          // OpenCode events are a discriminated union; tool-call events carry a
+          // .call property (and often .type === 'call') at runtime.
+          const evt = event as any
+          if (currentPhaseIdx < PDF_PHASES.length - 1) {
+            const callEvent = evt.call || (evt.type === 'call' ? evt : null)
+            if (callEvent) {
+              const toolName: string = callEvent.name || ''
+              const args: Record<string, any> = callEvent.arguments || {}
+
+              // pdf_research → pdf_writing: first write_file signals AI is producing content
+              if (
+                currentPhaseIdx === 0 &&
+                toolName === 'write_file'
+              ) {
+                await reportJobPhase(jobId, userId, 'pdf_research', 'completed', connection)
+                currentPhaseIdx = 1
+                await reportJobPhase(jobId, userId, 'pdf_writing', 'running', connection)
+              }
+              // pdf_writing → pdf_images: scraping images
+              else if (
+                currentPhaseIdx === 1 &&
+                toolName === 'run_shell_command'
+              ) {
+                const cmd: string = args.command || ''
+                if (cmd.includes('scrape_images')) {
+                  await reportJobPhase(jobId, userId, 'pdf_writing', 'completed', connection)
+                  currentPhaseIdx = 2
+                  await reportJobPhase(jobId, userId, 'pdf_images', 'running', connection)
+                }
+              }
+              // pdf_images → pdf_build: running pdf-builder.js (also handles writing→build if scraping skipped)
+              if (
+                (currentPhaseIdx === 2 || currentPhaseIdx === 1) &&
+                toolName === 'run_shell_command'
+              ) {
+                const cmd: string = args.command || ''
+                if (cmd.includes('pdf-builder.js')) {
+                  if (currentPhaseIdx === 2) {
+                    await reportJobPhase(jobId, userId, 'pdf_images', 'completed', connection)
+                  } else if (currentPhaseIdx === 1) {
+                    await reportJobPhase(jobId, userId, 'pdf_writing', 'completed', connection)
+                  }
+                  currentPhaseIdx = 3
+                  buildRunCount++
+                  await reportJobPhase(jobId, userId, 'pdf_build', 'running', connection)
+                }
+              }
+              // pdf_build → pdf_qa: reading QA renders
+              if (
+                currentPhaseIdx === 3 &&
+                (toolName === 'read_file' || toolName === 'read')
+              ) {
+                const filePath: string = args.file_path || args.path || ''
+                if (filePath.includes('qa-renders')) {
+                  await reportJobPhase(jobId, userId, 'pdf_build', 'completed', connection)
+                  currentPhaseIdx = 4
+                  await reportJobPhase(jobId, userId, 'pdf_qa', 'running', connection)
+                }
+              }
+              // Re-running pdf-builder.js during QA loop (back to build for fixes)
+              if (
+                currentPhaseIdx === 4 &&
+                toolName === 'run_shell_command'
+              ) {
+                const cmd: string = args.command || ''
+                if (cmd.includes('pdf-builder.js')) {
+                  await reportJobPhase(jobId, userId, 'pdf_qa', 'completed', connection)
+                  currentPhaseIdx = 3
+                  buildRunCount++
+                  await reportJobPhase(jobId, userId, 'pdf_build', 'running', connection)
+                }
+              }
+            }
           }
 
           // Track cost if it's a message update
