@@ -266,6 +266,16 @@ export function UserJobsModal({
                             Video
                           </a>
                         )}
+                        {job.pdfUrl && (
+                          <a
+                            href={job.pdfUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl transition-colors"
+                          >
+                            PDF
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -145,6 +145,124 @@ program
   });
 
 program
+  .command('push-pdf')
+  .description('Upload a generated PDF and mark the job complete')
+  .requiredOption('-j, --job-id <string>', 'The ID of the job')
+  .requiredOption('-f, --file <string>', 'Path to the PDF file')
+  .option('--html <string>', 'Path to the HTML file for the editor')
+  .option('-b, --bucket <string>', 'Storage bucket name')
+  .action(async (options) => {
+    const { jobId, file, html, bucket } = options;
+    console.log(`🚀 Processing PDF job completion for ${jobId}...`);
+
+    const uploadedUrls: string[] = [];
+
+    try {
+      // Fetch job to get userId and parameters
+      const job = await db.prisma.job.findUnique({ where: { id: jobId } });
+      if (!job) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+      
+      const parameters = typeof job.parameters === 'string' ? JSON.parse(job.parameters) : job.parameters;
+      const jobName = parameters?.jobName || jobId;
+      const prefix = `pitch/${job.userId}/pdfs/${jobName}`;
+
+      // 1. Upload PDF
+      const pdfUrl = await storage.uploadFile(file, bucket, prefix);
+      uploadedUrls.push(pdfUrl);
+      console.log(`✅ PDF uploaded: ${pdfUrl}`);
+
+      // 2. Upload HTML if provided
+      let htmlUrl: string | undefined;
+      if (html) {
+        htmlUrl = await storage.uploadFile(html, bucket, prefix);
+        uploadedUrls.push(htmlUrl);
+        console.log(`✅ HTML uploaded: ${htmlUrl}`);
+      }
+
+      // 3. Update parameters to include htmlUrl and jobType: 'pdf'
+      const updatedParams = {
+        ...parameters,
+        htmlUrl,
+        jobType: 'pdf',
+      };
+      await db.prisma.job.update({
+        where: { id: jobId },
+        data: { parameters: JSON.stringify(updatedParams) },
+      });
+
+      // 4. Update Database (save pdfUrl in pdfUrl field)
+      const updatedJob = await db.updateJob(jobId, {
+        status: JobStatus.COMPLETED,
+        pdfUrl: pdfUrl,
+      });
+
+      // 5. Notify subscribers
+      await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+      console.log(`✅ Database updated for PDF job ${jobId}`);
+
+      // Fetch user profile for notification
+      const userProfile = await db.prisma.userProfile.findUnique({ where: { id: updatedJob.userId } });
+      const email = userProfile?.email || updatedJob.userId;
+      const topic = parameters?.topic || 'N/A';
+
+      // Telegram hook
+      await sendTelegramMessage(`✅ <b>PDF Presentation Completed</b>\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTopic: ${topic}\nOutput PDF: ${pdfUrl}`);
+
+      process.exit(0);
+    } catch (error: any) {
+      console.error(`❌ Error processing PDF job ${jobId}:`, error.message);
+
+      // Clean up uploaded files
+      for (const url of uploadedUrls) {
+        try {
+          // @ts-ignore
+          await storage.deleteFile(url, bucket);
+          console.log(`🗑️  Cleaned up uploaded file: ${url}`);
+        } catch (cleanupError: any) {
+          console.warn(`⚠️  Failed to clean up file ${url}:`, cleanupError.message);
+        }
+      }
+
+      // Mark job as FAILED and refund credit (1 credit for PDF)
+      try {
+        const existingJob = await db.prisma.job.findUnique({ where: { id: jobId } });
+        let newPhases: PhaseUpdate[] = [];
+        if (existingJob && existingJob.phases) {
+          const parsedPhases: PhaseUpdate[] = JSON.parse(existingJob.phases as string);
+          newPhases = parsedPhases.map(p => {
+            if (p.status === 'running') {
+              return { ...p, status: 'failed', completedAt: new Date().toISOString() };
+            }
+            return p;
+          });
+        }
+
+        const failedJob = await db.updateJob(jobId, { 
+          status: JobStatus.FAILED,
+          ...(newPhases.length > 0 ? { phases: JSON.stringify(newPhases) } : {})
+        });
+        await redis.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob));
+
+        const userProfile = await db.prisma.userProfile.findUnique({ where: { id: failedJob.userId } });
+        const email = userProfile?.email || failedJob.userId;
+        const topic = failedJob.parameters?.topic || 'N/A';
+
+        await sendTelegramMessage(`❌ <b>PDF Presentation Failed</b> (CLI error)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTopic: ${topic}\nError: ${error.message}`);
+
+        const tenantId = failedJob.userId;
+        await db.addCredits(tenantId, 1, 'refund', 'Refund: PDF generation failed (CLI)', { jobId });
+        console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
+      } catch (refundError: any) {
+        console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
+      }
+
+      process.exit(1);
+    }
+  });
+
+program
   .command('thumbnail')
   .description('Upload a thumbnail image and update the job record immediately')
   .requiredOption('-j, --job-id <string>', 'The ID of the job')
@@ -214,12 +332,14 @@ program
         await sendTelegramMessage(`❌ <b>Video Creation Failed</b> (Status manual update)\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTarget URL: ${urlParam}${instructions}`);
       }
 
-      // Refund 3 credits if the job is being marked as FAILED
+      // Refund credits if the job is being marked as FAILED (1 for PDF, 3 for Video)
       if (jobStatus === JobStatus.FAILED) {
         try {
           const tenantId = updatedJob.userId;
-          await db.addCredits(tenantId, 3, 'refund', 'Refund: video generation failed (admin)', { jobId });
-          console.log(`↩️  Credit refunded for tenant ${tenantId} due to failed job ${jobId}`);
+          const isPdf = updatedJob.parameters?.jobType === 'pdf';
+          const refundCredits = isPdf ? 1 : 3;
+          await db.addCredits(tenantId, refundCredits, 'refund', `Refund: ${isPdf ? 'PDF' : 'video'} generation failed (admin)`, { jobId });
+          console.log(`↩️  ${refundCredits} credit(s) refunded for tenant ${tenantId} due to failed job ${jobId}`);
         } catch (refundError: any) {
           console.warn(`⚠️  Failed to refund credit for job ${jobId}:`, refundError.message);
         }

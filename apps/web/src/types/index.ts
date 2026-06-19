@@ -15,15 +15,24 @@ export interface Project {
   userId: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   videoUrl?: string;
+  pdfUrl?: string;
   audioUrl?: string;
   thumbnailUrl?: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, any> & {
+    jobType?: 'video' | 'pdf';
+    htmlUrl?: string;
+    topic?: string;
+    slideCount?: number;
+    slideHeadings?: string[];
+    pdfGenerating?: boolean;   // true while a fresh server PDF is being regenerated after a save
+  };
   phases?: PhaseUpdate[];    // real-time phase progress from SSE
   progress?: number;         // 0–100 weighted progress
   cost?: number;             // cost of opencode session in USD
   workerId?: string;         // id of the worker that processed the job
   rating?: string;           // 'up' or 'down' rating for the generated video
   feedback?: string;         // Optional text feedback from the user
+  error?: string;            // Reason for failure, if any
   createdAt: string;
   updatedAt: string;
 }
