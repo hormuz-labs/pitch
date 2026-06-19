@@ -1,5 +1,8 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
+import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
 import {
   createLogger,
   JOB_UPDATES_CHANNEL,
@@ -7,6 +10,7 @@ import {
   type PhaseUpdate,
   sendTelegramMessage,
 } from '@saas/shared'
+import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
 import type { Redis } from 'ioredis'
 import * as os from 'os'
@@ -14,6 +18,72 @@ import { activeSessionsByJobId, reportJobPhase } from './job-processor.js'
 import { getSessionIdFromEvent } from './opencode.js'
 
 const logger = createLogger('worker:pdf')
+
+async function pushPdfResult(
+  jobId: string,
+  userId: string,
+  pdfPath: string,
+  htmlPath: string | null,
+  connection: Redis,
+  parameters: any,
+) {
+  logger.info({ jobId, userId, pdfPath, htmlPath }, 'Pushing PDF result directly from worker')
+
+  const topic = parameters?.topic || 'untitled'
+  const topicSlug = topic
+    .toLowerCase()
+    .replace(/[^a-zA-Z0-9-]/g, '_')
+    .slice(0, 40)
+  const prefix = `pitch/${userId}/pdfs/${topicSlug}`
+
+  const pdfUrl = await storage.uploadFile(pdfPath, undefined, prefix)
+  logger.info({ pdfUrl }, 'PDF uploaded to storage')
+
+  let htmlUrl: string | undefined
+  if (htmlPath && fs.existsSync(htmlPath)) {
+    htmlUrl = await storage.uploadFile(htmlPath, undefined, prefix)
+    logger.info({ htmlUrl }, 'HTML uploaded to storage')
+  }
+
+  const updatedParams = {
+    ...parameters,
+    htmlUrl,
+    jobType: 'pdf',
+  }
+  await db.prisma.job.update({
+    where: { id: jobId },
+    data: { parameters: JSON.stringify(updatedParams) },
+  })
+
+  const updatedJob = await db.updateJob(jobId, {
+    status: JobStatus.COMPLETED,
+    pdfUrl,
+  })
+
+  await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
+  logger.info({ jobId }, 'PDF job completion broadcasted')
+
+  try {
+    const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
+    const email = userProfile?.email || userId
+
+    await sendTelegramMessage(
+      `✅ <b>PDF Presentation Completed</b>\nJob ID: <code>${jobId}</code>\nUser: ${email}\nTopic: ${topic}\nOutput PDF: ${pdfUrl}`,
+    )
+
+    const userEmail = await getClerkUserEmail(userId)
+    if (userEmail && pdfUrl) {
+      await sendJobCompleteEmail({
+        to: userEmail,
+        jobId,
+        videoUrl: pdfUrl,
+        videoTitle: topic || 'Presentation',
+      })
+    }
+  } catch (err: any) {
+    logger.warn({ err, jobId }, 'Notifications or email failed')
+  }
+}
 
 export async function processPdfJob(
   job: Job,
@@ -143,6 +213,7 @@ export async function processPdfJob(
         ? `Slide headings (preferred per slide): ${JSON.stringify(headings)}`
         : 'Slide headings: Select automatically based on the topic structure.'
 
+    const buildDir = `/tmp/ppt-${jobId}`
     const promptText = `You are a professional PDF presentation generator agent. Your task is to build a high-fidelity PDF presentation based on the user's requirements and the specialized \`ppt-generator\` skill.
 
 Job ID: "${jobId}"
@@ -157,21 +228,14 @@ Please perform the following actions:
    - Choose a brand design palette from the design library \`.opencode/skills/ppt-generator/design-library.md\`.
    - Write slide content and generate search queries for Unsplash.
    - Scrape Unsplash images using Playwright via the provided script \`node .opencode/skills/ppt-generator/reference/scrape_images.js\`.
-   - Create a build directory at \`/tmp/ppt-${jobId}/\` and copy \`.opencode/skills/ppt-generator/pdf-builder-template.js\` there as \`pdf-builder.js\`.
+   - Create a build directory at \`${buildDir}/\` and copy \`.opencode/skills/ppt-generator/pdf-builder-template.js\` there as \`pdf-builder.js\`.
    - Populate the \`CONFIG\` object inside \`pdf-builder.js\` with your written slides, colors, font imports, base64-encoded local images, and set the \`jobId\` property to "${jobId}".
-   - Run \`node /tmp/ppt-${jobId}/pdf-builder.js\` to generate the PDF and QA renders. Note that this script automatically copies both generated files (PDF & HTML) into the workspace directory \`pptx/ppt-${jobId}/\` under the names \`output.pdf\` and \`output.html\`.
-   - Perform Visual QA check on the PNG renders in \`qa-renders/\` and apply targeted template updates/fixes if there are any visual alignment/overflow defects.
-3. At each step, report progress by executing the CLI:
-   - Research: \`bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase pdf_research --status running\` (and \`completed\`)
-   - Writing: \`bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase pdf_writing --status running\` (and \`completed\`)
-   - Images: \`bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase pdf_images --status running\` (and \`completed\`)
-   - Build: \`bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase pdf_build --status running\` (and \`completed\`)
-   - QA: \`bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase pdf_qa --status running\` (and \`completed\`)
-   - Upload: \`bun apps/job-cli/src/index.ts phase --job-id ${jobId} --phase pdf_upload --status running\`
-4. When finished and QA is fully passed, publish and upload the final result to GCS and complete the job by running:
-   \`bun apps/job-cli/src/index.ts push-pdf --job-id ${jobId} --file pptx/ppt-${jobId}/output.pdf --html pptx/ppt-${jobId}/output.html\`
-
-Ensure that you call the CLI commands above exactly as written. Make sure the job is completed successfully.`
+   - Navigate into the build directory: \`cd ${buildDir}\` then run \`node pdf-builder.js\` to generate the PDF and QA renders. This ensures \`output.pdf\` and \`output.html\` are written to \`${buildDir}/\`.
+   - Perform Visual QA check on the PNG renders in \`qa-renders/\` and apply targeted template updates/fixes if there are any visual alignment/overflow defects. Re-run \`node pdf-builder.js\` from inside \`${buildDir}\` after each fix.
+3. When finished and QA is fully passed, confirm the final files exist at:
+   - \`${buildDir}/output.pdf\`
+   - \`${buildDir}/output.html\`
+    The worker will handle uploading and marking the job complete automatically.`
 
     jobLogger.info({ promptText }, 'Sending prompt to OpenCode')
 
@@ -220,15 +284,49 @@ Ensure that you call the CLI commands above exactly as written. Make sure the jo
       jobLogger.info({ cost: currentCost }, 'Job cost updated')
     }
 
-    // Since the LLM execution runs `push-pdf` command at the end inside the session workspace,
-    // the job status is marked as COMPLETED by the job-cli command. We can verify if it was completed.
-    const finalJob = await db.prisma.job.findUnique({ where: { id: jobId } })
-    if (finalJob?.status !== JobStatus.COMPLETED && finalJob?.status !== JobStatus.FAILED) {
-      // If it completed prompt but status is not updated, something went wrong/exited early
+    // 6. Mark all LLM phases as completed
+    const pdfPhases = ['pdf_research', 'pdf_writing', 'pdf_images', 'pdf_build', 'pdf_qa']
+    for (const phase of pdfPhases) {
+      await reportJobPhase(jobId, userId, phase, 'completed', connection)
+    }
+
+    // 7. Find and upload the built PDF + HTML
+    await reportJobPhase(jobId, userId, 'pdf_upload', 'running', connection)
+
+    const expectedPdfPath = path.join(buildDir, 'output.pdf')
+    const expectedHtmlPath = path.join(buildDir, 'output.html')
+
+    let pdfPath: string | null = null
+    let htmlPath: string | null = null
+
+    if (fs.existsSync(expectedPdfPath)) {
+      pdfPath = expectedPdfPath
+    } else {
+      // Fallback: try workspace-relative paths
+      const workspacePdfPath = path.join(targetDir, 'pptx', `ppt-${jobId}`, 'output.pdf')
+      if (fs.existsSync(workspacePdfPath)) {
+        pdfPath = workspacePdfPath
+      }
+    }
+
+    if (fs.existsSync(expectedHtmlPath)) {
+      htmlPath = expectedHtmlPath
+    } else {
+      const workspaceHtmlPath = path.join(targetDir, 'pptx', `ppt-${jobId}`, 'output.html')
+      if (fs.existsSync(workspaceHtmlPath)) {
+        htmlPath = workspaceHtmlPath
+      }
+    }
+
+    if (!pdfPath) {
       throw new Error(
-        'OpenCode session finished, but job status was not updated to COMPLETED by push-pdf',
+        `PDF not found after generation. Looked in: ${expectedPdfPath} and workspace pptx/`,
       )
     }
+
+    jobLogger.info({ pdfPath, htmlPath }, 'Found generated files, uploading directly from worker')
+    await pushPdfResult(jobId, userId, pdfPath, htmlPath, connection, parameters)
+    await reportJobPhase(jobId, userId, 'pdf_upload', 'completed', connection)
   } catch (error: any) {
     jobLogger.error({ err: error }, 'Failed to process PDF job')
     clearTimeout(timeout)

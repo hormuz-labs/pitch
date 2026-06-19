@@ -36,7 +36,7 @@ slide writing → high-fidelity .pdf file.
 
 Read [image-scraping.md](image-scraping.md) before running the Playwright pipeline.
 Copy [pdf-builder-template.js](pdf-builder-template.js) to `/tmp/ppt-<JOB_ID>/pdf-builder.js`.
-Read [qa-loop.md](qa-loop.md) AFTER building and BEFORE pushing — it contains the Visual QA loop for PDFs.
+Read [qa-loop.md](qa-loop.md) AFTER building — it contains the Visual QA loop for PDFs. The worker handles upload automatically once files are ready.
 
 ---
 
@@ -404,13 +404,12 @@ For EVERY topic follow this algorithm:
 1. npm install playwright (inside /tmp/ppt-<JOB_ID>/)
 2. Copy pdf-builder-template.js to /tmp/ppt-<JOB_ID>/pdf-builder.js
 3. Fill in the CONFIG object with generated slide content. Use the `getBase64Image('filename.jpg')` helper to map local images so they are permanently embedded into the PDF.
-4. Run: node /tmp/ppt-<JOB_ID>/pdf-builder.js
-5. Verify output.pdf was written locally, and a copy has automatically been saved to `pptx/ppt-<topic-slug>/<topic-slug>.pdf` in the workspace
+4. cd /tmp/ppt-<JOB_ID> && node pdf-builder.js
+5. Verify output.pdf was written to /tmp/ppt-<JOB_ID>/output.pdf
 6. Run Visual QA Loop (Step 10)
-7. Push the result:
-   bun apps/job-cli/src/index.ts push-ppt --job-id <JOB_ID> --file /tmp/ppt-<JOB_ID>/output.pdf
+7. When QA passes, ensure output.pdf and output.html are at /tmp/ppt-<JOB_ID>/. The worker handles uploading automatically.
 ```
-**IMPORTANT**: The job is NOT complete until `push-ppt` exits with code 0.
+**IMPORTANT**: The worker will detect the generated files and handle upload/completion automatically.
 
 ---
 
@@ -418,7 +417,7 @@ For EVERY topic follow this algorithm:
 
 Read [qa-loop.md](qa-loop.md) for the full commands, defect taxonomy, and patch strategy.
 
-**DO NOT call `push-ppt` until this loop completes.**
+**DO NOT proceed to the exit step until this loop completes.**
 
 ### The Loop
 
@@ -442,15 +441,9 @@ LOOP:
 END LOOP
 ```
 
-### Exit — Call push-ppt
+### Exit — Build Complete
 
-```bash
-bun apps/job-cli/src/index.ts push-ppt \
-  --job-id <JOB_ID> \
-  --file /tmp/ppt-<JOB_ID>/output.pdf
-```
-
-**The job is NOT complete until `push-ppt` exits with code 0.**
+Once the QA loop passes, the final `output.pdf` and `output.html` are at `/tmp/ppt-<JOB_ID>/`. The worker will detect these files and handle uploading to storage and marking the job complete automatically.
 
 ---
 

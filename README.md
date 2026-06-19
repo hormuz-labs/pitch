@@ -57,7 +57,6 @@ Structured for scale using **Bun Workspaces**.
 |:--------------|:----------------------|:----------|
 | **`apps/`**   | `api`                 | REST Gateway for job ingestion and status polling. |
 |               | `worker`              | Headless compute nodes consuming the BullMQ pipeline. |
-|               | `job-cli`             | Terminal interface for local orchestration. |
 |               | `mock-server`         | Synthetic endpoint for isolation testing. |
 |               | `web`                 | React/Vite dashboard for job visualization. |
 | **`packages/`**| `db`                 | Prisma ORM schema and database abstraction layer. |
