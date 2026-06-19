@@ -10,11 +10,19 @@ import {
   HeadObjectCommand,
   PutBucketPolicyCommand,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import type { Readable } from 'stream';
 
 const endpoint = process.env.MINIO_ENDPOINT ?? 'http://localhost:9000';
 const bucket = process.env.MINIO_BUCKET ?? 'pitch-videos';
 const publicUrl = (process.env.MINIO_PUBLIC_URL ?? endpoint).replace(/\/$/, '');
+
+const MULTIPART_THRESHOLD = 5 * 1024 * 1024; // 5 MB
+const MULTIPART_PART_SIZE = 5 * 1024 * 1024; // 5 MB per part
+const MULTIPART_QUEUE_SIZE = 4; // concurrent part uploads
+
+const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes for large uploads
+const CONNECT_TIMEOUT_MS = 30 * 1000; // 30 seconds to establish connection
 
 const client = new S3Client({
   endpoint,
@@ -24,6 +32,10 @@ const client = new S3Client({
     secretAccessKey: process.env.MINIO_ROOT_PASSWORD ?? 'minioadmin',
   },
   forcePathStyle: true, // required for MinIO
+  requestHandler: {
+    requestTimeout: UPLOAD_TIMEOUT_MS / 1000, // in seconds for fetch handler
+    connectionTimeout: CONNECT_TIMEOUT_MS / 1000,
+  } as any,
 });
 
 async function ensureBucketExists(bucketName: string) {
@@ -54,30 +66,68 @@ async function ensureBucketExists(bucketName: string) {
   }
 }
 
+function detectContentType(filePath: string): string {
+  if (filePath.endsWith('.mp4')) return 'video/mp4';
+  if (filePath.endsWith('.webm')) return 'video/webm';
+  if (filePath.endsWith('.wav') || filePath.endsWith('.mp3')) return 'audio/mpeg';
+  if (filePath.endsWith('.pdf')) return 'application/pdf';
+  if (filePath.endsWith('.pptx') || filePath.endsWith('.ppt')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  if (filePath.endsWith('.png')) return 'image/png';
+  if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) return 'image/jpeg';
+  if (filePath.endsWith('.json')) return 'application/json';
+  return 'application/octet-stream';
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
 export async function uploadFile(localPath: string, bucketOverride?: string, prefix?: string) {
   const targetBucket = bucketOverride ?? bucket;
   const filename = path.basename(localPath);
-  const fileStream = fs.readFileSync(localPath);
-  const contentType = localPath.endsWith('.mp4')
-    ? 'video/mp4'
-    : localPath.endsWith('.wav') || localPath.endsWith('.mp3')
-    ? 'audio/mpeg'
-    : 'application/octet-stream';
+  const contentType = detectContentType(localPath);
+  const fileSize = fs.statSync(localPath).size;
 
   await ensureBucketExists(targetBucket);
 
-  console.log(`[Storage] Uploading ${filename} to MinIO bucket "${targetBucket}"...`);
-
   const key = prefix ? path.join(prefix, filename) : filename;
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: targetBucket,
-      Key: key,
-      Body: fileStream,
-      ContentType: contentType,
-    })
-  );
+  console.log(`[Storage] Uploading ${filename} (${formatBytes(fileSize)}) to MinIO bucket "${targetBucket}"...`);
+
+  if (fileSize > MULTIPART_THRESHOLD) {
+    const parallelUpload = new Upload({
+      client,
+      params: {
+        Bucket: targetBucket,
+        Key: key,
+        Body: fs.createReadStream(localPath),
+        ContentType: contentType,
+      },
+      queueSize: MULTIPART_QUEUE_SIZE,
+      partSize: MULTIPART_PART_SIZE,
+    });
+
+    parallelUpload.on('httpUploadProgress', (progress) => {
+      if (progress.total) {
+        const pct = Math.round((progress.loaded! / progress.total) * 100);
+        console.log(`[Storage] Upload progress: ${pct}% (${formatBytes(progress.loaded!)} / ${formatBytes(progress.total)})`);
+      }
+    });
+
+    await parallelUpload.done();
+  } else {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: targetBucket,
+        Key: key,
+        Body: fs.createReadStream(localPath),
+        ContentType: contentType,
+      })
+    );
+  }
 
   const url = `${publicUrl}/${targetBucket}/${key}`;
   console.log(`[Storage] Upload complete. Public URL: ${url}`);
@@ -136,12 +186,11 @@ async function ensurePrivateBucketExists(bucketName: string) {
  */
 export async function uploadStorageState(localPath: string, userId: string): Promise<string> {
   const key = storageStateKey(userId);
-  const body = fs.readFileSync(localPath);
   await ensurePrivateBucketExists(PROFILES_BUCKET);
   await client.send(new PutObjectCommand({
     Bucket: PROFILES_BUCKET,
     Key: key,
-    Body: body,
+    Body: fs.createReadStream(localPath),
     ContentType: 'application/json',
   }));
   console.log(`[Storage] Uploaded storage_state for user ${userId} → ${PROFILES_BUCKET}/${key}`);
