@@ -9,26 +9,26 @@
 
 /** Extract a lowercase hostname from a possibly scheme-less URL, or null. */
 export function hostOf(input: string | null | undefined): string | null {
-  if (!input || !input.trim()) return null;
-  let s = input.trim();
-  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  if (!input?.trim()) return null
+  let s = input.trim()
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`
   try {
-    return new URL(s).hostname.toLowerCase();
+    return new URL(s).hostname.toLowerCase()
   } catch {
-    return null;
+    return null
   }
 }
 
 /** Naive registrable domain (last two labels). Good enough for a UX hint. */
 function registrableDomain(host: string): string {
-  const parts = host.split('.');
-  return parts.length <= 2 ? host : parts.slice(-2).join('.');
+  const parts = host.split('.')
+  return parts.length <= 2 ? host : parts.slice(-2).join('.')
 }
 
 /** Hostname without a leading "www." — for display. */
 export function prettyHost(input: string | null | undefined): string {
-  const h = hostOf(input);
-  return h ? h.replace(/^www\./, '') : (input ?? '');
+  const h = hostOf(input)
+  return h ? h.replace(/^www\./, '') : (input ?? '')
 }
 
 /**
@@ -36,12 +36,12 @@ export function prettyHost(input: string | null | undefined): string {
  * exact host or any host under the same registrable domain.
  */
 export function isAuthenticatedFor(url: string | null | undefined, origins: string[]): boolean {
-  const host = hostOf(url);
-  if (!host) return false;
-  const reg = registrableDomain(host);
-  return origins.some((o) => {
-    const oh = hostOf(o);
-    if (!oh) return false;
-    return oh === host || registrableDomain(oh) === reg;
-  });
+  const host = hostOf(url)
+  if (!host) return false
+  const reg = registrableDomain(host)
+  return origins.some(o => {
+    const oh = hostOf(o)
+    if (!oh) return false
+    return oh === host || registrableDomain(oh) === reg
+  })
 }

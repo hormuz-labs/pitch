@@ -1,27 +1,27 @@
-import { type ReactNode } from 'react';
-import { motion, type Variants } from 'framer-motion';
-import { PitchWordmark } from './PitchWordmark';
-import { Link } from 'react-router-dom';
-import { FaXTwitter, FaLinkedinIn } from 'react-icons/fa6';
+import { motion, type Variants } from 'framer-motion'
+import type { ReactNode } from 'react'
+import { FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
+import { Link } from 'react-router-dom'
+import { PitchWordmark } from './PitchWordmark'
 
 export interface Footer15Link {
-  label: string;
-  href: string;
-  icon?: React.ComponentType<{ className?: string; size?: number }>;
+  label: string
+  href: string
+  icon?: React.ComponentType<{ className?: string; size?: number }>
 }
 
 export interface Footer15Column {
-  title: string;
-  links: Footer15Link[];
+  title: string
+  links: Footer15Link[]
 }
 
 export interface Footer15Props {
   /** Custom logo mark element */
-  logoIcon?: ReactNode;
+  logoIcon?: ReactNode
   /** Short brand description / tagline */
-  description?: string;
+  description?: string
   /** Navigation columns */
-  columns?: Footer15Column[];
+  columns?: Footer15Column[]
 }
 
 const defaultColumns: Footer15Column[] = [
@@ -42,18 +42,20 @@ const defaultColumns: Footer15Column[] = [
   },
   {
     title: 'Product',
-    links: [
-      { label: 'Pricing', href: '/pricing' },
-    ],
+    links: [{ label: 'Pricing', href: '/pricing' }],
   },
   {
     title: 'Social',
     links: [
       { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: FaXTwitter },
-      { label: 'LinkedIn', href: 'https://www.linkedin.com/company/trypitchdotco/', icon: FaLinkedinIn },
+      {
+        label: 'LinkedIn',
+        href: 'https://www.linkedin.com/company/trypitchdotco/',
+        icon: FaLinkedinIn,
+      },
     ],
   },
-];
+]
 
 const staggerContainer: Variants = {
   hidden: { opacity: 0 },
@@ -64,7 +66,7 @@ const staggerContainer: Variants = {
       delayChildren: 0.05,
     },
   },
-};
+}
 
 const navStagger: Variants = {
   hidden: { opacity: 0 },
@@ -75,7 +77,7 @@ const navStagger: Variants = {
       delayChildren: 0.02,
     },
   },
-};
+}
 
 const riseItem: Variants = {
   hidden: { opacity: 0, y: 18, filter: 'blur(6px)' },
@@ -85,12 +87,12 @@ const riseItem: Variants = {
     filter: 'blur(0px)',
     transition: { type: 'spring', duration: 0.6, bounce: 0 },
   },
-};
+}
 
 const linkStagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.04 } },
-};
+}
 
 const linkItem: Variants = {
   hidden: { opacity: 0, y: 5 },
@@ -99,7 +101,7 @@ const linkItem: Variants = {
     y: 0,
     transition: { type: 'spring', duration: 0.4, bounce: 0 },
   },
-};
+}
 
 export function Footer15({
   logoIcon,
@@ -122,7 +124,9 @@ export function Footer15({
           >
             <div className="flex items-center justify-center w-full">
               <span className="shrink-0 text-white">
-                {logoIcon ?? <PitchWordmark className="text-white" style={{ height: '40px', width: 'auto' }} />}
+                {logoIcon ?? (
+                  <PitchWordmark className="text-white" style={{ height: '40px', width: 'auto' }} />
+                )}
               </span>
             </div>
 
@@ -136,15 +140,15 @@ export function Footer15({
             aria-label="Footer navigation"
             className="grid w-full max-w-4xl grid-cols-2 sm:grid-cols-4 gap-x-12 gap-y-8"
           >
-            {columns.map((col) => (
+            {columns.map(col => (
               <motion.div key={col.title} variants={riseItem} className="text-center sm:text-left">
                 <h3 className="text-[10px] leading-none font-bold tracking-widest uppercase text-zinc-100">
                   {col.title}
                 </h3>
                 {col.title === 'Social' ? (
                   <div className="flex flex-row gap-4 justify-center sm:justify-start items-center mt-4 leading-none">
-                    {col.links.map((link) => {
-                      const Icon = link.icon;
+                    {col.links.map(link => {
+                      const Icon = link.icon
                       return (
                         <motion.a
                           key={link.label}
@@ -159,15 +163,12 @@ export function Footer15({
                         >
                           {Icon && <Icon className="size-3.5" />}
                         </motion.a>
-                      );
+                      )
                     })}
                   </div>
                 ) : (
-                  <motion.ul
-                    variants={linkStagger}
-                    className="mt-3 flex flex-col gap-3"
-                  >
-                    {col.links.map((link) => (
+                  <motion.ul variants={linkStagger} className="mt-3 flex flex-col gap-3">
+                    {col.links.map(link => (
                       <motion.li key={link.label} variants={linkItem}>
                         {link.href.startsWith('/') && !link.href.startsWith('//') ? (
                           <Link
@@ -199,11 +200,13 @@ export function Footer15({
       {/* Copyright row */}
       <div className="mt-6 border-t border-zinc-900 px-6 py-4 sm:px-10 lg:px-14 xl:px-20">
         <div className="mx-auto flex max-w-[1440px] items-center justify-center text-center text-xs text-zinc-500">
-          <p className="text-[10px] leading-none font-light tracking-widest uppercase text-zinc-500">© {new Date().getFullYear()} Pitch. All rights reserved.</p>
+          <p className="text-[10px] leading-none font-light tracking-widest uppercase text-zinc-500">
+            © {new Date().getFullYear()} Pitch. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
-  );
+  )
 }
 
 export const LandingFooter = () => {
@@ -211,5 +214,5 @@ export const LandingFooter = () => {
     <div className="flex w-full items-end">
       <Footer15 />
     </div>
-  );
-};
+  )
+}

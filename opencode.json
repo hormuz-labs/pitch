@@ -1,8 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "permission": "allow",
-  "plugin": [
-    ".opencode/plugins/video-budget.ts",
-    ".opencode/plugins/demo-tools.ts"
-  ]
+  "plugin": [".opencode/plugins/video-budget.ts", ".opencode/plugins/demo-tools.ts"]
 }

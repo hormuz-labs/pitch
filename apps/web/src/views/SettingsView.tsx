@@ -1,67 +1,67 @@
-import { useState, useEffect } from 'react';
-import { UserProfile, useAuth, useUser } from '@clerk/clerk-react';
-import { User, CreditCard, Zap, RefreshCw, TrendingUp, Package, Download } from 'lucide-react';
-import pCoinIcon from '../assets/pCoin.svg';
-import { OptionPicker } from '../components/OptionPicker';
-import { API_URL } from '../config';
-import { downloadReceiptPdf } from '../lib/receiptPdf';
+import { UserProfile, useAuth, useUser } from '@clerk/clerk-react'
+import { CreditCard, Download, Package, RefreshCw, TrendingUp, User, Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import pCoinIcon from '../assets/pCoin.svg'
+import { OptionPicker } from '../components/OptionPicker'
+import { API_URL } from '../config'
+import { downloadReceiptPdf } from '../lib/receiptPdf'
 
 const TAB_OPTIONS = [
   { id: 'profile', label: 'My Profile', icon: User },
   { id: 'billing', label: 'Billing & Credits', icon: CreditCard },
-];
+]
 
 interface CreditTransaction {
-  id: string;
-  delta: number;
-  type: string;
-  description: string;
-  jobId?: string | null;
-  subscriptionId?: string | null;
-  topUpId?: string | null;
-  createdAt: string;
+  id: string
+  delta: number
+  type: string
+  description: string
+  jobId?: string | null
+  subscriptionId?: string | null
+  topUpId?: string | null
+  createdAt: string
 }
 
 interface Subscription {
-  id: string;
-  dodoSubscriptionId?: string;
-  planKey: string;
-  status: string;
-  creditsPerCycle: number;
-  currentPeriodStart: string;
-  currentPeriodEnd: string;
-  cancelledAt?: string | null;
-  createdAt: string;
+  id: string
+  dodoSubscriptionId?: string
+  planKey: string
+  status: string
+  creditsPerCycle: number
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  cancelledAt?: string | null
+  createdAt: string
 }
 
 interface TopUpPurchase {
-  id: string;
-  dodoPaymentId?: string;
-  packKey: string;
-  credits: number;
-  amountUsd: number;
-  createdAt: string;
+  id: string
+  dodoPaymentId?: string
+  packKey: string
+  credits: number
+  amountUsd: number
+  createdAt: string
 }
 
 interface CreditSummary {
-  balance: number;
-  activeSubscription: Subscription | null;
-  subscriptions: Subscription[];
-  topUps: TopUpPurchase[];
-  transactions: CreditTransaction[];
+  balance: number
+  activeSubscription: Subscription | null
+  subscriptions: Subscription[]
+  topUps: TopUpPurchase[]
+  transactions: CreditTransaction[]
 }
 
 const PLAN_LABELS: Record<string, string> = {
   starter: 'Starter',
   pro: 'Pro',
   enterprise: 'Enterprise',
-};
+}
 
 const PLAN_COLORS: Record<string, string> = {
   starter: 'bg-blue-50 text-blue-700 border-blue-200',
   pro: 'bg-purple-50 text-purple-700 border-purple-200',
   enterprise: 'bg-amber-50 text-amber-700 border-amber-200',
-};
+}
 
 const TX_TYPE_LABELS: Record<string, string> = {
   subscription_grant: 'Subscription',
@@ -71,7 +71,7 @@ const TX_TYPE_LABELS: Record<string, string> = {
   admin_adjustment: 'Admin',
   promo: 'Promo',
   referral: 'Referral',
-};
+}
 
 const TX_TYPE_COLORS: Record<string, string> = {
   subscription_grant: 'text-blue-600',
@@ -81,34 +81,34 @@ const TX_TYPE_COLORS: Record<string, string> = {
   admin_adjustment: 'text-amber-600',
   promo: 'text-emerald-600',
   referral: 'text-amber-600',
-};
+}
 
 export const SettingsView = () => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
-  const { getToken } = useAuth();
-  const { user } = useUser();
-  const [summary, setSummary] = useState<CreditSummary | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile')
+  const { getToken } = useAuth()
+  const { user } = useUser()
+  const [summary, setSummary] = useState<CreditSummary | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   // Re-fetch the receipt from Dodo (accurate amount/method) and download as PDF.
   const downloadReceipt = async (
     rowKey: string,
     params: { paymentId?: string; subscriptionId?: string },
   ) => {
-    if (downloadingId) return;
-    setDownloadingId(rowKey);
+    if (downloadingId) return
+    setDownloadingId(rowKey)
     try {
-      const token = await getToken();
-      if (!token) return;
-      const qs = new URLSearchParams();
-      if (params.paymentId) qs.set('payment_id', params.paymentId);
-      else if (params.subscriptionId) qs.set('subscription_id', params.subscriptionId);
+      const token = await getToken()
+      if (!token) return
+      const qs = new URLSearchParams()
+      if (params.paymentId) qs.set('payment_id', params.paymentId)
+      else if (params.subscriptionId) qs.set('subscription_id', params.subscriptionId)
       const res = await fetch(`${API_URL}/checkout/receipt?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to fetch receipt');
-      const { receipt } = await res.json();
+      })
+      if (!res.ok) throw new Error('Failed to fetch receipt')
+      const { receipt } = await res.json()
       await downloadReceiptPdf({
         receiptId: receipt.id,
         payerName: receipt.name || user?.fullName || 'Customer',
@@ -118,17 +118,23 @@ export const SettingsView = () => {
         date: receipt.date,
         label: receipt.label,
         credits: receipt.credits,
-      });
+      })
     } catch (err) {
-      console.error('[Receipt] download failed', err);
+      console.error('[Receipt] download failed', err)
     } finally {
-      setDownloadingId(null);
+      setDownloadingId(null)
     }
-  };
+  }
 
-  const ReceiptBtn = ({ rowKey, params }: { rowKey: string; params: { paymentId?: string; subscriptionId?: string } }) => {
-    if (!params.paymentId && !params.subscriptionId) return null;
-    const busy = downloadingId === rowKey;
+  const ReceiptBtn = ({
+    rowKey,
+    params,
+  }: {
+    rowKey: string
+    params: { paymentId?: string; subscriptionId?: string }
+  }) => {
+    if (!params.paymentId && !params.subscriptionId) return null
+    const busy = downloadingId === rowKey
     return (
       <button
         onClick={() => downloadReceipt(rowKey, params)}
@@ -136,35 +142,39 @@ export const SettingsView = () => {
         title="Download receipt (PDF)"
         className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition disabled:opacity-50"
       >
-        {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+        {busy ? (
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Download className="w-3.5 h-3.5" />
+        )}
       </button>
-    );
-  };
+    )
+  }
 
   useEffect(() => {
-    if (activeTab !== 'billing') return;
+    if (activeTab !== 'billing') return
     const fetchCredits = async () => {
-      setLoading(true);
+      setLoading(true)
       try {
-        const token = await getToken();
-        if (!token) return;
+        const token = await getToken()
+        if (!token) return
         const res = await fetch(`${API_URL}/credits`, {
           headers: { Authorization: `Bearer ${token}` },
-        });
+        })
         if (res.ok) {
-          const data = await res.json();
-          setSummary(data);
+          const data = await res.json()
+          setSummary(data)
         }
       } catch {
         // silently fail
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    fetchCredits();
-  }, [activeTab, getToken]);
+    }
+    fetchCredits()
+  }, [activeTab, getToken])
 
-  const activeSub = summary?.activeSubscription;
+  const activeSub = summary?.activeSubscription
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-[#FAFAFA] absolute inset-0">
@@ -231,7 +241,6 @@ export const SettingsView = () => {
                 </div>
               ) : (
                 <div className="space-y-6 pb-8">
-
                   {/* ── Top row: Balance + Active Plan ──────────────────────── */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Credit Balance */}
@@ -253,53 +262,69 @@ export const SettingsView = () => {
                           {(() => {
                             const subCredits = summary.transactions
                               .filter(t => t.type === 'subscription_grant')
-                              .reduce((a, t) => a + t.delta, 0);
+                              .reduce((a, t) => a + t.delta, 0)
                             const topUpCredits = summary.transactions
                               .filter(t => t.type === 'topup_grant')
-                              .reduce((a, t) => a + t.delta, 0);
+                              .reduce((a, t) => a + t.delta, 0)
                             const promoCredits = summary.transactions
                               .filter(t => t.type === 'promo')
-                              .reduce((a, t) => a + t.delta, 0);
+                              .reduce((a, t) => a + t.delta, 0)
                             const usedCredits = summary.transactions
                               .filter(t => t.type === 'usage')
-                              .reduce((a, t) => a + t.delta, 0);
+                              .reduce((a, t) => a + t.delta, 0)
                             const referralCredits = summary.transactions
                               .filter(t => t.type === 'referral')
-                              .reduce((a, t) => a + t.delta, 0);
+                              .reduce((a, t) => a + t.delta, 0)
                             return (
                               <>
                                 {subCredits > 0 && (
                                   <div className="flex justify-between text-xs text-gray-500">
-                                    <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Subscription grants</span>
+                                    <span className="flex items-center gap-1">
+                                      <RefreshCw className="w-3 h-3" /> Subscription grants
+                                    </span>
                                     <span className="font-medium text-blue-600">+{subCredits}</span>
                                   </div>
                                 )}
                                 {topUpCredits > 0 && (
                                   <div className="flex justify-between text-xs text-gray-500">
-                                    <span className="flex items-center gap-1"><Package className="w-3 h-3" /> Top-up purchases</span>
-                                    <span className="font-medium text-purple-600">+{topUpCredits}</span>
+                                    <span className="flex items-center gap-1">
+                                      <Package className="w-3 h-3" /> Top-up purchases
+                                    </span>
+                                    <span className="font-medium text-purple-600">
+                                      +{topUpCredits}
+                                    </span>
                                   </div>
                                 )}
                                 {promoCredits > 0 && (
                                   <div className="flex justify-between text-xs text-gray-500">
-                                    <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Promo / refunds</span>
-                                    <span className="font-medium text-emerald-600">+{promoCredits}</span>
+                                    <span className="flex items-center gap-1">
+                                      <Zap className="w-3 h-3" /> Promo / refunds
+                                    </span>
+                                    <span className="font-medium text-emerald-600">
+                                      +{promoCredits}
+                                    </span>
                                   </div>
                                 )}
                                 {referralCredits > 0 && (
                                   <div className="flex justify-between text-xs text-gray-500">
-                                    <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> Referral rewards</span>
-                                    <span className="font-medium text-amber-600">+{referralCredits}</span>
+                                    <span className="flex items-center gap-1">
+                                      <Zap className="w-3 h-3" /> Referral rewards
+                                    </span>
+                                    <span className="font-medium text-amber-600">
+                                      +{referralCredits}
+                                    </span>
                                   </div>
                                 )}
                                 {usedCredits < 0 && (
                                   <div className="flex justify-between text-xs text-gray-500">
-                                    <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Credits used</span>
+                                    <span className="flex items-center gap-1">
+                                      <TrendingUp className="w-3 h-3" /> Credits used
+                                    </span>
                                     <span className="font-medium text-red-500">{usedCredits}</span>
                                   </div>
                                 )}
                               </>
-                            );
+                            )
                           })()}
                         </div>
                       )}
@@ -316,7 +341,9 @@ export const SettingsView = () => {
                             <span className="text-2xl font-bold text-gray-900">
                               {PLAN_LABELS[activeSub.planKey] ?? activeSub.planKey}
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${PLAN_COLORS[activeSub.planKey] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${PLAN_COLORS[activeSub.planKey] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}
+                            >
                               {activeSub.status.toUpperCase()}
                             </span>
                           </div>
@@ -324,14 +351,29 @@ export const SettingsView = () => {
                             {activeSub.creditsPerCycle} credits / month
                           </div>
                           <div className="text-xs text-gray-400 space-y-0.5">
-                            <div>Renews: <span className="text-gray-600">{new Date(activeSub.currentPeriodEnd).toLocaleDateString()}</span></div>
-                            <div>Period: <span className="text-gray-600">{new Date(activeSub.currentPeriodStart).toLocaleDateString()} – {new Date(activeSub.currentPeriodEnd).toLocaleDateString()}</span></div>
+                            <div>
+                              Renews:{' '}
+                              <span className="text-gray-600">
+                                {new Date(activeSub.currentPeriodEnd).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div>
+                              Period:{' '}
+                              <span className="text-gray-600">
+                                {new Date(activeSub.currentPeriodStart).toLocaleDateString()} –{' '}
+                                {new Date(activeSub.currentPeriodEnd).toLocaleDateString()}
+                              </span>
+                            </div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="text-2xl font-bold text-gray-900 mb-1">No active plan</div>
-                          <div className="text-sm text-gray-500">Top up anytime or subscribe for monthly credits.</div>
+                          <div className="text-2xl font-bold text-gray-900 mb-1">
+                            No active plan
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Top up anytime or subscribe for monthly credits.
+                          </div>
                         </>
                       )}
                     </div>
@@ -345,17 +387,31 @@ export const SettingsView = () => {
                       </div>
                       <div className="divide-y divide-gray-50">
                         {summary!.subscriptions.map(sub => (
-                          <div key={sub.id} className="flex items-center justify-between px-6 py-3 text-sm">
+                          <div
+                            key={sub.id}
+                            className="flex items-center justify-between px-6 py-3 text-sm"
+                          >
                             <div>
-                              <span className="font-medium text-gray-800">{PLAN_LABELS[sub.planKey] ?? sub.planKey}</span>
-                              <span className="text-xs text-gray-400 ml-2">{sub.creditsPerCycle} cr/mo</span>
+                              <span className="font-medium text-gray-800">
+                                {PLAN_LABELS[sub.planKey] ?? sub.planKey}
+                              </span>
+                              <span className="text-xs text-gray-400 ml-2">
+                                {sub.creditsPerCycle} cr/mo
+                              </span>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs text-gray-400">{new Date(sub.currentPeriodStart).toLocaleDateString()}</span>
-                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${PLAN_COLORS[sub.planKey] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                              <span className="text-xs text-gray-400">
+                                {new Date(sub.currentPeriodStart).toLocaleDateString()}
+                              </span>
+                              <span
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${PLAN_COLORS[sub.planKey] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}
+                              >
                                 {sub.status}
                               </span>
-                              <ReceiptBtn rowKey={`sub-${sub.id}`} params={{ subscriptionId: sub.dodoSubscriptionId }} />
+                              <ReceiptBtn
+                                rowKey={`sub-${sub.id}`}
+                                params={{ subscriptionId: sub.dodoSubscriptionId }}
+                              />
                             </div>
                           </div>
                         ))}
@@ -371,14 +427,26 @@ export const SettingsView = () => {
                       </div>
                       <div className="divide-y divide-gray-50">
                         {summary!.topUps.map(topUp => (
-                          <div key={topUp.id} className="flex items-center justify-between px-6 py-3 text-sm">
+                          <div
+                            key={topUp.id}
+                            className="flex items-center justify-between px-6 py-3 text-sm"
+                          >
                             <div>
-                              <span className="font-medium text-gray-800">{topUp.credits} credits</span>
-                              <span className="text-xs text-gray-400 ml-2">${topUp.amountUsd.toFixed(2)}</span>
+                              <span className="font-medium text-gray-800">
+                                {topUp.credits} credits
+                              </span>
+                              <span className="text-xs text-gray-400 ml-2">
+                                ${topUp.amountUsd.toFixed(2)}
+                              </span>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs text-gray-400">{new Date(topUp.createdAt).toLocaleDateString()}</span>
-                              <ReceiptBtn rowKey={`topup-${topUp.id}`} params={{ paymentId: topUp.dodoPaymentId }} />
+                              <span className="text-xs text-gray-400">
+                                {new Date(topUp.createdAt).toLocaleDateString()}
+                              </span>
+                              <ReceiptBtn
+                                rowKey={`topup-${topUp.id}`}
+                                params={{ paymentId: topUp.dodoPaymentId }}
+                              />
                             </div>
                           </div>
                         ))}
@@ -398,26 +466,41 @@ export const SettingsView = () => {
                     ) : (
                       <div className="divide-y divide-gray-50">
                         {summary!.transactions.map(tx => (
-                          <div key={tx.id} className="flex items-center justify-between px-6 py-3 text-sm">
+                          <div
+                            key={tx.id}
+                            className="flex items-center justify-between px-6 py-3 text-sm"
+                          >
                             <div className="flex flex-col gap-0.5 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide bg-gray-100 ${TX_TYPE_COLORS[tx.type] ?? 'text-gray-500'}`}>
+                                <span
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide bg-gray-100 ${TX_TYPE_COLORS[tx.type] ?? 'text-gray-500'}`}
+                                >
                                   {TX_TYPE_LABELS[tx.type] ?? tx.type}
                                 </span>
-                                <span className="font-medium text-gray-800 truncate">{tx.description}</span>
+                                <span className="font-medium text-gray-800 truncate">
+                                  {tx.description}
+                                </span>
                               </div>
-                              {tx.jobId && <span className="text-xs text-gray-400">Job: {tx.jobId.slice(0, 8)}…</span>}
-                              <span className="text-xs text-gray-400">{new Date(tx.createdAt).toLocaleString()}</span>
+                              {tx.jobId && (
+                                <span className="text-xs text-gray-400">
+                                  Job: {tx.jobId.slice(0, 8)}…
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400">
+                                {new Date(tx.createdAt).toLocaleString()}
+                              </span>
                             </div>
-                            <span className={`font-bold text-base shrink-0 ml-4 ${tx.delta > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                              {tx.delta > 0 ? '+' : ''}{tx.delta}
+                            <span
+                              className={`font-bold text-base shrink-0 ml-4 ${tx.delta > 0 ? 'text-emerald-600' : 'text-red-500'}`}
+                            >
+                              {tx.delta > 0 ? '+' : ''}
+                              {tx.delta}
                             </span>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
-
                 </div>
               )}
             </div>
@@ -425,5 +508,5 @@ export const SettingsView = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
