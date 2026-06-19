@@ -179,11 +179,16 @@ router.post('/:id/save', async (req, res) => {
     // Generate PDF via Playwright
     const pdfPath = path.join(tempDir, 'output.pdf');
     const { chromium } = await import('playwright');
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
     try {
       const page = await browser.newPage();
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.setContent(html);
+      // Use 'domcontentloaded' (not 'load') so a slow/unreachable CDN script (e.g. Chart.js)
+      // can't make setContent hang until navigation timeout. We then give resources time below.
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
       // Wait for fonts/images/charts to load (mimicking pdf-builder-template wait time)
       await new Promise((resolve) => setTimeout(resolve, 6000));
       await page.pdf({
