@@ -164,90 +164,104 @@ router.post('/:id/save', async (req, res) => {
     const jobName = parameters.jobName || job.id;
     const prefix = `pitch/${job.userId}/pdfs/${jobName}`;
 
-    // Create a temporary file locally inside workspace
     const fs = await import('fs');
     const path = await import('path');
     const storage = await import('@saas/storage');
 
     const tempDir = path.join(process.cwd(), 'pptx', `temp_${job.id}`);
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
     const tempFilePath = path.join(tempDir, 'output.html');
-    fs.writeFileSync(tempFilePath, html, 'utf-8');
-
-    // Generate PDF via Playwright
     const pdfPath = path.join(tempDir, 'output.pdf');
-    const { chromium } = await import('playwright');
-    const browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-    try {
-      const page = await browser.newPage();
-      await page.setViewportSize({ width: 1280, height: 720 });
-      // Use 'domcontentloaded' (not 'load') so a slow/unreachable CDN script (e.g. Chart.js)
-      // can't make setContent hang until navigation timeout. We then give resources time below.
-      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      // Wait for fonts/images/charts to load (mimicking pdf-builder-template wait time)
-      await new Promise((resolve) => setTimeout(resolve, 6000));
-      await page.pdf({
-        path: pdfPath,
-        width: '1280px',
-        height: '720px',
-        printBackground: true
-      });
-    } finally {
-      await browser.close();
-    }
 
-    // Also copy to the workspace local path if it exists to keep local storage in sync
-    const workspacePptxDir = path.join(process.cwd(), 'pptx', `ppt-${job.id}`);
-    if (fs.existsSync(workspacePptxDir)) {
+    const cleanupTemp = () => {
       try {
-        fs.copyFileSync(tempFilePath, path.join(workspacePptxDir, 'output.html'));
-        if (fs.existsSync(pdfPath)) {
-          fs.copyFileSync(pdfPath, path.join(workspacePptxDir, 'output.pdf'));
-        }
-      } catch (err) {
-        logger.warn({ err }, 'Failed to copy updated files to workspace directory');
+        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+        if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+        if (fs.existsSync(tempDir)) fs.rmdirSync(tempDir);
+      } catch (e) {
+        logger.warn({ err: e }, 'Failed to clean up temp HTML/PDF edit files');
       }
-    }
-
-    // Upload to storage (this overwrites the existing output.html and output.pdf in MinIO)
-    const htmlUrl = await storage.uploadFile(tempFilePath, undefined, prefix);
-    const pdfUrl = await storage.uploadFile(pdfPath, undefined, prefix);
-
-    // Clean up temporary local files
-    try {
-      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-      if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-      fs.rmdirSync(tempDir);
-    } catch (e) {
-      logger.warn({ err: e }, 'Failed to clean up temp HTML/PDF edit files');
-    }
-
-    // Update the job parameters to include the updated htmlUrl, and update pdfUrl with the new pdfUrl
-    const updatedParams = {
-      ...parameters,
-      htmlUrl,
     };
 
-    await db.prisma.job.update({
-      where: { id: job.id },
-      data: { 
-        parameters: JSON.stringify(updatedParams),
-        pdfUrl: pdfUrl,
-      },
-    });
+    try {
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      fs.writeFileSync(tempFilePath, html, 'utf-8');
 
-    // Broadcast the updated job over SSE so editor is in sync
-    const updatedJob = await db.getJob(job.id, { id: userId });
-    if (updatedJob) {
-      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+      // ── Best-effort PDF regeneration — never blocks saving the HTML ──────────
+      // The browser is always closed (even on hang/timeout) so no Chromium is left running.
+      let pdfGenerated = false;
+      try {
+        const { chromium } = await import('playwright');
+        const browser = await chromium.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const work = (async () => {
+            const page = await browser.newPage();
+            await page.setViewportSize({ width: 1280, height: 720 });
+            // 'domcontentloaded' (not 'load') so a slow/unreachable CDN script (e.g. Chart.js)
+            // can't make setContent hang until navigation timeout.
+            await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
+            await new Promise((resolve) => setTimeout(resolve, 6000));
+            await page.pdf({ path: pdfPath, width: '1280px', height: '720px', printBackground: true });
+            pdfGenerated = true;
+          })();
+          work.catch(() => {}); // swallow late rejection if the timeout wins
+          const timeout = new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error('PDF generation timed out')), 45000);
+          });
+          await Promise.race([work, timeout]);
+        } finally {
+          if (timer) clearTimeout(timer);
+          await browser.close().catch(() => {}); // guarantee no stale Chromium process
+        }
+      } catch (pdfErr) {
+        logger.warn({ err: pdfErr, jobId: job.id }, 'PDF regeneration failed; saving HTML only');
+      }
+
+      // Keep the local workspace copy in sync (best-effort)
+      const workspacePptxDir = path.join(process.cwd(), 'pptx', `ppt-${job.id}`);
+      if (fs.existsSync(workspacePptxDir)) {
+        try {
+          fs.copyFileSync(tempFilePath, path.join(workspacePptxDir, 'output.html'));
+          if (pdfGenerated && fs.existsSync(pdfPath)) {
+            fs.copyFileSync(pdfPath, path.join(workspacePptxDir, 'output.pdf'));
+          }
+        } catch (err) {
+          logger.warn({ err }, 'Failed to copy updated files to workspace directory');
+        }
+      }
+
+      // ── Persist: HTML always; PDF only if regeneration succeeded ────────────
+      const htmlUrl = await storage.uploadFile(tempFilePath, undefined, prefix);
+      let pdfUrl = job.pdfUrl ?? undefined;
+      if (pdfGenerated && fs.existsSync(pdfPath)) {
+        pdfUrl = await storage.uploadFile(pdfPath, undefined, prefix);
+      }
+
+      const cb = Date.now();
+      const htmlUrlCb = `${htmlUrl}?t=${cb}`;
+      const pdfUrlCb = pdfUrl ? `${pdfUrl}?t=${cb}` : undefined;
+
+      await db.prisma.job.update({
+        where: { id: job.id },
+        data: {
+          parameters: JSON.stringify({ ...parameters, htmlUrl }),
+          ...(pdfUrl ? { pdfUrl } : {}),
+        },
+      });
+
+      // Broadcast the updated job over SSE so the editor is in sync
+      const updatedJob = await db.getJob(job.id, { id: userId });
+      if (updatedJob) {
+        await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob));
+      }
+
+      res.json({ success: true, htmlUrl: htmlUrlCb, pdfUrl: pdfUrlCb, pdfRegenerated: pdfGenerated });
+    } finally {
+      cleanupTemp();
     }
-
-    res.json({ success: true, htmlUrl, pdfUrl });
   } catch (error: any) {
     logger.error({ err: error, jobId: req.params.id }, 'Failed to save PDF HTML changes');
     res.status(500).json({ error: error.message });
