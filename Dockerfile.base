@@ -23,6 +23,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && curl -fsSL https://opencode.ai/install | bash -s -- --quiet \
     && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/develop/install.sh | sh -s -- --quiet \
     && /root/.local/bin/rtk init -g --opencode \
-    && npm install -g playwright --quiet \
+    && npm install -g playwright @playwright/cli@latest --quiet \
     && playwright install ffmpeg
 
