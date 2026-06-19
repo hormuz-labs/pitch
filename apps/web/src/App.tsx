@@ -1215,9 +1215,9 @@ function AppContent() {
     userId,
     getToken,
     user?.primaryEmailAddress?.emailAddress,
-    user.lastName,
-    user.imageUrl,
-    user.firstName,
+    user?.lastName,
+    user?.imageUrl,
+    user?.firstName,
   ])
 
   // Listen to SSE updates — reconnects automatically with a fresh token on close/error.
