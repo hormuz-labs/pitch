@@ -9,3 +9,5 @@ export { AffiliateView } from './AffiliateView';
 export { AdminView } from './AdminView';
 export { CheckoutReturnView } from './CheckoutReturnView';
 export { SessionsView } from './SessionsView';
+export { PdfCreateView } from './PdfCreateView';
+export { PdfEditorView } from './PdfEditorView';

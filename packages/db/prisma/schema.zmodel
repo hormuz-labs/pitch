@@ -193,6 +193,7 @@ model Job {
   userId       String
   status       String
   videoUrl     String?
+  pdfUrl       String?
   audioUrl     String?
   thumbnailUrl String?  // S3/MinIO URL of the intro screenshot — uploaded early so dashboard shows branded thumbnail immediately
   parameters   String

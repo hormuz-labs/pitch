@@ -123,9 +123,6 @@ services:
     # Intentionally no environment/ AUTH_TOKEN: manager runs open inside the private Docker network.
     volumes:
       - cloakprofiles:/data
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
     group_add:
       - "44"
       - "992"
@@ -192,9 +189,6 @@ services:
         env: "SERVICE_NAME,HOSTNAME"
     volumes:
       - ./docker-data/opencode-logs:/root/.local/share/opencode/log
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
     group_add:
       - "44"
       - "992"

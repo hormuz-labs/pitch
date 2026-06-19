@@ -11,6 +11,7 @@ export interface OpencodeServer {
 export async function startServer(targetDir: string): Promise<{ server: OpencodeServer; client: OpencodeClient }> {
   logger.info({ targetDir }, 'Starting OpenCode server');
   const server = await createOpencodeServer({ 
+    port: 4098,
     timeout: 60000,
     config: {
       model: "google/gemini-3.1-pro-preview"

@@ -38,6 +38,7 @@ function parseJobPhases(rawPhases: string | null | undefined): { phases: PhaseUp
 export async function updateJob(id: string, data: {
   status?: JobStatus;
   videoUrl?: string;
+  pdfUrl?: string;
   audioUrl?: string;
   thumbnailUrl?: string;
   phases?: string; // raw JSON string from publishPhaseUpdate
@@ -55,6 +56,7 @@ export async function updateJob(id: string, data: {
   const updateData: Prisma.JobUpdateInput = {};
   if (data.status !== undefined) updateData.status = data.status;
   if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl;
+  if (data.pdfUrl !== undefined) updateData.pdfUrl = data.pdfUrl;
   if (data.audioUrl !== undefined) updateData.audioUrl = data.audioUrl;
   if (data.thumbnailUrl !== undefined) updateData.thumbnailUrl = data.thumbnailUrl;
   if (data.error !== undefined) updateData.error = data.error;
