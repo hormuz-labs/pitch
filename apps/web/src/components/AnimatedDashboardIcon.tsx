@@ -1,5 +1,4 @@
-
-import { motion } from 'framer-motion';
+import { motion } from 'framer-motion'
 
 export const AnimatedDashboardIcon = ({ active = false }: { active?: boolean }) => {
   return (
@@ -26,7 +25,7 @@ export const AnimatedDashboardIcon = ({ active = false }: { active?: boolean }) 
         variants={{
           idle: { scale: 1, opacity: 0.8 },
           hover: { scale: 1.1, opacity: 1, rotate: -5 },
-          active: { scale: 1, opacity: 1, fill: 'currentColor' }
+          active: { scale: 1, opacity: 1, fill: 'currentColor' },
         }}
         transition={{ type: 'spring', stiffness: 400, damping: 10 }}
       />
@@ -39,7 +38,7 @@ export const AnimatedDashboardIcon = ({ active = false }: { active?: boolean }) 
         variants={{
           idle: { scale: 1, opacity: 0.8 },
           hover: { scale: 1.1, opacity: 1, rotate: 5 },
-          active: { scale: 1, opacity: 1, fill: 'currentColor' }
+          active: { scale: 1, opacity: 1, fill: 'currentColor' },
         }}
         transition={{ type: 'spring', stiffness: 400, damping: 10, delay: 0.05 }}
       />
@@ -52,7 +51,7 @@ export const AnimatedDashboardIcon = ({ active = false }: { active?: boolean }) 
         variants={{
           idle: { scale: 1, opacity: 0.8 },
           hover: { scale: 1.1, opacity: 1, rotate: -5 },
-          active: { scale: 1, opacity: 1, fill: 'currentColor' }
+          active: { scale: 1, opacity: 1, fill: 'currentColor' },
         }}
         transition={{ type: 'spring', stiffness: 400, damping: 10, delay: 0.1 }}
       />
@@ -65,10 +64,10 @@ export const AnimatedDashboardIcon = ({ active = false }: { active?: boolean }) 
         variants={{
           idle: { scale: 1, opacity: 0.8 },
           hover: { scale: 1.1, opacity: 1, rotate: 5 },
-          active: { scale: 1, opacity: 1, fill: 'currentColor' }
+          active: { scale: 1, opacity: 1, fill: 'currentColor' },
         }}
         transition={{ type: 'spring', stiffness: 400, damping: 10, delay: 0.15 }}
       />
     </motion.svg>
-  );
-};
+  )
+}

@@ -2,10 +2,10 @@
  * Base-UI Accordion wrappers around @radix-ui/react-accordion.
  * These are intentionally unstyled — consumers apply their own classes.
  */
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
+import * as AccordionPrimitive from '@radix-ui/react-accordion'
 
-export const Accordion = AccordionPrimitive.Root;
-export const AccordionItem = AccordionPrimitive.Item;
+export const Accordion = AccordionPrimitive.Root
+export const AccordionItem = AccordionPrimitive.Item
 
 export const AccordionContent = ({
   className,
@@ -18,4 +18,4 @@ export const AccordionContent = ({
   >
     {children}
   </AccordionPrimitive.Content>
-);
+)

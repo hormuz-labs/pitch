@@ -22,10 +22,16 @@
     "start": "bun --filter '*' start",
     "job-cli": "bun apps/job-cli/src/index.ts",
     "credits": "bun apps/job-cli/src/index.ts credits",
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write",
+    "format": "biome format --write",
+    "check": "biome check",
+    "check:fix": "biome check --write",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
     "@types/node": "^20.0.0",
     "@types/supertest": "^7.2.0",
     "@zenstackhq/runtime": "^2.22.1",

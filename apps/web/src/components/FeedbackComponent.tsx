@@ -1,63 +1,55 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
-import { X, Sparkle, Send } from 'lucide-react';
-import {
-  FaRegThumbsUp,
-  FaThumbsUp,
-  FaRegThumbsDown,
-  FaThumbsDown,
-} from 'react-icons/fa6';
+import { Send, Sparkle, X } from 'lucide-react'
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
+import type React from 'react'
+import { useState } from 'react'
+import { FaRegThumbsDown, FaRegThumbsUp, FaThumbsDown, FaThumbsUp } from 'react-icons/fa6'
 
 interface FeedbackComponentProps {
-  onSubmit?: (data: { rating: 'up' | 'down'; feedback: string }) => void;
+  onSubmit?: (data: { rating: 'up' | 'down'; feedback: string }) => void
 }
 
 const SPRING_CONFIG = {
   ease: 'easeInOut' as const,
   duration: 0.3,
-};
+}
 
-export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
-  onSubmit,
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeRating, setActiveRating] = useState<'up' | 'down' | null>(null);
-  const [animatingIcon, setAnimatingIcon] = useState<'up' | 'down' | null>(
-    null,
-  );
-  const [feedback, setFeedback] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({ onSubmit }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeRating, setActiveRating] = useState<'up' | 'down' | null>(null)
+  const [animatingIcon, setAnimatingIcon] = useState<'up' | 'down' | null>(null)
+  const [feedback, setFeedback] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleOpen = (type: 'up' | 'down') => {
-    if (animatingIcon) return; // Prevent double clicks during animation
-    setActiveRating(type);
-    setAnimatingIcon(type);
+    if (animatingIcon) return // Prevent double clicks during animation
+    setActiveRating(type)
+    setAnimatingIcon(type)
 
     // Wait for the thumb pop animation to finish before expanding the card
     setTimeout(() => {
-      setIsOpen(true);
-      setAnimatingIcon(null);
-    }, 500);
-  };
+      setIsOpen(true)
+      setAnimatingIcon(null)
+    }, 500)
+  }
 
   const handleClose = () => {
-    setIsOpen(false);
+    setIsOpen(false)
     setTimeout(() => {
-      setActiveRating(null);
-      setFeedback('');
-    }, 400);
-  };
+      setActiveRating(null)
+      setFeedback('')
+    }, 400)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeRating) return;
-    setIsSubmitting(true);
+    e.preventDefault()
+    if (!activeRating) return
+    setIsSubmitting(true)
     setTimeout(() => {
-      onSubmit?.({ rating: activeRating, feedback });
-      setIsSubmitting(false);
-      handleClose();
-    }, 800);
-  };
+      onSubmit?.({ rating: activeRating, feedback })
+      setIsSubmitting(false)
+      handleClose()
+    }, 800)
+  }
 
   return (
     <div className="relative flex w-full items-center justify-center">
@@ -71,12 +63,10 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { duration: 0.1 } }}
             >
-              {(['up', 'down'] as const).map((type) => (
+              {(['up', 'down'] as const).map(type => (
                 <motion.button
                   key={type}
-                  layoutId={
-                    activeRating === type ? 'feedback-card' : `button-${type}`
-                  }
+                  layoutId={activeRating === type ? 'feedback-card' : `button-${type}`}
                   onClick={() => handleOpen(type)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -87,8 +77,8 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
                     {animatingIcon === type && (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                         {[...Array(6)].map((_, i) => {
-                          const angle = (i * 60 * Math.PI) / 180;
-                          const distance = 30;
+                          const angle = (i * 60 * Math.PI) / 180
+                          const distance = 30
                           return (
                             <motion.div
                               key={`sparkle-${i}`}
@@ -109,12 +99,9 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
                               }}
                               transition={{ duration: 0.4, ease: 'easeOut' }}
                             >
-                              <Sparkle
-                                className="size-2 sm:size-3"
-                                fill="currentColor"
-                              />
+                              <Sparkle className="size-2 sm:size-3" fill="currentColor" />
                             </motion.div>
-                          );
+                          )
                         })}
                       </div>
                     )}
@@ -126,12 +113,7 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
                       animatingIcon === type
                         ? {
                             scale: [1, 1.5, 1],
-                            rotate: [
-                              0,
-                              type === 'up' ? -25 : 25,
-                              type === 'down' ? 25 : -25,
-                              0,
-                            ],
+                            rotate: [0, type === 'up' ? -25 : 25, type === 'down' ? 25 : -25, 0],
                             y: [0, -2, 0],
                           }
                         : { scale: 1, rotate: 0, y: 0 }
@@ -175,9 +157,9 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ delay: 0.1 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleClose();
+                    onClick={e => {
+                      e.stopPropagation()
+                      handleClose()
                     }}
                     className="absolute top-3 right-3 z-10 rounded-full bg-gray-50 p-1.5 text-gray-500 transition-all hover:scale-110 hover:text-gray-900 hover:bg-gray-100 active:scale-90 cursor-pointer"
                   >
@@ -191,9 +173,7 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
                     transition={{ duration: 0.3 }}
                     className="relative pt-1"
                   >
-                    <h2 className="mb-1 text-base font-bold text-gray-900 pr-8">
-                      Share Feedback
-                    </h2>
+                    <h2 className="mb-1 text-base font-bold text-gray-900 pr-8">Share Feedback</h2>
 
                     <p className="mb-4 text-xs text-gray-500 pr-6">
                       {activeRating === 'up'
@@ -204,9 +184,8 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
                     <form onSubmit={handleSubmit} className="space-y-3">
                       <div>
                         <textarea
-                          autoFocus
                           value={feedback}
-                          onChange={(e) => setFeedback(e.target.value)}
+                          onChange={e => setFeedback(e.target.value)}
                           placeholder="Type in your feedback (optional)"
                           className="h-24 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 transition-all outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white"
                         />
@@ -217,10 +196,7 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
                         disabled={isSubmitting}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-gray-800 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                       >
-                        <Send
-                          size={16}
-                          className="fill-current"
-                        />
+                        <Send size={16} className="fill-current" />
                         <span>{isSubmitting ? 'Sending...' : 'Send Now'}</span>
                       </button>
                     </form>
@@ -232,5 +208,5 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
         </AnimatePresence>
       </LayoutGroup>
     </div>
-  );
-};
+  )
+}

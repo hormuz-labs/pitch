@@ -1,49 +1,51 @@
-import { useEffect, useRef, useState } from "react";
-import { FaCheckCircle } from "react-icons/fa";
+import { useEffect, useRef, useState } from 'react'
+import { FaCheckCircle } from 'react-icons/fa'
 
 interface Alert27Props {
-  title?: string;
-  description?: string;
-  className?: string;
-  onDismiss?: () => void;
-  duration?: number;
+  title?: string
+  description?: string
+  className?: string
+  onDismiss?: () => void
+  duration?: number
 }
 
 export const Alert27 = ({
-  title = "Preferences saved",
-  description = "Your settings have been updated and applied successfully.",
+  title = 'Preferences saved',
+  description = 'Your settings have been updated and applied successfully.',
   className,
   onDismiss,
   duration = 5,
 }: Alert27Props) => {
-  const [visible, setVisible] = useState(true);
-  const [fading, setFading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [visible, setVisible] = useState(true)
+  const [fading, setFading] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const dismiss = () => {
-    setFading(true);
-    if (timerRef.current) clearTimeout(timerRef.current);
+    setFading(true)
+    if (timerRef.current) clearTimeout(timerRef.current)
     setTimeout(() => {
-      setVisible(false);
-      onDismiss?.();
-    }, 300);
-  };
+      setVisible(false)
+      onDismiss?.()
+    }, 300)
+  }
 
   useEffect(() => {
-    timerRef.current = setTimeout(dismiss, duration * 1000);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    timerRef.current = setTimeout(dismiss, duration * 1000)
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration, dismiss])
 
-  if (!visible) return null;
+  if (!visible) return null
 
   return (
     <div
-      className={`transition-all duration-300 ${fading ? "opacity-0 -translate-y-1" : "opacity-100 translate-y-0"}`}
+      className={`transition-all duration-300 ${fading ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}
     >
       <div
         role="alert"
-        className={`relative rounded-lg bg-green-600 dark:bg-green-400 px-4 py-3 pr-10 overflow-hidden text-white flex flex-col gap-0.5 ${className || ""}`}
+        className={`relative rounded-lg bg-green-600 dark:bg-green-400 px-4 py-3 pr-10 overflow-hidden text-white flex flex-col gap-0.5 ${className || ''}`}
       >
         {/* Row 1: icon + title */}
         <div className="flex flex-row items-center gap-2">
@@ -62,7 +64,16 @@ export const Alert27 = ({
           aria-label="Dismiss alert"
           className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-full text-white/70 hover:text-white hover:bg-white/20 transition-colors cursor-pointer border-none bg-transparent"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -84,7 +95,7 @@ export const Alert27 = ({
         }
       `}</style>
     </div>
-  );
-};
+  )
+}
 
-export default Alert27;
+export default Alert27

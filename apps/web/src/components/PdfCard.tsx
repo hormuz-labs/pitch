@@ -1,55 +1,87 @@
-import { useState } from 'react';
-import { createPortal } from 'react-dom';
-import type { Project } from '../types';
-import { TimedUndoAction } from './TimedUndoAction';
-
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import type { Project } from '../types'
+import { TimedUndoAction } from './TimedUndoAction'
 
 const IconTrashSm = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-    <path d="M10 11v6" /><path d="M14 11v6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
-);
+)
 
 const IconDownload = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="7 10 12 15 17 10" />
     <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
-);
+)
 
 const StatusBadge = ({ status }: { status: Project['status'] }) => {
   const map: Record<string, { label: string; className: string }> = {
     COMPLETED: { label: 'Ready', className: 'bg-green-50 text-green-700 border border-green-200' },
     FAILED: { label: 'Failed', className: 'bg-red-50 text-red-600 border border-red-200' },
-    PROCESSING: { label: 'Generating…', className: 'bg-amber-50 text-amber-600 border border-amber-200' },
+    PROCESSING: {
+      label: 'Generating…',
+      className: 'bg-amber-50 text-amber-600 border border-amber-200',
+    },
     PENDING: { label: 'Queued', className: 'bg-gray-100 text-gray-500 border border-gray-200' },
-  };
-  const cfg = map[status] ?? { label: status, className: 'bg-gray-100 text-gray-500 border border-gray-200' };
+  }
+  const cfg = map[status] ?? {
+    label: status,
+    className: 'bg-gray-100 text-gray-500 border border-gray-200',
+  }
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
-      {(status === 'PROCESSING' || status === 'PENDING') && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />}
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.className}`}
+    >
+      {(status === 'PROCESSING' || status === 'PENDING') && (
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+      )}
       {cfg.label}
     </span>
-  );
-};
+  )
+}
 
 export interface PdfCardProps {
-  project: Project;
-  onClick: () => void;
-  onConfirmDelete: () => void;
+  project: Project
+  onClick: () => void
+  onConfirmDelete: () => void
 }
 
 export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => {
-  const [isPendingDelete, setIsPendingDelete] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  const [isPendingDelete, setIsPendingDelete] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
-  const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const title = project.parameters?.topic || 'Untitled Presentation';
-  const slideCount = project.parameters?.slideCount || 0;
+  const dateStr = new Date(project.createdAt).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  const title = project.parameters?.topic || 'Untitled Presentation'
+  const slideCount = project.parameters?.slideCount || 0
 
   return (
     <div
@@ -73,9 +105,7 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
               <span className="text-[9px] font-extrabold uppercase tracking-wider text-neutral-300 bg-neutral-800 border border-neutral-700 px-2 py-0.5 rounded">
                 PDF Deck
               </span>
-              <span className="text-[10px] font-bold text-neutral-400">
-                {slideCount} slides
-              </span>
+              <span className="text-[10px] font-bold text-neutral-400">{slideCount} slides</span>
             </div>
 
             {/* Title Mockup */}
@@ -92,19 +122,29 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
                 Ready to view
               </span>
               <div className="flex items-center gap-1 bg-white text-black font-extrabold text-[8px] tracking-wider uppercase px-1.5 py-0.5 rounded shadow-sm scale-95 origin-right border border-white">
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
+                <svg
+                  width="8"
+                  height="8"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
                 </svg>
                 PDF
               </div>
             </div>
           </div>
-        ) : (project.status === 'PROCESSING' || project.status === 'PENDING') ? (
+        ) : project.status === 'PROCESSING' || project.status === 'PENDING' ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 z-10">
             {/* Blueprint Grid Overlay */}
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none opacity-60" />
-            
+
             {/* Animated stacked pages */}
             <div className="relative w-16 h-10 flex items-center justify-center">
               <div className="absolute w-12 h-8 bg-neutral-900 border border-neutral-800 rounded shadow-[0_0_8px_rgba(255,255,255,0.02)] -rotate-6 transform translate-x-[-2px] translate-y-[-2px]" />
@@ -124,13 +164,22 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4 z-10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950">
             <div className="w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-400 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </div>
-            
+
             <div className="flex flex-col items-center select-none">
               <span className="text-[10px] font-extrabold text-neutral-300 uppercase tracking-widest">
                 Generation Failed
@@ -146,7 +195,9 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
       {/* Body */}
       <div className="p-3 flex-1 flex flex-col justify-between">
         <div>
-          <p className="text-sm font-semibold text-gray-900 truncate mb-1" title={title}>{title}</p>
+          <p className="text-sm font-semibold text-gray-900 truncate mb-1" title={title}>
+            {title}
+          </p>
           <p className="text-xs text-gray-400 mb-3">{dateStr}</p>
         </div>
 
@@ -159,7 +210,7 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
                 href={`${project.pdfUrl}?t=${new Date(project.updatedAt).getTime()}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
                 className="p-1.5 rounded-md text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors flex items-center justify-center cursor-pointer"
                 title="Download PDF"
               >
@@ -168,13 +219,26 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
             )}
 
             {isPendingDelete ? (
-              <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-1/2 -translate-y-1/2 origin-right whitespace-nowrap z-10">
+              <div
+                onClick={e => e.stopPropagation()}
+                className="absolute right-0 top-1/2 -translate-y-1/2 origin-right whitespace-nowrap z-10"
+              >
                 <TimedUndoAction
                   initialSeconds={5}
                   deleteLabel="Deleting..."
                   undoLabel="Cancel"
                   icon={
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-white"
+                    >
                       <path d="M3 7v6h6" />
                       <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
                     </svg>
@@ -186,10 +250,10 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
               </div>
             ) : (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (project.status === 'FAILED') setIsPendingDelete(true);
-                  else setShowModal(true);
+                onClick={e => {
+                  e.stopPropagation()
+                  if (project.status === 'FAILED') setIsPendingDelete(true)
+                  else setShowModal(true)
                 }}
                 className="p-1.5 rounded-md text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center cursor-pointer"
                 id={`delete-pdf-btn-${project.id}`}
@@ -202,41 +266,50 @@ export const PdfCard = ({ project, onClick, onConfirmDelete }: PdfCardProps) => 
         </div>
       </div>
 
-      {showModal && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-          onClick={(e) => { e.stopPropagation(); setShowModal(false); }}
-        >
+      {showModal &&
+        createPortal(
           <div
-            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+            onClick={e => {
+              e.stopPropagation()
+              setShowModal(false)
+            }}
           >
-            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
-              <IconTrashSm />
+            <div
+              className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in-95 duration-200"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                <IconTrashSm />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Delete PDF Presentation</h3>
+              <p className="text-sm text-gray-500 mb-6 text-balance leading-relaxed">
+                Are you sure you want to delete this presentation? Please note that the credit used
+                for this generation is{' '}
+                <span className="font-semibold text-gray-700">non-refundable</span> because it has
+                already started generating or is completed.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowModal(false)
+                    setIsPendingDelete(true)
+                  }}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-red-700"
+                >
+                  Proceed
+                </button>
+              </div>
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete PDF Presentation</h3>
-            <p className="text-sm text-gray-500 mb-6 text-balance leading-relaxed">
-              Are you sure you want to delete this presentation? Please note that the credit used for this generation is{' '}
-              <span className="font-semibold text-gray-700">non-refundable</span> because it has already started generating or is completed.
-            </p>
-            <div className="flex gap-3 w-full">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => { setShowModal(false); setIsPendingDelete(true); }}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-red-700"
-              >
-                Proceed
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
-  );
-};
+  )
+}
