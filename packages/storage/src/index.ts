@@ -125,6 +125,7 @@ export async function uploadFile(localPath: string, bucketOverride?: string, pre
         Key: key,
         Body: fs.createReadStream(localPath),
         ContentType: contentType,
+        ContentLength: fileSize,
       })
     );
   }
