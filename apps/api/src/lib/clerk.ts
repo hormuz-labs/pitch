@@ -1,11 +1,11 @@
-import { clerkClient } from '@clerk/express';
+import { clerkClient } from '@clerk/express'
 
 export type VerifiedClerkProfile = {
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  imageUrl?: string;
-};
+  email: string
+  firstName?: string
+  lastName?: string
+  imageUrl?: string
+}
 
 /**
  * Fetch a Clerk user's VERIFIED primary email along with profile fields.
@@ -17,15 +17,15 @@ export type VerifiedClerkProfile = {
  * symlink layout).
  */
 export async function getVerifiedClerkProfile(userId: string): Promise<VerifiedClerkProfile> {
-  const user = await clerkClient.users.getUser(userId);
-  const primary = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
+  const user = await clerkClient.users.getUser(userId)
+  const primary = user.emailAddresses.find(e => e.id === user.primaryEmailAddressId)
   if (!primary?.emailAddress) {
-    throw new Error('Clerk user has no primary email');
+    throw new Error('Clerk user has no primary email')
   }
   return {
     email: primary.emailAddress,
     firstName: user.firstName ?? undefined,
     lastName: user.lastName ?? undefined,
     imageUrl: user.imageUrl ?? undefined,
-  };
+  }
 }

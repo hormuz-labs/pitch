@@ -18,38 +18,50 @@
  * cookie/proxy shenanigans.
  */
 
-const STORAGE_KEY = 'pitch_ref_code';
-const STORED_AT_KEY = 'pitch_ref_stored_at';
+const STORAGE_KEY = 'pitch_ref_code'
+const STORED_AT_KEY = 'pitch_ref_stored_at'
 // 30 days — matches the cookie max-age that /r/:code used to set.
-const TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const TTL_MS = 30 * 24 * 60 * 60 * 1000
 // Affiliate codes are generated as `PREFIX-XXXX` (uppercase letters/digits,
 // a single hyphen, ≤ 11 chars). The regex tolerates up to 8 chars per side
 // for forward-compat. Reject anything else so a malicious `?ref=<script>`
 // can't land in our request bodies.
-const CODE_RE = /^[A-Z0-9]{1,8}-[A-Z0-9]{1,8}$/;
+const CODE_RE = /^[A-Z0-9]{1,8}-[A-Z0-9]{1,8}$/
 
 function safeGet(key: string): string | null {
-  try { return localStorage.getItem(key); } catch { return null; }
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
 }
 function safeSet(key: string, value: string): void {
-  try { localStorage.setItem(key, value); } catch { /* private mode / quota */ }
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* private mode / quota */
+  }
 }
 function safeRemove(key: string): void {
-  try { localStorage.removeItem(key); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Returns the persisted referral code if it was stored within TTL_MS, else null. */
 export function getRefCode(): string | null {
-  const code = safeGet(STORAGE_KEY);
-  const storedAtRaw = safeGet(STORED_AT_KEY);
-  if (!code || !storedAtRaw) return null;
-  const storedAt = Number(storedAtRaw);
+  const code = safeGet(STORAGE_KEY)
+  const storedAtRaw = safeGet(STORED_AT_KEY)
+  if (!code || !storedAtRaw) return null
+  const storedAt = Number(storedAtRaw)
   if (!Number.isFinite(storedAt) || Date.now() - storedAt > TTL_MS) {
-    safeRemove(STORAGE_KEY);
-    safeRemove(STORED_AT_KEY);
-    return null;
+    safeRemove(STORAGE_KEY)
+    safeRemove(STORED_AT_KEY)
+    return null
   }
-  return code;
+  return code
 }
 
 /**
@@ -61,21 +73,23 @@ export function getRefCode(): string | null {
  * Safe to call on every mount: it only acts when `?ref=` is present.
  */
 export function captureRefFromUrl(): void {
-  if (typeof window === 'undefined') return;
-  const params = new URLSearchParams(window.location.search);
-  const raw = params.get('ref');
-  if (!raw) return;
-  const code = raw.toUpperCase();
-  if (!CODE_RE.test(code)) return;
+  if (typeof window === 'undefined') return
+  const params = new URLSearchParams(window.location.search)
+  const raw = params.get('ref')
+  if (!raw) return
+  const code = raw.toUpperCase()
+  if (!CODE_RE.test(code)) return
 
-  safeSet(STORAGE_KEY, code);
-  safeSet(STORED_AT_KEY, String(Date.now()));
+  safeSet(STORAGE_KEY, code)
+  safeSet(STORED_AT_KEY, String(Date.now()))
 
   // Clean the URL so the code isn't visible / sent in future requests.
-  params.delete('ref');
-  const cleaned = params.toString();
-  const next = window.location.pathname + (cleaned ? `?${cleaned}` : '') + window.location.hash;
+  params.delete('ref')
+  const cleaned = params.toString()
+  const next = window.location.pathname + (cleaned ? `?${cleaned}` : '') + window.location.hash
   try {
-    window.history.replaceState({}, '', next);
-  } catch { /* ignore */ }
+    window.history.replaceState({}, '', next)
+  } catch {
+    /* ignore */
+  }
 }

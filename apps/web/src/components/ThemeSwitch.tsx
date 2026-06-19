@@ -1,8 +1,13 @@
+import * as SwitchPrimitives from '@radix-ui/react-switch'
+import { HiMiniMoon, HiMiniSun } from 'react-icons/hi2'
 
-import * as SwitchPrimitives from "@radix-ui/react-switch"
-import { HiMiniSun, HiMiniMoon } from 'react-icons/hi2';
-
-export const ThemeSwitch = ({ checked, onCheckedChange }: { checked: boolean, onCheckedChange: (c: boolean) => void }) => {
+export const ThemeSwitch = ({
+  checked,
+  onCheckedChange,
+}: {
+  checked: boolean
+  onCheckedChange: (c: boolean) => void
+}) => {
   return (
     <div className="relative inline-grid h-8 w-14 grid-cols-[1fr_1fr] items-center text-sm font-medium bg-gray-100 rounded-lg border border-gray-200">
       <SwitchPrimitives.Root
@@ -22,5 +27,5 @@ export const ThemeSwitch = ({ checked, onCheckedChange }: { checked: boolean, on
         <HiMiniMoon className="w-4 h-4" />
       </span>
     </div>
-  );
-};
+  )
+}

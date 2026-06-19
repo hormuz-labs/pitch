@@ -1,11 +1,11 @@
-import { Router } from 'express';
-import * as db from '@saas/db';
-import { createLogger } from '@saas/shared';
-import { requireAuth } from '../middleware/auth.js';
+import * as db from '@saas/db'
+import { createLogger } from '@saas/shared'
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
 
-const logger = createLogger('api');
+const logger = createLogger('api')
 
-export const router = Router();
+export const router = Router()
 
 /**
  * GET /credits
@@ -18,14 +18,14 @@ export const router = Router();
  * - transactions: immutable credit ledger, newest first
  */
 router.get('/', async (req, res) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
+  const userId = requireAuth(req, res)
+  if (!userId) return
 
   try {
-    const summary = await db.getCreditSummary(userId);
-    res.json(summary);
+    const summary = await db.getCreditSummary(userId)
+    res.json(summary)
   } catch (error: any) {
-    logger.error({ err: error, userId }, 'Failed to fetch credits');
-    res.status(500).json({ error: error.message });
+    logger.error({ err: error, userId }, 'Failed to fetch credits')
+    res.status(500).json({ error: error.message })
   }
-});
+})

@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { Resend } from 'resend'
 
 // ─── Clerk: fetch user email ──────────────────────────────────────────────────
 
@@ -7,10 +7,10 @@ import { Resend } from 'resend';
  * Uses the Clerk Backend API — requires CLERK_SECRET_KEY in env.
  */
 export async function getClerkUserEmail(userId: string): Promise<string | null> {
-  const secretKey = process.env.CLERK_SECRET_KEY;
+  const secretKey = process.env.CLERK_SECRET_KEY
   if (!secretKey) {
-    console.warn('[Email] CLERK_SECRET_KEY not set — cannot fetch user email');
-    return null;
+    console.warn('[Email] CLERK_SECRET_KEY not set — cannot fetch user email')
+    return null
   }
 
   const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
@@ -18,33 +18,31 @@ export async function getClerkUserEmail(userId: string): Promise<string | null> 
       Authorization: `Bearer ${secretKey}`,
       'Content-Type': 'application/json',
     },
-  });
+  })
 
   if (!res.ok) {
-    console.warn(`[Email] Clerk API returned ${res.status} for user ${userId}`);
-    return null;
+    console.warn(`[Email] Clerk API returned ${res.status} for user ${userId}`)
+    return null
   }
 
   const user = (await res.json()) as {
-    email_addresses: Array<{ email_address: string; id: string }>;
-    primary_email_address_id: string;
-  };
+    email_addresses: Array<{ email_address: string; id: string }>
+    primary_email_address_id: string
+  }
 
-  const primary = user.email_addresses.find(
-    (e) => e.id === user.primary_email_address_id
-  );
+  const primary = user.email_addresses.find(e => e.id === user.primary_email_address_id)
 
-  return primary?.email_address ?? user.email_addresses[0]?.email_address ?? null;
+  return primary?.email_address ?? user.email_addresses[0]?.email_address ?? null
 }
 
 // ─── Resend client ────────────────────────────────────────────────────────────
 
 function createResend() {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
-    return null;
+    return null
   }
-  return new Resend(apiKey);
+  return new Resend(apiKey)
 }
 
 // ─── Email templates ──────────────────────────────────────────────────────────
@@ -69,11 +67,15 @@ function createResend() {
  * light gray outer bg (#f0f0f0), green "Ready" status badge, dark CTA button.
  */
 function jobCompleteHtml(videoUrl: string, recipientEmail: string, videoTitle?: string): string {
-  const year = new Date().getFullYear();
-  const preheader = 'Your product demo video has finished generating and is ready to view.';
-  const displayTitle = videoTitle ?? 'your-product.com';
-  const unsubUrl = `${process.env.UNSUBSCRIBE_BASE_URL ?? 'https://yourapp.com'}/unsubscribe?email=${encodeURIComponent(recipientEmail)}`;
-  const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const year = new Date().getFullYear()
+  const preheader = 'Your product demo video has finished generating and is ready to view.'
+  const displayTitle = videoTitle ?? 'your-product.com'
+  const _unsubUrl = `${process.env.UNSUBSCRIBE_BASE_URL ?? 'https://yourapp.com'}/unsubscribe?email=${encodeURIComponent(recipientEmail)}`
+  const date = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -374,7 +376,7 @@ function jobCompleteHtml(videoUrl: string, recipientEmail: string, videoTitle?: 
   </table>
 
 </body>
-</html>`;
+</html>`
 }
 
 // ─── Plain-text fallback ──────────────────────────────────────────────────────
@@ -401,7 +403,7 @@ Join our community:
 Pitch — Automated Product Demos
 
 To unsubscribe, please email support@trypitch.co
-`;
+`
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -412,18 +414,18 @@ export async function sendJobCompleteEmail({
   videoUrl,
   videoTitle,
 }: {
-  to: string;
-  jobId: string;
-  videoUrl: string;
-  videoTitle?: string; // e.g. "razorpay.com" — shown inside the thumbnail block
+  to: string
+  jobId: string
+  videoUrl: string
+  videoTitle?: string // e.g. "razorpay.com" — shown inside the thumbnail block
 }): Promise<void> {
-  const resend = createResend();
+  const resend = createResend()
   if (!resend) {
-    console.warn('[Email] RESEND_API_KEY not set — skipping email notification');
-    return;
+    console.warn('[Email] RESEND_API_KEY not set — skipping email notification')
+    return
   }
 
-  const from = 'Pitch <noreply@trypitch.co>';
+  const from = 'Pitch <noreply@trypitch.co>'
 
   const { error } = await resend.emails.send({
     from,
@@ -438,14 +440,14 @@ export async function sendJobCompleteEmail({
     headers: {
       'List-Unsubscribe': `<${process.env.UNSUBSCRIBE_BASE_URL ?? 'https://trypitch.co'}/unsubscribe?email=${encodeURIComponent(to)}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      'Precedence': 'transactional',
+      Precedence: 'transactional',
       'X-Mailer': 'Pitch/1.0 Resend',
     },
-  });
+  })
 
   if (error) {
-    console.warn(`[Email] Failed to send job-complete notification to ${to}:`, error.message);
+    console.warn(`[Email] Failed to send job-complete notification to ${to}:`, error.message)
   } else {
-    console.log(`[Email] Sent job-complete notification to ${to} for job ${jobId}`);
+    console.log(`[Email] Sent job-complete notification to ${to} for job ${jobId}`)
   }
 }

@@ -1,139 +1,99 @@
 type ProcessThread = {
-  id: number;
-  word1: string;
-  word2: string;
-  gradientId: string;
-  colors: string[];
-  path: string;
-  y: number;
-  delay: string;
-  highlightX1: number;
-  highlightX2: number;
-  highlightQx: number;
-  textX?: number;
-  timeLabel: string;
-};
+  id: number
+  word1: string
+  word2: string
+  gradientId: string
+  colors: string[]
+  path: string
+  y: number
+  delay: string
+  highlightX1: number
+  highlightX2: number
+  highlightQx: number
+  textX?: number
+  timeLabel: string
+}
 
 export const Process = () => {
   const threads: ProcessThread[] = [
     {
       id: 0,
-      word1: "Asset",
-      word2: "Ingestion",
-      gradientId: "grad-cyan-blue",
+      word1: 'Asset',
+      word2: 'Ingestion',
+      gradientId: 'grad-cyan-blue',
       // Unified shades of vivid blue
-      colors: [
-        "#3B82F6",
-        "#60A5FA",
-        "#93C5FD",
-        "#60A5FA",
-        "#3B82F6",
-        "#2563EB",
-        "#1D4ED8",
-      ],
-      path: "M 120 80 C 310 80, 310 305, 480 305",
+      colors: ['#3B82F6', '#60A5FA', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1D4ED8'],
+      path: 'M 120 80 C 310 80, 310 305, 480 305',
       y: 80,
-      delay: "0s",
+      delay: '0s',
       highlightX1: -54,
       highlightX2: 105,
       highlightQx: 25,
-      timeLabel: "15 minutes",
+      timeLabel: '15 minutes',
     },
     {
       id: 1,
-      word1: "Script",
-      word2: "Synthesis",
-      gradientId: "grad-amber-orange",
+      word1: 'Script',
+      word2: 'Synthesis',
+      gradientId: 'grad-amber-orange',
       // Unified shades of warm orange
-      colors: [
-        "#F97316",
-        "#FDBA74",
-        "#FCD34D",
-        "#FDBA74",
-        "#F97316",
-        "#EA580C",
-        "#C2410C",
-      ],
-      path: "M 36 200 C 310 200, 310 315, 480 315",
+      colors: ['#F97316', '#FDBA74', '#FCD34D', '#FDBA74', '#F97316', '#EA580C', '#C2410C'],
+      path: 'M 36 200 C 310 200, 310 315, 480 315',
       y: 200,
-      delay: "-0.6s",
+      delay: '-0.6s',
       highlightX1: -149,
       highlightX2: 21,
       highlightQx: -64,
       textX: 24,
-      timeLabel: "20 minutes",
+      timeLabel: '20 minutes',
     },
     {
       id: 2,
-      word1: "Voiceover",
-      word2: "AI",
-      gradientId: "grad-violet-purple",
+      word1: 'Voiceover',
+      word2: 'AI',
+      gradientId: 'grad-violet-purple',
       // Unified shades of rich purple
-      colors: [
-        "#8B5CF6",
-        "#C084FC",
-        "#E9D5FF",
-        "#C084FC",
-        "#8B5CF6",
-        "#7C3AED",
-        "#6D28D9",
-      ],
-      path: "M 120 325 C 260 335, 360 315, 480 325",
+      colors: ['#8B5CF6', '#C084FC', '#E9D5FF', '#C084FC', '#8B5CF6', '#7C3AED', '#6D28D9'],
+      path: 'M 120 325 C 260 335, 360 315, 480 325',
       y: 325,
-      delay: "-1.2s",
+      delay: '-1.2s',
       highlightX1: -27,
       highlightX2: 105,
       highlightQx: 39,
-      timeLabel: "10 minutes",
+      timeLabel: '10 minutes',
     },
     {
       id: 3,
-      word1: "Scene",
-      word2: "Capture",
-      gradientId: "grad-emerald-teal",
+      word1: 'Scene',
+      word2: 'Capture',
+      gradientId: 'grad-emerald-teal',
       // Unified shades of vibrant green
-      colors: [
-        "#10B981",
-        "#6EE7B7",
-        "#A7F3D0",
-        "#6EE7B7",
-        "#10B981",
-        "#059669",
-        "#047857",
-      ],
-      path: "M 60 450 C 310 450, 310 335, 480 335",
+      colors: ['#10B981', '#6EE7B7', '#A7F3D0', '#6EE7B7', '#10B981', '#059669', '#047857'],
+      path: 'M 60 450 C 310 450, 310 335, 480 335',
       y: 450,
-      delay: "-1.8s",
+      delay: '-1.8s',
       highlightX1: -102,
       highlightX2: 45,
       highlightQx: -28,
       textX: 48,
-      timeLabel: "25 minutes",
+      timeLabel: '25 minutes',
     },
     {
       id: 4,
-      word1: "Post",
-      word2: "Production",
-      gradientId: "grad-pink-rose",
+      word1: 'Post',
+      word2: 'Production',
+      gradientId: 'grad-pink-rose',
       // Unified shades of hot pink/rose
-      colors: [
-        "#EC4899",
-        "#F472B6",
-        "#FBCFE8",
-        "#F472B6",
-        "#EC4899",
-        "#D946EF",
-        "#C026D3",
-      ],
-      path: "M 120 570 C 310 570, 310 345, 480 345",
+      colors: ['#EC4899', '#F472B6', '#FBCFE8', '#F472B6', '#EC4899', '#D946EF', '#C026D3'],
+      path: 'M 120 570 C 310 570, 310 345, 480 345',
       y: 570,
-      delay: "-2.4s",
+      delay: '-2.4s',
       highlightX1: -54,
       highlightX2: 105,
       highlightQx: 25,
-      timeLabel: "30 minutes",
+      timeLabel: '30 minutes',
     },
-  ];
+  ]
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-8 select-none">
@@ -219,7 +179,7 @@ export const Process = () => {
         >
           <defs>
             {/* Color Gradients for left inputs — using userSpaceOnUse for robust horizontal line rendering */}
-            {threads.map((t) => (
+            {threads.map(t => (
               <linearGradient
                 key={t.id}
                 id={t.gradientId}
@@ -271,13 +231,7 @@ export const Process = () => {
             </linearGradient>
 
             {/* Tight Neon Glow filter with large bounds to prevent clipping */}
-            <filter
-              id="svg-blur-glow"
-              x="-50%"
-              y="-50%"
-              width="200%"
-              height="200%"
-            >
+            <filter id="svg-blur-glow" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="3.0" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
@@ -286,25 +240,16 @@ export const Process = () => {
             </filter>
 
             {/* Reference paths for cursive labels — one per thread */}
-            {threads.map((t) => (
-              <path
-                key={`curve-ref-${t.id}`}
-                id={`thread-curve-${t.id}`}
-                d={t.path}
-                fill="none"
-              />
+            {threads.map(t => (
+              <path key={`curve-ref-${t.id}`} id={`thread-curve-${t.id}`} d={t.path} fill="none" />
             ))}
 
             {/* Reference path for right output thread cursive label */}
-            <path
-              id="output-curve"
-              d="M 520 325 C 640 355, 760 295, 882 323"
-              fill="none"
-            />
+            <path id="output-curve" d="M 520 325 C 640 355, 760 295, 882 323" fill="none" />
           </defs>
 
           {/* ── LEFT INPUT THREADS ── */}
-          {threads.map((t) => {
+          {threads.map(t => {
             return (
               <g key={t.id} className="transition-all duration-300">
                 {/* 1. Fully Colored Base Static Path */}
@@ -349,17 +294,12 @@ export const Process = () => {
                 />
 
                 {/* Left Text Label */}
-                <text
-                  x={t.textX ?? 108}
-                  y={t.y + 6}
-                  textAnchor="end"
-                  className="svg-text-label"
-                >
+                <text x={t.textX ?? 108} y={t.y + 6} textAnchor="end" className="svg-text-label">
                   <tspan fill={t.colors[0]} fontWeight="800">
                     {t.word1}
                   </tspan>
                   <tspan fill={t.colors[0]} fontWeight="800">
-                    {" "}
+                    {' '}
                     {t.word2}
                   </tspan>
                 </text>
@@ -373,7 +313,7 @@ export const Process = () => {
                   </textPath>
                 </text>
               </g>
-            );
+            )
           })}
 
           {/* ── RIGHT OUTPUT THREAD ── */}
@@ -423,7 +363,7 @@ export const Process = () => {
                 Cinematic
               </tspan>
               <tspan fill="#FFFFFF" fontWeight="800">
-                {" "}
+                {' '}
                 Video
               </tspan>
             </text>
@@ -453,5 +393,5 @@ export const Process = () => {
         </svg>
       </div>
     </div>
-  );
-};
+  )
+}

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
-import { api } from '../lib/api';
+import { useAuth } from '@clerk/clerk-react'
+import { useCallback, useEffect, useState } from 'react'
+import { api } from '../lib/api'
 
 interface ProfileResponse {
-  profile: { loggedInOrigins: string[]; lastSyncedAt: string | null } | null;
-  activeSessions: unknown[];
+  profile: { loggedInOrigins: string[]; lastSyncedAt: string | null } | null
+  activeSessions: unknown[]
 }
 
 /**
@@ -13,26 +13,26 @@ interface ProfileResponse {
  * /sessions (after a save). Fails silently: an auth hint is non-critical.
  */
 export function useBrowserProfile() {
-  const { getToken } = useAuth();
-  const [origins, setOrigins] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { getToken } = useAuth()
+  const [origins, setOrigins] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
 
   const refetch = useCallback(async () => {
     try {
-      const token = await getToken();
-      if (!token) return;
-      const data = await api.get<ProfileResponse>('/browser/profile', token);
-      setOrigins(data.profile?.loggedInOrigins ?? []);
+      const token = await getToken()
+      if (!token) return
+      const data = await api.get<ProfileResponse>('/browser/profile', token)
+      setOrigins(data.profile?.loggedInOrigins ?? [])
     } catch {
       /* non-critical — leave origins as-is */
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [getToken]);
+  }, [getToken])
 
   useEffect(() => {
-    void refetch();
-  }, [refetch]);
+    void refetch()
+  }, [refetch])
 
-  return { origins, loading, refetch };
+  return { origins, loading, refetch }
 }

@@ -1,13 +1,13 @@
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
-import { MinusIcon, PlusIcon } from 'lucide-react';
+import * as AccordionPrimitive from '@radix-ui/react-accordion'
+import { MinusIcon, PlusIcon } from 'lucide-react'
 
-import { Accordion, AccordionContent, AccordionItem } from '@/components/accordion';
+import { Accordion, AccordionContent, AccordionItem } from '@/components/accordion'
 
 type AccordionItemData = {
-  value: string;
-  title: string;
-  content: string;
-};
+  value: string
+  title: string
+  content: string
+}
 
 const items: readonly AccordionItemData[] = [
   {
@@ -46,12 +46,12 @@ const items: readonly AccordionItemData[] = [
     content:
       'Free and Starter tier videos include a small "Powered by Pitch" watermark. The Pro and Enterprise plans remove it.',
   },
-] as const;
+] as const
 
 export const LandingFaqAccordion = () => {
   return (
     <Accordion className="landing-faq-accordion" type="multiple" defaultValue={[items[0].value]}>
-      {items.map((item) => (
+      {items.map(item => (
         <AccordionItem key={item.value} value={item.value} className="landing-faq-accordion-item">
           <AccordionPrimitive.Header className="flex">
             <AccordionPrimitive.Trigger
@@ -78,5 +78,5 @@ export const LandingFaqAccordion = () => {
         </AccordionItem>
       ))}
     </Accordion>
-  );
-};
+  )
+}
