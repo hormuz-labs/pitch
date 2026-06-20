@@ -954,7 +954,7 @@ ${buildSkillsPrompt(skills)}`
 
       logger.info('Applying smart trim to remove dead air segments')
       try {
-        await processVideo(rawVideo, finalVideo, foundWebmPath)
+        await processVideo(rawVideo, finalVideo)
       } catch (trimErr: any) {
         logger.warn({ err: trimErr }, 'Smart trim failed — falling back to raw video')
         fs.copyFileSync(rawVideo, finalVideo)
