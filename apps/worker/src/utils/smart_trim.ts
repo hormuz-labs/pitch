@@ -138,6 +138,11 @@ export async function processVideo(input: string, output: string, detectionInput
       `Audio stream ends early at ${audioDuration.toFixed(2)}s (video is ${duration.toFixed(2)}s). Adding trailing silence.`,
     )
     silences.push({ start: audioDuration, end: duration })
+  } else if (audioDuration === 0) {
+    console.log(
+      'No audio track detected — treating entire video as silent for freeze-based trimming.',
+    )
+    silences.push({ start: 0, end: duration })
   }
 
   silences.forEach(s => {
