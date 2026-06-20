@@ -5,9 +5,9 @@ import * as db from '@saas/db'
 import {
   createLogger,
   createManagerProfile,
+  getManagerBaseUrl,
   getManagerHeaders,
   getManagerProfile,
-  MANAGER_BASE_URL,
   managerCdpUrl,
   stopManagerProfile,
 } from '@saas/shared'
@@ -39,7 +39,7 @@ export interface StartSessionResult {
 }
 
 async function launchManagerProfile(profileId: string, startUrl?: string | null): Promise<any> {
-  const res = await fetch(`${MANAGER_BASE_URL}/api/profiles/${profileId}/launch`, {
+  const res = await fetch(`${getManagerBaseUrl()}/api/profiles/${profileId}/launch`, {
     method: 'POST',
     headers: getManagerHeaders({ 'Content-Type': 'application/json' }),
   })

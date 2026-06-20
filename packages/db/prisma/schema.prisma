@@ -130,6 +130,7 @@ model Job {
   userId             String
   status             String
   videoUrl           String?
+  rawVideoUrl        String?
   pdfUrl             String?
   audioUrl           String?
   thumbnailUrl       String?
@@ -138,6 +139,7 @@ model Job {
   error              String?
   workerId           String?
   cost               Float               @default(0)
+  gitHash            String?
   rating             String?
   feedback           String?
   createdAt          DateTime            @default(now())

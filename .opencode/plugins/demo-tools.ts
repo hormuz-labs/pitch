@@ -153,13 +153,22 @@ function stripFrontmatter(content: string): string {
   return match ? content.slice(match[0].length).trim() : content.trim()
 }
 
-async function speak(directory: string, text: string, state: DemoState) {
-  if (!text) return
+interface SpeakResult {
+  success: boolean
+  error?: string
+  durationSecs?: number
+}
+
+async function speak(directory: string, text: string, state: DemoState): Promise<SpeakResult> {
+  if (!text) return { success: true, durationSecs: 0 }
   console.log(`[Narrator]: ${text}`)
   const audioDir = path.join(directory, 'recordings', 'audio')
   if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true })
   const clipId = state.audioClips.length
   const audioFilePath = path.join(audioDir, `clip_${clipId}.wav`)
+  // Capture the start time BEFORE the TTS API call so the audio is placed at
+  // the moment the narrator *would have spoken*, not after the inference delay.
+  const playStartTime = Date.now()
   try {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY
     if (!apiKey) throw new Error('No Gemini API key found')
@@ -190,11 +199,13 @@ async function speak(directory: string, text: string, state: DemoState) {
     const byteRate = options.sampleRate * options.numChannels * (options.bitsPerSample / 8)
     const durationSecs = rawPcmBuffer.length / byteRate
     fs.writeFileSync(audioFilePath, finalAudioBuffer)
-    const playStartTime = Date.now()
     state.audioClips.push({ filePath: audioFilePath, absoluteTimestamp: playStartTime })
     if (durationSecs > 0) await new Promise(resolve => setTimeout(resolve, durationSecs * 1000))
+    return { success: true, durationSecs }
   } catch (e) {
-    console.error(`Error speaking: ${e}`)
+    const errMsg = e instanceof Error ? e.message : String(e)
+    console.error(`Error speaking: ${errMsg}`)
+    return { success: false, error: errMsg }
   }
 }
 
@@ -321,9 +332,14 @@ const plugin: Plugin = async input => {
         async execute(args) {
           return withStateLock(async () => {
             const state = readState(directory)
-            await speak(directory, args.text, state)
+            const result = await speak(directory, args.text, state)
             writeState(directory, state)
-            return { output: `spoken: ${args.text}` }
+            if (result.success) {
+              return { output: `spoken: ${args.text} (${result.durationSecs!.toFixed(1)}s)` }
+            }
+            return {
+              output: `TTS FAILED — audio was NOT recorded. Error: ${result.error}. Continue without narration for this clip; retry narrate on the next step.`,
+            }
           })
         },
       }),

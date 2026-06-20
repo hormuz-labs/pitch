@@ -181,4 +181,28 @@ worker.on('failed', (job, err) => {
   logger.error({ jobId: job?.id, err }, 'Job failed')
 })
 
+// When a job's lock can't be renewed (e.g. long video generation exceeded
+// the lock window), BullMQ fires this event then spams error logs via the
+// 'error' event.  Remove the job immediately to clear the queue — the
+// in-flight worker still finishes and saves the result via pushJobResult.
+worker.on('lockRenewalFailed', async (jobIds: string[]) => {
+  logger.warn({ jobIds }, 'Lock renewal failed — removing jobs from queue')
+  for (const jobId of jobIds) {
+    try {
+      const job = await worker.getJob(jobId)
+      if (job) await job.remove()
+    } catch (err) {
+      logger.error({ jobId, err }, 'Failed to remove job after lock renewal failure')
+    }
+  }
+})
+
+// BullMQ LockManager emits 'error' for every lockRenewalFailed as well as
+// other genuine errors.  Suppress lock-renewal noise; log everything else.
+worker.on('error', err => {
+  const msg = (err as Error)?.message || String(err)
+  if (msg.includes('could not renew lock')) return
+  logger.error({ err }, 'Worker error')
+})
+
 logger.info('Worker started, listening for jobs')

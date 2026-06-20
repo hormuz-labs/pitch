@@ -193,12 +193,27 @@ export async function reportJobPhase(
 }
 
 /**
+ * Resolve the current git commit hash. Tries GIT_HASH env var first,
+ * then falls back to running git rev-parse.
+ */
+async function getGitHash(): Promise<string | undefined> {
+  if (process.env.GIT_HASH) return process.env.GIT_HASH
+  try {
+    const { stdout } = await execAsync('git rev-parse HEAD')
+    return stdout.trim()
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Direct in-process result pushing. Uploads final video, notifies via Discord and email.
  */
 async function pushJobResult(
   jobId: string,
   userId: string,
   filePath: string,
+  rawFilePath: string,
   connection: Redis,
   parameters: any,
 ) {
@@ -211,31 +226,45 @@ async function pushJobResult(
     .replace(/[^a-zA-Z0-9-]/g, '_')
   const prefix = `pitch/${userId}/${projectName}/videos`
 
-  // 1. Upload video to GCS
-  const videoUrl = await storage.uploadFile(filePath, undefined, prefix)
-  logger.info({ videoUrl }, 'Video successfully uploaded to GCS')
+  const gitHash = await getGitHash()
+  if (gitHash) {
+    logger.info({ gitHash }, 'Resolved git commit hash')
+  }
 
-  // 2. Update DB
+  // 1. Upload raw video to GCS
+  let rawVideoUrl: string | undefined
+  try {
+    rawVideoUrl = await storage.uploadFile(rawFilePath, undefined, prefix)
+    logger.info({ rawVideoUrl }, 'Raw video successfully uploaded to GCS')
+  } catch (err: any) {
+    logger.warn({ err }, 'Failed to upload raw video')
+  }
+
+  // 2. Upload final (trimmed) video to GCS
+  const videoUrl = await storage.uploadFile(filePath, undefined, prefix)
+  logger.info({ videoUrl }, 'Final video successfully uploaded to GCS')
+
+  // 3. Update DB
   const updatedJob = await db.updateJob(jobId, {
     status: JobStatus.COMPLETED,
     videoUrl,
+    rawVideoUrl: rawVideoUrl ?? undefined,
+    gitHash,
   })
 
-  // 3. Broadcast completion to SSE channels
+  // 4. Broadcast completion to SSE channels
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
   logger.info({ jobId }, 'Job completion broadcasted')
 
-  // 4. Send Discord and email notifications
+  // 5. Send Discord and email notifications
   try {
     const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
     const email = userProfile?.email || userId
     const urlParam = parameters?.url || 'N/A'
-    const instructions = parameters?.instructions
-      ? `\nPrompt: *${parameters.instructions}*`
-      : ''
+    const instructions = parameters?.instructions ? `\nPrompt: *${parameters.instructions}*` : ''
 
     await sendDiscordMessage(
-      `✅ **Video Creation Completed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}`,
+      `✅ **Video Creation Completed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}\nGit Hash: \`${gitHash || 'N/A'}\`${rawVideoUrl ? `\nRaw Video: ${rawVideoUrl}` : ''}`,
     )
 
     const userEmail = await getClerkUserEmail(userId)
@@ -601,10 +630,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
       // Resize browser viewport to match recording size (fixes grey bar on production)
       logger.info('Resizing browser viewport to 1920x1080...')
-      const resizeResult = await execAsync(
-        `playwright-cli resize 1920 1080`,
-        { cwd: targetDir },
-      )
+      const resizeResult = await execAsync(`playwright-cli resize 1920 1080`, { cwd: targetDir })
       logger.info(
         { stdout: resizeResult.stdout, stderr: resizeResult.stderr },
         'playwright-cli resize output',
@@ -642,12 +668,44 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
               continue
             }
 
+            // ── Stream human-readable logs for debugging ──────────────────────
+            const evt = event as any
+
+            if (evt.type === 'message.part.updated' || evt.type === 'message.updated') {
+              const info = evt.properties?.info || evt.properties
+              if (info?.role === 'assistant') {
+                const text =
+                  info?.content?.[0]?.text || info?.text || evt.properties?.part?.text || ''
+                if (text) {
+                  jobLogger.info({ text: text.slice(0, 200) }, 'LLM output')
+                }
+              }
+            }
+
+            if (evt.type === 'call' || evt.call) {
+              const call = evt.call || evt
+              const toolName: string = call.name || call.tool || 'unknown'
+              jobLogger.info({ tool: toolName }, 'Tool call started')
+            }
+
+            if (evt.type === 'tool.result' || evt.result) {
+              const call = evt.call || evt
+              const toolName: string = call.name || call.tool || 'unknown'
+              const result = evt.result || evt
+              const preview =
+                typeof result === 'string'
+                  ? result.slice(0, 300)
+                  : JSON.stringify(result).slice(0, 300)
+              jobLogger.info({ tool: toolName, preview }, 'Tool result')
+            }
+
             // Track cost if it's a message update
             if (event.type === 'message.updated' && event.properties.info.role === 'assistant') {
               const msg = event.properties.info as any
               if (msg.cost !== undefined) {
                 messageCosts.set(msg.id, msg.cost)
                 currentCost = Array.from(messageCosts.values()).reduce((sum, cost) => sum + cost, 0)
+                jobLogger.info({ currentCost }, 'Cost updated')
               }
 
               // Check if cost exceeded the $4.00 budget limit
@@ -773,7 +831,7 @@ ${buildSkillsPrompt(skills)}`
       // Diagnostic dump of the recording directory after recording stopped
       try {
         const { stdout: lsStdout } = await execAsync(
-          `find "${videoDir}" -maxdepth 3 -type f ( -name "*.webm" -o -name "*.mp4" ) -printf "%T@ %p\\n" | sort -n`,
+          `find "${videoDir}" -maxdepth 3 -type f \\( -name "*.webm" -o -name "*.mp4" \\) -printf "%T@ %p\\n" | sort -n`,
           { cwd: videoDir },
         )
         jobLogger.info({ files: lsStdout.trim() }, 'Video files in recording directory after stop')
@@ -830,6 +888,13 @@ ${buildSkillsPrompt(skills)}`
       const rawVideo = path.join(recordingsDir, 'raw_demo.mp4')
       const finalVideo = path.join(recordingsDir, 'final_demo.mp4')
 
+      // Align video timebase with wall-clock startTime
+      const videoBirthTimeMs = await getVideoBirthTimeMs(foundWebmPath)
+      const trimSec = videoBirthTimeMs ? Math.max(0, (startTime - videoBirthTimeMs) / 1000) : 0
+      if (trimSec > 0) {
+        logger.info({ trimSec }, 'Applying timeline shift to align with prompt startTime')
+      }
+
       let videoInputs = `-i "${foundWebmPath}" -i "${cursorPath}"`
       let filterComplex = ''
       let currentVLabel = '[0:v]'
@@ -837,18 +902,12 @@ ${buildSkillsPrompt(skills)}`
       // Click cursor overlays
       state.clickEvents.forEach((event: any, i: number) => {
         const nextVLabel = `[v_cursor${i}]`
-        const start = Math.max(0, event.videoTimeSec - 0.5)
+        // Shift overlay times to align with the untrimmed raw WebM timeline
+        const start = Math.max(0, event.videoTimeSec + trimSec - 0.5)
         const end = start + 2.0
         filterComplex += `${currentVLabel}[1:v]overlay=x=${event.x}:y=${event.y}:enable='between(t,${start},${end})'${nextVLabel};`
         currentVLabel = nextVLabel
       })
-
-      // Align video timebase with wall-clock startTime
-      const videoBirthTimeMs = await getVideoBirthTimeMs(foundWebmPath)
-      const trimSec = videoBirthTimeMs ? Math.max(0, (startTime - videoBirthTimeMs) / 1000) : 0
-      if (trimSec > 0) {
-        logger.info({ trimSec }, 'Applying timeline shift to align with prompt startTime')
-      }
 
       // Build zoom pan filter
       filterComplex += buildContinuousZoomFilter(
@@ -860,18 +919,29 @@ ${buildSkillsPrompt(skills)}`
 
       // Audio narration clips
       let validClips = 0
-      state.audioClips.forEach((clip: any, index: number) => {
+      let audioInputIndex = 2 // 0 is webm, 1 is cursor icon
+      const audioLabels: string[] = []
+      state.audioClips.forEach((clip: any) => {
+        if (!fs.existsSync(clip.filePath)) {
+          logger.warn({ filePath: clip.filePath }, 'Audio clip file not found on disk — skipping')
+          return
+        }
         const delayMs = Math.max(0, clip.absoluteTimestamp - startTime)
         videoInputs += ` -i "${clip.filePath}"`
-        // Offset by 2 because 0 is webm, 1 is cursor icon
-        filterComplex += `[${2 + index}:a]adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${index}];`
+        filterComplex += `[${audioInputIndex}:a]adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${validClips}];`
+        audioLabels.push(`[a${validClips}]`)
+        audioInputIndex++
         validClips++
       })
 
       if (validClips > 0) {
-        const amixInputs = state.audioClips.map((_: any, i: number) => `[a${i}]`).join('')
-        filterComplex += `${amixInputs}amix=inputs=${validClips}:duration=longest:normalize=0[outa]`
+        filterComplex += `${audioLabels.join('')}amix=inputs=${validClips}:duration=longest:normalize=0[outa]`
       }
+
+      logger.info(
+        { totalClips: state.audioClips.length, validClips },
+        'Audio clips prepared for mixing',
+      )
 
       const ffmpegCmd =
         `ffmpeg -y ${videoInputs} ` +
@@ -883,16 +953,15 @@ ${buildSkillsPrompt(skills)}`
       await execAsync(ffmpegCmd)
 
       logger.info('Applying smart trim to remove dead air segments')
-      await processVideo(rawVideo, finalVideo)
-
-      // Clean up raw WebM & Raw MP4 to save space
       try {
-        fs.unlinkSync(foundWebmPath)
-        fs.unlinkSync(rawVideo)
-      } catch (_e) {}
+        await processVideo(rawVideo, finalVideo)
+      } catch (trimErr: any) {
+        logger.warn({ err: trimErr }, 'Smart trim failed — falling back to raw video')
+        fs.copyFileSync(rawVideo, finalVideo)
+      }
 
       // 10. Direct Push (GCS upload + database update + email & discord notifications)
-      await pushJobResult(jobId, userId, finalVideo, connection, parameters)
+      await pushJobResult(jobId, userId, finalVideo, rawVideo, connection, parameters)
 
       await reportJobPhase(jobId, userId, 'ffmpeg_postprocessing', 'completed', connection)
       logger.info('Video creation successfully complete!')

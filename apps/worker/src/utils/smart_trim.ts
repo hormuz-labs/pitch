@@ -80,15 +80,17 @@ function loadClickEvents(input: string): ClickEvent[] {
   }
 }
 
-export async function processVideo(input: string, output: string) {
-  const clickEvents = loadClickEvents(input)
+export async function processVideo(input: string, output: string, detectionInput?: string) {
+  const analyzeInput = detectionInput || input
+
+  const clickEvents = loadClickEvents(analyzeInput)
   if (clickEvents.length > 0) {
     console.log(`Found ${clickEvents.length} click event(s) to protect during trimming.`)
   }
 
   console.log('Analyzing audio silence...')
   const { stdout: silenceLog } = await execAsync(
-    `ffmpeg -i "${input}" -af silencedetect=noise=-40dB:d=0.5 -f null - 2>&1`,
+    `ffmpeg -i "${analyzeInput}" -af silencedetect=noise=-40dB:d=0.5 -f null - 2>&1`,
     { maxBuffer: 1024 * 1024 * 100 },
   )
 
@@ -104,10 +106,11 @@ export async function processVideo(input: string, output: string) {
   }
 
   console.log('Analyzing video freezes (static screen)...')
-  // Use a 2.0s freeze threshold so short post-fill/type visibility pauses (1.5s)
-  // are not classified as dead air and are preserved in the final video.
+  // Run freeze detection on the processed video — during zoom hold phases frames
+  // are stable so freezes are detectable. d=1.0 catches short 1s+ static pauses.
+  // n=0.05 noise tolerance accounts for compression artifacts.
   const { stdout: freezeLog } = await execAsync(
-    `ffmpeg -i "${input}" -vf freezedetect=n=0.01:d=2.0 -f null - 2>&1`,
+    `ffmpeg -i "${analyzeInput}" -vf freezedetect=n=0.05:d=1.0 -f null - 2>&1`,
     { maxBuffer: 1024 * 1024 * 100 },
   )
 
@@ -124,15 +127,20 @@ export async function processVideo(input: string, output: string) {
     `Found ${silences.length} silence segment(s) and ${freezes.length} freeze segment(s).`,
   )
 
-  const duration = await getDuration(input)
+  const duration = await getDuration(analyzeInput)
   if (!duration) throw new Error('Could not determine video duration')
 
-  const audioDuration = await getAudioDuration(input)
+  const audioDuration = await getAudioDuration(analyzeInput)
   if (audioDuration > 0 && audioDuration < duration - 0.5) {
     console.log(
       `Audio stream ends early at ${audioDuration.toFixed(2)}s (video is ${duration.toFixed(2)}s). Adding trailing silence.`,
     )
     silences.push({ start: audioDuration, end: duration })
+  } else if (audioDuration === 0) {
+    console.log(
+      'No audio track detected — treating entire video as silent for freeze-based trimming.',
+    )
+    silences.push({ start: 0, end: duration })
   }
 
   silences.forEach(s => {
@@ -144,12 +152,31 @@ export async function processVideo(input: string, output: string) {
 
   // Segments where the screen is BOTH frozen AND silent — drop these.
   const dropSegments = getIntersections(silences, freezes)
-  console.log(`Found ${dropSegments.length} raw dead-air segment(s) of both silence and freeze.`)
+
+  // Force-trim initial silence even without a corresponding freeze.
+  // When the page is loading (animations, rendering) the freeze detector won't
+  // fire, so the opening dead-air is never removed.  If the first silence
+  // starts at the very beginning we add it as an extra drop segment so the
+  // trimmed video starts when actual content (audio or motion) begins.
+  const firstSilence = mergeSegments(silences).find(s => s.start <= 0.15)
+  if (firstSilence && firstSilence.end > 0.6 && firstSilence.end < duration - 0.5) {
+    const coveredByFreeze = freezes.some(f => f.start <= 0.15 && f.end >= firstSilence.end - 0.1)
+    if (!coveredByFreeze) {
+      console.log(
+        `Initial silence detected (0 → ${firstSilence.end.toFixed(2)}s) without freeze — adding as extra drop segment.`,
+      )
+      dropSegments.push({ start: 0, end: firstSilence.end })
+    }
+  }
+
+  console.log(
+    `Found ${dropSegments.length} raw dead-air segment(s) of both silence and freeze (incl. initial silence).`,
+  )
 
   // Shrink drop segments to leave at least 0.05 seconds (50ms) of breathing room on both sides of the kept segments.
   const breathingRoom = 0.05
   const adjustedDropSegments: Segment[] = []
-  for (const drop of dropSegments) {
+  for (const drop of mergeSegments(dropSegments)) {
     if (drop.end - drop.start > breathingRoom * 2) {
       adjustedDropSegments.push({
         start: drop.start + breathingRoom,
@@ -157,6 +184,7 @@ export async function processVideo(input: string, output: string) {
       })
     }
   }
+  adjustedDropSegments.sort((a, b) => a.start - b.start)
   console.log(
     `After leaving ${breathingRoom}s breathing room, we have ${adjustedDropSegments.length} segment(s) to trim.`,
   )

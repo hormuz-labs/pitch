@@ -18,7 +18,7 @@ import type { Server } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { verifyToken } from '@clerk/backend'
 import * as db from '@saas/db'
-import { createLogger, getManagerHeaders, MANAGER_BASE_URL } from '@saas/shared'
+import { createLogger, getManagerBaseUrl, getManagerHeaders } from '@saas/shared'
 import { WebSocket, WebSocketServer } from 'ws'
 
 const logger = createLogger('api:vnc-proxy')
@@ -71,7 +71,7 @@ async function authorize(token: string | null, profileId: string): Promise<boole
 
 /** Pipe an accepted browser WS to the manager's VNC WS, both directions. */
 function bridge(client: WebSocket, profileId: string): void {
-  const target = `${MANAGER_BASE_URL.replace(/^http/, 'ws')}/api/profiles/${profileId}/vnc`
+  const target = `${getManagerBaseUrl().replace(/^http/, 'ws')}/api/profiles/${profileId}/vnc`
   // node ws client sends no Origin header → passes the manager CSWSH check.
   const upstream = new WebSocket(target, ['binary'], { headers: getManagerHeaders() })
 
