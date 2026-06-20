@@ -109,8 +109,10 @@ export async function processVideo(input: string, output: string, detectionInput
   // Run freeze detection on the raw input (before zoom pans add motion to every frame).
   // Use a 2.0s freeze threshold so short post-fill/type visibility pauses (1.5s)
   // are not classified as dead air and are preserved in the final video.
+  // n=0.05 noise tolerance accounts for webm/vp9 compression artifacts that
+  // prevent pixel-perfect frame matching at lower thresholds.
   const { stdout: freezeLog } = await execAsync(
-    `ffmpeg -i "${analyzeInput}" -vf freezedetect=n=0.01:d=2.0 -f null - 2>&1`,
+    `ffmpeg -i "${analyzeInput}" -vf freezedetect=n=0.05:d=2.0 -f null - 2>&1`,
     { maxBuffer: 1024 * 1024 * 100 },
   )
 
