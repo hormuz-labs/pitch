@@ -825,6 +825,13 @@ ${buildSkillsPrompt(skills)}`
       const rawVideo = path.join(recordingsDir, 'raw_demo.mp4')
       const finalVideo = path.join(recordingsDir, 'final_demo.mp4')
 
+      // Align video timebase with wall-clock startTime
+      const videoBirthTimeMs = await getVideoBirthTimeMs(foundWebmPath)
+      const trimSec = videoBirthTimeMs ? Math.max(0, (startTime - videoBirthTimeMs) / 1000) : 0
+      if (trimSec > 0) {
+        logger.info({ trimSec }, 'Applying timeline shift to align with prompt startTime')
+      }
+
       let videoInputs = `-i "${foundWebmPath}" -i "${cursorPath}"`
       let filterComplex = ''
       let currentVLabel = '[0:v]'
@@ -832,18 +839,12 @@ ${buildSkillsPrompt(skills)}`
       // Click cursor overlays
       state.clickEvents.forEach((event: any, i: number) => {
         const nextVLabel = `[v_cursor${i}]`
-        const start = Math.max(0, event.videoTimeSec - 0.5)
+        // Shift overlay times to align with the untrimmed raw WebM timeline
+        const start = Math.max(0, event.videoTimeSec + trimSec - 0.5)
         const end = start + 2.0
         filterComplex += `${currentVLabel}[1:v]overlay=x=${event.x}:y=${event.y}:enable='between(t,${start},${end})'${nextVLabel};`
         currentVLabel = nextVLabel
       })
-
-      // Align video timebase with wall-clock startTime
-      const videoBirthTimeMs = await getVideoBirthTimeMs(foundWebmPath)
-      const trimSec = videoBirthTimeMs ? Math.max(0, (startTime - videoBirthTimeMs) / 1000) : 0
-      if (trimSec > 0) {
-        logger.info({ trimSec }, 'Applying timeline shift to align with prompt startTime')
-      }
 
       // Build zoom pan filter
       filterComplex += buildContinuousZoomFilter(
