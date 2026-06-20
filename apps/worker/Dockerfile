@@ -37,5 +37,7 @@ RUN groupadd -f render && usermod -aG render,video root
 
 ENV NODE_ENV=production
 ENV PATH="/root/.rtk/bin:/root/.opencode/bin:${PATH}"
+ARG GIT_HASH
+ENV GIT_HASH=${GIT_HASH}
 
 CMD ["sh", "-c", "bunx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss && bun apps/worker/src/index.ts"]

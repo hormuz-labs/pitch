@@ -43,6 +43,7 @@ export async function updateJob(
   data: {
     status?: JobStatus
     videoUrl?: string
+    rawVideoUrl?: string
     pdfUrl?: string
     audioUrl?: string
     thumbnailUrl?: string
@@ -50,6 +51,7 @@ export async function updateJob(
     error?: string
     workerId?: string
     cost?: number
+    gitHash?: string
     rating?: string
     feedback?: string
   },
@@ -62,12 +64,14 @@ export async function updateJob(
   const updateData: Prisma.JobUpdateInput = {}
   if (data.status !== undefined) updateData.status = data.status
   if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl
+  if (data.rawVideoUrl !== undefined) updateData.rawVideoUrl = data.rawVideoUrl
   if (data.pdfUrl !== undefined) updateData.pdfUrl = data.pdfUrl
   if (data.audioUrl !== undefined) updateData.audioUrl = data.audioUrl
   if (data.thumbnailUrl !== undefined) updateData.thumbnailUrl = data.thumbnailUrl
   if (data.error !== undefined) updateData.error = data.error
   if (data.workerId !== undefined) updateData.workerId = data.workerId
   if (data.cost !== undefined) updateData.cost = data.cost
+  if (data.gitHash !== undefined) updateData.gitHash = data.gitHash
   if (data.rating !== undefined) updateData.rating = data.rating
   if (data.feedback !== undefined) updateData.feedback = data.feedback
   if (data.phases !== undefined) updateData.phases = data.phases

@@ -1,5 +1,7 @@
+import { exec } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { promisify } from 'node:util'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
 import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
@@ -18,6 +20,7 @@ import { activeSessionsByJobId, reportJobPhase } from './job-processor.js'
 import { getSessionIdFromEvent } from './opencode.js'
 
 const logger = createLogger('worker:pdf')
+const execAsync = promisify(exec)
 
 async function pushPdfResult(
   jobId: string,
@@ -55,9 +58,20 @@ async function pushPdfResult(
     data: { parameters: JSON.stringify(updatedParams) },
   })
 
+  let gitHash: string | undefined
+  if (process.env.GIT_HASH) {
+    gitHash = process.env.GIT_HASH
+  } else {
+    try {
+      const { stdout } = await execAsync('git rev-parse HEAD')
+      gitHash = stdout.trim()
+    } catch {}
+  }
+
   const updatedJob = await db.updateJob(jobId, {
     status: JobStatus.COMPLETED,
     pdfUrl,
+    gitHash,
   })
 
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
@@ -168,6 +182,36 @@ export async function processPdfJob(
           // OpenCode events are a discriminated union; tool-call events carry a
           // .call property (and often .type === 'call') at runtime.
           const evt = event as any
+
+          // ── Stream human-readable logs for debugging ──────────────────────
+          if (evt.type === 'message.part.updated' || evt.type === 'message.updated') {
+            const info = evt.properties?.info || evt.properties
+            if (info?.role === 'assistant') {
+              const text =
+                info?.content?.[0]?.text || info?.text || evt.properties?.part?.text || ''
+              if (text) {
+                jobLogger.info({ text: text.slice(0, 200) }, 'LLM output')
+              }
+            }
+          }
+
+          if (evt.type === 'call' || evt.call) {
+            const call = evt.call || evt
+            const toolName: string = call.name || call.tool || 'unknown'
+            jobLogger.info({ tool: toolName }, 'Tool call started')
+          }
+
+          if (evt.type === 'tool.result' || evt.result) {
+            const call = evt.call || evt
+            const toolName: string = call.name || call.tool || 'unknown'
+            const result = evt.result || evt
+            const preview =
+              typeof result === 'string'
+                ? result.slice(0, 300)
+                : JSON.stringify(result).slice(0, 300)
+            jobLogger.info({ tool: toolName, preview }, 'Tool result')
+          }
+
           if (currentPhaseIdx < PDF_PHASES.length - 1) {
             const callEvent = evt.call || (evt.type === 'call' ? evt : null)
             if (callEvent) {
@@ -175,19 +219,13 @@ export async function processPdfJob(
               const args: Record<string, any> = callEvent.arguments || {}
 
               // pdf_research → pdf_writing: first write_file signals AI is producing content
-              if (
-                currentPhaseIdx === 0 &&
-                toolName === 'write_file'
-              ) {
+              if (currentPhaseIdx === 0 && toolName === 'write_file') {
                 await reportJobPhase(jobId, userId, 'pdf_research', 'completed', connection)
                 currentPhaseIdx = 1
                 await reportJobPhase(jobId, userId, 'pdf_writing', 'running', connection)
               }
               // pdf_writing → pdf_images: scraping images
-              else if (
-                currentPhaseIdx === 1 &&
-                toolName === 'run_shell_command'
-              ) {
+              else if (currentPhaseIdx === 1 && toolName === 'run_shell_command') {
                 const cmd: string = args.command || ''
                 if (cmd.includes('scrape_images')) {
                   await reportJobPhase(jobId, userId, 'pdf_writing', 'completed', connection)
@@ -213,10 +251,7 @@ export async function processPdfJob(
                 }
               }
               // pdf_build → pdf_qa: reading QA renders
-              if (
-                currentPhaseIdx === 3 &&
-                (toolName === 'read_file' || toolName === 'read')
-              ) {
+              if (currentPhaseIdx === 3 && (toolName === 'read_file' || toolName === 'read')) {
                 const filePath: string = args.file_path || args.path || ''
                 if (filePath.includes('qa-renders')) {
                   await reportJobPhase(jobId, userId, 'pdf_build', 'completed', connection)
@@ -225,10 +260,7 @@ export async function processPdfJob(
                 }
               }
               // Re-running pdf-builder.js during QA loop (back to build for fixes)
-              if (
-                currentPhaseIdx === 4 &&
-                toolName === 'run_shell_command'
-              ) {
+              if (currentPhaseIdx === 4 && toolName === 'run_shell_command') {
                 const cmd: string = args.command || ''
                 if (cmd.includes('pdf-builder.js')) {
                   await reportJobPhase(jobId, userId, 'pdf_qa', 'completed', connection)

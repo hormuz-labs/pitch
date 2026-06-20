@@ -80,15 +80,17 @@ function loadClickEvents(input: string): ClickEvent[] {
   }
 }
 
-export async function processVideo(input: string, output: string) {
-  const clickEvents = loadClickEvents(input)
+export async function processVideo(input: string, output: string, detectionInput?: string) {
+  const analyzeInput = detectionInput || input
+
+  const clickEvents = loadClickEvents(analyzeInput)
   if (clickEvents.length > 0) {
     console.log(`Found ${clickEvents.length} click event(s) to protect during trimming.`)
   }
 
   console.log('Analyzing audio silence...')
   const { stdout: silenceLog } = await execAsync(
-    `ffmpeg -i "${input}" -af silencedetect=noise=-40dB:d=0.5 -f null - 2>&1`,
+    `ffmpeg -i "${analyzeInput}" -af silencedetect=noise=-40dB:d=0.5 -f null - 2>&1`,
     { maxBuffer: 1024 * 1024 * 100 },
   )
 
@@ -104,10 +106,11 @@ export async function processVideo(input: string, output: string) {
   }
 
   console.log('Analyzing video freezes (static screen)...')
+  // Run freeze detection on the raw input (before zoom pans add motion to every frame).
   // Use a 2.0s freeze threshold so short post-fill/type visibility pauses (1.5s)
   // are not classified as dead air and are preserved in the final video.
   const { stdout: freezeLog } = await execAsync(
-    `ffmpeg -i "${input}" -vf freezedetect=n=0.01:d=2.0 -f null - 2>&1`,
+    `ffmpeg -i "${analyzeInput}" -vf freezedetect=n=0.01:d=2.0 -f null - 2>&1`,
     { maxBuffer: 1024 * 1024 * 100 },
   )
 
@@ -124,10 +127,10 @@ export async function processVideo(input: string, output: string) {
     `Found ${silences.length} silence segment(s) and ${freezes.length} freeze segment(s).`,
   )
 
-  const duration = await getDuration(input)
+  const duration = await getDuration(analyzeInput)
   if (!duration) throw new Error('Could not determine video duration')
 
-  const audioDuration = await getAudioDuration(input)
+  const audioDuration = await getAudioDuration(analyzeInput)
   if (audioDuration > 0 && audioDuration < duration - 0.5) {
     console.log(
       `Audio stream ends early at ${audioDuration.toFixed(2)}s (video is ${duration.toFixed(2)}s). Adding trailing silence.`,
