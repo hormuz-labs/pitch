@@ -230,9 +230,7 @@ async function pushJobResult(
     const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
     const email = userProfile?.email || userId
     const urlParam = parameters?.url || 'N/A'
-    const instructions = parameters?.instructions
-      ? `\nPrompt: *${parameters.instructions}*`
-      : ''
+    const instructions = parameters?.instructions ? `\nPrompt: *${parameters.instructions}*` : ''
 
     await sendDiscordMessage(
       `✅ **Video Creation Completed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}`,
@@ -601,10 +599,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 
       // Resize browser viewport to match recording size (fixes grey bar on production)
       logger.info('Resizing browser viewport to 1920x1080...')
-      const resizeResult = await execAsync(
-        `playwright-cli resize 1920 1080`,
-        { cwd: targetDir },
-      )
+      const resizeResult = await execAsync(`playwright-cli resize 1920 1080`, { cwd: targetDir })
       logger.info(
         { stdout: resizeResult.stdout, stderr: resizeResult.stderr },
         'playwright-cli resize output',
@@ -860,18 +855,29 @@ ${buildSkillsPrompt(skills)}`
 
       // Audio narration clips
       let validClips = 0
-      state.audioClips.forEach((clip: any, index: number) => {
+      let audioInputIndex = 2 // 0 is webm, 1 is cursor icon
+      const audioLabels: string[] = []
+      state.audioClips.forEach((clip: any) => {
+        if (!fs.existsSync(clip.filePath)) {
+          logger.warn({ filePath: clip.filePath }, 'Audio clip file not found on disk — skipping')
+          return
+        }
         const delayMs = Math.max(0, clip.absoluteTimestamp - startTime)
         videoInputs += ` -i "${clip.filePath}"`
-        // Offset by 2 because 0 is webm, 1 is cursor icon
-        filterComplex += `[${2 + index}:a]adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${index}];`
+        filterComplex += `[${audioInputIndex}:a]adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${validClips}];`
+        audioLabels.push(`[a${validClips}]`)
+        audioInputIndex++
         validClips++
       })
 
       if (validClips > 0) {
-        const amixInputs = state.audioClips.map((_: any, i: number) => `[a${i}]`).join('')
-        filterComplex += `${amixInputs}amix=inputs=${validClips}:duration=longest:normalize=0[outa]`
+        filterComplex += `${audioLabels.join('')}amix=inputs=${validClips}:duration=longest:normalize=0[outa]`
       }
+
+      logger.info(
+        { totalClips: state.audioClips.length, validClips },
+        'Audio clips prepared for mixing',
+      )
 
       const ffmpegCmd =
         `ffmpeg -y ${videoInputs} ` +
@@ -883,7 +889,12 @@ ${buildSkillsPrompt(skills)}`
       await execAsync(ffmpegCmd)
 
       logger.info('Applying smart trim to remove dead air segments')
-      await processVideo(rawVideo, finalVideo)
+      try {
+        await processVideo(rawVideo, finalVideo)
+      } catch (trimErr: any) {
+        logger.warn({ err: trimErr }, 'Smart trim failed — falling back to raw video')
+        fs.copyFileSync(rawVideo, finalVideo)
+      }
 
       // Clean up raw WebM & Raw MP4 to save space
       try {

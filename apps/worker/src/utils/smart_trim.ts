@@ -144,7 +144,26 @@ export async function processVideo(input: string, output: string) {
 
   // Segments where the screen is BOTH frozen AND silent — drop these.
   const dropSegments = getIntersections(silences, freezes)
-  console.log(`Found ${dropSegments.length} raw dead-air segment(s) of both silence and freeze.`)
+
+  // Force-trim initial silence even without a corresponding freeze.
+  // When the page is loading (animations, rendering) the freeze detector won't
+  // fire, so the opening dead-air is never removed.  If the first silence
+  // starts at the very beginning we add it as an extra drop segment so the
+  // trimmed video starts when actual content (audio or motion) begins.
+  const firstSilence = mergeSegments(silences).find(s => s.start <= 0.15)
+  if (firstSilence && firstSilence.end > 0.6 && firstSilence.end < duration - 0.5) {
+    const coveredByFreeze = freezes.some(f => f.start <= 0.15 && f.end >= firstSilence.end - 0.1)
+    if (!coveredByFreeze) {
+      console.log(
+        `Initial silence detected (0 → ${firstSilence.end.toFixed(2)}s) without freeze — adding as extra drop segment.`,
+      )
+      dropSegments.push({ start: 0, end: firstSilence.end })
+    }
+  }
+
+  console.log(
+    `Found ${dropSegments.length} raw dead-air segment(s) of both silence and freeze (incl. initial silence).`,
+  )
 
   // Shrink drop segments to leave at least 0.05 seconds (50ms) of breathing room on both sides of the kept segments.
   const breathingRoom = 0.05

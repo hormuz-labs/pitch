@@ -1,27 +1,35 @@
-export const MANAGER_BASE_URL = process.env.CLOAK_MANAGER_URL || 'http://127.0.0.1:8080'
-export const MANAGER_AUTH_TOKEN = process.env.CLOAK_MANAGER_AUTH_TOKEN
+/** Read env lazily so callers that load .env at startup see the correct value. */
+export function getManagerBaseUrl(): string {
+  return process.env.CLOAK_MANAGER_URL || 'http://127.0.0.1:8080'
+}
+
+/** Read env lazily so callers that load .env at startup see the correct value. */
+export function getManagerAuthToken(): string | undefined {
+  return process.env.CLOAK_MANAGER_AUTH_TOKEN
+}
 
 export function getManagerHeaders(headers: Record<string, string> = {}) {
   const h = { ...headers }
-  if (MANAGER_AUTH_TOKEN) {
-    h.Authorization = `Bearer ${MANAGER_AUTH_TOKEN}`
+  const token = getManagerAuthToken()
+  if (token) {
+    h.Authorization = `Bearer ${token}`
   }
   return h
 }
 
 /** WebSocket URL for direct CDP connections (e.g. from browser-host.ts). */
 export function managerCdpUrl(profileId: string): string {
-  return `${MANAGER_BASE_URL.replace(/^http/, 'ws')}/api/profiles/${profileId}/cdp`
+  return `${getManagerBaseUrl().replace(/^http/, 'ws')}/api/profiles/${profileId}/cdp`
 }
 
 /** HTTP URL for Playwright connectOverCDP / playwright-cli attach. */
 export function managerCdpHttpUrl(profileId: string): string {
-  return `${MANAGER_BASE_URL}/api/profiles/${profileId}/cdp`
+  return `${getManagerBaseUrl()}/api/profiles/${profileId}/cdp`
 }
 
 export async function getManagerProfile(userId: string): Promise<any | null> {
   try {
-    const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
+    const res = await fetch(`${getManagerBaseUrl()}/api/profiles`, {
       headers: getManagerHeaders(),
     })
     if (!res.ok) return null
@@ -33,7 +41,7 @@ export async function getManagerProfile(userId: string): Promise<any | null> {
 }
 
 export async function createManagerProfile(userId: string): Promise<any> {
-  const res = await fetch(`${MANAGER_BASE_URL}/api/profiles`, {
+  const res = await fetch(`${getManagerBaseUrl()}/api/profiles`, {
     method: 'POST',
     headers: getManagerHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
@@ -46,7 +54,7 @@ export async function createManagerProfile(userId: string): Promise<any> {
 }
 
 export async function launchManagerProfile(profileId: string): Promise<any> {
-  const res = await fetch(`${MANAGER_BASE_URL}/api/profiles/${profileId}/launch`, {
+  const res = await fetch(`${getManagerBaseUrl()}/api/profiles/${profileId}/launch`, {
     method: 'POST',
     headers: getManagerHeaders({ 'Content-Type': 'application/json' }),
   })
@@ -56,7 +64,7 @@ export async function launchManagerProfile(profileId: string): Promise<any> {
 
 export async function stopManagerProfile(profileId: string): Promise<void> {
   try {
-    await fetch(`${MANAGER_BASE_URL}/api/profiles/${profileId}/stop`, {
+    await fetch(`${getManagerBaseUrl()}/api/profiles/${profileId}/stop`, {
       method: 'POST',
       headers: getManagerHeaders(),
     })
