@@ -176,7 +176,7 @@ export async function processVideo(input: string, output: string, detectionInput
   // Shrink drop segments to leave at least 0.05 seconds (50ms) of breathing room on both sides of the kept segments.
   const breathingRoom = 0.05
   const adjustedDropSegments: Segment[] = []
-  for (const drop of dropSegments) {
+  for (const drop of mergeSegments(dropSegments)) {
     if (drop.end - drop.start > breathingRoom * 2) {
       adjustedDropSegments.push({
         start: drop.start + breathingRoom,
@@ -184,6 +184,7 @@ export async function processVideo(input: string, output: string, detectionInput
       })
     }
   }
+  adjustedDropSegments.sort((a, b) => a.start - b.start)
   console.log(
     `After leaving ${breathingRoom}s breathing room, we have ${adjustedDropSegments.length} segment(s) to trim.`,
   )
