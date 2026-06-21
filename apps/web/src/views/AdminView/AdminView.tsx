@@ -80,7 +80,11 @@ export function AdminView() {
     return () => {
       isMounted = false
     }
-  }, [fetchGlobalJobs, fetchDashboard, fetchAnalytics])
+    // Run once on mount. The fetch helpers are recreated on every render, so
+    // listing them here would re-run the effect endlessly (each fetch flips
+    // state → re-render → new fn identities → effect re-fires → fetch again).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleToggleQueue = async () => {
     try {
