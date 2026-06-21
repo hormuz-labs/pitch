@@ -90,7 +90,7 @@ export async function processVideo(input: string, output: string, detectionInput
 
   console.log('Analyzing audio silence...')
   const { stdout: silenceLog } = await execAsync(
-    `ffmpeg -i "${analyzeInput}" -af silencedetect=noise=-40dB:d=0.5 -f null - 2>&1`,
+    `ffmpeg -i "${analyzeInput}" -af silencedetect=noise=-50dB:d=0.8 -f null - 2>&1`,
     { maxBuffer: 1024 * 1024 * 100 },
   )
 
@@ -173,8 +173,9 @@ export async function processVideo(input: string, output: string, detectionInput
     `Found ${dropSegments.length} raw dead-air segment(s) of both silence and freeze (incl. initial silence).`,
   )
 
-  // Shrink drop segments to leave at least 0.05 seconds (50ms) of breathing room on both sides of the kept segments.
-  const breathingRoom = 0.05
+  // Shrink drop segments to leave breathing room on both sides of the kept segments
+  // to prevent cutting into the tail of voiceover audio.
+  const breathingRoom = 0.15
   const adjustedDropSegments: Segment[] = []
   for (const drop of mergeSegments(dropSegments)) {
     if (drop.end - drop.start > breathingRoom * 2) {

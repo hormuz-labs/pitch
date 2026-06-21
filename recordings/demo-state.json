@@ -1,0 +1,95 @@
+{
+  "startTime": 1782000869716,
+  "audioClips": [
+    {
+      "filePath": "/workspace/recordings/audio/clip_0.wav",
+      "absoluteTimestamp": 1782000877642
+    },
+    {
+      "filePath": "/workspace/recordings/audio/clip_1.wav",
+      "absoluteTimestamp": 1782000913590
+    },
+    {
+      "filePath": "/workspace/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782000925561
+    },
+    {
+      "filePath": "/workspace/recordings/audio/clip_3.wav",
+      "absoluteTimestamp": 1782000938772
+    },
+    {
+      "filePath": "/workspace/recordings/audio/clip_4.wav",
+      "absoluteTimestamp": 1782000975478
+    },
+    {
+      "filePath": "/workspace/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782000987817
+    },
+    {
+      "filePath": "/workspace/recordings/audio/clip_6.wav",
+      "absoluteTimestamp": 1782000999556
+    }
+  ],
+  "zoomEvents": [
+    {
+      "type": "in",
+      "videoTimeSec": 53.074,
+      "x": 1549,
+      "y": 36,
+      "zoom": 2
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 63.695
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 78.908,
+      "x": 551,
+      "y": 36,
+      "zoom": 2
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 98.853
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 115.244,
+      "x": 442.5,
+      "y": 161,
+      "zoom": 2
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 126.818
+    }
+  ],
+  "clickEvents": [
+    {
+      "videoTimeSec": 55.845,
+      "x": 1549,
+      "y": 36
+    },
+    {
+      "videoTimeSec": 118.101,
+      "x": 442.5,
+      "y": 161
+    }
+  ],
+  "tabEvents": [
+    {
+      "tabId": 0,
+      "wallSec": 0
+    }
+  ],
+  "tabCreationTimes": {
+    "0": 0
+  },
+  "currentTabId": 0,
+  "lastTargetCoords": {
+    "ref": "e296",
+    "x": 442.5,
+    "y": 161
+  }
+}
