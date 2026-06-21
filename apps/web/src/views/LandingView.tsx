@@ -142,6 +142,21 @@ export const LandingView = () => {
                     Watch a sample
                   </button>
                 </div>
+
+                {/* Product Hunt launch badge */}
+                <a
+                  href="https://www.producthunt.com/products/pitch-10?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-pitch-11"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="landing-animate-4 mt-6 inline-block"
+                >
+                  <img
+                    alt="Pitch - Automating cinematic video pitches | Product Hunt"
+                    width="250"
+                    height="54"
+                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1160113&theme=light"
+                  />
+                </a>
               </div>
 
               <div className="flex-1 w-full max-w-3xl landing-animate-5">
