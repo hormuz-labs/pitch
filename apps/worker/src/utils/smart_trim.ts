@@ -38,6 +38,21 @@ interface ClickEvent {
   y: number
 }
 
+interface ZoomInEvent {
+  type: 'in'
+  videoTimeSec: number
+  x: number
+  y: number
+  zoom: number
+}
+
+interface ZoomOutEvent {
+  type: 'out'
+  videoTimeSec: number
+}
+
+type ZoomEvent = ZoomInEvent | ZoomOutEvent
+
 function mergeSegments(segments: Segment[]): Segment[] {
   const sorted = [...segments].sort((a, b) => a.start - b.start)
   const merged: Segment[] = []
@@ -80,12 +95,28 @@ function loadClickEvents(input: string): ClickEvent[] {
   }
 }
 
+function loadZoomEvents(input: string): ZoomEvent[] {
+  const statePath = path.join(path.dirname(input), 'demo-state.json')
+  try {
+    const raw = fs.readFileSync(statePath, 'utf-8')
+    const state = JSON.parse(raw)
+    return Array.isArray(state.zoomEvents) ? state.zoomEvents : []
+  } catch {
+    return []
+  }
+}
+
 export async function processVideo(input: string, output: string, detectionInput?: string) {
   const analyzeInput = detectionInput || input
 
   const clickEvents = loadClickEvents(analyzeInput)
   if (clickEvents.length > 0) {
     console.log(`Found ${clickEvents.length} click event(s) to protect during trimming.`)
+  }
+
+  const zoomEvents = loadZoomEvents(analyzeInput)
+  if (zoomEvents.length > 0) {
+    console.log(`Found ${zoomEvents.length} zoom event(s) to protect during trimming.`)
   }
 
   console.log('Analyzing audio silence...')
@@ -210,7 +241,32 @@ export async function processVideo(input: string, output: string, detectionInput
     start: Math.max(0, c.videoTimeSec - 0.5),
     end: Math.min(duration, c.videoTimeSec + 1.5),
   }))
-  const finalKeepSegments = mergeSegments([...keepSegments, ...clickProtected])
+
+  // Protect only the zoom ramp transitions, NOT the hold.  The hold can be
+  // long and static — that should still be trimmed.  We just need to make
+  // sure the zoom-in animation leading into the hold and the zoom-out
+  // animation leading out of it are never truncated.
+  const ZOOM_RAMP = 0.375
+  const ZOOM_PAD = 0.15
+  const zoomProtected: Segment[] = []
+  for (let i = 0; i < zoomEvents.length; i++) {
+    const ev = zoomEvents[i]!
+    if (ev.type === 'in') {
+      // Protect ramp-IN: from (zoom_in call - ZOOM_RAMP) to (zoom_in call + small pad)
+      zoomProtected.push({
+        start: Math.max(0, ev.videoTimeSec - ZOOM_RAMP - ZOOM_PAD),
+        end: Math.min(duration, ev.videoTimeSec + ZOOM_PAD),
+      })
+    } else if (ev.type === 'out') {
+      // Protect ramp-OUT: from (zoom_out call - small pad) to (zoom_out call + ZOOM_RAMP)
+      zoomProtected.push({
+        start: Math.max(0, ev.videoTimeSec - ZOOM_PAD),
+        end: Math.min(duration, ev.videoTimeSec + ZOOM_RAMP + ZOOM_PAD),
+      })
+    }
+  }
+
+  const finalKeepSegments = mergeSegments([...keepSegments, ...clickProtected, ...zoomProtected])
 
   console.log(
     `Keeping ${finalKeepSegments.length} segment(s), trimming ${dropSegments.length} gap(s).`,

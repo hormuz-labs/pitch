@@ -12,8 +12,8 @@
  *   videoTimeSec = (Date.now() - startTime) / 1000
  */
 
-export const ZOOM_IN_DURATION = 1.5 // seconds  1x → target zoom
-export const ZOOM_OUT_DURATION = 1.5 // seconds  target zoom → 1x
+export const ZOOM_IN_DURATION = 0.375 // seconds  1x → target zoom
+export const ZOOM_OUT_DURATION = 0.375 // seconds  target zoom → 1x
 
 export const DEFAULT_ZOOM = 2 // fallback when LLM omits zoom
 export const OUTPUT_SIZE = '1920x1080'
