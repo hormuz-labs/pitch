@@ -200,19 +200,39 @@ export async function processVideo(input: string, output: string, detectionInput
     }
   }
 
+  // Force-trim the initial freeze even when voiceover has started.
+  // A blank/loading screen that hasn't rendered meaningful content yet is
+  // useless even with voiceover — the viewer sees nothing.  If there's a
+  // freeze starting at t≈0, extend the initial drop to cover it entirely.
+  const initialFreeze = freezes.find(f => f.start <= 0.15)
+  if (initialFreeze && initialFreeze.end > 1 && initialFreeze.end < duration - 0.5) {
+    const mergedDrop = mergeSegments(dropSegments)
+    const coveredTo = mergedDrop.find(d => d.start <= 0.15)?.end ?? 0
+    if (initialFreeze.end > coveredTo + 0.5) {
+      console.log(
+        `Initial freeze extends to ${initialFreeze.end.toFixed(2)}s (beyond current drop at ${coveredTo.toFixed(2)}s) — extending drop to remove blank loading screen.`,
+      )
+      dropSegments.push({ start: 0, end: initialFreeze.end })
+    }
+  }
+
   console.log(
     `Found ${dropSegments.length} raw dead-air segment(s) of both silence and freeze (incl. initial silence).`,
   )
 
   // Shrink drop segments to leave breathing room on both sides of the kept segments
-  // to prevent cutting into the tail of voiceover audio.
+  // to prevent cutting into the tail of voiceover audio.  Don't add left padding
+  // at the very start or right padding at the very end — there's nothing to preserve
+  // there, and we want the video to start/end at actual content.
   const breathingRoom = 0.15
   const adjustedDropSegments: Segment[] = []
   for (const drop of mergeSegments(dropSegments)) {
-    if (drop.end - drop.start > breathingRoom * 2) {
+    const leftPad = drop.start > 0 ? breathingRoom : 0
+    const rightPad = drop.end < duration ? breathingRoom : 0
+    if (drop.end - drop.start > leftPad + rightPad) {
       adjustedDropSegments.push({
-        start: drop.start + breathingRoom,
-        end: drop.end - breathingRoom,
+        start: drop.start + leftPad,
+        end: drop.end - rightPad,
       })
     }
   }
