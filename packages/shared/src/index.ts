@@ -96,9 +96,10 @@ export const PDF_PHASE_LABELS: Record<string, string> = {
  * Heavier phases (recording, voiceover) contribute more %.
  */
 export const PHASE_WEIGHTS: Record<string, number> = {
-  workspace_init: 10,
-  video_recording: 70,
+  workspace_init: 5,
+  video_recording: 65,
   ffmpeg_postprocessing: 20,
+  intro_outro: 10,
   ...PDF_PHASE_WEIGHTS,
 }
 
@@ -107,6 +108,7 @@ export const PHASE_LABELS: Record<string, string> = {
   workspace_init: 'Workspace Initialization',
   video_recording: 'Video Recording',
   ffmpeg_postprocessing: 'FFmpeg Post-Processing',
+  intro_outro: 'Intro & Outro Cards',
   ...PDF_PHASE_LABELS,
 }
 
