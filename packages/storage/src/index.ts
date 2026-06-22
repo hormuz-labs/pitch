@@ -92,7 +92,8 @@ export async function uploadFile(localPath: string, bucketOverride?: string, pre
 
   await ensureBucketExists(targetBucket)
 
-  const key = prefix ? path.join(prefix, filename) : filename
+  const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const key = prefix ? path.join(prefix, uniqueId, filename) : `${uniqueId}/${filename}`
 
   console.log(
     `[Storage] Uploading ${filename} (${formatBytes(fileSize)}) to MinIO bucket "${targetBucket}"...`,

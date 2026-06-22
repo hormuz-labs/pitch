@@ -24,6 +24,7 @@ import yaml from 'yaml'
 import { getSessionIdFromEvent } from './opencode.js'
 
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
+import { addIntroOutro } from './utils/intro-outro.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
 
@@ -768,6 +769,7 @@ Guidelines:
 5. After filling or typing text into an input field, pause briefly with demo_bash({ command: "sleep 1.5" }) so the viewer can clearly see what was entered before moving on. These pauses are preserved during editing.
 6. After navigating or clicking links, use demo_bash({ command: "sleep 3" }) or similar to allow loading. 'playwright-cli' does NOT have a wait command.
 7. The browser is set to 1920x1080 resolution.
+8. LOGO DOWNLOAD: Before ending the demo, download the product's logo by running: demo_bash({ command: "playwright-cli screenshot --selector 'link[rel*=icon],img[src*=logo]' --path recordings/product_logo.png" }). If that fails, try: demo_bash({ command: "playwright-cli screenshot --selector 'img[alt*=logo],svg' --path recordings/product_logo.png" }). The logo will be used in the intro/outro cards.
 ${buildSkillsPrompt(skills)}`
 
       const promptResponse = await client.session.prompt({
@@ -885,8 +887,10 @@ ${buildSkillsPrompt(skills)}`
       logger.info({ sourceFps }, 'Detected source frame rate')
 
       const cursorPath = path.join(targetDir, 'assets', 'icons', 'cursor.png')
+      const pitchLogoPath = path.join(targetDir, 'assets', 'icons', 'trypitch-logo.png')
       const rawVideo = path.join(recordingsDir, 'raw_demo.mp4')
-      const finalVideo = path.join(recordingsDir, 'final_demo.mp4')
+      const trimmedVideo = path.join(recordingsDir, 'final_demo.mp4')
+      const finalVideo = path.join(recordingsDir, 'final_with_cards.mp4')
 
       // Align video timebase with wall-clock startTime
       const videoBirthTimeMs = await getVideoBirthTimeMs(foundWebmPath)
@@ -954,11 +958,40 @@ ${buildSkillsPrompt(skills)}`
 
       logger.info('Applying smart trim to remove dead air segments')
       try {
-        await processVideo(rawVideo, finalVideo)
+        await processVideo(rawVideo, trimmedVideo)
       } catch (trimErr: any) {
         logger.warn({ err: trimErr }, 'Smart trim failed — falling back to raw video')
-        fs.copyFileSync(rawVideo, finalVideo)
+        fs.copyFileSync(rawVideo, trimmedVideo)
       }
+
+      // 9b. Add intro/outro cards
+      await reportJobPhase(jobId, userId, 'intro_outro', 'running', connection)
+      logger.info('Adding intro/outro cards')
+      try {
+        const productDomain = (parameters?.url || '')
+          .replace(/^https?:\/\//, '')
+          .split('/')[0]
+        const productName = productDomain
+          .replace(/\.[a-z]+$/, '')
+          .replace(/[^a-zA-Z0-9]/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase()) || 'Demo'
+        const productLogoPath = path.join(recordingsDir, 'product_logo.png')
+
+        await addIntroOutro(trimmedVideo, finalVideo, {
+          productName,
+          productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
+          pitchLogoPath,
+          duration: 2.5,
+          fps: sourceFps,
+          width: 1920,
+          height: 1080,
+          outputPath: finalVideo,
+        })
+      } catch (cardErr: any) {
+        logger.warn({ err: cardErr }, 'Intro/outro generation failed — using trimmed video as final')
+        fs.copyFileSync(trimmedVideo, finalVideo)
+      }
+      await reportJobPhase(jobId, userId, 'intro_outro', 'completed', connection)
 
       // 10. Direct Push (GCS upload + database update + email & discord notifications)
       await pushJobResult(jobId, userId, finalVideo, rawVideo, connection, parameters)
