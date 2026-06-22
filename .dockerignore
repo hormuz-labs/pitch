@@ -49,7 +49,6 @@ demos/
 
 # Local dev data directories (large, not needed in images)
 docker-data/
-.opencode/
 .playwright-cli/
 recordings/
 grafana/

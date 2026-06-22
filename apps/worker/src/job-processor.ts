@@ -650,9 +650,10 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       const startTime = Date.now()
       logger.info(`startTime captured: ${new Date(startTime).toISOString()}`)
 
-      // Write config so the OpenCode plugin knows startTime and skills
+      // Write config so the OpenCode plugin knows startTime, skills, and voice
       const configPath = path.join(recordingsDir, 'demo-config.json')
-      fs.writeFileSync(configPath, JSON.stringify({ startTime, skills }, null, 2))
+      const voiceName = (parameters?.voice || 'Puck').toString().replace(/\.mp3$/i, '')
+      fs.writeFileSync(configPath, JSON.stringify({ startTime, skills, voiceName }, null, 2))
 
       // 4. Subscribe to global events and filter by session ID.
       eventAbortController = new AbortController()

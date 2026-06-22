@@ -55,6 +55,7 @@ interface SkillMetadata {
 interface DemoState {
   startTime: number
   endTime?: number
+  voiceName: string
   audioClips: AudioClip[]
   zoomEvents: ZoomEvent[]
   clickEvents: ClickEvent[]
@@ -67,6 +68,7 @@ interface DemoState {
 interface DemoConfig {
   startTime: number
   skills: SkillMetadata[]
+  voiceName?: string
 }
 
 const GEMINI_TTS_MODEL = 'gemini-3.1-flash-tts-preview'
@@ -131,6 +133,7 @@ function readState(directory: string): DemoState {
     const cfg = readConfig(directory)
     return {
       startTime: cfg.startTime,
+      voiceName: cfg.voiceName || 'Puck',
       audioClips: [],
       zoomEvents: [],
       clickEvents: [],
@@ -170,7 +173,7 @@ async function speak(directory: string, text: string, state: DemoState): Promise
   // the moment the narrator *would have spoken*, not after the inference delay.
   const playStartTime = Date.now()
   try {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    const apiKey = process.env.GEMINI_TTS_API_KEY_2
     if (!apiKey) throw new Error('No Gemini API key found')
     const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${apiKey}`
     const ttsRes = await fetch(ttsUrl, {
@@ -180,7 +183,9 @@ async function speak(directory: string, text: string, state: DemoState): Promise
         model: GEMINI_TTS_MODEL,
         contents: [{ role: 'user', parts: [{ text }] }],
         generationConfig: {
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: state.voiceName || 'Puck' } },
+          },
         },
       }),
     })
