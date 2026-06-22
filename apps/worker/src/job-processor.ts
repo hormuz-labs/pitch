@@ -888,7 +888,6 @@ ${buildSkillsPrompt(skills)}`
 
       const cursorPath = path.join(targetDir, 'assets', 'icons', 'cursor.png')
       const pitchLogoPath = path.join(targetDir, 'assets', 'icons', 'trypitch-logo.png')
-      const cardSoundPath = path.join(targetDir, 'assets', 'sounds', 'card-ding.m4a')
       const rawVideo = path.join(recordingsDir, 'raw_demo.mp4')
       const trimmedVideo = path.join(recordingsDir, 'final_demo.mp4')
       const finalVideo = path.join(recordingsDir, 'final_with_cards.mp4')
@@ -982,7 +981,6 @@ ${buildSkillsPrompt(skills)}`
           productName,
           productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
           pitchLogoPath,
-          cardSoundPath,
           duration: 2.5,
           fps: sourceFps,
           width: 1920,
