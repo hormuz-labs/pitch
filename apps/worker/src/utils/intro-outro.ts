@@ -38,29 +38,44 @@ function buildCardSvg(
 ): string {
   const accentColor = '#6C63FF'
   const bgColor = '#0B0B1A'
-  const subtleGlow = `<circle cx="${width / 2}" cy="${height / 2}" r="300" fill="${accentColor}" opacity="0.06"/>`
-  const productCenterX = width / 2 - 340
-  const pitchCenterX = width / 2 + 200
-  const crossX = width / 2
+  const fontFamily = "-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+  const cx = width / 2
 
-  let productContent: string
+  // Layout: product logo (if available) centered above product name,
+  // "powered by" label, TryPitch logo below, trypitch.co at bottom for outro.
+  const productLogoH = 80
+  const productNameY = productLogoDataUri ? height * 0.38 : height * 0.42
+  const poweredByY = productNameY + 60
+  const pitchLogoY = poweredByY + 30
+  const taglineY = height * 0.82
+
+  let productBlock = ''
   if (productLogoDataUri) {
-    productContent = `<image href="${productLogoDataUri}" x="${productCenterX}" y="${height / 2 - 60}" width="320" height="120" preserveAspectRatio="xMidYMid meet"/>`
+    productBlock =
+      `<image href="${productLogoDataUri}" x="${cx - 160}" y="${productNameY - 80}" width="320" height="${productLogoH}" preserveAspectRatio="xMidYMid meet"/>` +
+      `<text x="${cx}" y="${productNameY + 20}" font-family="${fontFamily}" font-size="40" font-weight="600" fill="white" text-anchor="middle" opacity="0.9">${escapeXml(productName)}</text>`
   } else {
-    productContent = `<text x="${productCenterX + 160}" y="${height / 2 + 18}" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="700" fill="white" text-anchor="middle">${escapeXml(productName)}</text>`
+    productBlock =
+      `<text x="${cx}" y="${productNameY + 10}" font-family="${fontFamily}" font-size="56" font-weight="700" fill="white" text-anchor="middle">${escapeXml(productName)}</text>`
   }
 
+  const poweredBy =
+    `<text x="${cx}" y="${poweredByY}" font-family="${fontFamily}" font-size="18" font-weight="400" fill="#666666" text-anchor="middle" letter-spacing="2">POWERED BY</text>`
+
+  const pitchLogo =
+    `<image href="${pitchLogoDataUri}" x="${cx - 140}" y="${pitchLogoY}" width="280" height="90" preserveAspectRatio="xMidYMid meet"/>`
+
   const tagline = type === 'outro'
-    ? `<text x="${width / 2}" y="${height * 0.78}" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="22" fill="#888888" text-anchor="middle">trypitch.co</text>`
+    ? `<text x="${cx}" y="${taglineY}" font-family="${fontFamily}" font-size="20" fill="#555555" text-anchor="middle">trypitch.co</text>`
     : ''
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${width}" height="${height}" fill="${bgColor}"/>
-  ${subtleGlow}
-  ${productContent}
-  <text x="${crossX}" y="${height / 2 + 22}" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="72" font-weight="300" fill="${accentColor}" text-anchor="middle">×</text>
-  <image href="${pitchLogoDataUri}" x="${pitchCenterX}" y="${height / 2 - 55}" width="280" height="110" preserveAspectRatio="xMidYMid meet"/>
+  <circle cx="${cx}" cy="${height / 2}" r="280" fill="${accentColor}" opacity="0.04"/>
+  ${productBlock}
+  ${poweredBy}
+  ${pitchLogo}
   ${tagline}
 </svg>`
 }
