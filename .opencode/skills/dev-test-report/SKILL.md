@@ -13,6 +13,22 @@ End-to-end workflow: fetch an open GitHub issue, implement the change, validate 
 - agent-webbridge running (`awb status` — must show `extensionConnected: true` for the target profile)
 - A running dev server for the project (so UI changes can be verified in a real browser)
 
+### Remote services (already deployed — do NOT start locally)
+
+The following are accessed remotely via the URLs in `.env` and should **not** be started locally:
+
+- **MinIO** (S3 storage) — `MINIO_ENDPOINT="https://s3.trypitch.co"`
+- **CloakBrowser Manager** (headless browser) — `CLOAK_MANAGER_URL="https://cloakbrowser-manager.trypitch.co"`
+
+### Starting local infrastructure
+
+Only these essential services need to run locally:
+
+```bash
+docker compose -p pitch up -d postgres redis   # Start Postgres + Redis only
+bun run db:migrate                             # Run pending database migrations
+```
+
 ### Starting dev servers
 
 This is a **Bun monorepo** with three dev servers: API (Express), Worker (BullMQ), and Web (Vite + React). Start them all concurrently in the background:
@@ -34,13 +50,6 @@ Wait a few seconds, then confirm they're up:
 ```bash
 curl -s http://localhost:5173 > /dev/null && echo "web OK" || echo "web DOWN"
 curl -s http://localhost:3000/health > /dev/null && echo "api OK" || echo "api DOWN"
-```
-
-The infrastructure services (Postgres, Redis, MinIO) must also be running:
-
-```bash
-docker compose -p pitch up -d   # Starts postgres, redis, minio, etc.
-bun run db:migrate              # Run pending database migrations
 ```
 
 Once all servers are healthy, proceed with agent-webbridge testing.
@@ -83,7 +92,7 @@ git add -A && git commit -m "fix: <short description> (closes #<ISSUE_NUMBER>)"
 
 If the issue involves **any UI change** (labels mention `UI` / `frontend`, or the diff touches `.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss`, `.html` files), **you MUST visually verify**:
 
-1. Start the dev servers in the background if not already running (`bun run dev &`). Make sure infrastructure is up (`docker compose -p pitch up -d`). Wait for both API and web to become healthy, then proceed.
+1. Start local infrastructure and dev servers in the background if not already running (`docker compose -p pitch up -d postgres redis && bun run dev &`). Wait for both API and web to become healthy, then proceed.
 2. Use the **agent-webbridge** skill to open the affected page in Chrome:
 
 ```bash
@@ -202,8 +211,8 @@ Tell the user:
 
 - **gh auth fails**: Tell the user to run `gh auth login` first.
 - **awb not healthy**: Tell the user to run `awb up "Testing"` and verify with `awb status`.
-- **Dev server not running**: Start infrastructure (`docker compose -p pitch up -d`), migrate (`bun run db:migrate`), then start servers (`bun run dev &`). Wait for all to be healthy before proceeding.
-- **Infrastructure not running**: Check with `docker compose -p pitch ps`. Start with `docker compose -p pitch up -d`.
+- **Dev server not running**: Start local infrastructure (`docker compose -p pitch up -d postgres redis`), migrate (`bun run db:migrate`), then start servers (`bun run dev &`). Wait for all to be healthy before proceeding.
+- **Infrastructure not running**: Check with `docker compose -p pitch ps`. Start only the essential local services with `docker compose -p pitch up -d postgres redis`. MinIO and CloakBrowser Manager are remote — do not start them locally.
 - **Tests fail**: Do not raise the PR. Fix the failing tests first.
 - **Lint/type errors**: Fix before raising the PR.
 - **UI looks broken**: Fix before raising the PR. Do not skip visual verification for UI issues.
