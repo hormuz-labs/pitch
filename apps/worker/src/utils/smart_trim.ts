@@ -84,6 +84,32 @@ function getIntersections(a: Segment[], b: Segment[]): Segment[] {
   return mergeSegments(intersections)
 }
 
+function getDifference(a: Segment[], b: Segment[]): Segment[] {
+  const mergedB = mergeSegments(b)
+  const diff: Segment[] = []
+  for (const segA of a) {
+    let fragments = [segA]
+    for (const segB of mergedB) {
+      const next: Segment[] = []
+      for (const frag of fragments) {
+        if (frag.end <= segB.start || frag.start >= segB.end) {
+          next.push(frag)
+        } else {
+          if (frag.start < segB.start) {
+            next.push({ start: frag.start, end: segB.start })
+          }
+          if (frag.end > segB.end) {
+            next.push({ start: segB.end, end: frag.end })
+          }
+        }
+      }
+      fragments = next
+    }
+    diff.push(...fragments)
+  }
+  return mergeSegments(diff)
+}
+
 function loadClickEvents(input: string): ClickEvent[] {
   const statePath = path.join(path.dirname(input), 'demo-state.json')
   try {
@@ -181,10 +207,27 @@ export async function processVideo(input: string, output: string, detectionInput
     f.end = Math.min(f.end, duration)
   })
 
-  // Segments where the screen is BOTH frozen AND silent — drop these.
-  const dropSegments = getIntersections(silences, freezes)
+  const dropSegments: Segment[] = []
 
-  // Force-trim initial silence even without a corresponding freeze.
+  // 1. Segments where the screen is BOTH frozen AND silent — always drop these.
+  dropSegments.push(...getIntersections(silences, freezes))
+
+  // 2. Pure silence segments (not covered by a freeze) that are long enough
+  //    are also dead air — the screen may have minor visual changes (loading
+  //    animations, zoom holds, rendering) that prevent the freeze detector
+  //    from firing, but without narration the viewer sees nothing meaningful.
+  const PURE_SILENCE_MIN_SEC = 1.5
+  const pureSilence = getDifference(silences, freezes)
+  for (const seg of pureSilence) {
+    if (seg.end - seg.start >= PURE_SILENCE_MIN_SEC) {
+      console.log(
+        `Pure silence segment (${seg.start.toFixed(2)}s → ${seg.end.toFixed(2)}s, ${(seg.end - seg.start).toFixed(2)}s) without freeze — adding as drop.`,
+      )
+      dropSegments.push(seg)
+    }
+  }
+
+  // 3. Force-trim initial silence even without a corresponding freeze.
   // When the page is loading (animations, rendering) the freeze detector won't
   // fire, so the opening dead-air is never removed.  If the first silence
   // starts at the very beginning we add it as an extra drop segment so the
@@ -217,7 +260,7 @@ export async function processVideo(input: string, output: string, detectionInput
   }
 
   console.log(
-    `Found ${dropSegments.length} raw dead-air segment(s) of both silence and freeze (incl. initial silence).`,
+    `Found ${dropSegments.length} raw dead-air segment(s) (incl. pure silence + intersections).`,
   )
 
   // Shrink drop segments to leave breathing room on both sides of the kept segments
@@ -272,13 +315,11 @@ export async function processVideo(input: string, output: string, detectionInput
   for (let i = 0; i < zoomEvents.length; i++) {
     const ev = zoomEvents[i]!
     if (ev.type === 'in') {
-      // Protect ramp-IN: from (zoom_in call - ZOOM_RAMP) to (zoom_in call + small pad)
       zoomProtected.push({
         start: Math.max(0, ev.videoTimeSec - ZOOM_RAMP - ZOOM_PAD),
         end: Math.min(duration, ev.videoTimeSec + ZOOM_PAD),
       })
     } else if (ev.type === 'out') {
-      // Protect ramp-OUT: from (zoom_out call - small pad) to (zoom_out call + ZOOM_RAMP)
       zoomProtected.push({
         start: Math.max(0, ev.videoTimeSec - ZOOM_PAD),
         end: Math.min(duration, ev.videoTimeSec + ZOOM_RAMP + ZOOM_PAD),
