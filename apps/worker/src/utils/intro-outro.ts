@@ -105,18 +105,26 @@ async function generateCard(
 
     const hasDing = config.cardSoundPath && fs.existsSync(config.cardSoundPath)
     const dingInput = hasDing ? ` -i "${config.cardSoundPath}"` : ''
-    const dingMix = hasDing
-      ? `;[1:a][2:a]amix=inputs=2:duration=first:normalize=0[card_a]`
-      : ''
-    const audioMap = hasDing ? `-map "[card_a]"` : `-map 1:a`
+    let ffmpegCmd: string
 
-    await execAsync(
-      `ffmpeg -y -loop 1 -i "${pngPath}" ` +
+    if (hasDing) {
+      ffmpegCmd =
+        `ffmpeg -y -loop 1 -i "${pngPath}" ` +
         `-f lavfi -i "anullsrc=channel_layout=mono:sample_rate=24000"${dingInput} ` +
+        `-filter_complex "[1:a][2:a]amix=inputs=2:duration=first:normalize=0[card_a];[0:v]fade=t=in:st=0:d=${fadeInSec},fade=t=out:st=${duration - fadeOutSec}:d=${fadeOutSec}[v_faded]" ` +
+        `-map "[v_faded]" -map "[card_a]" ` +
+        `-c:v libx264 -pix_fmt yuv420p -c:a aac -ar 24000 -ac 1 -t ${duration} -r ${fps} -shortest ` +
+        `"${output}"`
+    } else {
+      ffmpegCmd =
+        `ffmpeg -y -loop 1 -i "${pngPath}" ` +
+        `-f lavfi -i "anullsrc=channel_layout=mono:sample_rate=24000" ` +
         `-vf "fade=t=in:st=0:d=${fadeInSec},fade=t=out:st=${duration - fadeOutSec}:d=${fadeOutSec}" ` +
-        `-c:v libx264 -pix_fmt yuv420p ${audioMap} -c:a aac -ar 24000 -ac 1 -t ${duration} -r ${fps} -shortest ` +
-        `"${output}"`,
-    )
+        `-c:v libx264 -pix_fmt yuv420p -map 1:a -c:a aac -ar 24000 -ac 1 -t ${duration} -r ${fps} -shortest ` +
+        `"${output}"`
+    }
+
+    await execAsync(ffmpegCmd)
 
     return output
   } finally {
