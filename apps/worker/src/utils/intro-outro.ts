@@ -2,6 +2,7 @@ import { exec } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import { promisify } from 'util'
+import { Resvg } from '@resvg/resvg-js'
 
 const execAsync = promisify(exec)
 
@@ -77,10 +78,19 @@ function pngToDataUri(filePath: string): string {
 }
 
 async function svgToPng(svgPath: string, pngPath: string, width: number, height: number): Promise<void> {
-  await execAsync(`rsvg-convert -w ${width} -h ${height} -o "${pngPath}" "${svgPath}"`)
+  const svgContent = fs.readFileSync(svgPath, 'utf8')
+  const resvg = new Resvg(svgContent, {
+    fitTo: {
+      mode: 'width',
+      value: width,
+    },
+  })
+  const pngData = resvg.render()
+  const pngBuffer = pngData.asPng()
+  fs.writeFileSync(pngPath, pngBuffer)
 }
 
-async function generateCard(
+export async function generateCard(
   output: string,
   config: CardConfig,
   type: 'intro' | 'outro',

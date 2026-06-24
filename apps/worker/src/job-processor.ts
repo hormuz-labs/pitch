@@ -975,7 +975,7 @@ ${buildSkillsPrompt(skills)}`
         const productName = productDomain
           .replace(/\.[a-z]+$/, '')
           .replace(/[^a-zA-Z0-9]/g, ' ')
-          .replace(/\b\w/g, c => c.toUpperCase()) || 'Demo'
+          .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Demo'
         const productLogoPath = path.join(recordingsDir, 'product_logo.png')
 
         await addIntroOutro(trimmedVideo, finalVideo, {
