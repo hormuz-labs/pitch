@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ContainerTextFlip } from '../components/ContainerTextFlip'
 import { CreditChip } from '../components/CreditChip'
+import { NewVideoWizard, markWizardSeen, shouldShowWizard } from '../components/NewVideoWizard'
 import { PlaceholdersAndVanishInput } from '../components/PlaceholdersAndVanishInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select'
 import { WaveformScrub } from '../components/WaveformScrub'
@@ -44,13 +45,6 @@ const IconLoader = () => (
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 )
-/*
-const IconPlus = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
-);
-*/
 const IconShieldCheck = ({ size = 14 }: { size?: number }) => (
   <svg
     width={size}
@@ -82,9 +76,8 @@ const IconKey = ({ size = 14 }: { size?: number }) => (
     <circle cx="7.5" cy="15.5" r="3.5" />
   </svg>
 )
-// ── Auth assist: inline, non-blocking hint under the Product URL. ───────────────
-// Public sites need nothing; for sites behind a login or bot-wall, it offers a
-// jump to /sessions (URL prefilled) and reassures once signed in.
+
+// ── Auth assist ───────────────────────────────────────────────────────────────
 const AuthAssist = ({
   url,
   origins,
@@ -101,11 +94,10 @@ const AuthAssist = ({
   onDismiss: () => void
 }) => {
   const host = hostOf(url)
-  if (!host) return null // nothing typed yet — stay out of the way
+  if (!host) return null
 
   const label = prettyHost(url)
 
-  // Don't flash the "needs auth" prompt before we know the saved logins.
   if (loading) {
     return (
       <div className="mt-2 flex items-center gap-2 px-1 text-xs text-gray-400" aria-live="polite">
@@ -127,7 +119,7 @@ const AuthAssist = ({
     )
   }
 
-  if (dismissedHost === host) return null // user said this site is public
+  if (dismissedHost === host) return null
 
   return (
     <div className="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/70 px-3 py-2.5 animate-[fadeIn_240ms_ease-out]">
@@ -161,7 +153,7 @@ const AuthAssist = ({
   )
 }
 
-// ── Label with tooltip ─────────────────────────────────────────────────────────
+// ── Label with tooltip ────────────────────────────────────────────────────────
 const FieldLabel = ({
   required,
   label,
@@ -190,7 +182,7 @@ const AI_AGENT_PROMPTS = [
   "Visit the company intranet, click 'HR Portal', navigate to 'Leave Requests', and submit a time-off application.",
 ]
 
-// ── Create View ────────────────────────────────────────────────────────────────
+// ── Create View ───────────────────────────────────────────────────────────────
 interface CreateViewProps {
   isMobile: boolean
   formValues: Record<string, string>
@@ -209,38 +201,10 @@ export const CreateView = ({
   const [showAudioPreview, setShowAudioPreview] = useState(false)
   const [headerPairs] = useState<{ key: string; value: string }[]>([])
   const [cookiePairs] = useState<{ key: string; value: string }[]>([])
-  // const [curlInput, setCurlInput] = useState('');
-  // const [activeAuthTab, setActiveAuthTab] = useState<'quick' | 'manual'>('quick');
   const navigate = useNavigate()
   const { origins, loading: originsLoading } = useBrowserProfile()
   const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null)
-
-  /*
-  const handleCurlImport = () => {
-    if (!curlInput.trim()) return;
-
-    // 1. Extract URL
-    const urlMatch = curlInput.match(/(?:https?:\/\/[^\s'"]+)/);
-    if (urlMatch) {
-      update('url', urlMatch[0]);
-    }
-
-    // 2. Extract Headers
-    const headers: { key: string, value: string }[] = [];
-    const headerRegex = /-(?:H|-header)\s+['"]([^'"]+)['"]/g;
-    let match;
-    while ((match = headerRegex.exec(curlInput)) !== null) {
-      const headerStr = match[1];
-      if (!headerStr) continue;
-      const splitIdx = headerStr.indexOf(':');
-      if (splitIdx === -1) continue;
-      const key = headerStr.slice(0, splitIdx).trim();
-      const value = headerStr.slice(splitIdx + 1).trim();
-      headers.push({ key, value });
-    }
-    setHeaderPairs(headers);
-  };
-  */
+  const [showWizard, setShowWizard] = useState(() => shouldShowWizard())
 
   const update = (key: string, value: string) => {
     setFormValues({ ...formValues, [key]: value })
@@ -262,7 +226,6 @@ export const CreateView = ({
       errs.url = 'Please enter a URL'
     } else {
       try {
-        // First check if it's a validly formatted URL
         new URL(url)
       } catch {
         errs.url = 'Please enter a valid URL (e.g. https://example.com)'
@@ -273,16 +236,12 @@ export const CreateView = ({
 
     const headersObj: Record<string, string> = {}
     headerPairs.forEach(pair => {
-      if (pair.key.trim()) {
-        headersObj[pair.key.trim()] = pair.value
-      }
+      if (pair.key.trim()) headersObj[pair.key.trim()] = pair.value
     })
 
     const cookiesObj: Record<string, string> = {}
     cookiePairs.forEach(pair => {
-      if (pair.key.trim()) {
-        cookiesObj[pair.key.trim()] = pair.value
-      }
+      if (pair.key.trim()) cookiesObj[pair.key.trim()] = pair.value
     })
 
     if (Object.keys(errs).length) {
@@ -310,6 +269,16 @@ export const CreateView = ({
 
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto w-full">
+      {/* ── Spotlight tour overlay (first-time only, fixed position) ───────── */}
+      {showWizard && (
+        <NewVideoWizard
+          formValues={formValues}
+          onSetUrl={url => update('url', url)}
+          onSetInstructions={instr => update('instructions', instr)}
+          onDone={() => { markWizardSeen(); setShowWizard(false) }}
+        />
+      )}
+
       {/* Page heading */}
       <div className="mb-7">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center flex-wrap gap-1">
@@ -325,8 +294,8 @@ export const CreateView = ({
         </p>
       </div>
 
+      {/* ── Form (always visible — wizard spotlights fields above it) ──────── */}
       <div className="w-full">
-        {/* ── Form ──────────────────────────────────────────────────────── */}
         <div className="min-w-0">
           <form
             onSubmit={handleSubmit}
@@ -363,8 +332,8 @@ export const CreateView = ({
                 />
               </div>
 
-              {/* Audio Track */}
-              <div>
+              {/* Audio Track — id="audio-select-wrapper" for spotlight */}
+              <div id="audio-select-wrapper">
                 <FieldLabel
                   label="Background Audio"
                   tooltip="Select an AI generated voice or background track."
@@ -395,42 +364,8 @@ export const CreateView = ({
               </div>
             </div>
 
-            {/* Options Row - Commented out for future use
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 py-2">
-              {/* Subtitles * /}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                <Switch
-                  id="subtitles-toggle"
-                  checked={formValues.subtitles === 'true'}
-                  onCheckedChange={(checked) => update('subtitles', checked ? 'true' : 'false')}
-                  aria-label="Toggle subtitles"
-                />
-                <div>
-                  <label htmlFor="subtitles-toggle" className="text-sm font-medium text-gray-900 cursor-pointer block">
-                    Include Subtitles
-                  </label>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Overlay AI subtitles.</p>
-                </div>
-              </div>
-
-              {/* Theme Option * /}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                <ThemeSwitch 
-                  checked={formValues.theme === 'dark'} 
-                  onCheckedChange={(checked) => update('theme', checked ? 'dark' : 'light')} 
-                />
-                <div>
-                  <label className="text-sm font-medium text-gray-900 cursor-pointer block">
-                    Video Theme
-                  </label>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Choose dark or light theme for the video.</p>
-                </div>
-              </div>
-            </div>
-            */}
-
-            {/* Instructions */}
-            <div className="z-10 relative">
+            {/* Instructions — id="instructions-wrapper" for spotlight */}
+            <div id="instructions-wrapper" className="z-10 relative">
               <FieldLabel
                 required
                 label="What should the AI agent do?"
