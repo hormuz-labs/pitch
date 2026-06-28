@@ -167,14 +167,55 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto w-full">
       {/* Page header */}
-      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 leading-tight">{pageHeaderTitle}</h1>
-          <p className="text-sm text-gray-500 mt-1">{pageHeaderDesc}</p>
+      <div className="mb-6">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-4 mb-3 md:mb-0">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 leading-tight">{pageHeaderTitle}</h1>
+            <p className="text-sm text-gray-500 mt-1">{pageHeaderDesc}</p>
+          </div>
+          {/* On md+ the controls sit here, right-aligned with the title */}
+          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+              {(['all', 'videos', 'pdfs'] as const).map(tab => {
+                const labels: Record<string, string> = {
+                  all: `All (${projects.length})`,
+                  videos: `Videos (${totalVideosCount})`,
+                  pdfs: `PDFs (${totalPdfsCount})`,
+                }
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    id={`tab-${tab}-btn`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 cursor-pointer ${
+                      activeTab === tab
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {labels[tab]}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={toggleSort}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+              id="sort-btn"
+            >
+              <IconSort />
+              Sort: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+              <span className="ml-0.5 text-gray-400">
+                {sortOrder === 'newest' ? <IconChevronDown /> : <IconChevronUp />}
+              </span>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Tab filter pills — replaces the old Filter button */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+
+        {/* Mobile: filters + sort — single fixed row, no scroll, tighter sizing */}
+        <div className="flex md:hidden items-center justify-between w-full gap-2">
+          <div className="flex items-center bg-gray-100 rounded-md p-0.5 gap-0.5">
             {(['all', 'videos', 'pdfs'] as const).map(tab => {
               const labels: Record<string, string> = {
                 all: `All (${projects.length})`,
@@ -185,8 +226,8 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  id={`tab-${tab}-btn`}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 cursor-pointer ${
+                  id={`tab-mobile-${tab}-btn`}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-all duration-150 cursor-pointer whitespace-nowrap ${
                     activeTab === tab
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
@@ -199,16 +240,18 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
           </div>
           <button
             onClick={toggleSort}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-            id="sort-btn"
+            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0"
+            id="sort-btn-mobile"
           >
             <IconSort />
-            Sort: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
-            <span className="ml-0.5 text-gray-400">
+            {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+            <span className="text-gray-400">
               {sortOrder === 'newest' ? <IconChevronDown /> : <IconChevronUp />}
             </span>
           </button>
         </div>
+
+
       </div>
 
       {/* No search results */}
