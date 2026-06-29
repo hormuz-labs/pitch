@@ -3,7 +3,6 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { promisify } from 'util'
 import { Resvg } from '@resvg/resvg-js'
-import sharp from 'sharp'
 import { videoEncodeArgs } from './encoder.js'
 
 const execAsync = promisify(exec)
@@ -38,17 +37,19 @@ function escapeXml(s: string): string {
 const FONT_FAMILY = "-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
 
 /**
- * Normalize a logo of ANY image format (png, jpeg, webp, gif, avif, svg, …) into a
- * clean PNG via sharp, so it can always be embedded and measured regardless of the
- * source type. (ffmpeg's native webp decoder is unreliable, so we use sharp.)
- * Returns the temp PNG path, or null if the file isn't a decodable image — e.g. a
- * broken download or an HTML error page saved as `.png`.
+ * Normalize a logo into a clean PNG via ffmpeg (which is already in the runtime
+ * image), so it can always be embedded and measured regardless of the stored
+ * extension. Handles png/jpeg/gif/bmp; the agent captures logos as a screenshot so
+ * they're PNG in practice. Returns the temp PNG path, or null if the file isn't a
+ * decodable raster image — e.g. a broken download or an HTML error page saved as
+ * `.png`. (Note: ffmpeg's native webp decoder is unreliable; a webp would fall back
+ * to name-only, but logos arrive as PNG screenshots so that doesn't happen here.)
  */
 async function prepareLogoPng(logoPath: string | undefined, dir: string): Promise<string | null> {
   if (!logoPath || !fs.existsSync(logoPath)) return null
   const out = path.join(dir, `__logo_${Date.now()}.png`)
   try {
-    await sharp(logoPath).png().toFile(out)
+    await execAsync(`ffmpeg -y -v error -i "${logoPath}" -frames:v 1 "${out}"`)
     if (fs.existsSync(out) && fs.statSync(out).size > 0) return out
   } catch {}
   try {
