@@ -1,0 +1,63 @@
+[
+  {
+    "id": "BRUTALIST_NEWSPAPER",
+    "name": "Brutalist AI Newspaper 2026",
+    "description": "High-contrast editorial style inspired by modern brutalist aesthetics and retro-futuristic news layouts. Uses vintage paper texture, strict black/red highlights, halftone photo filters, and thick borders.",
+    "tags": ["Brutalist", "Editorial", "Bold", "Retro-Futuristic"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "THE AI REVOLUTION",
+        "subtitle": "HOW GENERATIVE MODELS ARE REDEFINING AESTHETICS IN 2026",
+        "layout": "NEWSPAPER-COVER"
+      },
+      {
+        "id": 2,
+        "title": "CHRONICLES & CORNERS",
+        "bullets": [
+          "Halftone image filtering for high contrast",
+          "Thick grid lines and strict layout divisions",
+          "Monospaced labels paired with serif headlines"
+        ],
+        "layout": "GLANCE"
+      },
+      {
+        "id": 3,
+        "title": "STATISTICAL BULLETINS",
+        "stats": [
+          { "value": "94%", "label": "Retention Rate" },
+          { "value": "2.4x", "label": "Growth Speed" }
+        ],
+        "layout": "DATA-TABLE"
+      }
+    ]
+  },
+  {
+    "id": "MINIMAL_CORPORATE",
+    "name": "Minimal Corporate",
+    "description": "Sleek, high-end corporate presentation template with a light color scheme, geometric sans-serif fonts, thin elegant borders, and clean data callouts.",
+    "tags": ["Clean", "Professional", "Corporate", "Minimalist"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "STRATEGIC INITIATIVE",
+        "subtitle": "Annual Growth Plan and Market Analysis",
+        "layout": "COVER"
+      }
+    ]
+  },
+  {
+    "id": "DARK_TECH",
+    "name": "Dark Tech / Neon Glow",
+    "description": "Sophisticated dark theme with neon cyan and green accents, glowing border lines, and modern tech sans fonts. Best for AI, SaaS, and cybersecurity.",
+    "tags": ["Dark Mode", "Technology", "Cybersecurity", "SaaS"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "CYBER INFRASTRUCTURE",
+        "subtitle": "Security and AI Ops Dashboard",
+        "layout": "COVER"
+      }
+    ]
+  }
+]

@@ -50,6 +50,7 @@ import {
   PublicPricingView,
   SessionsView,
   SettingsView,
+  TemplatesView,
 } from './views'
 import { AuthView } from './views/AuthView'
 
@@ -535,6 +536,27 @@ const Sidebar = ({
                 label="New PDF"
                 active={selectedKey === 'pdf-create'}
                 onClick={() => go('/pdf')}
+              />
+              <NavItem
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18" />
+                    <path d="M9 21V9" />
+                  </svg>
+                }
+                label="Templates"
+                active={selectedKey === 'templates'}
+                onClick={() => go('/templates')}
               />
               <NavItem
                 icon={<Share2Icon />}
@@ -1327,6 +1349,7 @@ function AppContent() {
     topic: string
     slideCount: number
     slideHeadings: string[]
+    template?: string
   }) => {
     setIsSubmitting(true)
     try {
@@ -1336,6 +1359,7 @@ function AppContent() {
           topic: values.topic,
           slideCount: values.slideCount,
           slideHeadings: values.slideHeadings,
+          ...(values.template ? { template: values.template } : {}),
         },
       })
       setProjects(prev => {
@@ -1424,6 +1448,8 @@ function AppContent() {
     selectedKey = 'pricing'
   } else if (location.pathname.startsWith('/affiliate')) {
     selectedKey = 'affiliate'
+  } else if (location.pathname.startsWith('/templates')) {
+    selectedKey = 'templates'
   }
 
   if (!isLoaded) return <div className="h-screen w-screen bg-[#FDFDFD]"></div>
@@ -1538,6 +1564,12 @@ function AppContent() {
                   path="/pdf"
                   element={
                     <PdfCreateView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />
+                  }
+                />
+                <Route
+                  path="/templates"
+                  element={
+                    <TemplatesView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />
                   }
                 />
                 <Route

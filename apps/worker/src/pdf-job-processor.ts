@@ -319,10 +319,11 @@ export async function processPdfJob(
       }
     })()
 
-    // 3. Construct and send prompt using ppt-generator skill instructions
+    // 3. Construct and send prompt using template or generic ppt-generator skill instructions
     const topic = parameters?.topic || 'Generic Topic'
     const slideCount = parameters?.slideCount || 10
     const headings = parameters?.slideHeadings || []
+    const template = parameters?.template
 
     const headingsPrompt =
       headings.length > 0
@@ -330,7 +331,41 @@ export async function processPdfJob(
         : 'Slide headings: Select automatically based on the topic structure.'
 
     const buildDir = `/tmp/ppt-${jobId}`
-    const promptText = `You are a professional PDF presentation generator agent. Your task is to build a high-fidelity PDF presentation based on the user's requirements and the specialized \`ppt-generator\` skill.
+
+    let promptText = ''
+    if (template) {
+      // Map template IDs to directory name
+      let templateDirName = ''
+      if (template === 'BRUTALIST_NEWSPAPER') templateDirName = 'brutalist-newspaper'
+      else if (template === 'MINIMAL_CORPORATE') templateDirName = 'minimal-corporate'
+      else if (template === 'DARK_TECH') templateDirName = 'dark-tech'
+
+      promptText = `You are a professional PDF presentation generator agent. Your task is to build a high-fidelity PDF presentation based on the user's requirements and the specialized \`template-ppt\` skill.
+
+Job ID: "${jobId}"
+Topic: "${topic}"
+Number of slides requested: ${slideCount}
+Template requested: "${template}" (located in directory: ".opencode/skills/template-ppt/templates/${templateDirName}")
+${headingsPrompt}
+
+Please perform the following actions:
+1. Load the \`template-ppt\` skill using the \`load_skill\` tool. The skill is located at \`.opencode/skills/template-ppt/SKILL.md\`.
+2. Follow the instructions in the skill EXACTLY. Specifically:
+   - Read \`spec_lock.md\` and \`skill.md\` inside the template directory \`.opencode/skills/template-ppt/templates/${templateDirName}\`.
+   - Perform Web Search grounding for factual stats/sources.
+   - Write slide content and generate search queries for Unsplash.
+   - Scrape Unsplash images using Playwright via the provided script \`node .opencode/skills/ppt-generator/reference/scrape_images.js\`.
+   - Create a build directory at \`${buildDir}/\` and copy \`.opencode/skills/ppt-generator/pdf-builder-template.js\` there as \`pdf-builder.js\`.
+   - Update the custom styling, CSS stylesheet rules, and HTML layout renderers in \`pdf-builder.js\` using the template's \`skill.md\` definitions.
+   - Populate the \`CONFIG\` object inside \`pdf-builder.js\` with your written slides, template color tokens, font imports, base64-encoded local images, and set the \`jobId\` property to "${jobId}" and \`template\` property to "${template}".
+   - Navigate into the build directory: \`cd ${buildDir}\` then run \`node pdf-builder.js\` to generate the PDF and QA renders. This ensures \`output.pdf\` and \`output.html\` are written to \`${buildDir}/\`.
+   - Perform Visual QA check on the PNG renders in \`qa-renders/\` and apply targeted template updates/fixes if there are any visual alignment/overflow defects. Re-run \`node pdf-builder.js\` from inside \`${buildDir}\` after each fix.
+3. When finished and QA is fully passed, confirm the final files exist at:
+   - \`${buildDir}/output.pdf\`
+   - \`${buildDir}/output.html\`
+    The worker will handle uploading and marking the job complete automatically.`
+    } else {
+      promptText = `You are a professional PDF presentation generator agent. Your task is to build a high-fidelity PDF presentation based on the user's requirements and the specialized \`ppt-generator\` skill.
 
 Job ID: "${jobId}"
 Topic: "${topic}"
@@ -352,6 +387,7 @@ Please perform the following actions:
    - \`${buildDir}/output.pdf\`
    - \`${buildDir}/output.html\`
     The worker will handle uploading and marking the job complete automatically.`
+    }
 
     jobLogger.info({ promptText }, 'Sending prompt to OpenCode')
 
