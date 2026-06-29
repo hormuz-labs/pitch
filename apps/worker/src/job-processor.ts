@@ -24,6 +24,8 @@ import yaml from 'yaml'
 import { getSessionIdFromEvent } from './opencode.js'
 
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
+import { buildGlidingCursorChain } from './utils/cursor-fx.js'
+import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
 import { addIntroOutro } from './utils/intro-outro.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
@@ -755,22 +757,45 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // 5. Send Prompt
       const targetUrl = parameters?.url || ''
       const promptInstructions = parameters?.instructions || ''
+      const promptScript = (parameters?.script || '').toString().trim()
       const userPrompt = `Go to ${targetUrl}. ${promptInstructions}`
+
+      // If the user supplied a voiceover script, the narration must follow it.
+      const scriptBlock = promptScript
+        ? `
+
+VOICEOVER SCRIPT (provided by the user — THIS IS THE SOURCE OF TRUTH FOR THE NARRATION):
+"""
+${promptScript}
+"""
+Narrate the demo using this script. You MAY split it into natural chunks, lightly rephrase for flow, and time each line to the matching on-screen action and your pacing — but keep the content, message, ordering of key points, and tone faithful to the script. Do NOT invent different talking points or drop important ones. Deliver these lines via the 'narrate' tool at the appropriate moments, and sequence your actions so the visuals match what is being said. Only write your own narration for small connective bits the script doesn't cover.
+`
+        : ''
 
       const promptText = `You are a professional, engaging web demo agent. Your goal is to guide the user through a web automation task naturally, as if you are a friendly human narrator recording a tutorial.
 User Request: "${userPrompt}"
-
+${scriptBlock}
 Guidelines:
 1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. Start directly with 'playwright-cli goto <url>'.
 2. ELEMENT REFS: Call 'demo_bash' with command "playwright-cli snapshot" to get the current page state. Elements will have refs like [ref=e53].
    Pass the ref identifier (e.g. "e53") to tools like 'zoom_in' or 'demo_bash' command "playwright-cli click e53".
-3. EXACT SEQUENCE for every main-content interaction:
-   demo_bash({ command: "playwright-cli snapshot" }) -> narrate({ text: "..." }) -> zoom_in({ target: "e53" }) -> demo_bash({ command: "playwright-cli click e53" }) -> zoom_out()
+3. CAMERA / ZOOM — treat the zoom like a cinematic spotlight, used sparingly to feel clean, not busy:
+   - Zoom ONLY to highlight something the viewer should actually notice: a specific feature, a value being entered into a meaningful field, an important button, or a result.
+   - Do NOT zoom for routine/setup steps: login & auth forms, cookie/consent popups, nav menus, page loads, or boilerplate. Perform those at the full (un-zoomed) view.
+   - When you DO highlight something: demo_bash({ command: "playwright-cli snapshot" }) -> narrate({ text: "..." }) -> zoom_in({ target: "e53" }) -> demo_bash({ command: "playwright-cli click e53" }).
+   - STAY ZOOMED and PAN for adjacent actions: if the next element you act on is near the current one (e.g. the next field in the same form, or a button right below), call zoom_in on the NEW target directly. This smoothly pans the camera. Do NOT zoom_out and zoom_in again between nearby steps — that looks jarring.
+   - Call zoom_out() only when you leave that area entirely (moving to a different section/page) or when the highlight is finished.
+   - NAVIGATION: when a click opens a new page/view (e.g. opening a form, navigating to a detail page), ALWAYS zoom_out first and let the full new page show (a short narrate is good here) BEFORE you zoom_in on any field. Never stay zoomed on the old click position after the page changes — the camera would be parked on a meaningless spot while the new content is off-screen.
+   - Keep zoom subtle — omit the zoom level (defaults to ~1.7) unless a tiny detail genuinely needs more.
 4. POPUPS: Dismiss them directly with 'demo_bash' command "playwright-cli click". Do not zoom in.
-5. After filling or typing text into an input field, pause briefly with demo_bash({ command: "sleep 1.5" }) so the viewer can clearly see what was entered before moving on. These pauses are preserved during editing.
+5. FILLING FORMS / FIELDS:
+   - ALWAYS enter text with the 'fill_field' tool (fill_field({ target: "e53", text: "..." })) — never demo_bash "playwright-cli fill". fill_field types character-by-character (visible typing) with a synced keyboard sound so the viewer sees each value being entered.
+   - Frame the field first: zoom_in on the field (or the form) before calling fill_field, so the typing is clearly visible.
+   - For a multi-field form, move the camera gently field-to-field: after filling one field, zoom_in on the NEXT field — this smoothly PANS the camera there (no zoom_out/zoom_in) so the viewer watches each value get filled in turn.
+   - After filling, pause briefly with demo_bash({ command: "sleep 1.0" }) so the entered value is readable before moving on.
 6. After navigating or clicking links, use demo_bash({ command: "sleep 3" }) or similar to allow loading. 'playwright-cli' does NOT have a wait command.
 7. The browser is set to 1920x1080 resolution.
-8. LOGO DOWNLOAD: Before ending the demo, download the product's logo by running: demo_bash({ command: "playwright-cli screenshot --selector 'link[rel*=icon],img[src*=logo]' --path recordings/product_logo.png" }). If that fails, try: demo_bash({ command: "playwright-cli screenshot --selector 'img[alt*=logo],svg' --path recordings/product_logo.png" }). The logo will be used in the intro/outro cards.
+8. LOGO CAPTURE: Before ending the demo, capture the product's logo for the intro/outro cards. Take a snapshot, find the VISIBLE logo element (usually in the header/nav — an <img> or <svg> whose src/alt/class contains "logo", or the brand image inside the top-left home link), and screenshot JUST that element to recordings/product_logo.png, e.g. demo_bash({ command: "playwright-cli screenshot --selector 'header img[src*=logo], a[href=\"/\"] img, img[alt*=logo], [class*=logo] img, header svg' --path recordings/product_logo.png" }). The element MUST be visible on the page (do NOT target <link rel=icon> in the head — it can't be screenshotted). If the first selector fails, try another visible logo/brand image. Any image format is fine — it is normalized automatically. If no logo can be captured, that's OK; skip it.
 ${buildSkillsPrompt(skills)}`
 
       const promptResponse = await client.session.prompt({
@@ -888,7 +913,6 @@ ${buildSkillsPrompt(skills)}`
       logger.info({ sourceFps }, 'Detected source frame rate')
 
       const cursorPath = path.join(targetDir, 'assets', 'icons', 'cursor.png')
-      const pitchLogoPath = path.join(targetDir, 'assets', 'icons', 'trypitch-logo.png')
       const rawVideo = path.join(recordingsDir, 'raw_demo.mp4')
       const trimmedVideo = path.join(recordingsDir, 'final_demo.mp4')
       const finalVideo = path.join(recordingsDir, 'final_with_cards.mp4')
@@ -904,15 +928,19 @@ ${buildSkillsPrompt(skills)}`
       let filterComplex = ''
       let currentVLabel = '[0:v]'
 
-      // Click cursor overlays
-      state.clickEvents.forEach((event: any, i: number) => {
-        const nextVLabel = `[v_cursor${i}]`
-        // Shift overlay times to align with the untrimmed raw WebM timeline
-        const start = Math.max(0, event.videoTimeSec + trimSec - 0.5)
-        const end = start + 2.0
-        filterComplex += `${currentVLabel}[1:v]overlay=x=${event.x}:y=${event.y}:enable='between(t,${start},${end})'${nextVLabel};`
-        currentVLabel = nextVLabel
-      })
+      // Animated cursor: one pointer that glides between click targets and dips
+      // on each click, instead of a static cursor popping in at every point.
+      const cursorChain = buildGlidingCursorChain(
+        state.clickEvents,
+        trimSec,
+        1, // [1:v] is the cursor icon
+        currentVLabel,
+        '[v_cursor]',
+      )
+      if (cursorChain) {
+        filterComplex += cursorChain
+        currentVLabel = '[v_cursor]'
+      }
 
       // Build zoom pan filter
       filterComplex += buildContinuousZoomFilter(
@@ -926,14 +954,33 @@ ${buildSkillsPrompt(skills)}`
       let validClips = 0
       let audioInputIndex = 2 // 0 is webm, 1 is cursor icon
       const audioLabels: string[] = []
+      const trimMs = trimSec * 1000
+      let firstNarrationDelayMs = Number.POSITIVE_INFINITY
       state.audioClips.forEach((clip: any) => {
         if (!fs.existsSync(clip.filePath)) {
           logger.warn({ filePath: clip.filePath }, 'Audio clip file not found on disk — skipping')
           return
         }
-        const delayMs = Math.max(0, clip.absoluteTimestamp - startTime)
+        // Place audio on the raw WebM timeline (which begins trimSec before the
+        // prompt startTime), mirroring how the click/zoom overlays add trimSec.
+        // Without this the narration drifts out of sync with the visuals it
+        // describes.
+        const delayMs = Math.max(0, clip.absoluteTimestamp - startTime + trimMs)
+        // Track the first *narration* clip (not the click/keyboard sound effects)
+        // so we can trim the silent setup that precedes it.
+        const isSfx = /(click|keyboard)\.mp3$/i.test(clip.filePath)
+        if (!isSfx && delayMs < firstNarrationDelayMs) {
+          firstNarrationDelayMs = delayMs
+        }
+        // Optional per-clip trim: SFX like the keyboard sound are clipped to the
+        // exact duration of the action (e.g. how long typing took) so they start
+        // and end in sync with the visible typing, not before or after.
+        const atrim =
+          typeof clip.durationSec === 'number' && clip.durationSec > 0
+            ? `atrim=0:${clip.durationSec.toFixed(2)},`
+            : ''
         videoInputs += ` -i "${clip.filePath}"`
-        filterComplex += `[${audioInputIndex}:a]adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${validClips}];`
+        filterComplex += `[${audioInputIndex}:a]${atrim}adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${validClips}];`
         audioLabels.push(`[a${validClips}]`)
         audioInputIndex++
         validClips++
@@ -948,18 +995,46 @@ ${buildSkillsPrompt(skills)}`
         'Audio clips prepared for mixing',
       )
 
+      const renderVideoArgs = await videoEncodeArgs({ quality: 21, cpuPreset: 'veryfast' })
       const ffmpegCmd =
         `ffmpeg -y ${videoInputs} ` +
         `-filter_complex "${filterComplex}" ` +
         `-map "[zoomedv]" ${validClips > 0 ? '-map "[outa]"' : ''} ` +
-        `-c:v libx264 -pix_fmt yuv420p ${validClips > 0 ? '-c:a aac -strict experimental' : ''} "${rawVideo}"`
+        `${renderVideoArgs} ${validClips > 0 ? '-c:a aac -strict experimental' : ''} "${rawVideo}"`
 
-      logger.info('Assembling and rendering raw video with zoom pans + overlays')
+      logger.info(
+        { encoder: (await nvencAvailable()) ? 'h264_nvenc (GPU)' : 'libx264 (CPU)' },
+        'Assembling and rendering raw video with zoom pans + overlays',
+      )
+      const renderT0 = Date.now()
       await execAsync(ffmpegCmd)
+      logger.info(
+        { sec: ((Date.now() - renderT0) / 1000).toFixed(1) },
+        'TIMING: main render (zoom+overlays+audio) done',
+      )
+
+      // The agent spends the first several seconds setting up (navigation, first
+      // snapshot, LLM reasoning) before its first narration, so the recording opens
+      // with no voiceover. Drop that leading silent gap so the demo starts on the
+      // first spoken word and has audio throughout.
+      const FIRST_WORD_LEAD_IN = 0.4
+      const leadingTrimSec = Number.isFinite(firstNarrationDelayMs)
+        ? Math.max(0, firstNarrationDelayMs / 1000 - FIRST_WORD_LEAD_IN)
+        : 0
+      if (leadingTrimSec > 0) {
+        logger.info(
+          { leadingTrimSec },
+          'Trimming silent setup before first narration so audio starts at the opening',
+        )
+      }
 
       logger.info('Applying smart trim to remove dead air segments')
+      const trimT0 = Date.now()
       try {
-        await processVideo(rawVideo, trimmedVideo)
+        await processVideo(rawVideo, trimmedVideo, undefined, {
+          forceLeadingTrimSec: leadingTrimSec,
+        })
+        logger.info({ sec: ((Date.now() - trimT0) / 1000).toFixed(1) }, 'TIMING: smart trim done')
       } catch (trimErr: any) {
         logger.warn({ err: trimErr }, 'Smart trim failed — falling back to raw video')
         fs.copyFileSync(rawVideo, trimmedVideo)
@@ -978,16 +1053,21 @@ ${buildSkillsPrompt(skills)}`
           .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Demo'
         const productLogoPath = path.join(recordingsDir, 'product_logo.png')
 
+        const cardsT0 = Date.now()
         await addIntroOutro(trimmedVideo, finalVideo, {
           productName,
           productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
-          pitchLogoPath,
           duration: 2.5,
           fps: sourceFps,
           width: 1920,
           height: 1080,
           outputPath: finalVideo,
+          productUrl: productDomain || undefined,
         })
+        logger.info(
+          { sec: ((Date.now() - cardsT0) / 1000).toFixed(1) },
+          'TIMING: intro/outro + watermark + concat done',
+        )
       } catch (cardErr: any) {
         logger.warn({ err: cardErr }, 'Intro/outro generation failed — using trimmed video as final')
         fs.copyFileSync(trimmedVideo, finalVideo)

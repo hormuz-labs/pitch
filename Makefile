@@ -56,6 +56,9 @@ dev:
 				bun install; \
 				echo ""; \
 			fi; \
+			echo "  $(GREEN)Applying database migrations...$(RESET)"; \
+			bun run db:deploy; \
+			echo ""; \
 			echo "  $(GREEN)Starting bun dev servers (Ctrl+C to stop all)...$(RESET)"; \
 			echo ""; \
 			bun run dev ;; \

@@ -2,6 +2,7 @@ import { exec } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
+import { videoEncodeArgs } from './encoder.js'
 
 const execAsync = promisify(exec)
 
@@ -132,7 +133,12 @@ function loadZoomEvents(input: string): ZoomEvent[] {
   }
 }
 
-export async function processVideo(input: string, output: string, detectionInput?: string) {
+export async function processVideo(
+  input: string,
+  output: string,
+  detectionInput?: string,
+  opts?: { forceLeadingTrimSec?: number },
+) {
   const analyzeInput = detectionInput || input
 
   const clickEvents = loadClickEvents(analyzeInput)
@@ -299,9 +305,11 @@ export async function processVideo(input: string, output: string, detectionInput
     return
   }
 
-  // Protect a window around each click event so the cursor overlay remains visible.
+  // Protect a window around each click so the cursor's glide-in AND the click stay
+  // visible. The lead must cover the cursor glide (see GLIDE in cursor-fx.ts ~0.75s)
+  // so the motion isn't trimmed away, leaving the cursor to just "appear".
   const clickProtected: Segment[] = clickEvents.map(c => ({
-    start: Math.max(0, c.videoTimeSec - 0.5),
+    start: Math.max(0, c.videoTimeSec - 1.0),
     end: Math.min(duration, c.videoTimeSec + 1.5),
   }))
 
@@ -309,7 +317,9 @@ export async function processVideo(input: string, output: string, detectionInput
   // long and static — that should still be trimmed.  We just need to make
   // sure the zoom-in animation leading into the hold and the zoom-out
   // animation leading out of it are never truncated.
-  const ZOOM_RAMP = 0.375
+  // Must cover the cinematic zoom ramp (see ZOOM_IN/OUT_DURATION in zoom-filter.ts)
+  // so the eased transitions are never truncated by silence/freeze trimming.
+  const ZOOM_RAMP = 0.6
   const ZOOM_PAD = 0.15
   const zoomProtected: Segment[] = []
   for (let i = 0; i < zoomEvents.length; i++) {
@@ -327,7 +337,22 @@ export async function processVideo(input: string, output: string, detectionInput
     }
   }
 
-  const finalKeepSegments = mergeSegments([...keepSegments, ...clickProtected, ...zoomProtected])
+  let finalKeepSegments = mergeSegments([...keepSegments, ...clickProtected, ...zoomProtected])
+
+  // Enforce a hard leading trim that survives the click/zoom protection above.
+  // The opening of the recording (before the first narration) is silent setup the
+  // viewer shouldn't see, but protected click/zoom windows from that region can
+  // otherwise re-introduce it. Clip everything before forceLeadingTrimSec.
+  const leadCut = opts?.forceLeadingTrimSec ?? 0
+  if (leadCut > 0 && leadCut < duration - 0.5) {
+    finalKeepSegments = finalKeepSegments
+      .map(s => ({ start: Math.max(s.start, leadCut), end: s.end }))
+      .filter(s => s.end - s.start > 0.1)
+    if (finalKeepSegments.length === 0) {
+      finalKeepSegments = [{ start: leadCut, end: duration }]
+    }
+    console.log(`Forced leading trim: dropping everything before ${leadCut.toFixed(2)}s.`)
+  }
 
   console.log(
     `Keeping ${finalKeepSegments.length} segment(s), trimming ${dropSegments.length} gap(s).`,
@@ -338,6 +363,7 @@ export async function processVideo(input: string, output: string, detectionInput
   const stamp = Date.now()
   const tmpSegs: string[] = []
   let listFile: string | null = null
+  const segVideoArgs = await videoEncodeArgs({ quality: 19, cpuPreset: 'veryfast' })
 
   try {
     for (let i = 0; i < finalKeepSegments.length; i++) {
@@ -350,7 +376,7 @@ export async function processVideo(input: string, output: string, detectionInput
       await execAsync(
         `ffmpeg -y -ss ${seg.start.toFixed(6)} -i "${input}" ` +
           `-t ${dur} ` +
-          `-c:v libx264 -crf 18 -preset fast -pix_fmt yuv420p ` +
+          `${segVideoArgs} ` +
           `-c:a aac -ar 24000 -ac 1 ` +
           `"${segFile}"`,
       )

@@ -25,6 +25,9 @@ async function withStateLock<T>(fn: () => Promise<T>): Promise<T> {
 interface AudioClip {
   filePath: string
   absoluteTimestamp: number
+  // Optional: clip the sound to this many seconds (used to match a keyboard sound
+  // to the exact duration of the typing it accompanies).
+  durationSec?: number
 }
 
 interface ZoomEvent {
@@ -303,7 +306,10 @@ const plugin: Plugin = async input => {
                 if (clickCoords) {
                   clickTimestamp = Date.now()
                   const videoTimeSec = (clickTimestamp - state.startTime) / 1000
-                  state.clickEvents.push({ videoTimeSec, x: clickCoords.x, y: clickCoords.y })
+                  // Clamp into the visible frame so the cursor never lands off-screen.
+                  const cxClamped = Math.max(0, Math.min(1920, clickCoords.x))
+                  const cyClamped = Math.max(0, Math.min(1080, clickCoords.y))
+                  state.clickEvents.push({ videoTimeSec, x: cxClamped, y: cyClamped })
                   state.audioClips.push({
                     filePath: path.join(directory, 'assets', 'sounds', 'click.mp3'),
                     absoluteTimestamp: clickTimestamp,
@@ -320,7 +326,35 @@ const plugin: Plugin = async input => {
               } catch (_e) {}
             }
 
+            // Only bother detecting navigation when the camera is zoomed — that's the
+            // only case we act on, and the URL probe costs two extra playwright-cli
+            // spawns, so we skip it otherwise.
+            const isClickCmd = cmd.includes('click ') || cmd.includes('dblclick ')
+            const lastZoom = state.zoomEvents[state.zoomEvents.length - 1]
+            const wasZoomed = lastZoom?.type === 'in'
+            const getUrl = async (): Promise<string | null> => {
+              try {
+                const { stdout } = await run(`playwright-cli eval "() => location.href"`)
+                return stdout.trim()
+              } catch {
+                return null
+              }
+            }
+            const urlBefore = isClickCmd && wasZoomed ? await getUrl() : null
+
             const result = await run(cmd)
+
+            // If a click navigated to a new page/view while the camera was zoomed,
+            // reset it (zoom out) so the new page is shown in full instead of the
+            // camera staying parked on the old, now-meaningless click position.
+            if (urlBefore !== null) {
+              const urlAfter = await getUrl()
+              if (urlAfter && urlAfter !== urlBefore) {
+                const tSec = (Date.now() - state.startTime) / 1000
+                state.zoomEvents.push({ type: 'out', videoTimeSec: tSec })
+                console.log(`Navigation ${urlBefore} -> ${urlAfter}: auto zoom-out to reveal new page.`)
+              }
+            }
 
             writeState(directory, state)
             return { output: JSON.stringify(result) }
@@ -349,25 +383,103 @@ const plugin: Plugin = async input => {
         },
       }),
 
+      fill_field: tool({
+        description:
+          "Type text into a form field with visible character-by-character typing. ALWAYS " +
+          "use this for text inputs (never demo_bash 'playwright-cli fill') so the viewer " +
+          'sees each value being entered. Zoom in on the field/form first so it is in view.',
+        args: {
+          target: tool.schema
+            .string()
+            .describe("Field ref from snapshot (e.g. 'e53'). Do NOT include [ref=...]."),
+          text: tool.schema.string().describe('The text to type into the field.'),
+          submit: tool.schema
+            .boolean()
+            .optional()
+            .describe('Press Enter after typing (e.g. to submit/confirm).'),
+        },
+        async execute(args) {
+          return withStateLock(async () => {
+            const state = readState(directory)
+            const target = args.target
+            const text = args.text ?? ''
+            const shEsc = (s: string) => s.replace(/(["\\$`])/g, '\\$1')
+            const clickSound = path.join(directory, 'assets', 'sounds', 'click.mp3')
+
+            // Cursor target: reuse the coords from the preceding zoom_in if they're for
+            // this field (avoids an extra snapshot call); otherwise default to center.
+            let cx = 960
+            let cy = 540
+            if (state.lastTargetCoords?.ref === target) {
+              cx = state.lastTargetCoords.x
+              cy = state.lastTargetCoords.y
+            }
+
+            // Record a cursor click + click sound on the field, then clear & focus it.
+            const ts = Date.now()
+            state.clickEvents.push({
+              videoTimeSec: (ts - state.startTime) / 1000,
+              x: Math.max(0, Math.min(1920, cx)),
+              y: Math.max(0, Math.min(1080, cy)),
+            })
+            state.audioClips.push({ filePath: clickSound, absoluteTimestamp: ts })
+            await run(`playwright-cli fill "${target}" ""`).catch(() => {})
+            await run(`playwright-cli click "${target}"`).catch(() => {})
+
+            // Reveal the value progressively, time-bounded: short fields type char by
+            // char; long ones reveal in chunks, capped so even long text finishes quickly.
+            const chars = [...text]
+            const MAX_STEPS = 8
+            const chunkSize = Math.max(1, Math.ceil(chars.length / MAX_STEPS))
+            for (let i = 0; i < chars.length; i += chunkSize) {
+              await run(`playwright-cli type "${shEsc(chars.slice(i, i + chunkSize).join(''))}"`).catch(
+                () => {},
+              )
+            }
+            if (args.submit) await run(`playwright-cli press Enter`).catch(() => {})
+
+            writeState(directory, state)
+            return {
+              output: `typed "${text}" into ${target}${args.submit ? ' and submitted' : ''}`,
+            }
+          })
+        },
+      }),
+
       zoom_in: tool({
         description:
-          'Zoom the camera to focus on a specific element. ' +
+          'Move the cinematic camera to focus on a specific element. ' +
           "Pass the element's ref exactly as it appears (e.g. 'e53'). " +
-          'Always pair with a zoom_out call once the result of the action is visible.',
+          'IMPORTANT: if the camera is ALREADY zoomed in, calling this again on a ' +
+          'nearby element smoothly PANS to it at the same zoom — do NOT zoom_out ' +
+          'and zoom_in again for adjacent fields/buttons. ' +
+          'Only call zoom_out when you are done highlighting this area entirely.',
         args: {
           target: tool.schema
             .string()
             .describe("Element ref from snapshot (e.g. 'e53'). Do NOT include [ref=...]."),
-          zoom: tool.schema.number().min(1.2).max(4).optional().describe('Zoom level (1.2-4).'),
+          zoom: tool.schema
+            .number()
+            .min(1.2)
+            .max(2.5)
+            .optional()
+            .describe('Zoom level (1.2-2.5). Prefer ~1.7; keep it subtle, not a hard dive.'),
         },
         async execute(args) {
           return withStateLock(async () => {
             const target = args.target
-            const zoom = args.zoom || 2
             const state = readState(directory)
             let cx = 960,
               cy = 540
+            // Default zoom; refined to auto-fit the element's bounding box below.
+            let zoom = args.zoom || 1.7
             try {
+              // Scroll the element into view first so its bounding box reflects where
+              // it will actually be when clicked. Box coords are viewport-relative and
+              // NOT clamped, so an element below the fold would otherwise report an
+              // off-screen position (e.g. y > 1080) and the camera/cursor would land
+              // on empty space.
+              await run(`playwright-cli hover "${target}"`).catch(() => {})
               const { stdout } = await run(`playwright-cli snapshot "${target}" --boxes --json`)
               const parsed = JSON.parse(stdout)
               const text = parsed.snapshot || stdout
@@ -377,10 +489,21 @@ const plugin: Plugin = async input => {
               )
               const m = text.match(regex)
               if (m) {
-                cx = parseFloat(m[1]!) + parseFloat(m[3]!) / 2
-                cy = parseFloat(m[2]!) + parseFloat(m[4]!) / 2
+                const bw = parseFloat(m[3]!)
+                const bh = parseFloat(m[4]!)
+                // Clamp the center into the visible frame as a final safety net.
+                cx = Math.max(0, Math.min(1920, parseFloat(m[1]!) + bw / 2))
+                cy = Math.max(0, Math.min(1080, parseFloat(m[2]!) + bh / 2))
+                // Auto-fit: pick a zoom so the element fills a comfortable share of
+                // the frame — small controls get a tighter zoom, large cards a
+                // looser one. Only when the agent didn't specify a zoom explicitly.
+                if (args.zoom == null && bw > 0 && bh > 0) {
+                  const FILL = 0.5 // target fraction of the frame the element occupies
+                  const fit = Math.min((1920 * FILL) / bw, (1080 * FILL) / bh)
+                  zoom = Math.max(1.3, Math.min(2.2, fit))
+                }
                 console.log(
-                  `zoom_in target=${target} -> bbox cx=${cx.toFixed(0)} cy=${cy.toFixed(0)}`,
+                  `zoom_in target=${target} -> bbox cx=${cx.toFixed(0)} cy=${cy.toFixed(0)} fit-zoom=${zoom.toFixed(2)}`,
                 )
                 state.lastTargetCoords = { ref: target, x: cx, y: cy }
               } else {

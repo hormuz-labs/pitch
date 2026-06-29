@@ -1,0 +1,421 @@
+{
+  "startTime": 1782742290275,
+  "voiceName": "Charon",
+  "audioClips": [
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_0.wav",
+      "absoluteTimestamp": 1782742308856
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742336078
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742367025
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742410632
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_4.wav",
+      "absoluteTimestamp": 1782742460150
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742494154
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742539945
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742575104
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_8.wav",
+      "absoluteTimestamp": 1782742603862
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742639174
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742689500
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_11.wav",
+      "absoluteTimestamp": 1782742719794
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742753795
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742831928
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742894980
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742949743
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782742975431
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743012287
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_18.wav",
+      "absoluteTimestamp": 1782743042382
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743075364
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743124053
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743181181
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743238513
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743287436
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743321406
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_25.wav",
+      "absoluteTimestamp": 1782743389657
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_26.wav",
+      "absoluteTimestamp": 1782743439836
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743481418
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743531782
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/recordings/audio/clip_29.wav",
+      "absoluteTimestamp": 1782743555083
+    },
+    {
+      "filePath": "/home/adnan/Documents/pitch/assets/sounds/click.mp3",
+      "absoluteTimestamp": 1782743628367
+    }
+  ],
+  "zoomEvents": [
+    {
+      "type": "in",
+      "videoTimeSec": 199.519,
+      "x": 99,
+      "y": 121,
+      "zoom": 1.7
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 245.331,
+      "x": 1128,
+      "y": 754,
+      "zoom": 1.7
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 280.188,
+      "x": 858,
+      "y": 893,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 307.891
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 345.023,
+      "x": 1777.5,
+      "y": 302,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 370.793
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 374.729
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 394.699,
+      "x": 115,
+      "y": 282,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 415.854
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 419.906
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 459.526,
+      "x": 984.5,
+      "y": 314,
+      "zoom": 1.7
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 536.968,
+      "x": 665.5,
+      "y": 314,
+      "zoom": 1.7
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 597.348,
+      "x": 984.5,
+      "y": 402,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 649.803
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 781.086,
+      "x": 110.5,
+      "y": 524,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 803.434
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 807.123
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 829.73,
+      "x": 1111.5,
+      "y": 314,
+      "zoom": 1.7
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 886.844,
+      "x": 824.5,
+      "y": 314,
+      "zoom": 1.7
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 943.944,
+      "x": 537.5,
+      "y": 314,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 982.829
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 1184.772,
+      "x": 108,
+      "y": 728,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 1206.949
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 1211.133
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 1236.678,
+      "x": 97,
+      "y": 133,
+      "zoom": 1.7
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 1259.6
+    },
+    {
+      "type": "out",
+      "videoTimeSec": 1284.874
+    },
+    {
+      "type": "in",
+      "videoTimeSec": 1327.665,
+      "x": 1339,
+      "y": 282,
+      "zoom": 1.7
+    }
+  ],
+  "clickEvents": [
+    {
+      "videoTimeSec": 45.803,
+      "x": 960,
+      "y": 540
+    },
+    {
+      "videoTimeSec": 76.75,
+      "x": 960,
+      "y": 540
+    },
+    {
+      "videoTimeSec": 120.357,
+      "x": 960,
+      "y": 742
+    },
+    {
+      "videoTimeSec": 203.879,
+      "x": 99,
+      "y": 121
+    },
+    {
+      "videoTimeSec": 249.67,
+      "x": 1128,
+      "y": 754
+    },
+    {
+      "videoTimeSec": 284.829,
+      "x": 858,
+      "y": 893
+    },
+    {
+      "videoTimeSec": 348.899,
+      "x": 1777.5,
+      "y": 302
+    },
+    {
+      "videoTimeSec": 399.225,
+      "x": 115,
+      "y": 282
+    },
+    {
+      "videoTimeSec": 463.52,
+      "x": 984.5,
+      "y": 314
+    },
+    {
+      "videoTimeSec": 541.653,
+      "x": 665.5,
+      "y": 314
+    },
+    {
+      "videoTimeSec": 604.705,
+      "x": 984.5,
+      "y": 402
+    },
+    {
+      "videoTimeSec": 659.468,
+      "x": 667,
+      "y": 686
+    },
+    {
+      "videoTimeSec": 685.156,
+      "x": 960,
+      "y": 540
+    },
+    {
+      "videoTimeSec": 722.012,
+      "x": 667,
+      "y": 686
+    },
+    {
+      "videoTimeSec": 785.089,
+      "x": 110.5,
+      "y": 524
+    },
+    {
+      "videoTimeSec": 833.778,
+      "x": 1111.5,
+      "y": 314
+    },
+    {
+      "videoTimeSec": 890.906,
+      "x": 824.5,
+      "y": 314
+    },
+    {
+      "videoTimeSec": 948.238,
+      "x": 537.5,
+      "y": 314
+    },
+    {
+      "videoTimeSec": 997.161,
+      "x": 611,
+      "y": 1080
+    },
+    {
+      "videoTimeSec": 1031.131,
+      "x": 611,
+      "y": 1080
+    },
+    {
+      "videoTimeSec": 1191.143,
+      "x": 108,
+      "y": 728
+    },
+    {
+      "videoTimeSec": 1241.507,
+      "x": 97,
+      "y": 133
+    },
+    {
+      "videoTimeSec": 1338.092,
+      "x": 1339,
+      "y": 282
+    }
+  ],
+  "tabEvents": [
+    {
+      "tabId": 0,
+      "wallSec": 0
+    }
+  ],
+  "tabCreationTimes": {
+    "0": 0
+  },
+  "currentTabId": 0,
+  "lastTargetCoords": {
+    "ref": "e90",
+    "x": 1339,
+    "y": 282
+  }
+}
