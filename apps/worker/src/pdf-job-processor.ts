@@ -356,7 +356,7 @@ Please perform the following actions:
    - Write slide content and generate search queries for Unsplash.
    - Scrape Unsplash images using Playwright via the provided script \`node .opencode/skills/ppt-generator/reference/scrape_images.js\`.
    - Create a build directory at \`${buildDir}/\` and copy \`.opencode/skills/ppt-generator/pdf-builder-template.js\` there as \`pdf-builder.js\`.
-   - Update the custom styling, CSS stylesheet rules, and HTML layout renderers in \`pdf-builder.js\` using the template's \`skill.md\` definitions.
+   - IMPORTANT: To update the custom styling, CSS stylesheet rules, and HTML layout renderers in \`pdf-builder.js\` using the template's \`skill.md\` definitions, DO NOT try to manually copy-paste. Instead, use the pre-built injection script: run \`node .opencode/skills/template-ppt/scripts/inject_template.js .opencode/skills/ppt-generator/pdf-builder-template.js .opencode/skills/template-ppt/templates/${templateDirName}/skill.md ${buildDir}/pdf-builder.js\`. This will parse \`skill.md\` and cleanly inject the layouts and CSS.
    - Populate the \`CONFIG\` object inside \`pdf-builder.js\` with your written slides, template color tokens, font imports, base64-encoded local images, and set the \`jobId\` property to "${jobId}" and \`template\` property to "${template}".
    - Navigate into the build directory: \`cd ${buildDir}\` then run \`node pdf-builder.js\` to generate the PDF and QA renders. This ensures \`output.pdf\` and \`output.html\` are written to \`${buildDir}/\`.
    - Perform Visual QA check on the PNG renders in \`qa-renders/\` and apply targeted template updates/fixes if there are any visual alignment/overflow defects. Re-run \`node pdf-builder.js\` from inside \`${buildDir}\` after each fix.

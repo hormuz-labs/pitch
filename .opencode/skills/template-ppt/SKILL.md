@@ -136,6 +136,68 @@ Slide N: [LAYOUT-CODE] — Closing / CTA
 - Hard rule: never same layout on consecutive slides
 - Check `spec_lock.md → rhythm` per slide: `anchor` / `dense` / `breathing`
 
+**New layout options available in all templates:**
+- Chart layouts (`CHART-EDITORIAL` / `TECH-CHART` / `CHART-CLEAN`) for full-slide Chart.js data visualization.
+- Split-chart layouts (`SPLIT-CHART` / `TECH-SPLIT-CHART` / `SPLIT-CHART-CLEAN`) for context + chart side-by-side.
+- Icon-grid layouts (`ICON-GRID` / `TECH-ICON-GRID` / `ICON-GRID-CLEAN`) for 2×3 feature/step grids.
+- Comparison layouts (`COMPARE-PANEL` / `TECH-COMPARE` / `COMPARE-CLEAN`) for pros/cons or before/after.
+- Impact layouts (`IMPACT-STATEMENT` / `TECH-IMPACT` / `IMPACT-CLEAN`) for full-bleed image statements.
+
+Include at least one chart slide (`CHART-*` or `SPLIT-CHART-*`) in every deck when the topic has real-world data.
+
+### Chart type selection guide
+
+The `renderChart` helper in every template supports **17 Chart.js types**. Choose the smartest type for the data — never default to `column` blindly:
+
+| `chartType` | Best for |
+|---|---|
+| `column` | Comparing ≤3 groups side by side |
+| `column-stacked` | Stacked absolute totals across categories |
+| `column-100` | Proportional share of a whole per category (%) |
+| `bar` | Ranked list or long category names |
+| `bar-stacked` | Stacked breakdown of a ranked list |
+| `line` | Time-series trend, single or multi-series |
+| `area` | Single-series trend where fill emphasizes volume |
+| `area-stacked` | Cumulative multi-series trend (e.g., market share over time) |
+| `pie` | Simple share of a whole — **only if ≤5 slices** |
+| `donut` | Same as pie, cleaner center void |
+| `scatter` | Correlation between two numeric variables |
+| `bubble` | 3-variable correlation (X, Y, size = magnitude) |
+| `radar` | Comparing multiple attributes across subjects |
+| `polar` | Polar area — magnitude comparison in radial layout |
+| `funnel` | Pipeline / conversion drop-off (auto-sorted descending) |
+| `waterfall` | Running total, P&L breakdown, budget change |
+| `combo` | Bar + line on same axis (volume + trend overlay) |
+
+**Quick rules:**
+- Time on X-axis → `line`, `area`, or `area-stacked`
+- Conversion funnel → `funnel`
+- Budget / P&L → `waterfall`
+- %-of-whole → `donut` (preferred over `pie`)
+- Multiple qualities rated → `radar`
+- Long category labels → `bar` over `column`
+
+**Chart slide JSON:**
+```json
+{
+  "layout": "CHART-EDITORIAL",
+  "title": "Renewable Energy Growth",
+  "chartType": "line",
+  "chartData": {
+    "labels": ["2020", "2021", "2022", "2023", "2024", "2025"],
+    "datasets": [
+      { "label": "Solar GW", "data": [42, 58, 78, 105, 142, 189] },
+      { "label": "Wind GW", "data": [35, 44, 56, 71, 88, 107] }
+    ]
+  },
+  "source": "Source: IRENA 2026"
+}
+```
+
+For `scatter` / `bubble`, data points must be objects: `{"x": 10, "y": 20, "r": 8}`.
+For `waterfall`, `data` is a list of positive/negative changes that auto-compute running totals.
+For `funnel`, `data` is absolute values per stage that auto-sort descending.
+
 ---
 
 ## Step 3 — Master Slide Point Library
@@ -253,12 +315,15 @@ const CONFIG = {
 ```
 
 **Template-specific layouts**: The template's `skill.md` provides complete HTML
-renderer functions for each template-specific layout code. Paste them into
-`pdf-builder.js` BEFORE the final fallback line:
-```js
-// Add other layout handlers here (AGENDA, QUOTE, etc.)
-return `<div class="slide">...Layout not implemented...</div>`;
+renderer functions for each template-specific layout code, as well as template-specific CSS.
+**MANDATORY**: DO NOT manually copy-paste the layout and CSS blocks. Instead, use the provided injection script:
+
+```bash
+cd /tmp/ppt-<JOB_ID>
+node .opencode/skills/template-ppt/scripts/inject_template.js .opencode/skills/ppt-generator/pdf-builder-template.js .opencode/skills/template-ppt/templates/<TEMPLATE_DIR>/skill.md pdf-builder.js
 ```
+
+This will automatically parse the `skill.md` file, extract the `renderChart` override, all layout renderers, and all custom CSS, and inject them into `pdf-builder.js` cleanly.
 
 **Re-read spec_lock before writing each slide object.** Verify all colors,
 fonts, and layout codes match exactly.
