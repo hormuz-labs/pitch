@@ -15,6 +15,220 @@ This document provides template-specific instructions, layout codes, and HTML/CS
 
 ## 📐 Layout Pools & Renderers
 
+### Chart helper (used by chart layouts)
+
+```js
+let _chartSeq = 0;
+function renderChart(slide) {
+    const cid = `chart_${++_chartSeq}`;
+    const type = (slide.chartType || 'column').toLowerCase();
+    const raw = slide.chartData || { labels: [], datasets: [] };
+    const labels = raw.labels || [];
+    const rawDS = raw.datasets || [];
+
+    /* ── Palette from spec_lock.md ── */
+    function h2rgba(hex, a) {
+        const h = (hex || '#888').replace('#', '');
+        const pd = h.length === 3 ? h.split('').map(x => x + x).join('') : h;
+        return `rgba(${parseInt(pd.substr(0,2),16)||128},${parseInt(pd.substr(2,2),16)||128},${parseInt(pd.substr(4,2),16)||128},${a})`;
+    }
+
+    const themeObj = {
+        primary: '#004080',
+        secondary: '#555555',
+        accent: '#1A1A1A',
+        bg: '#F8F9FA',
+        border: '#E9ECEF',
+        fontBody: '"Inter", sans-serif'
+    };
+
+    const BG = [
+        h2rgba(themeObj.primary,0.90), h2rgba(themeObj.secondary,0.85),
+        h2rgba(themeObj.accent,0.80),  h2rgba(themeObj.primary,0.60),
+        h2rgba(themeObj.secondary,0.60), h2rgba(themeObj.accent,0.55),
+        h2rgba(themeObj.primary,0.40),  h2rgba(themeObj.secondary,0.40),
+    ];
+    const BD = [
+        themeObj.primary, themeObj.secondary, themeObj.accent,
+        themeObj.primary, themeObj.secondary, themeObj.accent,
+        themeObj.primary, themeObj.secondary,
+    ];
+
+    const isDark = !((function(hex){
+        const h=(hex||'#000').replace('#','');
+        const pd=h.length===3?h.split('').map(x=>x+x).join(''):h;
+        return (parseInt(pd.substr(0,2),16)*299+parseInt(pd.substr(2,2),16)*587+parseInt(pd.substr(4,2),16)*114)/1000;
+    })(themeObj.bg) > 128);
+
+    const textC = isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.80)';
+    const gridC = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+    const tipBg = isDark ? 'rgba(10,10,20,0.92)'   : 'rgba(255,255,255,0.97)';
+
+    const fontBodyClean = (function(fontString) {
+        if (!fontString) return 'Inter';
+        const clean = fontString.split(',')[0].replace(/['"]/g, '').trim();
+        const fallbacks = {
+            'cursorgothic': 'Outfit',
+            'linear display': 'Outfit',
+            'ferrarisans': 'Barlow',
+            'geist': 'Inter',
+            'circular': 'Inter',
+            'coinbase display': 'Inter',
+            'sf pro display': 'Inter',
+            'sf pro text': 'Inter',
+            'sst': 'Inter',
+            'optimistic': 'Inter',
+            'gt walsheim': 'Manrope',
+            'super sans vf': 'Manrope',
+            'abcdiatype': 'Manrope',
+            'ibm plex sans': 'IBM Plex Sans',
+            'd-din': 'Bebas Neue',
+            'd-din-bold': 'Bebas Neue',
+            'bugatti display': 'Playfair Display',
+            'sohne-var': 'Plus Jakarta Sans',
+            'salesforce-avant-garde': 'Plus Jakarta Sans',
+            'sodosans': 'Inter',
+            'lander grande': 'Playfair Display'
+        };
+        const lowerClean = clean.toLowerCase();
+        for (const [key, val] of Object.entries(fallbacks)) {
+            if (lowerClean.includes(key)) return val;
+        }
+        return clean;
+    })(themeObj.fontBody);
+
+    const tk  = `color:'${textC}',font:{family:'${fontBodyClean}',size:12}`;
+    const tip = `tooltip:{backgroundColor:'${tipBg}',titleColor:'${textC}',bodyColor:'${textC}',borderColor:'${themeObj.primary}',borderWidth:1,padding:10}`;
+    const leg = `legend:{labels:{color:'${textC}',font:{family:'${fontBodyClean}',size:13},padding:16}}`;
+    const plug = `plugins:{${leg},${tip}}`;
+    const cX = (s=false) => `x:{stacked:${s},ticks:{${tk}},grid:{color:'${gridC}'}}`;
+    const cY = (s=false) => `y:{stacked:${s},ticks:{${tk}},grid:{color:'${gridC}'}}`;
+    const baseOpts = `responsive:true,maintainAspectRatio:false,animation:{duration:0}`;
+
+    /* ── Build per-type config ── */
+    let cjsType = 'bar', dsArr = [], optStr = '';
+
+    switch (type) {
+
+        case 'column':
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:1.5,borderRadius:4}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+            break;
+
+        case 'column-stacked':
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:1.5,borderRadius:2}));
+            optStr = `${baseOpts},${plug},scales:{${cX(true)},${cY(true)}}`;
+            break;
+
+        case 'column-100': {
+            const tots = labels.map((_,ci)=>rawDS.reduce((s,d)=>s+(d.data[ci]||0),0));
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:(d.data||[]).map((v,ci)=>tots[ci]?+(v/tots[ci]*100).toFixed(1):0),backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:1.5,borderRadius:2}));
+            optStr = `${baseOpts},${plug},scales:{${cX(true)},y:{stacked:true,max:100,ticks:{${tk},callback:function(v){return v+'%';}},grid:{color:'${gridC}'}}}`;
+            break;
+        }
+
+        case 'bar':
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:1.5,borderRadius:4}));
+            optStr = `indexAxis:'y',${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+            break;
+
+        case 'bar-stacked':
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:1.5,borderRadius:2}));
+            optStr = `indexAxis:'y',${baseOpts},${plug},scales:{${cX(true)},${cY(true)}}`;
+            break;
+
+        case 'line':
+            cjsType = 'line';
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:'transparent',borderColor:BD[i%BD.length],borderWidth:2.5,fill:false,tension:0.4,pointRadius:4,pointHoverRadius:7}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+            break;
+
+        case 'area':
+            cjsType = 'line';
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:2.5,fill:true,tension:0.4,pointRadius:3,pointHoverRadius:6}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+            break;
+
+        case 'area-stacked':
+            cjsType = 'line';
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:2,fill:true,tension:0.4,pointRadius:3}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},y:{stacked:true,ticks:{${tk}},grid:{color:'${gridC}'}}}`;
+            break;
+
+        case 'pie': {
+            cjsType = 'pie';
+            const sd = rawDS[0]?.data||[];
+            dsArr = [JSON.stringify({data:sd,backgroundColor:sd.map((_,i)=>BG[i%BG.length]),borderColor:sd.map((_,i)=>BD[i%BD.length]),borderWidth:2})];
+            optStr = `${baseOpts},plugins:{legend:{position:'right',labels:{color:'${textC}',font:{family:'${fontBodyClean}',size:13},padding:20,boxWidth:16}},${tip}}`;
+            break;
+        }
+
+        case 'donut': {
+            cjsType = 'doughnut';
+            const sd = rawDS[0]?.data||[];
+            dsArr = [JSON.stringify({data:sd,backgroundColor:sd.map((_,i)=>BG[i%BG.length]),borderColor:sd.map((_,i)=>BD[i%BD.length]),borderWidth:2})];
+            optStr = `cutout:'65%',${baseOpts},plugins:{legend:{position:'right',labels:{color:'${textC}',font:{family:'${fontBodyClean}',size:13},padding:20,boxWidth:16}},${tip}}`;
+            break;
+        }
+
+        case 'scatter':
+            cjsType = 'scatter';
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],pointRadius:6,pointHoverRadius:9}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+            break;
+
+        case 'bubble':
+            cjsType = 'bubble';
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:1.5}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+            break;
+
+        case 'radar':
+            cjsType = 'radar';
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:2,pointRadius:4,pointHoverRadius:7}));
+            optStr = `${baseOpts},${plug},scales:{r:{ticks:{${tk},backdropColor:'transparent'},grid:{color:'${gridC}'},angleLines:{color:'${gridC}'},pointLabels:{color:'${textC}',font:{family:'${fontBodyClean}',size:13}}}}`;
+            break;
+
+        case 'polar': {
+            cjsType = 'polarArea';
+            const sd = rawDS[0]?.data||[];
+            dsArr = [JSON.stringify({data:sd,backgroundColor:sd.map((_,i)=>BG[i%BG.length]),borderWidth:1.5})];
+            optStr = `${baseOpts},plugins:{legend:{position:'right',labels:{color:'${textC}',font:{family:'${fontBodyClean}',size:13},padding:16}},${tip}},scales:{r:{ticks:{${tk},backdropColor:'transparent'},grid:{color:'${gridC}'}}}`;
+            break;
+        }
+
+        case 'funnel': {
+            const d0 = rawDS[0]||{data:[],label:'Value'};
+            const pairs = labels.map((l,i)=>({l,v:d0.data[i]||0})).sort((a,b)=>b.v-a.v);
+            const top = pairs[0]?.v||1;
+            const fDS = JSON.stringify({label:d0.label||'Value',data:pairs.map(p=>p.v),backgroundColor:pairs.map((_,i)=>BG[Math.min(i,BG.length-1)]),borderColor:pairs.map((_,i)=>BD[Math.min(i,BD.length-1)]),borderWidth:1.5,borderRadius:4});
+            return `<div style="position:relative;width:100%;height:100%;"><canvas id="${cid}"></canvas></div><script>(function(){var ctx=document.getElementById('${cid}');new Chart(ctx,{type:'bar',data:{labels:${JSON.stringify(pairs.map(p=>p.l))},datasets:[${fDS}]},options:{indexAxis:'y',${baseOpts},plugins:{legend:{display:false},tooltip:{backgroundColor:'${tipBg}',titleColor:'${textC}',bodyColor:'${textC}',borderColor:'${themeObj.primary}',borderWidth:1,callbacks:{label:function(c){return c.parsed.x+' ('+Math.round(c.parsed.x/${top}*100)+'%)';}}}},scales:{x:{ticks:{${tk}},grid:{color:'${gridC}'}},y:{ticks:{${tk}},grid:{display:false}}}}});})();<\/script>`;
+        }
+
+        case 'waterfall': {
+            const d0 = rawDS[0]||{data:[],label:'Value'};
+            const chgs = d0.data||[];
+            let cum = 0;
+            const floats = chgs.map(v=>{const s=cum;cum+=v;return [s,cum];});
+            const wfDS = JSON.stringify({label:d0.label||'Value',data:floats,backgroundColor:chgs.map(v=>v>=0?BG[0]:BG[1]),borderColor:chgs.map(v=>v>=0?BD[0]:BD[1]),borderWidth:1.5,borderRadius:3});
+            return `<div style="position:relative;width:100%;height:100%;"><canvas id="${cid}"></canvas></div><script>(function(){var ctx=document.getElementById('${cid}');new Chart(ctx,{type:'bar',data:{labels:${JSON.stringify(labels)},datasets:[${wfDS}]},options:{${baseOpts},plugins:{legend:{display:false},tooltip:{backgroundColor:'${tipBg}',titleColor:'${textC}',bodyColor:'${textC}',borderColor:'${themeObj.primary}',borderWidth:1}},scales:{x:{ticks:{${tk}},grid:{color:'${gridC}'}},y:{ticks:{${tk}},grid:{color:'${gridC}'}}}}});})();<\/script>`;
+        }
+
+        case 'combo':
+            cjsType = 'bar';
+            dsArr = rawDS.map((d,i)=>JSON.stringify({type:i===0?'bar':'line',label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:i===0?BG[0]:'transparent',borderColor:BD[i%BD.length],borderWidth:i===0?1.5:2.5,tension:0.4,pointRadius:i===0?0:5,fill:false,borderRadius:i===0?4:0,order:i===0?2:1}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+            break;
+
+        default:
+            dsArr = rawDS.map((d,i)=>JSON.stringify({label:d.label||`Series ${i+1}`,data:d.data||[],backgroundColor:BG[i%BG.length],borderColor:BD[i%BD.length],borderWidth:1.5,borderRadius:4}));
+            optStr = `${baseOpts},${plug},scales:{${cX()},${cY()}}`;
+    }
+
+    return `<div style="position:relative;width:100%;height:100%;"><canvas id="${cid}"></canvas></div><script>(function(){var ctx=document.getElementById('${cid}');new Chart(ctx,{type:'${cjsType}',data:{labels:${JSON.stringify(labels)},datasets:[${dsArr.join(',')}]},options:{${optStr}}});})();<\/script>`;
+}
+```
+
 ### 1. `COVER` (Title Slide)
 ```js
 if (slide.layout === 'COVER' && config.template === 'MINIMAL_CORPORATE') {
@@ -165,7 +379,111 @@ if (slide.layout === 'TIMELINE-CLEAN') {
 }
 ```
 
-### 8. `CLOSING-CLEAN` (Thank you Slide)
+### 8. `CHART-CLEAN` (Full-width Chart)
+```js
+if (slide.layout === 'CHART-CLEAN') {
+    const chartHTML = renderChart(slide);
+    return `
+    <div class="slide corp-minimal">
+        <div class="corp-content">
+            <h2 class="corp-title">${slide.title}</h2>
+            <div class="corp-chart-full">
+                ${chartHTML}
+            </div>
+            ${slide.source ? `<div class="corp-chart-source">${slide.source}</div>` : ''}
+        </div>
+    </div>`;
+}
+```
+
+### 9. `SPLIT-CHART-CLEAN` (Bullets + Chart)
+```js
+if (slide.layout === 'SPLIT-CHART-CLEAN') {
+    const chartHTML = renderChart(slide);
+    return `
+    <div class="slide corp-minimal">
+        <div class="corp-content">
+            <h2 class="corp-title">${slide.title}</h2>
+            <div class="corp-split-chart">
+                <div class="corp-split-chart-left">
+                    <ul class="corp-bullets">
+                        ${(slide.bullets || []).map(b => `<li>${b}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="corp-split-chart-right">
+                    ${chartHTML}
+                </div>
+            </div>
+            ${slide.source ? `<div class="corp-chart-source">${slide.source}</div>` : ''}
+        </div>
+    </div>`;
+}
+```
+
+### 10. `ICON-GRID-CLEAN` (Icon Grid)
+```js
+if (slide.layout === 'ICON-GRID-CLEAN') {
+    return `
+    <div class="slide corp-minimal">
+        <div class="corp-content">
+            <div class="corp-badge">${slide.badge || 'HIGHLIGHTS'}</div>
+            <h2 class="corp-title">${slide.title}</h2>
+            <div class="corp-icon-grid">
+                ${(slide.items || []).slice(0, 6).map(item => `
+                <div class="corp-icon-grid-item">
+                    <div class="corp-icon-grid-icon">${item.icon || ''}</div>
+                    <div class="corp-icon-grid-heading">${item.heading || item.title}</div>
+                    <div class="corp-icon-grid-text">${item.text || item.description}</div>
+                </div>`).join('')}
+            </div>
+        </div>
+    </div>`;
+}
+```
+
+### 11. `COMPARE-CLEAN` (Side-by-side Comparison)
+```js
+if (slide.layout === 'COMPARE-CLEAN') {
+    return `
+    <div class="slide corp-minimal">
+        <div class="corp-content">
+            <div class="corp-badge">COMPARE</div>
+            <h2 class="corp-title">${slide.title}</h2>
+            <div class="corp-compare-row">
+                <div class="corp-compare-panel corp-compare-left">
+                    <div class="corp-compare-title">${slide.leftTitle || 'Option A'}</div>
+                    <ul class="corp-bullets">
+                        ${(slide.leftBullets || []).map(b => `<li>${b}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="corp-compare-panel corp-compare-right">
+                    <div class="corp-compare-title">${slide.rightTitle || 'Option B'}</div>
+                    <ul class="corp-bullets">
+                        ${(slide.rightBullets || []).map(b => `<li>${b}</li>`).join('')}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+```
+
+### 12. `IMPACT-CLEAN` (Full-bleed Impact Statement)
+```js
+if (slide.layout === 'IMPACT-CLEAN') {
+    return `
+    <div class="slide corp-minimal corp-impact-slide">
+        ${slide.image ? `<img class="corp-impact-bg" src="${slide.image}">` : ''}
+        <div class="corp-impact-overlay"></div>
+        <div class="corp-content corp-impact-content">
+            <div class="corp-impact-statement">${slide.statement}</div>
+            ${slide.attribution ? `<div class="corp-impact-attribution">${slide.attribution}</div>` : ''}
+        </div>
+    </div>`;
+}
+```
+
+### 13. `CLOSING-CLEAN` (Thank you Slide)
 ```js
 if (slide.layout === 'CLOSING-CLEAN') {
     return `
@@ -384,5 +702,152 @@ if (slide.layout === 'CLOSING-CLEAN') {
 .corp-closing-footer {
     position: absolute; bottom: 50px; font-size: 13px;
     color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Chart layouts ── */
+.corp-chart-full {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    background: #FFFFFF;
+    border: 1px solid #E9ECEF;
+    border-radius: 8px;
+    padding: 16px;
+}
+.corp-chart-source {
+    font-size: 12px;
+    color: #555555;
+    text-align: right;
+    margin-top: 8px;
+    font-family: var(--font-body);
+}
+.corp-split-chart {
+    display: flex;
+    gap: 32px;
+    flex: 1;
+    min-height: 0;
+}
+.corp-split-chart-left {
+    width: 40%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.corp-split-chart-right {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    background: #FFFFFF;
+    border: 1px solid #E9ECEF;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+/* ── Icon grid layout ── */
+.corp-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    flex: 1;
+}
+.corp-icon-grid-item {
+    background: #FFFFFF;
+    border: 1px solid #E9ECEF;
+    border-radius: 8px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.corp-icon-grid-icon {
+    font-size: 28px;
+    line-height: 1;
+    color: #004080;
+}
+.corp-icon-grid-heading {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    color: #1A1A1A;
+}
+.corp-icon-grid-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #555555;
+}
+
+/* ── Compare layout ── */
+.corp-compare-row {
+    display: flex;
+    gap: 24px;
+    flex: 1;
+}
+.corp-compare-panel {
+    flex: 1;
+    background: #FFFFFF;
+    border: 1px solid #E9ECEF;
+    border-radius: 8px;
+    padding: 28px;
+}
+.corp-compare-left {
+    border-left: 4px solid #004080;
+}
+.corp-compare-right {
+    border-left: 4px solid #555555;
+}
+.corp-compare-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: #1A1A1A;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #E9ECEF;
+    padding-bottom: 8px;
+}
+
+/* ── Impact layout ── */
+.corp-impact-slide {
+    position: relative;
+    overflow: hidden;
+}
+.corp-impact-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+.corp-impact-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 64, 128, 0.72);
+    z-index: 2;
+}
+.corp-impact-content {
+    position: relative;
+    z-index: 3;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #FFFFFF;
+}
+.corp-impact-statement {
+    font-family: var(--font-display);
+    font-size: 44px;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.2;
+    max-width: 900px;
+}
+.corp-impact-attribution {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 24px;
+    font-family: var(--font-body);
 }
 ```

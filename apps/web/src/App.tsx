@@ -7,7 +7,7 @@ import {
   useClerk,
   useUser,
 } from '@clerk/clerk-react'
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import {
   BrowserRouter,
   Link,
@@ -915,6 +915,7 @@ const Sidebar = ({
 interface TopHeaderProps {
   isMobile: boolean
   isDetailPage: boolean
+  backLabel?: string
   searchQuery: string
   onSearchChange: (q: string) => void
   onToggle: () => void
@@ -932,6 +933,7 @@ interface TopHeaderProps {
 const TopHeader = ({
   isMobile,
   isDetailPage,
+  backLabel,
   searchQuery,
   onSearchChange,
   onToggle,
@@ -969,7 +971,7 @@ const TopHeader = ({
         >
           <IconArrowLeft />
           <span className="hidden sm:inline">
-            {isMobile && isNewPage ? 'Dashboard' : 'Back to Dashboard'}
+            {backLabel ?? (isMobile && isNewPage ? 'Dashboard' : 'Back to Dashboard')}
           </span>
         </button>
       ) : isPricingPage ? (
@@ -1086,6 +1088,10 @@ function AppContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [isAdmin, setIsAdmin] = useState(false)
+
+  // Track whether the user has selected a specific template (detail mode)
+  const [templatesInDetail, setTemplatesInDetail] = useState(false)
+  const clearTemplatesSelectionRef = useRef<(() => void) | null>(null)
 
   // States for PDF Editor slide navigation integration in main Sidebar
   const [pdfSlides, setPdfSlides] = useState<{ id: number; title: string; srcDoc?: string }[]>([])
@@ -1518,13 +1524,25 @@ function AppContent() {
                 selectedKey === 'pdf-create' ||
                 selectedKey === 'editor' ||
                 selectedKey === 'pdfeditor' ||
-                selectedKey === 'settings'
+                selectedKey === 'settings' ||
+                (selectedKey === 'templates' && templatesInDetail)
+              }
+              backLabel={
+                selectedKey === 'templates' && templatesInDetail
+                  ? 'Back to Templates Gallery'
+                  : undefined
               }
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               onToggle={() => setCollapsed(c => !c)}
               onNew={() => navigate('/new')}
-              onBack={() => navigate('/dashboard')}
+              onBack={() => {
+                if (selectedKey === 'templates' && templatesInDetail) {
+                  clearTemplatesSelectionRef.current?.()
+                } else {
+                  navigate('/dashboard')
+                }
+              }}
               projectTitle={projectTitle}
               onDownload={onDownload}
               isPricingPage={selectedKey === 'pricing'}
@@ -1569,7 +1587,12 @@ function AppContent() {
                 <Route
                   path="/templates"
                   element={
-                    <TemplatesView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />
+                    <TemplatesView
+                      isSubmitting={isSubmitting}
+                      onQueuePdfJob={handleQueuePdfJob}
+                      onDetailModeChange={setTemplatesInDetail}
+                      clearSelectionRef={clearTemplatesSelectionRef}
+                    />
                   }
                 />
                 <Route

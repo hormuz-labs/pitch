@@ -117,6 +117,7 @@ export interface Job {
   userId: string
   status: JobStatus
   videoUrl?: string
+  rawVideoUrl?: string
   pdfUrl?: string
   audioUrl?: string
   thumbnailUrl?: string
