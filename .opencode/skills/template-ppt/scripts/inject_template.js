@@ -11,7 +11,7 @@ function injectTemplate(baseFile, skillMdFile, outputFile) {
     const skillMd = fs.readFileSync(skillMdFile, 'utf8');
 
     // Extract Layout Code (everything between "### Chart Helper" or "### 1. " and the next "---")
-    const layoutsMatch = skillMd.match(/### (?:Chart Helper|1\.\s.*?)\n([\s\S]*?)---/);
+    const layoutsMatch = skillMd.match(/### (?:Chart [Hh]elper.*?|1\.\s.*?)\n([\s\S]*?)---/i);
     let layoutsCode = "";
     if (layoutsMatch) {
         const jsBlocks = [...layoutsMatch[1].matchAll(/```js\n([\s\S]*?)```/g)];
