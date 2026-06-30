@@ -1,0 +1,183 @@
+[
+  {
+    "id": "BRUTALIST_NEWSPAPER",
+    "name": "Brutalist AI Newspaper 2026",
+    "description": "High-contrast editorial style inspired by modern brutalist aesthetics and retro-futuristic news layouts. Uses vintage paper texture, strict black/red highlights, halftone photo filters, and thick borders. Now includes chart data slides, icon grids, comparisons, and impact statements.",
+    "tags": ["Brutalist", "Editorial", "Bold", "Retro-Futuristic", "Charts"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "THE AI REVOLUTION",
+        "subtitle": "HOW GENERATIVE MODELS ARE REDEFINING AESTHETICS IN 2026",
+        "layout": "NEWSPAPER-COVER"
+      },
+      {
+        "id": 2,
+        "title": "CHRONICLES & CORNERS",
+        "bullets": [
+          "Halftone image filtering for high contrast",
+          "Thick grid lines and strict layout divisions",
+          "Monospaced labels paired with serif headlines"
+        ],
+        "layout": "GLANCE"
+      },
+      {
+        "id": 3,
+        "title": "STATISTICAL BULLETINS",
+        "stats": [
+          { "value": "94%", "label": "Retention Rate" },
+          { "value": "2.4x", "label": "Growth Speed" }
+        ],
+        "layout": "DATA-TABLE"
+      },
+      {
+        "id": 4,
+        "title": "EDITORIAL CHART: ADOPTION TRENDS",
+        "chartType": "column",
+        "chartData": {
+          "labels": ["2022", "2023", "2024", "2025", "2026"],
+          "datasets": [
+            { "label": "AI Adoption %", "data": [12, 28, 47, 68, 84] }
+          ]
+        },
+        "source": "Source: Industry Report 2026",
+        "layout": "CHART-EDITORIAL"
+      },
+      {
+        "id": 5,
+        "title": "KEY EDITORIAL PILLARS",
+        "badge": "FRAMEWORK",
+        "items": [
+          { "icon": "◆", "heading": "Contrast", "text": "High-contrast halftone imagery for instant focus." },
+          { "icon": "◆", "heading": "Grid", "text": "Strict column divisions that guide the reader's eye." },
+          { "icon": "◆", "heading": "Typography", "text": "Serif headlines paired with monospace labels." },
+          { "icon": "◆", "heading": "Data", "text": "Charts rendered directly inside the editorial frame." },
+          { "icon": "◆", "heading": "Impact", "text": "Full-bleed statements for memorable takeaways." },
+          { "icon": "◆", "heading": "Compare", "text": "Side-by-side panels for debate and contrast." }
+        ],
+        "layout": "ICON-GRID"
+      }
+    ]
+  },
+  {
+    "id": "MINIMAL_CORPORATE",
+    "name": "Minimal Corporate",
+    "description": "Sleek, high-end corporate presentation template with a light color scheme, geometric sans-serif fonts, thin elegant borders, clean data callouts, and now chart-driven data slides.",
+    "tags": ["Clean", "Professional", "Corporate", "Minimalist", "Charts"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "STRATEGIC INITIATIVE",
+        "subtitle": "Annual Growth Plan and Market Analysis",
+        "layout": "COVER"
+      },
+      {
+        "id": 2,
+        "title": "OUR CORE OBJECTIVES",
+        "bullets": [
+          "Focus on sustainable, carbon-neutral supply chain systems.",
+          "Leverage edge computing capabilities for global telemetry data.",
+          "Deliver seamless micro-service performance indicators."
+        ],
+        "layout": "BRIEF-EXPLAIN"
+      },
+      {
+        "id": 3,
+        "title": "ANNUAL PERFORMANCE METRICS",
+        "stats": [
+          { "value": "+45%", "label": "Year-Over-Year Revenue" },
+          { "value": "< 10ms", "label": "API Response Latency" }
+        ],
+        "layout": "METRIC-ROW"
+      },
+      {
+        "id": 4,
+        "title": "MARKET GROWTH OUTLOOK",
+        "chartType": "line",
+        "chartData": {
+          "labels": ["Q1", "Q2", "Q3", "Q4"],
+          "datasets": [
+            { "label": "Revenue ($M)", "data": [4.2, 5.1, 6.3, 7.8] },
+            { "label": "Target ($M)", "data": [4.0, 5.0, 6.0, 7.5] }
+          ]
+        },
+        "source": "Source: Internal Forecast 2026",
+        "layout": "CHART-CLEAN"
+      },
+      {
+        "id": 5,
+        "title": "STRATEGIC PILLARS",
+        "badge": "FRAMEWORK",
+        "items": [
+          { "icon": "✓", "heading": "Operational Excellence", "text": "Streamline core processes across all regions." },
+          { "icon": "✓", "heading": "Customer Centricity", "text": "Embed feedback loops into product releases." },
+          { "icon": "✓", "heading": "Data-Driven Decisions", "text": "Use real-time dashboards for every function." },
+          { "icon": "✓", "heading": "Sustainable Growth", "text": "Balance margin expansion with ESG goals." },
+          { "icon": "✓", "heading": "Talent Density", "text": "Hire and retain top-tier specialists." },
+          { "icon": "✓", "heading": "Global Scale", "text": "Expand into priority markets with partners." }
+        ],
+        "layout": "ICON-GRID-CLEAN"
+      }
+    ]
+  },
+  {
+    "id": "DARK_TECH",
+    "name": "Dark Tech / Neon Glow",
+    "description": "Sophisticated dark theme with neon cyan and green accents, glowing border lines, and modern tech sans fonts. Best for AI, SaaS, and cybersecurity. Now includes chart telemetry, icon grids, and impact slides.",
+    "tags": ["Dark Mode", "Technology", "Cybersecurity", "SaaS", "Charts"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "CYBER INFRASTRUCTURE",
+        "subtitle": "Security and AI Ops Dashboard",
+        "layout": "TECH-COVER"
+      },
+      {
+        "id": 2,
+        "title": "LOGICAL NODE ANALYSIS",
+        "bullets": [
+          "Realtime tracing across all microservice instances.",
+          "Anomaly scoring powered by local clustering algorithms.",
+          "Active threat mitigation triggers upon token decay."
+        ],
+        "layout": "DASHBOARD-GLANCE"
+      },
+      {
+        "id": 3,
+        "title": "SYSTEM TELEMETRY SUMMARY",
+        "stats": [
+          { "value": "99.99%", "label": "System Uptime Rate" },
+          { "value": "42ms", "label": "Mean Mitigation Time" }
+        ],
+        "layout": "METRIC-GLOW"
+      },
+      {
+        "id": 4,
+        "title": "THREAT DETECTION TRENDS",
+        "chartType": "area",
+        "chartData": {
+          "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+          "datasets": [
+            { "label": "Blocked Intrusions", "data": [120, 190, 300, 250, 420, 510] }
+          ]
+        },
+        "source": "Source: Security Ops 2026",
+        "layout": "TECH-CHART"
+      },
+      {
+        "id": 5,
+        "title": "DEFENSE MODULES",
+        "badge": "SYS.MODULES",
+        "items": [
+          { "icon": "◈", "heading": "Perimeter Scan", "text": "Continuous port and endpoint reconnaissance." },
+          { "icon": "◈", "heading": "Behavioral AI", "text": "Detect anomalies in user and machine traffic." },
+          { "icon": "◈", "heading": "Auto-Response", "text": "Trigger countermeasures in milliseconds." },
+          { "icon": "◈", "heading": "Threat Intel", "text": "Ingest global indicators of compromise." },
+          { "icon": "◈", "heading": "Audit Logs", "text": "Immutable records for compliance review." },
+          { "icon": "◈", "heading": "API Shield", "text": "Rate limiting and schema validation." }
+        ],
+        "layout": "TECH-ICON-GRID"
+      }
+    ]
+  }
+]

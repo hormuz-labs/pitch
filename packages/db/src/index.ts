@@ -114,6 +114,8 @@ export async function createJob(
   return {
     ...created,
     videoUrl: created.videoUrl ?? undefined,
+    rawVideoUrl: created.rawVideoUrl ?? undefined,
+    pdfUrl: created.pdfUrl ?? undefined,
     audioUrl: created.audioUrl ?? undefined,
     thumbnailUrl: (created as any).thumbnailUrl ?? undefined,
     status: created.status as JobStatus,
@@ -133,6 +135,8 @@ export async function getJob(id: string, user?: AuthUser): Promise<Job | null> {
   return {
     ...job,
     videoUrl: job.videoUrl ?? undefined,
+    rawVideoUrl: job.rawVideoUrl ?? undefined,
+    pdfUrl: job.pdfUrl ?? undefined,
     audioUrl: job.audioUrl ?? undefined,
     thumbnailUrl: (job as any).thumbnailUrl ?? undefined,
     status: job.status as JobStatus,

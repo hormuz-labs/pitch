@@ -1,0 +1,10 @@
+Slide 1: NEWSPAPER-COVER — ETHANOL 20 IN INDIA (Subtitle: Advancing Fuel Blending Goals)
+Slide 2: GLANCE — AT A GLANCE (Agenda: Why Ethanol, E20 Rollout, 2G Bio-refineries, E30 Roadmap)
+Slide 3: SPLIT-PANEL — THE CORE PROBLEM (Dependence on crude oil, pollution, agri-residue)
+Slide 4: DATA-TABLE — IMPACT METRICS (Market Size, CAGR, CO2 reduction)
+Slide 5: QUOTE-STAMP — POLICY SHIFT (Government mandate statement)
+Slide 6: DENSE-LIST — THE SUGARCANE BACKBONE (Molasses, farmers, multi-feedstock)
+Slide 7: TIMELINE-GRID — BLENDING CHRONOLOGY (2014: 1.5%, 2025: 20%, 2030: 30%)
+Slide 8: SPLIT-PANEL — BEYOND FOOD CROPS (2G Refineries & Stubble Burning)
+Slide 9: DENSE-LIST — ROADBLOCKS TO E30 (Flex-fuel vehicles, infrastructure, land)
+Slide 10: CLOSING-EDITORIAL — THE ROAD TO E30
