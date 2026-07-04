@@ -415,7 +415,9 @@ For EVERY topic follow this algorithm:
 
 Read [qa-loop.md](qa-loop.md) for the full commands, defect taxonomy, and patch strategy.
 
-**DO NOT proceed to the exit step until this loop completes.**
+**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". The script cannot detect visual layout breaks or overlapping text!**
+
+You MUST use your `read` tool to open and analyze the `.png` files generated in the `qa-renders/` folder. Because you are a multimodal agent, passing the image path to your `read` tool will allow you to physically see the slide. If you skip using the `read` tool on the images, you have FAILED the QA step.
 
 ### The Loop
 

@@ -370,6 +370,10 @@ Verify: `output.pdf` and `qa-renders/slide_*.png` exist.
 Read [qa-loop.md](../ppt-generator/qa-loop.md) for full commands and defect
 taxonomy.
 
+**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". The script cannot detect visual layout breaks or overlapping text!**
+
+You MUST use your `read` tool to open and analyze the `.png` files generated in the `qa-renders/` folder. Because you are a multimodal agent, passing the image path to your `read` tool will allow you to physically see the slide. If you skip using the `read` tool on the images, you have FAILED the QA step.
+
 **Template-specific QA rules** — also check from template's `skill.md`:
 - All colors match spec_lock exactly (spot-check 3 slides)
 - Template-specific hard rules (e.g., brutalist: max 1 red element per slide)

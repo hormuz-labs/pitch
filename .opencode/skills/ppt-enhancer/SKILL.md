@@ -255,10 +255,11 @@ Read `.opencode/skills/ppt-generator/qa-loop.md` for full commands.
 
 ```
 LOOP:
-  1. Open EVERY .png in {buildDir}/qa-renders/ — do not skip any
-  2. Check: TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK · TYPO_CRITICAL
-  3. PASS → exit loop
-  4. FAIL → patch pdf-builder.js → cd {buildDir} && node pdf-builder.js → go to 1
+  1. DO NOT TRUST THE "SUCCESS" MESSAGE IN THE TERMINAL.
+  2. You MUST use the `read` tool on EVERY .png in {buildDir}/qa-renders/ to visually inspect them!
+  3. Check: TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK · TYPO_CRITICAL
+  4. PASS → exit loop
+  5. FAIL → patch pdf-builder.js → cd {buildDir} && node pdf-builder.js → go to 1
 ```
 
 ---
