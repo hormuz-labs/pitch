@@ -186,15 +186,7 @@ worker.on('failed', (job, err) => {
 // 'error' event.  Remove the job immediately to clear the queue — the
 // in-flight worker still finishes and saves the result via pushJobResult.
 worker.on('lockRenewalFailed', async (jobIds: string[]) => {
-  logger.warn({ jobIds }, 'Lock renewal failed — removing jobs from queue')
-  for (const jobId of jobIds) {
-    try {
-      const job = await worker.getJob(jobId)
-      if (job) await job.remove()
-    } catch (err) {
-      logger.error({ jobId, err }, 'Failed to remove job after lock renewal failure')
-    }
-  }
+  logger.warn({ jobIds }, 'Lock renewal failed')
 })
 
 // BullMQ LockManager emits 'error' for every lockRenewalFailed as well as

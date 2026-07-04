@@ -7,7 +7,7 @@ import {
   useClerk,
   useUser,
 } from '@clerk/clerk-react'
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import {
   BrowserRouter,
   Link,
@@ -50,6 +50,7 @@ import {
   PublicPricingView,
   SessionsView,
   SettingsView,
+  TemplatesView,
 } from './views'
 import { AuthView } from './views/AuthView'
 
@@ -537,6 +538,27 @@ const Sidebar = ({
                 onClick={() => go('/pdf')}
               />
               <NavItem
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18" />
+                    <path d="M9 21V9" />
+                  </svg>
+                }
+                label="Templates"
+                active={selectedKey === 'templates'}
+                onClick={() => go('/templates')}
+              />
+              <NavItem
                 icon={<Share2Icon />}
                 label="Affiliate"
                 active={selectedKey === 'affiliate'}
@@ -893,6 +915,7 @@ const Sidebar = ({
 interface TopHeaderProps {
   isMobile: boolean
   isDetailPage: boolean
+  backLabel?: string
   searchQuery: string
   onSearchChange: (q: string) => void
   onToggle: () => void
@@ -910,6 +933,7 @@ interface TopHeaderProps {
 const TopHeader = ({
   isMobile,
   isDetailPage,
+  backLabel,
   searchQuery,
   onSearchChange,
   onToggle,
@@ -947,7 +971,7 @@ const TopHeader = ({
         >
           <IconArrowLeft />
           <span className="hidden sm:inline">
-            {isMobile && isNewPage ? 'Dashboard' : 'Back to Dashboard'}
+            {backLabel ?? (isMobile && isNewPage ? 'Dashboard' : 'Back to Dashboard')}
           </span>
         </button>
       ) : isPricingPage ? (
@@ -1064,6 +1088,10 @@ function AppContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [isAdmin, setIsAdmin] = useState(false)
+
+  // Track whether the user has selected a specific template (detail mode)
+  const [templatesInDetail, setTemplatesInDetail] = useState(false)
+  const clearTemplatesSelectionRef = useRef<(() => void) | null>(null)
 
   // States for PDF Editor slide navigation integration in main Sidebar
   const [pdfSlides, setPdfSlides] = useState<{ id: number; title: string; srcDoc?: string }[]>([])
@@ -1330,6 +1358,7 @@ function AppContent() {
     topic: string
     slideCount: number
     slideHeadings: string[]
+    template?: string
   }) => {
     setIsSubmitting(true)
     try {
@@ -1339,6 +1368,7 @@ function AppContent() {
           topic: values.topic,
           slideCount: values.slideCount,
           slideHeadings: values.slideHeadings,
+          ...(values.template ? { template: values.template } : {}),
         },
       })
       setProjects(prev => {
@@ -1427,6 +1457,8 @@ function AppContent() {
     selectedKey = 'pricing'
   } else if (location.pathname.startsWith('/affiliate')) {
     selectedKey = 'affiliate'
+  } else if (location.pathname.startsWith('/templates')) {
+    selectedKey = 'templates'
   }
 
   if (!isLoaded) return <div className="h-screen w-screen bg-[#FDFDFD]"></div>
@@ -1495,13 +1527,25 @@ function AppContent() {
                 selectedKey === 'pdf-create' ||
                 selectedKey === 'editor' ||
                 selectedKey === 'pdfeditor' ||
-                selectedKey === 'settings'
+                selectedKey === 'settings' ||
+                (selectedKey === 'templates' && templatesInDetail)
+              }
+              backLabel={
+                selectedKey === 'templates' && templatesInDetail
+                  ? 'Back to Templates Gallery'
+                  : undefined
               }
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               onToggle={() => setCollapsed(c => !c)}
               onNew={() => navigate('/new')}
-              onBack={() => navigate('/dashboard')}
+              onBack={() => {
+                if (selectedKey === 'templates' && templatesInDetail) {
+                  clearTemplatesSelectionRef.current?.()
+                } else {
+                  navigate('/dashboard')
+                }
+              }}
               projectTitle={projectTitle}
               onDownload={onDownload}
               isPricingPage={selectedKey === 'pricing'}
@@ -1541,6 +1585,17 @@ function AppContent() {
                   path="/pdf"
                   element={
                     <PdfCreateView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />
+                  }
+                />
+                <Route
+                  path="/templates"
+                  element={
+                    <TemplatesView
+                      isSubmitting={isSubmitting}
+                      onQueuePdfJob={handleQueuePdfJob}
+                      onDetailModeChange={setTemplatesInDetail}
+                      clearSelectionRef={clearTemplatesSelectionRef}
+                    />
                   }
                 />
                 <Route
