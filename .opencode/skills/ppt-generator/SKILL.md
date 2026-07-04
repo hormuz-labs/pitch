@@ -279,18 +279,22 @@ Rules:
 
 ## Step 5 — Image Scraping Pipeline
 
-Read [image-scraping.md](image-scraping.md) for the full Playwright script.
+Read [image-scraping.md](image-scraping.md) for the full Playwright script and Gemini fallback details.
 
 ### Overview
 
 You MUST execute the Node.js Playwright script to fetch real images before building the presentation. For each keyword:
-1. Run the scraper using: `node .opencode/skills/ppt-generator/reference/scrape_images.js --topic "<topic>" --keywords <keywords>`
-2. This script scrapes Unsplash, Pinterest, and Dribbble to download high-resolution, watermark-free images.
-3. The script automatically handles downloading via Playwright request context to avoid rate-limits or blocking.
-4. Images will be saved directly to `pptx/ppt-<topic-slug>/images/<keyword>/` as:
-   - `unsplash_01.jpg`, `unsplash_02.jpg` ...
-   - `pinterest_01.jpg`, `pinterest_02.jpg` ...
-   - `dribbble_01.jpg`, `dribbble_02.jpg` ...
+1. Run the scraper using: `node .opencode/skills/ppt-generator/reference/scrape_images.js --topic "<topic>" --keywords <keywords> [--rich-prompt "keyword::rich prompt" ...]`
+2. The script scrapes **Pinterest first** (2 images per keyword). **Unsplash** is used as a backup only if Pinterest returns fewer than 2 images (max 1 Unsplash image). **Dribbble is no longer used**.
+3. If scraping still yields fewer than 2 images, the script automatically generates the missing image(s) with the **Gemini API** using `GEMINI_API_KEY` from `.env`.
+4. The script automatically handles downloading via Playwright request context to avoid rate-limits or blocking.
+5. Images will be saved directly to `pptx/ppt-<topic-slug>/images/<keyword>/` as:
+   - `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
+   - `unsplash_01.jpg` (backup, only if Pinterest < 2)
+   - `gemini_01.png`, `gemini_02.png` (fallback generation, only if still < 2)
+   - `gemini_prompt.txt` (the prompt used for any Gemini generation)
+
+Pass `--rich-prompt` for each keyword so the Gemini fallback prompt is based on the original 15–30 word rich image prompt instead of only the keyword.
 
 ### Image quality filters (apply before downloading)
 - Skip images smaller than 400×300px
@@ -304,12 +308,13 @@ You MUST execute the Node.js Playwright script to fetch real images before build
 
 ## Step 6 — Image-to-Slide Mapping
 
-Once the pool of ~20 images per keyword is downloaded, you must actively choose the absolute best matches and map them to your slides using this logic:
+Once the images are downloaded (target 2 per keyword), you must actively choose the absolute best matches and map them to your slides using this logic:
 
-1. **MANDATORY VERIFICATION**: Use the `Glob` tool to list the actual downloaded files in `pptx/ppt-<topic-slug>/images/<keyword>/`. NEVER guess or hardcode filenames (e.g., assuming `pinterest_02.jpg` exists). Scraping can occasionally fail for specific images. You must only assign file paths to slides that were successfully downloaded and confirmed to exist on disk.
-2. Each keyword has a `Maps to slides` entry
-3. From the successfully downloaded images for that keyword, pick the **best 1–2 images** per slide
-4. Scoring criteria (apply mentally, pick highest):
+1. **MANDATORY VERIFICATION**: Use the `Glob` tool to list the actual downloaded files in `pptx/ppt-<topic-slug>/images/<keyword>/`. NEVER guess or hardcode filenames (e.g., assuming `pinterest_02.jpg` exists). Scraping or generation can occasionally fail. You must only assign file paths to slides that were successfully downloaded and confirmed to exist on disk.
+2. If a keyword directory contains `gemini_prompt.txt` but no corresponding `gemini_*.png` file, record the prompt text in the slide JSON under `imagePrompt` instead of assigning a non-existent image path.
+3. Each keyword has a `Maps to slides` entry.
+4. From the successfully downloaded images for that keyword, pick the **best 1–2 images** per slide.
+5. Scoring criteria (apply mentally, pick highest):
    - Subject match: does the image literally show what the slide is about?
    - Color harmony: does the image tone match your chosen palette?
    - Composition: is there clean space for text overlay?
@@ -326,22 +331,15 @@ Use one of these layouts per slide (vary across the deck — never repeat same l
 
 | Layout Code | Description | Best for |
 |-------------|-------------|----------|
-| `COVER` | Full-bleed image, title centre overlay, fully transparent | Slide 1 |
+| `COVER` | Full-bleed image, title centre overlay, fully transparent | Slide 1 and Last Slide |
 | `CHART-FULL`| Large full-slide data chart (bar, line, pie) | Key trends, market growth |
 | `SPLIT-CHART`| Text left 50%, Chart right 50% | Breaking down statistics with context |
 | `SPLIT-L` | Text left 55%, image right 45% | Content + fact slides |
 | `SPLIT-R` | Image left 45%, text right 55% | Case studies, examples |
-| `SPLIT-INFO` | Badge + large title + body text (left 38%), full image (right 55%), 3 info-cards row below | Case studies, how-it-works, process explanations |
-| `FULLBLEED` | Image covers 100%, text in semi-transparent card | Impactful statements |
-| `STAT` | Up to 4 premium stat cards — each with big number, bold label, description text, and top accent border | Key statistics, comparison numbers, KPI highlights |
-| `METRICS-CARD`| Cards with icons/images, title, big metric, and description | Complex data, startup pitches |
-| `MEDIA-GRID` | Adaptive grid of images with short captions | Team pages, product showcases |
-| `QUOTE` | Centered quote, large text, subtle bg texture | Expert opinion slides |
-| `TIMELINE` | Horizontal arrow with 4–6 nodes | History / milestones |
-| `COMPARE` | Two columns, left vs right, colour-coded | Pros/Cons, Before/After |
-| `ICON-GRID` | 2×3 grid of icon + label + short text | Features, causes, steps |
-| `AGENDA` | Numbered list, clean typography | Slide 2 only |
-| `CLOSING` | Dark bg, large CTA text, logo | Last slide |
+| `SPLIT-INFO` | Badge + title + body text, full image, 3 info-cards row below (must use `cards` array) | Case studies, how-it-works, process explanations |
+| `STAT` | Up to 4 premium stat cards (must use `stats` array: `[{value, label, description}]`) | Key statistics, comparison numbers, KPI highlights |
+
+**CRITICAL WARNING:** ONLY the 7 layouts explicitly listed above are supported by the engine. Do NOT use `AGENDA`, `TIMELINE`, `QUOTE`, `FULLBLEED`, `COMPARE`, `ICON-GRID`, `METRICS-CARD`, `MEDIA-GRID`, or `CLOSING`. Using unsupported layouts will result in empty slides!
 
 ---
 
@@ -387,9 +385,9 @@ For EVERY topic follow this algorithm:
 
 ### 2. Layout Sequence Rules
 - Slide 1: always `COVER` (Ensure cover image overlays are set to `transparent` so the background image is fully clean and un-tinted)
-- Slide 2: always `AGENDA` (Skip if total slides < 5)
-- Last slide: always `CLOSING`
-- Middle slides: choose from the layout pool, weighted by topicType.
+- Slide 2: always `SPLIT-L` or `SPLIT-INFO`
+- Last slide: always `COVER` (reused as closing slide with contact/summary info)
+- Middle slides: choose from the supported layout pool, weighted by topicType.
 - **Hard rule**: never use the same layout on two consecutive slides.
 
 ### 3. 16:9 Enforcement Checklist

@@ -39,7 +39,7 @@ image fetch → HTML slide build → PDF → QA loop.
 | 2 | Mandatory web search grounding |
 | 3 | Select slide points from master list |
 | 4 | Write content outline (all slides, purpose per slide) |
-| 5 | Generate Unsplash image keywords & fetch images |
+| 5 | Generate image keywords & fetch images (Pinterest → Unsplash → Gemini fallback) |
 | 6 | Map images to slides |
 | 7 | Build HTML slides using ONLY tokens from spec_lock |
 | 8 | Run PDF builder |
@@ -136,7 +136,9 @@ Slide N: [LAYOUT-CODE] — Closing / CTA
 - Hard rule: never same layout on consecutive slides
 - Check `spec_lock.md → rhythm` per slide: `anchor` / `dense` / `breathing`
 
-**New layout options available in all templates:**
+**CRITICAL WARNING:** ONLY use the layout codes explicitly defined in the template's `spec_lock.md` and `skill.md` files. Do NOT invent layout names or use generic names like `AGENDA` or `STAT` unless they are explicitly listed in the template files.
+
+**Layout options available based on template type:**
 - Chart layouts (`CHART-EDITORIAL` / `TECH-CHART` / `CHART-CLEAN`) for full-slide Chart.js data visualization.
 - Split-chart layouts (`SPLIT-CHART` / `TECH-SPLIT-CHART` / `SPLIT-CHART-CLEAN`) for context + chart side-by-side.
 - Icon-grid layouts (`ICON-GRID` / `TECH-ICON-GRID` / `ICON-GRID-CLEAN`) for 2×3 feature/step grids.
@@ -231,7 +233,7 @@ Pick **slideCount** points from this list. Adapt to topic type.
 
 ---
 
-## Step 4 — Fetch Images (Unsplash)
+## Step 4 — Fetch Images
 
 Read [image-scraping.md](../ppt-generator/image-scraping.md) for full commands.
 
@@ -242,11 +244,31 @@ Read [image-scraping.md](../ppt-generator/image-scraping.md) for full commands.
 - `minimal` — use images sparingly, mostly white/negative space
 - `none` — no images, text/data only
 
-Generate 2–3 Unsplash keywords per image slot. Download to
-`/tmp/ppt-<JOB_ID>/images/<keyword>/`.
+Generate 2–3 concrete search keywords per image slot. Run the scraper:
 
-**MANDATORY VERIFICATION**: After downloading, use `ls` to confirm files exist
-before assigning them to slides. Never hardcode filenames.
+```bash
+node .opencode/skills/ppt-generator/reference/scrape_images.js \
+  --topic "<topic>" \
+  --keywords "<keyword1>" "<keyword2>" \
+  --rich-prompt "<keyword1>::<rich image prompt>" \
+  --rich-prompt "<keyword2>::<rich image prompt>"
+```
+
+Images download to `pptx/ppt-<topic-slug>/images/<keyword>/`. The pipeline is:
+1. **Pinterest** — tries to download 2 images per keyword.
+2. **Unsplash** — only if Pinterest returns fewer than 2 images; max 1 image.
+3. **Gemini API** — generates any remaining missing images using `GEMINI_API_KEY` from `.env`.
+
+Expected files per keyword:
+- `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
+- `unsplash_01.jpg` (backup, only if Pinterest < 2)
+- `gemini_01.png`, `gemini_02.png` (fallback generation, only if still < 2)
+- `gemini_prompt.txt` (the prompt used for any Gemini generation)
+
+**MANDATORY VERIFICATION**: After downloading, use `Glob`/`ls` to confirm files exist
+before assigning them to slides. Never hardcode filenames. If a keyword directory
+contains `gemini_prompt.txt` but no corresponding `gemini_*.png`, record the prompt
+text in the slide JSON under `imagePrompt` instead of assigning a missing file path.
 
 ---
 
@@ -256,7 +278,8 @@ For each slide that needs an image:
 1. List actual downloaded files in the keyword directory
 2. Score each image: subject match (1–10) + color harmony (1–10) + composition (1–10)
 3. Only use images with total score ≥ 22/30
-4. Assign best image path to the slide's `image` field
+4. Assign the best existing image path to the slide's `image` field
+5. If no image exists but `gemini_prompt.txt` is present, assign the prompt text to the slide's `imagePrompt` field
 
 ---
 
@@ -391,6 +414,6 @@ template-ppt/
 
 Base pipeline files (shared with ppt-generator):
 - `../ppt-generator/pdf-builder-template.js` — base HTML→PDF builder
-- `../ppt-generator/image-scraping.md` — Unsplash fetch script
+- `../ppt-generator/image-scraping.md` — Pinterest → Unsplash → Gemini image fetch script
 - `../ppt-generator/qa-loop.md` — Visual QA loop
 - `../ppt-generator/design-library.md` — brand color palettes
