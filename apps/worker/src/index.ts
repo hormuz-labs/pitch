@@ -1,11 +1,12 @@
 import type { OpencodeClient } from '@opencode-ai/sdk'
-import { createLogger, QUEUE_NAME } from '@saas/shared'
+import { createLogger, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
 import { Worker } from 'bullmq'
 import dotenv from 'dotenv'
 import { Redis } from 'ioredis'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createJobProcessor, startCancellationListener } from './job-processor.js'
+import { processEnhanceJob } from './enhance-job-processor.js'
 import { checkServerHealth, type OpencodeServer, restartServer, startServer } from './opencode.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -111,6 +112,11 @@ async function shutdown(signal: string) {
     logger.error({ err: e }, 'Error closing worker')
   }
   try {
+    await enhanceWorker.close()
+  } catch (e) {
+    logger.error({ err: e }, 'Error closing enhance worker')
+  }
+  try {
     server.close()
   } catch {
     // ignore
@@ -196,5 +202,47 @@ worker.on('error', err => {
   if (msg.includes('could not renew lock')) return
   logger.error({ err }, 'Worker error')
 })
+
+// ── Enhance Queue Worker ─────────────────────────────────────────────
+// Dedicated queue for presentation enhancement jobs. Runs with higher
+// concurrency so many users can enhance simultaneously without blocking
+// the main video queue.
+const enhanceConcurrency = Number(process.env.ENHANCE_WORKER_CONCURRENCY ?? '3')
+const enhanceWorker = new Worker(
+  ENHANCE_QUEUE_NAME,
+  async job => {
+    const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS)
+    if (!healthy) {
+      try {
+        const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES)
+        server = result.server
+        client = result.client
+      } catch {
+        throw new Error('OpenCode server is not responding and could not be restarted')
+      }
+    }
+    await processEnhanceJob(job, client, connection, targetDir)
+  },
+  { connection: connection as any, concurrency: enhanceConcurrency },
+)
+
+enhanceWorker.on('completed', job => {
+  logger.info({ jobId: job.id }, 'Enhance job completed')
+})
+
+enhanceWorker.on('failed', (job, err) => {
+  logger.error({ jobId: job?.id, err }, 'Enhance job failed')
+})
+
+enhanceWorker.on('error', err => {
+  const msg = (err as Error)?.message || String(err)
+  if (msg.includes('could not renew lock')) return
+  logger.error({ err }, 'Enhance worker error')
+})
+
+logger.info(
+  { concurrency: enhanceConcurrency },
+  'Enhance worker started, listening for enhance jobs',
+)
 
 logger.info('Worker started, listening for jobs')

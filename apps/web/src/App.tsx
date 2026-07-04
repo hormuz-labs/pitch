@@ -43,6 +43,7 @@ import {
   CreateView,
   DashboardView,
   EditorView,
+  EnhanceView,
   LandingView,
   PdfCreateView,
   PdfEditorView,
@@ -536,6 +537,25 @@ const Sidebar = ({
                 label="New PDF"
                 active={selectedKey === 'pdf-create'}
                 onClick={() => go('/pdf')}
+              />
+              <NavItem
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.5L12 17.1l-6.2 4.5 2.4-7.5L2 9.6h7.6L12 2z" />
+                  </svg>
+                }
+                label="Enhance PDF"
+                active={selectedKey === 'enhance'}
+                onClick={() => go('/enhance')}
               />
               <NavItem
                 icon={
@@ -1191,13 +1211,15 @@ function AppContent() {
     const fetchJobs = async () => {
       try {
         const token = await getToken()
-        const [videoJobs, pdfJobs] = await Promise.all([
+        const [videoJobs, pdfJobs, enhanceJobs] = await Promise.all([
           api.get<Project[]>('/jobs', token!),
           api.get<Project[]>('/pdf-jobs', token!),
+          api.get<Project[]>('/enhance-jobs', token!),
         ])
         const combined = [
           ...(Array.isArray(videoJobs) ? videoJobs : []),
           ...(Array.isArray(pdfJobs) ? pdfJobs : []),
+          ...(Array.isArray(enhanceJobs) ? enhanceJobs : []),
         ]
         setProjects(combined)
 
@@ -1388,6 +1410,40 @@ function AppContent() {
     }
   }
 
+  // File upload — multipart, so we bypass the JSON api helper
+  const handleQueueEnhanceJob = async (formData: FormData) => {
+    setIsSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/enhance-jobs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: formData,
+      })
+      if (!res.ok) {
+        const err: any = new Error(`HTTP ${res.status}`)
+        err.status = res.status
+        throw err
+      }
+      const newJob: Project = await res.json()
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === newJob.id)
+        return exists ? prev.map(p => (p.id === newJob.id ? newJob : p)) : [...prev, newJob]
+      })
+      navigate('/dashboard')
+      window.dispatchEvent(new Event('credits-changed'))
+    } catch (err: any) {
+      const msg =
+        err.status === 402
+          ? 'You have no credits remaining. Please top up to continue.'
+          : err.message || 'An error occurred'
+      toast(msg, 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleDelete = async (id: string) => {
     try {
       const token = await getToken()
@@ -1435,6 +1491,8 @@ function AppContent() {
         onDownload = () => window.open(project.pdfUrl)
       }
     }
+  } else if (location.pathname.startsWith('/enhance')) {
+    selectedKey = 'enhance'
   } else if (location.pathname.startsWith('/pdf')) {
     selectedKey = 'pdf-create'
   } else if (location.pathname.startsWith('/editor')) {
@@ -1525,6 +1583,7 @@ function AppContent() {
               isDetailPage={
                 selectedKey === 'create' ||
                 selectedKey === 'pdf-create' ||
+                selectedKey === 'enhance' ||
                 selectedKey === 'editor' ||
                 selectedKey === 'pdfeditor' ||
                 selectedKey === 'settings' ||
@@ -1585,6 +1644,12 @@ function AppContent() {
                   path="/pdf"
                   element={
                     <PdfCreateView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />
+                  }
+                />
+                <Route
+                  path="/enhance"
+                  element={
+                    <EnhanceView isSubmitting={isSubmitting} onQueueEnhanceJob={handleQueueEnhanceJob} />
                   }
                 />
                 <Route
@@ -1664,7 +1729,7 @@ function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [])
+  }, [pathname])
   return null
 }
 

@@ -91,6 +91,27 @@ export const PDF_PHASE_LABELS: Record<string, string> = {
   pdf_upload: 'Uploading',
 }
 
+// Enhance-job phase weights and labels
+export const ENHANCE_PHASE_WEIGHTS: Record<string, number> = {
+  enhance_parse: 10,
+  enhance_research: 10,
+  enhance_write: 25,
+  enhance_images: 25,
+  enhance_build: 20,
+  enhance_qa: 5,
+  enhance_upload: 5,
+}
+
+export const ENHANCE_PHASE_LABELS: Record<string, string> = {
+  enhance_parse: 'Parsing Presentation',
+  enhance_research: 'Researching Content',
+  enhance_write: 'Enhancing Slides',
+  enhance_images: 'Fetching Visuals',
+  enhance_build: 'Building PDF',
+  enhance_qa: 'Quality Check',
+  enhance_upload: 'Uploading Result',
+}
+
 /**
  * The contribution of each phase to overall progress (must sum to 100).
  * Heavier phases (recording, voiceover) contribute more %.
@@ -101,6 +122,7 @@ export const PHASE_WEIGHTS: Record<string, number> = {
   ffmpeg_postprocessing: 20,
   intro_outro: 10,
   ...PDF_PHASE_WEIGHTS,
+  ...ENHANCE_PHASE_WEIGHTS,
 }
 
 /** Human-readable label for each phase key */
@@ -110,6 +132,7 @@ export const PHASE_LABELS: Record<string, string> = {
   ffmpeg_postprocessing: 'FFmpeg Post-Processing',
   intro_outro: 'Intro & Outro Cards',
   ...PDF_PHASE_LABELS,
+  ...ENHANCE_PHASE_LABELS,
 }
 
 export interface Job {
@@ -140,6 +163,7 @@ export interface UpdateJobRequest {
 }
 
 export const QUEUE_NAME = 'video-generation'
+export const ENHANCE_QUEUE_NAME = 'enhance-queue'
 export const JOB_UPDATES_CHANNEL = 'job-updates'
 export const JOB_CANCELLATIONS_CHANNEL = 'job-cancellations'
 export * from './manager-client.js'

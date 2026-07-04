@@ -459,7 +459,7 @@ function generateHTML(config) {
             .split { display: flex; gap: 60px; height: 420px; align-items: center; }
             .split.rev { flex-direction: row-reverse; }
             .split-text { flex: 1.2; }
-            .split-img { flex: 1; border-radius: 30px; overflow: hidden; background: transparent; border: 1px solid rgba(255,255,255,0.1); }
+            .split-img { flex: 1; height: 100%; border-radius: 30px; overflow: hidden; background: transparent; border: 1px solid rgba(255,255,255,0.1); }
             .split-img img { width: 100%; height: 100%; object-fit: cover; }
             ul { list-style: none; padding: 0; }
             li { font-size: 24px; line-height: 1.5; margin-bottom: 20px; padding-left: 45px; position: relative; font-family: var(--font-body); }

@@ -113,11 +113,11 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
   const [activeTab, setActiveTab] = useState<'all' | 'videos' | 'pdfs'>('all')
 
   const totalPdfsCount = useMemo(
-    () => projects.filter(p => p.parameters?.jobType === 'pdf').length,
+    () => projects.filter(p => p.parameters?.jobType === 'pdf' || p.parameters?.jobType === 'enhance').length,
     [projects],
   )
   const totalVideosCount = useMemo(
-    () => projects.filter(p => p.parameters?.jobType !== 'pdf').length,
+    () => projects.filter(p => p.parameters?.jobType !== 'pdf' && p.parameters?.jobType !== 'enhance').length,
     [projects],
   )
 
@@ -125,9 +125,9 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
     let list = [...projects]
 
     if (activeTab === 'videos') {
-      list = list.filter(p => p.parameters?.jobType !== 'pdf')
+      list = list.filter(p => p.parameters?.jobType !== 'pdf' && p.parameters?.jobType !== 'enhance')
     } else if (activeTab === 'pdfs') {
-      list = list.filter(p => p.parameters?.jobType === 'pdf')
+      list = list.filter(p => p.parameters?.jobType === 'pdf' || p.parameters?.jobType === 'enhance')
     }
 
     if (searchQuery.trim()) {
@@ -346,7 +346,7 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
       {displayedProjects.length > 0 && (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {displayedProjects.map(project => {
-            if (project.parameters?.jobType === 'pdf') {
+            if (project.parameters?.jobType === 'pdf' || project.parameters?.jobType === 'enhance') {
               return (
                 <PdfCard
                   key={project.id}
