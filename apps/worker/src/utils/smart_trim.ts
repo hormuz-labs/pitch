@@ -22,7 +22,9 @@ async function getAudioDuration(file: string): Promise<number> {
     const { stdout } = await execAsync(
       `ffprobe -v error -show_entries stream=duration -select_streams a:0 -of default=noprint_wrappers=1:nokey=1 "${file}"`,
     )
-    return parseFloat(stdout.trim())
+    const d = parseFloat(stdout.trim())
+    // No audio stream => empty stdout => NaN; report 0 so the no-audio path fires.
+    return Number.isFinite(d) ? d : 0
   } catch (_e) {
     return 0
   }
@@ -31,6 +33,13 @@ async function getAudioDuration(file: string): Promise<number> {
 interface Segment {
   start: number
   end: number
+}
+
+interface SignalFrame {
+  ptsTime: number
+  yMin: number
+  yMax: number
+  satAvg: number
 }
 
 interface ClickEvent {
@@ -111,6 +120,84 @@ function getDifference(a: Segment[], b: Segment[]): Segment[] {
   return mergeSegments(diff)
 }
 
+function isInitialBlankFrame(frame: SignalFrame): boolean {
+  const lumaRange = frame.yMax - frame.yMin
+  const nearWhite = frame.yMin >= 232 && frame.yMax >= 232
+  const nearBlack = frame.yMin <= 18 && frame.yMax <= 24
+  return frame.satAvg <= 2 && lumaRange <= 4 && (nearWhite || nearBlack)
+}
+
+function parseSignalFrames(signalLog: string): SignalFrame[] {
+  const frames: SignalFrame[] = []
+  let current: Partial<SignalFrame> | null = null
+
+  for (const line of signalLog.split(/\r?\n/)) {
+    const frameMatch = line.match(/(?:^|\]\s*)frame:\s*\d+.*pts_time:([-\d.]+)/)
+    if (frameMatch) {
+      if (
+        current &&
+        Number.isFinite(current.ptsTime) &&
+        Number.isFinite(current.yMin) &&
+        Number.isFinite(current.yMax) &&
+        Number.isFinite(current.satAvg)
+      ) {
+        frames.push(current as SignalFrame)
+      }
+      current = { ptsTime: Number(frameMatch[1]) }
+      continue
+    }
+
+    if (!current) continue
+
+    const statMatch = line.match(/(?:^|\]\s*)lavfi\.signalstats\.(YMIN|YMAX|SATAVG)=([-\d.]+)/)
+    if (!statMatch) continue
+
+    const value = Number(statMatch[2])
+    if (statMatch[1] === 'YMIN') current.yMin = value
+    if (statMatch[1] === 'YMAX') current.yMax = value
+    if (statMatch[1] === 'SATAVG') current.satAvg = value
+  }
+
+  if (
+    current &&
+    Number.isFinite(current.ptsTime) &&
+    Number.isFinite(current.yMin) &&
+    Number.isFinite(current.yMax) &&
+    Number.isFinite(current.satAvg)
+  ) {
+    frames.push(current as SignalFrame)
+  }
+
+  return frames
+}
+
+export function findInitialBlankSegmentFromSignalStats(signalLog: string): Segment | null {
+  const frames = parseSignalFrames(signalLog)
+  if (frames.length === 0 || !isInitialBlankFrame(frames[0]!)) return null
+
+  const firstNonBlank = frames.find(frame => !isInitialBlankFrame(frame))
+  if (!firstNonBlank || firstNonBlank.ptsTime < 1) return null
+
+  return { start: 0, end: firstNonBlank.ptsTime }
+}
+
+async function findInitialBlankSegment(input: string): Promise<Segment | null> {
+  try {
+    const { stdout } = await execAsync(
+      `ffmpeg -hide_banner -t 90 -i "${input}" -vf fps=2,signalstats,metadata=print:file=- -an -f null -`,
+      { maxBuffer: 1024 * 1024 * 100 },
+    )
+    return findInitialBlankSegmentFromSignalStats(stdout)
+  } catch (err) {
+    console.warn(
+      `Initial blank-screen analysis failed; continuing without blank trim: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    )
+    return null
+  }
+}
+
 function loadClickEvents(input: string): ClickEvent[] {
   const statePath = path.join(path.dirname(input), 'demo-state.json')
   try {
@@ -133,13 +220,184 @@ function loadZoomEvents(input: string): ZoomEvent[] {
   }
 }
 
+// Per-frame motion threshold (YAVG of the frame-to-frame difference). Static holds and
+// Ken-Burns drift sit near ~0; a page SCROLL or camera PAN spikes well above this.
+// Calibrated against real recordings: holds median ≈ 0.01, motion peaks ≈ 12.
+const MOTION_YAVG_THRESHOLD = 2.0
+// Amplitude alone can't tell a scroll from ambient in-page animation: an animated
+// hero gradient / spinner / carousel flickers YAVG to 2–4 every few frames, chaining
+// motion protection across a whole silent hold (observed: a 12s dead pocket kept
+// because a glow animation ticked just above threshold). A real scroll moves the
+// WHOLE viewport, so additionally require that a meaningful FRACTION of pixels
+// changed noticeably. Calibrated: hero-glow flicker < 8% area; real scrolls on a
+// sparse dark page ≥ 17%; carousel/page transitions ≥ 13%.
+const MOTION_AREA_FRACTION = 0.12
+const MOTION_PIXEL_DELTA = 24 // per-pixel luma delta that counts as "changed"
+const MOTION_SAMPLE_FPS = 4
+const MOTION_PAD = 0.4 // keep a little on each side of detected motion
+// Backstop for content BOTH thresholds can't classify: a full-viewport autoplaying
+// hero video / particle animation registers as continuous whole-frame motion and
+// would protect unbounded silence. Real protected travel (a scroll or pan between
+// narrated moments) lasts ~1–2s, so cap each motion island well above that; anything
+// longer is ambient playback, and only its head is kept as a transition beat.
+const MOTION_PROTECT_MAX_SEC = 6
+
+function parseMetadataYavg(log: string): Map<number, number> {
+  const rows = new Map<number, number>()
+  let t: number | null = null
+  for (const line of log.split(/\r?\n/)) {
+    const tm = line.match(/pts_time:\s*([\d.]+)/)
+    if (tm) {
+      t = parseFloat(tm[1]!)
+      continue
+    }
+    const ym = line.match(/YAVG=\s*([\d.eE+-]+)/)
+    if (ym && t !== null) rows.set(t, parseFloat(ym[1]!))
+  }
+  return rows
+}
+
+/**
+ * Find the time ranges that contain real visual MOTION (a page scroll or camera pan),
+ * as opposed to a static hold. These must never be trimmed even when silent — cutting
+ * the silent travel between two narrated moments is exactly what turns a smooth scroll
+ * into a jarring teleport. Returns merged [start,end] segments. Best-effort: on any
+ * failure it returns [] (motion just isn't specially protected).
+ *
+ * Two metrics per sample, computed in one decode: the mean frame difference
+ * (amplitude) and the fraction of pixels whose difference exceeds
+ * MOTION_PIXEL_DELTA (area). Only samples that clear BOTH thresholds count as
+ * motion — see MOTION_AREA_FRACTION for why.
+ */
+async function analyzeMotion(input: string, duration: number): Promise<Segment[]> {
+  const dir = path.dirname(input)
+  const stamp = Date.now()
+  const ampLog = path.join(dir, `__motion_amp_${stamp}.log`)
+  const areaLog = path.join(dir, `__motion_area_${stamp}.log`)
+  try {
+    await execAsync(
+      `ffmpeg -hide_banner -nostats -i "${input}" ` +
+        `-filter_complex "[0:v]fps=${MOTION_SAMPLE_FPS},tblend=all_mode=difference,split=2[amp][area];` +
+        `[amp]signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=${ampLog}[ao];` +
+        `[area]lutyuv=y='if(gt(val,${MOTION_PIXEL_DELTA}),255,0)',signalstats,` +
+        `metadata=print:key=lavfi.signalstats.YAVG:file=${areaLog}[bo];` +
+        `[ao][bo]hstack" -an -f null -`,
+      { maxBuffer: 1024 * 1024 * 200 },
+    )
+    const amp = parseMetadataYavg(fs.readFileSync(ampLog, 'utf8'))
+    const area = parseMetadataYavg(fs.readFileSync(areaLog, 'utf8'))
+    const segs: Segment[] = []
+    for (const [t, ampVal] of amp) {
+      const areaFraction = (area.get(t) ?? 0) / 255
+      if (ampVal > MOTION_YAVG_THRESHOLD && areaFraction > MOTION_AREA_FRACTION) {
+        segs.push({
+          start: Math.max(0, t - 1 / MOTION_SAMPLE_FPS - MOTION_PAD),
+          end: Math.min(duration, t + MOTION_PAD),
+        })
+      }
+    }
+    const merged = mergeSegments(segs)
+    for (const seg of merged) {
+      if (seg.end - seg.start > MOTION_PROTECT_MAX_SEC) {
+        console.log(
+          `Motion island ${seg.start.toFixed(1)}s → ${seg.end.toFixed(1)}s exceeds ${MOTION_PROTECT_MAX_SEC}s — ` +
+            `treating as ambient playback, protecting only its head.`,
+        )
+        seg.end = seg.start + MOTION_PROTECT_MAX_SEC
+      }
+    }
+    return merged
+  } catch {
+    return []
+  } finally {
+    for (const f of [ampLog, areaLog]) {
+      try {
+        fs.unlinkSync(f)
+      } catch {}
+    }
+  }
+}
+
+// Match silencedetect's calibration (noise=-50dB:d=0.8): analytically-derived gaps
+// shorter than this were never silence candidates before, so keep it that way.
+const SILENCE_MIN_SEC = 0.8
+
+/**
+ * Silence segments of the mixed audio. When the caller already knows where every
+ * narration/SFX clip was placed (it built the amix graph itself), silence is just
+ * the complement of those spans — no audio decode needed. Otherwise fall back to
+ * a silencedetect pass.
+ */
+async function detectSilences(
+  input: string,
+  speechSegments: Segment[] | undefined,
+  duration: number,
+): Promise<Segment[]> {
+  if (speechSegments) {
+    return getDifference([{ start: 0, end: duration }], speechSegments).filter(
+      g => g.end - g.start >= SILENCE_MIN_SEC,
+    )
+  }
+
+  const { stdout: silenceLog } = await execAsync(
+    `ffmpeg -i "${input}" -af silencedetect=noise=-50dB:d=${SILENCE_MIN_SEC} -f null - 2>&1`,
+    { maxBuffer: 1024 * 1024 * 100 },
+  )
+  const silences: Segment[] = []
+  const silenceStarts = [...silenceLog.matchAll(/silence_start:\s+([\d.]+)/g)].map(m =>
+    parseFloat(m[1]!),
+  )
+  const silenceEnds = [...silenceLog.matchAll(/silence_end:\s+([\d.]+)/g)].map(m =>
+    parseFloat(m[1]!),
+  )
+  for (let i = 0; i < silenceStarts.length; i++) {
+    silences.push({ start: silenceStarts[i]!, end: silenceEnds[i] ?? 999999 })
+  }
+  return silences
+}
+
+// Freeze detection on the processed video — during zoom hold phases frames
+// are stable so freezes are detectable. d=1.0 catches short 1s+ static pauses.
+// n=0.05 noise tolerance accounts for compression artifacts.
+async function detectFreezes(input: string): Promise<Segment[]> {
+  const { stdout: freezeLog } = await execAsync(
+    `ffmpeg -i "${input}" -vf freezedetect=n=0.05:d=1.0 -f null - 2>&1`,
+    { maxBuffer: 1024 * 1024 * 100 },
+  )
+  const freezes: Segment[] = []
+  const freezeStarts = [...freezeLog.matchAll(/freeze_start:\s+([\d.]+)/g)].map(m =>
+    parseFloat(m[1]!),
+  )
+  const freezeEnds = [...freezeLog.matchAll(/freeze_end:\s+([\d.]+)/g)].map(m => parseFloat(m[1]!))
+  for (let i = 0; i < freezeStarts.length; i++) {
+    freezes.push({ start: freezeStarts[i]!, end: freezeEnds[i] ?? 999999 })
+  }
+  return freezes
+}
+
 export async function processVideo(
   input: string,
   output: string,
   detectionInput?: string,
-  opts?: { forceLeadingTrimSec?: number },
+  opts?: {
+    forceLeadingTrimSec?: number
+    /**
+     * Exact spans (on the input's timeline) where narration/SFX audio was placed.
+     * Provided by the renderer that mixed the audio, so silence can be derived
+     * analytically instead of decoding the whole track with silencedetect.
+     */
+    speechSegments?: Segment[]
+  },
 ) {
   const analyzeInput = detectionInput || input
+
+  // Diagnostic A/B switch: skip ALL dead-air removal and keep the full recording so we
+  // can see the demo with every scroll/pan/hold intact (set DISABLE_SMART_TRIM=1).
+  if (process.env.DISABLE_SMART_TRIM === '1' || process.env.DISABLE_SMART_TRIM === 'true') {
+    console.log('DISABLE_SMART_TRIM set — copying full video, no dead-air removal.')
+    fs.copyFileSync(input, output)
+    return
+  }
 
   const clickEvents = loadClickEvents(analyzeInput)
   if (clickEvents.length > 0) {
@@ -151,49 +409,25 @@ export async function processVideo(
     console.log(`Found ${zoomEvents.length} zoom event(s) to protect during trimming.`)
   }
 
-  console.log('Analyzing audio silence...')
-  const { stdout: silenceLog } = await execAsync(
-    `ffmpeg -i "${analyzeInput}" -af silencedetect=noise=-50dB:d=0.8 -f null - 2>&1`,
-    { maxBuffer: 1024 * 1024 * 100 },
-  )
+  const [duration, audioDuration] = await Promise.all([
+    getDuration(analyzeInput),
+    getAudioDuration(analyzeInput),
+  ])
+  if (!duration) throw new Error('Could not determine video duration')
 
-  const silences: Segment[] = []
-  const silenceStarts = [...silenceLog.matchAll(/silence_start:\s+([\d.]+)/g)].map(m =>
-    parseFloat(m[1]!),
-  )
-  const silenceEnds = [...silenceLog.matchAll(/silence_end:\s+([\d.]+)/g)].map(m =>
-    parseFloat(m[1]!),
-  )
-  for (let i = 0; i < silenceStarts.length; i++) {
-    silences.push({ start: silenceStarts[i]!, end: silenceEnds[i] ?? 999999 })
-  }
-
-  console.log('Analyzing video freezes (static screen)...')
-  // Run freeze detection on the processed video — during zoom hold phases frames
-  // are stable so freezes are detectable. d=1.0 catches short 1s+ static pauses.
-  // n=0.05 noise tolerance accounts for compression artifacts.
-  const { stdout: freezeLog } = await execAsync(
-    `ffmpeg -i "${analyzeInput}" -vf freezedetect=n=0.05:d=1.0 -f null - 2>&1`,
-    { maxBuffer: 1024 * 1024 * 100 },
-  )
-
-  const freezes: Segment[] = []
-  const freezeStarts = [...freezeLog.matchAll(/freeze_start:\s+([\d.]+)/g)].map(m =>
-    parseFloat(m[1]!),
-  )
-  const freezeEnds = [...freezeLog.matchAll(/freeze_end:\s+([\d.]+)/g)].map(m => parseFloat(m[1]!))
-  for (let i = 0; i < freezeStarts.length; i++) {
-    freezes.push({ start: freezeStarts[i]!, end: freezeEnds[i] ?? 999999 })
-  }
+  // The four analyses each decode the video/audio independently — run them
+  // concurrently so the analysis phase costs one decode of wall-clock, not four.
+  console.log('Analyzing silence, freezes, blank opening and motion (in parallel)...')
+  const [silences, freezes, initialBlank, motionProtected] = await Promise.all([
+    detectSilences(analyzeInput, opts?.speechSegments, duration),
+    detectFreezes(analyzeInput),
+    findInitialBlankSegment(analyzeInput),
+    analyzeMotion(analyzeInput, duration),
+  ])
 
   console.log(
     `Found ${silences.length} silence segment(s) and ${freezes.length} freeze segment(s).`,
   )
-
-  const duration = await getDuration(analyzeInput)
-  if (!duration) throw new Error('Could not determine video duration')
-
-  const audioDuration = await getAudioDuration(analyzeInput)
   if (audioDuration > 0 && audioDuration < duration - 0.5) {
     console.log(
       `Audio stream ends early at ${audioDuration.toFixed(2)}s (video is ${duration.toFixed(2)}s). Adding trailing silence.`,
@@ -214,6 +448,16 @@ export async function processVideo(
   })
 
   const dropSegments: Segment[] = []
+
+  const initialBlankEnd =
+    initialBlank && initialBlank.end < duration - 0.5 ? initialBlank.end : undefined
+
+  if (initialBlankEnd !== undefined) {
+    console.log(
+      `Initial blank screen detected (0 → ${initialBlankEnd.toFixed(2)}s) — adding as drop segment.`,
+    )
+    dropSegments.push({ start: 0, end: initialBlankEnd })
+  }
 
   // 1. Segments where the screen is BOTH frozen AND silent — always drop these.
   dropSegments.push(...getIntersections(silences, freezes))
@@ -249,19 +493,30 @@ export async function processVideo(
     }
   }
 
+  // Where narration first starts. Used to keep the initial-freeze force-drop from
+  // swallowing spoken audio: with analytic spans it's exact, otherwise derive it
+  // from the end of an opening silence (no opening silence => speech from ~0).
+  const firstSpeechStart = opts?.speechSegments?.length
+    ? Math.min(...opts.speechSegments.map(s => s.start))
+    : (mergeSegments(silences).find(s => s.start <= 0.15)?.end ?? 0)
+
   // Force-trim the initial freeze even when voiceover has started.
   // A blank/loading screen that hasn't rendered meaningful content yet is
   // useless even with voiceover — the viewer sees nothing.  If there's a
   // freeze starting at t≈0, extend the initial drop to cover it entirely.
+  // But NEVER past the first spoken word: a fully-rendered page where the agent
+  // simply pauses before acting also reads as one giant opening "freeze", and
+  // extending the drop through it would delete the first narration line.
   const initialFreeze = freezes.find(f => f.start <= 0.15)
   if (initialFreeze && initialFreeze.end > 1 && initialFreeze.end < duration - 0.5) {
+    const freezeDropEnd = Math.min(initialFreeze.end, firstSpeechStart)
     const mergedDrop = mergeSegments(dropSegments)
     const coveredTo = mergedDrop.find(d => d.start <= 0.15)?.end ?? 0
-    if (initialFreeze.end > coveredTo + 0.5) {
+    if (freezeDropEnd > coveredTo + 0.5) {
       console.log(
-        `Initial freeze extends to ${initialFreeze.end.toFixed(2)}s (beyond current drop at ${coveredTo.toFixed(2)}s) — extending drop to remove blank loading screen.`,
+        `Initial freeze extends to ${initialFreeze.end.toFixed(2)}s — dropping opening up to ${freezeDropEnd.toFixed(2)}s (clamped to first narration).`,
       )
-      dropSegments.push({ start: 0, end: initialFreeze.end })
+      dropSegments.push({ start: 0, end: freezeDropEnd })
     }
   }
 
@@ -321,15 +576,26 @@ export async function processVideo(
   // so the eased transitions are never truncated by silence/freeze trimming.
   const ZOOM_RAMP = 0.6
   const ZOOM_PAD = 0.15
+  // A zoom_in is preceded by smoothScrollIntoView (the page scroll that travels to the
+  // target), which finishes just before the event is recorded. Protect that lead too,
+  // otherwise the start of the scroll gets dropped as silence and the travel looks like
+  // a teleport.
+  const SCROLL_LEAD = 1.2
   const zoomProtected: Segment[] = []
+  // Mirror planCameraMoves (zoom-filter.ts): a zoom_out with no active zoom is a
+  // visual no-op there, so protecting footage around it would just keep dead air.
+  let zoomActive = false
   for (let i = 0; i < zoomEvents.length; i++) {
     const ev = zoomEvents[i]!
     if (ev.type === 'in') {
+      zoomActive = true
       zoomProtected.push({
-        start: Math.max(0, ev.videoTimeSec - ZOOM_RAMP - ZOOM_PAD),
+        start: Math.max(0, ev.videoTimeSec - SCROLL_LEAD - ZOOM_RAMP - ZOOM_PAD),
         end: Math.min(duration, ev.videoTimeSec + ZOOM_PAD),
       })
     } else if (ev.type === 'out') {
+      if (!zoomActive) continue
+      zoomActive = false
       zoomProtected.push({
         start: Math.max(0, ev.videoTimeSec - ZOOM_PAD),
         end: Math.min(duration, ev.videoTimeSec + ZOOM_RAMP + ZOOM_PAD),
@@ -337,13 +603,63 @@ export async function processVideo(
     }
   }
 
-  let finalKeepSegments = mergeSegments([...keepSegments, ...clickProtected, ...zoomProtected])
+  // Protect every stretch with real visual motion (scroll / pan), even when silent —
+  // this is the general guard that keeps camera travel from being trimmed into a
+  // teleport, including scrolls from narrate({focus}) that record no zoom/click event.
+  if (motionProtected.length > 0) {
+    const motionSec = motionProtected.reduce((a, s) => a + (s.end - s.start), 0)
+    console.log(
+      `Protecting ${motionProtected.length} motion segment(s) (${motionSec.toFixed(1)}s of scroll/pan) from trimming.`,
+    )
+  }
+
+  // Motion protection exists to keep camera TRAVEL attached to content the viewer
+  // will actually see (narrated stretches, clicks, zooms). A motion island floating
+  // alone inside dropped silence connects nothing — the cuts on either side are
+  // already teleports, so a lone second of unexplained movement between them just
+  // reads as a glitchy silent montage. Keep only motion islands that touch (or
+  // chain, island-to-island, into) an anchor segment.
+  const MOTION_ANCHOR_GAP = 1.0
+  const touches = (a: Segment, b: Segment) =>
+    a.start <= b.end + MOTION_ANCHOR_GAP && b.start <= a.end + MOTION_ANCHOR_GAP
+  const anchors = mergeSegments([...keepSegments, ...clickProtected, ...zoomProtected])
+  const pool = [...motionProtected]
+  const anchoredMotion: Segment[] = []
+  let grew = true
+  while (grew) {
+    grew = false
+    for (let i = pool.length - 1; i >= 0; i--) {
+      const m = pool[i]!
+      if (anchors.some(a => touches(m, a)) || anchoredMotion.some(a => touches(m, a))) {
+        anchoredMotion.push(m)
+        pool.splice(i, 1)
+        grew = true
+      }
+    }
+  }
+  if (pool.length > 0) {
+    const droppedSec = pool.reduce((s, m) => s + (m.end - m.start), 0)
+    console.log(
+      `Dropping ${pool.length} unanchored motion island(s) (${droppedSec.toFixed(1)}s) — ambient movement inside dead air, not travel.`,
+    )
+  }
+
+  let finalKeepSegments = mergeSegments([
+    ...keepSegments,
+    ...clickProtected,
+    ...zoomProtected,
+    ...anchoredMotion,
+  ])
 
   // Enforce a hard leading trim that survives the click/zoom protection above.
   // The opening of the recording (before the first narration) is silent setup the
   // viewer shouldn't see, but protected click/zoom windows from that region can
   // otherwise re-introduce it. Clip everything before forceLeadingTrimSec.
-  const leadCut = opts?.forceLeadingTrimSec ?? 0
+  let leadCut = Math.max(opts?.forceLeadingTrimSec ?? 0, initialBlankEnd ?? 0)
+  // Never let the lead cut reach into narration: the blank-screen detector here and
+  // the first-paint detector upstream can disagree by a sample, and that overshoot
+  // would clip the opening of the first spoken word.
+  if (firstSpeechStart > 0) leadCut = Math.min(leadCut, firstSpeechStart)
   if (leadCut > 0 && leadCut < duration - 0.5) {
     finalKeepSegments = finalKeepSegments
       .map(s => ({ start: Math.max(s.start, leadCut), end: s.end }))
@@ -358,56 +674,34 @@ export async function processVideo(
     `Keeping ${finalKeepSegments.length} segment(s), trimming ${dropSegments.length} gap(s).`,
   )
 
-  // ── FFmpeg 8.x compatible approach ────────────────────────────────────────
-  const dir = path.dirname(output)
-  const stamp = Date.now()
-  const tmpSegs: string[] = []
-  let listFile: string | null = null
-  const segVideoArgs = await videoEncodeArgs({ quality: 19, cpuPreset: 'veryfast' })
-
-  try {
-    for (let i = 0; i < finalKeepSegments.length; i++) {
-      const seg = finalKeepSegments[i]!
-      const dur = (seg.end - seg.start).toFixed(6)
-      const segFile = path.join(dir, `__trim_${stamp}_${i}.mp4`)
-      console.log(
-        `  Segment ${i + 1}/${finalKeepSegments.length}: ${seg.start.toFixed(3)}s → ${seg.end.toFixed(3)}s (${dur}s)`,
-      )
-      await execAsync(
-        `ffmpeg -y -ss ${seg.start.toFixed(6)} -i "${input}" ` +
-          `-t ${dur} ` +
-          `${segVideoArgs} ` +
-          `-c:a aac -ar 24000 -ac 1 ` +
-          `"${segFile}"`,
-      )
-      tmpSegs.push(segFile)
-    }
-
-    if (tmpSegs.length === 1) {
-      // Single keep segment — just move the file into place.
-      fs.renameSync(tmpSegs[0]!, output)
-      tmpSegs.length = 0 // prevent double-delete in finally
-    } else {
-      // Multiple segments — join with the concat demuxer (no re-encode).
-      listFile = path.join(dir, `__trim_${stamp}_list.txt`)
-      // Concat demuxer resolves paths relative to the list file directory, so use
-      // just the segment filename, not a path containing dir/ again.
-      fs.writeFileSync(listFile, tmpSegs.map(f => `file '${path.basename(f)}'`).join('\n'))
-      console.log('Concatenating segments...')
-      await execAsync(`ffmpeg -y -f concat -safe 0 -i "${listFile}" -c copy "${output}"`)
-    }
-
-    console.log(`Done! Smart-trimmed video saved to ${output}`)
-  } finally {
-    for (const f of tmpSegs) {
-      try {
-        fs.unlinkSync(f)
-      } catch {}
-    }
-    if (listFile) {
-      try {
-        fs.unlinkSync(listFile)
-      } catch {}
-    }
+  // ── Single-pass trim ────────────────────────────────────────────────────────
+  // Drop the dead air with select/aselect in ONE decode+encode instead of writing
+  // each keep-segment to its own file and concatenating. Besides being faster,
+  // this avoids the per-segment AAC priming samples (~43ms each at 24kHz) that
+  // used to accumulate into audible A/V drift across many joins.
+  for (let i = 0; i < finalKeepSegments.length; i++) {
+    const seg = finalKeepSegments[i]!
+    console.log(
+      `  Segment ${i + 1}/${finalKeepSegments.length}: ${seg.start.toFixed(3)}s → ${seg.end.toFixed(3)}s (${(seg.end - seg.start).toFixed(3)}s)`,
+    )
   }
+
+  const keepExpr = finalKeepSegments
+    .map(s => `between(t,${s.start.toFixed(3)},${s.end.toFixed(3)})`)
+    .join('+')
+  const hasAudio = audioDuration > 0
+  const filter = hasAudio
+    ? `[0:v]select='${keepExpr}',setpts=N/FRAME_RATE/TB[v];` +
+      `[0:a]aselect='${keepExpr}',asetpts=N/SR/TB[a]`
+    : `[0:v]select='${keepExpr}',setpts=N/FRAME_RATE/TB[v]`
+  const videoArgs = await videoEncodeArgs({ quality: 19, cpuPreset: 'veryfast' })
+
+  await execAsync(
+    `ffmpeg -y -i "${input}" -filter_complex "${filter}" ` +
+      `-map "[v]" ${hasAudio ? '-map "[a]" -c:a aac -ar 24000 -ac 1 ' : ''}` +
+      `${videoArgs} "${output}"`,
+    { maxBuffer: 1024 * 1024 * 100 },
+  )
+
+  console.log(`Done! Smart-trimmed video saved to ${output}`)
 }

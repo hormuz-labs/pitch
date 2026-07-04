@@ -1331,6 +1331,9 @@ function AppContent() {
           voice: values.audio || 'Puck',
           subtitles: values.subtitles,
           theme: values.theme || 'light',
+          background: values.background || 'none',
+          shape: values.shape || 'rounded',
+          inset: values.inset || '0.87',
         },
       })
       setProjects(prev => {
