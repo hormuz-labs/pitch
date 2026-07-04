@@ -7,6 +7,16 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+// Page-evaluated function that smoothly scrolls a target element to the vertical
+// center of its scroll container (or the window), animating with requestAnimationFrame
+// so the motion is CAPTURED on the recording. Playwright's own scrollIntoViewIfNeeded
+// (triggered by hover/click) jumps instantly, so the viewer never sees the scroll — the
+// element just pops into place. This animates over ~0.5–0.9s instead.
+// Returns true if it actually scrolled, false if the element was already comfortably in view.
+// Kept on a single line so it survives shell-escaping into `playwright-cli eval`.
+const SMOOTH_SCROLL_JS =
+  'el => new Promise(resolve => { function sa(n){let p=n.parentElement;while(p){const s=getComputedStyle(p);if(/(auto|scroll|overlay)/.test(s.overflowY)&&p.scrollHeight>p.clientHeight)return p;p=p.parentElement;}return null;} const c=sa(el); const r=el.getBoundingClientRect(); let start,target,viewH,set,topRef; if(c){const cr=c.getBoundingClientRect(); viewH=c.clientHeight; start=c.scrollTop; const center=(r.top-cr.top)+c.scrollTop+r.height/2; target=center-viewH/2; const max=c.scrollHeight-c.clientHeight; target=Math.max(0,Math.min(max,target)); set=v=>{c.scrollTop=v;}; topRef=cr.top;} else {viewH=window.innerHeight; start=window.scrollY; const center=r.top+window.scrollY+r.height/2; target=center-viewH/2; const max=document.documentElement.scrollHeight-window.innerHeight; target=Math.max(0,Math.min(max,target)); set=v=>window.scrollTo(0,v); topRef=0;} const delta=target-start; if(Math.abs(delta)<viewH*0.08){resolve(false);return;} const dur=Math.min(900,Math.max(450,Math.abs(delta)*0.9)); const t0=performance.now(); const ease=t=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; function frame(now){const p=Math.min(1,(now-t0)/dur); set(start+delta*ease(p)); if(p<1)requestAnimationFrame(frame); else resolve(true);} requestAnimationFrame(frame); })'
+
 // Simple mutex to serialize state reads/writes across concurrent tool calls.
 let stateLock = Promise.resolve()
 async function withStateLock<T>(fn: () => Promise<T>): Promise<T> {
@@ -225,6 +235,27 @@ const plugin: Plugin = async input => {
   // expects them (targetDir), not from the OpenCode server's process cwd.
   const run = (command: string) => execAsync(command, { cwd: directory })
 
+  // Smoothly scroll a ref into the center of view BEFORE we zoom/click on it, so the
+  // recording shows the page gliding to the element instead of it snapping into place.
+  // Playwright awaits the promise returned by eval, so by the time this resolves the
+  // animation has finished and a follow-up snapshot reads the element's settled box.
+  // Self-skips (returns false) when the element is already comfortably in view, so it's
+  // safe to call unconditionally — e.g. right after a zoom_in already scrolled it in.
+  const smoothScrollIntoView = async (ref: string): Promise<boolean> => {
+    try {
+      const arg = '"' + SMOOTH_SCROLL_JS.replace(/(["\\$`])/g, '\\$1') + '"'
+      const { stdout } = await run(`playwright-cli eval ${arg} ${ref}`)
+      const scrolled = /true/.test(stdout)
+      // Tiny settle buffer in case the CLI returns a hair before the final frame paints.
+      if (scrolled) await new Promise(r => setTimeout(r, 150))
+      return scrolled
+    } catch (_e) {
+      // Fall back to Playwright's own (instant) scroll so the element is at least in view.
+      await run(`playwright-cli hover "${ref}"`).catch(() => {})
+      return false
+    }
+  }
+
   const disabledTools = new Set([
     'bash',
     'read',
@@ -282,8 +313,13 @@ const plugin: Plugin = async input => {
                 if (state.lastTargetCoords && state.lastTargetCoords.ref === ref) {
                   clickCoords = { x: state.lastTargetCoords.x, y: state.lastTargetCoords.y }
                 } else {
-                  // No matching zoom_in target — look up the ref's bounding box from a
-                  // snapshot so every ref-based click still gets a cursor overlay.
+                  // No matching zoom_in target — this click wasn't preceded by a zoom that
+                  // already framed (and scrolled to) the element, so it may be below the
+                  // fold. Smoothly scroll it into view so the recording shows the page
+                  // gliding to it, and so the box lookup below reads its settled position.
+                  await smoothScrollIntoView(ref)
+                  // Look up the ref's bounding box from a snapshot so every ref-based
+                  // click still gets a cursor overlay.
                   try {
                     const { stdout } = await run(`playwright-cli snapshot "${ref}" --boxes --json`)
                     const parsed = JSON.parse(stdout)
@@ -364,13 +400,30 @@ const plugin: Plugin = async input => {
 
       narrate: tool({
         description:
-          'Speak a natural, conversational voiceover to the user. Use this tool to guide the user through the demo.',
+          'Speak a natural, conversational voiceover to the user. Use this tool to guide the user through the demo. ' +
+          'When the line is ABOUT a specific element on the page, pass its ref as `focus`: the page smoothly ' +
+          'scrolls to bring that element to the center of view (the viewer sees you travel there) BEFORE you start ' +
+          'speaking, so you are always talking about something centered and visible — never about something off-screen.',
         args: {
           text: tool.schema.string().describe('The text to be spoken'),
+          focus: tool.schema
+            .string()
+            .optional()
+            .describe(
+              "Optional element ref (e.g. 'e53') for the thing this line is about. The page smoothly scrolls it " +
+                'to the center of view before the narration starts. ALWAYS pass this when talking about a specific ' +
+                'on-page element — especially one below the current view — so the subject is centered and the ' +
+                'scroll-to-it is shown. No-ops if it is already comfortably centered.',
+            ),
         },
         async execute(args) {
           return withStateLock(async () => {
             const state = readState(directory)
+            // Bring the subject into the center of view (and show the scroll) before
+            // speaking, so the narration always lands on something centered & visible.
+            if (args.focus) {
+              await smoothScrollIntoView(args.focus).catch(() => {})
+            }
             const result = await speak(directory, args.text, state)
             writeState(directory, state)
             if (result.success) {
@@ -473,44 +526,100 @@ const plugin: Plugin = async input => {
               cy = 540
             // Default zoom; refined to auto-fit the element's bounding box below.
             let zoom = args.zoom || 1.7
-            try {
-              // Scroll the element into view first so its bounding box reflects where
-              // it will actually be when clicked. Box coords are viewport-relative and
-              // NOT clamped, so an element below the fold would otherwise report an
-              // off-screen position (e.g. y > 1080) and the camera/cursor would land
-              // on empty space.
-              await run(`playwright-cli hover "${target}"`).catch(() => {})
+            // Whether we actually located the element's box. If not, we must NOT zoom
+            // to the (960,540) default — that lands the camera "out of place" on empty
+            // center space. We leave the camera put and tell the agent to re-snapshot.
+            let boxFound = false
+            const escapedTarget = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const boxRegex = new RegExp(
+              `\\[ref=${escapedTarget}\\].*?\\[box=([\\d.]+),([\\d.]+),([\\d.]+),([\\d.]+)\\]`,
+            )
+            const readBox = async (): Promise<RegExpMatchArray | null> => {
               const { stdout } = await run(`playwright-cli snapshot "${target}" --boxes --json`)
-              const parsed = JSON.parse(stdout)
-              const text = parsed.snapshot || stdout
-              const escapedTarget = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-              const regex = new RegExp(
-                `\\[ref=${escapedTarget}\\].*?\\[box=([\\d.]+),([\\d.]+),([\\d.]+),([\\d.]+)\\]`,
-              )
-              const m = text.match(regex)
+              let text = stdout
+              try {
+                text = JSON.parse(stdout).snapshot || stdout
+              } catch {}
+              return text.match(boxRegex)
+            }
+            try {
+              // Smoothly scroll the element into view first so (a) the viewer sees the
+              // page glide to it instead of it snapping into place, and (b) its bounding
+              // box reflects where it will actually be when clicked. Box coords are
+              // viewport-relative and NOT clamped, so an element below the fold would
+              // otherwise report an off-screen position (e.g. y > 1080) and the
+              // camera/cursor would land on empty space. No-ops if already in view.
+              await smoothScrollIntoView(target)
+              // Read the box; if the element is still settling (just scrolled in), give
+              // it a moment and try once more before giving up.
+              let m = await readBox()
+              if (!m) {
+                await new Promise(r => setTimeout(r, 300))
+                m = await readBox()
+              }
               if (m) {
+                boxFound = true
                 const bw = parseFloat(m[3]!)
                 const bh = parseFloat(m[4]!)
-                // Clamp the center into the visible frame as a final safety net.
-                cx = Math.max(0, Math.min(1920, parseFloat(m[1]!) + bw / 2))
-                cy = Math.max(0, Math.min(1080, parseFloat(m[2]!) + bh / 2))
-                // Auto-fit: pick a zoom so the element fills a comfortable share of
-                // the frame — small controls get a tighter zoom, large cards a
-                // looser one. Only when the agent didn't specify a zoom explicitly.
-                if (args.zoom == null && bw > 0 && bh > 0) {
+                // The element's true center in the recorded frame (the page has already
+                // been scrolled to bring it toward the middle where possible).
+                const rawCx = parseFloat(m[1]!) + bw / 2
+                const rawCy = parseFloat(m[2]!) + bh / 2
+                // Auto-fit: pick a zoom so the element fills a comfortable share of the
+                // frame — small controls get a tighter zoom, large cards a looser one.
+                // Computed FIRST (before the clamp below needs the window size) and used
+                // as a CEILING on any explicit zoom: a hard 2.2x dive into a big
+                // section/container lands on the empty gap in its middle ("out of
+                // place"), so never zoom tighter than what keeps the whole element
+                // framed. Small precise elements have a large fit, so an explicit zoom
+                // still applies to them.
+                if (bw > 0 && bh > 0) {
                   const FILL = 0.5 // target fraction of the frame the element occupies
                   const fit = Math.min((1920 * FILL) / bw, (1080 * FILL) / bh)
-                  zoom = Math.max(1.3, Math.min(2.2, fit))
+                  const fitZoom = Math.max(1.3, Math.min(2.2, fit))
+                  zoom = args.zoom == null ? fitZoom : Math.min(args.zoom, fitZoom)
                 }
+                // Pan the camera to the element, but keep the ZOOM WINDOW fully inside
+                // the recorded 1920x1080 frame. The page is scrolled to center the
+                // element when it can; near a document edge (the last/first element, a
+                // short non-scrolling page) it can't be centered, so we pan as far as we
+                // can while keeping the element fully visible — never cut off, never
+                // parked on empty space past the page edge.
+                const halfW = 960 / zoom
+                const halfH = 540 / zoom
+                cx = Math.max(halfW, Math.min(1920 - halfW, rawCx))
+                cy = Math.max(halfH, Math.min(1080 - halfH, rawCy))
                 console.log(
-                  `zoom_in target=${target} -> bbox cx=${cx.toFixed(0)} cy=${cy.toFixed(0)} fit-zoom=${zoom.toFixed(2)}`,
+                  `zoom_in target=${target} -> cx=${cx.toFixed(0)} cy=${cy.toFixed(0)} raw=(${rawCx.toFixed(0)},${rawCy.toFixed(0)}) zoom=${zoom.toFixed(2)}`,
                 )
-                state.lastTargetCoords = { ref: target, x: cx, y: cy }
+                // Cursor/click anchor is the ELEMENT itself (rawCx,rawCy), not the
+                // clamped camera center — near an edge the camera frames a bit off the
+                // element, but the cursor must still land ON it. It's a visible element
+                // so its center is already inside the frame.
+                state.lastTargetCoords = {
+                  ref: target,
+                  x: Math.max(0, Math.min(1920, rawCx)),
+                  y: Math.max(0, Math.min(1080, rawCy)),
+                }
               } else {
                 console.warn(`zoom_in target=${target} - no bounding box found`)
               }
             } catch (_e) {
               console.warn(`zoom_in target=${target} - snapshot failed`)
+            }
+            if (!boxFound) {
+              // Could not locate the element's box — do NOT record a zoom to the
+              // (960,540) default, which parks the camera "out of place" on empty
+              // center. Leave the camera where it is and tell the agent to recover.
+              console.warn(`zoom_in target=${target} - no box; skipping zoom (camera held)`)
+              writeState(directory, state)
+              return {
+                output: JSON.stringify({
+                  status: 'target_not_found',
+                  target,
+                  hint: 'That element had no visible box (off-screen, zero-size, or a stale ref). Take a fresh snapshot and zoom_in on a currently-visible ref — do not reuse old refs.',
+                }),
+              }
             }
             const videoTimeSec = (Date.now() - state.startTime) / 1000
             state.zoomEvents.push({ type: 'in', videoTimeSec, x: cx, y: cy, zoom })
