@@ -860,12 +860,12 @@ Guidelines:
    - NEVER ACT IN SILENCE: every visible action — zoom, click, scroll/focus, typing, navigation — must happen WITH narration, not a minute after it. The viewer should always hear you explain what they're watching.
    - EXECUTE A BEAT IN ONE GO: snapshot and decide first, then emit the whole beat as back-to-back tool calls with nothing in between: narrate({ text }) -> zoom_in -> click -> sleep. If you think between narrate() and its action, the words play over a frozen screen and the action happens in dead silence later.
    - A good demo alternates: stable view + a line about it -> narrated action -> new stable view. Silent gaps between beats are fine (they're trimmed); silent ACTIONS are not (they're kept, unexplained).
-9. LOGO CAPTURE: Before ending the demo, capture the product's logo for the intro/outro cards. PREFER downloading the original asset — it is much sharper than a screenshot:
+9. LOGO CAPTURE: Before ending the demo, capture the product's logo for the intro/outro cards. ALWAYS PREFER downloading the original asset — it is much sharper than a screenshot:
    a. Snapshot and find the VISIBLE logo — usually an <img> in the header/nav (or the brand image inside the top-left home link) whose src/alt/class contains "logo". Do NOT target <link rel=icon> in the head.
    b. If it's an <img>, read its real URL and download it:
       demo_bash({ command: "playwright-cli eval \"el => el.currentSrc || el.src\" e53" })   // absolute URL; currentSrc is the highest-res variant the browser actually loaded
       then demo_bash({ command: "curl -L -o recordings/product_logo.png '<that url>'" }).
-      The .png filename is fine even when the asset is .svg/.jpeg — the file is normalized automatically. EXCEPTION: if the URL ends in .webp, skip the download and use the screenshot fallback below instead (webp logos come out better as a screenshot).
+      The .png filename is fine even when the asset is .svg/.jpeg/.webp — the file is normalized automatically. Only fall back to a screenshot if the curl fails or the logo is not a downloadable image (inline <svg>, CSS background-image, etc.).
    c. FALL BACK to a screenshot when there is no downloadable <img> URL — an inline <svg> logo, a CSS background-image, or a failed download. The selector is the POSITIONAL target and the output flag is --filename (NOT --selector / --path): demo_bash({ command: "playwright-cli screenshot 'header img[src*=logo], a[href=\"/\"] img, img[alt*=logo], [class*=logo] img, header svg' --filename recordings/product_logo.png" }). The element MUST be visible on the page. If the first selector fails, try another visible logo/brand image.
    d. If no logo can be captured at all, that's OK; skip it.
 ${buildSkillsPrompt(skills)}`

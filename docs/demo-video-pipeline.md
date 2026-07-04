@@ -312,7 +312,7 @@ audio (`renderCardClip`). No glow, no motion reveal, no chime.
 
 - **Intro** (`generateIntroCard`): `[logo] | [name]` — product logo, a thin vertical
   divider, and the product name, centered. Name‑only if there's no valid logo.
-- **Outro** (`generateOutroCard`): "Start with {Product}" with the product **domain**
+- **Outro** (`generateOutroCard`): "Thank you for watching" with the product **domain**
   (`config.productUrl`) in a rounded **capsule** below.
 - **Contrast‑aware background** — `detectLogoLuminance()` reads the logo's
   alpha‑weighted average luminance. A **dark logo → white background**, a **light logo

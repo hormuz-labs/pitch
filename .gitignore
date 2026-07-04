@@ -51,6 +51,8 @@ opencode-logs/
 **/demo-cinematic-*/
 **/frame-*.png
 *.mp4
+!assets/backgrounds/*.mp4
+!apps/web/public/backgrounds/*.mp4
 *.wav
 *.mov
 *.webm

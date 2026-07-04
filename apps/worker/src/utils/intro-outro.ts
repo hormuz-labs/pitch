@@ -14,10 +14,17 @@ const execAsync = promisify(exec)
 // name and the "Powered by" watermark render in this classic serif.
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FONT_DIR = path.resolve(__dirname, '../../../../assets/fonts')
-const GOUDY_FONT_FILES = [
+const EXPECTED_GOUDY_FONTS = [
   path.join(FONT_DIR, 'SortsMillGoudy-Regular.ttf'),
   path.join(FONT_DIR, 'SortsMillGoudy-Italic.ttf'),
-].filter(f => fs.existsSync(f))
+]
+const GOUDY_FONT_FILES = EXPECTED_GOUDY_FONTS.filter(f => fs.existsSync(f))
+if (GOUDY_FONT_FILES.length !== EXPECTED_GOUDY_FONTS.length) {
+  console.warn(
+    `Goudy fonts missing in ${FONT_DIR} — intro/outro cards will fall back to a system serif. ` +
+      `Expected: ${EXPECTED_GOUDY_FONTS.join(', ')}`,
+  )
+}
 const GOUDY_FAMILY = "'Sorts Mill Goudy', Georgia, 'Times New Roman', serif"
 
 export interface CardConfig {
@@ -62,10 +69,8 @@ const FONT_FAMILY = "-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, s
  *
  * SVG is rendered with Resvg at high resolution (ffmpeg can't decode SVG); every
  * other format goes through ffmpeg, which is already in the runtime image and
- * handles png/jpeg/gif/bmp. Returns the temp PNG path, or null if the file isn't a
- * decodable image — e.g. a broken download or an HTML error page. (ffmpeg's native
- * webp decoder is unreliable, which is why the agent screenshots webp logos instead
- * of downloading them.)
+ * handles png/jpeg/gif/bmp/webp. Returns the temp PNG path, or null if the file isn't
+ * a decodable image — e.g. a broken download or an HTML error page.
  */
 async function prepareLogoPng(logoPath: string | undefined, dir: string): Promise<string | null> {
   if (!logoPath || !fs.existsSync(logoPath)) return null
@@ -169,7 +174,7 @@ function buildIntroCardSvg(
 </svg>`
 }
 
-// Minimal outro: a CTA line with the product domain in a capsule below.
+// Minimal outro: "Thank you for watching" with the product domain in a capsule below.
 function buildOutroCardSvg(
   productName: string,
   domain: string,
@@ -266,7 +271,7 @@ async function generateIntroCard(output: string, config: CardConfig): Promise<st
   }
 }
 
-// Minimal outro: "Start with {Product}" + the domain in a capsule, gentle fade.
+// Minimal outro: "Thank you for watching" + the product/site name in a capsule, gentle fade.
 async function generateOutroCard(output: string, config: CardConfig): Promise<string> {
   const dir = path.dirname(output)
   const logoPng = await prepareLogoPng(config.productLogoPath, dir)
