@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { runDomQAOnExistingPage, formatReport, writeReport } = require('./reference/qa-dom.js');
 
 // Helper to convert local file to Base64 data URI to ensure images are permanently embedded in the PDF
 function getBase64Image(filePath) {
@@ -452,7 +453,7 @@ function generateHTML(config) {
             .content { padding: 80px; height: 100%; box-sizing: border-box; z-index: 10; position: relative; }
             .flex-center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
             h1 { font-family: var(--font-display); font-size: 48px; color: var(--accent); border-left: 12px solid var(--primary); padding-left: 24px; margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1px; }
-            .main-title { font-family: var(--font-display); font-size: 90px; margin: 0; color: var(--accent); border: none; padding: 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1.1; }
+            .main-title { font-family: var(--font-display); font-size: 90px; margin: 0; color: var(--accent); border: none; padding: 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1.2; }
             .subtitle { font-size: 32px; color: var(--secondary); margin-top: 24px; font-weight: 400; letter-spacing: 1px; font-family: var(--font-body); }
             .bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
             .cover-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; background: transparent; }
@@ -463,7 +464,7 @@ function generateHTML(config) {
             .split-img img { width: 100%; height: 100%; object-fit: cover; }
             ul { list-style: none; padding: 0; }
             li { font-size: 24px; line-height: 1.5; margin-bottom: 20px; padding-left: 45px; position: relative; font-family: var(--font-body); }
-            li::before { content: "•"; position: absolute; left: 0; color: var(--primary); font-weight: bold; font-size: 40px; top: -8px; }
+            li::before { content: "•"; position: absolute; left: 0; color: var(--primary); font-weight: bold; font-size: 32px; top: 0; line-height: 1.1; }
             /* ── STAT layout ── */
             .stat-content { padding: 60px 72px; display: flex; flex-direction: column; gap: 24px; height: 100%; box-sizing: border-box; }
             .stat-content h1 { margin-bottom: 0; flex-shrink: 0; }
@@ -477,7 +478,7 @@ function generateHTML(config) {
             }
             .stat-num {
                 font-family: var(--font-display); font-size: 72px; font-weight: 800;
-                color: var(--primary); line-height: 1; letter-spacing: -2px;
+                color: var(--primary); line-height: 1.2; letter-spacing: -2px;
             }
             .stat-label {
                 font-size: 17px; font-weight: 700; color: var(--accent);
@@ -533,6 +534,19 @@ async function build() {
     
     // Wait for images to load
     await page.waitForTimeout(6000); // Extra time for Chart.js CDN + chart rendering
+
+    // --- DOM QA LOOP: Structural checks before PDF generation ---
+    console.log('\nStarting DOM QA...');
+    const domReport = await runDomQAOnExistingPage(page);
+    writeReport(domReport, 'qa-report.json');
+    console.log(formatReport(domReport));
+
+    if (!domReport.passed) {
+        await browser.close();
+        console.error('\n❌ DOM QA failed: critical issues detected. PDF generation aborted.');
+        console.error('   Fix the issues in pdf-builder.js and rerun.');
+        process.exit(1);
+    }
 
     // --- VISUAL QA LOOP: Screenshot each slide ---
     const qaDir = './qa-renders';
