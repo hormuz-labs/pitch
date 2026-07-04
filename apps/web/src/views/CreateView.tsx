@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BackgroundPicker } from '../components/BackgroundPicker'
 import { ContainerTextFlip } from '../components/ContainerTextFlip'
 import { CreditChip } from '../components/CreditChip'
 import { NewVideoWizard, markWizardSeen, shouldShowWizard } from '../components/NewVideoWizard'
@@ -258,6 +259,9 @@ export const CreateView = ({
           ? `${formValues.instructions} (Please ensure subtitles are included in the final video)`
           : formValues.instructions,
       script: formValues.script,
+      background: formValues.background || 'none',
+      shape: formValues.shape || 'rounded',
+      inset: formValues.inset || '0.87',
       headers: Object.keys(headersObj).length > 0 ? JSON.stringify(headersObj) : undefined,
       cookies: Object.keys(cookiesObj).length > 0 ? JSON.stringify(cookiesObj) : undefined,
     })
@@ -396,6 +400,22 @@ export const CreateView = ({
                 placeholder="Write the exact words you want the AI to say as it narrates the demo… (optional)"
                 value={formValues.script || ''}
                 onChange={e => update('script', e.target.value)}
+              />
+            </div>
+
+            {/* Background */}
+            <div>
+              <FieldLabel
+                label="Background"
+                tooltip="Frame your demo on a background, or keep it full screen."
+              />
+              <BackgroundPicker
+                value={formValues.background || 'none'}
+                onChange={id => update('background', id)}
+                shape={formValues.shape || 'rounded'}
+                onShapeChange={s => update('shape', s)}
+                inset={formValues.inset || '0.87'}
+                onInsetChange={v => update('inset', v)}
               />
             </div>
 

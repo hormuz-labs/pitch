@@ -29,7 +29,7 @@ demo.webm  (1920×1080 screen recording)
         │
         │  ffmpeg filter_complex (job-processor.ts):
         │    1. gliding cursor overlay        (cursor-fx.ts)
-        │    2. continuous zoom/pan + Ken Burns + trim   (zoom-filter.ts)
+        │    2. continuous zoom/pan + static holds + trim   (zoom-filter.ts)
         │    3. narration + click-SFX audio mix (adelay + amix)
         ▼
 raw_demo.mp4
@@ -68,8 +68,9 @@ one `zoompan` expression.
   linear. No more mechanical snap.
 - **Pan between targets** — a `zoom_in` issued *while already zoomed* becomes a
   smooth **pan** (center glides at constant zoom) instead of zoom‑out/zoom‑in.
-- **Ken Burns drift** — during a zoomed hold the camera drifts in ~6 % so the shot
-  never feels frozen, with zoom continuity preserved into the next move.
+- **Static holds** — during a zoomed hold the camera simply rests on the target.
+  This lets the smart trimmer cut silent holds as dead air, while real scrolls
+  and pans remain protected by the motion detector.
 - **Auto‑fit zoom** — zoom level is derived from the element's bounding box (small
   controls → tighter, large cards → looser) via `fitZoomForBox()`.
 - **Off‑viewport clamp** — coordinates that land outside the frame (e.g. an element
@@ -84,9 +85,6 @@ one `zoompan` expression.
 | `ZOOM_OUT_DURATION` | `0.6` s | ramp target → 1× |
 | `PAN_DURATION` | `0.85` s | glide between adjacent targets |
 | `DEFAULT_ZOOM` | `1.7` | fallback when no zoom given |
-| `KEN_BURNS_FACTOR` | `1.06` | total drift‑in over a hold |
-| `KEN_BURNS_MIN_HOLD` | `0.7` s | shortest hold that gets drift |
-| `KEN_BURNS_MAX_HOLD` | `4.0` s | cap for a dangling final hold |
 
 `fitZoomForBox(boxW, boxH, fill = 0.5)` clamps the result to **[1.3, 2.2]**.
 
@@ -232,7 +230,41 @@ segments. Changes this session:
   protection, used to drop the silent setup before the first narration.
 - `ZOOM_RAMP` `0.375 → 0.6` so the longer eased zoom ramps aren't truncated.
 - Click protection lead `0.5 → 1.0 s` so the cursor glide is preserved.
-- Per‑segment encode now uses the shared encoder (faster preset / GPU).
+- **Parallel analysis** — the silence/freeze/blank/motion passes each decode the
+  video independently, so they run via `Promise.all` (analysis costs ~one decode
+  of wall‑clock instead of four).
+- **Analytic silence** (`opts.speechSegments`) — the worker mixed the narration
+  itself, so it passes the exact clip spans and silence is computed as their
+  complement; `silencedetect` only runs as a fallback.
+- **Single‑pass trim** — keep‑segments are cut with `select`/`aselect` in ONE
+  decode+encode instead of per‑segment files + concat. Also removes the
+  per‑segment AAC priming samples (~43 ms each) that used to accumulate into
+  A/V drift across many joins.
+- **Two‑metric motion guard** — amplitude alone (YAVG > 2) mistook ambient
+  in‑page animation (an animated hero gradient on mealpe) for scroll travel and
+  protected a 12 s silent hold. A real scroll moves the whole viewport, so a
+  sample now needs BOTH amplitude > 2 AND > 12 % of pixels changed by ≥ 24 luma
+  levels. Calibrated: hero‑glow flicker < 8 % area, real scrolls ≥ 17 % (even on
+  a sparse dark page), carousel/page transitions ≥ 13 %. A backstop caps each
+  motion island at 6 s so a full‑viewport autoplaying hero video can't protect
+  unbounded silence.
+- **Narration can't be trimmed** — drops only ever come from silence
+  (∩ freezes / pure‑silence), each drop is shrunk 0.15 s on both sides, and with
+  analytic speech spans the whole clip file counts as speech regardless of how
+  quietly a word trails off (silencedetect at −50 dB could mistake soft speech
+  for silence). The forced leading trim is additionally clamped to the first
+  narration's start, and the initial‑freeze force‑drop is clamped there too — a
+  fully‑rendered page where the agent pauses ~40 s before acting reads as one
+  giant opening "freeze", and extending that drop used to delete the first
+  narration line entirely.
+- **Anchored motion only** — motion islands are kept only when they touch (or
+  chain into) an anchor: a narrated keep‑segment, a click window, or a zoom
+  window. A lone second of movement floating inside dropped silence has cuts
+  (teleports) on both sides anyway, so keeping it just produced a glitchy
+  silent quick‑cut montage between narrations.
+- **Orphan zoom_out events aren't protected** — `planCameraMoves` ignores a
+  zoom_out with no active zoom (visual no‑op), so the trimmer now mirrors that
+  and doesn't protect dead footage around them either.
 
 ---
 
@@ -245,14 +277,23 @@ preset, and there was a redundant full‑length fade pass.
 **Changes:**
 
 - **`encoder.ts`** — probes NVENC once (cached) and returns GPU args
-  (`h264_nvenc -preset p5 -rc vbr -cq Q`) when it works, else
-  `libx264 -preset veryfast -crf Q`. Used by the main render, smart‑trim, and
-  intro/outro.
-  - `videoEncodeArgs({ quality, cpuPreset })` — main render `q≈21`, trims/cards `q≈19`.
+  (`h264_nvenc -preset p6 -rc vbr -cq Q -spatial-aq 1`) when it works, else
+  `libx264 -preset veryfast -crf Q`. Used by the main render, smart‑trim,
+  intro/outro and the card clips.
+  - `videoEncodeArgs({ quality, cpuPreset })` — quality tiers follow the encode
+    chain: main render `q=18` (it's the master every later stage re‑encodes
+    from, so generational loss lands on it first), trim + final assembly
+    `q=19`, card clips `q=20`.
   - `nvencAvailable()` / `__setNvencForTesting()` (tests).
-- **One fewer full‑length encode** — intro/outro fade + concat are now a single
-  ffmpeg pass.
+- **Three content encodes total** — raw render → single‑pass trim → final
+  assembly. The final pass concatenates intro + content + outro, stamps the
+  watermark AND frames everything on the optional decorative background
+  (`background.ts` supplies the mask/shadow geometry) in one `filter_complex`,
+  so choosing a background no longer costs an extra generation.
 - **Faster presets** everywhere (`fast`/`medium` → `veryfast`).
+- **Audio** — one profile everywhere (AAC 24 kHz mono). The narration mix keeps
+  `amix=normalize=0` (amix's own normalization would pump as adelayed clips come
+  and go) with an `alimiter` after it to stop narration+SFX overlaps clipping.
 
 The worker logs `encoder: h264_nvenc (GPU)` or `libx264 (CPU)` at render start so
 you can confirm which path ran.
@@ -293,7 +334,7 @@ Pure logic was extracted so it's unit‑testable (no ffmpeg/browser needed):
 
 | File | Covers |
 |---|---|
-| `tests/zoom-filter.test.ts` | `fitZoomForBox`, `planCameraMoves` (zoom‑in/out, **pan vs re‑zoom**, Ken Burns drift, invalid/orphan events, off‑viewport clamp), filter‑string smoke |
+| `tests/zoom-filter.test.ts` | `fitZoomForBox`, `planCameraMoves` (zoom‑in/out, **pan vs re‑zoom**, static holds, invalid/orphan events, off‑viewport clamp), filter‑string smoke |
 | `tests/cursor-fx.test.ts` | `planCursorPath` (ordering, timeline shift, clamp, invalid filtering), overlay chain + press dip |
 | `tests/encoder.test.ts` | GPU vs CPU arg selection |
 
@@ -323,7 +364,6 @@ npx vitest run tests/zoom-filter.test.ts tests/cursor-fx.test.ts tests/encoder.t
 |---|---|
 | Slower / gentler zoom | `ZOOM_IN/OUT_DURATION`, `PAN_DURATION` in `zoom-filter.ts` |
 | Less aggressive zoom level | `DEFAULT_ZOOM`, `fitZoomForBox` clamp range |
-| More / less drift | `KEN_BURNS_FACTOR` |
 | Snappier / slower cursor | `GLIDE`, `LEAD` in `cursor-fx.ts` |
 | Stronger click feedback | `PRESS_PX`, `PRESS_DUR` |
 | Field fill hold time | the `sleep(900)` in `fill_field` (`demo-tools.ts`) |

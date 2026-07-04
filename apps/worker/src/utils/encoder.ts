@@ -50,7 +50,9 @@ export async function videoEncodeArgs(opts: EncodeOpts = {}): Promise<string> {
   const quality = opts.quality ?? 20
   const cpuPreset = opts.cpuPreset ?? 'veryfast'
   if (await nvencAvailable()) {
-    return `-c:v h264_nvenc -preset p5 -rc vbr -cq ${quality} -b:v 0 -pix_fmt yuv420p`
+    // p6 + spatial AQ: NVENC's cq runs visibly softer than x264 CRF on text-heavy
+    // UI captures; these claw back sharpness at negligible GPU-time cost.
+    return `-c:v h264_nvenc -preset p6 -rc vbr -cq ${quality} -b:v 0 -spatial-aq 1 -pix_fmt yuv420p`
   }
   return `-c:v libx264 -preset ${cpuPreset} -crf ${quality} -pix_fmt yuv420p`
 }

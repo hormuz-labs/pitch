@@ -32,36 +32,33 @@ describe('planCameraMoves', () => {
     expect(planCameraMoves([])).toEqual([])
   })
 
-  it('builds a zoom-in then zoom-out (with Ken Burns drift on the hold)', () => {
+  it('builds a zoom-in then a static hold then zoom-out (no Ken Burns drift)', () => {
     const events: ZoomEvent[] = [
       { type: 'in', videoTimeSec: 2, x: 600, y: 400, zoom: 1.7 },
       { type: 'out', videoTimeSec: 6 },
     ]
     const moves = planCameraMoves(events)
-    expect(moves).toHaveLength(3)
+    // Just the two ramps — no drift move inserted across the hold.
+    expect(moves).toHaveLength(2)
 
     // 1) zoom in from 1x to 1.7x, completing at the event time
     expect(moves[0]!.z0).toBe(1)
     expect(moves[0]!.z1).toBeCloseTo(1.7, 5)
     expect(moves[0]!.t1).toBe(2)
 
-    // 2) Ken Burns drift: same center, zoom creeps up slightly
-    expect(moves[1]!.cx0).toBe(moves[1]!.cx1)
-    expect(moves[1]!.z1).toBeGreaterThan(moves[1]!.z0)
-
-    // 3) zoom out back to 1x
-    expect(moves[2]!.z1).toBe(1)
+    // 2) zoom out back to 1x, starting from the held (un-drifted) 1.7x
+    expect(moves[1]!.z0).toBeCloseTo(1.7, 5)
+    expect(moves[1]!.z1).toBe(1)
   })
 
   it('pans (holds zoom, moves center) when zooming in while already zoomed', () => {
     const events: ZoomEvent[] = [
       { type: 'in', videoTimeSec: 2, x: 600, y: 400, zoom: 1.7 },
-      // close enough that no drift is inserted between the two
       { type: 'in', videoTimeSec: 2.5, x: 1300, y: 420, zoom: 1.7 },
     ]
     const moves = planCameraMoves(events)
 
-    // moves[1] is the pan (a trailing Ken Burns drift may follow it).
+    // moves[1] is the pan.
     const pan = moves[1]!
     expect(pan.z0).toBeCloseTo(1.7, 5)
     expect(pan.z1).toBeCloseTo(1.7, 5) // zoom held constant => a pan, not a re-zoom

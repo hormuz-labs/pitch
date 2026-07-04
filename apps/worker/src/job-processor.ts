@@ -26,6 +26,7 @@ import { getSessionIdFromEvent } from './opencode.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
+import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { addIntroOutro } from './utils/intro-outro.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
@@ -210,6 +211,35 @@ async function getGitHash(): Promise<string | undefined> {
 }
 
 /**
+ * Detect when the real page first appears in the recording. The browser opens on a
+ * blank white about:blank page and the agent only navigates after it cold-starts
+ * (often 20-40s in), so the recording begins with a long blank-white stretch. That
+ * blank page is near-pure white (luma ~235 everywhere); a real page has dark pixels
+ * (text, logos), so its per-frame YMIN drops sharply. We sample luma YMIN a few
+ * times a second and return the timestamp of the first frame whose YMIN falls below
+ * a content threshold — i.e. the moment the page paints. Returns seconds in the webm
+ * timeline, or 0 if content was on screen from the start or detection is
+ * inconclusive. Best-effort: any failure returns 0, so we just skip the extra trim.
+ * The scan is capped so we don't decode the whole video.
+ */
+async function detectFirstContentSec(webmPath: string): Promise<number> {
+  try {
+    const { stdout } = await execAsync(
+      `ffmpeg -hide_banner -nostats -t 150 -i "${webmPath}" ` +
+        `-vf "fps=4,signalstats,metadata=print:key=lavfi.signalstats.YMIN" -f null - 2>&1 | ` +
+        `awk '/pts_time/{t=$0; sub(/.*pts_time:/,"",t); sub(/ .*/,"",t)} ` +
+        `/YMIN/{v=$0; sub(/.*YMIN=/,"",v); if(v+0<100){print t; exit}}'`,
+    )
+    const t = parseFloat((stdout || '').trim())
+    // t<=1: content on screen from the start (no blank opening). t>120: implausible.
+    if (!Number.isFinite(t) || t <= 1 || t > 120) return 0
+    return t
+  } catch {
+    return 0
+  }
+}
+
+/**
  * Direct in-process result pushing. Uploads final video, notifies via Discord and email.
  */
 async function pushJobResult(
@@ -277,6 +307,18 @@ async function pushJobResult(
     }
   } catch (err: any) {
     logger.warn({ err, jobId }, 'Notifications or email failed')
+  }
+}
+
+async function getMediaDurationSec(file: string): Promise<number> {
+  try {
+    const { stdout } = await execAsync(
+      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file}"`,
+    )
+    const d = parseFloat(stdout.trim())
+    return Number.isFinite(d) && d > 0 ? d : 0
+  } catch {
+    return 0
   }
 }
 
@@ -386,6 +428,13 @@ async function resolveAndCombineWebmFiles(
     await execAsync(`ffmpeg -y -f concat -safe 0 -i "${listFile}" -c copy "${tempCombinedPath}"`)
     logger.info({ tempCombinedPath }, 'Successfully combined WebM files using concat demuxer')
 
+    // getVideoBirthTimeMs derives the recording start from mtime minus duration; the
+    // concat output's natural mtime is "now" (processing time), which would skew every
+    // narration/click/zoom offset. Stamp it with the newest source's mtime (≈ when
+    // recording actually stopped) before deleting the originals.
+    const newestMtimeMs = fs.statSync(uniqueCandidates[uniqueCandidates.length - 1]!).mtimeMs
+    fs.utimesSync(tempCombinedPath, new Date(), new Date(newestMtimeMs))
+
     // Clean up original webm files to avoid clutter
     for (const f of uniqueCandidates) {
       try {
@@ -414,12 +463,14 @@ async function resolveAndCombineWebmFiles(
 }
 
 /**
- * Diagnostic helper: list .webm files in a set of common locations.
- * Returns the most recently modified candidate found anywhere.
+ * Diagnostic helper: list .webm files under the given directory and return the most
+ * recently modified one. Deliberately scoped to that directory only — sweeping
+ * cwd/homedir/tmp could pick up a stale recording from another session and upload
+ * it as THIS user's demo.
  */
 function findWebmCandidates(logger: any, targetDir: string): string | null {
   const candidates: Array<{ path: string; mtimeMs: number }> = []
-  const searchRoots = [targetDir, process.cwd(), os.homedir(), '/tmp', '/root', '/app']
+  const searchRoots = [targetDir]
 
   for (const root of searchRoots) {
     try {
@@ -775,11 +826,14 @@ Narrate the demo using this script. You MAY split it into natural chunks, lightl
       const promptText = `You are a professional, engaging web demo agent. Your goal is to guide the user through a web automation task naturally, as if you are a friendly human narrator recording a tutorial.
 User Request: "${userPrompt}"
 ${scriptBlock}
+Start narrating the demo as soon as the page is visible. Navigate and let the first view load first, then begin your narration — so the demo opens with real content on screen rather than silence.
+
 Guidelines:
 1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. Start directly with 'playwright-cli goto <url>'.
 2. ELEMENT REFS: Call 'demo_bash' with command "playwright-cli snapshot" to get the current page state. Elements will have refs like [ref=e53].
    Pass the ref identifier (e.g. "e53") to tools like 'zoom_in' or 'demo_bash' command "playwright-cli click e53".
 3. CAMERA / ZOOM — treat the zoom like a cinematic spotlight, used sparingly to feel clean, not busy:
+   - TARGET A PRECISE ELEMENT, never a big container. Always zoom_in / click the SPECIFIC thing you mean — the exact button, link, heading, input, icon, or short line of text. NEVER target a large wrapper, section, card grid, or 'generic'/container ref from the snapshot: its center is usually empty space (the gap between things), so the camera lands "out of place" on nothing. In the snapshot, prefer the innermost ref that tightly wraps the actual control/text (e.g. the 'button'/'link'/'heading' ref, not the 'generic' section that contains it). If you want to showcase a whole feature, zoom_in on its TITLE or ICON, not the section box.
    - Zoom ONLY to highlight something the viewer should actually notice: a specific feature, a value being entered into a meaningful field, an important button, or a result.
    - Do NOT zoom for routine/setup steps: login & auth forms, cookie/consent popups, nav menus, page loads, or boilerplate. Perform those at the full (un-zoomed) view.
    - When you DO highlight something: demo_bash({ command: "playwright-cli snapshot" }) -> narrate({ text: "..." }) -> zoom_in({ target: "e53" }) -> demo_bash({ command: "playwright-cli click e53" }).
@@ -787,6 +841,12 @@ Guidelines:
    - Call zoom_out() only when you leave that area entirely (moving to a different section/page) or when the highlight is finished.
    - NAVIGATION: when a click opens a new page/view (e.g. opening a form, navigating to a detail page), ALWAYS zoom_out first and let the full new page show (a short narrate is good here) BEFORE you zoom_in on any field. Never stay zoomed on the old click position after the page changes — the camera would be parked on a meaningless spot while the new content is off-screen.
    - Keep zoom subtle — omit the zoom level (defaults to ~1.7) unless a tiny detail genuinely needs more.
+   - OFF-SCREEN TARGETS: when the element you want is below the fold, just zoom_in / click it directly — the camera smoothly SCROLLS the page to it (the viewer sees it glide into view), so do NOT jump there abruptly or worry about scrolling yourself. Keep narrating across the scroll so there's no silent gap while the page travels.
+   - SHOW THE SCROLL AT FULL VIEW: when your next target is in a DIFFERENT part of the page (not adjacent — you have to travel down/up to reach it), call zoom_out() FIRST so the camera is at full view, THEN zoom_in on the new target. The scroll-to-it is only clearly visible when the camera is pulled back; if you stay zoomed in and jump straight to a far target, the camera tracks it and the travel reads as a teleport. So: zoom_out → (the page visibly scrolls to the new area) → zoom_in on the precise target there.
+   - ALWAYS CENTER WHAT YOU TALK ABOUT — and never talk about something that isn't on screen. Before (or as) you narrate about a specific element or section, bring it to the CENTER of the view so the viewer sees you travel there:
+     • If you're highlighting/zooming it: zoom_in on its ref — this smoothly SCROLLS the page to it AND centers it.
+     • If you're at the full (un-zoomed) view and just moving down to discuss the next section: call narrate({ text: "...", focus: "e53" }) with that section's ref — the page smoothly scrolls it to the center BEFORE the line is spoken, so the viewer sees the scroll and the subject is centered while you talk about it.
+     • NEVER narrate about an element that is below the fold or off-screen without a focus/zoom that brings it into the centered view first. The viewer must always see HOW you got there — no teleporting content in, no talking about things they can't see.
 4. POPUPS: Dismiss them directly with 'demo_bash' command "playwright-cli click". Do not zoom in.
 5. FILLING FORMS / FIELDS:
    - ALWAYS enter text with the 'fill_field' tool (fill_field({ target: "e53", text: "..." })) — never demo_bash "playwright-cli fill". fill_field types character-by-character (visible typing) with a synced keyboard sound so the viewer sees each value being entered.
@@ -795,7 +855,19 @@ Guidelines:
    - After filling, pause briefly with demo_bash({ command: "sleep 1.0" }) so the entered value is readable before moving on.
 6. After navigating or clicking links, use demo_bash({ command: "sleep 3" }) or similar to allow loading. 'playwright-cli' does NOT have a wait command.
 7. The browser is set to 1920x1080 resolution.
-8. LOGO CAPTURE: Before ending the demo, capture the product's logo for the intro/outro cards. Take a snapshot, find the VISIBLE logo element (usually in the header/nav — an <img> or <svg> whose src/alt/class contains "logo", or the brand image inside the top-left home link), and screenshot JUST that element to recordings/product_logo.png, e.g. demo_bash({ command: "playwright-cli screenshot --selector 'header img[src*=logo], a[href=\"/\"] img, img[alt*=logo], [class*=logo] img, header svg' --path recordings/product_logo.png" }). The element MUST be visible on the page (do NOT target <link rel=icon> in the head — it can't be screenshotted). If the first selector fails, try another visible logo/brand image. Any image format is fine — it is normalized automatically. If no logo can be captured, that's OK; skip it.
+8. PACING — the video records in REAL TIME while you think, so control what's on screen during your silences:
+   - THINK ON A STABLE VIEW: do your reading and planning (snapshots, deciding the next step) while the screen rests on the view you just narrated — a silent static hold is trimmed away automatically. NEVER pause to think with a half-finished state on screen (an open menu, a half-filled form, mid-transition).
+   - NEVER ACT IN SILENCE: every visible action — zoom, click, scroll/focus, typing, navigation — must happen WITH narration, not a minute after it. The viewer should always hear you explain what they're watching.
+   - EXECUTE A BEAT IN ONE GO: snapshot and decide first, then emit the whole beat as back-to-back tool calls with nothing in between: narrate({ text }) -> zoom_in -> click -> sleep. If you think between narrate() and its action, the words play over a frozen screen and the action happens in dead silence later.
+   - A good demo alternates: stable view + a line about it -> narrated action -> new stable view. Silent gaps between beats are fine (they're trimmed); silent ACTIONS are not (they're kept, unexplained).
+9. LOGO CAPTURE: Before ending the demo, capture the product's logo for the intro/outro cards. PREFER downloading the original asset — it is much sharper than a screenshot:
+   a. Snapshot and find the VISIBLE logo — usually an <img> in the header/nav (or the brand image inside the top-left home link) whose src/alt/class contains "logo". Do NOT target <link rel=icon> in the head.
+   b. If it's an <img>, read its real URL and download it:
+      demo_bash({ command: "playwright-cli eval \"el => el.currentSrc || el.src\" e53" })   // absolute URL; currentSrc is the highest-res variant the browser actually loaded
+      then demo_bash({ command: "curl -L -o recordings/product_logo.png '<that url>'" }).
+      The .png filename is fine even when the asset is .svg/.jpeg — the file is normalized automatically. EXCEPTION: if the URL ends in .webp, skip the download and use the screenshot fallback below instead (webp logos come out better as a screenshot).
+   c. FALL BACK to a screenshot when there is no downloadable <img> URL — an inline <svg> logo, a CSS background-image, or a failed download. The selector is the POSITIONAL target and the output flag is --filename (NOT --selector / --path): demo_bash({ command: "playwright-cli screenshot 'header img[src*=logo], a[href=\"/\"] img, img[alt*=logo], [class*=logo] img, header svg' --filename recordings/product_logo.png" }). The element MUST be visible on the page. If the first selector fails, try another visible logo/brand image.
+   d. If no logo can be captured at all, that's OK; skip it.
 ${buildSkillsPrompt(skills)}`
 
       const promptResponse = await client.session.prompt({
@@ -924,6 +996,19 @@ ${buildSkillsPrompt(skills)}`
         logger.info({ trimSec }, 'Applying timeline shift to align with prompt startTime')
       }
 
+      // When the page first paints (webm timeline). The agent greets while the page
+      // is still the blank white about:blank, so without this the demo opens on a
+      // blank screen. We use this to (a) hold every narration until the page is
+      // actually visible and (b) trim the whole blank opening below.
+      const firstContentSec = await detectFirstContentSec(foundWebmPath)
+      const firstContentMs = firstContentSec * 1000
+      if (firstContentSec > 0) {
+        logger.info(
+          { firstContentSec },
+          'Detected blank opening; narration and leading trim will start at first page paint',
+        )
+      }
+
       let videoInputs = `-i "${foundWebmPath}" -i "${cursorPath}"`
       let filterComplex = ''
       let currentVLabel = '[0:v]'
@@ -956,6 +1041,10 @@ ${buildSkillsPrompt(skills)}`
       const audioLabels: string[] = []
       const trimMs = trimSec * 1000
       let firstNarrationDelayMs = Number.POSITIVE_INFINITY
+      // Where each clip lands on the output timeline — we mixed the audio ourselves,
+      // so the smart trimmer can derive silence analytically from these spans instead
+      // of decoding the whole track with silencedetect.
+      const clipSpans: Array<{ startSec: number; filePath: string; durationSec?: number }> = []
       state.audioClips.forEach((clip: any) => {
         if (!fs.existsSync(clip.filePath)) {
           logger.warn({ filePath: clip.filePath }, 'Audio clip file not found on disk — skipping')
@@ -964,8 +1053,13 @@ ${buildSkillsPrompt(skills)}`
         // Place audio on the raw WebM timeline (which begins trimSec before the
         // prompt startTime), mirroring how the click/zoom overlays add trimSec.
         // Without this the narration drifts out of sync with the visuals it
-        // describes.
-        const delayMs = Math.max(0, clip.absoluteTimestamp - startTime + trimMs)
+        // describes. Clamp to firstContentMs so any early narration (spoken while
+        // the page is still blank) is held until the page actually paints,
+        // instead of playing over a blank screen.
+        const delayMs = Math.max(
+          firstContentMs,
+          Math.max(0, clip.absoluteTimestamp - startTime + trimMs),
+        )
         // Track the first *narration* clip (not the click/keyboard sound effects)
         // so we can trim the silent setup that precedes it.
         const isSfx = /(click|keyboard)\.mp3$/i.test(clip.filePath)
@@ -982,12 +1076,23 @@ ${buildSkillsPrompt(skills)}`
         videoInputs += ` -i "${clip.filePath}"`
         filterComplex += `[${audioInputIndex}:a]${atrim}adelay=${Math.round(delayMs)}|${Math.round(delayMs)}[a${validClips}];`
         audioLabels.push(`[a${validClips}]`)
+        clipSpans.push({
+          startSec: delayMs / 1000,
+          filePath: clip.filePath,
+          durationSec:
+            typeof clip.durationSec === 'number' && clip.durationSec > 0
+              ? clip.durationSec
+              : undefined,
+        })
         audioInputIndex++
         validClips++
       })
 
       if (validClips > 0) {
-        filterComplex += `${audioLabels.join('')}amix=inputs=${validClips}:duration=longest:normalize=0[outa]`
+        // normalize=0 keeps narration at full level (amix's normalization would pump
+        // the volume as adelayed clips come and go); the limiter guards the rare
+        // narration+SFX overlap from clipping instead.
+        filterComplex += `${audioLabels.join('')}amix=inputs=${validClips}:duration=longest:normalize=0,alimiter=limit=0.95[outa]`
       }
 
       logger.info(
@@ -995,12 +1100,15 @@ ${buildSkillsPrompt(skills)}`
         'Audio clips prepared for mixing',
       )
 
-      const renderVideoArgs = await videoEncodeArgs({ quality: 21, cpuPreset: 'veryfast' })
+      // Quality 18: this is the source every later stage re-encodes from, so it gets
+      // the highest quality of the chain — generational loss lands on text sharpness
+      // first. Audio matches the profile used everywhere downstream (24kHz mono AAC).
+      const renderVideoArgs = await videoEncodeArgs({ quality: 18, cpuPreset: 'veryfast' })
       const ffmpegCmd =
         `ffmpeg -y ${videoInputs} ` +
         `-filter_complex "${filterComplex}" ` +
         `-map "[zoomedv]" ${validClips > 0 ? '-map "[outa]"' : ''} ` +
-        `${renderVideoArgs} ${validClips > 0 ? '-c:a aac -strict experimental' : ''} "${rawVideo}"`
+        `${renderVideoArgs} ${validClips > 0 ? '-c:a aac -ar 24000 -ac 1' : ''} "${rawVideo}"`
 
       logger.info(
         { encoder: (await nvencAvailable()) ? 'h264_nvenc (GPU)' : 'libx264 (CPU)' },
@@ -1016,16 +1124,38 @@ ${buildSkillsPrompt(skills)}`
       // The agent spends the first several seconds setting up (navigation, first
       // snapshot, LLM reasoning) before its first narration, so the recording opens
       // with no voiceover. Drop that leading silent gap so the demo starts on the
-      // first spoken word and has audio throughout.
+      // first spoken word and has audio throughout. We also trim at least up to the
+      // first page paint (firstContentSec) so the long blank white about:blank
+      // opening is removed entirely — early narration was clamped to that same point,
+      // so the demo opens on the real page with narration over it.
       const FIRST_WORD_LEAD_IN = 0.4
       const leadingTrimSec = Number.isFinite(firstNarrationDelayMs)
-        ? Math.max(0, firstNarrationDelayMs / 1000 - FIRST_WORD_LEAD_IN)
-        : 0
+        ? Math.max(0, firstNarrationDelayMs / 1000 - FIRST_WORD_LEAD_IN, firstContentSec)
+        : Math.max(0, firstContentSec)
       if (leadingTrimSec > 0) {
         logger.info(
-          { leadingTrimSec },
-          'Trimming silent setup before first narration so audio starts at the opening',
+          { leadingTrimSec, firstContentSec },
+          'Trimming silent/blank setup before first narration so audio starts at the opening',
         )
+      }
+
+      // Resolve each mixed clip's span on the output timeline so the trimmer can
+      // compute silence analytically instead of decoding the track with silencedetect.
+      // If any clip's duration can't be read, fall back to detection to be safe —
+      // a zero-length span would mark real narration as silence.
+      let speechSegments: Array<{ start: number; end: number }> | undefined
+      if (validClips > 0) {
+        const spans = await Promise.all(
+          clipSpans.map(async c => {
+            const dur = c.durationSec ?? (await getMediaDurationSec(c.filePath))
+            return dur > 0 ? { start: c.startSec, end: c.startSec + dur } : null
+          }),
+        )
+        if (spans.every((s): s is { start: number; end: number } => s !== null)) {
+          speechSegments = spans
+        } else {
+          logger.warn('Could not resolve all clip durations — trimmer will use silencedetect')
+        }
       }
 
       logger.info('Applying smart trim to remove dead air segments')
@@ -1033,6 +1163,7 @@ ${buildSkillsPrompt(skills)}`
       try {
         await processVideo(rawVideo, trimmedVideo, undefined, {
           forceLeadingTrimSec: leadingTrimSec,
+          speechSegments,
         })
         logger.info({ sec: ((Date.now() - trimT0) / 1000).toFixed(1) }, 'TIMING: smart trim done')
       } catch (trimErr: any) {
@@ -1040,42 +1171,73 @@ ${buildSkillsPrompt(skills)}`
         fs.copyFileSync(rawVideo, trimmedVideo)
       }
 
-      // 9b. Add intro/outro cards
+      // 9. Final assembly: intro/outro cards, watermark and the optional decorative
+      // background are all composited in ONE encode pass — the full assembled video
+      // (intro + demo + outro) sits on the same backdrop, and the content only goes
+      // through a single generation here. No background => the video stays full-screen.
+      const bgId = (parameters?.background?.id || parameters?.background || '').toString().trim()
+      const bgAsset =
+        bgId && bgId !== 'none'
+          ? resolveBackgroundAsset(path.join(targetDir, 'assets', 'backgrounds'), bgId)
+          : null
+      if (bgId && bgId !== 'none' && !bgAsset) {
+        logger.warn({ bgId }, 'Background asset not found — keeping full-screen')
+      }
+
       await reportJobPhase(jobId, userId, 'intro_outro', 'running', connection)
-      logger.info('Adding intro/outro cards')
+      logger.info({ bgId: bgAsset ? bgId : 'none' }, 'Adding intro/outro cards (+ background)')
       try {
-        const productDomain = (parameters?.url || '')
-          .replace(/^https?:\/\//, '')
-          .split('/')[0]
-        const productName = productDomain
-          .replace(/\.[a-z]+$/, '')
-          .replace(/[^a-zA-Z0-9]/g, ' ')
-          .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Demo'
+        const productDomain = (parameters?.url || '').replace(/^https?:\/\//, '').split('/')[0]
+        const productName =
+          productDomain
+            .replace(/\.[a-z]+$/, '')
+            .replace(/[^a-zA-Z0-9]/g, ' ')
+            .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Demo'
         const productLogoPath = path.join(recordingsDir, 'product_logo.png')
+        const inset = Number.parseFloat((parameters?.inset ?? '0.87').toString())
 
         const cardsT0 = Date.now()
-        await addIntroOutro(trimmedVideo, finalVideo, {
-          productName,
-          productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
-          duration: 2.5,
-          fps: sourceFps,
-          width: 1920,
-          height: 1080,
-          outputPath: finalVideo,
-          productUrl: productDomain || undefined,
-        })
+        await addIntroOutro(
+          trimmedVideo,
+          finalVideo,
+          {
+            productName,
+            productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
+            duration: 2.5,
+            fps: sourceFps,
+            width: 1920,
+            height: 1080,
+            outputPath: finalVideo,
+            productUrl: productDomain || undefined,
+          },
+          bgAsset
+            ? {
+                asset: bgAsset,
+                radius: shapeRadius((parameters?.shape || 'rounded').toString()),
+                inset: Number.isFinite(inset) ? inset : 0.87,
+              }
+            : undefined,
+        )
         logger.info(
           { sec: ((Date.now() - cardsT0) / 1000).toFixed(1) },
-          'TIMING: intro/outro + watermark + concat done',
+          'TIMING: final assembly (cards + watermark + background) done',
         )
       } catch (cardErr: any) {
-        logger.warn({ err: cardErr }, 'Intro/outro generation failed — using trimmed video as final')
+        logger.warn({ err: cardErr }, 'Final assembly failed — using trimmed video as final')
         fs.copyFileSync(trimmedVideo, finalVideo)
       }
       await reportJobPhase(jobId, userId, 'intro_outro', 'completed', connection)
 
       // 10. Direct Push (GCS upload + database update + email & discord notifications)
       await pushJobResult(jobId, userId, finalVideo, rawVideo, connection, parameters)
+
+      // Recordings are wiped at the start of the NEXT job, but the intermediates are
+      // large enough to matter on a busy worker — drop them once the upload landed.
+      for (const f of [rawVideo, trimmedVideo]) {
+        try {
+          fs.unlinkSync(f)
+        } catch {}
+      }
 
       await reportJobPhase(jobId, userId, 'ffmpeg_postprocessing', 'completed', connection)
       logger.info('Video creation successfully complete!')

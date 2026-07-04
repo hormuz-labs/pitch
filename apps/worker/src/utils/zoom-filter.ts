@@ -36,12 +36,6 @@ export const DEFAULT_ZOOM = 1.7 // gentler than a hard 2× dive
 export const OUTPUT_SIZE = '1920x1080'
 export const DEFAULT_FPS = 30 // fallback if source fps cannot be detected
 
-// Ken Burns: while the camera holds on a zoomed target, drift in very slowly so
-// the shot never feels frozen. Subtle on purpose.
-const KEN_BURNS_FACTOR = 1.06 // total push-in over a hold (6%)
-const KEN_BURNS_MIN_HOLD = 0.7 // don't bother drifting on holds shorter than this
-const KEN_BURNS_MAX_HOLD = 4.0 // cap the drift window for a dangling final hold
-
 export interface ZoomInEvent {
   type: 'in'
   videoTimeSec: number // when LLM called zoom_in()
@@ -118,7 +112,8 @@ export function fitZoomForBox(boxW: number, boxH: number, fill = 0.5): number {
 
 /**
  * Turn the flat zoom_in/zoom_out event stream into a smooth camera path of eased
- * moves (including Ken Burns drift on holds). Pure + exported for testing.
+ * moves. Holds are intentionally static (no Ken Burns drift) so silent holds can be
+ * detected and trimmed as dead air. Pure + exported for testing.
  */
 export function planCameraMoves(events: ZoomEvent[]): CameraMove[] {
   // ── Simulate the camera to produce eased moves ─────────────────────────────
@@ -170,35 +165,11 @@ export function planCameraMoves(events: ZoomEvent[]): CameraMove[] {
     }
   }
 
-  // ── Ken Burns: fill zoomed holds with a slow drift-in ──────────────────────
-  // Walk the moves; wherever a zoomed move is followed by a hold, insert a gentle
-  // push-in across that hold and rebase the next move so zoom stays continuous.
-  const withDrift: CameraMove[] = []
-  for (let i = 0; i < moves.length; i++) {
-    const m = moves[i]!
-    withDrift.push(m)
-    if (m.z1 > 1.001) {
-      const holdStart = m.t1
-      const next = moves[i + 1]
-      const holdEnd = next ? next.t0 : m.t1 + KEN_BURNS_MAX_HOLD
-      if (holdEnd - holdStart >= KEN_BURNS_MIN_HOLD) {
-        const driftZoom = m.z1 * KEN_BURNS_FACTOR
-        withDrift.push({
-          t0: holdStart,
-          t1: holdEnd,
-          z0: m.z1,
-          z1: driftZoom,
-          cx0: m.cx1,
-          cx1: m.cx1,
-          cy0: m.cy1,
-          cy1: m.cy1,
-        })
-        // The next move must ramp from where the drift left off.
-        if (next) next.z0 = driftZoom
-      }
-    }
-  }
-  return withDrift
+  // Holds are intentionally STATIC — no Ken Burns drift. The camera simply rests on
+  // the target until the next move. (The buildChannel hold-the-start-value behaviour
+  // keeps the camera parked during the gaps between moves.) Keeping holds frozen also
+  // lets the smart trimmer detect and cut silent holds as dead air.
+  return moves
 }
 
 /**
