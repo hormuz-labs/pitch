@@ -1,13 +1,6 @@
 import crypto from 'node:crypto'
-import { spawn, execSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { createOpencodeClient, type OpencodeClient } from '@opencode-ai/sdk'
+import { createOpencodeClient, createOpencodeServer, type OpencodeClient } from '@opencode-ai/sdk'
 import { createLogger } from '@saas/shared'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 const logger = createLogger('worker:opencode')
 
@@ -27,92 +20,6 @@ function ensureAuthCredentials() {
   return `Basic ${Buffer.from(`${process.env.OPENCODE_SERVER_USERNAME}:${process.env.OPENCODE_SERVER_PASSWORD}`).toString('base64')}`
 }
 
-function findNodePath(): string {
-  const envNode = process.env.NODE
-  if (envNode) return envNode
-  // When running under Bun, process.execPath points to Bun, not Node.
-  // Try to find Node from known locations.
-  const candidates = [
-    path.join(process.env.HOME || '', '.config/nvm/versions/node/v22.18.0/bin/node'),
-    '/usr/bin/node',
-    '/usr/local/bin/node',
-  ]
-  for (const p of candidates) {
-    if (existsSync(p)) return p
-  }
-  // Last resort: resolve from PATH
-  try {
-    return execSync('which node', { encoding: 'utf-8' }).trim()
-  } catch {
-    return 'node'
-  }
-}
-
-function spawnServer(port: number, timeout: number): Promise<{ url: string; close(): void }> {
-  return new Promise((resolve, reject) => {
-    // Bun's process spawning is incompatible with the opencode binary.
-    // Spawn via Node.js as a bridge to work around this.
-    const nodePath = findNodePath()
-    const bridgeScript = path.resolve(__dirname, 'server-bridge.mjs')
-    const env: Record<string, string> = {
-      ...process.env,
-      OPENCODE_CONFIG_CONTENT: JSON.stringify({ model: 'opencode/gemini-3.1-pro' }),
-    }
-    const proc = spawn(nodePath, [bridgeScript, String(port)], {
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-
-    let output = ''
-    let resolved = false
-    const id = setTimeout(() => {
-      if (!resolved) {
-        proc.kill()
-        reject(new Error(`Timeout waiting for server to start after ${timeout}ms`))
-      }
-    }, timeout)
-
-    proc.stdout?.on('data', (chunk: Buffer) => {
-      if (resolved) return
-      output += chunk.toString()
-      const lines = output.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('opencode server listening')) {
-          const match = line.match(/on\s+(https?:\/\/[^\s]+)/)
-          if (!match) {
-            clearTimeout(id)
-            proc.kill()
-            reject(new Error(`Failed to parse server url from output: ${line}`))
-            return
-          }
-          clearTimeout(id)
-          resolved = true
-          resolve({ url: match[1], close: () => { proc.kill() } })
-          return
-        }
-      }
-    })
-
-    proc.stderr?.on('data', (chunk: Buffer) => {
-      output += chunk.toString()
-    })
-
-    proc.on('exit', (code) => {
-      clearTimeout(id)
-      if (!resolved) {
-        let msg = `Server exited with code ${code}`
-        if (output.trim()) msg += `\nServer output: ${output}`
-        reject(new Error(msg))
-      }
-    })
-
-    proc.on('error', (error) => {
-      clearTimeout(id)
-      reject(error)
-    })
-  })
-}
-
 export async function startServer(
   targetDir: string,
 ): Promise<{ server: OpencodeServer; client: OpencodeClient }> {
@@ -120,7 +27,11 @@ export async function startServer(
 
   const authHeader = ensureAuthCredentials()
 
-  const { url, close } = await spawnServer(4098, 60000)
+  const { url, close } = await createOpencodeServer({
+    port: 4098,
+    timeout: 60000,
+    config: { model: 'google/gemini-3.1-pro-preview' },
+  })
 
   const client = createOpencodeClient({
     baseUrl: url,
