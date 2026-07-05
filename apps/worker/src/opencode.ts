@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
-import { spawn } from 'node:child_process'
+import { spawn, execSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { createOpencodeClient, type OpencodeClient } from '@opencode-ai/sdk'
 import { createLogger } from '@saas/shared'
 import path from 'node:path'
@@ -31,8 +32,20 @@ function findNodePath(): string {
   if (envNode) return envNode
   // When running under Bun, process.execPath points to Bun, not Node.
   // Try to find Node from known locations.
-  const nvmPath = path.join(process.env.HOME || '', '.config/nvm/versions/node/v22.18.0/bin/node')
-  return nvmPath
+  const candidates = [
+    path.join(process.env.HOME || '', '.config/nvm/versions/node/v22.18.0/bin/node'),
+    '/usr/bin/node',
+    '/usr/local/bin/node',
+  ]
+  for (const p of candidates) {
+    if (existsSync(p)) return p
+  }
+  // Last resort: resolve from PATH
+  try {
+    return execSync('which node', { encoding: 'utf-8' }).trim()
+  } catch {
+    return 'node'
+  }
 }
 
 function spawnServer(port: number, timeout: number): Promise<{ url: string; close(): void }> {
