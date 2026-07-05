@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FaInstagram, FaWhatsapp, FaXTwitter } from 'react-icons/fa6'

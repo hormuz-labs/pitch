@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_URL } from '../config'

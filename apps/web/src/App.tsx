@@ -1,12 +1,11 @@
 import {
   AuthenticateWithRedirectCallback,
-  SignedIn,
-  SignedOut,
+  Show,
   UserButton,
   useAuth,
   useClerk,
   useUser,
-} from '@clerk/clerk-react'
+} from '@clerk/react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import {
   BrowserRouter,
@@ -896,7 +895,6 @@ const Sidebar = ({
             </button>
             <div className="relative flex items-center justify-center shrink-0 cursor-pointer hover:brightness-95 transition-all w-9 h-9">
               <UserButton
-                afterSignOutUrl="/"
                 appearance={{
                   elements: {
                     userButtonAvatarBox: 'w-9 h-9',
@@ -1472,12 +1470,12 @@ function AppContent() {
   if (location.pathname === '/checkout/return') {
     return (
       <>
-        <SignedIn>
+        <Show when="signed-in">
           <CheckoutReturnView />
-        </SignedIn>
-        <SignedOut>
+        </Show>
+        <Show when="signed-out">
           <Navigate to="/sign-in" replace />
-        </SignedOut>
+        </Show>
       </>
     )
   }
@@ -1490,7 +1488,7 @@ function AppContent() {
 
   return (
     <>
-      <SignedIn>
+      <Show when="signed-in">
         <div
           className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
           style={{ backgroundColor: '#e6e6e6' }}
@@ -1639,8 +1637,8 @@ function AppContent() {
             </main>
           </div>
         </div>
-      </SignedIn>
-      <SignedOut>
+      </Show>
+      <Show when="signed-out">
         <Routes>
           <Route path="/" element={<LandingView />} />
           <Route path="/sign-in" element={<AuthView mode="sign-in" />} />
@@ -1653,7 +1651,7 @@ function AppContent() {
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </SignedOut>
+      </Show>
     </>
   )
 }
@@ -1664,7 +1662,7 @@ function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [])
+  }, [pathname])
   return null
 }
 

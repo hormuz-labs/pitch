@@ -1,4 +1,4 @@
-import { useClerk } from '@clerk/clerk-react'
+import { useClerk } from '@clerk/react'
 import { useEffect } from 'react'
 import { LandingFooter } from '../components/LandingFooter'
 import { LandingNav } from '../components/LandingNav'

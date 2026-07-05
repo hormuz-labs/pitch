@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import { Maximize, Minimize } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
