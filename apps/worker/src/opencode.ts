@@ -56,7 +56,7 @@ function spawnServer(port: number, timeout: number): Promise<{ url: string; clos
     const bridgeScript = path.resolve(__dirname, 'server-bridge.mjs')
     const env: Record<string, string> = {
       ...process.env,
-      OPENCODE_CONFIG_CONTENT: JSON.stringify({ model: 'gemini/gemini-2.5-flash-preview-04-17' }),
+      OPENCODE_CONFIG_CONTENT: JSON.stringify({ model: 'opencode/gemini-3.1-pro' }),
     }
     const proc = spawn(nodePath, [bridgeScript, String(port)], {
       env,
