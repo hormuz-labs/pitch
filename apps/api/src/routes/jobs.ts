@@ -47,13 +47,31 @@ router.post('/', async (req, res) => {
 
     await db.deductCredit(tenantId, 3, 'Video generation', { jobId: job.id })
 
-    await videoQueue.add(
-      'generate-video',
-      { jobId: job.id, userId: job.userId, parameters },
-      { jobId: job.id },
-    )
-
-    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
+    try {
+      await videoQueue.add(
+        'generate-video',
+        { jobId: job.id, userId: job.userId, parameters },
+        { jobId: job.id },
+      )
+      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
+    } catch (enqueueError: any) {
+      // The DB job + credit deduction above already committed. Without this
+      // rollback, a transient queue/Redis failure here leaves an orphaned
+      // PENDING job that the worker will never pick up and silently keeps
+      // the user's credits spent.
+      logger.error(
+        { err: enqueueError, jobId: job.id, userId },
+        'Failed to enqueue job after creation — rolling back (refund + mark failed)',
+      )
+      await db.updateJob(job.id, {
+        status: JobStatus.FAILED,
+        error: `Failed to queue job: ${enqueueError.message}`,
+      })
+      await db.addCredits(tenantId, 3, 'refund', 'Refund: job failed to enqueue', {
+        jobId: job.id,
+      })
+      throw enqueueError
+    }
 
     logger.info({ jobId: job.id, userId, tenantId }, 'Job created and queued')
 

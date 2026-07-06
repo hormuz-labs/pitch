@@ -4,6 +4,12 @@ import { exec } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
+import {
+  type AnnotationStyle,
+  buildAnnotateEvalJs,
+  buildClearAnnotationsJs,
+} from './annotations.ts'
+import { buildSlideshowHtml, type Slide, type SlideRegion } from './slideshow.ts'
 
 const execAsync = promisify(exec)
 
@@ -271,6 +277,30 @@ const plugin: Plugin = async input => {
     'task',
   ])
 
+  // Read the asset manifest for this session and build a lookup from resolved
+  // image path -> targetable regions, so build_slideshow can attach hotspots.
+  const readRegionMap = (sessionId: string | undefined): Map<string, SlideRegion[]> => {
+    const map = new Map<string, SlideRegion[]>()
+    if (!sessionId) return map
+    const manifestPath = path.join(directory, 'recordings', 'assets', sessionId, 'assets.json')
+    if (!fs.existsSync(manifestPath)) return map
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+      for (const asset of manifest.assets ?? []) {
+        if (asset.kind === 'pdf') {
+          for (const page of asset.pageData ?? []) {
+            if (page?.image) map.set(path.resolve(page.image), page.regions ?? [])
+          }
+        } else if (asset.kind === 'image' && asset.localPath) {
+          map.set(path.resolve(asset.localPath), asset.regions ?? [])
+        }
+      }
+    } catch {
+      // Malformed/absent manifest -> no hotspots; slideshow still renders.
+    }
+    return map
+  }
+
   return {
     tool: {
       demo_bash: tool({
@@ -388,7 +418,9 @@ const plugin: Plugin = async input => {
               if (urlAfter && urlAfter !== urlBefore) {
                 const tSec = (Date.now() - state.startTime) / 1000
                 state.zoomEvents.push({ type: 'out', videoTimeSec: tSec })
-                console.log(`Navigation ${urlBefore} -> ${urlAfter}: auto zoom-out to reveal new page.`)
+                console.log(
+                  `Navigation ${urlBefore} -> ${urlAfter}: auto zoom-out to reveal new page.`,
+                )
               }
             }
 
@@ -438,7 +470,7 @@ const plugin: Plugin = async input => {
 
       fill_field: tool({
         description:
-          "Type text into a form field with visible character-by-character typing. ALWAYS " +
+          'Type text into a form field with visible character-by-character typing. ALWAYS ' +
           "use this for text inputs (never demo_bash 'playwright-cli fill') so the viewer " +
           'sees each value being entered. Zoom in on the field/form first so it is in view.',
         args: {
@@ -485,9 +517,9 @@ const plugin: Plugin = async input => {
             const MAX_STEPS = 8
             const chunkSize = Math.max(1, Math.ceil(chars.length / MAX_STEPS))
             for (let i = 0; i < chars.length; i += chunkSize) {
-              await run(`playwright-cli type "${shEsc(chars.slice(i, i + chunkSize).join(''))}"`).catch(
-                () => {},
-              )
+              await run(
+                `playwright-cli type "${shEsc(chars.slice(i, i + chunkSize).join(''))}"`,
+              ).catch(() => {})
             }
             if (args.submit) await run(`playwright-cli press Enter`).catch(() => {})
 
@@ -674,6 +706,180 @@ const plugin: Plugin = async input => {
         async execute(args) {
           const content = await fs.promises.readFile(args.path, 'utf-8')
           return { output: content }
+        },
+      }),
+
+      list_assets: tool({
+        description:
+          'List uploaded assets (PDFs and images) available for this demo. ' +
+          'Returns a manifest with local paths, PDF page images, and extracted text.',
+        args: {},
+        async execute(_args, context: any) {
+          const sessionId = context?.sessionID
+          if (!sessionId) {
+            return { output: JSON.stringify({ error: 'No session ID available' }) }
+          }
+          const manifestPath = path.join(
+            directory,
+            'recordings',
+            'assets',
+            sessionId,
+            'assets.json',
+          )
+          if (!fs.existsSync(manifestPath)) {
+            return {
+              output: JSON.stringify({
+                error: 'No asset manifest found',
+                path: manifestPath,
+                hint: 'This session has no uploaded assets.',
+              }),
+            }
+          }
+          const content = await fs.promises.readFile(manifestPath, 'utf-8')
+          return { output: content }
+        },
+      }),
+
+      build_slideshow: tool({
+        description:
+          'Build a premium full-screen HTML slideshow from PDF pages / images. Each page ' +
+          'region (from the asset manifest) becomes a transparent, labelled hotspot, so you can ' +
+          'zoom_in and annotate specific fields exactly like elements on a live site. ' +
+          'Returns a file:// URL to open with playwright-cli goto.',
+        args: {
+          slides: tool.schema
+            .array(tool.schema.string())
+            .describe('Absolute paths to the page/image files to include, in order'),
+          title: tool.schema
+            .string()
+            .optional()
+            .describe('Optional title card shown as the first slide'),
+          durationPerSlide: tool.schema
+            .number()
+            .min(1)
+            .optional()
+            .describe('Optional auto-advance duration in seconds (omit for manual navigation)'),
+        },
+        async execute(args, context: any) {
+          const slidePaths = args.slides || []
+          if (slidePaths.length === 0) {
+            return { output: JSON.stringify({ error: 'No slides provided' }) }
+          }
+
+          // Pull region hotspots from the asset manifest, keyed by resolved image path.
+          const regionMap = readRegionMap(context?.sessionID)
+
+          const slides: Slide[] = slidePaths.map(p => ({
+            image: p,
+            regions: regionMap.get(path.resolve(p)) ?? [],
+          }))
+          const totalRegions = slides.reduce((n, s) => n + (s.regions?.length ?? 0), 0)
+
+          const html = buildSlideshowHtml(slides, {
+            title: args.title,
+            durationMs: (args.durationPerSlide || 0) * 1000,
+          })
+
+          const outputPath = path.join(directory, 'recordings', 'slideshow.html')
+          fs.writeFileSync(outputPath, html)
+          const fileUrl = `file://${outputPath}`
+          return {
+            output: JSON.stringify({
+              url: fileUrl,
+              path: outputPath,
+              slideCount: slides.length,
+              regionCount: totalRegions,
+              hint:
+                `Open with demo_bash({ command: "playwright-cli goto ${fileUrl}" }), then ` +
+                'demo_bash({ command: "playwright-cli snapshot" }) to see the labelled region ' +
+                'refs. Use zoom_in + annotate on those refs to highlight specific fields. ' +
+                'Advance with demo_bash({ command: "playwright-cli press ArrowRight" }).',
+            }),
+          }
+        },
+      }),
+
+      annotate: tool({
+        description:
+          "Draw a premium on-screen annotation to direct the viewer's attention — a circle, " +
+          'box, underline, highlighter swipe, arrow, or spotlight (dims everything else). ' +
+          'Target an element ref (e.g. a page hotspot or any element on a live site) OR an ' +
+          'explicit rect in percent of the screen. The annotation animates in and is captured ' +
+          'in the recording; it pans/zooms with the page. Call clear_annotations to remove it.',
+        args: {
+          style: tool.schema
+            .enum(['box', 'circle', 'underline', 'highlighter', 'arrow', 'spotlight'])
+            .describe('The annotation style'),
+          target: tool.schema
+            .string()
+            .optional()
+            .describe("Element ref to annotate (e.g. 'e53'). Preferred. Do NOT include [ref=...]."),
+          rect: tool.schema
+            .object({
+              leftPct: tool.schema.number(),
+              topPct: tool.schema.number(),
+              widthPct: tool.schema.number(),
+              heightPct: tool.schema.number(),
+            })
+            .optional()
+            .describe('Fallback: explicit rectangle in percent of the viewport (0-100).'),
+          color: tool.schema
+            .string()
+            .optional()
+            .describe('Optional CSS color (hex/rgb/named). Sensible premium default per style.'),
+        },
+        async execute(args) {
+          return withStateLock(async () => {
+            const style = args.style as AnnotationStyle
+            if (!args.target && !args.rect) {
+              return {
+                output: JSON.stringify({ error: 'Provide either a target ref or a rect.' }),
+              }
+            }
+            const fn = buildAnnotateEvalJs({
+              style,
+              color: args.color,
+              ref: args.target,
+              rect: args.target ? undefined : args.rect,
+            })
+            const shEsc = (s: string) => s.replace(/(["\\$`])/g, '\\$1')
+            const cmd = args.target
+              ? `playwright-cli eval "${shEsc(fn)}" ${args.target}`
+              : `playwright-cli eval "${shEsc(fn)}"`
+            try {
+              const { stdout } = await run(cmd)
+              return {
+                output: JSON.stringify({ status: 'annotated', style, result: stdout.trim() }),
+              }
+            } catch (e: any) {
+              return {
+                output: JSON.stringify({
+                  status: 'annotate_failed',
+                  style,
+                  error: e?.message || String(e),
+                  hint: 'Take a fresh snapshot and pass a currently-visible ref, or use a rect.',
+                }),
+              }
+            }
+          })
+        },
+      }),
+
+      clear_annotations: tool({
+        description: 'Remove all on-screen annotations drawn by the annotate tool.',
+        args: {},
+        async execute() {
+          return withStateLock(async () => {
+            const shEsc = (s: string) => s.replace(/(["\\$`])/g, '\\$1')
+            try {
+              await run(`playwright-cli eval "${shEsc(buildClearAnnotationsJs())}"`)
+              return { output: JSON.stringify({ status: 'annotations_cleared' }) }
+            } catch (e: any) {
+              return {
+                output: JSON.stringify({ status: 'clear_failed', error: e?.message || String(e) }),
+              }
+            }
+          })
         },
       }),
     },

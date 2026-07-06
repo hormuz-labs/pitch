@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useAuth } from '@clerk/react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BackgroundPicker } from '../components/BackgroundPicker'
 import { ContainerTextFlip } from '../components/ContainerTextFlip'
 import { CreditChip } from '../components/CreditChip'
-import { NewVideoWizard, markWizardSeen, shouldShowWizard } from '../components/NewVideoWizard'
+import { markWizardSeen, NewVideoWizard, shouldShowWizard } from '../components/NewVideoWizard'
 import { PlaceholdersAndVanishInput } from '../components/PlaceholdersAndVanishInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select'
 import { WaveformScrub } from '../components/WaveformScrub'
 import { useBrowserProfile } from '../hooks/useBrowserProfile'
+import { api } from '../lib/api'
 import { hostOf, isAuthenticatedFor, prettyHost } from '../lib/authOrigins'
 
 const IconPlay = () => (
@@ -186,8 +188,8 @@ const AI_AGENT_PROMPTS = [
 // ── Create View ───────────────────────────────────────────────────────────────
 interface CreateViewProps {
   isMobile: boolean
-  formValues: Record<string, string>
-  setFormValues: (v: Record<string, string>) => void
+  formValues: Record<string, any>
+  setFormValues: (v: Record<string, any>) => void
   isSubmitting: boolean
   onQueueJob: (values: any) => Promise<void>
 }
@@ -206,8 +208,14 @@ export const CreateView = ({
   const { origins, loading: originsLoading } = useBrowserProfile()
   const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null)
   const [showWizard, setShowWizard] = useState(() => shouldShowWizard())
+  const [assets, setAssets] = useState<{ url: string; name: string; type: string; size: number }[]>(
+    () => formValues.assets || [],
+  )
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { getToken } = useAuth()
 
-  const update = (key: string, value: string) => {
+  const update = (key: string, value: any) => {
     setFormValues({ ...formValues, [key]: value })
     if (key === 'audio') setShowAudioPreview(true)
     if (errors[key])
@@ -218,14 +226,46 @@ export const CreateView = ({
       })
   }
 
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const token = await getToken()
+    if (!token) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      for (const file of Array.from(files)) {
+        formData.append('files', file)
+      }
+      const uploaded = await api.postForm<
+        { url: string; name: string; type: string; size: number }[]
+      >('/uploads', token, formData)
+      const nextAssets = [...assets, ...uploaded]
+      setAssets(nextAssets)
+      update('assets', nextAssets)
+    } catch (err: any) {
+      setErrors(e => ({ ...e, assets: err.message || 'Upload failed' }))
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const removeAsset = (index: number) => {
+    const nextAssets = assets.filter((_, i) => i !== index)
+    setAssets(nextAssets)
+    update('assets', nextAssets)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    const url = formValues.url?.trim()
+    const url = (formValues.url || '').trim()
+    const hasAssets = assets.length > 0
 
-    if (!url) {
-      errs.url = 'Please enter a URL'
-    } else {
+    if (!url && !hasAssets) {
+      errs.url = 'Please enter a URL or upload files'
+    } else if (url) {
       try {
         new URL(url)
       } catch {
@@ -251,6 +291,7 @@ export const CreateView = ({
     }
     onQueueJob({
       url: formValues.url,
+      assets,
       subtitles: formValues.subtitles === 'true',
       theme: formValues.theme || 'light',
       audio: formValues.audio ? formValues.audio.replace('.mp3', '') : '',
@@ -279,7 +320,10 @@ export const CreateView = ({
           formValues={formValues}
           onSetUrl={url => update('url', url)}
           onSetInstructions={instr => update('instructions', instr)}
-          onDone={() => { markWizardSeen(); setShowWizard(false) }}
+          onDone={() => {
+            markWizardSeen()
+            setShowWizard(false)
+          }}
         />
       )}
 
@@ -310,9 +354,8 @@ export const CreateView = ({
               {/* Product URL */}
               <div>
                 <FieldLabel
-                  required
                   label="Product URL"
-                  tooltip="The starting point for the AI agent."
+                  tooltip="The starting point for the AI agent. Optional if you upload files."
                 />
                 <input
                   id="url-input"
@@ -334,6 +377,52 @@ export const CreateView = ({
                   }}
                   onDismiss={() => setDismissedAuthHost(hostOf(formValues.url || ''))}
                 />
+
+                {/* File upload */}
+                <div className="mt-4">
+                  <FieldLabel
+                    label="Or upload files"
+                    tooltip="PDFs or images the agent can use to build the demo."
+                  />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                    className="hidden"
+                    onChange={e => handleFiles(e.target.files)}
+                    disabled={uploading || isSubmitting}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || isSubmitting}
+                    className="w-full border border-dashed border-gray-300 rounded-lg px-3.5 py-2.5 text-sm text-gray-500 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {uploading ? 'Uploading…' : 'Click to upload PDFs or images'}
+                  </button>
+                  {errors.assets && <p className="text-xs text-red-500 mt-1">{errors.assets}</p>}
+                  {assets.length > 0 && (
+                    <ul className="mt-2 space-y-1.5">
+                      {assets.map((asset, idx) => (
+                        <li
+                          key={`${asset.url}-${idx}`}
+                          className="flex items-center justify-between text-xs text-gray-700 bg-gray-50 rounded-md px-2.5 py-1.5"
+                        >
+                          <span className="truncate max-w-[200px] sm:max-w-xs">{asset.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeAsset(idx)}
+                            className="text-gray-400 hover:text-red-500 ml-2"
+                            aria-label={`Remove ${asset.name}`}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               {/* Audio Track — id="audio-select-wrapper" for spotlight */}

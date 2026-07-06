@@ -22,12 +22,12 @@ import { Redis } from 'ioredis'
 import * as os from 'os'
 import yaml from 'yaml'
 import { getSessionIdFromEvent } from './opencode.js'
-
-import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
+import { type AssetManifest, formatAssetManifestForPrompt, prepareAssets } from './utils/assets.js'
+import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
-import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { addIntroOutro } from './utils/intro-outro.js'
+import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
 
@@ -619,6 +619,16 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // job is deleted while processing.
       activeSessionsByJobId.set(jobId, session.id)
 
+      // Download and preprocess any user-provided assets (PDFs / images).
+      // Use the OpenCode session ID as the assets directory so the plugin can
+      // locate them via its tool context.
+      let assetManifest: AssetManifest | null = null
+      const assetInputs = parameters?.assets
+      if (Array.isArray(assetInputs) && assetInputs.length > 0) {
+        const assetsDir = path.join(recordingsDir, 'assets', session.id)
+        assetManifest = await prepareAssets(jobId, assetInputs, assetsDir)
+      }
+
       // Determine the directory where the video should be recorded using environment variables
       const recordingDirEnv = process.env.RECORDING_DIR || process.env.VIDEO_DIR
       let videoDir = targetDir
@@ -809,7 +819,20 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       const targetUrl = parameters?.url || ''
       const promptInstructions = parameters?.instructions || ''
       const promptScript = (parameters?.script || '').toString().trim()
-      const userPrompt = `Go to ${targetUrl}. ${promptInstructions}`
+      const hasUrl = Boolean(targetUrl)
+      const hasAssets = assetManifest && assetManifest.assets.length > 0
+      const userPrompt = hasUrl
+        ? `Go to ${targetUrl}. ${promptInstructions}`
+        : `${promptInstructions}`
+
+      const assetBlock = hasAssets
+        ? `
+
+UPLOADED ASSETS (available for this demo):
+${formatAssetManifestForPrompt(assetManifest!)}
+
+When assets are present, call the 'list_assets' tool first to see the manifest, and use 'build_slideshow' to turn selected images/PDF pages into a narrated slideshow. You may also combine assets with the URL above: e.g. open a slideshow first, then navigate to the URL.`
+        : ''
 
       // If the user supplied a voiceover script, the narration must follow it.
       const scriptBlock = promptScript
@@ -824,12 +847,12 @@ Narrate the demo using this script. You MAY split it into natural chunks, lightl
         : ''
 
       const promptText = `You are a professional, engaging web demo agent. Your goal is to guide the user through a web automation task naturally, as if you are a friendly human narrator recording a tutorial.
-User Request: "${userPrompt}"
+User Request: "${userPrompt}"${assetBlock}
 ${scriptBlock}
 Start narrating the demo as soon as the page is visible. Navigate and let the first view load first, then begin your narration — so the demo opens with real content on screen rather than silence.
 
 Guidelines:
-1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. Start directly with 'playwright-cli goto <url>'.
+1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. ${hasUrl ? "Start directly with 'playwright-cli goto <url>'." : "If the request relies on uploaded assets, use 'build_slideshow' to create a local HTML slideshow and then run 'playwright-cli goto file://<path-to-slideshow.html>'."}
 2. ELEMENT REFS: Call 'demo_bash' with command "playwright-cli snapshot" to get the current page state. Elements will have refs like [ref=e53].
    Pass the ref identifier (e.g. "e53") to tools like 'zoom_in' or 'demo_bash' command "playwright-cli click e53".
 3. CAMERA / ZOOM — treat the zoom like a cinematic spotlight, used sparingly to feel clean, not busy:
@@ -863,11 +886,21 @@ Guidelines:
 9. LOGO CAPTURE: Before ending the demo, capture the product's logo for the intro/outro cards. ALWAYS PREFER downloading the original asset — it is much sharper than a screenshot:
    a. Snapshot and find the VISIBLE logo — usually an <img> in the header/nav (or the brand image inside the top-left home link) whose src/alt/class contains "logo". Do NOT target <link rel=icon> in the head.
    b. If it's an <img>, read its real URL and download it:
-      demo_bash({ command: "playwright-cli eval \"el => el.currentSrc || el.src\" e53" })   // absolute URL; currentSrc is the highest-res variant the browser actually loaded
+      demo_bash({ command: "playwright-cli eval "el => el.currentSrc || el.src" e53" })   // absolute URL; currentSrc is the highest-res variant the browser actually loaded
       then demo_bash({ command: "curl -L -o recordings/product_logo.png '<that url>'" }).
       The .png filename is fine even when the asset is .svg/.jpeg/.webp — the file is normalized automatically. Only fall back to a screenshot if the curl fails or the logo is not a downloadable image (inline <svg>, CSS background-image, etc.).
-   c. FALL BACK to a screenshot when there is no downloadable <img> URL — an inline <svg> logo, a CSS background-image, or a failed download. The selector is the POSITIONAL target and the output flag is --filename (NOT --selector / --path): demo_bash({ command: "playwright-cli screenshot 'header img[src*=logo], a[href=\"/\"] img, img[alt*=logo], [class*=logo] img, header svg' --filename recordings/product_logo.png" }). The element MUST be visible on the page. If the first selector fails, try another visible logo/brand image.
+   c. FALL BACK to a screenshot when there is no downloadable <img> URL — an inline <svg> logo, a CSS background-image, or a failed download. The selector is the POSITIONAL target and the output flag is --filename (NOT --selector / --path): demo_bash({ command: "playwright-cli screenshot 'header img[src*=logo], a[href="/"] img, img[alt*=logo], [class*=logo] img, header svg' --filename recordings/product_logo.png" }). The element MUST be visible on the page. If the first selector fails, try another visible logo/brand image.
    d. If no logo can be captured at all, that's OK; skip it.
+10. UPLOADED ASSETS (PDFs / images):
+    - If this job includes uploaded assets, call the tool 'list_assets' at the start to see what is available (pages, extracted text, and how many targetable regions each page has).
+    - PDFs are pre-rendered as PNG page images with their text extracted. Build the walkthrough with 'build_slideshow' passing the page image paths in order (add a 'title' for a premium title card).
+    - Images work the same way in 'build_slideshow'; images with legible text also expose regions.
+    - INTERACTIVE, EXPLANATORY DEMOS — this is what makes an asset demo premium, not just narration over static pages:
+      • After 'playwright-cli goto file://<slideshow.html>', run 'playwright-cli snapshot' — every page region is a LABELLED hotspot (its ref's label is the text on the page, e.g. "Full Name", "Voter ID Number"), so you can find the exact field to talk about.
+      • To draw the viewer's eye to a specific field: 'zoom_in' on its hotspot ref, then 'annotate' it. Styles: 'circle' (hand-drawn ring), 'box', 'underline', 'highlighter' (marker swipe over text), 'arrow' (points at it), 'spotlight' (dims everything else). Choose the style that fits — circle/box to call out a field, highlighter/underline for a line of text, spotlight to isolate one area, arrow to point.
+      • Choreograph each beat: snapshot → narrate({ focus: "<ref>" }) → zoom_in({ target: "<ref>" }) → annotate({ target: "<ref>", style: "circle" }) → brief 'sleep' hold so it lands → 'clear_annotations' before moving on → advance with 'playwright-cli press ArrowRight'.
+      • Keep annotations sparse and purposeful — one clear call-out per point, not many at once. Never annotate in silence: narrate what you're highlighting as you highlight it.
+    - You may freely combine assets with a URL: e.g. walk through a PDF slideshow, then 'playwright-cli goto' the product URL and continue. 'annotate'/'clear_annotations' also work on live web pages.
 ${buildSkillsPrompt(skills)}`
 
       const promptResponse = await client.session.prompt({

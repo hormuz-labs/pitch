@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Online SIR Form Training</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 1920px; height: 1080px; overflow: hidden;
+      background: radial-gradient(circle at 50% 30%, #1b2233 0%, #0a0d14 70%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    #app { position: relative; width: 100%; height: 100%; }
+    .stage { position: absolute; inset: 0; }
+    .slide {
+      position: absolute; inset: 0; opacity: 0;
+      transition: opacity 500ms ease-in-out;
+      display: flex; align-items: center; justify-content: center;
+      padding: 72px 96px 96px;
+    }
+    .slide.active { opacity: 1; z-index: 1; }
+    /* .page shrinks to the contained image so hotspot %s map onto the image
+       with no JS measurement; hotspots + image scale together. */
+    .page {
+      position: relative; display: flex;
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 24px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    }
+    /* Cap to the stage minus .slide padding (1920-96*2 x 1080-72-96) so the
+       page is contained deterministically; .page then shrinks to the image and
+       hotspot %s map onto it exactly. Percentage max-height can't be used here
+       because .page has auto height. */
+    .page img {
+      display: block; max-width: 1728px; max-height: 912px;
+      object-fit: contain; user-select: none; -webkit-user-drag: none;
+    }
+    .hotspots { position: absolute; inset: 0; }
+    .hotspot {
+      position: absolute; background: transparent; border: 0; padding: 0;
+      pointer-events: none; /* targets for zoom/annotate, never steal nav clicks */
+    }
+    .title-slide { padding: 0; }
+    .title-card {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; height: 100%; padding: 120px;
+    }
+    .title-card h1 {
+      color: #f4f6fb; font-size: 84px; font-weight: 700; line-height: 1.1;
+      text-align: center; letter-spacing: -0.02em; max-width: 1400px;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+    #progress {
+      position: absolute; top: 0; left: 0; height: 4px; z-index: 20;
+      background: linear-gradient(90deg, #6ea8fe, #a78bfa);
+      transition: width 400ms ease; border-radius: 0 3px 3px 0;
+    }
+    #counter {
+      position: absolute; bottom: 32px; left: 40px; z-index: 20;
+      color: #e8ecf5; font-size: 15px; font-weight: 500;
+      background: rgba(20,24,34,0.72); padding: 8px 14px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(6px);
+    }
+    #nav {
+      position: absolute; bottom: 28px; right: 40px; z-index: 20;
+      display: flex; gap: 10px;
+    }
+    #nav button {
+      background: rgba(20,24,34,0.72); color: #e8ecf5;
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
+      padding: 9px 18px; font-size: 14px; font-weight: 500; cursor: pointer;
+      backdrop-filter: blur(6px); transition: background 150ms ease;
+    }
+    #nav button:hover { background: rgba(40,48,66,0.9); }
+    /* Injected annotation overlays live here (drawn by the annotate tool). */
+    #annotations { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="app" data-total="10">
+    <div id="progress" style="width:10.000%"></div>
+    <div class="stage">
+      <div class="slide title-slide active" data-index="0">
+      <div class="title-card"><h1>Online SIR Form Training</h1></div>
+    </div>
+      <div class="slide" data-index="1">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-1.png" alt="Slide 2" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Information Session" data-region="p0r0" style="left:6.770747638888889%;top:47.61252345679013%;width:19.760000694444447%;height:4.044444444444443%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Online SIR form Jharkhand" data-region="p0r1" style="left:8.80280861111111%;top:55.657500000000006%;width:65.53750208333334%;height:18.231111604938267%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Training by: Research Team Imarat Shariah Bihar" data-region="p0r2" style="left:8.802770138888889%;top:72.84106888888888%;width:65.71666875%;height:10.41777802469136%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Odisha Jharkhand and WB" data-region="p0r3" style="left:8.802766944444445%;top:79.95217950617284%;width:35.35333444444444%;height:10.41777802469136%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="1" data-region="p0r4" style="left:93.7782551388889%;top:93.80770395061728%;width:0.7722222222222146%;height:2.316049382716048%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="2">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-2.png" alt="Slide 3" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Registration se pehle ye cheezen tayyar rakhen" data-region="p1r0" style="left:14.521618194444445%;top:7.722511851851851%;width:66.81000208333333%;height:6.066666666666666%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Muhim" data-region="p1r1" style="left:1.9225924999999997%;top:14.267674074074074%;width:3.412500138888889%;height:18.873333827160494%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="1. Mobile Number linked to Adhar and voter ID" data-region="p1r2" style="left:15.60681638888889%;top:31.074145432098767%;width:63.663484027777784%;height:5.3925928395061735%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="registration" data-region="p1r3" style="left:1.9225924999999997%;top:34.80767456790123%;width:3.412500138888889%;height:29.060000987654323%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="2. Passport Size Photo" data-region="p1r4" style="left:15.190149722222223%;top:39.41982543209876%;width:29.00459402777778%;height:5.392592592592593%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="3. Parents 2002/3/5 voter details (assembly No, Booth" data-region="p1r5" style="left:15.190149722222223%;top:47.765502469135804%;width:70.62459527777779%;height:5.3925928395061735%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="(part) No, and serial number)" data-region="p1r6" style="left:18.314742916666667%;top:54.876614814814815%;width:37.65333444444444%;height:5.392592592592593%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="4. Adhar Number" data-region="p1r7" style="left:15.190149722222223%;top:63.22229283950618%;width:23.00459375%;height:5.392592592592586%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Voter" data-region="p1r8" style="left:1.9225924999999997%;top:65.53434222222222%;width:3.412500138888889%;height:14.393333827160495%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="5. Father and Mother Name" data-region="p1r9" style="left:15.190149722222223%;top:71.56797259259258%;width:36.174594166666665%;height:5.39259283950618%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="2" data-region="p1r10" style="left:94.93397472222223%;top:93.51611086419753%;width:0.5849999999999984%;height:2.0222222222222217%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="3">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-3.png" alt="Slide 4" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Step 1: sign-up aur login" data-region="p2r0" style="left:0.8492093055555556%;top:6.964278271604939%;width:36.58666652777777%;height:6.291358024691358%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Mobile aur captcha fill" data-region="p2r1" style="left:76.22921125%;top:7.735553827160493%;width:18.940279027777777%;height:3.0108641975308643%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="karen phir continue par" data-region="p2r2" style="left:75.67748277777778%;top:11.587405679012345%;width:20.043473749999993%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Green Form” colour par me “Fill click Enumeration karen" data-region="p2r3" style="left:22.460742638888888%;top:14.124756049382716%;width:27.5666675%;height:6.334815061728394%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="click karen" data-region="p2r4" style="left:81.04096722222222%;top:15.439257777777776%;width:9.327500555555556%;height:3.0108641975308648%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="‘Sign Up’ par click karen" data-region="p2r5" style="left:54.090983055555554%;top:16.340103950617284%;width:20.84694597222222%;height:3.0108641975308648%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Google pe ‘voter" data-region="p2r6" style="left:0.9112533333333332%;top:19.125658518518517%;width:14.229584305555557%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="service’ search karen" data-region="p2r7" style="left:0.9112533333333332%;top:22.977510617283954%;width:18.257779027777776%;height:3.010864197530861%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="https://voters.eci.gov.in/" data-region="p2r8" style="left:0.9112533333333332%;top:26.829362469135802%;width:20.610418055555556%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="per click karen" data-region="p2r9" style="left:0.9112533333333332%;top:30.681212592592594%;width:12.635278611111112%;height:3.0108644444444446%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="4">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-4.png" alt="Slide 5" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Step 1: sign-up aur login" data-region="p3r0" style="left:0.8492093055555556%;top:5.299555555555556%;width:36.58666652777777%;height:6.291358024691357%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Mobile/Epic no fill karen" data-region="p3r1" style="left:58.77589152777778%;top:15.100675061728394%;width:20.63930694444445%;height:3.010864444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="First name aur last name" data-region="p3r2" style="left:16.607269583333334%;top:16.877675061728397%;width:21.255001527777782%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="OTP type karen fill karen, Phir request ITP Login per click…" data-region="p3r3" style="left:0.8140994444444445%;top:18.952527160493826%;width:97.32908333333332%;height:4.998420740740742%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="OTP par click karen" data-region="p3r4" style="left:60.69504666666668%;top:22.80437901234568%;width:16.809723472222224%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="karen" data-region="p3r5" style="left:45.658736250000004%;top:23.267682716049386%;width:4.815416944444443%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="par click karen" data-region="p3r6" style="left:20.919297083333337%;top:24.581379012345682%;width:12.635278611111108%;height:3.0108644444444446%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="5">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-5.png" alt="Slide 6" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Step 2: State select karke Voter ID and Mobile number enter…" data-region="p4r0" style="left:0.8492093055555556%;top:7.19222024691358%;width:91.28700291666667%;height:5.662222469135802%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Apna enter Epic kijie number" data-region="p4r1" style="left:42.21301444444444%;top:16.765883456790124%;width:15.934028888888891%;height:6.8627162962962975%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Select click State kijie pe" data-region="p4r2" style="left:1.8492358333333334%;top:18.431578271604938%;width:12.833889722222223%;height:6.862716296296295%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Jharkhand click kijiye pe" data-region="p4r3" style="left:22.968336388888886%;top:18.807294567901238%;width:11.728889722222226%;height:6.862716543209875%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Apne details vote aapko ID ki jazar puri Apna Mobile number" data-region="p4r4" style="left:64.47563069444445%;top:20.077344444444442%;width:35.51349722222223%;height:6.862716543209878%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="enter karke send OTP" data-region="p4r5" style="left:83.19657208333334%;top:25.859567407407408%;width:17.121667222222232%;height:2.7792595061728425%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Ayegi" data-region="p4r6" style="left:70.52614180555555%;top:27.781048395061724%;width:4.846111527777768%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="par click kijiye" data-region="p4r7" style="left:86.06685208333333%;top:29.41512345679012%;width:11.383333750000004%;height:2.779259506172839%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="6">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-6.png" alt="Slide 7" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Step 3: Category select karke parents ki details upload kar…" data-region="p5r0" style="left:0.8492093055555556%;top:6.964278271604939%;width:89.86833305555554%;height:6.291358024691358%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Agar abbu ammi dada dadi ya Agar ya nana abbu nani ammi me …" data-region="p5r1" style="left:2.304201111111111%;top:16.478977530864196%;width:71.83939166666667%;height:4.765157283950619%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Kiya h to phir parents ka" data-region="p5r2" style="left:56.37966083333333%;top:19.91008888888889%;width:17.80930652777778%;height:2.547654320987657%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="nana nani me se kisi ka bhi naam bhi naam kisi bhi state me" data-region="p5r3" style="left:1.4085380555555556%;top:20.317220987654323%;width:34.140652083333336%;height:2.7553365432098778%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="kisi bhi state me 2003 2002 ya 2025 ya 2026 ke voter list n…" data-region="p5r4" style="left:2.3012201388888887%;top:22.08512222222222%;width:72.6541161111111%;height:3.6318804938271625%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="2005 ke voter list me tha to 2nd" data-region="p5r5" style="left:1.93319875%;top:25.05796197530864%;width:16.472223333333332%;height:1.8528397530864202%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="me tha choose to 3rd kijiye option ko par click kijiye stat…" data-region="p5r6" style="left:22.50542152777778%;top:25.936974320987655%;width:49.73823333333333%;height:4.246695061728393%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="option ko choose kijiye" data-region="p5r7" style="left:4.031841805555556%;top:27.428332345679014%;width:12.271111944444444%;height:1.8528397530864202%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="7">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-7.png" alt="Slide 8" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Step 3: Category select karke parents ki details aur photo …" data-region="p6r0" style="left:0.8492093055555556%;top:7.191734074074074%;width:95.08800305555555%;height:5.662222469135802%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Is me se sir wahi box fill" data-region="p6r1" style="left:58.36175958333334%;top:13.825847901234567%;width:17.468612083333323%;height:2.5476545679012355%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="booth number aur In 4 me se 1 option Search par click karte…" data-region="p6r2" style="left:3.645475555555555%;top:16.650829382716047%;width:71.63884319444445%;height:2.981932345679015%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="serial number daal kar choose kijiye aur parent ki puri det…" data-region="p6r3" style="left:0.08182638888888888%;top:19.740166666666667%;width:95.12649041666666%;height:3.30276172839506%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="select relationship par search par click dekh payenge, ab t…" data-region="p6r4" style="left:0.08304694444444444%;top:22.99942592592593%;width:96.78489125%;height:3.5990585185185164%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="nishaan par click karke sab ko nahi bharna h photo upload k…" data-region="p6r5" style="left:38.577511111111114%;top:26.258685432098765%;width:56.964927083333336%;height:3.1518535802469128%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="click kijiye" data-region="p6r6" style="left:4.758747083333334%;top:27.37478049382716%;width:8.330000277777778%;height:2.7792592592592595%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="kijiye" data-region="p6r7" style="left:26.709331111111112%;top:27.37478049382716%;width:4.165000138888889%;height:2.7792592592592595%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="continue pe click kijie" data-region="p6r8" style="left:39.08852083333333%;top:29.687866172839506%;width:15.772778611111113%;height:2.5476545679012337%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="8">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-8.png" alt="Slide 9" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Step 4: Aadhar Card ke through E-Hastakshar karna" data-region="p7r0" style="left:0.8492093055555556%;top:7.191734074074074%;width:70.80500222222221%;height:5.662222469135802%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Ab aapka form submit ho chuka h," data-region="p7r1" style="left:66.9258025%;top:14.355699753086418%;width:24.931806944444443%;height:2.5476545679012355%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Photo upload kake Ab kar apna OTP aadhar daalie card aur ti…" data-region="p7r2" style="left:1.7866908333333333%;top:16.593545679012347%;width:93.67518166666665%;height:6.828327407407407%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="submit par click kijie" data-region="p7r3" style="left:1.7866908333333333%;top:22.229964938271603%;width:17.74139013888889%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="kijie" data-region="p7r4" style="left:51.61031625%;top:22.229964938271603%;width:3.5081947222222234%;height:3.0108644444444446%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="kijiye" data-region="p7r5" style="left:30.313734305555556%;top:22.51947185185185%;width:3.470833333333335%;height:2.316049382716048%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="aap ke paas edit ka option band ojayega" data-region="p7r6" style="left:64.8031173611111%;top:24.133477777777777%;width:29.174446111111113%;height:2.5476545679012372%"></button></div>
+      </div>
+    </div>
+      <div class="slide" data-index="9">
+      <div class="page">
+        <img src="file:///home/adnan/Documents/pitch/recordings/assets/ses_0c7c18b88ffe6QFNPAM0jFNZmX/Online_SIR_form_training_by_Imarate_Shariah_Bihar_Odisha_Jharkhand_and_WB_.pdf.pages/page-9.png" alt="Slide 10" draggable="false" />
+        <div class="hotspots"><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Jazakallahu Khaira" data-region="p8r0" style="left:11.771177499999999%;top:15.374496049382715%;width:44.700001388888886%;height:10.111111358024694%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="For help please whatsapp: 7070552322 (mufti Qeyamuddin Qasm…" data-region="p8r1" style="left:6.080214305555556%;top:47.148456543209875%;width:82.69138986111109%;height:5.167901234567903%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="09990457104 (Dr Consultant)" data-region="p8r2" style="left:6.080214305555556%;top:53.96327160493828%;width:41.055000416666665%;height:5.167901234567896%"></button><button type="button" class="hotspot" role="button" tabindex="-1" aria-label="Research Team Imarat Shariah Bihar, Odisha, Jharkhand and WB" data-region="p8r3" style="left:6.080214305555556%;top:60.77808666666667%;width:80.55430638888889%;height:5.167901234567903%"></button></div>
+      </div>
+    </div>
+    </div>
+    <div id="counter">1 / 10</div>
+    <div id="nav">
+      <button id="prev" type="button" aria-label="Previous slide">←</button>
+      <button id="next" type="button" aria-label="Next slide">Next →</button>
+    </div>
+    <div id="annotations"></div>
+  </div>
+  <script>
+    (function () {
+      var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+      var counter = document.getElementById('counter');
+      var progress = document.getElementById('progress');
+      var total = slides.length;
+      var current = 0;
+      function go(i) {
+        if (total === 0) return;
+        var next = Math.max(0, Math.min(total - 1, i));
+        if (next === current) return;
+        slides[current].classList.remove('active');
+        current = next;
+        slides[current].classList.add('active');
+        counter.textContent = (current + 1) + ' / ' + total;
+        progress.style.width = ((current + 1) / total * 100).toFixed(3) + '%';
+        var ann = document.getElementById('annotations');
+        if (ann) ann.innerHTML = ''; // clear annotations on slide change
+      }
+      window.__goToSlide = go;
+      var nextBtn = document.getElementById('next');
+      var prevBtn = document.getElementById('prev');
+      if (nextBtn) nextBtn.addEventListener('click', function () { go(current + 1); });
+      if (prevBtn) prevBtn.addEventListener('click', function () { go(current - 1); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight' || e.key === ' ') go(current + 1);
+        if (e.key === 'ArrowLeft') go(current - 1);
+      });
+      
+    })();
+  </script>
+</body>
+</html>

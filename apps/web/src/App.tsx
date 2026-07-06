@@ -1084,7 +1084,7 @@ function AppContent() {
   const [projects, setProjects] = useState<Project[]>([])
   const [jobLogs, setJobLogs] = useState<Record<string, LogEntry[]>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formValues, setFormValues] = useState<Record<string, string>>({})
+  const [formValues, setFormValues] = useState<Record<string, any>>({})
   const [isAdmin, setIsAdmin] = useState(false)
 
   // Track whether the user has selected a specific template (detail mode)
@@ -1324,6 +1324,7 @@ function AppContent() {
       const newJob = await api.post<Project>('/jobs', token!, {
         parameters: {
           url: values.url,
+          assets: values.assets,
           instructions: values.instructions,
           script: values.script,
           voice: values.audio || 'Puck',

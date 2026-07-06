@@ -32,8 +32,38 @@ async function request<T>(method: Method, path: string, token: string, body?: un
   return res.json() as Promise<T>
 }
 
+async function formRequest<T>(
+  method: Method,
+  path: string,
+  token: string,
+  body: FormData,
+): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: 'include',
+    body,
+  })
+
+  if (!res.ok) {
+    const err: any = new Error(`HTTP ${res.status}`)
+    err.status = res.status
+    throw err
+  }
+
+  if (res.status === 204) {
+    return null as unknown as T
+  }
+
+  return res.json() as Promise<T>
+}
+
 export const api = {
   get: <T>(path: string, token: string) => request<T>('GET', path, token),
   post: <T>(path: string, token: string, body?: unknown) => request<T>('POST', path, token, body),
+  postForm: <T>(path: string, token: string, body: FormData) =>
+    formRequest<T>('POST', path, token, body),
   delete: <T>(path: string, token: string) => request<T>('DELETE', path, token),
 }
