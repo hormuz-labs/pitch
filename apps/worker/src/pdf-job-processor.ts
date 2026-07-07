@@ -339,6 +339,7 @@ export async function processPdfJob(
       if (template === 'BRUTALIST_NEWSPAPER') templateDirName = 'brutalist-newspaper'
       else if (template === 'MINIMAL_CORPORATE') templateDirName = 'minimal-corporate'
       else if (template === 'DARK_TECH') templateDirName = 'dark-tech'
+      else if (template === 'COMIC_POP') templateDirName = 'comic-pop'
 
       promptText = `You are a professional PDF presentation generator agent. Your task is to build a high-fidelity PDF presentation based on the user's requirements and the specialized \`template-ppt\` skill.
 

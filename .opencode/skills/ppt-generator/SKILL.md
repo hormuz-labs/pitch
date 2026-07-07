@@ -8,8 +8,9 @@ description: >
   presentation for Z", or pastes a body of text and asks for slides. The skill
   handles: (1) expanding the prompt into a structured outline of 100+ possible
   slide points categorised by topic type, (2) selecting the right subset for the
-  given topic, (3) extracting keywords and fetching high-res images from Unsplash via Playwright, 
-  (4) writing all slide text, and (5) building a final high-fidelity .pdf using Playwright (HTML-to-PDF).
+  given topic, (3) extracting keywords and fetching high-res images from Pinterest/Unsplash via Playwright
+  with Gemini fallback, (4) writing all slide text, and (5) building a final high-fidelity .pdf using
+  Playwright (HTML-to-PDF) with automated DOM QA.
   Always use this skill even if the user gives a very short prompt — your job is to expand it.
 ---
 
@@ -28,14 +29,15 @@ slide writing → high-fidelity .pdf file.
 | 2 | Use Web Search / tools for factual grounding if needed |
 | 3 | Select slide points from the master list below |
 | 4 | Write all slide text (title, body) |
-| 5 | Generate rich image prompts & concise Unsplash keywords |
-| 6 | Fetch high-res images from Unsplash (Primary) |
+| 5 | Generate rich image prompts & concise Pinterest search keywords |
+| 6 | Fetch high-res images from Pinterest (Primary) with Unsplash backup |
 | 7 | Map images to slides by semantic relevance |
 | 8 | Build high-fidelity .pdf via Playwright (HTML-to-PDF) |
 | 9 | QA and export |
 
 Read [image-scraping.md](image-scraping.md) before running the Playwright pipeline.
 Copy [pdf-builder-template.js](pdf-builder-template.js) to `/tmp/ppt-<JOB_ID>/pdf-builder.js`.
+Copy [reference/qa-dom.js](reference/qa-dom.js) to `/tmp/ppt-<JOB_ID>/reference/qa-dom.js` — DOM QA runs automatically inside pdf-builder.js.
 Read [qa-loop.md](qa-loop.md) AFTER building — it contains the Visual QA loop for PDFs. The worker handles upload automatically once files are ready.
 
 ---
@@ -401,11 +403,14 @@ For EVERY topic follow this algorithm:
 ```
 1. npm install playwright (inside /tmp/ppt-<JOB_ID>/)
 2. Copy pdf-builder-template.js to /tmp/ppt-<JOB_ID>/pdf-builder.js
-3. Fill in the CONFIG object with generated slide content. Use the `getBase64Image('filename.jpg')` helper to map local images so they are permanently embedded into the PDF.
-4. cd /tmp/ppt-<JOB_ID> && node pdf-builder.js
-5. Verify output.pdf was written to /tmp/ppt-<JOB_ID>/output.pdf
-6. Run Visual QA Loop (Step 10)
-7. When QA passes, ensure output.pdf and output.html are at /tmp/ppt-<JOB_ID>/. The worker handles uploading automatically.
+3. Copy reference/qa-dom.js to /tmp/ppt-<JOB_ID>/reference/qa-dom.js (DOM QA is required)
+4. Fill in the CONFIG object with generated slide content. Use the `getBase64Image('filename.jpg')` helper to map local images so they are permanently embedded into the PDF.
+5. cd /tmp/ppt-<JOB_ID> && node pdf-builder.js
+6. pdf-builder.js automatically runs DOM QA first and writes qa-report.json
+7. If DOM QA reports critical issues, fix them in pdf-builder.js and rerun from step 5
+8. Once DOM QA passes, verify output.pdf was written to /tmp/ppt-<JOB_ID>/output.pdf
+9. Run Visual QA Loop (Step 10)
+10. When QA passes, ensure output.pdf and output.html are at /tmp/ppt-<JOB_ID>/. The worker handles uploading automatically.
 ```
 **IMPORTANT**: The worker will detect the generated files and handle upload/completion automatically.
 
@@ -415,7 +420,11 @@ For EVERY topic follow this algorithm:
 
 Read [qa-loop.md](qa-loop.md) for the full commands, defect taxonomy, and patch strategy.
 
-**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". The script cannot detect visual layout breaks or overlapping text!**
+`pdf-builder.js` now performs an automated **DOM QA** gate before generating the PDF. It writes `qa-report.json` and aborts the build if critical structural defects (TEXT_OVERFLOW, IMAGE_MISSING, LAYOUT_BREAK) are detected. You must fix all critical issues before the PDF is produced.
+
+After DOM QA passes and `output.pdf` + `qa-renders/` are generated, perform visual inspection:
+
+**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". Automated checks cannot catch every visual layout break or overlapping text!**
 
 You MUST use your `read` tool to open and analyze the `.png` files generated in the `qa-renders/` folder. Because you are a multimodal agent, passing the image path to your `read` tool will allow you to physically see the slide. If you skip using the `read` tool on the images, you have FAILED the QA step.
 
@@ -425,16 +434,17 @@ You MUST use your `read` tool to open and analyze the `.png` files generated in 
 after node pdf-builder.js produces output.pdf and qa-renders/:
 
 LOOP:
-  1. Open EVERY .png in qa-renders/ with your file viewing tool. Do NOT skip any slide.
+  1. Read qa-report.json and confirm "passed": true. If not, fix critical issues and rerun.
+  2. Open EVERY .png in qa-renders/ with your file viewing tool. Do NOT skip any slide.
 
-  2. For each slide, check these defects:
+  3. For each slide, check these defects:
        TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK · TYPO_CRITICAL
      (Full taxonomy, severity levels, and visual detection guide → qa-loop.md)
 
-  3. if verdict = "PASS":
+  4. if verdict = "PASS":
        → EXIT LOOP
 
-  4. if verdict = "FAIL":
+  5. if verdict = "FAIL":
        a. Apply targeted patches to pdf-builder.js for EACH defect
        b. node pdf-builder.js   ← regenerate output.pdf and new PNGs
        c. go to step 1

@@ -3,7 +3,7 @@ name: ppt-enhancer
 description: >
   Presentation enhancement skill. Triggers when the user uploads an existing PDF
   or PPTX file and wants it improved. Supports two modes: 'recreate' (full visual
-  redesign with fresh Unsplash images and premium brand palette) and 'preserve'
+  redesign with fresh Pinterest/Unsplash images and premium brand palette) and 'preserve'
   (keep the existing slide structure and embedded images, polish text and layout
   only). Always load this skill when job parameters contain enhanceMode = 'recreate'
   or enhanceMode = 'preserve'. The input file has already been parsed — a structured
@@ -13,7 +13,7 @@ description: >
 # PPT Enhancer Skill
 
 End-to-end pipeline: uploaded PDF/PPTX → parse JSON → enhance content →
-(recreate: fresh Unsplash images | preserve: extracted images) →
+(recreate: fresh Pinterest/Unsplash images + Gemini fallback | preserve: extracted images) →
 build high-fidelity PDF via HTML-to-PDF → QA loop.
 
 ---
@@ -39,8 +39,8 @@ build high-fidelity PDF via HTML-to-PDF → QA loop.
 | 2 | **Recreate**: classify topic, run web search grounding, pick brand palette |
 | 2 | **Preserve**: read `extractedImagesDir`, inventory available images |
 | 3 | Write enhanced slide content for all slides |
-| 4 | **Recreate**: generate Unsplash keywords per slide, fetch images |
-| 4 | **Preserve**: map extracted images to slides; Unsplash-supplement if image is unusable |
+| 4 | **Recreate**: generate Pinterest keywords per slide, fetch images |
+| 4 | **Preserve**: map extracted images to slides; Pinterest/Unsplash-supplement if image is unusable |
 | 5 | Map images to slides (mandatory file-existence verification) |
 | 6 | Pick layout per slide from the standard layout pool |
 | 7 | Build `pdf-builder.js` — copy from template, populate CONFIG |
@@ -49,7 +49,7 @@ build high-fidelity PDF via HTML-to-PDF → QA loop.
 
 Shared files (inherited from ppt-generator):
 - `../ppt-generator/pdf-builder-template.js` — base HTML→PDF builder
-- `../ppt-generator/image-scraping.md` — Unsplash fetch script
+- `../ppt-generator/image-scraping.md` — Pinterest → Unsplash → Gemini image fetch script
 - `../ppt-generator/qa-loop.md` — Visual QA loop taxonomy
 - `../ppt-generator/design-library.md` — brand palettes (used in RECREATE only)
 
@@ -118,7 +118,7 @@ Only when `enhanceMode = 'preserve'`:
 
 1. Run: `ls {extractedImagesDir}` to list available extracted images.
 2. Build a mapping of filename → slide number by matching the original parsed JSON's
-   `extractedImages` field. If a slide has no extracted image, mark it as needing Unsplash.
+   `extractedImages` field. If a slide has no extracted image, mark it as needing Pinterest/Unsplash.
 3. Use a **neutral design theme** that complements the original: pick a palette from
    `design-library.md` that is harmonious (not jarring) with the original content.
    Prefer `minimal-corporate` or `saas-clean` palettes to avoid clashing with varied image colors.
@@ -160,13 +160,15 @@ For every slide in the parsed JSON:
 
 Read `.opencode/skills/ppt-generator/image-scraping.md` for the full Playwright script.
 
-Generate a **15–30 word rich descriptive prompt** and a **3–5 word concrete Unsplash search query**
+Generate a **15–30 word rich descriptive prompt** and a **3–5 word concrete Pinterest search query**
 for each slide that needs an image. Run:
 
 ```bash
 node .opencode/skills/ppt-generator/reference/scrape_images.js \
   --topic "<topic>" \
-  --keywords "<keyword1>,<keyword2>,..."
+  --keywords "<keyword1>" "<keyword2>" \
+  --rich-prompt "<keyword1>::<rich image prompt>" \
+  --rich-prompt "<keyword2>::<rich image prompt>"
 ```
 
 Images save to `{buildDir}/images/{keyword}/`.
@@ -184,8 +186,9 @@ For each slide:
 2. Before copy, verify the extracted image is usable:
    - Skip if file is < 5 KB (likely a corrupt/placeholder).
    - Skip if extension is `.emf` or `.wmf` (Windows metafiles — not renderable in HTML).
-3. If no usable extracted image exists for this slide → fall back to Unsplash scraping
-   using a keyword derived from the slide title.
+3. If no usable extracted image exists for this slide → fall back to Pinterest scraping
+   using a keyword derived from the slide title. The shared scraper will use Unsplash as
+   backup and Gemini image generation as final fallback.
 
 ---
 
@@ -230,22 +233,31 @@ Use one layout per slide. Never repeat the same layout on consecutive slides.
 # 1. Copy base template
 cp .opencode/skills/ppt-generator/pdf-builder-template.js {buildDir}/pdf-builder.js
 
-# 2. Fill CONFIG in pdf-builder.js with:
+# 2. Copy DOM QA helper (required)
+mkdir -p {buildDir}/reference
+cp .opencode/skills/ppt-generator/reference/qa-dom.js {buildDir}/reference/qa-dom.js
+
+# 3. Fill CONFIG in pdf-builder.js with:
 #    - jobId: "{JOB_ID}"
 #    - theme: (from design-library or neutral palette)
 #    - slides: (from enhanced outline with image paths and layout codes)
 #    - All images embedded via getBase64Image()
 
-# 3. Install playwright if missing
+# 4. Install playwright if missing
 cd {buildDir} && npm install playwright
 
-# 4. Build
+# 5. Build (DOM QA runs automatically)
 cd {buildDir} && node pdf-builder.js
 
-# 5. Verify outputs
+# 6. Verify DOM QA passed
+cat {buildDir}/qa-report.json
+
+# 7. Verify outputs
 ls {buildDir}/output.pdf
 ls {buildDir}/qa-renders/
 ```
+
+`pdf-builder.js` automatically runs **DOM QA** before generating the PDF. If critical issues (TEXT_OVERFLOW, IMAGE_MISSING, LAYOUT_BREAK) are detected, the build aborts and `output.pdf` is not created. Fix the reported issues and rerun.
 
 ---
 
@@ -255,7 +267,8 @@ Read `.opencode/skills/ppt-generator/qa-loop.md` for full commands.
 
 ```
 LOOP:
-  1. DO NOT TRUST THE "SUCCESS" MESSAGE IN THE TERMINAL.
+  1. Read {buildDir}/qa-report.json and confirm "passed": true.
+     If DOM QA failed, fix pdf-builder.js and rerun from Step 8.
   2. You MUST use the `read` tool on EVERY .png in {buildDir}/qa-renders/ to visually inspect them!
   3. Check: TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK · TYPO_CRITICAL
   4. PASS → exit loop

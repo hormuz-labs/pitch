@@ -67,6 +67,7 @@ Map the template ID to its directory:
 | `BRUTALIST_NEWSPAPER` | `.opencode/skills/template-ppt/templates/brutalist-newspaper/` |
 | `MINIMAL_CORPORATE` | `.opencode/skills/template-ppt/templates/minimal-corporate/` |
 | `DARK_TECH` | `.opencode/skills/template-ppt/templates/dark-tech/` |
+| `COMIC_POP` | `.opencode/skills/template-ppt/templates/comic-pop/` |
 
 **MUST READ both files using the `read` tool:**
 1. `<template-dir>/spec_lock.md` — machine-readable execution contract
@@ -299,6 +300,10 @@ For each slide that needs an image:
 Copy [../ppt-generator/pdf-builder-template.js](../ppt-generator/pdf-builder-template.js)
 to `/tmp/ppt-<JOB_ID>/pdf-builder.js`.
 
+Also copy [../ppt-generator/reference/qa-dom.js](../ppt-generator/reference/qa-dom.js)
+to `/tmp/ppt-<JOB_ID>/reference/qa-dom.js`. DOM QA is required and runs automatically
+when `pdf-builder.js` executes.
+
 **CRITICAL**: Fill CONFIG from spec_lock values — never invent:
 
 ```js
@@ -361,7 +366,15 @@ npm install playwright
 node pdf-builder.js
 ```
 
-Verify: `output.pdf` and `qa-renders/slide_*.png` exist.
+`pdf-builder.js` automatically runs **DOM QA** first. It inspects every slide in the rendered HTML and writes `qa-report.json`.
+
+- If critical issues are found, the build aborts and no PDF is generated.
+- Fix the reported issues in `pdf-builder.js` and rerun.
+
+Once DOM QA passes, verify:
+- `qa-report.json` shows `"passed": true`
+- `output.pdf` exists
+- `qa-renders/slide_*.png` exist
 
 ---
 
@@ -370,7 +383,9 @@ Verify: `output.pdf` and `qa-renders/slide_*.png` exist.
 Read [qa-loop.md](../ppt-generator/qa-loop.md) for full commands and defect
 taxonomy.
 
-**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". The script cannot detect visual layout breaks or overlapping text!**
+DOM QA is now an automatic gate inside `pdf-builder.js`. Always read `qa-report.json` after each build to confirm `"passed": true` before proceeding to visual inspection.
+
+**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". Automated checks cannot catch every visual layout break or overlapping text!**
 
 You MUST use your `read` tool to open and analyze the `.png` files generated in the `qa-renders/` folder. Because you are a multimodal agent, passing the image path to your `read` tool will allow you to physically see the slide. If you skip using the `read` tool on the images, you have FAILED the QA step.
 
@@ -382,11 +397,12 @@ You MUST use your `read` tool to open and analyze the `.png` files generated in 
 
 ```
 LOOP:
-  1. View EVERY .png in qa-renders/ — do not skip any
-  2. Check: TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK
+  1. Read qa-report.json and confirm "passed": true. If not, fix and rerun.
+  2. View EVERY .png in qa-renders/ — do not skip any
+  3. Check: TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK
      Plus template-specific checks from spec_lock → qa_rules
-  3. PASS → exit loop
-  4. FAIL → patch pdf-builder.js → re-run → go to 1
+  4. PASS → exit loop
+  5. FAIL → patch pdf-builder.js → re-run → go to 1
 ```
 
 ---
@@ -411,9 +427,12 @@ template-ppt/
 │   ├── minimal-corporate/
 │   │   ├── spec_lock.md
 │   │   └── skill.md
-│   └── dark-tech/
-│       ├── spec_lock.md
-│       └── skill.md
+│   ├── dark-tech/
+│   │   ├── spec_lock.md
+│   │   └── skill.md
+│   └── comic-pop/
+│       ├── spec_lock.md           ← neo-brutalist comic spec (Dancing Script, Bebas Neue, #FBCC00)
+│       └── skill.md               ← 13 layouts incl. COMIC-FLOWCHART SVG renderer
 ```
 
 Base pipeline files (shared with ppt-generator):

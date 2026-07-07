@@ -179,5 +179,78 @@
         "layout": "TECH-ICON-GRID"
       }
     ]
+  },
+  {
+    "id": "COMIC_POP",
+    "name": "Marblism Comic Pop",
+    "description": "Neo-brutalist comic-book inspired template directly referencing Marblism.com's design language. Features warm cream backgrounds, bold yellow #FBCC00 accent, thick ink borders with hard drop shadows, handwritten Dancing Script cursive body text, compressed Bebas Neue display titles, radial dot patterns, and a unique SVG-based complex flowchart layout. All images generated exclusively by Google Imagen via Gemini API in a bold flat illustration style.",
+    "tags": ["Comic", "Neo-Brutalist", "Playful", "Handwritten", "Marblism", "Charts", "Flowchart"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "THE FUTURE OF AI EMPLOYEES",
+        "subtitle": "How intelligent agents are transforming how small businesses scale",
+        "badge": "✦ KEYNOTE 2026",
+        "layout": "COMIC-COVER",
+        "image": "/templates/comic_cover_preview.png"
+      },
+      {
+        "id": 2,
+        "title": "WHAT WE'LL COVER TODAY",
+        "badge": "AT A GLANCE",
+        "bullets": [
+          "The rise of AI employees in modern business",
+          "Key metrics and adoption statistics",
+          "How to build your AI-powered workforce",
+          "Real-world case studies and results",
+          "Getting started in 30 days"
+        ],
+        "layout": "COMIC-GLANCE",
+        "image": "/templates/comic_glance_preview.png"
+      },
+      {
+        "id": 3,
+        "title": "BY THE NUMBERS",
+        "badge": "KEY METRICS",
+        "stats": [
+          { "value": "40K+", "label": "Businesses Using AI Employees", "description": "Across 50+ countries worldwide" },
+          { "value": "50hrs", "label": "Saved Per Month", "description": "Average time reclaimed per business" },
+          { "value": "4.8★", "label": "Customer Rating", "description": "Based on 965+ verified reviews" }
+        ],
+        "layout": "COMIC-STATS",
+        "image": "/templates/comic_stats_preview.png"
+      },
+      {
+        "id": 4,
+        "title": "AI ADOPTION IS ACCELERATING",
+        "badge": "THE DATA",
+        "chartType": "area",
+        "chartData": {
+          "labels": ["2021", "2022", "2023", "2024", "2025", "2026"],
+          "datasets": [
+            { "label": "Businesses with AI Employees", "data": [1200, 4500, 12000, 25000, 35000, 40000] },
+            { "label": "Hours Saved (thousands)", "data": [800, 3200, 9000, 18000, 28000, 36000] }
+          ]
+        },
+        "source": "Source: Marblism Growth Report 2026",
+        "layout": "COMIC-CHART",
+        "image": "/templates/comic_stats_preview.png"
+      },
+      {
+        "id": 5,
+        "title": "MEET YOUR AI TEAM",
+        "badge": "AI EMPLOYEES",
+        "items": [
+          { "icon": "📧", "heading": "Eva — Executive Assistant", "text": "Handles inbox, calendar, and meeting notes automatically." },
+          { "icon": "📱", "heading": "Sonny — Community Manager", "text": "Turns your social media into a lead-generating machine." },
+          { "icon": "🎯", "heading": "Stan — Lead Generation", "text": "Finds leads, runs outreach, and follows up relentlessly." },
+          { "icon": "✍️", "heading": "Penny — SEO Expert", "text": "Writes SEO-optimized blogs that Google loves." },
+          { "icon": "📞", "heading": "Rachel — Receptionist", "text": "Answers calls and qualifies leads while you focus." },
+          { "icon": "⚖️", "heading": "Linda — Legal Assistant", "text": "Drafts contracts and answers legal questions instantly." }
+        ],
+        "layout": "COMIC-ICON-GRID",
+        "image": "/templates/comic_icon_grid_preview.png"
+      }
+    ]
   }
 ]

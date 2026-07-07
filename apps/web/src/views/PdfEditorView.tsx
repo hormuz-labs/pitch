@@ -2,9 +2,12 @@ import { useAuth } from '@clerk/clerk-react'
 import { toPng } from 'html-to-image'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { FaInstagram, FaWhatsapp, FaXTwitter } from 'react-icons/fa6'
+import { FiLink } from 'react-icons/fi'
 import { useNavigate, useParams } from 'react-router-dom'
 import { PdfProgressWidget } from '../components/PdfProgressWidget'
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
+import { ShareSheet } from '../components/ShareSheet'
 import { api } from '../lib/api'
 import {
   type BlockType,
@@ -55,6 +58,72 @@ const normalizeColor = (col: string): string => {
 }
 
 const BG_PRESETS = ['transparent', '#ffffff', '#000000', '#0a0a0a', '#0f172a', '#1f2937', '#f3f4f6']
+
+const IconShare = ({ className, size = 14 }: { className?: string; size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <polyline points="16 6 12 2 8 6" />
+    <line x1="12" y1="2" x2="12" y2="15" />
+  </svg>
+)
+
+const pdfShareOptions = [
+  {
+    id: 'copy',
+    name: 'Copy URL',
+    icon: (
+      <FiLink
+        size={13}
+        className="text-indigo-600 transition-transform duration-300 group-hover:scale-110"
+      />
+    ),
+    bgClass: 'bg-indigo-50 border border-indigo-100/50 text-indigo-600',
+    immediate: true,
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp',
+    icon: (
+      <FaWhatsapp
+        size={14}
+        className="text-emerald-600 transition-transform duration-300 group-hover:scale-110"
+      />
+    ),
+    bgClass: 'bg-emerald-50 border border-emerald-100/50 text-emerald-600',
+  },
+  {
+    id: 'twitter',
+    name: 'Twitter / X',
+    icon: (
+      <FaXTwitter
+        size={13}
+        className="text-zinc-900 transition-transform duration-300 group-hover:scale-110"
+      />
+    ),
+    bgClass: 'bg-zinc-100 border border-zinc-200/50 text-zinc-900',
+  },
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    icon: (
+      <FaInstagram
+        size={14}
+        className="text-rose-600 transition-transform duration-300 group-hover:scale-110"
+      />
+    ),
+    bgClass: 'bg-rose-50 border border-rose-100/50 text-rose-600',
+  },
+]
 
 export const PdfEditorView = ({
   projects,
@@ -1133,6 +1202,29 @@ export const PdfEditorView = ({
     }
   }
 
+  const handlePdfShareComplete = (option: { id: string; name: string }) => {
+    const pdfUrl = selectedProject?.pdfUrl
+    if (!pdfUrl) return
+    const text = encodeURIComponent(
+      'Check out this PDF I created on Pitch. Create your own at https://trypitch.co 🚀',
+    )
+    const twitterText = encodeURIComponent(
+      'Check out this PDF I created on @trypitchdotco. Create your own at https://trypitch.co 🚀',
+    )
+    const url = encodeURIComponent(pdfUrl)
+
+    if (option.id === 'copy') {
+      navigator.clipboard.writeText(pdfUrl)
+    } else if (option.id === 'whatsapp') {
+      window.open(`https://wa.me/?text=${text}%20${url}`, '_blank')
+    } else if (option.id === 'twitter') {
+      window.open(`https://twitter.com/intent/tweet?text=${twitterText}&url=${url}`, '_blank')
+    } else if (option.id === 'instagram') {
+      navigator.clipboard.writeText(pdfUrl)
+      alert('PDF URL copied! Open Instagram to share.')
+    }
+  }
+
   // Once the background regeneration finishes (pdfGenerating flips false), auto-download.
   useEffect(() => {
     if (!awaitingServerPdf) return
@@ -1587,6 +1679,29 @@ export const PdfEditorView = ({
       {portalTarget &&
         createPortal(
           <>
+            {/* Share */}
+            {selectedProject.pdfUrl && (
+              <ShareSheet
+                users={pdfShareOptions}
+                onShareComplete={handlePdfShareComplete}
+                placement="bottom"
+                skipStatusAnimation
+                className="relative h-9 px-3 inline-flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+                triggerContent={
+                  <>
+                    <IconShare size={13} />
+                    <span className="hidden sm:inline">Share</span>
+                  </>
+                }
+                openTriggerContent={
+                  <>
+                    <IconShare size={13} />
+                    <span className="hidden sm:inline invisible">Share</span>
+                  </>
+                }
+              />
+            )}
+
             {/* Export dropdown */}
             <div className="relative">
               <button

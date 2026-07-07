@@ -222,7 +222,8 @@ function renderChart(slide, themeObj) {
  * Update these tokens based on the chosen theme and generated slides.
  */
 const CONFIG = {
-    jobId: '',                          // ← Agent fills this
+    jobId: '',
+    topicSlug: '',                      // ← Agent fills this (e.g. 'dark-matter-energy')                          // ← Agent fills this
     title: 'PRESENTATION TITLE',       // ← Agent fills this
     subtitle: 'Subtitle goes here',     // ← Agent fills this
     presenter: 'Presenter Name',        // ← Agent fills this
@@ -293,9 +294,52 @@ function generateHTML(config) {
         return clean;
     }
 
+    /* ── Multi-family Google Fonts builder ──
+     * Collects fontDisplay + fontBody + labelFont (optional) from theme.
+     * Each family gets the correct weight axis for that typeface.
+     * Deduplicates so a family used for both display and body only loads once.
+     */
+    const FONT_WEIGHT_MAP = {
+        'Bebas Neue':       ':wght@400',
+        'Dancing Script':   ':wght@400;600;700',
+        'Nunito':           ':wght@400;600;700;800',
+        'IBM Plex Serif':   ':ital,wght@0,400;0,700;1,400',
+        'IBM Plex Sans':    ':wght@400;500;700',
+        'JetBrains Mono':   ':wght@400;700',
+        'Share Tech Mono':  ':wght@400',
+        'Oswald':           ':wght@400;700',
+        'Montserrat':       ':wght@400;700;800',
+        'Inter':            ':wght@400;500;700',
+        'Manrope':          ':wght@400;700;800',
+        'Plus Jakarta Sans':':wght@400;700;800',
+        'Outfit':           ':wght@400;700',
+        'Playfair Display': ':ital,wght@0,400;0,700;1,400',
+        'Barlow':           ':wght@400;700',
+        'Varela Round':     ':wght@400',
+    };
+    function getFontUrlSegment(family) {
+        const weights = FONT_WEIGHT_MAP[family] || ':wght@400;700;800';
+        return `family=${encodeURIComponent(family).replace(/%20/g, '+')}${weights}`;
+    }
+    const _seenFonts = new Set();
+    const _fontSegments = [];
+    // Collect all font references from theme (display, body, labelFont, any extras)
+    const _fontSources = [theme.fontDisplay, theme.fontBody, theme.labelFont]
+        .concat(theme.extraFonts || []);
+    _fontSources.forEach(f => {
+        if (!f) return;
+        const resolved = getGoogleFontFamily(f);
+        if (resolved && !_seenFonts.has(resolved)) {
+            _seenFonts.add(resolved);
+            _fontSegments.push(getFontUrlSegment(resolved));
+        }
+    });
+    // Always ensure Inter as fallback if not already added
+    if (!_seenFonts.has('Inter')) _fontSegments.push(getFontUrlSegment('Inter'));
+    const fontImportUrl = `https://fonts.googleapis.com/css2?${_fontSegments.join('&')}&display=swap`;
     const fontDisplayFam = getGoogleFontFamily(theme.fontDisplay) || 'Montserrat';
-    const fontBodyFam = getGoogleFontFamily(theme.fontBody) || 'Inter';
-    const fontImportUrl = `https://fonts.googleapis.com/css2?family=${fontDisplayFam.replace(/\s+/g, '+')}:wght@700;800&family=${fontBodyFam.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+    const fontBodyFam    = getGoogleFontFamily(theme.fontBody)    || 'Inter';
+    const fontLabelFam   = getGoogleFontFamily(theme.labelFont)   || fontBodyFam;
 
     /* ── Luminance-based dark/light detection — works for ANY hex color ── */
     function hexLuma(hex) {
@@ -443,7 +487,8 @@ function generateHTML(config) {
                 --text: ${textColor};
                 --overlay: ${overlayVal};
                 --font-display: '${fontDisplayFam}', sans-serif;
-                --font-body: '${fontBodyFam}', sans-serif;
+                --font-body: '${fontBodyFam}', cursive, sans-serif;
+                --font-label: '${fontLabelFam}', sans-serif;
             }
             body { margin: 0; padding: 0; background: var(--bg); color: var(--secondary); font-family: var(--font-body); }
             .slide {
@@ -531,9 +576,26 @@ async function build() {
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.setContent(html);
-    
-    // Wait for images to load
-    await page.waitForTimeout(6000); // Extra time for Chart.js CDN + chart rendering
+
+    // ── Wait for Chart.js CDN + all canvas renders (replaces blind timeout) ──
+    // Phase 1: wait until Chart.js is globally available (CDN loaded)
+    await page.waitForFunction(() => typeof window.Chart !== 'undefined', { timeout: 20000 })
+        .catch(() => console.warn('⚠️  Chart.js CDN did not load within 20s — charts may be blank'));
+
+    // Phase 2: wait until every chart_* canvas has non-zero painted dimensions
+    // This confirms Chart.js has finished calling draw() on every dataset
+    await page.waitForFunction(() => {
+        const canvases = Array.from(document.querySelectorAll('canvas[id^="chart_"]'));
+        if (canvases.length === 0) return true; // No charts on any slide — proceed immediately
+        return canvases.every(c => c.width > 0 && c.height > 0 &&
+            // Check that actual pixel data exists (canvas isn't a blank white square)
+            (() => { try { const d = c.getContext('2d').getImageData(0,0,4,4).data; return d.some(v => v !== 255 && v !== 0); } catch(e) { return c.width > 0; } })()
+        );
+    }, { timeout: 30000 })
+        .catch(() => console.warn('⚠️  Chart render timeout after 30s — proceeding with whatever is rendered'));
+
+    // Phase 3: brief reflow settle (for CSS transitions, SVG, flowchart DOM writes)
+    await page.waitForTimeout(800);
 
     // --- DOM QA LOOP: Structural checks before PDF generation ---
     console.log('\nStarting DOM QA...');
@@ -577,8 +639,18 @@ async function build() {
 
     // Save copies inside the workspace pptx/ folder for editor access
     const jobId = CONFIG.jobId || 'unknown';
-    const folderName = `ppt-${jobId}`;
-    const workspacePptxDir = path.join(process.cwd(), 'pptx', folderName);
+    const folderName = CONFIG.topicSlug ? `ppt-${CONFIG.topicSlug}` : `ppt-${jobId}`;
+    // ── Dynamic workspace root detection (no hardcoded paths) ──
+    // Priority: WORKSPACE_ROOT env var → git repo root → process.cwd()
+    const workspaceRoot = process.env.WORKSPACE_ROOT || (() => {
+        try {
+            const { execSync } = require('child_process');
+            return execSync('git rev-parse --show-toplevel', { encoding: 'utf8', stdio: ['pipe','pipe','pipe'] }).trim();
+        } catch (_) {
+            return process.cwd();
+        }
+    })();
+    const workspacePptxDir = path.join(workspaceRoot, 'pptx', folderName);
     
     fs.mkdirSync(workspacePptxDir, { recursive: true });
     

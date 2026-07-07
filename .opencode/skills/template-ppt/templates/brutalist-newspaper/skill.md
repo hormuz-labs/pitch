@@ -80,7 +80,7 @@ function renderChart(slide) {
     const tipBg = isDark ? 'rgba(10,10,20,0.92)' : hexToRgba(PALETTE.bg, 0.97);
 
     // Body font from spec_lock.md typography
-    const fontBody = "'IBM Plex Sans', 'Microsoft YaHei', sans-serif";
+    const fontBody = "IBM Plex Sans, Microsoft YaHei, sans-serif";
 
     const tk = `color:'${textC}',font:{family:'${fontBody}',size:12}`;
     const tip = `tooltip:{backgroundColor:'${tipBg}',titleColor:'${textC}',bodyColor:'${textC}',borderColor:'${PALETTE.border}',borderWidth:1,padding:10}`;
