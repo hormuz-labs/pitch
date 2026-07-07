@@ -238,12 +238,13 @@ Pick **slideCount** points from this list. Adapt to topic type.
 
 Read [image-scraping.md](../ppt-generator/image-scraping.md) for full commands.
 
-**Template-specific image strategy**: check `spec_lock.md → image_strategy` for:
+**Template-specific image strategy**: check `spec_lock.md → image_strategy` and `image_source` for:
 - `editorial` — clean, moody, photojournalistic
 - `stock-clean` — bright, clean stock photography  
 - `halftone` — apply CSS `filter: grayscale(100%) contrast(1.4)` to all images
 - `minimal` — use images sparingly, mostly white/negative space
 - `none` — no images, text/data only
+- `gemini-only` (e.g., COMIC_POP) — MUST prioritize Gemini image generation over scraping.
 
 Generate 2–3 concrete search keywords per image slot. Run the scraper:
 
@@ -255,10 +256,20 @@ node .opencode/skills/ppt-generator/reference/scrape_images.js \
   --rich-prompt "<keyword2>::<rich image prompt>"
 ```
 
-Images download to `pptx/ppt-<topic-slug>/images/<keyword>/`. The pipeline is:
+**CRITICAL: If `image_source` or `image_strategy` is `gemini-only`**, you MUST add `--engine-order gemini,pinterest` to the end of the scrape command. This forces the scraper to try Gemini first, and only fallback to Pinterest if Gemini fails.
+```bash
+node .opencode/skills/ppt-generator/reference/scrape_images.js \
+  --topic "<topic>" \
+  --keywords "<keyword1>" "<keyword2>" \
+  --rich-prompt "<keyword1>::<rich image prompt>" \
+  --engine-order gemini,pinterest
+```
+
+Images download to `pptx/ppt-<topic-slug>/images/<keyword>/`. By default, the pipeline is:
 1. **Pinterest** — tries to download 2 images per keyword.
 2. **Unsplash** — only if Pinterest returns fewer than 2 images; max 1 image.
 3. **Gemini API** — generates any remaining missing images using `GEMINI_API_KEY` from `.env`.
+*(Unless overridden by `--engine-order gemini,pinterest`)*
 
 Expected files per keyword:
 - `pinterest_01.jpg`, `pinterest_02.jpg` (primary)

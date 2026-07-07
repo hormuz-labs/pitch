@@ -14,7 +14,7 @@ This document provides template-specific instructions, layout codes, and HTML/CS
   - Body / bullets: `"Dancing Script"` — handwritten cursive, warm, legible at 17px+.
   - Labels / badges: `"Nunito"` — rounded sans-serif for monospace-like labels.
 - **Background**: Warm cream `#FFFDF5` with a subtle radial dot pattern at 3% opacity.
-- **Images**: **Primary: Gemini API**. You MUST write a custom Node.js script to call the Gemini API (`gemini-3.1-flash-image` with fallback to `gemini-2.5-flash-image`) to generate vector illustrations using the prompt: `"[topic] bold flat vector illustration, thick black ink outlines, vibrant yellow and cream palette, neo-brutalist graphic design, comic book style, professional business illustration, no photorealism"`. If the Gemini API fails, your **fallback is Pinterest** using the standard `scrape_images.js` script. Apply CSS `border: 2.5px solid #191919; box-shadow: 4px 4px 0 #191919;` to all image containers regardless of source.
+- **Images**: **Primary: Gemini API**. Use the standard `scrape_images.js` script but append the flag `--engine-order gemini,pinterest` to force Gemini generation first using `--rich-prompt`. Ensure every prompt includes the style: `"[topic] bold flat vector illustration, thick black ink outlines, vibrant yellow and cream palette, neo-brutalist graphic design, comic book style, professional business illustration, no photorealism"`. If Gemini generation fails, the script will automatically fallback to Pinterest. Apply CSS `border: 2.5px solid #191919; box-shadow: 4px 4px 0 #191919;` to all image containers regardless of source.
 - **Hard rule**: Every card element MUST have the hard drop shadow. No soft rounded shadows.
 - **Hard rule**: No more than ONE pure yellow background card per row of cards.
 
@@ -1565,7 +1565,7 @@ Examples by topic type:
 - **Finance**: `"Growth chart and coins, bold flat illustration, yellow accent, thick ink outlines, neo-brutalist design"`
 - **Health**: `"Human wellness concept, bold flat vector, thick outlines, vibrant but clean, comic book healthcare illustration"`
 
-The `scrape_images.js` script will automatically use Gemini to generate images since Pinterest/Unsplash will return 0 results when the `--rich-prompt` flag includes these unique style descriptors.
+When running `scrape_images.js`, you MUST pass the `--engine-order gemini,pinterest` flag so it natively asks Gemini to generate these styles first before ever checking Pinterest.
 
 ---
 
