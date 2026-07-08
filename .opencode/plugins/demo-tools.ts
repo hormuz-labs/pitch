@@ -86,6 +86,19 @@ interface DemoConfig {
 
 const GEMINI_TTS_MODEL = 'gemini-3.1-flash-tts-preview'
 
+// Voice style descriptions — used as systemInstruction in the TTS call so the
+// Gemini model produces a consistent speaking style that matches the preview
+// audio the user heard when selecting the voice. These MUST stay in sync with
+// the descriptions shown in CreateView.tsx and scripts/regenerate-voices.ts.
+const VOICE_STYLES: Record<string, string> = {
+  Orus:   'Speak in a deep, professional tone. Be calm and authoritative.',
+  Charon: 'Speak in a clear, conversational tone. Be friendly and approachable.',
+  Fenrir: 'Speak in a dynamic, excitable tone. Be energetic and enthusiastic.',
+  Puck:   'Speak in an upbeat, energetic tone. Be lively and engaging.',
+  Aoede:  'Speak in a natural, conversational tone. Be warm and relatable.',
+  Kore:   'Speak in a confident, firm tone. Be direct and assured.',
+}
+
 function parseMimeType(mimeType: string): {
   numChannels: number
   sampleRate: number
@@ -189,18 +202,25 @@ async function speak(directory: string, text: string, state: DemoState): Promise
     const apiKey = process.env.GEMINI_TTS_API_KEY_2
     if (!apiKey) throw new Error('No Gemini API key found')
     const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${apiKey}`
+    const currentVoice = state.voiceName || 'Puck'
+    const styleInstruction = VOICE_STYLES[currentVoice] || ''
+    // Prepend the voice style directive so the TTS model adjusts its delivery
+    // to match the character the user heard in the preview. The style is baked
+    // into the text content because this TTS model doesn't support systemInstruction.
+    const styledText = styleInstruction ? `${styleInstruction}\n\n${text}` : text
+    const ttsBody = {
+      model: GEMINI_TTS_MODEL,
+      contents: [{ role: 'user', parts: [{ text: styledText }] }],
+      generationConfig: {
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: currentVoice } },
+        },
+      },
+    }
     const ttsRes = await fetch(ttsUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: GEMINI_TTS_MODEL,
-        contents: [{ role: 'user', parts: [{ text }] }],
-        generationConfig: {
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: state.voiceName || 'Puck' } },
-          },
-        },
-      }),
+      body: JSON.stringify(ttsBody),
     })
     if (!ttsRes.ok) throw new Error(`TTS API failed: ${ttsRes.status} ${await ttsRes.text()}`)
     const ttsData = await ttsRes.json()
