@@ -32,6 +32,9 @@ WORKDIR /app
 
 COPY --from=builder /app .
 
+# Background loops are committed as binaries now; if they ever need regenerating,
+# run `bun scripts/generate-backgrounds.ts` locally and commit the outputs.
+
 # Allow the container user to access GPU devices (/dev/dri)
 RUN groupadd -f render && usermod -aG render,video root
 

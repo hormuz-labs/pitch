@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import React from 'react'
 import { api } from '../../lib/api'
 import { formatDuration, formatIST } from './JobDetailsModal'

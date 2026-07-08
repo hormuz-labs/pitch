@@ -1,4 +1,4 @@
-import { useAuth, useClerk } from '@clerk/clerk-react'
+import { useAuth, useClerk } from '@clerk/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useEffect, useRef, useState } from 'react'

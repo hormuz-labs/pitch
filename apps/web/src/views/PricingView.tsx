@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import { useEffect, useState } from 'react'
 import pCoinIcon from '../assets/pCoin.svg'
 import { API_URL } from '../config'

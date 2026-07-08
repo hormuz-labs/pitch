@@ -1,4 +1,4 @@
-import { useSignIn, useSignUp } from '@clerk/clerk-react'
+import { useSignIn, useSignUp } from '@clerk/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logoTab from '../assets/logoTab.png'
@@ -47,11 +47,15 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
     setLoading(strategy)
     try {
       const handler = tab === 'sign-in' ? signIn : signUp
-      await handler?.authenticateWithRedirect({
+      const result = await handler?.sso({
         strategy,
-        redirectUrl: CALLBACK_URL,
-        redirectUrlComplete: '/dashboard',
+        redirectUrl: '/dashboard',
+        redirectCallbackUrl: CALLBACK_URL,
       })
+      if (result?.error) {
+        console.error(result.error)
+        setLoading(null)
+      }
     } catch (e) {
       console.error(e)
       setLoading(null)

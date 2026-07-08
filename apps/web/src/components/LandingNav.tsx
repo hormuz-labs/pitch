@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import { Link, useLocation } from 'react-router-dom'
 import tabLogoB from '/tabLogoB.svg'
 

@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
-    "@clerk/clerk-react": "^5.61.3",
+    "@clerk/react": "6.11.3",
     "@clerk/themes": "^2.4.57",
     "@fontsource-variable/geist": "^5.2.9",
     "@hugeicons/core-free-icons": "^4.1.4",

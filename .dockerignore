@@ -46,6 +46,8 @@ apps/web/dist/
 demos/
 *.webm
 *.mp4
+!assets/backgrounds/*.mp4
+!apps/web/public/backgrounds/*.mp4
 
 # Local dev data directories (large, not needed in images)
 docker-data/

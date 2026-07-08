@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
 

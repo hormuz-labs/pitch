@@ -1,4 +1,4 @@
-import { UserProfile, useAuth, useUser } from '@clerk/clerk-react'
+import { UserProfile, useAuth, useUser } from '@clerk/react'
 import { CreditCard, Download, Package, RefreshCw, TrendingUp, User, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import pCoinIcon from '../assets/pCoin.svg'
