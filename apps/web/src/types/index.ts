@@ -24,7 +24,7 @@ export interface Project {
   audioUrl?: string
   thumbnailUrl?: string
   parameters: Record<string, any> & {
-    jobType?: 'video' | 'pdf'
+    jobType?: 'video' | 'pdf' | 'enhance'
     htmlUrl?: string
     topic?: string
     slideCount?: number

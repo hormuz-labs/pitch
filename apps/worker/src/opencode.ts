@@ -20,6 +20,7 @@ function ensureAuthCredentials() {
   return `Basic ${Buffer.from(`${process.env.OPENCODE_SERVER_USERNAME}:${process.env.OPENCODE_SERVER_PASSWORD}`).toString('base64')}`
 }
 
+
 export async function startServer(
   targetDir: string,
 ): Promise<{ server: OpencodeServer; client: OpencodeClient }> {

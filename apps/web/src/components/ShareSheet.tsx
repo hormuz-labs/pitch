@@ -18,8 +18,12 @@ interface ShareSheetProps {
   onShareComplete?: (user: User) => void
   className?: string
   triggerContent?: React.ReactNode
+  /** Content shown inside the trigger while the dropdown is open. Defaults to triggerContent. */
+  openTriggerContent?: React.ReactNode
   containerClassName?: string
   placement?: 'top' | 'bottom'
+  /** If true, skip the sending/success overlay animation and keep the trigger shape unchanged */
+  skipStatusAnimation?: boolean
 }
 
 const springTransition = {
@@ -34,14 +38,22 @@ export const ShareSheet = ({
   onShareComplete,
   className,
   triggerContent,
+  openTriggerContent,
   containerClassName,
   placement = 'bottom',
+  skipStatusAnimation = false,
 }: ShareSheetProps) => {
   const [status, setStatus] = useState<'idle' | 'open' | 'sending' | 'success'>('idle')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const handleSelectUser = (user: User) => {
+    if (skipStatusAnimation) {
+      onShareComplete?.(user)
+      setStatus('idle')
+      return
+    }
+
     setSelectedUser(user)
     setStatus('sending')
 
@@ -80,7 +92,7 @@ export const ShareSheet = ({
         transition={springTransition}
       >
         <AnimatePresence mode="popLayout" initial={false}>
-          {status === 'idle' && (
+          {(status === 'idle' || (skipStatusAnimation && status === 'open')) && (
             <motion.div
               key="share-icon"
               initial={{ opacity: 0, y: 40 }}
@@ -88,7 +100,9 @@ export const ShareSheet = ({
               exit={{ opacity: 0, y: -40 }}
               className="flex items-center justify-center gap-2 w-full h-full"
             >
-              {triggerContent || <FiShare size={13} strokeWidth={2.5} />}
+              {(status === 'open' ? openTriggerContent : triggerContent) || (
+                <FiShare size={13} strokeWidth={2.5} />
+              )}
             </motion.div>
           )}
 

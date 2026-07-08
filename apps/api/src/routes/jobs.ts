@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 
   try {
     const jobs = await db.listJobs({ id: userId })
-    const videoJobs = jobs.filter(j => j.parameters?.jobType !== 'pdf')
+    const videoJobs = jobs.filter(j => j.parameters?.jobType !== 'pdf' && j.parameters?.jobType !== 'enhance')
     res.json(videoJobs)
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to list jobs')

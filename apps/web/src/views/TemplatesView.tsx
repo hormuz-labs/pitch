@@ -54,6 +54,7 @@ const IconChevronUp = () => (
   </svg>
 )
 
+
 type SlideData = {
   layout: string
   title?: string
@@ -108,6 +109,8 @@ const TEMPLATE_FONTS: Record<string, string> = {
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">`,
   DARK_TECH: `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">`,
+  COMIC_POP: `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400&family=Dancing+Script:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">`,
 }
 
 // ── Template CSS (verbatim from each skill.md stylesheet section) ─────────────
@@ -312,10 +315,108 @@ const TECH_CSS = `
 .tech-dash-img{width:100%;height:100%;object-fit:cover;filter:grayscale(100%) brightness(0.8) contrast(1.5) sepia(10%) hue-rotate(150deg);}
 `
 
+const COMIC_CSS = `
+:root{--font-display:'Bebas Neue',sans-serif;--font-body:'Dancing Script',cursive;--font-label:'Nunito',sans-serif;--primary:#FBCC00;--accent:#191919;--secondary:#404040;--bg:#FFFDF5;}
+.comic-pop{font-family:var(--font-body);background-color:#FFFDF5;color:#191919;position:relative;box-sizing:border-box;overflow:hidden;}
+.comic-dot-bg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#191919 1px,transparent 1px);background-size:24px 24px;opacity:0.035;}
+.comic-dot-bg--dark{background-image:radial-gradient(circle,#FBCC00 1px,transparent 1px);opacity:0.06;}
+.comic-content{padding:56px 72px 48px 72px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;position:relative;z-index:2;}
+.comic-badge{align-self:flex-start;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#191919;background:#FBCC00;border:2px solid #191919;border-radius:4px;padding:4px 12px;margin-bottom:14px;box-shadow:2px 2px 0 #191919;line-height:1.4;}
+.comic-badge-lg{align-self:flex-start;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#191919;background:#FBCC00;border:2.5px solid #191919;border-radius:6px;padding:6px 16px;margin-bottom:20px;box-shadow:3px 3px 0 #191919;}
+.comic-title{font-family:'Bebas Neue',sans-serif;font-size:42px;font-weight:400;color:#191919;margin:0 0 24px 0;border:none!important;padding-left:0!important;line-height:1.05;letter-spacing:0.5px;}
+.comic-cover-title{font-family:'Bebas Neue',sans-serif;font-size:68px;font-weight:400;color:#191919;line-height:1.0;margin:0 0 16px 0;border:none!important;padding-left:0!important;letter-spacing:1px;}
+.comic-cover-subtitle{font-family:'Dancing Script',cursive;font-size:24px;font-weight:600;color:#404040;margin:0 0 24px 0;line-height:1.4;}
+.comic-cover-meta{font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:#404040;border-top:2px solid #191919;padding-top:12px;display:inline-block;}
+.comic-cover-layout{display:flex;gap:48px;height:100%;align-items:center;padding:60px 72px;position:relative;z-index:2;box-sizing:border-box;}
+.comic-cover-left{flex:1.1;display:flex;flex-direction:column;justify-content:center;}
+.comic-cover-right{flex:0.9;height:520px;}
+.comic-cover-stripe{position:absolute;bottom:0;left:0;right:0;height:8px;background:#191919;z-index:3;}
+.comic-img-card{width:100%;height:100%;border:2.5px solid #191919;border-radius:12px;box-shadow:6px 6px 0 #191919;overflow:hidden;background:#FFF8D6;}
+.comic-img-fill{width:100%;height:100%;object-fit:cover;display:block;}
+.comic-img-placeholder{display:flex;align-items:center;justify-content:center;background:#FFF8D6;}
+.comic-placeholder-icon{font-size:48px;color:#FBCC00;text-shadow:2px 2px 0 #191919;}
+.comic-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;}
+.comic-list li{display:flex;align-items:flex-start;gap:10px;font-family:'Dancing Script',cursive;font-size:19px;font-weight:600;line-height:1.35;color:#191919;padding-left:0!important;margin-bottom:0!important;}
+.comic-list li::before{display:none!important;}
+.comic-bullet-dot{color:#FBCC00;font-size:14px;line-height:1.6;flex-shrink:0;text-shadow:1px 1px 0 #191919;}
+.comic-bullet-num{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;background:#FBCC00;color:#191919;border:2px solid #191919;border-radius:4px;padding:2px 6px;min-width:28px;text-align:center;box-shadow:2px 2px 0 #191919;flex-shrink:0;}
+.comic-bullet-text{flex:1;}
+.comic-body-lead{font-family:'Dancing Script',cursive;font-size:21px;font-weight:600;color:#191919;line-height:1.45;margin:0 0 16px 0;}
+.comic-glance-grid{display:flex;gap:40px;flex:1;min-height:0;}
+.comic-glance-left{flex:0.9;}
+.comic-glance-right{flex:1.1;display:flex;align-items:center;}
+.comic-stats-row{display:flex;gap:20px;flex:1;align-items:stretch;}
+.comic-stat-card{flex:1;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:28px 24px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.comic-stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:#191919;}
+.comic-stat-card--yellow{background:#FBCC00;}
+.comic-stat-value{font-family:'Bebas Neue',sans-serif;font-size:68px;font-weight:400;color:#191919;line-height:1.0;letter-spacing:0.5px;}
+.comic-stat-label{font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#191919;}
+.comic-stat-desc{font-family:'Dancing Script',cursive;font-size:16px;font-weight:500;color:#404040;line-height:1.4;}
+.comic-split-layout{display:flex;gap:40px;flex:1;min-height:0;}
+.comic-split-text{flex:1.1;display:flex;flex-direction:column;justify-content:center;gap:16px;}
+.comic-split-visual{flex:0.9;}
+.comic-quote-slide{display:flex;align-items:center;justify-content:center;}
+.comic-quote-center{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:60px;position:relative;z-index:2;gap:24px;}
+.comic-quote-box{background:#FFFFFF;border:2.5px solid #191919;border-radius:16px;box-shadow:6px 6px 0 #191919;padding:52px 60px 44px 60px;max-width:950px;text-align:center;position:relative;}
+.comic-quote-mark{position:absolute;top:-36px;left:40px;font-family:'Bebas Neue',sans-serif;font-size:120px;color:#FBCC00;line-height:1;text-shadow:3px 3px 0 #191919;}
+.comic-quote-text{font-family:'Dancing Script',cursive;font-size:30px;font-weight:700;color:#191919;line-height:1.4;margin:0 0 20px 0;position:relative;z-index:2;}
+.comic-quote-author{font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:#404040;text-transform:uppercase;}
+.comic-flow-row{display:flex;align-items:center;gap:0;flex:1;padding-top:8px;}
+.comic-flow-node{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;}
+.comic-flow-num{font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;color:#404040;letter-spacing:1px;}
+.comic-flow-card{background:#FFFFFF;border:2.5px solid #191919;border-radius:10px;box-shadow:3px 3px 0 #191919;padding:16px 14px;width:100%;display:flex;flex-direction:column;gap:6px;}
+.comic-flow-card--yellow{background:#FFF8D6;}
+.comic-flow-heading{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#191919;line-height:1.2;}
+.comic-flow-text{font-family:'Dancing Script',cursive;font-size:15px;font-weight:500;color:#404040;line-height:1.3;}
+.comic-flow-arrow{font-size:24px;color:#FBCC00;text-shadow:1px 1px 0 #191919;font-weight:900;position:absolute;right:-16px;top:50%;transform:translateY(-50%);z-index:3;}
+.comic-chart-full{flex:1;min-height:0;position:relative;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:16px;margin-top:4px;}
+.comic-chart-preview{flex:1;min-height:0;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:20px;display:flex;align-items:flex-end;justify-content:space-around;gap:10px;}
+.comic-chart-source{font-family:'Nunito',sans-serif;font-size:11px;font-weight:600;color:#404040;text-align:right;margin-top:8px;letter-spacing:0.5px;}
+.comic-split-chart-layout{display:flex;gap:32px;flex:1;min-height:0;}
+.comic-split-chart-left{width:38%;display:flex;flex-direction:column;justify-content:center;}
+.comic-split-chart-right{flex:1;min-height:0;position:relative;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:16px;display:flex;align-items:flex-end;justify-content:space-around;gap:10px;}
+.comic-icon-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;flex:1;align-content:stretch;}
+.comic-icon-card{background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:22px 20px;display:flex;flex-direction:column;gap:10px;}
+.comic-icon-card--yellow{background:#FFF8D6;}
+.comic-icon-symbol{font-size:30px;line-height:1;}
+.comic-icon-heading{font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:#191919;line-height:1.2;}
+.comic-icon-text{font-family:'Dancing Script',cursive;font-size:16px;font-weight:500;color:#404040;line-height:1.35;}
+.comic-compare-row{display:flex;gap:0;flex:1;align-items:stretch;position:relative;}
+.comic-compare-panel{flex:1;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:28px 26px;display:flex;flex-direction:column;gap:16px;}
+.comic-compare-panel--yellow{background:#FFF8D6;margin-left:40px;}
+.comic-compare-header{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#191919;border-bottom:2.5px solid #191919;padding-bottom:10px;line-height:1;}
+.comic-vs-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;font-family:'Bebas Neue',sans-serif;font-size:22px;background:#FBCC00;border:2.5px solid #191919;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;box-shadow:3px 3px 0 #191919;color:#191919;}
+.comic-flowchart-container{flex:1;min-height:0;position:relative;width:100%;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:20px;display:flex;align-items:center;justify-content:center;gap:0;overflow:hidden;}
+.comic-fc-node{display:inline-flex;align-items:center;justify-content:center;text-align:center;font-family:'Dancing Script',cursive;font-size:13px;font-weight:700;color:#191919;background:#FFFFFF;border:2.5px solid #191919;border-radius:8px;box-shadow:3px 3px 0 #191919;padding:8px 12px;line-height:1.2;min-width:100px;}
+.comic-fc-node--start,.comic-fc-node--end{font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border-radius:50px;padding:8px 16px;}
+.comic-fc-node--start{background:#FBCC00;}
+.comic-fc-node--end{background:#191919;color:#FBCC00;}
+.comic-fc-node--decision{background:#FFF8D6;border-radius:0;transform:rotate(45deg);width:70px;height:70px;padding:4px;}
+.comic-fc-node--decision span{display:block;transform:rotate(-45deg);font-size:10px;}
+.comic-fc-arrow{font-size:22px;color:#FBCC00;text-shadow:1px 1px 0 #191919;font-weight:900;padding:0 8px;flex-shrink:0;}
+.comic-fc-label{font-family:'Nunito',sans-serif;font-size:10px;font-weight:800;background:#FBCC00;border:1.5px solid #191919;border-radius:3px;padding:1px 5px;position:absolute;top:-14px;left:50%;transform:translateX(-50%);white-space:nowrap;}
+.comic-impact-slide{position:relative;overflow:hidden;}
+.comic-impact-bg{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;filter:brightness(0.65) contrast(1.2);}
+.comic-impact-bg-placeholder{position:absolute;top:0;left:0;width:100%;height:100%;background:#191919;z-index:1;}
+.comic-impact-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(25,25,25,0.55);z-index:2;}
+.comic-impact-content{position:relative;z-index:5;height:100%;display:flex;align-items:center;justify-content:center;padding:60px;}
+.comic-impact-box{background:rgba(255,253,245,0.95);border:2.5px solid #191919;border-radius:16px;box-shadow:6px 6px 0 rgba(25,25,25,0.7);padding:48px 56px;max-width:900px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px;}
+.comic-impact-statement{font-family:'Dancing Script',cursive;font-size:34px;font-weight:700;color:#191919;line-height:1.35;margin:0;}
+.comic-impact-attribution{font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:#404040;letter-spacing:1px;}
+.comic-closing-slide{background:#191919!important;display:flex;align-items:center;justify-content:center;}
+.comic-closing-card{background:#FFFDF5;border:2.5px solid #FBCC00;border-radius:20px;box-shadow:8px 8px 0 rgba(251,204,0,0.5);padding:56px 72px;max-width:800px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px;position:relative;z-index:2;}
+.comic-closing-badge{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#191919;background:#FBCC00;border:2px solid #191919;border-radius:4px;padding:5px 14px;box-shadow:2px 2px 0 #191919;}
+.comic-closing-title{font-family:'Bebas Neue',sans-serif;font-size:64px;font-weight:400;color:#191919;margin:0!important;border:none!important;padding-left:0!important;line-height:1.0;letter-spacing:1px;}
+.comic-closing-subtitle{font-family:'Dancing Script',cursive;font-size:26px;font-weight:600;color:#404040;margin:0;line-height:1.4;}
+.comic-closing-divider{width:80px;height:3px;background:#FBCC00;border:1px solid #191919;border-radius:2px;margin:8px auto;}
+.comic-closing-meta{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:#404040;letter-spacing:0.5px;}
+`
+
 const TEMPLATE_CSS: Record<string, string> = {
   BRUTALIST_NEWSPAPER: BRUTALIST_CSS,
   MINIMAL_CORPORATE: CORP_CSS,
   DARK_TECH: TECH_CSS,
+  COMIC_POP: COMIC_CSS,
 }
 
 // ── Build exact HTML per layout code (mirrors the skill.md renderers) ──────────
@@ -839,6 +940,191 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
 </div>`
   }
 
+  if (templateId === 'COMIC_POP') {
+    const badge = (slide.badge as string | undefined) ?? ''
+    if (slide.layout === 'COMIC-COVER') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-cover-layout">
+    <div class="comic-cover-left">
+      ${badge ? `<div class="comic-badge-lg">${badge}</div>` : '<div class="comic-badge-lg">✦ PRESENTATION</div>'}
+      <div class="comic-cover-title">${t}</div>
+      <div class="comic-cover-subtitle">${sub}</div>
+    </div>
+    <div class="comic-cover-right">
+      ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
+    </div>
+  </div>
+  <div class="comic-cover-stripe"></div>
+</div>`
+    if (slide.layout === 'COMIC-GLANCE') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'AT A GLANCE'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-glance-grid">
+      <div class="comic-glance-left">
+        ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
+      </div>
+      <div class="comic-glance-right">
+        <ul class="comic-list">${(slide.bullets||[]).map((b,i)=>`<li><span class="comic-bullet-num">${String(i+1).padStart(2,'0')}</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-STATS') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'KEY NUMBERS'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-stats-row">
+      ${(slide.stats||[]).map((s,i)=>`<div class="comic-stat-card${i===0?' comic-stat-card--yellow':''}"><div class="comic-stat-value">${s.value}</div><div class="comic-stat-label">${s.label}</div>${s.description?`<div class="comic-stat-desc">${s.description}</div>`:''}</div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-SPLIT') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'DEEP DIVE'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-split-layout">
+      <div class="comic-split-text">
+        ${(slide.body as string | undefined) ? `<p class="comic-body-lead">${slide.body}</p>` : ''}
+        <ul class="comic-list">${(slide.bullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+      <div class="comic-split-visual">
+        ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-QUOTE') return `
+<div class="slide comic-pop comic-quote-slide">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-quote-center">
+    <div class="comic-quote-box">
+      <div class="comic-quote-mark">"</div>
+      <p class="comic-quote-text">${(slide.quote as string | undefined) || (slide.body as string | undefined) || ''}</p>
+      ${(slide.author as string | undefined) ? `<div class="comic-quote-author">— ${slide.author}</div>` : ''}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-FLOW') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'HOW IT WORKS'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-flow-row">
+      ${(slide.steps||[]).map((step,idx,arr)=>`<div class="comic-flow-node"><div class="comic-flow-num">${String(idx+1).padStart(2,'0')}</div><div class="comic-flow-card${idx%2!==0?' comic-flow-card--yellow':''}"><div class="comic-flow-heading">${step.heading||step.title||''}</div><div class="comic-flow-text">${step.text||step.description||''}</div></div>${idx<arr.length-1?'<div class="comic-flow-arrow">→</div>':''}</div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-CHART') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'THE DATA'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-chart-preview">
+      ${[40,55,75,90,60,82].map(h=>`<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:55px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
+    </div>
+    ${(slide.source as string | undefined)?`<div class="comic-chart-source">${slide.source}</div>`:''}
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-SPLIT-CHART') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'DATA + CONTEXT'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-split-chart-layout">
+      <div class="comic-split-chart-left">
+        <ul class="comic-list">${(slide.bullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+      <div class="comic-split-chart-right">
+        ${[35,60,80,95].map(h=>`<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:45px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-ICON-GRID') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'HIGHLIGHTS'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-icon-grid">
+      ${(slide.items||[]).slice(0,6).map((item,i)=>`<div class="comic-icon-card${i===1||i===4?' comic-icon-card--yellow':''}"><div class="comic-icon-symbol">${item.icon||'✦'}</div><div class="comic-icon-heading">${item.heading}</div><div class="comic-icon-text">${item.text}</div></div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-COMPARE') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'COMPARE'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-compare-row">
+      <div class="comic-compare-panel">
+        <div class="comic-compare-header">${(slide.leftTitle as string | undefined) || 'Option A'}</div>
+        <ul class="comic-list">${(slide.leftBullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+      <div class="comic-vs-badge">VS</div>
+      <div class="comic-compare-panel comic-compare-panel--yellow">
+        <div class="comic-compare-header">${(slide.rightTitle as string | undefined) || 'Option B'}</div>
+        <ul class="comic-list">${(slide.rightBullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-FLOWCHART') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'PROCESS MAP'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-flowchart-container">
+      <div class="comic-fc-node comic-fc-node--start">Start</div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node">Research Topic</div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node comic-fc-node--decision"><span>Has Data?</span></div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node">Build Content</div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node comic-fc-node--end">Output</div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-IMPACT') return `
+<div class="slide comic-pop comic-impact-slide">
+  <div class="comic-dot-bg" style="z-index:1;"></div>
+  ${slide.image ? `<img class="comic-impact-bg" src="${slide.image}">` : '<div class="comic-impact-bg-placeholder"></div>'}
+  <div class="comic-impact-overlay"></div>
+  <div class="comic-impact-content">
+    <div class="comic-impact-box">
+      ${badge ? `<div class="comic-badge">${badge}</div>` : ''}
+      <p class="comic-impact-statement">${(slide.statement as string | undefined) || (slide.quote as string | undefined) || (slide.body as string | undefined) || ''}</p>
+      ${(slide.attribution as string | undefined) ? `<div class="comic-impact-attribution">— ${slide.attribution}</div>` : ''}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-CLOSING') return `
+<div class="slide comic-pop comic-closing-slide">
+  <div class="comic-dot-bg comic-dot-bg--dark"></div>
+  <div class="comic-closing-card">
+    <div class="comic-closing-badge">${badge || '✦ THANK YOU'}</div>
+    <div class="comic-closing-title">${t}</div>
+    <div class="comic-closing-subtitle">${sub || "Let's build something great together."}</div>
+    <div class="comic-closing-divider"></div>
+  </div>
+</div>`
+  }
+
   // Fallback
   return `<div class="slide" style="display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:20px;color:#888;background:#111;">${slide.layout}</div>`
 }
@@ -1308,6 +1594,79 @@ const TEMPLATES: Template[] = [
         title: 'DISCONNECTING SYSTEM',
         subtitle: 'Connection closed. Session terminated safely.',
         layout: 'TECH-CLOSING',
+      },
+    ],
+  },
+  {
+    id: 'COMIC_POP',
+    name: 'Marblism Comic Pop',
+    description:
+      'Neo-brutalist comic-book inspired template referencing Marblism.com — warm cream #FFFDF5 canvas with bold yellow #FBCC00 accent, thick 2.5px ink borders with hard 4px drop shadows, handwritten Dancing Script cursive body, Bebas Neue compressed display titles, and a radial dot pattern background. Includes a unique SVG-based flowchart layout. All images generated exclusively via Google Imagen.',
+    tags: ['Comic', 'Neo-Brutalist', 'Handwritten', 'Marblism', 'Flowchart'],
+    theme: {
+      bg: '#FFFDF5',
+      primary: '#FBCC00',
+      accent: '#191919',
+      secondary: '#404040',
+      fonts: 'Bebas Neue + Dancing Script + Nunito',
+      imageMode: 'Google Imagen (Bold Flat Illustration)',
+    },
+    previewSlides: [
+      {
+        id: 1,
+        title: 'THE FUTURE OF AI EMPLOYEES',
+        subtitle: 'How intelligent agents are transforming how small businesses scale',
+        badge: '✦ KEYNOTE 2026',
+        layout: 'COMIC-COVER',
+        image: '/templates/comic_cover_preview.png',
+      },
+      {
+        id: 2,
+        title: 'WHAT WE COVER TODAY',
+        badge: 'AT A GLANCE',
+        bullets: [
+          'The rise of AI employees in modern business',
+          'Key metrics and adoption statistics',
+          'How to build your AI-powered workforce',
+          'Real-world case studies and results',
+          'Getting started in 30 days',
+        ],
+        layout: 'COMIC-GLANCE',
+        image: '/templates/comic_glance_preview.png',
+      },
+      {
+        id: 3,
+        title: 'BY THE NUMBERS',
+        badge: 'KEY METRICS',
+        stats: [
+          { value: '40K+', label: 'Businesses Using AI', description: 'Across 50+ countries worldwide' },
+          { value: '50hrs', label: 'Saved Per Month', description: 'Average time reclaimed per business' },
+          { value: '4.8★', label: 'Customer Rating', description: 'Based on 965+ verified reviews' },
+        ],
+        layout: 'COMIC-STATS',
+        image: '/templates/comic_stats_preview.png',
+      },
+      {
+        id: 4,
+        title: 'MEET YOUR AI TEAM',
+        badge: 'AI EMPLOYEES',
+        items: [
+          { icon: '📧', heading: 'Eva — Executive Assistant', text: 'Handles inbox, calendar, and meeting notes automatically.' },
+          { icon: '📱', heading: 'Sonny — Community Manager', text: 'Turns your social media into a lead-generating machine.' },
+          { icon: '🎯', heading: 'Stan — Lead Generation', text: 'Finds leads, runs outreach, and follows up relentlessly.' },
+          { icon: '✍️', heading: 'Penny — SEO Expert', text: 'Writes SEO-optimized blogs that Google loves.' },
+          { icon: '📞', heading: 'Rachel — Receptionist', text: 'Answers calls and qualifies leads while you focus.' },
+          { icon: '⚖️', heading: 'Linda — Legal Assistant', text: 'Drafts contracts and answers legal questions instantly.' },
+        ],
+        layout: 'COMIC-ICON-GRID',
+        image: '/templates/comic_icon_grid_preview.png',
+      },
+      {
+        id: 5,
+        title: 'HOW THE PROCESS WORKS',
+        badge: 'PROCESS MAP',
+        layout: 'COMIC-FLOWCHART',
+        image: '/templates/comic_flowchart_preview.png',
       },
     ],
   },

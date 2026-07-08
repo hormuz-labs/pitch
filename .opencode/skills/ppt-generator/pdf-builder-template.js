@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { runDomQAOnExistingPage, formatReport, writeReport } = require('./reference/qa-dom.js');
 
 // Helper to convert local file to Base64 data URI to ensure images are permanently embedded in the PDF
 function getBase64Image(filePath) {
@@ -221,7 +222,8 @@ function renderChart(slide, themeObj) {
  * Update these tokens based on the chosen theme and generated slides.
  */
 const CONFIG = {
-    jobId: '',                          // ← Agent fills this
+    jobId: '',
+    topicSlug: '',                      // ← Agent fills this (e.g. 'dark-matter-energy')                          // ← Agent fills this
     title: 'PRESENTATION TITLE',       // ← Agent fills this
     subtitle: 'Subtitle goes here',     // ← Agent fills this
     presenter: 'Presenter Name',        // ← Agent fills this
@@ -292,9 +294,52 @@ function generateHTML(config) {
         return clean;
     }
 
+    /* ── Multi-family Google Fonts builder ──
+     * Collects fontDisplay + fontBody + labelFont (optional) from theme.
+     * Each family gets the correct weight axis for that typeface.
+     * Deduplicates so a family used for both display and body only loads once.
+     */
+    const FONT_WEIGHT_MAP = {
+        'Bebas Neue':       ':wght@400',
+        'Dancing Script':   ':wght@400;600;700',
+        'Nunito':           ':wght@400;600;700;800',
+        'IBM Plex Serif':   ':ital,wght@0,400;0,700;1,400',
+        'IBM Plex Sans':    ':wght@400;500;700',
+        'JetBrains Mono':   ':wght@400;700',
+        'Share Tech Mono':  ':wght@400',
+        'Oswald':           ':wght@400;700',
+        'Montserrat':       ':wght@400;700;800',
+        'Inter':            ':wght@400;500;700',
+        'Manrope':          ':wght@400;700;800',
+        'Plus Jakarta Sans':':wght@400;700;800',
+        'Outfit':           ':wght@400;700',
+        'Playfair Display': ':ital,wght@0,400;0,700;1,400',
+        'Barlow':           ':wght@400;700',
+        'Varela Round':     ':wght@400',
+    };
+    function getFontUrlSegment(family) {
+        const weights = FONT_WEIGHT_MAP[family] || ':wght@400;700;800';
+        return `family=${encodeURIComponent(family).replace(/%20/g, '+')}${weights}`;
+    }
+    const _seenFonts = new Set();
+    const _fontSegments = [];
+    // Collect all font references from theme (display, body, labelFont, any extras)
+    const _fontSources = [theme.fontDisplay, theme.fontBody, theme.labelFont]
+        .concat(theme.extraFonts || []);
+    _fontSources.forEach(f => {
+        if (!f) return;
+        const resolved = getGoogleFontFamily(f);
+        if (resolved && !_seenFonts.has(resolved)) {
+            _seenFonts.add(resolved);
+            _fontSegments.push(getFontUrlSegment(resolved));
+        }
+    });
+    // Always ensure Inter as fallback if not already added
+    if (!_seenFonts.has('Inter')) _fontSegments.push(getFontUrlSegment('Inter'));
+    const fontImportUrl = `https://fonts.googleapis.com/css2?${_fontSegments.join('&')}&display=swap`;
     const fontDisplayFam = getGoogleFontFamily(theme.fontDisplay) || 'Montserrat';
-    const fontBodyFam = getGoogleFontFamily(theme.fontBody) || 'Inter';
-    const fontImportUrl = `https://fonts.googleapis.com/css2?family=${fontDisplayFam.replace(/\s+/g, '+')}:wght@700;800&family=${fontBodyFam.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+    const fontBodyFam    = getGoogleFontFamily(theme.fontBody)    || 'Inter';
+    const fontLabelFam   = getGoogleFontFamily(theme.labelFont)   || fontBodyFam;
 
     /* ── Luminance-based dark/light detection — works for ANY hex color ── */
     function hexLuma(hex) {
@@ -442,7 +487,8 @@ function generateHTML(config) {
                 --text: ${textColor};
                 --overlay: ${overlayVal};
                 --font-display: '${fontDisplayFam}', sans-serif;
-                --font-body: '${fontBodyFam}', sans-serif;
+                --font-body: '${fontBodyFam}', cursive, sans-serif;
+                --font-label: '${fontLabelFam}', sans-serif;
             }
             body { margin: 0; padding: 0; background: var(--bg); color: var(--secondary); font-family: var(--font-body); }
             .slide {
@@ -452,18 +498,18 @@ function generateHTML(config) {
             .content { padding: 80px; height: 100%; box-sizing: border-box; z-index: 10; position: relative; }
             .flex-center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
             h1 { font-family: var(--font-display); font-size: 48px; color: var(--accent); border-left: 12px solid var(--primary); padding-left: 24px; margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1px; }
-            .main-title { font-family: var(--font-display); font-size: 90px; margin: 0; color: var(--accent); border: none; padding: 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1.1; }
+            .main-title { font-family: var(--font-display); font-size: 90px; margin: 0; color: var(--accent); border: none; padding: 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1.2; }
             .subtitle { font-size: 32px; color: var(--secondary); margin-top: 24px; font-weight: 400; letter-spacing: 1px; font-family: var(--font-body); }
             .bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
             .cover-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; background: transparent; }
             .split { display: flex; gap: 60px; height: 420px; align-items: center; }
             .split.rev { flex-direction: row-reverse; }
             .split-text { flex: 1.2; }
-            .split-img { flex: 1; border-radius: 30px; overflow: hidden; background: transparent; border: 1px solid rgba(255,255,255,0.1); }
+            .split-img { flex: 1; height: 100%; border-radius: 30px; overflow: hidden; background: transparent; border: 1px solid rgba(255,255,255,0.1); }
             .split-img img { width: 100%; height: 100%; object-fit: cover; }
             ul { list-style: none; padding: 0; }
             li { font-size: 24px; line-height: 1.5; margin-bottom: 20px; padding-left: 45px; position: relative; font-family: var(--font-body); }
-            li::before { content: "•"; position: absolute; left: 0; color: var(--primary); font-weight: bold; font-size: 40px; top: -8px; }
+            li::before { content: "•"; position: absolute; left: 0; color: var(--primary); font-weight: bold; font-size: 32px; top: 0; line-height: 1.1; }
             /* ── STAT layout ── */
             .stat-content { padding: 60px 72px; display: flex; flex-direction: column; gap: 24px; height: 100%; box-sizing: border-box; }
             .stat-content h1 { margin-bottom: 0; flex-shrink: 0; }
@@ -477,7 +523,7 @@ function generateHTML(config) {
             }
             .stat-num {
                 font-family: var(--font-display); font-size: 72px; font-weight: 800;
-                color: var(--primary); line-height: 1; letter-spacing: -2px;
+                color: var(--primary); line-height: 1.2; letter-spacing: -2px;
             }
             .stat-label {
                 font-size: 17px; font-weight: 700; color: var(--accent);
@@ -530,9 +576,39 @@ async function build() {
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.setContent(html);
-    
-    // Wait for images to load
-    await page.waitForTimeout(6000); // Extra time for Chart.js CDN + chart rendering
+
+    // ── Wait for Chart.js CDN + all canvas renders (replaces blind timeout) ──
+    // Phase 1: wait until Chart.js is globally available (CDN loaded)
+    await page.waitForFunction(() => typeof window.Chart !== 'undefined', { timeout: 20000 })
+        .catch(() => console.warn('⚠️  Chart.js CDN did not load within 20s — charts may be blank'));
+
+    // Phase 2: wait until every chart_* canvas has non-zero painted dimensions
+    // This confirms Chart.js has finished calling draw() on every dataset
+    await page.waitForFunction(() => {
+        const canvases = Array.from(document.querySelectorAll('canvas[id^="chart_"]'));
+        if (canvases.length === 0) return true; // No charts on any slide — proceed immediately
+        return canvases.every(c => c.width > 0 && c.height > 0 &&
+            // Check that actual pixel data exists (canvas isn't a blank white square)
+            (() => { try { const d = c.getContext('2d').getImageData(0,0,4,4).data; return d.some(v => v !== 255 && v !== 0); } catch(e) { return c.width > 0; } })()
+        );
+    }, { timeout: 30000 })
+        .catch(() => console.warn('⚠️  Chart render timeout after 30s — proceeding with whatever is rendered'));
+
+    // Phase 3: brief reflow settle (for CSS transitions, SVG, flowchart DOM writes)
+    await page.waitForTimeout(800);
+
+    // --- DOM QA LOOP: Structural checks before PDF generation ---
+    console.log('\nStarting DOM QA...');
+    const domReport = await runDomQAOnExistingPage(page);
+    writeReport(domReport, 'qa-report.json');
+    console.log(formatReport(domReport));
+
+    if (!domReport.passed) {
+        await browser.close();
+        console.error('\n❌ DOM QA failed: critical issues detected. PDF generation aborted.');
+        console.error('   Fix the issues in pdf-builder.js and rerun.');
+        process.exit(1);
+    }
 
     // --- VISUAL QA LOOP: Screenshot each slide ---
     const qaDir = './qa-renders';
@@ -563,8 +639,18 @@ async function build() {
 
     // Save copies inside the workspace pptx/ folder for editor access
     const jobId = CONFIG.jobId || 'unknown';
-    const folderName = `ppt-${jobId}`;
-    const workspacePptxDir = path.join(process.cwd(), 'pptx', folderName);
+    const folderName = CONFIG.topicSlug ? `ppt-${CONFIG.topicSlug}` : `ppt-${jobId}`;
+    // ── Dynamic workspace root detection (no hardcoded paths) ──
+    // Priority: WORKSPACE_ROOT env var → git repo root → process.cwd()
+    const workspaceRoot = process.env.WORKSPACE_ROOT || (() => {
+        try {
+            const { execSync } = require('child_process');
+            return execSync('git rev-parse --show-toplevel', { encoding: 'utf8', stdio: ['pipe','pipe','pipe'] }).trim();
+        } catch (_) {
+            return process.cwd();
+        }
+    })();
+    const workspacePptxDir = path.join(workspaceRoot, 'pptx', folderName);
     
     fs.mkdirSync(workspacePptxDir, { recursive: true });
     
