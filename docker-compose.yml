@@ -1,21 +1,4 @@
 services:
-  # ---------------------------------------------------------------------------
-  # Cloudflare Tunnel — zero-trust ingress, no open ports required
-  # ---------------------------------------------------------------------------
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: pitch_cloudflared
-    restart: always
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-    depends_on:
-      - api
-      - minio
-      - loki
-      - grafana
-      - pgweb
-
   postgres:
     image: postgres:15-alpine
     container_name: pitch_postgres
@@ -42,6 +25,8 @@ services:
       - DATABASE_URL=postgres://postgres:password@postgres:5432/pitch?sslmode=disable
       - AUTH_USER=${PGWEB_USER:-admin}
       - AUTH_PASS=${PGWEB_PASSWORD:-supersecret123}
+    ports:
+      - "127.0.0.1:8081:8081"
     # Removed host port mapping to avoid conflicts and force traffic through Cloudflare Tunnel
     depends_on:
       postgres:
@@ -70,7 +55,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9002:9000"
+      - "127.0.0.1:9002:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - ./docker-data/minio:/data
     healthcheck:
@@ -85,7 +71,7 @@ services:
     restart: always
     user: "10001:10001"
     ports:
-      - "3101:3100"
+      - "127.0.0.1:3101:3100"
     volumes:
       - ./docker-data/loki:/loki
     command: -config.file=/etc/loki/local-config.yaml
@@ -101,7 +87,7 @@ services:
     restart: always
     user: "472:0"
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
@@ -134,6 +120,8 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: pitch_api
     restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
     environment:
