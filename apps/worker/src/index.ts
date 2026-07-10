@@ -1,4 +1,3 @@
-import type { OpencodeClient } from '@opencode-ai/sdk'
 import { createLogger, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
 import { Worker } from 'bullmq'
 import dotenv from 'dotenv'
@@ -7,7 +6,11 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { createJobProcessor, startCancellationListener } from './job-processor.js'
 import { processEnhanceJob } from './enhance-job-processor.js'
-import { checkServerHealth, type OpencodeServer, restartServer, startServer } from './opencode.js'
+import {
+  acquireOpencode,
+  currentClient,
+  forceCloseOpencode,
+} from './opencode.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -23,89 +26,30 @@ const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', 
 
 const targetDir = process.env.WORKSPACE_DIR || rootDir
 
-// ── Healthcheck configuration ───────────────────────────────────────
-const HEALTHCHECK_INTERVAL_MS = Number(process.env.HEALTHCHECK_INTERVAL_MS || '10000')
-const HEALTHCHECK_TIMEOUT_MS = Number(process.env.HEALTHCHECK_TIMEOUT_MS || '5000')
-const HEALTHCHECK_MAX_FAILURES = Number(process.env.HEALTHCHECK_MAX_FAILURES || '3')
-const SERVER_RESTART_MAX_RETRIES = Number(process.env.SERVER_RESTART_MAX_RETRIES || '3')
-
-// ── Singleton OpenCode server & client ──────────────────────────────
-// The OpenCode server supports multiple concurrent sessions. Starting one
-// server per worker process and creating a session per job eliminates the
-// massive overhead of spawning/killing a child process for every job.
-let server: OpencodeServer
-let client: OpencodeClient
-
-async function initServer() {
-  const result = await startServer(targetDir)
-  server = result.server
-  client = result.client
-}
-
-await initServer()
+// ── Lazy OpenCode server lifecycle ──────────────────────────────────────────
+// The OpenCode server is NOT started at boot. Each worker handler acquires the
+// shared server when a job arrives (starting it on the first job) and releases
+// it when the job finishes; the manager stops the server once the last running
+// job releases it. Overlapping jobs reuse the already-running server. Result:
+// an idle worker runs no OpenCode process and holds no idle RAM.
 
 const processJob = createJobProcessor(connection, targetDir)
 
-// Start a dedicated Redis subscriber that listens for job cancellations
-// published by the API when a user deletes a running job. The listener will
-// abort and delete the active OpenCode session for any matching in-flight job.
+// Dedicated Redis subscriber that listens for job cancellations published by the
+// API when a user deletes a running job. The listener aborts and deletes the
+// active OpenCode session for any matching in-flight job. `currentClient()` is
+// undefined while idle (no server); the listener no-ops unless a job has an
+// active session, so a missing client is harmless.
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
-const cancellationSubscriber = startCancellationListener(redisUrl, () => client, targetDir)
+const cancellationSubscriber = startCancellationListener(redisUrl, () => currentClient(), targetDir)
 
-let isProcessingJob = false
 let isShuttingDown = false
-let consecutiveFailures = 0
-let healthCheckTimer: ReturnType<typeof setInterval> | null = null
-
-// ── Background healthcheck ──────────────────────────────────────────
-function startHealthCheck() {
-  healthCheckTimer = setInterval(async () => {
-    if (isShuttingDown || isProcessingJob) return
-
-    const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS)
-    if (healthy) {
-      if (consecutiveFailures > 0) {
-        logger.info('OpenCode server healthcheck recovered')
-      }
-      consecutiveFailures = 0
-      return
-    }
-
-    consecutiveFailures++
-    logger.error(
-      { consecutiveFailures, maxFailures: HEALTHCHECK_MAX_FAILURES },
-      'OpenCode server healthcheck failed',
-    )
-
-    if (consecutiveFailures >= HEALTHCHECK_MAX_FAILURES) {
-      try {
-        const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES)
-        server = result.server
-        client = result.client
-        consecutiveFailures = 0
-        logger.info({ url: server.url }, 'OpenCode server restarted successfully')
-      } catch {
-        await shutdown('HEALTHCHECK_FAILURE')
-      }
-    }
-  }, HEALTHCHECK_INTERVAL_MS)
-}
-
-function stopHealthCheck() {
-  if (healthCheckTimer) {
-    clearInterval(healthCheckTimer)
-    healthCheckTimer = null
-  }
-}
-
-startHealthCheck()
 
 async function shutdown(signal: string) {
   if (isShuttingDown) return
   isShuttingDown = true
 
   logger.info({ signal }, 'Shutting down worker')
-  stopHealthCheck()
   try {
     await worker.close()
   } catch (e) {
@@ -117,7 +61,7 @@ async function shutdown(signal: string) {
     logger.error({ err: e }, 'Error closing enhance worker')
   }
   try {
-    server.close()
+    await forceCloseOpencode()
   } catch {
     // ignore
   }
@@ -137,43 +81,15 @@ async function shutdown(signal: string) {
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
 
-// ── BullMQ Worker ───────────────────────────────────────────────────
+// ── BullMQ Worker ───────────────────────────────────────────────────────────
 const worker = new Worker(
   QUEUE_NAME,
   async job => {
-    isProcessingJob = true
+    const handle = await acquireOpencode(targetDir)
     try {
-      // Quick pre-flight healthcheck. If the server died while we were idle,
-      // try to restart it before accepting the job.
-      const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS)
-      if (!healthy) {
-        try {
-          const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES)
-          server = result.server
-          client = result.client
-          logger.info({ url: server.url }, 'OpenCode server restarted before job')
-        } catch {
-          throw new Error('OpenCode server is not responding and could not be restarted')
-        }
-      }
-
-      await processJob(job, client)
+      await processJob(job, handle.client)
     } finally {
-      isProcessingJob = false
-
-      // Post-job healthcheck: if the server died during the job, trigger a
-      // restart now while we are idle so the next job starts on a fresh server.
-      const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS)
-      if (!healthy) {
-        logger.error('OpenCode server unresponsive after job; attempting restart')
-        try {
-          const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES)
-          server = result.server
-          client = result.client
-        } catch {
-          await shutdown('POST_JOB_FAILURE')
-        }
-      }
+      await handle.release()
     }
   },
   { connection: connection as any },
@@ -203,25 +119,21 @@ worker.on('error', err => {
   logger.error({ err }, 'Worker error')
 })
 
-// ── Enhance Queue Worker ─────────────────────────────────────────────
+// ── Enhance Queue Worker ─────────────────────────────────────────────────────
 // Dedicated queue for presentation enhancement jobs. Runs with higher
 // concurrency so many users can enhance simultaneously without blocking
-// the main video queue.
+// the main video queue. All concurrent enhance jobs share the single OpenCode
+// server; it stays up until the last one releases it.
 const enhanceConcurrency = Number(process.env.ENHANCE_WORKER_CONCURRENCY ?? '3')
 const enhanceWorker = new Worker(
   ENHANCE_QUEUE_NAME,
   async job => {
-    const healthy = await checkServerHealth(server, HEALTHCHECK_TIMEOUT_MS)
-    if (!healthy) {
-      try {
-        const result = await restartServer(server, targetDir, SERVER_RESTART_MAX_RETRIES)
-        server = result.server
-        client = result.client
-      } catch {
-        throw new Error('OpenCode server is not responding and could not be restarted')
-      }
+    const handle = await acquireOpencode(targetDir)
+    try {
+      await processEnhanceJob(job, handle.client, connection, targetDir)
+    } finally {
+      await handle.release()
     }
-    await processEnhanceJob(job, client, connection, targetDir)
   },
   { connection: connection as any, concurrency: enhanceConcurrency },
 )
@@ -245,4 +157,4 @@ logger.info(
   'Enhance worker started, listening for enhance jobs',
 )
 
-logger.info('Worker started, listening for jobs')
+logger.info('Worker started, listening for jobs (OpenCode server starts on first job)')

@@ -46,7 +46,7 @@ export const activeSessionsByJobId = new Map<string, string>()
  */
 export function startCancellationListener(
   redisUrl: string,
-  getClient: () => OpencodeClient,
+  getClient: () => OpencodeClient | undefined,
   _targetDir: string,
 ) {
   const subscriber = new Redis(redisUrl, { maxRetriesPerRequest: null })
@@ -76,6 +76,13 @@ export function startCancellationListener(
 
     cancelLogger.info({ jobId, sessionId }, 'Cancellation received — aborting OpenCode session')
     const client = getClient()
+    if (!client) {
+      cancelLogger.warn(
+        { jobId, sessionId },
+        'Cancellation received but no OpenCode server is running; nothing to abort',
+      )
+      return
+    }
 
     try {
       await client.session.abort({ path: { id: sessionId } })
