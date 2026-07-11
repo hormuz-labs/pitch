@@ -1,4 +1,22 @@
 services:
+  # ---------------------------------------------------------------------------
+  # Cloudflare Tunnel — zero-trust ingress, no open ports required
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: pitch_cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - api
+      - minio
+      - loki
+      - grafana
+      - pgweb
+      - cloakbrowser-manager
+
   postgres:
     image: postgres:15-alpine
     container_name: pitch_postgres
@@ -104,9 +122,8 @@ services:
     image: cloakhq/cloakbrowser-manager
     container_name: cloakbrowser_manager
     restart: always
-    # No host port mapping — manager is only reachable inside the Docker network.
-    # VNC preview and worker CDP access go through the Pitch API proxy / worker.
-    # Intentionally no environment/ AUTH_TOKEN: manager runs open inside the private Docker network.
+    ports:
+      - "8080:8080"
     volumes:
       - cloakprofiles:/data
     group_add:
