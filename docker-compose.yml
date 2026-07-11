@@ -1,22 +1,4 @@
 services:
-  # ---------------------------------------------------------------------------
-  # Cloudflare Tunnel — zero-trust ingress, no open ports required
-  # ---------------------------------------------------------------------------
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: pitch_cloudflared
-    restart: always
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-    depends_on:
-      - api
-      - minio
-      - loki
-      - grafana
-      - pgweb
-      - cloakbrowser-manager
-
   postgres:
     image: postgres:15-alpine
     container_name: pitch_postgres
@@ -45,7 +27,7 @@ services:
       - AUTH_PASS=${PGWEB_PASSWORD:-supersecret123}
     ports:
       - "127.0.0.1:8081:8081"
-    # Removed host port mapping to avoid conflicts and force traffic through Cloudflare Tunnel
+    # Bound to localhost; external access is via the host-level cloudflared systemd service
     depends_on:
       postgres:
         condition: service_healthy
