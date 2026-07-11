@@ -12,14 +12,14 @@ It is a reference for the code in:
 - `apps/worker/src/utils/smart_trim.ts` — dead‑air trimming
 - `apps/worker/src/utils/intro-outro.ts` — intro/outro cards
 - `apps/worker/src/utils/encoder.ts` — GPU/CPU encoder selection
-- `.opencode/plugins/demo-tools.ts` — the agent's tools (`zoom_in`, `narrate`, clicks…)
+- `.opencode/tools/demo-generator.ts` + `.opencode/agents/demo-generator.md` — the agent's tools (`demo_zoom_in`, `demo_narrate`, clicks…) and its prompt
 
 ---
 
 ## 1. Pipeline at a glance
 
 ```
-agent (OpenCode + demo-tools plugin) drives a Playwright browser
+agent (OpenCode `demo-generator` agent + its scoped tools) drives a Playwright browser
         │   emits events into recordings/demo-state.json:
         │     • clickEvents  { videoTimeSec, x, y }
         │     • zoomEvents   { type:'in'|'out', videoTimeSec, x, y, zoom }
@@ -66,7 +66,7 @@ one `zoompan` expression.
 
 - **Eased motion** — cosine ease‑in‑out (zero velocity at both ends) instead of
   linear. No more mechanical snap.
-- **Pan between targets** — a `zoom_in` issued *while already zoomed* becomes a
+- **Pan between targets** — a `demo_zoom_in` issued *while already zoomed* becomes a
   smooth **pan** (center glides at constant zoom) instead of zoom‑out/zoom‑in.
 - **Static holds** — during a zoomed hold the camera simply rests on the target.
   This lets the smart trimmer cut silent holds as dead air, while real scrolls
@@ -125,7 +125,7 @@ page.
 
 ---
 
-## 4. Navigation‑aware framing (`.opencode/plugins/demo-tools.ts`)
+## 4. Navigation‑aware framing (`.opencode/tools/demo-generator.ts`)
 
 **Problem:** when a click navigated to a new page/view, the camera stayed zoomed on
 the old click position (a now‑meaningless spot) while the new content sat off‑screen.
@@ -135,40 +135,42 @@ the old click position (a now‑meaningless spot) while the new content sat off�
 1. **Auto‑detect (reliable):** the click handler reads `location.href` (via
    `playwright-cli eval`) before and after each click. If it changed *and* the
    camera is zoomed, it auto‑pushes a `zoom_out` event so the new page is shown in
-   full before the next `zoom_in`.
+   full before the next `demo_zoom_in`.
 2. **Prompt rule (backstop):** the agent is told to zoom out and let the full new
    page show before zooming into any field after a navigation.
 
-This also breaks the "pan" chain at page boundaries, so a `zoom_in` on the new
+This also breaks the "pan" chain at page boundaries, so a `demo_zoom_in` on the new
 page is a fresh zoom‑in, not a pan across the navigation.
 
 ---
 
-## 5. Smarter zoom decisions & prompt (`demo-tools.ts` + prompt in `job-processor.ts`)
+## 5. Smarter zoom decisions & prompt (`demo-generator.ts` tools + `.opencode/agents/demo-generator.md`)
 
-- **Auto‑fit zoom** in `zoom_in` (uses the bounding box; only when the agent didn't
-  pass an explicit zoom). Default 1.7, max 2.5.
-- **Hover before snapshot** — `zoom_in` hovers the target first so it scrolls into
-  view and its bounding box reflects where it'll actually be when clicked (root‑cause
-  fix for off‑viewport coordinates). Coordinates are also clamped to `[0,1920]×[0,1080]`
-  in both `zoom_in` and the click handler.
-- **`zoom_in` is pan‑aware** — its description tells the model that re‑calling it
-  while zoomed pans to the new target (don't `zoom_out`/`zoom_in` between adjacent
-  fields).
-- **Prompt camera rules** (in `job-processor.ts`): zoom is a *spotlight* used
-  sparingly — only to highlight a real feature/value; **skip** login/auth forms,
-  cookie/consent popups, nav, and page loads; **pan** between adjacent targets;
-  **zoom out on navigation**.
+- **Auto‑fit zoom** in `demo_zoom_in` (uses the bounding box; only when the agent
+  didn't pass an explicit zoom). Default 1.7, max 2.5.
+- **Hover before snapshot** — `demo_zoom_in` hovers the target first so it scrolls
+  into view and its bounding box reflects where it'll actually be when clicked
+  (root‑cause fix for off‑viewport coordinates). Coordinates are also clamped to
+  `[0,1920]×[0,1080]` in both `demo_zoom_in` and the click handler.
+- **`demo_zoom_in` is pan‑aware** — its description tells the model that re‑calling
+  it while zoomed pans to the new target (don't `demo_zoom_out`/`demo_zoom_in`
+  between adjacent fields).
+- **Prompt camera rules** (in `.opencode/agents/demo-generator.md`): zoom is a
+  *spotlight* used sparingly — only to highlight a real feature/value; **skip**
+  login/auth forms, cookie/consent popups, nav, and page loads; **pan** between
+  adjacent targets; **zoom out on navigation**. The worker (`job-processor.ts`)
+  only sends a small task prompt with `agent: 'demo-generator'` — the behavioural
+  spec lives in the agent file, and tools are scoped to this agent only.
 
 ---
 
-## 5b. Form filling & visible typing (`fill_field` tool)
+## 5b. Form filling & visible typing (`demo_fill_field` tool)
 
 Entering text used to be instant (`playwright-cli fill`) — the viewer never saw the
-value being typed. The `fill_field` tool fixes that:
+value being typed. The `demo_fill_field` tool fixes that:
 
 ```
-fill_field({ target: "e53", text: "Acme Corp", submit?: false })
+demo_fill_field({ target: "e53", text: "Acme Corp", submit?: false })
 ```
 
 - **Single instant fill + a brief hold** — fills the field in one `playwright-cli
@@ -178,12 +180,12 @@ fill_field({ target: "e53", text: "Acme Corp", submit?: false })
   spawn (~hundreds of ms of CDP‑connect overhead each), so multi‑field forms blew up
   the recording time — and a longer recording lengthens every encode pass too.
 - **Cursor on the field** — records a cursor click + click sound; the cursor reuses
-  the coords from the preceding `zoom_in` (no extra snapshot call).
+  the coords from the preceding `demo_zoom_in` (no extra snapshot call).
 - **No keyboard sound** — removed (a background loop can't line up with keystrokes).
 
-**Prompt rule:** always use `fill_field` for input (never `playwright-cli fill`);
-zoom in on the field/form first; and for multi‑field forms, `zoom_in` on each next
-field to **pan** the camera there so the viewer watches every value get filled.
+**Prompt rule:** always use `demo_fill_field` for input (never `playwright-cli fill`);
+zoom in on the field/form first; and for multi‑field forms, `demo_zoom_in` on each
+next field to **pan** the camera there so the viewer watches every value get filled.
 
 ### Sound‑sync principle (important)
 
@@ -208,11 +210,11 @@ other regardless of page‑transition latency.
   exactly like the click/zoom overlays. Previously it omitted `trimSec`, so audio
   could drift from the visuals.
 - **No silent intro** — the agent needs a few seconds (navigate, snapshot, reason)
-  before its first `narrate`, leaving the opening with no voiceover. The render
+  before its first `demo_narrate`, leaving the opening with no voiceover. The render
   computes the first *narration* clip's start and force‑trims the silent setup
   (`leadingTrimSec`, with a `FIRST_WORD_LEAD_IN = 0.4 s`) via `processVideo(..., {
   forceLeadingTrimSec })`, so the demo opens on the first spoken word.
-- **Pacing** — `narrate()` already blocks for the audio duration during recording,
+- **Pacing** — `demo_narrate()` already blocks for the audio duration during recording,
   so the camera naturally holds while the voiceover plays.
 - **User‑provided script** — if `parameters.script` is set (the UI's "Voiceover
   Script" field), it's injected into the agent prompt as the source of truth for the
@@ -353,8 +355,10 @@ npx vitest run tests/zoom-filter.test.ts tests/cursor-fx.test.ts tests/encoder.t
   (`Ctrl+C` the `make dev`, then `make dev` again — or `bun run dev:worker`).
   A long‑running worker will keep using old code and none of these effects will
   appear.
-- **Plugin reloads with the worker** — OpenCode is spawned per job, so restarting
-  the worker picks up `.opencode/plugins/demo-tools.ts` too.
+- **Agents + tools reload with the worker** — OpenCode is spawned per job, so
+  restarting the worker picks up `.opencode/agents/*.md` and `.opencode/tools/*.ts`
+  too. `opencode.json` no longer registers a demo-tools plugin; each flow
+  (demo, PDF, recording-editor) has its own scoped agent + tool module.
 - **Source `webm` is cleaned up** after each job, so re‑rendering only the ffmpeg
   stage from a finished job isn't currently possible — verify on a fresh render.
 
@@ -366,7 +370,7 @@ npx vitest run tests/zoom-filter.test.ts tests/cursor-fx.test.ts tests/encoder.t
 | Less aggressive zoom level | `DEFAULT_ZOOM`, `fitZoomForBox` clamp range |
 | Snappier / slower cursor | `GLIDE`, `LEAD` in `cursor-fx.ts` |
 | Stronger click feedback | `PRESS_PX`, `PRESS_DUR` |
-| Field fill hold time | the `sleep(900)` in `fill_field` (`demo-tools.ts`) |
+| Field fill hold time | the `sleep(900)` in `demo_fill_field` (`demo-generator.ts`) |
 | Higher quality vs speed | `quality` in `videoEncodeArgs` calls |
 
 ---

@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { findInitialBlankSegmentFromSignalStats } from '../apps/worker/src/utils/smart_trim'
+import {
+  findInitialBlankSegmentFromSignalStats,
+  resolveAudioDuration,
+} from '../apps/worker/src/utils/smart_trim'
+
+describe('resolveAudioDuration', () => {
+  it('returns 0 when there is no audio stream at all', () => {
+    expect(resolveAudioDuration([], 25.5)).toBe(0)
+    expect(resolveAudioDuration(undefined, 25.5)).toBe(0)
+  })
+
+  it('uses the stream duration when ffprobe provides one', () => {
+    expect(resolveAudioDuration([{ duration: '22.137208' }], 25.5)).toBeCloseTo(22.137, 3)
+    expect(resolveAudioDuration([{ duration: 18.25 }], 25.5)).toBeCloseTo(18.25, 3)
+  })
+
+  it('falls back to the container duration when the stream duration is N/A (webm/mov)', () => {
+    expect(resolveAudioDuration([{ duration: 'N/A' }], 25.5)).toBe(25.5)
+    expect(resolveAudioDuration([{}], 25.5)).toBe(25.5)
+  })
+})
 
 const frame = (
   pts: number,

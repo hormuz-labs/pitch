@@ -3,8 +3,8 @@
  *
  * Toolset for the "edit my recording" agent (.opencode/agents/recording-editor.md).
  * Given an UPLOADED narrated screen recording, these tools reconstruct the same
- * recordings/demo-state.json that the live auto-demo agent
- * (.opencode/plugins/demo-tools.ts) emits — so the existing render engine
+ * recordings/demo-state.json that the live demo-generator agent
+ * (.opencode/tools/demo-generator.ts) emits — so the existing render engine
  * (zoom-filter, cursor-fx, smart_trim, intro/outro) consumes it unchanged. Only
  * the EVENT SOURCE differs:
  *
@@ -55,7 +55,7 @@ const DEDUPE_WINDOW_SEC = 1.0
 const MAX_KEY_MOMENTS = 80
 const BIG_BUFFER = 64 * 1024 * 1024
 
-// ── demo-state (same shape as demo-tools.ts) ─────────────────────────────────
+// ── demo-state (same shape as demo-generator.ts) ────────────────────────────
 interface ZoomEvent {
   type: 'in' | 'out'
   videoTimeSec: number
@@ -610,7 +610,7 @@ export const record_zoom_in = tool({
           const fit = Math.min((FRAME_W * 0.5) / bw, (FRAME_H * 0.5) / bh)
           const fitZoom = clamp(fit, 1.3, 2.2)
           zoom = args.zoom == null ? fitZoom : Math.min(args.zoom, fitZoom)
-          // Keep the zoom window fully inside the frame (same clamp as demo-tools).
+          // Keep the zoom window fully inside the frame (same clamp as the demo tools).
           const halfW = (FRAME_W / 2) / zoom
           const halfH = (FRAME_H / 2) / zoom
           cx = clamp(rawCx, halfW, FRAME_W - halfW)

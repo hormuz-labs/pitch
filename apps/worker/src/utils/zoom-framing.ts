@@ -1,4 +1,4 @@
-// Pure, dependency-free framing math shared by the recorder (demo-tools plugin) and
+// Pure, dependency-free framing math shared by the recorder (demo-generator tools) and
 // the renderer (zoom-filter). Kept here so every rule below is unit-testable in
 // isolation — this is the logic that decides where the page scrolls and where the
 // camera points, which is the thing that most visibly breaks a demo.
@@ -155,5 +155,10 @@ export function cropWindow(
 /** True if `box` is fully inside the crop window for the given camera centre + zoom. */
 export function isBoxFullyVisible(box: Box, cx: number, cy: number, zoom: number): boolean {
   const c = cropWindow(cx, cy, zoom)
-  return box.x >= c.x - 0.5 && box.y >= c.y - 0.5 && box.x + box.w <= c.x + c.w + 0.5 && box.y + box.h <= c.y + c.h + 0.5
+  return (
+    box.x >= c.x - 0.5 &&
+    box.y >= c.y - 0.5 &&
+    box.x + box.w <= c.x + c.w + 0.5 &&
+    box.y + box.h <= c.y + c.h + 0.5
+  )
 }

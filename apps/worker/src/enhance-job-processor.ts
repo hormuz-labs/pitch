@@ -175,7 +175,7 @@ ${preserveSection}
 Build directory: \`${buildDir}\`
 
 Please perform the following actions:
-1. Load the \`ppt-enhancer\` skill using the \`load_skill\` tool. The skill is located at \`.opencode/skills/ppt-enhancer/SKILL.md\`.
+1. Load the \`ppt-enhancer\` skill using the native \`skill\` tool (skill({ name: "ppt-enhancer" })). The skill is located at \`.opencode/skills/ppt-enhancer/SKILL.md\`.
 2. Follow the skill instructions EXACTLY for the "${enhanceMode}" mode:
    ${enhanceMode === 'recreate' ? `
    RECREATE mode:
