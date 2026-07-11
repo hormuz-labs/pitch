@@ -249,7 +249,7 @@ async function detectFirstContentSec(webmPath: string): Promise<number> {
 /**
  * Direct in-process result pushing. Uploads final video, notifies via Discord and email.
  */
-async function pushJobResult(
+export async function pushJobResult(
   jobId: string,
   userId: string,
   filePath: string,

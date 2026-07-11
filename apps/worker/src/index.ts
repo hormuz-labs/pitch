@@ -1,10 +1,11 @@
-import { createLogger, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
+import { createLogger, EDIT_QUEUE_NAME, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
 import { Worker } from 'bullmq'
 import dotenv from 'dotenv'
 import { Redis } from 'ioredis'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createJobProcessor, startCancellationListener } from './job-processor.js'
+import { processEditJob } from './edit-job-processor.js'
 import { processEnhanceJob } from './enhance-job-processor.js'
 import {
   acquireOpencode,
@@ -59,6 +60,11 @@ async function shutdown(signal: string) {
     await enhanceWorker.close()
   } catch (e) {
     logger.error({ err: e }, 'Error closing enhance worker')
+  }
+  try {
+    await editWorker.close()
+  } catch (e) {
+    logger.error({ err: e }, 'Error closing edit worker')
   }
   try {
     await forceCloseOpencode()
@@ -156,5 +162,39 @@ logger.info(
   { concurrency: enhanceConcurrency },
   'Enhance worker started, listening for enhance jobs',
 )
+
+// ── Edit-Recording Queue Worker ────────────────────────────────────────────────
+// "Edit my recording" jobs: the recording-editor agent reconstructs
+// demo-state.json from an uploaded narrated recording, then the standard render
+// chain finishes it. Concurrency 1 — the agent writes to the shared recordings/
+// directory, same constraint as the main video worker.
+const editWorker = new Worker(
+  EDIT_QUEUE_NAME,
+  async job => {
+    const handle = await acquireOpencode(targetDir)
+    try {
+      await processEditJob(job, handle.client, connection, targetDir)
+    } finally {
+      await handle.release()
+    }
+  },
+  { connection: connection as any, concurrency: 1 },
+)
+
+editWorker.on('completed', job => {
+  logger.info({ jobId: job.id }, 'Edit job completed')
+})
+
+editWorker.on('failed', (job, err) => {
+  logger.error({ jobId: job?.id, err }, 'Edit job failed')
+})
+
+editWorker.on('error', err => {
+  const msg = (err as Error)?.message || String(err)
+  if (msg.includes('could not renew lock')) return
+  logger.error({ err }, 'Edit worker error')
+})
+
+logger.info('Edit worker started, listening for edit-recording jobs')
 
 logger.info('Worker started, listening for jobs (OpenCode server starts on first job)')
