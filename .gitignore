@@ -60,6 +60,9 @@ opencode-logs/
 # Generated Demos
 demos/
 
+# Recording editor artifacts
+recordings/
+
 .vercel
 .playwright-cli/
 docker-data/
