@@ -2,12 +2,21 @@ import type React from 'react'
 import type { PhaseUpdate, Project } from '../types'
 
 // ── Phase definitions (order matters — displayed top-to-bottom) ────────────────
-const PHASE_ORDER = ['workspace_init', 'video_recording', 'ffmpeg_postprocessing'] as const
+// Each agent has its own stage set; the widget picks the right one by job type.
+const VIDEO_PHASE_ORDER = ['workspace_init', 'video_recording', 'ffmpeg_postprocessing'] as const
+const EDIT_PHASE_ORDER = ['edit_analysis', 'edit_render', 'edit_cards', 'edit_upload'] as const
 
-const PHASE_LABELS: Record<string, string> = {
+const VIDEO_PHASE_LABELS: Record<string, string> = {
   workspace_init: 'Workspace Initialization',
   video_recording: 'Video Recording',
   ffmpeg_postprocessing: 'Encoding',
+}
+
+const EDIT_PHASE_LABELS: Record<string, string> = {
+  edit_analysis: 'Analyzing Recording',
+  edit_render: 'Rendering Camera Moves',
+  edit_cards: 'Intro & Outro Cards',
+  edit_upload: 'Uploading Video',
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -111,12 +120,16 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
   const phases = project.phases ?? []
   const progress = project.progress ?? 0
 
+  const isEditJob = project.parameters?.jobType === 'edit-recording'
+  const phaseOrder: readonly string[] = isEditJob ? EDIT_PHASE_ORDER : VIDEO_PHASE_ORDER
+  const phaseLabels = isEditJob ? EDIT_PHASE_LABELS : VIDEO_PHASE_LABELS
+
   // Build full phase list with status for every phase in canonical order
-  const rawPhaseList = PHASE_ORDER.map(key => {
+  const rawPhaseList = phaseOrder.map(key => {
     const found = phases.find(p => p.phase === key)
     return {
       key,
-      label: PHASE_LABELS[key],
+      label: phaseLabels[key],
       status: (found?.status ?? 'pending') as PhaseUpdate['status'] | 'pending',
     }
   })
@@ -130,7 +143,7 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
   })
 
   const completedCount = phaseList.filter(p => p.status === 'completed').length
-  const totalCount = PHASE_ORDER.length
+  const totalCount = phaseOrder.length
   const runningPhase = phaseList.find(p => p.status === 'running')
   const hasFailedPhase = phaseList.some(p => p.status === 'failed')
   const statusLabel = runningPhase
@@ -175,7 +188,9 @@ export const VideoProgressWidget: React.FC<VideoProgressWidgetProps> = ({ projec
                 <rect x="1" y="5" width="15" height="14" rx="2" />
               </svg>
             </div>
-            <span className="font-bold text-base text-gray-900">Video Generation</span>
+            <span className="font-bold text-base text-gray-900">
+              {isEditJob ? 'Recording Edit' : 'Video Generation'}
+            </span>
           </div>
 
           {/* Progress pill - moved to bottom for mobile */}

@@ -299,15 +299,25 @@ export async function pushJobResult(
     const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
     const email = userProfile?.email || userId
     const urlParam = parameters?.url || 'N/A'
+    const isEditJob = parameters?.jobType === 'edit-recording'
     const instructions = parameters?.instructions ? `\nPrompt: *${parameters.instructions}*` : ''
 
     await sendDiscordMessage(
-      `✅ **Video Creation Completed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}\nGit Hash: \`${gitHash || 'N/A'}\`${rawVideoUrl ? `\nRaw Video: ${rawVideoUrl}` : ''}`,
+      `✅ **${isEditJob ? 'Recording Edit Completed' : 'Video Creation Completed'}**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}\nGit Hash: \`${gitHash || 'N/A'}\`${rawVideoUrl ? `\nRaw Video: ${rawVideoUrl}` : ''}`,
     )
 
     const userEmail = await getClerkUserEmail(userId)
     if (userEmail && videoUrl) {
-      const videoTitle = urlParam !== 'N/A' ? new URL(urlParam).hostname : 'pitch.com'
+      // Edit-recording jobs may carry a bare file name in parameters.url instead
+      // of a real URL — fall back to the product/file name instead of crashing.
+      let videoTitle = 'pitch.com'
+      if (urlParam !== 'N/A') {
+        try {
+          videoTitle = new URL(urlParam).hostname
+        } catch {
+          videoTitle = parameters?.productName || parameters?.originalFileName || 'pitch.com'
+        }
+      }
       await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl, videoTitle })
     }
   } catch (err: any) {

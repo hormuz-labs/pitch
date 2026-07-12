@@ -191,6 +191,7 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
     selectedProject.status === 'PROCESSING' || selectedProject.status === 'PENDING'
   const isCompleted = selectedProject.status === 'COMPLETED'
   const isFailed = selectedProject.status === 'FAILED'
+  const isEditJob = selectedProject.parameters?.jobType === 'edit-recording'
 
   const handleFeedbackSubmit = async (data: { rating: 'up' | 'down'; feedback: string }) => {
     console.log('Feedback submitted:', data)
@@ -242,7 +243,9 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
           {isProcessing && (
             <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-8">
               <div className="flex flex-col items-center text-center mb-8">
-                <h2 className="text-lg font-bold text-gray-900">Generating your video…</h2>
+                <h2 className="text-lg font-bold text-gray-900">
+                  {isEditJob ? 'Editing your recording…' : 'Generating your video…'}
+                </h2>
                 <p className="text-sm text-gray-500 mt-1">
                   This typically takes 5–10 minutes. Hang tight!
                 </p>
