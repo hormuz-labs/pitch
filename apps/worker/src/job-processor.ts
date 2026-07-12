@@ -25,6 +25,7 @@ import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
 import { addIntroOutro } from './utils/intro-outro.js'
+import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
@@ -520,6 +521,10 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
   return async function processJob(job: Job, client: OpencodeClient) {
     const { jobId, userId, parameters } = job.data
     const jobLogger = logger.child({ jobId, userId })
+
+    // Skip requeued duplicates of jobs the original in-flight run already
+    // finished (lost BullMQ lock after sleep/stall — see utils/job-guard.ts).
+    if (await jobAlreadyTerminal(jobId)) return
 
     if (parameters?.jobType === 'pdf') {
       const { processPdfJob } = await import('./pdf-job-processor.js')

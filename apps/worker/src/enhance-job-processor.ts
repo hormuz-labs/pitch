@@ -1,7 +1,7 @@
 import { exec } from 'node:child_process'
 import * as fs from 'node:fs'
-import * as https from 'node:https'
 import * as http from 'node:http'
+import * as https from 'node:https'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
 import type { OpencodeClient } from '@opencode-ai/sdk'
@@ -22,6 +22,7 @@ import type { Redis } from 'ioredis'
 import * as os from 'os'
 import { activeSessionsByJobId, reportJobPhase } from './job-processor.js'
 import { getSessionIdFromEvent } from './opencode.js'
+import { jobAlreadyTerminal } from './utils/job-guard.js'
 
 const logger = createLogger('worker:enhance')
 const execAsync = promisify(exec)
@@ -47,9 +48,16 @@ async function downloadFile(url: string, destPath: string, hops = 0): Promise<vo
     const lib = url.startsWith('https') ? https : http
     lib
       .get(url, res => {
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        if (
+          res.statusCode &&
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
           // Follow redirect
-          downloadFile(res.headers.location, destPath, hops + 1).then(resolve).catch(reject)
+          downloadFile(res.headers.location, destPath, hops + 1)
+            .then(resolve)
+            .catch(reject)
           return
         }
         if (res.statusCode !== 200) {
@@ -177,14 +185,17 @@ Build directory: \`${buildDir}\`
 Please perform the following actions:
 1. Load the \`ppt-enhancer\` skill using the native \`skill\` tool (skill({ name: "ppt-enhancer" })). The skill is located at \`.opencode/skills/ppt-enhancer/SKILL.md\`.
 2. Follow the skill instructions EXACTLY for the "${enhanceMode}" mode:
-   ${enhanceMode === 'recreate' ? `
+   ${
+     enhanceMode === 'recreate'
+       ? `
    RECREATE mode:
    - Read the parsed slides JSON at \`${parsedSlidesPath}\` to understand the original structure.
    - Perform web search grounding for the presentation topic.
    - Choose a premium brand palette from \`.opencode/skills/ppt-generator/design-library.md\`.
    - Rewrite and enhance all slide content using the enhancement prompt tone.
    - Generate Unsplash keywords per slide and scrape fresh images using \`node .opencode/skills/ppt-generator/reference/scrape_images.js\`.
-   - Map scraped images to slides (always verify file existence before assigning).` : `
+   - Map scraped images to slides (always verify file existence before assigning).`
+       : `
    PRESERVE mode:
    - Read the parsed slides JSON at \`${parsedSlidesPath}\` to understand the original structure.
    - Read the extracted images from \`${extractedImagesDir}\` — list files with \`ls\` first.
@@ -192,7 +203,8 @@ Please perform the following actions:
    - For slides with no usable extracted image (missing, < 5KB, or .emf/.wmf), scrape Unsplash for a supplementary image.
    - Keep the original slide count and section headings intact.
    - Choose a neutral/harmonious brand palette from \`.opencode/skills/ppt-generator/design-library.md\`.
-   - Polish bullet content and titles using the enhancement prompt.`}
+   - Polish bullet content and titles using the enhancement prompt.`
+}
 3. Common steps for both modes:
    - Copy \`.opencode/skills/ppt-generator/pdf-builder-template.js\` to \`${buildDir}/pdf-builder.js\`.
    - Populate the \`CONFIG\` object with your enhanced slides, chosen color theme, font imports, and base64-encoded images. Set \`jobId\` to "${jobId}".
@@ -213,6 +225,10 @@ export async function processEnhanceJob(
 ) {
   const { jobId, userId, parameters } = job.data
   const jobLogger = logger.child({ jobId, userId })
+
+  // Skip requeued duplicates of jobs the original in-flight run already
+  // finished (lost BullMQ lock after sleep/stall — see utils/job-guard.ts).
+  if (await jobAlreadyTerminal(jobId)) return
 
   jobLogger.info({ enhanceMode: parameters?.enhanceMode }, 'Processing enhance job')
 
@@ -259,7 +275,10 @@ export async function processEnhanceJob(
 
     // ── 3. Parse the presentation ─────────────────────────────────────────────
     const enhanceMode: 'recreate' | 'preserve' = parameters?.enhanceMode || 'recreate'
-    const parseScript = path.join(targetDir, '.opencode/skills/ppt-enhancer/scripts/parse_presentation.js')
+    const parseScript = path.join(
+      targetDir,
+      '.opencode/skills/ppt-enhancer/scripts/parse_presentation.js',
+    )
 
     jobLogger.info({ parseScript, enhanceMode }, 'Running parse_presentation.js')
     const { stdout: parseOut, stderr: parseErr } = await execAsync(
@@ -312,7 +331,8 @@ export async function processEnhanceJob(
           if (evt.type === 'message.part.updated' || evt.type === 'message.updated') {
             const info = evt.properties?.info || evt.properties
             if (info?.role === 'assistant') {
-              const text = info?.content?.[0]?.text || info?.text || evt.properties?.part?.text || ''
+              const text =
+                info?.content?.[0]?.text || info?.text || evt.properties?.part?.text || ''
               if (text) jobLogger.info({ text: text.slice(0, 200) }, 'LLM output')
             }
           }
@@ -487,7 +507,9 @@ export async function processEnhanceJob(
       if (existingJob?.phases) {
         const parsedPhases: PhaseUpdate[] = JSON.parse(existingJob.phases as string)
         newPhases = parsedPhases.map(p =>
-          p.status === 'running' ? { ...p, status: 'failed', completedAt: new Date().toISOString() } : p,
+          p.status === 'running'
+            ? { ...p, status: 'failed', completedAt: new Date().toISOString() }
+            : p,
         )
       }
 
