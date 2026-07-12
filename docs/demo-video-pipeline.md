@@ -50,6 +50,8 @@ Two timelines matter and are easy to confuse:
   (`trimSec = (startTime − videoBirthTimeMs) / 1000`). Overlays added before the
   zoom filter use untrimmed time (`videoTimeSec + trimSec`); the zoom filter then
   trims `trimSec` off the front and resets PTS, so post‑trim time == `videoTimeSec`.
+- **Audio mix** — the `adelay`+`amix` track is never trimmed, so it is placed on
+  the post‑trim timeline (`videoTimeSec`), NOT the raw WebM timeline.
 
 ---
 
@@ -205,10 +207,17 @@ other regardless of page‑transition latency.
 
 ## 6. Narration / audio alignment (`job-processor.ts`)
 
-- **Timeline alignment** — narration `adelay` now uses
-  `absoluteTimestamp − startTime + trimMs`, putting audio on the raw WebM timeline
-  exactly like the click/zoom overlays. Previously it omitted `trimSec`, so audio
-  could drift from the visuals.
+- **Timeline alignment** — narration `adelay` uses `absoluteTimestamp − startTime`
+  (**post-trim** time). The click/zoom overlays add `trimSec` because they run
+  BEFORE the `trim=start=trimSec` cut, on the raw WebM timeline; the mixed audio
+  track is never trimmed, so it must sit on the post-trim output timeline.
+  (An earlier revision added `+trimMs` to the adelay "to match the overlays" —
+  that delayed every clip by `trimSec`: invisible at the usual ~2–5 s, but
+  catastrophic when a stale-chunk concat inflated `trimSec` to ~236 s. The audio
+  ran hundreds of seconds past the video, `leadingTrimSec` then cut away the
+  entire demo, and the final video was a static frame under the voiceover.)
+  The `firstContentSec` blank-opening clamp is measured on the raw WebM timeline
+  and is shifted by `trimSec` before use on the output timeline.
 - **No silent intro** — the agent needs a few seconds (navigate, snapshot, reason)
   before its first `demo_narrate`, leaving the opening with no voiceover. The render
   computes the first *narration* clip's start and force‑trims the silent setup
@@ -361,6 +370,15 @@ npx vitest run tests/zoom-filter.test.ts tests/cursor-fx.test.ts tests/encoder.t
   (demo, PDF, recording-editor) has its own scoped agent + tool module.
 - **Source `webm` is cleaned up** after each job, so re‑rendering only the ffmpeg
   stage from a finished job isn't currently possible — verify on a fresh render.
+- **Stale/foreign WebM chunks** — `resolveAndCombineWebmFiles` sweeps every `.webm`
+  under the video dir (the repo root locally, depth 3). Two contamination sources
+  are guarded against: (1) chunks left by a failed attempt that the
+  `demo(-N).webm` startup cleanup doesn't match — filtered by mtime against this
+  job's recording start (`videoStartedAtMs`); (2) `.playwright-cli/traces/*.webm`,
+  the CLI's OWN screencast of the same session — combining it duplicated the
+  whole demo in one file and pushed the mtime‑derived birth time (→ `trimSec`)
+  hundreds of seconds off; hidden directories are now skipped in both search
+  functions. Never remove either guard.
 
 ### Tuning cheat‑sheet
 
