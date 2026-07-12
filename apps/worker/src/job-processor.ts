@@ -378,6 +378,7 @@ async function resolveAndCombineWebmFiles(
   expectedPath: string,
   searchDir: string,
   logger: any,
+  recordingStartedAtMs?: number,
 ): Promise<string> {
   const candidates: string[] = []
   function search(dir: string, depth: number) {
@@ -386,6 +387,10 @@ async function resolveAndCombineWebmFiles(
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const fullPath = path.join(dir, entry.name)
         if (entry.isDirectory()) {
+          // Never descend into hidden dirs: .playwright-cli/traces holds the
+          // CLI's OWN screencast of the session, and combining it with the
+          // video-start recording duplicates the whole demo in one webm.
+          if (entry.name.startsWith('.')) continue
           search(fullPath, depth + 1)
         } else if (entry.name.endsWith('.webm')) {
           candidates.push(fullPath)
@@ -397,9 +402,23 @@ async function resolveAndCombineWebmFiles(
   }
   search(searchDir, 0)
 
+  // Only files modified after this job's recording started can belong to the
+  // current session — anything older is a stale chunk from an earlier (failed)
+  // attempt that never got cleaned up. Combining those in shifts the timeline
+  // (and the mtime-derived birth time) and desyncs every overlay and clip.
+  const minMtimeMs = recordingStartedAtMs ? recordingStartedAtMs - 30_000 : 0
   const uniqueCandidates = Array.from(new Set(candidates)).filter(f => {
     try {
-      return fs.existsSync(f) && fs.statSync(f).size > 0
+      const st = fs.statSync(f)
+      if (st.size <= 0) return false
+      if (st.mtimeMs < minMtimeMs) {
+        logger.info(
+          { file: f, mtime: new Date(st.mtimeMs).toISOString() },
+          'Skipping stale WebM chunk from an earlier run',
+        )
+        return false
+      }
+      return true
     } catch {
       return false
     }
@@ -495,6 +514,9 @@ function findWebmCandidates(logger: any, targetDir: string): string | null {
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
           const fullPath = path.join(dir, entry.name)
           if (entry.isDirectory()) {
+            // Skip hidden dirs — see resolveAndCombineWebmFiles (the
+            // .playwright-cli/traces screencast must never be picked up).
+            if (entry.name.startsWith('.')) continue
             search(fullPath, depth + 1)
           } else if (entry.name.endsWith('.webm')) {
             candidates.push({ path: fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs })
@@ -663,6 +685,9 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       )
 
       logger.info({ webmPath }, 'Starting video recording...')
+      // Remember when this job's recording began so the post-run WebM sweep
+      // can ignore stale chunks left behind by earlier (failed) attempts.
+      const videoStartedAtMs = Date.now()
       const videoStartResult = await execAsync(
         `playwright-cli video-start "${webmPath}" --size=1920x1080`,
         { cwd: targetDir },
@@ -899,7 +924,12 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
 
       let foundWebmPath: string
       try {
-        foundWebmPath = await resolveAndCombineWebmFiles(webmPath, videoDir, jobLogger)
+        foundWebmPath = await resolveAndCombineWebmFiles(
+          webmPath,
+          videoDir,
+          jobLogger,
+          videoStartedAtMs,
+        )
       } catch (err: any) {
         jobLogger.warn(
           { err },
@@ -982,15 +1012,18 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
           logger.warn({ filePath: clip.filePath }, 'Audio clip file not found on disk — skipping')
           return
         }
-        // Place audio on the raw WebM timeline (which begins trimSec before the
-        // prompt startTime), mirroring how the click/zoom overlays add trimSec.
-        // Without this the narration drifts out of sync with the visuals it
-        // describes. Clamp to firstContentMs so any early narration (spoken while
-        // the page is still blank) is held until the page actually paints,
-        // instead of playing over a blank screen.
+        // The click/zoom overlays add trimSec because they are applied BEFORE
+        // the trim=start=trimSec cut, i.e. on the raw WebM timeline. The mixed
+        // audio track is never trimmed, so it must sit on the POST-trim output
+        // timeline: compute the WebM-timeline position (the firstContent clamp
+        // holds early narration until the page actually paints instead of
+        // playing over a blank screen), then shift it back by trimSec. Keeping
+        // +trimMs in the adelay itself would delay every clip by trimSec and
+        // desync the whole soundtrack from the trimmed video.
         const delayMs = Math.max(
-          firstContentMs,
-          Math.max(0, clip.absoluteTimestamp - startTime + trimMs),
+          0,
+          Math.max(firstContentMs, Math.max(0, clip.absoluteTimestamp - startTime + trimMs)) -
+            trimMs,
         )
         // Track the first *narration* clip (not the click/keyboard sound effects)
         // so we can trim the silent setup that precedes it.
@@ -1061,9 +1094,13 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
       // opening is removed entirely — early narration was clamped to that same point,
       // so the demo opens on the real page with narration over it.
       const FIRST_WORD_LEAD_IN = 0.4
+      // firstContentSec is measured on the raw WebM timeline; the rendered
+      // video is already trimmed by trimSec, so shift it onto the output
+      // timeline before comparing with (post-trim) narration delays.
+      const firstContentOutSec = Math.max(0, firstContentSec - trimSec)
       const leadingTrimSec = Number.isFinite(firstNarrationDelayMs)
-        ? Math.max(0, firstNarrationDelayMs / 1000 - FIRST_WORD_LEAD_IN, firstContentSec)
-        : Math.max(0, firstContentSec)
+        ? Math.max(0, firstNarrationDelayMs / 1000 - FIRST_WORD_LEAD_IN, firstContentOutSec)
+        : Math.max(0, firstContentOutSec)
       if (leadingTrimSec > 0) {
         logger.info(
           { leadingTrimSec, firstContentSec },
