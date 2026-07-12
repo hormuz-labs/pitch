@@ -201,8 +201,14 @@ export function buildContinuousZoomFilter(
   // ── Assemble filter ────────────────────────────────────────────────────────
   const trimClause = trimSec > 0 ? `trim=start=${trimSec.toFixed(3)},` : ''
 
+  // Normalize to constant frame rate BEFORE zoompan. zoompan with d=1 emits one
+  // output frame per INPUT frame but restamps them at `fps`. On a variable-frame-
+  // rate source (common for screen recordings — e.g. tagged 60fps but only ~30
+  // real fps) the frame count no longer matches fps×duration, so the output gets
+  // squeezed to a fraction of its true length and desyncs from the audio. The
+  // leading `fps` filter resamples to true CFR so duration is preserved.
   return (
-    `${inputLabel}${trimClause}setpts=PTS-STARTPTS[trimmed];` +
+    `${inputLabel}${trimClause}fps=${fps},setpts=PTS-STARTPTS[trimmed];` +
     `[trimmed]zoompan=z='${zExpr}':x='${xExpr}':y='${yExpr}'` +
     `:d=1:s=${OUTPUT_SIZE}:fps=${fps}[zoomedv];`
   )
