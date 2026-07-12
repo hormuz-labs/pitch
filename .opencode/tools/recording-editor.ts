@@ -175,7 +175,14 @@ async function extractFrames(
   for (const t of times) {
     const filePath = path.join(outDir, `frame_${t.toFixed(3)}.jpg`)
     try {
-      await execAsync(`ffmpeg -y -ss ${t} -i ${q(video)} -frames:v 1 -q:v 2 ${q(filePath)}`)
+      // Letterbox-scale to the same 1920x1080 space the render uses, so a box
+      // normalized to this frame maps 1:1 onto the final camera coordinates.
+      await execAsync(
+        `ffmpeg -y -ss ${t} -i ${q(video)} -frames:v 1 ` +
+          `-vf "scale=${FRAME_W}:${FRAME_H}:force_original_aspect_ratio=decrease,` +
+          `pad=${FRAME_W}:${FRAME_H}:(ow-iw)/2:(oh-ih)/2,setsar=1" ` +
+          `-q:v 2 ${q(filePath)}`,
+      )
       if (fs.existsSync(filePath)) out.push({ timeSec: t, filePath })
     } catch {}
   }
@@ -480,12 +487,14 @@ export const inspect_frames = tool({
         `  "actionFound": boolean,\n` +
         `  "actionTimeSec": number | null,\n` +
         `  "eventType": "click" | "fill" | "navigate" | "result" | "none",\n` +
-        `  "bbox": { "x": int, "y": int, "w": int, "h": int } | null,\n` +
+        `  "box_2d": [ymin, xmin, ymax, xmax] | null,\n` +
         `  "confidence": number,\n` +
         `  "label": string\n` +
         `}\n` +
-        `bbox is in pixels of the full ${FRAME_W}x${FRAME_H} frame. If nothing actionable is ` +
-        `visible, return actionFound=false.`
+        `box_2d is the bounding box of the target element in Gemini's standard object-detection ` +
+        `format: [ymin, xmin, ymax, xmax] with EVERY value normalized to 0-1000 relative to the ` +
+        `image (y/vertical first, then x/horizontal). Do NOT return raw pixels and do NOT use ` +
+        `x,y,w,h. If nothing actionable is visible, return actionFound=false and box_2d=null.`
 
       const parts: any[] = [{ text: prompt }]
       for (const f of frames) {
@@ -525,16 +534,24 @@ export const inspect_frames = tool({
           } catch {}
         }
       }
-      const bboxIn = parsed.bbox
-      const bbox =
-        bboxIn && typeof bboxIn === 'object'
-          ? {
-              x: clamp(Math.round(Number(bboxIn.x) || 0), 0, FRAME_W),
-              y: clamp(Math.round(Number(bboxIn.y) || 0), 0, FRAME_H),
-              w: clamp(Math.round(Number(bboxIn.w) || 0), 0, FRAME_W),
-              h: clamp(Math.round(Number(bboxIn.h) || 0), 0, FRAME_H),
-            }
-          : null
+      // Gemini object detection returns box_2d = [ymin, xmin, ymax, xmax]
+      // normalized to 0-1000 (vertical axis first). Convert to full-frame pixel
+      // {x, y, w, h} (top-left + size) which record_zoom_in consumes.
+      const rawBox = Array.isArray(parsed.box_2d) ? parsed.box_2d : parsed.bbox
+      let bbox: { x: number; y: number; w: number; h: number } | null = null
+      if (Array.isArray(rawBox) && rawBox.length >= 4) {
+        const [ymin, xmin, ymax, xmax] = rawBox.map(Number)
+        const x0 = clamp((Math.min(xmin, xmax) / 1000) * FRAME_W, 0, FRAME_W)
+        const y0 = clamp((Math.min(ymin, ymax) / 1000) * FRAME_H, 0, FRAME_H)
+        const x1 = clamp((Math.max(xmin, xmax) / 1000) * FRAME_W, 0, FRAME_W)
+        const y1 = clamp((Math.max(ymin, ymax) / 1000) * FRAME_H, 0, FRAME_H)
+        bbox = {
+          x: Math.round(x0),
+          y: Math.round(y0),
+          w: Math.max(1, Math.round(x1 - x0)),
+          h: Math.max(1, Math.round(y1 - y0)),
+        }
+      }
       const eventTypes = ['click', 'fill', 'navigate', 'result', 'none']
       const observation = {
         actionFound: !!parsed.actionFound,

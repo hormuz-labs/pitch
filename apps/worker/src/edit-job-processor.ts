@@ -19,8 +19,8 @@
 
 import { exec } from 'node:child_process'
 import * as fs from 'node:fs'
-import * as https from 'node:https'
 import * as http from 'node:http'
+import * as https from 'node:https'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
@@ -35,15 +35,11 @@ import {
 } from '@saas/shared'
 import type { Job } from 'bullmq'
 import type { Redis } from 'ioredis'
-import {
-  activeSessionsByJobId,
-  pushJobResult,
-  reportJobPhase,
-} from './job-processor.js'
+import { activeSessionsByJobId, pushJobResult, reportJobPhase } from './job-processor.js'
 import { getSessionIdFromEvent } from './opencode.js'
-import { buildGlidingCursorChain } from './utils/cursor-fx.js'
-import { videoEncodeArgs, nvencAvailable } from './utils/encoder.js'
+import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
 import { addIntroOutro } from './utils/intro-outro.js'
+import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
 
@@ -59,8 +55,15 @@ async function downloadFile(url: string, destPath: string, hops = 0): Promise<vo
     const lib = url.startsWith('https') ? https : http
     lib
       .get(url, res => {
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          downloadFile(res.headers.location, destPath, hops + 1).then(resolve).catch(reject)
+        if (
+          res.statusCode &&
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
+          downloadFile(res.headers.location, destPath, hops + 1)
+            .then(resolve)
+            .catch(reject)
           return
         }
         if (res.statusCode !== 200) {
@@ -81,7 +84,9 @@ async function probeVideo(file: string): Promise<{ fps: number; width: number; h
     `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate -of json "${file}"`,
   )
   const s = JSON.parse(stdout).streams?.[0] || {}
-  const [num, den] = String(s.r_frame_rate || '30/1').split('/').map(Number)
+  const [num, den] = String(s.r_frame_rate || '30/1')
+    .split('/')
+    .map(Number)
   return {
     fps: den ? num! / den : num! || 30,
     width: s.width || 1920,
@@ -121,7 +126,14 @@ export async function processEditJob(
   const { jobId, userId, parameters } = job.data
   const jobLogger = logger.child({ jobId, userId })
 
-  jobLogger.info({ originalFileName: parameters?.originalFileName }, 'Processing edit-recording job')
+  // Skip requeued duplicates of jobs the original in-flight run already
+  // finished (lost BullMQ lock after sleep/stall — see utils/job-guard.ts).
+  if (await jobAlreadyTerminal(jobId)) return
+
+  jobLogger.info(
+    { originalFileName: parameters?.originalFileName },
+    'Processing edit-recording job',
+  )
 
   const workerHostname = process.env.HOSTNAME || os.hostname()
   const updatedJob = await db.updateJob(jobId, {
@@ -199,7 +211,8 @@ export async function processEditJob(
           if (evt.type === 'message.part.updated' || evt.type === 'message.updated') {
             const info = evt.properties?.info || evt.properties
             if (info?.role === 'assistant') {
-              const text = info?.content?.[0]?.text || info?.text || evt.properties?.part?.text || ''
+              const text =
+                info?.content?.[0]?.text || info?.text || evt.properties?.part?.text || ''
               if (text) jobLogger.info({ text: text.slice(0, 200) }, 'LLM output')
             }
           }
@@ -217,7 +230,10 @@ export async function processEditJob(
             }
           }
 
-          await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify({ type: 'LOG', jobId, userId, event }))
+          await connection.publish(
+            JOB_UPDATES_CHANNEL,
+            JSON.stringify({ type: 'LOG', jobId, userId, event }),
+          )
         }
       } catch (e: any) {
         if (e.name === 'AbortError' || eventAbortController?.signal.aborted) {
@@ -296,31 +312,25 @@ export async function processEditJob(
     const { fps: sourceFps, width: srcW, height: srcH } = await probeVideo(uploadPath)
     jobLogger.info({ sourceFps, srcW, srcH }, 'Probed uploaded recording')
 
-    const cursorPath = path.join(targetDir, 'assets', 'icons', 'cursor.png')
     const rawVideo = path.join(recordingsDir, 'raw_edit.mp4')
     const trimmedVideo = path.join(recordingsDir, 'final_edit.mp4')
     const finalVideo = path.join(recordingsDir, 'final_edit_with_cards.mp4')
 
-    let videoInputs = `-i "${uploadPath}" -i "${cursorPath}"`
+    // Unlike the AI-demo flow, an uploaded screen recording ALREADY contains the
+    // user's real cursor — so we do NOT overlay a synthetic gliding cursor here
+    // (that would double the pointer). clickEvents are still used downstream for
+    // zoom targeting and to protect action moments from the smart trimmer.
+    const videoInputs = `-i "${uploadPath}"`
     let filterComplex = ''
     let currentVLabel = '[0:v]'
 
-    // The zoom/cursor math assumes a 1920x1080 frame (agent bboxes are in that
-    // space). Letterbox-scale anything else up front so the camera lands right.
+    // The zoom math assumes a 1920x1080 frame (agent bboxes are in that space).
+    // Letterbox-scale anything else up front so the camera lands right.
     if (srcW !== 1920 || srcH !== 1080) {
       filterComplex +=
         `[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,` +
         `pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v_scaled];`
       currentVLabel = '[v_scaled]'
-    }
-
-    // trimSec = 0: agent events are already on the upload's own timeline.
-    if (clickEvents.length > 0) {
-      const cursorChain = buildGlidingCursorChain(clickEvents, 0, 1, currentVLabel, '[v_cursor]')
-      if (cursorChain) {
-        filterComplex += cursorChain
-        currentVLabel = '[v_cursor]'
-      }
     }
 
     let finalVLabel = currentVLabel
@@ -363,7 +373,10 @@ export async function processEditJob(
       const productDomain = productUrl.replace(/^https?:\/\//, '').split('/')[0]
       const productName =
         parameters?.productName ||
-        productDomain.replace(/\.[a-z]+$/, '').replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) ||
+        productDomain
+          .replace(/\.[a-z]+$/, '')
+          .replace(/[^a-zA-Z0-9]/g, ' ')
+          .replace(/\b\w/g, (c: string) => c.toUpperCase()) ||
         path.basename(originalFileName, ext) ||
         'Demo'
 
@@ -409,7 +422,9 @@ export async function processEditJob(
       if (existingJob?.phases) {
         const parsedPhases: PhaseUpdate[] = JSON.parse(existingJob.phases as string)
         newPhases = parsedPhases.map(p =>
-          p.status === 'running' ? { ...p, status: 'failed', completedAt: new Date().toISOString() } : p,
+          p.status === 'running'
+            ? { ...p, status: 'failed', completedAt: new Date().toISOString() }
+            : p,
         )
       }
 
@@ -420,7 +435,9 @@ export async function processEditJob(
       })
       await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob))
 
-      await db.addCredits(userId, EDIT_CREDIT_COST, 'refund', 'Refund: Recording edit failed', { jobId })
+      await db.addCredits(userId, EDIT_CREDIT_COST, 'refund', 'Refund: Recording edit failed', {
+        jobId,
+      })
 
       const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
       const email = userProfile?.email || userId
