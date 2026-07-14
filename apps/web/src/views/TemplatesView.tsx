@@ -516,7 +516,8 @@ const STARTUP_AMPLIFY_CSS = `
 .amp-insight-bar{margin-top:16px;background:#FFFFFF;border-left:4px solid #D91E18;padding:12px 16px;font-family:var(--font-body);font-size:13px;line-height:1.5;}
 .amp-insight-bar strong{color:#D91E18;font-weight:700;}
 .amp-cover{position:relative;overflow:hidden;}
-.amp-cover-content{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;}
+.amp-cover-bg{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.22;z-index:0;}
+.amp-cover-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;}
 .amp-cover-title{font-family:var(--font-display);font-size:54px;font-weight:700;margin:0;line-height:1.1;}
 .amp-cover-subtitle{font-family:var(--font-display);font-size:26px;margin-top:14px;}
 .amp-cover-meta{font-family:var(--font-body);font-size:14px;color:#888888;margin-top:14px;}
@@ -538,6 +539,7 @@ const STARTUP_AMPLIFY_CSS = `
 .amp-split{display:flex;gap:36px;height:340px;}
 .amp-split-left{flex:1.1;display:flex;flex-direction:column;gap:16px;}
 .amp-split-right{flex:0.9;display:flex;flex-direction:column;gap:14px;}
+.amp-split-img{width:100%;height:160px;object-fit:cover;border-radius:8px;}
 .amp-split-bullets{margin:0;padding:0 0 0 18px;font-family:var(--font-body);font-size:15px;line-height:1.7;color:#2C2C2C;}
 .amp-info-card{background:#FFFFFF;border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
 .amp-info-card-title{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:4px;}
@@ -1426,6 +1428,7 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   if (templateId === 'STARTUP_AMPLIFY') {
     if (slide.layout === 'AMP-COVER') return `
 <div class="slide amp-cover">
+  ${slide.image ? `<img class="amp-cover-bg" src="${slide.image}" />` : ''}
   <div class="amp-rule amp-rule-top"></div>
   <div class="amp-cover-content">
     <h1 class="amp-cover-title">${t}</h1>
@@ -1467,6 +1470,7 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   </div>
   <div class="amp-split">
     <div class="amp-split-left">
+      ${slide.image ? `<img class="amp-split-img" src="${slide.image}" />` : ''}
       ${(slide.bullets || []).length > 0 ? `
       <ul class="amp-split-bullets">
         ${slide.bullets.map(b => `<li>${b}</li>`).join('')}
