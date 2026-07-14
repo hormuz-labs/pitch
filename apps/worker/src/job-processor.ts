@@ -20,14 +20,13 @@ import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
 import { Redis } from 'ioredis'
 import * as os from 'os'
-import yaml from 'yaml'
 import { getSessionIdFromEvent } from './opencode.js'
-
-import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
+import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
-import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { addIntroOutro } from './utils/intro-outro.js'
+import { jobAlreadyTerminal } from './utils/job-guard.js'
+import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
 
@@ -249,7 +248,7 @@ async function detectFirstContentSec(webmPath: string): Promise<number> {
 /**
  * Direct in-process result pushing. Uploads final video, notifies via Discord and email.
  */
-async function pushJobResult(
+export async function pushJobResult(
   jobId: string,
   userId: string,
   filePath: string,
@@ -301,15 +300,25 @@ async function pushJobResult(
     const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
     const email = userProfile?.email || userId
     const urlParam = parameters?.url || 'N/A'
+    const isEditJob = parameters?.jobType === 'edit-recording'
     const instructions = parameters?.instructions ? `\nPrompt: *${parameters.instructions}*` : ''
 
     await sendDiscordMessage(
-      `✅ **Video Creation Completed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}\nGit Hash: \`${gitHash || 'N/A'}\`${rawVideoUrl ? `\nRaw Video: ${rawVideoUrl}` : ''}`,
+      `✅ **${isEditJob ? 'Recording Edit Completed' : 'Video Creation Completed'}**\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nOutput Video: ${videoUrl}\nGit Hash: \`${gitHash || 'N/A'}\`${rawVideoUrl ? `\nRaw Video: ${rawVideoUrl}` : ''}`,
     )
 
     const userEmail = await getClerkUserEmail(userId)
     if (userEmail && videoUrl) {
-      const videoTitle = urlParam !== 'N/A' ? new URL(urlParam).hostname : 'pitch.com'
+      // Edit-recording jobs may carry a bare file name in parameters.url instead
+      // of a real URL — fall back to the product/file name instead of crashing.
+      let videoTitle = 'pitch.com'
+      if (urlParam !== 'N/A') {
+        try {
+          videoTitle = new URL(urlParam).hostname
+        } catch {
+          videoTitle = parameters?.productName || parameters?.originalFileName || 'pitch.com'
+        }
+      }
       await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl, videoTitle })
     }
   } catch (err: any) {
@@ -369,6 +378,7 @@ async function resolveAndCombineWebmFiles(
   expectedPath: string,
   searchDir: string,
   logger: any,
+  recordingStartedAtMs?: number,
 ): Promise<string> {
   const candidates: string[] = []
   function search(dir: string, depth: number) {
@@ -377,6 +387,10 @@ async function resolveAndCombineWebmFiles(
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const fullPath = path.join(dir, entry.name)
         if (entry.isDirectory()) {
+          // Never descend into hidden dirs: .playwright-cli/traces holds the
+          // CLI's OWN screencast of the session, and combining it with the
+          // video-start recording duplicates the whole demo in one webm.
+          if (entry.name.startsWith('.')) continue
           search(fullPath, depth + 1)
         } else if (entry.name.endsWith('.webm')) {
           candidates.push(fullPath)
@@ -388,9 +402,23 @@ async function resolveAndCombineWebmFiles(
   }
   search(searchDir, 0)
 
+  // Only files modified after this job's recording started can belong to the
+  // current session — anything older is a stale chunk from an earlier (failed)
+  // attempt that never got cleaned up. Combining those in shifts the timeline
+  // (and the mtime-derived birth time) and desyncs every overlay and clip.
+  const minMtimeMs = recordingStartedAtMs ? recordingStartedAtMs - 30_000 : 0
   const uniqueCandidates = Array.from(new Set(candidates)).filter(f => {
     try {
-      return fs.existsSync(f) && fs.statSync(f).size > 0
+      const st = fs.statSync(f)
+      if (st.size <= 0) return false
+      if (st.mtimeMs < minMtimeMs) {
+        logger.info(
+          { file: f, mtime: new Date(st.mtimeMs).toISOString() },
+          'Skipping stale WebM chunk from an earlier run',
+        )
+        return false
+      }
+      return true
     } catch {
       return false
     }
@@ -486,6 +514,9 @@ function findWebmCandidates(logger: any, targetDir: string): string | null {
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
           const fullPath = path.join(dir, entry.name)
           if (entry.isDirectory()) {
+            // Skip hidden dirs — see resolveAndCombineWebmFiles (the
+            // .playwright-cli/traces screencast must never be picked up).
+            if (entry.name.startsWith('.')) continue
             search(fullPath, depth + 1)
           } else if (entry.name.endsWith('.webm')) {
             candidates.push({ path: fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs })
@@ -508,51 +539,14 @@ function findWebmCandidates(logger: any, targetDir: string): string | null {
   return candidates[0].path
 }
 
-interface SkillMetadata {
-  name: string
-  description: string
-  path: string
-}
-
-async function discoverSkills(directories: string[]): Promise<SkillMetadata[]> {
-  const skills: SkillMetadata[] = []
-  const seenNames = new Set<string>()
-  for (const dir of directories) {
-    let entries
-    try {
-      entries = await fs.promises.readdir(dir, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue
-      const skillDir = path.join(dir, entry.name)
-      const skillFile = path.join(skillDir, 'SKILL.md')
-      try {
-        const content = await fs.promises.readFile(skillFile, 'utf-8')
-        const frontmatter = yaml.parse(content.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] || '')
-        if (seenNames.has(frontmatter.name)) continue
-        seenNames.add(frontmatter.name)
-        skills.push({
-          name: frontmatter.name,
-          description: frontmatter.description,
-          path: skillDir,
-        })
-      } catch {}
-    }
-  }
-  return skills
-}
-
-function buildSkillsPrompt(skills: SkillMetadata[]): string {
-  const skillsList = skills.map(s => `- ${s.name}: ${s.description}`).join('\n')
-  return `\n## Skills\nUse the \`load_skill\` tool to load a skill when the user's request would benefit from specialized instructions.\nAvailable skills:\n${skillsList}\n`
-}
-
 export function createJobProcessor(connection: Redis, targetDir: string) {
   return async function processJob(job: Job, client: OpencodeClient) {
     const { jobId, userId, parameters } = job.data
     const jobLogger = logger.child({ jobId, userId })
+
+    // Skip requeued duplicates of jobs the original in-flight run already
+    // finished (lost BullMQ lock after sleep/stall — see utils/job-guard.ts).
+    if (await jobAlreadyTerminal(jobId)) return
 
     if (parameters?.jobType === 'pdf') {
       const { processPdfJob } = await import('./pdf-job-processor.js')
@@ -601,13 +595,6 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       fs.mkdirSync(recordingsDir, { recursive: true })
       fs.mkdirSync(path.join(recordingsDir, 'audio'), { recursive: true })
       fs.mkdirSync(path.join(recordingsDir, 'videos'), { recursive: true })
-
-      // Discover available skills
-      const skills = await discoverSkills([
-        path.join(targetDir, '.agents/skills'),
-        path.join(targetDir, '.claude/skills'),
-        path.join(os.homedir(), '.claude/skills'),
-      ])
 
       // Create OpenCode Session first so we have session.id for recording paths
       const sessionResponse = await client.session.create({
@@ -698,6 +685,9 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       )
 
       logger.info({ webmPath }, 'Starting video recording...')
+      // Remember when this job's recording began so the post-run WebM sweep
+      // can ignore stale chunks left behind by earlier (failed) attempts.
+      const videoStartedAtMs = Date.now()
       const videoStartResult = await execAsync(
         `playwright-cli video-start "${webmPath}" --size=1920x1080`,
         { cwd: targetDir },
@@ -710,10 +700,12 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       const startTime = Date.now()
       logger.info(`startTime captured: ${new Date(startTime).toISOString()}`)
 
-      // Write config so the OpenCode plugin knows startTime, skills, and voice
+      // Write config so the demo-generator tools know the startTime (event clock
+      // anchor) and which TTS voice to use. Skills are NOT bound here anymore —
+      // opencode discovers them natively per agent.
       const configPath = path.join(recordingsDir, 'demo-config.json')
       const voiceName = (parameters?.voice || 'Puck').toString().replace(/\.mp3$/i, '')
-      fs.writeFileSync(configPath, JSON.stringify({ startTime, skills, voiceName }, null, 2))
+      fs.writeFileSync(configPath, JSON.stringify({ startTime, voiceName }, null, 2))
 
       // 4. Subscribe to global events and filter by session ID.
       eventAbortController = new AbortController()
@@ -812,11 +804,12 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         }
       })()
 
-      // 5. Send Prompt
+      // 5. Send Prompt — the behavioral spec (camera grammar, pacing, logo
+      // capture) lives in the demo-generator agent definition; this message only
+      // carries the per-job inputs.
       const targetUrl = parameters?.url || ''
       const promptInstructions = parameters?.instructions || ''
       const promptScript = (parameters?.script || '').toString().trim()
-      const userPrompt = `Go to ${targetUrl}. ${promptInstructions}`
 
       // If the user supplied a voiceover script, the narration must follow it.
       const scriptBlock = promptScript
@@ -826,61 +819,18 @@ VOICEOVER SCRIPT (provided by the user — THIS IS THE SOURCE OF TRUTH FOR THE N
 """
 ${promptScript}
 """
-Narrate the demo using this script. You MAY split it into natural chunks, lightly rephrase for flow, and time each line to the matching on-screen action and your pacing — but keep the content, message, ordering of key points, and tone faithful to the script. Do NOT invent different talking points or drop important ones. Deliver these lines via the 'narrate' tool at the appropriate moments, and sequence your actions so the visuals match what is being said. Only write your own narration for small connective bits the script doesn't cover.
 `
         : ''
 
-      const promptText = `You are a professional, engaging web demo agent. Your goal is to guide the user through a web automation task naturally, as if you are a friendly human narrator recording a tutorial.
-User Request: "${userPrompt}"
-${scriptBlock}
-Start narrating the demo as soon as the page is visible. Navigate and let the first view load first, then begin your narration — so the demo opens with real content on screen rather than silence.
+      const promptText = `Record a cinematic product demo.
 
-Guidelines:
-1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. Start directly with 'playwright-cli goto <url>'.
-2. ELEMENT REFS: Call 'demo_bash' with command "playwright-cli snapshot" to get the current page state. Elements will have refs like [ref=e53].
-   Pass the ref identifier (e.g. "e53") to tools like 'zoom_in' or 'demo_bash' command "playwright-cli click e53".
-3. CAMERA / ZOOM — treat the zoom like a cinematic spotlight, used sparingly to feel clean, not busy:
-   - TARGET A PRECISE ELEMENT, never a big container. Always zoom_in / click the SPECIFIC thing you mean — the exact button, link, heading, input, icon, or short line of text. NEVER target a large wrapper, section, card grid, or 'generic'/container ref from the snapshot: its center is usually empty space (the gap between things), so the camera lands "out of place" on nothing. In the snapshot, prefer the innermost ref that tightly wraps the actual control/text (e.g. the 'button'/'link'/'heading' ref, not the 'generic' section that contains it). If you want to showcase a whole feature, zoom_in on its TITLE or ICON, not the section box.
-   - Zoom ONLY to highlight something the viewer should actually notice: a specific feature, a value being entered into a meaningful field, an important button, or a result.
-   - Do NOT zoom for routine/setup steps: login & auth forms, cookie/consent popups, nav menus, page loads, or boilerplate. Perform those at the full (un-zoomed) view.
-   - When you DO highlight something: demo_bash({ command: "playwright-cli snapshot" }) -> narrate({ text: "..." }) -> zoom_in({ target: "e53" }) -> demo_bash({ command: "playwright-cli click e53" }).
-   - STAY ZOOMED and PAN for adjacent actions: if the next element you act on is near the current one (e.g. the next field in the same form, or a button right below), call zoom_in on the NEW target directly. This smoothly pans the camera. Do NOT zoom_out and zoom_in again between nearby steps — that looks jarring.
-   - Call zoom_out() only when you leave that area entirely (moving to a different section/page) or when the highlight is finished.
-   - NAVIGATION: when a click opens a new page/view (e.g. opening a form, navigating to a detail page), ALWAYS zoom_out first and let the full new page show (a short narrate is good here) BEFORE you zoom_in on any field. Never stay zoomed on the old click position after the page changes — the camera would be parked on a meaningless spot while the new content is off-screen.
-   - Keep zoom subtle — omit the zoom level (defaults to ~1.7) unless a tiny detail genuinely needs more.
-   - OFF-SCREEN TARGETS: when the element you want is below the fold, just zoom_in / click it directly — the camera smoothly SCROLLS the page to it (the viewer sees it glide into view), so do NOT jump there abruptly or worry about scrolling yourself. Keep narrating across the scroll so there's no silent gap while the page travels.
-   - SHOW THE SCROLL AT FULL VIEW: when your next target is in a DIFFERENT part of the page (not adjacent — you have to travel down/up to reach it), call zoom_out() FIRST so the camera is at full view, THEN zoom_in on the new target. The scroll-to-it is only clearly visible when the camera is pulled back; if you stay zoomed in and jump straight to a far target, the camera tracks it and the travel reads as a teleport. So: zoom_out → (the page visibly scrolls to the new area) → zoom_in on the precise target there.
-   - ALWAYS CENTER WHAT YOU TALK ABOUT — and never talk about something that isn't on screen. Before (or as) you narrate about a specific element or section, bring it to the CENTER of the view so the viewer sees you travel there:
-     • If you're highlighting/zooming it: zoom_in on its ref — this smoothly SCROLLS the page to it AND centers it.
-     • If you're at the full (un-zoomed) view and just moving down to discuss the next section: call narrate({ text: "...", focus: "e53" }) with that section's ref — the page smoothly scrolls it to the center BEFORE the line is spoken, so the viewer sees the scroll and the subject is centered while you talk about it.
-     • NEVER narrate about an element that is below the fold or off-screen without a focus/zoom that brings it into the centered view first. The viewer must always see HOW you got there — no teleporting content in, no talking about things they can't see.
-4. POPUPS: Dismiss them directly with 'demo_bash' command "playwright-cli click". Do not zoom in.
-5. FILLING FORMS / FIELDS:
-   - ALWAYS enter text with the 'fill_field' tool (fill_field({ target: "e53", text: "..." })) — never demo_bash "playwright-cli fill". fill_field types character-by-character (visible typing) with a synced keyboard sound so the viewer sees each value being entered.
-   - Frame the field first: zoom_in on the field (or the form) before calling fill_field, so the typing is clearly visible.
-   - For a multi-field form, move the camera gently field-to-field: after filling one field, zoom_in on the NEXT field — this smoothly PANS the camera there (no zoom_out/zoom_in) so the viewer watches each value get filled in turn.
-   - After filling, pause briefly with demo_bash({ command: "sleep 1.0" }) so the entered value is readable before moving on.
-6. After navigating or clicking links, use demo_bash({ command: "sleep 3" }) or similar to allow loading. 'playwright-cli' does NOT have a wait command.
-7. The browser is set to 1920x1080 resolution.
-8. PACING — the video records in REAL TIME while you think, so control what's on screen during your silences:
-   - THINK ON A STABLE VIEW: do your reading and planning (snapshots, deciding the next step) while the screen rests on the view you just narrated — a silent static hold is trimmed away automatically. NEVER pause to think with a half-finished state on screen (an open menu, a half-filled form, mid-transition).
-   - NEVER ACT IN SILENCE: every visible action — zoom, click, scroll/focus, typing, navigation — must happen WITH narration, not a minute after it. The viewer should always hear you explain what they're watching.
-   - EXECUTE A BEAT IN ONE GO: snapshot and decide first, then emit the whole beat as back-to-back tool calls with nothing in between: narrate({ text }) -> zoom_in -> click -> sleep. If you think between narrate() and its action, the words play over a frozen screen and the action happens in dead silence later.
-   - A good demo alternates: stable view + a line about it -> narrated action -> new stable view. Silent gaps between beats are fine (they're trimmed); silent ACTIONS are not (they're kept, unexplained).
-9. LOGO CAPTURE: Before ending the demo, capture the product's logo for the intro/outro cards. ALWAYS PREFER downloading the original asset — it is much sharper than a screenshot:
-   a. Snapshot and find the VISIBLE logo — usually an <img> in the header/nav (or the brand image inside the top-left home link) whose src/alt/class contains "logo". Do NOT target <link rel=icon> in the head.
-   b. If it's an <img>, read its real URL and download it:
-      demo_bash({ command: "playwright-cli eval \"el => el.currentSrc || el.src\" e53" })   // absolute URL; currentSrc is the highest-res variant the browser actually loaded
-      then demo_bash({ command: "curl -L -o recordings/product_logo.png '<that url>'" }).
-      The .png filename is fine even when the asset is .svg/.jpeg/.webp — the file is normalized automatically. Only fall back to a screenshot if the curl fails or the logo is not a downloadable image (inline <svg>, CSS background-image, etc.).
-   c. FALL BACK to a screenshot when there is no downloadable <img> URL — an inline <svg> logo, a CSS background-image, or a failed download. The selector is the POSITIONAL target and the output flag is --filename (NOT --selector / --path): demo_bash({ command: "playwright-cli screenshot 'header img[src*=logo], a[href=\"/\"] img, img[alt*=logo], [class*=logo] img, header svg' --filename recordings/product_logo.png" }). The element MUST be visible on the page. If the first selector fails, try another visible logo/brand image.
-   d. If no logo can be captured at all, that's OK; skip it.
-${buildSkillsPrompt(skills)}`
+Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
 
       const promptResponse = await client.session.prompt({
         path: { id: session.id },
         query: { directory: targetDir },
         body: {
+          agent: 'demo-generator',
           parts: [{ type: 'text', text: promptText }],
         },
         signal: promptAbortController.signal,
@@ -974,7 +924,12 @@ ${buildSkillsPrompt(skills)}`
 
       let foundWebmPath: string
       try {
-        foundWebmPath = await resolveAndCombineWebmFiles(webmPath, videoDir, jobLogger)
+        foundWebmPath = await resolveAndCombineWebmFiles(
+          webmPath,
+          videoDir,
+          jobLogger,
+          videoStartedAtMs,
+        )
       } catch (err: any) {
         jobLogger.warn(
           { err },
@@ -1057,15 +1012,18 @@ ${buildSkillsPrompt(skills)}`
           logger.warn({ filePath: clip.filePath }, 'Audio clip file not found on disk — skipping')
           return
         }
-        // Place audio on the raw WebM timeline (which begins trimSec before the
-        // prompt startTime), mirroring how the click/zoom overlays add trimSec.
-        // Without this the narration drifts out of sync with the visuals it
-        // describes. Clamp to firstContentMs so any early narration (spoken while
-        // the page is still blank) is held until the page actually paints,
-        // instead of playing over a blank screen.
+        // The click/zoom overlays add trimSec because they are applied BEFORE
+        // the trim=start=trimSec cut, i.e. on the raw WebM timeline. The mixed
+        // audio track is never trimmed, so it must sit on the POST-trim output
+        // timeline: compute the WebM-timeline position (the firstContent clamp
+        // holds early narration until the page actually paints instead of
+        // playing over a blank screen), then shift it back by trimSec. Keeping
+        // +trimMs in the adelay itself would delay every clip by trimSec and
+        // desync the whole soundtrack from the trimmed video.
         const delayMs = Math.max(
-          firstContentMs,
-          Math.max(0, clip.absoluteTimestamp - startTime + trimMs),
+          0,
+          Math.max(firstContentMs, Math.max(0, clip.absoluteTimestamp - startTime + trimMs)) -
+            trimMs,
         )
         // Track the first *narration* clip (not the click/keyboard sound effects)
         // so we can trim the silent setup that precedes it.
@@ -1136,9 +1094,13 @@ ${buildSkillsPrompt(skills)}`
       // opening is removed entirely — early narration was clamped to that same point,
       // so the demo opens on the real page with narration over it.
       const FIRST_WORD_LEAD_IN = 0.4
+      // firstContentSec is measured on the raw WebM timeline; the rendered
+      // video is already trimmed by trimSec, so shift it onto the output
+      // timeline before comparing with (post-trim) narration delays.
+      const firstContentOutSec = Math.max(0, firstContentSec - trimSec)
       const leadingTrimSec = Number.isFinite(firstNarrationDelayMs)
-        ? Math.max(0, firstNarrationDelayMs / 1000 - FIRST_WORD_LEAD_IN, firstContentSec)
-        : Math.max(0, firstContentSec)
+        ? Math.max(0, firstNarrationDelayMs / 1000 - FIRST_WORD_LEAD_IN, firstContentOutSec)
+        : Math.max(0, firstContentOutSec)
       if (leadingTrimSec > 0) {
         logger.info(
           { leadingTrimSec, firstContentSec },

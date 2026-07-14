@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Live integration check for the demo camera's scroll-to-centre behaviour.
 //
-// Drives the REAL in-page SMOOTH_SCROLL_JS (lifted from the demo-tools plugin) against
+// Drives the REAL in-page SMOOTH_SCROLL_JS (lifted from the demo-generator tools) against
 // a controlled 6000px page and asserts each target lands where the pure spec
 // (apps/worker/src/utils/zoom-framing.ts → computeScrollTargetY) predicts. This closes
 // the loop between the unit-tested math and the actual browser implementation.
@@ -22,7 +22,7 @@ const sh = async c => {
 }
 const result = o => { const m = o.match(/### Result\s*\n([\s\S]*?)\n###/); return m ? m[1].trim() : null }
 
-const SCROLL = readFileSync(path.join(root, '.opencode/plugins/demo-tools.ts'), 'utf8')
+const SCROLL = readFileSync(path.join(root, '.opencode/tools/demo-generator.ts'), 'utf8')
   .match(/const SMOOTH_SCROLL_JS\s*=\s*\n?\s*'([\s\S]*?)'\n/)[1]
 const { computeScrollTargetY } = await import(
   path.join(root, 'apps/worker/src/utils/zoom-framing.ts')

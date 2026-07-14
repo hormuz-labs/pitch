@@ -42,6 +42,7 @@ import {
   CreateView,
   DashboardView,
   EditorView,
+  EditRecordingView,
   EnhanceView,
   LandingView,
   PdfCreateView,
@@ -514,6 +515,29 @@ const Sidebar = ({
                 label="New Video"
                 active={selectedKey === 'create'}
                 onClick={() => go('/new')}
+              />
+              <NavItem
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="6" cy="6" r="3" />
+                    <circle cx="6" cy="18" r="3" />
+                    <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                    <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                    <line x1="8.12" y1="8.12" x2="12" y2="12" />
+                  </svg>
+                }
+                label="Edit Recording"
+                active={selectedKey === 'edit'}
+                onClick={() => go('/edit')}
               />
               <NavItem
                 icon={
@@ -1442,6 +1466,40 @@ function AppContent() {
     }
   }
 
+  // Video upload — multipart, so we bypass the JSON api helper
+  const handleQueueEditJob = async (formData: FormData) => {
+    setIsSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/edit-jobs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: formData,
+      })
+      if (!res.ok) {
+        const err: any = new Error(`HTTP ${res.status}`)
+        err.status = res.status
+        throw err
+      }
+      const newJob: Project = await res.json()
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === newJob.id)
+        return exists ? prev.map(p => (p.id === newJob.id ? newJob : p)) : [...prev, newJob]
+      })
+      navigate('/dashboard')
+      window.dispatchEvent(new Event('credits-changed'))
+    } catch (err: any) {
+      const msg =
+        err.status === 402
+          ? 'You have no credits remaining. Please top up to continue.'
+          : err.message || 'An error occurred'
+      toast(msg, 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleDelete = async (id: string) => {
     try {
       const token = await getToken()
@@ -1503,6 +1561,9 @@ function AppContent() {
         onDownload = () => window.open(project.videoUrl)
       }
     }
+  } else if (location.pathname.startsWith('/edit')) {
+    // after /editor so '/editor' doesn't match this branch
+    selectedKey = 'edit'
   } else if (location.pathname.startsWith('/settings')) {
     selectedKey = 'settings'
   } else if (location.pathname.startsWith('/sessions')) {
@@ -1648,6 +1709,12 @@ function AppContent() {
                   path="/enhance"
                   element={
                     <EnhanceView isSubmitting={isSubmitting} onQueueEnhanceJob={handleQueueEnhanceJob} />
+                  }
+                />
+                <Route
+                  path="/edit"
+                  element={
+                    <EditRecordingView isSubmitting={isSubmitting} onQueueEditJob={handleQueueEditJob} />
                   }
                 />
                 <Route

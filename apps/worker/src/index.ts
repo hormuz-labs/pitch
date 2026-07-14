@@ -1,16 +1,13 @@
-import { createLogger, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
+import { createLogger, EDIT_QUEUE_NAME, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
 import { Worker } from 'bullmq'
 import dotenv from 'dotenv'
 import { Redis } from 'ioredis'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createJobProcessor, startCancellationListener } from './job-processor.js'
+import { processEditJob } from './edit-job-processor.js'
 import { processEnhanceJob } from './enhance-job-processor.js'
-import {
-  acquireOpencode,
-  currentClient,
-  forceCloseOpencode,
-} from './opencode.js'
+import { createJobProcessor, startCancellationListener } from './job-processor.js'
+import { acquireOpencode, currentClient, forceCloseOpencode } from './opencode.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -61,6 +58,11 @@ async function shutdown(signal: string) {
     logger.error({ err: e }, 'Error closing enhance worker')
   }
   try {
+    await editWorker.close()
+  } catch (e) {
+    logger.error({ err: e }, 'Error closing edit worker')
+  }
+  try {
     await forceCloseOpencode()
   } catch {
     // ignore
@@ -82,6 +84,15 @@ process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
 
 // ── BullMQ Worker ───────────────────────────────────────────────────────────
+// BullMQ renews each job's Redis lock every lockDuration/2 while the handler
+// runs. The 30s default expires whenever this process is frozen long enough
+// (laptop sleep, or a CPU-starved event loop under ffmpeg load); BullMQ then
+// fires lockRenewalFailed and its stalled checker requeues the job while the
+// original run is still in flight — a duplicate run. 5 minutes covers
+// ordinary stalls; longer interruptions are handled by the terminal-status
+// guard in each processor (see utils/job-guard.ts).
+const lockDuration = 5 * 60 * 1000
+
 const worker = new Worker(
   QUEUE_NAME,
   async job => {
@@ -92,7 +103,7 @@ const worker = new Worker(
       await handle.release()
     }
   },
-  { connection: connection as any },
+  { connection: connection as any, lockDuration },
 )
 
 worker.on('completed', job => {
@@ -103,12 +114,17 @@ worker.on('failed', (job, err) => {
   logger.error({ jobId: job?.id, err }, 'Job failed')
 })
 
-// When a job's lock can't be renewed (e.g. long video generation exceeded
-// the lock window), BullMQ fires this event then spams error logs via the
-// 'error' event.  Remove the job immediately to clear the queue — the
-// in-flight worker still finishes and saves the result via pushJobResult.
+// When a job's lock can't be renewed (e.g. the process was frozen through a
+// laptop sleep or a long event-loop stall), BullMQ fires this event and its
+// stalled checker will eventually move the job back to the wait list. The
+// in-flight run keeps going regardless and saves its result directly via
+// pushJobResult; the requeued copy is skipped by each processor's
+// terminal-status guard (utils/job-guard.ts), so no duplicate work happens.
 worker.on('lockRenewalFailed', async (jobIds: string[]) => {
-  logger.warn({ jobIds }, 'Lock renewal failed')
+  logger.warn(
+    { jobIds },
+    'Lock renewal failed — in-flight run continues; requeued copy will be skipped',
+  )
 })
 
 // BullMQ LockManager emits 'error' for every lockRenewalFailed as well as
@@ -135,7 +151,7 @@ const enhanceWorker = new Worker(
       await handle.release()
     }
   },
-  { connection: connection as any, concurrency: enhanceConcurrency },
+  { connection: connection as any, concurrency: enhanceConcurrency, lockDuration },
 )
 
 enhanceWorker.on('completed', job => {
@@ -156,5 +172,39 @@ logger.info(
   { concurrency: enhanceConcurrency },
   'Enhance worker started, listening for enhance jobs',
 )
+
+// ── Edit-Recording Queue Worker ────────────────────────────────────────────────
+// "Edit my recording" jobs: the recording-editor agent reconstructs
+// demo-state.json from an uploaded narrated recording, then the standard render
+// chain finishes it. Concurrency 1 — the agent writes to the shared recordings/
+// directory, same constraint as the main video worker.
+const editWorker = new Worker(
+  EDIT_QUEUE_NAME,
+  async job => {
+    const handle = await acquireOpencode(targetDir)
+    try {
+      await processEditJob(job, handle.client, connection, targetDir)
+    } finally {
+      await handle.release()
+    }
+  },
+  { connection: connection as any, concurrency: 1, lockDuration },
+)
+
+editWorker.on('completed', job => {
+  logger.info({ jobId: job.id }, 'Edit job completed')
+})
+
+editWorker.on('failed', (job, err) => {
+  logger.error({ jobId: job?.id, err }, 'Edit job failed')
+})
+
+editWorker.on('error', err => {
+  const msg = (err as Error)?.message || String(err)
+  if (msg.includes('could not renew lock')) return
+  logger.error({ err }, 'Edit worker error')
+})
+
+logger.info('Edit worker started, listening for edit-recording jobs')
 
 logger.info('Worker started, listening for jobs (OpenCode server starts on first job)')

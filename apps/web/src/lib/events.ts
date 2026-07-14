@@ -26,9 +26,14 @@ export function parseSSELog(opencodeEvent: any): LogEntry | null {
   if (opencodeEvent.type === 'call' || opencodeEvent.call) {
     const toolCall = opencodeEvent.call || opencodeEvent
     let message = `Calling tool: ${toolCall.name}`
-    if (toolCall.name === 'run_shell_command') message = `Running: ${toolCall.arguments?.command}`
-    else if (toolCall.name === 'write_file')
-      message = `Writing file: ${toolCall.arguments?.file_path}`
+    if (toolCall.name === 'demo-generator_demo_bash')
+      message = `Running: ${toolCall.arguments?.command}`
+    else if (toolCall.name === 'pdf-generator_pdf_scaffold')
+      message = 'Setting up the deck build directory'
+    else if (toolCall.name === 'pdf-generator_pdf_scrape_images') message = 'Fetching slide images'
+    else if (toolCall.name === 'pdf-generator_pdf_build') message = 'Building the PDF deck'
+    else if (toolCall.name === 'edit' || toolCall.name === 'write')
+      message = `Writing file: ${toolCall.arguments?.filePath ?? toolCall.arguments?.file_path ?? ''}`
 
     const entry: LogEntry = { timestamp: new Date().toLocaleTimeString(), message, type: 'call' }
 
