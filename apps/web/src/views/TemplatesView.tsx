@@ -83,6 +83,18 @@ type SlideData = {
   col2Title?: string
   col2Bullets?: string[]
   columns?: Array<{ heading: string; body: string }>
+  // Tech Duel fields
+  sections?: Array<{ number?: string; title: string; description?: string }>
+  specs?: Array<{ label: string; value: string }>
+  price?: string
+  priceNote?: string
+  differentiator?: string
+  productName?: string
+  whatItIs?: string
+  whatItIsnt?: string
+  tagline?: string
+  leftWins?: Array<string | { text: string }>
+  rightWins?: Array<string | { text: string }>
 }
 
 interface Template {
@@ -111,6 +123,8 @@ const TEMPLATE_FONTS: Record<string, string> = {
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">`,
   COMIC_POP: `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400&family=Dancing+Script:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">`,
+  TECH_DUEL: `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Quattrocento+Sans:wght@400;700&display=swap" rel="stylesheet">`,
 }
 
 // ── Template CSS (verbatim from each skill.md stylesheet section) ─────────────
@@ -412,11 +426,80 @@ const COMIC_CSS = `
 .comic-closing-meta{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:#404040;letter-spacing:0.5px;}
 `
 
+const TECH_DUEL_CSS = `
+:root{--font-display:"Outfit",sans-serif;--font-body:"Quattrocento Sans",sans-serif;--font-label:"Outfit",sans-serif;}
+.duel-dark{background:#0D1117;color:#E6EDF3;}
+.duel-light{background:#F6F7F9;color:#1F2328;}
+.duel-content{padding:52px 70px;height:100%;box-sizing:border-box;position:relative;z-index:5;}
+.duel-green-text{color:#76B900!important;}
+.duel-red-text{color:#ED1C24!important;}
+.duel-accent-bar{position:absolute;top:0;left:70px;right:70px;height:5px;z-index:10;}
+.duel-bar-green{background:#76B900;}
+.duel-bar-red{background:#ED1C24;}
+.duel-source{position:absolute;bottom:18px;left:70px;font-size:10px;color:#656D76;font-family:var(--font-body);}
+.duel-cover{position:relative;overflow:hidden;}
+.duel-cover-bg{position:absolute;top:0;right:0;width:55%;height:100%;object-fit:cover;z-index:1;}
+.duel-cover-gradient{position:absolute;top:0;left:0;width:75%;height:100%;background:linear-gradient(90deg,#0D1117 0%,#0D1117 55%,rgba(13,17,23,0.6) 75%,rgba(13,17,23,0) 100%);z-index:2;}
+.duel-cover-bar{position:absolute;left:70px;top:210px;width:7px;height:280px;background:#76B900;z-index:5;}
+.duel-cover-content{display:flex;flex-direction:column;justify-content:center;padding-left:100px;}
+.duel-cover-kicker{font-family:var(--font-label);font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#76B900;margin-bottom:14px;font-weight:700;}
+.duel-cover-title{font-family:var(--font-display);font-size:54px;line-height:1.1;color:#76B900;margin:0;text-transform:uppercase;letter-spacing:-1px;max-width:720px;border:none;padding:0;}
+.duel-cover-subtitle{font-family:var(--font-body);font-size:20px;color:#E6EDF3;margin-top:20px;max-width:600px;line-height:1.5;}
+.duel-cover-date{font-family:var(--font-label);font-size:13px;color:#76B900;letter-spacing:1.5px;text-transform:uppercase;margin-top:30px;font-weight:700;}
+.duel-cover-footer{position:absolute;bottom:36px;left:100px;font-size:12px;color:#656D76;letter-spacing:0.5px;}
+.duel-toc-kicker{font-family:var(--font-label);font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#76B900;margin-bottom:8px;font-weight:700;}
+.duel-toc-title{font-family:var(--font-display);font-size:48px;color:#E6EDF3;margin:0 0 40px 0;text-transform:uppercase;letter-spacing:-0.5px;border:none;padding:0;}
+.duel-toc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px 50px;}
+.duel-toc-item{display:flex;align-items:flex-start;gap:14px;}
+.duel-toc-number{font-family:var(--font-display);font-size:26px;color:#76B900;line-height:1;font-weight:800;min-width:46px;}
+.duel-toc-section-title{font-family:var(--font-display);font-size:16px;color:#E6EDF3;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:3px;}
+.duel-toc-section-desc{font-family:var(--font-body);font-size:12px;color:#9BA3AB;line-height:1.35;}
+.duel-product-content{padding-top:60px;}
+.duel-product-title{font-family:var(--font-display);font-size:28px;color:#1F2328;margin:0;border:none;padding:0;line-height:1.2;}
+.duel-product-tagline{font-family:var(--font-body);font-size:15px;color:#656D76;margin-top:6px;margin-bottom:20px;}
+.duel-product-grid{display:flex;gap:34px;height:320px;}
+.duel-product-left{width:34%;display:flex;flex-direction:column;gap:12px;}
+.duel-product-image-wrap{flex:1;border-radius:8px;overflow:hidden;background:#EAECEF;}
+.duel-product-image{width:100%;height:100%;object-fit:cover;}
+.duel-product-image-placeholder{width:100%;height:100%;background:#EAECEF;}
+.duel-product-badge{display:inline-block;padding:6px 12px;border-radius:5px;font-family:var(--font-label);font-size:12px;font-weight:700;letter-spacing:0.5px;color:#0D1117;width:fit-content;}
+.duel-badge-green{background:#76B900;}
+.duel-badge-red{background:#ED1C24;}
+.duel-product-right{flex:1;display:grid;grid-template-columns:1.3fr 0.7fr;gap:16px;}
+.duel-product-specs{background:#fff;border:1px solid #D0D7DE;border-radius:8px;padding:16px;}
+.duel-specs-header{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#656D76;margin-bottom:10px;font-weight:700;}
+.duel-spec-row{font-family:var(--font-body);font-size:13px;line-height:1.7;color:#1F2328;}
+.duel-spec-label{font-weight:700;}
+.duel-spec-value{color:#656D76;}
+.duel-product-price{background:#fff;border:1px solid #D0D7DE;border-radius:8px;padding:16px;}
+.duel-price-label{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#656D76;margin-bottom:6px;font-weight:700;}
+.duel-price-value{font-family:var(--font-display);font-size:32px;font-weight:800;line-height:1;margin-bottom:6px;}
+.duel-price-note{font-family:var(--font-body);font-size:11px;color:#656D76;line-height:1.4;}
+.duel-product-differentiator{grid-column:1/-1;background:#fff;border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 16px;}
+.duel-diff-label{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px;}
+.duel-diff-text{font-family:var(--font-body);font-size:12px;color:#1F2328;line-height:1.5;}
+.duel-product-bottom{margin-top:18px;background:#fff;border:1px solid #D0D7DE;border-radius:8px;padding:16px;}
+.duel-bottom-header{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px;}
+.duel-product-whatis p{font-family:var(--font-body);font-size:12px;line-height:1.55;color:#1F2328;margin:0 0 8px 0;}
+.duel-product-whatis p:last-child{margin-bottom:0;}
+.duel-closing{position:relative;overflow:hidden;}
+.duel-closing-bg{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;opacity:0.15;}
+.duel-closing-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at center,rgba(13,17,23,0.5) 0%,rgba(13,17,23,0.88) 70%);z-index:2;}
+.duel-closing-content{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:5;}
+.duel-closing-bar{width:80px;height:5px;background:#76B900;margin-bottom:24px;}
+.duel-closing-title{font-family:var(--font-display);font-size:42px;color:#E6EDF3;margin:0 0 14px 0;text-transform:uppercase;letter-spacing:-0.5px;border:none;padding:0;max-width:900px;line-height:1.15;}
+.duel-closing-statement{font-family:var(--font-body);font-size:18px;color:#656D76;max-width:800px;line-height:1.5;margin-bottom:30px;}
+.duel-closing-thankyou{font-family:var(--font-display);font-size:64px;color:#76B900;font-weight:800;text-transform:uppercase;letter-spacing:4px;margin-bottom:30px;}
+.duel-closing-footer{font-family:var(--font-body);font-size:12px;color:#656D76;letter-spacing:1px;}
+.duel-closing-separator{margin:0 12px;color:#76B900;}
+`
+
 const TEMPLATE_CSS: Record<string, string> = {
   BRUTALIST_NEWSPAPER: BRUTALIST_CSS,
   MINIMAL_CORPORATE: CORP_CSS,
   DARK_TECH: TECH_CSS,
   COMIC_POP: COMIC_CSS,
+  TECH_DUEL: TECH_DUEL_CSS,
 }
 
 // ── Build exact HTML per layout code (mirrors the skill.md renderers) ──────────
@@ -1125,6 +1208,141 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
 </div>`
   }
 
+  if (templateId === 'TECH_DUEL') {
+    if (slide.layout === 'DUEL-COVER') return `
+<div class="slide duel-dark duel-cover">
+  ${slide.image ? `<img class="duel-cover-bg" src="${slide.image}" />` : ''}
+  <div class="duel-cover-gradient"></div>
+  <div class="duel-cover-bar"></div>
+  <div class="duel-content duel-cover-content">
+    <div class="duel-cover-kicker">Comparative Analysis</div>
+    <h1 class="duel-cover-title">${t}</h1>
+    <div class="duel-cover-subtitle">${sub}</div>
+    <div class="duel-cover-date">2026</div>
+    <div class="duel-cover-footer">Pitch AI</div>
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-TOC') return `
+<div class="slide duel-dark duel-toc">
+  <div class="duel-content">
+    <div class="duel-toc-kicker">Executive Overview</div>
+    <h2 class="duel-toc-title">${t}</h2>
+    <div class="duel-toc-grid">
+      ${(slide.sections || []).map(s => `
+      <div class="duel-toc-item">
+        <div class="duel-toc-number">${s.number || ''}</div>
+        <div class="duel-toc-text">
+          <div class="duel-toc-section-title">${s.title}</div>
+          <div class="duel-toc-section-desc">${s.description || ''}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-PRODUCT-A') return `
+<div class="slide duel-light duel-product">
+  <div class="duel-accent-bar duel-bar-green"></div>
+  <div class="duel-content duel-product-content">
+    <h2 class="duel-product-title">${t}</h2>
+    <div class="duel-product-tagline">${slide.tagline || ''}</div>
+    <div class="duel-product-grid">
+      <div class="duel-product-left">
+        <div class="duel-product-image-wrap">
+          ${slide.image ? `<img class="duel-product-image" src="${slide.image}" />` : '<div class="duel-product-image-placeholder"></div>'}
+        </div>
+        <div class="duel-product-badge duel-badge-green">${slide.badge || 'PRODUCT A'}</div>
+      </div>
+      <div class="duel-product-right">
+        <div class="duel-product-specs">
+          <div class="duel-specs-header">Key Specifications</div>
+          ${(slide.specs || []).map(s => `
+          <div class="duel-spec-row">
+            <span class="duel-spec-label">${s.label}:</span>
+            <span class="duel-spec-value">${s.value}</span>
+          </div>`).join('')}
+        </div>
+        <div class="duel-product-price">
+          <div class="duel-price-label">Pricing</div>
+          <div class="duel-price-value duel-green-text">${slide.price || ''}</div>
+          <div class="duel-price-note">${slide.priceNote || ''}</div>
+        </div>
+        <div class="duel-product-differentiator" style="border-left-color:#76B900;">
+          <div class="duel-diff-label duel-green-text">Key Differentiator</div>
+          <div class="duel-diff-text">${slide.differentiator || ''}</div>
+        </div>
+      </div>
+    </div>
+    <div class="duel-product-bottom">
+      <div class="duel-product-whatis">
+        <div class="duel-bottom-header duel-green-text">What ${slide.productName || 'it'} is — and isn't</div>
+        <p><strong>${slide.productName || 'Product A'} is:</strong> ${slide.whatItIs || ''}</p>
+        <p><strong>${slide.productName || 'Product A'} is NOT:</strong> ${slide.whatItIsnt || ''}</p>
+      </div>
+    </div>
+    ${slide.source ? `<div class="duel-source">${slide.source}</div>` : ''}
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-PRODUCT-B') return `
+<div class="slide duel-light duel-product">
+  <div class="duel-accent-bar duel-bar-red"></div>
+  <div class="duel-content duel-product-content">
+    <h2 class="duel-product-title">${t}</h2>
+    <div class="duel-product-tagline">${slide.tagline || ''}</div>
+    <div class="duel-product-grid">
+      <div class="duel-product-left">
+        <div class="duel-product-image-wrap">
+          ${slide.image ? `<img class="duel-product-image" src="${slide.image}" />` : '<div class="duel-product-image-placeholder"></div>'}
+        </div>
+        <div class="duel-product-badge duel-badge-red">${slide.badge || 'PRODUCT B'}</div>
+      </div>
+      <div class="duel-product-right">
+        <div class="duel-product-specs">
+          <div class="duel-specs-header">Key Specifications</div>
+          ${(slide.specs || []).map(s => `
+          <div class="duel-spec-row">
+            <span class="duel-spec-label">${s.label}:</span>
+            <span class="duel-spec-value">${s.value}</span>
+          </div>`).join('')}
+        </div>
+        <div class="duel-product-price">
+          <div class="duel-price-label">Pricing</div>
+          <div class="duel-price-value duel-red-text">${slide.price || ''}</div>
+          <div class="duel-price-note">${slide.priceNote || ''}</div>
+        </div>
+        <div class="duel-product-differentiator" style="border-left-color:#ED1C24;">
+          <div class="duel-diff-label duel-red-text">Key Differentiator</div>
+          <div class="duel-diff-text">${slide.differentiator || ''}</div>
+        </div>
+      </div>
+    </div>
+    <div class="duel-product-bottom">
+      <div class="duel-product-whatis">
+        <div class="duel-bottom-header duel-red-text">What ${slide.productName || 'it'} is — and isn't</div>
+        <p><strong>${slide.productName || 'Product B'} is:</strong> ${slide.whatItIs || ''}</p>
+        <p><strong>${slide.productName || 'Product B'} is NOT:</strong> ${slide.whatItIsnt || ''}</p>
+      </div>
+    </div>
+    ${slide.source ? `<div class="duel-source">${slide.source}</div>` : ''}
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-CLOSING') return `
+<div class="slide duel-dark duel-closing">
+  ${slide.image ? `<img class="duel-closing-bg" src="${slide.image}" />` : ''}
+  <div class="duel-closing-overlay"></div>
+  <div class="duel-content duel-closing-content">
+    <div class="duel-closing-bar"></div>
+    <h2 class="duel-closing-title">${t}</h2>
+    <div class="duel-closing-statement">${slide.statement || sub}</div>
+    <div class="duel-closing-thankyou">Thank You</div>
+    <div class="duel-closing-footer">
+      <span>2026</span>
+      <span class="duel-closing-separator">|</span>
+      <span>Pitch AI</span>
+    </div>
+  </div>
+</div>`
+  }
+
   // Fallback
   return `<div class="slide" style="display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:20px;color:#888;background:#111;">${slide.layout}</div>`
 }
@@ -1667,6 +1885,80 @@ const TEMPLATES: Template[] = [
         badge: 'PROCESS MAP',
         layout: 'COMIC-FLOWCHART',
         image: '/templates/comic_flowchart_preview.png',
+      },
+    ],
+  },
+  {
+    id: 'TECH_DUEL',
+    name: 'Tech Duel Comparison',
+    description:
+      'High-contrast two-sided comparison deck inspired by the NVIDIA DGX Spark vs. AMD Threadripper PRO 7000 presentation. Uses deep obsidian dark slides, clean light content slides, duel green (#76B900) for Product A and duel red (#ED1C24) for Product B. Perfect for head-to-head technology, product, platform, or concept comparisons with spec sheets, architecture breakdowns, benchmarks, and decision matrices.',
+    tags: ['Comparison', 'Technology', 'Duel', 'Product', 'Benchmarks'],
+    theme: {
+      bg: '#0D1117',
+      primary: '#76B900',
+      accent: '#ED1C24',
+      secondary: '#F6F7F9',
+      fonts: 'Outfit + Quattrocento Sans',
+      imageMode: 'Pinterest + Gemini fallback',
+    },
+    previewSlides: [
+      {
+        id: 1,
+        title: 'DGX SPARK VS. THREADRIPPER',
+        subtitle: 'The Battle for Desktop AI Supremacy',
+        layout: 'DUEL-COVER',
+        image: '/templates/tech_duel_cover_preview.png',
+      },
+      {
+        id: 2,
+        title: 'TABLE OF CONTENTS',
+        sections: [
+          { number: '01', title: 'Product Overview', description: 'Two approaches to desktop supercomputing' },
+          { number: '02', title: 'Architecture Deep Dive', description: 'ARM SoC vs x86 Zen 4 design philosophies' },
+          { number: '03', title: 'Specs & Performance', description: 'Head-to-head benchmarks and real-world numbers' },
+          { number: '04', title: 'Use Cases & Workloads', description: 'Matching platforms to the right workloads' },
+          { number: '05', title: 'Price & Value Analysis', description: 'Total cost of ownership and value verdict' },
+        ],
+        layout: 'DUEL-TOC',
+        image: '/templates/tech_duel_toc_preview.png',
+      },
+      {
+        id: 3,
+        title: 'DGX Spark packs 128GB unified memory into a 1.8L chassis',
+        badge: 'NVIDIA DGX SPARK',
+        productName: 'NVIDIA DGX Spark',
+        price: '$4,699',
+        specs: [
+          { label: 'SoC', value: 'GB10 Grace Blackwell' },
+          { label: 'CPU', value: '20-core ARM' },
+          { label: 'GPU', value: 'Blackwell 6,144 CUDA' },
+          { label: 'Memory', value: '128GB unified' },
+        ],
+        layout: 'DUEL-PRODUCT-A',
+        image: '/templates/tech_duel_product_a_preview.png',
+      },
+      {
+        id: 4,
+        title: 'Threadripper PRO scales from 12 to 96 Zen 4 cores',
+        badge: 'AMD THREADRIPPER PRO',
+        productName: 'AMD Threadripper PRO',
+        price: '$2,650 - $10K+',
+        specs: [
+          { label: 'Architecture', value: 'Zen 4 (TSMC 5nm)' },
+          { label: 'Cores', value: '12 to 96' },
+          { label: 'Memory', value: '8-ch DDR5, up to 2TB' },
+          { label: 'PCIe', value: '128 lanes Gen 5.0' },
+        ],
+        layout: 'DUEL-PRODUCT-B',
+        image: '/templates/tech_duel_product_b_preview.png',
+      },
+      {
+        id: 5,
+        title: 'THANK YOU',
+        subtitle: 'Questions? Let’s settle the debate.',
+        layout: 'DUEL-CLOSING',
+        image: '/templates/tech_duel_closing_preview.png',
       },
     ],
   },

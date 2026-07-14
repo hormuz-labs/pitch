@@ -36,9 +36,7 @@
         "chartType": "column",
         "chartData": {
           "labels": ["2022", "2023", "2024", "2025", "2026"],
-          "datasets": [
-            { "label": "AI Adoption %", "data": [12, 28, 47, 68, 84] }
-          ]
+          "datasets": [{ "label": "AI Adoption %", "data": [12, 28, 47, 68, 84] }]
         },
         "source": "Source: Industry Report 2026",
         "layout": "CHART-EDITORIAL"
@@ -48,12 +46,36 @@
         "title": "KEY EDITORIAL PILLARS",
         "badge": "FRAMEWORK",
         "items": [
-          { "icon": "◆", "heading": "Contrast", "text": "High-contrast halftone imagery for instant focus." },
-          { "icon": "◆", "heading": "Grid", "text": "Strict column divisions that guide the reader's eye." },
-          { "icon": "◆", "heading": "Typography", "text": "Serif headlines paired with monospace labels." },
-          { "icon": "◆", "heading": "Data", "text": "Charts rendered directly inside the editorial frame." },
-          { "icon": "◆", "heading": "Impact", "text": "Full-bleed statements for memorable takeaways." },
-          { "icon": "◆", "heading": "Compare", "text": "Side-by-side panels for debate and contrast." }
+          {
+            "icon": "◆",
+            "heading": "Contrast",
+            "text": "High-contrast halftone imagery for instant focus."
+          },
+          {
+            "icon": "◆",
+            "heading": "Grid",
+            "text": "Strict column divisions that guide the reader's eye."
+          },
+          {
+            "icon": "◆",
+            "heading": "Typography",
+            "text": "Serif headlines paired with monospace labels."
+          },
+          {
+            "icon": "◆",
+            "heading": "Data",
+            "text": "Charts rendered directly inside the editorial frame."
+          },
+          {
+            "icon": "◆",
+            "heading": "Impact",
+            "text": "Full-bleed statements for memorable takeaways."
+          },
+          {
+            "icon": "◆",
+            "heading": "Compare",
+            "text": "Side-by-side panels for debate and contrast."
+          }
         ],
         "layout": "ICON-GRID"
       }
@@ -109,12 +131,36 @@
         "title": "STRATEGIC PILLARS",
         "badge": "FRAMEWORK",
         "items": [
-          { "icon": "✓", "heading": "Operational Excellence", "text": "Streamline core processes across all regions." },
-          { "icon": "✓", "heading": "Customer Centricity", "text": "Embed feedback loops into product releases." },
-          { "icon": "✓", "heading": "Data-Driven Decisions", "text": "Use real-time dashboards for every function." },
-          { "icon": "✓", "heading": "Sustainable Growth", "text": "Balance margin expansion with ESG goals." },
-          { "icon": "✓", "heading": "Talent Density", "text": "Hire and retain top-tier specialists." },
-          { "icon": "✓", "heading": "Global Scale", "text": "Expand into priority markets with partners." }
+          {
+            "icon": "✓",
+            "heading": "Operational Excellence",
+            "text": "Streamline core processes across all regions."
+          },
+          {
+            "icon": "✓",
+            "heading": "Customer Centricity",
+            "text": "Embed feedback loops into product releases."
+          },
+          {
+            "icon": "✓",
+            "heading": "Data-Driven Decisions",
+            "text": "Use real-time dashboards for every function."
+          },
+          {
+            "icon": "✓",
+            "heading": "Sustainable Growth",
+            "text": "Balance margin expansion with ESG goals."
+          },
+          {
+            "icon": "✓",
+            "heading": "Talent Density",
+            "text": "Hire and retain top-tier specialists."
+          },
+          {
+            "icon": "✓",
+            "heading": "Global Scale",
+            "text": "Expand into priority markets with partners."
+          }
         ],
         "layout": "ICON-GRID-CLEAN"
       }
@@ -157,9 +203,7 @@
         "chartType": "area",
         "chartData": {
           "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-          "datasets": [
-            { "label": "Blocked Intrusions", "data": [120, 190, 300, 250, 420, 510] }
-          ]
+          "datasets": [{ "label": "Blocked Intrusions", "data": [120, 190, 300, 250, 420, 510] }]
         },
         "source": "Source: Security Ops 2026",
         "layout": "TECH-CHART"
@@ -169,11 +213,31 @@
         "title": "DEFENSE MODULES",
         "badge": "SYS.MODULES",
         "items": [
-          { "icon": "◈", "heading": "Perimeter Scan", "text": "Continuous port and endpoint reconnaissance." },
-          { "icon": "◈", "heading": "Behavioral AI", "text": "Detect anomalies in user and machine traffic." },
-          { "icon": "◈", "heading": "Auto-Response", "text": "Trigger countermeasures in milliseconds." },
-          { "icon": "◈", "heading": "Threat Intel", "text": "Ingest global indicators of compromise." },
-          { "icon": "◈", "heading": "Audit Logs", "text": "Immutable records for compliance review." },
+          {
+            "icon": "◈",
+            "heading": "Perimeter Scan",
+            "text": "Continuous port and endpoint reconnaissance."
+          },
+          {
+            "icon": "◈",
+            "heading": "Behavioral AI",
+            "text": "Detect anomalies in user and machine traffic."
+          },
+          {
+            "icon": "◈",
+            "heading": "Auto-Response",
+            "text": "Trigger countermeasures in milliseconds."
+          },
+          {
+            "icon": "◈",
+            "heading": "Threat Intel",
+            "text": "Ingest global indicators of compromise."
+          },
+          {
+            "icon": "◈",
+            "heading": "Audit Logs",
+            "text": "Immutable records for compliance review."
+          },
           { "icon": "◈", "heading": "API Shield", "text": "Rate limiting and schema validation." }
         ],
         "layout": "TECH-ICON-GRID"
@@ -213,9 +277,21 @@
         "title": "BY THE NUMBERS",
         "badge": "KEY METRICS",
         "stats": [
-          { "value": "40K+", "label": "Businesses Using AI Employees", "description": "Across 50+ countries worldwide" },
-          { "value": "50hrs", "label": "Saved Per Month", "description": "Average time reclaimed per business" },
-          { "value": "4.8★", "label": "Customer Rating", "description": "Based on 965+ verified reviews" }
+          {
+            "value": "40K+",
+            "label": "Businesses Using AI Employees",
+            "description": "Across 50+ countries worldwide"
+          },
+          {
+            "value": "50hrs",
+            "label": "Saved Per Month",
+            "description": "Average time reclaimed per business"
+          },
+          {
+            "value": "4.8★",
+            "label": "Customer Rating",
+            "description": "Based on 965+ verified reviews"
+          }
         ],
         "layout": "COMIC-STATS",
         "image": "/templates/comic_stats_preview.png"
@@ -228,7 +304,10 @@
         "chartData": {
           "labels": ["2021", "2022", "2023", "2024", "2025", "2026"],
           "datasets": [
-            { "label": "Businesses with AI Employees", "data": [1200, 4500, 12000, 25000, 35000, 40000] },
+            {
+              "label": "Businesses with AI Employees",
+              "data": [1200, 4500, 12000, 25000, 35000, 40000]
+            },
             { "label": "Hours Saved (thousands)", "data": [800, 3200, 9000, 18000, 28000, 36000] }
           ]
         },
@@ -241,15 +320,131 @@
         "title": "MEET YOUR AI TEAM",
         "badge": "AI EMPLOYEES",
         "items": [
-          { "icon": "📧", "heading": "Eva — Executive Assistant", "text": "Handles inbox, calendar, and meeting notes automatically." },
-          { "icon": "📱", "heading": "Sonny — Community Manager", "text": "Turns your social media into a lead-generating machine." },
-          { "icon": "🎯", "heading": "Stan — Lead Generation", "text": "Finds leads, runs outreach, and follows up relentlessly." },
-          { "icon": "✍️", "heading": "Penny — SEO Expert", "text": "Writes SEO-optimized blogs that Google loves." },
-          { "icon": "📞", "heading": "Rachel — Receptionist", "text": "Answers calls and qualifies leads while you focus." },
-          { "icon": "⚖️", "heading": "Linda — Legal Assistant", "text": "Drafts contracts and answers legal questions instantly." }
+          {
+            "icon": "📧",
+            "heading": "Eva — Executive Assistant",
+            "text": "Handles inbox, calendar, and meeting notes automatically."
+          },
+          {
+            "icon": "📱",
+            "heading": "Sonny — Community Manager",
+            "text": "Turns your social media into a lead-generating machine."
+          },
+          {
+            "icon": "🎯",
+            "heading": "Stan — Lead Generation",
+            "text": "Finds leads, runs outreach, and follows up relentlessly."
+          },
+          {
+            "icon": "✍️",
+            "heading": "Penny — SEO Expert",
+            "text": "Writes SEO-optimized blogs that Google loves."
+          },
+          {
+            "icon": "📞",
+            "heading": "Rachel — Receptionist",
+            "text": "Answers calls and qualifies leads while you focus."
+          },
+          {
+            "icon": "⚖️",
+            "heading": "Linda — Legal Assistant",
+            "text": "Drafts contracts and answers legal questions instantly."
+          }
         ],
         "layout": "COMIC-ICON-GRID",
         "image": "/templates/comic_icon_grid_preview.png"
+      }
+    ]
+  },
+  {
+    "id": "TECH_DUEL",
+    "name": "Tech Duel Comparison",
+    "description": "High-contrast two-sided comparison deck inspired by the NVIDIA DGX Spark vs. AMD Threadripper PRO 7000 presentation. Uses deep obsidian dark slides, clean light content slides, duel green (#76B900) for Product A and duel red (#ED1C24) for Product B. Perfect for head-to-head technology, product, platform, or concept comparisons with spec sheets, architecture breakdowns, benchmarks, and decision matrices.",
+    "tags": ["Comparison", "Technology", "Duel", "Product", "Benchmarks", "Charts"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "DGX SPARK VS. THREADRIPPER",
+        "subtitle": "The Battle for Desktop AI Supremacy",
+        "layout": "DUEL-COVER",
+        "image": "/templates/tech_duel_cover_preview.png"
+      },
+      {
+        "id": 2,
+        "title": "TABLE OF CONTENTS",
+        "sections": [
+          {
+            "number": "01",
+            "title": "Product Overview",
+            "description": "Two approaches to desktop supercomputing"
+          },
+          {
+            "number": "02",
+            "title": "Architecture Deep Dive",
+            "description": "ARM SoC vs x86 Zen 4 design philosophies"
+          },
+          {
+            "number": "03",
+            "title": "Specs & Performance",
+            "description": "Head-to-head benchmarks and real-world numbers"
+          },
+          {
+            "number": "04",
+            "title": "Use Cases & Workloads",
+            "description": "Matching platforms to the right workloads"
+          },
+          {
+            "number": "05",
+            "title": "Price & Value Analysis",
+            "description": "Total cost of ownership and value verdict"
+          }
+        ],
+        "layout": "DUEL-TOC"
+      },
+      {
+        "id": 3,
+        "title": "DGX Spark packs 128GB unified memory into a 1.8L chassis",
+        "badge": "NVIDIA DGX SPARK",
+        "price": "$4,699",
+        "specs": [
+          { "label": "SoC", "value": "GB10 Grace Blackwell" },
+          { "label": "CPU", "value": "20-core ARM" },
+          { "label": "GPU", "value": "Blackwell 6,144 CUDA" },
+          { "label": "Memory", "value": "128GB unified" }
+        ],
+        "layout": "DUEL-PRODUCT-A"
+      },
+      {
+        "id": 4,
+        "title": "Threadripper PRO scales from 12 to 96 Zen 4 cores",
+        "badge": "AMD THREADRIPPER PRO",
+        "price": "$2,650 - $10K+",
+        "specs": [
+          { "label": "Architecture", "value": "Zen 4 (TSMC 5nm)" },
+          { "label": "Cores", "value": "12 to 96" },
+          { "label": "Memory", "value": "8-ch DDR5, up to 2TB" },
+          { "label": "PCIe", "value": "128 lanes Gen 5.0" }
+        ],
+        "layout": "DUEL-PRODUCT-B"
+      },
+      {
+        "id": 5,
+        "title": "Spark leads in unified memory; Threadripper dominates cores",
+        "leftTitle": "DGX Spark Wins On",
+        "rightTitle": "Threadripper Wins On",
+        "leftWins": [
+          "AI-specific compute (FP4)",
+          "128GB unified memory",
+          "1.8L compact form factor",
+          "Plug-and-play integration"
+        ],
+        "rightWins": [
+          "96 Zen 4 cores",
+          "350 GB/s memory bandwidth",
+          "128x PCIe expansion",
+          "x86 software compatibility"
+        ],
+        "layout": "DUEL-TAKEAWAYS"
       }
     ]
   }

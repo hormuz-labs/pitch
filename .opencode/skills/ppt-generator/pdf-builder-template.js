@@ -316,6 +316,7 @@ function generateHTML(config) {
         'Playfair Display': ':ital,wght@0,400;0,700;1,400',
         'Barlow':           ':wght@400;700',
         'Varela Round':     ':wght@400',
+        'Quattrocento Sans':':wght@400;700',
     };
     function getFontUrlSegment(family) {
         const weights = FONT_WEIGHT_MAP[family] || ':wght@400;700;800';

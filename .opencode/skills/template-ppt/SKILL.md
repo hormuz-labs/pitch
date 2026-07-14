@@ -39,7 +39,7 @@ image fetch → HTML slide build → PDF → QA loop.
 | 2 | Mandatory web search grounding |
 | 3 | Select slide points from master list |
 | 4 | Write content outline (all slides, purpose per slide) |
-| 5 | Generate image keywords & fetch images (Pinterest → Unsplash → Gemini fallback) |
+| 5 | Generate image keywords & fetch images (Pinterest → Gemini fallback; Unsplash optional via --engine-order) |
 | 6 | Map images to slides |
 | 7 | Build HTML slides using ONLY tokens from spec_lock |
 | 8 | Run PDF builder |
@@ -68,6 +68,7 @@ Map the template ID to its directory:
 | `MINIMAL_CORPORATE` | `.opencode/skills/template-ppt/templates/minimal-corporate/` |
 | `DARK_TECH` | `.opencode/skills/template-ppt/templates/dark-tech/` |
 | `COMIC_POP` | `.opencode/skills/template-ppt/templates/comic-pop/` |
+| `TECH_DUEL` | `.opencode/skills/template-ppt/templates/tech-duel/` |
 
 **MUST READ both files using the `read` tool:**
 1. `<template-dir>/spec_lock.md` — machine-readable execution contract
@@ -267,15 +268,15 @@ node .opencode/skills/ppt-generator/reference/scrape_images.js \
 
 Images download to `pptx/ppt-<topic-slug>/images/<keyword>/`. By default, the pipeline is:
 1. **Pinterest** — tries to download 2 images per keyword.
-2. **Unsplash** — only if Pinterest returns fewer than 2 images; max 1 image.
-3. **Gemini API** — generates any remaining missing images using `GEMINI_API_KEY` from `.env`.
-*(Unless overridden by `--engine-order gemini,pinterest`)*
+2. **Gemini API** — generates any remaining missing images using `GEMINI_API_KEY` from `.env`.
+3. **Unsplash** — optional; only used if `--engine-order` includes `unsplash`.
+*(Override order with `--engine-order`, e.g. `gemini,pinterest` for `gemini-only` templates)*
 
 Expected files per keyword:
 - `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
-- `unsplash_01.jpg` (backup, only if Pinterest < 2)
-- `gemini_01.png`, `gemini_02.png` (fallback generation, only if still < 2)
+- `gemini_01.png`, `gemini_02.png` (fallback generation, only if Pinterest < 2)
 - `gemini_prompt.txt` (the prompt used for any Gemini generation)
+- `unsplash_01.jpg` (only if `--engine-order` includes unsplash)
 
 **MANDATORY VERIFICATION**: After downloading, use `Glob`/`ls` to confirm files exist
 before assigning them to slides. Never hardcode filenames. If a keyword directory
@@ -441,13 +442,16 @@ template-ppt/
 │   ├── dark-tech/
 │   │   ├── spec_lock.md
 │   │   └── skill.md
-│   └── comic-pop/
-│       ├── spec_lock.md           ← neo-brutalist comic spec (Dancing Script, Bebas Neue, #FBCC00)
-│       └── skill.md               ← 13 layouts incl. COMIC-FLOWCHART SVG renderer
+│   ├── comic-pop/
+│   │   ├── spec_lock.md           ← neo-brutalist comic spec (Dancing Script, Bebas Neue, #FBCC00)
+│   │   └── skill.md               ← 13 layouts incl. COMIC-FLOWCHART SVG renderer
+│   └── tech-duel/
+│       ├── spec_lock.md           ← two-sided comparison spec (Outfit, Quattrocento Sans, #76B900 / #ED1C24)
+│       └── skill.md               ← 15 layouts incl. DUEL-COVER, DUEL-PRODUCT-A/B, DUEL-CHART
 ```
 
 Base pipeline files (shared with ppt-generator):
 - `../ppt-generator/pdf-builder-template.js` — base HTML→PDF builder
-- `../ppt-generator/image-scraping.md` — Pinterest → Unsplash → Gemini image fetch script
+- `../ppt-generator/image-scraping.md` — Pinterest → Gemini image fetch script (Unsplash optional)
 - `../ppt-generator/qa-loop.md` — Visual QA loop
 - `../ppt-generator/design-library.md` — brand color palettes
