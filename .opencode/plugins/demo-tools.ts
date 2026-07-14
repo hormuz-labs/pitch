@@ -71,6 +71,10 @@ interface SkillMetadata {
   path: string
 }
 
+interface AnnotationEvent {
+  videoTimeSec: number
+}
+
 interface DemoState {
   startTime: number
   endTime?: number
@@ -78,6 +82,7 @@ interface DemoState {
   audioClips: AudioClip[]
   zoomEvents: ZoomEvent[]
   clickEvents: ClickEvent[]
+  annotationEvents: AnnotationEvent[]
   tabEvents: TabEvent[]
   tabCreationTimes: Record<number, number>
   currentTabId: number
@@ -156,6 +161,7 @@ function readState(directory: string): DemoState {
       audioClips: [],
       zoomEvents: [],
       clickEvents: [],
+      annotationEvents: [],
       tabEvents: [{ tabId: 0, wallSec: 0 }],
       tabCreationTimes: { 0: 0 },
       currentTabId: 0,
@@ -848,6 +854,13 @@ const plugin: Plugin = async input => {
               : `playwright-cli eval "${shEsc(fn)}"`
             try {
               const { stdout } = await run(cmd)
+              // Record the annotation's timestamp so smart_trim protects this beat
+              // (the draw-on + hold) from being cut as a static/silent hold, even
+              // if the accompanying narration is brief.
+              const state = readState(directory)
+              if (!Array.isArray(state.annotationEvents)) state.annotationEvents = []
+              state.annotationEvents.push({ videoTimeSec: (Date.now() - state.startTime) / 1000 })
+              writeState(directory, state)
               return {
                 output: JSON.stringify({ status: 'annotated', style, result: stdout.trim() }),
               }

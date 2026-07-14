@@ -117,13 +117,18 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     }
     #app { position: relative; width: 100%; height: 100%; }
     .stage { position: absolute; inset: 0; }
+    /* Inactive slides are visibility:hidden (not just opacity:0) so that ONLY
+       the active slide's hotspots appear in Playwright's ARIA snapshot. All
+       slides are stacked at inset:0; if inactive ones stayed in the a11y tree,
+       the agent would see (and could zoom/annotate) another slide's overlapping
+       hotspots — landing the highlight on the wrong slide. */
     .slide {
-      position: absolute; inset: 0; opacity: 0;
-      transition: opacity 500ms ease-in-out;
+      position: absolute; inset: 0; opacity: 0; visibility: hidden;
+      transition: opacity 450ms ease-in-out;
       display: flex; align-items: center; justify-content: center;
       padding: 72px 96px 96px;
     }
-    .slide.active { opacity: 1; z-index: 1; }
+    .slide.active { opacity: 1; visibility: visible; z-index: 1; }
     /* .page shrinks to the contained image so hotspot %s map onto the image
        with no JS measurement; hotspots + image scale together. */
     .page {

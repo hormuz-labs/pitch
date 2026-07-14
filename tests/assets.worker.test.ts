@@ -192,6 +192,22 @@ describe('prepareAssets', () => {
     )
     expect(manifest.assets).toHaveLength(0)
   })
+
+  it('preserves input order when preparing many assets concurrently', async () => {
+    const baseDir = path.join(workDir, 'job-order')
+    const names = Array.from({ length: 12 }, (_, i) => `frame-${String(i).padStart(2, '0')}.png`)
+    const manifest = await prepareAssets(
+      'job-order',
+      names.map(name => ({
+        url: `${baseUrl}/photo.png`,
+        name,
+        type: 'image/png',
+        size: PNG_1x1.length,
+      })),
+      baseDir,
+    )
+    expect(manifest.assets.map(a => a.name)).toEqual(names)
+  })
 })
 
 describe('formatAssetManifestForPrompt', () => {

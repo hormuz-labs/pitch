@@ -154,6 +154,103 @@ function normalizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/__+/g, '_')
 }
 
+const ASSET_CONCURRENCY = 6
+
+/** Run `fn` over `items` with at most `limit` in flight; results keep input order. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const worker = async () => {
+    while (true) {
+      const i = next++
+      if (i >= items.length) return
+      results[i] = await fn(items[i]!, i)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
+/**
+ * Download and preprocess a single asset. Returns the prepared manifest entry,
+ * or null if the download failed or the type is unsupported (skipped).
+ */
+async function prepareOneAsset(
+  asset: AssetInput,
+  jobId: string,
+  baseDir: string,
+): Promise<PreparedAsset | null> {
+  const safeName = normalizeFilename(asset.name)
+  const localPath = path.join(baseDir, safeName)
+
+  try {
+    await downloadFile(asset.url, localPath)
+    logger.info({ jobId, name: asset.name, type: asset.type }, 'Downloaded asset')
+  } catch (err: any) {
+    logger.warn({ err, jobId, asset }, 'Failed to download asset, skipping')
+    return null
+  }
+
+  if (asset.type === 'application/pdf') {
+    const pageDir = path.join(baseDir, `${safeName}.pages`)
+    if (!fs.existsSync(pageDir)) fs.mkdirSync(pageDir, { recursive: true })
+
+    const [pages, text, pageCount, regionsByPage] = await Promise.all([
+      convertPdfToImages(localPath, pageDir),
+      extractPdfText(localPath),
+      getPdfPageCount(localPath),
+      extractPdfRegions(localPath),
+    ])
+
+    const pageData: PdfPageData[] = pages.map((image, i) => ({
+      image,
+      regions: regionsByPage[i] ?? [],
+    }))
+
+    logger.info(
+      {
+        jobId,
+        name: asset.name,
+        pages: pages.length,
+        regions: pageData.reduce((n, p) => n + p.regions.length, 0),
+      },
+      'Prepared PDF asset',
+    )
+    return {
+      kind: 'pdf',
+      name: asset.name,
+      originalUrl: asset.url,
+      localPath,
+      pageCount: pageCount || pages.length,
+      pages,
+      pageData,
+      text,
+    }
+  }
+
+  if (asset.type.startsWith('image/')) {
+    const dims = await probeImageDimensions(localPath)
+    const regions = await extractImageRegions(localPath, dims.width, dims.height)
+    logger.info({ jobId, name: asset.name, dims, regions: regions.length }, 'Prepared image asset')
+    return {
+      kind: 'image',
+      name: asset.name,
+      originalUrl: asset.url,
+      localPath,
+      width: dims.width,
+      height: dims.height,
+      regions,
+    }
+  }
+
+  logger.warn({ jobId, asset }, 'Unsupported asset type, skipping')
+  return null
+}
+
 export async function prepareAssets(
   jobId: string,
   assets: AssetInput[],
@@ -165,73 +262,14 @@ export async function prepareAssets(
     fs.mkdirSync(baseDir, { recursive: true })
   }
 
-  for (const asset of assets) {
-    const safeName = normalizeFilename(asset.name)
-    const localPath = path.join(baseDir, safeName)
-
-    try {
-      await downloadFile(asset.url, localPath)
-      logger.info({ jobId, name: asset.name, type: asset.type }, 'Downloaded asset')
-    } catch (err: any) {
-      logger.warn({ err, jobId, asset }, 'Failed to download asset, skipping')
-      continue
-    }
-
-    if (asset.type === 'application/pdf') {
-      const pageDir = path.join(baseDir, `${safeName}.pages`)
-      if (!fs.existsSync(pageDir)) fs.mkdirSync(pageDir, { recursive: true })
-
-      const [pages, text, pageCount, regionsByPage] = await Promise.all([
-        convertPdfToImages(localPath, pageDir),
-        extractPdfText(localPath),
-        getPdfPageCount(localPath),
-        extractPdfRegions(localPath),
-      ])
-
-      const pageData: PdfPageData[] = pages.map((image, i) => ({
-        image,
-        regions: regionsByPage[i] ?? [],
-      }))
-
-      manifest.assets.push({
-        kind: 'pdf',
-        name: asset.name,
-        originalUrl: asset.url,
-        localPath,
-        pageCount: pageCount || pages.length,
-        pages,
-        pageData,
-        text,
-      })
-      logger.info(
-        {
-          jobId,
-          name: asset.name,
-          pages: pages.length,
-          regions: pageData.reduce((n, p) => n + p.regions.length, 0),
-        },
-        'Prepared PDF asset',
-      )
-    } else if (asset.type.startsWith('image/')) {
-      const dims = await probeImageDimensions(localPath)
-      const regions = await extractImageRegions(localPath, dims.width, dims.height)
-      manifest.assets.push({
-        kind: 'image',
-        name: asset.name,
-        originalUrl: asset.url,
-        localPath,
-        width: dims.width,
-        height: dims.height,
-        regions,
-      })
-      logger.info(
-        { jobId, name: asset.name, dims, regions: regions.length },
-        'Prepared image asset',
-      )
-    } else {
-      logger.warn({ jobId, asset }, 'Unsupported asset type, skipping')
-    }
-  }
+  // Prepare assets concurrently (download + convert/OCR) with a small cap so a
+  // 20+ image storyboard doesn't wait on each file one-by-one, while still
+  // bounding CPU/memory (pdftoppm/tesseract/ffprobe spawn subprocesses).
+  // Results preserve input order so the agent sees pages/frames in sequence.
+  const prepared = await mapWithConcurrency(assets, ASSET_CONCURRENCY, asset =>
+    prepareOneAsset(asset, jobId, baseDir),
+  )
+  manifest.assets = prepared.filter((a): a is PreparedAsset => a !== null)
 
   const manifestPath = path.join(baseDir, 'assets.json')
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))

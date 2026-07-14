@@ -157,7 +157,14 @@ export function buildAnnotateEvalJs(opts: AnnotateOptions): string {
     )
   }
   return (
-    "el => { if(!el) return {ok:false,error:'no element'}; var rect=el.getBoundingClientRect();" +
+    "el => { if(!el) return {ok:false,error:'no element'};" +
+    // Refuse to draw on a target that isn't actually visible on the current
+    // slide (a stale ref from another, now-hidden slide). Otherwise the overlay
+    // would land at the hidden element's coordinates over the wrong slide.
+    'var cs=getComputedStyle(el);' +
+    "if(cs.visibility==='hidden'||cs.display==='none'||!el.getClientRects().length){" +
+    "return {ok:false,error:'target not visible on the current slide — re-snapshot and annotate a ref from the visible slide'};}" +
+    'var rect=el.getBoundingClientRect();' +
     body +
     ' }'
   )

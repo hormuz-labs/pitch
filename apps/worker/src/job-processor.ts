@@ -538,8 +538,24 @@ async function discoverSkills(directories: string[]): Promise<SkillMetadata[]> {
 }
 
 function buildSkillsPrompt(skills: SkillMetadata[]): string {
+  if (skills.length === 0) return ''
   const skillsList = skills.map(s => `- ${s.name}: ${s.description}`).join('\n')
   return `\n## Skills\nUse the \`load_skill\` tool to load a skill when the user's request would benefit from specialized instructions.\nAvailable skills:\n${skillsList}\n`
+}
+
+/**
+ * Resolve which model drives the demo session. Precedence: per-job
+ * `parameters.model` -> `OPENCODE_MODEL` env -> the default. Accepts
+ * "providerID/modelID" (e.g. "google/gemini-3.1-flash-preview"). The model is
+ * the dominant cost of a demo (every one of the many tool-call turns waits on
+ * it), so a faster model here is the biggest single speed lever.
+ */
+const DEFAULT_MODEL = 'google/gemini-3.1-pro-preview'
+function resolveModel(parameters: any): { providerID: string; modelID: string } {
+  const raw = (parameters?.model || process.env.OPENCODE_MODEL || DEFAULT_MODEL).toString().trim()
+  const slash = raw.indexOf('/')
+  if (slash <= 0) return { providerID: 'google', modelID: raw }
+  return { providerID: raw.slice(0, slash), modelID: raw.slice(slash + 1) }
 }
 
 export function createJobProcessor(connection: Redis, targetDir: string) {
@@ -573,7 +589,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
     const timeout = setTimeout(
       () => {
         timeoutExceeded = true
-        jobLogger.error('Execution timeout of 50 minutes exceeded. Aborting session.')
+        jobLogger.error('Execution timeout of 180 minutes exceeded. Aborting session.')
         if (session) {
           client.session.abort({ path: { id: session.id } }).catch(err => {
             jobLogger.warn({ err }, 'Failed to abort OpenCode session on timeout')
@@ -582,7 +598,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         eventAbortController?.abort()
         promptAbortController.abort()
       },
-      50 * 60 * 1000,
+      180 * 60 * 1000,
     )
 
     try {
@@ -596,11 +612,11 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       fs.mkdirSync(path.join(recordingsDir, 'videos'), { recursive: true })
 
       // Discover available skills
-      const skills = await discoverSkills([
-        path.join(targetDir, '.agents/skills'),
-        path.join(targetDir, '.claude/skills'),
-        path.join(os.homedir(), '.claude/skills'),
-      ])
+      // Use the demo-specific skills in .opencode/skills (asset-demo,
+      // playwright-cli, auto-demo-generator, …). The generic dev/design skills
+      // in .claude/.agents (accessibility, owasp, remotion, caveman, …) are not
+      // relevant to a recorded demo and are intentionally not injected.
+      const skills = await discoverSkills([path.join(targetDir, '.opencode/skills')])
 
       // Create OpenCode Session first so we have session.id for recording paths
       const sessionResponse = await client.session.create({
@@ -831,7 +847,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
 UPLOADED ASSETS (available for this demo):
 ${formatAssetManifestForPrompt(assetManifest!)}
 
-When assets are present, call the 'list_assets' tool first to see the manifest, and use 'build_slideshow' to turn selected images/PDF pages into a narrated slideshow. You may also combine assets with the URL above: e.g. open a slideshow first, then navigate to the URL.`
+These uploaded assets are the PRIMARY material for this demo — you MUST feature them, not skip them. Your demo MUST START with them: call 'list_assets', then 'build_slideshow' with the page/image paths, 'playwright-cli goto' the slideshow, and walk through it (snapshot -> narrate + zoom_in + annotate each key field). ${hasUrl ? 'ONLY AFTER you have walked through the assets should you navigate to the URL above to continue the demo. Never go straight to the URL and ignore the uploaded files.' : ''}`
         : ''
 
       // If the user supplied a voiceover script, the narration must follow it.
@@ -852,7 +868,7 @@ ${scriptBlock}
 Start narrating the demo as soon as the page is visible. Navigate and let the first view load first, then begin your narration — so the demo opens with real content on screen rather than silence.
 
 Guidelines:
-1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. ${hasUrl ? "Start directly with 'playwright-cli goto <url>'." : "If the request relies on uploaded assets, use 'build_slideshow' to create a local HTML slideshow and then run 'playwright-cli goto file://<path-to-slideshow.html>'."}
+1. You have the 'demo_bash' tool to execute 'playwright-cli' commands. THE BROWSER IS ALREADY OPEN AND RECORDING. Do NOT call 'playwright-cli open'. ${hasAssets ? "This job has UPLOADED ASSETS — start by building and walking through their slideshow (see the UPLOADED ASSETS section), and only afterwards 'playwright-cli goto <url>' if a URL was also provided." : hasUrl ? "Start directly with 'playwright-cli goto <url>'." : "If the request relies on uploaded assets, use 'build_slideshow' to create a local HTML slideshow and then run 'playwright-cli goto file://<path-to-slideshow.html>'."}
 2. ELEMENT REFS: Call 'demo_bash' with command "playwright-cli snapshot" to get the current page state. Elements will have refs like [ref=e53].
    Pass the ref identifier (e.g. "e53") to tools like 'zoom_in' or 'demo_bash' command "playwright-cli click e53".
 3. CAMERA / ZOOM — treat the zoom like a cinematic spotlight, used sparingly to feel clean, not busy:
@@ -897,16 +913,20 @@ Guidelines:
     - Images work the same way in 'build_slideshow'; images with legible text also expose regions.
     - INTERACTIVE, EXPLANATORY DEMOS — this is what makes an asset demo premium, not just narration over static pages:
       • After 'playwright-cli goto file://<slideshow.html>', run 'playwright-cli snapshot' — every page region is a LABELLED hotspot (its ref's label is the text on the page, e.g. "Full Name", "Voter ID Number"), so you can find the exact field to talk about.
+      • CRITICAL — refs are PER SLIDE: the snapshot only returns hotspots for the slide currently on screen. Snapshot refs go stale the moment you advance. So the loop is: land on a slide → 'playwright-cli snapshot' → zoom_in/annotate ONLY the refs from THAT snapshot → advance → 'playwright-cli snapshot' AGAIN before touching the next slide. NEVER reuse a ref from a previous slide's snapshot; annotating a stale ref is refused (and would otherwise land the highlight on the wrong slide).
       • To draw the viewer's eye to a specific field: 'zoom_in' on its hotspot ref, then 'annotate' it. Styles: 'circle' (hand-drawn ring), 'box', 'underline', 'highlighter' (marker swipe over text), 'arrow' (points at it), 'spotlight' (dims everything else). Choose the style that fits — circle/box to call out a field, highlighter/underline for a line of text, spotlight to isolate one area, arrow to point.
-      • Choreograph each beat: snapshot → narrate({ focus: "<ref>" }) → zoom_in({ target: "<ref>" }) → annotate({ target: "<ref>", style: "circle" }) → brief 'sleep' hold so it lands → 'clear_annotations' before moving on → advance with 'playwright-cli press ArrowRight'.
+      • Choreograph each beat, emitting the calls back-to-back so audio and visuals stay together: snapshot → narrate({ focus: "<ref>" }) → zoom_in({ target: "<ref>" }) → annotate({ target: "<ref>", style: "circle" }) → brief 'sleep' hold so it lands → 'clear_annotations' before moving on → advance with 'playwright-cli press ArrowRight' → snapshot the new slide.
       • Keep annotations sparse and purposeful — one clear call-out per point, not many at once. Never annotate in silence: narrate what you're highlighting as you highlight it.
     - You may freely combine assets with a URL: e.g. walk through a PDF slideshow, then 'playwright-cli goto' the product URL and continue. 'annotate'/'clear_annotations' also work on live web pages.
 ${buildSkillsPrompt(skills)}`
 
+      const model = resolveModel(parameters)
+      jobLogger.info({ model }, 'Prompting demo session')
       const promptResponse = await client.session.prompt({
         path: { id: session.id },
         query: { directory: targetDir },
         body: {
+          model,
           parts: [{ type: 'text', text: promptText }],
         },
         signal: promptAbortController.signal,
@@ -1281,7 +1301,7 @@ ${buildSkillsPrompt(skills)}`
       if (budgetLimitBreached) {
         errorMessage = 'OpenCode budget limit of $4.00 was exceeded.'
       } else if (timeoutExceeded) {
-        errorMessage = 'Execution timeout of 50 minutes was exceeded.'
+        errorMessage = 'Execution timeout of 180 minutes was exceeded.'
       }
 
       // Check if job was cancelled/aborted (so it was already handled and refunded by the API)

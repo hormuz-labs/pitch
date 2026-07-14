@@ -167,6 +167,22 @@ percentages map onto the image exactly with **no JS measurement**. Hotspots are
 `pointer-events: none` (so they never steal nav clicks) but remain in the ARIA
 tree, so `playwright-cli snapshot` lists them as `button "Full Name"`, etc.
 
+### Only the active slide is targetable (annotation-sync fix)
+
+All slides are stacked at `inset:0`. Because `opacity:0` does **not** remove a
+subtree from Playwright's ARIA snapshot, an early version let the agent see (and
+zoom/annotate) the overlapping hotspots of *every* slide at once — landing the
+highlight on the wrong slide. Fixes:
+
+- Inactive slides are `visibility:hidden` (not just `opacity:0`), so the ARIA
+  snapshot returns **only the current slide's** hotspots.
+- `annotate`'s in-page fn **refuses to draw on a hidden/off-screen target**
+  (`visibility:hidden` / `display:none` / no client rects) — a guard against a
+  stale ref from a previous slide.
+- Prompt + skill make the loop explicit: **land on slide → snapshot → call out
+  fields → advance → snapshot again**. Refs are per-slide and never reused.
+- The slideshow's `go()` also clears `#annotations` on every slide change.
+
 ### How annotations render
 
 `annotate` runs `playwright-cli eval "<fn>" <ref>`. The fn reads the target's live
@@ -176,6 +192,26 @@ CSS box glow, highlighter swipe with `mix-blend-mode: multiply`, spotlight via a
 `box-shadow` mask, etc.). Because it's in-page DOM in a fixed layer, the recording
 captures it and the post-processing camera zooms it with the page — **no changes
 to the ffmpeg compositing pipeline**.
+
+### Sequencing & trim protection (important)
+
+There is **no separate step that stitches the slideshow into the final cut**. The
+whole demo is one continuous browser recording (`playwright-cli video-start
+demo.webm`); the slideshow is captured inline *only if the agent navigates to it
+and spends narrated/active time there*. Two safeguards make sure it survives:
+
+1. **Assets-first prompting** — when a job has uploaded assets, the prompt
+   ([job-processor.ts](../apps/worker/src/job-processor.ts)) now requires the agent
+   to START by building and walking the slideshow, and only *then* continue to a URL
+   if one was also provided. Previously the agent could go straight to the URL and
+   silently ignore the files (the likely cause of an early "only the website showed"
+   video).
+2. **Annotation trim-protection** — a static slide with a silent call-out would
+   otherwise be dropped by [smart_trim.ts](../apps/worker/src/utils/smart_trim.ts) as
+   a frozen/silent hold. `annotate` now records its timestamp in
+   `demo-state.json` (`annotationEvents`), and the trimmer protects a window
+   (−0.5s … +2.5s) around each — mirroring how clicks and zooms are protected — so
+   the draw-on + hold is never cut even if the narration over it is brief.
 
 ### End-to-end flow
 
@@ -253,7 +289,28 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-o
 
 ---
 
-## 8. Notes & limits
+## 8. Performance levers
+
+The dominant cost of a demo is **model latency per tool-call turn** — `session.prompt`
+is an agentic loop (snapshot → narrate → zoom → annotate → …), so wall-clock time is
+model round-trips × number of beats, plus real-time narration playback (inherent to the
+video length). Changes made:
+
+- **Model is configurable** ([job-processor.ts](../apps/worker/src/job-processor.ts)
+  `resolveModel`, [opencode.ts](../apps/worker/src/opencode.ts)): precedence
+  `parameters.model` → `OPENCODE_MODEL` env → default `google/gemini-3.1-pro-preview`,
+  passed per-call to `session.prompt`. **Biggest single lever** — a faster model cuts
+  every turn. Default unchanged; set `OPENCODE_MODEL` (e.g. a Gemini flash variant) to opt in.
+- **Irrelevant skills no longer injected** into video prompts (they came from
+  `.claude`/`.agents`: accessibility, owasp, remotion, caveman, …). Re-enable with `INJECT_SKILLS=1`.
+- **Asset preprocessing runs concurrently** (`prepareAssets`, cap 6, order preserved) —
+  matters for many-image storyboards.
+
+Not done (and why): "switch to streaming / kill One-Pass" — `session.prompt` is already
+incremental/agentic and events already stream, so there's nothing to switch. Multiple
+workers raise throughput, not single-job speed.
+
+## 9. Notes & limits
 
 - **Non-text images** (pure photos/diagrams with no OCR text) get whole-image +
   rect-based annotation only, not word hotspots.

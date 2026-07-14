@@ -46,6 +46,10 @@ Narration over static pages is the floor, not the goal. A great PDF/image demo i
 
 Pick the style that fits: `circle`/`box` to call out a field, `highlighter`/`underline` for a line of text, `spotlight` to isolate one area on a busy page, `arrow` to point from elsewhere. Keep it sparse — one clear call-out per beat, never annotate in silence.
 
+### Refs are per-slide — re-snapshot after every advance
+
+The snapshot only returns hotspots for the slide **currently on screen**. The moment you `press ArrowRight`, the previous slide's refs are stale. Always `playwright-cli snapshot` again on the new slide before you `zoom_in`/`annotate` on it. Never reuse a ref from an earlier slide — annotating a stale ref is refused, and would otherwise draw the highlight on the wrong slide. The loop is: **land on slide → snapshot → call out its fields → advance → snapshot again**.
+
 ## Slideshow workflow
 
 ```

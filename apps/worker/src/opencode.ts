@@ -30,7 +30,10 @@ export async function startServer(
   const { url, close } = await createOpencodeServer({
     port: 4098,
     timeout: 60000,
-    config: { model: 'google/gemini-3.1-pro-preview' },
+    // Server default model; per-job/per-request override is applied in
+    // job-processor's session.prompt call (see resolveModel). Override the
+    // default here with OPENCODE_MODEL ("providerID/modelID").
+    config: { model: process.env.OPENCODE_MODEL || 'google/gemini-3.1-pro-preview' },
   })
 
   const client = createOpencodeClient({

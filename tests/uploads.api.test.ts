@@ -71,7 +71,7 @@ describe('POST /uploads', () => {
   it('returns 400 when no files are attached', async () => {
     const res = await request(buildApp()).post('/uploads')
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/no files/i)
+    expect(res.body.error).toMatch(/no supported files/i)
   })
 
   it('uploads a single image and returns its metadata', async () => {
@@ -112,7 +112,7 @@ describe('POST /uploads', () => {
     expect(uploadBuffer).toHaveBeenCalledTimes(2)
   })
 
-  it('rejects unsupported file types with a 4xx (not a crash/500)', async () => {
+  it('rejects a batch of only-unsupported files with a 4xx (not a crash/500)', async () => {
     const res = await request(buildApp())
       .post('/uploads')
       .attach('files', Buffer.from('#!/bin/sh\necho hi'), {
@@ -123,6 +123,29 @@ describe('POST /uploads', () => {
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
     expect(uploadBuffer).not.toHaveBeenCalled()
+  })
+
+  it('uploads the supported files and silently skips an unsupported one (no batch failure)', async () => {
+    const res = await request(buildApp())
+      .post('/uploads')
+      .attach('files', PNG_1x1, { filename: 'a.png', contentType: 'image/png' })
+      .attach('files', PNG_1x1, { filename: 'b.png', contentType: 'image/png' })
+      .attach('files', Buffer.from('junk'), { filename: 'notes.txt', contentType: 'text/plain' })
+
+    expect(res.status).toBe(201)
+    expect(res.body).toHaveLength(2)
+    expect(res.body.map((f: any) => f.name)).toEqual(['a.png', 'b.png'])
+  })
+
+  it('accepts an image whose mimetype is octet-stream but has an image extension', async () => {
+    const res = await request(buildApp()).post('/uploads').attach('files', PNG_1x1, {
+      filename: 'photo.png',
+      contentType: 'application/octet-stream',
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.body).toHaveLength(1)
+    expect(res.body[0].name).toBe('photo.png')
   })
 
   it('returns 500 when storage upload fails', async () => {
