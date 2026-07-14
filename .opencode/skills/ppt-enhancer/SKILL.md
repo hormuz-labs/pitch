@@ -3,7 +3,7 @@ name: ppt-enhancer
 description: >
   Presentation enhancement skill. Triggers when the user uploads an existing PDF
   or PPTX file and wants it improved. Supports two modes: 'recreate' (full visual
-  redesign with fresh Pinterest/Unsplash images and premium brand palette) and 'preserve'
+  redesign with fresh Pinterest images and premium brand palette) and 'preserve'
   (keep the existing slide structure and embedded images, polish text and layout
   only). Always load this skill when job parameters contain enhanceMode = 'recreate'
   or enhanceMode = 'preserve'. The input file has already been parsed — a structured
@@ -13,7 +13,7 @@ description: >
 # PPT Enhancer Skill
 
 End-to-end pipeline: uploaded PDF/PPTX → parse JSON → enhance content →
-(recreate: fresh Pinterest/Unsplash images + Gemini fallback | preserve: extracted images) →
+(recreate: fresh Pinterest images + Gemini fallback | preserve: extracted images) →
 build high-fidelity PDF via HTML-to-PDF → QA loop.
 
 ---
@@ -40,7 +40,7 @@ build high-fidelity PDF via HTML-to-PDF → QA loop.
 | 2 | **Preserve**: read `extractedImagesDir`, inventory available images |
 | 3 | Write enhanced slide content for all slides |
 | 4 | **Recreate**: generate Pinterest keywords per slide, fetch images |
-| 4 | **Preserve**: map extracted images to slides; Pinterest/Unsplash-supplement if image is unusable |
+| 4 | **Preserve**: map extracted images to slides; Pinterest-supplement if image is unusable |
 | 5 | Map images to slides (mandatory file-existence verification) |
 | 6 | Pick layout per slide from the standard layout pool |
 | 7 | Build `pdf-builder.js` — copy from template, populate CONFIG |
@@ -49,7 +49,7 @@ build high-fidelity PDF via HTML-to-PDF → QA loop.
 
 Shared files (inherited from ppt-generator):
 - `../ppt-generator/pdf-builder-template.js` — base HTML→PDF builder
-- `../ppt-generator/image-scraping.md` — Pinterest → Unsplash → Gemini image fetch script
+- `../ppt-generator/image-scraping.md` — Pinterest → Gemini image fetch script (Unsplash optional)
 - `../ppt-generator/qa-loop.md` — Visual QA loop taxonomy
 - `../ppt-generator/design-library.md` — brand palettes (used in RECREATE only)
 
@@ -118,7 +118,7 @@ Only when `enhanceMode = 'preserve'`:
 
 1. Run: `ls {extractedImagesDir}` to list available extracted images.
 2. Build a mapping of filename → slide number by matching the original parsed JSON's
-   `extractedImages` field. If a slide has no extracted image, mark it as needing Pinterest/Unsplash.
+   `extractedImages` field. If a slide has no extracted image, mark it as needing Pinterest/Gemini fallback.
 3. Use a **neutral design theme** that complements the original: pick a palette from
    `design-library.md` that is harmonious (not jarring) with the original content.
    Prefer `minimal-corporate` or `saas-clean` palettes to avoid clashing with varied image colors.
@@ -187,8 +187,8 @@ For each slide:
    - Skip if file is < 5 KB (likely a corrupt/placeholder).
    - Skip if extension is `.emf` or `.wmf` (Windows metafiles — not renderable in HTML).
 3. If no usable extracted image exists for this slide → fall back to Pinterest scraping
-   using a keyword derived from the slide title. The shared scraper will use Unsplash as
-   backup and Gemini image generation as final fallback.
+   using a keyword derived from the slide title. The shared scraper will use Gemini image
+   generation as final fallback (Unsplash is optional via `--engine-order`).
 
 ---
 

@@ -1,6 +1,6 @@
 # Image Fetching — Pinterest-first Node.js Playwright Pipeline
 
-Read this file before fetching images. This covers the Pinterest-first scraping pipeline with Unsplash backup and Gemini image-generation fallback.
+Read this file before fetching images. This covers the Pinterest-first scraping pipeline with Gemini image-generation fallback.
 
 ---
 
@@ -19,8 +19,8 @@ Ensure `GEMINI_API_KEY` is set in your environment (`.env` is loaded automatical
 | Provider | Role | Limit per keyword |
 |---|---|---|
 | **Pinterest** | Primary source | 2 images |
-| **Unsplash** | Backup (only if Pinterest < 2) | 1 image |
 | **Gemini API** | Fallback generation for remaining slots | Up to 2 images |
+| **Unsplash** | Optional via `--engine-order` (e.g. `pinterest,unsplash,gemini`) | 1 image |
 
 Dribbble is no longer used.
 
@@ -267,7 +267,10 @@ async function scrapeUnsplash(page, keyword, outDir, limit = UNSPLASH_LIMIT) {
     return collected;
 }
 
-async function scrapeAll(topic, keywords, richPromptMap = {}) {
+async function scrapeAll(topic, keywords, richPromptMap = {}, engineOrder = null) {
+    // Default: Pinterest first, then Gemini fallback generation.
+    // --engine-order can override this (e.g. "gemini,pinterest" for comic-pop).
+    const order = engineOrder || ["pinterest", "gemini"];
     const results = {};
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
@@ -283,27 +286,31 @@ async function scrapeAll(topic, keywords, richPromptMap = {}) {
         
         console.log(`\n🔍 Scraping images for: '${kw}'`);
         console.log(`  Writing to: ${outDir}`);
+        console.log(`  Engine order: ${order.join(' → ')}`);
         const page = await context.newPage();
         
-        // Primary: Pinterest (target 2 images)
-        const pImgs = await scrapePinterest(page, kw, outDir, PINTEREST_LIMIT);
+        let allImages = [];
+        const richPrompt = richPromptMap[kw];
         
-        // Backup: Unsplash (only if Pinterest failed to deliver 2 images)
-        let uImgs = [];
-        if (pImgs.length < PINTEREST_LIMIT) {
-            uImgs = await scrapeUnsplash(page, kw, outDir, UNSPLASH_LIMIT);
+        for (const engine of order) {
+            if (allImages.length >= PINTEREST_LIMIT) break;
+            
+            if (engine === 'pinterest') {
+                const imgs = await scrapePinterest(page, kw, outDir, PINTEREST_LIMIT - allImages.length);
+                allImages = allImages.concat(imgs);
+            } else if (engine === 'unsplash') {
+                const imgs = await scrapeUnsplash(page, kw, outDir, Math.min(UNSPLASH_LIMIT, PINTEREST_LIMIT - allImages.length));
+                allImages = allImages.concat(imgs);
+            } else if (engine === 'gemini') {
+                while (allImages.length < PINTEREST_LIMIT) {
+                    const generated = await generateGeminiImage(kw, richPrompt, outDir, allImages.length + 1);
+                    if (!generated) break;
+                    allImages.push(generated);
+                }
+            }
         }
         
         await page.close();
-        
-        // Fallback: Gemini image generation for any remaining missing images
-        const allImages = [...pImgs, ...uImgs];
-        const richPrompt = richPromptMap[kw];
-        while (allImages.length < PINTEREST_LIMIT) {
-            const generated = await generateGeminiImage(kw, richPrompt, outDir, allImages.length + 1);
-            if (!generated) break;
-            allImages.push(generated);
-        }
         
         results[kw] = allImages;
     }
@@ -313,10 +320,14 @@ async function scrapeAll(topic, keywords, richPromptMap = {}) {
 }
 
 function parseArgs(args) {
+    let engineOrder = null;
     const richPromptMap = {};
     const cleaned = [];
     for (let i = 0; i < args.length; i++) {
-        if (args[i] === '--rich-prompt') {
+        if (args[i] === '--engine-order') {
+            engineOrder = args[i + 1].split(',').map(s => s.trim().toLowerCase());
+            i++;
+        } else if (args[i] === '--rich-prompt') {
             const arg = args[i + 1];
             if (arg) {
                 const separator = arg.indexOf('::');
@@ -333,12 +344,12 @@ function parseArgs(args) {
             cleaned.push(args[i]);
         }
     }
-    return { richPromptMap, cleaned };
+    return { richPromptMap, cleaned, engineOrder };
 }
 
 if (require.main === module) {
     const rawArgs = process.argv.slice(2);
-    const { richPromptMap, cleaned: args } = parseArgs(rawArgs);
+    const { richPromptMap, cleaned: args, engineOrder } = parseArgs(rawArgs);
     let topic = null;
     let keywords = [];
 
@@ -376,11 +387,11 @@ if (require.main === module) {
     }
 
     if (keywords.length === 0) {
-        console.log('Usage: node scrape_images.js --topic "topic-name" --keywords "keyword1" "keyword2" [--rich-prompt "keyword1::rich prompt" --rich-prompt "keyword2::rich prompt"]');
+        console.log('Usage: node scrape_images.js --topic "topic-name" --keywords "keyword1" "keyword2" [--rich-prompt "keyword1::rich prompt" --rich-prompt "keyword2::rich prompt"] [--engine-order pinterest,unsplash,gemini]');
         process.exit(1);
     }
 
-    scrapeAll(topic, keywords, richPromptMap)
+    scrapeAll(topic, keywords, richPromptMap, engineOrder)
         .then(results => {
             console.log('\n📦 Final image manifest:');
             for (const [kw, paths] of Object.entries(results)) {
@@ -414,15 +425,15 @@ Images are written to:
 
 Expected files per keyword:
 - `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
-- `unsplash_01.jpg` (backup, only if Pinterest < 2)
-- `gemini_01.png`, `gemini_02.png` (fallback generation, only if still < 2)
+- `gemini_01.png`, `gemini_02.png` (fallback generation, only if Pinterest < 2)
 - `gemini_prompt.txt` (the prompt used for generation)
+- `unsplash_01.jpg` (only if `--engine-order` includes unsplash)
 
 ---
 
 ## Gemini fallback
 
-If Pinterest and Unsplash together produce fewer than 2 images for a keyword, the script automatically:
+If Pinterest produces fewer than 2 images for a keyword, the script automatically:
 1. Builds a keyword-specific image-generation prompt.
 2. Calls the Gemini API (`gemini-3.1-flash-image`, falling back to `gemini-2.5-flash-image`).
 3. Saves the generated PNG and writes `gemini_prompt.txt`.

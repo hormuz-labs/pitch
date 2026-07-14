@@ -8,15 +8,15 @@ description: >
   presentation for Z", or pastes a body of text and asks for slides. The skill
   handles: (1) expanding the prompt into a structured outline of 100+ possible
   slide points categorised by topic type, (2) selecting the right subset for the
-  given topic, (3) extracting keywords and fetching high-res images from Pinterest/Unsplash via Playwright
-  with Gemini fallback, (4) writing all slide text, and (5) building a final high-fidelity .pdf using
+  given topic, (3) extracting keywords and fetching high-res images from Pinterest via Playwright
+  with Gemini fallback (Unsplash optional via --engine-order), (4) writing all slide text, and (5) building a final high-fidelity .pdf using
   Playwright (HTML-to-PDF) with automated DOM QA.
   Always use this skill even if the user gives a very short prompt — your job is to expand it.
 ---
 
 # PPT Generator Skill
 
-End-to-end pipeline: text prompt → context/tone detection → Unsplash image fetching →
+End-to-end pipeline: text prompt → context/tone detection → Pinterest image fetching →
 slide writing → high-fidelity .pdf file.
 
 ---
@@ -30,7 +30,7 @@ slide writing → high-fidelity .pdf file.
 | 3 | Select slide points from the master list below |
 | 4 | Write all slide text (title, body) |
 | 5 | Generate rich image prompts & concise Pinterest search keywords |
-| 6 | Fetch high-res images from Pinterest (Primary) with Unsplash backup |
+| 6 | Fetch high-res images from Pinterest (Primary) with Gemini fallback |
 | 7 | Map images to slides by semantic relevance |
 | 8 | Build high-fidelity .pdf via Playwright (HTML-to-PDF) |
 | 9 | QA and export |
@@ -287,14 +287,15 @@ Read [image-scraping.md](image-scraping.md) for the full Playwright script and G
 
 You MUST execute the Node.js Playwright script to fetch real images before building the presentation. For each keyword:
 1. Run the scraper using: `node .opencode/skills/ppt-generator/reference/scrape_images.js --topic "<topic>" --keywords <keywords> [--rich-prompt "keyword::rich prompt" ...]`
-2. The script scrapes **Pinterest first** (2 images per keyword). **Unsplash** is used as a backup only if Pinterest returns fewer than 2 images (max 1 Unsplash image). **Dribbble is no longer used**.
-3. If scraping still yields fewer than 2 images, the script automatically generates the missing image(s) with the **Gemini API** using `GEMINI_API_KEY` from `.env`.
-4. The script automatically handles downloading via Playwright request context to avoid rate-limits or blocking.
-5. Images will be saved directly to `pptx/ppt-<topic-slug>/images/<keyword>/` as:
+2. The script scrapes **Pinterest first** (2 images per keyword). **Dribbble is no longer used**.
+3. If Pinterest yields fewer than 2 images, the script automatically generates the missing image(s) with the **Gemini API** using `GEMINI_API_KEY` from `.env`.
+4. **Unsplash** is optional; use `--engine-order pinterest,unsplash,gemini` to include it.
+5. The script automatically handles downloading via Playwright request context to avoid rate-limits or blocking.
+6. Images will be saved directly to `pptx/ppt-<topic-slug>/images/<keyword>/` as:
    - `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
-   - `unsplash_01.jpg` (backup, only if Pinterest < 2)
-   - `gemini_01.png`, `gemini_02.png` (fallback generation, only if still < 2)
+   - `gemini_01.png`, `gemini_02.png` (fallback generation, only if Pinterest < 2)
    - `gemini_prompt.txt` (the prompt used for any Gemini generation)
+   - `unsplash_01.jpg` (only if `--engine-order` includes unsplash)
 
 Pass `--rich-prompt` for each keyword so the Gemini fallback prompt is based on the original 15–30 word rich image prompt instead of only the keyword.
 
@@ -463,7 +464,7 @@ Once the QA loop passes, the final `output.pdf` and `output.html` are at `/tmp/p
 → Default to 14–16 slides. Use Web Search Grounding to find the latest context.
 
 **Images fail to scrape**
-→ Build the deck anyway using stable fallback image sources or Unsplash source URL generation. 
+→ Build the deck anyway using stable fallback image sources or Gemini image generation. 
 
 ---
 
@@ -472,7 +473,7 @@ Once the QA loop passes, the final `output.pdf` and `output.html` are at `/tmp/p
 ```
 ppt-generator/
 ├── SKILL.md                 ← this file (pipeline + design token engine)
-├── image-scraping.md        ← Playwright script for fetching Unsplash images
+├── image-scraping.md        ← Playwright script for fetching Pinterest images with Gemini fallback
 ├── pdf-builder-template.js  ← Node.js build scaffold for PDF generation with Base64 embedding
 └── qa-loop.md               ← Visual QA loop: render → inspect → patch → rebuild
 ```

@@ -234,7 +234,10 @@ async function scrapeUnsplash(page, keyword, outDir, limit = UNSPLASH_LIMIT) {
     return collected;
 }
 
-async function scrapeAll(topic, keywords, richPromptMap = {}, engineOrder = null) {\n    const order = engineOrder || ["pinterest", "unsplash", "gemini"];
+async function scrapeAll(topic, keywords, richPromptMap = {}, engineOrder = null) {
+    // Default: Pinterest first, then Gemini fallback generation.
+    // --engine-order can override this (e.g. "gemini,pinterest" for comic-pop).
+    const order = engineOrder || ["pinterest", "gemini"];
     const results = {};
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
@@ -250,6 +253,7 @@ async function scrapeAll(topic, keywords, richPromptMap = {}, engineOrder = null
         
         console.log(`\n🔍 Scraping images for: '${kw}'`);
         console.log(`  Writing to: ${outDir}`);
+        console.log(`  Engine order: ${order.join(' → ')}`);
         const page = await context.newPage();
         
         let allImages = [];
@@ -262,7 +266,7 @@ async function scrapeAll(topic, keywords, richPromptMap = {}, engineOrder = null
                 const imgs = await scrapePinterest(page, kw, outDir, PINTEREST_LIMIT - allImages.length);
                 allImages = allImages.concat(imgs);
             } else if (engine === 'unsplash') {
-                const imgs = await scrapeUnsplash(page, kw, outDir, UNSPLASH_LIMIT);
+                const imgs = await scrapeUnsplash(page, kw, outDir, Math.min(UNSPLASH_LIMIT, PINTEREST_LIMIT - allImages.length));
                 allImages = allImages.concat(imgs);
             } else if (engine === 'gemini') {
                 while (allImages.length < PINTEREST_LIMIT) {
