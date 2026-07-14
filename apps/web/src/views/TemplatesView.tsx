@@ -95,6 +95,13 @@ type SlideData = {
   tagline?: string
   leftWins?: Array<string | { text: string }>
   rightWins?: Array<string | { text: string }>
+  // Startup Amplify fields
+  cards?: Array<{ title: string; body?: string; text?: string }>
+  nextSteps?: Array<{ title: string; body?: string; text?: string }>
+  nodes?: Array<{ title: string; subtitle?: string; desc?: string }>
+  centerLabel?: string
+  prompt?: string
+  insight?: string
 }
 
 interface Template {
@@ -125,6 +132,8 @@ const TEMPLATE_FONTS: Record<string, string> = {
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400&family=Dancing+Script:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">`,
   TECH_DUEL: `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Quattrocento+Sans:wght@400;700&display=swap" rel="stylesheet">`,
+  STARTUP_AMPLIFY: `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Liter:wght@400;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">`,
 }
 
 // ── Template CSS (verbatim from each skill.md stylesheet section) ─────────────
@@ -494,12 +503,83 @@ const TECH_DUEL_CSS = `
 .duel-closing-separator{margin:0 12px;color:#76B900;}
 `
 
+const STARTUP_AMPLIFY_CSS = `
+:root{--font-display:"Liter",sans-serif;--font-body:"Inter",sans-serif;}
+.amp-cover,.amp-chapter,.amp-closing,.amp-content{background:#F4F4F4;color:#2C2C2C;box-sizing:border-box;}
+.amp-content{padding:40px 60px;height:100%;position:relative;}
+.amp-rule{position:absolute;left:0;width:100%;height:2px;background:#D91E18;z-index:10;}
+.amp-rule-top{top:0;}.amp-rule-bottom{bottom:0;}
+.amp-content-header{margin-bottom:20px;}
+.amp-slide-title{font-family:var(--font-display);font-size:28px;font-weight:700;margin:0 0 6px 0;line-height:1.25;}
+.amp-slide-subtitle{font-family:var(--font-body);font-size:13px;color:#888888;text-transform:uppercase;letter-spacing:0.5px;}
+.amp-source{position:absolute;bottom:16px;left:60px;font-size:11px;color:#888888;font-family:var(--font-body);}
+.amp-insight-bar{margin-top:16px;background:#FFFFFF;border-left:4px solid #D91E18;padding:12px 16px;font-family:var(--font-body);font-size:13px;line-height:1.5;}
+.amp-insight-bar strong{color:#D91E18;font-weight:700;}
+.amp-cover{position:relative;overflow:hidden;}
+.amp-cover-content{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;}
+.amp-cover-title{font-family:var(--font-display);font-size:54px;font-weight:700;margin:0;line-height:1.1;}
+.amp-cover-subtitle{font-family:var(--font-display);font-size:26px;margin-top:14px;}
+.amp-cover-meta{font-family:var(--font-body);font-size:14px;color:#888888;margin-top:14px;}
+.amp-cover-stats{display:flex;gap:60px;margin-top:44px;}
+.amp-cover-stat{text-align:left;min-width:170px;}
+.amp-cover-stat-value{font-family:var(--font-display);font-size:40px;font-weight:700;line-height:1;}
+.amp-cover-stat:nth-child(2) .amp-cover-stat-value{color:#D91E18;}
+.amp-cover-stat-label{font-family:var(--font-body);font-size:13px;color:#888888;margin-top:6px;}
+.amp-toc{padding:60px;height:100%;position:relative;}
+.amp-toc-title{font-family:var(--font-display);font-size:34px;font-weight:700;margin:0 0 32px 0;}
+.amp-toc-rows{display:flex;flex-direction:column;gap:22px;}
+.amp-toc-row{display:flex;align-items:center;gap:24px;padding-bottom:20px;border-bottom:1px solid #CCCCCC;}
+.amp-toc-num{font-family:var(--font-display);font-size:48px;font-weight:700;min-width:80px;line-height:1;}
+.amp-toc-text{flex:1;}
+.amp-toc-chapter-title{font-family:var(--font-display);font-size:22px;font-weight:700;}
+.amp-toc-chapter-desc{font-family:var(--font-body);font-size:14px;color:#888888;margin-top:3px;}
+.amp-toc-page{font-family:var(--font-display);font-size:18px;color:#D91E18;font-weight:700;}
+.amp-footer{position:absolute;bottom:18px;left:60px;right:60px;display:flex;justify-content:space-between;font-family:var(--font-body);font-size:11px;color:#888888;}
+.amp-split{display:flex;gap:36px;height:340px;}
+.amp-split-left{flex:1.1;display:flex;flex-direction:column;gap:16px;}
+.amp-split-right{flex:0.9;display:flex;flex-direction:column;gap:14px;}
+.amp-split-bullets{margin:0;padding:0 0 0 18px;font-family:var(--font-body);font-size:15px;line-height:1.7;color:#2C2C2C;}
+.amp-info-card{background:#FFFFFF;border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.amp-info-card-title{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:4px;}
+.amp-info-card-body{font-family:var(--font-body);font-size:13px;color:#555555;line-height:1.45;}
+.amp-content-bottom{display:flex;gap:18px;margin-top:18px;}
+.amp-content-stat{flex:1;background:#FFFFFF;border-radius:8px;padding:14px;text-align:center;}
+.amp-content-stat-value{font-family:var(--font-display);font-size:26px;font-weight:700;color:#00A3A1;}
+.amp-content-stat-label{font-family:var(--font-body);font-size:12px;color:#888888;margin-top:4px;}
+.amp-gtm-flow{position:relative;height:260px;margin-top:10px;}
+.amp-gtm-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;}
+.amp-gtm-node{font-family:var(--font-display);text-align:center;}
+.amp-gtm-core{width:110px;height:110px;border-radius:50%;background:#E8762B;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;box-shadow:0 4px 12px rgba(232,118,43,0.25);}
+.amp-gtm-nodes{position:absolute;inset:0;}
+.amp-gtm-outer{position:absolute;width:140px;background:#FFFFFF;border-radius:8px;padding:10px 8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+.amp-gtm-outer[data-pos="0"]{left:50%;top:0;transform:translateX(-50%);}
+.amp-gtm-outer[data-pos="1"]{right:5%;top:22%;}
+.amp-gtm-outer[data-pos="2"]{right:8%;bottom:12%;}
+.amp-gtm-outer[data-pos="3"]{left:8%;bottom:12%;}
+.amp-gtm-outer[data-pos="4"]{left:5%;top:22%;}
+.amp-gtm-node-title{font-size:14px;font-weight:700;color:#2C2C2C;}
+.amp-gtm-node-sub{font-family:var(--font-body);font-size:11px;color:#888888;margin-top:2px;}
+.amp-closing{position:relative;overflow:hidden;}
+.amp-closing-content{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;}
+.amp-closing-title{font-family:var(--font-display);font-size:52px;font-weight:700;margin:0;line-height:1.1;}
+.amp-closing-subtitle{font-family:var(--font-body);font-size:16px;color:#888888;margin-top:14px;max-width:700px;}
+.amp-closing-cards{display:flex;gap:20px;margin-top:36px;}
+.amp-closing-card{flex:1;background:#FFFFFF;border-radius:10px;padding:22px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);text-align:left;min-width:180px;border-top:4px solid #00A3A1;}
+.amp-closing-card:nth-child(2){border-top-color:#E8762B;}
+.amp-closing-card:nth-child(3){border-top-color:#5B9BD5;}
+.amp-closing-card-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:6px;}
+.amp-closing-card-body{font-family:var(--font-body);font-size:13px;color:#555555;line-height:1.45;}
+.amp-closing-prompt{font-family:var(--font-display);font-size:28px;font-weight:700;color:#D91E18;margin-top:34px;}
+.amp-closing-footer{font-family:var(--font-body);font-size:12px;color:#888888;margin-top:18px;}
+`
+
 const TEMPLATE_CSS: Record<string, string> = {
   BRUTALIST_NEWSPAPER: BRUTALIST_CSS,
   MINIMAL_CORPORATE: CORP_CSS,
   DARK_TECH: TECH_CSS,
   COMIC_POP: COMIC_CSS,
   TECH_DUEL: TECH_DUEL_CSS,
+  STARTUP_AMPLIFY: STARTUP_AMPLIFY_CSS,
 }
 
 // ── Build exact HTML per layout code (mirrors the skill.md renderers) ──────────
@@ -1343,6 +1423,112 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
 </div>`
   }
 
+  if (templateId === 'STARTUP_AMPLIFY') {
+    if (slide.layout === 'AMP-COVER') return `
+<div class="slide amp-cover">
+  <div class="amp-rule amp-rule-top"></div>
+  <div class="amp-cover-content">
+    <h1 class="amp-cover-title">${t}</h1>
+    <div class="amp-cover-subtitle">${sub}</div>
+    <div class="amp-cover-meta">Pitch AI | 2026</div>
+    <div class="amp-cover-stats">
+      ${(slide.stats || []).map(s => `
+      <div class="amp-cover-stat">
+        <div class="amp-cover-stat-value">${s.value}</div>
+        <div class="amp-cover-stat-label">${s.label}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="amp-rule amp-rule-bottom"></div>
+</div>`
+    if (slide.layout === 'AMP-TOC') return `
+<div class="slide amp-toc">
+  <div class="amp-content">
+    <h2 class="amp-toc-title">CONTENTS</h2>
+    <div class="amp-toc-rows">
+      ${(slide.sections || []).map(s => `
+      <div class="amp-toc-row">
+        <div class="amp-toc-num">${s.number || ''}</div>
+        <div class="amp-toc-text">
+          <div class="amp-toc-chapter-title">${s.title}</div>
+          <div class="amp-toc-chapter-desc">${s.description || ''}</div>
+        </div>
+        <div class="amp-toc-page">${s.page || ''}</div>
+      </div>`).join('')}
+    </div>
+    <div class="amp-footer"><span>Pitch AI | 2026</span><span class="amp-footer-page">02</span></div>
+  </div>
+</div>`
+    if (slide.layout === 'AMP-CONTENT-SPLIT') return `
+<div class="slide amp-content">
+  <div class="amp-content-header">
+    <h2 class="amp-slide-title">${t}</h2>
+    <div class="amp-slide-subtitle">${sub}</div>
+  </div>
+  <div class="amp-split">
+    <div class="amp-split-left">
+      ${(slide.bullets || []).length > 0 ? `
+      <ul class="amp-split-bullets">
+        ${slide.bullets.map(b => `<li>${b}</li>`).join('')}
+      </ul>` : ''}
+    </div>
+    <div class="amp-split-right">
+      ${(slide.cards || []).map(c => `
+      <div class="amp-info-card">
+        <div class="amp-info-card-title">${c.title}</div>
+        <div class="amp-info-card-body">${c.body || c.text || ''}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="amp-content-bottom">
+    ${(slide.stats || []).map(s => `
+    <div class="amp-content-stat">
+      <div class="amp-content-stat-value">${s.value}</div>
+      <div class="amp-content-stat-label">${s.label}</div>
+    </div>`).join('')}
+  </div>
+  ${slide.source ? `<div class="amp-source">${slide.source}</div>` : ''}
+</div>`
+    if (slide.layout === 'AMP-GTM-FLOW') return `
+<div class="slide amp-content">
+  <div class="amp-content-header">
+    <h2 class="amp-slide-title">${t}</h2>
+    <div class="amp-slide-subtitle">${sub}</div>
+  </div>
+  <div class="amp-gtm-flow">
+    <div class="amp-gtm-center">
+      <div class="amp-gtm-node amp-gtm-core">${slide.centerLabel || 'GTM'}</div>
+    </div>
+    <div class="amp-gtm-nodes">
+      ${(slide.nodes || []).map((n, i) => `
+      <div class="amp-gtm-node amp-gtm-outer" data-pos="${i}">
+        <div class="amp-gtm-node-title">${n.title}</div>
+        <div class="amp-gtm-node-sub">${n.subtitle || n.desc || ''}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  ${slide.source ? `<div class="amp-source">${slide.source}</div>` : ''}
+</div>`
+    if (slide.layout === 'AMP-CLOSING') return `
+<div class="slide amp-closing">
+  <div class="amp-rule amp-rule-top"></div>
+  <div class="amp-closing-content">
+    <h2 class="amp-closing-title">${t}</h2>
+    <div class="amp-closing-subtitle">${sub}</div>
+    <div class="amp-closing-cards">
+      ${(slide.nextSteps || []).map(n => `
+      <div class="amp-closing-card">
+        <div class="amp-closing-card-title">${n.title}</div>
+        <div class="amp-closing-card-body">${n.body || n.text || ''}</div>
+      </div>`).join('')}
+    </div>
+    <div class="amp-closing-prompt">${slide.prompt || 'Questions?'}</div>
+    <div class="amp-closing-footer">Pitch AI | 2026</div>
+  </div>
+  <div class="amp-rule amp-rule-bottom"></div>
+</div>`
+  }
+
   // Fallback
   return `<div class="slide" style="display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:20px;color:#888;background:#111;">${slide.layout}</div>`
 }
@@ -1959,6 +2145,123 @@ const TEMPLATES: Template[] = [
         subtitle: 'Questions? Let’s settle the debate.',
         layout: 'DUEL-CLOSING',
         image: '/templates/tech_duel_closing_preview.png',
+      },
+    ],
+  },
+  {
+    id: 'STARTUP_AMPLIFY',
+    name: 'Startup Amplify',
+    description:
+      'Light, card-based startup growth and GTM playbook inspired by the AMPLIFY YOUR STARTUP deck. Uses a warm light-gray canvas, red top/bottom rules, teal (#00A3A1) and orange (#E8762B) accents, and clean card-based layouts for chapters, stats, frameworks, tool stacks, pricing, and takeaways.',
+    tags: ['Startup', 'GTM', 'Growth', 'Strategy', 'AI Automation', 'Charts', 'Frameworks'],
+    theme: {
+      bg: '#F4F4F4',
+      primary: '#00A3A1',
+      accent: '#D91E18',
+      secondary: '#E8762B',
+      fonts: 'Liter + Inter',
+      imageMode: 'Clean Bright Stock / UI Shots',
+    },
+    previewSlides: [
+      {
+        id: 1,
+        title: 'AMPLIFY YOUR STARTUP',
+        subtitle: 'Marketing, GTM & AI Automation',
+        stats: [
+          { value: '47%', label: 'Productivity Gain with AI GTM' },
+          { value: '4-7x', label: 'Conversion Rate Improvement' },
+          { value: '300%', label: 'Average ROI from AI Tools' },
+        ],
+        layout: 'AMP-COVER',
+        image: '/templates/startup_amplify_cover_preview.png',
+      },
+      {
+        id: 2,
+        title: 'CONTENTS',
+        sections: [
+          {
+            number: '01',
+            title: 'Marketing Growth Engine',
+            description: 'Content, data-driven decisions & social media strategy',
+            page: '03',
+          },
+          {
+            number: '02',
+            title: 'The Road to GTM',
+            description: 'Framework, 90-day plan & motion selection',
+            page: '07',
+          },
+          {
+            number: '03',
+            title: 'AI Automation for GTM',
+            description: 'AI tools, autonomous platforms & implementation roadmap',
+            page: '11',
+          },
+        ],
+        layout: 'AMP-TOC',
+        image: '/templates/startup_amplify_toc_preview.png',
+      },
+      {
+        id: 3,
+        title: 'Content marketing remains the highest-ROI channel for early-stage startups',
+        subtitle: 'CONTENT MARKETING DELIVERS 3X MORE LEADS AT 62% LOWER COST',
+        bullets: [
+          'Identify persona needs and pain points',
+          'Produce original, high-value content',
+          'Optimize for SEO across all formats',
+          'Distribute via website, social, email',
+        ],
+        cards: [
+          {
+            title: 'Content Strategy Best Practices',
+            body: 'Persona-led, SEO-optimized, multi-format distribution.',
+          },
+          {
+            title: 'Content Formats That Work',
+            body: 'Blogs, video, whitepapers, case studies, newsletters.',
+          },
+        ],
+        stats: [
+          { value: '3x', label: 'More leads vs paid-only' },
+          { value: '62%', label: 'Lower cost per lead' },
+          { value: '72%', label: 'B2B buyers read 3+ pieces before buying' },
+        ],
+        layout: 'AMP-CONTENT-SPLIT',
+        image: '/templates/startup_amplify_content_preview.png',
+      },
+      {
+        id: 4,
+        title: 'Five interconnected components define every successful GTM strategy',
+        subtitle: 'MISS ANY ONE COMPONENT AND THE ENTIRE SYSTEM BECOMES UNSTABLE',
+        centerLabel: 'GTM',
+        nodes: [
+          { title: 'Market Definition', subtitle: 'TAM / SAM / SOM' },
+          { title: 'Ideal Customer Profile', subtitle: 'Who, Pain, Trigger' },
+          { title: 'Pricing Model', subtitle: 'How you monetize' },
+          { title: 'Value Proposition', subtitle: 'Why you, why now' },
+          { title: 'Channel Strategy', subtitle: 'How you reach customers' },
+        ],
+        layout: 'AMP-GTM-FLOW',
+        image: '/templates/startup_amplify_gtm_preview.png',
+      },
+      {
+        id: 5,
+        title: 'READY TO SCALE?',
+        subtitle: 'Start with one channel, measure obsessively, and automate what works.',
+        nextSteps: [
+          {
+            title: 'Audit Your Stack',
+            body: 'Map tools, data, and handoffs across marketing and sales.',
+          },
+          { title: 'Pick One Motion', body: 'PLG, sales-led, or ABM — commit for 90 days.' },
+          {
+            title: 'Deploy AI Agents',
+            body: 'Automate research, outreach, and meeting follow-ups.',
+          },
+        ],
+        prompt: 'Questions?',
+        layout: 'AMP-CLOSING',
+        image: '/templates/startup_amplify_closing_preview.png',
       },
     ],
   },

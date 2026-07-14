@@ -357,6 +357,109 @@
     ]
   },
   {
+    "id": "STARTUP_AMPLIFY",
+    "name": "Startup Amplify",
+    "description": "Light, card-based startup growth and GTM playbook inspired by the AMPLIFY YOUR STARTUP deck. Uses a warm light-gray canvas, red top/bottom rules, teal (#00A3A1) and orange (#E8762B) accents, and clean card-based layouts for chapters, stats, frameworks, tool stacks, pricing, and takeaways.",
+    "tags": ["Startup", "GTM", "Growth", "Strategy", "AI Automation", "Charts", "Frameworks"],
+    "previewSlides": [
+      {
+        "id": 1,
+        "title": "AMPLIFY YOUR STARTUP",
+        "subtitle": "Marketing, GTM & AI Automation",
+        "stats": [
+          { "value": "47%", "label": "Productivity Gain with AI GTM" },
+          { "value": "4-7x", "label": "Conversion Rate Improvement" },
+          { "value": "300%", "label": "Average ROI from AI Tools" }
+        ],
+        "layout": "AMP-COVER"
+      },
+      {
+        "id": 2,
+        "title": "CONTENTS",
+        "sections": [
+          {
+            "number": "01",
+            "title": "Marketing Growth Engine",
+            "description": "Content, data-driven decisions & social media strategy",
+            "page": "03"
+          },
+          {
+            "number": "02",
+            "title": "The Road to GTM",
+            "description": "Framework, 90-day plan & motion selection",
+            "page": "07"
+          },
+          {
+            "number": "03",
+            "title": "AI Automation for GTM",
+            "description": "AI tools, autonomous platforms & implementation roadmap",
+            "page": "11"
+          }
+        ],
+        "layout": "AMP-TOC"
+      },
+      {
+        "id": 3,
+        "title": "Content marketing remains the highest-ROI channel for early-stage startups",
+        "subtitle": "CONTENT MARKETING DELIVERS 3X MORE LEADS AT 62% LOWER COST",
+        "bullets": [
+          "Identify persona needs and pain points",
+          "Produce original, high-value content",
+          "Optimize for SEO across all formats",
+          "Distribute via website, social, email"
+        ],
+        "cards": [
+          {
+            "title": "Content Strategy Best Practices",
+            "body": "Persona-led, SEO-optimized, multi-format distribution."
+          },
+          {
+            "title": "Content Formats That Work",
+            "body": "Blogs, video, whitepapers, case studies, newsletters."
+          }
+        ],
+        "stats": [
+          { "value": "3x", "label": "More leads vs paid-only" },
+          { "value": "62%", "label": "Lower cost per lead" },
+          { "value": "72%", "label": "B2B buyers read 3+ pieces before buying" }
+        ],
+        "layout": "AMP-CONTENT-SPLIT"
+      },
+      {
+        "id": 4,
+        "title": "Five interconnected components define every successful GTM strategy",
+        "subtitle": "MISS ANY ONE COMPONENT AND THE ENTIRE SYSTEM BECOMES UNSTABLE",
+        "centerLabel": "GTM",
+        "nodes": [
+          { "title": "Market Definition", "subtitle": "TAM / SAM / SOM" },
+          { "title": "Ideal Customer Profile", "subtitle": "Who, Pain, Trigger" },
+          { "title": "Pricing Model", "subtitle": "How you monetize" },
+          { "title": "Value Proposition", "subtitle": "Why you, why now" },
+          { "title": "Channel Strategy", "subtitle": "How you reach customers" }
+        ],
+        "layout": "AMP-GTM-FLOW"
+      },
+      {
+        "id": 5,
+        "title": "READY TO SCALE?",
+        "subtitle": "Start with one channel, measure obsessively, and automate what works.",
+        "nextSteps": [
+          {
+            "title": "Audit Your Stack",
+            "body": "Map tools, data, and handoffs across marketing and sales."
+          },
+          { "title": "Pick One Motion", "body": "PLG, sales-led, or ABM — commit for 90 days." },
+          {
+            "title": "Deploy AI Agents",
+            "body": "Automate research, outreach, and meeting follow-ups."
+          }
+        ],
+        "prompt": "Questions?",
+        "layout": "AMP-CLOSING"
+      }
+    ]
+  },
+  {
     "id": "TECH_DUEL",
     "name": "Tech Duel Comparison",
     "description": "High-contrast two-sided comparison deck inspired by the NVIDIA DGX Spark vs. AMD Threadripper PRO 7000 presentation. Uses deep obsidian dark slides, clean light content slides, duel green (#76B900) for Product A and duel red (#ED1C24) for Product B. Perfect for head-to-head technology, product, platform, or concept comparisons with spec sheets, architecture breakdowns, benchmarks, and decision matrices.",
