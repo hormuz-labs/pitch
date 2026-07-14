@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Project } from '../types'
 import { ShareSheet } from './ShareSheet'
-import { TimedUndoAction } from './TimedUndoAction'
+import { CrumpleDelete } from './CrumpleDelete'
 
 const IconTrashSm = () => (
   <svg
@@ -108,7 +108,7 @@ const shareOptions = [
 ]
 
 export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
-  const [isPendingDelete, setIsPendingDelete] = useState(false)
+  const [crumpleTriggered, setCrumpleTriggered] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [duration, setDuration] = useState<number | null>(null)
 
@@ -143,11 +143,16 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
   }
 
   return (
+    <CrumpleDelete
+      triggered={crumpleTriggered}
+      onConfirmDelete={onConfirmDelete}
+      onUndo={() => setCrumpleTriggered(false)}
+    >
     <div
-      onClick={!isPendingDelete ? onClick : undefined}
+      onClick={!crumpleTriggered ? onClick : undefined}
       className="bg-white rounded-xl cursor-pointer hover:shadow-md transition-all duration-200 group relative flex flex-col"
       id={`video-card-${project.id}`}
-      style={{ cursor: isPendingDelete ? 'default' : 'pointer' }}
+      style={{ cursor: crumpleTriggered ? 'default' : 'pointer' }}
     >
       {/* Overlay Border to ensure perfectly smooth rounded corners without clipping dropdowns */}
       <div className="absolute inset-0 rounded-xl border border-gray-200 group-hover:border-gray-300 pointer-events-none z-10 transition-colors duration-200" />
@@ -242,7 +247,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
           <StatusBadge status={project.status} />
 
           <div className="flex justify-end relative h-full items-center gap-1.5">
-            {project.status === 'FAILED' && !isPendingDelete && (
+            {project.status === 'FAILED' && !crumpleTriggered && (
               <button
                 onClick={e => {
                   e.stopPropagation()
@@ -269,50 +274,19 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
               </button>
             )}
 
-            {isPendingDelete ? (
-              <div
-                onClick={e => e.stopPropagation()}
-                className="absolute right-0 top-1/2 -translate-y-1/2 origin-right whitespace-nowrap z-10"
-              >
-                <TimedUndoAction
-                  initialSeconds={5}
-                  deleteLabel="Deleting..."
-                  undoLabel="Cancel"
-                  icon={
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-white"
-                    >
-                      <path d="M3 7v6h6" />
-                      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
-                    </svg>
-                  }
-                  onConfirm={onConfirmDelete}
-                  onUndo={() => setIsPendingDelete(false)}
-                  onDismiss={() => setIsPendingDelete(false)}
-                />
-              </div>
-            ) : (
-              <button
-                onClick={e => {
-                  e.stopPropagation()
-                  if (project.status === 'FAILED') setIsPendingDelete(true)
-                  else setShowModal(true)
-                }}
-                className="p-1.5 rounded-md text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center cursor-pointer"
-                id={`delete-btn-${project.id}`}
-                title="Delete"
-              >
-                <IconTrashSm />
-              </button>
-            )}
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                if (project.status === 'FAILED') setCrumpleTriggered(true)
+                else setShowModal(true)
+              }}
+              disabled={crumpleTriggered}
+              className="p-1.5 rounded-md text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              id={`delete-btn-${project.id}`}
+              title="Delete"
+            >
+              <IconTrashSm />
+            </button>
           </div>
         </div>
       </div>
@@ -359,7 +333,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
                 <button
                   onClick={() => {
                     setShowModal(false)
-                    setIsPendingDelete(true)
+                    setCrumpleTriggered(true)
                   }}
                   className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer border border-red-700"
                 >
@@ -371,5 +345,6 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
           document.body,
         )}
     </div>
+    </CrumpleDelete>
   )
 }
