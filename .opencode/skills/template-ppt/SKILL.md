@@ -69,6 +69,7 @@ Map the template ID to its directory:
 | `DARK_TECH` | `.opencode/skills/template-ppt/templates/dark-tech/` |
 | `COMIC_POP` | `.opencode/skills/template-ppt/templates/comic-pop/` |
 | `TECH_DUEL` | `.opencode/skills/template-ppt/templates/tech-duel/` |
+| `STARTUP_AMPLIFY` | `.opencode/skills/template-ppt/templates/startup-amplify/` |
 
 **MUST READ both files using the `read` tool:**
 1. `<template-dir>/spec_lock.md` — machine-readable execution contract
@@ -445,9 +446,12 @@ template-ppt/
 │   ├── comic-pop/
 │   │   ├── spec_lock.md           ← neo-brutalist comic spec (Dancing Script, Bebas Neue, #FBCC00)
 │   │   └── skill.md               ← 13 layouts incl. COMIC-FLOWCHART SVG renderer
-│   └── tech-duel/
-│       ├── spec_lock.md           ← two-sided comparison spec (Outfit, Quattrocento Sans, #76B900 / #ED1C24)
-│       └── skill.md               ← 15 layouts incl. DUEL-COVER, DUEL-PRODUCT-A/B, DUEL-CHART
+│   ├── tech-duel/
+│   │   ├── spec_lock.md           ← two-sided comparison spec (Outfit, Quattrocento Sans, #76B900 / #ED1C24)
+│   │   └── skill.md               ← 15 layouts incl. DUEL-COVER, DUEL-PRODUCT-A/B, DUEL-CHART
+│   └── startup-amplify/
+│       ├── spec_lock.md           ← startup growth playbook spec (Liter, Inter, #F4F4F4, #D91E18, #00A3A1)
+│       └── skill.md               ← 18 layouts incl. AMP-COVER, AMP-CHART, AMP-GTM-FLOW, AMP-CLOSING
 ```
 
 Base pipeline files (shared with ppt-generator):
