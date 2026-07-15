@@ -22,9 +22,10 @@ import { Redis } from 'ioredis'
 import * as os from 'os'
 import { getSessionIdFromEvent } from './opencode.js'
 import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
+import { type BrowserHeaderMode, renderBrowserChromePng } from './utils/browser-chrome.js'
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
-import { addIntroOutro } from './utils/intro-outro.js'
+import { addIntroOutro, type BrowserChromeSegment } from './utils/intro-outro.js'
 import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 import { processVideo } from './utils/smart_trim.js'
@@ -947,6 +948,7 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
       logger.info({ sourceFps }, 'Detected source frame rate')
 
       const cursorPath = path.join(targetDir, 'assets', 'icons', 'cursor.png')
+      const handCursorPath = path.join(targetDir, 'assets', 'icons', 'hand-pointer.png')
       const rawVideo = path.join(recordingsDir, 'raw_demo.mp4')
       const trimmedVideo = path.join(recordingsDir, 'final_demo.mp4')
       const finalVideo = path.join(recordingsDir, 'final_with_cards.mp4')
@@ -971,16 +973,19 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
         )
       }
 
-      let videoInputs = `-i "${foundWebmPath}" -i "${cursorPath}"`
+      let videoInputs = `-i "${foundWebmPath}" -i "${cursorPath}" -i "${handCursorPath}"`
       let filterComplex = ''
       let currentVLabel = '[0:v]'
 
       // Animated cursor: one pointer that glides between click targets and dips
-      // on each click, instead of a static cursor popping in at every point.
+      // on each click, swapping the arrow for a hand while it rests on a target
+      // (like a real cursor over a link/button), instead of a static cursor
+      // popping in at every point.
       const cursorChain = buildGlidingCursorChain(
         state.clickEvents,
         trimSec,
-        1, // [1:v] is the cursor icon
+        1, // [1:v] is the arrow cursor
+        2, // [2:v] is the hand pointer
         currentVLabel,
         '[v_cursor]',
       )
@@ -999,7 +1004,7 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
 
       // Audio narration clips
       let validClips = 0
-      let audioInputIndex = 2 // 0 is webm, 1 is cursor icon
+      let audioInputIndex = 3 // 0 is webm, 1 is arrow cursor, 2 is hand pointer
       const audioLabels: string[] = []
       const trimMs = trimSec * 1000
       let firstNarrationDelayMs = Number.POSITIVE_INFINITY
@@ -1155,15 +1160,72 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
 
       await reportJobPhase(jobId, userId, 'intro_outro', 'running', connection)
       logger.info({ bgId: bgAsset ? bgId : 'none' }, 'Adding intro/outro cards (+ background)')
+      let browserChromeSegments: BrowserChromeSegment[] | undefined
       try {
-        const productDomain = (parameters?.url || '').replace(/^https?:\/\//, '').split('/')[0]
+        const productDomain = (parameters?.url || '')
+          .replace(/^https?:\/\//, '')
+          .split('/')[0]
+          .replace(/^(www|m)\./i, '')
         const productName =
           productDomain
-            .replace(/\.[a-z]+$/, '')
+            .replace(/\.[a-z]+$/i, '')
             .replace(/[^a-zA-Z0-9]/g, ' ')
             .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Demo'
         const productLogoPath = path.join(recordingsDir, 'product_logo.png')
         const inset = Number.parseFloat((parameters?.inset ?? '0.87').toString())
+
+        // Optional Safari-style browser header. We generate one PNG per distinct
+        // page URL the agent navigated to, then overlay each segment only during
+        // the time the demo was on that URL. Falls back to a single static header
+        // when no navigation events were recorded.
+        const headerMode = (parameters?.browserHeader as BrowserHeaderMode) || 'none'
+        const headerUrl = state?.pageUrl || parameters?.url
+        if (headerMode !== 'none' && headerUrl) {
+          const contentDur = await getMediaDurationSec(trimmedVideo)
+          const introDuration = 2.5
+          const contentStart = introDuration
+          const events = state?.pageUrlEvents as
+            | Array<{ videoTimeSec: number; url: string }>
+            | undefined
+          const sorted = (events || []).slice().sort((a, b) => a.videoTimeSec - b.videoTimeSec)
+          const stamp = Date.now()
+          const segs: BrowserChromeSegment[] = []
+
+          if (sorted.length > 0) {
+            // Initial URL (the first recorded value) from the start of the content
+            // until the first navigation event.
+            const firstStart = Math.max(0, sorted[0].videoTimeSec - leadingTrimSec)
+            if (firstStart > 0) {
+              const png = path.join(recordingsDir, `__browser_chrome_${stamp}_0.png`)
+              renderBrowserChromePng(sorted[0].url, png, 1920, 56, headerMode)
+              segs.push({ png, startSec: contentStart, endSec: contentStart + firstStart })
+            }
+            for (let i = 0; i < sorted.length; i++) {
+              const start = Math.max(0, sorted[i].videoTimeSec - leadingTrimSec)
+              const end =
+                i + 1 < sorted.length
+                  ? Math.max(0, sorted[i + 1].videoTimeSec - leadingTrimSec)
+                  : contentDur
+              const png = path.join(recordingsDir, `__browser_chrome_${stamp}_${i + 1}.png`)
+              renderBrowserChromePng(sorted[i].url, png, 1920, 56, headerMode)
+              segs.push({
+                png,
+                startSec: contentStart + Math.min(start, contentDur),
+                endSec: contentStart + Math.min(end, contentDur),
+              })
+            }
+          } else {
+            const png = path.join(recordingsDir, `__browser_chrome_${stamp}.png`)
+            renderBrowserChromePng(headerUrl, png, 1920, 56, headerMode)
+            segs.push({ png, startSec: contentStart, endSec: contentStart + contentDur })
+          }
+
+          browserChromeSegments = segs
+          logger.info(
+            { mode: headerMode, segments: segs.length },
+            'Generated dynamic browser header chrome',
+          )
+        }
 
         const cardsT0 = Date.now()
         await addIntroOutro(
@@ -1186,14 +1248,23 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
                 inset: Number.isFinite(inset) ? inset : 0.87,
               }
             : undefined,
+          browserChromeSegments,
         )
         logger.info(
           { sec: ((Date.now() - cardsT0) / 1000).toFixed(1) },
-          'TIMING: final assembly (cards + watermark + background) done',
+          'TIMING: final assembly (cards + watermark + background + browser header) done',
         )
       } catch (cardErr: any) {
         logger.warn({ err: cardErr }, 'Final assembly failed — using trimmed video as final')
         fs.copyFileSync(trimmedVideo, finalVideo)
+      } finally {
+        if (browserChromeSegments) {
+          for (const seg of browserChromeSegments) {
+            try {
+              fs.unlinkSync(seg.png)
+            } catch {}
+          }
+        }
       }
       await reportJobPhase(jobId, userId, 'intro_outro', 'completed', connection)
 

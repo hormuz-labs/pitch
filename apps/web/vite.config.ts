@@ -14,6 +14,13 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   server: {
+    // This checkout contains enough source/public assets to exhaust the default
+    // Linux inotify quota when other editors and dev servers are open. Polling
+    // keeps HMR working without requiring machine-wide sysctl changes or sudo.
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
     proxy: {
       // All API traffic — including the VNC WebSocket proxy at
       // /browser/profiles/:id/vnc — goes to the local API. ws:true upgrades the

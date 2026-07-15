@@ -1,9 +1,9 @@
+import { Resvg } from '@resvg/resvg-js'
 import { exec } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { promisify } from 'util'
-import { Resvg } from '@resvg/resvg-js'
 import { prepareBackgroundFrame } from './background.js'
 import { videoEncodeArgs } from './encoder.js'
 
@@ -102,6 +102,20 @@ async function prepareLogoPng(logoPath: string | undefined, dir: string): Promis
   return null
 }
 
+async function getImageDimensions(file: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const { stdout } = await execAsync(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${file}"`,
+    )
+    const [w, h] = stdout
+      .trim()
+      .split('x')
+      .map(s => parseInt(s.trim(), 10))
+    if (w > 0 && h > 0) return { width: w, height: h }
+  } catch {}
+  return null
+}
+
 /**
  * Average luminance (0..1) of a logo's OPAQUE pixels — how we decide which
  * background fits. A dark logo (low luminance) needs a light background; a light
@@ -176,7 +190,7 @@ function buildIntroCardSvg(
 
 // Minimal outro: "Thank you for watching" with the product domain in a capsule below.
 function buildOutroCardSvg(
-  productName: string,
+  _productName: string,
   domain: string,
   theme: CardTheme,
   width: number,
@@ -249,9 +263,25 @@ async function renderCardClip(svg: string, output: string, config: CardConfig): 
 // Minimal intro: logo | name on a contrasting (white/black) background, gentle fade.
 async function generateIntroCard(output: string, config: CardConfig): Promise<string> {
   const dir = path.dirname(output)
-  const logoPng = await prepareLogoPng(config.productLogoPath, dir)
+  let logoPng = await prepareLogoPng(config.productLogoPath, dir)
   try {
-    const logoUri = logoPng ? pngToDataUri(logoPng) : null
+    // Skip tiny or blank favicon-style assets (e.g. 41x40 white placeholder). A
+    // real brand logo must have some size and contrast against the card background.
+    let logoUri: string | null = null
+    if (logoPng) {
+      const dims = await getImageDimensions(logoPng)
+      const lum = await detectLogoLuminance(logoPng, dir)
+      const usable =
+        dims && dims.width >= 80 && dims.height >= 80 && lum !== null && lum > 0.05 && lum < 0.95
+      if (usable) {
+        logoUri = pngToDataUri(logoPng)
+      } else {
+        console.log(
+          `Intro card: logo rejected (size=${dims?.width}x${dims?.height}, lum=${lum?.toFixed(2)}) — falling back to text-only`,
+        )
+        logoPng = null
+      }
+    }
     const lum = logoPng ? await detectLogoLuminance(logoPng, dir) : null
     const theme = pickTheme(lum)
     console.log(
@@ -308,7 +338,7 @@ async function svgToPng(
   svgPath: string,
   pngPath: string,
   width: number,
-  height: number,
+  _height: number,
 ): Promise<void> {
   const svgContent = fs.readFileSync(svgPath, 'utf8')
   const resvg = new Resvg(svgContent, {
@@ -334,11 +364,18 @@ export interface BackgroundOptions {
   inset: number
 }
 
+export interface BrowserChromeSegment {
+  png: string
+  startSec: number
+  endSec: number
+}
+
 export async function addIntroOutro(
   contentPath: string,
   outputPath: string,
   config: CardConfig,
   background?: BackgroundOptions,
+  browserChrome?: BrowserChromeSegment[],
 ): Promise<string> {
   const dir = path.dirname(contentPath)
   const stamp = Date.now()
@@ -348,7 +385,9 @@ export async function addIntroOutro(
   const outroPath = path.join(dir, `__outro_${stamp}.mp4`)
   const watermarkSvg = path.join(dir, `__wm_${stamp}.svg`)
   const watermarkPng = path.join(dir, `__wm_${stamp}.png`)
+  const chromeSegments = browserChrome || []
   const cleanup: string[] = [introPath, outroPath, watermarkSvg, watermarkPng]
+  for (const seg of chromeSegments) cleanup.push(seg.png)
 
   try {
     console.log('Generating intro card...')
@@ -365,10 +404,22 @@ export async function addIntroOutro(
     const contentDur = await getDuration(contentPath)
     const contentFadeOutStart = Math.max(0, contentDur - crossfadeSec)
 
-    // Fade the content edges, concat intro+content+outro, frame everything on the
-    // optional background and stamp the watermark — all in a SINGLE pass, so
-    // adding a background costs no extra encode generation.
+    // Dynamic input indices: intro=0, content=1, outro=2, watermark=3, then chrome
+    // segments (optional), then background/mask/shadow (optional).
+    let nextInputIdx = 4
+    const chromeStartIdx = chromeSegments.length ? nextInputIdx : null
+    nextInputIdx += chromeSegments.length
+    const bgIdx = background ? nextInputIdx++ : null
+    const maskIdx = background ? nextInputIdx++ : null
+    const shadowIdx = background ? nextInputIdx++ : null
+
+    // Fade the content edges, concat intro+content+outro, optionally frame on a
+    // background, optionally stamp a dynamic browser header, and stamp the
+    // watermark — all in a SINGLE pass.
     let inputs = `-i "${introPath}" -i "${contentPath}" -i "${outroPath}" -loop 1 -i "${watermarkPng}"`
+    for (const seg of chromeSegments) {
+      inputs += ` -loop 1 -i "${seg.png}"`
+    }
     let graph =
       `[1:v]fade=t=in:st=0:d=${crossfadeSec},fade=t=out:st=${contentFadeOutStart}:d=${crossfadeSec}[cv];` +
       `[0:v][0:a][cv][1:a][2:v][2:a]concat=n=3:v=1:a=1[cat][a];`
@@ -390,19 +441,51 @@ export async function addIntroOutro(
         ? ` -stream_loop -1 ${tArg} -i "${background.asset.path}"`
         : ` -loop 1 ${tArg} -i "${background.asset.path}"`
       inputs += ` -loop 1 ${tArg} -i "${frame.maskPng}" -loop 1 ${tArg} -i "${frame.shadowPng}"`
+
       graph +=
-        `[4:v]scale=${config.width}:${config.height},setsar=1,fps=${config.fps}[bg];` +
-        `[cat]scale=${frame.iw}:${frame.ih},setsar=1,format=rgba,fps=${config.fps}[d];` +
-        `[d][5:v]alphamerge[fg];` +
-        `[bg][6:v]overlay=0:0[bgs];` +
+        `[${bgIdx}:v]scale=${config.width}:${config.height},setsar=1,fps=${config.fps}[bg];` +
+        `[cat]scale=${frame.iw}:${frame.ih},setsar=1,format=rgba,fps=${config.fps}[d];`
+      if (chromeStartIdx !== null) {
+        let prev = 'd'
+        for (let i = 0; i < chromeSegments.length; i++) {
+          const idx = chromeStartIdx + i
+          const seg = chromeSegments[i]!
+          const scaledLabel = `bc_${stamp}_${i}`
+          const outLabel = i === chromeSegments.length - 1 ? 'd2' : `bco_${stamp}_${i}`
+          graph +=
+            `[${idx}:v]scale=${frame.iw}:-1,setsar=1[${scaledLabel}];` +
+            `[${prev}][${scaledLabel}]overlay=0:0:shortest=1:enable='between(t\\,${seg.startSec.toFixed(3)}\\,${seg.endSec.toFixed(3)})'[${outLabel}];`
+          prev = outLabel
+        }
+        graph += `[d2][${maskIdx}:v]alphamerge[fg];`
+      } else {
+        graph += `[d][${maskIdx}:v]alphamerge[fg];`
+      }
+      graph +=
+        `[bg][${shadowIdx}:v]overlay=0:0[bgs];` +
         `[bgs][fg]overlay=${frame.ix}:${frame.iy}:shortest=1[framed];` +
         `[framed][3:v]overlay=0:0:shortest=1[v]`
     } else {
-      graph += `[cat][3:v]overlay=0:0:shortest=1[v]`
+      if (chromeStartIdx !== null) {
+        let prev = 'cat'
+        for (let i = 0; i < chromeSegments.length; i++) {
+          const idx = chromeStartIdx + i
+          const seg = chromeSegments[i]!
+          const outLabel = i === chromeSegments.length - 1 ? 'catc' : `catc_${stamp}_${i}`
+          graph += `[${prev}][${idx}:v]overlay=0:0:shortest=1:enable='between(t\\,${seg.startSec.toFixed(3)}\\,${seg.endSec.toFixed(3)})'[${outLabel}];`
+          prev = outLabel
+        }
+        graph += `[catc][3:v]overlay=0:0:shortest=1[v]`
+      } else {
+        graph += `[cat][3:v]overlay=0:0:shortest=1[v]`
+      }
     }
 
+    const extras: string[] = []
+    if (chromeSegments.length) extras.push('dynamic browser header')
+    if (background) extras.push('background')
     console.log(
-      `Assembling intro + content + outro (+ watermark${background ? ' + background' : ''}) in one pass...`,
+      `Assembling intro + content + outro (+ watermark${extras.length ? ` + ${extras.join(' + ')}` : ''}) in one pass...`,
     )
     const videoArgs = await videoEncodeArgs({ quality: 19, cpuPreset: 'veryfast' })
     await execAsync(

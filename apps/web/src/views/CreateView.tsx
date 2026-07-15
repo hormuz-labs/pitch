@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { BackgroundPicker } from '../components/BackgroundPicker'
 import { ContainerTextFlip } from '../components/ContainerTextFlip'
 import { CreditChip } from '../components/CreditChip'
-import { NewVideoWizard, markWizardSeen, shouldShowWizard } from '../components/NewVideoWizard'
+import { markWizardSeen, NewVideoWizard, shouldShowWizard } from '../components/NewVideoWizard'
 import { PlaceholdersAndVanishInput } from '../components/PlaceholdersAndVanishInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select'
 import { WaveformScrub } from '../components/WaveformScrub'
@@ -262,6 +262,7 @@ export const CreateView = ({
       background: formValues.background || 'none',
       shape: formValues.shape || 'rounded',
       inset: formValues.inset || '0.87',
+      browserHeader: formValues.browserHeader || 'none',
       headers: Object.keys(headersObj).length > 0 ? JSON.stringify(headersObj) : undefined,
       cookies: Object.keys(cookiesObj).length > 0 ? JSON.stringify(cookiesObj) : undefined,
     })
@@ -279,7 +280,10 @@ export const CreateView = ({
           formValues={formValues}
           onSetUrl={url => update('url', url)}
           onSetInstructions={instr => update('instructions', instr)}
-          onDone={() => { markWizardSeen(); setShowWizard(false) }}
+          onDone={() => {
+            markWizardSeen()
+            setShowWizard(false)
+          }}
         />
       )}
 
@@ -416,6 +420,9 @@ export const CreateView = ({
                 onShapeChange={s => update('shape', s)}
                 inset={formValues.inset || '0.87'}
                 onInsetChange={v => update('inset', v)}
+                browserHeader={formValues.browserHeader || 'none'}
+                onBrowserHeaderChange={mode => update('browserHeader', mode)}
+                url={formValues.url || ''}
               />
             </div>
 
