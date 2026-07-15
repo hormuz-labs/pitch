@@ -1378,6 +1378,7 @@ function AppContent() {
           background: values.background || 'none',
           shape: values.shape || 'rounded',
           inset: values.inset || '0.87',
+          browserHeader: values.browserHeader || 'none',
         },
       })
       setProjects(prev => {
@@ -1708,13 +1709,19 @@ function AppContent() {
                 <Route
                   path="/enhance"
                   element={
-                    <EnhanceView isSubmitting={isSubmitting} onQueueEnhanceJob={handleQueueEnhanceJob} />
+                    <EnhanceView
+                      isSubmitting={isSubmitting}
+                      onQueueEnhanceJob={handleQueueEnhanceJob}
+                    />
                   }
                 />
                 <Route
                   path="/edit"
                   element={
-                    <EditRecordingView isSubmitting={isSubmitting} onQueueEditJob={handleQueueEditJob} />
+                    <EditRecordingView
+                      isSubmitting={isSubmitting}
+                      onQueueEditJob={handleQueueEditJob}
+                    />
                   }
                 />
                 <Route

@@ -79,6 +79,8 @@ interface DemoState {
   tabCreationTimes: Record<number, number>
   currentTabId: number
   lastTargetCoords: { ref: string; x: number; y: number } | null
+  pageUrl?: string
+  pageUrlEvents: { videoTimeSec: number; url: string }[]
 }
 
 function initialState(): DemoState {
@@ -92,6 +94,7 @@ function initialState(): DemoState {
     tabCreationTimes: { 0: 0 },
     currentTabId: 0,
     lastTargetCoords: null,
+    pageUrlEvents: [],
   }
 }
 
@@ -211,9 +214,7 @@ function readTranscript(base: string): TranscriptSegment[] {
 function transcriptExcerpt(base: string, start: number, end: number): string {
   const segs = readTranscript(base)
   if (!segs.length) return '(no transcript available — transcribe_video has not run)'
-  const hits = segs
-    .map((s, i) => (s.end >= start && s.start <= end ? i : -1))
-    .filter(i => i >= 0)
+  const hits = segs.map((s, i) => (s.end >= start && s.start <= end ? i : -1)).filter(i => i >= 0)
   if (!hits.length) return '(no narration inside this window)'
   const lo = Math.max(0, hits[0]! - 1)
   const hi = Math.min(segs.length - 1, hits[hits.length - 1]! + 1)
@@ -263,7 +264,7 @@ export const probe_video = tool({
 
 export const transcribe_video = tool({
   description:
-    'Transcribe the video\'s narration with the local Whisper service. Extracts the ' +
+    "Transcribe the video's narration with the local Whisper service. Extracts the " +
     'audio, posts it to TRANSCRIPTION_SERVICE_URL, saves the full transcript to ' +
     'recordings/transcript.json, and returns it with timestamps. Call once, after ' +
     'probe_video. If the service is unreachable you can still continue with ' +
@@ -306,10 +307,7 @@ export const transcribe_video = tool({
             }))
           : undefined,
       }))
-      fs.writeFileSync(
-        transcriptPath(base),
-        JSON.stringify({ source: video, segments }, null, 2),
-      )
+      fs.writeFileSync(transcriptPath(base), JSON.stringify({ source: video, segments }, null, 2))
       const lines = segments.map(s => `[${s.start.toFixed(1)}s → ${s.end.toFixed(1)}s] ${s.text}`)
       let body = lines.join('\n')
       let truncated = false
@@ -341,7 +339,9 @@ export const detect_key_moments = tool({
       .min(0.1)
       .max(0.9)
       .optional()
-      .describe(`Scene-cut sensitivity (0.1-0.9, default ${SCENE_THRESHOLD}). Lower = more candidates.`),
+      .describe(
+        `Scene-cut sensitivity (0.1-0.9, default ${SCENE_THRESHOLD}). Lower = more candidates.`,
+      ),
   },
   async execute(args, context) {
     try {
@@ -404,7 +404,12 @@ export const grab_frames = tool({
     timeSec: tool.schema.number().describe('Centre timestamp, in video seconds.'),
     beforeSec: tool.schema.number().optional().describe('Look-back span (default 0.3s).'),
     afterSec: tool.schema.number().optional().describe('Look-ahead span (default 0.5s).'),
-    frameCount: tool.schema.number().min(1).max(8).optional().describe('Frames to grab (default 3).'),
+    frameCount: tool.schema
+      .number()
+      .min(1)
+      .max(8)
+      .optional()
+      .describe('Frames to grab (default 3).'),
   },
   async execute(args, context) {
     try {
@@ -565,13 +570,14 @@ export const inspect_frames = tool({
       // Append-only log — the raw material for a future edit-plan review UI.
       fs.appendFileSync(
         path.join(recordingsDir(base), 'vision-log.jsonl'),
-        JSON.stringify({
+        `${JSON.stringify({
           at: new Date().toISOString(),
           window: [args.windowStartSec, args.windowEndSec],
           frames: frames.map(f => f.filePath),
           excerpt,
           observation,
-        }) + '\n',
+        })}
+`,
       )
       return JSON.stringify(observation, null, 2)
     } catch (e) {
@@ -628,13 +634,13 @@ export const record_zoom_in = tool({
           const fitZoom = clamp(fit, 1.3, 2.2)
           zoom = args.zoom == null ? fitZoom : Math.min(args.zoom, fitZoom)
           // Keep the zoom window fully inside the frame (same clamp as the demo tools).
-          const halfW = (FRAME_W / 2) / zoom
-          const halfH = (FRAME_H / 2) / zoom
+          const halfW = FRAME_W / 2 / zoom
+          const halfH = FRAME_H / 2 / zoom
           cx = clamp(rawCx, halfW, FRAME_W - halfW)
           cy = clamp(rawCy, halfH, FRAME_H - halfH)
         } else if (args.x != null && args.y != null) {
-          const halfW = (FRAME_W / 2) / zoom
-          const halfH = (FRAME_H / 2) / zoom
+          const halfW = FRAME_W / 2 / zoom
+          const halfH = FRAME_H / 2 / zoom
           cx = clamp(args.x, halfW, FRAME_W - halfW)
           cy = clamp(args.y, halfH, FRAME_H - halfH)
         } else {
@@ -642,7 +648,13 @@ export const record_zoom_in = tool({
         }
         state.zoomEvents.push({ type: 'in', videoTimeSec: args.videoTimeSec, x: cx, y: cy, zoom })
         writeState(base, state)
-        return JSON.stringify({ status: 'zoom_in_recorded', videoTimeSec: args.videoTimeSec, x: cx, y: cy, zoom: +zoom.toFixed(2) })
+        return JSON.stringify({
+          status: 'zoom_in_recorded',
+          videoTimeSec: args.videoTimeSec,
+          x: cx,
+          y: cy,
+          zoom: +zoom.toFixed(2),
+        })
       } catch (e) {
         return `ERROR: ${e instanceof Error ? e.message : String(e)}`
       }
@@ -680,7 +692,9 @@ export const record_click = tool({
     'real click/fill (eventType click or fill) with decent confidence — a missed click ' +
     'just means no emphasis there, a phantom click adds noise.',
   args: {
-    videoTimeSec: tool.schema.number().describe('Click time in video seconds (inspect_frames actionTimeSec).'),
+    videoTimeSec: tool.schema
+      .number()
+      .describe('Click time in video seconds (inspect_frames actionTimeSec).'),
     x: tool.schema.number().describe('Click pixel x (bbox centre).'),
     y: tool.schema.number().describe('Click pixel y (bbox centre).'),
   },

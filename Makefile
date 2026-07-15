@@ -8,7 +8,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev prod down logs ps test test-watch
+.PHONY: help dev prod down logs ps test test-watch unittest integration
 
 help:
 	@echo ""
@@ -19,8 +19,10 @@ help:
 	@echo "  $(GREEN)make down$(RESET)       — stop and remove all containers"
 	@echo "  $(GREEN)make logs$(RESET)       — tail logs for all running containers"
 	@echo "  $(GREEN)make ps$(RESET)         — list container status"
-	@echo "  $(GREEN)make test$(RESET)       — run all tests once (vitest run)"
-	@echo "  $(GREEN)make test-watch$(RESET) — run tests in watch mode (vitest)"
+	@echo "  $(GREEN)make unittest$(RESET)    — run fast pure unit tests (no browser)"
+	@echo "  $(GREEN)make integration$(RESET) — run browser-driven integration tests (playwright-cli)"
+	@echo "  $(GREEN)make test$(RESET)        — alias for unittest"
+	@echo "  $(GREEN)make test-watch$(RESET)  — run unit tests in watch mode (vitest)"
 	@echo ""
 
 # ─── Development ──────────────────────────────────────────────────────────────
@@ -97,11 +99,21 @@ ps:
 	docker compose -p pitch ps
 
 # ─── Testing ──────────────────────────────────────────────────────────────────
-test:
+unittest:
 	@echo ""
-	@echo "  $(BOLD)$(CYAN)Running tests...$(RESET)"
+	@echo "  $(BOLD)$(CYAN)Running unit tests...$(RESET)"
 	@echo ""
 	bun run test
+	@echo ""
+
+# `make test` stays as an alias for the fast unit suite.
+test: unittest
+
+integration:
+	@echo ""
+	@echo "  $(BOLD)$(CYAN)Running browser integration tests (playwright-cli)...$(RESET)"
+	@echo ""
+	bun run test:integration
 	@echo ""
 
 test-watch:
