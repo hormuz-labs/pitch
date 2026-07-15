@@ -1,9 +1,9 @@
+import { Resvg } from '@resvg/resvg-js'
 import { exec } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { promisify } from 'util'
-import { Resvg } from '@resvg/resvg-js'
 import { prepareBackgroundFrame } from './background.js'
 import { videoEncodeArgs } from './encoder.js'
 
@@ -102,6 +102,20 @@ async function prepareLogoPng(logoPath: string | undefined, dir: string): Promis
   return null
 }
 
+async function getImageDimensions(file: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const { stdout } = await execAsync(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${file}"`,
+    )
+    const [w, h] = stdout
+      .trim()
+      .split('x')
+      .map(s => parseInt(s.trim(), 10))
+    if (w > 0 && h > 0) return { width: w, height: h }
+  } catch {}
+  return null
+}
+
 /**
  * Average luminance (0..1) of a logo's OPAQUE pixels — how we decide which
  * background fits. A dark logo (low luminance) needs a light background; a light
@@ -176,7 +190,7 @@ function buildIntroCardSvg(
 
 // Minimal outro: "Thank you for watching" with the product domain in a capsule below.
 function buildOutroCardSvg(
-  productName: string,
+  _productName: string,
   domain: string,
   theme: CardTheme,
   width: number,
@@ -249,9 +263,25 @@ async function renderCardClip(svg: string, output: string, config: CardConfig): 
 // Minimal intro: logo | name on a contrasting (white/black) background, gentle fade.
 async function generateIntroCard(output: string, config: CardConfig): Promise<string> {
   const dir = path.dirname(output)
-  const logoPng = await prepareLogoPng(config.productLogoPath, dir)
+  let logoPng = await prepareLogoPng(config.productLogoPath, dir)
   try {
-    const logoUri = logoPng ? pngToDataUri(logoPng) : null
+    // Skip tiny or blank favicon-style assets (e.g. 41x40 white placeholder). A
+    // real brand logo must have some size and contrast against the card background.
+    let logoUri: string | null = null
+    if (logoPng) {
+      const dims = await getImageDimensions(logoPng)
+      const lum = await detectLogoLuminance(logoPng, dir)
+      const usable =
+        dims && dims.width >= 80 && dims.height >= 80 && lum !== null && lum > 0.05 && lum < 0.95
+      if (usable) {
+        logoUri = pngToDataUri(logoPng)
+      } else {
+        console.log(
+          `Intro card: logo rejected (size=${dims?.width}x${dims?.height}, lum=${lum?.toFixed(2)}) — falling back to text-only`,
+        )
+        logoPng = null
+      }
+    }
     const lum = logoPng ? await detectLogoLuminance(logoPng, dir) : null
     const theme = pickTheme(lum)
     console.log(
@@ -308,7 +338,7 @@ async function svgToPng(
   svgPath: string,
   pngPath: string,
   width: number,
-  height: number,
+  _height: number,
 ): Promise<void> {
   const svgContent = fs.readFileSync(svgPath, 'utf8')
   const resvg = new Resvg(svgContent, {

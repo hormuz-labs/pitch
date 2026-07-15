@@ -67,6 +67,7 @@ recordings/
 .playwright-cli/
 docker-data/
 actions-runner/
+.pitch-dev.pid
 
 .agents/
 output.pdf

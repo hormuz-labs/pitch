@@ -71,6 +71,9 @@ interface ClickEvent {
   videoTimeSec: number
   x: number
   y: number
+  // True when the target was a button/link (pressable). Drives the hand-pointer
+  // cursor downstream; fields and plain content stay an arrow. See cursor-fx.ts.
+  hand?: boolean
 }
 
 interface TabEvent {
@@ -88,7 +91,7 @@ interface DemoState {
   tabEvents: TabEvent[]
   tabCreationTimes: Record<number, number>
   currentTabId: number
-  lastTargetCoords: { ref: string; x: number; y: number } | null
+  lastTargetCoords: { ref: string; x: number; y: number; hand?: boolean } | null
 }
 
 interface DemoConfig {
@@ -155,6 +158,66 @@ function writeState(base: string, state: DemoState) {
 // expects them (targetDir), not from the OpenCode server's process cwd.
 const run = (base: string, command: string) => execAsync(command, { cwd: base })
 
+interface ElementBox {
+  x: number
+  y: number
+  w: number
+  h: number
+  cx: number
+  cy: number
+  // True when the browser renders a pointer cursor here (effective CSS
+  // cursor:pointer) — the demo shows the hand pointer to match. Arrow otherwise.
+  hand: boolean
+}
+
+/**
+ * Ask the browser for an element's bounding client rect. This is the source of
+ * truth for where the element actually is in the recorded viewport, and avoids
+ * the fragility of parsing `[box=...]` annotations from snapshot YAML (which can
+ * match a nested child box or shift when the page reflows).
+ */
+async function getElementBox(base: string, ref: string): Promise<ElementBox | null> {
+  try {
+    // Return the object DIRECTLY (do NOT JSON.stringify inside the eval): with
+    // `--raw`, playwright-cli JSON-encodes the eval's return value, so a stringified
+    // return comes back DOUBLE-encoded (`"{\"x\":1,...}"`). A single JSON.parse of
+    // that yields a string, not an object — parsed.cx is undefined, the finite-check
+    // fails, and every zoom/click silently records nothing. Returning the object
+    // makes `--raw` emit real JSON that parses in one step.
+    // `hand` = exactly what the real browser renders: the element's effective
+    // cursor is `pointer`. `cursor` is an inherited CSS property, so a child (e.g.
+    // a <span> inside a button) reports the pointer too. This is faithful to the
+    // page — links & buttons that the site styles as clickable get the hand; text
+    // fields, native <select>, and plain content keep the arrow.
+    const { stdout } = await run(
+      base,
+      `playwright-cli --raw eval 'el => { const r = el.getBoundingClientRect(); return {x:r.left,y:r.top,w:r.width,h:r.height,cx:r.left+r.width/2,cy:r.top+r.height/2,hand:getComputedStyle(el).cursor === "pointer"}; }' "${ref}"`,
+    )
+    // Defensive: tolerate a double-encoded string from older/newer CLI output too.
+    let parsed = JSON.parse(stdout.trim()) as Partial<ElementBox> | string
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed) as Partial<ElementBox>
+    if (
+      Number.isFinite(parsed.cx) &&
+      Number.isFinite(parsed.cy) &&
+      Number.isFinite(parsed.w) &&
+      Number.isFinite(parsed.h)
+    ) {
+      return {
+        x: parsed.x!,
+        y: parsed.y!,
+        w: parsed.w!,
+        h: parsed.h!,
+        cx: parsed.cx!,
+        cy: parsed.cy!,
+        hand: !!parsed.hand,
+      }
+    }
+  } catch (e) {
+    console.warn(`getElementBox ref=${ref} failed: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  return null
+}
+
 // Smoothly scroll a ref into the center of view BEFORE we zoom/click on it, so the
 // recording shows the page gliding to the element instead of it snapping into place.
 // Playwright awaits the promise returned by eval, so by the time this resolves the
@@ -177,7 +240,8 @@ async function smoothScrollIntoView(base: string, ref: string): Promise<boolean>
 }
 
 // ── TTS ────────────────────────────────────────────────────────────────────
-function parseMimeType(mimeType: string): {
+// Exported for unit testing (pure).
+export function parseMimeType(mimeType: string): {
   numChannels: number
   sampleRate: number
   bitsPerSample: number
@@ -191,7 +255,8 @@ function parseMimeType(mimeType: string): {
   return options
 }
 
-function createWavHeader(
+// Exported for unit testing (pure).
+export function createWavHeader(
   dataLength: number,
   options: { numChannels: number; sampleRate: number; bitsPerSample: number },
 ) {
@@ -315,37 +380,36 @@ export const demo_bash = tool({
       // even when the action triggers a slow page transition.
       let clickTimestamp: number | null = null
       let clickCoords: { x: number; y: number } | null = null
+      let clickHand = false // did we click a button/link? drives the hand cursor
       if (cmd.includes('click ') || cmd.includes('dblclick ')) {
         const parts = cmd.split(' ')
-        const ref = parts.find(p => p.startsWith('e') && /^\d+$/.test(p.slice(1)))
+        // Modern playwright-cli refs are alphanumeric hashes (e.g. f12e1477), not
+        // just old e53-style numeric refs. The ref is the token immediately after
+        // the click/dblclick verb, optionally quoted.
+        let ref: string | undefined
+        for (let i = 0; i < parts.length - 1; i++) {
+          if ((parts[i] === 'click' || parts[i] === 'dblclick') && parts[i + 1]) {
+            ref = parts[i + 1]!.replace(/^["']|["']$/g, '')
+            break
+          }
+        }
         if (ref) {
           if (state.lastTargetCoords && state.lastTargetCoords.ref === ref) {
             clickCoords = { x: state.lastTargetCoords.x, y: state.lastTargetCoords.y }
+            clickHand = !!state.lastTargetCoords.hand
           } else {
             // No matching zoom_in target — this click wasn't preceded by a zoom that
             // already framed (and scrolled to) the element, so it may be below the
             // fold. Smoothly scroll it into view so the recording shows the page
             // gliding to it, and so the box lookup below reads its settled position.
             await smoothScrollIntoView(base, ref)
-            // Look up the ref's bounding box from a snapshot so every ref-based
-            // click still gets a cursor overlay.
-            try {
-              const { stdout } = await run(base, `playwright-cli snapshot "${ref}" --boxes --json`)
-              const parsed = JSON.parse(stdout)
-              const text = parsed.snapshot || stdout
-              const regex = new RegExp(
-                `\\[ref=${ref}\\].*?\\[box=([\\d.]+),([\\d.]+),([\\d.]+),([\\d.]+)\\]`,
-              )
-              const m = text.match(regex)
-              if (m) {
-                clickCoords = {
-                  x: parseFloat(m[1]!) + parseFloat(m[3]!) / 2,
-                  y: parseFloat(m[2]!) + parseFloat(m[4]!) / 2,
-                }
-                state.lastTargetCoords = { ref, ...clickCoords }
-              }
-            } catch (_e) {
-              // ignore lookup failure
+            // Look up the element's true center from the browser so every ref-based
+            // click gets a cursor overlay that actually lands on the target.
+            const box = await getElementBox(base, ref)
+            if (box) {
+              clickCoords = { x: box.cx, y: box.cy }
+              clickHand = box.hand
+              state.lastTargetCoords = { ref, ...clickCoords, hand: box.hand }
             }
           }
           if (clickCoords) {
@@ -354,7 +418,7 @@ export const demo_bash = tool({
             // Clamp into the visible frame so the cursor never lands off-screen.
             const cxClamped = Math.max(0, Math.min(1920, clickCoords.x))
             const cyClamped = Math.max(0, Math.min(1080, clickCoords.y))
-            state.clickEvents.push({ videoTimeSec, x: cxClamped, y: cyClamped })
+            state.clickEvents.push({ videoTimeSec, x: cxClamped, y: cyClamped, hand: clickHand })
             state.audioClips.push({
               filePath: path.join(base, 'assets', 'sounds', 'click.mp3'),
               absoluteTimestamp: clickTimestamp,
@@ -371,33 +435,43 @@ export const demo_bash = tool({
         } catch (_e) {}
       }
 
-      // Only bother detecting navigation when the camera is zoomed — that's the
-      // only case we act on, and the URL probe costs two extra playwright-cli
-      // spawns, so we skip it otherwise.
+      // Only bother detecting a view change when the camera is zoomed — that's the
+      // only case we act on, and the probe costs two extra playwright-cli spawns,
+      // so we skip it otherwise. A "view change" is either a navigation (URL
+      // change) OR a large overlay opening (a modal/drawer/filter panel that
+      // covers a big share of the viewport, usually behind a full-screen backdrop).
+      // Both mean the meaningful content is no longer where the click was, so the
+      // camera must zoom out to reveal it in full instead of staying parked zoomed
+      // on the now-stale click position.
       const isClickCmd = cmd.includes('click ') || cmd.includes('dblclick ')
       const lastZoom = state.zoomEvents[state.zoomEvents.length - 1]
       const wasZoomed = lastZoom?.type === 'in'
-      const getUrl = async (): Promise<string | null> => {
+      // Signature = current URL + whether a large (>25% of viewport) fixed/absolute
+      // overlay is visible. Compared before vs after the click, so a pre-existing
+      // sticky element that's present in BOTH never triggers a false zoom-out.
+      const VIEW_SIG_JS =
+        "() => { let m=0; for (const e of document.querySelectorAll('div,aside,section,dialog,[role=dialog]')) { const s=getComputedStyle(e); if((s.position!=='fixed'&&s.position!=='absolute')||s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)<0.1) continue; const r=e.getBoundingClientRect(); const a=Math.max(0,Math.min(r.right,innerWidth)-Math.max(r.left,0))*Math.max(0,Math.min(r.bottom,innerHeight)-Math.max(r.top,0)); if(a>m)m=a; } return location.href+'|'+(m/(innerWidth*innerHeight)>0.25?'1':'0'); }"
+      const getViewSig = async (): Promise<string | null> => {
         try {
-          const { stdout } = await run(base, `playwright-cli eval "() => location.href"`)
+          const { stdout } = await run(base, `playwright-cli eval "${VIEW_SIG_JS}"`)
           return stdout.trim()
         } catch {
           return null
         }
       }
-      const urlBefore = isClickCmd && wasZoomed ? await getUrl() : null
+      const sigBefore = isClickCmd && wasZoomed ? await getViewSig() : null
 
       const result = await run(base, cmd)
 
-      // If a click navigated to a new page/view while the camera was zoomed,
-      // reset it (zoom out) so the new page is shown in full instead of the
-      // camera staying parked on the old, now-meaningless click position.
-      if (urlBefore !== null) {
-        const urlAfter = await getUrl()
-        if (urlAfter && urlAfter !== urlBefore) {
+      // If the click changed the view (navigated OR opened a modal/drawer/filter)
+      // while the camera was zoomed, zoom out so the new content shows in full
+      // instead of the camera staying parked on the old click position.
+      if (sigBefore !== null) {
+        const sigAfter = await getViewSig()
+        if (sigAfter && sigAfter !== sigBefore) {
           const tSec = (Date.now() - state.startTime) / 1000
           state.zoomEvents.push({ type: 'out', videoTimeSec: tSec })
-          console.log(`Navigation ${urlBefore} -> ${urlAfter}: auto zoom-out to reveal new page.`)
+          console.log(`View changed after click (nav or overlay) — auto zoom-out to reveal it.`)
         }
       }
 
@@ -471,20 +545,29 @@ export const demo_fill_field = tool({
       const clickSound = path.join(base, 'assets', 'sounds', 'click.mp3')
 
       // Cursor target: reuse the coords from the preceding zoom_in if they're for
-      // this field (avoids an extra snapshot call); otherwise default to center.
+      // this field (avoids an extra lookup call); otherwise ask the browser for
+      // the field's true center instead of parking the cursor in the screen center.
       let cx = 960
       let cy = 540
       if (state.lastTargetCoords?.ref === target) {
         cx = state.lastTargetCoords.x
         cy = state.lastTargetCoords.y
+      } else {
+        const box = await getElementBox(base, target)
+        if (box) {
+          cx = box.cx
+          cy = box.cy
+        }
       }
 
       // Record a cursor click + click sound on the field, then clear & focus it.
+      // hand:false — a text field keeps the arrow cursor, never the hand pointer.
       const ts = Date.now()
       state.clickEvents.push({
         videoTimeSec: (ts - state.startTime) / 1000,
         x: Math.max(0, Math.min(1920, cx)),
         y: Math.max(0, Math.min(1080, cy)),
+        hand: false,
       })
       state.audioClips.push({ filePath: clickSound, absoluteTimestamp: ts })
       await run(base, `playwright-cli fill "${target}" ""`).catch(() => {})
@@ -543,18 +626,6 @@ export const demo_zoom_in = tool({
       // to the (960,540) default — that lands the camera "out of place" on empty
       // center space. We leave the camera put and tell the agent to re-snapshot.
       let boxFound = false
-      const escapedTarget = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const boxRegex = new RegExp(
-        `\\[ref=${escapedTarget}\\].*?\\[box=([\\d.]+),([\\d.]+),([\\d.]+),([\\d.]+)\\]`,
-      )
-      const readBox = async (): Promise<RegExpMatchArray | null> => {
-        const { stdout } = await run(base, `playwright-cli snapshot "${target}" --boxes --json`)
-        let text = stdout
-        try {
-          text = JSON.parse(stdout).snapshot || stdout
-        } catch {}
-        return text.match(boxRegex)
-      }
       try {
         // Smoothly scroll the element into view first so (a) the viewer sees the
         // page glide to it instead of it snapping into place, and (b) its bounding
@@ -563,21 +634,18 @@ export const demo_zoom_in = tool({
         // otherwise report an off-screen position (e.g. y > 1080) and the
         // camera/cursor would land on empty space. No-ops if already in view.
         await smoothScrollIntoView(base, target)
-        // Read the box; if the element is still settling (just scrolled in), give
-        // it a moment and try once more before giving up.
-        let m = await readBox()
-        if (!m) {
+        // Read the box from the browser; if the element is still settling (just
+        // scrolled in), give it a moment and try once more before giving up.
+        let box = await getElementBox(base, target)
+        if (!box) {
           await new Promise(r => setTimeout(r, 300))
-          m = await readBox()
+          box = await getElementBox(base, target)
         }
-        if (m) {
+        if (box) {
           boxFound = true
-          const bw = parseFloat(m[3]!)
-          const bh = parseFloat(m[4]!)
+          const { w: bw, h: bh, cx: rawCx, cy: rawCy } = box
           // The element's true center in the recorded frame (the page has already
           // been scrolled to bring it toward the middle where possible).
-          const rawCx = parseFloat(m[1]!) + bw / 2
-          const rawCy = parseFloat(m[2]!) + bh / 2
           // Auto-fit: pick a zoom so the element fills a comfortable share of the
           // frame — small controls get a tighter zoom, large cards a looser one.
           // Computed FIRST (before the clamp below needs the window size) and used
@@ -613,12 +681,13 @@ export const demo_zoom_in = tool({
             ref: target,
             x: Math.max(0, Math.min(1920, rawCx)),
             y: Math.max(0, Math.min(1080, rawCy)),
+            hand: box.hand,
           }
         } else {
           console.warn(`zoom_in target=${target} - no bounding box found`)
         }
       } catch (_e) {
-        console.warn(`zoom_in target=${target} - snapshot failed`)
+        console.warn(`zoom_in target=${target} - box lookup failed`)
       }
       if (!boxFound) {
         // Could not locate the element's box — do NOT record a zoom to the

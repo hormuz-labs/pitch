@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildContinuousZoomFilter,
+  coalesceEvents,
   DEFAULT_ZOOM,
   fitZoomForBox,
+  PAN_DURATION,
   planCameraMoves,
   type ZoomEvent,
 } from '../apps/worker/src/utils/zoom-filter'
@@ -67,9 +69,7 @@ describe('planCameraMoves', () => {
   })
 
   it('ignores zoom_in events with non-finite coordinates', () => {
-    const events: ZoomEvent[] = [
-      { type: 'in', videoTimeSec: 2, x: Number.NaN, y: 400, zoom: 1.7 },
-    ]
+    const events: ZoomEvent[] = [{ type: 'in', videoTimeSec: 2, x: Number.NaN, y: 400, zoom: 1.7 }]
     expect(planCameraMoves(events)).toEqual([])
   })
 
@@ -81,6 +81,51 @@ describe('planCameraMoves', () => {
     const moves = planCameraMoves([{ type: 'in', videoTimeSec: 2, x: 611, y: 1290, zoom: 2 }])
     expect(moves[0]!.cy1).toBeLessThanOrEqual(1080)
     expect(moves[0]!.cx1).toBe(611)
+  })
+})
+
+describe('coalesceEvents (smoothing bunched live events)', () => {
+  it('collapses a rapid burst of zoom-ins to the final target', () => {
+    const events: ZoomEvent[] = [
+      { type: 'in', videoTimeSec: 2.0, x: 300, y: 200, zoom: 1.7 },
+      { type: 'in', videoTimeSec: 2.15, x: 700, y: 300, zoom: 1.7 },
+      { type: 'in', videoTimeSec: 2.28, x: 1300, y: 420, zoom: 1.7 },
+    ]
+    const out = coalesceEvents(events)
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ x: 1300, y: 420 }) // glides straight to the last
+  })
+
+  it('drops a zoom-out immediately followed by a zoom-in (becomes one pan)', () => {
+    const events: ZoomEvent[] = [
+      { type: 'in', videoTimeSec: 2.0, x: 300, y: 200, zoom: 1.7 },
+      { type: 'out', videoTimeSec: 4.0 },
+      { type: 'in', videoTimeSec: 4.2, x: 1300, y: 420, zoom: 1.7 },
+    ]
+    const out = coalesceEvents(events)
+    expect(out.map(e => e.type)).toEqual(['in', 'in'])
+    // planCameraMoves then renders the second as a pan (zoom held), not out+in
+    const moves = planCameraMoves(events)
+    expect(moves[1]!.z0).toBeCloseTo(1.7, 5)
+    expect(moves[1]!.z1).toBeCloseTo(1.7, 5)
+  })
+
+  it('drops a dart-in-and-out blip zoom-in', () => {
+    const events: ZoomEvent[] = [
+      { type: 'in', videoTimeSec: 2.0, x: 300, y: 200, zoom: 1.7 },
+      { type: 'out', videoTimeSec: 2.2 },
+    ]
+    expect(coalesceEvents(events).map(e => e.type)).toEqual(['out'])
+    // with no active zoom the lone out is a no-op → no camera move at all
+    expect(planCameraMoves(events)).toEqual([])
+  })
+
+  it('leaves genuinely-spaced field-to-field pans intact', () => {
+    const events: ZoomEvent[] = [
+      { type: 'in', videoTimeSec: 2.0, x: 300, y: 200, zoom: 1.7 },
+      { type: 'in', videoTimeSec: 2.0 + PAN_DURATION + 0.2, x: 1300, y: 420, zoom: 1.7 },
+    ]
+    expect(coalesceEvents(events)).toHaveLength(2)
   })
 })
 
