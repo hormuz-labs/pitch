@@ -216,58 +216,51 @@ export async function processPdfJob(
             const callEvent = evt.call || (evt.type === 'call' ? evt : null)
             if (callEvent) {
               const toolName: string = callEvent.name || ''
-              const args: Record<string, any> = callEvent.arguments || {}
+              const args: Record<string, any> = callEvent.arguments || callEvent.args || {}
 
-              // pdf_research → pdf_writing: first write_file signals AI is producing content
-              if (currentPhaseIdx === 0 && toolName === 'write_file') {
+              // pdf_research → pdf_writing: scaffolding the build dir means
+              // research/outline is done and deck authoring has begun.
+              if (currentPhaseIdx === 0 && toolName === 'pdf-generator_pdf_scaffold') {
                 await reportJobPhase(jobId, userId, 'pdf_research', 'completed', connection)
                 currentPhaseIdx = 1
                 await reportJobPhase(jobId, userId, 'pdf_writing', 'running', connection)
               }
-              // pdf_writing → pdf_images: scraping images
-              else if (currentPhaseIdx === 1 && toolName === 'run_shell_command') {
-                const cmd: string = args.command || ''
-                if (cmd.includes('scrape_images')) {
-                  await reportJobPhase(jobId, userId, 'pdf_writing', 'completed', connection)
-                  currentPhaseIdx = 2
-                  await reportJobPhase(jobId, userId, 'pdf_images', 'running', connection)
-                }
+              // pdf_writing → pdf_images: scraping images for the deck
+              else if (currentPhaseIdx === 1 && toolName === 'pdf-generator_pdf_scrape_images') {
+                await reportJobPhase(jobId, userId, 'pdf_writing', 'completed', connection)
+                currentPhaseIdx = 2
+                await reportJobPhase(jobId, userId, 'pdf_images', 'running', connection)
               }
-              // pdf_images → pdf_build: running pdf-builder.js (also handles writing→build if scraping skipped)
-              if (
-                (currentPhaseIdx === 2 || currentPhaseIdx === 1) &&
-                toolName === 'run_shell_command'
+              // → pdf_build: first builder run, from either writing or images
+              // (the agent may scaffold → build without a scrape in between)
+              else if (
+                (currentPhaseIdx === 1 || currentPhaseIdx === 2) &&
+                toolName === 'pdf-generator_pdf_build'
               ) {
-                const cmd: string = args.command || ''
-                if (cmd.includes('pdf-builder.js')) {
-                  if (currentPhaseIdx === 2) {
-                    await reportJobPhase(jobId, userId, 'pdf_images', 'completed', connection)
-                  } else if (currentPhaseIdx === 1) {
-                    await reportJobPhase(jobId, userId, 'pdf_writing', 'completed', connection)
-                  }
-                  currentPhaseIdx = 3
-                  buildRunCount++
-                  await reportJobPhase(jobId, userId, 'pdf_build', 'running', connection)
+                if (currentPhaseIdx === 2) {
+                  await reportJobPhase(jobId, userId, 'pdf_images', 'completed', connection)
+                } else {
+                  await reportJobPhase(jobId, userId, 'pdf_writing', 'completed', connection)
                 }
+                currentPhaseIdx = 3
+                buildRunCount++
+                await reportJobPhase(jobId, userId, 'pdf_build', 'running', connection)
               }
               // pdf_build → pdf_qa: reading QA renders
-              if (currentPhaseIdx === 3 && (toolName === 'read_file' || toolName === 'read')) {
-                const filePath: string = args.file_path || args.path || ''
+              if (currentPhaseIdx === 3 && toolName === 'read') {
+                const filePath: string = args.filePath || args.file_path || args.path || ''
                 if (filePath.includes('qa-renders')) {
                   await reportJobPhase(jobId, userId, 'pdf_build', 'completed', connection)
                   currentPhaseIdx = 4
                   await reportJobPhase(jobId, userId, 'pdf_qa', 'running', connection)
                 }
               }
-              // Re-running pdf-builder.js during QA loop (back to build for fixes)
-              if (currentPhaseIdx === 4 && toolName === 'run_shell_command') {
-                const cmd: string = args.command || ''
-                if (cmd.includes('pdf-builder.js')) {
-                  await reportJobPhase(jobId, userId, 'pdf_qa', 'completed', connection)
-                  currentPhaseIdx = 3
-                  buildRunCount++
-                  await reportJobPhase(jobId, userId, 'pdf_build', 'running', connection)
-                }
+              // Re-running the builder during the QA loop (back to build for fixes)
+              if (currentPhaseIdx === 4 && toolName === 'pdf-generator_pdf_build') {
+                await reportJobPhase(jobId, userId, 'pdf_qa', 'completed', connection)
+                currentPhaseIdx = 3
+                buildRunCount++
+                await reportJobPhase(jobId, userId, 'pdf_build', 'running', connection)
               }
             }
           }
@@ -319,7 +312,9 @@ export async function processPdfJob(
       }
     })()
 
-    // 3. Construct and send prompt using template or generic ppt-generator skill instructions
+    // 3. Construct and send prompt — the runbook lives in the pdf-generator
+    // agent definition (skill loading, scaffold → scrape → CONFIG → build → QA
+    // loop); this message only carries the per-job inputs.
     const topic = parameters?.topic || 'Generic Topic'
     const slideCount = parameters?.slideCount || 10
     const headings = parameters?.slideHeadings || []
@@ -328,66 +323,18 @@ export async function processPdfJob(
     const headingsPrompt =
       headings.length > 0
         ? `Slide headings (preferred per slide): ${JSON.stringify(headings)}`
-        : 'Slide headings: Select automatically based on the topic structure.'
+        : 'Slide headings: select automatically based on the topic structure.'
 
     const buildDir = `/tmp/ppt-${jobId}`
 
-    let promptText = ''
-    if (template) {
-      // Map template IDs to directory name
-      let templateDirName = ''
-      if (template === 'BRUTALIST_NEWSPAPER') templateDirName = 'brutalist-newspaper'
-      else if (template === 'MINIMAL_CORPORATE') templateDirName = 'minimal-corporate'
-      else if (template === 'DARK_TECH') templateDirName = 'dark-tech'
-
-      promptText = `You are a professional PDF presentation generator agent. Your task is to build a high-fidelity PDF presentation based on the user's requirements and the specialized \`template-ppt\` skill.
+    const promptText = `Generate a PDF presentation.
 
 Job ID: "${jobId}"
 Topic: "${topic}"
 Number of slides requested: ${slideCount}
-Template requested: "${template}" (located in directory: ".opencode/skills/template-ppt/templates/${templateDirName}")
+${template ? `Template id: "${template}"` : 'No template selected — use the generic ppt-generator skill.'}
 ${headingsPrompt}
-
-Please perform the following actions:
-1. Load the \`template-ppt\` skill using the \`load_skill\` tool. The skill is located at \`.opencode/skills/template-ppt/SKILL.md\`.
-2. Follow the instructions in the skill EXACTLY. Specifically:
-   - Read \`spec_lock.md\` and \`skill.md\` inside the template directory \`.opencode/skills/template-ppt/templates/${templateDirName}\`.
-   - Perform Web Search grounding for factual stats/sources.
-   - Write slide content and generate search queries for Unsplash.
-   - Scrape Unsplash images using Playwright via the provided script \`node .opencode/skills/ppt-generator/reference/scrape_images.js\`.
-   - Create a build directory at \`${buildDir}/\` and copy \`.opencode/skills/ppt-generator/pdf-builder-template.js\` there as \`pdf-builder.js\`.
-   - IMPORTANT: To update the custom styling, CSS stylesheet rules, and HTML layout renderers in \`pdf-builder.js\` using the template's \`skill.md\` definitions, DO NOT try to manually copy-paste. Instead, use the pre-built injection script: run \`node .opencode/skills/template-ppt/scripts/inject_template.js .opencode/skills/ppt-generator/pdf-builder-template.js .opencode/skills/template-ppt/templates/${templateDirName}/skill.md ${buildDir}/pdf-builder.js\`. This will parse \`skill.md\` and cleanly inject the layouts and CSS.
-   - Populate the \`CONFIG\` object inside \`pdf-builder.js\` with your written slides, template color tokens, font imports, base64-encoded local images, and set the \`jobId\` property to "${jobId}" and \`template\` property to "${template}".
-   - Navigate into the build directory: \`cd ${buildDir}\` then run \`node pdf-builder.js\` to generate the PDF and QA renders. This ensures \`output.pdf\` and \`output.html\` are written to \`${buildDir}/\`.
-   - Perform Visual QA check on the PNG renders in \`qa-renders/\` and apply targeted template updates/fixes if there are any visual alignment/overflow defects. Re-run \`node pdf-builder.js\` from inside \`${buildDir}\` after each fix.
-3. When finished and QA is fully passed, confirm the final files exist at:
-   - \`${buildDir}/output.pdf\`
-   - \`${buildDir}/output.html\`
-    The worker will handle uploading and marking the job complete automatically.`
-    } else {
-      promptText = `You are a professional PDF presentation generator agent. Your task is to build a high-fidelity PDF presentation based on the user's requirements and the specialized \`ppt-generator\` skill.
-
-Job ID: "${jobId}"
-Topic: "${topic}"
-Number of slides requested: ${slideCount}
-${headingsPrompt}
-
-Please perform the following actions:
-1. Load the \`ppt-generator\` skill using the \`load_skill\` tool. The skill is located at \`.opencode/skills/ppt-generator/SKILL.md\`.
-2. Follow the instructions in the skill EXACTLY. Specifically:
-   - Perform Web Search grounding for factual stats/sources.
-   - Choose a brand design palette from the design library \`.opencode/skills/ppt-generator/design-library.md\`.
-   - Write slide content and generate search queries for Unsplash.
-   - Scrape Unsplash images using Playwright via the provided script \`node .opencode/skills/ppt-generator/reference/scrape_images.js\`.
-   - Create a build directory at \`${buildDir}/\` and copy \`.opencode/skills/ppt-generator/pdf-builder-template.js\` there as \`pdf-builder.js\`.
-   - Populate the \`CONFIG\` object inside \`pdf-builder.js\` with your written slides, colors, font imports, base64-encoded local images, and set the \`jobId\` property to "${jobId}".
-   - Navigate into the build directory: \`cd ${buildDir}\` then run \`node pdf-builder.js\` to generate the PDF and QA renders. This ensures \`output.pdf\` and \`output.html\` are written to \`${buildDir}/\`.
-   - Perform Visual QA check on the PNG renders in \`qa-renders/\` and apply targeted template updates/fixes if there are any visual alignment/overflow defects. Re-run \`node pdf-builder.js\` from inside \`${buildDir}\` after each fix.
-3. When finished and QA is fully passed, confirm the final files exist at:
-   - \`${buildDir}/output.pdf\`
-   - \`${buildDir}/output.html\`
-    The worker will handle uploading and marking the job complete automatically.`
-    }
+Build directory: ${buildDir} (pdf_scaffold creates it).`
 
     jobLogger.info({ promptText }, 'Sending prompt to OpenCode')
 
@@ -398,6 +345,7 @@ Please perform the following actions:
       path: { id: session.id },
       query: { directory: targetDir },
       body: {
+        agent: 'pdf-generator',
         parts: [{ type: 'text', text: promptText }],
       },
       signal: promptAbortController.signal,

@@ -17,7 +17,8 @@ import { router as creditRoutes } from './routes/credits.js'
 import { router as jobRoutes } from './routes/jobs.js'
 import { router as newsletterRoutes } from './routes/newsletter.js'
 import { router as pdfJobRoutes } from './routes/pdf-jobs.js'
-import { router as uploadRoutes } from './routes/uploads.js'
+import { router as enhanceJobRoutes } from './routes/enhance-jobs.js'
+import { router as editJobRoutes } from './routes/edit-jobs.js'
 import { router as userRoutes } from './routes/users.js'
 import { router as webhookRoutes } from './routes/webhooks.js'
 
@@ -77,8 +78,9 @@ app.use('/demo', express.static(path.join(rootDir, 'demo')))
 
 app.use('/jobs', jobRoutes)
 app.use('/pdf-jobs', pdfJobRoutes)
+app.use('/enhance-jobs', enhanceJobRoutes)
+app.use('/edit-jobs', editJobRoutes)
 app.use('/credits', creditRoutes)
-app.use('/uploads', uploadRoutes)
 app.use('/users', userRoutes)
 app.use('/checkout', checkoutRoutes)
 app.use(redirectRouter)

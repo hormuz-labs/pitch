@@ -17,14 +17,29 @@ async function getDuration(file: string): Promise<number> {
   }
 }
 
-async function getAudioDuration(file: string): Promise<number> {
+/**
+ * Decide the audio duration from ffprobe's audio-stream list. Per-stream
+ * durations are optional metadata — browser-recorded webm and some .mov files
+ * omit them (ffprobe reports N/A) even when audio is present — so only a
+ * genuinely absent stream means "no audio track". A stream with a missing
+ * duration falls back to the container duration.
+ */
+export function resolveAudioDuration(
+  streams: Array<{ duration?: string | number }> | undefined,
+  fallbackDuration: number,
+): number {
+  if (!Array.isArray(streams) || streams.length === 0) return 0
+  const raw = streams[0].duration
+  const d = typeof raw === 'number' ? raw : parseFloat(String(raw ?? ''))
+  return Number.isFinite(d) ? d : fallbackDuration
+}
+
+async function getAudioDuration(file: string, fallbackDuration: number): Promise<number> {
   try {
     const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries stream=duration -select_streams a:0 -of default=noprint_wrappers=1:nokey=1 "${file}"`,
+      `ffprobe -v error -select_streams a:0 -show_entries stream=duration -of json "${file}"`,
     )
-    const d = parseFloat(stdout.trim())
-    // No audio stream => empty stdout => NaN; report 0 so the no-audio path fires.
-    return Number.isFinite(d) ? d : 0
+    return resolveAudioDuration(JSON.parse(stdout).streams, fallbackDuration)
   } catch (_e) {
     return 0
   }
@@ -424,16 +439,9 @@ export async function processVideo(
     console.log(`Found ${zoomEvents.length} zoom event(s) to protect during trimming.`)
   }
 
-  const annotationEvents = loadAnnotationEvents(analyzeInput)
-  if (annotationEvents.length > 0) {
-    console.log(`Found ${annotationEvents.length} annotation event(s) to protect during trimming.`)
-  }
-
-  const [duration, audioDuration] = await Promise.all([
-    getDuration(analyzeInput),
-    getAudioDuration(analyzeInput),
-  ])
+  const duration = await getDuration(analyzeInput)
   if (!duration) throw new Error('Could not determine video duration')
+  const audioDuration = await getAudioDuration(analyzeInput, duration)
 
   // The four analyses each decode the video/audio independently — run them
   // concurrently so the analysis phase costs one decode of wall-clock, not four.

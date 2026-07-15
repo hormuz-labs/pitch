@@ -1,21 +1,4 @@
 services:
-  # ---------------------------------------------------------------------------
-  # Cloudflare Tunnel — zero-trust ingress, no open ports required
-  # ---------------------------------------------------------------------------
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: pitch_cloudflared
-    restart: always
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-    depends_on:
-      - api
-      - minio
-      - loki
-      - grafana
-      - pgweb
-
   postgres:
     image: postgres:15-alpine
     container_name: pitch_postgres
@@ -42,7 +25,9 @@ services:
       - DATABASE_URL=postgres://postgres:password@postgres:5432/pitch?sslmode=disable
       - AUTH_USER=${PGWEB_USER:-admin}
       - AUTH_PASS=${PGWEB_PASSWORD:-supersecret123}
-    # Removed host port mapping to avoid conflicts and force traffic through Cloudflare Tunnel
+    ports:
+      - "127.0.0.1:8081:8081"
+    # Bound to localhost; external access is via the host-level cloudflared systemd service
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,7 +55,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9002:9000"
+      - "127.0.0.1:9002:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - ./docker-data/minio:/data
     healthcheck:
@@ -85,7 +71,7 @@ services:
     restart: always
     user: "10001:10001"
     ports:
-      - "3101:3100"
+      - "127.0.0.1:3101:3100"
     volumes:
       - ./docker-data/loki:/loki
     command: -config.file=/etc/loki/local-config.yaml
@@ -101,7 +87,7 @@ services:
     restart: always
     user: "472:0"
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
@@ -118,14 +104,36 @@ services:
     image: cloakhq/cloakbrowser-manager
     container_name: cloakbrowser_manager
     restart: always
-    # No host port mapping — manager is only reachable inside the Docker network.
-    # VNC preview and worker CDP access go through the Pitch API proxy / worker.
-    # Intentionally no environment/ AUTH_TOKEN: manager runs open inside the private Docker network.
+    ports:
+      - "8080:8080"
     volumes:
       - cloakprofiles:/data
     group_add:
       - "44"
       - "992"
+
+  # ---------------------------------------------------------------------------
+  # Transcription — local Whisper (transformers.js on Bun, model baked into the
+  # image). Serves the recording-editor flow: the worker posts uploaded
+  # narration here for word-level transcripts. Host port mapping also lets a
+  # host-run worker reach it.
+  # ---------------------------------------------------------------------------
+  transcription:
+    image: pitch-transcription:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/transcription/Dockerfile
+    container_name: pitch_transcription
+    restart: always
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-Xenova/whisper-small}
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
   api:
     image: pitch-api:${IMAGE_TAG:-latest}
@@ -134,6 +142,8 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: pitch_api
     restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
     environment:
@@ -176,6 +186,7 @@ services:
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
       CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+      TRANSCRIPTION_SERVICE_URL: http://transcription:4000/transcribe
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
     logging:
       driver: loki
@@ -205,6 +216,8 @@ services:
         condition: service_healthy
       cloakbrowser-manager:
         condition: service_started
+      transcription:
+        condition: service_healthy
 
 volumes:
   cloakprofiles:

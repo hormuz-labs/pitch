@@ -39,7 +39,7 @@ image fetch → HTML slide build → PDF → QA loop.
 | 2 | Mandatory web search grounding |
 | 3 | Select slide points from master list |
 | 4 | Write content outline (all slides, purpose per slide) |
-| 5 | Generate Unsplash image keywords & fetch images |
+| 5 | Generate image keywords & fetch images (Pinterest → Gemini fallback; Unsplash optional via --engine-order) |
 | 6 | Map images to slides |
 | 7 | Build HTML slides using ONLY tokens from spec_lock |
 | 8 | Run PDF builder |
@@ -67,6 +67,9 @@ Map the template ID to its directory:
 | `BRUTALIST_NEWSPAPER` | `.opencode/skills/template-ppt/templates/brutalist-newspaper/` |
 | `MINIMAL_CORPORATE` | `.opencode/skills/template-ppt/templates/minimal-corporate/` |
 | `DARK_TECH` | `.opencode/skills/template-ppt/templates/dark-tech/` |
+| `COMIC_POP` | `.opencode/skills/template-ppt/templates/comic-pop/` |
+| `TECH_DUEL` | `.opencode/skills/template-ppt/templates/tech-duel/` |
+| `STARTUP_AMPLIFY` | `.opencode/skills/template-ppt/templates/startup-amplify/` |
 
 **MUST READ both files using the `read` tool:**
 1. `<template-dir>/spec_lock.md` — machine-readable execution contract
@@ -136,7 +139,9 @@ Slide N: [LAYOUT-CODE] — Closing / CTA
 - Hard rule: never same layout on consecutive slides
 - Check `spec_lock.md → rhythm` per slide: `anchor` / `dense` / `breathing`
 
-**New layout options available in all templates:**
+**CRITICAL WARNING:** ONLY use the layout codes explicitly defined in the template's `spec_lock.md` and `skill.md` files. Do NOT invent layout names or use generic names like `AGENDA` or `STAT` unless they are explicitly listed in the template files.
+
+**Layout options available based on template type:**
 - Chart layouts (`CHART-EDITORIAL` / `TECH-CHART` / `CHART-CLEAN`) for full-slide Chart.js data visualization.
 - Split-chart layouts (`SPLIT-CHART` / `TECH-SPLIT-CHART` / `SPLIT-CHART-CLEAN`) for context + chart side-by-side.
 - Icon-grid layouts (`ICON-GRID` / `TECH-ICON-GRID` / `ICON-GRID-CLEAN`) for 2×3 feature/step grids.
@@ -231,22 +236,53 @@ Pick **slideCount** points from this list. Adapt to topic type.
 
 ---
 
-## Step 4 — Fetch Images (Unsplash)
+## Step 4 — Fetch Images
 
 Read [image-scraping.md](../ppt-generator/image-scraping.md) for full commands.
 
-**Template-specific image strategy**: check `spec_lock.md → image_strategy` for:
+**Template-specific image strategy**: check `spec_lock.md → image_strategy` and `image_source` for:
 - `editorial` — clean, moody, photojournalistic
 - `stock-clean` — bright, clean stock photography  
 - `halftone` — apply CSS `filter: grayscale(100%) contrast(1.4)` to all images
 - `minimal` — use images sparingly, mostly white/negative space
 - `none` — no images, text/data only
+- `gemini-only` (e.g., COMIC_POP) — MUST prioritize Gemini image generation over scraping.
 
-Generate 2–3 Unsplash keywords per image slot. Download to
-`/tmp/ppt-<JOB_ID>/images/<keyword>/`.
+Generate 2–3 concrete search keywords per image slot. Run the scraper:
 
-**MANDATORY VERIFICATION**: After downloading, use `ls` to confirm files exist
-before assigning them to slides. Never hardcode filenames.
+```bash
+node .opencode/skills/ppt-generator/reference/scrape_images.js \
+  --topic "<topic>" \
+  --keywords "<keyword1>" "<keyword2>" \
+  --rich-prompt "<keyword1>::<rich image prompt>" \
+  --rich-prompt "<keyword2>::<rich image prompt>"
+```
+
+**CRITICAL: If `image_source` or `image_strategy` is `gemini-only`**, you MUST add `--engine-order gemini,pinterest` to the end of the scrape command. This forces the scraper to try Gemini first, and only fallback to Pinterest if Gemini fails.
+```bash
+node .opencode/skills/ppt-generator/reference/scrape_images.js \
+  --topic "<topic>" \
+  --keywords "<keyword1>" "<keyword2>" \
+  --rich-prompt "<keyword1>::<rich image prompt>" \
+  --engine-order gemini,pinterest
+```
+
+Images download to `pptx/ppt-<topic-slug>/images/<keyword>/`. By default, the pipeline is:
+1. **Pinterest** — tries to download 2 images per keyword.
+2. **Gemini API** — generates any remaining missing images using `GEMINI_API_KEY` from `.env`.
+3. **Unsplash** — optional; only used if `--engine-order` includes `unsplash`.
+*(Override order with `--engine-order`, e.g. `gemini,pinterest` for `gemini-only` templates)*
+
+Expected files per keyword:
+- `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
+- `gemini_01.png`, `gemini_02.png` (fallback generation, only if Pinterest < 2)
+- `gemini_prompt.txt` (the prompt used for any Gemini generation)
+- `unsplash_01.jpg` (only if `--engine-order` includes unsplash)
+
+**MANDATORY VERIFICATION**: After downloading, use `Glob`/`ls` to confirm files exist
+before assigning them to slides. Never hardcode filenames. If a keyword directory
+contains `gemini_prompt.txt` but no corresponding `gemini_*.png`, record the prompt
+text in the slide JSON under `imagePrompt` instead of assigning a missing file path.
 
 ---
 
@@ -256,7 +292,8 @@ For each slide that needs an image:
 1. List actual downloaded files in the keyword directory
 2. Score each image: subject match (1–10) + color harmony (1–10) + composition (1–10)
 3. Only use images with total score ≥ 22/30
-4. Assign best image path to the slide's `image` field
+4. Assign the best existing image path to the slide's `image` field
+5. If no image exists but `gemini_prompt.txt` is present, assign the prompt text to the slide's `imagePrompt` field
 
 ---
 
@@ -275,6 +312,10 @@ For each slide that needs an image:
 
 Copy [../ppt-generator/pdf-builder-template.js](../ppt-generator/pdf-builder-template.js)
 to `/tmp/ppt-<JOB_ID>/pdf-builder.js`.
+
+Also copy [../ppt-generator/reference/qa-dom.js](../ppt-generator/reference/qa-dom.js)
+to `/tmp/ppt-<JOB_ID>/reference/qa-dom.js`. DOM QA is required and runs automatically
+when `pdf-builder.js` executes.
 
 **CRITICAL**: Fill CONFIG from spec_lock values — never invent:
 
@@ -338,7 +379,15 @@ npm install playwright
 node pdf-builder.js
 ```
 
-Verify: `output.pdf` and `qa-renders/slide_*.png` exist.
+`pdf-builder.js` automatically runs **DOM QA** first. It inspects every slide in the rendered HTML and writes `qa-report.json`.
+
+- If critical issues are found, the build aborts and no PDF is generated.
+- Fix the reported issues in `pdf-builder.js` and rerun.
+
+Once DOM QA passes, verify:
+- `qa-report.json` shows `"passed": true`
+- `output.pdf` exists
+- `qa-renders/slide_*.png` exist
 
 ---
 
@@ -346,6 +395,12 @@ Verify: `output.pdf` and `qa-renders/slide_*.png` exist.
 
 Read [qa-loop.md](../ppt-generator/qa-loop.md) for full commands and defect
 taxonomy.
+
+DOM QA is now an automatic gate inside `pdf-builder.js`. Always read `qa-report.json` after each build to confirm `"passed": true` before proceeding to visual inspection.
+
+**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". Automated checks cannot catch every visual layout break or overlapping text!**
+
+You MUST use your `read` tool to open and analyze the `.png` files generated in the `qa-renders/` folder. Because you are a multimodal agent, passing the image path to your `read` tool will allow you to physically see the slide. If you skip using the `read` tool on the images, you have FAILED the QA step.
 
 **Template-specific QA rules** — also check from template's `skill.md`:
 - All colors match spec_lock exactly (spot-check 3 slides)
@@ -355,11 +410,12 @@ taxonomy.
 
 ```
 LOOP:
-  1. View EVERY .png in qa-renders/ — do not skip any
-  2. Check: TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK
+  1. Read qa-report.json and confirm "passed": true. If not, fix and rerun.
+  2. View EVERY .png in qa-renders/ — do not skip any
+  3. Check: TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK
      Plus template-specific checks from spec_lock → qa_rules
-  3. PASS → exit loop
-  4. FAIL → patch pdf-builder.js → re-run → go to 1
+  4. PASS → exit loop
+  5. FAIL → patch pdf-builder.js → re-run → go to 1
 ```
 
 ---
@@ -384,13 +440,22 @@ template-ppt/
 │   ├── minimal-corporate/
 │   │   ├── spec_lock.md
 │   │   └── skill.md
-│   └── dark-tech/
-│       ├── spec_lock.md
-│       └── skill.md
+│   ├── dark-tech/
+│   │   ├── spec_lock.md
+│   │   └── skill.md
+│   ├── comic-pop/
+│   │   ├── spec_lock.md           ← neo-brutalist comic spec (Dancing Script, Bebas Neue, #FBCC00)
+│   │   └── skill.md               ← 13 layouts incl. COMIC-FLOWCHART SVG renderer
+│   ├── tech-duel/
+│   │   ├── spec_lock.md           ← two-sided comparison spec (Outfit, Quattrocento Sans, #76B900 / #ED1C24)
+│   │   └── skill.md               ← 15 layouts incl. DUEL-COVER, DUEL-PRODUCT-A/B, DUEL-CHART
+│   └── startup-amplify/
+│       ├── spec_lock.md           ← startup growth playbook spec (Liter, Inter, #F4F4F4, #D91E18, #00A3A1)
+│       └── skill.md               ← 18 layouts incl. AMP-COVER, AMP-CHART, AMP-GTM-FLOW, AMP-CLOSING
 ```
 
 Base pipeline files (shared with ppt-generator):
 - `../ppt-generator/pdf-builder-template.js` — base HTML→PDF builder
-- `../ppt-generator/image-scraping.md` — Unsplash fetch script
+- `../ppt-generator/image-scraping.md` — Pinterest → Gemini image fetch script (Unsplash optional)
 - `../ppt-generator/qa-loop.md` — Visual QA loop
 - `../ppt-generator/design-library.md` — brand color palettes

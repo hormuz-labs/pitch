@@ -54,6 +54,7 @@ const IconChevronUp = () => (
   </svg>
 )
 
+
 type SlideData = {
   layout: string
   title?: string
@@ -82,6 +83,25 @@ type SlideData = {
   col2Title?: string
   col2Bullets?: string[]
   columns?: Array<{ heading: string; body: string }>
+  // Tech Duel fields
+  sections?: Array<{ number?: string; title: string; description?: string }>
+  specs?: Array<{ label: string; value: string }>
+  price?: string
+  priceNote?: string
+  differentiator?: string
+  productName?: string
+  whatItIs?: string
+  whatItIsnt?: string
+  tagline?: string
+  leftWins?: Array<string | { text: string }>
+  rightWins?: Array<string | { text: string }>
+  // Startup Amplify fields
+  cards?: Array<{ title: string; body?: string; text?: string }>
+  nextSteps?: Array<{ title: string; body?: string; text?: string }>
+  nodes?: Array<{ title: string; subtitle?: string; desc?: string }>
+  centerLabel?: string
+  prompt?: string
+  insight?: string
 }
 
 interface Template {
@@ -108,6 +128,12 @@ const TEMPLATE_FONTS: Record<string, string> = {
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">`,
   DARK_TECH: `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">`,
+  COMIC_POP: `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400&family=Dancing+Script:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">`,
+  TECH_DUEL: `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Quattrocento+Sans:wght@400;700&display=swap" rel="stylesheet">`,
+  STARTUP_AMPLIFY: `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Liter:wght@400;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">`,
 }
 
 // ── Template CSS (verbatim from each skill.md stylesheet section) ─────────────
@@ -312,10 +338,250 @@ const TECH_CSS = `
 .tech-dash-img{width:100%;height:100%;object-fit:cover;filter:grayscale(100%) brightness(0.8) contrast(1.5) sepia(10%) hue-rotate(150deg);}
 `
 
+const COMIC_CSS = `
+:root{--font-display:'Bebas Neue',sans-serif;--font-body:'Dancing Script',cursive;--font-label:'Nunito',sans-serif;--primary:#FBCC00;--accent:#191919;--secondary:#404040;--bg:#FFFDF5;}
+.comic-pop{font-family:var(--font-body);background-color:#FFFDF5;color:#191919;position:relative;box-sizing:border-box;overflow:hidden;}
+.comic-dot-bg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#191919 1px,transparent 1px);background-size:24px 24px;opacity:0.035;}
+.comic-dot-bg--dark{background-image:radial-gradient(circle,#FBCC00 1px,transparent 1px);opacity:0.06;}
+.comic-content{padding:56px 72px 48px 72px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;position:relative;z-index:2;}
+.comic-badge{align-self:flex-start;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#191919;background:#FBCC00;border:2px solid #191919;border-radius:4px;padding:4px 12px;margin-bottom:14px;box-shadow:2px 2px 0 #191919;line-height:1.4;}
+.comic-badge-lg{align-self:flex-start;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#191919;background:#FBCC00;border:2.5px solid #191919;border-radius:6px;padding:6px 16px;margin-bottom:20px;box-shadow:3px 3px 0 #191919;}
+.comic-title{font-family:'Bebas Neue',sans-serif;font-size:42px;font-weight:400;color:#191919;margin:0 0 24px 0;border:none!important;padding-left:0!important;line-height:1.05;letter-spacing:0.5px;}
+.comic-cover-title{font-family:'Bebas Neue',sans-serif;font-size:68px;font-weight:400;color:#191919;line-height:1.0;margin:0 0 16px 0;border:none!important;padding-left:0!important;letter-spacing:1px;}
+.comic-cover-subtitle{font-family:'Dancing Script',cursive;font-size:24px;font-weight:600;color:#404040;margin:0 0 24px 0;line-height:1.4;}
+.comic-cover-meta{font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:#404040;border-top:2px solid #191919;padding-top:12px;display:inline-block;}
+.comic-cover-layout{display:flex;gap:48px;height:100%;align-items:center;padding:60px 72px;position:relative;z-index:2;box-sizing:border-box;}
+.comic-cover-left{flex:1.1;display:flex;flex-direction:column;justify-content:center;}
+.comic-cover-right{flex:0.9;height:520px;}
+.comic-cover-stripe{position:absolute;bottom:0;left:0;right:0;height:8px;background:#191919;z-index:3;}
+.comic-img-card{width:100%;height:100%;border:2.5px solid #191919;border-radius:12px;box-shadow:6px 6px 0 #191919;overflow:hidden;background:#FFF8D6;}
+.comic-img-fill{width:100%;height:100%;object-fit:cover;display:block;}
+.comic-img-placeholder{display:flex;align-items:center;justify-content:center;background:#FFF8D6;}
+.comic-placeholder-icon{font-size:48px;color:#FBCC00;text-shadow:2px 2px 0 #191919;}
+.comic-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;}
+.comic-list li{display:flex;align-items:flex-start;gap:10px;font-family:'Dancing Script',cursive;font-size:19px;font-weight:600;line-height:1.35;color:#191919;padding-left:0!important;margin-bottom:0!important;}
+.comic-list li::before{display:none!important;}
+.comic-bullet-dot{color:#FBCC00;font-size:14px;line-height:1.6;flex-shrink:0;text-shadow:1px 1px 0 #191919;}
+.comic-bullet-num{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;background:#FBCC00;color:#191919;border:2px solid #191919;border-radius:4px;padding:2px 6px;min-width:28px;text-align:center;box-shadow:2px 2px 0 #191919;flex-shrink:0;}
+.comic-bullet-text{flex:1;}
+.comic-body-lead{font-family:'Dancing Script',cursive;font-size:21px;font-weight:600;color:#191919;line-height:1.45;margin:0 0 16px 0;}
+.comic-glance-grid{display:flex;gap:40px;flex:1;min-height:0;}
+.comic-glance-left{flex:0.9;}
+.comic-glance-right{flex:1.1;display:flex;align-items:center;}
+.comic-stats-row{display:flex;gap:20px;flex:1;align-items:stretch;}
+.comic-stat-card{flex:1;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:28px 24px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.comic-stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:#191919;}
+.comic-stat-card--yellow{background:#FBCC00;}
+.comic-stat-value{font-family:'Bebas Neue',sans-serif;font-size:68px;font-weight:400;color:#191919;line-height:1.0;letter-spacing:0.5px;}
+.comic-stat-label{font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#191919;}
+.comic-stat-desc{font-family:'Dancing Script',cursive;font-size:16px;font-weight:500;color:#404040;line-height:1.4;}
+.comic-split-layout{display:flex;gap:40px;flex:1;min-height:0;}
+.comic-split-text{flex:1.1;display:flex;flex-direction:column;justify-content:center;gap:16px;}
+.comic-split-visual{flex:0.9;}
+.comic-quote-slide{display:flex;align-items:center;justify-content:center;}
+.comic-quote-center{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:60px;position:relative;z-index:2;gap:24px;}
+.comic-quote-box{background:#FFFFFF;border:2.5px solid #191919;border-radius:16px;box-shadow:6px 6px 0 #191919;padding:52px 60px 44px 60px;max-width:950px;text-align:center;position:relative;}
+.comic-quote-mark{position:absolute;top:-36px;left:40px;font-family:'Bebas Neue',sans-serif;font-size:120px;color:#FBCC00;line-height:1;text-shadow:3px 3px 0 #191919;}
+.comic-quote-text{font-family:'Dancing Script',cursive;font-size:30px;font-weight:700;color:#191919;line-height:1.4;margin:0 0 20px 0;position:relative;z-index:2;}
+.comic-quote-author{font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:#404040;text-transform:uppercase;}
+.comic-flow-row{display:flex;align-items:center;gap:0;flex:1;padding-top:8px;}
+.comic-flow-node{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;}
+.comic-flow-num{font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;color:#404040;letter-spacing:1px;}
+.comic-flow-card{background:#FFFFFF;border:2.5px solid #191919;border-radius:10px;box-shadow:3px 3px 0 #191919;padding:16px 14px;width:100%;display:flex;flex-direction:column;gap:6px;}
+.comic-flow-card--yellow{background:#FFF8D6;}
+.comic-flow-heading{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#191919;line-height:1.2;}
+.comic-flow-text{font-family:'Dancing Script',cursive;font-size:15px;font-weight:500;color:#404040;line-height:1.3;}
+.comic-flow-arrow{font-size:24px;color:#FBCC00;text-shadow:1px 1px 0 #191919;font-weight:900;position:absolute;right:-16px;top:50%;transform:translateY(-50%);z-index:3;}
+.comic-chart-full{flex:1;min-height:0;position:relative;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:16px;margin-top:4px;}
+.comic-chart-preview{flex:1;min-height:0;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:20px;display:flex;align-items:flex-end;justify-content:space-around;gap:10px;}
+.comic-chart-source{font-family:'Nunito',sans-serif;font-size:11px;font-weight:600;color:#404040;text-align:right;margin-top:8px;letter-spacing:0.5px;}
+.comic-split-chart-layout{display:flex;gap:32px;flex:1;min-height:0;}
+.comic-split-chart-left{width:38%;display:flex;flex-direction:column;justify-content:center;}
+.comic-split-chart-right{flex:1;min-height:0;position:relative;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:16px;display:flex;align-items:flex-end;justify-content:space-around;gap:10px;}
+.comic-icon-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;flex:1;align-content:stretch;}
+.comic-icon-card{background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:22px 20px;display:flex;flex-direction:column;gap:10px;}
+.comic-icon-card--yellow{background:#FFF8D6;}
+.comic-icon-symbol{font-size:30px;line-height:1;}
+.comic-icon-heading{font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:#191919;line-height:1.2;}
+.comic-icon-text{font-family:'Dancing Script',cursive;font-size:16px;font-weight:500;color:#404040;line-height:1.35;}
+.comic-compare-row{display:flex;gap:0;flex:1;align-items:stretch;position:relative;}
+.comic-compare-panel{flex:1;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:28px 26px;display:flex;flex-direction:column;gap:16px;}
+.comic-compare-panel--yellow{background:#FFF8D6;margin-left:40px;}
+.comic-compare-header{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#191919;border-bottom:2.5px solid #191919;padding-bottom:10px;line-height:1;}
+.comic-vs-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;font-family:'Bebas Neue',sans-serif;font-size:22px;background:#FBCC00;border:2.5px solid #191919;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;box-shadow:3px 3px 0 #191919;color:#191919;}
+.comic-flowchart-container{flex:1;min-height:0;position:relative;width:100%;background:#FFFFFF;border:2.5px solid #191919;border-radius:12px;box-shadow:4px 4px 0 #191919;padding:20px;display:flex;align-items:center;justify-content:center;gap:0;overflow:hidden;}
+.comic-fc-node{display:inline-flex;align-items:center;justify-content:center;text-align:center;font-family:'Dancing Script',cursive;font-size:13px;font-weight:700;color:#191919;background:#FFFFFF;border:2.5px solid #191919;border-radius:8px;box-shadow:3px 3px 0 #191919;padding:8px 12px;line-height:1.2;min-width:100px;}
+.comic-fc-node--start,.comic-fc-node--end{font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border-radius:50px;padding:8px 16px;}
+.comic-fc-node--start{background:#FBCC00;}
+.comic-fc-node--end{background:#191919;color:#FBCC00;}
+.comic-fc-node--decision{background:#FFF8D6;border-radius:0;transform:rotate(45deg);width:70px;height:70px;padding:4px;}
+.comic-fc-node--decision span{display:block;transform:rotate(-45deg);font-size:10px;}
+.comic-fc-arrow{font-size:22px;color:#FBCC00;text-shadow:1px 1px 0 #191919;font-weight:900;padding:0 8px;flex-shrink:0;}
+.comic-fc-label{font-family:'Nunito',sans-serif;font-size:10px;font-weight:800;background:#FBCC00;border:1.5px solid #191919;border-radius:3px;padding:1px 5px;position:absolute;top:-14px;left:50%;transform:translateX(-50%);white-space:nowrap;}
+.comic-impact-slide{position:relative;overflow:hidden;}
+.comic-impact-bg{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;filter:brightness(0.65) contrast(1.2);}
+.comic-impact-bg-placeholder{position:absolute;top:0;left:0;width:100%;height:100%;background:#191919;z-index:1;}
+.comic-impact-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(25,25,25,0.55);z-index:2;}
+.comic-impact-content{position:relative;z-index:5;height:100%;display:flex;align-items:center;justify-content:center;padding:60px;}
+.comic-impact-box{background:rgba(255,253,245,0.95);border:2.5px solid #191919;border-radius:16px;box-shadow:6px 6px 0 rgba(25,25,25,0.7);padding:48px 56px;max-width:900px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px;}
+.comic-impact-statement{font-family:'Dancing Script',cursive;font-size:34px;font-weight:700;color:#191919;line-height:1.35;margin:0;}
+.comic-impact-attribution{font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:#404040;letter-spacing:1px;}
+.comic-closing-slide{background:#191919!important;display:flex;align-items:center;justify-content:center;}
+.comic-closing-card{background:#FFFDF5;border:2.5px solid #FBCC00;border-radius:20px;box-shadow:8px 8px 0 rgba(251,204,0,0.5);padding:56px 72px;max-width:800px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px;position:relative;z-index:2;}
+.comic-closing-badge{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#191919;background:#FBCC00;border:2px solid #191919;border-radius:4px;padding:5px 14px;box-shadow:2px 2px 0 #191919;}
+.comic-closing-title{font-family:'Bebas Neue',sans-serif;font-size:64px;font-weight:400;color:#191919;margin:0!important;border:none!important;padding-left:0!important;line-height:1.0;letter-spacing:1px;}
+.comic-closing-subtitle{font-family:'Dancing Script',cursive;font-size:26px;font-weight:600;color:#404040;margin:0;line-height:1.4;}
+.comic-closing-divider{width:80px;height:3px;background:#FBCC00;border:1px solid #191919;border-radius:2px;margin:8px auto;}
+.comic-closing-meta{font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:#404040;letter-spacing:0.5px;}
+`
+
+const TECH_DUEL_CSS = `
+:root{--font-display:"Outfit",sans-serif;--font-body:"Quattrocento Sans",sans-serif;--font-label:"Outfit",sans-serif;}
+.duel-dark{background:#0D1117;color:#E6EDF3;}
+.duel-light{background:#F6F7F9;color:#1F2328;}
+.duel-content{padding:52px 70px;height:100%;box-sizing:border-box;position:relative;z-index:5;}
+.duel-green-text{color:#76B900!important;}
+.duel-red-text{color:#ED1C24!important;}
+.duel-accent-bar{position:absolute;top:0;left:70px;right:70px;height:5px;z-index:10;}
+.duel-bar-green{background:#76B900;}
+.duel-bar-red{background:#ED1C24;}
+.duel-source{position:absolute;bottom:18px;left:70px;font-size:10px;color:#656D76;font-family:var(--font-body);}
+.duel-cover{position:relative;overflow:hidden;}
+.duel-cover-bg{position:absolute;top:0;right:0;width:55%;height:100%;object-fit:cover;z-index:1;}
+.duel-cover-gradient{position:absolute;top:0;left:0;width:75%;height:100%;background:linear-gradient(90deg,#0D1117 0%,#0D1117 55%,rgba(13,17,23,0.6) 75%,rgba(13,17,23,0) 100%);z-index:2;}
+.duel-cover-bar{position:absolute;left:70px;top:210px;width:7px;height:280px;background:#76B900;z-index:5;}
+.duel-cover-content{display:flex;flex-direction:column;justify-content:center;padding-left:100px;}
+.duel-cover-kicker{font-family:var(--font-label);font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#76B900;margin-bottom:14px;font-weight:700;}
+.duel-cover-title{font-family:var(--font-display);font-size:54px;line-height:1.1;color:#76B900;margin:0;text-transform:uppercase;letter-spacing:-1px;max-width:720px;border:none;padding:0;}
+.duel-cover-subtitle{font-family:var(--font-body);font-size:20px;color:#E6EDF3;margin-top:20px;max-width:600px;line-height:1.5;}
+.duel-cover-date{font-family:var(--font-label);font-size:13px;color:#76B900;letter-spacing:1.5px;text-transform:uppercase;margin-top:30px;font-weight:700;}
+.duel-cover-footer{position:absolute;bottom:36px;left:100px;font-size:12px;color:#656D76;letter-spacing:0.5px;}
+.duel-toc-kicker{font-family:var(--font-label);font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#76B900;margin-bottom:8px;font-weight:700;}
+.duel-toc-title{font-family:var(--font-display);font-size:48px;color:#E6EDF3;margin:0 0 40px 0;text-transform:uppercase;letter-spacing:-0.5px;border:none;padding:0;}
+.duel-toc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px 50px;}
+.duel-toc-item{display:flex;align-items:flex-start;gap:14px;}
+.duel-toc-number{font-family:var(--font-display);font-size:26px;color:#76B900;line-height:1;font-weight:800;min-width:46px;}
+.duel-toc-section-title{font-family:var(--font-display);font-size:16px;color:#E6EDF3;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:3px;}
+.duel-toc-section-desc{font-family:var(--font-body);font-size:12px;color:#9BA3AB;line-height:1.35;}
+.duel-product-content{padding-top:60px;}
+.duel-product-title{font-family:var(--font-display);font-size:28px;color:#1F2328;margin:0;border:none;padding:0;line-height:1.2;}
+.duel-product-tagline{font-family:var(--font-body);font-size:15px;color:#656D76;margin-top:6px;margin-bottom:20px;}
+.duel-product-grid{display:flex;gap:34px;height:320px;}
+.duel-product-left{width:34%;display:flex;flex-direction:column;gap:12px;}
+.duel-product-image-wrap{flex:1;border-radius:8px;overflow:hidden;background:#EAECEF;}
+.duel-product-image{width:100%;height:100%;object-fit:cover;}
+.duel-product-image-placeholder{width:100%;height:100%;background:#EAECEF;}
+.duel-product-badge{display:inline-block;padding:6px 12px;border-radius:5px;font-family:var(--font-label);font-size:12px;font-weight:700;letter-spacing:0.5px;color:#0D1117;width:fit-content;}
+.duel-badge-green{background:#76B900;}
+.duel-badge-red{background:#ED1C24;}
+.duel-product-right{flex:1;display:grid;grid-template-columns:1.3fr 0.7fr;gap:16px;}
+.duel-product-specs{background:#fff;border:1px solid #D0D7DE;border-radius:8px;padding:16px;}
+.duel-specs-header{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#656D76;margin-bottom:10px;font-weight:700;}
+.duel-spec-row{font-family:var(--font-body);font-size:13px;line-height:1.7;color:#1F2328;}
+.duel-spec-label{font-weight:700;}
+.duel-spec-value{color:#656D76;}
+.duel-product-price{background:#fff;border:1px solid #D0D7DE;border-radius:8px;padding:16px;}
+.duel-price-label{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#656D76;margin-bottom:6px;font-weight:700;}
+.duel-price-value{font-family:var(--font-display);font-size:32px;font-weight:800;line-height:1;margin-bottom:6px;}
+.duel-price-note{font-family:var(--font-body);font-size:11px;color:#656D76;line-height:1.4;}
+.duel-product-differentiator{grid-column:1/-1;background:#fff;border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 16px;}
+.duel-diff-label{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px;}
+.duel-diff-text{font-family:var(--font-body);font-size:12px;color:#1F2328;line-height:1.5;}
+.duel-product-bottom{margin-top:18px;background:#fff;border:1px solid #D0D7DE;border-radius:8px;padding:16px;}
+.duel-bottom-header{font-family:var(--font-label);font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px;}
+.duel-product-whatis p{font-family:var(--font-body);font-size:12px;line-height:1.55;color:#1F2328;margin:0 0 8px 0;}
+.duel-product-whatis p:last-child{margin-bottom:0;}
+.duel-closing{position:relative;overflow:hidden;}
+.duel-closing-bg{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;opacity:0.15;}
+.duel-closing-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at center,rgba(13,17,23,0.5) 0%,rgba(13,17,23,0.88) 70%);z-index:2;}
+.duel-closing-content{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:5;}
+.duel-closing-bar{width:80px;height:5px;background:#76B900;margin-bottom:24px;}
+.duel-closing-title{font-family:var(--font-display);font-size:42px;color:#E6EDF3;margin:0 0 14px 0;text-transform:uppercase;letter-spacing:-0.5px;border:none;padding:0;max-width:900px;line-height:1.15;}
+.duel-closing-statement{font-family:var(--font-body);font-size:18px;color:#656D76;max-width:800px;line-height:1.5;margin-bottom:30px;}
+.duel-closing-thankyou{font-family:var(--font-display);font-size:64px;color:#76B900;font-weight:800;text-transform:uppercase;letter-spacing:4px;margin-bottom:30px;}
+.duel-closing-footer{font-family:var(--font-body);font-size:12px;color:#656D76;letter-spacing:1px;}
+.duel-closing-separator{margin:0 12px;color:#76B900;}
+`
+
+const STARTUP_AMPLIFY_CSS = `
+:root{--font-display:"Liter",sans-serif;--font-body:"Inter",sans-serif;}
+.amp-cover,.amp-chapter,.amp-closing,.amp-content{background:#F4F4F4;color:#2C2C2C;box-sizing:border-box;}
+.amp-content{padding:40px 60px;height:100%;position:relative;}
+.amp-rule{position:absolute;left:0;width:100%;height:2px;background:#D91E18;z-index:10;}
+.amp-rule-top{top:0;}.amp-rule-bottom{bottom:0;}
+.amp-content-header{margin-bottom:20px;}
+.amp-slide-title{font-family:var(--font-display);font-size:28px;font-weight:700;margin:0 0 6px 0;line-height:1.25;}
+.amp-slide-subtitle{font-family:var(--font-body);font-size:13px;color:#888888;text-transform:uppercase;letter-spacing:0.5px;}
+.amp-source{position:absolute;bottom:16px;left:60px;font-size:11px;color:#888888;font-family:var(--font-body);}
+.amp-insight-bar{margin-top:16px;background:#FFFFFF;border-left:4px solid #D91E18;padding:12px 16px;font-family:var(--font-body);font-size:13px;line-height:1.5;}
+.amp-insight-bar strong{color:#D91E18;font-weight:700;}
+.amp-cover{position:relative;overflow:hidden;}
+.amp-cover-bg{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.22;z-index:0;}
+.amp-cover-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;}
+.amp-cover-title{font-family:var(--font-display);font-size:54px;font-weight:700;margin:0;line-height:1.1;}
+.amp-cover-subtitle{font-family:var(--font-display);font-size:26px;margin-top:14px;}
+.amp-cover-meta{font-family:var(--font-body);font-size:14px;color:#888888;margin-top:14px;}
+.amp-cover-stats{display:flex;gap:60px;margin-top:44px;}
+.amp-cover-stat{text-align:left;min-width:170px;}
+.amp-cover-stat-value{font-family:var(--font-display);font-size:40px;font-weight:700;line-height:1;}
+.amp-cover-stat:nth-child(2) .amp-cover-stat-value{color:#D91E18;}
+.amp-cover-stat-label{font-family:var(--font-body);font-size:13px;color:#888888;margin-top:6px;}
+.amp-toc{padding:60px;height:100%;position:relative;}
+.amp-toc-title{font-family:var(--font-display);font-size:34px;font-weight:700;margin:0 0 32px 0;}
+.amp-toc-rows{display:flex;flex-direction:column;gap:22px;}
+.amp-toc-row{display:flex;align-items:center;gap:24px;padding-bottom:20px;border-bottom:1px solid #CCCCCC;}
+.amp-toc-num{font-family:var(--font-display);font-size:48px;font-weight:700;min-width:80px;line-height:1;}
+.amp-toc-text{flex:1;}
+.amp-toc-chapter-title{font-family:var(--font-display);font-size:22px;font-weight:700;}
+.amp-toc-chapter-desc{font-family:var(--font-body);font-size:14px;color:#888888;margin-top:3px;}
+.amp-toc-page{font-family:var(--font-display);font-size:18px;color:#D91E18;font-weight:700;}
+.amp-footer{position:absolute;bottom:18px;left:60px;right:60px;display:flex;justify-content:space-between;font-family:var(--font-body);font-size:11px;color:#888888;}
+.amp-split{display:flex;gap:36px;height:340px;}
+.amp-split-left{flex:1.1;display:flex;flex-direction:column;gap:16px;}
+.amp-split-right{flex:0.9;display:flex;flex-direction:column;gap:14px;}
+.amp-split-img{width:100%;height:160px;object-fit:cover;border-radius:8px;}
+.amp-split-bullets{margin:0;padding:0 0 0 18px;font-family:var(--font-body);font-size:15px;line-height:1.7;color:#2C2C2C;}
+.amp-info-card{background:#FFFFFF;border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.amp-info-card-title{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:4px;}
+.amp-info-card-body{font-family:var(--font-body);font-size:13px;color:#555555;line-height:1.45;}
+.amp-content-bottom{display:flex;gap:18px;margin-top:18px;}
+.amp-content-stat{flex:1;background:#FFFFFF;border-radius:8px;padding:14px;text-align:center;}
+.amp-content-stat-value{font-family:var(--font-display);font-size:26px;font-weight:700;color:#00A3A1;}
+.amp-content-stat-label{font-family:var(--font-body);font-size:12px;color:#888888;margin-top:4px;}
+.amp-gtm-flow{position:relative;height:260px;margin-top:10px;}
+.amp-gtm-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;}
+.amp-gtm-node{font-family:var(--font-display);text-align:center;}
+.amp-gtm-core{width:110px;height:110px;border-radius:50%;background:#E8762B;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;box-shadow:0 4px 12px rgba(232,118,43,0.25);}
+.amp-gtm-nodes{position:absolute;inset:0;}
+.amp-gtm-outer{position:absolute;width:140px;background:#FFFFFF;border-radius:8px;padding:10px 8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+.amp-gtm-outer[data-pos="0"]{left:50%;top:0;transform:translateX(-50%);}
+.amp-gtm-outer[data-pos="1"]{right:5%;top:22%;}
+.amp-gtm-outer[data-pos="2"]{right:8%;bottom:12%;}
+.amp-gtm-outer[data-pos="3"]{left:8%;bottom:12%;}
+.amp-gtm-outer[data-pos="4"]{left:5%;top:22%;}
+.amp-gtm-node-title{font-size:14px;font-weight:700;color:#2C2C2C;}
+.amp-gtm-node-sub{font-family:var(--font-body);font-size:11px;color:#888888;margin-top:2px;}
+.amp-closing{position:relative;overflow:hidden;}
+.amp-closing-content{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;}
+.amp-closing-title{font-family:var(--font-display);font-size:52px;font-weight:700;margin:0;line-height:1.1;}
+.amp-closing-subtitle{font-family:var(--font-body);font-size:16px;color:#888888;margin-top:14px;max-width:700px;}
+.amp-closing-cards{display:flex;gap:20px;margin-top:36px;}
+.amp-closing-card{flex:1;background:#FFFFFF;border-radius:10px;padding:22px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);text-align:left;min-width:180px;border-top:4px solid #00A3A1;}
+.amp-closing-card:nth-child(2){border-top-color:#E8762B;}
+.amp-closing-card:nth-child(3){border-top-color:#5B9BD5;}
+.amp-closing-card-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:6px;}
+.amp-closing-card-body{font-family:var(--font-body);font-size:13px;color:#555555;line-height:1.45;}
+.amp-closing-prompt{font-family:var(--font-display);font-size:28px;font-weight:700;color:#D91E18;margin-top:34px;}
+.amp-closing-footer{font-family:var(--font-body);font-size:12px;color:#888888;margin-top:18px;}
+`
+
 const TEMPLATE_CSS: Record<string, string> = {
   BRUTALIST_NEWSPAPER: BRUTALIST_CSS,
   MINIMAL_CORPORATE: CORP_CSS,
   DARK_TECH: TECH_CSS,
+  COMIC_POP: COMIC_CSS,
+  TECH_DUEL: TECH_DUEL_CSS,
+  STARTUP_AMPLIFY: STARTUP_AMPLIFY_CSS,
 }
 
 // ── Build exact HTML per layout code (mirrors the skill.md renderers) ──────────
@@ -839,6 +1105,434 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
 </div>`
   }
 
+  if (templateId === 'COMIC_POP') {
+    const badge = (slide.badge as string | undefined) ?? ''
+    if (slide.layout === 'COMIC-COVER') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-cover-layout">
+    <div class="comic-cover-left">
+      ${badge ? `<div class="comic-badge-lg">${badge}</div>` : '<div class="comic-badge-lg">✦ PRESENTATION</div>'}
+      <div class="comic-cover-title">${t}</div>
+      <div class="comic-cover-subtitle">${sub}</div>
+    </div>
+    <div class="comic-cover-right">
+      ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
+    </div>
+  </div>
+  <div class="comic-cover-stripe"></div>
+</div>`
+    if (slide.layout === 'COMIC-GLANCE') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'AT A GLANCE'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-glance-grid">
+      <div class="comic-glance-left">
+        ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
+      </div>
+      <div class="comic-glance-right">
+        <ul class="comic-list">${(slide.bullets||[]).map((b,i)=>`<li><span class="comic-bullet-num">${String(i+1).padStart(2,'0')}</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-STATS') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'KEY NUMBERS'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-stats-row">
+      ${(slide.stats||[]).map((s,i)=>`<div class="comic-stat-card${i===0?' comic-stat-card--yellow':''}"><div class="comic-stat-value">${s.value}</div><div class="comic-stat-label">${s.label}</div>${s.description?`<div class="comic-stat-desc">${s.description}</div>`:''}</div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-SPLIT') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'DEEP DIVE'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-split-layout">
+      <div class="comic-split-text">
+        ${(slide.body as string | undefined) ? `<p class="comic-body-lead">${slide.body}</p>` : ''}
+        <ul class="comic-list">${(slide.bullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+      <div class="comic-split-visual">
+        ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-QUOTE') return `
+<div class="slide comic-pop comic-quote-slide">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-quote-center">
+    <div class="comic-quote-box">
+      <div class="comic-quote-mark">"</div>
+      <p class="comic-quote-text">${(slide.quote as string | undefined) || (slide.body as string | undefined) || ''}</p>
+      ${(slide.author as string | undefined) ? `<div class="comic-quote-author">— ${slide.author}</div>` : ''}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-FLOW') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'HOW IT WORKS'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-flow-row">
+      ${(slide.steps||[]).map((step,idx,arr)=>`<div class="comic-flow-node"><div class="comic-flow-num">${String(idx+1).padStart(2,'0')}</div><div class="comic-flow-card${idx%2!==0?' comic-flow-card--yellow':''}"><div class="comic-flow-heading">${step.heading||step.title||''}</div><div class="comic-flow-text">${step.text||step.description||''}</div></div>${idx<arr.length-1?'<div class="comic-flow-arrow">→</div>':''}</div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-CHART') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'THE DATA'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-chart-preview">
+      ${[40,55,75,90,60,82].map(h=>`<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:55px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
+    </div>
+    ${(slide.source as string | undefined)?`<div class="comic-chart-source">${slide.source}</div>`:''}
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-SPLIT-CHART') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'DATA + CONTEXT'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-split-chart-layout">
+      <div class="comic-split-chart-left">
+        <ul class="comic-list">${(slide.bullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+      <div class="comic-split-chart-right">
+        ${[35,60,80,95].map(h=>`<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:45px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-ICON-GRID') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'HIGHLIGHTS'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-icon-grid">
+      ${(slide.items||[]).slice(0,6).map((item,i)=>`<div class="comic-icon-card${i===1||i===4?' comic-icon-card--yellow':''}"><div class="comic-icon-symbol">${item.icon||'✦'}</div><div class="comic-icon-heading">${item.heading}</div><div class="comic-icon-text">${item.text}</div></div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-COMPARE') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'COMPARE'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-compare-row">
+      <div class="comic-compare-panel">
+        <div class="comic-compare-header">${(slide.leftTitle as string | undefined) || 'Option A'}</div>
+        <ul class="comic-list">${(slide.leftBullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+      <div class="comic-vs-badge">VS</div>
+      <div class="comic-compare-panel comic-compare-panel--yellow">
+        <div class="comic-compare-header">${(slide.rightTitle as string | undefined) || 'Option B'}</div>
+        <ul class="comic-list">${(slide.rightBullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+      </div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-FLOWCHART') return `
+<div class="slide comic-pop">
+  <div class="comic-dot-bg"></div>
+  <div class="comic-content">
+    <div class="comic-badge">${badge || 'PROCESS MAP'}</div>
+    <div class="comic-title">${t}</div>
+    <div class="comic-flowchart-container">
+      <div class="comic-fc-node comic-fc-node--start">Start</div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node">Research Topic</div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node comic-fc-node--decision"><span>Has Data?</span></div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node">Build Content</div>
+      <div class="comic-fc-arrow">→</div>
+      <div class="comic-fc-node comic-fc-node--end">Output</div>
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-IMPACT') return `
+<div class="slide comic-pop comic-impact-slide">
+  <div class="comic-dot-bg" style="z-index:1;"></div>
+  ${slide.image ? `<img class="comic-impact-bg" src="${slide.image}">` : '<div class="comic-impact-bg-placeholder"></div>'}
+  <div class="comic-impact-overlay"></div>
+  <div class="comic-impact-content">
+    <div class="comic-impact-box">
+      ${badge ? `<div class="comic-badge">${badge}</div>` : ''}
+      <p class="comic-impact-statement">${(slide.statement as string | undefined) || (slide.quote as string | undefined) || (slide.body as string | undefined) || ''}</p>
+      ${(slide.attribution as string | undefined) ? `<div class="comic-impact-attribution">— ${slide.attribution}</div>` : ''}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'COMIC-CLOSING') return `
+<div class="slide comic-pop comic-closing-slide">
+  <div class="comic-dot-bg comic-dot-bg--dark"></div>
+  <div class="comic-closing-card">
+    <div class="comic-closing-badge">${badge || '✦ THANK YOU'}</div>
+    <div class="comic-closing-title">${t}</div>
+    <div class="comic-closing-subtitle">${sub || "Let's build something great together."}</div>
+    <div class="comic-closing-divider"></div>
+  </div>
+</div>`
+  }
+
+  if (templateId === 'TECH_DUEL') {
+    if (slide.layout === 'DUEL-COVER') return `
+<div class="slide duel-dark duel-cover">
+  ${slide.image ? `<img class="duel-cover-bg" src="${slide.image}" />` : ''}
+  <div class="duel-cover-gradient"></div>
+  <div class="duel-cover-bar"></div>
+  <div class="duel-content duel-cover-content">
+    <div class="duel-cover-kicker">Comparative Analysis</div>
+    <h1 class="duel-cover-title">${t}</h1>
+    <div class="duel-cover-subtitle">${sub}</div>
+    <div class="duel-cover-date">2026</div>
+    <div class="duel-cover-footer">Pitch AI</div>
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-TOC') return `
+<div class="slide duel-dark duel-toc">
+  <div class="duel-content">
+    <div class="duel-toc-kicker">Executive Overview</div>
+    <h2 class="duel-toc-title">${t}</h2>
+    <div class="duel-toc-grid">
+      ${(slide.sections || []).map(s => `
+      <div class="duel-toc-item">
+        <div class="duel-toc-number">${s.number || ''}</div>
+        <div class="duel-toc-text">
+          <div class="duel-toc-section-title">${s.title}</div>
+          <div class="duel-toc-section-desc">${s.description || ''}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-PRODUCT-A') return `
+<div class="slide duel-light duel-product">
+  <div class="duel-accent-bar duel-bar-green"></div>
+  <div class="duel-content duel-product-content">
+    <h2 class="duel-product-title">${t}</h2>
+    <div class="duel-product-tagline">${slide.tagline || ''}</div>
+    <div class="duel-product-grid">
+      <div class="duel-product-left">
+        <div class="duel-product-image-wrap">
+          ${slide.image ? `<img class="duel-product-image" src="${slide.image}" />` : '<div class="duel-product-image-placeholder"></div>'}
+        </div>
+        <div class="duel-product-badge duel-badge-green">${slide.badge || 'PRODUCT A'}</div>
+      </div>
+      <div class="duel-product-right">
+        <div class="duel-product-specs">
+          <div class="duel-specs-header">Key Specifications</div>
+          ${(slide.specs || []).map(s => `
+          <div class="duel-spec-row">
+            <span class="duel-spec-label">${s.label}:</span>
+            <span class="duel-spec-value">${s.value}</span>
+          </div>`).join('')}
+        </div>
+        <div class="duel-product-price">
+          <div class="duel-price-label">Pricing</div>
+          <div class="duel-price-value duel-green-text">${slide.price || ''}</div>
+          <div class="duel-price-note">${slide.priceNote || ''}</div>
+        </div>
+        <div class="duel-product-differentiator" style="border-left-color:#76B900;">
+          <div class="duel-diff-label duel-green-text">Key Differentiator</div>
+          <div class="duel-diff-text">${slide.differentiator || ''}</div>
+        </div>
+      </div>
+    </div>
+    <div class="duel-product-bottom">
+      <div class="duel-product-whatis">
+        <div class="duel-bottom-header duel-green-text">What ${slide.productName || 'it'} is — and isn't</div>
+        <p><strong>${slide.productName || 'Product A'} is:</strong> ${slide.whatItIs || ''}</p>
+        <p><strong>${slide.productName || 'Product A'} is NOT:</strong> ${slide.whatItIsnt || ''}</p>
+      </div>
+    </div>
+    ${slide.source ? `<div class="duel-source">${slide.source}</div>` : ''}
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-PRODUCT-B') return `
+<div class="slide duel-light duel-product">
+  <div class="duel-accent-bar duel-bar-red"></div>
+  <div class="duel-content duel-product-content">
+    <h2 class="duel-product-title">${t}</h2>
+    <div class="duel-product-tagline">${slide.tagline || ''}</div>
+    <div class="duel-product-grid">
+      <div class="duel-product-left">
+        <div class="duel-product-image-wrap">
+          ${slide.image ? `<img class="duel-product-image" src="${slide.image}" />` : '<div class="duel-product-image-placeholder"></div>'}
+        </div>
+        <div class="duel-product-badge duel-badge-red">${slide.badge || 'PRODUCT B'}</div>
+      </div>
+      <div class="duel-product-right">
+        <div class="duel-product-specs">
+          <div class="duel-specs-header">Key Specifications</div>
+          ${(slide.specs || []).map(s => `
+          <div class="duel-spec-row">
+            <span class="duel-spec-label">${s.label}:</span>
+            <span class="duel-spec-value">${s.value}</span>
+          </div>`).join('')}
+        </div>
+        <div class="duel-product-price">
+          <div class="duel-price-label">Pricing</div>
+          <div class="duel-price-value duel-red-text">${slide.price || ''}</div>
+          <div class="duel-price-note">${slide.priceNote || ''}</div>
+        </div>
+        <div class="duel-product-differentiator" style="border-left-color:#ED1C24;">
+          <div class="duel-diff-label duel-red-text">Key Differentiator</div>
+          <div class="duel-diff-text">${slide.differentiator || ''}</div>
+        </div>
+      </div>
+    </div>
+    <div class="duel-product-bottom">
+      <div class="duel-product-whatis">
+        <div class="duel-bottom-header duel-red-text">What ${slide.productName || 'it'} is — and isn't</div>
+        <p><strong>${slide.productName || 'Product B'} is:</strong> ${slide.whatItIs || ''}</p>
+        <p><strong>${slide.productName || 'Product B'} is NOT:</strong> ${slide.whatItIsnt || ''}</p>
+      </div>
+    </div>
+    ${slide.source ? `<div class="duel-source">${slide.source}</div>` : ''}
+  </div>
+</div>`
+    if (slide.layout === 'DUEL-CLOSING') return `
+<div class="slide duel-dark duel-closing">
+  ${slide.image ? `<img class="duel-closing-bg" src="${slide.image}" />` : ''}
+  <div class="duel-closing-overlay"></div>
+  <div class="duel-content duel-closing-content">
+    <div class="duel-closing-bar"></div>
+    <h2 class="duel-closing-title">${t}</h2>
+    <div class="duel-closing-statement">${slide.statement || sub}</div>
+    <div class="duel-closing-thankyou">Thank You</div>
+    <div class="duel-closing-footer">
+      <span>2026</span>
+      <span class="duel-closing-separator">|</span>
+      <span>Pitch AI</span>
+    </div>
+  </div>
+</div>`
+  }
+
+  if (templateId === 'STARTUP_AMPLIFY') {
+    if (slide.layout === 'AMP-COVER') return `
+<div class="slide amp-cover">
+  ${slide.image ? `<img class="amp-cover-bg" src="${slide.image}" />` : ''}
+  <div class="amp-rule amp-rule-top"></div>
+  <div class="amp-cover-content">
+    <h1 class="amp-cover-title">${t}</h1>
+    <div class="amp-cover-subtitle">${sub}</div>
+    <div class="amp-cover-meta">Pitch AI | 2026</div>
+    <div class="amp-cover-stats">
+      ${(slide.stats || []).map(s => `
+      <div class="amp-cover-stat">
+        <div class="amp-cover-stat-value">${s.value}</div>
+        <div class="amp-cover-stat-label">${s.label}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="amp-rule amp-rule-bottom"></div>
+</div>`
+    if (slide.layout === 'AMP-TOC') return `
+<div class="slide amp-toc">
+  <div class="amp-content">
+    <h2 class="amp-toc-title">CONTENTS</h2>
+    <div class="amp-toc-rows">
+      ${(slide.sections || []).map(s => `
+      <div class="amp-toc-row">
+        <div class="amp-toc-num">${s.number || ''}</div>
+        <div class="amp-toc-text">
+          <div class="amp-toc-chapter-title">${s.title}</div>
+          <div class="amp-toc-chapter-desc">${s.description || ''}</div>
+        </div>
+        <div class="amp-toc-page">${s.page || ''}</div>
+      </div>`).join('')}
+    </div>
+    <div class="amp-footer"><span>Pitch AI | 2026</span><span class="amp-footer-page">02</span></div>
+  </div>
+</div>`
+    if (slide.layout === 'AMP-CONTENT-SPLIT') return `
+<div class="slide amp-content">
+  <div class="amp-content-header">
+    <h2 class="amp-slide-title">${t}</h2>
+    <div class="amp-slide-subtitle">${sub}</div>
+  </div>
+  <div class="amp-split">
+    <div class="amp-split-left">
+      ${slide.image ? `<img class="amp-split-img" src="${slide.image}" />` : ''}
+      ${(slide.bullets || []).length > 0 ? `
+      <ul class="amp-split-bullets">
+        ${slide.bullets.map(b => `<li>${b}</li>`).join('')}
+      </ul>` : ''}
+    </div>
+    <div class="amp-split-right">
+      ${(slide.cards || []).map(c => `
+      <div class="amp-info-card">
+        <div class="amp-info-card-title">${c.title}</div>
+        <div class="amp-info-card-body">${c.body || c.text || ''}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="amp-content-bottom">
+    ${(slide.stats || []).map(s => `
+    <div class="amp-content-stat">
+      <div class="amp-content-stat-value">${s.value}</div>
+      <div class="amp-content-stat-label">${s.label}</div>
+    </div>`).join('')}
+  </div>
+  ${slide.source ? `<div class="amp-source">${slide.source}</div>` : ''}
+</div>`
+    if (slide.layout === 'AMP-GTM-FLOW') return `
+<div class="slide amp-content">
+  <div class="amp-content-header">
+    <h2 class="amp-slide-title">${t}</h2>
+    <div class="amp-slide-subtitle">${sub}</div>
+  </div>
+  <div class="amp-gtm-flow">
+    <div class="amp-gtm-center">
+      <div class="amp-gtm-node amp-gtm-core">${slide.centerLabel || 'GTM'}</div>
+    </div>
+    <div class="amp-gtm-nodes">
+      ${(slide.nodes || []).map((n, i) => `
+      <div class="amp-gtm-node amp-gtm-outer" data-pos="${i}">
+        <div class="amp-gtm-node-title">${n.title}</div>
+        <div class="amp-gtm-node-sub">${n.subtitle || n.desc || ''}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  ${slide.source ? `<div class="amp-source">${slide.source}</div>` : ''}
+</div>`
+    if (slide.layout === 'AMP-CLOSING') return `
+<div class="slide amp-closing">
+  <div class="amp-rule amp-rule-top"></div>
+  <div class="amp-closing-content">
+    <h2 class="amp-closing-title">${t}</h2>
+    <div class="amp-closing-subtitle">${sub}</div>
+    <div class="amp-closing-cards">
+      ${(slide.nextSteps || []).map(n => `
+      <div class="amp-closing-card">
+        <div class="amp-closing-card-title">${n.title}</div>
+        <div class="amp-closing-card-body">${n.body || n.text || ''}</div>
+      </div>`).join('')}
+    </div>
+    <div class="amp-closing-prompt">${slide.prompt || 'Questions?'}</div>
+    <div class="amp-closing-footer">Pitch AI | 2026</div>
+  </div>
+  <div class="amp-rule amp-rule-bottom"></div>
+</div>`
+  }
+
   // Fallback
   return `<div class="slide" style="display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:20px;color:#888;background:#111;">${slide.layout}</div>`
 }
@@ -1308,6 +2002,270 @@ const TEMPLATES: Template[] = [
         title: 'DISCONNECTING SYSTEM',
         subtitle: 'Connection closed. Session terminated safely.',
         layout: 'TECH-CLOSING',
+      },
+    ],
+  },
+  {
+    id: 'COMIC_POP',
+    name: 'Marblism Comic Pop',
+    description:
+      'Neo-brutalist comic-book inspired template referencing Marblism.com — warm cream #FFFDF5 canvas with bold yellow #FBCC00 accent, thick 2.5px ink borders with hard 4px drop shadows, handwritten Dancing Script cursive body, Bebas Neue compressed display titles, and a radial dot pattern background. Includes a unique SVG-based flowchart layout. All images generated exclusively via Google Imagen.',
+    tags: ['Comic', 'Neo-Brutalist', 'Handwritten', 'Marblism', 'Flowchart'],
+    theme: {
+      bg: '#FFFDF5',
+      primary: '#FBCC00',
+      accent: '#191919',
+      secondary: '#404040',
+      fonts: 'Bebas Neue + Dancing Script + Nunito',
+      imageMode: 'Google Imagen (Bold Flat Illustration)',
+    },
+    previewSlides: [
+      {
+        id: 1,
+        title: 'THE FUTURE OF AI EMPLOYEES',
+        subtitle: 'How intelligent agents are transforming how small businesses scale',
+        badge: '✦ KEYNOTE 2026',
+        layout: 'COMIC-COVER',
+        image: '/templates/comic_cover_preview.png',
+      },
+      {
+        id: 2,
+        title: 'WHAT WE COVER TODAY',
+        badge: 'AT A GLANCE',
+        bullets: [
+          'The rise of AI employees in modern business',
+          'Key metrics and adoption statistics',
+          'How to build your AI-powered workforce',
+          'Real-world case studies and results',
+          'Getting started in 30 days',
+        ],
+        layout: 'COMIC-GLANCE',
+        image: '/templates/comic_glance_preview.png',
+      },
+      {
+        id: 3,
+        title: 'BY THE NUMBERS',
+        badge: 'KEY METRICS',
+        stats: [
+          { value: '40K+', label: 'Businesses Using AI', description: 'Across 50+ countries worldwide' },
+          { value: '50hrs', label: 'Saved Per Month', description: 'Average time reclaimed per business' },
+          { value: '4.8★', label: 'Customer Rating', description: 'Based on 965+ verified reviews' },
+        ],
+        layout: 'COMIC-STATS',
+        image: '/templates/comic_stats_preview.png',
+      },
+      {
+        id: 4,
+        title: 'MEET YOUR AI TEAM',
+        badge: 'AI EMPLOYEES',
+        items: [
+          { icon: '📧', heading: 'Eva — Executive Assistant', text: 'Handles inbox, calendar, and meeting notes automatically.' },
+          { icon: '📱', heading: 'Sonny — Community Manager', text: 'Turns your social media into a lead-generating machine.' },
+          { icon: '🎯', heading: 'Stan — Lead Generation', text: 'Finds leads, runs outreach, and follows up relentlessly.' },
+          { icon: '✍️', heading: 'Penny — SEO Expert', text: 'Writes SEO-optimized blogs that Google loves.' },
+          { icon: '📞', heading: 'Rachel — Receptionist', text: 'Answers calls and qualifies leads while you focus.' },
+          { icon: '⚖️', heading: 'Linda — Legal Assistant', text: 'Drafts contracts and answers legal questions instantly.' },
+        ],
+        layout: 'COMIC-ICON-GRID',
+        image: '/templates/comic_icon_grid_preview.png',
+      },
+      {
+        id: 5,
+        title: 'HOW THE PROCESS WORKS',
+        badge: 'PROCESS MAP',
+        layout: 'COMIC-FLOWCHART',
+        image: '/templates/comic_flowchart_preview.png',
+      },
+    ],
+  },
+  {
+    id: 'TECH_DUEL',
+    name: 'Tech Duel Comparison',
+    description:
+      'High-contrast two-sided comparison deck inspired by the NVIDIA DGX Spark vs. AMD Threadripper PRO 7000 presentation. Uses deep obsidian dark slides, clean light content slides, duel green (#76B900) for Product A and duel red (#ED1C24) for Product B. Perfect for head-to-head technology, product, platform, or concept comparisons with spec sheets, architecture breakdowns, benchmarks, and decision matrices.',
+    tags: ['Comparison', 'Technology', 'Duel', 'Product', 'Benchmarks'],
+    theme: {
+      bg: '#0D1117',
+      primary: '#76B900',
+      accent: '#ED1C24',
+      secondary: '#F6F7F9',
+      fonts: 'Outfit + Quattrocento Sans',
+      imageMode: 'Pinterest + Gemini fallback',
+    },
+    previewSlides: [
+      {
+        id: 1,
+        title: 'DGX SPARK VS. THREADRIPPER',
+        subtitle: 'The Battle for Desktop AI Supremacy',
+        layout: 'DUEL-COVER',
+        image: '/templates/tech_duel_cover_preview.png',
+      },
+      {
+        id: 2,
+        title: 'TABLE OF CONTENTS',
+        sections: [
+          { number: '01', title: 'Product Overview', description: 'Two approaches to desktop supercomputing' },
+          { number: '02', title: 'Architecture Deep Dive', description: 'ARM SoC vs x86 Zen 4 design philosophies' },
+          { number: '03', title: 'Specs & Performance', description: 'Head-to-head benchmarks and real-world numbers' },
+          { number: '04', title: 'Use Cases & Workloads', description: 'Matching platforms to the right workloads' },
+          { number: '05', title: 'Price & Value Analysis', description: 'Total cost of ownership and value verdict' },
+        ],
+        layout: 'DUEL-TOC',
+        image: '/templates/tech_duel_toc_preview.png',
+      },
+      {
+        id: 3,
+        title: 'DGX Spark packs 128GB unified memory into a 1.8L chassis',
+        badge: 'NVIDIA DGX SPARK',
+        productName: 'NVIDIA DGX Spark',
+        price: '$4,699',
+        specs: [
+          { label: 'SoC', value: 'GB10 Grace Blackwell' },
+          { label: 'CPU', value: '20-core ARM' },
+          { label: 'GPU', value: 'Blackwell 6,144 CUDA' },
+          { label: 'Memory', value: '128GB unified' },
+        ],
+        layout: 'DUEL-PRODUCT-A',
+        image: '/templates/tech_duel_product_a_preview.png',
+      },
+      {
+        id: 4,
+        title: 'Threadripper PRO scales from 12 to 96 Zen 4 cores',
+        badge: 'AMD THREADRIPPER PRO',
+        productName: 'AMD Threadripper PRO',
+        price: '$2,650 - $10K+',
+        specs: [
+          { label: 'Architecture', value: 'Zen 4 (TSMC 5nm)' },
+          { label: 'Cores', value: '12 to 96' },
+          { label: 'Memory', value: '8-ch DDR5, up to 2TB' },
+          { label: 'PCIe', value: '128 lanes Gen 5.0' },
+        ],
+        layout: 'DUEL-PRODUCT-B',
+        image: '/templates/tech_duel_product_b_preview.png',
+      },
+      {
+        id: 5,
+        title: 'THANK YOU',
+        subtitle: 'Questions? Let’s settle the debate.',
+        layout: 'DUEL-CLOSING',
+        image: '/templates/tech_duel_closing_preview.png',
+      },
+    ],
+  },
+  {
+    id: 'STARTUP_AMPLIFY',
+    name: 'Startup Amplify',
+    description:
+      'Light, card-based startup growth and GTM playbook inspired by the AMPLIFY YOUR STARTUP deck. Uses a warm light-gray canvas, red top/bottom rules, teal (#00A3A1) and orange (#E8762B) accents, and clean card-based layouts for chapters, stats, frameworks, tool stacks, pricing, and takeaways.',
+    tags: ['Startup', 'GTM', 'Growth', 'Strategy', 'AI Automation', 'Charts', 'Frameworks'],
+    theme: {
+      bg: '#F4F4F4',
+      primary: '#00A3A1',
+      accent: '#D91E18',
+      secondary: '#E8762B',
+      fonts: 'Liter + Inter',
+      imageMode: 'Clean Bright Stock / UI Shots',
+    },
+    previewSlides: [
+      {
+        id: 1,
+        title: 'AMPLIFY YOUR STARTUP',
+        subtitle: 'Marketing, GTM & AI Automation',
+        stats: [
+          { value: '47%', label: 'Productivity Gain with AI GTM' },
+          { value: '4-7x', label: 'Conversion Rate Improvement' },
+          { value: '300%', label: 'Average ROI from AI Tools' },
+        ],
+        layout: 'AMP-COVER',
+        image: '/templates/startup_amplify_cover_preview.png',
+      },
+      {
+        id: 2,
+        title: 'CONTENTS',
+        sections: [
+          {
+            number: '01',
+            title: 'Marketing Growth Engine',
+            description: 'Content, data-driven decisions & social media strategy',
+            page: '03',
+          },
+          {
+            number: '02',
+            title: 'The Road to GTM',
+            description: 'Framework, 90-day plan & motion selection',
+            page: '07',
+          },
+          {
+            number: '03',
+            title: 'AI Automation for GTM',
+            description: 'AI tools, autonomous platforms & implementation roadmap',
+            page: '11',
+          },
+        ],
+        layout: 'AMP-TOC',
+        image: '/templates/startup_amplify_toc_preview.png',
+      },
+      {
+        id: 3,
+        title: 'Content marketing remains the highest-ROI channel for early-stage startups',
+        subtitle: 'CONTENT MARKETING DELIVERS 3X MORE LEADS AT 62% LOWER COST',
+        bullets: [
+          'Identify persona needs and pain points',
+          'Produce original, high-value content',
+          'Optimize for SEO across all formats',
+          'Distribute via website, social, email',
+        ],
+        cards: [
+          {
+            title: 'Content Strategy Best Practices',
+            body: 'Persona-led, SEO-optimized, multi-format distribution.',
+          },
+          {
+            title: 'Content Formats That Work',
+            body: 'Blogs, video, whitepapers, case studies, newsletters.',
+          },
+        ],
+        stats: [
+          { value: '3x', label: 'More leads vs paid-only' },
+          { value: '62%', label: 'Lower cost per lead' },
+          { value: '72%', label: 'B2B buyers read 3+ pieces before buying' },
+        ],
+        layout: 'AMP-CONTENT-SPLIT',
+        image: '/templates/startup_amplify_content_preview.png',
+      },
+      {
+        id: 4,
+        title: 'Five interconnected components define every successful GTM strategy',
+        subtitle: 'MISS ANY ONE COMPONENT AND THE ENTIRE SYSTEM BECOMES UNSTABLE',
+        centerLabel: 'GTM',
+        nodes: [
+          { title: 'Market Definition', subtitle: 'TAM / SAM / SOM' },
+          { title: 'Ideal Customer Profile', subtitle: 'Who, Pain, Trigger' },
+          { title: 'Pricing Model', subtitle: 'How you monetize' },
+          { title: 'Value Proposition', subtitle: 'Why you, why now' },
+          { title: 'Channel Strategy', subtitle: 'How you reach customers' },
+        ],
+        layout: 'AMP-GTM-FLOW',
+        image: '/templates/startup_amplify_gtm_preview.png',
+      },
+      {
+        id: 5,
+        title: 'READY TO SCALE?',
+        subtitle: 'Start with one channel, measure obsessively, and automate what works.',
+        nextSteps: [
+          {
+            title: 'Audit Your Stack',
+            body: 'Map tools, data, and handoffs across marketing and sales.',
+          },
+          { title: 'Pick One Motion', body: 'PLG, sales-led, or ABM — commit for 90 days.' },
+          {
+            title: 'Deploy AI Agents',
+            body: 'Automate research, outreach, and meeting follow-ups.',
+          },
+        ],
+        prompt: 'Questions?',
+        layout: 'AMP-CLOSING',
+        image: '/templates/startup_amplify_closing_preview.png',
       },
     ],
   },

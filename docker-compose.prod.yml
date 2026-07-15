@@ -24,6 +24,10 @@ services:
       - /opt/pitch/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - /opt/pitch/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
 
+  cloakbrowser-manager:
+    ports:
+      - "8080:8080"
+
   worker:
     deploy:
       replicas: 4

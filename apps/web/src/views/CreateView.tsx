@@ -303,6 +303,7 @@ export const CreateView = ({
       background: formValues.background || 'none',
       shape: formValues.shape || 'rounded',
       inset: formValues.inset || '0.87',
+      browserHeader: formValues.browserHeader || 'none',
       headers: Object.keys(headersObj).length > 0 ? JSON.stringify(headersObj) : undefined,
       cookies: Object.keys(cookiesObj).length > 0 ? JSON.stringify(cookiesObj) : undefined,
     })
@@ -505,6 +506,9 @@ export const CreateView = ({
                 onShapeChange={s => update('shape', s)}
                 inset={formValues.inset || '0.87'}
                 onInsetChange={v => update('inset', v)}
+                browserHeader={formValues.browserHeader || 'none'}
+                onBrowserHeaderChange={mode => update('browserHeader', mode)}
+                url={formValues.url || ''}
               />
             </div>
 

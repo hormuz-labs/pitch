@@ -32,6 +32,16 @@ export const ZOOM_IN_DURATION = 0.6 // seconds  1× → target zoom
 export const ZOOM_OUT_DURATION = 0.6 // seconds  target zoom → 1×
 export const PAN_DURATION = 0.85 // seconds  glide between adjacent targets
 
+// Camera events emitted live by the demo agent are timed by real-time tool-call
+// pacing, so they can BUNCH closer together than a ramp lasts. Two events closer
+// than MERGE_GAP are treated as a single camera intent and coalesced (see
+// coalesceEvents) — otherwise the ramp gets compressed into a snappy hop and the
+// motion reads as jerky. The recording-editor flow gets this for free because its
+// events come from curated, well-spaced vision timestamps. MERGE_GAP is kept below
+// PAN_DURATION so genuine field-to-field pans (spaced by the fill/typing time) are
+// never merged.
+export const MERGE_GAP = 0.4 // seconds  events closer than this are one intent
+
 export const DEFAULT_ZOOM = 1.7 // gentler than a hard 2× dive
 export const OUTPUT_SIZE = '1920x1080'
 export const DEFAULT_FPS = 30 // fallback if source fps cannot be detected
@@ -111,11 +121,42 @@ export function fitZoomForBox(boxW: number, boxH: number, fill = 0.5): number {
 }
 
 /**
+ * Collapse bunched camera events (closer than MERGE_GAP) into a single intent, so
+ * a burst of near-simultaneous events produces one smooth move instead of several
+ * compressed hops. Only ever DROPS events — never re-times them — so the camera
+ * stays anchored to real on-screen moments and smart_trim's zoom protection (which
+ * reads the raw demo-state.json events, not this) is unaffected. Three patterns:
+ *
+ *   in → in    (rapid re-zoom): drop the earlier — glide straight to the final target.
+ *   out → in   (zoom out then straight back in): drop the out — it becomes one pan.
+ *   in → out   (a dart-in-and-out blip): drop the in — no flicker to a target and back.
+ *
+ * Pure + exported for testing. Assumes events are in time order (they are appended
+ * in wall-clock order during recording).
+ */
+export function coalesceEvents(events: ZoomEvent[]): ZoomEvent[] {
+  const out: ZoomEvent[] = []
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i]!
+    const next = events[i + 1]
+    if (next && next.videoTimeSec - ev.videoTimeSec < MERGE_GAP) {
+      if (ev.type === 'in' && next.type === 'in') continue // keep the later target
+      if (ev.type === 'out' && next.type === 'in') continue // out+in → a single pan
+      if (ev.type === 'in' && next.type === 'out') continue // drop the blip zoom-in
+    }
+    out.push(ev)
+  }
+  return out
+}
+
+/**
  * Turn the flat zoom_in/zoom_out event stream into a smooth camera path of eased
  * moves. Holds are intentionally static (no Ken Burns drift) so silent holds can be
  * detected and trimmed as dead air. Pure + exported for testing.
  */
 export function planCameraMoves(events: ZoomEvent[]): CameraMove[] {
+  // Smooth away bunched/jerky event patterns from live real-time pacing first.
+  events = coalesceEvents(events)
   // ── Simulate the camera to produce eased moves ─────────────────────────────
   const moves: CameraMove[] = []
   let curZ = 1
@@ -201,8 +242,14 @@ export function buildContinuousZoomFilter(
   // ── Assemble filter ────────────────────────────────────────────────────────
   const trimClause = trimSec > 0 ? `trim=start=${trimSec.toFixed(3)},` : ''
 
+  // Normalize to constant frame rate BEFORE zoompan. zoompan with d=1 emits one
+  // output frame per INPUT frame but restamps them at `fps`. On a variable-frame-
+  // rate source (common for screen recordings — e.g. tagged 60fps but only ~30
+  // real fps) the frame count no longer matches fps×duration, so the output gets
+  // squeezed to a fraction of its true length and desyncs from the audio. The
+  // leading `fps` filter resamples to true CFR so duration is preserved.
   return (
-    `${inputLabel}${trimClause}setpts=PTS-STARTPTS[trimmed];` +
+    `${inputLabel}${trimClause}fps=${fps},setpts=PTS-STARTPTS[trimmed];` +
     `[trimmed]zoompan=z='${zExpr}':x='${xExpr}':y='${yExpr}'` +
     `:d=1:s=${OUTPUT_SIZE}:fps=${fps}[zoomedv];`
   )

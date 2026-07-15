@@ -42,6 +42,8 @@ import {
   CreateView,
   DashboardView,
   EditorView,
+  EditRecordingView,
+  EnhanceView,
   LandingView,
   PdfCreateView,
   PdfEditorView,
@@ -526,6 +528,29 @@ const Sidebar = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
+                    <circle cx="6" cy="6" r="3" />
+                    <circle cx="6" cy="18" r="3" />
+                    <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                    <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                    <line x1="8.12" y1="8.12" x2="12" y2="12" />
+                  </svg>
+                }
+                label="Edit Recording"
+                active={selectedKey === 'edit'}
+                onClick={() => go('/edit')}
+              />
+              <NavItem
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                     <line x1="16" y1="13" x2="8" y2="13" />
@@ -535,6 +560,25 @@ const Sidebar = ({
                 label="New PDF"
                 active={selectedKey === 'pdf-create'}
                 onClick={() => go('/pdf')}
+              />
+              <NavItem
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.5L12 17.1l-6.2 4.5 2.4-7.5L2 9.6h7.6L12 2z" />
+                  </svg>
+                }
+                label="Enhance PDF"
+                active={selectedKey === 'enhance'}
+                onClick={() => go('/enhance')}
               />
               <NavItem
                 icon={
@@ -1189,13 +1233,15 @@ function AppContent() {
     const fetchJobs = async () => {
       try {
         const token = await getToken()
-        const [videoJobs, pdfJobs] = await Promise.all([
+        const [videoJobs, pdfJobs, enhanceJobs] = await Promise.all([
           api.get<Project[]>('/jobs', token!),
           api.get<Project[]>('/pdf-jobs', token!),
+          api.get<Project[]>('/enhance-jobs', token!),
         ])
         const combined = [
           ...(Array.isArray(videoJobs) ? videoJobs : []),
           ...(Array.isArray(pdfJobs) ? pdfJobs : []),
+          ...(Array.isArray(enhanceJobs) ? enhanceJobs : []),
         ]
         setProjects(combined)
 
@@ -1333,6 +1379,7 @@ function AppContent() {
           background: values.background || 'none',
           shape: values.shape || 'rounded',
           inset: values.inset || '0.87',
+          browserHeader: values.browserHeader || 'none',
         },
       })
       setProjects(prev => {
@@ -1387,6 +1434,74 @@ function AppContent() {
     }
   }
 
+  // File upload — multipart, so we bypass the JSON api helper
+  const handleQueueEnhanceJob = async (formData: FormData) => {
+    setIsSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/enhance-jobs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: formData,
+      })
+      if (!res.ok) {
+        const err: any = new Error(`HTTP ${res.status}`)
+        err.status = res.status
+        throw err
+      }
+      const newJob: Project = await res.json()
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === newJob.id)
+        return exists ? prev.map(p => (p.id === newJob.id ? newJob : p)) : [...prev, newJob]
+      })
+      navigate('/dashboard')
+      window.dispatchEvent(new Event('credits-changed'))
+    } catch (err: any) {
+      const msg =
+        err.status === 402
+          ? 'You have no credits remaining. Please top up to continue.'
+          : err.message || 'An error occurred'
+      toast(msg, 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Video upload — multipart, so we bypass the JSON api helper
+  const handleQueueEditJob = async (formData: FormData) => {
+    setIsSubmitting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/edit-jobs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: formData,
+      })
+      if (!res.ok) {
+        const err: any = new Error(`HTTP ${res.status}`)
+        err.status = res.status
+        throw err
+      }
+      const newJob: Project = await res.json()
+      setProjects(prev => {
+        const exists = prev.find(p => p.id === newJob.id)
+        return exists ? prev.map(p => (p.id === newJob.id ? newJob : p)) : [...prev, newJob]
+      })
+      navigate('/dashboard')
+      window.dispatchEvent(new Event('credits-changed'))
+    } catch (err: any) {
+      const msg =
+        err.status === 402
+          ? 'You have no credits remaining. Please top up to continue.'
+          : err.message || 'An error occurred'
+      toast(msg, 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleDelete = async (id: string) => {
     try {
       const token = await getToken()
@@ -1434,6 +1549,8 @@ function AppContent() {
         onDownload = () => window.open(project.pdfUrl)
       }
     }
+  } else if (location.pathname.startsWith('/enhance')) {
+    selectedKey = 'enhance'
   } else if (location.pathname.startsWith('/pdf')) {
     selectedKey = 'pdf-create'
   } else if (location.pathname.startsWith('/editor')) {
@@ -1446,6 +1563,9 @@ function AppContent() {
         onDownload = () => window.open(project.videoUrl)
       }
     }
+  } else if (location.pathname.startsWith('/edit')) {
+    // after /editor so '/editor' doesn't match this branch
+    selectedKey = 'edit'
   } else if (location.pathname.startsWith('/settings')) {
     selectedKey = 'settings'
   } else if (location.pathname.startsWith('/sessions')) {
@@ -1524,6 +1644,7 @@ function AppContent() {
               isDetailPage={
                 selectedKey === 'create' ||
                 selectedKey === 'pdf-create' ||
+                selectedKey === 'enhance' ||
                 selectedKey === 'editor' ||
                 selectedKey === 'pdfeditor' ||
                 selectedKey === 'settings' ||
@@ -1584,6 +1705,24 @@ function AppContent() {
                   path="/pdf"
                   element={
                     <PdfCreateView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />
+                  }
+                />
+                <Route
+                  path="/enhance"
+                  element={
+                    <EnhanceView
+                      isSubmitting={isSubmitting}
+                      onQueueEnhanceJob={handleQueueEnhanceJob}
+                    />
+                  }
+                />
+                <Route
+                  path="/edit"
+                  element={
+                    <EditRecordingView
+                      isSubmitting={isSubmitting}
+                      onQueueEditJob={handleQueueEditJob}
+                    />
                   }
                 />
                 <Route

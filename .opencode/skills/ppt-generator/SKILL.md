@@ -8,14 +8,15 @@ description: >
   presentation for Z", or pastes a body of text and asks for slides. The skill
   handles: (1) expanding the prompt into a structured outline of 100+ possible
   slide points categorised by topic type, (2) selecting the right subset for the
-  given topic, (3) extracting keywords and fetching high-res images from Unsplash via Playwright, 
-  (4) writing all slide text, and (5) building a final high-fidelity .pdf using Playwright (HTML-to-PDF).
+  given topic, (3) extracting keywords and fetching high-res images from Pinterest via Playwright
+  with Gemini fallback (Unsplash optional via --engine-order), (4) writing all slide text, and (5) building a final high-fidelity .pdf using
+  Playwright (HTML-to-PDF) with automated DOM QA.
   Always use this skill even if the user gives a very short prompt — your job is to expand it.
 ---
 
 # PPT Generator Skill
 
-End-to-end pipeline: text prompt → context/tone detection → Unsplash image fetching →
+End-to-end pipeline: text prompt → context/tone detection → Pinterest image fetching →
 slide writing → high-fidelity .pdf file.
 
 ---
@@ -28,14 +29,15 @@ slide writing → high-fidelity .pdf file.
 | 2 | Use Web Search / tools for factual grounding if needed |
 | 3 | Select slide points from the master list below |
 | 4 | Write all slide text (title, body) |
-| 5 | Generate rich image prompts & concise Unsplash keywords |
-| 6 | Fetch high-res images from Unsplash (Primary) |
+| 5 | Generate rich image prompts & concise Pinterest search keywords |
+| 6 | Fetch high-res images from Pinterest (Primary) with Gemini fallback |
 | 7 | Map images to slides by semantic relevance |
 | 8 | Build high-fidelity .pdf via Playwright (HTML-to-PDF) |
 | 9 | QA and export |
 
 Read [image-scraping.md](image-scraping.md) before running the Playwright pipeline.
 Copy [pdf-builder-template.js](pdf-builder-template.js) to `/tmp/ppt-<JOB_ID>/pdf-builder.js`.
+Copy [reference/qa-dom.js](reference/qa-dom.js) to `/tmp/ppt-<JOB_ID>/reference/qa-dom.js` — DOM QA runs automatically inside pdf-builder.js.
 Read [qa-loop.md](qa-loop.md) AFTER building — it contains the Visual QA loop for PDFs. The worker handles upload automatically once files are ready.
 
 ---
@@ -279,18 +281,23 @@ Rules:
 
 ## Step 5 — Image Scraping Pipeline
 
-Read [image-scraping.md](image-scraping.md) for the full Playwright script.
+Read [image-scraping.md](image-scraping.md) for the full Playwright script and Gemini fallback details.
 
 ### Overview
 
 You MUST execute the Node.js Playwright script to fetch real images before building the presentation. For each keyword:
-1. Run the scraper using: `node .opencode/skills/ppt-generator/reference/scrape_images.js --topic "<topic>" --keywords <keywords>`
-2. This script scrapes Unsplash, Pinterest, and Dribbble to download high-resolution, watermark-free images.
-3. The script automatically handles downloading via Playwright request context to avoid rate-limits or blocking.
-4. Images will be saved directly to `pptx/ppt-<topic-slug>/images/<keyword>/` as:
-   - `unsplash_01.jpg`, `unsplash_02.jpg` ...
-   - `pinterest_01.jpg`, `pinterest_02.jpg` ...
-   - `dribbble_01.jpg`, `dribbble_02.jpg` ...
+1. Run the scraper using: `node .opencode/skills/ppt-generator/reference/scrape_images.js --topic "<topic>" --keywords <keywords> [--rich-prompt "keyword::rich prompt" ...]`
+2. The script scrapes **Pinterest first** (2 images per keyword). **Dribbble is no longer used**.
+3. If Pinterest yields fewer than 2 images, the script automatically generates the missing image(s) with the **Gemini API** using `GEMINI_API_KEY` from `.env`.
+4. **Unsplash** is optional; use `--engine-order pinterest,unsplash,gemini` to include it.
+5. The script automatically handles downloading via Playwright request context to avoid rate-limits or blocking.
+6. Images will be saved directly to `pptx/ppt-<topic-slug>/images/<keyword>/` as:
+   - `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
+   - `gemini_01.png`, `gemini_02.png` (fallback generation, only if Pinterest < 2)
+   - `gemini_prompt.txt` (the prompt used for any Gemini generation)
+   - `unsplash_01.jpg` (only if `--engine-order` includes unsplash)
+
+Pass `--rich-prompt` for each keyword so the Gemini fallback prompt is based on the original 15–30 word rich image prompt instead of only the keyword.
 
 ### Image quality filters (apply before downloading)
 - Skip images smaller than 400×300px
@@ -304,12 +311,13 @@ You MUST execute the Node.js Playwright script to fetch real images before build
 
 ## Step 6 — Image-to-Slide Mapping
 
-Once the pool of ~20 images per keyword is downloaded, you must actively choose the absolute best matches and map them to your slides using this logic:
+Once the images are downloaded (target 2 per keyword), you must actively choose the absolute best matches and map them to your slides using this logic:
 
-1. **MANDATORY VERIFICATION**: Use the `Glob` tool to list the actual downloaded files in `pptx/ppt-<topic-slug>/images/<keyword>/`. NEVER guess or hardcode filenames (e.g., assuming `pinterest_02.jpg` exists). Scraping can occasionally fail for specific images. You must only assign file paths to slides that were successfully downloaded and confirmed to exist on disk.
-2. Each keyword has a `Maps to slides` entry
-3. From the successfully downloaded images for that keyword, pick the **best 1–2 images** per slide
-4. Scoring criteria (apply mentally, pick highest):
+1. **MANDATORY VERIFICATION**: Use the `Glob` tool to list the actual downloaded files in `pptx/ppt-<topic-slug>/images/<keyword>/`. NEVER guess or hardcode filenames (e.g., assuming `pinterest_02.jpg` exists). Scraping or generation can occasionally fail. You must only assign file paths to slides that were successfully downloaded and confirmed to exist on disk.
+2. If a keyword directory contains `gemini_prompt.txt` but no corresponding `gemini_*.png` file, record the prompt text in the slide JSON under `imagePrompt` instead of assigning a non-existent image path.
+3. Each keyword has a `Maps to slides` entry.
+4. From the successfully downloaded images for that keyword, pick the **best 1–2 images** per slide.
+5. Scoring criteria (apply mentally, pick highest):
    - Subject match: does the image literally show what the slide is about?
    - Color harmony: does the image tone match your chosen palette?
    - Composition: is there clean space for text overlay?
@@ -326,22 +334,15 @@ Use one of these layouts per slide (vary across the deck — never repeat same l
 
 | Layout Code | Description | Best for |
 |-------------|-------------|----------|
-| `COVER` | Full-bleed image, title centre overlay, fully transparent | Slide 1 |
+| `COVER` | Full-bleed image, title centre overlay, fully transparent | Slide 1 and Last Slide |
 | `CHART-FULL`| Large full-slide data chart (bar, line, pie) | Key trends, market growth |
 | `SPLIT-CHART`| Text left 50%, Chart right 50% | Breaking down statistics with context |
 | `SPLIT-L` | Text left 55%, image right 45% | Content + fact slides |
 | `SPLIT-R` | Image left 45%, text right 55% | Case studies, examples |
-| `SPLIT-INFO` | Badge + large title + body text (left 38%), full image (right 55%), 3 info-cards row below | Case studies, how-it-works, process explanations |
-| `FULLBLEED` | Image covers 100%, text in semi-transparent card | Impactful statements |
-| `STAT` | Up to 4 premium stat cards — each with big number, bold label, description text, and top accent border | Key statistics, comparison numbers, KPI highlights |
-| `METRICS-CARD`| Cards with icons/images, title, big metric, and description | Complex data, startup pitches |
-| `MEDIA-GRID` | Adaptive grid of images with short captions | Team pages, product showcases |
-| `QUOTE` | Centered quote, large text, subtle bg texture | Expert opinion slides |
-| `TIMELINE` | Horizontal arrow with 4–6 nodes | History / milestones |
-| `COMPARE` | Two columns, left vs right, colour-coded | Pros/Cons, Before/After |
-| `ICON-GRID` | 2×3 grid of icon + label + short text | Features, causes, steps |
-| `AGENDA` | Numbered list, clean typography | Slide 2 only |
-| `CLOSING` | Dark bg, large CTA text, logo | Last slide |
+| `SPLIT-INFO` | Badge + title + body text, full image, 3 info-cards row below (must use `cards` array) | Case studies, how-it-works, process explanations |
+| `STAT` | Up to 4 premium stat cards (must use `stats` array: `[{value, label, description}]`) | Key statistics, comparison numbers, KPI highlights |
+
+**CRITICAL WARNING:** ONLY the 7 layouts explicitly listed above are supported by the engine. Do NOT use `AGENDA`, `TIMELINE`, `QUOTE`, `FULLBLEED`, `COMPARE`, `ICON-GRID`, `METRICS-CARD`, `MEDIA-GRID`, or `CLOSING`. Using unsupported layouts will result in empty slides!
 
 ---
 
@@ -387,9 +388,9 @@ For EVERY topic follow this algorithm:
 
 ### 2. Layout Sequence Rules
 - Slide 1: always `COVER` (Ensure cover image overlays are set to `transparent` so the background image is fully clean and un-tinted)
-- Slide 2: always `AGENDA` (Skip if total slides < 5)
-- Last slide: always `CLOSING`
-- Middle slides: choose from the layout pool, weighted by topicType.
+- Slide 2: always `SPLIT-L` or `SPLIT-INFO`
+- Last slide: always `COVER` (reused as closing slide with contact/summary info)
+- Middle slides: choose from the supported layout pool, weighted by topicType.
 - **Hard rule**: never use the same layout on two consecutive slides.
 
 ### 3. 16:9 Enforcement Checklist
@@ -403,11 +404,14 @@ For EVERY topic follow this algorithm:
 ```
 1. npm install playwright (inside /tmp/ppt-<JOB_ID>/)
 2. Copy pdf-builder-template.js to /tmp/ppt-<JOB_ID>/pdf-builder.js
-3. Fill in the CONFIG object with generated slide content. Use the `getBase64Image('filename.jpg')` helper to map local images so they are permanently embedded into the PDF.
-4. cd /tmp/ppt-<JOB_ID> && node pdf-builder.js
-5. Verify output.pdf was written to /tmp/ppt-<JOB_ID>/output.pdf
-6. Run Visual QA Loop (Step 10)
-7. When QA passes, ensure output.pdf and output.html are at /tmp/ppt-<JOB_ID>/. The worker handles uploading automatically.
+3. Copy reference/qa-dom.js to /tmp/ppt-<JOB_ID>/reference/qa-dom.js (DOM QA is required)
+4. Fill in the CONFIG object with generated slide content. Use the `getBase64Image('filename.jpg')` helper to map local images so they are permanently embedded into the PDF.
+5. cd /tmp/ppt-<JOB_ID> && node pdf-builder.js
+6. pdf-builder.js automatically runs DOM QA first and writes qa-report.json
+7. If DOM QA reports critical issues, fix them in pdf-builder.js and rerun from step 5
+8. Once DOM QA passes, verify output.pdf was written to /tmp/ppt-<JOB_ID>/output.pdf
+9. Run Visual QA Loop (Step 10)
+10. When QA passes, ensure output.pdf and output.html are at /tmp/ppt-<JOB_ID>/. The worker handles uploading automatically.
 ```
 **IMPORTANT**: The worker will detect the generated files and handle upload/completion automatically.
 
@@ -417,7 +421,13 @@ For EVERY topic follow this algorithm:
 
 Read [qa-loop.md](qa-loop.md) for the full commands, defect taxonomy, and patch strategy.
 
-**DO NOT proceed to the exit step until this loop completes.**
+`pdf-builder.js` now performs an automated **DOM QA** gate before generating the PDF. It writes `qa-report.json` and aborts the build if critical structural defects (TEXT_OVERFLOW, IMAGE_MISSING, LAYOUT_BREAK) are detected. You must fix all critical issues before the PDF is produced.
+
+After DOM QA passes and `output.pdf` + `qa-renders/` are generated, perform visual inspection:
+
+**CRITICAL WARNING: NEVER assume the slides are correct just because the script output says "SUCCESS". Automated checks cannot catch every visual layout break or overlapping text!**
+
+You MUST use your `read` tool to open and analyze the `.png` files generated in the `qa-renders/` folder. Because you are a multimodal agent, passing the image path to your `read` tool will allow you to physically see the slide. If you skip using the `read` tool on the images, you have FAILED the QA step.
 
 ### The Loop
 
@@ -425,16 +435,17 @@ Read [qa-loop.md](qa-loop.md) for the full commands, defect taxonomy, and patch 
 after node pdf-builder.js produces output.pdf and qa-renders/:
 
 LOOP:
-  1. Open EVERY .png in qa-renders/ with your file viewing tool. Do NOT skip any slide.
+  1. Read qa-report.json and confirm "passed": true. If not, fix critical issues and rerun.
+  2. Open EVERY .png in qa-renders/ with your file viewing tool. Do NOT skip any slide.
 
-  2. For each slide, check these defects:
+  3. For each slide, check these defects:
        TEXT_OVERFLOW · IMAGE_MISSING · CONTRAST_ERROR · LAYOUT_BREAK · TYPO_CRITICAL
      (Full taxonomy, severity levels, and visual detection guide → qa-loop.md)
 
-  3. if verdict = "PASS":
+  4. if verdict = "PASS":
        → EXIT LOOP
 
-  4. if verdict = "FAIL":
+  5. if verdict = "FAIL":
        a. Apply targeted patches to pdf-builder.js for EACH defect
        b. node pdf-builder.js   ← regenerate output.pdf and new PNGs
        c. go to step 1
@@ -453,7 +464,7 @@ Once the QA loop passes, the final `output.pdf` and `output.html` are at `/tmp/p
 → Default to 14–16 slides. Use Web Search Grounding to find the latest context.
 
 **Images fail to scrape**
-→ Build the deck anyway using stable fallback image sources or Unsplash source URL generation. 
+→ Build the deck anyway using stable fallback image sources or Gemini image generation. 
 
 ---
 
@@ -462,7 +473,7 @@ Once the QA loop passes, the final `output.pdf` and `output.html` are at `/tmp/p
 ```
 ppt-generator/
 ├── SKILL.md                 ← this file (pipeline + design token engine)
-├── image-scraping.md        ← Playwright script for fetching Unsplash images
+├── image-scraping.md        ← Playwright script for fetching Pinterest images with Gemini fallback
 ├── pdf-builder-template.js  ← Node.js build scaffold for PDF generation with Base64 embedding
 └── qa-loop.md               ← Visual QA loop: render → inspect → patch → rebuild
 ```

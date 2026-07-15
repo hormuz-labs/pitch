@@ -1,37 +1,70 @@
 # Visual QA Loop for PDF Presentations
 
-The Visual QA Loop is now integrated directly into the `pdf-builder.js`. It uses Playwright to capture high-resolution PNGs of every slide before the PDF is finalized.
+The QA process now runs in two automated gates inside `pdf-builder.js`:
+
+1. **DOM QA** — structural checks on the rendered HTML before PDF generation.
+2. **Visual QA** — screenshot-based inspection of each slide after PDF generation.
+
+Both gates are compulsory. The PDF is not finalized until DOM QA passes; visual QA is then used for subjective/contrast verification.
 
 ---
 
-## Step QA-1: Automated Rendering
+## Gate 1 — DOM QA (automatic)
 
-When you run `node pdf-builder.js`, it performs the following:
-1.  Renders the HTML content in a headless browser (1280x720).
-2.  Captures a screenshot of each `.slide` element.
-3.  Saves them to `./qa-renders/slide_n.png`.
-4.  Generates the final `output.pdf`.
+When you run `node pdf-builder.js`, the DOM QA step executes immediately after the HTML is rendered and images/charts have loaded. It inspects every `.slide` element in the browser and writes a report to `./qa-report.json`.
+
+### Detected issues
+
+| Issue | Severity | What triggers it |
+|---|---|---|
+| **TEXT_OVERFLOW** | critical | Element `scrollHeight > clientHeight` or `scrollWidth > clientWidth` |
+| **IMAGE_MISSING** | critical | `<img>` has no `src`, failed to load (`naturalWidth === 0`), or is not `complete` |
+| **LAYOUT_BREAK** | critical | Slide has zero width/height, or no `.slide` elements exist |
+| **CONTRAST_WARNING** | warning | Text/background contrast ratio below 4.5:1 |
+| **PLACEHOLDER_TEXT** | warning | Slide still contains dummy text like "PRESENTATION TITLE" or "Subtitle goes here" |
+
+### Behavior
+
+- If any **critical** issue is found, `pdf-builder.js` exits with code `1` and **does not generate the PDF**.
+- If only **warnings** are found, the PDF is generated and the warnings are logged for review.
+
+### Required agent action
+
+After every `node pdf-builder.js` run:
+
+1. Read `qa-report.json`.
+2. Fix every `critical` issue.
+3. Review `warning` items and fix any that affect slide quality.
+4. Re-run `node pdf-builder.js` until DOM QA passes.
 
 ---
 
-## Step QA-2: Manual Inspection
+## Gate 2 — Visual QA (automatic render, manual inspection)
 
-Open the `qa-renders/` folder and inspect each image for these defects:
+After DOM QA passes, `pdf-builder.js` captures a high-resolution PNG of every slide and saves them to `./qa-renders/slide_n.png`.
 
-1.  **TEXT_OVERFLOW**: Text hitting the bottom margin (Check slide 2/Agenda specifically).
-2.  **IMAGE_MISSING**: Unsplash images that failed to load (leaving a colored box).
-3.  **CONTRAST**: White text on light image backgrounds (Needs a darker overlay).
+Inspect each image for these defects:
+
+1. **TEXT_OVERFLOW**: Text hitting the bottom margin (Check slide 2/Agenda specifically).
+2. **IMAGE_MISSING**: Images that failed to load (leaving a colored box).
+3. **CONTRAST**: White text on light image backgrounds (Needs a darker overlay).
 
 ---
 
-## Step QA-3: Rapid Patching
+## Gate 3 — Rapid Patching
 
-If a defect is found, edit `pdf-builder.js`:
--   **Overflow**: Reduce `font-size` in the CSS section (Line 124) or prune text.
--   **Contrast**: Increase the opacity of `rgba(0,0,0,0.4)` to `0.6` or higher in the template.
--   **Images**: Verify the Unsplash URL or use a different keyword.
+If a defect is found in either gate, edit `pdf-builder.js`:
+- **Overflow**: Reduce `font-size` in the CSS section (Line 124) or prune text.
+- **Contrast**: Increase the opacity of `rgba(0,0,0,0.4)` to `0.6` or higher in the template.
+- **Images**: Verify the image path or use a different keyword.
+- **Placeholder text**: Replace dummy strings with real content.
 
 ---
 
 ## Final Check
-Re-run the builder. Once all PNGs in `qa-renders/` pass your visual check, the PDF is ready for delivery.
+
+Re-run the builder. Once:
+- `qa-report.json` shows `passed: true`, and
+- all PNGs in `qa-renders/` pass your visual check,
+
+the PDF is ready for delivery.
