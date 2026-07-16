@@ -54,7 +54,6 @@ const IconChevronUp = () => (
   </svg>
 )
 
-
 type SlideData = {
   layout: string
   title?: string
@@ -77,14 +76,21 @@ type SlideData = {
   statement?: string
   attribution?: string
   codeSnippet?: string
-  steps?: Array<{ year?: string; date?: string; title?: string; heading?: string; description?: string; text?: string }>
+  steps?: Array<{
+    year?: string
+    date?: string
+    title?: string
+    heading?: string
+    description?: string
+    text?: string
+  }>
   col1Title?: string
   col1Bullets?: string[]
   col2Title?: string
   col2Bullets?: string[]
   columns?: Array<{ heading: string; body: string }>
   // Tech Duel fields
-  sections?: Array<{ number?: string; title: string; description?: string }>
+  sections?: Array<{ number?: string; title: string; description?: string; page?: string }>
   specs?: Array<{ label: string; value: string }>
   price?: string
   priceNote?: string
@@ -591,7 +597,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   const sub = slide.subtitle ?? ''
 
   if (templateId === 'BRUTALIST_NEWSPAPER') {
-    if (slide.layout === 'NEWSPAPER-COVER') return `
+    if (slide.layout === 'NEWSPAPER-COVER')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="news-header"><div>VOL. CXXVI No. 42,910</div><div>THE DAILY FORECAST</div><div>PRICE $1.50</div></div>
@@ -604,7 +611,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="news-hero-right">${slide.image ? `<img class="news-hero-img" src="${slide.image}" />` : '<div class="news-img-placeholder"></div>'}</div>
   </div>
 </div>`
-    if (slide.layout === 'GLANCE') return `
+    if (slide.layout === 'GLANCE')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">AT A GLANCE</div>
@@ -612,18 +620,20 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   <div class="glance-columns">
     <div class="glance-col-left">${slide.image ? `<img class="glance-img" src="${slide.image}" />` : '<div class="news-img-placeholder"></div>'}</div>
     <div class="glance-col-right">
-      <ul class="brutalist-list">${(slide.bullets||[]).map(b=>`<li><span class="bullet-tag">◆</span> ${b}</li>`).join('')}</ul>
+      <ul class="brutalist-list">${(slide.bullets || []).map(b => `<li><span class="bullet-tag">◆</span> ${b}</li>`).join('')}</ul>
     </div>
   </div>
 </div>`
-    if (slide.layout === 'DATA-TABLE') return `
+    if (slide.layout === 'DATA-TABLE')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">STATISTICAL BULLETIN</div>
   <h2 class="slide-title-brutalist">${t}</h2>
-  <div class="stats-table-container">${(slide.stats||[]).map(s=>`<div class="stats-table-row"><div class="stat-big-val">${s.value}</div><div class="stat-labels-col"><div class="stat-row-label">${s.label}</div>${s.description ? `<div class="stat-row-desc">${s.description}</div>` : ''}</div></div>`).join('')}</div>
+  <div class="stats-table-container">${(slide.stats || []).map(s => `<div class="stats-table-row"><div class="stat-big-val">${s.value}</div><div class="stat-labels-col"><div class="stat-row-label">${s.label}</div>${s.description ? `<div class="stat-row-desc">${s.description}</div>` : ''}</div></div>`).join('')}</div>
 </div>`
-    if (slide.layout === 'SPLIT-PANEL') return `
+    if (slide.layout === 'SPLIT-PANEL')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">SPECIAL FOCUS</div>
@@ -638,7 +648,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="panel-visual">${slide.image ? `<img class="panel-img" src="${slide.image}" />` : '<div class="news-img-placeholder"></div>'}</div>
   </div>
 </div>`
-    if (slide.layout === 'QUOTE-STAMP') return `
+    if (slide.layout === 'QUOTE-STAMP')
+      return `
 <div class="slide brutalist-editorial flex-center-brutalist">
   <div class="news-grain"></div>
   <div class="quote-stamp-box">
@@ -647,45 +658,57 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     ${slide.author ? `<div class="quote-author-brutalist">— ${slide.author}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'DENSE-LIST') return `
+    if (slide.layout === 'DENSE-LIST')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">INVESTIGATIVE BREAKDOWN</div>
   <h2 class="slide-title-brutalist">${t}</h2>
   <div class="dense-list-grid">
-    ${(slide.items || []).map((item, idx) => `
+    ${(slide.items || [])
+      .map(
+        (item, idx) => `
     <div class="dense-list-card">
       <div class="card-num">${String(idx + 1).padStart(2, '0')}</div>
       <div class="card-title">${item.heading || ''}</div>
       <div class="card-desc">${item.text || ''}</div>
-    </div>`).join('')}
+    </div>`,
+      )
+      .join('')}
   </div>
 </div>`
-    if (slide.layout === 'TIMELINE-GRID') return `
+    if (slide.layout === 'TIMELINE-GRID')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">CHRONOLOGICAL DISPATCH</div>
   <h2 class="slide-title-brutalist">${t}</h2>
   <div class="timeline-row">
-    ${(slide.steps || []).map((step, idx) => `
+    ${(slide.steps || [])
+      .map(
+        (step, idx) => `
     <div class="timeline-node">
       <div class="node-year">${step.year || step.date || `PHASE ${idx + 1}`}</div>
       <div class="node-heading">${step.heading || step.title || ''}</div>
       <div class="node-text">${step.text || step.description || ''}</div>
-    </div>`).join('')}
+    </div>`,
+      )
+      .join('')}
   </div>
 </div>`
-    if (slide.layout === 'CHART-EDITORIAL') return `
+    if (slide.layout === 'CHART-EDITORIAL')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">EDITORIAL CHART</div>
   <h2 class="slide-title-brutalist">${t}</h2>
   <div class="chart-editorial-container" style="display:flex;align-items:flex-end;justify-content:space-around;gap:12px;">
-    ${[40,55,75,60,90,65].map(h=>`<div style="background:#CC2222;width:60px;height:${h}%;"></div>`).join('')}
+    ${[40, 55, 75, 60, 90, 65].map(h => `<div style="background:#CC2222;width:60px;height:${h}%;"></div>`).join('')}
   </div>
-  ${slide.source?`<div class="chart-source-brutalist">${slide.source}</div>`:''}
+  ${slide.source ? `<div class="chart-source-brutalist">${slide.source}</div>` : ''}
 </div>`
-    if (slide.layout === 'SPLIT-CHART') return `
+    if (slide.layout === 'SPLIT-CHART')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">DATA DISPATCH</div>
@@ -702,14 +725,16 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   </div>
   ${slide.source ? `<div class="chart-source-brutalist">${slide.source}</div>` : ''}
 </div>`
-    if (slide.layout === 'ICON-GRID') return `
+    if (slide.layout === 'ICON-GRID')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
-  <div class="section-tag">${slide.badge||'EDITORIAL GRID'}</div>
+  <div class="section-tag">${slide.badge || 'EDITORIAL GRID'}</div>
   <h2 class="slide-title-brutalist">${t}</h2>
-  <div class="icon-editorial-grid">${(slide.items||[]).map(item=>`<div class="icon-editorial-card"><div class="icon-editorial-icon">${item.icon||'◆'}</div><div class="icon-editorial-heading">${item.heading}</div><div class="icon-editorial-text">${item.text}</div></div>`).join('')}</div>
+  <div class="icon-editorial-grid">${(slide.items || []).map(item => `<div class="icon-editorial-card"><div class="icon-editorial-icon">${item.icon || '◆'}</div><div class="icon-editorial-heading">${item.heading}</div><div class="icon-editorial-text">${item.text}</div></div>`).join('')}</div>
 </div>`
-    if (slide.layout === 'COMPARE-PANEL') return `
+    if (slide.layout === 'COMPARE-PANEL')
+      return `
 <div class="slide brutalist-editorial">
   <div class="news-grain"></div>
   <div class="section-tag">COMPARE / DEBATE</div>
@@ -729,7 +754,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'IMPACT-STATEMENT') return `
+    if (slide.layout === 'IMPACT-STATEMENT')
+      return `
 <div class="slide brutalist-editorial impact-slide">
   <div class="news-grain"></div>
   ${slide.image ? `<img class="np-halftone-img" src="${slide.image}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;" />` : ''}
@@ -740,7 +766,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     ${slide.attribution ? `<div class="impact-attribution" style="font-family:'Courier New',monospace;font-size:15px;font-weight:bold;color:#EAE6D5;text-transform:uppercase;letter-spacing:1.5px;">— ${slide.attribution}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'CLOSING-EDITORIAL') return `
+    if (slide.layout === 'CLOSING-EDITORIAL')
+      return `
 <div class="slide brutalist-editorial flex-center-brutalist bg-black-editorial">
   <div class="news-grain"></div>
   <div class="closing-card-brutalist">
@@ -753,7 +780,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   }
 
   if (templateId === 'MINIMAL_CORPORATE') {
-    if (slide.layout === 'COVER') return `
+    if (slide.layout === 'COVER')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-cover-accent"></div>
   <div class="corp-content flex-center">
@@ -762,21 +790,27 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="corp-cover-footer">Strategic Initiative | 2026</div>
   </div>
 </div>`
-    if (slide.layout === 'TOC') return `
+    if (slide.layout === 'TOC')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <div class="corp-badge">AGENDA</div>
     <h2 class="corp-title">${t}</h2>
     <div class="corp-toc-grid">
-      ${(slide.bullets || []).map((b, idx) => `
+      ${(slide.bullets || [])
+        .map(
+          (b, idx) => `
       <div class="corp-toc-item">
         <div class="corp-toc-num">${String(idx + 1).padStart(2, '0')}</div>
         <div class="corp-toc-text">${b}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'BRIEF-EXPLAIN') return `
+    if (slide.layout === 'BRIEF-EXPLAIN')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <div class="corp-badge">OVERVIEW</div>
@@ -784,21 +818,23 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="corp-brief-split">
       <div class="corp-brief-left">
         <p class="corp-brief-lead">${slide.body || ''}</p>
-        <ul class="corp-bullets">${(slide.bullets||[]).map(b=>`<li>${b}</li>`).join('')}</ul>
+        <ul class="corp-bullets">${(slide.bullets || []).map(b => `<li>${b}</li>`).join('')}</ul>
       </div>
       <div class="corp-brief-right">${slide.image ? `<img class="corp-split-img" src="${slide.image}" />` : '<div class="corp-img-placeholder"></div>'}</div>
     </div>
   </div>
 </div>`
-    if (slide.layout === 'METRIC-ROW') return `
+    if (slide.layout === 'METRIC-ROW')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <div class="corp-badge">KEY METRICS</div>
     <h2 class="corp-title">${t}</h2>
-    <div class="corp-metrics-row">${(slide.stats||[]).map(s=>`<div class="corp-metric-card"><div class="corp-metric-num">${s.value}</div><div class="corp-metric-label">${s.label}</div></div>`).join('')}</div>
+    <div class="corp-metrics-row">${(slide.stats || []).map(s => `<div class="corp-metric-card"><div class="corp-metric-num">${s.value}</div><div class="corp-metric-label">${s.label}</div></div>`).join('')}</div>
   </div>
 </div>`
-    if (slide.layout === 'SPLIT-COL') return `
+    if (slide.layout === 'SPLIT-COL')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <div class="corp-badge">COMPARATIVE ANALYSIS</div>
@@ -819,48 +855,60 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'DENSE-GRID') return `
+    if (slide.layout === 'DENSE-GRID')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <div class="corp-badge">DETAILED BREAKDOWN</div>
     <h2 class="corp-title">${t}</h2>
     <div class="corp-dense-grid">
-      ${(slide.items || []).map(item => `
+      ${(slide.items || [])
+        .map(
+          item => `
       <div class="corp-grid-card">
         <div class="corp-grid-title">${item.heading || ''}</div>
         <div class="corp-grid-desc">${item.text || ''}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'TIMELINE-CLEAN') return `
+    if (slide.layout === 'TIMELINE-CLEAN')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <div class="corp-badge">MILESTONES</div>
     <h2 class="corp-title">${t}</h2>
     <div class="corp-timeline">
       <div class="corp-timeline-line"></div>
-      ${(slide.steps || []).map((step, idx) => `
+      ${(slide.steps || [])
+        .map(
+          (step, idx) => `
       <div class="corp-timeline-node">
         <div class="corp-node-dot"></div>
         <div class="corp-node-year">${step.year || step.date || `PHASE ${idx + 1}`}</div>
         <div class="corp-node-title">${step.heading || ''}</div>
         <div class="corp-node-desc">${step.text || ''}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'CHART-CLEAN') return `
+    if (slide.layout === 'CHART-CLEAN')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <h2 class="corp-title">${t}</h2>
     <div class="corp-chart-full" style="display:flex;align-items:flex-end;justify-content:space-around;gap:12px;">
-      ${[42,51,63,78,85].map(h=>`<div style="background:#004080;border-radius:4px 4px 0 0;width:60px;height:${h}%;"></div>`).join('')}
+      ${[42, 51, 63, 78, 85].map(h => `<div style="background:#004080;border-radius:4px 4px 0 0;width:60px;height:${h}%;"></div>`).join('')}
     </div>
-    ${slide.source?`<div class="corp-chart-source">${slide.source}</div>`:''}
+    ${slide.source ? `<div class="corp-chart-source">${slide.source}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'SPLIT-CHART-CLEAN') return `
+    if (slide.layout === 'SPLIT-CHART-CLEAN')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <h2 class="corp-title">${t}</h2>
@@ -877,15 +925,17 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     ${slide.source ? `<div class="corp-chart-source">${slide.source}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'ICON-GRID-CLEAN') return `
+    if (slide.layout === 'ICON-GRID-CLEAN')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
-    <div class="corp-badge">${slide.badge||'HIGHLIGHTS'}</div>
+    <div class="corp-badge">${slide.badge || 'HIGHLIGHTS'}</div>
     <h2 class="corp-title">${t}</h2>
-    <div class="corp-icon-grid">${(slide.items||[]).map(item=>`<div class="corp-icon-grid-item"><div class="corp-icon-grid-icon">${item.icon||'✓'}</div><div class="corp-icon-grid-heading">${item.heading}</div><div class="corp-icon-grid-text">${item.text}</div></div>`).join('')}</div>
+    <div class="corp-icon-grid">${(slide.items || []).map(item => `<div class="corp-icon-grid-item"><div class="corp-icon-grid-icon">${item.icon || '✓'}</div><div class="corp-icon-grid-heading">${item.heading}</div><div class="corp-icon-grid-text">${item.text}</div></div>`).join('')}</div>
   </div>
 </div>`
-    if (slide.layout === 'COMPARE-CLEAN') return `
+    if (slide.layout === 'COMPARE-CLEAN')
+      return `
 <div class="slide corp-minimal">
   <div class="corp-content">
     <div class="corp-badge">COMPARE</div>
@@ -906,7 +956,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'IMPACT-CLEAN') return `
+    if (slide.layout === 'IMPACT-CLEAN')
+      return `
 <div class="slide corp-minimal corp-impact-slide">
   ${slide.image ? `<img class="corp-split-img" src="${slide.image}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;" />` : ''}
   <div class="corp-impact-overlay"></div>
@@ -915,7 +966,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     ${slide.attribution ? `<div class="corp-impact-attribution">${slide.attribution}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'CLOSING-CLEAN') return `
+    if (slide.layout === 'CLOSING-CLEAN')
+      return `
 <div class="slide corp-minimal corp-closing-bg">
   <div class="corp-content flex-center">
     <h1 class="corp-closing-title">${t}</h1>
@@ -927,7 +979,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   }
 
   if (templateId === 'DARK_TECH') {
-    if (slide.layout === 'TECH-COVER') return `
+    if (slide.layout === 'TECH-COVER')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content flex-center">
@@ -937,7 +990,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="tech-cover-footer">HOST: AGENT_SYSTEM // TIMESTAMP: 2026</div>
   </div>
 </div>`
-    if (slide.layout === 'DASHBOARD-GLANCE') return `
+    if (slide.layout === 'DASHBOARD-GLANCE')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
@@ -948,22 +1002,24 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
       <div class="tech-dash-right">
         <div class="terminal-box">
           <div class="terminal-bar"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span></div>
-          <ul class="tech-list">${(slide.bullets||[]).map(b=>`<li><span class="tech-prompt">&gt;</span> ${b}</li>`).join('')}</ul>
+          <ul class="tech-list">${(slide.bullets || []).map(b => `<li><span class="tech-prompt">&gt;</span> ${b}</li>`).join('')}</ul>
         </div>
       </div>
     </div>
   </div>
 </div>`
-    if (slide.layout === 'METRIC-GLOW') return `
+    if (slide.layout === 'METRIC-GLOW')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
     <div class="tech-badge">SYS.TELEMETRY</div>
     <h2 class="tech-title">// ${t}</h2>
-    <div class="tech-metrics-row">${(slide.stats||[]).map(s=>`<div class="tech-metric-card"><div class="tech-metric-glow-bar"></div><div class="tech-metric-num">${s.value}</div><div class="tech-metric-label">&lt; ${s.label} &gt;</div></div>`).join('')}</div>
+    <div class="tech-metrics-row">${(slide.stats || []).map(s => `<div class="tech-metric-card"><div class="tech-metric-glow-bar"></div><div class="tech-metric-num">${s.value}</div><div class="tech-metric-label">&lt; ${s.label} &gt;</div></div>`).join('')}</div>
   </div>
 </div>`
-    if (slide.layout === 'GLOW-PANEL') return `
+    if (slide.layout === 'GLOW-PANEL')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
@@ -983,7 +1039,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'CODE-SPLIT') return `
+    if (slide.layout === 'CODE-SPLIT')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
@@ -1002,36 +1059,43 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'FLOW-STEPS') return `
+    if (slide.layout === 'FLOW-STEPS')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
     <div class="tech-badge">SYS.PIPELINE</div>
     <h2 class="tech-title">// ${t}</h2>
     <div class="tech-pipeline-row">
-      ${(slide.steps || []).map((step, idx) => `
+      ${(slide.steps || [])
+        .map(
+          (step, idx) => `
       <div class="tech-pipeline-node">
         <div class="node-index">#0${idx + 1}</div>
         <div class="node-arrow-glow"></div>
         <div class="node-heading">${step.heading || ''}</div>
         <div class="node-text">${step.text || ''}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'TECH-CHART') return `
+    if (slide.layout === 'TECH-CHART')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
     <div class="tech-badge">SYS.DATA_VIZ</div>
     <h2 class="tech-title">// ${t}</h2>
     <div class="tech-chart-full" style="display:flex;align-items:flex-end;justify-content:space-around;gap:10px;background:#1E293B;border:2px solid #334155;border-radius:4px;padding:16px;">
-      ${[30,45,70,60,85,95].map(h=>`<div style="background:#06B6D4;border-radius:4px 4px 0 0;width:55px;height:${h*0.7}%;opacity:0.85;"></div>`).join('')}
+      ${[30, 45, 70, 60, 85, 95].map(h => `<div style="background:#06B6D4;border-radius:4px 4px 0 0;width:55px;height:${h * 0.7}%;opacity:0.85;"></div>`).join('')}
     </div>
-    ${slide.source?`<div class="tech-chart-source">${slide.source}</div>`:''}
+    ${slide.source ? `<div class="tech-chart-source">${slide.source}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'TECH-SPLIT-CHART') return `
+    if (slide.layout === 'TECH-SPLIT-CHART')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
@@ -1050,16 +1114,18 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     ${slide.source ? `<div class="tech-chart-source">${slide.source}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'TECH-ICON-GRID') return `
+    if (slide.layout === 'TECH-ICON-GRID')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
-    <div class="tech-badge">${slide.badge||'SYS.MODULES'}</div>
+    <div class="tech-badge">${slide.badge || 'SYS.MODULES'}</div>
     <h2 class="tech-title">// ${t}</h2>
-    <div class="tech-icon-grid">${(slide.items||[]).map(item=>`<div class="tech-icon-card"><div class="tech-icon-symbol">${item.icon||'◈'}</div><div class="tech-icon-heading">${item.heading}</div><div class="tech-icon-text">${item.text}</div></div>`).join('')}</div>
+    <div class="tech-icon-grid">${(slide.items || []).map(item => `<div class="tech-icon-card"><div class="tech-icon-symbol">${item.icon || '◈'}</div><div class="tech-icon-heading">${item.heading}</div><div class="tech-icon-text">${item.text}</div></div>`).join('')}</div>
   </div>
 </div>`
-    if (slide.layout === 'TECH-COMPARE') return `
+    if (slide.layout === 'TECH-COMPARE')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content">
@@ -1081,7 +1147,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'TECH-IMPACT') return `
+    if (slide.layout === 'TECH-IMPACT')
+      return `
 <div class="slide tech-glow bg-dark-slate tech-impact-slide">
   ${slide.image ? `<img class="tech-impact-bg" src="${slide.image}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;" />` : ''}
   <div class="tech-impact-overlay"></div>
@@ -1092,7 +1159,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'TECH-CLOSING') return `
+    if (slide.layout === 'TECH-CLOSING')
+      return `
 <div class="slide tech-glow bg-dark-slate">
   <div class="tech-grid-lines"></div>
   <div class="tech-content flex-center">
@@ -1107,7 +1175,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
 
   if (templateId === 'COMIC_POP') {
     const badge = (slide.badge as string | undefined) ?? ''
-    if (slide.layout === 'COMIC-COVER') return `
+    if (slide.layout === 'COMIC-COVER')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-cover-layout">
@@ -1122,7 +1191,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   </div>
   <div class="comic-cover-stripe"></div>
 </div>`
-    if (slide.layout === 'COMIC-GLANCE') return `
+    if (slide.layout === 'COMIC-GLANCE')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
@@ -1133,23 +1203,25 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
         ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
       </div>
       <div class="comic-glance-right">
-        <ul class="comic-list">${(slide.bullets||[]).map((b,i)=>`<li><span class="comic-bullet-num">${String(i+1).padStart(2,'0')}</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+        <ul class="comic-list">${(slide.bullets || []).map((b, i) => `<li><span class="comic-bullet-num">${String(i + 1).padStart(2, '0')}</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
       </div>
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-STATS') return `
+    if (slide.layout === 'COMIC-STATS')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
     <div class="comic-badge">${badge || 'KEY NUMBERS'}</div>
     <div class="comic-title">${t}</div>
     <div class="comic-stats-row">
-      ${(slide.stats||[]).map((s,i)=>`<div class="comic-stat-card${i===0?' comic-stat-card--yellow':''}"><div class="comic-stat-value">${s.value}</div><div class="comic-stat-label">${s.label}</div>${s.description?`<div class="comic-stat-desc">${s.description}</div>`:''}</div>`).join('')}
+      ${(slide.stats || []).map((s, i) => `<div class="comic-stat-card${i === 0 ? ' comic-stat-card--yellow' : ''}"><div class="comic-stat-value">${s.value}</div><div class="comic-stat-label">${s.label}</div>${s.description ? `<div class="comic-stat-desc">${s.description}</div>` : ''}</div>`).join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-SPLIT') return `
+    if (slide.layout === 'COMIC-SPLIT')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
@@ -1158,7 +1230,7 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="comic-split-layout">
       <div class="comic-split-text">
         ${(slide.body as string | undefined) ? `<p class="comic-body-lead">${slide.body}</p>` : ''}
-        <ul class="comic-list">${(slide.bullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+        <ul class="comic-list">${(slide.bullets || []).map(b => `<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
       </div>
       <div class="comic-split-visual">
         ${slide.image ? `<div class="comic-img-card"><img class="comic-img-fill" src="${slide.image}"></div>` : '<div class="comic-img-card comic-img-placeholder"><div class="comic-placeholder-icon">✦</div></div>'}
@@ -1166,7 +1238,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-QUOTE') return `
+    if (slide.layout === 'COMIC-QUOTE')
+      return `
 <div class="slide comic-pop comic-quote-slide">
   <div class="comic-dot-bg"></div>
   <div class="comic-quote-center">
@@ -1177,30 +1250,33 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-FLOW') return `
+    if (slide.layout === 'COMIC-FLOW')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
     <div class="comic-badge">${badge || 'HOW IT WORKS'}</div>
     <div class="comic-title">${t}</div>
     <div class="comic-flow-row">
-      ${(slide.steps||[]).map((step,idx,arr)=>`<div class="comic-flow-node"><div class="comic-flow-num">${String(idx+1).padStart(2,'0')}</div><div class="comic-flow-card${idx%2!==0?' comic-flow-card--yellow':''}"><div class="comic-flow-heading">${step.heading||step.title||''}</div><div class="comic-flow-text">${step.text||step.description||''}</div></div>${idx<arr.length-1?'<div class="comic-flow-arrow">→</div>':''}</div>`).join('')}
+      ${(slide.steps || []).map((step, idx, arr) => `<div class="comic-flow-node"><div class="comic-flow-num">${String(idx + 1).padStart(2, '0')}</div><div class="comic-flow-card${idx % 2 !== 0 ? ' comic-flow-card--yellow' : ''}"><div class="comic-flow-heading">${step.heading || step.title || ''}</div><div class="comic-flow-text">${step.text || step.description || ''}</div></div>${idx < arr.length - 1 ? '<div class="comic-flow-arrow">→</div>' : ''}</div>`).join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-CHART') return `
+    if (slide.layout === 'COMIC-CHART')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
     <div class="comic-badge">${badge || 'THE DATA'}</div>
     <div class="comic-title">${t}</div>
     <div class="comic-chart-preview">
-      ${[40,55,75,90,60,82].map(h=>`<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:55px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
+      ${[40, 55, 75, 90, 60, 82].map(h => `<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:55px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
     </div>
-    ${(slide.source as string | undefined)?`<div class="comic-chart-source">${slide.source}</div>`:''}
+    ${(slide.source as string | undefined) ? `<div class="comic-chart-source">${slide.source}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'COMIC-SPLIT-CHART') return `
+    if (slide.layout === 'COMIC-SPLIT-CHART')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
@@ -1208,26 +1284,34 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="comic-title">${t}</div>
     <div class="comic-split-chart-layout">
       <div class="comic-split-chart-left">
-        <ul class="comic-list">${(slide.bullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+        <ul class="comic-list">${(slide.bullets || []).map(b => `<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
       </div>
       <div class="comic-split-chart-right">
-        ${[35,60,80,95].map(h=>`<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:45px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
+        ${[35, 60, 80, 95].map(h => `<div style="background:#FBCC00;border:2px solid #191919;border-radius:4px 4px 0 0;width:45px;height:${h}%;box-shadow:2px 2px 0 #191919;"></div>`).join('')}
       </div>
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-ICON-GRID') return `
+    if (slide.layout === 'COMIC-ICON-GRID')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
     <div class="comic-badge">${badge || 'HIGHLIGHTS'}</div>
     <div class="comic-title">${t}</div>
     <div class="comic-icon-grid">
-      ${(slide.items||[]).slice(0,6).map((item,i)=>`<div class="comic-icon-card${i===1||i===4?' comic-icon-card--yellow':''}"><div class="comic-icon-symbol">${item.icon||'✦'}</div><div class="comic-icon-heading">${item.heading}</div><div class="comic-icon-text">${item.text}</div></div>`).join('')}
+      ${(slide.items || [])
+        .slice(0, 6)
+        .map(
+          (item, i) =>
+            `<div class="comic-icon-card${i === 1 || i === 4 ? ' comic-icon-card--yellow' : ''}"><div class="comic-icon-symbol">${item.icon || '✦'}</div><div class="comic-icon-heading">${item.heading}</div><div class="comic-icon-text">${item.text}</div></div>`,
+        )
+        .join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-COMPARE') return `
+    if (slide.layout === 'COMIC-COMPARE')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
@@ -1236,17 +1320,18 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="comic-compare-row">
       <div class="comic-compare-panel">
         <div class="comic-compare-header">${(slide.leftTitle as string | undefined) || 'Option A'}</div>
-        <ul class="comic-list">${(slide.leftBullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+        <ul class="comic-list">${(slide.leftBullets || []).map(b => `<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
       </div>
       <div class="comic-vs-badge">VS</div>
       <div class="comic-compare-panel comic-compare-panel--yellow">
         <div class="comic-compare-header">${(slide.rightTitle as string | undefined) || 'Option B'}</div>
-        <ul class="comic-list">${(slide.rightBullets||[]).map(b=>`<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
+        <ul class="comic-list">${(slide.rightBullets || []).map(b => `<li><span class="comic-bullet-dot">◆</span><span class="comic-bullet-text">${b}</span></li>`).join('')}</ul>
       </div>
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-FLOWCHART') return `
+    if (slide.layout === 'COMIC-FLOWCHART')
+      return `
 <div class="slide comic-pop">
   <div class="comic-dot-bg"></div>
   <div class="comic-content">
@@ -1265,7 +1350,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-IMPACT') return `
+    if (slide.layout === 'COMIC-IMPACT')
+      return `
 <div class="slide comic-pop comic-impact-slide">
   <div class="comic-dot-bg" style="z-index:1;"></div>
   ${slide.image ? `<img class="comic-impact-bg" src="${slide.image}">` : '<div class="comic-impact-bg-placeholder"></div>'}
@@ -1278,7 +1364,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     </div>
   </div>
 </div>`
-    if (slide.layout === 'COMIC-CLOSING') return `
+    if (slide.layout === 'COMIC-CLOSING')
+      return `
 <div class="slide comic-pop comic-closing-slide">
   <div class="comic-dot-bg comic-dot-bg--dark"></div>
   <div class="comic-closing-card">
@@ -1291,7 +1378,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   }
 
   if (templateId === 'TECH_DUEL') {
-    if (slide.layout === 'DUEL-COVER') return `
+    if (slide.layout === 'DUEL-COVER')
+      return `
 <div class="slide duel-dark duel-cover">
   ${slide.image ? `<img class="duel-cover-bg" src="${slide.image}" />` : ''}
   <div class="duel-cover-gradient"></div>
@@ -1304,24 +1392,30 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="duel-cover-footer">Pitch AI</div>
   </div>
 </div>`
-    if (slide.layout === 'DUEL-TOC') return `
+    if (slide.layout === 'DUEL-TOC')
+      return `
 <div class="slide duel-dark duel-toc">
   <div class="duel-content">
     <div class="duel-toc-kicker">Executive Overview</div>
     <h2 class="duel-toc-title">${t}</h2>
     <div class="duel-toc-grid">
-      ${(slide.sections || []).map(s => `
+      ${(slide.sections || [])
+        .map(
+          s => `
       <div class="duel-toc-item">
         <div class="duel-toc-number">${s.number || ''}</div>
         <div class="duel-toc-text">
           <div class="duel-toc-section-title">${s.title}</div>
           <div class="duel-toc-section-desc">${s.description || ''}</div>
         </div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
 </div>`
-    if (slide.layout === 'DUEL-PRODUCT-A') return `
+    if (slide.layout === 'DUEL-PRODUCT-A')
+      return `
 <div class="slide duel-light duel-product">
   <div class="duel-accent-bar duel-bar-green"></div>
   <div class="duel-content duel-product-content">
@@ -1337,11 +1431,15 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
       <div class="duel-product-right">
         <div class="duel-product-specs">
           <div class="duel-specs-header">Key Specifications</div>
-          ${(slide.specs || []).map(s => `
+          ${(slide.specs || [])
+            .map(
+              s => `
           <div class="duel-spec-row">
             <span class="duel-spec-label">${s.label}:</span>
             <span class="duel-spec-value">${s.value}</span>
-          </div>`).join('')}
+          </div>`,
+            )
+            .join('')}
         </div>
         <div class="duel-product-price">
           <div class="duel-price-label">Pricing</div>
@@ -1364,7 +1462,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     ${slide.source ? `<div class="duel-source">${slide.source}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'DUEL-PRODUCT-B') return `
+    if (slide.layout === 'DUEL-PRODUCT-B')
+      return `
 <div class="slide duel-light duel-product">
   <div class="duel-accent-bar duel-bar-red"></div>
   <div class="duel-content duel-product-content">
@@ -1380,11 +1479,15 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
       <div class="duel-product-right">
         <div class="duel-product-specs">
           <div class="duel-specs-header">Key Specifications</div>
-          ${(slide.specs || []).map(s => `
+          ${(slide.specs || [])
+            .map(
+              s => `
           <div class="duel-spec-row">
             <span class="duel-spec-label">${s.label}:</span>
             <span class="duel-spec-value">${s.value}</span>
-          </div>`).join('')}
+          </div>`,
+            )
+            .join('')}
         </div>
         <div class="duel-product-price">
           <div class="duel-price-label">Pricing</div>
@@ -1407,7 +1510,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     ${slide.source ? `<div class="duel-source">${slide.source}</div>` : ''}
   </div>
 </div>`
-    if (slide.layout === 'DUEL-CLOSING') return `
+    if (slide.layout === 'DUEL-CLOSING')
+      return `
 <div class="slide duel-dark duel-closing">
   ${slide.image ? `<img class="duel-closing-bg" src="${slide.image}" />` : ''}
   <div class="duel-closing-overlay"></div>
@@ -1426,7 +1530,8 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   }
 
   if (templateId === 'STARTUP_AMPLIFY') {
-    if (slide.layout === 'AMP-COVER') return `
+    if (slide.layout === 'AMP-COVER')
+      return `
 <div class="slide amp-cover">
   ${slide.image ? `<img class="amp-cover-bg" src="${slide.image}" />` : ''}
   <div class="amp-rule amp-rule-top"></div>
@@ -1435,21 +1540,28 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
     <div class="amp-cover-subtitle">${sub}</div>
     <div class="amp-cover-meta">Pitch AI | 2026</div>
     <div class="amp-cover-stats">
-      ${(slide.stats || []).map(s => `
+      ${(slide.stats || [])
+        .map(
+          s => `
       <div class="amp-cover-stat">
         <div class="amp-cover-stat-value">${s.value}</div>
         <div class="amp-cover-stat-label">${s.label}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
   <div class="amp-rule amp-rule-bottom"></div>
 </div>`
-    if (slide.layout === 'AMP-TOC') return `
+    if (slide.layout === 'AMP-TOC')
+      return `
 <div class="slide amp-toc">
   <div class="amp-content">
     <h2 class="amp-toc-title">CONTENTS</h2>
     <div class="amp-toc-rows">
-      ${(slide.sections || []).map(s => `
+      ${(slide.sections || [])
+        .map(
+          s => `
       <div class="amp-toc-row">
         <div class="amp-toc-num">${s.number || ''}</div>
         <div class="amp-toc-text">
@@ -1457,12 +1569,15 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
           <div class="amp-toc-chapter-desc">${s.description || ''}</div>
         </div>
         <div class="amp-toc-page">${s.page || ''}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
     <div class="amp-footer"><span>Pitch AI | 2026</span><span class="amp-footer-page">02</span></div>
   </div>
 </div>`
-    if (slide.layout === 'AMP-CONTENT-SPLIT') return `
+    if (slide.layout === 'AMP-CONTENT-SPLIT')
+      return `
 <div class="slide amp-content">
   <div class="amp-content-header">
     <h2 class="amp-slide-title">${t}</h2>
@@ -1471,29 +1586,43 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
   <div class="amp-split">
     <div class="amp-split-left">
       ${slide.image ? `<img class="amp-split-img" src="${slide.image}" />` : ''}
-      ${(slide.bullets || []).length > 0 ? `
+      ${(() => {
+        const bullets = slide.bullets || []
+        return bullets.length > 0
+          ? `
       <ul class="amp-split-bullets">
-        ${slide.bullets.map(b => `<li>${b}</li>`).join('')}
-      </ul>` : ''}
+        ${bullets.map(b => `<li>${b}</li>`).join('')}
+      </ul>`
+          : ''
+      })()}
     </div>
     <div class="amp-split-right">
-      ${(slide.cards || []).map(c => `
+      ${(slide.cards || [])
+        .map(
+          c => `
       <div class="amp-info-card">
         <div class="amp-info-card-title">${c.title}</div>
         <div class="amp-info-card-body">${c.body || c.text || ''}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
   <div class="amp-content-bottom">
-    ${(slide.stats || []).map(s => `
+    ${(slide.stats || [])
+      .map(
+        s => `
     <div class="amp-content-stat">
       <div class="amp-content-stat-value">${s.value}</div>
       <div class="amp-content-stat-label">${s.label}</div>
-    </div>`).join('')}
+    </div>`,
+      )
+      .join('')}
   </div>
   ${slide.source ? `<div class="amp-source">${slide.source}</div>` : ''}
 </div>`
-    if (slide.layout === 'AMP-GTM-FLOW') return `
+    if (slide.layout === 'AMP-GTM-FLOW')
+      return `
 <div class="slide amp-content">
   <div class="amp-content-header">
     <h2 class="amp-slide-title">${t}</h2>
@@ -1504,27 +1633,36 @@ function buildSlideHtml(templateId: string, slide: SlideData): string {
       <div class="amp-gtm-node amp-gtm-core">${slide.centerLabel || 'GTM'}</div>
     </div>
     <div class="amp-gtm-nodes">
-      ${(slide.nodes || []).map((n, i) => `
+      ${(slide.nodes || [])
+        .map(
+          (n, i) => `
       <div class="amp-gtm-node amp-gtm-outer" data-pos="${i}">
         <div class="amp-gtm-node-title">${n.title}</div>
         <div class="amp-gtm-node-sub">${n.subtitle || n.desc || ''}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
   ${slide.source ? `<div class="amp-source">${slide.source}</div>` : ''}
 </div>`
-    if (slide.layout === 'AMP-CLOSING') return `
+    if (slide.layout === 'AMP-CLOSING')
+      return `
 <div class="slide amp-closing">
   <div class="amp-rule amp-rule-top"></div>
   <div class="amp-closing-content">
     <h2 class="amp-closing-title">${t}</h2>
     <div class="amp-closing-subtitle">${sub}</div>
     <div class="amp-closing-cards">
-      ${(slide.nextSteps || []).map(n => `
+      ${(slide.nextSteps || [])
+        .map(
+          n => `
       <div class="amp-closing-card">
         <div class="amp-closing-card-title">${n.title}</div>
         <div class="amp-closing-card-body">${n.body || n.text || ''}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
     <div class="amp-closing-prompt">${slide.prompt || 'Questions?'}</div>
     <div class="amp-closing-footer">Pitch AI | 2026</div>
@@ -1558,7 +1696,8 @@ const TEMPLATES: Template[] = [
         title: 'THE AI REVOLUTION',
         subtitle: 'HOW GENERATIVE MODELS ARE REDEFINING AESTHETICS IN 2026',
         layout: 'NEWSPAPER-COVER',
-        image: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80',
+        image:
+          'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80',
       },
       {
         id: 2,
@@ -1569,7 +1708,8 @@ const TEMPLATES: Template[] = [
           'Monospaced labels paired with serif headlines',
         ],
         layout: 'GLANCE',
-        image: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80',
+        image:
+          'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80',
       },
       {
         id: 3,
@@ -1585,12 +1725,9 @@ const TEMPLATES: Template[] = [
         id: 4,
         title: 'SPECIAL EDITORIAL FOCUS',
         body: 'This layout showcases a split panel with structured columns. Perfect for detailed explanations accompanied by high-contrast visual elements.',
-        bullets: [
-          'Grotesque body font',
-          'Rigid grid borders',
-          'Halftone news-grain filter',
-        ],
-        image: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80',
+        bullets: ['Grotesque body font', 'Rigid grid borders', 'Halftone news-grain filter'],
+        image:
+          'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80',
         layout: 'SPLIT-PANEL',
       },
       {
@@ -1614,7 +1751,11 @@ const TEMPLATES: Template[] = [
         title: 'CHRONOLOGICAL DISPATCH',
         steps: [
           { year: '2024', heading: 'Automated Layouts', text: 'Initial layout engines compiled.' },
-          { year: '2025', heading: 'Visual QA Integration', text: 'Realtime visual feedback loops.' },
+          {
+            year: '2025',
+            heading: 'Visual QA Integration',
+            text: 'Realtime visual feedback loops.',
+          },
           { year: '2026', heading: 'Halftone Filtering', text: 'Vintage print styles unlocked.' },
         ],
         layout: 'TIMELINE-GRID',
@@ -1682,14 +1823,19 @@ const TEMPLATES: Template[] = [
         leftTitle: 'PROPOSAL A: CLASSIC PRINT',
         leftBullets: ['Higher tactile feedback', 'Timeless aesthetics', 'Limited dynamic scaling'],
         rightTitle: 'PROPOSAL B: AUTO-NODE',
-        rightBullets: ['Infinite scaling parameters', 'Instantly generated', 'Reduced raw production costs'],
+        rightBullets: [
+          'Infinite scaling parameters',
+          'Instantly generated',
+          'Reduced raw production costs',
+        ],
         layout: 'COMPARE-PANEL',
       },
       {
         id: 12,
         statement: 'THE NEWS HAS BEEN FULLY AUTOMATED.',
         attribution: 'AI Chief Editor',
-        image: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80',
+        image:
+          'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=600&q=80',
         layout: 'IMPACT-STATEMENT',
       },
       {
@@ -1724,7 +1870,12 @@ const TEMPLATES: Template[] = [
       {
         id: 2,
         title: 'AGENDA & DISCUSSION',
-        bullets: ['Executive Overview', 'Key Metrics & Telemetry', 'Comparative Analysis', 'Pillars of Growth'],
+        bullets: [
+          'Executive Overview',
+          'Key Metrics & Telemetry',
+          'Comparative Analysis',
+          'Pillars of Growth',
+        ],
         layout: 'TOC',
       },
       {
@@ -1737,7 +1888,8 @@ const TEMPLATES: Template[] = [
           'Deliver seamless micro-service performance indicators.',
         ],
         layout: 'BRIEF-EXPLAIN',
-        image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80',
+        image:
+          'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80',
       },
       {
         id: 4,
@@ -1753,16 +1905,27 @@ const TEMPLATES: Template[] = [
         id: 5,
         title: 'BALANCED STRATEGY',
         col1Title: 'ORGANIC GROWTH',
-        col1Bullets: ['Expand current marketing', 'Increase customer retention', 'Optimize internal processes'],
+        col1Bullets: [
+          'Expand current marketing',
+          'Increase customer retention',
+          'Optimize internal processes',
+        ],
         col2Title: 'ACQUISITIVE EXPANSION',
-        col2Bullets: ['Identify high-value SaaS products', 'Integrate developer talent', 'Acquire market share'],
+        col2Bullets: [
+          'Identify high-value SaaS products',
+          'Integrate developer talent',
+          'Acquire market share',
+        ],
         layout: 'SPLIT-COL',
       },
       {
         id: 6,
         title: 'DETAILED OPERATIONS',
         items: [
-          { heading: 'Operational Excellence', text: 'Streamline core processes across all regions.' },
+          {
+            heading: 'Operational Excellence',
+            text: 'Streamline core processes across all regions.',
+          },
           { heading: 'Customer Centricity', text: 'Embed feedback loops into product releases.' },
           { heading: 'Data-Driven Decisions', text: 'Real-time dashboards for every function.' },
         ],
@@ -1773,8 +1936,16 @@ const TEMPLATES: Template[] = [
         title: 'HORIZONTAL MILESTONES',
         steps: [
           { year: 'Q1 2026', heading: 'Phase 1 Launch', text: 'Deploy core microservices.' },
-          { year: 'Q2 2026', heading: 'Telemetry Integration', text: 'Hook up global telemetry dashboards.' },
-          { year: 'Q3 2026', heading: 'Compliance Review', text: 'Obtain security certifications.' },
+          {
+            year: 'Q2 2026',
+            heading: 'Telemetry Integration',
+            text: 'Hook up global telemetry dashboards.',
+          },
+          {
+            year: 'Q3 2026',
+            heading: 'Compliance Review',
+            text: 'Obtain security certifications.',
+          },
         ],
         layout: 'TIMELINE-CLEAN',
       },
@@ -1846,16 +2017,25 @@ const TEMPLATES: Template[] = [
         id: 11,
         title: 'COMPARATIVE MATRIX',
         leftTitle: 'STRATEGY A: SCALE OUT',
-        leftBullets: ['Lower infrastructure initial costs', 'Simpler design architecture', 'Requires wider orchestration scale'],
+        leftBullets: [
+          'Lower infrastructure initial costs',
+          'Simpler design architecture',
+          'Requires wider orchestration scale',
+        ],
         rightTitle: 'STRATEGY B: CONSOLIDATE',
-        rightBullets: ['High initial optimization costs', 'Extremely low runtime latency', 'Maximum control over node data'],
+        rightBullets: [
+          'High initial optimization costs',
+          'Extremely low runtime latency',
+          'Maximum control over node data',
+        ],
         layout: 'COMPARE-CLEAN',
       },
       {
         id: 12,
         statement: 'EFFICIENCY IS OUR CORE STRENGTH.',
         attribution: 'CEO Statement',
-        image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80',
+        image:
+          'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80',
         layout: 'IMPACT-CLEAN',
       },
       {
@@ -1896,7 +2076,8 @@ const TEMPLATES: Template[] = [
           'Active threat mitigation triggers upon token decay.',
         ],
         layout: 'DASHBOARD-GLANCE',
-        image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
+        image:
+          'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
       },
       {
         id: 3,
@@ -1912,14 +2093,23 @@ const TEMPLATES: Template[] = [
         id: 4,
         title: 'MODULE COMPARISON',
         body: 'System modules run in isolation. Node perimeter scans check API gateways continuously to prevent buffer leakage.',
-        bullets: ['Dockerized isolation layers', 'Memory capped at 256MB per node', 'Continuous TLS handshake audits'],
+        bullets: [
+          'Dockerized isolation layers',
+          'Memory capped at 256MB per node',
+          'Continuous TLS handshake audits',
+        ],
         layout: 'GLOW-PANEL',
       },
       {
         id: 5,
         title: 'SYSTEM INITIALIZATION',
-        codeSnippet: '// Initialize node client:\nconst sys = new SystemNodeClient();\nawait sys.connect({ secure: true });\nconsole.log("> Client active.");',
-        bullets: ['Loads encrypted credentials', 'Establishes SSH tunnel endpoints', 'Generates runtime diagnostics'],
+        codeSnippet:
+          '// Initialize node client:\nconst sys = new SystemNodeClient();\nawait sys.connect({ secure: true });\nconsole.log("> Client active.");',
+        bullets: [
+          'Loads encrypted credentials',
+          'Establishes SSH tunnel endpoints',
+          'Generates runtime diagnostics',
+        ],
         layout: 'CODE-SPLIT',
       },
       {
@@ -1985,16 +2175,25 @@ const TEMPLATES: Template[] = [
         id: 10,
         title: 'SYSTEM BOUNDARY PROTOCOLS',
         leftTitle: 'PROTOCOL ALPHA',
-        leftBullets: ['Heavy payload encryption standard', 'Strict multi-party handshake', 'Requires high compute overhead'],
+        leftBullets: [
+          'Heavy payload encryption standard',
+          'Strict multi-party handshake',
+          'Requires high compute overhead',
+        ],
         rightTitle: 'PROTOCOL BETA',
-        rightBullets: ['Lightweight UDP packet transmission', 'Low overhead signature check', 'Optimized for high-throughput nodes'],
+        rightBullets: [
+          'Lightweight UDP packet transmission',
+          'Low overhead signature check',
+          'Optimized for high-throughput nodes',
+        ],
         layout: 'TECH-COMPARE',
       },
       {
         id: 11,
         statement: 'SECURE BY DEFAULT. RESILIENT BY DESIGN.',
         attribution: 'CISO Directive',
-        image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
+        image:
+          'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
         layout: 'TECH-IMPACT',
       },
       {
@@ -2047,9 +2246,21 @@ const TEMPLATES: Template[] = [
         title: 'BY THE NUMBERS',
         badge: 'KEY METRICS',
         stats: [
-          { value: '40K+', label: 'Businesses Using AI', description: 'Across 50+ countries worldwide' },
-          { value: '50hrs', label: 'Saved Per Month', description: 'Average time reclaimed per business' },
-          { value: '4.8★', label: 'Customer Rating', description: 'Based on 965+ verified reviews' },
+          {
+            value: '40K+',
+            label: 'Businesses Using AI',
+            description: 'Across 50+ countries worldwide',
+          },
+          {
+            value: '50hrs',
+            label: 'Saved Per Month',
+            description: 'Average time reclaimed per business',
+          },
+          {
+            value: '4.8★',
+            label: 'Customer Rating',
+            description: 'Based on 965+ verified reviews',
+          },
         ],
         layout: 'COMIC-STATS',
         image: '/templates/comic_stats_preview.png',
@@ -2059,12 +2270,36 @@ const TEMPLATES: Template[] = [
         title: 'MEET YOUR AI TEAM',
         badge: 'AI EMPLOYEES',
         items: [
-          { icon: '📧', heading: 'Eva — Executive Assistant', text: 'Handles inbox, calendar, and meeting notes automatically.' },
-          { icon: '📱', heading: 'Sonny — Community Manager', text: 'Turns your social media into a lead-generating machine.' },
-          { icon: '🎯', heading: 'Stan — Lead Generation', text: 'Finds leads, runs outreach, and follows up relentlessly.' },
-          { icon: '✍️', heading: 'Penny — SEO Expert', text: 'Writes SEO-optimized blogs that Google loves.' },
-          { icon: '📞', heading: 'Rachel — Receptionist', text: 'Answers calls and qualifies leads while you focus.' },
-          { icon: '⚖️', heading: 'Linda — Legal Assistant', text: 'Drafts contracts and answers legal questions instantly.' },
+          {
+            icon: '📧',
+            heading: 'Eva — Executive Assistant',
+            text: 'Handles inbox, calendar, and meeting notes automatically.',
+          },
+          {
+            icon: '📱',
+            heading: 'Sonny — Community Manager',
+            text: 'Turns your social media into a lead-generating machine.',
+          },
+          {
+            icon: '🎯',
+            heading: 'Stan — Lead Generation',
+            text: 'Finds leads, runs outreach, and follows up relentlessly.',
+          },
+          {
+            icon: '✍️',
+            heading: 'Penny — SEO Expert',
+            text: 'Writes SEO-optimized blogs that Google loves.',
+          },
+          {
+            icon: '📞',
+            heading: 'Rachel — Receptionist',
+            text: 'Answers calls and qualifies leads while you focus.',
+          },
+          {
+            icon: '⚖️',
+            heading: 'Linda — Legal Assistant',
+            text: 'Drafts contracts and answers legal questions instantly.',
+          },
         ],
         layout: 'COMIC-ICON-GRID',
         image: '/templates/comic_icon_grid_preview.png',
@@ -2104,11 +2339,31 @@ const TEMPLATES: Template[] = [
         id: 2,
         title: 'TABLE OF CONTENTS',
         sections: [
-          { number: '01', title: 'Product Overview', description: 'Two approaches to desktop supercomputing' },
-          { number: '02', title: 'Architecture Deep Dive', description: 'ARM SoC vs x86 Zen 4 design philosophies' },
-          { number: '03', title: 'Specs & Performance', description: 'Head-to-head benchmarks and real-world numbers' },
-          { number: '04', title: 'Use Cases & Workloads', description: 'Matching platforms to the right workloads' },
-          { number: '05', title: 'Price & Value Analysis', description: 'Total cost of ownership and value verdict' },
+          {
+            number: '01',
+            title: 'Product Overview',
+            description: 'Two approaches to desktop supercomputing',
+          },
+          {
+            number: '02',
+            title: 'Architecture Deep Dive',
+            description: 'ARM SoC vs x86 Zen 4 design philosophies',
+          },
+          {
+            number: '03',
+            title: 'Specs & Performance',
+            description: 'Head-to-head benchmarks and real-world numbers',
+          },
+          {
+            number: '04',
+            title: 'Use Cases & Workloads',
+            description: 'Matching platforms to the right workloads',
+          },
+          {
+            number: '05',
+            title: 'Price & Value Analysis',
+            description: 'Total cost of ownership and value verdict',
+          },
         ],
         layout: 'DUEL-TOC',
         image: '/templates/tech_duel_toc_preview.png',
@@ -2382,7 +2637,9 @@ export const TemplatesView = ({
   // Expose clearSelection so App.tsx header can trigger it
   useEffect(() => {
     if (clearSelectionRef) clearSelectionRef.current = clearSelection
-    return () => { if (clearSelectionRef) clearSelectionRef.current = null }
+    return () => {
+      if (clearSelectionRef) clearSelectionRef.current = null
+    }
   })
 
   const wordCount = (text: string) => {
@@ -2484,7 +2741,6 @@ ${css}
   if (selectedTemplate) {
     return (
       <div className="p-6 md:p-8 max-w-4xl mx-auto w-full">
-
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
@@ -2528,9 +2784,10 @@ ${css}
                 if (e.key === 'ArrowRight')
                   setPreviewSlideIdx(i => (i + 1) % selectedTemplate.previewSlides.length)
                 if (e.key === 'ArrowLeft')
-                  setPreviewSlideIdx(i =>
-                    (i - 1 + selectedTemplate.previewSlides.length) %
-                    selectedTemplate.previewSlides.length,
+                  setPreviewSlideIdx(
+                    i =>
+                      (i - 1 + selectedTemplate.previewSlides.length) %
+                      selectedTemplate.previewSlides.length,
                   )
               }}
             >
@@ -2557,7 +2814,11 @@ ${css}
               <div className="absolute bottom-2 left-2 z-10 pointer-events-none">
                 <span
                   className="text-[9px] font-mono font-bold px-2 py-0.5 rounded uppercase tracking-widest"
-                  style={{ background: 'rgba(0,0,0,0.55)', color: '#fff', backdropFilter: 'blur(4px)' }}
+                  style={{
+                    background: 'rgba(0,0,0,0.55)',
+                    color: '#fff',
+                    backdropFilter: 'blur(4px)',
+                  }}
                 >
                   {selectedTemplate.previewSlides[previewSlideIdx]?.layout}
                 </span>
@@ -2568,10 +2829,23 @@ ${css}
                 <button
                   onClick={() => setPreviewSlideIdx(i => i - 1)}
                   className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full flex items-center justify-center border-none outline-none cursor-pointer transition-all duration-200 hover:scale-110"
-                  style={{ background: 'rgba(0,0,0,0.45)', color: '#fff', backdropFilter: 'blur(4px)' }}
+                  style={{
+                    background: 'rgba(0,0,0,0.45)',
+                    color: '#fff',
+                    backdropFilter: 'blur(4px)',
+                  }}
                   aria-label="Previous layout"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <polyline points="15 18 9 12 15 6" />
                   </svg>
                 </button>
@@ -2582,10 +2856,23 @@ ${css}
                 <button
                   onClick={() => setPreviewSlideIdx(i => i + 1)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full flex items-center justify-center border-none outline-none cursor-pointer transition-all duration-200 hover:scale-110"
-                  style={{ background: 'rgba(0,0,0,0.45)', color: '#fff', backdropFilter: 'blur(4px)' }}
+                  style={{
+                    background: 'rgba(0,0,0,0.45)',
+                    color: '#fff',
+                    backdropFilter: 'blur(4px)',
+                  }}
                   aria-label="Next layout"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </button>
@@ -2781,7 +3068,10 @@ ${css}
         {TEMPLATES.map(template => (
           <div
             key={template.id}
-            onClick={() => { setSelectedTemplate(template); onDetailModeChange?.(true) }}
+            onClick={() => {
+              setSelectedTemplate(template)
+              onDetailModeChange?.(true)
+            }}
             className="group cursor-pointer bg-white border border-gray-200 hover:border-gray-950 hover:shadow-lg transition-all duration-300 rounded-xl overflow-hidden flex flex-col h-full hover:-translate-y-0.5"
           >
             {/* Template Card Mini-Deck Screen */}
