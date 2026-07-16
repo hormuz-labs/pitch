@@ -54,6 +54,7 @@ export async function updateJob(
     gitHash?: string
     rating?: string
     feedback?: string
+    parameters?: Record<string, unknown>
   },
 ) {
   console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined })
@@ -75,6 +76,7 @@ export async function updateJob(
   if (data.rating !== undefined) updateData.rating = data.rating
   if (data.feedback !== undefined) updateData.feedback = data.feedback
   if (data.phases !== undefined) updateData.phases = data.phases
+  if (data.parameters !== undefined) updateData.parameters = JSON.stringify(data.parameters)
 
   // System-level bypass for webhook/worker updates
   const updated = await prisma.job.update({

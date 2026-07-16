@@ -1,9 +1,12 @@
+import type { VideoStoryboard } from '@saas/shared'
+
 export interface DemoJobInputOptions {
   hasPreparedAssets: boolean
   assetCount: number
   url?: string
   instructions?: string
   script?: string
+  storyboard?: VideoStoryboard
 }
 
 export interface DemoJobInput {
@@ -26,6 +29,20 @@ export function buildDemoJobInput(options: DemoJobInputOptions): DemoJobInput {
   const script = options.script?.trim()
   if (script) {
     sections.push(`VOICEOVER SCRIPT (source of truth for narration):\n"""\n${script}\n"""`)
+  }
+  if (options.storyboard?.status === 'approved') {
+    const revision = options.storyboard.approvedRevision ?? options.storyboard.revision
+    const scenes = options.storyboard.scenes
+      .filter(scene => scene.enabled)
+      .map(scene => ({
+        page: scene.pageIndex + 1,
+        narration: scene.narration,
+        emphasis: scene.emphasis.map(({ zoom: _zoom, ...emphasis }) => emphasis),
+      }))
+    const renderContract = { slideshowTransition: options.storyboard.transition, scenes }
+    sections.push(
+      `APPROVED STORYBOARD REVISION ${revision} (exact render contract):\n${JSON.stringify(renderContract)}\n\nDo not rewrite, rephrase, omit, or add narration. On each page, call demo_analyze_slide only to satisfy rendered-page validation, then narrate the approved text exactly and use the approved emphasis rectangles, coordinate spaces, and styles. Camera framing is automatic from each emphasis bounding box.`,
+    )
   }
   return {
     agent: 'demo-generator',

@@ -11,6 +11,7 @@ import { TimedUndoAction } from '../components/TimedUndoAction'
 import { Alert27 } from '../components/ui/alert-27'
 import { Button35 } from '../components/ui/button-35'
 import { VideoProgressWidget } from '../components/VideoProgressWidget'
+import { VideoStoryboardEditor } from '../components/VideoStoryboardEditor'
 import { api } from '../lib/api'
 import type { LogEntry, Project } from '../types'
 
@@ -189,6 +190,10 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
 
   const isProcessing =
     selectedProject.status === 'PROCESSING' || selectedProject.status === 'PENDING'
+  const isAwaitingReview =
+    selectedProject.status === 'AWAITING_REVIEW' &&
+    selectedProject.parameters?.workflowStage === 'AWAITING_REVIEW' &&
+    Boolean(selectedProject.parameters?.storyboard)
   const isCompleted = selectedProject.status === 'COMPLETED'
   const isFailed = selectedProject.status === 'FAILED'
   const isEditJob = selectedProject.parameters?.jobType === 'edit-recording'
@@ -237,8 +242,16 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
   return (
     <div className="flex flex-col h-full">
       {/* ── Content ──────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-5xl mx-auto w-full">
+      <div
+        className={`min-h-0 flex-1 p-6 md:p-8 ${
+          isAwaitingReview ? 'overflow-y-auto lg:overflow-hidden' : 'overflow-y-auto'
+        }`}
+      >
+        <div
+          className={`${isAwaitingReview ? 'max-w-[1500px] lg:h-full' : 'max-w-5xl'} mx-auto w-full`}
+        >
+          {isAwaitingReview && <VideoStoryboardEditor project={selectedProject} />}
+
           {/* Processing state */}
           {isProcessing && (
             <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-8">

@@ -2,7 +2,7 @@
  * slideshow.ts
  *
  * Pure HTML generator for the demo slideshow. Turns rendered PDF pages / images
- * (plus their word-derived regions) into a premium, full-screen 1920x1080 page
+ * (plus their word-derived regions) into a responsive, full-screen page
  * where every region is a transparent, ARIA-labelled hotspot. Because each
  * hotspot is a real `role="button"` element, atomic narrated emphasis can use
  * it as deterministic fallback geometry exactly like an element on a website.
@@ -114,8 +114,8 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 1920px; height: 1080px; overflow: hidden;
-      background: radial-gradient(circle at 50% 30%, #1b2233 0%, #0a0d14 70%);
+      width: 100%; height: 100%; overflow: hidden;
+      background: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     }
     #app { position: relative; width: 100%; height: 100%; }
@@ -129,27 +129,22 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
       position: absolute; inset: 0; opacity: 0; visibility: hidden;
       transition: opacity 450ms ease-in-out;
       display: flex; align-items: center; justify-content: center;
-      padding: 72px 96px 96px;
+      padding: 0;
     }
     .slide.active { opacity: 1; visibility: visible; z-index: 1; }
     .transition-slide .slide { transform: translateX(6%); transition: opacity 450ms ease, transform 450ms cubic-bezier(.2,.8,.2,1); }
     .transition-slide .slide.active { transform: translateX(0); }
     .transition-zoom .slide { transform: scale(.94); transition: opacity 450ms ease, transform 520ms cubic-bezier(.2,.8,.2,1); }
     .transition-zoom .slide.active { transform: scale(1); }
-    /* .page shrinks to the contained image so hotspot %s map onto the image
-       with no JS measurement; hotspots + image scale together. */
+    /* JS sizes .page to the largest uncropped rectangle that fits the live
+       viewport. The image and its percentage hotspots then scale together. */
     .page {
       position: relative; display: flex;
-      border-radius: 14px; overflow: hidden;
-      box-shadow: 0 24px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+      overflow: hidden; background: white;
     }
-    /* Cap to the stage minus .slide padding (1920-96*2 x 1080-72-96) so the
-       page is contained deterministically; .page then shrinks to the image and
-       hotspot %s map onto it exactly. Percentage max-height can't be used here
-       because .page has auto height. */
     .page img {
-      display: block; max-width: 1728px; max-height: 912px;
-      object-fit: contain; user-select: none; -webkit-user-drag: none;
+      display: block; width: 100%; height: 100%;
+      user-select: none; -webkit-user-drag: none;
     }
     .hotspots { position: absolute; inset: 0; }
     .hotspot {
@@ -160,6 +155,7 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     .title-card {
       display: flex; align-items: center; justify-content: center;
       width: 100%; height: 100%; padding: 120px;
+      background: radial-gradient(circle at 50% 30%, #1b2233 0%, #0a0d14 70%);
     }
     .title-card h1 {
       color: #f4f6fb; font-size: 84px; font-weight: 700; line-height: 1.1;
@@ -167,11 +163,13 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
       text-shadow: 0 4px 24px rgba(0,0,0,0.4);
     }
     #progress {
+      display: none;
       position: absolute; top: 0; left: 0; height: 4px; z-index: 20;
       background: linear-gradient(90deg, #6ea8fe, #a78bfa);
       transition: width 400ms ease; border-radius: 0 3px 3px 0;
     }
     #counter {
+      display: none;
       position: absolute; bottom: 32px; left: 40px; z-index: 20;
       color: #e8ecf5; font-size: 15px; font-weight: 500;
       background: rgba(20,24,34,0.72); padding: 8px 14px; border-radius: 999px;
@@ -179,7 +177,7 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     }
     #nav {
       position: absolute; bottom: 28px; right: 40px; z-index: 20;
-      display: flex; gap: 10px;
+      display: none; gap: 10px;
     }
     #nav button {
       background: rgba(20,24,34,0.72); color: #e8ecf5;
@@ -212,6 +210,20 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
       var progress = document.getElementById('progress');
       var total = slides.length;
       var current = 0;
+      function fitPageImage(img) {
+        if (!img || !img.naturalWidth || !img.naturalHeight) return;
+        var page = img.closest('.page');
+        if (!page) return;
+        var scale = Math.min(window.innerWidth / img.naturalWidth, window.innerHeight / img.naturalHeight);
+        page.style.width = Math.round(img.naturalWidth * scale) + 'px';
+        page.style.height = Math.round(img.naturalHeight * scale) + 'px';
+      }
+      function fitPages() {
+        Array.prototype.forEach.call(document.querySelectorAll('.page img'), function (img) {
+          if (img.complete) fitPageImage(img);
+          else img.addEventListener('load', function () { fitPageImage(img); }, { once: true });
+        });
+      }
       function go(i) {
         if (total === 0) return;
         var next = Math.max(0, Math.min(total - 1, i));
@@ -229,6 +241,8 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
       var prevBtn = document.getElementById('prev');
       if (nextBtn) nextBtn.addEventListener('click', function () { go(current + 1); });
       if (prevBtn) prevBtn.addEventListener('click', function () { go(current - 1); });
+      fitPages();
+      window.addEventListener('resize', fitPages);
       document.addEventListener('keydown', function (e) {
         if (e.key === 'ArrowRight' || e.key === ' ') go(current + 1);
         if (e.key === 'ArrowLeft') go(current - 1);

@@ -15,6 +15,7 @@ import {
   PHASE_WEIGHTS,
   type PhaseUpdate,
   sendDiscordMessage,
+  type VideoStoryboard,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
@@ -32,6 +33,11 @@ import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 import { type SlideshowProgress, validateSlideshowCoverage } from './utils/slideshow-progress.js'
 import { processVideo } from './utils/smart_trim.js'
+import {
+  analyzeStoryboardPage,
+  buildStoryboardDraft,
+  type StoryboardPage,
+} from './utils/storyboard-planner.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
 
 const execAsync = promisify(exec)
@@ -544,8 +550,8 @@ function findWebmCandidates(logger: any, targetDir: string): string | null {
 }
 
 export function createJobProcessor(connection: Redis, targetDir: string) {
-  return async function processJob(job: Job, client: OpencodeClient) {
-    const { jobId, userId, parameters } = job.data
+  return async function processJob(job: Job, client?: OpencodeClient) {
+    const { jobId, userId, parameters, mode } = job.data
     const jobLogger = logger.child({ jobId, userId })
 
     // Skip requeued duplicates of jobs the original in-flight run already
@@ -553,11 +559,12 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
     if (await jobAlreadyTerminal(jobId)) return
 
     if (parameters?.jobType === 'pdf') {
+      if (!client) throw new Error('An OpenCode client is required for PDF generation.')
       const { processPdfJob } = await import('./pdf-job-processor.js')
       return processPdfJob(job, client, connection, targetDir)
     }
 
-    jobLogger.info('Processing job via One-Pass architecture')
+    jobLogger.info({ mode: mode ?? 'standard' }, 'Processing video job')
 
     const workerHostname = process.env.HOSTNAME || os.hostname()
     const updatedJob = await db.updateJob(jobId, {
@@ -580,7 +587,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         timeoutExceeded = true
         jobLogger.error('Execution timeout of 50 minutes exceeded. Aborting session.')
         if (session) {
-          client.session.abort({ path: { id: session.id } }).catch(err => {
+          client?.session.abort({ path: { id: session.id } }).catch(err => {
             jobLogger.warn({ err }, 'Failed to abort OpenCode session on timeout')
           })
         }
@@ -599,6 +606,65 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       fs.mkdirSync(recordingsDir, { recursive: true })
       fs.mkdirSync(path.join(recordingsDir, 'audio'), { recursive: true })
       fs.mkdirSync(path.join(recordingsDir, 'videos'), { recursive: true })
+
+      if (mode === 'plan') {
+        const assetInputs = Array.isArray(parameters?.assets) ? parameters.assets : []
+        if (assetInputs.length === 0) {
+          throw new Error('Storyboard planning requires at least one prepared PDF or image.')
+        }
+        const assetsDir = path.join(recordingsDir, 'assets', jobId)
+        const manifest = await prepareAssets(jobId, assetInputs, assetsDir)
+        const pages: StoryboardPage[] = []
+        for (const asset of manifest.assets) {
+          if (asset.kind === 'pdf') {
+            for (const imagePath of asset.pages) {
+              pages.push({ pageIndex: pages.length, imagePath })
+            }
+          } else {
+            pages.push({ pageIndex: pages.length, imagePath: asset.localPath })
+          }
+        }
+        if (pages.length === 0) throw new Error('No PDF/image pages were available to review.')
+
+        const apiKey = process.env.GEMINI_API_KEY
+        if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
+        const model =
+          process.env.GEMINI_GROUNDING_MODEL ||
+          process.env.GEMINI_VISION_MODEL ||
+          'gemini-3.5-flash'
+        const storyboard = await buildStoryboardDraft(
+          pages,
+          {
+            analyzePage: page =>
+              analyzeStoryboardPage({
+                apiKey,
+                model,
+                imageBase64: fs.readFileSync(page.imagePath).toString('base64'),
+                instructions: parameters?.instructions,
+              }),
+            uploadPreview: page =>
+              storage.uploadFile(page.imagePath, undefined, `pitch/${userId}/${jobId}/storyboard`),
+          },
+          { script: parameters?.script },
+        )
+        const reviewParameters = {
+          ...parameters,
+          workflowStage: 'AWAITING_REVIEW',
+          storyboard,
+        }
+        const reviewJob = await db.updateJob(jobId, {
+          status: JobStatus.AWAITING_REVIEW,
+          parameters: reviewParameters,
+        })
+        await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(reviewJob))
+        jobLogger.info(
+          { scenes: storyboard.scenes.length, revision: storyboard.revision },
+          'Storyboard is ready for review',
+        )
+        return
+      }
+
+      if (!client) throw new Error('An OpenCode client is required for video rendering.')
 
       // Create OpenCode Session first so we have session.id for recording paths
       const sessionResponse = await client.session.create({
@@ -835,6 +901,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         url: parameters?.url,
         instructions: parameters?.instructions,
         script: parameters?.script,
+        storyboard: parameters?.storyboard as VideoStoryboard | undefined,
       })
 
       const promptResponse = await client.session.prompt({
@@ -1411,7 +1478,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // Ensure cost is still logged even on failure, fetching final session messages if possible
       try {
         if (session) {
-          const msgsRes = await client.session
+          const msgsRes = await client?.session
             .messages({
               path: { id: session.id },
               query: { directory: targetDir },

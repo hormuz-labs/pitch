@@ -23,4 +23,46 @@ describe('buildDemoJobInput', () => {
     expect(input.prompt).toContain('Explain the quarterly results.')
     expect(input.prompt).not.toContain('Go to .')
   })
+
+  it('makes the approved storyboard the exact source of truth for rendering', () => {
+    const input = buildDemoJobInput({
+      hasPreparedAssets: true,
+      assetCount: 1,
+      storyboard: {
+        revision: 3,
+        approvedRevision: 3,
+        status: 'approved',
+        transition: 'fade',
+        scenes: [
+          {
+            id: 'scene-1',
+            pageIndex: 0,
+            previewUrl: 'https://cdn.example/page-1.png',
+            enabled: true,
+            title: 'Results',
+            screenText: ['93 percent'],
+            narration: 'The approved result reaches 93 percent.',
+            emphasis: [
+              {
+                phrase: '93 percent',
+                rect: { leftPct: 20, topPct: 30, widthPct: 25, heightPct: 20 },
+                coordinateSpace: 'page',
+                style: 'pulse',
+                zoom: 1.7,
+              },
+            ],
+            estimatedDurationSec: 3,
+          },
+        ],
+      },
+    })
+
+    expect(input.prompt).toContain('APPROVED STORYBOARD REVISION 3')
+    expect(input.prompt).toContain('The approved result reaches 93 percent.')
+    expect(input.prompt).toContain('"leftPct":20')
+    expect(input.prompt).toContain('"slideshowTransition":"fade"')
+    expect(input.prompt).not.toContain('"zoom":1.7')
+    expect(input.prompt).toMatch(/camera.*automatic.*bounding box/i)
+    expect(input.prompt).toMatch(/Do not rewrite, rephrase, omit, or add narration/i)
+  })
 })

@@ -24,6 +24,21 @@ Use this skill when the demo should be built from uploaded files (PDFs or images
 
 Asset jobs use `.opencode/agents/demo-generator.md`, `.opencode/tools/demo-generator.ts`, and the normal demo renderer because the event/timeline contract is identical.
 
+## Reviewed storyboard jobs
+
+Uploaded PDF/image videos use two passes. The worker first renders every page,
+asks Gemini for pixel-grounded scene suggestions, uploads the page previews, and
+sets the existing job to `AWAITING_REVIEW`. No browser recording, TTS, or ffmpeg
+render occurs in that pass. The web editor lets the creator revise narration,
+draw additional page-relative rectangles, remove Gemini rectangles, choose an
+annotation style/zoom, and save revisioned drafts.
+
+After approval, the same job returns to the normal demo queue. An
+`APPROVED STORYBOARD REVISION` in the worker prompt is an exact contract: speak
+the reviewed narration verbatim and apply each annotation when its literal
+`phrase` is spoken. Run `demo_analyze_slide` only as a page-validation safeguard;
+do not substitute new Gemini narration or geometry for reviewed content.
+
 ## What makes an asset demo premium
 
 Narration over static pages is the floor, not the goal. A great PDF/image demo is **interactive and explanatory**: the camera moves to the exact field being discussed and a clean annotation calls it out while you narrate. Treat each page like a walkthrough of a real screen.

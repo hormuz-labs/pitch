@@ -28,6 +28,7 @@ export type Logger = ReturnType<typeof createLogger>
 export enum JobStatus {
   PENDING = 'PENDING',
   PROCESSING = 'PROCESSING',
+  AWAITING_REVIEW = 'AWAITING_REVIEW',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
 }
@@ -184,5 +185,6 @@ export const ENHANCE_QUEUE_NAME = 'enhance-queue'
 export const EDIT_QUEUE_NAME = 'edit-recording-queue'
 export const JOB_UPDATES_CHANNEL = 'job-updates'
 export const JOB_CANCELLATIONS_CHANNEL = 'job-cancellations'
-export * from './manager-client.js'
 export * from './discord.js'
+export * from './manager-client.js'
+export * from './video-storyboard.js'

@@ -24,6 +24,15 @@ follow-up session that fixed, hardened, and completed it.
 > `pulse`/`bracket` callouts and `fade`/`slide`/`zoom` page transitions. Older
 > sections below retain historical names when describing the original implementation.
 
+> **Review workflow:** asset-video jobs now stop after Gemini planning with
+> `AWAITING_REVIEW`. The existing video editor route shows all page previews,
+> narration, and grounding boxes. Creators can draw their own page-relative
+> highlight areas and choose any renderer-supported annotation type. Saving
+> creates a new storyboard revision; approval requeues the same job into the
+> existing demo recording/render path with no second credit charge. The approved
+> revision, not a fresh model rewrite, is the exact narration and emphasis
+> contract for final rendering.
+
 ---
 
 ## 1. Background: how URL demos already worked
@@ -167,20 +176,21 @@ the *geometry*.
 |------|------|--------|
 | Region extraction (pure) | [apps/worker/src/utils/regions.ts](../apps/worker/src/utils/regions.ts) **(new)** | Parse `pdftotext -bbox` XML + `tesseract` TSV; group words into phrase-level regions in percent-of-page. Pure & unit-tested. |
 | Preprocessing | [apps/worker/src/utils/assets.ts](../apps/worker/src/utils/assets.ts) | Call the extractors; store `pageData[{image, regions}]` (PDF) / `regions` (image) in the manifest. Tesseract-missing degrades gracefully (image still renders). |
-| Premium slideshow (pure) | [.opencode/lib/slideshow.ts](../.opencode/lib/slideshow.ts) **(new)** | `buildSlideshowHtml`: gradient stage, shadowed rounded page, progress bar, counter, title cards, cross-fades, and a transparent `role="button"` hotspot per region. |
+| Responsive slideshow (pure) | [.opencode/lib/slideshow.ts](../.opencode/lib/slideshow.ts) **(new)** | `buildSlideshowHtml`: full-bleed responsive page fitting, title cards, cross-fades, and a transparent `role="button"` hotspot per region. Recording-only slides hide counters/navigation. |
 | Slideshow tool | [.opencode/plugins/demo-tools.ts](../.opencode/plugins/demo-tools.ts) | `build_slideshow` now pulls region data from the manifest and emits hotspots. |
 | Annotation builders (pure) | [.opencode/lib/annotations.ts](../.opencode/lib/annotations.ts) **(new)** | `buildAnnotateEvalJs` / `buildClearAnnotationsJs`: in-page overlay JS for each style, with color sanitization. |
 | Annotation tools | [.opencode/plugins/demo-tools.ts](../.opencode/plugins/demo-tools.ts) | `annotate` (styles: `circle`, `box`, `underline`, `highlighter`, `arrow`, `spotlight`) + `clear_annotations`. Target a ref or an explicit rect. Work on URL demos too. |
 | Agent guidance | [job-processor.ts](../apps/worker/src/job-processor.ts) + [asset-demo/SKILL.md](../.opencode/skills/asset-demo/SKILL.md) | Teach the snapshot → narrate → zoom_in → annotate → hold → clear choreography. |
 | Dependency | [Dockerfile.base](../Dockerfile.base) | Add `tesseract-ocr`. |
 
-### How a hotspot maps onto the image (no JS)
+### How a hotspot maps onto the image
 
-Each slide is `.slide > .page > (img + .hotspots)`. `.page` shrinks to the
-contained image (image capped to the stage minus padding: `1728×912`), so hotspot
-percentages map onto the image exactly with **no JS measurement**. Hotspots are
-`pointer-events: none` (so they never steal nav clicks) but remain in the ARIA
-tree, so `playwright-cli snapshot` lists them as `button "Full Name"`, etc.
+Each slide is `.slide > .page > (img + .hotspots)`. The slideshow measures the
+image's intrinsic aspect ratio and sizes `.page` to the largest uncropped
+rectangle that fits the live viewport. This lets 16:9 pages render edge-to-edge
+while portrait or square pages remain complete. Image and hotspot percentages
+scale together exactly. Hotspots are `pointer-events: none` but remain in the
+ARIA tree, so `playwright-cli snapshot` lists them as `button "Full Name"`, etc.
 
 ### Only the active slide is targetable (annotation-sync fix)
 

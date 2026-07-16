@@ -207,15 +207,35 @@ other regardless of page-transition latency.
 ## 5c. PDF/image → explanatory video
 
 Asset video jobs stay inside the AI demo-video flow; they do not use the
-PDF-output processor. Before recording, `job-processor.ts` calls
-`prepareAssets()` to download files, render PDF pages, extract `pdftotext -bbox`
-geometry (or Tesseract geometry for images), and write
-`recordings/assets/<session>/assets.json`. Its path is passed through
-`demo-config.json`, then the worker runs the existing `demo-generator` agent.
+PDF-output processor. They use a two-pass state transition on the existing Job
+and video queue:
+
+1. `mode: "plan"` calls `prepareAssets()`, sends each rendered page image to
+   Gemini (at most three pages concurrently), uploads page previews, stores a
+   revisioned storyboard in `Job.parameters`, and changes the job to
+   `AWAITING_REVIEW`. It stops before Playwright, TTS, and ffmpeg.
+2. The existing `/editor/:id` route lets the creator edit per-page narration,
+   inspect/remove Gemini boxes, draw custom page-relative boxes, choose callout
+   style and zoom, and save revisions. Each trigger phrase must occur literally
+   in that scene's narration so the callout can start with the spoken claim.
+3. Approval locks the reviewed revision and requeues the same job as
+   `mode: "render"` without charging again. The normal `demo-generator` and
+   renderer then speak the approved narration exactly and consume its approved
+   page boxes. No separate renderer or job type is introduced.
+
+During preprocessing, `prepareAssets()` still downloads files, renders PDF pages,
+extracts supplementary `pdftotext -bbox` geometry (or Tesseract geometry for
+images), and writes `recordings/assets/<session>/assets.json`. Gemini's rendered
+pixels remain the source for storyboard understanding and grounding; extracted
+text/OCR remain fallback context and geometry.
 
 `demo_build_slideshow` converts manifest regions to transparent ARIA-labelled
 hotspots over every rendered page in manifest order. The active page alone is
 visible/targetable, so a fresh Playwright snapshot can provide fallback refs.
+Each page is responsively fitted to the live recording viewport at its intrinsic
+aspect ratio, without cropping or decorative stage padding; 16:9 pages are
+edge-to-edge and other aspect ratios retain the full page. Recording-only
+navigation, counters, and progress chrome are visually hidden.
 The tool owns an ephemeral localhost HTTP server for the HTML and page images
 because Playwright blocks `file://` navigation; the agent must use the returned
 URL and never improvise a background server. Page transitions are `fade`,

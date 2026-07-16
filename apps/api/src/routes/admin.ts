@@ -278,7 +278,7 @@ router.post('/jobs/:id/status', async (req, res) => {
   const { id } = req.params
   const { status } = req.body
 
-  const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']
+  const validStatuses = ['PENDING', 'PROCESSING', 'AWAITING_REVIEW', 'COMPLETED', 'FAILED']
   if (!validStatuses.includes(status)) {
     return res
       .status(400)

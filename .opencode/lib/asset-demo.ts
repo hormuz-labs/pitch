@@ -34,9 +34,9 @@ export interface AssetManifestLike {
 
 /**
  * Convert a rectangle measured as percentages of the source PDF/image page
- * into percentages of the recorded browser viewport. The slideshow contains
- * the page inside a padded stage, so page percentages cannot be used as
- * viewport percentages directly.
+ * into percentages of the recorded browser viewport. A page is fitted to the
+ * viewport without cropping, so non-16:9 pages can still have side/top bands
+ * and page percentages cannot be used as viewport percentages directly.
  */
 export function pageRectToViewportRect(
   rect: ViewportRect,

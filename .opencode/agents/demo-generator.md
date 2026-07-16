@@ -36,6 +36,19 @@ Start narrating the demo as soon as the page is visible. Navigate and let the fi
 
 When the worker says prepared assets are present, stay in this same demo flow:
 
+If the worker message contains an `APPROVED STORYBOARD REVISION`, that reviewed
+storyboard overrides normal narration planning. Follow its enabled scenes in page
+order, speak every scene's narration verbatim, and do not add, remove, summarize,
+or rephrase words. `emphasis.phrase` is an exact substring of the narration and
+marks when its approved rectangle, style, and zoom must appear. You may split the
+scene narration into contiguous chunks at those phrase boundaries so each
+`demo_narrate` call can apply its matching emphasis, but the concatenated spoken
+text must remain identical. Still call `demo_analyze_slide` once per page as a
+rendered-page safety check; never replace reviewed narration or boxes with its new
+suggestions. Use the approved `coordinateSpace` exactly (`page` rectangles are
+resolved against the contained slide image). Pass the approved
+`slideshowTransition` to `demo_build_slideshow`.
+
 1. Call `demo_list_assets`. Extracted text can provide supplementary context, but never depend on it for narration because it may be empty, incomplete, or visually inaccurate.
 2. Display every prepared page in manifest order at least once, including cover, section dividers, detail pages, and closing/thank-you pages. `demo_build_slideshow` includes all prepared pages automatically. A short requested duration or "do not read every slide verbatim" means narrate each page more briefly; it never means skip a page.
 3. Open the returned HTTP URL exactly as provided; never use `file://` and never start your own server.

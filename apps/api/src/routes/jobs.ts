@@ -1,11 +1,13 @@
 import * as db from '@saas/db'
 import {
+  approveVideoStoryboard,
   createLogger,
   JOB_CANCELLATIONS_CHANNEL,
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
   sendDiscordMessage,
+  updateVideoStoryboard,
 } from '@saas/shared'
 import { Router } from 'express'
 import { connection, subscriber, videoQueue } from '../config.js'
@@ -21,7 +23,9 @@ router.get('/', async (req, res) => {
 
   try {
     const jobs = await db.listJobs({ id: userId })
-    const videoJobs = jobs.filter(j => j.parameters?.jobType !== 'pdf' && j.parameters?.jobType !== 'enhance')
+    const videoJobs = jobs.filter(
+      j => j.parameters?.jobType !== 'pdf' && j.parameters?.jobType !== 'enhance',
+    )
     res.json(videoJobs)
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to list jobs')
@@ -36,6 +40,8 @@ router.post('/', async (req, res) => {
 
   try {
     const tenantId = userId
+    const requiresReview = Array.isArray(parameters?.assets) && parameters.assets.length > 0
+    const jobParameters = requiresReview ? { ...parameters, workflowStage: 'PLANNING' } : parameters
 
     const balance = await db.getCreditBalance(tenantId)
     if (balance < 3) {
@@ -43,14 +49,19 @@ router.post('/', async (req, res) => {
       return res.status(402).json({ error: 'Insufficient credits', balance })
     }
 
-    const job = await db.createJob({ userId, parameters }, { id: userId })
+    const job = await db.createJob({ userId, parameters: jobParameters }, { id: userId })
 
     await db.deductCredit(tenantId, 3, 'Video generation', { jobId: job.id })
 
     try {
       await videoQueue.add(
         'generate-video',
-        { jobId: job.id, userId: job.userId, parameters },
+        {
+          jobId: job.id,
+          userId: job.userId,
+          parameters: jobParameters,
+          ...(requiresReview ? { mode: 'plan' } : {}),
+        },
         { jobId: job.id },
       )
       await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
@@ -172,6 +183,110 @@ router.post('/:id/feedback', async (req, res) => {
   }
 })
 
+router.patch('/:id/storyboard', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const job = await db.getJob(req.params.id, { id: userId })
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+    if (
+      job.status !== JobStatus.AWAITING_REVIEW ||
+      job.parameters?.workflowStage !== 'AWAITING_REVIEW'
+    ) {
+      return res.status(409).json({ error: 'This storyboard is no longer editable.' })
+    }
+    const current = job.parameters?.storyboard
+    if (!current) return res.status(409).json({ error: 'This job has no storyboard to review.' })
+
+    const storyboard = updateVideoStoryboard(current, {
+      revision: req.body?.revision,
+      transition: req.body?.transition,
+      scenes: req.body?.scenes,
+    })
+    const updatedJob = await db.updateJob(req.params.id, {
+      parameters: {
+        ...job.parameters,
+        workflowStage: 'AWAITING_REVIEW',
+        storyboard,
+      },
+    })
+    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
+    res.json(updatedJob)
+  } catch (error: any) {
+    if (error.message?.includes('revision conflict')) {
+      return res.status(409).json({ error: error.message })
+    }
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    logger.error({ err: error, jobId: req.params.id, userId }, 'Failed to save storyboard')
+    res.status(400).json({ error: error.message })
+  }
+})
+
+router.post('/:id/render', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const job = await db.getJob(req.params.id, { id: userId })
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+    if (job.parameters?.workflowStage !== 'AWAITING_REVIEW') {
+      return res.status(409).json({ error: 'This job is not waiting for storyboard review.' })
+    }
+    const current = job.parameters?.storyboard
+    if (!current) return res.status(409).json({ error: 'This job has no storyboard to render.' })
+
+    const storyboard = approveVideoStoryboard(current, req.body?.revision)
+    const parameters = {
+      ...job.parameters,
+      workflowStage: 'RENDER_QUEUED',
+      storyboard,
+    }
+    const updatedJob = await db.updateJob(req.params.id, {
+      status: JobStatus.PENDING,
+      parameters,
+    })
+    try {
+      await videoQueue.add(
+        'generate-video',
+        { jobId: job.id, userId: job.userId, parameters, mode: 'render' },
+        { jobId: `${job.id}-render-r${storyboard.revision}` },
+      )
+    } catch (enqueueError: any) {
+      const restoredJob = await db.updateJob(req.params.id, {
+        status: JobStatus.AWAITING_REVIEW,
+        parameters: {
+          ...job.parameters,
+          workflowStage: 'AWAITING_REVIEW',
+          storyboard: current,
+        },
+      })
+      await connection
+        .publish(JOB_UPDATES_CHANNEL, JSON.stringify(restoredJob))
+        .catch(() => undefined)
+      const unavailable = new Error(`Render queue unavailable: ${enqueueError.message}`)
+      unavailable.name = 'RenderQueueUnavailable'
+      throw unavailable
+    }
+    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
+    res.status(202).json(updatedJob)
+  } catch (error: any) {
+    if (error.name === 'RenderQueueUnavailable') {
+      return res.status(503).json({ error: error.message })
+    }
+    if (error.message?.includes('revision conflict')) {
+      return res.status(409).json({ error: error.message })
+    }
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    logger.error({ err: error, jobId: req.params.id, userId }, 'Failed to queue storyboard render')
+    res.status(400).json({ error: error.message })
+  }
+})
+
 router.post('/:id/retrigger', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
@@ -224,24 +339,33 @@ router.delete('/:id', async (req, res) => {
 
   const { id } = req.params
   try {
+    const job = await db.getJob(id, { id: userId })
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+
     await connection.publish(JOB_CANCELLATIONS_CHANNEL, JSON.stringify({ jobId: id }))
     logger.info({ jobId: id, userId }, 'Published job cancellation signal')
 
-    const bullJob = await videoQueue.getJob(id)
-    if (bullJob) {
-      try {
-        await bullJob.remove()
-        logger.info({ jobId: id, userId }, 'Removed job from BullMQ queue')
-      } catch (err: any) {
-        logger.warn(
-          { jobId: id, userId, err: err.message },
-          'Failed to remove job from BullMQ (possibly locked/active)',
-        )
+    const approvedRevision = job.parameters?.storyboard?.approvedRevision
+    const queueJobIds = [
+      id,
+      ...(Number.isInteger(approvedRevision) ? [`${id}-render-r${approvedRevision}`] : []),
+    ]
+    for (const queueJobId of queueJobIds) {
+      const bullJob = await videoQueue.getJob(queueJobId)
+      if (bullJob) {
+        try {
+          await bullJob.remove()
+          logger.info({ jobId: id, queueJobId, userId }, 'Removed job from BullMQ queue')
+        } catch (err: any) {
+          logger.warn(
+            { jobId: id, queueJobId, userId, err: err.message },
+            'Failed to remove job from BullMQ (possibly locked/active)',
+          )
+        }
       }
     }
 
-    const job = await db.getJob(id, { id: userId })
-    if (job && job.status === JobStatus.PROCESSING) {
+    if (job.status === JobStatus.PROCESSING) {
       let newPhases: PhaseUpdate[] = []
       if (job.phases) {
         newPhases = job.phases.map(p => {

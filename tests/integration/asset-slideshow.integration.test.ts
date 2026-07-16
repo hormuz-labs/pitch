@@ -59,6 +59,7 @@ suite('asset slideshow in a real browser', () => {
     process.env.PLAYWRIGHT_CLI_SESSION = PLAYWRIGHT_SESSION
     await pw('close').catch(() => {})
     await pw('open')
+    await pw('resize 1280 720')
     await pw(`goto "data:text/html,${encodeURIComponent(html)}"`)
     await new Promise(resolve => setTimeout(resolve, 600))
   }, 60_000)
@@ -75,6 +76,16 @@ suite('asset slideshow in a real browser', () => {
     expect((hotspot.y - page.y) / page.h).toBeCloseTo(0.2, 2)
     expect(hotspot.w / page.w).toBeCloseTo(0.3, 2)
     expect(hotspot.h / page.h).toBeCloseTo(0.1, 2)
+  })
+
+  it('fits each page to the live viewport without decorative stage chrome', async () => {
+    const page = await boxOf('.slide.active .page')
+    expect(page).toMatchObject({ x: 100, y: 0, w: 1080, h: 720 })
+
+    const { stdout } = await pw(
+      `--raw eval '() => ({ counter: getComputedStyle(document.querySelector("#counter")).display, nav: getComputedStyle(document.querySelector("#nav")).display })'`,
+    )
+    expect(JSON.parse(stdout.trim())).toEqual({ counter: 'none', nav: 'none' })
   })
 
   it('converts a page rectangle to the same live viewport box as its hotspot', async () => {

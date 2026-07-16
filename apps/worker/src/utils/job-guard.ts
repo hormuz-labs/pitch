@@ -16,8 +16,10 @@ const logger = createLogger('worker:guard')
  * recordings/, spend the LLM budget a second time and re-send notifications
  * (and refund twice on failure).
  *
- * Returns true when the job is already COMPLETED or FAILED and the caller
- * must skip it. Cancelled jobs are stored as FAILED, so they are covered.
+ * Returns true when the job is missing, already COMPLETED, or FAILED and the
+ * caller must skip it. A missing row means cancellation deleted the job while
+ * its queued BullMQ entry was being removed. Cancelled active jobs are stored
+ * as FAILED, so they are covered too.
  * A genuinely crashed worker leaves the job in PROCESSING, so legitimate
  * stalled-job retries still proceed.
  */
@@ -27,6 +29,10 @@ export async function jobAlreadyTerminal(jobId: string): Promise<boolean> {
       where: { id: jobId },
       select: { status: true },
     })
+    if (!job) {
+      logger.info({ jobId }, 'Job record no longer exists — skipping queued run')
+      return true
+    }
     if (job?.status === JobStatus.COMPLETED || job?.status === JobStatus.FAILED) {
       logger.info({ jobId, status: job.status }, 'Job already terminal — skipping duplicate run')
       return true
