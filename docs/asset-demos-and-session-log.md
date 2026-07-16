@@ -9,6 +9,21 @@ follow-up session that fixed, hardened, and completed it.
 > Companion to [demo-video-pipeline.md](demo-video-pipeline.md), which documents
 > the core URL-based recording/zoom/cursor pipeline this feature builds on.
 
+> **Current wiring (2026-07-16):** OpenCode's scoped-tool refactor removed the
+> historical `.opencode/plugins/demo-tools.ts`. Asset tools now live in
+> `.opencode/tools/demo-generator.ts`; `job-processor.ts` again calls
+> `prepareAssets()`, stores the manifest path in `demo-config.json`, and keeps
+> prepared-asset jobs on `.opencode/agents/demo-generator.md`. The asset-specific
+> tools are `demo_list_assets`, `demo_build_slideshow`, `demo_analyze_slide`,
+> `demo_ground_region`, and `demo_clear_annotations`. Gemini first analyzes every
+> rendered page into a factual summary and confidence-gated narration points,
+> even when extracted text/OCR are empty. Returned boxes feed atomic
+> `demo_narrate.emphasis`; `demo_ground_region` retries or locates another target.
+> OCR/DOM geometry is fallback only. The
+> slideshow always includes every prepared page. New explanatory motion includes
+> `pulse`/`bracket` callouts and `fade`/`slide`/`zoom` page transitions. Older
+> sections below retain historical names when describing the original implementation.
+
 ---
 
 ## 1. Background: how URL demos already worked
@@ -152,9 +167,9 @@ the *geometry*.
 |------|------|--------|
 | Region extraction (pure) | [apps/worker/src/utils/regions.ts](../apps/worker/src/utils/regions.ts) **(new)** | Parse `pdftotext -bbox` XML + `tesseract` TSV; group words into phrase-level regions in percent-of-page. Pure & unit-tested. |
 | Preprocessing | [apps/worker/src/utils/assets.ts](../apps/worker/src/utils/assets.ts) | Call the extractors; store `pageData[{image, regions}]` (PDF) / `regions` (image) in the manifest. Tesseract-missing degrades gracefully (image still renders). |
-| Premium slideshow (pure) | [.opencode/plugins/slideshow.ts](../.opencode/plugins/slideshow.ts) **(new)** | `buildSlideshowHtml`: gradient stage, shadowed rounded page, progress bar, counter, title cards, cross-fades, and a transparent `role="button"` hotspot per region. |
+| Premium slideshow (pure) | [.opencode/lib/slideshow.ts](../.opencode/lib/slideshow.ts) **(new)** | `buildSlideshowHtml`: gradient stage, shadowed rounded page, progress bar, counter, title cards, cross-fades, and a transparent `role="button"` hotspot per region. |
 | Slideshow tool | [.opencode/plugins/demo-tools.ts](../.opencode/plugins/demo-tools.ts) | `build_slideshow` now pulls region data from the manifest and emits hotspots. |
-| Annotation builders (pure) | [.opencode/plugins/annotations.ts](../.opencode/plugins/annotations.ts) **(new)** | `buildAnnotateEvalJs` / `buildClearAnnotationsJs`: in-page overlay JS for each style, with color sanitization. |
+| Annotation builders (pure) | [.opencode/lib/annotations.ts](../.opencode/lib/annotations.ts) **(new)** | `buildAnnotateEvalJs` / `buildClearAnnotationsJs`: in-page overlay JS for each style, with color sanitization. |
 | Annotation tools | [.opencode/plugins/demo-tools.ts](../.opencode/plugins/demo-tools.ts) | `annotate` (styles: `circle`, `box`, `underline`, `highlighter`, `arrow`, `spotlight`) + `clear_annotations`. Target a ref or an explicit rect. Work on URL demos too. |
 | Agent guidance | [job-processor.ts](../apps/worker/src/job-processor.ts) + [asset-demo/SKILL.md](../.opencode/skills/asset-demo/SKILL.md) | Teach the snapshot → narrate → zoom_in → annotate → hold → clear choreography. |
 | Dependency | [Dockerfile.base](../Dockerfile.base) | Add `tesseract-ocr`. |
@@ -218,7 +233,7 @@ and spends narrated/active time there*. Two safeguards make sure it survives:
 ```
 Web upload  → POST /uploads → MinIO → assets[] on the job
 Worker      → prepareAssets(): download → pdftoppm/pdftotext -bbox (or tesseract) → assets.json (with regions)
-Agent       → list_assets → build_slideshow(pages) → goto file://slideshow.html
+Agent       → list_assets → build_slideshow(pages) → goto returned localhost HTTP URL
             → playwright-cli snapshot  (region hotspots appear as labelled buttons)
             → per field: narrate(focus) → zoom_in(ref) → annotate(ref, style) → hold → clear_annotations → ArrowRight
 Recording   → existing zoom/cursor/audio compositing (unchanged); annotations captured as page DOM

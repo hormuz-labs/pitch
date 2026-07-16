@@ -193,6 +193,24 @@ describe('prepareAssets', () => {
     expect(manifest.assets).toHaveLength(0)
   })
 
+  it('prepares an uploaded PDF when the browser reports a generic mime type', async () => {
+    const baseDir = path.join(workDir, 'job-generic-pdf')
+    const manifest = await prepareAssets(
+      'job-generic-pdf',
+      [
+        {
+          url: `${baseUrl}/deck.pdf`,
+          name: 'deck.pdf',
+          type: 'application/octet-stream',
+          size: 1,
+        },
+      ],
+      baseDir,
+    )
+
+    expect(manifest.assets[0]?.kind).toBe('pdf')
+  })
+
   it('preserves input order when preparing many assets concurrently', async () => {
     const baseDir = path.join(workDir, 'job-order')
     const names = Array.from({ length: 12 }, (_, i) => `frame-${String(i).padStart(2, '0')}.png`)

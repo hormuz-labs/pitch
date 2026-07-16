@@ -186,6 +186,10 @@ async function prepareOneAsset(
 ): Promise<PreparedAsset | null> {
   const safeName = normalizeFilename(asset.name)
   const localPath = path.join(baseDir, safeName)
+  const isPdf = asset.type === 'application/pdf' || /\.pdf$/i.test(asset.name)
+  const isImage =
+    asset.type.startsWith('image/') ||
+    /\.(png|jpe?g|webp|gif|avif|bmp|svg|heic|heif|tiff?)$/i.test(asset.name)
 
   try {
     await downloadFile(asset.url, localPath)
@@ -195,7 +199,7 @@ async function prepareOneAsset(
     return null
   }
 
-  if (asset.type === 'application/pdf') {
+  if (isPdf) {
     const pageDir = path.join(baseDir, `${safeName}.pages`)
     if (!fs.existsSync(pageDir)) fs.mkdirSync(pageDir, { recursive: true })
 
@@ -232,7 +236,7 @@ async function prepareOneAsset(
     }
   }
 
-  if (asset.type.startsWith('image/')) {
+  if (isImage) {
     const dims = await probeImageDimensions(localPath)
     const regions = await extractImageRegions(localPath, dims.width, dims.height)
     logger.info({ jobId, name: asset.name, dims, regions: regions.length }, 'Prepared image asset')

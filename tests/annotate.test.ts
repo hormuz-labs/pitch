@@ -12,7 +12,7 @@ import {
   overlayInnerHtml,
   padForStyle,
   sanitizeColor,
-} from '../.opencode/plugins/annotations.ts'
+} from '../.opencode/lib/annotations.ts'
 
 describe('sanitizeColor', () => {
   it('accepts safe color literals', () => {
@@ -37,6 +37,12 @@ describe('overlayInnerHtml', () => {
     expect(overlayInnerHtml('highlighter')).toContain('pitch-ann-hl')
     expect(overlayInnerHtml('spotlight')).toContain('pitch-ann-spot')
     expect(overlayInnerHtml('arrow')).toContain('pitch-ann-arrow')
+  })
+
+  it('supports pulse and bracket animations for explanatory emphasis', () => {
+    expect(overlayInnerHtml('pulse' as AnnotationStyle)).toContain('pitch-ann-pulse')
+    expect(overlayInnerHtml('bracket' as AnnotationStyle)).toContain('pitch-ann-bracket')
+    expect(annotationStyleCss()).toContain('@keyframes pitchPulse')
   })
 
   it('covers every declared style', () => {

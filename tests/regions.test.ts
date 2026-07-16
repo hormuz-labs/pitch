@@ -40,6 +40,20 @@ describe('parsePdfBbox', () => {
     expect(pages[0].words[3].text).toBe('ID & PIN')
     expect(pages[1].words).toHaveLength(1)
   })
+
+  it('accepts signed and exponent coordinates emitted by unusual PDF transforms', () => {
+    const pages = parsePdfBbox(
+      '<page width="100" height="100"><word xMin="-1.5" yMin="1e1" xMax="20" yMax="2.5e1">Rotated</word></page>',
+    )
+
+    expect(pages[0]?.words[0]).toMatchObject({
+      text: 'Rotated',
+      xMin: -1.5,
+      yMin: 10,
+      xMax: 20,
+      yMax: 25,
+    })
+  })
 })
 
 describe('groupWordsIntoRegions', () => {
@@ -97,6 +111,22 @@ describe('groupWordsIntoRegions', () => {
 
   it('returns [] for an empty or zero-size page', () => {
     expect(groupWordsIntoRegions({ width: 0, height: 0, words: [] })).toEqual([])
+  })
+
+  it('clips regions to the page bounds without inflating edge-crossing boxes', () => {
+    const regions = groupWordsIntoRegions({
+      width: 100,
+      height: 100,
+      words: [{ text: 'Edge label', xMin: -10, yMin: 90, xMax: 20, yMax: 110 }],
+    })
+
+    expect(regions).toHaveLength(1)
+    expect(regions[0]).toMatchObject({
+      leftPct: 0,
+      topPct: 90,
+      widthPct: 20,
+      heightPct: 10,
+    })
   })
 })
 

@@ -19,10 +19,21 @@
  */
 
 import { tool } from '@opencode-ai/plugin'
-import { exec } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { promisify } from 'util'
+import { runAgentCommand } from '../lib/agent-command'
+import {
+  ANNOTATION_STYLES,
+  type AnnotationStyle,
+  buildAnnotateEvalJs,
+  buildClearAnnotationsJs,
+} from '../lib/annotations'
+import {
+  type AssetManifestLike,
+  pageRectToViewportRect,
+  resolveManifestSlides,
+  zoomEventForViewportRect,
+} from '../lib/asset-demo'
 import {
   chunkTypedText,
   clampToFrame,
@@ -30,13 +41,36 @@ import {
   createWavHeader,
   ELEMENT_BOX_JS,
   type ElementBox,
+  FRAME_H,
+  FRAME_W,
   nextTabId,
   parseClickRef,
   parseElementBoxJson,
   parseMimeType,
 } from '../lib/demo-core'
-
-const execAsync = promisify(exec)
+import {
+  chooseNarratedEmphasisSource,
+  type PendingNarrationEmphasis,
+  resolveNarrationEmphasis,
+  runNarratedEmphasisBeat,
+} from '../lib/narrated-emphasis'
+import {
+  advanceSlideshowProgress,
+  appendAutoZoomOut,
+  assertCurrentSlideAnalyzed,
+  countForwardSlideAdvances,
+  createSlideshowProgress,
+  markCurrentSlideAnalyzed,
+  markCurrentSlideNarrated,
+  type SlideshowProgress,
+} from '../lib/slideshow-progress'
+import { type RunningSlideshowServer, startSlideshowServer } from '../lib/slideshow-server'
+import {
+  analyzeVisualSlide,
+  groundVisualRegion,
+  type SlideAnalysis,
+  type ViewportRect,
+} from '../lib/visual-grounding'
 
 // Page-evaluated function that smoothly scrolls a target element to the vertical
 // center of its scroll container (or the window), animating with requestAnimationFrame
@@ -50,6 +84,7 @@ const SMOOTH_SCROLL_JS =
 
 // Simple mutex to serialize state reads/writes across concurrent tool calls.
 let stateLock = Promise.resolve()
+let activeSlideshowServer: RunningSlideshowServer | null = null
 async function withStateLock<T>(fn: () => Promise<T>): Promise<T> {
   const release = await new Promise<() => void>(resolve => {
     const prev = stateLock
@@ -100,6 +135,7 @@ interface DemoState {
   audioClips: AudioClip[]
   zoomEvents: ZoomEvent[]
   clickEvents: ClickEvent[]
+  annotationEvents: { videoTimeSec: number }[]
   tabEvents: TabEvent[]
   tabCreationTimes: Record<number, number>
   currentTabId: number
@@ -111,6 +147,7 @@ interface DemoState {
 interface DemoConfig {
   startTime: number
   voiceName?: string
+  assetsManifestPath?: string
 }
 
 const GEMINI_TTS_MODEL = 'gemini-3.1-flash-tts-preview'
@@ -138,6 +175,39 @@ function configPath(base: string) {
 function statePath(base: string) {
   return path.join(base, 'recordings', 'demo-state.json')
 }
+function slideshowProgressPath(base: string) {
+  return path.join(base, 'recordings', 'slideshow-progress.json')
+}
+function pendingGroundingPath(base: string) {
+  return path.join(base, 'recordings', 'pending-grounding.json')
+}
+function slideAnalysisPath(base: string) {
+  return path.join(base, 'recordings', 'slide-analyses.json')
+}
+function readSlideshowProgress(base: string): SlideshowProgress | null {
+  const progressPath = slideshowProgressPath(base)
+  if (!fs.existsSync(progressPath)) return null
+  return JSON.parse(fs.readFileSync(progressPath, 'utf-8'))
+}
+function writeSlideshowProgress(base: string, progress: SlideshowProgress) {
+  fs.writeFileSync(slideshowProgressPath(base), JSON.stringify(progress, null, 2))
+}
+interface CachedSlideAnalysis {
+  screenshotPath: string
+  analysis: SlideAnalysis
+}
+function readSlideAnalyses(base: string): Record<string, CachedSlideAnalysis> {
+  const analysisPath = slideAnalysisPath(base)
+  if (!fs.existsSync(analysisPath)) return {}
+  try {
+    return JSON.parse(fs.readFileSync(analysisPath, 'utf-8'))
+  } catch {
+    return {}
+  }
+}
+function writeSlideAnalyses(base: string, analyses: Record<string, CachedSlideAnalysis>) {
+  fs.writeFileSync(slideAnalysisPath(base), JSON.stringify(analyses, null, 2))
+}
 function readConfig(base: string): DemoConfig {
   const p = configPath(base)
   if (!fs.existsSync(p)) {
@@ -155,6 +225,7 @@ function readState(base: string): DemoState {
       audioClips: [],
       zoomEvents: [],
       clickEvents: [],
+      annotationEvents: [],
       tabEvents: [{ tabId: 0, wallSec: 0 }],
       tabCreationTimes: { 0: 0 },
       currentTabId: 0,
@@ -168,10 +239,35 @@ function writeState(base: string, state: DemoState) {
   fs.writeFileSync(statePath(base), JSON.stringify(state, null, 2))
 }
 
+function readAssetManifest(base: string): { path: string; manifest: AssetManifestLike } {
+  const manifestPath = readConfig(base).assetsManifestPath
+  if (!manifestPath) {
+    throw new Error('This job has no prepared PDF/image asset manifest.')
+  }
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(`Asset manifest not found at ${manifestPath}`)
+  }
+  return {
+    path: manifestPath,
+    manifest: JSON.parse(fs.readFileSync(manifestPath, 'utf-8')),
+  }
+}
+
+function shellDoubleQuoteEscape(value: string): string {
+  return value.replace(/(["\\$`])/g, '\\$1')
+}
+
 // All playwright-cli commands must run from the session directory so that
 // files like demo.webm, snapshots, and traces are written where the worker
 // expects them (targetDir), not from the OpenCode server's process cwd.
-const run = (base: string, command: string) => execAsync(command, { cwd: base })
+const run = (base: string, command: string) => {
+  const session = process.env.PLAYWRIGHT_CLI_SESSION
+  const scopedCommand =
+    session && /^[a-zA-Z0-9_-]+$/.test(session) && command.startsWith('playwright-cli ')
+      ? command.replace(/^playwright-cli\b/, `playwright-cli -s=${session}`)
+      : command
+  return runAgentCommand(scopedCommand, { cwd: base })
+}
 
 /**
  * Ask the browser for an element's bounding client rect. This is the source of
@@ -188,6 +284,123 @@ async function getElementBox(base: string, ref: string): Promise<ElementBox | nu
     console.warn(`getElementBox ref=${ref} failed: ${e instanceof Error ? e.message : String(e)}`)
     return null
   }
+}
+
+type RectCoordinateSpace = 'page' | 'viewport'
+
+interface NarrationEmphasisArgs {
+  target?: string
+  rect?: ViewportRect
+  coordinateSpace?: RectCoordinateSpace
+  style?: AnnotationStyle
+  color?: string
+  zoom?: number
+}
+
+interface PendingGrounding extends PendingNarrationEmphasis<NarrationEmphasisArgs> {
+  query: string
+  label: string
+  confidence: number
+}
+
+function readPendingGrounding(base: string): PendingGrounding | null {
+  const pendingPath = pendingGroundingPath(base)
+  if (!fs.existsSync(pendingPath)) return null
+  return JSON.parse(fs.readFileSync(pendingPath, 'utf-8'))
+}
+
+function writePendingGrounding(base: string, grounding: PendingGrounding) {
+  fs.writeFileSync(pendingGroundingPath(base), JSON.stringify(grounding, null, 2))
+}
+
+function clearPendingGrounding(base: string) {
+  fs.rmSync(pendingGroundingPath(base), { force: true })
+}
+
+function defaultGroundingStyle(rect: ViewportRect): AnnotationStyle {
+  return rect.widthPct / rect.heightPct >= 3 ? 'highlighter' : 'pulse'
+}
+
+async function getLiveViewportSize(base: string): Promise<{ width: number; height: number }> {
+  const { stdout } = await run(
+    base,
+    `playwright-cli --raw eval '() => ({width: window.innerWidth, height: window.innerHeight})'`,
+  )
+  let parsed: any = JSON.parse(stdout.trim())
+  if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+  if (!Number.isFinite(parsed?.width) || !Number.isFinite(parsed?.height)) {
+    throw new Error('Could not measure the recorded browser viewport.')
+  }
+  return { width: parsed.width, height: parsed.height }
+}
+
+/** Resolve PDF/image-page percentages against the live contained slideshow page. */
+async function resolveViewportRect(
+  base: string,
+  rect: ViewportRect,
+  coordinateSpace: RectCoordinateSpace,
+): Promise<ViewportRect> {
+  if (coordinateSpace === 'viewport') return rect
+  const page = await getElementBox(base, '.slide.active .page')
+  if (!page) {
+    throw new Error('Could not measure the active slideshow page for an OCR rectangle.')
+  }
+  const viewport = await getLiveViewportSize(base)
+  return pageRectToViewportRect(
+    rect,
+    { left: page.x, top: page.y, width: page.w, height: page.h },
+    viewport,
+  )
+}
+
+/**
+ * Start the camera move and draw the callout immediately before the matching
+ * narration clip is timestamped. Keeping this inside demo_narrate makes the
+ * visual and spoken statistic one atomic beat instead of sequential agent calls.
+ */
+async function applyNarrationEmphasis(
+  base: string,
+  state: DemoState,
+  emphasis: NarrationEmphasisArgs,
+): Promise<{ rect: ViewportRect; style: AnnotationStyle }> {
+  const source = chooseNarratedEmphasisSource(emphasis)
+  if (!source.target && !source.rect) {
+    throw new Error('Narration emphasis requires either target or rect.')
+  }
+
+  let rect: ViewportRect
+  if (source.target) {
+    const box = await getElementBox(base, source.target)
+    if (!box) throw new Error('Narration emphasis target has no visible bounding box.')
+    rect = {
+      leftPct: (box.x / FRAME_W) * 100,
+      topPct: (box.y / FRAME_H) * 100,
+      widthPct: (box.w / FRAME_W) * 100,
+      heightPct: (box.h / FRAME_H) * 100,
+    }
+  } else {
+    rect = await resolveViewportRect(base, source.rect!, emphasis.coordinateSpace ?? 'page')
+  }
+
+  const zoomTimeSec = (Date.now() - state.startTime) / 1000
+  state.zoomEvents.push(zoomEventForViewportRect(rect, zoomTimeSec, emphasis.zoom))
+  state.lastTargetCoords = null
+
+  const style = emphasis.style ?? 'pulse'
+  const js = buildAnnotateEvalJs({
+    style,
+    color: emphasis.color,
+    ref: source.target,
+    rect: source.target ? undefined : rect,
+  })
+  const command = source.target
+    ? `playwright-cli eval "${shellDoubleQuoteEscape(js)}" ${source.target}`
+    : `playwright-cli eval "${shellDoubleQuoteEscape(js)}"`
+  await run(base, command)
+  state.annotationEvents.push({ videoTimeSec: (Date.now() - state.startTime) / 1000 })
+  // Let the first animation frame paint before the voice clip begins.
+  await new Promise(resolve => setTimeout(resolve, 100))
+  return { rect, style }
 }
 
 // Smoothly scroll a ref into the center of view BEFORE we zoom/click on it, so the
@@ -279,7 +492,8 @@ async function speak(base: string, text: string, state: DemoState): Promise<Spea
 
 // ── tools ──────────────────────────────────────────────────────────────────
 export const demo_bash = tool({
-  description: 'Execute a bash command (e.g. playwright-cli commands).',
+  description:
+    'Execute a bash command (e.g. playwright-cli commands). In prepared-asset slideshows, forward navigation is allowed exactly one page at a time and only after the current page has narration.',
   args: {
     command: tool.schema.string().describe('The bash command to execute'),
   },
@@ -291,6 +505,45 @@ export const demo_bash = tool({
 
       const state = readState(base)
       const nowSec = (Date.now() - state.startTime) / 1000
+      const advanceCount = countForwardSlideAdvances(cmd)
+      const slideshowProgress = readSlideshowProgress(base)
+      let advancedSlideshowProgress: SlideshowProgress | null = null
+      if (advanceCount > 0 && slideshowProgress) {
+        try {
+          advancedSlideshowProgress = advanceSlideshowProgress(slideshowProgress, advanceCount)
+        } catch (error) {
+          return {
+            output: JSON.stringify({
+              status: 'slide_advance_blocked',
+              error: error instanceof Error ? error.message : String(error),
+              currentSlide: slideshowProgress.currentSlide + 1,
+              totalSlides: slideshowProgress.totalSlides,
+              next: 'Narrate the current slide, then advance exactly once.',
+            }),
+          }
+        }
+        // The camera must reset before each page change. Agents sometimes forget
+        // to call demo_zoom_out() before pressing ArrowRight, which leaves the
+        // video stuck zoomed in on the previous slide's highlight for the rest of
+        // the demo. Inject the missing zoom-out deterministically.
+        state.zoomEvents = appendAutoZoomOut(state.zoomEvents, nowSec, videoTimeSec => ({
+          type: 'out',
+          videoTimeSec,
+        }))
+        // Also clear any lingering callouts so old annotations do not persist
+        // across the page transition if the agent skipped demo_clear_annotations().
+        try {
+          await run(
+            base,
+            `playwright-cli eval "${shellDoubleQuoteEscape(buildClearAnnotationsJs())}"`,
+          )
+        } catch (error) {
+          console.warn(
+            'Could not clear annotations before slide advance:',
+            error instanceof Error ? error.message : String(error),
+          )
+        }
+      }
 
       // Tab tracking must happen BEFORE exec
       if (cmd.startsWith('playwright-cli tab-new')) {
@@ -417,6 +670,9 @@ export const demo_bash = tool({
       }
 
       const result = await run(base, cmd)
+      if (advancedSlideshowProgress) {
+        writeSlideshowProgress(base, advancedSlideshowProgress)
+      }
 
       let sigAfter: string | null = null
       let urlAfter: string | null = null
@@ -460,7 +716,8 @@ export const demo_narrate = tool({
     'Speak a natural, conversational voiceover to the user. Use this tool to guide the user through the demo. ' +
     'When the line is ABOUT a specific element on the page, pass its ref as `focus`: the page smoothly ' +
     'scrolls to bring that element to the center of view (the viewer sees you travel there) BEFORE you start ' +
-    'speaking, so you are always talking about something centered and visible — never about something off-screen.',
+    'speaking, so you are always talking about something centered and visible — never about something off-screen. ' +
+    'For a PDF/image slide, call demo_analyze_slide first and pass a returned rectangle as viewport emphasis so its zoom and annotation begin before speech. Use demo_ground_region only to retry or locate another visual target.',
   args: {
     text: tool.schema.string().describe('The text to be spoken'),
     focus: tool.schema
@@ -472,20 +729,91 @@ export const demo_narrate = tool({
           'on-page element — especially one below the current view — so the subject is centered and the ' +
           'scroll-to-it is shown. No-ops if it is already comfortably centered.',
       ),
+    emphasis: tool.schema
+      .object({
+        target: tool.schema.string().optional().describe('Current visible hotspot ref.'),
+        rect: tool.schema
+          .object({
+            leftPct: tool.schema.number().min(0).max(100),
+            topPct: tool.schema.number().min(0).max(100),
+            widthPct: tool.schema.number().min(0.1).max(100),
+            heightPct: tool.schema.number().min(0.1).max(100),
+          })
+          .optional(),
+        coordinateSpace: tool.schema
+          .enum(['page', 'viewport'])
+          .optional()
+          .describe('page for OCR/manifest rectangles; viewport for Gemini grounding.'),
+        style: tool.schema.enum(ANNOTATION_STYLES).optional(),
+        color: tool.schema.string().optional(),
+        zoom: tool.schema.number().min(1.2).max(2.5).optional(),
+      })
+      .optional()
+      .describe(
+        'Atomic visual emphasis shown as this line begins. Put the highlighted statistic near the start of text.',
+      ),
   },
   async execute(args, context) {
     const base = baseDir(context)
     return withStateLock(async () => {
       const state = readState(base)
+      const slideshowProgress = readSlideshowProgress(base)
+      if (slideshowProgress) {
+        try {
+          assertCurrentSlideAnalyzed(slideshowProgress)
+        } catch (error) {
+          return {
+            output: JSON.stringify({
+              status: 'slide_analysis_required',
+              error: error instanceof Error ? error.message : String(error),
+              next: 'Call demo_analyze_slide, then narrate its summary or a returned point.',
+            }),
+          }
+        }
+      }
       // Bring the subject into the center of view (and show the scroll) before
       // speaking, so the narration always lands on something centered & visible.
       if (args.focus) {
         await smoothScrollIntoView(base, args.focus).catch(() => {})
       }
-      const result = await speak(base, args.text, state)
+      const pendingGrounding = readPendingGrounding(base)
+      const emphasis = resolveNarrationEmphasis(
+        args.emphasis as NarrationEmphasisArgs | undefined,
+        pendingGrounding,
+        slideshowProgress?.currentSlide,
+      )
+      // A grounding rectangle belongs to one narration opportunity on one slide.
+      // Clear it before doing work so TTS retries cannot apply stale geometry later.
+      if (pendingGrounding) clearPendingGrounding(base)
+
+      let emphasisResult: { rect: ViewportRect; style: AnnotationStyle } | null = null
+      let emphasisError: string | null = null
+      let result: SpeakResult
+      if (emphasis) {
+        const beat = await runNarratedEmphasisBeat({
+          emphasize: () => applyNarrationEmphasis(base, state, emphasis),
+          narrate: () => speak(base, args.text, state),
+        })
+        emphasisResult = beat.emphasis
+        emphasisError = beat.emphasisError
+        result = beat.narration
+      } else {
+        result = await speak(base, args.text, state)
+      }
       writeState(base, state)
       if (result.success) {
-        return { output: `spoken: ${args.text} (${result.durationSecs!.toFixed(1)}s)` }
+        const currentProgress = readSlideshowProgress(base)
+        if (currentProgress) {
+          writeSlideshowProgress(base, markCurrentSlideNarrated(currentProgress))
+        }
+        const emphasisNote = emphasisResult
+          ? `; emphasis=${emphasisResult.style}`
+          : emphasisError
+            ? `; emphasis failed: ${emphasisError}`
+            : ''
+        return {
+          output: `spoken: ${args.text} (${result.durationSecs!.toFixed(1)}s${emphasisNote})`,
+        }
       }
       return {
         output: `TTS FAILED — audio was NOT recorded. Error: ${result.error}. Continue without narration for this clip; retry demo_narrate on the next step.`,
@@ -672,6 +1000,270 @@ export const demo_zoom_out = tool({
       state.zoomEvents.push({ type: 'out', videoTimeSec })
       writeState(base, state)
       return { output: JSON.stringify({ status: 'zoomed_out', videoTimeSec }) }
+    })
+  },
+})
+
+export const demo_list_assets = tool({
+  description:
+    'List the PDFs/images prepared for this video, including rendered PDF page paths, extracted text, and OCR hotspot regions.',
+  args: {},
+  async execute(_args, context) {
+    try {
+      const { path: manifestPath, manifest } = readAssetManifest(baseDir(context))
+      return { output: JSON.stringify({ manifestPath, ...manifest }, null, 2) }
+    } catch (error) {
+      return {
+        output: JSON.stringify({
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      }
+    }
+  },
+})
+
+export const demo_build_slideshow = tool({
+  description:
+    'Build a full-screen explanatory slideshow from every prepared PDF page/image in manifest order. OCR regions become labelled hotspot refs for precise fallback emphasis.',
+  args: {
+    transition: tool.schema
+      .enum(['fade', 'slide', 'zoom'])
+      .optional()
+      .describe('Page transition. Use fade for calm material, slide for steps, zoom for reveals.'),
+  },
+  async execute(args, context) {
+    const base = baseDir(context)
+    try {
+      const { manifest } = readAssetManifest(base)
+      const slides = resolveManifestSlides(manifest)
+      if (slides.length === 0) {
+        return {
+          output: JSON.stringify({
+            error: 'No slides exist in the prepared asset manifest.',
+          }),
+        }
+      }
+      await activeSlideshowServer?.close()
+      activeSlideshowServer = await startSlideshowServer(slides, {
+        transition: args.transition,
+      })
+      const outputPath = path.join(base, 'recordings', 'slideshow.html')
+      fs.writeFileSync(outputPath, activeSlideshowServer.html)
+      writeSlideshowProgress(base, createSlideshowProgress(slides.length))
+      fs.rmSync(slideAnalysisPath(base), { force: true })
+      const url = activeSlideshowServer.url
+      return {
+        output: JSON.stringify({
+          status: 'slideshow_ready',
+          url,
+          path: outputPath,
+          slideCount: slides.length,
+          regionCount: slides.reduce((count, slide) => count + (slide.regions?.length ?? 0), 0),
+          transition: args.transition ?? 'fade',
+          next: `Open ${url}, then call demo_analyze_slide on the current rendered page before narration.`,
+        }),
+      }
+    } catch (error) {
+      return {
+        output: JSON.stringify({
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      }
+    }
+  },
+})
+
+export const demo_clear_annotations = tool({
+  description: 'Remove all explanatory callouts before advancing or highlighting another point.',
+  args: {},
+  async execute(_args, context) {
+    const base = baseDir(context)
+    return withStateLock(async () => {
+      try {
+        await run(
+          base,
+          `playwright-cli eval "${shellDoubleQuoteEscape(buildClearAnnotationsJs())}"`,
+        )
+        return { output: JSON.stringify({ status: 'annotations_cleared' }) }
+      } catch (error) {
+        return {
+          output: JSON.stringify({
+            status: 'clear_failed',
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        }
+      }
+    })
+  },
+})
+
+export const demo_analyze_slide = tool({
+  description:
+    'Use Gemini to understand the actual rendered pixels on the current PDF/image slide. Returns a factual page summary and confidence-gated narration points with viewport rectangles, even when PDF text and OCR are empty. Call once on every slide before narration; results are cached by slide index.',
+  args: {
+    refresh: tool.schema
+      .boolean()
+      .optional()
+      .describe('Ignore the per-slide cache and analyze the current pixels again.'),
+    minPointConfidence: tool.schema
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe('Minimum confidence for a specific narrated visual fact; default 0.6.'),
+  },
+  async execute(args, context) {
+    const base = baseDir(context)
+    return withStateLock(async () => {
+      const progress = readSlideshowProgress(base)
+      if (!progress) {
+        return {
+          output: JSON.stringify({ error: 'Slide analysis requires an active asset slideshow.' }),
+        }
+      }
+
+      const slideIndex = progress.currentSlide
+      const cache = readSlideAnalyses(base)
+      const cached = cache[String(slideIndex)]
+      if (cached && !args.refresh) {
+        writeSlideshowProgress(base, markCurrentSlideAnalyzed(progress))
+        return {
+          output: JSON.stringify({
+            status: 'slide_analyzed',
+            slideIndex,
+            cached: true,
+            source: 'gemini_rendered_pixels',
+            ...cached,
+          }),
+        }
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY
+      if (!apiKey) return { output: JSON.stringify({ error: 'GEMINI_API_KEY is not set' }) }
+      const analysisDir = path.join(base, 'recordings', 'grounding')
+      fs.mkdirSync(analysisDir, { recursive: true })
+      const screenshotPath = path.join(analysisDir, `analysis-slide-${slideIndex + 1}.png`)
+      try {
+        await run(base, `playwright-cli screenshot --filename "${screenshotPath}"`)
+        const analysis = await analyzeVisualSlide({
+          apiKey,
+          model:
+            process.env.GEMINI_GROUNDING_MODEL ||
+            process.env.GEMINI_VISION_MODEL ||
+            'gemini-3.5-flash',
+          imageBase64: fs.readFileSync(screenshotPath).toString('base64'),
+          minPointConfidence: args.minPointConfidence,
+        })
+        cache[String(slideIndex)] = { screenshotPath, analysis }
+        writeSlideAnalyses(base, cache)
+        writeSlideshowProgress(base, markCurrentSlideAnalyzed(progress))
+        return {
+          output: JSON.stringify({
+            status: 'slide_analyzed',
+            slideIndex,
+            cached: false,
+            source: 'gemini_rendered_pixels',
+            screenshotPath,
+            analysis,
+            next:
+              analysis.narrationPoints.length > 0
+                ? 'Narrate a returned point with its rect as viewport emphasis; use demo_ground_region only to retry or locate another target.'
+                : 'Narrate only the cautious page summary without a guessed highlight.',
+          }),
+        }
+      } catch (error) {
+        return {
+          output: JSON.stringify({
+            error: error instanceof Error ? error.message : String(error),
+            slideIndex,
+            screenshotPath,
+          }),
+        }
+      }
+    })
+  },
+})
+
+export const demo_ground_region = tool({
+  description:
+    'Gemini Agentic Vision retry for PDF/image content. Screenshots the actual visible 1920x1080 slide pixels and returns a confidence-gated viewport rect even when the source has no readable text layer. Use after demo_analyze_slide only when a returned box needs correction or you need another visual target; use OCR/page rectangles only if grounding cannot find it.',
+  args: {
+    query: tool.schema
+      .string()
+      .describe('A precise visual target, e.g. "the blue revenue bar for Q4".'),
+    minConfidence: tool.schema
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe('Minimum accepted confidence, default 0.6.'),
+    style: tool.schema
+      .enum(ANNOTATION_STYLES)
+      .optional()
+      .describe('Annotation style staged for the next narration; otherwise chosen from shape.'),
+  },
+  async execute(args, context) {
+    const base = baseDir(context)
+    return withStateLock(async () => {
+      const apiKey = process.env.GEMINI_API_KEY
+      if (!apiKey) return { output: JSON.stringify({ error: 'GEMINI_API_KEY is not set' }) }
+      const groundingDir = path.join(base, 'recordings', 'grounding')
+      fs.mkdirSync(groundingDir, { recursive: true })
+      const screenshotPath = path.join(groundingDir, `frame-${Date.now()}.png`)
+      try {
+        await run(base, `playwright-cli screenshot --filename "${screenshotPath}"`)
+        const result = await groundVisualRegion({
+          apiKey,
+          model:
+            process.env.GEMINI_GROUNDING_MODEL ||
+            process.env.GEMINI_VISION_MODEL ||
+            'gemini-3.5-flash',
+          imageBase64: fs.readFileSync(screenshotPath).toString('base64'),
+          query: args.query,
+        })
+        const minConfidence = args.minConfidence ?? 0.6
+        if (!result.found || result.confidence < minConfidence) {
+          clearPendingGrounding(base)
+          return {
+            output: JSON.stringify({
+              ...result,
+              found: false,
+              rect: null,
+              screenshotPath,
+              reason: result.found ? 'confidence_below_threshold' : 'target_not_found',
+            }),
+          }
+        }
+        const progress = readSlideshowProgress(base)
+        if (!progress) throw new Error('Visual grounding requires an active asset slideshow.')
+        writePendingGrounding(base, {
+          slideIndex: progress.currentSlide,
+          query: args.query,
+          label: result.label,
+          confidence: result.confidence,
+          emphasis: {
+            rect: result.rect!,
+            coordinateSpace: 'viewport',
+            style: args.style ?? defaultGroundingStyle(result.rect!),
+          },
+        })
+        return {
+          output: JSON.stringify({
+            ...result,
+            coordinateSpace: 'viewport',
+            screenshotPath,
+            stagedForNextNarration: true,
+          }),
+        }
+      } catch (error) {
+        clearPendingGrounding(base)
+        return {
+          output: JSON.stringify({
+            error: error instanceof Error ? error.message : String(error),
+            screenshotPath,
+          }),
+        }
+      }
     })
   },
 })

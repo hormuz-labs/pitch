@@ -67,9 +67,10 @@ export function decodeXmlEntities(s: string): string {
  */
 export function parsePdfBbox(xml: string): PageWords[] {
   const pages: PageWords[] = []
-  const pageRe = /<page\b[^>]*\bwidth="([\d.]+)"[^>]*\bheight="([\d.]+)"[^>]*>([\s\S]*?)<\/page>/g
+  const pageRe =
+    /<page\b[^>]*\bwidth="([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)"[^>]*\bheight="([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)"[^>]*>([\s\S]*?)<\/page>/g
   const wordRe =
-    /<word\b[^>]*\bxMin="([\d.]+)"[^>]*\byMin="([\d.]+)"[^>]*\bxMax="([\d.]+)"[^>]*\byMax="([\d.]+)"[^>]*>([\s\S]*?)<\/word>/g
+    /<word\b[^>]*\bxMin="([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)"[^>]*\byMin="([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)"[^>]*\bxMax="([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)"[^>]*\byMax="([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)"[^>]*>([\s\S]*?)<\/word>/g
 
   let pageMatch: RegExpExecArray | null
   // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
@@ -197,12 +198,18 @@ export function groupWordsIntoRegions(page: PageWords, opts: GroupOptions = {}):
       : phrases
   kept.sort((a, b) => a.yMin - b.yMin || a.xMin - b.xMin)
 
-  return kept.map((p, i) => ({
-    id: `${prefix}${i}`,
-    text: p.text,
-    leftPct: clampPct((p.xMin / width) * 100),
-    topPct: clampPct((p.yMin / height) * 100),
-    widthPct: clampPct(((p.xMax - p.xMin) / width) * 100),
-    heightPct: clampPct(((p.yMax - p.yMin) / height) * 100),
-  }))
+  return kept.map((p, i) => {
+    const leftPct = clampPct((p.xMin / width) * 100)
+    const topPct = clampPct((p.yMin / height) * 100)
+    const rightPct = clampPct((p.xMax / width) * 100)
+    const bottomPct = clampPct((p.yMax / height) * 100)
+    return {
+      id: `${prefix}${i}`,
+      text: p.text,
+      leftPct,
+      topPct,
+      widthPct: Math.max(0, rightPct - leftPct),
+      heightPct: Math.max(0, bottomPct - topPct),
+    }
+  })
 }

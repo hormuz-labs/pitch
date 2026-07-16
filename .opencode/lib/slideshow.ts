@@ -4,8 +4,8 @@
  * Pure HTML generator for the demo slideshow. Turns rendered PDF pages / images
  * (plus their word-derived regions) into a premium, full-screen 1920x1080 page
  * where every region is a transparent, ARIA-labelled hotspot. Because each
- * hotspot is a real `role="button"` element, the existing zoom_in + cursor +
- * annotate machinery can target it exactly like an element on a live website.
+ * hotspot is a real `role="button"` element, atomic narrated emphasis can use
+ * it as deterministic fallback geometry exactly like an element on a website.
  *
  * No @opencode-ai/plugin or Node-runtime imports — kept pure so it is
  * unit-testable and safe to import anywhere.
@@ -32,6 +32,8 @@ export interface SlideshowOptions {
   title?: string
   /** Auto-advance interval in ms (0/undefined = manual navigation only). */
   durationMs?: number
+  /** Visual motion used when changing pages. */
+  transition?: 'fade' | 'slide' | 'zoom'
 }
 
 const MAX_LABEL_LEN = 60
@@ -47,7 +49,7 @@ function escapeHtml(s: string): string {
 
 /** Absolute filesystem path → file:// URL; pass through anything already a URL. */
 export function toFileUrl(p: string): string {
-  if (/^(file|https?):\/\//i.test(p)) return p
+  if (/^(?:file|https?):\/\//i.test(p) || /^data:/i.test(p)) return p
   return `file://${p}`
 }
 
@@ -101,6 +103,7 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     opts.durationMs && opts.durationMs > 0
       ? `setInterval(() => go(current + 1), ${Math.round(opts.durationMs)});`
       : ''
+  const transition = opts.transition ?? 'fade'
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -129,6 +132,10 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
       padding: 72px 96px 96px;
     }
     .slide.active { opacity: 1; visibility: visible; z-index: 1; }
+    .transition-slide .slide { transform: translateX(6%); transition: opacity 450ms ease, transform 450ms cubic-bezier(.2,.8,.2,1); }
+    .transition-slide .slide.active { transform: translateX(0); }
+    .transition-zoom .slide { transform: scale(.94); transition: opacity 450ms ease, transform 520ms cubic-bezier(.2,.8,.2,1); }
+    .transition-zoom .slide.active { transform: scale(1); }
     /* .page shrinks to the contained image so hotspot %s map onto the image
        with no JS measurement; hotspots + image scale together. */
     .page {
@@ -181,12 +188,12 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
       backdrop-filter: blur(6px); transition: background 150ms ease;
     }
     #nav button:hover { background: rgba(40,48,66,0.9); }
-    /* Injected annotation overlays live here (drawn by the annotate tool). */
+    /* Injected narrated-emphasis overlays live here. */
     #annotations { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
   </style>
 </head>
 <body>
-  <div id="app" data-total="${total}">
+  <div id="app" class="transition-${transition}" data-total="${total}">
     <div id="progress" style="width:${total > 0 ? (100 / total).toFixed(3) : 0}%"></div>
     <div class="stage">
       ${parts.join('\n      ')}

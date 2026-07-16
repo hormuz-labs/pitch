@@ -21,13 +21,16 @@ import type { Job } from 'bullmq'
 import { Redis } from 'ioredis'
 import * as os from 'os'
 import { getSessionIdFromEvent } from './opencode.js'
+import { type AssetManifest, prepareAssets } from './utils/assets.js'
 import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { type BrowserHeaderMode, renderBrowserChromePng } from './utils/browser-chrome.js'
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
+import { buildDemoJobInput } from './utils/demo-job-input.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
 import { addIntroOutro, type BrowserChromeSegment } from './utils/intro-outro.js'
 import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
+import { type SlideshowProgress, validateSlideshowCoverage } from './utils/slideshow-progress.js'
 import { processVideo } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
 
@@ -614,6 +617,21 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // job is deleted while processing.
       activeSessionsByJobId.set(jobId, session.id)
 
+      // Prepare PDFs/images before the browser starts recording. The manifest is
+      // the only handoff to the agent tools; the demo agent never imports
+      // worker code or reaches into another flow.
+      let assetManifest: AssetManifest | null = null
+      let assetsManifestPath: string | undefined
+      const assetInputs = Array.isArray(parameters?.assets) ? parameters.assets : []
+      if (assetInputs.length > 0) {
+        const assetsDir = path.join(recordingsDir, 'assets', session.id)
+        assetManifest = await prepareAssets(jobId, assetInputs, assetsDir)
+        assetsManifestPath = path.join(assetsDir, 'assets.json')
+        if (assetManifest.assets.length === 0 && !parameters?.url) {
+          throw new Error('None of the uploaded PDFs/images could be prepared for video.')
+        }
+      }
+
       // Determine the directory where the video should be recorded using environment variables
       const recordingDirEnv = process.env.RECORDING_DIR || process.env.VIDEO_DIR
       let videoDir = targetDir
@@ -706,7 +724,10 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // opencode discovers them natively per agent.
       const configPath = path.join(recordingsDir, 'demo-config.json')
       const voiceName = (parameters?.voice || 'Puck').toString().replace(/\.mp3$/i, '')
-      fs.writeFileSync(configPath, JSON.stringify({ startTime, voiceName }, null, 2))
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({ startTime, voiceName, assetsManifestPath }, null, 2),
+      )
 
       // 4. Subscribe to global events and filter by session ID.
       eventAbortController = new AbortController()
@@ -808,31 +829,20 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // 5. Send Prompt — the behavioral spec (camera grammar, pacing, logo
       // capture) lives in the demo-generator agent definition; this message only
       // carries the per-job inputs.
-      const targetUrl = parameters?.url || ''
-      const promptInstructions = parameters?.instructions || ''
-      const promptScript = (parameters?.script || '').toString().trim()
-
-      // If the user supplied a voiceover script, the narration must follow it.
-      const scriptBlock = promptScript
-        ? `
-
-VOICEOVER SCRIPT (provided by the user — THIS IS THE SOURCE OF TRUTH FOR THE NARRATION):
-"""
-${promptScript}
-"""
-`
-        : ''
-
-      const promptText = `Record a cinematic product demo.
-
-Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
+      const demoInput = buildDemoJobInput({
+        hasPreparedAssets: (assetManifest?.assets.length ?? 0) > 0,
+        assetCount: assetManifest?.assets.length ?? 0,
+        url: parameters?.url,
+        instructions: parameters?.instructions,
+        script: parameters?.script,
+      })
 
       const promptResponse = await client.session.prompt({
         path: { id: session.id },
         query: { directory: targetDir },
         body: {
-          agent: 'demo-generator',
-          parts: [{ type: 'text', text: promptText }],
+          agent: demoInput.agent,
+          parts: [{ type: 'text', text: demoInput.prompt }],
         },
         signal: promptAbortController.signal,
       })
@@ -841,6 +851,34 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
         throw new Error(`OpenCode prompt failed: ${JSON.stringify(promptResponse.error)}`)
       }
 
+      if (assetManifest) {
+        const expectedSlides = assetManifest.assets.reduce(
+          (total, asset) => total + (asset.kind === 'pdf' ? asset.pages.length : 1),
+          0,
+        )
+        const progressPath = path.join(recordingsDir, 'slideshow-progress.json')
+        if (!fs.existsSync(progressPath)) {
+          throw new Error('Prepared assets were not displayed in an asset slideshow.')
+        }
+        const slideshowProgress = JSON.parse(
+          fs.readFileSync(progressPath, 'utf-8'),
+        ) as SlideshowProgress
+        validateSlideshowCoverage(slideshowProgress, expectedSlides)
+        jobLogger.info(
+          {
+            expectedSlides,
+            analyzedSlides: slideshowProgress.analyzedSlides.length,
+            narratedSlides: slideshowProgress.narratedSlides.length,
+          },
+          'Validated prepared page coverage before rendering',
+        )
+      }
+
+      // This deadline protects the interactive agent session. Rendering can
+      // legitimately take longer for multi-page PDFs, and the callback cannot
+      // cancel an in-flight FFmpeg process anyway, so stop the timer as soon as
+      // the agent has handed the completed timeline back to the worker.
+      clearTimeout(timeout)
       jobLogger.info('OpenCode prompt completed')
 
       // 6. Fetch final session messages to get ground-truth cost before aborting/draining
@@ -916,6 +954,7 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
           audioClips: [],
           zoomEvents: [],
           clickEvents: [],
+          annotationEvents: [],
           tabEvents: [{ tabId: 0, wallSec: 0 }],
           tabCreationTimes: { 0: 0 },
           currentTabId: 0,
@@ -1178,7 +1217,7 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
         // page URL the agent navigated to, then overlay each segment only during
         // the time the demo was on that URL. Falls back to a single static header
         // when no navigation events were recorded.
-        const headerMode = (parameters?.browserHeader as BrowserHeaderMode) || 'none'
+        const headerMode: BrowserHeaderMode | 'none' = parameters?.browserHeader || 'none'
         const headerUrl = state?.pageUrl || parameters?.url
         if (headerMode !== 'none' && headerUrl) {
           const contentDur = await getMediaDurationSec(trimmedVideo)

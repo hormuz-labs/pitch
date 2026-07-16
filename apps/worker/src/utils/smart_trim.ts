@@ -82,6 +82,18 @@ interface AnnotationEvent {
   videoTimeSec: number
 }
 
+export function annotationProtectionSegments(
+  events: AnnotationEvent[],
+  duration: number,
+): Segment[] {
+  const leadSec = 0.5
+  const trailSec = 2.5
+  return events.map(event => ({
+    start: Math.max(0, event.videoTimeSec - leadSec),
+    end: Math.min(duration, event.videoTimeSec + trailSec),
+  }))
+}
+
 function mergeSegments(segments: Segment[]): Segment[] {
   const sorted = [...segments].sort((a, b) => a.start - b.start)
   const merged: Segment[] = []
@@ -439,6 +451,11 @@ export async function processVideo(
     console.log(`Found ${zoomEvents.length} zoom event(s) to protect during trimming.`)
   }
 
+  const annotationEvents = loadAnnotationEvents(analyzeInput)
+  if (annotationEvents.length > 0) {
+    console.log(`Found ${annotationEvents.length} annotation event(s) to protect during trimming.`)
+  }
+
   const duration = await getDuration(analyzeInput)
   if (!duration) throw new Error('Could not determine video duration')
   const audioDuration = await getAudioDuration(analyzeInput, duration)
@@ -635,12 +652,7 @@ export async function processVideo(
   // draw-on animation and the brief hold that follows survive trimming — a static
   // slideshow page with a call-out on it would otherwise read as a frozen/silent
   // hold and be dropped, even though it's a deliberate, meaningful beat.
-  const ANNOTATION_LEAD = 0.5
-  const ANNOTATION_TRAIL = 2.5
-  const annotationProtected: Segment[] = annotationEvents.map(a => ({
-    start: Math.max(0, a.videoTimeSec - ANNOTATION_LEAD),
-    end: Math.min(duration, a.videoTimeSec + ANNOTATION_TRAIL),
-  }))
+  const annotationProtected = annotationProtectionSegments(annotationEvents, duration)
 
   // Protect every stretch with real visual motion (scroll / pan), even when silent —
   // this is the general guard that keeps camera travel from being trimmed into a

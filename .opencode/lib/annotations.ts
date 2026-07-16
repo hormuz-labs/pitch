@@ -2,16 +2,24 @@
  * annotations.ts
  *
  * Pure builders for on-screen annotations (circle / box / highlighter /
- * underline / arrow / spotlight). The annotate tool runs the JS returned by
- * `buildAnnotateEvalJs` inside the page via `playwright-cli eval`; it reads the
- * target element's live bounding rect (or an explicit rect) and appends an
+ * underline / arrow / spotlight). `demo_narrate.emphasis` runs the JS returned
+ * by `buildAnnotateEvalJs` inside the page via `playwright-cli eval`; it reads
+ * the target element's live bounding rect (or an explicit rect) and appends an
  * animated overlay into a fixed `#annotations` layer, so the annotation is
  * captured by the recording and pans/zooms with the page.
  *
  * No @opencode-ai/plugin or Node imports — pure and unit-testable.
  */
 
-export type AnnotationStyle = 'box' | 'circle' | 'underline' | 'highlighter' | 'arrow' | 'spotlight'
+export type AnnotationStyle =
+  | 'box'
+  | 'circle'
+  | 'underline'
+  | 'highlighter'
+  | 'arrow'
+  | 'spotlight'
+  | 'pulse'
+  | 'bracket'
 
 export const ANNOTATION_STYLES: AnnotationStyle[] = [
   'box',
@@ -20,6 +28,8 @@ export const ANNOTATION_STYLES: AnnotationStyle[] = [
   'highlighter',
   'arrow',
   'spotlight',
+  'pulse',
+  'bracket',
 ]
 
 export interface AnnotateOptions {
@@ -58,6 +68,9 @@ export function padForStyle(style: AnnotationStyle): number {
       return 6
     case 'highlighter':
       return 2
+    case 'pulse':
+    case 'bracket':
+      return 8
     default:
       return 0
   }
@@ -81,6 +94,9 @@ export function annotationStyleCss(): string {
     '.pitch-ann-arrow line,.pitch-ann-arrow polyline{fill:none;stroke:var(--c);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}',
     '.pitch-ann-arrow{animation:pitchArrowIn .35s cubic-bezier(.2,.8,.3,1.2) both}',
     '@keyframes pitchArrowIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}',
+    '.pitch-ann-pulse{position:absolute;inset:0;border:3px solid var(--c);border-radius:14px;box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 55%,transparent);animation:pitchPulse .75s ease-out 2 both}',
+    '@keyframes pitchPulse{0%{transform:scale(.94);opacity:0;box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 55%,transparent)}45%{opacity:1}100%{transform:scale(1.08);opacity:.8;box-shadow:0 0 0 14px transparent}}',
+    '.pitch-ann-bracket{fill:none;stroke:var(--c);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:240;stroke-dashoffset:240;animation:pitchDraw .55s ease-out forwards}',
   ].join('')
 }
 
@@ -99,6 +115,10 @@ export function overlayInnerHtml(style: AnnotationStyle): string {
       return '<svg viewBox="0 0 100 100" preserveAspectRatio="none"><line class="pitch-ann-underline" x1="3" y1="90" x2="97" y2="90"/></svg>'
     case 'arrow':
       return '<svg class="pitch-ann-arrow" viewBox="0 0 120 40" preserveAspectRatio="none"><line x1="6" y1="20" x2="96" y2="20"/><polyline points="80,8 100,20 80,32"/></svg>'
+    case 'pulse':
+      return '<div class="pitch-ann-pulse"></div>'
+    case 'bracket':
+      return '<svg viewBox="0 0 100 100" preserveAspectRatio="none"><path class="pitch-ann-bracket" d="M18 4H4V96H18 M82 4H96V96H82"/></svg>'
   }
 }
 

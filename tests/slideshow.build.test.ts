@@ -8,13 +8,14 @@ import {
   labelForRegion,
   type Slide,
   toFileUrl,
-} from '../.opencode/plugins/slideshow.ts'
+} from '../.opencode/lib/slideshow.ts'
 
 describe('toFileUrl', () => {
   it('prefixes absolute paths and passes through URLs', () => {
     expect(toFileUrl('/abs/page-1.png')).toBe('file:///abs/page-1.png')
     expect(toFileUrl('file:///abs/x.png')).toBe('file:///abs/x.png')
     expect(toFileUrl('https://x/y.png')).toBe('https://x/y.png')
+    expect(toFileUrl('data:image/png;base64,abc')).toBe('data:image/png;base64,abc')
   })
 })
 
@@ -71,5 +72,15 @@ describe('buildSlideshowHtml', () => {
   it('emits an auto-advance timer only when durationMs is set', () => {
     expect(buildSlideshowHtml([slideWithRegions], { durationMs: 4000 })).toContain('setInterval')
     expect(buildSlideshowHtml([slideWithRegions])).not.toContain('setInterval')
+  })
+
+  it('renders the requested explanatory slide transition', () => {
+    const sliding = buildSlideshowHtml([slideWithRegions], { transition: 'slide' })
+    const zooming = buildSlideshowHtml([slideWithRegions], { transition: 'zoom' })
+
+    expect(sliding).toContain('class="transition-slide"')
+    expect(sliding).toContain('.transition-slide .slide')
+    expect(zooming).toContain('class="transition-zoom"')
+    expect(zooming).toContain('.transition-zoom .slide')
   })
 })
