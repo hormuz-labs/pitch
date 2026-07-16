@@ -50,11 +50,23 @@ export interface StoryboardScene {
   estimatedDurationSec: number
 }
 
+export interface StoryboardTitleCard {
+  enabled: boolean
+  title: string
+  subtitle: string
+}
+
+export interface StoryboardTitleCards {
+  intro: StoryboardTitleCard
+  outro: StoryboardTitleCard
+}
+
 export interface VideoStoryboard {
   revision: number
   approvedRevision?: number
   status: 'draft' | 'approved'
   transition: 'fade' | 'slide' | 'zoom'
+  titleCards: StoryboardTitleCards
   scenes: StoryboardScene[]
 }
 

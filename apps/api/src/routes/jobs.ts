@@ -202,6 +202,7 @@ router.patch('/:id/storyboard', async (req, res) => {
     const storyboard = updateVideoStoryboard(current, {
       revision: req.body?.revision,
       transition: req.body?.transition,
+      titleCards: req.body?.titleCards,
       scenes: req.body?.scenes,
     })
     const updatedJob = await db.updateJob(req.params.id, {

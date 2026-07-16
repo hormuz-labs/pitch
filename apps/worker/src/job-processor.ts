@@ -28,7 +28,12 @@ import { type BrowserHeaderMode, renderBrowserChromePng } from './utils/browser-
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
 import { buildDemoJobInput } from './utils/demo-job-input.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
-import { addIntroOutro, type BrowserChromeSegment } from './utils/intro-outro.js'
+import {
+  addIntroOutro,
+  type BrowserChromeSegment,
+  type CardConfig,
+  planTitleCards,
+} from './utils/intro-outro.js'
 import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
 import { type SlideshowProgress, validateSlideshowCoverage } from './utils/slideshow-progress.js'
@@ -1279,6 +1284,24 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
             .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Demo'
         const productLogoPath = path.join(recordingsDir, 'product_logo.png')
         const inset = Number.parseFloat((parameters?.inset ?? '0.87').toString())
+        const reviewedStoryboard = parameters?.storyboard as VideoStoryboard | undefined
+        const cardConfig: CardConfig = {
+          productName,
+          productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
+          duration: 2.5,
+          fps: sourceFps,
+          width: 1920,
+          height: 1080,
+          outputPath: finalVideo,
+          productUrl: productDomain || undefined,
+          titleCards: reviewedStoryboard
+            ? (reviewedStoryboard.titleCards ?? {
+                intro: { enabled: false, title: '', subtitle: '' },
+                outro: { enabled: false, title: '', subtitle: '' },
+              })
+            : undefined,
+        }
+        const cardPlan = planTitleCards(cardConfig)
 
         // Optional Safari-style browser header. We generate one PNG per distinct
         // page URL the agent navigated to, then overlay each segment only during
@@ -1288,8 +1311,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         const headerUrl = state?.pageUrl || parameters?.url
         if (headerMode !== 'none' && headerUrl) {
           const contentDur = await getMediaDurationSec(trimmedVideo)
-          const introDuration = 2.5
-          const contentStart = introDuration
+          const contentStart = cardPlan.contentStartSec
           const events = state?.pageUrlEvents as
             | Array<{ videoTimeSec: number; url: string }>
             | undefined
@@ -1337,16 +1359,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         await addIntroOutro(
           trimmedVideo,
           finalVideo,
-          {
-            productName,
-            productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
-            duration: 2.5,
-            fps: sourceFps,
-            width: 1920,
-            height: 1080,
-            outputPath: finalVideo,
-            productUrl: productDomain || undefined,
-          },
+          cardConfig,
           bgAsset
             ? {
                 asset: bgAsset,

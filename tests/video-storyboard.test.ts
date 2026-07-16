@@ -6,6 +6,64 @@ import {
 } from '../packages/shared/src/video-storyboard'
 
 describe('video storyboard review contract', () => {
+  it('starts PDF title cards disabled with no fallback text', () => {
+    const draft = createVideoStoryboard([
+      {
+        pageIndex: 0,
+        previewUrl: 'page.png',
+        narration: 'Explain the page.',
+        emphasis: [],
+      },
+    ])
+
+    expect(draft.titleCards).toEqual({
+      intro: { enabled: false, title: '', subtitle: '' },
+      outro: { enabled: false, title: '', subtitle: '' },
+    })
+  })
+
+  it('keeps reviewed title-card text and enabled choices in the next revision', () => {
+    const draft = createVideoStoryboard([
+      {
+        pageIndex: 0,
+        previewUrl: 'page.png',
+        narration: 'Explain the page.',
+        emphasis: [],
+      },
+    ])
+
+    const edited = updateVideoStoryboard(draft, {
+      revision: draft.revision,
+      scenes: draft.scenes,
+      titleCards: {
+        intro: { enabled: true, title: 'Quarterly Review', subtitle: 'April 2026' },
+        outro: { enabled: true, title: 'Questions?', subtitle: 'finance@example.com' },
+      },
+    })
+
+    expect(edited.titleCards).toEqual({
+      intro: { enabled: true, title: 'Quarterly Review', subtitle: 'April 2026' },
+      outro: { enabled: true, title: 'Questions?', subtitle: 'finance@example.com' },
+    })
+  })
+
+  it('keeps legacy PDF storyboards card-free when they are approved', () => {
+    const draft = createVideoStoryboard([
+      {
+        pageIndex: 0,
+        previewUrl: 'page.png',
+        narration: 'Explain the page.',
+        emphasis: [],
+      },
+    ])
+    const legacyDraft = { ...draft, titleCards: undefined } as any
+
+    expect(approveVideoStoryboard(legacyDraft, draft.revision).titleCards).toEqual({
+      intro: { enabled: false, title: '', subtitle: '' },
+      outro: { enabled: false, title: '', subtitle: '' },
+    })
+  })
+
   it('approves the exact reviewed revision for rendering', () => {
     const draft = createVideoStoryboard([
       {

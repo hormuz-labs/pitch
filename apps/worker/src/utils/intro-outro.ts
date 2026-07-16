@@ -37,6 +37,53 @@ export interface CardConfig {
   outputPath: string
   // Clean domain of the demoed product (e.g. "acme.com"), shown as the outro CTA.
   productUrl?: string
+  titleCards?: TitleCardSettings
+}
+
+export interface TitleCard {
+  enabled: boolean
+  title: string
+  subtitle: string
+}
+
+export interface TitleCardSettings {
+  intro: TitleCard
+  outro: TitleCard
+}
+
+export interface TitleCardPlan extends TitleCardSettings {
+  contentStartSec: number
+  totalCardDurationSec: number
+}
+
+export function planTitleCards(
+  config: Pick<CardConfig, 'productName' | 'productUrl' | 'duration' | 'titleCards'>,
+): TitleCardPlan {
+  const cards = config.titleCards ?? {
+    intro: { enabled: true, title: config.productName, subtitle: '' },
+    outro: {
+      enabled: true,
+      title: 'Thank you for watching',
+      subtitle: config.productUrl?.trim() ?? '',
+    },
+  }
+  const intro = {
+    enabled: cards.intro.enabled,
+    title: cards.intro.title.trim(),
+    subtitle: cards.intro.subtitle.trim(),
+  }
+  const outro = {
+    enabled: cards.outro.enabled,
+    title: cards.outro.title.trim(),
+    subtitle: cards.outro.subtitle.trim(),
+  }
+  return {
+    intro,
+    outro,
+    contentStartSec: intro.enabled ? config.duration : 0,
+    totalCardDurationSec:
+      (intro.enabled ? config.duration : 0) + (outro.enabled ? config.duration : 0),
+  }
 }
 
 async function getDuration(file: string): Promise<number> {
@@ -164,22 +211,29 @@ function pickTheme(logoLuminance: number | null): CardTheme {
 // Minimal intro: [logo] | [name], centered, on a plain contrasting background.
 function buildIntroCardSvg(
   productLogoDataUri: string | null,
-  productName: string,
+  title: string,
+  subtitle: string,
   theme: CardTheme,
   width: number,
   height: number,
 ): string {
   const cx = width / 2
   const cy = height / 2
+  const subtitleText = subtitle
+    ? `<text x="${productLogoDataUri ? cx + 60 : cx}" y="${cy + 62}" font-family="${FONT_FAMILY}" font-size="30" font-weight="500" fill="${theme.fg}" fill-opacity="0.65" text-anchor="${productLogoDataUri ? 'start' : 'middle'}">${escapeXml(subtitle)}</text>`
+    : ''
   let body: string
   if (productLogoDataUri) {
     // logo (right-aligned near the divider) | thin divider | name
     body =
       `<image href="${productLogoDataUri}" x="${cx - 300}" y="${cy - 50}" width="240" height="100" preserveAspectRatio="xMaxYMid meet"/>` +
       `<line x1="${cx}" y1="${cy - 34}" x2="${cx}" y2="${cy + 34}" stroke="${theme.fg}" stroke-width="2" stroke-opacity="0.22"/>` +
-      `<text x="${cx + 60}" y="${cy + 18}" font-family="${GOUDY_FAMILY}" font-size="56" font-weight="400" fill="${theme.fg}" text-anchor="start">${escapeXml(productName)}</text>`
+      `<text x="${cx + 60}" y="${cy + 8}" font-family="${GOUDY_FAMILY}" font-size="56" font-weight="400" fill="${theme.fg}" text-anchor="start">${escapeXml(title)}</text>` +
+      subtitleText
   } else {
-    body = `<text x="${cx}" y="${cy + 20}" font-family="${GOUDY_FAMILY}" font-size="72" font-weight="400" fill="${theme.fg}" text-anchor="middle">${escapeXml(productName)}</text>`
+    body =
+      `<text x="${cx}" y="${cy + 8}" font-family="${GOUDY_FAMILY}" font-size="72" font-weight="400" fill="${theme.fg}" text-anchor="middle">${escapeXml(title)}</text>` +
+      subtitleText
   }
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -188,10 +242,10 @@ function buildIntroCardSvg(
 </svg>`
 }
 
-// Minimal outro: "Thank you for watching" with the product domain in a capsule below.
+// Minimal outro: editable title with an optional subtitle in a capsule below.
 function buildOutroCardSvg(
-  _productName: string,
-  domain: string,
+  title: string,
+  subtitle: string,
   theme: CardTheme,
   width: number,
   height: number,
@@ -199,19 +253,19 @@ function buildOutroCardSvg(
   const cx = width / 2
   const cy = height / 2
   let capsule = ''
-  if (domain) {
-    const capW = Math.max(240, domain.length * 20 + 90)
+  if (subtitle) {
+    const capW = Math.max(240, subtitle.length * 20 + 90)
     const capH = 64
     const capX = cx - capW / 2
     const capY = cy + 16
     capsule =
       `<rect x="${capX}" y="${capY}" width="${capW}" height="${capH}" rx="${capH / 2}" fill="none" stroke="${theme.fg}" stroke-width="2" stroke-opacity="0.3"/>` +
-      `<text x="${cx}" y="${capY + 42}" font-family="${FONT_FAMILY}" font-size="30" font-weight="600" fill="${theme.fg}" text-anchor="middle">${escapeXml(domain)}</text>`
+      `<text x="${cx}" y="${capY + 42}" font-family="${FONT_FAMILY}" font-size="30" font-weight="600" fill="${theme.fg}" text-anchor="middle">${escapeXml(subtitle)}</text>`
   }
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${width}" height="${height}" fill="${theme.bg}"/>
-  <text x="${cx}" y="${cy - 24}" font-family="${GOUDY_FAMILY}" font-size="48" font-weight="400" fill="${theme.fg}" text-anchor="middle">Thank you for watching</text>
+  <text x="${cx}" y="${cy - 24}" font-family="${GOUDY_FAMILY}" font-size="48" font-weight="400" fill="${theme.fg}" text-anchor="middle">${escapeXml(title)}</text>
   ${capsule}
 </svg>`
 }
@@ -261,9 +315,15 @@ async function renderCardClip(svg: string, output: string, config: CardConfig): 
 }
 
 // Minimal intro: logo | name on a contrasting (white/black) background, gentle fade.
-async function generateIntroCard(output: string, config: CardConfig): Promise<string> {
+async function generateIntroCard(
+  output: string,
+  config: CardConfig,
+  card: TitleCard,
+): Promise<string> {
   const dir = path.dirname(output)
-  let logoPng = await prepareLogoPng(config.productLogoPath, dir)
+  // Reviewed PDF cards intentionally match the editor's plain preview. Automatic
+  // URL-demo cards keep the captured product logo and contrast-aware theme.
+  let logoPng = config.titleCards ? null : await prepareLogoPng(config.productLogoPath, dir)
   try {
     // Skip tiny or blank favicon-style assets (e.g. 41x40 white placeholder). A
     // real brand logo must have some size and contrast against the card background.
@@ -288,7 +348,7 @@ async function generateIntroCard(output: string, config: CardConfig): Promise<st
       `Intro card: logo ${logoPng ? `luminance=${lum?.toFixed(2)}` : 'none/unreadable'} -> ${theme.bg === '#FFFFFF' ? 'white' : 'black'} background`,
     )
     await renderCardClip(
-      buildIntroCardSvg(logoUri, config.productName, theme, config.width, config.height),
+      buildIntroCardSvg(logoUri, card.title, card.subtitle, theme, config.width, config.height),
       output,
       config,
     )
@@ -302,20 +362,18 @@ async function generateIntroCard(output: string, config: CardConfig): Promise<st
 }
 
 // Minimal outro: "Thank you for watching" + the product/site name in a capsule, gentle fade.
-async function generateOutroCard(output: string, config: CardConfig): Promise<string> {
+async function generateOutroCard(
+  output: string,
+  config: CardConfig,
+  card: TitleCard,
+): Promise<string> {
   const dir = path.dirname(output)
-  const logoPng = await prepareLogoPng(config.productLogoPath, dir)
+  const logoPng = config.titleCards ? null : await prepareLogoPng(config.productLogoPath, dir)
   try {
     const lum = logoPng ? await detectLogoLuminance(logoPng, dir) : null
     const theme = pickTheme(lum)
     await renderCardClip(
-      buildOutroCardSvg(
-        config.productName,
-        (config.productUrl || '').trim(),
-        theme,
-        config.width,
-        config.height,
-      ),
+      buildOutroCardSvg(card.title, card.subtitle, theme, config.width, config.height),
       output,
       config,
     )
@@ -380,6 +438,7 @@ export async function addIntroOutro(
   const dir = path.dirname(contentPath)
   const stamp = Date.now()
   const crossfadeSec = 0.3
+  const cardPlan = planTitleCards(config)
 
   const introPath = path.join(dir, `__intro_${stamp}.mp4`)
   const outroPath = path.join(dir, `__outro_${stamp}.mp4`)
@@ -390,11 +449,15 @@ export async function addIntroOutro(
   for (const seg of chromeSegments) cleanup.push(seg.png)
 
   try {
-    console.log('Generating intro card...')
-    await generateIntroCard(introPath, config)
+    if (cardPlan.intro.enabled) {
+      console.log('Generating intro card...')
+      await generateIntroCard(introPath, config, cardPlan.intro)
+    }
 
-    console.log('Generating outro card...')
-    await generateOutroCard(outroPath, config)
+    if (cardPlan.outro.enabled) {
+      console.log('Generating outro card...')
+      await generateOutroCard(outroPath, config, cardPlan.outro)
+    }
 
     // "Powered by trypitch.co" watermark, overlaid on the WHOLE video (full-frame
     // transparent PNG) so it sits at a fixed bottom-center spot on every frame.
@@ -404,25 +467,42 @@ export async function addIntroOutro(
     const contentDur = await getDuration(contentPath)
     const contentFadeOutStart = Math.max(0, contentDur - crossfadeSec)
 
-    // Dynamic input indices: intro=0, content=1, outro=2, watermark=3, then chrome
-    // segments (optional), then background/mask/shadow (optional).
-    let nextInputIdx = 4
+    // Input indices vary with optional cards. Keep the complete index plan here so
+    // disabling a card removes it from both the concat and every downstream input.
+    let inputs = ''
+    let nextInputIdx = 0
+    const introIdx = cardPlan.intro.enabled ? nextInputIdx++ : null
+    if (introIdx !== null) inputs += ` -i "${introPath}"`
+    const contentIdx = nextInputIdx++
+    inputs += ` -i "${contentPath}"`
+    const outroIdx = cardPlan.outro.enabled ? nextInputIdx++ : null
+    if (outroIdx !== null) inputs += ` -i "${outroPath}"`
+    const watermarkIdx = nextInputIdx++
+    inputs += ` -loop 1 -i "${watermarkPng}"`
     const chromeStartIdx = chromeSegments.length ? nextInputIdx : null
     nextInputIdx += chromeSegments.length
     const bgIdx = background ? nextInputIdx++ : null
     const maskIdx = background ? nextInputIdx++ : null
     const shadowIdx = background ? nextInputIdx++ : null
 
-    // Fade the content edges, concat intro+content+outro, optionally frame on a
-    // background, optionally stamp a dynamic browser header, and stamp the
-    // watermark — all in a SINGLE pass.
-    let inputs = `-i "${introPath}" -i "${contentPath}" -i "${outroPath}" -loop 1 -i "${watermarkPng}"`
     for (const seg of chromeSegments) {
       inputs += ` -loop 1 -i "${seg.png}"`
     }
-    let graph =
-      `[1:v]fade=t=in:st=0:d=${crossfadeSec},fade=t=out:st=${contentFadeOutStart}:d=${crossfadeSec}[cv];` +
-      `[0:v][0:a][cv][1:a][2:v][2:a]concat=n=3:v=1:a=1[cat][a];`
+    const contentFades: string[] = []
+    if (cardPlan.intro.enabled) contentFades.push(`fade=t=in:st=0:d=${crossfadeSec}`)
+    if (cardPlan.outro.enabled) {
+      contentFades.push(`fade=t=out:st=${contentFadeOutStart}:d=${crossfadeSec}`)
+    }
+    let graph = `[${contentIdx}:v]${contentFades.join(',') || 'null'}[cv];`
+    const concatSegments: string[] = []
+    if (introIdx !== null) concatSegments.push(`[${introIdx}:v][${introIdx}:a]`)
+    concatSegments.push(`[cv][${contentIdx}:a]`)
+    if (outroIdx !== null) concatSegments.push(`[${outroIdx}:v][${outroIdx}:a]`)
+    if (concatSegments.length === 1) {
+      graph += `[cv]null[cat];[${contentIdx}:a]anull[a];`
+    } else {
+      graph += `${concatSegments.join('')}concat=n=${concatSegments.length}:v=1:a=1[cat][a];`
+    }
 
     if (background) {
       const frame = prepareBackgroundFrame(
@@ -435,7 +515,7 @@ export async function addIntroOutro(
       cleanup.push(frame.maskPng, frame.shadowPng)
       // Bound every looped input to the assembled length so ffmpeg terminates
       // (infinite -loop/-stream_loop inputs would otherwise hang the encode).
-      const totalDur = contentDur + 2 * config.duration
+      const totalDur = contentDur + cardPlan.totalCardDurationSec
       const tArg = `-t ${totalDur.toFixed(3)}`
       inputs += background.asset.isVideo
         ? ` -stream_loop -1 ${tArg} -i "${background.asset.path}"`
@@ -464,7 +544,7 @@ export async function addIntroOutro(
       graph +=
         `[bg][${shadowIdx}:v]overlay=0:0[bgs];` +
         `[bgs][fg]overlay=${frame.ix}:${frame.iy}:shortest=1[framed];` +
-        `[framed][3:v]overlay=0:0:shortest=1[v]`
+        `[framed][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
     } else {
       if (chromeStartIdx !== null) {
         let prev = 'cat'
@@ -475,17 +555,22 @@ export async function addIntroOutro(
           graph += `[${prev}][${idx}:v]overlay=0:0:shortest=1:enable='between(t\\,${seg.startSec.toFixed(3)}\\,${seg.endSec.toFixed(3)})'[${outLabel}];`
           prev = outLabel
         }
-        graph += `[catc][3:v]overlay=0:0:shortest=1[v]`
+        graph += `[catc][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
       } else {
-        graph += `[cat][3:v]overlay=0:0:shortest=1[v]`
+        graph += `[cat][${watermarkIdx}:v]overlay=0:0:shortest=1[v]`
       }
     }
 
     const extras: string[] = []
     if (chromeSegments.length) extras.push('dynamic browser header')
     if (background) extras.push('background')
+    const segments = [
+      cardPlan.intro.enabled ? 'intro' : null,
+      'content',
+      cardPlan.outro.enabled ? 'outro' : null,
+    ].filter(Boolean)
     console.log(
-      `Assembling intro + content + outro (+ watermark${extras.length ? ` + ${extras.join(' + ')}` : ''}) in one pass...`,
+      `Assembling ${segments.join(' + ')} (+ watermark${extras.length ? ` + ${extras.join(' + ')}` : ''}) in one pass...`,
     )
     const videoArgs = await videoEncodeArgs({ quality: 19, cpuPreset: 'veryfast' })
     await execAsync(

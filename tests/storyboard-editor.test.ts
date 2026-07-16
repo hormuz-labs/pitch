@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  popoverPlacementForRect,
   rectFromDrag,
+  storyboardDurationSec,
   transformStoryboardRect,
   updateStoryboardScene,
+  updateStoryboardTitleCard,
 } from '../apps/web/src/lib/storyboardEditor'
 
 const storyboard = {
@@ -37,6 +38,42 @@ const storyboard = {
 }
 
 describe('storyboard editor model', () => {
+  it('includes enabled title cards in the reviewed final duration', () => {
+    expect(
+      storyboardDurationSec({
+        ...storyboard,
+        titleCards: {
+          intro: { enabled: true, title: 'Opening', subtitle: '' },
+          outro: { enabled: false, title: '', subtitle: '' },
+        },
+      }),
+    ).toBe(6.5)
+  })
+
+  it('edits one title card without changing the other card or saved revision', () => {
+    const current = {
+      ...storyboard,
+      titleCards: {
+        intro: { enabled: false, title: '', subtitle: '' },
+        outro: { enabled: false, title: '', subtitle: '' },
+      },
+    }
+
+    const edited = updateStoryboardTitleCard(current, 'intro', {
+      enabled: true,
+      title: 'Quarterly Review',
+    })
+
+    expect(edited).toMatchObject({
+      revision: 2,
+      status: 'draft',
+      titleCards: {
+        intro: { enabled: true, title: 'Quarterly Review', subtitle: '' },
+        outro: { enabled: false, title: '', subtitle: '' },
+      },
+    })
+  })
+
   it('edits a scene without mutating the saved revision', () => {
     const edited = updateStoryboardScene(storyboard, 'scene-2', {
       narration: 'Reviewed result narration.',
@@ -95,14 +132,5 @@ describe('storyboard editor model', () => {
         { left: 0, top: 0, width: 400, height: 200 },
       ),
     ).toEqual({ leftPct: 10, topPct: 10, widthPct: 40, heightPct: 40 })
-  })
-
-  it('anchors box controls inside the slide and away from the selected area', () => {
-    expect(popoverPlacementForRect({ leftPct: 0, topPct: 5, widthPct: 10, heightPct: 10 })).toEqual(
-      { centerPct: 5, anchorPct: 15, side: 'below' },
-    )
-    expect(
-      popoverPlacementForRect({ leftPct: 90, topPct: 80, widthPct: 10, heightPct: 10 }),
-    ).toEqual({ centerPct: 95, anchorPct: 80, side: 'above' })
   })
 })

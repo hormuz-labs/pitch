@@ -1,4 +1,9 @@
-import type { StoryboardRect, StoryboardScene, VideoStoryboard } from '../types'
+import type {
+  StoryboardRect,
+  StoryboardScene,
+  StoryboardTitleCard,
+  VideoStoryboard,
+} from '../types'
 
 interface Point {
   x: number
@@ -82,15 +87,6 @@ export function transformStoryboardRect(
   }
 }
 
-export function popoverPlacementForRect(rect: StoryboardRect) {
-  const side = rect.topPct >= 50 ? ('above' as const) : ('below' as const)
-  return {
-    centerPct: clamp(rect.leftPct + rect.widthPct / 2, 0, 100),
-    anchorPct: side === 'above' ? rect.topPct : rect.topPct + rect.heightPct,
-    side,
-  }
-}
-
 const durationForNarration = (narration: string): number => {
   const words = narration.trim().split(/\s+/).filter(Boolean).length
   return Math.max(2, Math.round((words / 2.5) * 10) / 10)
@@ -116,7 +112,25 @@ export function updateStoryboardScene(
   }
 }
 
+export function updateStoryboardTitleCard(
+  storyboard: VideoStoryboard,
+  card: 'intro' | 'outro',
+  update: Partial<StoryboardTitleCard>,
+): VideoStoryboard {
+  return {
+    ...storyboard,
+    status: 'draft',
+    approvedRevision: undefined,
+    titleCards: {
+      ...storyboard.titleCards,
+      [card]: { ...storyboard.titleCards[card], ...update },
+    },
+  }
+}
+
 export const storyboardDurationSec = (storyboard: VideoStoryboard): number =>
   storyboard.scenes
     .filter(scene => scene.enabled)
-    .reduce((total, scene) => total + scene.estimatedDurationSec, 0)
+    .reduce((total, scene) => total + scene.estimatedDurationSec, 0) +
+  (storyboard.titleCards?.intro.enabled ? 2.5 : 0) +
+  (storyboard.titleCards?.outro.enabled ? 2.5 : 0)

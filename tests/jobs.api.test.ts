@@ -240,6 +240,22 @@ describe('PATCH /jobs/:id/storyboard', () => {
     })
   })
 
+  it('persists intro and outro choices with the storyboard revision', async () => {
+    const titleCards = {
+      intro: { enabled: true, title: 'Voter Guide', subtitle: '2026 edition' },
+      outro: { enabled: false, title: '', subtitle: '' },
+    }
+
+    const res = await request(buildApp()).patch('/jobs/job_1/storyboard').send({
+      revision: 1,
+      scenes: storyboard.scenes,
+      titleCards,
+    })
+
+    expect(res.status).toBe(200)
+    expect(res.body.parameters.storyboard.titleCards).toEqual(titleCards)
+  })
+
   it('does not mutate a storyboard after rendering has been queued', async () => {
     ;(db.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'job_1',

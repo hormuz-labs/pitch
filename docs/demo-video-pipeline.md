@@ -216,8 +216,11 @@ and video queue:
    `AWAITING_REVIEW`. It stops before Playwright, TTS, and ffmpeg.
 2. The existing `/editor/:id` route lets the creator edit per-page narration,
    inspect/remove Gemini boxes, draw custom page-relative boxes, choose callout
-   style and zoom, and save revisions. Each trigger phrase must occur literally
-   in that scene's narration so the callout can start with the spoken claim.
+   styles, preview those effects, and save revisions. Camera zoom is automatically
+   framed from each approved box. The same review stores optional plain intro/outro
+   cards; both are disabled by default for PDF/image videos. Each trigger phrase
+   must occur literally in that scene's narration so the callout can start with the
+   spoken claim.
 3. Approval locks the reviewed revision and requeues the same job as
    `mode: "render"` without charging again. The normal `demo-generator` and
    renderer then speak the approved narration exactly and consume its approved
@@ -373,6 +376,12 @@ you can confirm which path ran.
 
 Deliberately minimal — a single still card each, with a gentle fade in/out and silent
 audio (`renderCardClip`). No glow, no motion reveal, no chime.
+
+For regular URL demos, omitting `config.titleCards` keeps the automatic branded
+cards below. Reviewed PDF/image storyboards pass explicit card settings instead:
+both cards default off, either card can be enabled independently, and its exact
+title/subtitle render on the plain white card previewed in the editor. Disabled
+cards are omitted from concat entirely, including their 2.5-second timeline span.
 
 - **Intro** (`generateIntroCard`): `[logo] | [name]` — product logo, a thin vertical
   divider, and the product name, centered. Name‑only if there's no valid logo.

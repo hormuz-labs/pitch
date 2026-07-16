@@ -41,11 +41,23 @@ export interface StoryboardScene {
   estimatedDurationSec: number
 }
 
+export interface StoryboardTitleCard {
+  enabled: boolean
+  title: string
+  subtitle: string
+}
+
+export interface StoryboardTitleCards {
+  intro: StoryboardTitleCard
+  outro: StoryboardTitleCard
+}
+
 export interface VideoStoryboard {
   revision: number
   approvedRevision?: number
   status: VideoStoryboardStatus
   transition: 'fade' | 'slide' | 'zoom'
+  titleCards: StoryboardTitleCards
   scenes: StoryboardScene[]
 }
 
@@ -54,6 +66,19 @@ export type NewStoryboardScene = Omit<
   'id' | 'enabled' | 'title' | 'screenText' | 'estimatedDurationSec'
 > &
   Partial<Pick<StoryboardScene, 'id' | 'enabled' | 'title' | 'screenText' | 'estimatedDurationSec'>>
+
+const normalizeTitleCards = (cards?: StoryboardTitleCards): StoryboardTitleCards => ({
+  intro: {
+    enabled: cards?.intro?.enabled === true,
+    title: cards?.intro?.title?.trim() ?? '',
+    subtitle: cards?.intro?.subtitle?.trim() ?? '',
+  },
+  outro: {
+    enabled: cards?.outro?.enabled === true,
+    title: cards?.outro?.title?.trim() ?? '',
+    subtitle: cards?.outro?.subtitle?.trim() ?? '',
+  },
+})
 
 const narrationDurationSec = (narration: string): number => {
   const words = narration.trim().split(/\s+/).filter(Boolean).length
@@ -128,7 +153,13 @@ function normalizeScene(scene: NewStoryboardScene, index: number): StoryboardSce
 export function createVideoStoryboard(scenes: NewStoryboardScene[]): VideoStoryboard {
   const normalized = scenes.map(normalizeScene)
   validateScenes(normalized)
-  return { revision: 1, status: 'draft', transition: 'fade', scenes: normalized }
+  return {
+    revision: 1,
+    status: 'draft',
+    transition: 'fade',
+    titleCards: normalizeTitleCards(),
+    scenes: normalized,
+  }
 }
 
 export function updateVideoStoryboard(
@@ -136,6 +167,7 @@ export function updateVideoStoryboard(
   update: {
     revision: number
     transition?: VideoStoryboard['transition']
+    titleCards?: StoryboardTitleCards
     scenes: StoryboardScene[]
   },
 ): VideoStoryboard {
@@ -152,6 +184,7 @@ export function updateVideoStoryboard(
     revision: current.revision + 1,
     status: 'draft',
     transition,
+    titleCards: normalizeTitleCards(update.titleCards ?? current.titleCards),
     scenes,
   }
 }
@@ -171,5 +204,6 @@ export function approveVideoStoryboard(
     ...storyboard,
     status: 'approved',
     approvedRevision: storyboard.revision,
+    titleCards: normalizeTitleCards(storyboard.titleCards),
   }
 }
