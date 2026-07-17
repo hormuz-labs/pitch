@@ -10,7 +10,6 @@ import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
 import { ShareSheet } from '../components/ShareSheet'
 import { TimedUndoAction } from '../components/TimedUndoAction'
 import { Alert27 } from '../components/ui/alert-27'
-import { Button35 } from '../components/ui/button-35'
 import { VideoProgressWidget } from '../components/VideoProgressWidget'
 import { VideoStoryboardEditor } from '../components/VideoStoryboardEditor'
 import { api } from '../lib/api'
@@ -119,66 +118,201 @@ const IconEdit = () => (
 export const VideoEditionHistory = ({
   editions,
   activeEditionId,
+  onOpenHistory,
+  onEdit,
+}: {
+  editions: VideoEdition[]
+  activeEditionId?: string
+  onOpenHistory: () => void
+  onEdit: () => void
+}) => {
+  const selectedEdition = editions.find(edition => edition.id === activeEditionId) || editions[0]
+  const isLatest = selectedEdition?.id === editions[0]?.id
+
+  return (
+    <section className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
+      <button
+        type="button"
+        id="open-version-history-btn"
+        disabled={editions.length === 0}
+        onClick={onOpenHistory}
+        className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-600 transition-colors group-hover:bg-white group-hover:shadow-sm">
+          <IconVideo size={16} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-sm font-semibold text-gray-900">
+              {selectedEdition ? `Edition ${selectedEdition.editionNumber}` : 'Current render'}
+            </span>
+            {isLatest && (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                Latest
+              </span>
+            )}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-gray-500">
+            {selectedEdition
+              ? new Date(selectedEdition.createdAt).toLocaleString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })
+              : 'View render history'}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-gray-400">
+          {editions.length > 0 && (
+            <span className="hidden sm:inline">
+              {editions.length} {editions.length === 1 ? 'version' : 'versions'}
+            </span>
+          )}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </span>
+      </button>
+
+      <div className="flex items-center border-t border-gray-100 pt-2 sm:border-l sm:border-t-0 sm:pl-2 sm:pt-0">
+        <button
+          type="button"
+          id="edit-video-btn"
+          onClick={onEdit}
+          className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-gray-900 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 sm:flex-none"
+        >
+          <IconEdit />
+          Edit version
+          <CreditChip amount={3} className="bg-white/15 text-white" />
+        </button>
+      </div>
+    </section>
+  )
+}
+
+export const VideoEditionPanel = ({
+  editions,
+  activeEditionId,
   onSelect,
+  onEdit,
+  onClose,
 }: {
   editions: VideoEdition[]
   activeEditionId?: string
   onSelect: (editionId: string) => void
+  onEdit: () => void
+  onClose: () => void
 }) => (
-  <section className="rounded-xl border border-gray-200 bg-white p-4">
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">Video history</h3>
-        <p className="mt-0.5 text-xs text-gray-500">
-          Every successful render stays available to play, download, or edit again.
-        </p>
-      </div>
-      <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-        {editions.length} {editions.length === 1 ? 'edition' : 'editions'}
-      </span>
-    </div>
-    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-      {editions.map((edition, index) => {
-        const active = edition.id === activeEditionId
-        return (
-          <button
-            key={edition.id}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onSelect(edition.id)}
-            className={`min-w-36 rounded-lg border px-3 py-2 text-left transition-colors ${
-              active
-                ? 'border-gray-900 bg-gray-900 text-white'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <span className="flex items-center gap-2 text-xs font-semibold">
-              Edition {edition.editionNumber}
-              {index === 0 && (
+  <div className="fixed inset-0 z-[70] bg-gray-950/25 backdrop-blur-[2px]" onClick={onClose}>
+    <aside
+      role="dialog"
+      aria-modal="true"
+      aria-label="Video history"
+      className="ml-auto flex h-full w-full max-w-sm flex-col bg-white shadow-2xl"
+      onClick={event => event.stopPropagation()}
+    >
+      <header className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Video history</h2>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">
+            Every successful render is saved as a separate version.
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Close video history"
+          onClick={onClose}
+          className="grid h-8 w-8 place-items-center rounded-lg text-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+        >
+          ×
+        </button>
+      </header>
+
+      <div className="flex-1 space-y-2 overflow-y-auto p-4">
+        {editions.map((edition, index) => {
+          const active = edition.id === activeEditionId
+          return (
+            <button
+              key={edition.id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onSelect(edition.id)}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+                active
+                  ? 'border-gray-900 bg-gray-900 text-white shadow-sm'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <span
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xs font-bold ${
+                  active ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                V{edition.editionNumber}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  Edition {edition.editionNumber}
+                  {index === 0 && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] ${
+                        active ? 'bg-white/10 text-white' : 'bg-emerald-50 text-emerald-700'
+                      }`}
+                    >
+                      Latest
+                    </span>
+                  )}
+                </span>
                 <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] ${
-                    active ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700'
-                  }`}
+                  className={`mt-1 block text-xs ${active ? 'text-gray-300' : 'text-gray-400'}`}
                 >
-                  Latest
+                  {new Date(edition.createdAt).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </span>
+              {active && (
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-gray-900">
+                  ✓
                 </span>
               )}
-            </span>
-            <span
-              className={`mt-1 block text-[11px] ${active ? 'text-gray-300' : 'text-gray-400'}`}
-            >
-              {new Date(edition.createdAt).toLocaleString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  </section>
+            </button>
+          )
+        })}
+      </div>
+
+      <footer className="border-t border-gray-100 p-4">
+        <p className="mb-3 text-xs leading-relaxed text-gray-400">
+          Select a version to play it, or reopen its saved storyboard for editing.
+        </p>
+        <button
+          type="button"
+          id="edit-selected-version-btn"
+          disabled={!activeEditionId}
+          onClick={onEdit}
+          className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <IconEdit />
+          Edit selected version
+          <CreditChip amount={3} className="bg-white/15 text-white" />
+        </button>
+      </footer>
+    </aside>
+  </div>
 )
 
 const shareOptions = [
@@ -258,6 +392,7 @@ export const EditorView = ({
   const [editError, setEditError] = useState('')
   const [videoEditions, setVideoEditions] = useState<VideoEdition[]>([])
   const [activeEditionId, setActiveEditionId] = useState<string | null>(null)
+  const [showEditionPanel, setShowEditionPanel] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const logs = jobLogs[id || ''] || []
   const latestScreenshot = [...logs].reverse().find(l => l.screenshot)?.screenshot
@@ -451,48 +586,31 @@ export const EditorView = ({
                 />
               </div>
 
-              {videoEditions.length > 0 && (
+              {selectedProject.parameters.storyboard && (
                 <VideoEditionHistory
                   editions={videoEditions}
                   activeEditionId={activeEdition?.id}
-                  onSelect={setActiveEditionId}
+                  onOpenHistory={() => videoEditions.length > 0 && setShowEditionPanel(true)}
+                  onEdit={() => {
+                    setEditError('')
+                    setShowEditModal(true)
+                  }}
                 />
-              )}
-
-              {selectedProject.parameters.storyboard && (
-                <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Want to make changes?</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      Reopen the saved storyboard, edit it, and render an updated version.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    id="edit-video-btn"
-                    onClick={() => {
-                      setEditError('')
-                      setShowEditModal(true)
-                    }}
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-                  >
-                    <IconEdit />
-                    Edit this edition
-                    <CreditChip amount={3} className="bg-white/15 text-white" />
-                  </button>
-                </div>
-              )}
-
-              {/* Feedback */}
-              {!(isFeedbackSubmitted || selectedProject.rating) && (
-                <div className="flex items-center justify-start">
-                  <FeedbackComponent onSubmit={handleFeedbackSubmit} />
-                </div>
               )}
 
               {/* Action buttons */}
               <div>
-                <p className="text-sm font-semibold text-gray-800 mb-2.5">Download Assets</p>
+                <div className="mb-2.5 flex min-h-8 items-center justify-between gap-4">
+                  <p className="text-sm font-semibold text-gray-800">Download &amp; share</p>
+                  {!(isFeedbackSubmitted || selectedProject.rating) && (
+                    <div className="flex items-center gap-2">
+                      <span className="hidden text-xs text-gray-400 sm:inline">
+                        Was this useful?
+                      </span>
+                      <FeedbackComponent compact onSubmit={handleFeedbackSubmit} />
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-4 gap-2.5 w-full">
                   <button
                     onClick={() => window.open(activeVideoUrl)}
@@ -555,17 +673,19 @@ export const EditorView = ({
                       />
                     </div>
                   ) : (
-                    <Button35
+                    <button
+                      type="button"
                       onClick={() => {
                         if (selectedProject.status === 'FAILED') setIsPendingDelete(true)
                         else setShowModal(true)
                       }}
-                      className="w-full"
+                      className="flex h-[38px] w-full items-center justify-center gap-0 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 sm:gap-2"
                       id="delete-video-btn"
                       title="Delete"
                     >
+                      <IconTrashSm />
                       <span className="hidden sm:inline">Delete Video</span>
-                    </Button35>
+                    </button>
                   )}
                 </div>
               </div>
@@ -765,6 +885,24 @@ export const EditorView = ({
           )}
         </div>
       </div>
+
+      {showEditionPanel &&
+        createPortal(
+          <VideoEditionPanel
+            editions={videoEditions}
+            activeEditionId={activeEdition?.id}
+            onSelect={editionId => {
+              setActiveEditionId(editionId)
+            }}
+            onEdit={() => {
+              setShowEditionPanel(false)
+              setEditError('')
+              setShowEditModal(true)
+            }}
+            onClose={() => setShowEditionPanel(false)}
+          />,
+          document.body,
+        )}
 
       {showEditModal &&
         createPortal(

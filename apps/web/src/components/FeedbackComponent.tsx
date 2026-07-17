@@ -6,6 +6,7 @@ import { FaRegThumbsDown, FaRegThumbsUp, FaThumbsDown, FaThumbsUp } from 'react-
 
 interface FeedbackComponentProps {
   onSubmit?: (data: { rating: 'up' | 'down'; feedback: string }) => void
+  compact?: boolean
 }
 
 const SPRING_CONFIG = {
@@ -13,7 +14,10 @@ const SPRING_CONFIG = {
   duration: 0.3,
 }
 
-export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({ onSubmit }) => {
+export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({
+  onSubmit,
+  compact = false,
+}) => {
   const [isOpen, setIsOpen] = useState(false)
   const [activeRating, setActiveRating] = useState<'up' | 'down' | null>(null)
   const [animatingIcon, setAnimatingIcon] = useState<'up' | 'down' | null>(null)
@@ -52,13 +56,13 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({ onSubmit }
   }
 
   return (
-    <div className="relative flex w-full items-center justify-center">
+    <div className={`relative flex items-center justify-center ${compact ? 'w-auto' : 'w-full'}`}>
       <LayoutGroup id="feedback-group">
         <AnimatePresence mode="popLayout">
           {!isOpen ? (
             <motion.div
               key="initial-buttons"
-              className="flex gap-3"
+              className={compact ? 'flex gap-1.5' : 'flex gap-3'}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { duration: 0.1 } }}
@@ -71,7 +75,11 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({ onSubmit }
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   transition={SPRING_CONFIG}
-                  className="relative flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center overflow-visible rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                  className={`relative flex items-center justify-center overflow-visible border border-gray-200 bg-white transition-colors hover:bg-gray-50 ${
+                    compact
+                      ? 'h-8 w-8 rounded-lg'
+                      : 'h-10 w-10 rounded-xl shadow-sm hover:shadow-md sm:h-12 sm:w-12'
+                  }`}
                 >
                   <AnimatePresence>
                     {animatingIcon === type && (
@@ -122,14 +130,18 @@ export const FeedbackComponent: React.FC<FeedbackComponentProps> = ({ onSubmit }
                   >
                     {type === 'up' ? (
                       activeRating === 'up' ? (
-                        <FaThumbsUp className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <FaThumbsUp className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'} />
                       ) : (
-                        <FaRegThumbsUp className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <FaRegThumbsUp
+                          className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'}
+                        />
                       )
                     ) : activeRating === 'down' ? (
-                      <FaThumbsDown className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <FaThumbsDown className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'} />
                     ) : (
-                      <FaRegThumbsDown className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <FaRegThumbsDown
+                        className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'}
+                      />
                     )}
                   </motion.div>
                 </motion.button>
