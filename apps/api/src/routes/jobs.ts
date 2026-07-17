@@ -183,6 +183,103 @@ router.post('/:id/feedback', async (req, res) => {
   }
 })
 
+router.get('/:id/editions', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const job = await db.getJob(req.params.id, { id: userId })
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+    res.json(await db.listVideoEditions(job.id))
+  } catch (error: any) {
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    logger.error({ err: error, jobId: req.params.id, userId }, 'Failed to list video editions')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.post('/:id/edit', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const { id } = req.params
+  let chargedRevision: number | null = null
+  try {
+    const job = await db.getJob(id, { id: userId })
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+    if (job.status !== JobStatus.COMPLETED) {
+      return res.status(409).json({ error: 'Only a completed video can be edited.' })
+    }
+    const currentStoryboard = job.parameters?.storyboard
+    if (!currentStoryboard) {
+      return res.status(409).json({ error: 'This video has no storyboard to edit.' })
+    }
+    if (!job.videoUrl) {
+      return res.status(409).json({ error: 'This job has no completed video to preserve.' })
+    }
+
+    const currentEdition = await db.saveVideoEdition({
+      jobId: job.id,
+      videoUrl: job.videoUrl,
+      rawVideoUrl: job.rawVideoUrl,
+      audioUrl: job.audioUrl,
+      thumbnailUrl: job.thumbnailUrl,
+      storyboard: currentStoryboard,
+    })
+    const requestedEditionId = req.body?.editionId
+    const sourceEdition = requestedEditionId
+      ? await db.getVideoEdition(job.id, requestedEditionId)
+      : currentEdition
+    if (!sourceEdition) return res.status(404).json({ error: 'Video edition not found' })
+    if (!sourceEdition.storyboard) {
+      return res.status(409).json({ error: 'This video edition has no storyboard to edit.' })
+    }
+
+    const balance = await db.getCreditBalance(userId)
+    if (balance < 3) return res.status(402).json({ error: 'Insufficient credits', balance })
+
+    chargedRevision = sourceEdition.storyboardRevision ?? sourceEdition.storyboard.revision
+    const idempotencyKey = `video_edit:${id}:from:${sourceEdition.id}:after:${currentEdition.id}`
+    await db.deductCredit(userId, 3, 'Video editing', { jobId: id, idempotencyKey })
+
+    const storyboard = { ...sourceEdition.storyboard, status: 'draft' as const }
+    delete storyboard.approvedRevision
+    let updatedJob
+    try {
+      updatedJob = await db.updateJob(id, {
+        status: JobStatus.AWAITING_REVIEW,
+        parameters: {
+          ...job.parameters,
+          workflowStage: 'AWAITING_REVIEW',
+          storyboard,
+        },
+      })
+    } catch (transitionError) {
+      await db.addCredits(userId, 3, 'refund', 'Refund: video could not enter editing', {
+        jobId: id,
+        idempotencyKey: `refund:${idempotencyKey}`,
+      })
+      throw transitionError
+    }
+
+    await connection
+      .publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
+      .catch(error => logger.warn({ err: error, jobId: id, userId }, 'Edit update publish failed'))
+    res.json(updatedJob)
+  } catch (error: any) {
+    if (error.message?.includes('Insufficient credits')) {
+      return res.status(402).json({ error: 'Insufficient credits' })
+    }
+    if (error.code === 'P2004' || error.name === 'PrismaClientKnownRequestError') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    logger.error({ err: error, jobId: id, userId, chargedRevision }, 'Failed to edit video')
+    res.status(500).json({ error: error.message })
+  }
+})
+
 router.patch('/:id/storyboard', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
@@ -247,6 +344,10 @@ router.post('/:id/render', async (req, res) => {
     }
     const updatedJob = await db.updateJob(req.params.id, {
       status: JobStatus.PENDING,
+      phases: '[]',
+      cost: 0,
+      error: null,
+      workerId: null,
       parameters,
     })
     try {

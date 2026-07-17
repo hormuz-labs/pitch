@@ -20,6 +20,9 @@ vi.mock('@saas/db', () => ({
   addCredits: vi.fn(),
   listJobs: vi.fn(),
   getJob: vi.fn(),
+  listVideoEditions: vi.fn(),
+  getVideoEdition: vi.fn(),
+  saveVideoEdition: vi.fn(),
   deleteJob: vi.fn(),
   prisma: {
     userProfile: { findUnique: vi.fn().mockResolvedValue(null) },
@@ -57,6 +60,9 @@ const createJob = db.createJob as ReturnType<typeof vi.fn>
 const deductCredit = db.deductCredit as ReturnType<typeof vi.fn>
 const updateJob = db.updateJob as ReturnType<typeof vi.fn>
 const addCredits = db.addCredits as ReturnType<typeof vi.fn>
+const listVideoEditions = db.listVideoEditions as ReturnType<typeof vi.fn>
+const getVideoEdition = db.getVideoEdition as ReturnType<typeof vi.fn>
+const saveVideoEdition = db.saveVideoEdition as ReturnType<typeof vi.fn>
 const queueAdd = videoQueue.add as ReturnType<typeof vi.fn>
 const queueGetJob = videoQueue.getJob as ReturnType<typeof vi.fn>
 const publish = connection.publish as ReturnType<typeof vi.fn>
@@ -195,6 +201,173 @@ describe('POST /jobs', () => {
       error: expect.stringContaining('publish down'),
     })
     expect(addCredits).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('POST /jobs/:id/edit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getCreditBalance.mockResolvedValue(10)
+    deductCredit.mockResolvedValue(7)
+    publish.mockResolvedValue(1)
+    saveVideoEdition.mockResolvedValue({
+      id: 'edition_1',
+      jobId: 'job_1',
+      editionNumber: 1,
+      videoUrl: 'https://cdn.example/final.mp4',
+      storyboard: { ...storyboard, revision: 4, approvedRevision: 4, status: 'approved' },
+    })
+    ;(db.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'job_1',
+      userId: 'user_test',
+      status: 'COMPLETED',
+      videoUrl: 'https://cdn.example/final.mp4',
+      parameters: {
+        workflowStage: 'RENDER_QUEUED',
+        storyboard: { ...storyboard, revision: 4, approvedRevision: 4, status: 'approved' },
+      },
+    })
+    updateJob.mockImplementation(async (_id, data) => ({
+      id: 'job_1',
+      userId: 'user_test',
+      videoUrl: 'https://cdn.example/final.mp4',
+      status: data.status,
+      parameters: data.parameters,
+    }))
+  })
+
+  it('charges once and reopens the same completed storyboard for review', async () => {
+    const res = await request(buildApp()).post('/jobs/job_1/edit').send()
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      id: 'job_1',
+      status: 'AWAITING_REVIEW',
+      videoUrl: 'https://cdn.example/final.mp4',
+      parameters: {
+        workflowStage: 'AWAITING_REVIEW',
+        storyboard: { revision: 4, status: 'draft' },
+      },
+    })
+    expect(res.body.parameters.storyboard).not.toHaveProperty('approvedRevision')
+    expect(deductCredit).toHaveBeenCalledWith('user_test', 3, 'Video editing', {
+      jobId: 'job_1',
+      idempotencyKey: 'video_edit:job_1:from:edition_1:after:edition_1',
+    })
+    expect(saveVideoEdition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: 'job_1',
+        videoUrl: 'https://cdn.example/final.mp4',
+      }),
+    )
+    expect(queueAdd).not.toHaveBeenCalled()
+  })
+
+  it('can reopen the storyboard snapshot from a selected previous edition', async () => {
+    getVideoEdition.mockResolvedValue({
+      id: 'edition_old',
+      jobId: 'job_1',
+      editionNumber: 1,
+      videoUrl: 'https://cdn.example/old.mp4',
+      storyboard: {
+        ...storyboard,
+        revision: 2,
+        approvedRevision: 2,
+        status: 'approved',
+        scenes: [{ ...storyboard.scenes[0], narration: 'Older narration.' }],
+      },
+    })
+
+    const res = await request(buildApp())
+      .post('/jobs/job_1/edit')
+      .send({ editionId: 'edition_old' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.parameters.storyboard).toMatchObject({
+      revision: 2,
+      status: 'draft',
+      scenes: [{ narration: 'Older narration.' }],
+    })
+    expect(deductCredit).toHaveBeenCalledWith('user_test', 3, 'Video editing', {
+      jobId: 'job_1',
+      idempotencyKey: 'video_edit:job_1:from:edition_old:after:edition_1',
+    })
+  })
+
+  it('does not charge when the user has fewer than three credits', async () => {
+    getCreditBalance.mockResolvedValue(2)
+
+    const res = await request(buildApp()).post('/jobs/job_1/edit').send()
+
+    expect(res.status).toBe(402)
+    expect(deductCredit).not.toHaveBeenCalled()
+    expect(updateJob).not.toHaveBeenCalled()
+  })
+
+  it('does not charge again after the job has entered review', async () => {
+    ;(db.getJob as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        id: 'job_1',
+        userId: 'user_test',
+        status: 'COMPLETED',
+        videoUrl: 'https://cdn.example/final.mp4',
+        parameters: {
+          workflowStage: 'RENDER_QUEUED',
+          storyboard: { ...storyboard, revision: 4, approvedRevision: 4, status: 'approved' },
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'job_1',
+        userId: 'user_test',
+        status: 'AWAITING_REVIEW',
+        parameters: { workflowStage: 'AWAITING_REVIEW', storyboard },
+      })
+
+    const first = await request(buildApp()).post('/jobs/job_1/edit').send()
+    const second = await request(buildApp()).post('/jobs/job_1/edit').send()
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(409)
+    expect(deductCredit).toHaveBeenCalledOnce()
+  })
+
+  it('refunds the edit charge when the job cannot enter review', async () => {
+    updateJob.mockRejectedValueOnce(new Error('database unavailable'))
+
+    const res = await request(buildApp()).post('/jobs/job_1/edit').send()
+
+    expect(res.status).toBe(500)
+    expect(addCredits).toHaveBeenCalledWith(
+      'user_test',
+      3,
+      'refund',
+      'Refund: video could not enter editing',
+      {
+        jobId: 'job_1',
+        idempotencyKey: 'refund:video_edit:job_1:from:edition_1:after:edition_1',
+      },
+    )
+  })
+})
+
+describe('GET /jobs/:id/editions', () => {
+  it('returns the owned job editions newest first', async () => {
+    ;(db.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'job_1',
+      userId: 'user_test',
+      status: 'COMPLETED',
+      parameters: { storyboard },
+    })
+    listVideoEditions.mockResolvedValue([
+      { id: 'edition_2', editionNumber: 2, videoUrl: 'https://cdn.example/v2.mp4' },
+      { id: 'edition_1', editionNumber: 1, videoUrl: 'https://cdn.example/v1.mp4' },
+    ])
+
+    const res = await request(buildApp()).get('/jobs/job_1/editions')
+
+    expect(res.status).toBe(200)
+    expect(res.body.map((edition: any) => edition.editionNumber)).toEqual([2, 1])
+    expect(listVideoEditions).toHaveBeenCalledWith('job_1')
   })
 })
 
@@ -341,6 +514,19 @@ describe('POST /jobs/:id/render', () => {
       { jobId: 'job_1-render-r1' },
     )
     expect(deductCredit).not.toHaveBeenCalled()
+  })
+
+  it('starts the approved render with a fresh execution timeline', async () => {
+    await request(buildApp()).post('/jobs/job_1/render').send({ revision: 1 })
+
+    expect(updateJob).toHaveBeenNthCalledWith(1, 'job_1', {
+      status: 'PENDING',
+      phases: '[]',
+      cost: 0,
+      error: null,
+      workerId: null,
+      parameters: expect.objectContaining({ workflowStage: 'RENDER_QUEUED' }),
+    })
   })
 
   it('returns the job to review when the render queue is unavailable', async () => {

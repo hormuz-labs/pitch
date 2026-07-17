@@ -1512,6 +1512,15 @@ function AppContent() {
     }
   }
 
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setProjects(prev => {
+      const exists = prev.some(project => project.id === updatedProject.id)
+      return exists
+        ? prev.map(project => (project.id === updatedProject.id ? updatedProject : project))
+        : [...prev, updatedProject]
+    })
+  }
+
   const handleRetry = async (id: string) => {
     try {
       const token = await getToken()
@@ -1765,6 +1774,7 @@ function AppContent() {
                       jobLogs={jobLogs}
                       isMobile={isMobile}
                       onDelete={handleDelete}
+                      onUpdate={handleProjectUpdate}
                     />
                   }
                 />

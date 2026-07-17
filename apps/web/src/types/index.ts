@@ -127,6 +127,19 @@ export interface Project {
   updatedAt: string
 }
 
+export interface VideoEdition {
+  id: string
+  jobId: string
+  editionNumber: number
+  videoUrl: string
+  rawVideoUrl?: string
+  audioUrl?: string
+  thumbnailUrl?: string
+  storyboard?: VideoStoryboard
+  storyboardRevision?: number
+  createdAt: string
+}
+
 export interface LogEntry {
   timestamp: string
   message: string

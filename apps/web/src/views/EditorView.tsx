@@ -1,9 +1,10 @@
 import { useAuth } from '@clerk/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FaInstagram, FaWhatsapp, FaXTwitter } from 'react-icons/fa6'
 import { FiLink } from 'react-icons/fi'
 import { useNavigate, useParams } from 'react-router-dom'
+import { CreditChip } from '../components/CreditChip'
 import { FeedbackComponent } from '../components/FeedbackComponent'
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
 import { ShareSheet } from '../components/ShareSheet'
@@ -13,7 +14,7 @@ import { Button35 } from '../components/ui/button-35'
 import { VideoProgressWidget } from '../components/VideoProgressWidget'
 import { VideoStoryboardEditor } from '../components/VideoStoryboardEditor'
 import { api } from '../lib/api'
-import type { LogEntry, Project } from '../types'
+import type { LogEntry, Project, VideoEdition } from '../types'
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 const IconXCircle = () => (
@@ -99,6 +100,86 @@ const IconTrashSm = () => (
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 )
+const IconEdit = () => (
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+  </svg>
+)
+
+export const VideoEditionHistory = ({
+  editions,
+  activeEditionId,
+  onSelect,
+}: {
+  editions: VideoEdition[]
+  activeEditionId?: string
+  onSelect: (editionId: string) => void
+}) => (
+  <section className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900">Video history</h3>
+        <p className="mt-0.5 text-xs text-gray-500">
+          Every successful render stays available to play, download, or edit again.
+        </p>
+      </div>
+      <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+        {editions.length} {editions.length === 1 ? 'edition' : 'editions'}
+      </span>
+    </div>
+    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+      {editions.map((edition, index) => {
+        const active = edition.id === activeEditionId
+        return (
+          <button
+            key={edition.id}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onSelect(edition.id)}
+            className={`min-w-36 rounded-lg border px-3 py-2 text-left transition-colors ${
+              active
+                ? 'border-gray-900 bg-gray-900 text-white'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <span className="flex items-center gap-2 text-xs font-semibold">
+              Edition {edition.editionNumber}
+              {index === 0 && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] ${
+                    active ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  Latest
+                </span>
+              )}
+            </span>
+            <span
+              className={`mt-1 block text-[11px] ${active ? 'text-gray-300' : 'text-gray-400'}`}
+            >
+              {new Date(edition.createdAt).toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  </section>
+)
 
 const shareOptions = [
   {
@@ -154,9 +235,16 @@ interface EditorViewProps {
   jobLogs: Record<string, LogEntry[]>
   isMobile: boolean
   onDelete: (id: string) => Promise<void>
+  onUpdate: (project: Project) => void
 }
 
-export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorViewProps) => {
+export const EditorView = ({
+  projects,
+  jobLogs,
+  isMobile,
+  onDelete,
+  onUpdate,
+}: EditorViewProps) => {
   const navigate = useNavigate()
   const { id } = useParams()
   const { getToken } = useAuth()
@@ -165,9 +253,40 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
   const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false)
   const [isPendingDelete, setIsPendingDelete] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editBusy, setEditBusy] = useState(false)
+  const [editError, setEditError] = useState('')
+  const [videoEditions, setVideoEditions] = useState<VideoEdition[]>([])
+  const [activeEditionId, setActiveEditionId] = useState<string | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const logs = jobLogs[id || ''] || []
   const latestScreenshot = [...logs].reverse().find(l => l.screenshot)?.screenshot
+
+  useEffect(() => {
+    if (selectedProject?.status !== 'COMPLETED' || !selectedProject.parameters?.storyboard) {
+      setVideoEditions([])
+      setActiveEditionId(null)
+      return
+    }
+
+    let cancelled = false
+    void getToken()
+      .then(token => api.get<VideoEdition[]>(`/jobs/${selectedProject.id}/editions`, token!))
+      .then(editions => {
+        if (cancelled) return
+        setVideoEditions(editions)
+        setActiveEditionId(current =>
+          editions.some(edition => edition.id === current) ? current : editions[0]?.id || null,
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setVideoEditions([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [getToken, selectedProject])
 
   if (!selectedProject) {
     return (
@@ -197,6 +316,11 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
   const isCompleted = selectedProject.status === 'COMPLETED'
   const isFailed = selectedProject.status === 'FAILED'
   const isEditJob = selectedProject.parameters?.jobType === 'edit-recording'
+  const activeEdition =
+    videoEditions.find(edition => edition.id === activeEditionId) || videoEditions[0]
+  const activeVideoUrl = activeEdition?.videoUrl || selectedProject.videoUrl
+  const activeAudioUrl =
+    activeEdition?.audioUrl || selectedProject.audioUrl || activeVideoUrl?.replace('.mp4', '.wav')
 
   const handleFeedbackSubmit = async (data: { rating: 'up' | 'down'; feedback: string }) => {
     console.log('Feedback submitted:', data)
@@ -227,6 +351,29 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
     } else if (option.id === 'instagram') {
       navigator.clipboard.writeText(videoUrl)
       alert('Video URL copied! Open Instagram to share.')
+    }
+  }
+
+  const handleBeginEdit = async () => {
+    if (!selectedProject) return
+    setEditBusy(true)
+    setEditError('')
+    try {
+      const token = await getToken()
+      const updated = await api.post<Project>(`/jobs/${selectedProject.id}/edit`, token!, {
+        editionId: activeEdition?.id,
+      })
+      onUpdate(updated)
+      setShowEditModal(false)
+      window.dispatchEvent(new Event('credits-changed'))
+    } catch (error: any) {
+      setEditError(
+        error?.status === 402
+          ? 'You need at least 3 credits to edit this video.'
+          : error?.message || 'Could not open this video for editing.',
+      )
+    } finally {
+      setEditBusy(false)
     }
   }
 
@@ -295,8 +442,46 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
 
               {/* Video player — full width */}
               <div className="rounded-xl overflow-hidden border border-gray-200 bg-black">
-                <video src={selectedProject.videoUrl} controls autoPlay className="w-full block" />
+                <video
+                  key={activeVideoUrl}
+                  src={activeVideoUrl}
+                  controls
+                  autoPlay
+                  className="w-full block"
+                />
               </div>
+
+              {videoEditions.length > 0 && (
+                <VideoEditionHistory
+                  editions={videoEditions}
+                  activeEditionId={activeEdition?.id}
+                  onSelect={setActiveEditionId}
+                />
+              )}
+
+              {selectedProject.parameters.storyboard && (
+                <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Want to make changes?</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Reopen the saved storyboard, edit it, and render an updated version.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    id="edit-video-btn"
+                    onClick={() => {
+                      setEditError('')
+                      setShowEditModal(true)
+                    }}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+                  >
+                    <IconEdit />
+                    Edit this edition
+                    <CreditChip amount={3} className="bg-white/15 text-white" />
+                  </button>
+                </div>
+              )}
 
               {/* Feedback */}
               {!(isFeedbackSubmitted || selectedProject.rating) && (
@@ -310,7 +495,7 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
                 <p className="text-sm font-semibold text-gray-800 mb-2.5">Download Assets</p>
                 <div className="grid grid-cols-4 gap-2.5 w-full">
                   <button
-                    onClick={() => window.open(selectedProject.videoUrl)}
+                    onClick={() => window.open(activeVideoUrl)}
                     className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors border border-transparent cursor-pointer"
                     id="download-video-asset-btn"
                   >
@@ -319,13 +504,8 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
                   </button>
 
                   <button
-                    onClick={() => {
-                      const audioUrl =
-                        selectedProject.audioUrl ||
-                        selectedProject.videoUrl?.replace('.mp4', '.wav')
-                      if (audioUrl) window.open(audioUrl)
-                    }}
-                    disabled={!selectedProject.audioUrl && !selectedProject.videoUrl}
+                    onClick={() => activeAudioUrl && window.open(activeAudioUrl)}
+                    disabled={!activeAudioUrl}
                     className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     id="download-audio-btn"
                   >
@@ -335,9 +515,7 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
 
                   <ShareSheet
                     users={shareOptions}
-                    onShareComplete={option =>
-                      handleShareComplete(option, selectedProject.videoUrl!)
-                    }
+                    onShareComplete={option => handleShareComplete(option, activeVideoUrl!)}
                     containerClassName="w-full"
                     className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                     placement="top"
@@ -587,6 +765,56 @@ export const EditorView = ({ projects, jobLogs, isMobile, onDelete }: EditorView
           )}
         </div>
       </div>
+
+      {showEditModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+            onClick={() => !editBusy && setShowEditModal(false)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full border border-gray-200 bg-gray-50 text-gray-800">
+                <IconEdit />
+              </div>
+              <h3 className="text-center text-lg font-bold text-gray-900">Edit this edition?</h3>
+              <p className="mt-2 text-center text-sm leading-relaxed text-gray-500">
+                This charges 3 credits now. Its saved storyboard will open for review, and rendering
+                the updated edition will not charge again.
+              </p>
+              <div className="mt-4 flex items-center justify-center">
+                <CreditChip amount={3} className="bg-gray-100 text-gray-700" />
+              </div>
+              {editError && (
+                <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-center text-xs font-medium text-red-700">
+                  {editError}
+                </p>
+              )}
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  disabled={editBusy}
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 rounded-xl border border-gray-200 bg-gray-100 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  id="confirm-edit-video-btn"
+                  disabled={editBusy}
+                  onClick={() => void handleBeginEdit()}
+                  className="flex-1 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {editBusy ? 'Opening editor…' : 'Pay 3 & edit'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {showModal &&
         createPortal(

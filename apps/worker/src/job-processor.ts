@@ -303,12 +303,19 @@ export async function pushJobResult(
   logger.info({ videoUrl }, 'Final video successfully uploaded to GCS')
 
   // 3. Update DB
-  const updatedJob = await db.updateJob(jobId, {
-    status: JobStatus.COMPLETED,
-    videoUrl,
-    rawVideoUrl: rawVideoUrl ?? undefined,
-    gitHash,
-  })
+  const updatedJob = parameters?.storyboard
+    ? await db.completeVideoJobWithEdition(jobId, {
+        videoUrl,
+        rawVideoUrl,
+        gitHash,
+        storyboard: parameters.storyboard,
+      })
+    : await db.updateJob(jobId, {
+        status: JobStatus.COMPLETED,
+        videoUrl,
+        rawVideoUrl: rawVideoUrl ?? undefined,
+        gitHash,
+      })
 
   // 4. Broadcast completion to SSE channels
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
