@@ -36,7 +36,34 @@ export interface StoryboardEmphasis {
     | 'pulse'
     | 'bracket'
   zoom: number
+  layer?: number
 }
+
+export type StoryboardOverlay =
+  | {
+      kind: 'blur'
+      rect: StoryboardRect
+      strength: number
+      layer?: number
+    }
+  | {
+      kind: 'media'
+      rect: StoryboardRect
+      url: string
+      alt: string
+      source: 'upload' | 'giphy'
+      giphyId?: string
+      layer?: number
+    }
+  | {
+      kind: 'callout'
+      rect: StoryboardRect
+      noteRect?: StoryboardRect
+      text: string
+      shape: 'box' | 'circle'
+      color: 'pink' | 'blue' | 'yellow' | 'green'
+      layer?: number
+    }
 
 export interface StoryboardScene {
   id: string
@@ -47,6 +74,7 @@ export interface StoryboardScene {
   screenText: string[]
   narration: string
   emphasis: StoryboardEmphasis[]
+  overlays: StoryboardOverlay[]
   estimatedDurationSec: number
 }
 

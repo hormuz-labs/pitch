@@ -38,10 +38,11 @@ export function buildDemoJobInput(options: DemoJobInputOptions): DemoJobInput {
         page: scene.pageIndex + 1,
         narration: scene.narration,
         emphasis: scene.emphasis.map(({ zoom: _zoom, ...emphasis }) => emphasis),
+        overlays: scene.overlays ?? [],
       }))
     const renderContract = { slideshowTransition: options.storyboard.transition, scenes }
     sections.push(
-      `APPROVED STORYBOARD REVISION ${revision} (exact render contract):\n${JSON.stringify(renderContract)}\n\nDo not rewrite, rephrase, omit, or add narration. On each page, call demo_analyze_slide only to satisfy rendered-page validation, then narrate the approved text exactly and use the approved emphasis rectangles, coordinate spaces, and styles. Camera framing is automatic from each emphasis bounding box.`,
+      `APPROVED STORYBOARD REVISION ${revision} (exact render contract):\n${JSON.stringify(renderContract)}\n\nDo not rewrite, rephrase, omit, or add narration. On each page, call demo_analyze_slide only to satisfy rendered-page validation, then narrate the approved text exactly and use the approved emphasis rectangles, coordinate spaces, and styles. Camera framing is automatic from each emphasis bounding box. Persistent overlays are already applied by the slideshow and must remain visible for their complete scene.`,
     )
   }
   return {

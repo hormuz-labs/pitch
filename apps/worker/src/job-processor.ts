@@ -797,7 +797,16 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       const voiceName = (parameters?.voice || 'Puck').toString().replace(/\.mp3$/i, '')
       fs.writeFileSync(
         configPath,
-        JSON.stringify({ startTime, voiceName, assetsManifestPath }, null, 2),
+        JSON.stringify(
+          {
+            startTime,
+            voiceName,
+            assetsManifestPath,
+            storyboard: parameters?.storyboard,
+          },
+          null,
+          2,
+        ),
       )
 
       // 4. Subscribe to global events and filter by session ID.

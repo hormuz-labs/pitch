@@ -11,6 +11,8 @@
  * unit-testable and safe to import anywhere.
  */
 
+import { defaultCalloutNoteRect, type StoryboardOverlay, type StoryboardRect } from '@saas/shared'
+
 export interface SlideRegion {
   id: string
   text: string
@@ -25,6 +27,8 @@ export interface Slide {
   image: string
   /** Targetable regions on this slide (empty for a plain image). */
   regions?: SlideRegion[]
+  /** Persistent visual layers authored in the storyboard review editor. */
+  overlays?: StoryboardOverlay[]
 }
 
 export interface SlideshowOptions {
@@ -65,12 +69,48 @@ function renderHotspot(r: SlideRegion): string {
   return `<button type="button" class="hotspot" role="button" tabindex="-1" aria-label="${label}" data-region="${escapeHtml(r.id)}" style="${style}"></button>`
 }
 
+function rectStyle(rect: StoryboardRect): string {
+  return `left:${rect.leftPct}%;top:${rect.topPct}%;width:${rect.widthPct}%;height:${rect.heightPct}%`
+}
+
+function renderOverlay(overlay: StoryboardOverlay, id: string, defaultLayer: number): string {
+  const overlayStyle = rectStyle(overlay.rect)
+  const layerStyle = `z-index:${overlay.layer ?? defaultLayer}`
+  if (overlay.kind === 'blur') {
+    return `<div class="slide-overlay overlay-blur" aria-hidden="true" style="${overlayStyle};${layerStyle};backdrop-filter:blur(${overlay.strength}px);-webkit-backdrop-filter:blur(${overlay.strength}px)"></div>`
+  }
+  if (overlay.kind === 'media') {
+    const giphyId = overlay.giphyId ? ` data-giphy-id="${escapeHtml(overlay.giphyId)}"` : ''
+    return `<img class="slide-overlay overlay-media" src="${escapeHtml(overlay.url)}" alt="${escapeHtml(overlay.alt)}" data-source="${escapeHtml(overlay.source)}"${giphyId} style="${overlayStyle};${layerStyle}" />`
+  }
+  const noteRect = overlay.noteRect ?? defaultCalloutNoteRect(overlay.rect)
+  const targetCenterX = overlay.rect.leftPct + overlay.rect.widthPct / 2
+  const targetCenterY = overlay.rect.topPct + overlay.rect.heightPct / 2
+  const noteCenterX = noteRect.leftPct + noteRect.widthPct / 2
+  const noteCenterY = noteRect.topPct + noteRect.heightPct / 2
+  const markerId = `callout-arrow-${id}`
+  return `<div class="slide-overlay callout-layer color-${overlay.color}" style="inset:0;${layerStyle}">
+          <svg class="callout-connector" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs><marker id="${markerId}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>
+            <line x1="${noteCenterX}" y1="${noteCenterY}" x2="${targetCenterX}" y2="${targetCenterY}" marker-end="url(#${markerId})"></line>
+          </svg>
+          <span class="overlay-callout color-${overlay.color} shape-${overlay.shape}" aria-hidden="true" style="${overlayStyle}"></span>
+          <span class="callout-note" role="note" style="${rectStyle(noteRect)}">${escapeHtml(overlay.text)}</span>
+        </div>`
+}
+
 function renderSlide(slide: Slide, index: number, active: boolean): string {
   const src = escapeHtml(toFileUrl(slide.image))
   const hotspots = (slide.regions ?? []).map(renderHotspot).join('')
+  const overlays = (slide.overlays ?? [])
+    .map((overlay, overlayIndex) =>
+      renderOverlay(overlay, `${index}-${overlayIndex}`, overlayIndex),
+    )
+    .join('')
   return `<div class="slide${active ? ' active' : ''}" data-index="${index}">
       <div class="page">
         <img src="${src}" alt="Slide ${index + 1}" draggable="false" />
+        <div class="slide-overlays">${overlays}</div>
         <div class="hotspots">${hotspots}</div>
       </div>
     </div>`
@@ -150,6 +190,41 @@ export function buildSlideshowHtml(slides: Slide[], opts: SlideshowOptions = {})
     .hotspot {
       position: absolute; background: transparent; border: 0; padding: 0;
       pointer-events: none; /* targets for zoom/annotate, never steal nav clicks */
+    }
+    .slide-overlays { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+    .slide-overlay { position: absolute; }
+    .overlay-blur {
+      overflow: hidden; border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+    .overlay-media {
+      display: block; object-fit: contain; border-radius: 10px;
+      filter: drop-shadow(0 8px 18px rgba(15,23,42,0.22));
+    }
+    .callout-layer { --callout: #ec4899; }
+    .callout-layer.color-blue { --callout: #2563eb; }
+    .callout-layer.color-yellow { --callout: #eab308; }
+    .callout-layer.color-green { --callout: #16a34a; }
+    .overlay-callout {
+      position: absolute;
+      --callout: #ec4899;
+      border: 4px solid var(--callout); border-radius: 10px;
+    }
+    .overlay-callout.color-blue { --callout: #2563eb; }
+    .overlay-callout.color-yellow { --callout: #eab308; }
+    .overlay-callout.color-green { --callout: #16a34a; }
+    .overlay-callout.shape-circle { border-radius: 999px; }
+    .callout-connector { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .callout-connector line { stroke: var(--callout); stroke-width: 3; vector-effect: non-scaling-stroke; }
+    .callout-connector marker path { fill: var(--callout); }
+    .callout-note {
+      position: absolute; display: flex; align-items: center;
+      padding: 12px 15px; border: 2px solid var(--callout); border-radius: 12px;
+      background: rgba(255,255,255,0.96); color: #111827;
+      font-size: clamp(14px, 1.5vw, 25px); font-weight: 650; line-height: 1.25;
+      overflow: hidden; overflow-wrap: anywhere;
+      box-shadow: 0 10px 28px rgba(15,23,42,0.22);
     }
     .title-slide { padding: 0; }
     .title-card {

@@ -14,8 +14,9 @@
  * (the `skill` tool), so there is no load_skill here anymore.
  *
  * Worker handoff contract — the worker writes recordings/demo-config.json
- * BEFORE prompting: { startTime, voiceName }. startTime anchors every event
- * timestamp (wall-clock ms → video seconds); voiceName selects the TTS voice.
+ * BEFORE prompting: { startTime, voiceName, storyboard? }. startTime anchors
+ * every event timestamp (wall-clock ms → video seconds); voiceName selects the
+ * TTS voice; an approved storyboard supplies persistent slide overlays.
  */
 
 import { tool } from '@opencode-ai/plugin'
@@ -30,8 +31,10 @@ import {
 } from '../lib/annotations'
 import {
   type AssetManifestLike,
+  attachStoryboardOverlays,
   pageRectToViewportRect,
   resolveManifestSlides,
+  type StoryboardOverlaySceneLike,
   zoomEventForViewportRect,
 } from '../lib/asset-demo'
 import {
@@ -148,6 +151,11 @@ interface DemoConfig {
   startTime: number
   voiceName?: string
   assetsManifestPath?: string
+  storyboard?: {
+    status?: string
+    transition?: 'fade' | 'slide' | 'zoom'
+    scenes?: StoryboardOverlaySceneLike[]
+  }
 }
 
 const GEMINI_TTS_MODEL = 'gemini-3.1-flash-tts-preview'
@@ -1034,8 +1042,13 @@ export const demo_build_slideshow = tool({
   async execute(args, context) {
     const base = baseDir(context)
     try {
+      const config = readConfig(base)
       const { manifest } = readAssetManifest(base)
-      const slides = resolveManifestSlides(manifest)
+      const reviewedStoryboard = config.storyboard?.status === 'approved' ? config.storyboard : null
+      const slides = attachStoryboardOverlays(
+        resolveManifestSlides(manifest),
+        reviewedStoryboard?.scenes,
+      )
       if (slides.length === 0) {
         return {
           output: JSON.stringify({
@@ -1045,7 +1058,7 @@ export const demo_build_slideshow = tool({
       }
       await activeSlideshowServer?.close()
       activeSlideshowServer = await startSlideshowServer(slides, {
-        transition: args.transition,
+        transition: reviewedStoryboard?.transition ?? args.transition,
       })
       const outputPath = path.join(base, 'recordings', 'slideshow.html')
       fs.writeFileSync(outputPath, activeSlideshowServer.html)
@@ -1059,7 +1072,8 @@ export const demo_build_slideshow = tool({
           path: outputPath,
           slideCount: slides.length,
           regionCount: slides.reduce((count, slide) => count + (slide.regions?.length ?? 0), 0),
-          transition: args.transition ?? 'fade',
+          overlayCount: slides.reduce((count, slide) => count + (slide.overlays?.length ?? 0), 0),
+          transition: reviewedStoryboard?.transition ?? args.transition ?? 'fade',
           next: `Open ${url}, then call demo_analyze_slide on the current rendered page before narration.`,
         }),
       }

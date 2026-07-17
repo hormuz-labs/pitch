@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  defaultCalloutNoteRect,
+  moveStoryboardLayer,
   rectFromDrag,
+  removeStoryboardScene,
   storyboardDurationSec,
   transformStoryboardRect,
+  updateStoryboardOverlay,
   updateStoryboardScene,
   updateStoryboardTitleCard,
 } from '../apps/web/src/lib/storyboardEditor'
@@ -21,6 +25,7 @@ const storyboard = {
       screenText: ['First point'],
       narration: 'First narration.',
       emphasis: [],
+      overlays: [],
       estimatedDurationSec: 2,
     },
     {
@@ -32,6 +37,13 @@ const storyboard = {
       screenText: ['Second point'],
       narration: 'Second narration.',
       emphasis: [],
+      overlays: [
+        {
+          kind: 'blur' as const,
+          rect: { leftPct: 10, topPct: 10, widthPct: 20, heightPct: 20 },
+          strength: 8,
+        },
+      ],
       estimatedDurationSec: 2,
     },
   ],
@@ -85,6 +97,87 @@ describe('storyboard editor model', () => {
       narration: 'Reviewed result narration.',
     })
     expect(storyboard.scenes[1]!.narration).toBe('Second narration.')
+  })
+
+  it('edits one slide overlay without changing other scenes or the saved revision', () => {
+    const edited = updateStoryboardOverlay(storyboard, 'scene-2', 0, { strength: 14 })
+
+    expect(edited.revision).toBe(2)
+    expect(edited.scenes[1]?.overlays[0]).toMatchObject({ kind: 'blur', strength: 14 })
+    expect(storyboard.scenes[1]?.overlays[0]).toMatchObject({ kind: 'blur', strength: 8 })
+    expect(edited.scenes[0]?.overlays).toEqual([])
+  })
+
+  it('moves a callout note independently from its target box', () => {
+    const target = { leftPct: 20, topPct: 30, widthPct: 15, heightPct: 10 }
+    const current = {
+      ...storyboard,
+      scenes: storyboard.scenes.map((scene, index) =>
+        index === 1
+          ? {
+              ...scene,
+              overlays: [
+                {
+                  kind: 'callout' as const,
+                  rect: target,
+                  noteRect: defaultCalloutNoteRect(target),
+                  text: 'Reviewed note',
+                  shape: 'box' as const,
+                  color: 'blue' as const,
+                },
+              ],
+            }
+          : scene,
+      ),
+    }
+    const noteRect = { leftPct: 60, topPct: 10, widthPct: 28, heightPct: 14 }
+
+    const edited = updateStoryboardOverlay(current, 'scene-2', 0, { noteRect })
+
+    expect(edited.scenes[1]?.overlays[0]).toMatchObject({ rect: target, noteRect })
+    expect(current.scenes[1]?.overlays[0]).toMatchObject({ rect: target })
+  })
+
+  it('moves persistent overlays in front of highlights without reordering either array', () => {
+    const current = {
+      ...storyboard,
+      scenes: storyboard.scenes.map((scene, index) =>
+        index === 1
+          ? {
+              ...scene,
+              emphasis: [
+                {
+                  phrase: 'Second narration',
+                  rect: { leftPct: 10, topPct: 10, widthPct: 30, heightPct: 20 },
+                  coordinateSpace: 'page' as const,
+                  style: 'box' as const,
+                  zoom: 1.7,
+                },
+              ],
+            }
+          : scene,
+      ),
+    }
+
+    const edited = moveStoryboardLayer(current, 'scene-2', { kind: 'overlay', index: 0 }, 'front')
+
+    expect(edited.scenes[1]?.overlays[0]).toMatchObject({ layer: 1 })
+    expect(edited.scenes[1]?.emphasis[0]).toMatchObject({ layer: 0 })
+    expect(current.scenes[1]?.overlays[0]).not.toHaveProperty('layer')
+  })
+
+  it('removes one scene without mutating the saved storyboard', () => {
+    const edited = removeStoryboardScene(storyboard, 'scene-1')
+
+    expect(edited.scenes.map(scene => scene.id)).toEqual(['scene-2'])
+    expect(edited).toMatchObject({ revision: 2, status: 'draft' })
+    expect(storyboard.scenes.map(scene => scene.id)).toEqual(['scene-1', 'scene-2'])
+  })
+
+  it('keeps at least one scene in the video', () => {
+    expect(() =>
+      removeStoryboardScene({ ...storyboard, scenes: [storyboard.scenes[0]!] }, 'scene-1'),
+    ).toThrow('at least one scene')
   })
 
   it('converts a user-drawn preview area into a clamped page-relative rectangle', () => {

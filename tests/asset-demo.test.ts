@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  attachStoryboardOverlays,
   pageRectToViewportRect,
   resolveManifestSlides,
   zoomEventForViewportRect,
@@ -45,6 +46,23 @@ describe('resolveManifestSlides', () => {
       '/tmp/assets/chart.png',
     ])
     expect(slides[0].regions?.[0]?.text).toBe('Heading')
+  })
+
+  it('attaches approved overlays to their matching manifest pages without mutating slides', () => {
+    const slides = [{ image: 'page-1.png' }, { image: 'page-2.png' }]
+    const overlay = {
+      kind: 'blur' as const,
+      rect: { leftPct: 10, topPct: 20, widthPct: 30, heightPct: 15 },
+      strength: 10,
+    }
+
+    const rendered = attachStoryboardOverlays(slides, [
+      { pageIndex: 1, enabled: true, overlays: [overlay] },
+    ])
+
+    expect(rendered[0]?.overlays).toEqual([])
+    expect(rendered[1]?.overlays).toEqual([overlay])
+    expect(slides[1]).not.toHaveProperty('overlays')
   })
 })
 

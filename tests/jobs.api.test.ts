@@ -256,6 +256,36 @@ describe('PATCH /jobs/:id/storyboard', () => {
     expect(res.body.parameters.storyboard.titleCards).toEqual(titleCards)
   })
 
+  it('persists reviewed slide overlays with their scene', async () => {
+    const overlays = [
+      {
+        kind: 'blur',
+        rect: { leftPct: 10, topPct: 15, widthPct: 25, heightPct: 20 },
+        strength: 12,
+        layer: 0,
+      },
+      {
+        kind: 'callout',
+        rect: { leftPct: 55, topPct: 35, widthPct: 18, heightPct: 16 },
+        noteRect: { leftPct: 12, topPct: 20, widthPct: 28, heightPct: 14 },
+        layer: 2,
+        text: 'Review this figure',
+        shape: 'circle',
+        color: 'blue',
+      },
+    ]
+
+    const res = await request(buildApp())
+      .patch('/jobs/job_1/storyboard')
+      .send({
+        revision: 1,
+        scenes: [{ ...storyboard.scenes[0], overlays }],
+      })
+
+    expect(res.status).toBe(200)
+    expect(res.body.parameters.storyboard.scenes[0].overlays).toEqual(overlays)
+  })
+
   it('does not mutate a storyboard after rendering has been queued', async () => {
     ;(db.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'job_1',

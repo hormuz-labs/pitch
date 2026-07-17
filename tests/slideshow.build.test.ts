@@ -83,4 +83,48 @@ describe('buildSlideshowHtml', () => {
     expect(zooming).toContain('class="transition-zoom"')
     expect(zooming).toContain('.transition-zoom .slide')
   })
+
+  it('renders persistent blur, media, and callout overlays on the slide page', () => {
+    const html = buildSlideshowHtml([
+      {
+        image: '/tmp/photo.png',
+        overlays: [
+          {
+            kind: 'blur',
+            rect: { leftPct: 5, topPct: 10, widthPct: 20, heightPct: 15 },
+            strength: 12,
+            layer: 4,
+          },
+          {
+            kind: 'media',
+            rect: { leftPct: 60, topPct: 10, widthPct: 25, heightPct: 25 },
+            url: 'https://media.giphy.com/example.gif',
+            alt: 'Celebration',
+            source: 'giphy',
+            giphyId: 'gif-1',
+          },
+          {
+            kind: 'callout',
+            rect: { leftPct: 30, topPct: 55, widthPct: 20, heightPct: 15 },
+            noteRect: { leftPct: 62, topPct: 20, widthPct: 28, heightPct: 14 },
+            text: 'Notice <this> result',
+            shape: 'circle',
+            color: 'blue',
+          },
+        ],
+      },
+    ])
+
+    expect(html).toContain('class="slide-overlay overlay-blur"')
+    expect(html).toContain('z-index:4')
+    expect(html).toContain('backdrop-filter:blur(12px)')
+    expect(html).toContain('src="https://media.giphy.com/example.gif"')
+    expect(html).toContain('data-giphy-id="gif-1"')
+    expect(html).toContain('class="overlay-callout color-blue shape-circle"')
+    expect(html).toContain(
+      'class="callout-note" role="note" style="left:62%;top:20%;width:28%;height:14%"',
+    )
+    expect(html).toContain('class="callout-connector"')
+    expect(html).toContain('Notice &lt;this&gt; result')
+  })
 })

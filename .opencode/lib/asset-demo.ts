@@ -32,6 +32,12 @@ export interface AssetManifestLike {
   assets?: Array<PdfAssetLike | ImageAssetLike>
 }
 
+export interface StoryboardOverlaySceneLike {
+  pageIndex: number
+  enabled: boolean
+  overlays?: NonNullable<Slide['overlays']>
+}
+
 /**
  * Convert a rectangle measured as percentages of the source PDF/image page
  * into percentages of the recorded browser viewport. A page is fitted to the
@@ -69,6 +75,20 @@ export function resolveManifestSlides(manifest: AssetManifestLike): Slide[] {
     }
   }
   return slides
+}
+
+/** Attach reviewed persistent layers by source page, never by filtered scene order. */
+export function attachStoryboardOverlays(
+  slides: readonly Slide[],
+  scenes: readonly StoryboardOverlaySceneLike[] = [],
+): Slide[] {
+  const overlaysByPage = new Map(
+    scenes.filter(scene => scene.enabled).map(scene => [scene.pageIndex, scene.overlays ?? []]),
+  )
+  return slides.map((slide, pageIndex) => ({
+    ...slide,
+    overlays: overlaysByPage.get(pageIndex) ?? [],
+  }))
 }
 
 export function zoomEventForViewportRect(

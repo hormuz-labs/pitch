@@ -31,6 +31,21 @@ const html = buildSlideshowHtml(
       regions: [
         { id: 'p0r0', text: 'First target', leftPct: 10, topPct: 20, widthPct: 30, heightPct: 10 },
       ],
+      overlays: [
+        {
+          kind: 'blur',
+          rect: { leftPct: 5, topPct: 8, widthPct: 20, heightPct: 12 },
+          strength: 12,
+        },
+        {
+          kind: 'callout',
+          rect: { leftPct: 55, topPct: 50, widthPct: 15, heightPct: 12 },
+          noteRect: { leftPct: 12, topPct: 22, widthPct: 28, heightPct: 14 },
+          text: 'Reviewed point',
+          shape: 'circle',
+          color: 'blue',
+        },
+      ],
     },
     {
       image,
@@ -76,6 +91,23 @@ suite('asset slideshow in a real browser', () => {
     expect((hotspot.y - page.y) / page.h).toBeCloseTo(0.2, 2)
     expect(hotspot.w / page.w).toBeCloseTo(0.3, 2)
     expect(hotspot.h / page.h).toBeCloseTo(0.1, 2)
+  })
+
+  it('keeps reviewed overlays page-relative and visibly styled in the browser', async () => {
+    const page = await boxOf('.slide.active .page')
+    const blur = await boxOf('.slide.active .overlay-blur')
+    const callout = await boxOf('.slide.active .overlay-callout')
+    const note = await boxOf('.slide.active .callout-note')
+    expect((blur.x - page.x) / page.w).toBeCloseTo(0.05, 2)
+    expect((blur.y - page.y) / page.h).toBeCloseTo(0.08, 2)
+    expect(callout.w / page.w).toBeCloseTo(0.15, 2)
+    expect((note.x - page.x) / page.w).toBeCloseTo(0.12, 2)
+    expect((note.y - page.y) / page.h).toBeCloseTo(0.22, 2)
+
+    const { stdout } = await pw(
+      `--raw eval '() => ({ blur: getComputedStyle(document.querySelector(".overlay-blur")).backdropFilter, note: document.querySelector(".callout-note").textContent })'`,
+    )
+    expect(JSON.parse(stdout.trim())).toEqual({ blur: 'blur(12px)', note: 'Reviewed point' })
   })
 
   it('fits each page to the live viewport without decorative stage chrome', async () => {

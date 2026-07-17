@@ -27,7 +27,35 @@ export interface StoryboardEmphasis {
   coordinateSpace: 'page' | 'viewport'
   style: StoryboardAnnotationStyle
   zoom: number
+  layer?: number
 }
+
+export type StoryboardOverlay =
+  | {
+      kind: 'blur'
+      rect: StoryboardRect
+      strength: number
+      layer?: number
+    }
+  | {
+      kind: 'media'
+      rect: StoryboardRect
+      url: string
+      alt: string
+      source: 'upload' | 'giphy'
+      giphyId?: string
+      layer?: number
+    }
+  | {
+      kind: 'callout'
+      rect: StoryboardRect
+      /** Page-relative position and size of the note. Omitted by legacy storyboards. */
+      noteRect?: StoryboardRect
+      text: string
+      shape: 'box' | 'circle'
+      color: 'pink' | 'blue' | 'yellow' | 'green'
+      layer?: number
+    }
 
 export interface StoryboardScene {
   id: string
@@ -38,6 +66,7 @@ export interface StoryboardScene {
   screenText: string[]
   narration: string
   emphasis: StoryboardEmphasis[]
+  overlays: StoryboardOverlay[]
   estimatedDurationSec: number
 }
 
@@ -63,9 +92,14 @@ export interface VideoStoryboard {
 
 export type NewStoryboardScene = Omit<
   StoryboardScene,
-  'id' | 'enabled' | 'title' | 'screenText' | 'estimatedDurationSec'
+  'id' | 'enabled' | 'title' | 'screenText' | 'overlays' | 'estimatedDurationSec'
 > &
-  Partial<Pick<StoryboardScene, 'id' | 'enabled' | 'title' | 'screenText' | 'estimatedDurationSec'>>
+  Partial<
+    Pick<
+      StoryboardScene,
+      'id' | 'enabled' | 'title' | 'screenText' | 'overlays' | 'estimatedDurationSec'
+    >
+  >
 
 const normalizeTitleCards = (cards?: StoryboardTitleCards): StoryboardTitleCards => ({
   intro: {
@@ -85,6 +119,26 @@ const narrationDurationSec = (narration: string): number => {
   return Math.max(2, Math.round((words / 2.5) * 10) / 10)
 }
 
+const clamp = (value: number, minimum: number, maximum: number) =>
+  Math.max(minimum, Math.min(maximum, value))
+
+export function defaultCalloutNoteRect(target: StoryboardRect): StoryboardRect {
+  const widthPct = 28
+  const heightPct = 14
+  const gapPct = 5
+  const targetCenterX = target.leftPct + target.widthPct / 2
+  const preferredLeft =
+    targetCenterX > 50
+      ? target.leftPct - widthPct - gapPct
+      : target.leftPct + target.widthPct + gapPct
+  return {
+    leftPct: clamp(preferredLeft, 0, 100 - widthPct),
+    topPct: clamp(target.topPct + target.heightPct / 2 - heightPct / 2, 0, 100 - heightPct),
+    widthPct,
+    heightPct,
+  }
+}
+
 function validateRect(rect: StoryboardRect): void {
   const values = [rect.leftPct, rect.topPct, rect.widthPct, rect.heightPct]
   if (!values.every(Number.isFinite)) throw new Error('Storyboard emphasis has an invalid box.')
@@ -100,6 +154,12 @@ function validateRect(rect: StoryboardRect): void {
   }
 }
 
+function validateLayer(layer: number | undefined, sceneNumber: number): void {
+  if (layer !== undefined && (!Number.isInteger(layer) || layer < 0 || layer > 999)) {
+    throw new Error(`Scene ${sceneNumber} has an invalid layer position.`)
+  }
+}
+
 function validateScenes(scenes: StoryboardScene[]): void {
   const enabled = scenes.filter(scene => scene.enabled)
   if (enabled.length === 0) throw new Error('Storyboard must include at least one scene.')
@@ -108,6 +168,7 @@ function validateScenes(scenes: StoryboardScene[]): void {
       throw new Error(`Scene ${scene.pageIndex + 1} needs narration before rendering.`)
     }
     for (const emphasis of scene.emphasis) {
+      validateLayer(emphasis.layer, scene.pageIndex + 1)
       if (!emphasis.phrase.trim()) {
         throw new Error(`Scene ${scene.pageIndex + 1} has an emphasis without a phrase.`)
       }
@@ -125,6 +186,48 @@ function validateScenes(scenes: StoryboardScene[]): void {
         throw new Error(`Scene ${scene.pageIndex + 1} has an invalid annotation zoom.`)
       }
       validateRect(emphasis.rect)
+    }
+    for (const overlay of scene.overlays) {
+      validateLayer(overlay.layer, scene.pageIndex + 1)
+      if (!['blur', 'media', 'callout'].includes(overlay.kind)) {
+        throw new Error(`Scene ${scene.pageIndex + 1} has an unsupported overlay type.`)
+      }
+      validateRect(overlay.rect)
+      if (
+        overlay.kind === 'blur' &&
+        (!Number.isFinite(overlay.strength) || overlay.strength < 1 || overlay.strength > 24)
+      ) {
+        throw new Error(`Scene ${scene.pageIndex + 1} has an invalid blur strength.`)
+      }
+      if (
+        overlay.kind === 'media' &&
+        (!/^https?:\/\/\S+$/i.test(overlay.url) || overlay.url.length > 2048)
+      ) {
+        throw new Error(`Scene ${scene.pageIndex + 1} has an invalid media URL.`)
+      }
+      if (overlay.kind === 'media' && !['upload', 'giphy'].includes(overlay.source)) {
+        throw new Error(`Scene ${scene.pageIndex + 1} has an unsupported media source.`)
+      }
+      if (
+        overlay.kind === 'callout' &&
+        (!overlay.text.trim() || overlay.text.trim().length > 280)
+      ) {
+        throw new Error(`Scene ${scene.pageIndex + 1} callout needs text under 280 characters.`)
+      }
+      if (
+        overlay.kind === 'callout' &&
+        (!['box', 'circle'].includes(overlay.shape) ||
+          !['pink', 'blue', 'yellow', 'green'].includes(overlay.color))
+      ) {
+        throw new Error(`Scene ${scene.pageIndex + 1} has an unsupported callout presentation.`)
+      }
+      if (overlay.kind === 'callout' && overlay.noteRect) {
+        try {
+          validateRect(overlay.noteRect)
+        } catch {
+          throw new Error(`Scene ${scene.pageIndex + 1} callout note must stay inside the page.`)
+        }
+      }
     }
   }
 }
@@ -146,6 +249,7 @@ function normalizeScene(scene: NewStoryboardScene, index: number): StoryboardSce
     screenText: (scene.screenText ?? []).map(text => text.trim()).filter(Boolean),
     narration,
     emphasis: scene.emphasis,
+    overlays: scene.overlays ?? [],
     estimatedDurationSec: narrationDurationSec(narration),
   }
 }
@@ -199,9 +303,11 @@ export function approveVideoStoryboard(
     )
   }
   validateTransition(storyboard.transition)
-  validateScenes(storyboard.scenes)
+  const scenes = storyboard.scenes.map(normalizeScene)
+  validateScenes(scenes)
   return {
     ...storyboard,
+    scenes,
     status: 'approved',
     approvedRevision: storyboard.revision,
     titleCards: normalizeTitleCards(storyboard.titleCards),

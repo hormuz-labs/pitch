@@ -51,6 +51,15 @@ describe('buildDemoJobInput', () => {
                 zoom: 1.7,
               },
             ],
+            overlays: [
+              {
+                kind: 'callout',
+                rect: { leftPct: 55, topPct: 20, widthPct: 18, heightPct: 14 },
+                text: 'Key result',
+                shape: 'box',
+                color: 'blue',
+              },
+            ],
             estimatedDurationSec: 3,
           },
         ],
@@ -61,6 +70,8 @@ describe('buildDemoJobInput', () => {
     expect(input.prompt).toContain('The approved result reaches 93 percent.')
     expect(input.prompt).toContain('"leftPct":20')
     expect(input.prompt).toContain('"slideshowTransition":"fade"')
+    expect(input.prompt).toContain('"overlays":[{"kind":"callout"')
+    expect(input.prompt).toMatch(/persistent overlays.*slideshow/i)
     expect(input.prompt).not.toContain('"zoom":1.7')
     expect(input.prompt).toMatch(/camera.*automatic.*bounding box/i)
     expect(input.prompt).toMatch(/Do not rewrite, rephrase, omit, or add narration/i)
