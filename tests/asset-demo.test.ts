@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  attachStoryboardOverlays,
+  applyStoryboardToSlides,
   pageRectToViewportRect,
   resolveManifestSlides,
   zoomEventForViewportRect,
@@ -56,13 +56,25 @@ describe('resolveManifestSlides', () => {
       strength: 10,
     }
 
-    const rendered = attachStoryboardOverlays(slides, [
+    const rendered = applyStoryboardToSlides(slides, [
+      { pageIndex: 0, enabled: true, overlays: [] },
       { pageIndex: 1, enabled: true, overlays: [overlay] },
     ])
 
     expect(rendered[0]?.overlays).toEqual([])
     expect(rendered[1]?.overlays).toEqual([overlay])
     expect(slides[1]).not.toHaveProperty('overlays')
+  })
+
+  it('renders only pages that remain in the approved storyboard', () => {
+    const slides = [{ image: 'page-1.png' }, { image: 'page-2.png' }, { image: 'page-3.png' }]
+
+    const rendered = applyStoryboardToSlides(slides, [
+      { pageIndex: 0, enabled: true, overlays: [] },
+      { pageIndex: 2, enabled: true, overlays: [] },
+    ])
+
+    expect(rendered.map(slide => slide.image)).toEqual(['page-1.png', 'page-3.png'])
   })
 })
 

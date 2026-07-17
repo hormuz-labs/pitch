@@ -2,7 +2,11 @@ import { exec, execSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildAnnotateEvalJs } from '../../.opencode/lib/annotations'
-import { pageRectToViewportRect } from '../../.opencode/lib/asset-demo'
+import {
+  applyStoryboardToSlides,
+  pageRectToViewportRect,
+  resolveManifestSlides,
+} from '../../.opencode/lib/asset-demo'
 import { ELEMENT_BOX_JS, parseElementBoxJson } from '../../.opencode/lib/demo-core'
 import { buildSlideshowHtml } from '../../.opencode/lib/slideshow'
 
@@ -19,6 +23,34 @@ const hasCli = (() => {
 const pw = (args: string) =>
   execAsync(`playwright-cli -s=${PLAYWRIGHT_SESSION} ${args}`, { maxBuffer: 16 * 1024 * 1024 })
 const suite = hasCli ? describe : describe.skip
+
+describe('approved storyboard slideshow contract', () => {
+  it('omits a deleted PDF page from the rendered slideshow HTML', () => {
+    const prepared = resolveManifestSlides({
+      assets: [
+        {
+          kind: 'pdf',
+          pages: [
+            'https://cdn.example/page-1.png',
+            'https://cdn.example/page-2.png',
+            'https://cdn.example/page-3.png',
+          ],
+        },
+      ],
+    })
+    const reviewed = applyStoryboardToSlides(prepared, [
+      { pageIndex: 0, enabled: true, overlays: [] },
+      { pageIndex: 2, enabled: true, overlays: [] },
+    ])
+
+    const rendered = buildSlideshowHtml(reviewed)
+
+    expect(rendered).toContain('data-total="2"')
+    expect(rendered).toContain('page-1.png')
+    expect(rendered).not.toContain('page-2.png')
+    expect(rendered).toContain('page-3.png')
+  })
+})
 
 const svg = Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="white"/></svg>',

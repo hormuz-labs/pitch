@@ -77,18 +77,22 @@ export function resolveManifestSlides(manifest: AssetManifestLike): Slide[] {
   return slides
 }
 
-/** Attach reviewed persistent layers by source page, never by filtered scene order. */
-export function attachStoryboardOverlays(
+/** Apply the approved storyboard as the ordered render list and attach its persistent layers. */
+export function applyStoryboardToSlides(
   slides: readonly Slide[],
   scenes: readonly StoryboardOverlaySceneLike[] = [],
 ): Slide[] {
-  const overlaysByPage = new Map(
-    scenes.filter(scene => scene.enabled).map(scene => [scene.pageIndex, scene.overlays ?? []]),
-  )
-  return slides.map((slide, pageIndex) => ({
-    ...slide,
-    overlays: overlaysByPage.get(pageIndex) ?? [],
-  }))
+  if (scenes.length === 0) return slides.map(slide => ({ ...slide, overlays: [] }))
+
+  return scenes
+    .filter(scene => scene.enabled)
+    .map(scene => {
+      const slide = slides[scene.pageIndex]
+      if (!slide) {
+        throw new Error(`Storyboard references missing prepared page ${scene.pageIndex + 1}.`)
+      }
+      return { ...slide, overlays: scene.overlays ?? [] }
+    })
 }
 
 export function zoomEventForViewportRect(

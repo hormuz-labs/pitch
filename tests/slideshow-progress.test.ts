@@ -8,7 +8,10 @@ import {
   markCurrentSlideAnalyzed,
   markCurrentSlideNarrated,
 } from '../.opencode/lib/slideshow-progress'
-import { validateSlideshowCoverage } from '../apps/worker/src/utils/slideshow-progress'
+import {
+  expectedSlideshowSlideCount,
+  validateSlideshowCoverage,
+} from '../apps/worker/src/utils/slideshow-progress'
 
 describe('slideshow progress guard', () => {
   it('requires Gemini page understanding before slideshow narration', () => {
@@ -85,6 +88,18 @@ describe('slideshow progress guard', () => {
         3,
       ),
     ).toThrow('Missing analyzed PDF pages: 2')
+  })
+
+  it('expects only approved storyboard scenes after a slide is deleted', () => {
+    expect(
+      expectedSlideshowSlideCount(3, {
+        status: 'approved',
+        scenes: [
+          { pageIndex: 0, enabled: true },
+          { pageIndex: 2, enabled: true },
+        ],
+      }),
+    ).toBe(2)
   })
 })
 

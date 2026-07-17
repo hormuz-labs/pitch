@@ -6,6 +6,19 @@ export interface SlideshowProgress {
   narratedSlides: number[]
 }
 
+interface StoryboardCoverageLike {
+  status: string
+  scenes: Array<{ enabled: boolean }>
+}
+
+export function expectedSlideshowSlideCount(
+  preparedSlideCount: number,
+  storyboard?: StoryboardCoverageLike,
+): number {
+  if (storyboard?.status !== 'approved') return preparedSlideCount
+  return storyboard.scenes.filter(scene => scene.enabled).length
+}
+
 export function validateSlideshowCoverage(
   progress: SlideshowProgress,
   expectedSlides: number,

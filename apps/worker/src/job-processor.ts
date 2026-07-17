@@ -36,7 +36,11 @@ import {
 } from './utils/intro-outro.js'
 import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
-import { type SlideshowProgress, validateSlideshowCoverage } from './utils/slideshow-progress.js'
+import {
+  expectedSlideshowSlideCount,
+  type SlideshowProgress,
+  validateSlideshowCoverage,
+} from './utils/slideshow-progress.js'
 import { processVideo } from './utils/smart_trim.js'
 import {
   analyzeStoryboardPage,
@@ -933,9 +937,13 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       }
 
       if (assetManifest) {
-        const expectedSlides = assetManifest.assets.reduce(
+        const preparedSlides = assetManifest.assets.reduce(
           (total, asset) => total + (asset.kind === 'pdf' ? asset.pages.length : 1),
           0,
+        )
+        const expectedSlides = expectedSlideshowSlideCount(
+          preparedSlides,
+          parameters?.storyboard as VideoStoryboard | undefined,
         )
         const progressPath = path.join(recordingsDir, 'slideshow-progress.json')
         if (!fs.existsSync(progressPath)) {

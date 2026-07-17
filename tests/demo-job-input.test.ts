@@ -75,5 +75,10 @@ describe('buildDemoJobInput', () => {
     expect(input.prompt).not.toContain('"zoom":1.7')
     expect(input.prompt).toMatch(/camera.*automatic.*bounding box/i)
     expect(input.prompt).toMatch(/Do not rewrite, rephrase, omit, or add narration/i)
+    expect(input.prompt).toMatch(/display only the pages listed in the approved storyboard/i)
+    expect(input.prompt).toMatch(/deleted pages must not be displayed, analyzed, or narrated/i)
+    expect(input.prompt).not.toContain(
+      'Display every prepared page in manifest order at least once',
+    )
   })
 })

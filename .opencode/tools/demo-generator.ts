@@ -31,7 +31,7 @@ import {
 } from '../lib/annotations'
 import {
   type AssetManifestLike,
-  attachStoryboardOverlays,
+  applyStoryboardToSlides,
   pageRectToViewportRect,
   resolveManifestSlides,
   type StoryboardOverlaySceneLike,
@@ -1045,7 +1045,7 @@ export const demo_build_slideshow = tool({
       const config = readConfig(base)
       const { manifest } = readAssetManifest(base)
       const reviewedStoryboard = config.storyboard?.status === 'approved' ? config.storyboard : null
-      const slides = attachStoryboardOverlays(
+      const slides = applyStoryboardToSlides(
         resolveManifestSlides(manifest),
         reviewedStoryboard?.scenes,
       )
