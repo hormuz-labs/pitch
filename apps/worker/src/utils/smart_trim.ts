@@ -78,6 +78,22 @@ interface ZoomOutEvent {
 
 type ZoomEvent = ZoomInEvent | ZoomOutEvent
 
+interface AnnotationEvent {
+  videoTimeSec: number
+}
+
+export function annotationProtectionSegments(
+  events: AnnotationEvent[],
+  duration: number,
+): Segment[] {
+  const leadSec = 0.5
+  const trailSec = 2.5
+  return events.map(event => ({
+    start: Math.max(0, event.videoTimeSec - leadSec),
+    end: Math.min(duration, event.videoTimeSec + trailSec),
+  }))
+}
+
 function mergeSegments(segments: Segment[]): Segment[] {
   const sorted = [...segments].sort((a, b) => a.start - b.start)
   const merged: Segment[] = []
@@ -230,6 +246,17 @@ function loadZoomEvents(input: string): ZoomEvent[] {
     const raw = fs.readFileSync(statePath, 'utf-8')
     const state = JSON.parse(raw)
     return Array.isArray(state.zoomEvents) ? state.zoomEvents : []
+  } catch {
+    return []
+  }
+}
+
+function loadAnnotationEvents(input: string): AnnotationEvent[] {
+  const statePath = path.join(path.dirname(input), 'demo-state.json')
+  try {
+    const raw = fs.readFileSync(statePath, 'utf-8')
+    const state = JSON.parse(raw)
+    return Array.isArray(state.annotationEvents) ? state.annotationEvents : []
   } catch {
     return []
   }
@@ -424,6 +451,11 @@ export async function processVideo(
     console.log(`Found ${zoomEvents.length} zoom event(s) to protect during trimming.`)
   }
 
+  const annotationEvents = loadAnnotationEvents(analyzeInput)
+  if (annotationEvents.length > 0) {
+    console.log(`Found ${annotationEvents.length} annotation event(s) to protect during trimming.`)
+  }
+
   const duration = await getDuration(analyzeInput)
   if (!duration) throw new Error('Could not determine video duration')
   const audioDuration = await getAudioDuration(analyzeInput, duration)
@@ -616,6 +648,12 @@ export async function processVideo(
     }
   }
 
+  // Protect a window around each annotation (circle/box/highlighter/etc.) so the
+  // draw-on animation and the brief hold that follows survive trimming — a static
+  // slideshow page with a call-out on it would otherwise read as a frozen/silent
+  // hold and be dropped, even though it's a deliberate, meaningful beat.
+  const annotationProtected = annotationProtectionSegments(annotationEvents, duration)
+
   // Protect every stretch with real visual motion (scroll / pan), even when silent —
   // this is the general guard that keeps camera travel from being trimmed into a
   // teleport, including scrolls from narrate({focus}) that record no zoom/click event.
@@ -635,7 +673,12 @@ export async function processVideo(
   const MOTION_ANCHOR_GAP = 1.0
   const touches = (a: Segment, b: Segment) =>
     a.start <= b.end + MOTION_ANCHOR_GAP && b.start <= a.end + MOTION_ANCHOR_GAP
-  const anchors = mergeSegments([...keepSegments, ...clickProtected, ...zoomProtected])
+  const anchors = mergeSegments([
+    ...keepSegments,
+    ...clickProtected,
+    ...zoomProtected,
+    ...annotationProtected,
+  ])
   const pool = [...motionProtected]
   const anchoredMotion: Segment[] = []
   let grew = true
@@ -661,6 +704,7 @@ export async function processVideo(
     ...keepSegments,
     ...clickProtected,
     ...zoomProtected,
+    ...annotationProtected,
     ...anchoredMotion,
   ])
 

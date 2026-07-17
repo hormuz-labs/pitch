@@ -15,10 +15,93 @@ export interface PhaseUpdate {
   }[]
 }
 
+export interface StoryboardRect {
+  leftPct: number
+  topPct: number
+  widthPct: number
+  heightPct: number
+}
+
+export interface StoryboardEmphasis {
+  phrase: string
+  rect: StoryboardRect
+  coordinateSpace: 'page' | 'viewport'
+  style:
+    | 'box'
+    | 'circle'
+    | 'underline'
+    | 'highlighter'
+    | 'arrow'
+    | 'spotlight'
+    | 'pulse'
+    | 'bracket'
+  zoom: number
+  layer?: number
+}
+
+export type StoryboardOverlay =
+  | {
+      kind: 'blur'
+      rect: StoryboardRect
+      strength: number
+      layer?: number
+    }
+  | {
+      kind: 'media'
+      rect: StoryboardRect
+      url: string
+      alt: string
+      source: 'upload' | 'giphy'
+      giphyId?: string
+      layer?: number
+    }
+  | {
+      kind: 'callout'
+      rect: StoryboardRect
+      noteRect?: StoryboardRect
+      text: string
+      shape: 'box' | 'circle'
+      color: 'pink' | 'blue' | 'yellow' | 'green'
+      layer?: number
+    }
+
+export interface StoryboardScene {
+  id: string
+  pageIndex: number
+  previewUrl: string
+  enabled: boolean
+  title: string
+  screenText: string[]
+  narration: string
+  emphasis: StoryboardEmphasis[]
+  overlays: StoryboardOverlay[]
+  estimatedDurationSec: number
+}
+
+export interface StoryboardTitleCard {
+  enabled: boolean
+  title: string
+  subtitle: string
+}
+
+export interface StoryboardTitleCards {
+  intro: StoryboardTitleCard
+  outro: StoryboardTitleCard
+}
+
+export interface VideoStoryboard {
+  revision: number
+  approvedRevision?: number
+  status: 'draft' | 'approved'
+  transition: 'fade' | 'slide' | 'zoom'
+  titleCards: StoryboardTitleCards
+  scenes: StoryboardScene[]
+}
+
 export interface Project {
   id: string
   userId: string
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+  status: 'PENDING' | 'PROCESSING' | 'AWAITING_REVIEW' | 'COMPLETED' | 'FAILED'
   videoUrl?: string
   pdfUrl?: string
   audioUrl?: string
@@ -30,6 +113,8 @@ export interface Project {
     slideCount?: number
     slideHeadings?: string[]
     pdfGenerating?: boolean // true while a fresh server PDF is being regenerated after a save
+    workflowStage?: 'PLANNING' | 'AWAITING_REVIEW' | 'RENDER_QUEUED' | 'RENDERING'
+    storyboard?: VideoStoryboard
   }
   phases?: PhaseUpdate[] // real-time phase progress from SSE
   progress?: number // 0–100 weighted progress
@@ -40,6 +125,19 @@ export interface Project {
   error?: string // Reason for failure, if any
   createdAt: string
   updatedAt: string
+}
+
+export interface VideoEdition {
+  id: string
+  jobId: string
+  editionNumber: number
+  videoUrl: string
+  rawVideoUrl?: string
+  audioUrl?: string
+  thumbnailUrl?: string
+  storyboard?: VideoStoryboard
+  storyboardRevision?: number
+  createdAt: string
 }
 
 export interface LogEntry {

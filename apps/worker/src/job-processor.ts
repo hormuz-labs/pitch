@@ -15,20 +15,38 @@ import {
   PHASE_WEIGHTS,
   type PhaseUpdate,
   sendDiscordMessage,
+  type VideoStoryboard,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
 import { Redis } from 'ioredis'
 import * as os from 'os'
 import { getSessionIdFromEvent } from './opencode.js'
+import { type AssetManifest, prepareAssets } from './utils/assets.js'
 import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import { type BrowserHeaderMode, renderBrowserChromePng } from './utils/browser-chrome.js'
 import { buildGlidingCursorChain } from './utils/cursor-fx.js'
+import { buildDemoJobInput } from './utils/demo-job-input.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
-import { addIntroOutro, type BrowserChromeSegment } from './utils/intro-outro.js'
+import {
+  addIntroOutro,
+  type BrowserChromeSegment,
+  type CardConfig,
+  planTitleCards,
+} from './utils/intro-outro.js'
 import { jobAlreadyTerminal } from './utils/job-guard.js'
 import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-browser.js'
+import {
+  expectedSlideshowSlideCount,
+  type SlideshowProgress,
+  validateSlideshowCoverage,
+} from './utils/slideshow-progress.js'
 import { processVideo } from './utils/smart_trim.js'
+import {
+  analyzeStoryboardPage,
+  buildStoryboardDraft,
+  type StoryboardPage,
+} from './utils/storyboard-planner.js'
 import { buildContinuousZoomFilter } from './utils/zoom-filter.js'
 
 const execAsync = promisify(exec)
@@ -285,12 +303,19 @@ export async function pushJobResult(
   logger.info({ videoUrl }, 'Final video successfully uploaded to GCS')
 
   // 3. Update DB
-  const updatedJob = await db.updateJob(jobId, {
-    status: JobStatus.COMPLETED,
-    videoUrl,
-    rawVideoUrl: rawVideoUrl ?? undefined,
-    gitHash,
-  })
+  const updatedJob = parameters?.storyboard
+    ? await db.completeVideoJobWithEdition(jobId, {
+        videoUrl,
+        rawVideoUrl,
+        gitHash,
+        storyboard: parameters.storyboard,
+      })
+    : await db.updateJob(jobId, {
+        status: JobStatus.COMPLETED,
+        videoUrl,
+        rawVideoUrl: rawVideoUrl ?? undefined,
+        gitHash,
+      })
 
   // 4. Broadcast completion to SSE channels
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
@@ -541,8 +566,8 @@ function findWebmCandidates(logger: any, targetDir: string): string | null {
 }
 
 export function createJobProcessor(connection: Redis, targetDir: string) {
-  return async function processJob(job: Job, client: OpencodeClient) {
-    const { jobId, userId, parameters } = job.data
+  return async function processJob(job: Job, client?: OpencodeClient) {
+    const { jobId, userId, parameters, mode } = job.data
     const jobLogger = logger.child({ jobId, userId })
 
     // Skip requeued duplicates of jobs the original in-flight run already
@@ -550,11 +575,12 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
     if (await jobAlreadyTerminal(jobId)) return
 
     if (parameters?.jobType === 'pdf') {
+      if (!client) throw new Error('An OpenCode client is required for PDF generation.')
       const { processPdfJob } = await import('./pdf-job-processor.js')
       return processPdfJob(job, client, connection, targetDir)
     }
 
-    jobLogger.info('Processing job via One-Pass architecture')
+    jobLogger.info({ mode: mode ?? 'standard' }, 'Processing video job')
 
     const workerHostname = process.env.HOSTNAME || os.hostname()
     const updatedJob = await db.updateJob(jobId, {
@@ -577,7 +603,7 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
         timeoutExceeded = true
         jobLogger.error('Execution timeout of 50 minutes exceeded. Aborting session.')
         if (session) {
-          client.session.abort({ path: { id: session.id } }).catch(err => {
+          client?.session.abort({ path: { id: session.id } }).catch(err => {
             jobLogger.warn({ err }, 'Failed to abort OpenCode session on timeout')
           })
         }
@@ -597,6 +623,65 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       fs.mkdirSync(path.join(recordingsDir, 'audio'), { recursive: true })
       fs.mkdirSync(path.join(recordingsDir, 'videos'), { recursive: true })
 
+      if (mode === 'plan') {
+        const assetInputs = Array.isArray(parameters?.assets) ? parameters.assets : []
+        if (assetInputs.length === 0) {
+          throw new Error('Storyboard planning requires at least one prepared PDF or image.')
+        }
+        const assetsDir = path.join(recordingsDir, 'assets', jobId)
+        const manifest = await prepareAssets(jobId, assetInputs, assetsDir)
+        const pages: StoryboardPage[] = []
+        for (const asset of manifest.assets) {
+          if (asset.kind === 'pdf') {
+            for (const imagePath of asset.pages) {
+              pages.push({ pageIndex: pages.length, imagePath })
+            }
+          } else {
+            pages.push({ pageIndex: pages.length, imagePath: asset.localPath })
+          }
+        }
+        if (pages.length === 0) throw new Error('No PDF/image pages were available to review.')
+
+        const apiKey = process.env.GEMINI_API_KEY
+        if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
+        const model =
+          process.env.GEMINI_GROUNDING_MODEL ||
+          process.env.GEMINI_VISION_MODEL ||
+          'gemini-3.5-flash'
+        const storyboard = await buildStoryboardDraft(
+          pages,
+          {
+            analyzePage: page =>
+              analyzeStoryboardPage({
+                apiKey,
+                model,
+                imageBase64: fs.readFileSync(page.imagePath).toString('base64'),
+                instructions: parameters?.instructions,
+              }),
+            uploadPreview: page =>
+              storage.uploadFile(page.imagePath, undefined, `pitch/${userId}/${jobId}/storyboard`),
+          },
+          { script: parameters?.script },
+        )
+        const reviewParameters = {
+          ...parameters,
+          workflowStage: 'AWAITING_REVIEW',
+          storyboard,
+        }
+        const reviewJob = await db.updateJob(jobId, {
+          status: JobStatus.AWAITING_REVIEW,
+          parameters: reviewParameters,
+        })
+        await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(reviewJob))
+        jobLogger.info(
+          { scenes: storyboard.scenes.length, revision: storyboard.revision },
+          'Storyboard is ready for review',
+        )
+        return
+      }
+
+      if (!client) throw new Error('An OpenCode client is required for video rendering.')
+
       // Create OpenCode Session first so we have session.id for recording paths
       const sessionResponse = await client.session.create({
         query: { directory: targetDir },
@@ -613,6 +698,21 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // Register the session so the cancellation listener can abort it if the
       // job is deleted while processing.
       activeSessionsByJobId.set(jobId, session.id)
+
+      // Prepare PDFs/images before the browser starts recording. The manifest is
+      // the only handoff to the agent tools; the demo agent never imports
+      // worker code or reaches into another flow.
+      let assetManifest: AssetManifest | null = null
+      let assetsManifestPath: string | undefined
+      const assetInputs = Array.isArray(parameters?.assets) ? parameters.assets : []
+      if (assetInputs.length > 0) {
+        const assetsDir = path.join(recordingsDir, 'assets', session.id)
+        assetManifest = await prepareAssets(jobId, assetInputs, assetsDir)
+        assetsManifestPath = path.join(assetsDir, 'assets.json')
+        if (assetManifest.assets.length === 0 && !parameters?.url) {
+          throw new Error('None of the uploaded PDFs/images could be prepared for video.')
+        }
+      }
 
       // Determine the directory where the video should be recorded using environment variables
       const recordingDirEnv = process.env.RECORDING_DIR || process.env.VIDEO_DIR
@@ -706,7 +806,19 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // opencode discovers them natively per agent.
       const configPath = path.join(recordingsDir, 'demo-config.json')
       const voiceName = (parameters?.voice || 'Puck').toString().replace(/\.mp3$/i, '')
-      fs.writeFileSync(configPath, JSON.stringify({ startTime, voiceName }, null, 2))
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify(
+          {
+            startTime,
+            voiceName,
+            assetsManifestPath,
+            storyboard: parameters?.storyboard,
+          },
+          null,
+          2,
+        ),
+      )
 
       // 4. Subscribe to global events and filter by session ID.
       eventAbortController = new AbortController()
@@ -808,31 +920,21 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       // 5. Send Prompt — the behavioral spec (camera grammar, pacing, logo
       // capture) lives in the demo-generator agent definition; this message only
       // carries the per-job inputs.
-      const targetUrl = parameters?.url || ''
-      const promptInstructions = parameters?.instructions || ''
-      const promptScript = (parameters?.script || '').toString().trim()
-
-      // If the user supplied a voiceover script, the narration must follow it.
-      const scriptBlock = promptScript
-        ? `
-
-VOICEOVER SCRIPT (provided by the user — THIS IS THE SOURCE OF TRUTH FOR THE NARRATION):
-"""
-${promptScript}
-"""
-`
-        : ''
-
-      const promptText = `Record a cinematic product demo.
-
-Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
+      const demoInput = buildDemoJobInput({
+        hasPreparedAssets: (assetManifest?.assets.length ?? 0) > 0,
+        assetCount: assetManifest?.assets.length ?? 0,
+        url: parameters?.url,
+        instructions: parameters?.instructions,
+        script: parameters?.script,
+        storyboard: parameters?.storyboard as VideoStoryboard | undefined,
+      })
 
       const promptResponse = await client.session.prompt({
         path: { id: session.id },
         query: { directory: targetDir },
         body: {
-          agent: 'demo-generator',
-          parts: [{ type: 'text', text: promptText }],
+          agent: demoInput.agent,
+          parts: [{ type: 'text', text: demoInput.prompt }],
         },
         signal: promptAbortController.signal,
       })
@@ -841,6 +943,38 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
         throw new Error(`OpenCode prompt failed: ${JSON.stringify(promptResponse.error)}`)
       }
 
+      if (assetManifest) {
+        const preparedSlides = assetManifest.assets.reduce(
+          (total, asset) => total + (asset.kind === 'pdf' ? asset.pages.length : 1),
+          0,
+        )
+        const expectedSlides = expectedSlideshowSlideCount(
+          preparedSlides,
+          parameters?.storyboard as VideoStoryboard | undefined,
+        )
+        const progressPath = path.join(recordingsDir, 'slideshow-progress.json')
+        if (!fs.existsSync(progressPath)) {
+          throw new Error('Prepared assets were not displayed in an asset slideshow.')
+        }
+        const slideshowProgress = JSON.parse(
+          fs.readFileSync(progressPath, 'utf-8'),
+        ) as SlideshowProgress
+        validateSlideshowCoverage(slideshowProgress, expectedSlides)
+        jobLogger.info(
+          {
+            expectedSlides,
+            analyzedSlides: slideshowProgress.analyzedSlides.length,
+            narratedSlides: slideshowProgress.narratedSlides.length,
+          },
+          'Validated prepared page coverage before rendering',
+        )
+      }
+
+      // This deadline protects the interactive agent session. Rendering can
+      // legitimately take longer for multi-page PDFs, and the callback cannot
+      // cancel an in-flight FFmpeg process anyway, so stop the timer as soon as
+      // the agent has handed the completed timeline back to the worker.
+      clearTimeout(timeout)
       jobLogger.info('OpenCode prompt completed')
 
       // 6. Fetch final session messages to get ground-truth cost before aborting/draining
@@ -916,6 +1050,7 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
           audioClips: [],
           zoomEvents: [],
           clickEvents: [],
+          annotationEvents: [],
           tabEvents: [{ tabId: 0, wallSec: 0 }],
           tabCreationTimes: { 0: 0 },
           currentTabId: 0,
@@ -1173,17 +1308,34 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
             .replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Demo'
         const productLogoPath = path.join(recordingsDir, 'product_logo.png')
         const inset = Number.parseFloat((parameters?.inset ?? '0.87').toString())
+        const reviewedStoryboard = parameters?.storyboard as VideoStoryboard | undefined
+        const cardConfig: CardConfig = {
+          productName,
+          productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
+          duration: 2.5,
+          fps: sourceFps,
+          width: 1920,
+          height: 1080,
+          outputPath: finalVideo,
+          productUrl: productDomain || undefined,
+          titleCards: reviewedStoryboard
+            ? (reviewedStoryboard.titleCards ?? {
+                intro: { enabled: false, title: '', subtitle: '' },
+                outro: { enabled: false, title: '', subtitle: '' },
+              })
+            : undefined,
+        }
+        const cardPlan = planTitleCards(cardConfig)
 
         // Optional Safari-style browser header. We generate one PNG per distinct
         // page URL the agent navigated to, then overlay each segment only during
         // the time the demo was on that URL. Falls back to a single static header
         // when no navigation events were recorded.
-        const headerMode = (parameters?.browserHeader as BrowserHeaderMode) || 'none'
+        const headerMode: BrowserHeaderMode | 'none' = parameters?.browserHeader || 'none'
         const headerUrl = state?.pageUrl || parameters?.url
         if (headerMode !== 'none' && headerUrl) {
           const contentDur = await getMediaDurationSec(trimmedVideo)
-          const introDuration = 2.5
-          const contentStart = introDuration
+          const contentStart = cardPlan.contentStartSec
           const events = state?.pageUrlEvents as
             | Array<{ videoTimeSec: number; url: string }>
             | undefined
@@ -1231,16 +1383,7 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
         await addIntroOutro(
           trimmedVideo,
           finalVideo,
-          {
-            productName,
-            productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
-            duration: 2.5,
-            fps: sourceFps,
-            width: 1920,
-            height: 1080,
-            outputPath: finalVideo,
-            productUrl: productDomain || undefined,
-          },
+          cardConfig,
           bgAsset
             ? {
                 asset: bgAsset,
@@ -1372,7 +1515,7 @@ Go to ${targetUrl}. ${promptInstructions}${scriptBlock}`
       // Ensure cost is still logged even on failure, fetching final session messages if possible
       try {
         if (session) {
-          const msgsRes = await client.session
+          const msgsRes = await client?.session
             .messages({
               path: { id: session.id },
               query: { directory: targetDir },

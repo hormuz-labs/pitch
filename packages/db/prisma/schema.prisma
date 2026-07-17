@@ -146,8 +146,27 @@ model Job {
   updatedAt          DateTime            @updatedAt()
   userProfile        UserProfile         @relation(fields: [userId], references: [id])
   creditTransactions CreditTransaction[]
+  videoEditions      VideoEdition[]
 
   @@index([userId])
+}
+
+model VideoEdition {
+  id                 String   @id() @default(cuid())
+  jobId              String
+  editionNumber      Int
+  videoUrl           String
+  rawVideoUrl        String?
+  audioUrl           String?
+  thumbnailUrl       String?
+  storyboard         String?
+  storyboardRevision Int?
+  createdAt          DateTime @default(now())
+  job                Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, editionNumber])
+  @@unique([jobId, videoUrl])
+  @@index([jobId, createdAt])
 }
 
 model Affiliate {

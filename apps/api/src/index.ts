@@ -14,11 +14,12 @@ import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js
 import { router as browserRoutes } from './routes/browser.js'
 import { router as checkoutRoutes } from './routes/checkout.js'
 import { router as creditRoutes } from './routes/credits.js'
+import { router as editJobRoutes } from './routes/edit-jobs.js'
+import { router as enhanceJobRoutes } from './routes/enhance-jobs.js'
 import { router as jobRoutes } from './routes/jobs.js'
 import { router as newsletterRoutes } from './routes/newsletter.js'
 import { router as pdfJobRoutes } from './routes/pdf-jobs.js'
-import { router as enhanceJobRoutes } from './routes/enhance-jobs.js'
-import { router as editJobRoutes } from './routes/edit-jobs.js'
+import { router as uploadRoutes } from './routes/uploads.js'
 import { router as userRoutes } from './routes/users.js'
 import { router as webhookRoutes } from './routes/webhooks.js'
 
@@ -82,6 +83,7 @@ app.use('/enhance-jobs', enhanceJobRoutes)
 app.use('/edit-jobs', editJobRoutes)
 app.use('/credits', creditRoutes)
 app.use('/users', userRoutes)
+app.use('/uploads', uploadRoutes)
 app.use('/checkout', checkoutRoutes)
 app.use(redirectRouter)
 app.use('/affiliate', affiliateRoutes)

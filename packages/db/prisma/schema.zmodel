@@ -210,6 +210,7 @@ model Job {
 
   userProfile        UserProfile         @relation(fields: [userId], references: [id])
   creditTransactions CreditTransaction[]
+  videoEditions      VideoEdition[]
 
   @@index([userId])
 
@@ -223,7 +224,32 @@ model Job {
   @@allow('all', userId == auth().id)
 }
 
-// ── Affiliate Program ─────────────────────────────────────────────────────────
+// ── Video editions ────────────────────────────────────────────────────────────────────────────
+
+// Every successful storyboard render keeps its own storage URLs and storyboard snapshot.
+model VideoEdition {
+  id                 String   @id @default(cuid())
+  jobId              String
+  editionNumber      Int
+  videoUrl           String
+  rawVideoUrl        String?
+  audioUrl           String?
+  thumbnailUrl       String?
+  storyboard         String?
+  storyboardRevision Int?
+  createdAt          DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, editionNumber])
+  @@unique([jobId, videoUrl])
+  @@index([jobId, createdAt])
+
+  @@deny('all', auth() == null)
+  @@allow('all', job.userId == auth().id)
+}
+
+// ── Affiliate Program ────────────────────────────────────────────────────────────────────────────
 
 // One record per influencer who has joined the affiliate program
 model Affiliate {

@@ -38,6 +38,146 @@ function parseJobPhases(rawPhases: string | null | undefined): {
   return { phases, progress }
 }
 
+function serializeJob(updated: any) {
+  const { phases, progress } = parseJobPhases(updated.phases)
+  return {
+    ...updated,
+    videoUrl: updated.videoUrl ?? undefined,
+    rawVideoUrl: updated.rawVideoUrl ?? undefined,
+    pdfUrl: updated.pdfUrl ?? undefined,
+    audioUrl: updated.audioUrl ?? undefined,
+    thumbnailUrl: updated.thumbnailUrl ?? undefined,
+    status: updated.status as JobStatus,
+    parameters: JSON.parse(updated.parameters),
+    phases,
+    progress,
+  }
+}
+
+export interface VideoEdition {
+  id: string
+  jobId: string
+  editionNumber: number
+  videoUrl: string
+  rawVideoUrl?: string
+  audioUrl?: string
+  thumbnailUrl?: string
+  storyboard?: Record<string, unknown>
+  storyboardRevision?: number
+  createdAt: Date
+}
+
+function serializeVideoEdition(edition: any): VideoEdition {
+  return {
+    ...edition,
+    rawVideoUrl: edition.rawVideoUrl ?? undefined,
+    audioUrl: edition.audioUrl ?? undefined,
+    thumbnailUrl: edition.thumbnailUrl ?? undefined,
+    storyboard: edition.storyboard ? JSON.parse(edition.storyboard) : undefined,
+    storyboardRevision: edition.storyboardRevision ?? undefined,
+  }
+}
+
+export async function saveVideoEdition(input: {
+  jobId: string
+  videoUrl: string
+  rawVideoUrl?: string
+  audioUrl?: string
+  thumbnailUrl?: string
+  storyboard?: Record<string, unknown>
+}): Promise<VideoEdition> {
+  const edition = await prisma.$transaction(async tx => {
+    const existing = await tx.videoEdition.findUnique({
+      where: { jobId_videoUrl: { jobId: input.jobId, videoUrl: input.videoUrl } },
+    })
+    if (existing) return existing
+
+    const latest = await tx.videoEdition.findFirst({
+      where: { jobId: input.jobId },
+      orderBy: { editionNumber: 'desc' },
+      select: { editionNumber: true },
+    })
+    const revision = input.storyboard?.revision
+    return tx.videoEdition.create({
+      data: {
+        jobId: input.jobId,
+        editionNumber: (latest?.editionNumber ?? 0) + 1,
+        videoUrl: input.videoUrl,
+        rawVideoUrl: input.rawVideoUrl,
+        audioUrl: input.audioUrl,
+        thumbnailUrl: input.thumbnailUrl,
+        storyboard: input.storyboard ? JSON.stringify(input.storyboard) : undefined,
+        storyboardRevision: typeof revision === 'number' ? revision : undefined,
+      },
+    })
+  })
+  return serializeVideoEdition(edition)
+}
+
+export async function listVideoEditions(jobId: string): Promise<VideoEdition[]> {
+  const editions = await prisma.videoEdition.findMany({
+    where: { jobId },
+    orderBy: { editionNumber: 'desc' },
+  })
+  return editions.map(serializeVideoEdition)
+}
+
+export async function getVideoEdition(
+  jobId: string,
+  editionId: string,
+): Promise<VideoEdition | null> {
+  const edition = await prisma.videoEdition.findFirst({ where: { id: editionId, jobId } })
+  return edition ? serializeVideoEdition(edition) : null
+}
+
+export async function completeVideoJobWithEdition(
+  id: string,
+  data: {
+    videoUrl: string
+    rawVideoUrl?: string
+    gitHash?: string
+    storyboard: Record<string, unknown>
+  },
+) {
+  const updated = await prisma.$transaction(async tx => {
+    const currentJob = await tx.job.findUniqueOrThrow({ where: { id } })
+    const existing = await tx.videoEdition.findUnique({
+      where: { jobId_videoUrl: { jobId: id, videoUrl: data.videoUrl } },
+    })
+    if (!existing) {
+      const latest = await tx.videoEdition.findFirst({
+        where: { jobId: id },
+        orderBy: { editionNumber: 'desc' },
+        select: { editionNumber: true },
+      })
+      const revision = data.storyboard.revision
+      await tx.videoEdition.create({
+        data: {
+          jobId: id,
+          editionNumber: (latest?.editionNumber ?? 0) + 1,
+          videoUrl: data.videoUrl,
+          rawVideoUrl: data.rawVideoUrl,
+          audioUrl: currentJob.audioUrl,
+          thumbnailUrl: currentJob.thumbnailUrl,
+          storyboard: JSON.stringify(data.storyboard),
+          storyboardRevision: typeof revision === 'number' ? revision : undefined,
+        },
+      })
+    }
+
+    return tx.job.update({
+      where: { id },
+      data: {
+        status: JobStatus.COMPLETED,
+        videoUrl: data.videoUrl,
+        ...(data.rawVideoUrl !== undefined ? { rawVideoUrl: data.rawVideoUrl } : {}),
+        ...(data.gitHash !== undefined ? { gitHash: data.gitHash } : {}),
+      },
+    })
+  })
+  return serializeJob(updated)
+}
+
 export async function updateJob(
   id: string,
   data: {
@@ -47,13 +187,14 @@ export async function updateJob(
     pdfUrl?: string
     audioUrl?: string
     thumbnailUrl?: string
-    phases?: string // raw JSON string from publishPhaseUpdate
-    error?: string
-    workerId?: string
+    phases?: string | null // raw JSON string from publishPhaseUpdate
+    error?: string | null
+    workerId?: string | null
     cost?: number
     gitHash?: string
     rating?: string
     feedback?: string
+    parameters?: Record<string, unknown>
   },
 ) {
   console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined })
@@ -75,6 +216,7 @@ export async function updateJob(
   if (data.rating !== undefined) updateData.rating = data.rating
   if (data.feedback !== undefined) updateData.feedback = data.feedback
   if (data.phases !== undefined) updateData.phases = data.phases
+  if (data.parameters !== undefined) updateData.parameters = JSON.stringify(data.parameters)
 
   // System-level bypass for webhook/worker updates
   const updated = await prisma.job.update({
@@ -82,17 +224,7 @@ export async function updateJob(
     data: updateData,
   })
 
-  const { phases, progress } = parseJobPhases(updated.phases)
-  return {
-    ...updated,
-    videoUrl: updated.videoUrl ?? undefined,
-    audioUrl: updated.audioUrl ?? undefined,
-    thumbnailUrl: (updated as any).thumbnailUrl ?? undefined,
-    status: updated.status as JobStatus,
-    parameters: JSON.parse(updated.parameters),
-    phases,
-    progress,
-  }
+  return serializeJob(updated)
 }
 
 export async function createJob(

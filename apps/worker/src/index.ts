@@ -96,6 +96,10 @@ const lockDuration = 5 * 60 * 1000
 const worker = new Worker(
   QUEUE_NAME,
   async job => {
+    if (job.data?.mode === 'plan') {
+      await processJob(job)
+      return
+    }
     const handle = await acquireOpencode(targetDir)
     try {
       await processJob(job, handle.client)

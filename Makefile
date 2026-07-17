@@ -31,13 +31,13 @@ dev:
 	@echo "  $(BOLD)Development mode$(RESET)"
 	@echo ""
 	@if command -v fzf > /dev/null 2>&1; then \
-		choice=$$(printf "essential — postgres, redis, minio & transcription in Docker; run web/api/worker with bun\nall       — full stack in Docker" \
+		choice=$$(printf "essential — postgres, redis & minio in Docker; run web/api/worker with bun\nall       — full stack in Docker" \
 			| fzf --ansi --no-info --height=4 --prompt="  How do you want to run? " \
 			| awk '{print $$1}'); \
 	else \
 		echo "  $(YELLOW)tip: install fzf for a nicer dropdown (brew install fzf)$(RESET)"; \
 		echo ""; \
-		printf "  [1] essential — postgres, redis, minio & transcription in Docker; run web/api/worker with bun\n"; \
+		printf "  [1] essential — postgres, redis & minio in Docker; run web/api/worker with bun\n"; \
 		printf "  [2] all       — full stack in Docker\n"; \
 		echo ""; \
 		printf "  Choice [1/2]: "; \
@@ -45,13 +45,16 @@ dev:
 		case "$$raw" in 2) choice="all" ;; *) choice="essential" ;; esac; \
 	fi; \
 	echo ""; \
-	case "$$choice" in \
+		case "$$choice" in \
 		essential) \
-			echo "  $(GREEN)Starting essential containers (postgres, redis, minio, transcription)...$(RESET)"; \
-			docker compose -p pitch up -d postgres redis minio transcription; \
+			echo "  $(YELLOW)Cleaning up previous containers and processes...$(RESET)"; \
+			docker compose -p pitch down --remove-orphans 2>/dev/null; \
+			for p in 3000 5173 4098; do \
+				pid=$$(lsof -ti :$$p 2>/dev/null) && kill $$pid 2>/dev/null && echo "  killed process on port $$p" || true; \
+			done; \
 			echo ""; \
-			echo "  $(GREEN)Waiting for services to be healthy...$(RESET)"; \
-			sleep 3; \
+			echo "  $(GREEN)Starting essential containers (postgres, redis, minio)...$(RESET)"; \
+			docker compose -p pitch up -d --wait postgres redis minio; \
 			echo ""; \
 			if [ ! -d node_modules ] || [ bun.lock -nt node_modules ]; then \
 				echo "  $(GREEN)Installing dependencies...$(RESET)"; \

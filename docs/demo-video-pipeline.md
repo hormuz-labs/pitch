@@ -12,18 +12,19 @@ It is a reference for the code in:
 - `apps/worker/src/utils/smart_trim.ts` — dead‑air trimming
 - `apps/worker/src/utils/intro-outro.ts` — intro/outro cards
 - `apps/worker/src/utils/encoder.ts` — GPU/CPU encoder selection
-- `.opencode/tools/demo-generator.ts` + `.opencode/agents/demo-generator.md` — the agent's tools (`demo_zoom_in`, `demo_narrate`, clicks…) and its prompt
+- `.opencode/tools/demo-generator.ts` + `.opencode/agents/demo-generator.md` — the shared event tools and URL/PDF-video prompt
 
 ---
 
 ## 1. Pipeline at a glance
 
 ```
-agent (OpenCode `demo-generator` agent + its scoped tools) drives a Playwright browser
+`demo-generator` + its scoped tools drives Playwright
         │   emits events into recordings/demo-state.json:
         │     • clickEvents  { videoTimeSec, x, y }
         │     • zoomEvents   { type:'in'|'out', videoTimeSec, x, y, zoom }
         │     • audioClips   { filePath, absoluteTimestamp }   (narration + click SFX)
+        │     • annotationEvents { videoTimeSec }              (trim protection)
         ▼
 demo.webm  (1920×1080 screen recording)
         │
@@ -201,7 +202,62 @@ action**, and the matching visual is stamped from the same instant:
   length.
 
 Because audio and the cursor overlay share one timestamp, they stay locked to each
-other regardless of page‑transition latency.
+other regardless of page-transition latency.
+
+## 5c. PDF/image → explanatory video
+
+Asset video jobs stay inside the AI demo-video flow; they do not use the
+PDF-output processor. They use a two-pass state transition on the existing Job
+and video queue:
+
+1. `mode: "plan"` calls `prepareAssets()`, sends each rendered page image to
+   Gemini (at most three pages concurrently), uploads page previews, stores a
+   revisioned storyboard in `Job.parameters`, and changes the job to
+   `AWAITING_REVIEW`. It stops before Playwright, TTS, and ffmpeg.
+2. The existing `/editor/:id` route lets the creator edit per-page narration,
+   inspect/remove Gemini boxes, draw custom page-relative boxes, choose callout
+   styles, preview those effects, and save revisions. Camera zoom is automatically
+   framed from each approved box. The same review stores optional plain intro/outro
+   cards; both are disabled by default for PDF/image videos. Each trigger phrase
+   must occur literally in that scene's narration so the callout can start with the
+   spoken claim.
+3. Approval locks the reviewed revision and requeues the same job as
+   `mode: "render"` without charging again. The normal `demo-generator` and
+   renderer then speak the approved narration exactly and consume its approved
+   page boxes. No separate renderer or job type is introduced.
+
+During preprocessing, `prepareAssets()` still downloads files, renders PDF pages,
+extracts supplementary `pdftotext -bbox` geometry (or Tesseract geometry for
+images), and writes `recordings/assets/<session>/assets.json`. Gemini's rendered
+pixels remain the source for storyboard understanding and grounding; extracted
+text/OCR remain fallback context and geometry.
+
+`demo_build_slideshow` converts manifest regions to transparent ARIA-labelled
+hotspots over every rendered page in manifest order. The active page alone is
+visible/targetable, so a fresh Playwright snapshot can provide fallback refs.
+Each page is responsively fitted to the live recording viewport at its intrinsic
+aspect ratio, without cropping or decorative stage padding; 16:9 pages are
+edge-to-edge and other aspect ratios retain the full page. Recording-only
+navigation, counters, and progress chrome are visually hidden.
+The tool owns an ephemeral localhost HTTP server for the HTML and page images
+because Playwright blocks `file://` navigation; the agent must use the returned
+URL and never improvise a background server. Page transitions are `fade`,
+`slide`, or `zoom`.
+
+Before narrating each page, `demo_analyze_slide` screenshots the visible
+1920×1080 viewport and asks Gemini to understand the rendered pixels. It returns
+a cautious page summary plus up to three confidence-gated narration points with
+`[ymin, xmin, ymax, xmax]` boxes normalized to 0–1000. Results are cached by slide
+index, so scanned PDFs, charts, and image-only pages do not depend on extracted
+text or OCR for narration.
+
+A returned box feeds `demo_narrate.emphasis` directly. `demo_ground_region` uses
+the same rendered-pixel approach to retry a questionable box or locate another
+target. Narration consumes emphasis atomically: it creates the camera event,
+draws the DOM callout (`circle`, `box`, `underline`, `highlighter`, `arrow`,
+`spotlight`, `pulse`, or `bracket`), records an `annotationEvents`
+trim-protection timestamp, and then starts speech. OCR page rectangles and
+current DOM refs are used only when Gemini cannot ground the target reliably.
 
 ---
 
@@ -320,6 +376,12 @@ you can confirm which path ran.
 
 Deliberately minimal — a single still card each, with a gentle fade in/out and silent
 audio (`renderCardClip`). No glow, no motion reveal, no chime.
+
+For regular URL demos, omitting `config.titleCards` keeps the automatic branded
+cards below. Reviewed PDF/image storyboards pass explicit card settings instead:
+both cards default off, either card can be enabled independently, and its exact
+title/subtitle render on the plain white card previewed in the editor. Disabled
+cards are omitted from concat entirely, including their 2.5-second timeline span.
 
 - **Intro** (`generateIntroCard`): `[logo] | [name]` — product logo, a thin vertical
   divider, and the product name, centered. Name‑only if there's no valid logo.

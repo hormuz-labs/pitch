@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useAuth } from '@clerk/react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BackgroundPicker } from '../components/BackgroundPicker'
 import { ContainerTextFlip } from '../components/ContainerTextFlip'
@@ -8,7 +9,9 @@ import { PlaceholdersAndVanishInput } from '../components/PlaceholdersAndVanishI
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/Select'
 import { WaveformScrub } from '../components/WaveformScrub'
 import { useBrowserProfile } from '../hooks/useBrowserProfile'
+import { api } from '../lib/api'
 import { hostOf, isAuthenticatedFor, prettyHost } from '../lib/authOrigins'
+import { CreateModeSelector, type CreationMode } from './CreateModeSelector'
 
 const IconPlay = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -183,11 +186,18 @@ const AI_AGENT_PROMPTS = [
   "Visit the company intranet, click 'HR Portal', navigate to 'Leave Requests', and submit a time-off application.",
 ]
 
+const DOCUMENT_VIDEO_PROMPTS = [
+  'Explain the key findings in this document for a general audience, emphasizing the most important statistics.',
+  'Turn these slides into a concise training video with a clear introduction, step-by-step explanation, and summary.',
+  'Create an executive briefing from this PDF and focus on decisions, risks, and recommended next steps.',
+  'Walk through each page in order and explain the diagrams, charts, and highlighted figures in plain language.',
+]
+
 // ── Create View ───────────────────────────────────────────────────────────────
 interface CreateViewProps {
   isMobile: boolean
-  formValues: Record<string, string>
-  setFormValues: (v: Record<string, string>) => void
+  formValues: Record<string, any>
+  setFormValues: (v: Record<string, any>) => void
   isSubmitting: boolean
   onQueueJob: (values: any) => Promise<void>
 }
@@ -199,6 +209,11 @@ export const CreateView = ({
   onQueueJob,
 }: CreateViewProps) => {
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [creationMode, setCreationMode] = useState<CreationMode | null>(() => {
+    if (formValues.assets?.length) return 'document'
+    if (formValues.url) return 'website'
+    return null
+  })
   const [showAudioPreview, setShowAudioPreview] = useState(false)
   const [headerPairs] = useState<{ key: string; value: string }[]>([])
   const [cookiePairs] = useState<{ key: string; value: string }[]>([])
@@ -206,8 +221,14 @@ export const CreateView = ({
   const { origins, loading: originsLoading } = useBrowserProfile()
   const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null)
   const [showWizard, setShowWizard] = useState(() => shouldShowWizard())
+  const [assets, setAssets] = useState<{ url: string; name: string; type: string; size: number }[]>(
+    () => formValues.assets || [],
+  )
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { getToken } = useAuth()
 
-  const update = (key: string, value: string) => {
+  const update = (key: string, value: any) => {
     setFormValues({ ...formValues, [key]: value })
     if (key === 'audio') setShowAudioPreview(true)
     if (errors[key])
@@ -218,19 +239,53 @@ export const CreateView = ({
       })
   }
 
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const token = await getToken()
+    if (!token) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      for (const file of Array.from(files)) {
+        formData.append('files', file)
+      }
+      const uploaded = await api.postForm<
+        { url: string; name: string; type: string; size: number }[]
+      >('/uploads', token, formData)
+      const nextAssets = [...assets, ...uploaded]
+      setAssets(nextAssets)
+      update('assets', nextAssets)
+    } catch (err: any) {
+      setErrors(e => ({ ...e, assets: err.message || 'Upload failed' }))
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const removeAsset = (index: number) => {
+    const nextAssets = assets.filter((_, i) => i !== index)
+    setAssets(nextAssets)
+    update('assets', nextAssets)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    const url = formValues.url?.trim()
+    const url = creationMode === 'website' ? (formValues.url || '').trim() : ''
 
-    if (!url) {
-      errs.url = 'Please enter a URL'
-    } else {
+    if (creationMode === 'website' && !url) {
+      errs.url = 'Please enter a product URL'
+    } else if (creationMode === 'website') {
       try {
         new URL(url)
       } catch {
         errs.url = 'Please enter a valid URL (e.g. https://example.com)'
       }
+    }
+    if (creationMode === 'document' && assets.length === 0) {
+      errs.assets = 'Please upload at least one PDF or image'
     }
 
     if (!formValues.instructions?.trim()) errs.instructions = 'Please provide instructions'
@@ -250,7 +305,8 @@ export const CreateView = ({
       return
     }
     onQueueJob({
-      url: formValues.url,
+      url: creationMode === 'website' ? formValues.url : undefined,
+      assets: creationMode === 'document' ? assets : [],
       subtitles: formValues.subtitles === 'true',
       theme: formValues.theme || 'light',
       audio: formValues.audio ? formValues.audio.replace('.mp3', '') : '',
@@ -273,9 +329,9 @@ export const CreateView = ({
   const inputError = 'border-red-300 focus:ring-red-200 focus:border-red-400'
 
   return (
-    <div className="p-6 md:p-8 max-w-3xl mx-auto w-full">
+    <div className="mx-auto w-full max-w-5xl p-6 md:p-8">
       {/* ── Spotlight tour overlay (first-time only, fixed position) ───────── */}
-      {showWizard && (
+      {showWizard && creationMode === 'website' && (
         <NewVideoWizard
           formValues={formValues}
           onSetUrl={url => update('url', url)}
@@ -289,21 +345,40 @@ export const CreateView = ({
 
       {/* Page heading */}
       <div className="mb-7">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center flex-wrap gap-1">
-          <span>Generate</span>
-          <ContainerTextFlip
-            words={['cinematic', 'stunning', 'polished', 'engaging', 'premium']}
-            interval={2500}
-          />
-          <span>demos</span>
+        <h1 className="flex flex-wrap items-center gap-1 text-2xl font-bold text-gray-900">
+          {!creationMode ? (
+            <span>What would you like to create?</span>
+          ) : creationMode === 'launch' ? (
+            <span>Launch videos</span>
+          ) : (
+            <>
+              <span>Create a</span>
+              <ContainerTextFlip
+                words={['cinematic', 'stunning', 'polished', 'engaging', 'premium']}
+                interval={2500}
+              />
+              <span>{creationMode === 'website' ? 'website demo' : 'demo from PDFs'}</span>
+            </>
+          )}
         </h1>
-        <p className="text-sm text-gray-500 mt-1.5">
-          Tell the AI agent what to record, and it will craft a production-ready walkthrough.
+        <p className="mt-1.5 text-sm text-gray-500">
+          {!creationMode
+            ? 'Choose a starting point. Each workflow only shows the settings it needs.'
+            : creationMode === 'website'
+              ? 'Tell the AI agent what to demonstrate on your product, and it will record a polished walkthrough.'
+              : creationMode === 'document'
+                ? 'Upload your source material, shape the explanation, and review the storyboard before rendering.'
+                : 'Cinematic product announcements, feature reveals, and release stories are coming soon.'}
         </p>
       </div>
 
-      {/* ── Form (always visible — wizard spotlights fields above it) ──────── */}
-      <div className="w-full">
+      <CreateModeSelector
+        mode={creationMode}
+        onSelect={mode => {
+          setCreationMode(mode)
+          setErrors({})
+        }}
+      >
         <div className="min-w-0">
           <form
             onSubmit={handleSubmit}
@@ -311,34 +386,85 @@ export const CreateView = ({
             id="create-video-form"
           >
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Product URL */}
-              <div>
-                <FieldLabel
-                  required
-                  label="Product URL"
-                  tooltip="The starting point for the AI agent."
-                />
-                <input
-                  id="url-input"
-                  type="url"
-                  className={`${inputBase} ${errors.url ? inputError : ''}`}
-                  placeholder="https://trypitch.co"
-                  value={formValues.url || ''}
-                  onChange={e => update('url', e.target.value)}
-                />
-                {errors.url && <p className="text-xs text-red-500 mt-1">{errors.url}</p>}
-                <AuthAssist
-                  url={formValues.url || ''}
-                  origins={origins}
-                  loading={originsLoading}
-                  dismissedHost={dismissedAuthHost}
-                  onAuthenticate={() => {
-                    const u = (formValues.url || '').trim()
-                    navigate(`/sessions?url=${encodeURIComponent(u)}&from=new`)
-                  }}
-                  onDismiss={() => setDismissedAuthHost(hostOf(formValues.url || ''))}
-                />
-              </div>
+              {creationMode === 'website' ? (
+                <div>
+                  <FieldLabel
+                    required
+                    label="Product URL"
+                    tooltip="The starting point for the browser-recorded walkthrough."
+                  />
+                  <input
+                    id="url-input"
+                    type="url"
+                    className={`${inputBase} ${errors.url ? inputError : ''}`}
+                    placeholder="https://trypitch.co"
+                    value={formValues.url || ''}
+                    onChange={e => update('url', e.target.value)}
+                  />
+                  {errors.url && <p className="mt-1 text-xs text-red-500">{errors.url}</p>}
+                  <AuthAssist
+                    url={formValues.url || ''}
+                    origins={origins}
+                    loading={originsLoading}
+                    dismissedHost={dismissedAuthHost}
+                    onAuthenticate={() => {
+                      const u = (formValues.url || '').trim()
+                      navigate(`/sessions?url=${encodeURIComponent(u)}&from=new`)
+                    }}
+                    onDismiss={() => setDismissedAuthHost(hostOf(formValues.url || ''))}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <FieldLabel
+                    required
+                    label="Source files"
+                    tooltip="Upload the PDFs, slides, or images that should become the video."
+                  />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+                    className="hidden"
+                    onChange={e => handleFiles(e.target.files)}
+                    disabled={uploading || isSubmitting}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || isSubmitting}
+                    className={`w-full rounded-lg border border-dashed px-3.5 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      errors.assets
+                        ? 'border-red-300 bg-red-50/40 text-red-600'
+                        : 'border-gray-300 text-gray-500 hover:border-gray-400 hover:bg-gray-50'
+                    }`}
+                  >
+                    {uploading ? 'Uploading…' : 'Upload PDFs, slides, or images'}
+                  </button>
+                  {errors.assets && <p className="mt-1 text-xs text-red-500">{errors.assets}</p>}
+                  {assets.length > 0 && (
+                    <ul className="mt-2 space-y-1.5">
+                      {assets.map((asset, idx) => (
+                        <li
+                          key={`${asset.url}-${idx}`}
+                          className="flex items-center justify-between rounded-md bg-gray-50 px-2.5 py-1.5 text-xs text-gray-700"
+                        >
+                          <span className="max-w-[200px] truncate sm:max-w-xs">{asset.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeAsset(idx)}
+                            className="ml-2 text-gray-400 hover:text-red-500"
+                            aria-label={`Remove ${asset.name}`}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
               {/* Audio Track — id="audio-select-wrapper" for spotlight */}
               <div id="audio-select-wrapper">
@@ -376,12 +502,22 @@ export const CreateView = ({
             <div id="instructions-wrapper" className="z-10 relative">
               <FieldLabel
                 required
-                label="What should the AI agent do?"
-                tooltip="Provide step-by-step instructions."
+                label={
+                  creationMode === 'website'
+                    ? 'What should the AI agent demonstrate?'
+                    : 'What should viewers learn?'
+                }
+                tooltip={
+                  creationMode === 'website'
+                    ? 'Describe the browser actions and product flow to record.'
+                    : 'Describe the explanation, audience, and important points to emphasize.'
+                }
               />
               <div className={errors.instructions ? 'ring-2 ring-red-300 rounded-xl' : ''}>
                 <PlaceholdersAndVanishInput
-                  placeholders={AI_AGENT_PROMPTS}
+                  placeholders={
+                    creationMode === 'website' ? AI_AGENT_PROMPTS : DOCUMENT_VIDEO_PROMPTS
+                  }
                   onChange={e => update('instructions', e.target.value)}
                   value={formValues.instructions || ''}
                 />
@@ -422,7 +558,8 @@ export const CreateView = ({
                 onInsetChange={v => update('inset', v)}
                 browserHeader={formValues.browserHeader || 'none'}
                 onBrowserHeaderChange={mode => update('browserHeader', mode)}
-                url={formValues.url || ''}
+                url={creationMode === 'website' ? formValues.url || '' : ''}
+                showBrowserHeader={creationMode === 'website'}
               />
             </div>
 
@@ -434,12 +571,16 @@ export const CreateView = ({
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-500 ease-out disabled:opacity-50 flex items-center justify-center gap-2 border-none cursor-pointer bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] text-white hover:[background-position:99%_center] shadow-lg shadow-black/5 disabled:cursor-not-allowed"
             >
               {isSubmitting ? <IconLoader /> : <IconPlay />}
-              {isSubmitting ? 'Queuing…' : 'Generate Demo'}
+              {isSubmitting
+                ? 'Queuing…'
+                : creationMode === 'website'
+                  ? 'Generate Website Demo'
+                  : 'Create Storyboard'}
               {!isSubmitting && <CreditChip amount={3} className="bg-white text-gray-900" />}
             </button>
           </form>
         </div>
-      </div>
+      </CreateModeSelector>
     </div>
   )
 }

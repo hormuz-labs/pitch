@@ -7,7 +7,7 @@ worker processor; they never import from each other.
 
 | Flow | Agent + tools | Worker processor |
 |---|---|---|
-| AI demo video (`/new`) | `.opencode/agents/demo-generator.md` + `.opencode/tools/demo-generator.ts` | `apps/worker/src/job-processor.ts` |
+| AI demo video (`/new`, including PDF/image → video) | `.opencode/agents/demo-generator.md` + `.opencode/tools/demo-generator.ts` | `apps/worker/src/job-processor.ts` |
 | Recording edit (upload) | `.opencode/agents/recording-editor.md` + `.opencode/tools/recording-editor.ts` | `apps/worker/src/edit-job-processor.ts` |
 | PDF / slides | `.opencode/agents/pdf-generator.md` (+ `.opencode/skills/*`) | `apps/worker/src/pdf-job-processor.ts`, `enhance-job-processor.ts` |
 
@@ -19,15 +19,19 @@ Rules:
   `apps/worker/src/utils/` and nowhere else.
 - **Agent tool modules never import worker code or each other.** They communicate
   with the worker only through files in the per-job `recordings/` directory.
+- **PDF/image → video is a variant of the AI demo-video flow, not the PDF-output
+  flow.** `job-processor.ts` prepares `recordings/assets/<session>/assets.json`,
+  stores its path in `demo-config.json`, and uses the normal `demo-generator`;
+  the agent continues to emit `demo-state.json` consumed by the same renderer.
 
 ## Shared contracts (the only coupling between flows)
 
 - **`recordings/demo-state.json`** — written by BOTH the demo-generator and the
   recording-editor tools, with the same schema (`zoomEvents`, `clickEvents`,
   `audioClips`; all times relative to `startTime` from the flow's config file).
-  The `DemoState` interface is duplicated in both tool modules — keep the two
-  copies in sync, and any schema change must update both tools AND the consuming
-  processor in the same commit.
+  Keep those shared fields in sync. Flow-specific fields stay local:
+  `annotationEvents` belongs to demo generation and protects callouts during
+  smart trimming; the recording editor does not emit annotations.
 - **`apps/worker/src/utils/*`** (`zoom-filter`, `cursor-fx`, `smart_trim`,
   `intro-outro`, `encoder`, `background`, `job-guard`) — used by multiple flows.
   Keep them pure (no fs/DB side effects beyond their explicit inputs), keep

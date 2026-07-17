@@ -11,7 +11,7 @@ import {
 import { Upload } from '@aws-sdk/lib-storage'
 import fs from 'fs'
 import path from 'path'
-import type { Readable } from 'stream'
+import { Readable } from 'stream'
 
 const endpoint = process.env.MINIO_ENDPOINT ?? 'http://localhost:9000'
 const bucket = process.env.MINIO_BUCKET ?? 'pitch-videos'
@@ -129,6 +129,67 @@ export async function uploadFile(localPath: string, bucketOverride?: string, pre
         Bucket: targetBucket,
         Key: key,
         Body: fileBuffer,
+        ContentType: contentType,
+      }),
+    )
+  }
+
+  const url = `${publicUrl}/${targetBucket}/${key}`
+  console.log(`[Storage] Upload complete. Public URL: ${url}`)
+  return url
+}
+
+export async function uploadBuffer(
+  buffer: Buffer,
+  filename: string,
+  contentType: string,
+  bucketOverride?: string,
+  prefix?: string,
+) {
+  const targetBucket = bucketOverride ?? bucket
+  const fileSize = buffer.length
+
+  await ensureBucketExists(targetBucket)
+
+  const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const key = prefix ? path.join(prefix, uniqueId, filename) : `${uniqueId}/${filename}`
+
+  console.log(
+    `[Storage] Uploading ${filename} (${formatBytes(fileSize)}) to MinIO bucket "${targetBucket}"...`,
+  )
+
+  if (fileSize > MULTIPART_THRESHOLD) {
+    const stream = new Readable()
+    stream.push(buffer)
+    stream.push(null)
+    const parallelUpload = new Upload({
+      client,
+      params: {
+        Bucket: targetBucket,
+        Key: key,
+        Body: stream,
+        ContentType: contentType,
+      },
+      queueSize: MULTIPART_QUEUE_SIZE,
+      partSize: MULTIPART_PART_SIZE,
+    })
+
+    parallelUpload.on('httpUploadProgress', progress => {
+      if (progress.total) {
+        const pct = Math.round((progress.loaded! / progress.total) * 100)
+        console.log(
+          `[Storage] Upload progress: ${pct}% (${formatBytes(progress.loaded!)} / ${formatBytes(progress.total)})`,
+        )
+      }
+    })
+
+    await parallelUpload.done()
+  } else {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: targetBucket,
+        Key: key,
+        Body: buffer,
         ContentType: contentType,
       }),
     )
