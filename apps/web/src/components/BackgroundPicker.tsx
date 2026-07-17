@@ -28,6 +28,7 @@ export function BackgroundPicker({
   browserHeader,
   onBrowserHeaderChange,
   url,
+  showBrowserHeader = true,
 }: {
   value: string
   onChange: (id: string) => void
@@ -38,6 +39,7 @@ export function BackgroundPicker({
   browserHeader: string
   onBrowserHeaderChange: (mode: string) => void
   url: string
+  showBrowserHeader?: boolean
 }) {
   const selected = value || 'none'
   const isNone = selected === 'none'
@@ -47,7 +49,7 @@ export function BackgroundPicker({
   const previewRadius = SHAPES.find(s => s.id === activeShape)?.previewRadius ?? 10
   const activeInset = Math.max(0.7, Math.min(0.97, Number.parseFloat(inset || '0.87') || 0.87))
   const marginPct = ((1 - activeInset) / 2) * 100
-  const activeHeader = browserHeader || 'none'
+  const activeHeader = showBrowserHeader ? browserHeader || 'none' : 'none'
   const showHeader = activeHeader !== 'none'
   const isHeaderDark = activeHeader === 'dark'
 
@@ -146,25 +148,27 @@ export function BackgroundPicker({
         </div>
 
         {/* Browser header mode */}
-        <div className="space-y-1.5 pt-1">
-          <span className="text-xs font-medium text-gray-500">Browser header</span>
-          <div className="flex items-center gap-2 flex-wrap">
-            {HEADER_MODES.map(m => (
-              <button
-                type="button"
-                key={m.id}
-                onClick={() => onBrowserHeaderChange(m.id)}
-                className={`px-2.5 py-1.5 rounded-lg border text-xs transition ${
-                  activeHeader === m.id
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+        {showBrowserHeader && (
+          <div className="space-y-1.5 pt-1">
+            <span className="text-xs font-medium text-gray-500">Browser header</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {HEADER_MODES.map(m => (
+                <button
+                  type="button"
+                  key={m.id}
+                  onClick={() => onBrowserHeaderChange(m.id)}
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs transition ${
+                    activeHeader === m.id
+                      ? 'border-gray-900 text-gray-900'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Shape + Size — only relevant when framed on a background */}
         {!isNone && (
