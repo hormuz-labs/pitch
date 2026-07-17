@@ -6,7 +6,16 @@ import {
   useClerk,
   useUser,
 } from '@clerk/react'
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import {
+  cloneElement,
+  createContext,
+  isValidElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import {
   BrowserRouter,
   Link,
@@ -22,7 +31,15 @@ import { X } from 'lucide-react'
 import { BiSolidZap } from 'react-icons/bi'
 import tabLogoB from './assets/tabLogoB.svg'
 import { AboutUs } from './components/AboutUs'
+import { AnimatedAdminIcon } from './components/AnimatedAdminIcon'
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon'
+import { AnimatedIcon } from './components/AnimatedIcon'
+import { AnimatedPdfIcon } from './components/AnimatedPdfIcon'
+import { AnimatedSessionsIcon } from './components/AnimatedSessionsIcon'
+import { AnimatedSettingsIcon } from './components/AnimatedSettingsIcon'
+import { AnimatedShareIcon } from './components/AnimatedShareIcon'
+import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
+import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
 import { Blog, BlogPostView } from './components/Blog'
 import { CreditPopover } from './components/CreditPopover'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
@@ -182,66 +199,6 @@ function ToastShell({ children }: { children: React.ReactNode }) {
 
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
-const IconVideo = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polygon points="23 7 16 12 23 17 23 7" />
-    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-  </svg>
-)
-const IconAdmin = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-)
-const IconSessions = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="4" width="18" height="14" rx="2" />
-    <circle cx="12" cy="11" r="2.5" />
-    <path d="M12 13.5V16" />
-  </svg>
-)
-const IconSettings = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-  </svg>
-)
 const IconSearch = () => (
   <svg
     width="15"
@@ -310,37 +267,18 @@ const IconDownload = () => (
     <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 )
-const Share2Icon = () => (
+const IconChevronRight = () => (
   <svg
-    width="15"
-    height="15"
+    width="12"
+    height="12"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="2.5"
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <circle cx="18" cy="5" r="3" />
-    <circle cx="6" cy="12" r="3" />
-    <circle cx="18" cy="19" r="3" />
-    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-  </svg>
-)
-
-const IconSupport = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    <polyline points="9 18 15 12 9 6" />
   </svg>
 )
 
@@ -365,6 +303,101 @@ const NavItem = ({ icon, label, active, onClick }: NavItemProps) => (
     {label}
   </button>
 )
+
+interface NavGroupChild {
+  key: string
+  label: string
+  path: string
+  icon?: React.ReactNode
+}
+interface NavGroupProps {
+  icon: React.ReactNode
+  label: string
+  children: NavGroupChild[]
+  selectedKey: string
+  onNavigate: (path: string) => void
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+}
+const NavGroup = ({
+  icon,
+  label,
+  children,
+  selectedKey,
+  onNavigate,
+  isOpen,
+  onOpenChange,
+}: NavGroupProps) => {
+  const isChildActive = children.some(c => c.key === selectedKey)
+  const isActive = isOpen || isChildActive
+
+  const toggle = () => onOpenChange(!isOpen)
+
+  const animatedIcon = isValidElement<{ active?: boolean }>(icon)
+    ? cloneElement(icon, { active: isActive })
+    : icon
+
+  return (
+    <div className="space-y-1">
+      <button
+        onClick={toggle}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ease-out cursor-pointer border-none outline-none group
+          ${
+            isActive
+              ? 'bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] hover:[background-position:100%_center] text-white shadow-sm'
+              : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent'
+          }`}
+      >
+        <span className="flex items-center gap-2.5">
+          <span
+            className={`transition-colors duration-200 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}
+          >
+            {animatedIcon}
+          </span>
+          {label}
+        </span>
+        <span
+          className={`transition-transform duration-200 ease-out ${isOpen ? 'rotate-90' : ''} ${isActive ? 'text-white/80' : 'text-gray-400'}`}
+        >
+          <IconChevronRight />
+        </span>
+      </button>
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+      >
+        <div className="overflow-hidden">
+          <div className="ml-3.5 pl-3 pr-1 py-1 space-y-0.5 border-l border-gray-200/80">
+            {children.map(child => {
+              const active = child.key === selectedKey
+              return (
+                <button
+                  key={child.key}
+                  onClick={() => onNavigate(child.path)}
+                  className={`w-full flex items-center gap-2 text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer border-none outline-none relative
+                    ${
+                      active
+                        ? 'bg-gray-200 text-gray-900'
+                        : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent hover:translate-x-0.5'
+                    }`}
+                >
+                  {active && (
+                    <span className="absolute -left-[13px] inset-y-0 w-[3px] bg-gray-900 rounded-r-full" />
+                  )}
+                  {child.icon && (
+                    <span className={`shrink-0 ${active ? 'text-gray-700' : 'text-gray-400'}`}>
+                      {child.icon}
+                    </span>
+                  )}
+                  <span className="truncate">{child.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 interface SidebarProps {
@@ -409,6 +442,24 @@ const Sidebar = ({
   const [dragSlide, setDragSlide] = useState<number | null>(null)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
   const [slideMenu, setSlideMenu] = useState<number | null>(null)
+  const [videoOpen, setVideoOpen] = useState(selectedKey === 'create' || selectedKey === 'edit')
+  const [pdfOpen, setPdfOpen] = useState(
+    selectedKey === 'pdf-create' || selectedKey === 'enhance' || selectedKey === 'templates',
+  )
+  const anyGroupOpen = videoOpen || pdfOpen
+  const closeAllGroups = () => {
+    setVideoOpen(false)
+    setPdfOpen(false)
+  }
+
+  useEffect(() => {
+    if (selectedKey === 'create' || selectedKey === 'edit') setVideoOpen(true)
+  }, [selectedKey])
+
+  useEffect(() => {
+    if (selectedKey === 'pdf-create' || selectedKey === 'enhance' || selectedKey === 'templates')
+      setPdfOpen(true)
+  }, [selectedKey])
 
   // Count the element types inside a slide preview (for the per-slide summary)
   const summarizeSlide = (srcDoc?: string): string => {
@@ -505,120 +556,131 @@ const Sidebar = ({
           {(selectedKey !== 'pdfeditor' || (pdfSlides && pdfSlides.length === 0)) && (
             <>
               <NavItem
-                icon={<AnimatedDashboardIcon active={selectedKey === 'dashboard'} />}
+                icon={
+                  <AnimatedDashboardIcon active={selectedKey === 'dashboard' && !anyGroupOpen} />
+                }
                 label="Dashboard"
-                active={selectedKey === 'dashboard'}
-                onClick={() => go('/dashboard')}
+                active={selectedKey === 'dashboard' && !anyGroupOpen}
+                onClick={() => {
+                  closeAllGroups()
+                  go('/dashboard')
+                }}
               />
+              <NavGroup
+                icon={<AnimatedVideoIcon />}
+                label="Video"
+                selectedKey={selectedKey}
+                onNavigate={go}
+                isOpen={videoOpen}
+                onOpenChange={open => {
+                  setVideoOpen(open)
+                  if (open) setPdfOpen(false)
+                }}
+              >
+                {[
+                  {
+                    key: 'create',
+                    label: 'New Video',
+                    path: '/new',
+                    icon: (
+                      <AnimatedIcon active={selectedKey === 'create'} size={13}>
+                        <polygon points="23 7 16 12 23 17 23 7" />
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                      </AnimatedIcon>
+                    ),
+                  },
+                  {
+                    key: 'edit',
+                    label: 'Edit Recording',
+                    path: '/edit',
+                    icon: (
+                      <AnimatedIcon active={selectedKey === 'edit'} size={13}>
+                        <circle cx="6" cy="6" r="3" />
+                        <circle cx="6" cy="18" r="3" />
+                        <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                        <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                        <line x1="8.12" y1="8.12" x2="12" y2="12" />
+                      </AnimatedIcon>
+                    ),
+                  },
+                ]}
+              </NavGroup>
+              <NavGroup
+                icon={<AnimatedPdfIcon />}
+                label="PDF"
+                selectedKey={selectedKey}
+                onNavigate={go}
+                isOpen={pdfOpen}
+                onOpenChange={open => {
+                  setPdfOpen(open)
+                  if (open) setVideoOpen(false)
+                }}
+              >
+                {[
+                  {
+                    key: 'pdf-create',
+                    label: 'New PDF',
+                    path: '/pdf',
+                    icon: (
+                      <AnimatedIcon active={selectedKey === 'pdf-create'} size={13}>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                      </AnimatedIcon>
+                    ),
+                  },
+                  {
+                    key: 'enhance',
+                    label: 'Enhance PDF',
+                    path: '/enhance',
+                    icon: (
+                      <AnimatedIcon active={selectedKey === 'enhance'} size={13}>
+                        <path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.5L12 17.1l-6.2 4.5 2.4-7.5L2 9.6h7.6L12 2z" />
+                      </AnimatedIcon>
+                    ),
+                  },
+                  {
+                    key: 'templates',
+                    label: 'Templates',
+                    path: '/templates',
+                    icon: (
+                      <AnimatedIcon active={selectedKey === 'templates'} size={13}>
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <path d="M3 9h18" />
+                        <path d="M9 21V9" />
+                      </AnimatedIcon>
+                    ),
+                  },
+                ]}
+              </NavGroup>
               <NavItem
-                icon={<IconVideo />}
-                label="New Video"
-                active={selectedKey === 'create'}
-                onClick={() => go('/new')}
-              />
-              <NavItem
-                icon={
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="6" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <line x1="20" y1="4" x2="8.12" y2="15.88" />
-                    <line x1="14.47" y1="14.48" x2="20" y2="20" />
-                    <line x1="8.12" y1="8.12" x2="12" y2="12" />
-                  </svg>
-                }
-                label="Edit Recording"
-                active={selectedKey === 'edit'}
-                onClick={() => go('/edit')}
-              />
-              <NavItem
-                icon={
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                }
-                label="New PDF"
-                active={selectedKey === 'pdf-create'}
-                onClick={() => go('/pdf')}
-              />
-              <NavItem
-                icon={
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.5L12 17.1l-6.2 4.5 2.4-7.5L2 9.6h7.6L12 2z" />
-                  </svg>
-                }
-                label="Enhance PDF"
-                active={selectedKey === 'enhance'}
-                onClick={() => go('/enhance')}
-              />
-              <NavItem
-                icon={
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M3 9h18" />
-                    <path d="M9 21V9" />
-                  </svg>
-                }
-                label="Templates"
-                active={selectedKey === 'templates'}
-                onClick={() => go('/templates')}
-              />
-              <NavItem
-                icon={<Share2Icon />}
+                icon={<AnimatedShareIcon active={selectedKey === 'affiliate' && !anyGroupOpen} />}
                 label="Affiliate"
-                active={selectedKey === 'affiliate'}
-                onClick={() => go('/affiliate')}
+                active={selectedKey === 'affiliate' && !anyGroupOpen}
+                onClick={() => {
+                  closeAllGroups()
+                  go('/affiliate')
+                }}
               />
               <NavItem
-                icon={<IconSessions />}
+                icon={<AnimatedSessionsIcon active={selectedKey === 'sessions' && !anyGroupOpen} />}
                 label="Browser Sessions"
-                active={selectedKey === 'sessions'}
-                onClick={() => go('/sessions')}
+                active={selectedKey === 'sessions' && !anyGroupOpen}
+                onClick={() => {
+                  closeAllGroups()
+                  go('/sessions')
+                }}
               />
               {isAdmin && (
                 <NavItem
-                  icon={<IconAdmin />}
+                  icon={<AnimatedAdminIcon active={selectedKey === 'admin' && !anyGroupOpen} />}
                   label="Admin"
-                  active={selectedKey === 'admin'}
-                  onClick={() => go('/admin')}
+                  active={selectedKey === 'admin' && !anyGroupOpen}
+                  onClick={() => {
+                    closeAllGroups()
+                    go('/admin')
+                  }}
                 />
               )}
             </>
@@ -903,20 +965,24 @@ const Sidebar = ({
         <div className="px-3 pb-3 space-y-1.5">
           {(selectedKey !== 'pdfeditor' || (pdfSlides && pdfSlides.length === 0)) && (
             <NavItem
-              icon={<IconSupport />}
+              icon={<AnimatedSupportIcon active={false} />}
               label="Support"
               active={false}
               onClick={() => {
+                closeAllGroups()
                 window.location.href = 'mailto:support@trypitch.co'
               }}
             />
           )}
           <div className="border-t border-gray-200 my-2 -mx-3" />
           <NavItem
-            icon={<IconSettings />}
+            icon={<AnimatedSettingsIcon active={selectedKey === 'settings' && !anyGroupOpen} />}
             label="Settings"
-            active={selectedKey === 'settings'}
-            onClick={() => go('/settings')}
+            active={selectedKey === 'settings' && !anyGroupOpen}
+            onClick={() => {
+              closeAllGroups()
+              go('/settings')
+            }}
           />
 
           <div className="mb-2 flex items-center gap-2">

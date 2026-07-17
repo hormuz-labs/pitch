@@ -118,4 +118,6 @@ For an **official commercial license**, reach out at [officialtrypitch@gmail.com
   <b>© 2026 Hormuz Labs</b> · Free for personal use · <a href="mailto:officialtrypitch@gmail.com">Commercial license</a>
 </div>
 
+Amen
+
 
