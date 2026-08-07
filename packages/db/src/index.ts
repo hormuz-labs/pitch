@@ -836,3 +836,66 @@ export async function getAffiliateStats(affiliateId: string) {
 }
 
 export * from './browser-profiles.js'
+
+// ── API keys (MCP / programmatic access) ──────────────────────────────────────
+//
+// The full key is only ever shown once at creation time — the DB stores its
+// SHA-256 hash (`keyHash`) and a display `prefix`. `findApiKeyByHash` is the
+// auth bootstrap for the /mcp endpoint, so it deliberately uses the raw client
+// (there is no authenticated user context yet at that point).
+
+export interface ApiKey {
+  id: string
+  userId: string
+  name: string
+  prefix: string
+  lastUsedAt?: Date
+  revokedAt?: Date
+  createdAt: Date
+}
+
+export async function createApiKey(
+  data: { userId: string; name: string; prefix: string; keyHash: string },
+  user?: AuthUser,
+): Promise<ApiKey> {
+  const client = getEnhancedPrisma(user)
+  const created = await client.apiKey.create({ data })
+  return serializeApiKey(created)
+}
+
+export async function listApiKeys(user: AuthUser): Promise<ApiKey[]> {
+  const client = getEnhancedPrisma(user)
+  const keys = await client.apiKey.findMany({ orderBy: { createdAt: 'desc' } })
+  return keys.map(serializeApiKey)
+}
+
+/** Revoke a key by setting revokedAt. Returns null when the key is not found/owned. */
+export async function revokeApiKey(id: string, user: AuthUser): Promise<ApiKey | null> {
+  const client = getEnhancedPrisma(user)
+  const existing = await client.apiKey.findUnique({ where: { id } })
+  if (!existing) return null
+  const updated = await client.apiKey.update({ where: { id }, data: { revokedAt: new Date() } })
+  return serializeApiKey(updated)
+}
+
+/** Raw-client lookup by SHA-256 hash — used by API-key auth before any user context exists. */
+export async function findApiKeyByHash(keyHash: string) {
+  return prisma.apiKey.findUnique({ where: { keyHash } })
+}
+
+/** Fire-and-forget lastUsedAt bump after a successful API-key authentication. */
+export async function touchApiKey(id: string): Promise<void> {
+  await prisma.apiKey.update({ where: { id }, data: { lastUsedAt: new Date() } })
+}
+
+function serializeApiKey(key: any): ApiKey {
+  return {
+    id: key.id,
+    userId: key.userId,
+    name: key.name,
+    prefix: key.prefix,
+    lastUsedAt: key.lastUsedAt ?? undefined,
+    revokedAt: key.revokedAt ?? undefined,
+    createdAt: key.createdAt,
+  }
+}

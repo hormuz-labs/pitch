@@ -6,11 +6,11 @@ import {
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
-  sendDiscordMessage,
   updateVideoStoryboard,
 } from '@saas/shared'
 import { Router } from 'express'
 import { connection, subscriber, videoQueue } from '../config.js'
+import { createDemoVideoJob, InsufficientCreditsError } from '../lib/job-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api')
@@ -39,68 +39,12 @@ router.post('/', async (req, res) => {
   const { parameters } = req.body as { parameters: any }
 
   try {
-    const tenantId = userId
-    const requiresReview = Array.isArray(parameters?.assets) && parameters.assets.length > 0
-    const jobParameters = requiresReview ? { ...parameters, workflowStage: 'PLANNING' } : parameters
-
-    const balance = await db.getCreditBalance(tenantId)
-    if (balance < 3) {
-      logger.warn({ userId, tenantId, balance }, 'Job creation blocked: insufficient credits')
-      return res.status(402).json({ error: 'Insufficient credits', balance })
-    }
-
-    const job = await db.createJob({ userId, parameters: jobParameters }, { id: userId })
-
-    await db.deductCredit(tenantId, 3, 'Video generation', { jobId: job.id })
-
-    try {
-      await videoQueue.add(
-        'generate-video',
-        {
-          jobId: job.id,
-          userId: job.userId,
-          parameters: jobParameters,
-          ...(requiresReview ? { mode: 'plan' } : {}),
-        },
-        { jobId: job.id },
-      )
-      await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
-    } catch (enqueueError: any) {
-      // The DB job + credit deduction above already committed. Without this
-      // rollback, a transient queue/Redis failure here leaves an orphaned
-      // PENDING job that the worker will never pick up and silently keeps
-      // the user's credits spent.
-      logger.error(
-        { err: enqueueError, jobId: job.id, userId },
-        'Failed to enqueue job after creation — rolling back (refund + mark failed)',
-      )
-      await db.updateJob(job.id, {
-        status: JobStatus.FAILED,
-        error: `Failed to queue job: ${enqueueError.message}`,
-      })
-      await db.addCredits(tenantId, 3, 'refund', 'Refund: job failed to enqueue', {
-        jobId: job.id,
-      })
-      throw enqueueError
-    }
-
-    logger.info({ jobId: job.id, userId, tenantId }, 'Job created and queued')
-
-    db.prisma.userProfile
-      .findUnique({ where: { id: userId } })
-      .then(user => {
-        const email = user?.email || userId
-        const url = parameters?.url || 'N/A'
-        const instructions = parameters?.instructions
-          ? `\nPrompt: *${parameters.instructions}*`
-          : ''
-        sendDiscordMessage(
-          `🎬 **New Video Creation Started**\nJob ID: \`${job.id}\`\nUser: ${email}\nURL: ${url}${instructions}`,
-        )
-      })
-      .catch(err => logger.error({ err }, 'Failed to send Discord notification for job creation'))
+    const job = await createDemoVideoJob(userId, parameters)
     res.status(201).json(job)
   } catch (error: any) {
+    if (error instanceof InsufficientCreditsError) {
+      return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
+    }
     logger.error({ err: error, userId }, 'Failed to create job')
     res.status(500).json({ error: error.message })
   }

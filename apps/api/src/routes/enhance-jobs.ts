@@ -1,20 +1,17 @@
 import * as db from '@saas/db'
 import {
   createLogger,
-  ENHANCE_QUEUE_NAME,
   JOB_CANCELLATIONS_CHANNEL,
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
-  sendDiscordMessage,
 } from '@saas/shared'
-import * as storage from '@saas/storage'
-import { Queue } from 'bullmq'
 import { Router } from 'express'
 import multer from 'multer'
 import * as os from 'os'
 import * as path from 'path'
-import { connection } from '../config.js'
+import { connection, enhanceQueue } from '../config.js'
+import { createEnhanceJob, InsufficientCreditsError } from '../lib/job-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api:enhance')
@@ -33,9 +30,6 @@ const upload = multer({
     cb(null, true)
   },
 })
-
-// ── Dedicated BullMQ queue for enhance jobs ───────────────────────────────────
-const enhanceQueue = new Queue(ENHANCE_QUEUE_NAME, { connection: connection as any })
 
 // ── GET / — list all enhance jobs for the authenticated user ─────────────────
 router.get('/', async (req, res) => {
@@ -63,15 +57,6 @@ router.post('/', upload.single('file'), async (req, res) => {
   if (!userId) return
 
   try {
-    const tenantId = userId
-
-    // ── Credit check ─────────────────────────────────────────────────────────
-    const balance = await db.getCreditBalance(tenantId)
-    if (balance < 1) {
-      logger.warn({ userId, tenantId, balance }, 'Enhance job blocked: insufficient credits')
-      return res.status(402).json({ error: 'Insufficient credits', balance })
-    }
-
     // ── Validate uploaded file ────────────────────────────────────────────────
     if (!req.file) {
       return res.status(400).json({ error: 'A PDF or PPTX file is required.' })
@@ -82,59 +67,25 @@ router.post('/', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'mode must be "recreate" or "preserve"' })
     }
 
-    const enhancePrompt: string = req.body?.enhancePrompt || 'Enhance and modernize this presentation.'
+    const enhancePrompt: string =
+      req.body?.enhancePrompt || 'Enhance and modernize this presentation.'
     const slideCount: number | undefined = req.body?.slideCount
       ? parseInt(req.body.slideCount, 10)
       : undefined
 
-    const originalFileName = req.file.originalname
-    const ext = path.extname(originalFileName).toLowerCase()
-
-    // ── Upload input file to GCS ─────────────────────────────────────────────
-    const inputPrefix = `pitch/${userId}/enhance-inputs`
-    logger.info({ originalFileName, ext, userId }, 'Uploading input file to storage')
-    const inputFileUrl = await storage.uploadFile(req.file.path, undefined, inputPrefix)
-    logger.info({ inputFileUrl }, 'Input file uploaded')
-
-    // ── Build job parameters ─────────────────────────────────────────────────
-    const enhanceParams = {
-      jobType: 'enhance',
-      enhanceMode: mode,
+    const job = await createEnhanceJob(userId, {
+      tmpFilePath: req.file.path,
+      originalFileName: req.file.originalname,
+      mode,
       enhancePrompt,
-      inputFileUrl,
-      originalFileName,
-      ...(slideCount ? { slideCount } : {}),
-    }
-
-    // ── Create DB job ────────────────────────────────────────────────────────
-    const job = await db.createJob({ userId, parameters: enhanceParams }, { id: userId })
-
-    // ── Deduct credit ────────────────────────────────────────────────────────
-    await db.deductCredit(tenantId, 1, 'Presentation enhancement', { jobId: job.id })
-
-    // ── Enqueue to dedicated enhance queue ───────────────────────────────────
-    await enhanceQueue.add(
-      'enhance-presentation',
-      { jobId: job.id, userId: job.userId, parameters: enhanceParams },
-      { jobId: job.id },
-    )
-
-    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
-    logger.info({ jobId: job.id, userId, mode }, 'Enhance job created and queued')
-
-    // ── Discord notification (non-blocking) ──────────────────────────────────
-    db.prisma.userProfile
-      .findUnique({ where: { id: userId } })
-      .then(user => {
-        const email = user?.email || userId
-        sendDiscordMessage(
-          `🪄 **Presentation Enhancement Started**\nJob ID: \`${job.id}\`\nUser: ${email}\nMode: *${mode}*\nFile: ${originalFileName}`,
-        )
-      })
-      .catch(err => logger.error({ err }, 'Discord notification failed for enhance job'))
+      slideCount,
+    })
 
     res.status(201).json(job)
   } catch (error: any) {
+    if (error instanceof InsufficientCreditsError) {
+      return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
+    }
     logger.error({ err: error, userId }, 'Failed to create enhance job')
     res.status(500).json({ error: error.message })
   }

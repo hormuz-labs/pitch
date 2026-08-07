@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/backend": "^3.4.14",
     "@clerk/express": "^2.1.12",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@saas/db": "workspace:*",
     "@saas/email": "workspace:*",
     "@saas/shared": "workspace:*",

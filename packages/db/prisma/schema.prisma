@@ -35,6 +35,22 @@ model UserProfile {
   affiliate          Affiliate?
   browserProfile     BrowserProfile?
   browserSessions    BrowserSession[]
+  apiKeys            ApiKey[]
+}
+
+model ApiKey {
+  id          String      @id() @default(cuid())
+  userId      String
+  name        String
+  prefix      String
+  keyHash     String      @unique()
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  userProfile UserProfile @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("PitchApiKey")
 }
 
 model BrowserProfile {

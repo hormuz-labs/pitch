@@ -27,7 +27,7 @@ import {
 } from 'react-router-dom'
 import './index.css'
 import * as ToastPrimitive from '@radix-ui/react-toast'
-import { X } from 'lucide-react'
+import { Key, X } from 'lucide-react'
 import { BiSolidZap } from 'react-icons/bi'
 import tabLogoB from './assets/tabLogoB.svg'
 import { AboutUs } from './components/AboutUs'
@@ -55,6 +55,7 @@ import type { LogEntry, Project } from './types'
 import {
   AdminView,
   AffiliateView,
+  ApiKeysView,
   CheckoutReturnView,
   CreateView,
   DashboardView,
@@ -984,6 +985,15 @@ const Sidebar = ({
               go('/settings')
             }}
           />
+          <NavItem
+            icon={<Key className="w-[18px] h-[18px] shrink-0" />}
+            label="API Keys"
+            active={selectedKey === 'api-keys' && !anyGroupOpen}
+            onClick={() => {
+              closeAllGroups()
+              go('/api-keys')
+            }}
+          />
 
           <div className="mb-2 flex items-center gap-2">
             <button
@@ -1643,6 +1653,8 @@ function AppContent() {
     selectedKey = 'edit'
   } else if (location.pathname.startsWith('/settings')) {
     selectedKey = 'settings'
+  } else if (location.pathname.startsWith('/api-keys')) {
+    selectedKey = 'api-keys'
   } else if (location.pathname.startsWith('/sessions')) {
     selectedKey = 'sessions'
   } else if (location.pathname.startsWith('/admin')) {
@@ -1829,6 +1841,7 @@ function AppContent() {
                 />
                 <Route path="/pricing" element={<PricingView />} />
                 <Route path="/settings" element={<SettingsView />} />
+                <Route path="/api-keys" element={<ApiKeysView />} />
                 <Route path="/sessions" element={<SessionsView />} />
                 <Route path="/affiliate" element={<AffiliateView />} />
                 <Route path="/admin" element={<AdminView />} />

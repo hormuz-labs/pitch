@@ -1,26 +1,21 @@
 import * as db from '@saas/db'
 import {
   createLogger,
-  EDIT_QUEUE_NAME,
   JOB_CANCELLATIONS_CHANNEL,
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
-  sendDiscordMessage,
 } from '@saas/shared'
-import * as storage from '@saas/storage'
-import { Queue } from 'bullmq'
 import { Router } from 'express'
 import multer from 'multer'
 import * as os from 'os'
 import * as path from 'path'
-import { connection } from '../config.js'
+import { connection, editQueue } from '../config.js'
+import { createEditJob, EDIT_CREDIT_COST, InsufficientCreditsError } from '../lib/job-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api:edit')
 export const router = Router()
-
-const EDIT_CREDIT_COST = 2
 
 // ── Multer: accept common screen-recording formats up to 500 MB ──────────────
 const upload = multer({
@@ -30,16 +25,11 @@ const upload = multer({
     const allowed = ['.mp4', '.webm', '.mov', '.mkv', '.avi']
     const ext = path.extname(file.originalname).toLowerCase()
     if (!allowed.includes(ext)) {
-      return cb(
-        new Error(`Unsupported file type: ${ext}. Allowed: ${allowed.join(', ')}`),
-      )
+      return cb(new Error(`Unsupported file type: ${ext}. Allowed: ${allowed.join(', ')}`))
     }
     cb(null, true)
   },
 })
-
-// ── Dedicated BullMQ queue for edit-recording jobs ───────────────────────────
-const editQueue = new Queue(EDIT_QUEUE_NAME, { connection: connection as any })
 
 // ── GET / — list all edit jobs for the authenticated user ────────────────────
 router.get('/', async (req, res) => {
@@ -66,69 +56,23 @@ router.post('/', upload.single('file'), async (req, res) => {
   if (!userId) return
 
   try {
-    const tenantId = userId
-
-    // ── Credit check ─────────────────────────────────────────────────────────
-    const balance = await db.getCreditBalance(tenantId)
-    if (balance < EDIT_CREDIT_COST) {
-      logger.warn({ userId, tenantId, balance }, 'Edit job blocked: insufficient credits')
-      return res.status(402).json({ error: 'Insufficient credits', balance })
-    }
-
     if (!req.file) {
       return res.status(400).json({ error: 'A video file is required.' })
     }
 
-    const originalFileName: string = req.file.originalname
-    const productName: string | undefined = req.body?.productName?.trim() || undefined
-    const productUrl: string | undefined = req.body?.productUrl?.trim() || undefined
-    const instructions: string | undefined = req.body?.instructions?.trim() || undefined
-
-    // ── Upload input file to storage ─────────────────────────────────────────
-    const inputPrefix = `pitch/${userId}/edit-inputs`
-    logger.info({ originalFileName, userId }, 'Uploading recording to storage')
-    const inputFileUrl = await storage.uploadFile(req.file.path, undefined, inputPrefix)
-    logger.info({ inputFileUrl }, 'Recording uploaded')
-
-    // ── Build job parameters ─────────────────────────────────────────────────
-    // `url` mirrors the demo-job parameter so downstream consumers that read
-    // parameters.url (result naming, editor title, notifications) work unchanged.
-    const editParams = {
-      jobType: 'edit-recording',
-      inputFileUrl,
-      originalFileName,
-      ...(productName ? { productName } : {}),
-      ...(productUrl ? { productUrl } : {}),
-      ...(instructions ? { instructions } : {}),
-      url: productUrl || originalFileName,
-    }
-
-    const job = await db.createJob({ userId, parameters: editParams }, { id: userId })
-
-    await db.deductCredit(tenantId, EDIT_CREDIT_COST, 'Recording edit', { jobId: job.id })
-
-    await editQueue.add(
-      'edit-recording',
-      { jobId: job.id, userId: job.userId, parameters: editParams },
-      { jobId: job.id },
-    )
-
-    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
-    logger.info({ jobId: job.id, userId }, 'Edit job created and queued')
-
-    // ── Discord notification (non-blocking) ──────────────────────────────────
-    db.prisma.userProfile
-      .findUnique({ where: { id: userId } })
-      .then(user => {
-        const email = user?.email || userId
-        sendDiscordMessage(
-          `🎞️ **Recording Edit Started**\nJob ID: \`${job.id}\`\nUser: ${email}\nFile: ${originalFileName}`,
-        )
-      })
-      .catch(err => logger.error({ err }, 'Discord notification failed for edit job'))
+    const job = await createEditJob(userId, {
+      tmpFilePath: req.file.path,
+      originalFileName: req.file.originalname,
+      productName: req.body?.productName?.trim() || undefined,
+      productUrl: req.body?.productUrl?.trim() || undefined,
+      instructions: req.body?.instructions?.trim() || undefined,
+    })
 
     res.status(201).json(job)
   } catch (error: any) {
+    if (error instanceof InsufficientCreditsError) {
+      return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
+    }
     logger.error({ err: error, userId }, 'Failed to create edit job')
     res.status(500).json({ error: error.message })
   }
@@ -184,7 +128,9 @@ router.delete('/:id', async (req, res) => {
       let newPhases: PhaseUpdate[] = []
       if (job.phases) {
         newPhases = job.phases.map(p =>
-          p.status === 'running' ? { ...p, status: 'failed', completedAt: new Date().toISOString() } : p,
+          p.status === 'running'
+            ? { ...p, status: 'failed', completedAt: new Date().toISOString() }
+            : p,
         )
       }
 

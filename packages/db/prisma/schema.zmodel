@@ -44,6 +44,35 @@ model UserProfile {
   affiliate          Affiliate?
   browserProfile     BrowserProfile?
   browserSessions    BrowserSession[]
+  apiKeys            ApiKey[]
+}
+
+// ── ApiKey (MCP / programmatic access) ────────────────────────────────────────
+//
+// One row per user-minted API key. The full key is shown once at creation and
+// never stored — only its SHA-256 hash (`keyHash`) and a display `prefix`.
+// Authentication: hash the presented Bearer token and look it up by `keyHash`;
+// reject when `revokedAt` is set.
+//
+// NOTE: mapped to "PitchApiKey" because the shared dev database already has an
+// unrelated "ApiKey" table owned by the launch-videos service.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String                       // Clerk user ID
+  name       String
+  prefix     String                       // first ~12 chars of the key, for display
+  keyHash    String    @unique            // SHA-256 hex of the full key
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  userProfile UserProfile @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("PitchApiKey")
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
 }
 
 // ── BrowserProfile ────────────────────────────────────────────────────────────
