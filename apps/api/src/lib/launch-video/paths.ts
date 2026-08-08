@@ -12,8 +12,8 @@ const __dirname = path.dirname(__filename)
 export const ROOT_DIR = path.resolve(__dirname, '../../../../..')
 export const PROJECTS_DIR = path.join(ROOT_DIR, 'projects')
 export const RENDERS_DIR = path.join(ROOT_DIR, 'renders')
-export const MUSIC_DIR = path.join(ROOT_DIR, 'music')
-export const SFX_DIR = path.join(ROOT_DIR, 'sfx')
+export const MUSIC_DIR = path.join(ROOT_DIR, 'assets', 'music')
+export const SFX_DIR = path.join(ROOT_DIR, 'assets', 'sfx')
 
 /**
  * Per-user namespacing: every project's on-disk name is `<userId>--<name>`

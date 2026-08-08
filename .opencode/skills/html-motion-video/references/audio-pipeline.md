@@ -66,10 +66,12 @@ Rules:
 - `gemini-2.5-pro-preview-tts` = higher quality, slower/pricier — use for the
   final pass if the flash model sounds flat.
 
-## 2. Background music — user's Downloads folder FIRST, then Lyria
+## 2. Background music — shared library FIRST, then Lyria
 
-**Step 1 — check `~/Downloads`.** The user often downloads a chosen music bed
-before or during the build. Prefer it over anything generated:
+**Step 1 — check the shared library `assets/music/`.** The repo keeps curated
+music beds there (and SFX in `assets/sfx/`); the API auto-imports anything the
+user drops into `~/Downloads` into these folders. If the library has nothing
+suitable, check Downloads directly too:
 
 ```bash
 find ~/Downloads -maxdepth 1 \( -iname "*.mp3" -o -iname "*.wav" -o -iname "*.m4a" \) -exec ls -lt {} +
@@ -78,11 +80,12 @@ find ~/Downloads -maxdepth 1 \( -iname "*.mp3" -o -iname "*.wav" -o -iname "*.m4
 Pick the most plausible bed — filenames containing "background"/"music"/a
 genre, recent downloads first; ignore obvious SFX (click, whoosh, pop,
 notification — those belong in §3). Copy it into the project
-(`cp ~/Downloads/<file>.mp3 audio/music.mp3`) and **name the chosen file when
+(`cp assets/music/<file>.mp3 audio/music.mp3`) and **name the chosen file when
 presenting results** so the user can correct the pick.
 
-**Step 2 — only if Downloads has nothing suitable**, generate with Lyria or
-download a royalty-free bed matching the direction.md audio persona.
+**Step 2 — only if the library and Downloads have nothing suitable**, generate
+with Lyria or download a royalty-free bed matching the direction.md audio
+persona.
 
 Lyria RealTime streams instrumental music over a live WebSocket session via the
 `@google/genai` SDK (`npm i @google/genai`). Minimal capture-to-file pattern:
@@ -134,10 +137,11 @@ Practical notes:
 ## 3. Sound effects
 
 Gemini has no dedicated SFX model, so use a small curated kit — 5 files cover
-a whole launch video. **Check `~/Downloads` first** (same find command as §2):
-users often keep `mouse-click.mp3`, `typing.mp3`, `whoosh`, `pop`,
-`notification` files there — copy matches into `audio/sfx/`. Fill gaps from
-Pixabay SFX / freesound.org (CC0 filter):
+a whole launch video. **Check the shared library `assets/sfx/` first** (the
+API auto-imports SFX dropped in `~/Downloads` there; check Downloads directly
+if the library is thin): users often keep `mouse-click.mp3`, `typing.mp3`,
+`whoosh`, `pop`, `notification` files around — copy matches into `audio/sfx/`.
+Fill gaps from Pixabay SFX / freesound.org (CC0 filter):
 
 | File | Used on | Cue |
 |---|---|---|

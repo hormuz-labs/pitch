@@ -124,7 +124,7 @@ router.post('/projects/:name/prompt', async (req, res) => {
       : `Create a new video project under projects/${internal}/ following the html-motion-video skill conventions (renders go to renders/ with the ${internal}- prefix). `
     if (music) {
       system +=
-        `Background music: the user picked "music/${music}" from the shared music library — ` +
+        `Background music: the user picked "assets/music/${music}" from the shared music library — ` +
         `copy it into the project's audio/ folder and use it as the music bed in the mix. `
     }
 

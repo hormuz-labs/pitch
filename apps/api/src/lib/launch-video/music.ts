@@ -38,8 +38,9 @@ function cleanName(base: string): string {
 }
 
 /**
- * Auto-import audio dropped in ~/Downloads: music beds (>=500KB) into music/,
- * short clips into sfx/. Copies (originals stay in Downloads), skips existing.
+ * Auto-import audio dropped in ~/Downloads: music beds (>=500KB) into
+ * assets/music/, short clips into assets/sfx/. Copies (originals stay in
+ * Downloads), skips existing.
  */
 export async function importFromDownloads(): Promise<void> {
   if (!existsSync(DOWNLOADS_DIR)) return
@@ -91,7 +92,7 @@ async function probeDuration(file: string): Promise<number | null> {
   return dur
 }
 
-/** List the background-music library (music/ at repo root). */
+/** List the background-music library (assets/music/). */
 export async function listMusic(): Promise<MusicTrack[]> {
   await importFromDownloads()
   if (!existsSync(MUSIC_DIR)) return []

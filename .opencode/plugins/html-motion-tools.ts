@@ -161,45 +161,63 @@ export const motion_screenshot = tool({
 });
 
 // ---------------------------------------------------------------------------
-// 5. Music / SFX scan (~/Downloads) (Phase 5)
+// 5. Music / SFX scan (assets/ library + ~/Downloads) (Phase 5)
 // ---------------------------------------------------------------------------
+/** Shared audio library roots: assets/music + assets/sfx at the repo root. */
+function libraryRoots(cwd: string): string[] {
+  // CWD is normally the project folder (projects/<name>/, 2 levels below the
+  // repo root); fall back to CWD itself in case the session runs at the root.
+  for (const base of [join(cwd, "..", ".."), cwd]) {
+    if (existsSync(join(base, "assets", "music"))) {
+      return [join(base, "assets", "music"), join(base, "assets", "sfx")];
+    }
+  }
+  return [];
+}
+
 export const motion_find_audio = tool({
   description:
-    "Scan ~/Downloads (and optional dir) for music beds and SFX (.mp3/.wav/.m4a/etc) sorted by " +
-    "recency, so Phase 5 can source a user-dropped bed from Downloads before falling back to " +
-    "generation. Reports paths, sizes, and modification dates.",
+    "Scan the shared audio library (assets/music/ for beds, assets/sfx/ for SFX) and " +
+    "~/Downloads for music beds and SFX (.mp3/.wav/.m4a/etc) sorted by recency, so Phase 5 " +
+    "can source a track from the library before falling back to generation. Pass 'dir' to " +
+    "scan a specific directory instead. Reports paths, sizes, and modification dates.",
   args: {
-    dir: z.string().optional().describe("Directory to scan (default ~/Downloads)"),
+    dir: z.string().optional().describe("Directory to scan (default: assets/music + assets/sfx + ~/Downloads)"),
     max: z.number().int().min(1).optional().describe("Max entries per directory (default 15)"),
   },
   async execute(args, context) {
-    const root = args.dir ?? join(homedir(), "Downloads");
     const max = args.max ?? 15;
-    if (!existsSync(root)) return { output: `Directory not found: ${root}` };
+    const roots = args.dir
+      ? [args.dir]
+      : [...libraryRoots(context.directory), join(homedir(), "Downloads")];
     const found = [];
-    const entries = readdirSync(root).filter((e) => !e.startsWith("."));
-    for (const file of entries.filter((e) => AUDIO_RE.test(e))) {
-      const p = join(root, file);
-      const st = statSync(p);
-      found.push({ p, ms: st.size / 1e6, mtime: st.mtime });
-    }
-    for (const dir of entries.filter((e) => !AUDIO_RE.test(e))) {
-      const dp = join(root, dir);
-      let sub;
-      try { sub = readdirSync(dp); } catch { continue; }
-      for (const f of sub.filter((e) => !e.startsWith(".") && AUDIO_RE.test(e))) {
-        if (found.length >= max) break;
-        const p = join(dp, f);
+    for (const root of roots) {
+      if (!existsSync(root)) continue;
+      const entries = readdirSync(root).filter((e) => !e.startsWith("."));
+      for (const file of entries.filter((e) => AUDIO_RE.test(e))) {
+        const p = join(root, file);
         const st = statSync(p);
         found.push({ p, ms: st.size / 1e6, mtime: st.mtime });
       }
-      if (found.length >= max) break;
+      for (const dir of entries.filter((e) => !AUDIO_RE.test(e))) {
+        const dp = join(root, dir);
+        let sub;
+        try { sub = readdirSync(dp); } catch { continue; }
+        for (const f of sub.filter((e) => !e.startsWith(".") && AUDIO_RE.test(e))) {
+          if (found.length >= max) break;
+          const p = join(dp, f);
+          const st = statSync(p);
+          found.push({ p, ms: st.size / 1e6, mtime: st.mtime });
+        }
+        if (found.length >= max) break;
+      }
     }
-    if (found.length === 0) return { output: `No audio files found under ${root}` };
+    if (found.length === 0) return { output: `No audio files found under ${roots.join(", ")}` };
+    found.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
     const lines = found.map((f) =>
       `${f.p}  [${f.ms.toFixed(1)} MB]  ${f.mtime.toISOString().slice(0, 16).replace("T", " ")}`
     ).join("\n");
-    return { output: `Audio candidates under ${root}:\n${lines}` };
+    return { output: `Audio candidates:\n${lines}` };
   },
 });
 

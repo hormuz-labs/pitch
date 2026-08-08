@@ -28,7 +28,7 @@ evidence is a failure.
 | 2. Storyboard | Scene table: beat, format, VO line + delivery style | Arc & formats follow from direction.md |
 | 3. Voiceover First | All VO clips generated & measured → `js/timing.js` | Scene durations derived from real clip lengths |
 | 4. Build | Multi-file HTML/CSS/GSAP project, scenes sized to VO | Technical invariants hold; no flicker |
-| 5. Music & Mix | Music bed (Downloads-first), SFX, `audio/mix.wav` | Levels verified by measurement |
+| 5. Music & Mix | Music bed (`assets/music/` first), SFX, `audio/mix.wav` | Levels verified by measurement |
 | 6. Render | `renders/<project>-launch.mp4` (shared folder) | Audit passes, duration verified |
 
 Present direction.md + the storyboard to the user in one message, then proceed
@@ -494,8 +494,11 @@ These are correctness rules, independent of style:
 VO clips already exist from Phase 3. Full pipeline detail in
 `references/audio-pipeline.md`. The non-negotiables:
 
-- **Music bed — check `~/Downloads` FIRST.** The user often drops a chosen
-  music track (and SFX like clicks/whooshes) into their Downloads folder:
+- **Music bed — check the shared library FIRST.** The repo keeps curated
+  audio libraries at `assets/music/` (music beds) and `assets/sfx/` (SFX);
+  the API also auto-imports anything the user drops into `~/Downloads` into
+  them, so they're the canonical source. If the library looks thin, check
+  Downloads directly too:
 
   ```bash
   find ~/Downloads -maxdepth 1 \( -iname "*.mp3" -o -iname "*.wav" -o -iname "*.m4a" \) -exec ls -lt {} +
@@ -505,7 +508,7 @@ VO clips already exist from Phase 3. Full pipeline detail in
   whose names say "background"/"music" and recent downloads; say which file
   you picked. Usable SFX there (click, typing, whoosh, pop) get copied into
   `audio/sfx/` the same way. Only fall back to Lyria generation or a
-  royalty-free download when Downloads has nothing suitable.
+  royalty-free download when the library and Downloads have nothing suitable.
 - **Non-overlap check:** scenes were sized to their clips in Phase 3, so
   `clip_start + clip_duration + 0.3s < next_clip_start` should hold by
   construction — verify against the real master timeline labels anyway.
@@ -605,9 +608,9 @@ final ships.
       recipe reused); GSDevTools not loaded in the render build
 - [ ] VO generated FIRST with per-clip `--style`; scene durations derived from
       measured clips via `js/timing.js`; zero overlap verified on the master
-- [ ] Music bed sourced from ~/Downloads when available (file named in the
-      summary); mix levels verified by gap/VO extraction; mix extends past
-      duration
+- [ ] Music bed sourced from `assets/music/` (or ~/Downloads) when available
+      (file named in the summary); mix levels verified by gap/VO extraction;
+      mix extends past duration
 - [ ] Every scene reviewed via segment render before the full draft
 - [ ] Audit passed with zero warnings; rendered with 20-min timeout; duration
       verified with ffprobe; MP4 watched end-to-end
