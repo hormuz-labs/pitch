@@ -73,3 +73,7 @@ actions-runner/
 output.pdf
 pptx/
 qa-renders/
+
+projects/
+renders/
+workdir/

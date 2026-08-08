@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>27 – 3D Camera Rig & Keyframing</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#030305; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00e855; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+#webglCanvas { position:absolute; inset:0; z-index:1; }
+
+/* Dynamic HUD details */
+.hud {
+  position:absolute; inset:0; pointer-events:none; z-index:10;
+  display:flex; justify-content:space-between; padding:40px;
+}
+.hud-box {
+  border:1px solid rgba(0,232,85,0.15); background:rgba(0,0,0,0.4);
+  backdrop-filter:blur(8px); padding:16px; border-radius:8px; font-family:monospace; font-size:12px;
+}
+.hud-box h4 { color:#00e855; margin-bottom:6px; letter-spacing:1px; }
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 27 · 3D Camera Rig & Keyframing</div>
+  <canvas id="webglCanvas"></canvas>
+  
+  <div class="hud">
+    <div class="hud-box" id="hudLeft" style="align-self: flex-start; width: 280px;">
+      <h4>CAMERA COORDINATES</h4>
+      <div>X: <span id="camX">0.00</span></div>
+      <div>Y: <span id="camY">0.00</span></div>
+      <div>Z: <span id="camZ">0.00</span></div>
+      <div style="margin-top:8px;">Target: <span id="camTarg">CORE_HUB</span></div>
+    </div>
+    <div class="hud-box" style="align-self: flex-end; width: 280px;">
+      <h4>RIG telemetry</h4>
+      <div>Tracking: ACTIVE</div>
+      <div>Focus: DYNAMIC</div>
+      <div>Dampening: 0.15</div>
+    </div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+// Create detailed UI texture
+function createCardTexture(num, title, accentColor) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 300;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0a0a0e';
+  ctx.fillRect(0, 0, 512, 300);
+
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(0, 0, 10, 300);
+
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('0' + num, 40, 70);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = accentColor;
+  ctx.fillText('MODULE // SYSTEM_NODE', 110, 45);
+
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.fillText(title, 110, 70);
+
+  // Wireframe lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  for (let i = 0; i < 4; i++) {
+    ctx.strokeRect(40, 110 + i * 40, 430, 24);
+  }
+
+  // Simulated metrics
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '10px monospace';
+  ctx.fillText('IP: 10.0.12.' + (10 * num), 50, 126);
+  ctx.fillText('STATE: OK', 200, 126);
+  ctx.fillText('THREAD: ' + (4 * num) + 'x_CORE', 320, 126);
+
+  ctx.fillText('INPUT_STREAM_SYNC: COMPLETED', 50, 166);
+  ctx.fillText('LATENCY: ' + (12 + num) + 'ms', 320, 166);
+
+  return canvas;
+}
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x030305, 0.04);
+
+const camera = new THREE.PerspectiveCamera(40, 1920 / 1080, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webglCanvas'), antialias: true });
+renderer.setSize(1920, 1080);
+renderer.shadowMap.enabled = true;
+
+// Core glowing hub (spherical central object)
+const coreGeo = new THREE.SphereGeometry(1.5, 32, 32);
+const coreMat = new THREE.MeshBasicMaterial({
+  color: 0x00e855,
+  wireframe: true
+});
+const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+scene.add(coreMesh);
+
+// Floating UI nodes laid out in space (semi-circle arrangement)
+const cardGeo = new THREE.BoxGeometry(3.5, 2.1, 0.05);
+const moduleTitles = ['data intake', 'neural processor', 'vector index', 'api distribution', 'ledger ledger', 'cache layer'];
+const colors = [0x00e855, 0x00f0ff, 0xff007f, 0xbfdbfe, 0xfcc205, 0xa78bfa];
+
+const cards = [];
+for (let i = 0; i < 6; i++) {
+  const angle = (i / 6) * Math.PI * 1.5 - (Math.PI * 0.75); // semi-circle
+  const radius = 6.5;
+  const x = Math.sin(angle) * radius;
+  const z = Math.cos(angle) * radius - 2;
+  const y = (i % 2 === 0 ? 1 : -1) * 0.8;
+
+  const canvasTex = new THREE.CanvasTexture(createCardTexture(i+1, moduleTitles[i], 'rgb(' + (i%2===0 ? '0,232,85' : '0,240,255') + ')'));
+  const mat = new THREE.MeshStandardMaterial({
+    map: canvasTex,
+    roughness: 0.3,
+    metalness: 0.7
+  });
+
+  const mesh = new THREE.Mesh(cardGeo, mat);
+  mesh.position.set(x, y, z);
+  mesh.lookAt(0, 0, 0); // Face the central hub
+  scene.add(mesh);
+  cards.push(mesh);
+}
+
+// Grid helper on floor to show perspective grid
+const gridHelper = new THREE.GridHelper(40, 40, 0x00e855, 0x112211);
+gridHelper.position.y = -3.5;
+scene.add(gridHelper);
+
+// Lights
+const ambient = new THREE.AmbientLight(0xffffff, 0.2);
+scene.add(ambient);
+
+const ptLight = new THREE.PointLight(0x00e855, 8, 15);
+ptLight.position.set(0, 0, 0);
+scene.add(ptLight);
+
+const spotLight = new THREE.SpotLight(0x00f0ff, 5, 25);
+spotLight.position.set(0, 8, 10);
+scene.add(spotLight);
+
+// Camera Look-at Target Proxy
+const cameraTarget = new THREE.Vector3(0, 0, 0);
+
+// Render/Update loop
+function animate() {
+  requestAnimationFrame(animate);
+  
+  // Rotate core slightly
+  coreMesh.rotation.y += 0.005;
+  coreMesh.rotation.x += 0.003;
+
+  // Let camera look at dynamic target
+  camera.lookAt(cameraTarget);
+
+  // Update HUD text
+  document.getElementById('camX').textContent = camera.position.x.toFixed(2);
+  document.getElementById('camY').textContent = camera.position.y.toFixed(2);
+  document.getElementById('camZ').textContent = camera.position.z.toFixed(2);
+
+  renderer.render(scene, camera);
+}
+animate();
+
+function play() {
+  gsap.killTweensOf('*');
+
+  // Initial shot close to Node 1
+  gsap.set(camera.position, { x: -6, y: 1.5, z: 2 });
+  gsap.set(cameraTarget, { x: -4.5, y: 0.8, z: 1.5 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Shot 1: Pan/Swoop around Node 1 & 2 (0s - 3s)
+  tl.to(camera.position, {
+    x: -3,
+    y: -0.5,
+    z: 5,
+    duration: 3.0,
+    ease: 'power2.inOut'
+  }, 0);
+
+  tl.to(cameraTarget, {
+    x: 0,
+    y: 0,
+    z: 0,
+    duration: 3.0,
+    ease: 'power2.inOut'
+  }, 0);
+
+  // Shot 2: Swoop underneath, flying through the center of modules looking up at the Core Hub (3s - 6s)
+  tl.to(camera.position, {
+    x: 0,
+    y: -2.0,
+    z: 4,
+    duration: 3.0,
+    ease: 'power3.inOut'
+  }, 3.0);
+
+  tl.to(cameraTarget, {
+    x: 0,
+    y: 1.0,
+    z: 0,
+    duration: 3.0,
+    ease: 'power3.inOut'
+  }, 3.0);
+
+  // Shot 3: Orbit 180 degrees over the top to the opposite side (6s - 9s)
+  tl.to(camera.position, {
+    x: 5,
+    y: 2.5,
+    z: -1,
+    duration: 3.0,
+    ease: 'power2.inOut'
+  }, 6.0);
+
+  tl.to(cameraTarget, {
+    x: 3.5,
+    y: -0.8,
+    z: -1.5,
+    duration: 3.0,
+    ease: 'power2.inOut'
+  }, 6.0);
+
+  // Shot 4: Pull back to reveal entire spatial topology map (9s - 12s)
+  tl.to(camera.position, {
+    x: 0,
+    y: 6.0,
+    z: 14.0,
+    duration: 3.0,
+    ease: 'power3.inOut'
+  }, 9.0);
+
+  tl.to(cameraTarget, {
+    x: 0,
+    y: 0,
+    z: -2.0,
+    duration: 3.0,
+    ease: 'power3.inOut'
+  }, 9.0);
+
+  tl.to({}, { duration: 0.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

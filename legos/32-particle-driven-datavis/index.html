@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>32 – Particle-Driven Data Visualization</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#050508; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00e855; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+#particleCanvas { position:absolute; inset:0; }
+
+/* Interactive State Labels */
+.state-label {
+  position:absolute; bottom:120px; left:50%; transform:translateX(-50%);
+  font-size:13px; color:rgba(255,255,255,0.3); letter-spacing:4px;
+  text-transform:uppercase; font-family:'Courier New',monospace; text-align:center;
+  z-index:10; pointer-events:none; transition: opacity 0.3s;
+}
+.state-title {
+  font-size:32px; font-weight:800; color:#fff; letter-spacing:1px; margin-top:10px;
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 32 · Particle-Driven Data Visualization</div>
+  <canvas id="particleCanvas"></canvas>
+  
+  <div class="state-label">
+    ACTIVE TOPOLOGY MODE:
+    <div class="state-title" id="stateTitle">Core Database Mesh</div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 1920; canvas.height = 1080;
+
+const CX = 1920 / 2;
+const CY = 1080 / 2;
+const numParticles = 1500;
+const particles = [];
+
+// ── GENERATE PARTICLE STATES ──
+
+// State 1: 3D Sphere distribution
+const spherePoints = [];
+for (let i = 0; i < numParticles; i++) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos((Math.random() * 2) - 1);
+  const r = 240 + Math.random() * 20; // thick shell
+  spherePoints.push({
+    x: r * Math.sin(phi) * Math.cos(theta),
+    y: r * Math.sin(phi) * Math.sin(theta),
+    z: r * Math.cos(phi)
+  });
+}
+
+// State 2: 3D Bar Chart distribution (5 bars)
+const barPoints = [];
+const numBars = 5;
+const barHeights = [100, 220, 160, 320, 260];
+const barWidth = 80;
+const barDepth = 80;
+
+for (let i = 0; i < numParticles; i++) {
+  // Distribute particles evenly among the 5 bars
+  const barIndex = i % numBars;
+  const barHeight = barHeights[barIndex];
+  
+  // Distribute particles randomly inside each bar's volume
+  const bx = (Math.random() - 0.5) * barWidth + (barIndex - (numBars - 1) / 2) * 200;
+  const bz = (Math.random() - 0.5) * barDepth;
+  const by = Math.random() * barHeight - (barHeight / 2) + 50; // shift y
+
+  barPoints.push({ x: bx, y: -by, z: bz });
+}
+
+// State 3: Flowing Neural Streams
+const streamPoints = [];
+for (let i = 0; i < numParticles; i++) {
+  const x = (Math.random() - 0.5) * 1600;
+  const y = (Math.random() - 0.5) * 300;
+  const z = (Math.random() - 0.5) * 150;
+  streamPoints.push({ x, y, z });
+}
+
+// Initialize particles with Sphere coordinates
+for (let i = 0; i < numParticles; i++) {
+  particles.push({
+    x: spherePoints[i].x,
+    y: spherePoints[i].y,
+    z: spherePoints[i].z,
+    cx: spherePoints[i].x, // current coordinates
+    cy: spherePoints[i].y,
+    cz: spherePoints[i].z,
+    r: Math.random() * 2.2 + 0.8,
+    color: '#00e855'
+  });
+}
+
+// 3D rotation angle variables
+let rotX = 0, rotY = 0;
+
+// Render loop
+function draw() {
+  ctx.clearRect(0, 0, 1920, 1080);
+  ctx.fillStyle = '#050508';
+  ctx.fillRect(0, 0, 1920, 1080);
+
+  // Depth-sorting: sort particles by projected Z so closer particles render on top
+  const sorted = [...particles].map(p => {
+    // Apply camera 3D rotation
+    let x = p.cx;
+    let y = p.cy;
+    let z = p.cz;
+
+    // Rotate Y
+    let cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+    let x1 = x * cosY - z * sinY;
+    let z1 = x * sinY + z * cosY;
+
+    // Rotate X
+    let cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+    let y2 = y * cosX - z1 * sinX;
+    let z2 = y * sinX + z1 * cosX;
+
+    // Project 3D onto 2D screen
+    const fov = 800;
+    const distance = 800;
+    const scale = fov / (fov + z2);
+    const screenX = CX + x1 * scale;
+    const screenY = CY + y2 * scale;
+
+    return { screenX, screenY, scale, zDepth: z2, r: p.r, color: p.color };
+  });
+
+  // Sort descending by depth
+  sorted.sort((a, b) => b.zDepth - a.zDepth);
+
+  // Draw particles
+  sorted.forEach(p => {
+    if (p.screenX < 0 || p.screenX > 1920 || p.screenY < 0 || p.screenY > 1080) return;
+    
+    // Size and alpha based on depth scale
+    const size = Math.max(0.5, p.r * p.scale);
+    const alpha = Math.max(0.1, Math.min(1.0, p.scale * 0.75));
+
+    ctx.beginPath();
+    ctx.arc(p.screenX, p.screenY, size, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = alpha;
+    ctx.fill();
+  });
+  
+  ctx.globalAlpha = 1.0;
+
+  // Let core orbit rotate continuously
+  rotY += 0.005;
+  rotX += 0.002;
+
+  requestAnimationFrame(draw);
+}
+draw();
+
+function play() {
+  gsap.killTweensOf('*');
+
+  // Reset particles back to sphere
+  particles.forEach((p, i) => {
+    p.cx = spherePoints[i].x;
+    p.cy = spherePoints[i].y;
+    p.cz = spherePoints[i].z;
+    p.color = '#00e855';
+  });
+  
+  rotX = 0; rotY = 0;
+  document.getElementById('stateTitle').textContent = 'Core Database Mesh';
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // State 1: Hold Sphere rotating gently (0s - 2.5s)
+  tl.to({}, { duration: 2.2 });
+
+  // State 2: Morph to 3D Bar Chart (2.5s - 5.5s)
+  tl.to({}, {
+    duration: 0.1,
+    onStart: () => {
+      document.getElementById('stateTitle').textContent = 'Vector Analytical Pillars';
+    }
+  }, 2.2);
+
+  particles.forEach((p, i) => {
+    tl.to(p, {
+      cx: barPoints[i].x,
+      cy: barPoints[i].y,
+      cz: barPoints[i].z,
+      color: '#00f0ff', // change to neon cyan
+      duration: 2.0,
+      ease: 'power3.inOut'
+    }, 2.2 + Math.random() * 0.4); // staggered individual morphs look incredible!
+  });
+
+  // State 3: Morph to Neural Streams (5.5s - 8.5s)
+  tl.to({}, {
+    duration: 0.1,
+    onStart: () => {
+      document.getElementById('stateTitle').textContent = 'Pipeline Flow Stream';
+    }
+  }, 5.5);
+
+  particles.forEach((p, i) => {
+    tl.to(p, {
+      cx: streamPoints[i].x,
+      cy: streamPoints[i].y,
+      cz: streamPoints[i].z,
+      color: '#ff007f', // change to neon magenta
+      duration: 2.0,
+      ease: 'power3.inOut'
+    }, 5.5 + Math.random() * 0.4);
+  });
+
+  // State 4: Morph back to Sphere (8.5s)
+  tl.to({}, {
+    duration: 0.1,
+    onStart: () => {
+      document.getElementById('stateTitle').textContent = 'Core Database Mesh';
+    }
+  }, 8.5);
+
+  particles.forEach((p, i) => {
+    tl.to(p, {
+      cx: spherePoints[i].x,
+      cy: spherePoints[i].y,
+      cz: spherePoints[i].z,
+      color: '#00e855',
+      duration: 2.0,
+      ease: 'power3.inOut'
+    }, 8.5 + Math.random() * 0.4);
+  });
+
+  tl.to({}, { duration: 0.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

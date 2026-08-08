@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>21 – Animated Infographic Elements</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:32px; padding:60px 80px; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00AA45; letter-spacing:2px;
+  text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:50;
+}
+
+/* Card base */
+.info-card {
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07);
+  border-radius:16px; padding:32px 28px; will-change:opacity,transform;
+  opacity:0;
+}
+
+/* Section title */
+.card-title {
+  font-size:11px; font-weight:600; color:#00AA45; text-transform:uppercase;
+  letter-spacing:3px; font-family:'Courier New',monospace; margin-bottom:24px;
+  display:flex; align-items:center; gap:8px;
+}
+.card-title::before { content:''; display:block; width:24px; height:1px; background:#00AA45; }
+
+/* Progress ring card */
+.ring-card { width:380px; }
+.rings-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.ring-item { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.ring-svg { width:110px; height:110px; transform:rotate(-90deg); }
+.ring-track { fill:none; stroke:rgba(255,255,255,0.06); stroke-width:10; }
+.ring-fill { fill:none; stroke-width:10; stroke-linecap:round; will-change:stroke-dashoffset; }
+.ring-label { text-align:center; }
+.ring-pct { font-size:22px; font-weight:800; }
+.ring-desc { font-size:11px; color:rgba(255,255,255,0.35); letter-spacing:1px; text-transform:uppercase; font-family:'Courier New',monospace; margin-top:2px; }
+
+/* Horizontal bar card */
+.hbar-card { width:440px; }
+.hbar-row { margin-bottom:18px; }
+.hbar-header { display:flex; justify-content:space-between; margin-bottom:7px; }
+.hbar-name { font-size:13px; color:rgba(255,255,255,0.6); }
+.hbar-val { font-size:13px; font-weight:700; color:#00AA45; font-family:'Courier New',monospace; }
+.hbar-track { height:6px; background:rgba(255,255,255,0.06); border-radius:3px; }
+.hbar-fill { height:100%; border-radius:3px; width:0; background:linear-gradient(90deg, #00AA45, rgba(0,170,69,0.5)); will-change:width; }
+
+/* Icon list card */
+.icon-card { width:360px; }
+.icon-item {
+  display:flex; align-items:flex-start; gap:14px; margin-bottom:18px;
+  opacity:0; will-change:opacity,transform;
+}
+.icon-box {
+  width:40px; height:40px; border-radius:10px; flex-shrink:0;
+  background:rgba(0,170,69,0.1); border:1px solid rgba(0,170,69,0.2);
+  display:flex; align-items:center; justify-content:center; font-size:18px;
+}
+.icon-text { }
+.icon-title { font-size:14px; font-weight:600; margin-bottom:3px; }
+.icon-desc { font-size:12px; color:rgba(255,255,255,0.35); line-height:1.4; }
+
+/* Stacked comparison card */
+.compare-card { width:400px; }
+.compare-row { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.cmp-label { font-size:12px; color:rgba(255,255,255,0.4); width:70px; flex-shrink:0; text-align:right; font-family:'Courier New',monospace; }
+.cmp-track { flex:1; height:24px; background:rgba(255,255,255,0.04); border-radius:6px; overflow:hidden; }
+.cmp-fill { height:100%; border-radius:6px; width:0; display:flex; align-items:center; padding-left:10px; font-size:11px; font-weight:700; font-family:'Courier New',monospace; will-change:width; }
+.cmp-a { background:linear-gradient(90deg, #00AA45, rgba(0,170,69,0.6)); color:#000; }
+.cmp-b { background:linear-gradient(90deg, rgba(255,255,255,0.15), rgba(255,255,255,0.08)); color:rgba(255,255,255,0.5); }
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 21 · Animated Infographic Elements</div>
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, rgba(0,170,69,0.03) 0%, transparent 65%);"></div>
+
+  <!-- Card 1: Progress rings -->
+  <div class="info-card ring-card" id="card1">
+    <div class="card-title">Performance KPIs</div>
+    <div class="rings-grid">
+      <div class="ring-item">
+        <svg class="ring-svg" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle class="ring-fill" id="ring1" cx="55" cy="55" r="45" stroke="#00AA45"
+            stroke-dasharray="283" stroke-dashoffset="283"/>
+        </svg>
+        <div class="ring-label">
+          <div class="ring-pct" id="rpct1" style="color:#00AA45;">0%</div>
+          <div class="ring-desc">Uptime</div>
+        </div>
+      </div>
+      <div class="ring-item">
+        <svg class="ring-svg" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle class="ring-fill" id="ring2" cx="55" cy="55" r="45" stroke="#219653"
+            stroke-dasharray="283" stroke-dashoffset="283"/>
+        </svg>
+        <div class="ring-label">
+          <div class="ring-pct" id="rpct2" style="color:#219653;">0%</div>
+          <div class="ring-desc">Accuracy</div>
+        </div>
+      </div>
+      <div class="ring-item">
+        <svg class="ring-svg" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle class="ring-fill" id="ring3" cx="55" cy="55" r="45" stroke="rgba(0,170,69,0.6)"
+            stroke-dasharray="283" stroke-dashoffset="283"/>
+        </svg>
+        <div class="ring-label">
+          <div class="ring-pct" id="rpct3" style="color:rgba(0,170,69,0.6);">0%</div>
+          <div class="ring-desc">Satisfaction</div>
+        </div>
+      </div>
+      <div class="ring-item">
+        <svg class="ring-svg" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle class="ring-fill" id="ring4" cx="55" cy="55" r="45" stroke="#56CCF2"
+            stroke-dasharray="283" stroke-dashoffset="283"/>
+        </svg>
+        <div class="ring-label">
+          <div class="ring-pct" id="rpct4" style="color:#56CCF2;">0%</div>
+          <div class="ring-desc">Adoption</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Horizontal bars -->
+  <div class="info-card hbar-card" id="card2">
+    <div class="card-title">Feature Adoption</div>
+    <div class="hbar-row"><div class="hbar-header"><span class="hbar-name">Workflow Builder</span><span class="hbar-val" id="hv1">0%</span></div><div class="hbar-track"><div class="hbar-fill" id="hb1"></div></div></div>
+    <div class="hbar-row"><div class="hbar-header"><span class="hbar-name">AI Inference</span><span class="hbar-val" id="hv2">0%</span></div><div class="hbar-track"><div class="hbar-fill" id="hb2"></div></div></div>
+    <div class="hbar-row"><div class="hbar-header"><span class="hbar-name">API Connect</span><span class="hbar-val" id="hv3">0%</span></div><div class="hbar-track"><div class="hbar-fill" id="hb3"></div></div></div>
+    <div class="hbar-row"><div class="hbar-header"><span class="hbar-name">Live Dashboard</span><span class="hbar-val" id="hv4">0%</span></div><div class="hbar-track"><div class="hbar-fill" id="hb4"></div></div></div>
+    <div class="hbar-row"><div class="hbar-header"><span class="hbar-name">Audit Logs</span><span class="hbar-val" id="hv5">0%</span></div><div class="hbar-track"><div class="hbar-fill" id="hb5"></div></div></div>
+    <div class="hbar-row"><div class="hbar-header"><span class="hbar-name">SSO / SAML</span><span class="hbar-val" id="hv6">0%</span></div><div class="hbar-track"><div class="hbar-fill" id="hb6"></div></div></div>
+  </div>
+
+  <!-- Card 3: Icon list -->
+  <div class="info-card icon-card" id="card3">
+    <div class="card-title">What's Included</div>
+    <div class="icon-item" id="ii1"><div class="icon-box">⚡</div><div class="icon-text"><div class="icon-title">Unlimited Workflows</div><div class="icon-desc">Automate any process with no execution caps or throttling limits.</div></div></div>
+    <div class="icon-item" id="ii2"><div class="icon-box">🧠</div><div class="icon-text"><div class="icon-title">AI-Powered Steps</div><div class="icon-desc">Embed inference, classification, and generation into any workflow node.</div></div></div>
+    <div class="icon-item" id="ii3"><div class="icon-box">🔗</div><div class="icon-text"><div class="icon-title">300+ Integrations</div><div class="icon-desc">Pre-built connectors for SaaS, databases, APIs, and communication tools.</div></div></div>
+    <div class="icon-item" id="ii4"><div class="icon-box">🛡</div><div class="icon-text"><div class="icon-title">Enterprise Security</div><div class="icon-desc">SOC2, SSO, audit logging, and role-based access control built in.</div></div></div>
+  </div>
+
+  <!-- Card 4: Comparison -->
+  <div class="info-card compare-card" id="card4">
+    <div class="card-title">NexaFlow vs Legacy</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.25);font-family:'Courier New',monospace;letter-spacing:1px;margin-bottom:20px;">SETUP TIME · COST · ERROR RATE · SCALE</div>
+    <div class="compare-row">
+      <div class="cmp-label">Setup</div>
+      <div class="cmp-track"><div class="cmp-fill cmp-a" id="ca1">5 min</div></div>
+    </div>
+    <div class="compare-row">
+      <div class="cmp-label"></div>
+      <div class="cmp-track"><div class="cmp-fill cmp-b" id="cb1">3 weeks</div></div>
+    </div>
+    <div class="compare-row" style="margin-top:12px;">
+      <div class="cmp-label">Cost</div>
+      <div class="cmp-track"><div class="cmp-fill cmp-a" id="ca2">$99/mo</div></div>
+    </div>
+    <div class="compare-row">
+      <div class="cmp-label"></div>
+      <div class="cmp-track"><div class="cmp-fill cmp-b" id="cb2">$4,200/mo</div></div>
+    </div>
+    <div class="compare-row" style="margin-top:12px;">
+      <div class="cmp-label">Errors</div>
+      <div class="cmp-track"><div class="cmp-fill cmp-a" id="ca3">0.02%</div></div>
+    </div>
+    <div class="compare-row">
+      <div class="cmp-label"></div>
+      <div class="cmp-track"><div class="cmp-fill cmp-b" id="cb3">8.4%</div></div>
+    </div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+function animRing(ringId, pctId, target, color, circumference, tl, at) {
+  const ring = document.getElementById(ringId);
+  const pctEl = document.getElementById(pctId);
+  const dashoffset = circumference * (1 - target / 100);
+  const obj = { v: 0 };
+  tl.to(obj, {
+    v: target, duration: 1.2, ease: 'power2.out',
+    onUpdate: () => {
+      const off = circumference * (1 - obj.v / 100);
+      ring.setAttribute('stroke-dashoffset', off);
+      pctEl.textContent = Math.round(obj.v) + '%';
+    }
+  }, at);
+}
+
+function animBar(fillId, valId, target, tl, at) {
+  const fill = document.getElementById(fillId);
+  const val = document.getElementById(valId);
+  const obj = { v: 0 };
+  tl.to(obj, {
+    v: target, duration: 0.8, ease: 'power2.out',
+    onUpdate: () => {
+      fill.style.width = obj.v + '%';
+      val.textContent = Math.round(obj.v) + '%';
+    }
+  }, at);
+}
+
+function play() {
+  gsap.killTweensOf('*');
+
+  gsap.set('.info-card', { opacity:0, y:30 });
+  gsap.set('.ring-fill', { strokeDashoffset:283 });
+  gsap.set('.hbar-fill', { width:'0%' });
+  gsap.set(['.icon-item','.cmp-fill'], { opacity:0, x:-10 });
+  gsap.set('.cmp-fill', { width:'0%' });
+  document.querySelectorAll('.ring-pct').forEach(el => el.textContent = '0%');
+  document.querySelectorAll('.hbar-val').forEach(el => el.textContent = '0%');
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Cards entrance
+  tl.to('#card1', { opacity:1, y:0, duration:0.5, ease:'power3.out' }, 0.2);
+  tl.to('#card2', { opacity:1, y:0, duration:0.5, ease:'power3.out' }, 0.4);
+  tl.to('#card3', { opacity:1, y:0, duration:0.5, ease:'power3.out' }, 0.6);
+  tl.to('#card4', { opacity:1, y:0, duration:0.5, ease:'power3.out' }, 0.8);
+
+  // Rings
+  const C = 283;
+  animRing('ring1', 'rpct1', 99.9, '#00AA45', C, tl, 0.8);
+  animRing('ring2', 'rpct2', 97, '#219653', C, tl, 1.0);
+  animRing('ring3', 'rpct3', 94, 'rgba(0,170,69,0.6)', C, tl, 1.2);
+  animRing('ring4', 'rpct4', 88, '#56CCF2', C, tl, 1.4);
+
+  // Bars
+  const barData = [91, 78, 85, 73, 60, 55];
+  barData.forEach((v, i) => {
+    animBar('hb' + (i+1), 'hv' + (i+1), v, tl, 0.9 + i * 0.12);
+  });
+
+  // Icon items stagger
+  tl.to('#ii1', { opacity:1, x:0, duration:0.4, ease:'power3.out' }, 1.0);
+  tl.to('#ii2', { opacity:1, x:0, duration:0.4, ease:'power3.out' }, 1.2);
+  tl.to('#ii3', { opacity:1, x:0, duration:0.4, ease:'power3.out' }, 1.4);
+  tl.to('#ii4', { opacity:1, x:0, duration:0.4, ease:'power3.out' }, 1.6);
+
+  // Comparison bars – NexaFlow
+  tl.to('#ca1', { width:'12%', opacity:1, x:0, duration:0.6, ease:'power2.out' }, 1.4);
+  tl.to('#cb1', { width:'72%', opacity:1, x:0, duration:0.8, ease:'power2.out' }, 1.5);
+  tl.to('#ca2', { width:'8%', opacity:1, x:0, duration:0.6, ease:'power2.out' }, 1.8);
+  tl.to('#cb2', { width:'65%', opacity:1, x:0, duration:0.8, ease:'power2.out' }, 1.9);
+  tl.to('#ca3', { width:'5%', opacity:1, x:0, duration:0.5, ease:'power2.out' }, 2.2);
+  tl.to('#cb3', { width:'55%', opacity:1, x:0, duration:0.7, ease:'power2.out' }, 2.3);
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

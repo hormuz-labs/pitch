@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>29 – Advanced 3D Transitions</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#08080c; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; perspective:1500px; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00e855; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+/* 3D Showcase Cube Wrapper */
+.cube-wrapper {
+  width: 1000px;
+  height: 600px;
+  transform-style: preserve-3d;
+  position: relative;
+  will-change: transform;
+}
+
+/* Scene Panels (Faces of the transition cube) */
+.scene-card {
+  position: absolute;
+  width: 1000px;
+  height: 600px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  backface-visibility: hidden;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+}
+
+.scene-1 {
+  background: linear-gradient(135deg, #0e1710, #0a0e0b);
+  border-color: rgba(0, 232, 85, 0.2);
+  transform: translateZ(300px); /* Front Face */
+}
+
+.scene-2 {
+  background: linear-gradient(135deg, #10121a, #0b0c10);
+  border-color: rgba(0, 240, 255, 0.2);
+  transform: rotateY(90deg) translateZ(300px); /* Side Face */
+}
+
+/* Internal Layouts */
+.badge {
+  align-self: flex-start;
+  padding: 6px 16px; border-radius: 20px;
+  font-size: 11px; font-family: monospace; letter-spacing: 2px;
+}
+.badge-1 { background: rgba(0,232,85,0.1); border: 1px solid rgba(0,232,85,0.3); color: #00e855; }
+.badge-2 { background: rgba(0,240,255,0.1); border: 1px solid rgba(0,240,255,0.3); color: #00f0ff; }
+
+.main-content h2 { font-size: 56px; font-weight: 800; line-height: 1.1; margin-bottom: 12px; }
+.main-content p { font-size: 16px; color: rgba(255,255,255,0.4); max-width: 500px; }
+
+.chart-strip { display: flex; gap: 8px; height: 160px; align-items: flex-end; }
+.chart-bar { flex: 1; border-radius: 4px; background: rgba(255,255,255,0.05); overflow: hidden; position: relative; }
+.chart-bar-fill { position: absolute; bottom: 0; left: 0; right: 0; background: #00e855; height: 0%; }
+
+/* Grid of WipeDots transition layer */
+.wipedots-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  pointer-events: none;
+  z-index: 10;
+}
+.dot-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+.dot-element {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: #00e855;
+  transform: scale(0);
+  will-change: transform;
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 29 · Advanced 3D Transitions</div>
+
+  <!-- WipeDots overlay -->
+  <div class="wipedots-grid" id="wipeDotsGrid"></div>
+
+  <!-- 3D Card Cube -->
+  <div class="cube-wrapper" id="cubeWrapper">
+    
+    <!-- Scene 1: Developers -->
+    <div class="scene-card scene-1" id="scene1">
+      <div class="badge badge-1">PHASE_01 // CODESPACE</div>
+      <div class="main-content">
+        <h2>Unmatched Developer Velocity.</h2>
+        <p>Run code instantly in a fully isolated sandbox environment without configuring cold starts.</p>
+      </div>
+      <div class="chart-strip">
+        <div class="chart-bar"><div class="chart-bar-fill" style="height:40%"></div></div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="height:65%"></div></div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="height:50%"></div></div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="height:90%"></div></div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="height:75%"></div></div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="height:95%"></div></div>
+      </div>
+    </div>
+
+    <!-- Scene 2: Analytics -->
+    <div class="scene-card scene-2" id="scene2">
+      <div class="badge badge-2">PHASE_02 // SYSTEM_METRICS</div>
+      <div class="main-content">
+        <h2>Infinite Scalability.</h2>
+        <p>Monitor millions of concurrent connections globally with single-digit millisecond latency.</p>
+      </div>
+      <div class="chart-strip" style="justify-content:space-between; align-items: center;">
+        <div style="font-size: 80px; font-weight: 800; color: #00f0ff;">99.999%</div>
+        <div style="font-size: 20px; font-family:monospace; color: rgba(255,255,255,0.3); text-align:right;">Global Uptime SLAs guaranteed</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+// Generate WipeDots tiles (16x10 grid)
+const grid = document.getElementById('wipeDotsGrid');
+const dots = [];
+const cols = 16;
+const rows = 10;
+
+for (let r = 0; r < rows; r++) {
+  for (let c = 0; c < cols; c++) {
+    const tile = document.createElement('div');
+    tile.className = 'dot-tile';
+    
+    const d = document.createElement('div');
+    d.className = 'dot-element';
+    // Diagonal distance for staggering
+    d.dataset.dist = r + c;
+    
+    tile.appendChild(d);
+    grid.appendChild(tile);
+    dots.push(d);
+  }
+}
+
+function play() {
+  gsap.killTweensOf('*');
+
+  // Reset cube angles and colors
+  gsap.set('#cubeWrapper', { rotateY: 0, rotateX: 0 });
+  gsap.set(dots, { scale: 0, backgroundColor: '#00e855' });
+  gsap.set('.chart-bar-fill', { height: '0%' });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Start Phase 1 content
+  tl.to('.scene-1 .chart-bar-fill', {
+    height: (i, el) => el.style.height,
+    duration: 1.2,
+    stagger: 0.1,
+    ease: 'power2.out'
+  }, 0.5);
+
+  // ── Transition Trigger (3.0s - 5.5s)
+  // Step 1: Sapphire WipeDots scale UP to cover screen
+  tl.to(dots, {
+    scale: 1.6,
+    duration: 1.2,
+    stagger: {
+      each: 0.04,
+      grid: [rows, cols],
+      from: 'start'
+    },
+    ease: 'power2.inOut'
+  }, 2.5);
+
+  // Step 2: Swap the 3D Cube face underneath the dots cover (at 3.1s)
+  tl.to('#cubeWrapper', {
+    rotateY: -90,
+    duration: 1.8,
+    ease: 'power3.inOut'
+  }, 2.7);
+
+  // Change dot color to match Scene 2 theme (cyan) midway
+  tl.to(dots, {
+    backgroundColor: '#00f0ff',
+    duration: 0.2,
+    stagger: {
+      each: 0.04,
+      grid: [rows, cols],
+      from: 'start'
+    }
+  }, 3.1);
+
+  // Step 3: Sapphire WipeDots scale BACK DOWN to reveal Scene 2
+  tl.to(dots, {
+    scale: 0,
+    duration: 1.2,
+    stagger: {
+      each: 0.04,
+      grid: [rows, cols],
+      from: 'start'
+    },
+    ease: 'power2.inOut'
+  }, 3.8);
+
+  tl.to({}, { duration: 0.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

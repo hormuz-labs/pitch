@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>65 – Drone Follow</title>
+<style>
+:root { --bg:#0a0612; --map:#0c0a1a; --accent:#a78bfa; --accent-2:#7c3aed; --route-glow:rgba(124,58,237,0.7); --grid:rgba(124,58,237,0.07); }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; perspective:1400px; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.5; z-index:100; }
+
+/* the ground plane is tilted away from camera (drone looking down & forward) and is
+   much larger than the frame so the lateral follow never exposes an edge. */
+.world { position:absolute; top:50%; left:50%; width:3600px; height:3000px; margin:-1500px 0 0 -1800px;
+  transform-style:preserve-3d; will-change:transform; }
+.plane { position:absolute; inset:0; transform:rotateX(58deg); transform-style:preserve-3d;
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 40%, #1a1233, var(--map) 70%);
+  background-size:90px 90px, 90px 90px, 100% 100%; }
+.blocks { position:absolute; inset:0; }
+.block { position:absolute; border-radius:8px; background:rgba(167,139,250,0.06); border:1px solid rgba(167,139,250,0.10); }
+
+.routeSvg { position:absolute; inset:0; }
+.route-bg { fill:none; stroke:rgba(124,58,237,0.18); stroke-width:14; stroke-linecap:round; }
+.route { fill:none; stroke:var(--accent-2); stroke-width:14; stroke-linecap:round; filter:drop-shadow(0 0 16px var(--route-glow)); }
+
+.truck { position:absolute; width:90px; height:90px; margin:-45px 0 0 -45px; display:flex; align-items:center; justify-content:center;
+  font-size:52px; background:#fff; border-radius:22px; box-shadow:0 14px 40px rgba(0,0,0,0.6); }
+
+.haze { position:absolute; inset:0; z-index:5; pointer-events:none; background:linear-gradient(rgba(10,6,18,0.0) 50%, rgba(10,6,18,0.6) 100%), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%); }
+
+.hud { position:absolute; z-index:6; left:60px; bottom:90px; padding:16px 20px; border-radius:14px;
+  background:rgba(20,14,38,0.8); border:1px solid rgba(167,139,250,0.3); backdrop-filter:blur(14px); opacity:0; }
+.hud .t { font-size:12px; color:var(--accent); letter-spacing:1px; text-transform:uppercase; }
+.hud .v { font-size:24px; font-weight:700; margin-top:4px; }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid var(--accent);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label" id="label"></div>
+
+  <div class="world" id="world">
+    <div class="plane">
+      <div class="blocks" id="blocks"></div>
+      <svg class="routeSvg" viewBox="0 0 3600 3000" preserveAspectRatio="none">
+        <path class="route-bg" id="routeBg" d="M 1000 2150 C 1450 2150 1500 1800 1900 1750 S 2500 1500 2750 1350" />
+        <path class="route" id="route" d="M 1000 2150 C 1450 2150 1500 1800 1900 1750 S 2500 1500 2750 1350" pathLength="1"/>
+      </svg>
+      <div class="truck" id="truck">🚛</div>
+    </div>
+  </div>
+
+  <div class="haze"></div>
+  <div class="hud" id="hud"><div class="t" id="hudT"></div><div class="v" id="hudV"></div></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════ EDIT EVERYTHING HERE ════════════════ */
+const CONFIG = {
+  label: 'Lego 65 · Drone Follow',
+  truckIcon: '🚛',
+  hudTitle: 'Unit 7 · Route 3',
+  hudValue: 'tracking · 42 km/h',
+  flightDuration: 6.0,   // seconds the drone trails the vehicle
+  colors: { bg:'#0a0612', map:'#0c0a1a', accent:'#a78bfa', accent2:'#7c3aed',
+            routeGlow:'rgba(124,58,237,0.7)', grid:'rgba(124,58,237,0.07)' }
+};
+/* ═══════════════════════════════════════════════════════ */
+
+const C = CONFIG.colors, _r = document.documentElement.style;
+_r.setProperty('--bg', C.bg); _r.setProperty('--map', C.map);
+_r.setProperty('--accent', C.accent); _r.setProperty('--accent-2', C.accent2);
+_r.setProperty('--route-glow', C.routeGlow); _r.setProperty('--grid', C.grid);
+document.getElementById('label').textContent = CONFIG.label;
+document.getElementById('truck').textContent = CONFIG.truckIcon;
+document.getElementById('hudT').textContent = CONFIG.hudTitle;
+document.getElementById('hudV').textContent = CONFIG.hudValue;
+
+// scatter buildings on the plane (within the 3600×3000 plane)
+const blocks = document.getElementById('blocks');
+for (let i = 0; i < 60; i++) {
+  const b = document.createElement('div'); b.className = 'block';
+  const w = 90 + Math.random() * 220, h = 90 + Math.random() * 200;
+  b.style.width = w + 'px'; b.style.height = h + 'px';
+  b.style.left = Math.random() * (3600 - w) + 'px'; b.style.top = Math.random() * (3000 - h) + 'px';
+  blocks.appendChild(b);
+}
+
+const route = document.getElementById('route');
+const truck = document.getElementById('truck');
+const len = route.getTotalLength();
+
+function play() {
+  gsap.killTweensOf('*');
+  gsap.set('#route', { strokeDasharray: 1, strokeDashoffset: 1 });
+  gsap.set('#hud', { opacity: 0, y: 16 });
+  const p0 = route.getPointAtLength(0);
+  gsap.set(truck, { left: p0.x, top: p0.y });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // route draws ahead of the vehicle
+  tl.to('#route', { strokeDashoffset: 0, duration: 2.0, ease: 'power2.out' }, 0.2);
+  tl.to('#hud', { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 0.6);
+
+  // truck travels the route; the WORLD translates to keep the truck in the LEADING third
+  // (room to move into), and the plane banks slightly as a drone would.
+  const prog = { p: 0 };
+  tl.to(prog, { p: 1, duration: CONFIG.flightDuration, ease: 'power1.inOut',
+    onUpdate: () => {
+      const here = prog.p * len;
+      const pt = route.getPointAtLength(here);
+      const ahead = route.getPointAtLength(Math.min(len, here + 6));
+      const ang = Math.atan2(ahead.y - pt.y, ahead.x - pt.x) * 180 / Math.PI;
+      gsap.set(truck, { left: pt.x, top: pt.y, rotation: ang * 0.2 });
+      // Camera trails the truck, but the world translation is DAMPED and CLAMPED so the
+      // ground plane (3600×3000, ~2× the frame) can never slide far enough to expose an edge.
+      // The truck still drifts within frame with leading space ahead of it.
+      const cx = -(pt.x - 1800), cy = -(pt.y - 1500);
+      gsap.set('#world', {
+        x: gsap.utils.clamp(-260, 200, cx * 0.22 - 120),  // bias left → room ahead on the right
+        y: gsap.utils.clamp(-110, 150, cy * 0.14 + 60),
+        rotateZ: ang * 0.04                                 // gentle drone bank
+      });
+    } }, 0.6);
+
+  tl.to({}, { duration: 1.2 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

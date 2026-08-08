@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>10 – Color Grading & Correction</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#0D0D0D; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00AA45; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+/* ── Side-by-side comparison ── */
+.compare-wrap {
+  position:absolute; inset:0; display:flex;
+}
+.half {
+  flex:1; overflow:hidden; position:relative;
+}
+.half-content {
+  position:absolute; width:200%; display:flex;
+}
+.half-content.left-content { left:0; }
+.half-content.right-content { left:-100%; }
+
+/* Grading panels */
+.grade-panel {
+  width:960px; height:1080px; position:relative;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:80px;
+}
+
+/* ── BEFORE (flat/log profile) ── */
+.before {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 30%, #222 60%, #1a1a1a 100%);
+  filter: saturate(0.4) brightness(0.7) contrast(0.8);
+}
+.before .grade-title {
+  font-size:18px; color:rgba(255,255,255,0.15); text-transform:uppercase;
+  letter-spacing:4px; font-family:'Courier New',monospace;
+}
+.before .grade-badge {
+  position:absolute; top:40px; left:40px;
+  padding:6px 16px; border:1px solid rgba(255,255,255,0.1);
+  border-radius:6px; font-size:11px; color:rgba(255,255,255,0.25);
+  font-family:'Courier New',monospace;
+}
+.before .mock-ui {
+  width:520px; margin-top:40px;
+}
+.before .mock-card {
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04);
+  border-radius:10px; padding:20px; margin-bottom:12px;
+}
+.before .mock-bar {
+  height:10px; background:rgba(255,255,255,0.04); border-radius:5px; margin-bottom:8px;
+}
+.before .mock-bar.fill { width:70%; background:rgba(90,90,90,0.2); }
+
+/* ── AFTER (graded/color corrected) ── */
+.after {
+  background: linear-gradient(135deg, #102a18 0%, #0a1a10 30%, #0d2015 60%, #0a1a10 100%);
+}
+.after .grade-title {
+  font-size:18px; color:rgba(0,170,69,0.6); text-transform:uppercase;
+  letter-spacing:4px; font-family:'Courier New',monospace;
+}
+.after .grade-badge {
+  position:absolute; top:40px; left:40px;
+  padding:6px 16px; border:1px solid rgba(0,170,69,0.3);
+  border-radius:6px; font-size:11px; color:#00AA45;
+  font-family:'Courier New',monospace;
+  background:rgba(0,170,69,0.05);
+}
+.after .mock-ui {
+  width:520px; margin-top:40px;
+}
+.after .mock-card {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(0,170,69,0.12);
+  border-radius:10px; padding:20px; margin-bottom:12px;
+}
+.after .mock-bar {
+  height:10px; border-radius:5px; margin-bottom:8px;
+}
+.after .mock-bar.fill {
+  width:70%; background: linear-gradient(90deg, #00AA45, rgba(0,170,69,0.3));
+}
+
+/* Curve overlay visual */
+.curve-overlay {
+  position:absolute; right:60px; bottom:60px;
+  width:180px; height:120px;
+}
+.curve-svg { width:100%; height:100%; }
+.curve-grid-line { stroke:rgba(255,255,255,0.06); stroke-width:1; }
+.curve-path { fill:none; stroke:#00AA45; stroke-width:2; stroke-linecap:round; }
+
+/* Bottom bar with label */
+.bottom-bar {
+  position:absolute; bottom:0; left:0; right:0; height:4px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(0,170,69,0.3));
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+
+/* Color wheels */
+.color-wheel-row {
+  display:flex; gap:24px; margin-top:30px;
+}
+.color-wheel {
+  width:100px; height:100px; border-radius:50%;
+  border:2px solid rgba(255,255,255,0.06);
+  position:relative;
+}
+.color-wheel .dot {
+  position:absolute; width:10px; height:10px; border-radius:50%;
+  transform:translate(-50%,-50%);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 10 · Color Grading & Correction</div>
+
+  <div class="compare-wrap">
+    <!-- BEFORE (Uncorrected / Log) -->
+    <div class="half">
+      <div class="half-content left-content">
+        <div class="grade-panel before">
+          <div class="grade-badge">FLAT · LOG PROFILE</div>
+
+          <!-- Mock dashboard -->
+          <div class="mock-ui">
+            <div class="mock-card">
+              <div class="mock-bar" style="width:45%;"></div>
+              <div class="mock-bar fill"></div>
+              <div class="mock-bar" style="width:55%;"></div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-bar" style="width:60%;"></div>
+              <div class="mock-bar" style="width:35%;"></div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-bar" style="width:30%;"></div>
+              <div class="mock-bar fill"></div>
+            </div>
+          </div>
+
+          <div class="grade-title">desaturated · low contrast · flat</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER (Graded) -->
+    <div class="half">
+      <div class="half-content right-content">
+        <div class="grade-panel after" id="afterPanel">
+          <div class="grade-badge">COLOR GRADED · REC 709</div>
+
+          <div class="mock-ui">
+            <div class="mock-card">
+              <div class="mock-bar" style="width:45%;background:rgba(255,255,255,0.05);"></div>
+              <div class="mock-bar fill"></div>
+              <div class="mock-bar" style="width:55%;background:rgba(255,255,255,0.05);"></div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-bar" style="width:60%;background:rgba(255,255,255,0.05);"></div>
+              <div class="mock-bar" style="width:35%;background:rgba(255,255,255,0.05);"></div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-bar" style="width:30%;background:rgba(255,255,255,0.05);"></div>
+              <div class="mock-bar fill"></div>
+            </div>
+          </div>
+
+          <div class="grade-title">cinematic greens · deep shadows · pop</div>
+
+          <!-- Curve overlay -->
+          <div class="curve-overlay">
+            <svg class="curve-svg" viewBox="0 0 180 120">
+              <line class="curve-grid-line" x1="0" y1="60" x2="180" y2="60"/>
+              <line class="curve-grid-line" x1="90" y1="0" x2="90" y2="120"/>
+              <polyline class="curve-path" id="curvePath"
+                points="0,110 30,100 60,80 90,55 120,35 150,20 180,12"
+                stroke-dasharray="400" stroke-dashoffset="400"/>
+              <polyline id="curveFlat"
+                points="0,110 30,100 60,90 90,80 120,70 150,60 180,50"
+                fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"
+                stroke-dasharray="4"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider line -->
+  <div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:rgba(255,255,255,0.06);z-index:50;"></div>
+  <div class="bottom-bar"></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+function play() {
+  gsap.killTweensOf('*');
+
+  // Animate the "after" panel with a grade reveal
+  gsap.set('#afterPanel', { filter: 'saturate(0.3) brightness(0.7) contrast(0.8)' });
+  gsap.set('#afterPanel .mock-bar.fill', { width: '20%' });
+  gsap.set('#curvePath', { strokeDashoffset: 400 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Transform the flat image into the graded one
+  tl.to('#afterPanel', {
+    filter: 'saturate(1.2) brightness(1.05) contrast(1.1)',
+    duration: 2.5, ease: 'power2.inOut'
+  }, 0.5);
+
+  // Bars fill up with green gradient
+  tl.to('#afterPanel .mock-bar.fill', {
+    width: '70%',
+    duration: 1.5, ease: 'power2.out',
+    stagger: 0.15
+  }, 1.2);
+
+  // Curve path draws
+  tl.to('#curvePath', {
+    strokeDashoffset: 0,
+    duration: 1.8, ease: 'power2.out'
+  }, 1.5);
+
+  tl.to({}, { duration: 1.5 }, 3.5);
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

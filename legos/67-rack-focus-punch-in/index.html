@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>67 – Rack Focus + Punch-In</title>
+<style>
+:root { --bg:#0a0612; --bg-mid:#1a1033; --accent:#a78bfa; --accent-2:#7c3aed; --ink:#1c1530; --panel:#f6f4fb; --panel-2:#efeafc; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:var(--ink); }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; background:radial-gradient(ellipse at 50% 35%, var(--bg-mid), var(--bg) 72%); display:flex; align-items:center; justify-content:center; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.5; z-index:100; }
+
+/* the camera punches in toward whichever element is in focus */
+.camera { position:relative; width:1280px; height:760px; will-change:transform; }
+.dash { position:absolute; inset:0; border-radius:22px; background:var(--panel); box-shadow:0 50px 110px rgba(0,0,0,0.5);
+  display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:auto 1fr; gap:22px; padding:34px; }
+.head { grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; }
+.head .h { font-size:30px; font-weight:800; color:var(--ink); }
+.head .h span { color:var(--accent-2); }
+.head .pill { font-size:13px; font-weight:700; color:var(--accent-2); background:#fff; padding:8px 16px; border-radius:20px; box-shadow:0 4px 14px rgba(124,58,237,0.15); }
+
+.focusable { background:#fff; border-radius:16px; padding:24px; box-shadow:0 8px 24px rgba(80,40,160,0.08); will-change:filter, transform; }
+.focusable .t { font-size:13px; color:#8a83a0; text-transform:uppercase; letter-spacing:1px; }
+.focusable .v { font-size:40px; font-weight:800; color:var(--ink); margin-top:10px; }
+.focusable .trend { font-size:13px; color:var(--accent-2); margin-top:6px; }
+.wide { grid-column:1/-1; display:flex; flex-direction:column; }
+.bars { display:flex; gap:14px; align-items:flex-end; height:150px; margin-top:18px; flex:1; }
+.bars i { flex:1; background:linear-gradient(var(--accent),var(--accent-2)); border-radius:6px 6px 0 0; }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid var(--accent);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label" id="label"></div>
+
+  <div class="camera" id="camera">
+    <div class="dash">
+      <div class="head">
+        <div class="h" id="dashTitle"></div>
+        <div class="pill" id="dashPill"></div>
+      </div>
+      <div class="focusable" id="fa"><div class="t" id="faT"></div><div class="v" id="faV"></div><div class="trend" id="faS"></div></div>
+      <div class="focusable" id="fb"><div class="t" id="fbT"></div><div class="v" id="fbV"></div><div class="trend" id="fbS"></div></div>
+      <div class="focusable" id="fc"><div class="t" id="fcT"></div><div class="v" id="fcV"></div><div class="trend" id="fcS"></div></div>
+      <div class="focusable wide" id="fd"><div class="t" id="fdT"></div><div class="bars" id="bars"></div></div>
+    </div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════ EDIT EVERYTHING HERE ════════════════ */
+const CONFIG = {
+  label: 'Lego 67 · Rack Focus + Punch-In',
+  title: 'Live <span>Operations</span>',
+  pill: '● 4 fleets active',
+  cards: {
+    fa: { t:'Avg. Bin Fill',  v:'62%',  s:'▲ optimal range' },
+    fb: { t:'On-time',        v:'96%',  s:'▲ +3.1% today' },
+    fc: { t:'CO₂ saved',      v:'1.8t', s:'▲ this week' },
+    fd: { t:'Collection Volume — last 12h' }
+  },
+  // order the camera racks focus through; each = which card sharpens + gets punched in
+  focusOrder: ['fa', 'fb', 'fc', 'fd'],
+  holdPerFocus: 1.1,     // seconds on each element
+  blurAmount: 5,         // px of defocus on out-of-focus elements
+  punchScale: 1.18,      // how much the camera punches in on the focused element
+  colors: { bg:'#0a0612', bgMid:'#1a1033', accent:'#a78bfa', accent2:'#7c3aed', ink:'#1c1530', panel:'#f6f4fb', panel2:'#efeafc' }
+};
+/* ═══════════════════════════════════════════════════════ */
+
+const C = CONFIG.colors, _r = document.documentElement.style;
+_r.setProperty('--bg', C.bg); _r.setProperty('--bg-mid', C.bgMid);
+_r.setProperty('--accent', C.accent); _r.setProperty('--accent-2', C.accent2);
+_r.setProperty('--ink', C.ink); _r.setProperty('--panel', C.panel); _r.setProperty('--panel-2', C.panel2);
+document.getElementById('label').textContent = CONFIG.label;
+document.getElementById('dashTitle').innerHTML = CONFIG.title;
+document.getElementById('dashPill').textContent = CONFIG.pill;
+for (const id of ['fa', 'fb', 'fc']) {
+  document.getElementById(id + 'T').textContent = CONFIG.cards[id].t;
+  document.getElementById(id + 'V').textContent = CONFIG.cards[id].v;
+  document.getElementById(id + 'S').textContent = CONFIG.cards[id].s;
+}
+document.getElementById('fdT').textContent = CONFIG.cards.fd.t;
+const heights = [40,65,50,80,55,90,70,100,60,85,75,95];
+document.getElementById('bars').innerHTML = heights.map(h => `<i style="height:${h}%"></i>`).join('');
+
+const ALL = ['fa', 'fb', 'fc', 'fd'];
+
+// element centre relative to camera centre → so we can punch IN toward it
+function offsetToCenter(id) {
+  const cam = document.getElementById('camera').getBoundingClientRect();
+  const el = document.getElementById(id).getBoundingClientRect();
+  return { x: (cam.left + cam.width / 2) - (el.left + el.width / 2),
+           y: (cam.top + cam.height / 2) - (el.top + el.height / 2) };
+}
+
+function play() {
+  gsap.killTweensOf('*');
+  gsap.set('#camera', { scale: 1, x: 0, y: 0 });
+  ALL.forEach(id => gsap.set('#' + id, { filter: 'blur(0px)', scale: 1 }));
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // establishing: everything sharp briefly
+  tl.to({}, { duration: 0.6 });
+
+  CONFIG.focusOrder.forEach((focus, i) => {
+    const at = 0.6 + i * CONFIG.holdPerFocus;
+    const off = offsetToCenter(focus);
+    // rack focus: focused element sharp + slightly forward, others defocus (DOF)
+    ALL.forEach(id => {
+      const isF = id === focus;
+      tl.to('#' + id, { filter: isF ? 'blur(0px)' : `blur(${CONFIG.blurAmount}px)`,
+        scale: isF ? 1.02 : 1, duration: 0.6, ease: 'power2.inOut' }, at);
+    });
+    // punch-in: camera scales toward the focused element's centre (weighted ease)
+    const ps = focus === 'fd' ? 1.08 : CONFIG.punchScale;   // wide card needs less punch
+    tl.to('#camera', { scale: ps, x: off.x * (ps - 1), y: off.y * (ps - 1), duration: 0.7, ease: 'power3.inOut' }, at);
+  });
+
+  // pull back to the full sharp dashboard (rest)
+  const end = 0.6 + CONFIG.focusOrder.length * CONFIG.holdPerFocus;
+  ALL.forEach(id => tl.to('#' + id, { filter: 'blur(0px)', scale: 1, duration: 0.7, ease: 'power2.out' }, end));
+  tl.to('#camera', { scale: 1, x: 0, y: 0, duration: 0.9, ease: 'power3.out' }, end);
+
+  tl.to({}, { duration: 1.4 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

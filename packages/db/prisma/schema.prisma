@@ -245,3 +245,15 @@ model NewsletterSubscriber {
   email     String   @unique()
   createdAt DateTime @default(now())
 }
+
+model LaunchVideoProject {
+  id                String   @id() @default(cuid())
+  userId            String
+  name              String
+  opencodeSessionId String   @unique()
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt()
+
+  @@unique([userId, name])
+  @@index([userId])
+}

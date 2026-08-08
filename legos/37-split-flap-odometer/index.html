@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>37 – Split-Flap / Odometer</title>
+<style>
+:root { --accent:#00AA45; --accent-rgb:0,170,69; --accent-2:#00e855; --accent-2-rgb:0,232,85; --bg:#0D0D0D; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:80px; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100; }
+
+.block-title { font-family:'Courier New',monospace; font-size:18px; letter-spacing:6px; color:rgba(255,255,255,0.35); text-transform:uppercase; text-align:center; margin-bottom:24px; }
+
+/* ── Split-flap word board ── */
+.board { display:flex; gap:10px; justify-content:center; perspective:800px; }
+.flap {
+  position:relative; width:84px; height:120px; border-radius:8px;
+  background:linear-gradient(#1a1a1f, #0f0f12);
+  border:1px solid rgba(255,255,255,0.06);
+  font-family:'Courier New',monospace; font-weight:800; font-size:64px;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.flap::after { content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:rgba(0,0,0,0.6); z-index:2; }
+.flap .glyph { display:inline-block; will-change:transform; }
+.flap.lit .glyph { color:var(--accent); text-shadow:0 0 18px rgba(var(--accent-rgb),0.6); }
+
+/* ── Odometer counter ── */
+.odo-wrap { display:flex; align-items:baseline; gap:6px; justify-content:center; }
+.odo-prefix, .odo-suffix { font-size:64px; font-weight:800; color:var(--accent); }
+.odo { display:flex; height:96px; overflow:hidden; }
+.odo-col { width:58px; height:96px; overflow:hidden; position:relative; }
+.odo-strip { position:absolute; top:0; left:0; width:100%; display:flex; flex-direction:column;
+  font-size:80px; font-weight:800; line-height:96px; text-align:center; will-change:transform; }
+.odo-strip span { height:96px; display:block; }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(var(--accent-rgb),0.4);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label" id="cfgLabel">Lego 37 · Split-Flap / Odometer</div>
+
+  <div>
+    <div class="block-title">Departure Board Reveal</div>
+    <div class="board" id="board"></div>
+  </div>
+
+  <div>
+    <div class="block-title">Live Metric Roll-Up</div>
+    <div class="odo-wrap">
+      <span class="odo-prefix">$</span>
+      <div class="odo" id="odo"></div>
+      <span class="odo-suffix">k</span>
+    </div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+const WORD = 'PEERLIST';
+const board = document.getElementById('board');
+const odo = document.getElementById('odo');
+
+// Build split-flap cells
+const flaps = [];
+WORD.split('').forEach((finalCh, i) => {
+  const cell = document.createElement('div');
+  cell.className = 'flap';
+  const g = document.createElement('span');
+  g.className = 'glyph';
+  g.textContent = 'A';
+  cell.appendChild(g);
+  board.appendChild(cell);
+  flaps.push({ cell, g, finalCh });
+});
+
+// Build odometer (5 digits => 12480 -> shown as 124.80? keep simple integer 12480 => "$12480k" looks odd) use 4 digits 1248
+const DIGITS = [1, 2, 4, 8];
+const cols = [];
+DIGITS.forEach(() => {
+  const col = document.createElement('div');
+  col.className = 'odo-col';
+  const strip = document.createElement('div');
+  strip.className = 'odo-strip';
+  // Several 0..9 cycles so the strip can spin through multiple rotations before landing.
+  for (let c = 0; c < 8; c++) for (let n = 0; n <= 9; n++) { const s = document.createElement('span'); s.textContent = n; strip.appendChild(s); }
+  col.appendChild(strip);
+  odo.appendChild(col);
+  cols.push(strip);
+});
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function play() {
+  gsap.killTweensOf('*');
+  flaps.forEach(f => { f.g.textContent = 'A'; f.cell.classList.remove('lit'); gsap.set(f.g, { rotateX: 0, y: 0 }); });
+  cols.forEach(s => gsap.set(s, { y: 0 }));
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Each flap rapidly cycles letters (simulated flap) then locks final char
+  flaps.forEach((f, i) => {
+    const start = 0.2 + i * 0.12;
+    const steps = 14 + i;            // how many flips before landing
+    const target = ALPHABET.indexOf(f.finalCh);
+    const proxy = { k: 0 };
+    tl.to(proxy, {
+      k: steps, duration: 0.9, ease: 'power2.out',
+      onUpdate: () => {
+        const idx = Math.floor(proxy.k);
+        const ch = idx >= steps ? f.finalCh : ALPHABET[(target + steps - idx) % 26];
+        f.g.textContent = ch;
+      },
+      onComplete: () => { f.g.textContent = f.finalCh; f.cell.classList.add('lit'); }
+    }, start);
+    // little flap tick on each landing
+    tl.fromTo(f.cell, { rotateX: -50 }, { rotateX: 0, duration: 0.35, ease: 'back.out(2)' }, start + 0.9);
+  });
+
+  // Odometer rolls — each column spins through whole rotations then lands on its digit.
+  // Strip is 5×(0..9); spinning to index (spins*10 + digit) gives clean multi-turn motion
+  // that still ends on the correct number, with leftmost (least significant) settling first.
+  cols.forEach((strip, i) => {
+    const finalDigit = DIGITS[i];
+    const spins = 2 + (cols.length - i);     // more significant digits keep rolling longer
+    const landIndex = spins * 10 + finalDigit;
+    tl.fromTo(strip, { y: 0 },
+      { y: -landIndex * 96, duration: 1.8 + (cols.length - i) * 0.18, ease: 'power4.out' }, 1.0);
+  });
+
+  tl.to({}, { duration: 1.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+
+<script>
+/* ════════ EDIT COLORS / LABEL HERE — applies live via CSS variables ════════ */
+const CONFIG = {
+  label: "Lego 37 · Split-Flap / Odometer",
+  colors: {
+    accent:     '#00AA45',   // primary brand accent
+    accentRgb:  '0,170,69',  // same accent, for rgba() glows/shadows
+    accent2:    '#00e855',   // secondary / brighter accent (used by some scenes)
+    accent2Rgb: '0,232,85',
+    bg:         '#0D0D0D'    // page background
+  }
+};
+/* ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  var c = CONFIG.colors, r = document.documentElement.style;
+  r.setProperty('--accent', c.accent);       r.setProperty('--accent-rgb', c.accentRgb);
+  r.setProperty('--accent-2', c.accent2);     r.setProperty('--accent-2-rgb', c.accent2Rgb);
+  r.setProperty('--bg', c.bg);
+  var lab = document.getElementById('cfgLabel'); if (lab) lab.textContent = CONFIG.label;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>73 – Click Burst</title>
+<style>
+:root { --bg-a:#f3eefb; --bg-b:#fbe9f2; --ink:#2a2438; --accent:#b07bff; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg-a); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:var(--ink); }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; background:linear-gradient(135deg, var(--bg-a), var(--bg-b)); display:flex; align-items:center; justify-content:center; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.6; z-index:100; }
+
+/* the panel + the hero button */
+.panel { position:relative; width:760px; padding:60px; border-radius:32px; background:rgba(255,255,255,0.7);
+  border:1px solid rgba(120,80,200,0.15); box-shadow:0 40px 100px rgba(80,40,160,0.2); backdrop-filter:blur(12px); text-align:center; }
+.panel .ttl { font-size:22px; font-weight:700; color:#6b6480; letter-spacing:1px; margin-bottom:36px; }
+
+.btn-wrap { position:relative; display:inline-block; }
+/* energy ripple rings live behind the button */
+.ripple { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); border-radius:60px;
+  border:3px solid rgba(176,123,255,0.6); width:100%; height:100%; opacity:0; pointer-events:none; }
+.btn { position:relative; z-index:2; display:inline-flex; align-items:center; gap:14px; padding:30px 64px; border-radius:60px;
+  font-size:38px; font-weight:800; color:#fff; cursor:pointer; overflow:visible;
+  background:#1c1530; box-shadow:0 16px 40px rgba(80,40,160,0.25); }
+.btn .spark-ic { font-size:34px; }
+/* the iridescent fill that floods the button and bleeds beyond its borders on click */
+.btn .fill { position:absolute; left:50%; top:50%; width:10px; height:10px; border-radius:50%; transform:translate(-50%,-50%) scale(0); z-index:-1;
+  background:
+    radial-gradient(40% 50% at 40% 40%, #ff9bd0, transparent 70%),
+    radial-gradient(45% 55% at 65% 60%, #ffc98a, transparent 70%),
+    radial-gradient(55% 60% at 50% 55%, #c9a7ff, transparent 72%),
+    radial-gradient(60% 65% at 55% 45%, #9be7c4, transparent 74%), #c9a7ff;
+  filter:blur(2px); will-change:transform; }
+
+.cursor { position:absolute; z-index:9; width:30px; height:30px; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.35)); }
+.cursor path { fill:#fff; stroke:var(--accent); stroke-width:1.4; }
+.sparkles { position:absolute; inset:0; z-index:8; pointer-events:none; }
+.spark { position:absolute; font-size:30px; color:#fff; opacity:0; filter:drop-shadow(0 0 8px #c9a7ff); }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid var(--accent);
+  background:rgba(255,255,255,0.8); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label" id="label"></div>
+
+  <div class="panel">
+    <div class="ttl" id="panelTitle"></div>
+    <div class="btn-wrap">
+      <div class="ripple" id="ring1"></div>
+      <div class="ripple" id="ring2"></div>
+      <div class="btn" id="btn"><div class="fill" id="fill"></div><span class="spark-ic" id="sparkIc"></span><span id="btnLabel"></span></div>
+    </div>
+  </div>
+
+  <svg class="cursor" id="cursor" viewBox="0 0 24 24" style="left:1180px; top:720px;"><path d="M3 2l7 18 2.5-7.5L20 10z"/></svg>
+  <div class="sparkles" id="sparkles"></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════ EDIT EVERYTHING HERE ════════════════ */
+const CONFIG = {
+  label: 'Lego 73 · Click Burst',
+  panelTitle: 'SOUND NODE',
+  sparkIcon: '✦',
+  buttonLabel: 'AI Generate',
+  fillSpread: 60,        // how far past the button the iridescent fill bleeds (scale units)
+  colors: { bgA:'#f3eefb', bgB:'#fbe9f2', accent:'#b07bff', ink:'#2a2438' }
+};
+/* ═══════════════════════════════════════════════════════ */
+
+const C = CONFIG.colors, _r = document.documentElement.style;
+_r.setProperty('--bg-a', C.bgA); _r.setProperty('--bg-b', C.bgB); _r.setProperty('--accent', C.accent); _r.setProperty('--ink', C.ink);
+document.getElementById('label').textContent = CONFIG.label;
+document.getElementById('panelTitle').textContent = CONFIG.panelTitle;
+document.getElementById('sparkIc').textContent = CONFIG.sparkIcon;
+document.getElementById('btnLabel').textContent = CONFIG.buttonLabel;
+
+const sparkles = document.getElementById('sparkles');
+function emitSparkles(cx, cy, n) {
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('div'); s.className = 'spark'; s.textContent = '✦';
+    s.style.left = cx + 'px'; s.style.top = cy + 'px'; sparkles.appendChild(s);
+    const ang = Math.random() * Math.PI * 2, dist = 120 + Math.random() * 220;
+    gsap.timeline({ onComplete: () => s.remove() })
+      .fromTo(s, { opacity: 0, scale: 0 }, { opacity: 1, scale: gsap.utils.random(0.6, 1.4), duration: 0.3, ease: 'back.out(2)' })
+      .to(s, { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist, opacity: 0, rotation: gsap.utils.random(-120, 120), duration: 0.9, ease: 'power2.out' }, 0.05);
+  }
+}
+
+function play() {
+  gsap.killTweensOf('*');
+  sparkles.innerHTML = '';
+  gsap.set('#cursor', { left: 1180, top: 720, opacity: 0, scale: 1 });
+  gsap.set('#fill', { scale: 0 });
+  gsap.set('#btn', { scale: 1, color: '#fff' });
+  gsap.set(['#ring1', '#ring2'], { scale: 1, opacity: 0 });
+
+  const btn = document.getElementById('btn').getBoundingClientRect();
+  const cx = btn.left + btn.width / 2, cy = btn.top + btn.height / 2;
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // cursor glides to the button
+  tl.to('#cursor', { opacity: 1, duration: 0.2 }, 0.2);
+  tl.to('#cursor', { left: cx + 40, top: cy + 18, duration: 0.9, ease: 'power3.inOut' }, 0.4);
+
+  // press: cursor dips, button depresses
+  tl.to('#cursor', { scale: 0.85, duration: 0.12, yoyo: true, repeat: 1 }, 1.4);
+  tl.to('#btn', { scale: 0.95, duration: 0.12, yoyo: true, repeat: 1, ease: 'power2.out' }, 1.45);
+
+  // ── CLICK PAYOFF: iridescent fill floods past the button borders ──
+  tl.to('#fill', { scale: CONFIG.fillSpread, duration: 0.7, ease: 'power2.out' }, 1.55);
+  tl.to('#btn', { color: '#1c1530', duration: 0.4 }, 1.7);   // label darkens against the bright fill
+
+  // energy ripple rings expand outward
+  tl.fromTo('#ring1', { scale: 1, opacity: 0.7 }, { scale: 3.0, opacity: 0, duration: 1.0, ease: 'power2.out' }, 1.55);
+  tl.fromTo('#ring2', { scale: 1, opacity: 0.5 }, { scale: 4.2, opacity: 0, duration: 1.3, ease: 'power2.out' }, 1.7);
+
+  // sparkle burst from the button centre
+  tl.add(() => emitSparkles(cx, cy, 18), 1.6);
+
+  // settle breath
+  tl.to('#btn', { scale: 1.02, duration: 0.8, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 2.3);
+  tl.to({}, { duration: 1.8 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

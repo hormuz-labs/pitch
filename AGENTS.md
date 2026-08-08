@@ -2,7 +2,7 @@
 
 ## Job flows — keep them isolated
 
-Three independent flows. Each owns its agent prompt, tool module, state files, and
+Four independent flows. Each owns its agent prompt, tool module, state files, and
 worker processor; they never import from each other.
 
 | Flow | Agent + tools | Worker processor |
@@ -10,6 +10,22 @@ worker processor; they never import from each other.
 | AI demo video (`/new`, including PDF/image → video) | `.opencode/agents/demo-generator.md` + `.opencode/tools/demo-generator.ts` | `apps/worker/src/job-processor.ts` |
 | Recording edit (upload) | `.opencode/agents/recording-editor.md` + `.opencode/tools/recording-editor.ts` | `apps/worker/src/edit-job-processor.ts` |
 | PDF / slides | `.opencode/agents/pdf-generator.md` (+ `.opencode/skills/*`) | `apps/worker/src/pdf-job-processor.ts`, `enhance-job-processor.ts` |
+| Launch video (`/launch-video`, HTML/GSAP motion graphics → MP4) | `.opencode/agents/html-video.md` + `.opencode/plugins/html-motion-tools.ts` + skills `html-motion-video`, `launch-video-generator`, `agent-browser` | none — driven by `apps/api/src/routes/launch-video.ts` via `@opencode-ai/sdk` (spawns its own opencode server) |
+
+Launch-video layout (ported from github.com/hormuz-labs/launch-videos):
+
+- Projects are self-contained dirs in `projects/<userId>--<name>/` (index.html, css/,
+  js/, audio/, vendor/gsap); renders land in `renders/<userId>--<name>-*.mp4`. The
+  `<userId>--` prefix is the per-user isolation boundary — the API only exposes the
+  bare `<name>` to clients. The (userId, name) → opencode-session map lives in the
+  `LaunchVideoProject` DB table.
+- `music/` and `sfx/` at repo root are the audio libraries (the API also
+  auto-imports from `~/Downloads`); `legos/` holds 73 reference effect demos for
+  the `launch-video-generator` skill; `workdir/` is that legacy skill's scratch.
+- Skill scripts (`tts.mjs`, `capture.mjs`, …) need `playwright` (hoisted at repo
+  root), `ffmpeg`/`ffprobe`, and `GEMINI_API_KEY` for TTS.
+- Frontend lives in `apps/web/src/launch-video/` (React port of the source
+  SolidJS "Video Studio"); backend helpers in `apps/api/src/lib/launch-video/`.
 
 Rules:
 

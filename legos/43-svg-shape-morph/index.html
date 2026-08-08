@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>43 – SVG Shape Morph</title>
+<style>
+:root { --accent:#00AA45; --accent-rgb:0,170,69; --accent-2:#00e855; --accent-2-rgb:0,232,85; --bg:#0D0D0D; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:50px; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100; }
+
+.morph-svg { filter: drop-shadow(0 0 40px rgba(var(--accent-rgb),0.35)); }
+#morphShape { fill:var(--accent); }
+#morphRing  { fill:none; stroke:rgba(var(--accent-rgb),0.35); stroke-width:2; }
+
+.shape-name { font-family:'Courier New',monospace; font-size:24px; letter-spacing:8px; color:rgba(255,255,255,0.5); text-transform:uppercase; height:30px; }
+.shape-name .accent { color:var(--accent); }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(var(--accent-rgb),0.4);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label" id="cfgLabel">Lego 43 · SVG Shape Morph</div>
+
+  <svg class="morph-svg" width="520" height="520" viewBox="-260 -260 520 520">
+    <circle id="morphRing" cx="0" cy="0" r="220"/>
+    <polygon id="morphShape" points=""/>
+  </svg>
+  <div class="shape-name" id="shapeName"></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+// Each shape = N points sampled around the origin so morphs interpolate vertex-to-vertex.
+const N = 120;
+const TWO_PI = Math.PI * 2;
+
+function regularPolygon(sides, R, rot = -Math.PI / 2) {
+  // Sample N points along the polygon perimeter for a uniform vertex count.
+  const verts = [];
+  for (let k = 0; k < sides; k++) {
+    const a = rot + (k / sides) * TWO_PI;
+    verts.push([Math.cos(a) * R, Math.sin(a) * R]);
+  }
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * sides;        // which edge
+    const e = Math.floor(t), f = t - e;
+    const [x1, y1] = verts[e % sides];
+    const [x2, y2] = verts[(e + 1) % sides];
+    pts.push([x1 + (x2 - x1) * f, y1 + (y2 - y1) * f]);
+  }
+  return pts;
+}
+
+function circle(R) {
+  const pts = [];
+  for (let i = 0; i < N; i++) { const a = (i / N) * TWO_PI; pts.push([Math.cos(a) * R, Math.sin(a) * R]); }
+  return pts;
+}
+
+function star(points, Ro, Ri) {
+  const verts = [];
+  for (let k = 0; k < points * 2; k++) {
+    const a = -Math.PI / 2 + (k / (points * 2)) * TWO_PI;
+    const R = k % 2 === 0 ? Ro : Ri;
+    verts.push([Math.cos(a) * R, Math.sin(a) * R]);
+  }
+  const sides = verts.length, pts = [];
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * sides, e = Math.floor(t), f = t - e;
+    const [x1, y1] = verts[e % sides], [x2, y2] = verts[(e + 1) % sides];
+    pts.push([x1 + (x2 - x1) * f, y1 + (y2 - y1) * f]);
+  }
+  return pts;
+}
+
+function blob(R, seed) {
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * TWO_PI;
+    const rr = R * (1 + 0.18 * Math.sin(a * 3 + seed) + 0.10 * Math.cos(a * 5 + seed * 1.7));
+    pts.push([Math.cos(a) * rr, Math.sin(a) * rr]);
+  }
+  return pts;
+}
+
+const SHAPES = [
+  { name: 'circle',   pts: circle(200),              accent: false },
+  { name: 'triangle', pts: regularPolygon(3, 215),   accent: false },
+  { name: 'square',   pts: regularPolygon(4, 195),   accent: false },
+  { name: 'hexagon',  pts: regularPolygon(6, 205),   accent: false },
+  { name: 'star',     pts: star(6, 215, 95),         accent: true  },
+  { name: 'blob',     pts: blob(195, 1.2),           accent: false },
+];
+
+const shapeEl = document.getElementById('morphShape');
+const nameEl = document.getElementById('shapeName');
+
+// live, mutable current point set
+let current = SHAPES[0].pts.map(p => [...p]);
+function render() {
+  shapeEl.setAttribute('points', current.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
+}
+
+function morphTo(tl, shape, at, dur) {
+  const target = shape.pts;
+  const from = current.map(p => [...p]);
+  const proxy = { t: 0 };
+  tl.to(proxy, {
+    t: 1, duration: dur, ease: 'power3.inOut',
+    onStart: () => {
+      nameEl.innerHTML = shape.accent ? '<span class="accent">' + shape.name + '</span>' : shape.name;
+    },
+    onUpdate: () => {
+      for (let i = 0; i < N; i++) {
+        current[i][0] = from[i][0] + (target[i][0] - from[i][0]) * proxy.t;
+        current[i][1] = from[i][1] + (target[i][1] - from[i][1]) * proxy.t;
+      }
+      render();
+    }
+  }, at);
+}
+
+function play() {
+  gsap.killTweensOf('*');
+  current = SHAPES[0].pts.map(p => [...p]);
+  render();
+  nameEl.innerHTML = SHAPES[0].name;
+  gsap.set('#morphShape', { rotation: 0, transformOrigin: '50% 50%' });
+  gsap.set('#morphRing', { rotation: 0, transformOrigin: '50% 50%', scale: 1 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  let at = 0.6;
+  for (let i = 1; i < SHAPES.length; i++) {
+    morphTo(tl, SHAPES[i], at, 0.85);
+    at += 1.25;
+  }
+  // back to circle to loop cleanly
+  morphTo(tl, SHAPES[0], at, 0.85);
+
+  // gentle continuous rotation of shape + counter-rotating ring
+  tl.to('#morphShape', { rotation: 360, duration: at + 1, ease: 'none' }, 0.6);
+  tl.to('#morphRing', { rotation: -180, scale: 1.05, duration: at + 1, ease: 'sine.inOut' }, 0.6);
+
+  tl.to({}, { duration: 1.0 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+
+<script>
+/* ════════ EDIT COLORS / LABEL HERE — applies live via CSS variables ════════ */
+const CONFIG = {
+  label: "Lego 43 · SVG Shape Morph",
+  colors: {
+    accent:     '#00AA45',   // primary brand accent
+    accentRgb:  '0,170,69',  // same accent, for rgba() glows/shadows
+    accent2:    '#00e855',   // secondary / brighter accent (used by some scenes)
+    accent2Rgb: '0,232,85',
+    bg:         '#0D0D0D'    // page background
+  }
+};
+/* ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  var c = CONFIG.colors, r = document.documentElement.style;
+  r.setProperty('--accent', c.accent);       r.setProperty('--accent-rgb', c.accentRgb);
+  r.setProperty('--accent-2', c.accent2);     r.setProperty('--accent-2-rgb', c.accent2Rgb);
+  r.setProperty('--bg', c.bg);
+  var lab = document.getElementById('cfgLabel'); if (lab) lab.textContent = CONFIG.label;
+})();
+</script>
+</body>
+</html>

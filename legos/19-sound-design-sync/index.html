@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>19 – Procedural Sound Design Sync</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; position:relative; overflow:hidden; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00AA45; letter-spacing:2px;
+  text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:50;
+}
+
+/* Waveform visualizer */
+.waveform-wrap {
+  position:absolute; bottom:0; left:0; right:0; height:200px; overflow:hidden;
+}
+#waveCanvas { display:block; width:100%; height:100%; }
+
+/* Timeline scrubber (the director's spotter) */
+.timeline-track {
+  position:absolute; bottom:220px; left:60px; right:60px; height:60px;
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px; overflow:hidden;
+}
+.timeline-bg { position:absolute; inset:0; }
+/* Hit markers */
+.hit-marker {
+  position:absolute; top:0; bottom:0; width:2px;
+  background:rgba(0,170,69,0.4); cursor:default;
+}
+.hit-marker.fired { background:#00AA45; box-shadow:0 0 8px rgba(0,170,69,0.8); }
+.hit-label {
+  position:absolute; top:-20px; left:50%; transform:translateX(-50%);
+  font-size:9px; font-family:'Courier New',monospace; color:rgba(0,170,69,0.5);
+  letter-spacing:1px; white-space:nowrap;
+}
+/* Playhead */
+.playhead {
+  position:absolute; top:-10px; bottom:-10px; width:2px;
+  background:#fff; opacity:0.7; will-change:left;
+  box-shadow:0 0 6px rgba(255,255,255,0.4);
+}
+
+/* Sound event cards (visual feedback) */
+.sound-card {
+  position:absolute; background:rgba(0,170,69,0.08); border:1px solid rgba(0,170,69,0.3);
+  border-radius:10px; padding:12px 16px; opacity:0; will-change:opacity,transform;
+  min-width:200px;
+}
+.sc-icon { font-size:24px; margin-bottom:6px; }
+.sc-label { font-size:12px; font-family:'Courier New',monospace; color:#00AA45; letter-spacing:2px; }
+.sc-ms { font-size:11px; color:rgba(255,255,255,0.3); margin-top:2px; }
+
+/* UI elements that trigger sounds */
+.ui-panel {
+  position:absolute; top:120px; left:50%; transform:translateX(-50%);
+  width:900px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px; padding:32px 36px;
+}
+.ui-topbar {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:28px;
+}
+.ui-title { font-size:20px; font-weight:700; }
+.ui-badge {
+  padding:6px 14px; border-radius:20px; font-size:12px;
+  font-family:'Courier New',monospace; letter-spacing:1px;
+  background:rgba(0,170,69,0.1); color:#00AA45; border:1px solid rgba(0,170,69,0.3);
+}
+.ui-row { display:flex; gap:12px; margin-bottom:16px; }
+.ui-input {
+  flex:1; height:42px; border-radius:8px;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  padding:0 14px; font-size:14px; color:#fff; display:flex; align-items:center;
+  font-family:'Courier New',monospace; font-size:13px; color:rgba(255,255,255,0.5);
+  will-change:border-color,box-shadow;
+}
+.ui-input.active {
+  border-color:rgba(0,170,69,0.5); box-shadow:0 0 12px rgba(0,170,69,0.15);
+  color:#fff;
+}
+.ui-btn {
+  height:42px; padding:0 20px; border-radius:8px;
+  background:#00AA45; color:#000; font-weight:700; font-size:13px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  will-change:transform,box-shadow;
+}
+.ui-toggle-row { display:flex; align-items:center; gap:16px; margin-bottom:12px; }
+.ui-toggle {
+  width:44px; height:24px; border-radius:12px; background:rgba(255,255,255,0.08);
+  position:relative; cursor:default; will-change:background;
+}
+.ui-toggle.on { background:rgba(0,170,69,0.5); }
+.toggle-knob {
+  position:absolute; top:3px; left:3px; width:18px; height:18px;
+  border-radius:9px; background:#fff; will-change:left;
+}
+.toggle-label { font-size:14px; color:rgba(255,255,255,0.5); }
+
+/* Ripple on button click */
+.btn-ripple {
+  position:absolute; border-radius:50%; background:rgba(0,170,69,0.3);
+  width:80px; height:80px; opacity:0; pointer-events:none;
+  will-change:transform,opacity; transform:scale(0);
+}
+
+/* Sound level meter */
+.level-meter {
+  position:absolute; right:60px; top:50%; transform:translateY(-50%);
+  display:flex; gap:3px; align-items:flex-end; height:160px;
+}
+.meter-bar {
+  width:10px; border-radius:2px 2px 0 0; background:rgba(0,170,69,0.2);
+  will-change:height,background;
+}
+
+/* Annotation labels on waveform beats */
+.beat-label {
+  position:absolute; font-size:10px; font-family:'Courier New',monospace;
+  color:rgba(0,170,69,0.5); letter-spacing:1px; bottom:195px; opacity:0;
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 19 · Procedural Sound Design Sync</div>
+
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 70%, rgba(0,170,69,0.04) 0%, transparent 60%);"></div>
+
+  <!-- UI Panel (the thing that triggers sounds) -->
+  <div class="ui-panel">
+    <div class="ui-topbar">
+      <div class="ui-title">Configure Integration</div>
+      <div class="ui-badge" id="uiBadge">● READY</div>
+    </div>
+
+    <div class="ui-row">
+      <div class="ui-input" id="inp1">Enter API endpoint URL...</div>
+      <div class="ui-input" id="inp2" style="flex:0 0 160px;">Bearer token</div>
+    </div>
+
+    <div class="ui-toggle-row">
+      <div class="ui-toggle" id="tog1"><div class="toggle-knob" id="tok1"></div></div>
+      <div class="toggle-label">Enable real-time sync</div>
+    </div>
+    <div class="ui-toggle-row">
+      <div class="ui-toggle on" id="tog2"><div class="toggle-knob" id="tok2" style="left:23px;"></div></div>
+      <div class="toggle-label">Auto-retry on failure</div>
+    </div>
+
+    <div class="ui-row" style="margin-top:20px;">
+      <div style="flex:1;"></div>
+      <div class="ui-btn" id="saveBtn" style="position:relative; overflow:hidden;">
+        Save & Connect
+        <div class="btn-ripple" id="btnRipple"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sound event cards (fly in on trigger) -->
+  <div class="sound-card" id="sc1" style="top:100px;left:60px;">
+    <div class="sc-icon">⌨</div>
+    <div class="sc-label">KEYSTROKE CLICK</div>
+    <div class="sc-ms">t=1.2s · pitch: random ±15%</div>
+  </div>
+  <div class="sound-card" id="sc2" style="top:100px;right:60px;">
+    <div class="sc-icon">↕</div>
+    <div class="sc-label">TOGGLE CLICK</div>
+    <div class="sc-ms">t=2.8s · mechanical snap</div>
+  </div>
+  <div class="sound-card" id="sc3" style="top:240px;left:60px;">
+    <div class="sc-icon">◈</div>
+    <div class="sc-label">FIELD FOCUS SWOOSH</div>
+    <div class="sc-ms">t=1.0s · soft digital swipe</div>
+  </div>
+  <div class="sound-card" id="sc4" style="top:240px;right:60px;">
+    <div class="sc-icon">⚡</div>
+    <div class="sc-label">CTA SLAM + CONFIRM</div>
+    <div class="sc-ms">t=4.2s · deep impact + chime</div>
+  </div>
+
+  <!-- Timeline track -->
+  <div class="timeline-track">
+    <!-- Hit markers at different positions (% of timeline) -->
+    <div class="hit-marker" id="hm1" style="left:12%;">
+      <div class="hit-label">FOCUS</div>
+    </div>
+    <div class="hit-marker" id="hm2" style="left:22%;">
+      <div class="hit-label">KEY×4</div>
+    </div>
+    <div class="hit-marker" id="hm3" style="left:42%;">
+      <div class="hit-label">TOGGLE</div>
+    </div>
+    <div class="hit-marker" id="hm4" style="left:56%;">
+      <div class="hit-label">TOGGLE</div>
+    </div>
+    <div class="hit-marker" id="hm5" style="left:75%;">
+      <div class="hit-label">SLAM</div>
+    </div>
+    <!-- Playhead -->
+    <div class="playhead" id="playhead" style="left:0%;"></div>
+  </div>
+
+  <!-- Beat labels on timeline -->
+  <div class="beat-label" id="bl1" style="left:12%;">1.0s</div>
+  <div class="beat-label" id="bl2" style="left:22%;">1.8s</div>
+  <div class="beat-label" id="bl3" style="left:42%;">3.5s</div>
+  <div class="beat-label" id="bl4" style="left:56%;">4.6s</div>
+  <div class="beat-label" id="bl5" style="left:75%;">6.2s</div>
+
+  <!-- Waveform canvas -->
+  <div class="waveform-wrap">
+    <canvas id="waveCanvas" width="1920" height="200"></canvas>
+  </div>
+
+  <!-- Level meter -->
+  <div class="level-meter" id="levelMeter">
+    <!-- bars generated by JS -->
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+// Generate level meter bars
+const meter = document.getElementById('levelMeter');
+const meterBars = [];
+for (let i = 0; i < 20; i++) {
+  const b = document.createElement('div');
+  b.className = 'meter-bar';
+  b.style.height = '8px';
+  meter.appendChild(b);
+  meterBars.push(b);
+}
+
+// Waveform canvas animation
+const canvas = document.getElementById('waveCanvas');
+const ctx = canvas.getContext('2d');
+let wavePhase = 0;
+let waveAmplitude = 0;
+let animRunning = false;
+
+function drawWave() {
+  if (!animRunning) return;
+  ctx.clearRect(0, 0, 1920, 200);
+  const w = 1920, h = 200;
+  const mid = h / 2;
+
+  // Static base line
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(0,170,69,0.15)';
+  ctx.lineWidth = 1;
+  ctx.moveTo(0, mid);
+  ctx.lineTo(w, mid);
+  ctx.stroke();
+
+  // Waveform
+  if (waveAmplitude > 0.5) {
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(0,170,69,${Math.min(0.8, waveAmplitude * 0.4)})`;
+    ctx.lineWidth = 2;
+    for (let x = 0; x < w; x++) {
+      const freq1 = 0.02 + Math.sin(wavePhase * 0.1) * 0.008;
+      const freq2 = 0.05;
+      const y = mid
+        + Math.sin(x * freq1 + wavePhase) * waveAmplitude * 30
+        + Math.sin(x * freq2 + wavePhase * 1.3) * waveAmplitude * 15
+        + Math.sin(x * 0.12 + wavePhase * 2.1) * waveAmplitude * 8;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  wavePhase += 0.08;
+  requestAnimationFrame(drawWave);
+}
+
+function pulseWave(intensity, duration) {
+  gsap.to({ a: waveAmplitude }, {
+    a: intensity,
+    duration: 0.05,
+    onUpdate: function() { waveAmplitude = this.targets()[0].a; },
+    onComplete: () => {
+      gsap.to({ a: intensity }, {
+        a: 0.5,
+        duration,
+        ease: 'power2.out',
+        onUpdate: function() { waveAmplitude = this.targets()[0].a; }
+      });
+    }
+  });
+
+  // Level meter bars
+  meterBars.forEach((b, i) => {
+    const target = Math.max(8, (1 - i / meterBars.length) * intensity * 130);
+    const color = i < 14 ? '#00AA45' : (i < 17 ? '#FFAA00' : '#FF4444');
+    gsap.to(b, { height: target + 'px', background: color, duration: 0.08, ease:'power4.out' });
+    gsap.to(b, { height: Math.max(4, target * 0.2) + 'px', duration: 0.6, ease:'power2.out', delay: 0.1 });
+  });
+}
+
+function fireHitMarker(id) {
+  document.getElementById(id).classList.add('fired');
+}
+
+function play() {
+  gsap.killTweensOf('*');
+  animRunning = true;
+  waveAmplitude = 0.3;
+  wavePhase = 0;
+  drawWave();
+
+  // Reset
+  gsap.set('#playhead', { left:'0%' });
+  gsap.set('.hit-marker', { className:'hit-marker' });
+  gsap.set('.sound-card', { opacity:0, y:10 });
+  gsap.set('#inp1,#inp2', { className:'ui-input' });
+  gsap.set('#tog1', { background:'rgba(255,255,255,0.08)' });
+  gsap.set('#tok1', { left:'3px' });
+  gsap.set('#inp1', { textContent:'Enter API endpoint URL...' });
+  gsap.set('#inp2', { textContent:'Bearer token' });
+  gsap.set('#uiBadge', { textContent:'● READY', color:'#00AA45' });
+  gsap.set('#saveBtn', { scale:1 });
+  gsap.set('.beat-label', { opacity:0 });
+  meterBars.forEach(b => { b.style.height = '8px'; b.style.background = 'rgba(0,170,69,0.2)'; });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Playhead scrubs
+  tl.to('#playhead', { left:'100%', duration:8, ease:'none' }, 0);
+
+  // Beat 1 — field focus
+  tl.call(() => {
+    document.getElementById('inp1').classList.add('active');
+    pulseWave(2, 0.5);
+    fireHitMarker('hm1');
+  }, [], 1.0);
+  tl.to('#sc3', { opacity:1, y:0, duration:0.3, ease:'back.out(2)' }, 1.0);
+  tl.to('#bl1', { opacity:1, duration:0.2 }, 1.0);
+
+  // Beat 2 — keystroke clicks (typewriter)
+  const text = 'https://api.nexaflow.io/v3/webhooks';
+  const inp1 = document.getElementById('inp1');
+  tl.call(() => { inp1.textContent = ''; }, [], 1.8);
+  const obj = { n:0 };
+  tl.to(obj, {
+    n: text.length,
+    duration: 1.5,
+    ease: 'none',
+    onUpdate: () => {
+      const n = Math.round(obj.n);
+      inp1.textContent = text.slice(0, n) + '|';
+      if (Math.random() > 0.5) pulseWave(1.2, 0.2);
+    },
+    onComplete: () => { inp1.textContent = text; }
+  }, 1.8);
+  tl.to('#sc1', { opacity:1, y:0, duration:0.3, ease:'back.out(2)' }, 1.8);
+  tl.call(() => fireHitMarker('hm2'), [], 2.0);
+  tl.to('#bl2', { opacity:1, duration:0.2 }, 1.8);
+
+  // Beat 3 — toggle 1 on
+  tl.call(() => {
+    document.getElementById('tog1').classList.add('on');
+    pulseWave(3, 0.7);
+    fireHitMarker('hm3');
+  }, [], 3.5);
+  tl.to('#tok1', { left:'23px', duration:0.3, ease:'back.out(2)' }, 3.5);
+  tl.to('#sc2', { opacity:1, y:0, duration:0.3, ease:'back.out(2)' }, 3.5);
+  tl.to('#bl3', { opacity:1, duration:0.2 }, 3.5);
+
+  // Beat 4 — toggle 2 off
+  tl.call(() => {
+    document.getElementById('tog2').classList.remove('on');
+    gsap.to('#tog2', { background:'rgba(255,255,255,0.08)', duration:0.3 });
+    pulseWave(2.5, 0.6);
+    fireHitMarker('hm4');
+  }, [], 4.6);
+  tl.to('#tok2', { left:'3px', duration:0.3, ease:'back.out(2)' }, 4.6);
+  tl.to('#bl4', { opacity:1, duration:0.2 }, 4.6);
+
+  // Beat 5 — CTA slam
+  tl.call(() => {
+    pulseWave(5, 1.5);
+    fireHitMarker('hm5');
+    document.getElementById('uiBadge').textContent = '✓ CONNECTED';
+  }, [], 6.2);
+  tl.to('#saveBtn', { scale:0.92, duration:0.08, ease:'power4.in' }, 6.2);
+  tl.to('#saveBtn', { scale:1.05, duration:0.2, ease:'back.out(2)' }, 6.3);
+  tl.to('#saveBtn', { scale:1.0, duration:0.3, ease:'power2.out' }, 6.5);
+  tl.to('#btnRipple', { scale:3, opacity:0, duration:0.6, ease:'power2.out' }, 6.2);
+  tl.to('#sc4', { opacity:1, y:0, duration:0.3, ease:'back.out(2)' }, 6.2);
+  tl.to('#bl5', { opacity:1, duration:0.2 }, 6.2);
+}
+
+document.getElementById('replayBtn').addEventListener('click', () => { animRunning = false; setTimeout(() => { animRunning = true; play(); }, 50); });
+play();
+</script>
+</body>
+</html>

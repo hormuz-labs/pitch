@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>35 – Automated Batch Rendering (Data-Driven)</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#07070a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; display:flex; padding: 40px; gap: 32px; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00e855; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+/* Master Video Template Canvas (Left) */
+.canvas-preview {
+  flex: 1;
+  height: 100%;
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The Template Card to be rendered */
+.template-card {
+  width: 760px;
+  height: 480px;
+  border-radius: 24px;
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  transition: background 0.5s, border-color 0.5s;
+}
+
+.card-bg-glow {
+  position: absolute;
+  top: -50%; right: -50%;
+  width: 100%; height: 100%;
+  filter: blur(120px);
+  opacity: 0.15;
+  border-radius: 50%;
+  transition: background 0.5s;
+}
+
+.client-brand { display: flex; align-items: center; gap: 16px; }
+.client-logo {
+  width: 54px; height: 54px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 800;
+}
+.client-name { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+
+.card-stat { margin-top: 30px; }
+.stat-num { font-size: 80px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+.stat-desc { font-size: 14px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; font-family: monospace; }
+
+/* Control & Spreadsheet Panel (Right) */
+.control-panel {
+  width: 500px;
+  height: 100%;
+  background: #0c0c11;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.panel-title { font-size: 14px; font-family: monospace; color: #00e855; letter-spacing: 2px; text-transform: uppercase; }
+
+/* Spreadsheet Grid UI */
+.spreadsheet {
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #08080b;
+}
+.sheet-header {
+  display: flex; background: #13131a; border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.4);
+}
+.sheet-row {
+  display: flex; border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 13px; color: rgba(255,255,255,0.7); cursor: pointer;
+  transition: background 0.2s;
+}
+.sheet-row:hover { background: rgba(255,255,255,0.02); }
+.sheet-row.active { background: rgba(0,232,85,0.08); color: #fff; }
+
+.col-cell { padding: 10px 14px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-logo { width: 60px; flex: none; text-align: center; }
+
+/* Batch Render Monitor */
+.render-monitor {
+  flex: 1;
+  background: #08080b;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: monospace;
+  font-size: 12px;
+}
+.progress-bar-container {
+  height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;
+}
+.progress-bar {
+  height: 100%; width: 0%; background: #00e855;
+}
+.console-log {
+  flex: 1; overflow-y: auto; color: rgba(255,255,255,0.4); line-height: 1.5;
+}
+
+/* Buttons */
+.btn-primary {
+  width: 100%; padding: 14px; border-radius: 8px; border: none;
+  background: #00e855; color: #000; font-size: 14px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary:hover { background: #00ff5f; }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 35 · Automated Batch Rendering</div>
+
+  <!-- Master Video Template Canvas (Left) -->
+  <div class="canvas-preview">
+    <div class="template-card" id="cardTemplate">
+      <!-- Glow background -->
+      <div class="card-bg-glow" id="cardGlow"></div>
+      
+      <div class="client-brand">
+        <div class="client-logo" id="cardLogo">▲</div>
+        <div class="client-name" id="cardName">Vercel</div>
+      </div>
+
+      <div class="card-stat">
+        <div style="font-size:12px; font-family:monospace; color:rgba(255,255,255,0.4); letter-spacing:1px;">AUTOMATED METRIC REPORT</div>
+        <div class="stat-num" id="cardStatNum">+240%</div>
+        <div class="stat-desc" id="cardStatDesc">Deployment speed increased</div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:11px; font-family:monospace; color:rgba(255,255,255,0.3);">TEMPLATE // BATCH_ID_091</div>
+        <div style="font-size:11px; font-family:monospace; color:rgba(255,255,255,0.3);" id="videoTimestamp">00:05.00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spreadsheet & Automation Controls (Right) -->
+  <div class="control-panel">
+    <div class="panel-title">Spreadsheet Loader // Batch Rig</div>
+    
+    <!-- Spreadsheet Grid -->
+    <div class="spreadsheet">
+      <div class="sheet-header">
+        <div class="col-cell col-logo">LOGO</div>
+        <div class="col-cell">CLIENT</div>
+        <div class="col-cell">METRIC</div>
+        <div class="col-cell">METRIC LABEL</div>
+      </div>
+      <div class="sheet-row active" onclick="selectRow(0)" id="row0">
+        <div class="col-cell col-logo">▲</div>
+        <div class="col-cell">Vercel</div>
+        <div class="col-cell">+240%</div>
+        <div class="col-cell">Deployment speed</div>
+      </div>
+      <div class="sheet-row" onclick="selectRow(1)" id="row1">
+        <div class="col-cell col-logo">⚡</div>
+        <div class="col-cell">Supabase</div>
+        <div class="col-cell">99.99%</div>
+        <div class="col-cell">Database uptime</div>
+      </div>
+      <div class="sheet-row" onclick="selectRow(2)" id="row2">
+        <div class="col-cell col-logo">⧉</div>
+        <div class="col-cell">Linear</div>
+        <div class="col-cell">-50%</div>
+        <div class="col-cell">Issue resolution time</div>
+      </div>
+      <div class="sheet-row" onclick="selectRow(3)" id="row3">
+        <div class="col-cell col-logo">✦</div>
+        <div class="col-cell">Stripe</div>
+        <div class="col-cell">$42M+</div>
+        <div class="col-cell">Daily API volume</div>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="startBatchRender()">⚙️ START BATCH RENDER</button>
+
+    <!-- Rendering Console Monitor -->
+    <div class="render-monitor">
+      <div style="display:flex; justify-content:space-between;">
+        <span>BATCH COMPILER STATUS</span>
+        <span id="compilerStatus" style="color:rgba(255,255,255,0.3);">IDLE</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="renderProgressBar"></div>
+      </div>
+      <div class="console-log" id="consoleLog">
+        Spreadsheet connected successfully.<br>
+        4 dynamic template rows loaded.<br>
+        Click "START BATCH RENDER" to run compiler pipeline...
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+// Spreadsheet Database Rows
+const clientDb = [
+  {
+    name: 'Vercel',
+    logo: '▲',
+    metric: '+240%',
+    metricVal: 240,
+    metricPrefix: '+',
+    metricSuffix: '%',
+    desc: 'Deployment speed increased',
+    color: '#ffffff',
+    bg: 'linear-gradient(135deg, #111115, #000000)',
+    borderColor: 'rgba(255,255,255,0.15)',
+    glow: '#ffffff'
+  },
+  {
+    name: 'Supabase',
+    logo: '⚡',
+    metric: '99.99%',
+    metricVal: 99.99,
+    metricPrefix: '',
+    metricSuffix: '%',
+    desc: 'Database uptime guaranteed',
+    color: '#3ecf8e',
+    bg: 'linear-gradient(135deg, #071c11, #030a06)',
+    borderColor: 'rgba(62,207,142,0.3)',
+    glow: '#3ecf8e'
+  },
+  {
+    name: 'Linear',
+    logo: '⧉',
+    metric: '-50%',
+    metricVal: 50,
+    metricPrefix: '-',
+    metricSuffix: '%',
+    desc: 'Issue resolution time slashed',
+    color: '#5e6ad2',
+    bg: 'linear-gradient(135deg, #0d0f1a, #06070d)',
+    borderColor: 'rgba(94,106,210,0.3)',
+    glow: '#5e6ad2'
+  },
+  {
+    name: 'Stripe',
+    logo: '✦',
+    metric: '$42M+',
+    metricVal: 42,
+    metricPrefix: '$',
+    metricSuffix: 'M+',
+    desc: 'Daily secure processing volume',
+    color: '#635bff',
+    bg: 'linear-gradient(135deg, #100f22, #07060d)',
+    borderColor: 'rgba(99,91,255,0.3)',
+    glow: '#635bff'
+  }
+];
+
+let activeIndex = 0;
+
+// Apply dynamic theme variables to card template with a gorgeous entrance animation
+function applyClientTemplate(index, fast = false) {
+  const client = clientDb[index];
+  
+  // Update active sheet highlighting
+  document.querySelectorAll('.sheet-row').forEach(row => row.classList.remove('active'));
+  document.getElementById('row' + index).classList.add('active');
+
+  // Kill old animations on template card
+  gsap.killTweensOf('#cardTemplate, #cardLogo, #cardName, #cardStatNum, #cardStatDesc, #cardGlow');
+
+  // Change styles
+  const card = document.getElementById('cardTemplate');
+  card.style.background = client.bg;
+  card.style.borderColor = client.borderColor;
+  
+  document.getElementById('cardLogo').textContent = client.logo;
+  document.getElementById('cardLogo').style.color = client.color;
+  document.getElementById('cardName').textContent = client.name;
+  document.getElementById('cardStatDesc').textContent = client.desc;
+
+  document.getElementById('cardGlow').style.background = client.glow;
+
+  // Reset counters
+  document.getElementById('cardStatNum').textContent = client.metricPrefix + '0' + client.metricSuffix;
+
+  // Trigger animations
+  const animDuration = fast ? 0.35 : 1.2;
+  const staggerDelay = fast ? 0.04 : 0.12;
+
+  gsap.fromTo('#cardTemplate', 
+    { opacity: 0, scale: 0.95, y: 15 }, 
+    { opacity: 1, scale: 1, y: 0, duration: animDuration, ease: 'back.out(1.2)' }
+  );
+
+  gsap.fromTo('#cardLogo, #cardName',
+    { opacity: 0, x: -15 },
+    { opacity: 1, x: 0, duration: animDuration * 0.8, stagger: staggerDelay, ease: 'power2.out' }
+  );
+
+  gsap.fromTo('#cardStatDesc',
+    { opacity: 0, y: 10 },
+    { opacity: 1, y: 0, duration: animDuration * 0.8, delay: animDuration * 0.3, ease: 'power2.out' }
+  );
+
+  // Counter animation
+  const countObj = { val: 0 };
+  gsap.to(countObj, {
+    val: client.metricVal,
+    duration: animDuration * 1.1,
+    ease: 'power2.out',
+    onUpdate: () => {
+      let valText = countObj.val;
+      if (client.metricVal % 1 !== 0) {
+        valText = countObj.val.toFixed(2); // keep decimal points for floats
+      } else {
+        valText = Math.round(countObj.val);
+      }
+      document.getElementById('cardStatNum').textContent = client.metricPrefix + valText + client.metricSuffix;
+    }
+  });
+}
+
+function selectRow(index) {
+  activeIndex = index;
+  applyClientTemplate(index);
+  logToConsole('Loaded client config: ' + clientDb[index].name + ' dynamically.');
+}
+
+function logToConsole(message) {
+  const log = document.getElementById('consoleLog');
+  log.innerHTML += '<br>> ' + message;
+  log.scrollTop = log.scrollHeight;
+}
+
+// SIMULATE BATCH RENDERER PIPELINE
+async function startBatchRender() {
+  logToConsole('--- INITIATING BATCH COMPILING JOB ---');
+  document.getElementById('compilerStatus').textContent = 'COMPILING';
+  document.getElementById('compilerStatus').style.color = '#00e855';
+  
+  const progressBar = document.getElementById('renderProgressBar');
+  progressBar.style.width = '0%';
+
+  for (let i = 0; i < clientDb.length; i++) {
+    const client = clientDb[i];
+    applyClientTemplate(i, true); // load template fast
+    
+    logToConsole('Assembling scene graphics for client: ' + client.name);
+    
+    // Simulate frame capture sequence
+    for (let frame = 1; frame <= 10; frame++) {
+      await new Promise(r => setTimeout(r, 60)); // stop-motion capture simulation
+      document.getElementById('videoTimestamp').textContent = '00:0' + (frame/2).toFixed(2);
+    }
+    
+    logToConsole('Lossless JPEG frames exported successfully.');
+    logToConsole('Invoking FFmpeg encoder: scaling to 4K (3840x2160)...');
+    
+    await new Promise(r => setTimeout(r, 500)); // encoder simulation
+    
+    const overallProgress = ((i + 1) / clientDb.length) * 100;
+    progressBar.style.width = overallProgress + '%';
+    
+    logToConsole('SUCCESS: Saved file "video_' + client.name.toLowerCase() + '_q2.mp4"');
+  }
+
+  logToConsole('--- BATCH PIPELINE FINISHED SUCCESSFULLY ---');
+  document.getElementById('compilerStatus').textContent = 'IDLE';
+  document.getElementById('compilerStatus').style.color = 'rgba(255,255,255,0.3)';
+}
+
+// Run default initial client
+applyClientTemplate(0);
+</script>
+</body>
+</html>

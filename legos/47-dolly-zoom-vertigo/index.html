@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>47 – Dolly Zoom (Vertigo)</title>
+<style>
+:root { --accent:#00AA45; --accent-rgb:0,170,69; --accent-2:#00e855; --accent-2-rgb:0,232,85; --bg:#0D0D0D; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; perspective:1200px; }
+.world { position:absolute; inset:0; transform-style:preserve-3d; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100; }
+
+/* Depth layers — each scales differently to fake the dolly-counter-zoom warp */
+.layer { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; will-change:transform; }
+
+.bg-grid {
+  position:absolute; top:50%; left:50%; width:3000px; height:3000px; transform:translate(-50%,-50%);
+  background-image:
+    linear-gradient(rgba(var(--accent-rgb),0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-rgb),0.15) 1px, transparent 1px);
+  background-size:80px 80px;
+  -webkit-mask-image:radial-gradient(circle at center, #000 25%, transparent 65%);
+  mask-image:radial-gradient(circle at center, #000 25%, transparent 65%);
+}
+.ring { position:absolute; top:50%; left:50%; border:1px solid rgba(var(--accent-rgb),0.25); border-radius:50%; transform:translate(-50%,-50%); }
+
+.pillar { position:absolute; bottom:0; width:120px; background:linear-gradient(rgba(var(--accent-rgb),0.10), rgba(var(--accent-rgb),0.02)); border:1px solid rgba(var(--accent-rgb),0.18); border-bottom:none; }
+
+/* The hero subject — stays roughly constant on screen while world warps */
+.subject { text-align:center; }
+.subject .logo { width:140px; height:140px; margin:0 auto 28px; border-radius:32px;
+  background:radial-gradient(circle at 35% 30%, #00e06a, #008f3a);
+  box-shadow:0 20px 60px rgba(var(--accent-rgb),0.5); display:flex; align-items:center; justify-content:center; font-size:70px; font-weight:900; color:#03210f; }
+.subject .name { font-size:84px; font-weight:900; letter-spacing:-2px; }
+.subject .name .accent { color:var(--accent); }
+.subject .tag { margin-top:14px; font-family:'Courier New',monospace; font-size:20px; letter-spacing:6px; color:rgba(255,255,255,0.4); text-transform:uppercase; }
+
+.vignette { position:absolute; inset:0; z-index:50; pointer-events:none; background:radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.75) 100%); }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(var(--accent-rgb),0.4);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label" id="cfgLabel">Lego 47 · Dolly Zoom (Vertigo)</div>
+
+  <div class="world">
+    <!-- deep background grid -->
+    <div class="layer" id="layerBG">
+      <div class="bg-grid"></div>
+      <div class="ring" style="width:600px;height:600px;"></div>
+      <div class="ring" style="width:1000px;height:1000px;"></div>
+      <div class="ring" style="width:1500px;height:1500px;"></div>
+    </div>
+
+    <!-- midground pillars flanking the subject -->
+    <div class="layer" id="layerMid">
+      <div class="pillar" style="left:240px;  height:520px;"></div>
+      <div class="pillar" style="left:440px;  height:680px;"></div>
+      <div class="pillar" style="right:240px; height:520px;"></div>
+      <div class="pillar" style="right:440px; height:680px;"></div>
+    </div>
+
+    <!-- hero subject -->
+    <div class="layer" id="layerSubject">
+      <div class="subject" id="subject">
+        <div class="logo">P</div>
+        <div class="name"><span class="accent">PEER</span>LIST</div>
+        <div class="tag">hold focus · world bends</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vignette"></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+// Dolly zoom = camera dollies in while lens zooms out (or vice-versa).
+// Net effect: the SUBJECT stays the same on-screen size, but the background's
+// field-of-view changes dramatically — perspective compresses/expands.
+// We fake it: background & midground scale strongly; subject is counter-scaled to stay constant.
+
+function play() {
+  gsap.killTweensOf('*');
+  gsap.set('#layerBG',      { scale: 1.0, z: 0 });
+  gsap.set('#layerMid',     { scale: 1.0 });
+  gsap.set('#layerSubject', { scale: 0.85, opacity: 0 });
+  gsap.set('#subject',      { y: 20 });
+  gsap.set('.bg-grid',      { rotation: 0 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Settle the subject in
+  tl.to('#layerSubject', { scale: 1, opacity: 1, duration: 1.0, ease: 'power3.out' }, 0.2);
+  tl.to('#subject', { y: 0, duration: 1.0, ease: 'power3.out' }, 0.2);
+
+  // ── Vertigo push 1: world expands (FOV widens), subject held constant ──
+  tl.to('#layerBG',  { scale: 2.4, duration: 2.2, ease: 'power2.inOut' }, 1.2);
+  tl.to('#layerMid', { scale: 1.9, duration: 2.2, ease: 'power2.inOut' }, 1.2);
+  tl.to('#layerSubject', { scale: 1, duration: 2.2, ease: 'power2.inOut' }, 1.2);     // stays put
+  tl.to('.bg-grid', { rotation: 8, duration: 2.2, ease: 'power2.inOut' }, 1.2);
+  // tiny breathing on subject sells that the camera is physically moving
+  tl.to('#subject', { scale: 1.04, duration: 2.2, ease: 'sine.inOut' }, 1.2);
+
+  // ── Vertigo pull 2: snap the field back the other way ──
+  tl.to('#layerBG',  { scale: 0.7, duration: 2.0, ease: 'power3.inOut' }, 3.6);
+  tl.to('#layerMid', { scale: 0.85, duration: 2.0, ease: 'power3.inOut' }, 3.6);
+  tl.to('.bg-grid', { rotation: -4, duration: 2.0, ease: 'power3.inOut' }, 3.6);
+  tl.to('#subject', { scale: 1, duration: 2.0, ease: 'sine.inOut' }, 3.6);
+
+  // Resolve to neutral
+  tl.to('#layerBG',  { scale: 1, duration: 1.2, ease: 'power2.out' }, 5.6);
+  tl.to('#layerMid', { scale: 1, duration: 1.2, ease: 'power2.out' }, 5.6);
+  tl.to('.bg-grid', { rotation: 0, duration: 1.2, ease: 'power2.out' }, 5.6);
+
+  tl.to({}, { duration: 1.2 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+
+<script>
+/* ════════ EDIT COLORS / LABEL HERE — applies live via CSS variables ════════ */
+const CONFIG = {
+  label: "Lego 47 · Dolly Zoom (Vertigo)",
+  colors: {
+    accent:     '#00AA45',   // primary brand accent
+    accentRgb:  '0,170,69',  // same accent, for rgba() glows/shadows
+    accent2:    '#00e855',   // secondary / brighter accent (used by some scenes)
+    accent2Rgb: '0,232,85',
+    bg:         '#0D0D0D'    // page background
+  }
+};
+/* ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  var c = CONFIG.colors, r = document.documentElement.style;
+  r.setProperty('--accent', c.accent);       r.setProperty('--accent-rgb', c.accentRgb);
+  r.setProperty('--accent-2', c.accent2);     r.setProperty('--accent-2-rgb', c.accent2Rgb);
+  r.setProperty('--bg', c.bg);
+  var lab = document.getElementById('cfgLabel'); if (lab) lab.textContent = CONFIG.label;
+})();
+</script>
+</body>
+</html>

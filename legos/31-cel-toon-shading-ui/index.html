@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>31 – Cel/Toon Shading for UI</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#FFFBEB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#1e1b4b; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#4f46e5; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.6; z-index:100;
+}
+
+#webglCanvas { position:absolute; inset:0; z-index:1; }
+
+/* Approaches cartoon-style 2D details */
+.speech-bubble {
+  position:absolute; top:180px; left:300px; background:#fff;
+  border: 4px solid #000; padding: 20px 32px; border-radius: 24px;
+  box-shadow: 10px 10px 0 #000; z-index:10; font-size: 24px; font-weight: 800;
+  transform: scale(0); transform-origin: bottom right;
+}
+.speech-bubble::after {
+  content: ''; position: absolute; bottom: -20px; right: 40px;
+  border-width: 20px 20px 0; border-style: solid; border-color: #fff transparent;
+  display: block; width: 0;
+}
+.speech-bubble::before {
+  content: ''; position: absolute; bottom: -28px; right: 36px;
+  border-width: 24px 24px 0; border-style: solid; border-color: #000 transparent;
+  display: block; width: 0; z-index:-1;
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:4px solid #000;
+  background:#f59e0b; color:#000; cursor:pointer; font-size:14px; font-weight:800;
+  font-family:monospace; box-shadow: 4px 4px 0 #000; transition: transform 0.1s;
+}
+#replayBtn:active { transform: translateX(-50%) translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 31 · Cel/Toon Shading for UI</div>
+  <canvas id="webglCanvas"></canvas>
+  
+  <div class="speech-bubble" id="bubble">
+    Super clean and approachable! ✨
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(40, 1920 / 1080, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webglCanvas'), antialias: true });
+renderer.setSize(1920, 1080);
+renderer.setClearColor(0xfffbeb);
+
+// ── CEL/TOON SHADER OUTLINE TRICK ──
+// Function to create a mesh with a bold black outline around it
+function createToonMesh(geometry, toonMaterial, outlineThickness = 0.08) {
+  const group = new THREE.Group();
+
+  // Core mesh
+  const mainMesh = new THREE.Mesh(geometry, toonMaterial);
+  group.add(mainMesh);
+
+  // Outline mesh
+  const outlineMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    side: THREE.BackSide
+  });
+  
+  const outlineMesh = new THREE.Mesh(geometry, outlineMat);
+  // Scale outline slightly outward along vertex normals
+  outlineMesh.scale.multiplyScalar(1 + outlineThickness);
+  group.add(outlineMesh);
+
+  // Expose main mesh reference for individual animations
+  group.userData = { main: mainMesh };
+
+  return group;
+}
+
+// ── TOON MATERIALS AND SHADING ──
+// MeshToonMaterial looks best with discrete directional lights
+const colors = {
+  purple: 0x8b5cf6,
+  pink: 0xec4899,
+  yellow: 0xf59e0b,
+  cyan: 0x06b6d4,
+  green: 0x10b981
+};
+
+// Purple Rounded Box (representing a phone mockup)
+const phoneGeo = new THREE.BoxGeometry(2.4, 4.2, 0.3);
+const phoneMat = new THREE.MeshToonMaterial({ color: colors.purple });
+const phoneToon = createToonMesh(phoneGeo, phoneMat, 0.05);
+phoneToon.position.set(0, 0, 0);
+scene.add(phoneToon);
+
+// Floating Yellow Spherical Icon
+const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32);
+const sphereMat = new THREE.MeshToonMaterial({ color: colors.yellow });
+const sphereToon = createToonMesh(sphereGeo, sphereMat, 0.08);
+sphereToon.position.set(-2.8, 1.2, 1.0);
+scene.add(sphereToon);
+
+// Floating Pink Cone Icon
+const coneGeo = new THREE.ConeGeometry(0.4, 0.9, 5);
+const coneMat = new THREE.MeshToonMaterial({ color: colors.pink });
+const coneToon = createToonMesh(coneGeo, coneMat, 0.08);
+coneToon.position.set(2.8, -1.0, 1.0);
+scene.add(coneToon);
+
+// Floating Green Torus (donut UI)
+const donutGeo = new THREE.TorusGeometry(0.4, 0.16, 12, 48);
+const donutMat = new THREE.MeshToonMaterial({ color: colors.green });
+const donutToon = createToonMesh(donutGeo, donutMat, 0.08);
+donutToon.position.set(2.2, 1.5, 0.8);
+scene.add(donutToon);
+
+// Lights: Discrete directional lights are essential to cast toon shadow bands
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(5, 10, 7);
+scene.add(dirLight);
+
+const ambientLight = new THREE.AmbientLight(0xfffbeb, 0.3);
+scene.add(ambientLight);
+
+// Set camera position
+camera.position.set(0, 0, 9);
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Subtle natural floating motion on floating icons
+  const time = Date.now() * 0.0015;
+  sphereToon.position.y = 1.2 + Math.sin(time) * 0.15;
+  coneToon.position.y = -1.0 + Math.cos(time * 0.8) * 0.15;
+  donutToon.position.y = 1.5 + Math.sin(time * 1.2) * 0.12;
+
+  // Spin icons
+  sphereToon.rotation.x += 0.005;
+  sphereToon.rotation.y += 0.01;
+  coneToon.rotation.y += 0.015;
+  donutToon.rotation.x += 0.008;
+  donutToon.rotation.y += 0.005;
+
+  renderer.render(scene, camera);
+}
+animate();
+
+function play() {
+  gsap.killTweensOf('*');
+
+  // Reset states
+  gsap.set(phoneToon.position, { y: -8 }); // slide phone up from bottom
+  gsap.set(phoneToon.rotation, { x: 0, y: 0, z: 0 });
+  
+  gsap.set(sphereToon.scale, { x: 0, y: 0, z: 0 });
+  gsap.set(coneToon.scale, { x: 0, y: 0, z: 0 });
+  gsap.set(donutToon.scale, { x: 0, y: 0, z: 0 });
+  
+  gsap.set('#bubble', { scale: 0 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // 1. Phone slides up in 3D and settles (0s - 1.8s)
+  tl.to(phoneToon.position, {
+    y: 0,
+    duration: 1.4,
+    ease: 'elastic.out(1, 0.6)'
+  }, 0.2);
+
+  tl.to(phoneToon.rotation, {
+    y: 0.4,
+    x: 0.1,
+    duration: 1.4,
+    ease: 'elastic.out(1, 0.6)'
+  }, 0.2);
+
+  // 2. Floating icons pop out sequentially with elastic bounce (1.2s - 2.2s)
+  tl.to(sphereToon.scale, {
+    x: 1, y: 1, z: 1,
+    duration: 0.8,
+    ease: 'elastic.out(1.2, 0.5)'
+  }, 1.0);
+
+  tl.to(donutToon.scale, {
+    x: 1, y: 1, z: 1,
+    duration: 0.8,
+    ease: 'elastic.out(1.2, 0.5)'
+  }, 1.2);
+
+  tl.to(coneToon.scale, {
+    x: 1, y: 1, z: 1,
+    duration: 0.8,
+    ease: 'elastic.out(1.2, 0.5)'
+  }, 1.4);
+
+  // 3. Approachable cartoon speech bubble pops up in 2D overlay (2.0s)
+  tl.to('#bubble', {
+    scale: 1,
+    duration: 0.6,
+    ease: 'back.out(2)'
+  }, 2.0);
+
+  // Phone rotates to show other side
+  tl.to(phoneToon.rotation, {
+    y: -0.4,
+    duration: 3.5,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: 1
+  }, 2.6);
+
+  tl.to({}, { duration: 0.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

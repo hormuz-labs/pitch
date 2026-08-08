@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>15 – Dynamic Zooming on UI Elements</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#0D0D0D; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; position:relative; overflow:hidden; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00AA45; letter-spacing:2px;
+  text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:50;
+}
+
+/* Camera stage for whole-scene zoom */
+.camera { position:absolute; inset:0; transform-origin:center center; will-change:transform; }
+
+/* Dashboard panel */
+.dashboard {
+  position:absolute; top:120px; left:200px; width:1520px; height:860px;
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+  border-radius:16px; overflow:hidden;
+}
+.dash-top {
+  height:52px; background:#111; border-bottom:1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; padding:0 24px; gap:20px;
+}
+.dash-logo { font-weight:800; font-size:16px; color:#00AA45; }
+.dash-tabs { display:flex; gap:2px; }
+.tab {
+  padding:6px 16px; border-radius:6px; font-size:13px; color:rgba(255,255,255,0.4);
+  cursor:default;
+}
+.tab.active { background:rgba(0,170,69,0.12); color:#00AA45; }
+.dash-content { display:flex; height:calc(100% - 52px); }
+
+/* Left panel */
+.dash-left { width:300px; border-right:1px solid rgba(255,255,255,0.05); padding:24px 20px; }
+.section-label { font-size:11px; color:rgba(255,255,255,0.25); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; margin-bottom:12px; }
+.quick-action {
+  display:flex; align-items:center; gap:12px; padding:10px 12px;
+  border-radius:8px; margin-bottom:4px; cursor:default;
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05);
+  font-size:13px; color:rgba(255,255,255,0.5);
+}
+.qa-icon { width:28px; height:28px; border-radius:6px; background:rgba(0,170,69,0.15); display:flex; align-items:center; justify-content:center; font-size:14px; }
+
+/* Main area */
+.dash-right { flex:1; padding:28px 32px; }
+.kpi-row { display:flex; gap:16px; margin-bottom:24px; }
+.kpi-card {
+  flex:1; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px; padding:20px;
+}
+.kpi-value { font-size:36px; font-weight:800; line-height:1; margin-bottom:6px; }
+.kpi-label { font-size:12px; color:rgba(255,255,255,0.35); letter-spacing:1px; text-transform:uppercase; font-family:'Courier New',monospace; }
+.kpi-badge { display:inline-block; margin-top:8px; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; font-family:'Courier New',monospace; }
+.kpi-badge.up { background:rgba(0,170,69,0.15); color:#00AA45; }
+.kpi-badge.dn { background:rgba(255,80,80,0.1); color:#FF5050; }
+
+/* Dropdown menu (initially hidden) */
+.dropdown {
+  position:absolute; top:420px; left:490px;
+  background:#1a1a1a; border:1px solid rgba(0,170,69,0.3);
+  border-radius:10px; width:220px; padding:8px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.8);
+  opacity:0; will-change:opacity,transform;
+}
+.dd-item {
+  padding:9px 14px; border-radius:6px; font-size:13px;
+  color:rgba(255,255,255,0.6); display:flex; align-items:center; gap:8px;
+}
+.dd-item.selected { background:rgba(0,170,69,0.12); color:#00AA45; }
+.dd-sep { height:1px; background:rgba(255,255,255,0.06); margin:4px 0; }
+
+/* Specific CTA button on dashboard */
+.run-btn {
+  position:absolute; top:618px; left:500px;
+  padding:12px 28px; border-radius:8px; background:#00AA45;
+  color:#000; font-weight:700; font-size:14px; cursor:default;
+  will-change:transform;
+}
+
+/* Focus ring that appears around highlighted elements */
+.focus-ring {
+  position:absolute; border-radius:12px; border:2px solid #00AA45;
+  opacity:0; pointer-events:none; will-change:transform,opacity;
+  box-shadow:0 0 20px rgba(0,170,69,0.4), inset 0 0 20px rgba(0,170,69,0.05);
+}
+
+/* HUD callout */
+.callout {
+  position:absolute; opacity:0; will-change:opacity;
+  display:flex; align-items:center; gap:0;
+}
+.callout-line { width:60px; height:1px; background:#00AA45; }
+.callout-text {
+  background:rgba(0,170,69,0.15); border:1px solid rgba(0,170,69,0.4);
+  border-radius:4px; padding:4px 10px; font-size:11px; font-family:'Courier New',monospace;
+  color:#00AA45; letter-spacing:1px; white-space:nowrap;
+}
+
+/* Zoom indicator top-right */
+.zoom-hud {
+  position:absolute; top:40px; right:40px; font-family:'Courier New',monospace;
+  font-size:12px; color:#00AA45; letter-spacing:2px; opacity:0;
+  background:rgba(0,0,0,0.6); border:1px solid rgba(0,170,69,0.3);
+  padding:6px 14px; border-radius:20px;
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 15 · Dynamic Zooming on UI Elements</div>
+
+  <div class="zoom-hud" id="zoomHud">ZOOM 1.0×</div>
+
+  <!-- Ambient radial -->
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, rgba(0,170,69,0.03) 0%, transparent 65%);"></div>
+
+  <!-- Camera stage -->
+  <div class="camera" id="camera">
+
+    <div class="dashboard">
+      <div class="dash-top">
+        <div class="dash-logo">NexaFlow</div>
+        <div class="dash-tabs">
+          <div class="tab active">Dashboard</div>
+          <div class="tab">Pipelines</div>
+          <div class="tab">Reports</div>
+        </div>
+      </div>
+      <div class="dash-content">
+        <div class="dash-left">
+          <div class="section-label">Quick Actions</div>
+          <div class="quick-action"><div class="qa-icon">⚡</div> Run Pipeline</div>
+          <div class="quick-action"><div class="qa-icon">📊</div> Export Data</div>
+          <div class="quick-action" id="filterAction"><div class="qa-icon">▼</div> Filter View</div>
+          <div class="quick-action"><div class="qa-icon">🔗</div> Share Report</div>
+        </div>
+        <div class="dash-right">
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="kpi-value">$2.4M</div>
+              <div class="kpi-label">Pipeline Value</div>
+              <div class="kpi-badge up">↑ 18.3%</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value">8,412</div>
+              <div class="kpi-label">Records Processed</div>
+              <div class="kpi-badge up">↑ 4.1%</div>
+            </div>
+            <div class="kpi-card" id="kpiError">
+              <div class="kpi-value">0.02%</div>
+              <div class="kpi-label">Error Rate</div>
+              <div class="kpi-badge dn">↓ Goal: &lt;0.1%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dropdown menu (initially hidden, positioned absolutely in scene) -->
+    <div class="dropdown" id="dropdown">
+      <div class="dd-item">Last 7 days</div>
+      <div class="dd-item selected">◆ Last 30 days</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Custom range...</div>
+    </div>
+
+    <!-- Run Pipeline button -->
+    <div class="run-btn" id="runBtn">▶ Run Pipeline</div>
+
+    <!-- Focus rings (positioned to match elements) -->
+    <div class="focus-ring" id="ringFilter" style="top:412px;left:206px;width:288px;height:50px;"></div>
+    <div class="focus-ring" id="ringDropdown" style="top:415px;left:487px;width:226px;height:160px;border-radius:12px;"></div>
+    <div class="focus-ring" id="ringKpi" style="top:143px;left:503px;width:398px;height:118px;"></div>
+    <div class="focus-ring" id="ringBtn" style="top:613px;left:494px;width:168px;height:48px;border-radius:10px;"></div>
+
+    <!-- Callouts -->
+    <div class="callout" id="calloutFilter" style="top:428px;left:500px;">
+      <div class="callout-line"></div>
+      <div class="callout-text">DROPDOWN TRIGGER</div>
+    </div>
+    <div class="callout" id="calloutKpi" style="top:155px;left:910px;">
+      <div class="callout-line"></div>
+      <div class="callout-text">KEY METRIC · ERROR RATE</div>
+    </div>
+    <div class="callout" id="calloutBtn" style="top:625px;left:670px;">
+      <div class="callout-line"></div>
+      <div class="callout-text">PRIMARY CTA</div>
+    </div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+const cam = document.getElementById('camera');
+const zoomHud = document.getElementById('zoomHud');
+
+function updateZoomHud(v) {
+  zoomHud.textContent = 'ZOOM ' + v.toFixed(1) + '×';
+}
+
+function play() {
+  gsap.killTweensOf('*');
+
+  gsap.set(cam, { scale:1, x:0, y:0, transformOrigin:'center center' });
+  gsap.set('.focus-ring', { opacity:0, scale:0.9 });
+  gsap.set('.callout', { opacity:0 });
+  gsap.set('#dropdown', { opacity:0, y:-8, scale:0.95 });
+  gsap.set(zoomHud, { opacity:0 });
+  gsap.set('#runBtn', { scale:1 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Zoom HUD appears
+  tl.to(zoomHud, { opacity:1, duration:0.4 }, 0.3);
+
+  // --- Beat 1: zoom into Filter / Dropdown trigger ---
+  const zoom1 = { val:1 };
+  tl.to(zoom1, {
+    val:2.8,
+    duration:1.2,
+    ease:'power3.inOut',
+    onUpdate: () => {
+      updateZoomHud(zoom1.val);
+      gsap.set(cam, { scale:zoom1.val, x:-300, y:-200 });
+    }
+  }, 0.5);
+
+  // Focus ring + callout on filter
+  tl.to('#ringFilter', { opacity:1, scale:1, duration:0.4, ease:'back.out(2)' }, 1.2);
+  tl.to('#calloutFilter', { opacity:1, duration:0.3 }, 1.4);
+
+  // Dropdown appears
+  tl.to('#dropdown', { opacity:1, y:0, scale:1, duration:0.4, ease:'back.out(1.5)' }, 1.6);
+  tl.to('#ringDropdown', { opacity:1, scale:1, duration:0.4, ease:'back.out(2)' }, 1.7);
+
+  // --- Beat 2: pan to KPI error card ---
+  tl.to('#calloutFilter,#ringFilter,#ringDropdown,#dropdown', { opacity:0, duration:0.3 }, 2.6);
+
+  const zoom2pos = { x:-300, y:-200, s:2.8 };
+  tl.to(zoom2pos, {
+    x:-600, y:80, s:3.2,
+    duration:1.0,
+    ease:'power2.inOut',
+    onUpdate: () => {
+      updateZoomHud(zoom2pos.s);
+      gsap.set(cam, { scale:zoom2pos.s, x:zoom2pos.x, y:zoom2pos.y });
+    }
+  }, 2.8);
+
+  tl.to('#ringKpi', { opacity:1, scale:1, duration:0.4, ease:'back.out(2)' }, 3.4);
+  tl.to('#calloutKpi', { opacity:1, duration:0.3 }, 3.6);
+
+  // --- Beat 3: zoom to Run Pipeline button ---
+  tl.to('#calloutKpi,#ringKpi', { opacity:0, duration:0.3 }, 4.5);
+
+  const zoom3pos = { x:-600, y:80, s:3.2 };
+  tl.to(zoom3pos, {
+    x:-450, y:-300, s:3.5,
+    duration:1.0,
+    ease:'power2.inOut',
+    onUpdate: () => {
+      updateZoomHud(zoom3pos.s);
+      gsap.set(cam, { scale:zoom3pos.s, x:zoom3pos.x, y:zoom3pos.y });
+    }
+  }, 4.7);
+
+  tl.to('#ringBtn', { opacity:1, scale:1, duration:0.4, ease:'back.out(2)' }, 5.3);
+  tl.to('#calloutBtn', { opacity:1, duration:0.3 }, 5.5);
+
+  // Pulse button
+  tl.to('#runBtn', { scale:1.08, duration:0.2, ease:'power2.out', yoyo:true, repeat:3 }, 5.4);
+
+  // --- Pull back to wide ---
+  tl.to('#calloutBtn,#ringBtn', { opacity:0, duration:0.3 }, 6.5);
+
+  const zoomOut = { x:-450, y:-300, s:3.5 };
+  tl.to(zoomOut, {
+    x:0, y:0, s:1.0,
+    duration:1.4,
+    ease:'power3.inOut',
+    onUpdate: () => {
+      updateZoomHud(zoomOut.s);
+      gsap.set(cam, { scale:zoomOut.s, x:zoomOut.x, y:zoomOut.y });
+    }
+  }, 6.8);
+
+  tl.to(zoomHud, { opacity:0, duration:0.5 }, 8.0);
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

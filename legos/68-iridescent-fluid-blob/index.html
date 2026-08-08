@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>68 – Iridescent Fluid Blob</title>
+<style>
+:root { --bg:#08080c; --accent:#e7b8ff; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+#gl { position:absolute; inset:0; z-index:1; display:block; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.5; z-index:100; }
+
+/* soft inline caption sitting "inside" the blob */
+.caption { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+.caption .t { font-size:46px; font-weight:600; letter-spacing:0.5px; color:rgba(255,255,255,0.92); opacity:0; mix-blend-mode:overlay; }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid var(--accent);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <canvas id="gl" width="1920" height="1080"></canvas>
+  <div class="caption"><div class="t" id="capT"></div></div>
+  <div class="label" id="label"></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════ EDIT EVERYTHING HERE ════════════════ */
+const CONFIG = {
+  label: 'Lego 68 · Iridescent Fluid Blob',
+  caption: 'Powered by intelligent creation.',
+  bg: '#08080c',
+  // iridescence palette (IQ cosine palette) — tuned to pink / lavender / peach / mint
+  palette: { a:[0.62,0.5,0.62], b:[0.4,0.34,0.42], c:[1.0,1.0,1.0], d:[0.0,0.18,0.45] },
+  blobCount: 7,
+  speed: 0.55,        // how fast the metaballs swim
+  spread: 0.62,       // how far they roam (smaller = tighter blob)
+  baseScale: 1.35     // overall size of the form
+};
+/* ═══════════════════════════════════════════════════════ */
+
+document.documentElement.style.setProperty('--bg', CONFIG.bg);
+document.getElementById('label').textContent = CONFIG.label;
+document.getElementById('capT').textContent = CONFIG.caption;
+
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(1920, 1080, false); renderer.setPixelRatio(1);
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+const uniforms = {
+  uTime:   { value: 0 },
+  uRes:    { value: new THREE.Vector2(1920, 1080) },
+  uPalA:   { value: new THREE.Vector3(...CONFIG.palette.a) },
+  uPalB:   { value: new THREE.Vector3(...CONFIG.palette.b) },
+  uPalC:   { value: new THREE.Vector3(...CONFIG.palette.c) },
+  uPalD:   { value: new THREE.Vector3(...CONFIG.palette.d) },
+  uSpeed:  { value: CONFIG.speed },
+  uSpread: { value: CONFIG.spread },
+  uScale:  { value: CONFIG.baseScale },
+  uReveal: { value: 0 }     // 0→1 grow-in
+};
+
+const mat = new THREE.ShaderMaterial({
+  transparent: true,
+  uniforms,
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform float uTime, uSpeed, uSpread, uScale, uReveal;
+    uniform vec2 uRes;
+    uniform vec3 uPalA, uPalB, uPalC, uPalD;
+    vec3 pal(float t){ return uPalA + uPalB*cos(6.28318*(uPalC*t + uPalD)); }
+    void main(){
+      vec2 uv = (vUv - 0.5);
+      uv.x *= uRes.x/uRes.y;
+      uv /= uScale;
+      float t = uTime * uSpeed;
+      float field = 0.0;
+      vec2 wsum = vec2(0.0); float wtot = 0.0;
+      for(int i=0;i<8;i++){
+        float fi = float(i);
+        // each metaball swims on its own slow path (fake noise via layered sines)
+        vec2 c = uSpread * vec2(sin(t*0.7 + fi*1.7) * 0.7 + sin(t*0.31 + fi*2.1)*0.3,
+                                cos(t*0.6 + fi*2.3) * 0.6 + sin(t*0.27 + fi*1.3)*0.3);
+        float r = 0.17 + 0.05*sin(t + fi*1.4);
+        float d2 = dot(uv-c, uv-c) + 0.0009;
+        float w = r*r / d2;
+        field += w;
+        wsum += c * w; wtot += w;
+      }
+      // mask: inside the union of metaballs (reveal grows the threshold in)
+      float thresh = mix(2.4, 0.85, clamp(uReveal,0.0,1.0));
+      float m = smoothstep(thresh, thresh+0.7, field);
+      // iridescence: shift colour by field + position + time → flowing oil-slick look
+      float hue = 0.5 + 0.5*sin(field*0.55 + uv.x*1.3 + uv.y*0.9 + uTime*0.35);
+      vec3 col = pal(hue);
+      // brighten cores, add inner shimmer specks
+      float core = smoothstep(2.2, 4.5, field);
+      col += core*0.22;
+      float spark = pow(max(0.0, sin(uv.x*40.0 + uTime)*sin(uv.y*40.0 - uTime*1.3)), 8.0);
+      col += spark * core * 0.4;
+      // soft outer glow halo
+      float halo = smoothstep(thresh-0.6, thresh, field) * (1.0 - m);
+      vec3 outc = col * m + pal(hue)*halo*0.35;
+      float alpha = clamp(m + halo*0.3, 0.0, 1.0);
+      gl_FragColor = vec4(outc, alpha);
+    }`
+});
+scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
+
+let raf = null;
+function animate(){ uniforms.uTime.value += 0.016; renderer.render(scene, camera); raf = requestAnimationFrame(animate); }
+
+function play(){
+  gsap.killTweensOf('*');
+  if (raf) cancelAnimationFrame(raf);
+  uniforms.uTime.value = 0; uniforms.uReveal.value = 0; uniforms.uScale.value = CONFIG.baseScale * 0.6;
+  gsap.set('#capT', { opacity: 0, y: 14 });
+  animate();
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+  // blob grows in + settles to base scale
+  tl.to(uniforms.uReveal, { value: 1, duration: 1.6, ease: 'power2.out' }, 0);
+  tl.to(uniforms.uScale, { value: CONFIG.baseScale, duration: 1.8, ease: 'expo.out' }, 0);
+  // caption fades in once the form has bloomed
+  tl.to('#capT', { opacity: 1, y: 0, duration: 1.0, ease: 'power2.out' }, 1.3);
+  // gentle "breathing" of the overall scale, forever
+  tl.to(uniforms.uScale, { value: CONFIG.baseScale * 1.06, duration: 3.2, ease: 'sine.inOut', yoyo: true, repeat: -1 }, 2.0);
+  tl.to({}, { duration: 3.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

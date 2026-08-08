@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>69 – Pixelation Match-Cut</title>
+<style>
+:root { --bg:#0a0a0c; --accent:#e7b8ff; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+#stage { position:absolute; inset:0; z-index:1; display:block; }
+
+/* scene B — the smooth iridescent form the pixels dissolve INTO (same palette → seamless) */
+.sceneB { position:absolute; inset:0; z-index:2; opacity:0;
+  background:
+    radial-gradient(40% 55% at 42% 48%, #ff9bd0 0%, transparent 60%),
+    radial-gradient(38% 50% at 62% 56%, #ffc98a 0%, transparent 60%),
+    radial-gradient(45% 55% at 55% 40%, #c9a7ff 0%, transparent 62%),
+    radial-gradient(50% 60% at 48% 60%, #9be7c4 0%, transparent 64%),
+    #0a0a0c; }
+.sceneB .lbl { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:600; color:rgba(255,255,255,0.92); mix-blend-mode:overlay; opacity:0; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.5; z-index:100; }
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid var(--accent);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <canvas id="stage" width="1920" height="1080"></canvas>
+  <div class="sceneB" id="sceneB"><div class="lbl" id="sceneBLbl"></div></div>
+  <div class="label" id="label"></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════ EDIT EVERYTHING HERE ════════════════ */
+const CONFIG = {
+  label: 'Lego 69 · Pixelation Match-Cut',
+  word: 'Connection',
+  sceneBText: 'intelligent creation',
+  // shared palette (gradient text + scene B use the same colours → the dissolve is invisible)
+  gradient: ['#ff9bd0', '#ffc98a', '#c9a7ff', '#9be7c4'],
+  maxPixel: 70,          // chunkiest pixel size at peak
+  zoomDuration: 1.6      // seconds of the zoom-into-text
+};
+/* ═══════════════════════════════════════════════════════ */
+
+document.getElementById('label').textContent = CONFIG.label;
+document.getElementById('sceneBLbl').textContent = CONFIG.sceneBText;
+
+const stage = document.getElementById('stage');
+const ctx = stage.getContext('2d');
+const W = 1920, H = 1080;
+
+// offscreen: the gradient word, drawn fresh each frame so the gradient can flow
+const off = document.createElement('canvas'); off.width = W; off.height = H;
+const octx = off.getContext('2d');
+// tiny buffer used to produce the pixelation (draw small, scale up with smoothing off)
+const buf = document.createElement('canvas');
+const bctx = buf.getContext('2d');
+
+function drawWord(t) {
+  octx.clearRect(0, 0, W, H);
+  octx.fillStyle = '#0a0a0c'; octx.fillRect(0, 0, W, H);
+  const g = octx.createLinearGradient(W*0.2 + Math.sin(t)*200, 0, W*0.8 + Math.cos(t)*200, H);
+  CONFIG.gradient.forEach((c, i) => g.addColorStop(i / (CONFIG.gradient.length - 1), c));
+  octx.fillStyle = g;
+  octx.font = '900 320px -apple-system, "Segoe UI", sans-serif';
+  octx.textAlign = 'center'; octx.textBaseline = 'middle';
+  octx.fillText(CONFIG.word, W / 2, H / 2);
+}
+
+const state = { zoom: 1, px: 1, t: 0 };
+let raf = null;
+function render() {
+  state.t += 0.02;
+  drawWord(state.t);
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, W, H);
+  // zoom = crop a centered sub-region of the source and blow it up to full frame
+  const z = state.zoom;
+  const sw = W / z, sh = H / z, sx = (W - sw) / 2, sy = (H - sh) / 2;
+  if (state.px <= 1.01) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, sx, sy, sw, sh, 0, 0, W, H);
+  } else {
+    // downsample to buffer then upscale → chunky pixels
+    const bw = Math.max(2, Math.round(W / state.px)), bh = Math.max(2, Math.round(H / state.px));
+    buf.width = bw; buf.height = bh;
+    bctx.imageSmoothingEnabled = true;
+    bctx.clearRect(0, 0, bw, bh);
+    bctx.drawImage(off, sx, sy, sw, sh, 0, 0, bw, bh);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(buf, 0, 0, bw, bh, 0, 0, W, H);
+  }
+  raf = requestAnimationFrame(render);
+}
+
+function play() {
+  gsap.killTweensOf('*');
+  if (raf) cancelAnimationFrame(raf);
+  state.zoom = 1; state.px = 1; state.t = 0;
+  gsap.set('#sceneB', { opacity: 0 });
+  gsap.set('#sceneBLbl', { opacity: 0, scale: 1.1 });
+  render();
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // hold the readable word briefly
+  tl.to({}, { duration: 0.8 });
+  // accelerate INTO the text (camera push) while pixels grow chunky
+  tl.to(state, { zoom: 7, duration: CONFIG.zoomDuration, ease: 'power3.in' }, 0.8);
+  tl.to(state, { px: CONFIG.maxPixel, duration: CONFIG.zoomDuration, ease: 'power4.in' }, 0.8);
+  // at peak pixelation, dissolve into the smooth iridescent form (same palette = seamless)
+  tl.to('#sceneB', { opacity: 1, duration: 0.7, ease: 'power2.inOut' }, 0.8 + CONFIG.zoomDuration - 0.2);
+  tl.to('#sceneBLbl', { opacity: 1, scale: 1, duration: 1.0, ease: 'power2.out' }, 0.8 + CONFIG.zoomDuration + 0.4);
+  tl.to({}, { duration: 2.0 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

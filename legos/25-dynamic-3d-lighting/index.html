@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>25 – Dynamic 3D Lighting</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#050508; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00e855; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+#webglCanvas { position:absolute; inset:0; z-index:1; }
+
+/* Cinematic overlays */
+.overlay {
+  position:absolute; inset:0;
+  background:radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.6) 100%);
+  pointer-events:none; z-index:2;
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 25 · Dynamic 3D Lighting</div>
+  <canvas id="webglCanvas"></canvas>
+  <div class="overlay"></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+// Create UI Canvas Textures to map onto 3D cards
+function createUICanvas(title, valText, accentColor) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 340;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#0f0f15';
+  ctx.fillRect(0, 0, 512, 340);
+
+  // Border/Accent line
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(0, 0, 512, 6);
+
+  // Text Title
+  ctx.font = 'bold 22px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText(title.toUpperCase(), 30, 50);
+
+  // Value text
+  ctx.font = 'bold 64px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(valText, 30, 140);
+
+  // Subtle description
+  ctx.font = '16px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillText('Live analytics tracking · Active', 30, 180);
+
+  // Draw simulated UI wireframes
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(30, 210); ctx.lineTo(482, 210);
+  ctx.stroke();
+
+  // Mini Chart lines
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(30, 290);
+  ctx.lineTo(100, 250);
+  ctx.lineTo(180, 270);
+  ctx.lineTo(260, 240);
+  ctx.lineTo(340, 280);
+  ctx.lineTo(420, 230);
+  ctx.lineTo(482, 250);
+  ctx.stroke();
+
+  // Dots
+  ctx.fillStyle = accentColor;
+  ctx.beginPath();
+  ctx.arc(482, 250, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  return canvas;
+}
+
+// Setup Three.js scene
+const container = document.querySelector('.vp');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050508, 0.08);
+
+const camera = new THREE.PerspectiveCamera(45, 1920 / 1080, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webglCanvas'), antialias: true });
+renderer.setSize(1920, 1080);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// Create 3D cards
+const cardGeometry = new THREE.BoxGeometry(4.5, 3, 0.1);
+
+const tex1 = new THREE.CanvasTexture(createUICanvas('revenue growth', '$548,210', '#00e855'));
+const tex2 = new THREE.CanvasTexture(createUICanvas('active userbase', '124,850', '#00f0ff'));
+const tex3 = new THREE.CanvasTexture(createUICanvas('api uptime', '99.982%', '#ff007f'));
+
+const materialConfigs = [
+  { tex: tex1, x: -5, y: 1, z: 0, rotY: 0.15 },
+  { tex: tex2, x: 0, y: 0, z: 1.5, rotY: 0 },
+  { tex: tex3, x: 5, y: -1, z: 0, rotY: -0.15 }
+];
+
+const cards = materialConfigs.map(cfg => {
+  const mat = new THREE.MeshStandardMaterial({
+    map: cfg.tex,
+    roughness: 0.25,
+    metalness: 0.8,
+    bumpScale: 0.05
+  });
+  
+  const mesh = new THREE.Mesh(cardGeometry, mat);
+  mesh.position.set(cfg.x, cfg.y, cfg.z);
+  mesh.rotation.y = cfg.rotY;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mesh;
+});
+
+// Ground plane to catch dramatic shadows
+const floorGeo = new THREE.PlaneGeometry(30, 30);
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x0a0a0d,
+  roughness: 0.8,
+  metalness: 0.2
+});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -4;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ── LIGHTING SETUP (The star of this lego) ──
+
+// Ambient Base
+const ambientLight = new THREE.AmbientLight(0x08080c);
+scene.add(ambientLight);
+
+// Spot Light 1: Vibrant Green
+const spotLight1 = new THREE.SpotLight(0x00e855, 6, 20, Math.PI / 6, 0.5, 1);
+spotLight1.position.set(-8, 5, 8);
+spotLight1.castShadow = true;
+spotLight1.shadow.mapSize.width = 1024;
+spotLight1.shadow.mapSize.height = 1024;
+spotLight1.shadow.bias = -0.001;
+scene.add(spotLight1);
+
+// Spot Light 2: Vibrant Cyan
+const spotLight2 = new THREE.SpotLight(0x00f0ff, 6, 20, Math.PI / 6, 0.5, 1);
+spotLight2.position.set(8, 5, 8);
+spotLight2.castShadow = true;
+spotLight2.shadow.mapSize.width = 1024;
+spotLight2.shadow.mapSize.height = 1024;
+spotLight2.shadow.bias = -0.001;
+scene.add(spotLight2);
+
+// Point Light: Hot Magenta sweeping behind cards
+const pointLight = new THREE.PointLight(0xff007f, 15, 12);
+pointLight.position.set(0, 0, -2);
+scene.add(pointLight);
+
+// Helper Spheres to visualize light positions (optional, looks cool in dark space)
+const lightSphereGeo = new THREE.SphereGeometry(0.1, 16, 16);
+const pLightMesh = new THREE.Mesh(lightSphereGeo, new THREE.MeshBasicMaterial({ color: 0xff007f }));
+scene.add(pLightMesh);
+
+// Target points for spotlight helpers
+const target1 = new THREE.Object3D(); target1.position.set(-3, 0, 0); scene.add(target1);
+const target2 = new THREE.Object3D(); target2.position.set(3, 0, 0); scene.add(target2);
+spotLight1.target = target1;
+spotLight2.target = target2;
+
+// Render loop
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+function play() {
+  gsap.killTweensOf('*');
+  
+  // Set initial camera position
+  gsap.set(camera.position, { x: 0, y: 1, z: 12 });
+  gsap.set(camera.rotation, { x: -0.05, y: 0, z: 0 });
+
+  // Reset lights
+  gsap.set(spotLight1.position, { x: -10, y: 8, z: 5 });
+  gsap.set(spotLight2.position, { x: 10, y: 8, z: 5 });
+  gsap.set(pointLight.position, { x: 0, y: -2, z: -1 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // 1. Zoom in and camera orbital swoop (0s - 7s)
+  tl.to(camera.position, {
+    x: -3,
+    y: 0.5,
+    z: 7,
+    duration: 3.5,
+    ease: 'power2.inOut'
+  }, 0);
+
+  tl.to(camera.position, {
+    x: 3,
+    y: -0.5,
+    z: 8,
+    duration: 3.5,
+    ease: 'power2.inOut'
+  }, 3.5);
+
+  // 2. Animate spot lights sweeping back and forth (dynamic specular highlights)
+  tl.to(spotLight1.position, {
+    x: 4,
+    y: 3,
+    z: 6,
+    duration: 3.5,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: 1
+  }, 0);
+
+  tl.to(spotLight2.position, {
+    x: -4,
+    y: 3,
+    z: 6,
+    duration: 3.5,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: 1
+  }, 0.5);
+
+  // 3. Animate point light orbiting behind to cast shifting depth shadows
+  tl.to(pointLight.position, {
+    x: 6,
+    y: 2,
+    z: -3,
+    duration: 3.0,
+    ease: 'power1.inOut',
+    onUpdate: () => {
+      pLightMesh.position.copy(pointLight.position);
+    }
+  }, 0);
+
+  tl.to(pointLight.position, {
+    x: -6,
+    y: -2,
+    z: -2,
+    duration: 3.0,
+    ease: 'power1.inOut',
+    onUpdate: () => {
+      pLightMesh.position.copy(pointLight.position);
+    }
+  }, 3.0);
+
+  // 4. Animate Card positions gently floating
+  cards.forEach((card, idx) => {
+    gsap.set(card.position, { y: materialConfigs[idx].y });
+    tl.to(card.position, {
+      y: materialConfigs[idx].y + 0.3,
+      duration: 2,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: 3
+    }, idx * 0.4);
+
+    // Subtle rotation hover response
+    tl.to(card.rotation, {
+      y: materialConfigs[idx].rotY + (idx === 1 ? 0.2 : -0.2),
+      x: 0.1,
+      duration: 3,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: 1
+    }, 0.5 + idx * 0.2);
+  });
+
+  tl.to({}, { duration: 0.5 }); // Buffer
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

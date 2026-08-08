@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>34 – Luma Matte Transitions</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#08080C; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00e855; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+/* Base Scene Layer (Scene A: Terminal/Code) */
+.scene-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scene-a {
+  background: #060608;
+  z-index: 10;
+}
+.term-box {
+  width: 900px;
+  height: 500px;
+  background: #0b0b0f;
+  border: 1px solid rgba(0,232,85,0.2);
+  border-radius: 12px;
+  padding: 30px;
+  font-family: monospace;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+}
+
+/* Masked Scene Layer (Scene B: Global Metrics) */
+.scene-b {
+  background: #0b0d19;
+  z-index: 20;
+  
+  /* Luma Matte Mask Definition */
+  /* We use a multi-stage gradient sweep to create a high-contrast, organic luma wipe */
+  mask-image: linear-gradient(135deg, transparent 0%, transparent 40%, #000 60%, #000 100%);
+  mask-size: 300% 300%;
+  mask-position: 100% 100%; /* Start fully masked out (Scene B hidden) */
+  -webkit-mask-image: linear-gradient(135deg, transparent 0%, transparent 40%, #000 60%, #000 100%);
+  -webkit-mask-size: 300% 300%;
+  -webkit-mask-position: 100% 100%;
+  will-change: mask-position;
+}
+
+.metrics-box {
+  width: 900px;
+  height: 500px;
+  background: rgba(15,20,35,0.85);
+  border: 1px solid rgba(0,240,255,0.2);
+  border-radius: 12px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+}
+
+/* Decorative details */
+.terminal-line { color: #00e855; margin-bottom: 8px; font-size: 14px; }
+.b-title { font-size: 14px; color: #00f0ff; letter-spacing: 2px; text-transform: uppercase; font-family: monospace; }
+.b-main { font-size: 64px; font-weight: 800; line-height: 1.1; margin-top: 10px; }
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 34 · Luma Matte Transitions</div>
+
+  <!-- Scene A: Below the mask -->
+  <div class="scene-container scene-a">
+    <div class="term-box">
+      <div style="display:flex; gap:6px; margin-bottom:24px;">
+        <div style="width:10px; height:10px; border-radius:50%; background:#ef4444;"></div>
+        <div style="width:10px; height:10px; border-radius:50%; background:#f59e0b;"></div>
+        <div style="width:10px; height:10px; border-radius:50%; background:#10b981;"></div>
+      </div>
+      <div class="terminal-line">> node compile_server.js</div>
+      <div class="terminal-line">> Shifting vector database segments... DONE</div>
+      <div class="terminal-line">> Establishing secure socket tunnel... DONE</div>
+      <div class="terminal-line" style="color:#fff;">> API STATUS: Operational [OK]</div>
+      <div class="terminal-line">> Press Ctrl+C to disconnect.</div>
+    </div>
+  </div>
+
+  <!-- Scene B: Above the mask, gets wiped in -->
+  <div class="scene-container scene-b" id="sceneB">
+    <div class="metrics-box">
+      <div>
+        <div class="b-title">WORKSPACE // ANALYTICS</div>
+        <div class="b-main">Global Node Clusters</div>
+        <div style="color:rgba(255,255,255,0.4); margin-top:12px; font-size:15px; max-width:500px;">
+          Seamless sync with micro-routing and optimized cache replication across 34 edge points.
+        </div>
+      </div>
+      
+      <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+        <div>
+          <div style="font-size:12px; font-family:monospace; color:rgba(255,255,255,0.3);">NODE SPEED</div>
+          <div style="font-size:32px; font-weight:700; color:#00f0ff;">1.24ms</div>
+        </div>
+        <div>
+          <div style="font-size:12px; font-family:monospace; color:rgba(255,255,255,0.3);">LOAD FACTOR</div>
+          <div style="font-size:32px; font-weight:700; color:#00f0ff;">0.15%</div>
+        </div>
+        <div style="width:150px; height:40px; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.3); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:12px; font-family:monospace; font-weight:700; color:#00f0ff;">
+          STABLE
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+function play() {
+  gsap.killTweensOf('*');
+
+  // Reset Scene B Mask Position (hidden)
+  // mask-position: 100% 100% covers with transparency
+  // mask-position: 0% 0% covers with solid black (reveals Scene B completely)
+  const sceneB = document.getElementById('sceneB');
+  gsap.set(sceneB, {
+    maskPosition: '100% 100%',
+    webkitMaskPosition: '100% 100%',
+    scale: 0.95,
+    opacity: 0.8
+  });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // Modern Luma Matte Wipe: sweep gradient mask from right to left (0% 0%)
+  tl.to(sceneB, {
+    maskPosition: '0% 0%',
+    webkitMaskPosition: '0% 0%',
+    scale: 1.0,
+    opacity: 1,
+    duration: 2.2,
+    ease: 'power3.inOut'
+  }, 0.5);
+
+  // Subtle zoom/pan camera effect during the transition
+  tl.from('.metrics-box', {
+    y: 20,
+    duration: 1.8,
+    ease: 'power2.out'
+  }, 1.2);
+
+  tl.to({}, { duration: 0.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

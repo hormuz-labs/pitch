@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>30 – Dynamic Staggered Reveals</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#0B0B0F; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; display:flex; padding: 40px; gap: 24px; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00e855; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+/* Sidebar Panel */
+.sidebar {
+  width: 280px;
+  height: 100%;
+  background: #111116;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  transform: translateX(-40px);
+  opacity: 0;
+}
+.logo-area { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 32px; height: 32px; border-radius: 8px; background: #00e855; }
+.logo-text { font-weight: 700; font-size: 18px; letter-spacing: 1px; }
+
+.nav-links { display: flex; flex-direction: column; gap: 8px; }
+.nav-link {
+  height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 8px;
+  background: rgba(255,255,255,0.01); border: 1px solid transparent; gap: 12px; font-size: 14px; color: rgba(255,255,255,0.5);
+  transform: translateY(15px); opacity: 0;
+}
+.nav-link.active {
+  background: rgba(0,232,85,0.08); border-color: rgba(0,232,85,0.25); color: #00e855;
+}
+
+/* Main Dashboard Area */
+.main-dashboard {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  height: 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transform: translateY(-20px);
+  opacity: 0;
+}
+.header h2 { font-size: 24px; font-weight: 700; }
+.header-actions { display: flex; gap: 16px; }
+.header-btn { width: 44px; height: 44px; border-radius: 50%; background: #111116; border: 1px solid rgba(255,255,255,0.05); }
+
+/* Dashboard Grid */
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 140px 1fr;
+  gap: 24px;
+  flex: 1;
+}
+
+.widget {
+  background: #111116;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transform: translateY(30px) scale(0.95);
+  opacity: 0;
+}
+
+.metric-title { font-size: 12px; font-family: monospace; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
+.metric-val { font-size: 36px; font-weight: 800; color: #fff; margin-top: 8px; }
+.metric-trend { font-size: 12px; color: #00e855; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+
+.widget-wide {
+  grid-column: 1 / 3;
+  position: relative;
+}
+.widget-sidebar {
+  grid-column: 3 / 4;
+}
+
+.chart-box {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  margin-top: 20px;
+}
+.chart-path {
+  fill: none;
+  stroke: #00e855;
+  stroke-width: 4;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+}
+
+/* List Items in Widget Sidebar */
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transform: translateY(15px);
+  opacity: 0;
+}
+
+#replayBtn {
+  position:fixed; bottom:30px; right:40px; z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 30 · Dynamic Staggered Reveals</div>
+
+  <!-- Sidebar Panel -->
+  <div class="sidebar" id="sidebar">
+    <div class="logo-area">
+      <div class="logo-icon"></div>
+      <div class="logo-text">RELOCAL</div>
+    </div>
+    <div class="nav-links">
+      <div class="nav-link active">📊 Dashboard</div>
+      <div class="nav-link">💳 Transactions</div>
+      <div class="nav-link">📈 Analytics</div>
+      <div class="nav-link">⚙️ Developer Settings</div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div class="main-dashboard">
+    <div class="header" id="header">
+      <h2>Global Workspace</h2>
+      <div class="header-actions">
+        <div class="header-btn"></div>
+        <div class="header-btn" style="background: #00e855;"></div>
+      </div>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div class="grid-container">
+      
+      <!-- Metric Card 1 -->
+      <div class="widget card-item">
+        <div class="metric-title">TOTAL SALES</div>
+        <div class="metric-val" id="salesVal">$0</div>
+        <div class="metric-trend">▲ +24.8% vs last week</div>
+      </div>
+
+      <!-- Metric Card 2 -->
+      <div class="widget card-item">
+        <div class="metric-title">ACTIVE TASKS</div>
+        <div class="metric-val" id="tasksVal">0</div>
+        <div class="metric-trend" style="color:#00f0ff;">■ Running optimized</div>
+      </div>
+
+      <!-- Metric Card 3 -->
+      <div class="widget card-item">
+        <div class="metric-title">SERVER UPTIME</div>
+        <div class="metric-val" id="uptimeVal">0.00%</div>
+        <div class="metric-trend">▲ Peak Performance</div>
+      </div>
+
+      <!-- Main Chart Widget -->
+      <div class="widget widget-wide card-item" style="height:100%;">
+        <div>
+          <div class="metric-title">DATA NETWORK PIPELINE</div>
+          <div class="metric-val" style="font-size: 24px;">Bandwidth Allocation</div>
+        </div>
+        <div class="chart-box">
+          <svg style="width:100%; height:100%; overflow:visible;" viewBox="0 0 700 240">
+            <path class="chart-path" id="dashChartPath" d="M 0 200 Q 100 80, 200 160 T 400 60 T 600 120 T 700 20" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Sidebar Log Widget -->
+      <div class="widget widget-sidebar card-item" style="height:100%;">
+        <div class="metric-title" style="margin-bottom:12px;">SYSTEM TRIGGERS</div>
+        <div style="display:flex; flex-direction:column; gap:8px;" id="logList">
+          <div class="list-item">
+            <div>
+              <div style="font-size:12px; font-weight:600;">api_gateway_connected</div>
+              <div style="font-size:10px; color:rgba(255,255,255,0.3);">node-us-east</div>
+            </div>
+            <div style="font-size:11px; font-family:monospace; color:#00e855;">Success</div>
+          </div>
+          <div class="list-item">
+            <div>
+              <div style="font-size:12px; font-weight:600;">database_shard_synced</div>
+              <div style="font-size:10px; color:rgba(255,255,255,0.3);">sync-primary</div>
+            </div>
+            <div style="font-size:11px; font-family:monospace; color:#00e855;">Success</div>
+          </div>
+          <div class="list-item">
+            <div>
+              <div style="font-size:12px; font-weight:600;">ssl_handshake_initiated</div>
+              <div style="font-size:10px; color:rgba(255,255,255,0.3);">edge-router</div>
+            </div>
+            <div style="font-size:11px; font-family:monospace; color:#00f0ff;">Pending</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+function play() {
+  gsap.killTweensOf('*');
+
+  // Reset states
+  gsap.set('#sidebar', { opacity: 0, x: -40 });
+  gsap.set('.nav-link', { opacity: 0, y: 15 });
+  gsap.set('#header', { opacity: 0, y: -20 });
+  gsap.set('.card-item', { opacity: 0, y: 30, scale: 0.95 });
+  gsap.set('.list-item', { opacity: 0, y: 15 });
+  gsap.set('#dashChartPath', { strokeDashoffset: 1000 });
+
+  // Reset metric values
+  document.getElementById('salesVal').textContent = '$0';
+  document.getElementById('tasksVal').textContent = '0';
+  document.getElementById('uptimeVal').textContent = '0.00%';
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // 1. Sidebar Panel Entrance (0s - 1.2s)
+  tl.to('#sidebar', {
+    opacity: 1,
+    x: 0,
+    duration: 0.8,
+    ease: 'power3.out'
+  }, 0);
+
+  // Stagger links inside sidebar (Motion Tools 2 cascading feel)
+  tl.to('.nav-link', {
+    opacity: 1,
+    y: 0,
+    duration: 0.6,
+    stagger: 0.08,
+    ease: 'back.out(1.5)'
+  }, 0.3);
+
+  // 2. Header Slide Down (0.4s)
+  tl.to('#header', {
+    opacity: 1,
+    y: 0,
+    duration: 0.6,
+    ease: 'power2.out'
+  }, 0.4);
+
+  // 3. Staggered reveal of Grid Widgets with bounce (0.6s - 1.8s)
+  tl.to('.card-item', {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    duration: 0.9,
+    stagger: 0.12,
+    ease: 'back.out(1.2)'
+  }, 0.5);
+
+  // 4. Staggered reveal of log list items (1.2s)
+  tl.to('.list-item', {
+    opacity: 1,
+    y: 0,
+    duration: 0.6,
+    stagger: 0.1,
+    ease: 'power2.out'
+  }, 1.2);
+
+  // 5. SVG Chart Line Drawing and Counters ticking (1.4s - 3s)
+  tl.to('#dashChartPath', {
+    strokeDashoffset: 0,
+    duration: 1.8,
+    ease: 'power3.out'
+  }, 1.3);
+
+  // Numeric counter updates
+  const countSales = { val: 0 };
+  tl.to(countSales, {
+    val: 124850,
+    duration: 1.5,
+    ease: 'power2.out',
+    onUpdate: () => {
+      document.getElementById('salesVal').textContent = '$' + Math.round(countSales.val).toLocaleString();
+    }
+  }, 1.2);
+
+  const countTasks = { val: 0 };
+  tl.to(countTasks, {
+    val: 582,
+    duration: 1.5,
+    ease: 'power2.out',
+    onUpdate: () => {
+      document.getElementById('tasksVal').textContent = Math.round(countTasks.val).toLocaleString();
+    }
+  }, 1.4);
+
+  const countUptime = { val: 0 };
+  tl.to(countUptime, {
+    val: 99.99,
+    duration: 1.8,
+    ease: 'power3.out',
+    onUpdate: () => {
+      document.getElementById('uptimeVal').textContent = countUptime.val.toFixed(2) + '%';
+    }
+  }, 1.4);
+
+  tl.to({}, { duration: 0.5 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

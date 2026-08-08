@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>08 – Glow, Bloom & Drop Shadows</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:#0D0D0D; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; gap:80px; }
+
+.label {
+  position:absolute; top:32px; left:32px; font-size:13px; color:#00AA45; letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.4; z-index:100;
+}
+
+/* ── Demo Cards ── */
+.demo-card {
+  width:400px; background:rgba(255,255,255,0.02);
+  border-radius:20px; overflow:hidden;
+}
+.demo-card-content { padding:36px; text-align:center; }
+.demo-card h2 { font-size:13px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:2px; margin-bottom:20px; font-family:'Courier New',monospace; }
+
+/* Logo block */
+.logo-block {
+  width:120px; height:120px; margin:0 auto 24px;
+  border-radius:28px; display:flex; align-items:center; justify-content:center;
+  font-size:52px; font-weight:900;
+}
+.logo-block.basic {
+  background:rgba(0,170,69,0.1); border:1px solid rgba(0,170,69,0.2);
+}
+.logo-block.shadow {
+  background:#00AA45;
+  box-shadow: 0 0 0px rgba(0,170,69,0);
+}
+.logo-block.glow {
+  background:rgba(0,170,69,0.12); border:1px solid rgba(0,170,69,0.2);
+}
+.logo-block.bloom {
+  background:#00AA45;
+}
+/* Bloom is handled via filter */
+
+/* Text samples */
+.text-sample { font-size:24px; font-weight:700; margin-bottom:8px; }
+.text-sample.shadow-text { text-shadow: 0 0 0px rgba(0,170,69,0); }
+.text-sample.glow-text { color:#00AA45; }
+.text-sample.bloom-text { font-size:28px; }
+
+/* Sub label */
+.sub-label { font-size:12px; color:rgba(255,255,255,0.3); font-family:'Courier New',monospace; margin-top:6px; }
+
+/* UI element demo */
+.ui-demo {
+  width:400px; padding:24px 0;
+}
+.ui-button {
+  display:inline-flex; align-items:center; gap:10px;
+  padding:14px 32px; border-radius:12px; font-size:16px; font-weight:600;
+  border:none; cursor:pointer; color:#fff; background:#00AA45;
+  transition: none;
+}
+.ui-button.shadow-btn { box-shadow: 0 0 0px rgba(0,170,69,0); }
+.ui-card-mock {
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px; padding:20px; margin-top:16px;
+}
+.ui-card-mock.shadow-card { box-shadow: 0 0 0px rgba(0,0,0,0); }
+
+#replayBtn {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid rgba(0,170,69,0.4);
+  background:rgba(0,0,0,0.7); color:#00AA45; cursor:pointer; font-size:13px;
+  font-family:monospace; backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label">Lego 08 · Glow, Bloom & Drop Shadows</div>
+
+  <!-- Card 1: Glow Effects -->
+  <div class="demo-card">
+    <div class="demo-card-content">
+      <h2>Glow</h2>
+      <div class="logo-block glow" id="glowLogo">
+        <span style="color:#00AA45;">P</span>
+      </div>
+      <div class="text-sample glow-text" id="glowText">peerlist</div>
+      <div class="sub-label">neon glow · blur reveal</div>
+    </div>
+  </div>
+
+  <!-- Card 2: Drop Shadows -->
+  <div class="demo-card">
+    <div class="demo-card-content">
+      <h2>Drop Shadow</h2>
+      <div class="logo-block shadow" id="shadowLogo">
+        <span style="color:#fff;">P</span>
+      </div>
+      <div class="text-sample shadow-text" id="shadowText">peerlist</div>
+      <div class="ui-button shadow-btn" id="shadowBtn">Get Started →</div>
+      <div class="sub-label" style="margin-top:12px;">depth · grounding</div>
+    </div>
+  </div>
+
+  <!-- Card 3: Bloom -->
+  <div class="demo-card">
+    <div class="demo-card-content">
+      <h2>Bloom</h2>
+      <div class="logo-block bloom" id="bloomLogo">
+        <span style="color:#fff;">P</span>
+      </div>
+      <div class="text-sample bloom-text" id="bloomText"><span style="color:#00AA45;">PEER</span>LIST</div>
+      <div class="sub-label">lens bloom · overexposure</div>
+    </div>
+  </div>
+
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+function play() {
+  gsap.killTweensOf('*');
+
+  // Reset
+  gsap.set('#glowLogo, #glowText', { filter: 'blur(0px) brightness(1)', opacity: 1 });
+  gsap.set('#glowLogo', { boxShadow: '0 0 0px rgba(0,170,69,0)' });
+  gsap.set('#glowText', { textShadow: '0 0 0px rgba(0,170,69,0)' });
+
+  gsap.set('#shadowLogo', { boxShadow: '0 0 0px rgba(0,170,69,0)' });
+  gsap.set('#shadowText', { textShadow: '0 0 0px rgba(0,0,0,0)' });
+  gsap.set('#shadowBtn', { boxShadow: '0 0 0px rgba(0,170,69,0)', y: 0 });
+
+  gsap.set('#bloomLogo', { filter: 'brightness(1) saturate(1)' });
+  gsap.set('#bloomText', { filter: 'blur(0px) brightness(1)' });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+
+  // ═══ GLOW ═══
+  // Logo glow box shadow
+  tl.to('#glowLogo', {
+    boxShadow: '0 0 40px 12px rgba(0,170,69,0.35), 0 0 80px 24px rgba(0,170,69,0.12)',
+    duration: 1.2, ease: 'power2.out'
+  }, 0.3);
+  tl.to('#glowLogo', {
+    boxShadow: '0 0 50px 16px rgba(0,170,69,0.4)',
+    duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1
+  }, 1.8);
+
+  // Text glow via text-shadow
+  tl.to('#glowText', {
+    textShadow: '0 0 20px rgba(0,170,69,0.5), 0 0 40px rgba(0,170,69,0.2)',
+    duration: 1.2, ease: 'power2.out'
+  }, 0.8);
+  tl.to('#glowText', {
+    textShadow: '0 0 30px rgba(0,170,69,0.6), 0 0 60px rgba(0,170,69,0.2)',
+    duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1
+  }, 2.3);
+
+  // ═══ DROP SHADOW ═══
+  tl.to('#shadowLogo', {
+    boxShadow: '0 20px 40px -8px rgba(0,0,0,0.6), 0 8px 24px -4px rgba(0,0,0,0.4)',
+    y: -4, duration: 1.0, ease: 'power2.out'
+  }, 0.5);
+  tl.to('#shadowLogo', {
+    y: 0, duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1
+  }, 1.8);
+
+  tl.to('#shadowText', {
+    textShadow: '0 4px 8px rgba(0,0,0,0.5)',
+    duration: 0.8, ease: 'power2.out'
+  }, 0.8);
+
+  tl.to('#shadowBtn', {
+    boxShadow: '0 8px 24px rgba(0,170,69,0.35), 0 2px 4px rgba(0,0,0,0.3)',
+    y: -2, duration: 0.8, ease: 'power2.out'
+  }, 1.0);
+  tl.to('#shadowBtn', {
+    y: 0, duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1
+  }, 2.0);
+
+  // ═══ BLOOM ═══
+  tl.to('#bloomLogo', {
+    filter: 'brightness(1.4) saturate(1.2)',
+    duration: 1.4, ease: 'power2.out'
+  }, 0.5);
+  tl.to('#bloomLogo', {
+    filter: 'brightness(1.2) saturate(1.1)',
+    duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1
+  }, 2.2);
+
+  tl.to('#bloomText', {
+    filter: 'blur(1.5px) brightness(1.3)',
+    duration: 1.2, ease: 'power2.out'
+  }, 1.0);
+  tl.to('#bloomText', {
+    filter: 'blur(0.5px) brightness(1.1)',
+    duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1
+  }, 2.5);
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>54 – Stacked Screens 3D</title>
+<style>
+:root { --bg:#0a0612; --bg-mid:#21123f; --accent:#a78bfa; --accent-2:#7c3aed; --accent-3:#3b1d6e; --panel:#f6f4fb; --panel-2:#efeafc; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#fff; }
+.vp { width:1920px; height:1080px; overflow:hidden; position:relative; background:radial-gradient(ellipse at 50% 40%, var(--bg-mid), var(--bg) 72%); display:flex; align-items:center; justify-content:center; }
+
+.label { position:absolute; top:32px; left:32px; font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-family:'Courier New',monospace; opacity:0.5; z-index:100; }
+
+.caption { position:absolute; bottom:80px; left:0; right:0; text-align:center; z-index:20; }
+.caption .h { font-size:54px; font-weight:800; letter-spacing:-1px; opacity:0; }
+.caption .h .accent { color:var(--accent); }
+
+.deck { position:relative; width:1100px; height:680px; perspective:1800px; transform-style:preserve-3d; }
+.screen {
+  position:absolute; top:50%; left:50%; width:880px; height:540px; margin:-270px 0 0 -440px;
+  border-radius:18px; overflow:hidden; background:var(--panel);
+  box-shadow:0 50px 100px rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.12);
+  will-change:transform, opacity;
+}
+.screen .topbar { height:46px; background:var(--panel-2); display:flex; align-items:center; gap:8px; padding:0 16px; }
+.screen .topbar i { width:12px; height:12px; border-radius:50%; background:#d6cdf0; }
+.screen .body { padding:24px; }
+.screen .row { height:38px; border-radius:8px; background:#ece6fb; margin-bottom:12px; }
+.screen .row.hl { background:linear-gradient(90deg,#ddd0fb,var(--panel-2)); }
+.screen .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px; }
+.screen .panel { height:150px; border-radius:12px; background:#fff; box-shadow:0 6px 18px rgba(80,40,160,0.08); }
+.screen .panel.map { background:linear-gradient(135deg,#241046,var(--accent-3)); }
+.tag { position:absolute; top:18px; left:20px; font-size:12px; font-weight:700; color:var(--accent-2); background:#fff; padding:4px 10px; border-radius:20px; box-shadow:0 3px 10px rgba(124,58,237,0.2); }
+
+#replayBtn { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:1000;
+  padding:10px 28px; border-radius:30px; border:1px solid var(--accent);
+  background:rgba(0,0,0,0.7); color:var(--accent); cursor:pointer; font-size:13px; font-family:monospace; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div class="vp">
+  <div class="label" id="label"></div>
+
+  <div class="deck" id="deck">
+    <div class="screen" id="s3">
+      <div class="topbar"><i></i><i></i><i></i></div>
+      <div class="body"><div class="tag" id="tag3"></div><div class="grid2"><div class="panel"></div><div class="panel"></div></div><div class="row" style="margin-top:16px"></div><div class="row"></div></div>
+    </div>
+    <div class="screen" id="s2">
+      <div class="topbar"><i></i><i></i><i></i></div>
+      <div class="body"><div class="tag" id="tag2"></div><div class="grid2"><div class="panel map"></div><div class="panel"></div></div><div class="row" style="margin-top:16px"></div><div class="row hl"></div></div>
+    </div>
+    <div class="screen" id="s1">
+      <div class="topbar"><i></i><i></i><i></i></div>
+      <div class="body"><div class="tag" id="tag1"></div><div class="row"></div><div class="row hl"></div><div class="row"></div><div class="row"></div><div class="grid2" style="margin-top:8px"><div class="panel"></div><div class="panel"></div></div></div>
+    </div>
+  </div>
+
+  <div class="caption"><div class="h" id="capH"></div></div>
+</div>
+
+<button id="replayBtn">▶ REPLAY</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════ EDIT EVERYTHING HERE ════════════════ */
+const CONFIG = {
+  label: 'Lego 54 · Stacked Screens 3D',
+  tags: { s1: 'Bins Pickup', s2: 'Routes', s3: 'Analytics' },
+  caption: [{ t: 'One platform. ' }, { t: 'Every view.', accent: true }],
+  colors: { bg:'#0a0612', bgMid:'#21123f', accent:'#a78bfa', accent2:'#7c3aed', accent3:'#3b1d6e', panel:'#f6f4fb', panel2:'#efeafc' }
+};
+/* ═══════════════════════════════════════════════════════ */
+
+const C = CONFIG.colors, _r = document.documentElement.style;
+_r.setProperty('--bg', C.bg); _r.setProperty('--bg-mid', C.bgMid);
+_r.setProperty('--accent', C.accent); _r.setProperty('--accent-2', C.accent2); _r.setProperty('--accent-3', C.accent3);
+_r.setProperty('--panel', C.panel); _r.setProperty('--panel-2', C.panel2);
+document.getElementById('label').textContent = CONFIG.label;
+document.getElementById('tag1').textContent = CONFIG.tags.s1;
+document.getElementById('tag2').textContent = CONFIG.tags.s2;
+document.getElementById('tag3').textContent = CONFIG.tags.s3;
+document.getElementById('capH').innerHTML = CONFIG.caption.map(s => s.accent ? `<span class="accent">${s.t}</span>` : s.t).join('');
+
+function play() {
+  gsap.killTweensOf('*');
+  const finals = {
+    '#s1': { x: -150, y: 70,  rotateZ: -7, rotateY: 12,  z: 0 },
+    '#s2': { x: 20,   y: 0,   rotateZ: 2,  rotateY: 2,   z: 60 },
+    '#s3': { x: 175,  y: -70, rotateZ: 8,  rotateY: -10, z: -40 }
+  };
+  gsap.set('#s1', { x: -150, y: 900, rotateZ: 0, rotateY: 0, opacity: 0 });
+  gsap.set('#s2', { x: 20,   y: 900, rotateZ: 0, rotateY: 0, opacity: 0 });
+  gsap.set('#s3', { x: 175,  y: 900, rotateZ: 0, rotateY: 0, opacity: 0 });
+  gsap.set('#capH', { opacity: 0, y: 20 });
+  gsap.set('#deck', { rotateX: 6 });
+
+  const tl = gsap.timeline();
+  window.masterTimeline = tl;
+  ['#s3', '#s2', '#s1'].forEach((sel, i) => {
+    tl.to(sel, { ...finals[sel], opacity: 1, duration: 1.0, ease: 'power3.out' }, 0.3 + i * 0.35);
+  });
+  tl.to('#deck', { rotateY: 6, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 2.0);
+  tl.to('#capH', { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out' }, 1.9);
+  tl.to({}, { duration: 2.0 });
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+play();
+</script>
+</body>
+</html>
