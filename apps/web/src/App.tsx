@@ -46,6 +46,7 @@ import { PitchLogoAnimation } from './components/PitchLogoAnimation'
 import { PrivacyPolicy } from './components/PrivacyPolicy'
 import { TermsOfService } from './components/TermsOfService'
 import { API_URL } from './config'
+import { LaunchVideoView } from './launch-video/LaunchVideoView'
 import { api } from './lib/api'
 import { parseSSELog } from './lib/events'
 import { captureRefFromUrl, getRefCode } from './lib/referral'
@@ -442,7 +443,9 @@ const Sidebar = ({
   const [dragSlide, setDragSlide] = useState<number | null>(null)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
   const [slideMenu, setSlideMenu] = useState<number | null>(null)
-  const [videoOpen, setVideoOpen] = useState(selectedKey === 'create' || selectedKey === 'edit')
+  const [videoOpen, setVideoOpen] = useState(
+    selectedKey === 'create' || selectedKey === 'edit' || selectedKey === 'launch-video',
+  )
   const [pdfOpen, setPdfOpen] = useState(
     selectedKey === 'pdf-create' || selectedKey === 'enhance' || selectedKey === 'templates',
   )
@@ -453,7 +456,8 @@ const Sidebar = ({
   }
 
   useEffect(() => {
-    if (selectedKey === 'create' || selectedKey === 'edit') setVideoOpen(true)
+    if (selectedKey === 'create' || selectedKey === 'edit' || selectedKey === 'launch-video')
+      setVideoOpen(true)
   }, [selectedKey])
 
   useEffect(() => {
@@ -586,6 +590,19 @@ const Sidebar = ({
                       <AnimatedIcon active={selectedKey === 'create'} size={13}>
                         <polygon points="23 7 16 12 23 17 23 7" />
                         <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                      </AnimatedIcon>
+                    ),
+                  },
+                  {
+                    key: 'launch-video',
+                    label: 'Launch Video',
+                    path: '/launch-video',
+                    icon: (
+                      <AnimatedIcon active={selectedKey === 'launch-video'} size={13}>
+                        <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z" />
+                        <path d="m6.2 5.3 3.1 3.9" />
+                        <path d="m12.4 3.4 3.1 4" />
+                        <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
                       </AnimatedIcon>
                     ),
                   },
@@ -1638,6 +1655,8 @@ function AppContent() {
         onDownload = () => window.open(project.videoUrl)
       }
     }
+  } else if (location.pathname.startsWith('/launch-video')) {
+    selectedKey = 'launch-video'
   } else if (location.pathname.startsWith('/edit')) {
     // after /editor so '/editor' doesn't match this branch
     selectedKey = 'edit'
@@ -1800,6 +1819,7 @@ function AppContent() {
                     />
                   }
                 />
+                <Route path="/launch-video" element={<LaunchVideoView />} />
                 <Route
                   path="/templates"
                   element={

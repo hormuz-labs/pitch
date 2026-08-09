@@ -17,6 +17,7 @@ import { router as creditRoutes } from './routes/credits.js'
 import { router as editJobRoutes } from './routes/edit-jobs.js'
 import { router as enhanceJobRoutes } from './routes/enhance-jobs.js'
 import { router as jobRoutes } from './routes/jobs.js'
+import { router as launchVideoRoutes } from './routes/launch-video.js'
 import { router as newsletterRoutes } from './routes/newsletter.js'
 import { router as pdfJobRoutes } from './routes/pdf-jobs.js'
 import { router as uploadRoutes } from './routes/uploads.js'
@@ -44,8 +45,19 @@ app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: true, credentials: true }))
 app.use(cookieParser())
 
+// EventSource / <video> / <audio> can't set Authorization headers, so allow a
+// Clerk session token via ?token= for the SSE stream and the auth-gated static
+// files (same pattern as /jobs/stream).
+const TOKEN_QUERY_PATHS = [
+  /^\/jobs\/stream$/,
+  /^\/launch-video\/(files\/|projects\/[^/]+\/events$)/,
+]
 app.use((req, _res, next) => {
-  if (req.path === '/jobs/stream' && req.query.token && !req.headers.authorization) {
+  if (
+    req.query.token &&
+    !req.headers.authorization &&
+    TOKEN_QUERY_PATHS.some(re => re.test(req.path))
+  ) {
     req.headers.authorization = `Bearer ${req.query.token}`
   }
   next()
@@ -57,7 +69,9 @@ app.use(
   pinoHttp({
     logger,
     autoLogging: {
-      ignore: (req: IncomingMessage) => req.url === '/jobs/stream',
+      ignore: (req: IncomingMessage) =>
+        req.url === '/jobs/stream' ||
+        /^\/launch-video\/projects\/[^/]+\/events/.test(req.url ?? ''),
     },
     customLogLevel: (_req: IncomingMessage, res: ServerResponse) => {
       if (res.statusCode >= 500) return 'error'
@@ -90,6 +104,7 @@ app.use('/affiliate', affiliateRoutes)
 app.use('/admin', adminRoutes)
 app.use('/newsletter', newsletterRoutes)
 app.use('/browser', browserRoutes)
+app.use('/launch-video', launchVideoRoutes)
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
@@ -111,6 +126,12 @@ const gracefulShutdown = async (signal: string) => {
     await shutdownAllSessions()
   } catch (err) {
     logger.warn({ err }, 'browser-host shutdown failed')
+  }
+  try {
+    const { closeOpencode } = await import('./lib/launch-video/opencode.js')
+    closeOpencode()
+  } catch (err) {
+    logger.warn({ err }, 'launch-video opencode shutdown failed')
   }
   process.exit(0)
 }

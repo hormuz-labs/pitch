@@ -345,3 +345,24 @@ model NewsletterSubscriber {
   // Allow anyone to subscribe (create) without auth
   @@allow('create', true)
 }
+
+// ── Launch video studio ─────────────────────────────────────────────────────
+
+// Maps a user's launch-video project dir (projects/<userId>--<name>/) to the
+// opencode session that builds it, so the API can keep talking to the same
+// agent session across restarts. Scoped per user.
+model LaunchVideoProject {
+  id                String   @id @default(cuid())
+  userId            String   // Clerk user id — owner of the project
+  name              String   // public project name (unique per user)
+  opencodeSessionId String   @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+
+  // Internal registry — the API uses the base prisma client, never the
+  // enhanced per-user one, so deny everything for enhanced clients.
+  @@deny('all', true)
+}
