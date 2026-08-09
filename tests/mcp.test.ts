@@ -3,9 +3,15 @@
  * apps/api/src/mcp/server.ts), mounted exactly like apps/api/src/index.ts does.
  *
  * Mocks-only: @saas/db (API-key lookup + job/credit helpers), the job-service
- * module (credit checks, queueing), and @clerk/express (imported by the auth
- * middleware, unused on this path). No bullmq/ioredis mocking is needed — the
- * mocked job-service is the only module that imports the queue config.
+ * module (credit checks, queueing), the launch-video helpers, and @clerk/express
+ * (imported by the auth middleware, unused on this path). No bullmq/ioredis
+ * mocking is needed — the mocked job-service is the only module that imports the
+ * queue config.
+ *
+ * NOTE: the auth middleware imports '@saas/db', which vitest resolves through
+ * tsconfig paths to packages/db/src/index.ts. We therefore mock the resolved
+ * path (../packages/db/src/index.js) rather than the bare specifier so the
+ * middleware sees the same mocked module as the test.
  *
  * The SDK (v1.29) answers POSTs with a `text/event-stream` body, so a small
  * helper parses either SSE `data:` lines or a plain JSON body.
@@ -18,7 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ── vi.mock factories must be self-contained (hoisting rule) ──────────────────
 
-vi.mock('@saas/db', () => ({
+vi.mock('../packages/db/src/index.js', () => ({
   findApiKeyByHash: vi.fn(),
   touchApiKey: vi.fn(),
   getJob: vi.fn(),
@@ -46,20 +52,38 @@ vi.mock('../apps/api/src/lib/job-service.js', () => {
   }
 })
 
+vi.mock('../apps/api/src/lib/launch-video/opencode.js', () => ({
+  getSessionForProject: vi.fn(),
+  getMessages: vi.fn(),
+  prompt: vi.fn(),
+}))
+
+vi.mock('../apps/api/src/lib/launch-video/projects.js', () => ({
+  getProject: vi.fn(),
+  listProjects: vi.fn(),
+}))
+
 vi.mock('@clerk/express', () => ({
   clerkMiddleware: () => (_req: any, _res: any, next: any) => next(),
   getAuth: () => ({ userId: null }),
 }))
 
-import * as db from '@saas/db'
 import * as jobService from '../apps/api/src/lib/job-service.js'
 import { InsufficientCreditsError } from '../apps/api/src/lib/job-service.js'
+import * as opencode from '../apps/api/src/lib/launch-video/opencode.js'
+import * as projects from '../apps/api/src/lib/launch-video/projects.js'
 import { router as mcpRoutes } from '../apps/api/src/routes/mcp.js'
+import * as db from '../packages/db/src/index.js'
 
 const findApiKeyByHash = db.findApiKeyByHash as ReturnType<typeof vi.fn>
 const touchApiKey = db.touchApiKey as ReturnType<typeof vi.fn>
 const getCreditSummary = db.getCreditSummary as ReturnType<typeof vi.fn>
 const createDemoVideoJob = jobService.createDemoVideoJob as ReturnType<typeof vi.fn>
+const getSessionForProject = opencode.getSessionForProject as ReturnType<typeof vi.fn>
+const getMessages = opencode.getMessages as ReturnType<typeof vi.fn>
+const prompt = opencode.prompt as ReturnType<typeof vi.fn>
+const getProject = projects.getProject as ReturnType<typeof vi.fn>
+const listProjects = projects.listProjects as ReturnType<typeof vi.fn>
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 const VALID_KEY = 'pk_test-key'
@@ -81,6 +105,8 @@ beforeEach(() => {
     hash === VALID_KEY_HASH ? { ...VALID_ROW } : null,
   )
   touchApiKey.mockResolvedValue(undefined)
+  getMessages.mockResolvedValue([])
+  prompt.mockResolvedValue(undefined)
   app = buildApp()
 })
 
@@ -158,7 +184,7 @@ describe('POST /mcp protocol', () => {
     expect(touchApiKey).toHaveBeenCalledWith('k1')
   })
 
-  it('tools/list returns the 7 registered tools', async () => {
+  it('tools/list returns the 10 registered tools', async () => {
     const res = await postRpc({ id: 1, method: 'tools/list', params: {} })
 
     expect(res.status).toBe(200)
@@ -167,12 +193,15 @@ describe('POST /mcp protocol', () => {
     expect(names).toEqual(
       [
         'create_demo_video',
+        'create_launch_video',
         'create_pdf',
         'edit_recording',
         'enhance_presentation',
         'get_credits',
         'get_job',
+        'get_launch_video',
         'list_jobs',
+        'list_launch_videos',
       ].sort(),
     )
   })
@@ -224,6 +253,105 @@ describe('POST /mcp tools/call', () => {
     const rpc = parseRpcResponse(res)
     expect(rpc.result.isError).toBe(true)
     expect(rpc.result.content[0].text).toContain('balance is 1')
+  })
+
+  it('create_launch_video creates a new project and sends the first prompt', async () => {
+    getProject.mockResolvedValue(null)
+    getSessionForProject.mockResolvedValue({ id: 'session-launch-1', created: true })
+
+    const res = await callTool('create_launch_video', {
+      name: 'summer-drop',
+      prompt: 'A 45-second launch video for our new sunglasses brand.',
+    })
+
+    expect(res.status).toBe(200)
+    const rpc = parseRpcResponse(res)
+    expect(rpc.result.isError).toBeUndefined()
+    expect(JSON.parse(rpc.result.content[0].text)).toMatchObject({
+      projectName: 'summer-drop',
+      sessionId: 'session-launch-1',
+      created: true,
+    })
+    expect(getSessionForProject).toHaveBeenCalledWith('user_mcp', 'summer-drop')
+    expect(prompt).toHaveBeenCalledWith(
+      'session-launch-1',
+      'A 45-second launch video for our new sunglasses brand.',
+      expect.stringContaining('html-motion-video'),
+    )
+  })
+
+  it('create_launch_video supports an optional music track', async () => {
+    getProject.mockResolvedValue(null)
+    getSessionForProject.mockResolvedValue({ id: 'session-launch-2', created: true })
+
+    const res = await callTool('create_launch_video', {
+      name: 'winter-drop',
+      prompt: 'Epic winter gear launch.',
+      music: 'epic-orchard.wav',
+    })
+
+    expect(res.status).toBe(200)
+    const rpc = parseRpcResponse(res)
+    expect(rpc.result.isError).toBeUndefined()
+    const systemArg = prompt.mock.calls[0][2] as string
+    expect(systemArg).toContain('assets/music/epic-orchard.wav')
+  })
+
+  it('create_launch_video rejects invalid project names', async () => {
+    const res = await callTool('create_launch_video', { name: '../etc', prompt: 'bad name' })
+
+    expect(res.status).toBe(200)
+    const rpc = parseRpcResponse(res)
+    expect(rpc.result.isError).toBe(true)
+    expect(rpc.result.content[0].text).toContain('Invalid project name')
+    expect(getSessionForProject).not.toHaveBeenCalled()
+  })
+
+  it('get_launch_video returns project details', async () => {
+    const project = {
+      name: 'summer-drop',
+      hasVideo: true,
+      videoUrl: '/launch-video/files/videos/user_mcp--summer-drop-launch.mp4',
+      sceneCount: 5,
+      scenes: [],
+      duration: 42.5,
+    }
+    getProject.mockResolvedValue(project)
+
+    const res = await callTool('get_launch_video', { name: 'summer-drop' })
+
+    expect(res.status).toBe(200)
+    const rpc = parseRpcResponse(res)
+    expect(rpc.result.isError).toBeUndefined()
+    expect(JSON.parse(rpc.result.content[0].text)).toEqual(project)
+    expect(getProject).toHaveBeenCalledWith('user_mcp', 'summer-drop')
+  })
+
+  it('get_launch_video returns an error when the project is not found', async () => {
+    getProject.mockResolvedValue(null)
+
+    const res = await callTool('get_launch_video', { name: 'missing' })
+
+    expect(res.status).toBe(200)
+    const rpc = parseRpcResponse(res)
+    expect(rpc.result.isError).toBe(true)
+    expect(rpc.result.content[0].text).toContain('Project not found: missing')
+  })
+
+  it('list_launch_videos returns the user’s projects', async () => {
+    const projects = [
+      { name: 'alpha', hasVideo: false, videoUrl: null, sceneCount: 0 },
+      { name: 'beta', hasVideo: true, videoUrl: '/some/url', sceneCount: 4 },
+    ]
+    listProjects.mockResolvedValue(projects)
+
+    const res = await callTool('list_launch_videos')
+
+    expect(res.status).toBe(200)
+    const rpc = parseRpcResponse(res)
+    expect(rpc.result.isError).toBeUndefined()
+    expect(JSON.parse(rpc.result.content[0].text)).toEqual(projects)
+    expect(listProjects).toHaveBeenCalledWith('user_mcp')
   })
 })
 

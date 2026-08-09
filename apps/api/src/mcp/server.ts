@@ -13,6 +13,9 @@ import {
   createPdfJob,
   InsufficientCreditsError,
 } from '../lib/job-service.js'
+import { getMessages, getSessionForProject, prompt } from '../lib/launch-video/opencode.js'
+import { toInternalName } from '../lib/launch-video/paths.js'
+import { getProject, listProjects } from '../lib/launch-video/projects.js'
 
 const logger = createLogger('api:mcp')
 
@@ -20,6 +23,19 @@ const ENHANCE_MAX_BYTES = 50 * 1024 * 1024 // 50 MB
 const ENHANCE_EXTS = ['.pdf', '.pptx']
 const EDIT_MAX_BYTES = 500 * 1024 * 1024 // 500 MB
 const EDIT_EXTS = ['.mp4', '.webm', '.mov', '.mkv', '.avi']
+
+/** First-turn brief for launch-video projects: don't interview, build. */
+const FIRST_TURN_BRIEF =
+  'The user wants results, not questions. Do NOT interview the user or wait for confirmations ' +
+  '— start the full html-motion-video workflow immediately (recon, direction, storyboard, VO, ' +
+  'build, mix, render). Make every creative decision yourself, grounded in recon evidence, and ' +
+  'briefly narrate your choices as you go. Only stop early if a hard requirement is missing ' +
+  '(e.g. you cannot access the product at all).'
+
+/** Project names double as directory names — keep path traversal out. */
+function isValidProjectName(name: string): boolean {
+  return /^[^/\\]+$/.test(name) && name !== '..' && name !== '.' && !name.startsWith('.')
+}
 
 type ToolTextResult = {
   isError?: boolean
@@ -82,7 +98,7 @@ export const buildMcpServer = (userId: string): McpServer => {
       description:
         'Create an AI demo video job for a product URL (costs 3 credits). Returns the created job id and status.',
       inputSchema: {
-        url: z.url().describe('Product or website URL to demo'),
+        url: z.string().url().describe('Product or website URL to demo'),
         instructions: z.string().optional().describe('Free-text guidance for the video'),
         script: z.string().optional().describe('Narration script to use'),
         voice: z.string().optional().describe('Narration voice id'),
@@ -204,6 +220,117 @@ export const buildMcpServer = (userId: string): McpServer => {
         return errorResult(error)
       } finally {
         if (tmpFilePath) await unlink(tmpFilePath).catch(() => {})
+      }
+    },
+  )
+
+  // ---------------------------------------------------------------------------
+  // Launch video studio (async agent session, not a queued job)
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    'create_launch_video',
+    {
+      description:
+        'Start an AI product launch video project. The agent runs the full html-motion-video ' +
+        'workflow end-to-end (recon, direction, storyboard, VO, build, mix, render). ' +
+        'Poll get_launch_video by project name to check progress and get the final video URL.',
+      inputSchema: {
+        name: z
+          .string()
+          .describe('Project name (unique per user). Used as the project folder name.'),
+        prompt: z
+          .string()
+          .describe('Creative brief: product, audience, tone, length, key messages, etc.'),
+        music: z
+          .string()
+          .optional()
+          .describe('Filename of a track from the shared music library (assets/music/<music>)'),
+      },
+    },
+    async ({ name, prompt: userPrompt, music }) => {
+      if (!isValidProjectName(name)) {
+        return errorResult(
+          new Error(
+            `Invalid project name: "${name}". Cannot contain / or \\, start with ".", or be "." or "..".`,
+          ),
+        )
+      }
+
+      try {
+        const internal = toInternalName(userId, name)
+        const project = await getProject(userId, name)
+        let system = project
+          ? `The video project lives in projects/${internal}/ (renders go to renders/ with the ${internal}- prefix). `
+          : `Create a new video project under projects/${internal}/ following the html-motion-video skill conventions (renders go to renders/ with the ${internal}- prefix). `
+        if (music) {
+          system +=
+            `Background music: the user picked "assets/music/${music}" from the shared music library — ` +
+            `copy it into the project's audio/ folder and use it as the music bed in the mix. `
+        }
+
+        const { id: sessionId, created } = await getSessionForProject(userId, name)
+        const messages = await getMessages(sessionId)
+        if (messages.length === 0) {
+          system += FIRST_TURN_BRIEF
+        }
+        await prompt(sessionId, userPrompt, system)
+
+        return jsonResult({
+          projectName: name,
+          sessionId,
+          created,
+          message: created
+            ? 'Launch video project created and agent prompt sent.'
+            : 'Prompt sent to existing launch video project.',
+        })
+      } catch (error) {
+        logger.error({ err: error, userId, project: name }, 'MCP create_launch_video failed')
+        return errorResult(error)
+      }
+    },
+  )
+
+  server.registerTool(
+    'get_launch_video',
+    {
+      description:
+        'Get a launch video project by name: scenes, duration, and the rendered video URL when ready.',
+      inputSchema: {
+        name: z.string().describe('Project name'),
+      },
+    },
+    async ({ name }) => {
+      if (!isValidProjectName(name)) {
+        return errorResult(
+          new Error(
+            `Invalid project name: "${name}". Cannot contain / or \\, start with ".", or be "." or "..".`,
+          ),
+        )
+      }
+
+      try {
+        const project = await getProject(userId, name)
+        if (!project) return errorResult(new Error(`Project not found: ${name}`))
+        return jsonResult(project)
+      } catch (error) {
+        logger.error({ err: error, userId, project: name }, 'MCP get_launch_video failed')
+        return errorResult(error)
+      }
+    },
+  )
+
+  server.registerTool(
+    'list_launch_videos',
+    {
+      description: 'List all launch video projects for the API key owner.',
+    },
+    async () => {
+      try {
+        return jsonResult(await listProjects(userId))
+      } catch (error) {
+        logger.error({ err: error, userId }, 'MCP list_launch_videos failed')
+        return errorResult(error)
       }
     },
   )

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { getAuth } from '@clerk/express'
-import * as db from '@saas/db'
+import { findApiKeyByHash, touchApiKey } from '@saas/db'
 import { createLogger } from '@saas/shared'
 import type express from 'express'
 
@@ -53,10 +53,10 @@ export const requireApiKey = async (
   if (!key) return deny()
 
   const keyHash = createHash('sha256').update(key).digest('hex')
-  const apiKey = await db.findApiKeyByHash(keyHash)
+  const apiKey = await findApiKeyByHash(keyHash)
   if (!apiKey || apiKey.revokedAt) return deny()
 
-  db.touchApiKey(apiKey.id).catch(err =>
+  touchApiKey(apiKey.id).catch(err =>
     logger.error({ err, keyId: apiKey.id }, 'Failed to update API key lastUsedAt'),
   )
   return apiKey.userId

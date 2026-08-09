@@ -30,7 +30,8 @@
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "standardwebhooks": "^1.0.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
