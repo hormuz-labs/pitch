@@ -36,7 +36,7 @@
     "@modelcontextprotocol/sdk": "1.29.0",
     "@types/node": "^20.0.0",
     "@types/supertest": "^7.2.0",
-    "@zenstackhq/runtime": "^2.22.1",
+    "@zenstackhq/runtime": "2.22.1",
     "cors": "^2.8.6",
     "express": "^4.18.2",
     "axios": "^1.15.2",
@@ -47,8 +47,9 @@
     "rimraf": "^5.0.0",
     "supertest": "^7.2.2",
     "typescript": "^5.0.0",
+    "prisma": "6.19.3",
     "vitest": "^4.1.5",
-    "zenstack": "^2.22.1"
+    "zenstack": "2.22.1"
   },
   "dependencies": {
     "dotenv": "",
