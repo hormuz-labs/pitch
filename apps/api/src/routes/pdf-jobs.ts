@@ -5,10 +5,10 @@ import {
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
-  sendDiscordMessage,
 } from '@saas/shared'
 import { Router } from 'express'
 import { connection, videoQueue } from '../config.js'
+import { createPdfJob, InsufficientCreditsError } from '../lib/job-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api:pdf')
@@ -35,51 +35,12 @@ router.post('/', async (req, res) => {
   const { parameters } = req.body as { parameters: any }
 
   try {
-    const tenantId = userId
-
-    const balance = await db.getCreditBalance(tenantId)
-    if (balance < 1) {
-      logger.warn({ userId, tenantId, balance }, 'PDF job creation blocked: insufficient credits')
-      return res.status(402).json({ error: 'Insufficient credits', balance })
-    }
-
-    // Ensure parameters has jobType: 'pdf'
-    const pdfParams = {
-      ...parameters,
-      jobType: 'pdf',
-    }
-
-    const job = await db.createJob({ userId, parameters: pdfParams }, { id: userId })
-
-    // Deduct 1 credit for PDF generation
-    await db.deductCredit(tenantId, 1, 'PDF generation', { jobId: job.id })
-
-    // Queue to the same queue. The worker will detect jobType: 'pdf'
-    await videoQueue.add(
-      'generate-video',
-      { jobId: job.id, userId: job.userId, parameters: pdfParams },
-      { jobId: job.id },
-    )
-
-    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
-
-    logger.info({ jobId: job.id, userId, tenantId }, 'PDF job created and queued')
-
-    db.prisma.userProfile
-      .findUnique({ where: { id: userId } })
-      .then(user => {
-        const email = user?.email || userId
-        const topic = parameters?.topic || 'N/A'
-        sendDiscordMessage(
-          `📄 **New PDF Creation Started**\nJob ID: \`${job.id}\`\nUser: ${email}\nTopic: *${topic}*`,
-        )
-      })
-      .catch(err =>
-        logger.error({ err }, 'Failed to send Discord notification for PDF job creation'),
-      )
-
+    const job = await createPdfJob(userId, parameters)
     res.status(201).json(job)
   } catch (error: any) {
+    if (error instanceof InsufficientCreditsError) {
+      return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
+    }
     logger.error({ err: error, userId }, 'Failed to create PDF job')
     res.status(500).json({ error: error.message })
   }

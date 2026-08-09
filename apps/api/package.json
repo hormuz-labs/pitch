@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/backend": "^3.4.14",
     "@clerk/express": "^2.1.12",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@opencode-ai/sdk": "1.18.13",
     "@saas/db": "workspace:*",
     "@saas/email": "workspace:*",
@@ -29,7 +30,8 @@
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "standardwebhooks": "^1.0.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

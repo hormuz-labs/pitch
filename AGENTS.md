@@ -56,6 +56,17 @@ Rules:
   why the audio mix sits on the post-trim timeline: see
   `docs/demo-video-pipeline.md` §1 and §6 before touching render code.
 
+## API surface (apps/api)
+
+- Two auth schemes: Clerk JWTs (`requireAuth`) for the web app, and user-minted
+  API keys (`requireApiKey`, `ApiKey` model → `PitchApiKey` table) for the MCP
+  endpoint. `/mcp` mounts before `clerkMiddleware` — never route API-key
+  Bearer tokens through Clerk.
+- All job creation (REST routes AND MCP tools in `apps/api/src/mcp/`) goes
+  through `apps/api/src/lib/job-service.ts`. Never duplicate the
+  credit-gate/deduct/enqueue sequence in a new caller — extend the service.
+- See `docs/mcp-server.md` for the MCP endpoint, tools, and credit costs.
+
 ## Worker
 
 - The worker does **not** hot-reload (`bun src/index.ts`). Restart it after

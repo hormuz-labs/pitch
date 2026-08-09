@@ -5,15 +5,18 @@ import { AffiliatesPanel } from './AffiliatesPanel'
 import { FeedbackPanel } from './FeedbackPanel'
 import { GlobalJobsTable } from './GlobalJobsTable'
 import { JobDetailsModal } from './JobDetailsModal'
+import { LaunchVideoDetailsModal } from './LaunchVideoDetailsModal'
+import { LaunchVideosTable } from './LaunchVideosTable'
 import { StatsCards } from './StatsCards'
 import { UserJobsModal } from './UserJobsModal'
 import { UsersTable } from './UsersTable'
 
-type AdminTab = 'users' | 'jobs' | 'feedback' | 'affiliates'
+type AdminTab = 'users' | 'jobs' | 'launch-videos' | 'feedback' | 'affiliates'
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'users', label: 'Users', icon: '👥' },
   { key: 'jobs', label: 'Jobs', icon: '🎬' },
+  { key: 'launch-videos', label: 'Launch Videos', icon: '🚀' },
   { key: 'feedback', label: 'Feedback', icon: '⭐' },
   { key: 'affiliates', label: 'Affiliates', icon: '🔗' },
 ]
@@ -22,6 +25,7 @@ export function AdminView() {
   const { getToken } = useAuth()
   const [data, setData] = React.useState<any>(null)
   const [globalJobs, setGlobalJobs] = React.useState<any[]>([])
+  const [launchVideos, setLaunchVideos] = React.useState<any[]>([])
   const [analytics, setAnalytics] = React.useState<any | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState('')
@@ -29,10 +33,12 @@ export function AdminView() {
   const [activeTab, setActiveTab] = React.useState<AdminTab>('users')
   const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null)
   const [selectedJob, setSelectedJob] = React.useState<any | null>(null)
+  const [selectedLaunchVideo, setSelectedLaunchVideo] = React.useState<any | null>(null)
 
   // Search / filter state
   const [userSearch, setUserSearch] = React.useState('')
   const [jobSearch, setJobSearch] = React.useState('')
+  const [launchVideoSearch, setLaunchVideoSearch] = React.useState('')
 
   const fetchDashboard = async () => {
     try {
@@ -67,11 +73,27 @@ export function AdminView() {
     }
   }
 
+  const fetchLaunchVideos = async () => {
+    try {
+      const token = await getToken()
+      if (!token) return
+      const res = await api.get<any[]>('/admin/launch-videos', token)
+      setLaunchVideos(res)
+    } catch (err: any) {
+      console.error('Launch videos fetch failed:', err)
+    }
+  }
+
   React.useEffect(() => {
     let isMounted = true
     const load = async () => {
       try {
-        await Promise.all([fetchDashboard(), fetchGlobalJobs(), fetchAnalytics()])
+        await Promise.all([
+          fetchDashboard(),
+          fetchGlobalJobs(),
+          fetchLaunchVideos(),
+          fetchAnalytics(),
+        ])
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -134,6 +156,17 @@ export function AdminView() {
         j.status.toLowerCase().includes(q),
     )
   }, [globalJobs, jobSearch])
+
+  const filteredLaunchVideos = React.useMemo(() => {
+    const q = launchVideoSearch.toLowerCase()
+    if (!q) return launchVideos
+    return launchVideos.filter(
+      p =>
+        p.name.toLowerCase().includes(q) ||
+        p.userEmail?.toLowerCase().includes(q) ||
+        p.userName?.toLowerCase().includes(q),
+    )
+  }, [launchVideos, launchVideoSearch])
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -224,11 +257,13 @@ export function AdminView() {
                     ? (data?.users?.length ?? '')
                     : tab.key === 'jobs'
                       ? globalJobs.length
-                      : tab.key === 'feedback'
-                        ? (analytics?.feedbackSummary?.total ?? '')
-                        : tab.key === 'affiliates'
-                          ? (analytics?.affiliates?.length ?? '')
-                          : ''
+                      : tab.key === 'launch-videos'
+                        ? launchVideos.length
+                        : tab.key === 'feedback'
+                          ? (analytics?.feedbackSummary?.total ?? '')
+                          : tab.key === 'affiliates'
+                            ? (analytics?.affiliates?.length ?? '')
+                            : ''
                 return (
                   <button
                     key={tab.key}
@@ -257,8 +292,8 @@ export function AdminView() {
               })}
             </div>
 
-            {/* Search bar (users & jobs tabs) */}
-            {(activeTab === 'users' || activeTab === 'jobs') && (
+            {/* Search bar (users, jobs & launch-videos tabs) */}
+            {(activeTab === 'users' || activeTab === 'jobs' || activeTab === 'launch-videos') && (
               <div className="px-4 sm:px-5 py-3 border-b border-gray-50">
                 <div className="relative max-w-xs">
                   <svg
@@ -275,13 +310,25 @@ export function AdminView() {
                   </svg>
                   <input
                     type="text"
-                    placeholder={activeTab === 'users' ? 'Search users…' : 'Search jobs…'}
-                    value={activeTab === 'users' ? userSearch : jobSearch}
-                    onChange={e =>
+                    placeholder={
                       activeTab === 'users'
-                        ? setUserSearch(e.target.value)
-                        : setJobSearch(e.target.value)
+                        ? 'Search users…'
+                        : activeTab === 'jobs'
+                          ? 'Search jobs…'
+                          : 'Search launch videos…'
                     }
+                    value={
+                      activeTab === 'users'
+                        ? userSearch
+                        : activeTab === 'jobs'
+                          ? jobSearch
+                          : launchVideoSearch
+                    }
+                    onChange={e => {
+                      if (activeTab === 'users') setUserSearch(e.target.value)
+                      else if (activeTab === 'jobs') setJobSearch(e.target.value)
+                      else setLaunchVideoSearch(e.target.value)
+                    }}
                     className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all placeholder:text-gray-400"
                   />
                 </div>
@@ -295,6 +342,13 @@ export function AdminView() {
 
             {activeTab === 'jobs' && (
               <GlobalJobsTable jobs={filteredJobs} onSelectJob={setSelectedJob} />
+            )}
+
+            {activeTab === 'launch-videos' && (
+              <LaunchVideosTable
+                projects={filteredLaunchVideos}
+                onSelectProject={setSelectedLaunchVideo}
+              />
             )}
 
             {activeTab === 'feedback' && <FeedbackPanel analytics={analytics} />}
@@ -325,6 +379,13 @@ export function AdminView() {
           onClose={() => setSelectedJob(null)}
           onDelete={handleJobDeleted}
           onUpdate={handleJobUpdated}
+        />
+      )}
+
+      {selectedLaunchVideo && (
+        <LaunchVideoDetailsModal
+          project={selectedLaunchVideo}
+          onClose={() => setSelectedLaunchVideo(null)}
         />
       )}
     </div>

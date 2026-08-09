@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url'
 import { attachVncProxy } from './lib/vnc-proxy.js'
 import adminRoutes from './routes/admin.js'
 import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js'
+import { router as apiKeyRoutes } from './routes/api-keys.js'
 import { router as browserRoutes } from './routes/browser.js'
 import { router as checkoutRoutes } from './routes/checkout.js'
 import { router as creditRoutes } from './routes/credits.js'
@@ -18,6 +19,7 @@ import { router as editJobRoutes } from './routes/edit-jobs.js'
 import { router as enhanceJobRoutes } from './routes/enhance-jobs.js'
 import { router as jobRoutes } from './routes/jobs.js'
 import { router as launchVideoRoutes } from './routes/launch-video.js'
+import { router as mcpRoutes } from './routes/mcp.js'
 import { router as newsletterRoutes } from './routes/newsletter.js'
 import { router as pdfJobRoutes } from './routes/pdf-jobs.js'
 import { router as uploadRoutes } from './routes/uploads.js'
@@ -40,6 +42,11 @@ export const app = express()
 
 // Dodo webhook needs raw body — must come before express.json()
 app.use('/webhooks', webhookRoutes)
+
+// MCP endpoint: API-key auth (Clerk must never see these Bearer tokens) and
+// base64 file uploads that exceed the default JSON limit, so it mounts with
+// its own parser before the global express.json() and clerkMiddleware().
+app.use('/mcp', express.json({ limit: '750mb' }), mcpRoutes)
 
 app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: true, credentials: true }))
@@ -95,6 +102,7 @@ app.use('/jobs', jobRoutes)
 app.use('/pdf-jobs', pdfJobRoutes)
 app.use('/enhance-jobs', enhanceJobRoutes)
 app.use('/edit-jobs', editJobRoutes)
+app.use('/api-keys', apiKeyRoutes)
 app.use('/credits', creditRoutes)
 app.use('/users', userRoutes)
 app.use('/uploads', uploadRoutes)

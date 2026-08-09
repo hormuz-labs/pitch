@@ -1,4 +1,4 @@
-import { QUEUE_NAME } from '@saas/shared'
+import { EDIT_QUEUE_NAME, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
 import { Queue } from 'bullmq'
 import { Redis } from 'ioredis'
 
@@ -11,6 +11,11 @@ export const connection = new Redis(redisUrl, {
 export const subscriber = new Redis(redisUrl)
 
 export const videoQueue = new Queue(QUEUE_NAME, { connection: connection as any })
+
+// Dedicated queues shared by the HTTP routes and the job service / MCP tools,
+// so a job created through either entry point lands on the same queue.
+export const enhanceQueue = new Queue(ENHANCE_QUEUE_NAME, { connection: connection as any })
+export const editQueue = new Queue(EDIT_QUEUE_NAME, { connection: connection as any })
 
 // Single source of truth for which Dodo environment we target. Explicit
 // DODO_ENVIRONMENT wins (lets dev opt into either mode); when unset we default

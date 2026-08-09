@@ -4,6 +4,12 @@ import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import { PROJECTS_DIR, RENDERS_DIR, toInternalName, toPublicName } from './paths.js'
 
+function parseInternalName(internal: string): { userId: string; name: string } | null {
+  const sep = internal.indexOf('--')
+  if (sep === -1 || sep === 0) return null
+  return { userId: internal.slice(0, sep), name: internal.slice(sep + 2) }
+}
+
 const logger = createLogger('api:launch-video')
 
 export interface Scene {
@@ -123,4 +129,33 @@ export async function listProjects(userId: string): Promise<ProjectInfo[]> {
     })
   }
   return out.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export interface AdminProjectInfo extends ProjectInfo {
+  userId: string
+}
+
+/** List every launch-video project on disk, namespaced by owning user. */
+export async function listAllProjects(): Promise<AdminProjectInfo[]> {
+  if (!existsSync(PROJECTS_DIR)) return []
+  const entries = await readdir(PROJECTS_DIR, { withFileTypes: true })
+  const out: AdminProjectInfo[] = []
+  for (const e of entries) {
+    if (!e.isDirectory() || e.name.startsWith('.') || e.name === '_archive') continue
+    const parsed = parseInternalName(e.name)
+    if (!parsed) continue
+    const p = await getProject(parsed.userId, parsed.name)
+    if (!p) continue
+    out.push({
+      userId: parsed.userId,
+      name: p.name,
+      hasVideo: p.hasVideo,
+      videoUrl: p.videoUrl,
+      sceneCount: p.sceneCount,
+    })
+  }
+  return out.sort((a, b) => {
+    const byUser = a.userId.localeCompare(b.userId)
+    return byUser || a.name.localeCompare(b.name)
+  })
 }
