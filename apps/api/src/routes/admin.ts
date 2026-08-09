@@ -8,6 +8,7 @@ import {
 } from '@saas/shared'
 import { Router } from 'express'
 import { connection, videoQueue } from '../config.js'
+import { listAllProjects } from '../lib/launch-video/projects.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('admin-routes')
@@ -176,6 +177,43 @@ router.get('/jobs', async (_req, res) => {
     res.json(jobsData)
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch global jobs')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 2b. Launch video projects (agent sessions, not queued jobs)
+router.get('/launch-videos', async (_req, res) => {
+  try {
+    const projects = await listAllProjects()
+    const userIds = [...new Set(projects.map(p => p.userId))]
+    const [profiles, dbProjects] = await Promise.all([
+      db.prisma.userProfile.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, email: true, firstName: true, lastName: true },
+      }),
+      db.prisma.launchVideoProject.findMany({
+        where: { userId: { in: userIds } },
+        select: { userId: true, name: true, createdAt: true },
+      }),
+    ])
+
+    const createdAtByKey = new Map(
+      dbProjects.map(p => [`${p.userId}--${p.name}`, p.createdAt.toISOString()]),
+    )
+
+    const projectsData = projects.map(p => {
+      const user = profiles.find(u => u.id === p.userId)
+      return {
+        ...p,
+        userEmail: user?.email || 'Unknown',
+        userName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+        createdAt: createdAtByKey.get(`${p.userId}--${p.name}`) ?? null,
+      }
+    })
+
+    res.json(projectsData)
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to fetch launch video projects')
     res.status(500).json({ error: error.message })
   }
 })

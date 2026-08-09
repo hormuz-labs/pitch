@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { CreatePanel } from './CreatePanel'
 import { EditPanel } from './EditPanel'
 import { LaunchVideoProvider, useLaunchVideo } from './store'
@@ -39,7 +41,34 @@ function Tabs() {
 }
 
 function LaunchVideoShell() {
-  const { view } = useLaunchVideo()
+  const { view, currentProject, selectProject, clearProject, projectsLoading } = useLaunchVideo()
+  const { projectName } = useParams<{ projectName?: string }>()
+  const navigate = useNavigate()
+
+  // Load the project named in the URL once the project list is ready.
+  useEffect(() => {
+    if (projectsLoading || !projectName) return
+    if (!currentProject || currentProject.name !== projectName) {
+      void selectProject(projectName)
+    }
+  }, [projectsLoading, projectName, currentProject, selectProject])
+
+  // Navigating to /launch-video (no project) clears the current project.
+  useEffect(() => {
+    if (!projectsLoading && !projectName && currentProject) {
+      clearProject()
+    }
+  }, [projectsLoading, projectName, currentProject, clearProject])
+
+  // Sync the URL with the active project so a refresh resumes the right session.
+  useEffect(() => {
+    if (currentProject?.name && currentProject.name !== projectName) {
+      navigate(`/launch-video/${encodeURIComponent(currentProject.name)}`, { replace: true })
+    } else if (!currentProject?.name && projectName) {
+      navigate('/launch-video', { replace: true })
+    }
+  }, [currentProject?.name, projectName, navigate])
+
   return (
     <div className="h-full flex flex-col">
       <Tabs />
@@ -48,7 +77,7 @@ function LaunchVideoShell() {
   )
 }
 
-/** Route view for /launch-video — self-contained (own fetching + SSE). */
+/** Route view for /launch-video/:projectName? — self-contained (own fetching + SSE). */
 export function LaunchVideoView() {
   return (
     <LaunchVideoProvider>
