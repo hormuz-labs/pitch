@@ -88,7 +88,7 @@ export function useLaunchVideo(): LaunchVideoStore {
 
 function toChatMessages(
   raw: Array<{
-    info: { id: string; role: string }
+    info: { id: string; role: string; time?: { created: number } }
     parts: Array<{ id: string; type: string; text?: string }>
   }>,
 ): ChatMessage[] {
@@ -497,7 +497,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   const pendingSceneRef = useRef<string | null>(null)
 
   const selectProject = useCallback(
-    async (name: string) => {
+    async (name: string, opts?: { skipFetch?: boolean }) => {
       currentNameRef.current = name
       setSelectedScene(null)
       setMessages([])
@@ -513,11 +513,13 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       void connectEvents(name)
 
       let detail: LaunchProjectDetail | null = null
-      try {
-        const token = await getToken()
-        if (token) detail = await launchApi.getProject(token, name).catch(() => null)
-      } catch {
-        detail = null
+      if (!opts?.skipFetch) {
+        try {
+          const token = await getToken()
+          if (token) detail = await launchApi.getProject(token, name).catch(() => null)
+        } catch {
+          detail = null
+        }
       }
       if (currentNameRef.current !== name) return
       setCurrentProject(detail ?? { name, duration: 0, videoUrl: null, scenes: [] })
@@ -546,13 +548,19 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     pendingSceneRef.current = null
   }, [])
 
-  /** Generate a project slug from the prompt text, unique against existing projects. */
+  /** Generate a project slug from the prompt text, unique against existing projects.
+   *  Strips URL protocols and common TLD noise so a prompt like
+   *  "generate second video https://example.com" doesn't become "generate-second-video-https". */
   const slugFromPrompt = (text: string): string => {
-    const words = text
+    const cleaned = text
       .toLowerCase()
+      .replace(/\bhttps?:\/\//g, ' ')
+      .replace(/\bwww\./g, ' ')
       .replace(/[^a-z0-9\s]/g, ' ')
+    const noise = new Set(['http', 'https', 'www', 'com'])
+    const words = cleaned
       .split(/\s+/)
-      .filter(w => w.length > 2)
+      .filter(w => w.length > 2 && !noise.has(w))
       .slice(0, 4)
     const base = words.join('-') || 'video'
     const taken = new Set(projectsRef.current.map(p => p.name))
@@ -562,10 +570,12 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  /** Create (and select) a new project named after the prompt. */
+  /** Create (and select) a new project named after the prompt.
+   *  Skip the initial /scenes fetch: the project doesn't exist yet, so the API
+   *  would 404 and the browser console would show a spurious error. */
   const startProject = useCallback(
     async (text: string) => {
-      await selectProject(slugFromPrompt(text))
+      await selectProject(slugFromPrompt(text), { skipFetch: true })
     },
     [selectProject, projects],
   )
