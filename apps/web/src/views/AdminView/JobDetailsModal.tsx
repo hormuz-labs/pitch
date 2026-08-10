@@ -391,7 +391,7 @@ export function JobDetailsModal({
           </div>
 
           {/* Processing Phases */}
-          {job.phases && (
+          {job.phases && job.phases.length > 0 && (
             <div>
               <button
                 onClick={() => setPhasesExpanded(p => !p)}
@@ -410,121 +410,127 @@ export function JobDetailsModal({
                 >
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
-                Processing Phases
+                Processing Phases ({job.phases.length})
               </button>
-              {phasesExpanded && (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-inner space-y-2">
-                  {(job.phases as any[]).map((phase, idx, arr) => {
-                    let durationStr = '—'
-                    if (phase.status === 'completed') {
-                      if (phase.durationMs !== undefined) {
-                        durationStr = formatDuration(phase.durationMs)
-                      } else if (phase.completedAt) {
-                        const startStr =
-                          phase.startedAt ||
-                          (idx === 0 ? job.createdAt : arr[idx - 1].completedAt || job.createdAt)
-                        const start = new Date(startStr).getTime()
-                        const end = new Date(phase.completedAt).getTime()
-                        const diff = end - start
-                        if (diff >= 0) durationStr = formatDuration(diff)
-                      }
-                      if (phase.retryDurationMs) {
-                        const retryText = phase.retryCount
-                          ? `${phase.retryCount} failed retries`
-                          : 'Failed retries'
-                        durationStr += ` (${retryText}: ${formatDuration(phase.retryDurationMs)})`
-                      }
-                    } else if (phase.status === 'running') {
-                      let liveDuration = ''
-                      if (phase.startedAt) {
-                        const start = new Date(phase.startedAt).getTime()
-                        const diff = Date.now() - start
-                        if (diff >= 0) liveDuration = formatDuration(diff)
-                      }
-                      durationStr = liveDuration ? `Running… (${liveDuration})` : 'Running…'
-                      if (phase.retryDurationMs) {
-                        const retryText = phase.retryCount
-                          ? `${phase.retryCount} retries`
-                          : 'Retries'
-                        durationStr += ` | ${retryText}: ${formatDuration(phase.retryDurationMs)}`
-                      }
-                    } else if (phase.status === 'failed') {
-                      durationStr = 'Failed'
-                      if (phase.retryDurationMs) {
-                        const retryText = phase.retryCount
-                          ? `${phase.retryCount} attempts`
-                          : 'Total time'
-                        durationStr += ` (${retryText}: ${formatDuration(phase.retryDurationMs)})`
-                      }
-                    }
 
-                    return (
-                      <div
-                        key={phase.phase}
-                        className="flex flex-col text-sm border-b border-gray-100 last:border-0 pb-2 last:pb-0 gap-1.5 pt-2 first:pt-0"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={
-                                phase.status === 'completed'
-                                  ? 'text-green-600'
-                                  : phase.status === 'failed'
-                                    ? 'text-red-600'
-                                    : phase.status === 'running'
-                                      ? 'text-blue-600'
-                                      : 'text-gray-400'
-                              }
-                            >
-                              {phase.status === 'completed'
-                                ? '✅'
-                                : phase.status === 'failed'
-                                  ? '❌'
-                                  : phase.status === 'running'
-                                    ? '🔄'
-                                    : '⏳'}
-                            </span>
-                            <span className="text-gray-800 font-medium">
-                              {phase.label || phase.phase}
-                            </span>
-                          </div>
-                          <span className="text-gray-500 font-mono text-xs">{durationStr}</span>
-                        </div>
-                        {phase.failedAttempts && phase.failedAttempts.length > 0 && (
-                          <div className="pl-6 space-y-1 mt-0.5">
-                            {phase.failedAttempts.map((attempt: any, i: number) => {
-                              const startStr = new Date(attempt.startedAt).toLocaleTimeString(
-                                'en-US',
-                                { hour: 'numeric', minute: '2-digit', second: '2-digit' },
-                              )
-                              const endStr = new Date(attempt.endedAt).toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                second: '2-digit',
-                              })
-                              return (
-                                <div
-                                  key={i}
-                                  className="flex items-center justify-between text-[11px] text-gray-500 bg-gray-100/50 px-2 py-1 rounded-md"
-                                >
-                                  <span>
-                                    {i + 1}
-                                    {i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'} retry:{' '}
-                                    {formatDuration(attempt.durationMs)}
-                                  </span>
-                                  <span className="font-mono text-gray-400">
-                                    {startStr} - {endStr}
-                                  </span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
+              {(() => {
+                const allPhases = job.phases as any[]
+                const completed = allPhases.filter((p: any) => p.status === 'completed').length
+                const runningPhase = allPhases.find((p: any) => p.status === 'running')
+                const progress = Math.min(
+                  100,
+                  Math.max(0, job.progress ?? Math.round((completed / allPhases.length) * 100)),
+                )
+
+                const phaseDuration = (phase: any, idx: number, arr: any[]): string => {
+                  let durationStr = '—'
+                  if (phase.status === 'completed') {
+                    if (phase.durationMs !== undefined) {
+                      durationStr = formatDuration(phase.durationMs)
+                    } else if (phase.completedAt) {
+                      const startStr =
+                        phase.startedAt ||
+                        (idx === 0 ? job.createdAt : arr[idx - 1].completedAt || job.createdAt)
+                      const start = new Date(startStr).getTime()
+                      const end = new Date(phase.completedAt).getTime()
+                      const diff = end - start
+                      if (diff >= 0) durationStr = formatDuration(diff)
+                    }
+                    if (phase.retryDurationMs) {
+                      const retryText = phase.retryCount
+                        ? `${phase.retryCount} failed retries`
+                        : 'Failed retries'
+                      durationStr += ` (${retryText}: ${formatDuration(phase.retryDurationMs)})`
+                    }
+                  } else if (phase.status === 'running') {
+                    let liveDuration = ''
+                    if (phase.startedAt) {
+                      const start = new Date(phase.startedAt).getTime()
+                      const diff = Date.now() - start
+                      if (diff >= 0) liveDuration = formatDuration(diff)
+                    }
+                    durationStr = liveDuration ? `Running… (${liveDuration})` : 'Running…'
+                    if (phase.retryDurationMs) {
+                      const retryText = phase.retryCount ? `${phase.retryCount} retries` : 'Retries'
+                      durationStr += ` | ${retryText}: ${formatDuration(phase.retryDurationMs)}`
+                    }
+                  } else if (phase.status === 'failed') {
+                    durationStr = 'Failed'
+                    if (phase.retryDurationMs) {
+                      const retryText = phase.retryCount
+                        ? `${phase.retryCount} attempts`
+                        : 'Total time'
+                      durationStr += ` (${retryText}: ${formatDuration(phase.retryDurationMs)})`
+                    }
+                  }
+                  return durationStr
+                }
+
+                return (
+                  <div>
+                    {/* Summary: weighted progress always visible */}
+                    <div className="mb-2">
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="text-gray-500">
+                          {completed}/{allPhases.length} completed
+                        </span>
+                        <span className="text-gray-700 font-semibold">{progress}%</span>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${progress}%`,
+                            background: progress === 100 ? '#16a34a' : '#3b82f6',
+                          }}
+                        />
+                      </div>
+                      {runningPhase && (
+                        <p className="mt-1.5 text-xs text-blue-600 font-semibold">
+                          Current: {runningPhase.label || runningPhase.phase}
+                        </p>
+                      )}
+                    </div>
+
+                    {phasesExpanded && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {allPhases.map((phase, idx, arr) => {
+                          const dotClass =
+                            phase.status === 'completed'
+                              ? 'bg-emerald-500'
+                              : phase.status === 'running'
+                                ? 'bg-blue-500 animate-pulse'
+                                : phase.status === 'failed'
+                                  ? 'bg-red-500'
+                                  : 'bg-gray-300'
+                          const labelClass =
+                            phase.status === 'running'
+                              ? 'text-blue-600'
+                              : phase.status === 'failed'
+                                ? 'text-red-600'
+                                : 'text-gray-700'
+                          const duration = phaseDuration(phase, idx, arr)
+                          return (
+                            <span
+                              key={phase.phase}
+                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[11px]"
+                              title={`${phase.label || phase.phase}: ${phase.status}${
+                                duration !== '—' ? ` · ${duration}` : ''
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
+                              <span className={`font-medium ${labelClass}`}>
+                                {phase.label || phase.phase}
+                              </span>
+                              <span className="text-gray-400 font-mono">{duration}</span>
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
