@@ -1,9 +1,10 @@
 import { UserProfile, useAuth, useUser } from '@clerk/react'
-import { Code, CreditCard, Download, Package, RefreshCw, TrendingUp, User, Zap } from 'lucide-react'
+import { Code, CreditCard, Download, Package, RefreshCw, TrendingUp, User, Webhook, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import pCoinIcon from '../assets/pCoin.svg'
 import { McpGuide } from '../components/McpGuide'
 import { OptionPicker } from '../components/OptionPicker'
+import { WebhookManager } from '../components/WebhookManager'
 import { API_URL } from '../config'
 import { downloadReceiptPdf } from '../lib/receiptPdf'
 
@@ -11,6 +12,7 @@ const TAB_OPTIONS = [
   { id: 'profile', label: 'My Profile', icon: User },
   { id: 'billing', label: 'Billing & Credits', icon: CreditCard },
   { id: 'api', label: 'API & MCP', icon: Code },
+  { id: 'webhooks', label: 'Webhooks', icon: Webhook },
 ]
 
 interface CreditTransaction {
@@ -86,7 +88,7 @@ const TX_TYPE_COLORS: Record<string, string> = {
 }
 
 export const SettingsView = () => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'api'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'api' | 'webhooks'>('profile')
   const { getToken } = useAuth()
   const { user } = useUser()
   const [summary, setSummary] = useState<CreditSummary | null>(null)
@@ -192,7 +194,7 @@ export const SettingsView = () => {
             <OptionPicker
               options={TAB_OPTIONS}
               selectedId={activeTab}
-              onSelect={(id: string) => setActiveTab(id as 'profile' | 'billing' | 'api')}
+              onSelect={(id: string) => setActiveTab(id as 'profile' | 'billing' | 'api' | 'webhooks')}
             />
           </div>
 
@@ -219,6 +221,13 @@ export const SettingsView = () => {
               <Code className="w-4 h-4" />
               API & MCP
             </button>
+            <button
+              onClick={() => setActiveTab('webhooks')}
+              className={`flex items-center shrink-0 gap-2 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'webhooks' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+            >
+              <Webhook className="w-4 h-4" />
+              Webhooks
+            </button>
           </div>
         </div>
       </div>
@@ -244,6 +253,12 @@ export const SettingsView = () => {
           {activeTab === 'api' && (
             <div className="w-full h-full overflow-y-auto">
               <McpGuide />
+            </div>
+          )}
+
+          {activeTab === 'webhooks' && (
+            <div className="w-full h-full overflow-y-auto">
+              <WebhookManager />
             </div>
           )}
 

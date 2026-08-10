@@ -183,6 +183,7 @@ export interface UpdateJobRequest {
 export const QUEUE_NAME = 'video-generation'
 export const ENHANCE_QUEUE_NAME = 'enhance-queue'
 export const EDIT_QUEUE_NAME = 'edit-recording-queue'
+export const WEBHOOK_QUEUE_NAME = 'webhook-delivery'
 export const JOB_UPDATES_CHANNEL = 'job-updates'
 export const JOB_CANCELLATIONS_CHANNEL = 'job-cancellations'
 export * from './discord.js'

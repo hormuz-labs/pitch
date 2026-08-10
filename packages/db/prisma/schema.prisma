@@ -36,6 +36,8 @@ model UserProfile {
   browserProfile     BrowserProfile?
   browserSessions    BrowserSession[]
   apiKeys            ApiKey[]
+  webhookEndpoints   WebhookEndpoint[]
+  webhookDeliveries  WebhookDelivery[]
 }
 
 model ApiKey {
@@ -272,4 +274,43 @@ model LaunchVideoProject {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+model WebhookEndpoint {
+  id          String            @id() @default(cuid())
+  userId      String
+  url         String
+  secret      String
+  events      String            @default("[\"job.completed\",\"job.failed\"]")
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt()
+  userProfile UserProfile       @relation(fields: [userId], references: [id])
+  deliveries  WebhookDelivery[]
+
+  @@index([userId])
+}
+
+model WebhookDelivery {
+  id           String           @id() @default(cuid())
+  endpointId   String?
+  userId       String
+  jobId        String
+  event        String
+  payload      String
+  status       String           @default("PENDING")
+  statusCode   Int?
+  responseBody String?
+  error        String?
+  attempts     Int              @default(0)
+  maxAttempts  Int              @default(5)
+  nextRetryAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt()
+  userProfile  UserProfile      @relation(fields: [userId], references: [id])
+  endpoint     WebhookEndpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([status])
 }

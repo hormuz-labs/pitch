@@ -3,7 +3,9 @@ import { createLogger } from '@saas/shared'
 import DodoPayments from 'dodopayments'
 import express, { Router } from 'express'
 import { Webhook } from 'standardwebhooks'
-import { CREDIT_PACKS, DODO_ENV, REFERRAL_REWARDS, TOPUP_PACKS } from '../config.js'
+import { CREDIT_PACKS, DODO_ENV, REFERRAL_REWARDS, TOPUP_PACKS, webhookQueue } from '../config.js'
+import { executeWebhookDelivery } from '../lib/webhook-service.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api')
 
@@ -252,3 +254,247 @@ async function handleAffiliateConversion(
     console.error('[Affiliate] Conversion error:', err)
   }
 }
+
+// ── Outbound Webhook Endpoints Management ────────────────────────────────────
+
+router.get('/endpoints', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const endpoints = await db.listWebhookEndpoints({ id: userId })
+    res.json(endpoints)
+  } catch (err: any) {
+    console.error('ERROR IN /endpoints GET:', err)
+    logger.error({ err, userId }, 'Failed to list webhook endpoints')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/endpoints', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const { url, events, secret, isActive } = req.body || {}
+  if (
+    !url ||
+    typeof url !== 'string' ||
+    (!url.startsWith('http://') && !url.startsWith('https://'))
+  ) {
+    return res.status(400).json({ error: 'Valid HTTP/HTTPS URL is required' })
+  }
+
+  try {
+    const endpoint = await db.createWebhookEndpoint(
+      {
+        userId,
+        url,
+        events: Array.isArray(events) ? events : ['job.completed', 'job.failed'],
+        secret: typeof secret === 'string' && secret.trim() ? secret : undefined,
+        isActive: typeof isActive === 'boolean' ? isActive : true,
+      },
+      { id: userId },
+    )
+
+    res.status(201).json(endpoint)
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to create webhook endpoint')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/endpoints/:id', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const endpoint = await db.getWebhookEndpoint(req.params.id, { id: userId })
+    if (!endpoint) return res.status(404).json({ error: 'Webhook endpoint not found' })
+    res.json(endpoint)
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to get webhook endpoint')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.patch('/endpoints/:id', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const { url, events, secret, isActive } = req.body || {}
+  if (
+    url !== undefined &&
+    (typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://')))
+  ) {
+    return res.status(400).json({ error: 'Valid HTTP/HTTPS URL is required' })
+  }
+
+  try {
+    const updated = await db.updateWebhookEndpoint(
+      req.params.id,
+      {
+        ...(url !== undefined ? { url } : {}),
+        ...(events !== undefined ? { events: Array.isArray(events) ? events : [] } : {}),
+        ...(secret !== undefined ? { secret } : {}),
+        ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {}),
+      },
+      { id: userId },
+    )
+
+    if (!updated) return res.status(404).json({ error: 'Webhook endpoint not found' })
+    res.json(updated)
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to update webhook endpoint')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.delete('/endpoints/:id', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const success = await db.deleteWebhookEndpoint(req.params.id, { id: userId })
+    if (!success) return res.status(404).json({ error: 'Webhook endpoint not found' })
+    res.json({ success: true })
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to delete webhook endpoint')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── Webhook Deliveries ────────────────────────────────────────────────────────
+
+router.get('/deliveries', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const jobId = typeof req.query.jobId === 'string' ? req.query.jobId : undefined
+  const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50
+
+  try {
+    const deliveries = await db.listWebhookDeliveries({ id: userId }, { jobId, limit })
+    res.json(deliveries)
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to list webhook deliveries')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/deliveries/:id/retry', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const delivery = await db.getWebhookDelivery(req.params.id, { id: userId })
+    if (!delivery) return res.status(404).json({ error: 'Webhook delivery not found' })
+
+    // Look up endpoint to get current secret or url if available
+    let secret = 'whsec_test'
+    let url = (delivery.payload as any)?.data?.parameters?.webhookUrl || ''
+    if (delivery.endpointId) {
+      const ep = await db.getWebhookEndpoint(delivery.endpointId, { id: userId })
+      if (ep) {
+        secret = ep.secret
+        url = ep.url
+      }
+    }
+
+    if (!url) {
+      return res.status(400).json({ error: 'Cannot retry: Webhook target URL is missing' })
+    }
+
+    // Reset status to PENDING and re-enqueue
+    const updated = await db.updateWebhookDelivery(delivery.id, {
+      status: 'PENDING',
+      error: null,
+      nextRetryAt: new Date(),
+    })
+
+    await webhookQueue.add(
+      'send-webhook',
+      {
+        deliveryId: updated.id,
+        endpointId: delivery.endpointId ?? undefined,
+        userId,
+        url,
+        secret,
+        payload: delivery.payload,
+      },
+      {
+        jobId: `${updated.id}-retry-${Date.now()}`,
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+      },
+    )
+
+    res.json({ success: true, message: 'Webhook delivery re-queued', delivery: updated })
+  } catch (err: any) {
+    logger.error({ err, userId }, 'Failed to retry webhook delivery')
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/test', express.json(), async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const { endpointId, url: inputUrl, secret: inputSecret } = req.body || {}
+
+  let url = inputUrl
+  let secret = inputSecret
+
+  if (endpointId) {
+    const ep = await db.getWebhookEndpoint(endpointId, { id: userId })
+    if (!ep) return res.status(404).json({ error: 'Webhook endpoint not found' })
+    url = ep.url
+    secret = ep.secret
+  }
+
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'Endpoint ID or valid URL is required' })
+  }
+
+  secret = secret || 'whsec_test_secret'
+
+  const payload = {
+    id: `evt_test_${Date.now()}`,
+    event: 'ping',
+    createdAt: new Date().toISOString(),
+    data: {
+      message: 'This is a test webhook from Pitch',
+      userId,
+      timestamp: Date.now(),
+    },
+  }
+
+  try {
+    const delivery = await db.createWebhookDelivery({
+      endpointId: endpointId || undefined,
+      userId,
+      jobId: 'test_job',
+      event: 'ping',
+      payload,
+      maxAttempts: 1,
+    })
+
+    const result = await executeWebhookDelivery(
+      {
+        deliveryId: delivery.id,
+        endpointId: endpointId || undefined,
+        userId,
+        url,
+        secret,
+        payload,
+      },
+      1,
+    )
+
+    res.json({ success: true, result })
+  } catch (err: any) {
+    res.status(502).json({ success: false, error: err.message })
+  }
+})

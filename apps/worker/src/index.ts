@@ -1,4 +1,5 @@
-import { createLogger, EDIT_QUEUE_NAME, ENHANCE_QUEUE_NAME, QUEUE_NAME } from '@saas/shared'
+import { executeWebhookDelivery } from '@saas/db'
+import { createLogger, EDIT_QUEUE_NAME, ENHANCE_QUEUE_NAME, QUEUE_NAME, WEBHOOK_QUEUE_NAME } from '@saas/shared'
 import { Worker } from 'bullmq'
 import dotenv from 'dotenv'
 import { Redis } from 'ioredis'
@@ -61,6 +62,11 @@ async function shutdown(signal: string) {
     await editWorker.close()
   } catch (e) {
     logger.error({ err: e }, 'Error closing edit worker')
+  }
+  try {
+    await webhookWorker.close()
+  } catch (e) {
+    logger.error({ err: e }, 'Error closing webhook worker')
   }
   try {
     await forceCloseOpencode()
@@ -210,5 +216,31 @@ editWorker.on('error', err => {
 })
 
 logger.info('Edit worker started, listening for edit-recording jobs')
+
+// ── Outbound Webhook Delivery Queue Worker ─────────────────────────────────────
+// Processes outgoing HTTP webhook notifications with retries & exponential backoff.
+const webhookWorker = new Worker(
+  WEBHOOK_QUEUE_NAME,
+  async job => {
+    await executeWebhookDelivery(job.data, job.attemptsMade + 1)
+  },
+  { connection: connection as any, concurrency: 5, lockDuration },
+)
+
+webhookWorker.on('completed', job => {
+  logger.info({ deliveryId: job.data?.deliveryId }, 'Webhook delivery succeeded')
+})
+
+webhookWorker.on('failed', (job, err) => {
+  logger.warn({ deliveryId: job?.data?.deliveryId, err: err?.message }, 'Webhook delivery failed or scheduled for retry')
+})
+
+webhookWorker.on('error', err => {
+  const msg = (err as Error)?.message || String(err)
+  if (msg.includes('could not renew lock')) return
+  logger.error({ err }, 'Webhook worker error')
+})
+
+logger.info('Webhook worker started, listening for webhook-delivery jobs')
 
 logger.info('Worker started, listening for jobs (OpenCode server starts on first job)')

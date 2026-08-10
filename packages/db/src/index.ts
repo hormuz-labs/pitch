@@ -899,3 +899,230 @@ function serializeApiKey(key: any): ApiKey {
     createdAt: key.createdAt,
   }
 }
+
+// ── Webhook Endpoints & Deliveries ──────────────────────────────────────────────
+
+export interface WebhookEndpoint {
+  id: string
+  userId: string
+  url: string
+  secret: string
+  events: string[]
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface WebhookDelivery {
+  id: string
+  endpointId?: string | null
+  userId: string
+  jobId: string
+  event: string
+  payload: Record<string, unknown>
+  status: 'PENDING' | 'SUCCESS' | 'FAILED'
+  statusCode?: number | null
+  responseBody?: string | null
+  error?: string | null
+  attempts: number
+  maxAttempts: number
+  nextRetryAt?: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+function serializeWebhookEndpoint(ep: any): WebhookEndpoint {
+  let eventsList: string[] = ['job.completed', 'job.failed']
+  try {
+    if (ep.events) eventsList = typeof ep.events === 'string' ? JSON.parse(ep.events) : ep.events
+  } catch {}
+
+  return {
+    id: ep.id,
+    userId: ep.userId,
+    url: ep.url,
+    secret: ep.secret,
+    events: eventsList,
+    isActive: ep.isActive,
+    createdAt: ep.createdAt,
+    updatedAt: ep.updatedAt,
+  }
+}
+
+function serializeWebhookDelivery(d: any): WebhookDelivery {
+  let parsedPayload: Record<string, unknown> = {}
+  try {
+    if (d.payload) parsedPayload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload
+  } catch {}
+
+  return {
+    id: d.id,
+    endpointId: d.endpointId ?? undefined,
+    userId: d.userId,
+    jobId: d.jobId,
+    event: d.event,
+    payload: parsedPayload,
+    status: d.status as 'PENDING' | 'SUCCESS' | 'FAILED',
+    statusCode: d.statusCode ?? undefined,
+    responseBody: d.responseBody ?? undefined,
+    error: d.error ?? undefined,
+    attempts: d.attempts,
+    maxAttempts: d.maxAttempts,
+    nextRetryAt: d.nextRetryAt ?? undefined,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+  }
+}
+
+export async function createWebhookEndpoint(
+  data: {
+    userId: string
+    url: string
+    secret?: string
+    events?: string[]
+    isActive?: boolean
+  },
+  user?: AuthUser,
+): Promise<WebhookEndpoint> {
+  const client = getEnhancedPrisma(user)
+  const secret = data.secret || `whsec_${randomBytes(16).toString('hex')}`
+  const events = JSON.stringify(data.events ?? ['job.completed', 'job.failed'])
+
+  const created = await client.webhookEndpoint.create({
+    data: {
+      userId: data.userId,
+      url: data.url,
+      secret,
+      events,
+      isActive: data.isActive ?? true,
+    },
+  })
+  return serializeWebhookEndpoint(created)
+}
+
+export async function listWebhookEndpoints(user: AuthUser): Promise<WebhookEndpoint[]> {
+  const client = getEnhancedPrisma(user)
+  const endpoints = await client.webhookEndpoint.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+  return endpoints.map(serializeWebhookEndpoint)
+}
+
+export async function getWebhookEndpoint(id: string, user: AuthUser): Promise<WebhookEndpoint | null> {
+  const client = getEnhancedPrisma(user)
+  const endpoint = await client.webhookEndpoint.findUnique({ where: { id } })
+  return endpoint ? serializeWebhookEndpoint(endpoint) : null
+}
+
+export async function updateWebhookEndpoint(
+  id: string,
+  data: {
+    url?: string
+    secret?: string
+    events?: string[]
+    isActive?: boolean
+  },
+  user: AuthUser,
+): Promise<WebhookEndpoint | null> {
+  const client = getEnhancedPrisma(user)
+  const existing = await client.webhookEndpoint.findUnique({ where: { id } })
+  if (!existing) return null
+
+  const updateData: any = {}
+  if (data.url !== undefined) updateData.url = data.url
+  if (data.secret !== undefined) updateData.secret = data.secret
+  if (data.events !== undefined) updateData.events = JSON.stringify(data.events)
+  if (data.isActive !== undefined) updateData.isActive = data.isActive
+
+  const updated = await client.webhookEndpoint.update({
+    where: { id },
+    data: updateData,
+  })
+  return serializeWebhookEndpoint(updated)
+}
+
+export async function deleteWebhookEndpoint(id: string, user: AuthUser): Promise<boolean> {
+  const client = getEnhancedPrisma(user)
+  const existing = await client.webhookEndpoint.findUnique({ where: { id } })
+  if (!existing) return false
+
+  await client.webhookEndpoint.delete({ where: { id } })
+  return true
+}
+
+export async function listActiveWebhookEndpointsForUser(userId: string): Promise<WebhookEndpoint[]> {
+  const endpoints = await prisma.webhookEndpoint.findMany({
+    where: { userId, isActive: true },
+  })
+  return endpoints.map(serializeWebhookEndpoint)
+}
+
+export async function createWebhookDelivery(data: {
+  endpointId?: string
+  userId: string
+  jobId: string
+  event: string
+  payload: Record<string, unknown>
+  maxAttempts?: number
+}): Promise<WebhookDelivery> {
+  const created = await prisma.webhookDelivery.create({
+    data: {
+      endpointId: data.endpointId,
+      userId: data.userId,
+      jobId: data.jobId,
+      event: data.event,
+      payload: JSON.stringify(data.payload),
+      status: 'PENDING',
+      maxAttempts: data.maxAttempts ?? 5,
+    },
+  })
+  return serializeWebhookDelivery(created)
+}
+
+export async function updateWebhookDelivery(
+  id: string,
+  data: {
+    status?: 'PENDING' | 'SUCCESS' | 'FAILED'
+    statusCode?: number | null
+    responseBody?: string | null
+    error?: string | null
+    attempts?: number
+    nextRetryAt?: Date | null
+  },
+): Promise<WebhookDelivery> {
+  const updated = await prisma.webhookDelivery.update({
+    where: { id },
+    data: {
+      ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(data.statusCode !== undefined ? { statusCode: data.statusCode } : {}),
+      ...(data.responseBody !== undefined ? { responseBody: data.responseBody } : {}),
+      ...(data.error !== undefined ? { error: data.error } : {}),
+      ...(data.attempts !== undefined ? { attempts: data.attempts } : {}),
+      ...(data.nextRetryAt !== undefined ? { nextRetryAt: data.nextRetryAt } : {}),
+    },
+  })
+  return serializeWebhookDelivery(updated)
+}
+
+export async function listWebhookDeliveries(
+  user: AuthUser,
+  opts?: { jobId?: string; limit?: number },
+): Promise<WebhookDelivery[]> {
+  const client = getEnhancedPrisma(user)
+  const deliveries = await client.webhookDelivery.findMany({
+    where: {
+      ...(opts?.jobId ? { jobId: opts.jobId } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: opts?.limit ?? 50,
+  })
+  return deliveries.map(serializeWebhookDelivery)
+}
+
+export async function getWebhookDelivery(id: string, user?: AuthUser): Promise<WebhookDelivery | null> {
+  const client = user ? getEnhancedPrisma(user) : prisma
+  const delivery = await (client as any).webhookDelivery.findUnique({ where: { id } })
+  return delivery ? serializeWebhookDelivery(delivery) : null
+}
+
+export * from './webhook-service.js'

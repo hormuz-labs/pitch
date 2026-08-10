@@ -1,5 +1,6 @@
 import { clerkMiddleware } from '@clerk/express'
-import { createLogger } from '@saas/shared'
+import * as db from '@saas/db'
+import { createLogger, JOB_UPDATES_CHANNEL } from '@saas/shared'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
@@ -8,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 import { type Options as PinoHttpOptions, pinoHttp } from 'pino-http'
 import { fileURLToPath } from 'url'
+import { subscriber, webhookQueue } from './config.js'
 import { attachVncProxy } from './lib/vnc-proxy.js'
 import adminRoutes from './routes/admin.js'
 import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js'
@@ -126,6 +128,23 @@ const server = app.listen(PORT, () => {
 // Bridge browser VNC WebSockets to the CloakBrowser Manager (handles manager
 // auth + CSWSH so the browser never talks to the manager directly).
 attachVncProxy(server)
+
+// Subscribe to job updates to dispatch webhooks when jobs complete or fail
+subscriber.subscribe(JOB_UPDATES_CHANNEL)
+subscriber.on('message', (channel, message) => {
+  if (channel === JOB_UPDATES_CHANNEL) {
+    try {
+      const jobData = JSON.parse(message)
+      if (jobData && (jobData.status === 'COMPLETED' || jobData.status === 'FAILED')) {
+        db.dispatchJobWebhooks(jobData, webhookQueue).catch(err => {
+          logger.error({ err, jobId: jobData.id }, 'Error dispatching job webhooks')
+        })
+      }
+    } catch {
+      // ignore
+    }
+  }
+})
 
 const gracefulShutdown = async (signal: string) => {
   logger.info({ signal }, 'shutting down API — closing browser sessions')
