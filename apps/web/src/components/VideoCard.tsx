@@ -121,9 +121,12 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
     day: 'numeric',
     year: 'numeric',
   })
-  const title = project.parameters?.url
-    ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
-    : 'Untitled Job'
+  const isLaunchVideo = project.parameters?.jobType === 'launch-video'
+  const title = isLaunchVideo
+    ? project.parameters?.projectName || 'Launch Video'
+    : project.parameters?.url
+      ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
+      : 'Untitled Job'
 
   const handleShareComplete = (option: { id: string; name: string }, videoUrl: string) => {
     const text = encodeURIComponent(

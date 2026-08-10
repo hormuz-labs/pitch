@@ -360,7 +360,11 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
               <VideoCard
                 key={project.id}
                 project={project}
-                onClick={() => navigate(`/editor/${project.id}`)}
+                onClick={() =>
+                  project.parameters?.jobType === 'launch-video' && project.parameters.projectName
+                    ? navigate(`/launch-video/${encodeURIComponent(project.parameters.projectName)}`)
+                    : navigate(`/editor/${project.id}`)
+                }
                 onConfirmDelete={() => onDelete(project.id)}
                 onRetry={() => onRetry(project.id)}
               />
