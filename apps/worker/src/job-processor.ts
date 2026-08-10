@@ -580,6 +580,12 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
       return processPdfJob(job, client, connection, targetDir)
     }
 
+    if (parameters?.jobType === 'launch-video') {
+      if (!client) throw new Error('An OpenCode client is required for launch-video generation.')
+      const { processLaunchVideoJob } = await import('./launch-video-job-processor.js')
+      return processLaunchVideoJob(job, client, connection, targetDir)
+    }
+
     jobLogger.info({ mode: mode ?? 'standard' }, 'Processing video job')
 
     const workerHostname = process.env.HOSTNAME || os.hostname()

@@ -1,5 +1,6 @@
 import { createLogger } from '@saas/shared'
 import express, { Router } from 'express'
+import { createLaunchVideoJob, InsufficientCreditsError } from '../lib/job-service.js'
 import { listMusic } from '../lib/launch-video/music.js'
 import {
   eventSessionId,
@@ -18,14 +19,6 @@ import { requireAuth } from '../middleware/auth.js'
 const logger = createLogger('api:launch-video')
 
 export const router = Router()
-
-/** First-turn brief: don't interview, build. */
-const FIRST_TURN_BRIEF =
-  'The user wants results, not questions. Do NOT interview the user or wait for confirmations ' +
-  '— start the full html-motion-video workflow immediately (recon, direction, storyboard, VO, ' +
-  'build, mix, render). Make every creative decision yourself, grounded in recon evidence, and ' +
-  'briefly narrate your choices as you go. Only stop early if a hard requirement is missing ' +
-  '(e.g. you cannot access the product at all).'
 
 /** Project names double as directory names — keep path traversal out. */
 function isValidProjectName(name: string): boolean {
@@ -117,26 +110,13 @@ router.post('/projects/:name/prompt', async (req, res) => {
   if (!text) return res.status(400).json({ error: 'text is required' })
 
   try {
-    const internal = toInternalName(userId, name)
-    const project = await getProject(userId, name)
-    let system = project
-      ? `The video project lives in projects/${internal}/ (renders go to renders/ with the ${internal}- prefix). `
-      : `Create a new video project under projects/${internal}/ following the html-motion-video skill conventions (renders go to renders/ with the ${internal}- prefix). `
-    if (music) {
-      system +=
-        `Background music: the user picked "assets/music/${music}" from the shared music library — ` +
-        `copy it into the project's audio/ folder and use it as the music bed in the mix. `
-    }
-
-    const { id: sessionId } = await getSessionForProject(userId, name)
-    const isFirstMessage = (await getMessages(sessionId)).length === 0
-    if (isFirstMessage) {
-      system += FIRST_TURN_BRIEF
-    }
-    await prompt(sessionId, text, system)
-    res.json({ sessionId })
+    const job = await createLaunchVideoJob(userId, name, text, music || undefined)
+    res.status(202).json({ jobId: job.id })
   } catch (error: any) {
-    logger.error({ err: error, userId, project: name }, 'Failed to send launch-video prompt')
+    if (error instanceof InsufficientCreditsError) {
+      return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
+    }
+    logger.error({ err: error, userId, project: name }, 'Failed to create launch-video job')
     res.status(500).json({ error: error.message })
   }
 })

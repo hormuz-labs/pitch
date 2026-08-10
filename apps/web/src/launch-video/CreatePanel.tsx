@@ -33,7 +33,11 @@ export function CreatePanel() {
   const send = async (text: string) => {
     const t = text.trim()
     if (!t || busy) return
-    if (!started) await startProject(t)
+    if (!started) {
+      setDraft('')
+      await startProject(t)
+      return
+    }
     setDraft('')
     await sendPrompt(t)
   }

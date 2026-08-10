@@ -7,8 +7,10 @@ const logger = createLogger('api')
 const pdfLogger = createLogger('api:pdf')
 const enhanceLogger = createLogger('api:enhance')
 const editLogger = createLogger('api:edit')
+const launchLogger = createLogger('api:launch-video')
 
 export const EDIT_CREDIT_COST = 2
+export const LAUNCH_VIDEO_CREDIT_COST = 3
 
 /** Thrown when the user's credit balance cannot cover the job. Carries the
  * current balance so HTTP routes can map it to 402 and MCP tools to a tool error. */
@@ -82,6 +84,87 @@ export async function createDemoVideoJob(userId: string, parameters: any) {
       )
     })
     .catch(err => logger.error({ err }, 'Failed to send Discord notification for job creation'))
+
+  return job
+}
+
+/** Launch video job (LAUNCH_VIDEO_CREDIT_COST credits). Queues the initial
+ *  html-motion-video creation prompt on the shared video queue; the worker
+ *  dispatches by jobType: 'launch-video'. */
+export async function createLaunchVideoJob(
+  userId: string,
+  projectName: string,
+  prompt: string,
+  music?: string,
+) {
+  const tenantId = userId
+
+  const balance = await db.getCreditBalance(tenantId)
+  if (balance < LAUNCH_VIDEO_CREDIT_COST) {
+    launchLogger.warn(
+      { userId, tenantId, balance },
+      'Launch video job blocked: insufficient credits',
+    )
+    throw new InsufficientCreditsError(balance)
+  }
+
+  const launchParams = {
+    jobType: 'launch-video',
+    projectName,
+    prompt,
+    ...(music ? { music } : {}),
+  }
+
+  const job = await db.createJob({ userId, parameters: launchParams }, { id: userId })
+
+  await db.deductCredit(tenantId, LAUNCH_VIDEO_CREDIT_COST, 'Launch video generation', {
+    jobId: job.id,
+  })
+
+  try {
+    await videoQueue.add(
+      'generate-video',
+      { jobId: job.id, userId: job.userId, parameters: launchParams },
+      { jobId: job.id },
+    )
+    await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(job))
+  } catch (enqueueError: any) {
+    launchLogger.error(
+      { err: enqueueError, jobId: job.id, userId },
+      'Failed to enqueue launch-video job after creation — rolling back',
+    )
+    await db.updateJob(job.id, {
+      status: JobStatus.FAILED,
+      error: `Failed to queue launch-video job: ${enqueueError.message}`,
+    })
+    await db.addCredits(
+      tenantId,
+      LAUNCH_VIDEO_CREDIT_COST,
+      'refund',
+      'Refund: launch-video job failed to enqueue',
+      {
+        jobId: job.id,
+      },
+    )
+    throw enqueueError
+  }
+
+  launchLogger.info(
+    { jobId: job.id, userId, tenantId, projectName },
+    'Launch video job created and queued',
+  )
+
+  db.prisma.userProfile
+    .findUnique({ where: { id: userId } })
+    .then(user => {
+      const email = user?.email || userId
+      sendDiscordMessage(
+        `🚀 **New Launch Video Started**\nJob ID: \`${job.id}\`\nUser: ${email}\nProject: \`${projectName}\`\nPrompt: *${prompt}*`,
+      )
+    })
+    .catch(err =>
+      launchLogger.error({ err }, 'Failed to send Discord notification for launch-video job'),
+    )
 
   return job
 }

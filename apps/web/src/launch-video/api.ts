@@ -5,6 +5,7 @@
  */
 import { API_URL } from '../config'
 import { api } from '../lib/api'
+import type { Project } from '../types'
 
 export interface LaunchProjectInfo {
   name: string
@@ -93,11 +94,15 @@ export const launchApi = {
     ),
 
   sendPrompt: (token: string, name: string, text: string, music?: string) =>
-    api.post<{ sessionId: string }>(
+    api.post<{ jobId: string }>(
       `/launch-video/projects/${encodeURIComponent(name)}/prompt`,
       token,
       { text, music: music || undefined },
     ),
+
+  /** Fetch the job row for a launch-video creation job. */
+  getJob: (token: string, jobId: string) =>
+    api.get<Project>(`/jobs/${encodeURIComponent(jobId)}`, token),
 
   sendScenePrompt: (token: string, name: string, sceneId: string, text: string) =>
     api.post<{ sessionId: string }>(

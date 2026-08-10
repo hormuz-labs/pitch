@@ -65,7 +65,7 @@ export interface LaunchVideoStore {
   refreshMusic: () => Promise<void>
   selectProject: (name: string) => Promise<void>
   clearProject: () => void
-  startProject: (text: string) => Promise<void>
+  startProject: (text: string) => Promise<{ jobId: string; projectName: string }>
   sendPrompt: (text: string) => Promise<void>
   sendScenePrompt: (sceneId: string, text: string) => Promise<void>
   /**
@@ -74,6 +74,12 @@ export interface LaunchVideoStore {
    * Returns null if path is falsy or no token is available yet.
    */
   mediaUrl: (path: string | null | undefined, version?: number) => string | null
+  /** Job ID of the in-flight launch-video creation, if any. */
+  currentJobId: string | null
+  /** Error message for the in-flight launch-video creation job, if it failed. */
+  jobError: string | null
+  /** Resume tracking a launch-video job from a shared URL or refresh. */
+  trackJob: (jobId: string) => Promise<void>
 }
 
 const LaunchVideoContext = createContext<LaunchVideoStore | null>(null)
@@ -182,6 +188,10 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   const [activity, setActivity] = useState<string | null>(null)
   /** Cached Clerk token for use in <video>/<img> ?token= URLs. Refreshed lazily. */
   const [mediaToken, setMediaToken] = useState<string | null>(null)
+  /** Job ID of the in-flight launch-video creation job. */
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null)
+  /** Error message for the in-flight launch-video creation job, if it failed. */
+  const [jobError, setJobError] = useState<string | null>(null)
 
   /** Registered by VideoPlayer so the timeline can seek it. */
   const playerRef = useRef<HTMLVideoElement | null>(null)
@@ -190,6 +200,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   const eventsGenRef = useRef(0)
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const renderPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const jobPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentNameRef = useRef<string | null>(null)
   /** partId -> part type, learned from message.part.updated; used to hide reasoning streams */
   const partTypesRef = useRef(new Map<string, string>())
@@ -532,6 +543,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     eventsGenRef.current++
     if (retryRef.current) clearTimeout(retryRef.current)
     if (renderPollRef.current) clearTimeout(renderPollRef.current)
+    if (jobPollRef.current) clearTimeout(jobPollRef.current)
     eventsRef.current?.close()
     eventsRef.current = null
     currentNameRef.current = null
@@ -543,6 +555,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     setBusy(false)
     setActivity(null)
     setPlayhead(0)
+    setCurrentJobId(null)
+    setJobError(null)
     playerRef.current = null
     messageSceneRef.current.clear()
     pendingSceneRef.current = null
@@ -571,14 +585,113 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   }
 
   /** Create (and select) a new project named after the prompt.
-   *  Skip the initial /scenes fetch: the project doesn't exist yet, so the API
-   *  would 404 and the browser console would show a spurious error. */
+   *  Instead of fetching /scenes immediately (which 404s until the worker has
+   *  created the project), this queues a launch-video job and tracks it by
+   *  jobId. The caller should navigate to /launch-video/job/:jobId. */
   const startProject = useCallback(
     async (text: string) => {
-      await selectProject(slugFromPrompt(text), { skipFetch: true })
+      const name = slugFromPrompt(text)
+      // Connect the SSE stream early so live agent messages stream in; skip the
+      // scenes fetch because the project directory isn't ready yet.
+      await selectProject(name, { skipFetch: true })
+      setBusy(true)
+      setMessages(m => [...m, optimisticUserMessage(text)])
+      setJobError(null)
+      try {
+        const token = await getToken()
+        if (!token) throw new Error('no token')
+        const { jobId } = await launchApi.sendPrompt(
+          token,
+          name,
+          text,
+          selectedMusicRef.current ?? undefined,
+        )
+        setCurrentJobId(jobId)
+        return { jobId, projectName: name }
+      } catch (err: any) {
+        setBusy(false)
+        const msg = err?.message ?? 'Something went wrong — please try again.'
+        setJobError(msg)
+        setMessages(m => [...m, errorMessage(msg)])
+        throw err
+      }
     },
-    [selectProject, projects],
+    [getToken, selectProject],
   )
+
+  /** Resume tracking a launch-video job (e.g. after a refresh on
+   *  /launch-video/job/:jobId). Fetches the job row, reconnects the SSE stream,
+   *  and starts polling until the job finishes. */
+  const trackJob = useCallback(
+    async (jobId: string) => {
+      setCurrentJobId(jobId)
+      setJobError(null)
+      try {
+        const token = await getToken()
+        if (!token) throw new Error('no token')
+        const job = await launchApi.getJob(token, jobId)
+        const projectName = (job.parameters as any)?.projectName as string | undefined
+        if (projectName) {
+          currentNameRef.current = projectName
+          await selectProject(projectName, { skipFetch: job.status !== 'COMPLETED' })
+        }
+        if (job.status === 'COMPLETED') {
+          setCurrentJobId(null)
+          setBusy(false)
+        } else if (job.status === 'FAILED') {
+          setCurrentJobId(null)
+          setBusy(false)
+          const msg = job.error ?? 'Launch video generation failed'
+          setJobError(msg)
+          setMessages(m => [...m, errorMessage(msg)])
+        }
+      } catch (err: any) {
+        const msg = err?.message ?? 'Failed to load job'
+        setJobError(msg)
+      }
+    },
+    [getToken, selectProject],
+  )
+
+  // Poll the job row while a launch-video creation job is in flight.
+  useEffect(() => {
+    if (!currentJobId) return
+    let cancelled = false
+    const poll = async () => {
+      if (cancelled) return
+      try {
+        const token = await getToken()
+        if (!token) return
+        const job = await launchApi.getJob(token, currentJobId)
+        if (cancelled) return
+        const projectName = (job.parameters as any)?.projectName as string | undefined
+        if (job.status === 'COMPLETED') {
+          setCurrentJobId(null)
+          setBusy(false)
+          if (projectName) {
+            currentNameRef.current = projectName
+            await selectProject(projectName)
+          }
+        } else if (job.status === 'FAILED') {
+          setCurrentJobId(null)
+          setBusy(false)
+          const msg = job.error ?? 'Launch video generation failed'
+          setJobError(msg)
+          setMessages(m => [...m, errorMessage(msg)])
+        } else {
+          jobPollRef.current = setTimeout(() => void poll(), 3000)
+        }
+      } catch {
+        // Keep polling through transient errors; the SSE still shows progress.
+        jobPollRef.current = setTimeout(() => void poll(), 3000)
+      }
+    }
+    void poll()
+    return () => {
+      cancelled = true
+      if (jobPollRef.current) clearTimeout(jobPollRef.current)
+    }
+  }, [currentJobId, getToken, selectProject])
 
   const sendPrompt = useCallback(
     async (text: string) => {
@@ -657,6 +770,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       eventsGenRef.current++
       if (retryRef.current) clearTimeout(retryRef.current)
       if (renderPollRef.current) clearTimeout(renderPollRef.current)
+      if (jobPollRef.current) clearTimeout(jobPollRef.current)
       eventsRef.current?.close()
       eventsRef.current = null
     }
@@ -693,6 +807,9 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       sendPrompt,
       sendScenePrompt,
       mediaUrl,
+      currentJobId,
+      jobError,
+      trackJob,
     }),
     [
       view,
@@ -719,6 +836,9 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       sendPrompt,
       sendScenePrompt,
       mediaUrl,
+      currentJobId,
+      jobError,
+      trackJob,
     ],
   )
 
