@@ -73,15 +73,26 @@ function JobStatusPanel() {
 function LaunchVideoShell() {
   const {
     view,
+    setView,
     currentProject,
     currentJobId,
     selectProject,
     clearProject,
     trackJob,
     projectsLoading,
+    busy,
   } = useLaunchVideo()
-  const { projectName, jobId } = useParams<{ projectName?: string; jobId?: string }>()
+  const { '*': splat } = useParams<{ '*': string }>()
   const navigate = useNavigate()
+
+  let jobId: string | undefined
+  let projectName: string | undefined
+
+  if (splat?.startsWith('job/')) {
+    jobId = decodeURIComponent(splat.slice(4))
+  } else if (splat) {
+    projectName = decodeURIComponent(splat)
+  }
 
   // Resume tracking a job when landing on /launch-video/job/:jobId.
   useEffect(() => {
@@ -90,37 +101,45 @@ function LaunchVideoShell() {
     }
   }, [jobId, currentJobId, trackJob])
 
-  // When a job is created but the URL doesn't show it yet, switch to the job view.
+  // When a job is active but the URL doesn't show it yet, switch to the job view.
   useEffect(() => {
     if (currentJobId && !jobId) {
       navigate(`/launch-video/job/${encodeURIComponent(currentJobId)}`, { replace: true })
     }
   }, [currentJobId, jobId, navigate])
 
+  // When on a job route and the job completes (currentJobId becomes null) and project detail is ready, switch to edit view.
+  useEffect(() => {
+    if (jobId && !currentJobId && currentProject?.name && !busy) {
+      navigate(`/launch-video/${encodeURIComponent(currentProject.name)}`, { replace: true })
+      setView('edit')
+    }
+  }, [jobId, currentJobId, currentProject?.name, busy, navigate, setView])
+
   // Load the project named in the URL once the project list is ready.
   useEffect(() => {
-    if (projectsLoading || !projectName || jobId) return
+    if (projectsLoading || !projectName || jobId || currentJobId) return
     if (!currentProject || currentProject.name !== projectName) {
       void selectProject(projectName)
     }
-  }, [projectsLoading, projectName, currentProject, selectProject, jobId])
+  }, [projectsLoading, projectName, currentProject, selectProject, jobId, currentJobId])
 
   // Navigating to /launch-video (no project) clears the current project.
   useEffect(() => {
-    if (!projectsLoading && !projectName && !jobId && currentProject) {
+    if (!projectsLoading && !projectName && !jobId && !currentJobId && currentProject) {
       clearProject()
     }
-  }, [projectsLoading, projectName, jobId, currentProject, clearProject])
+  }, [projectsLoading, projectName, jobId, currentJobId, currentProject, clearProject])
 
-  // Sync the URL with the active project so a refresh resumes the right session.
+  // Sync the URL with the active project so a refresh resumes the right session (only when not on a job route).
   useEffect(() => {
-    if (jobId) return
+    if (jobId || currentJobId) return
     if (currentProject?.name && currentProject.name !== projectName) {
       navigate(`/launch-video/${encodeURIComponent(currentProject.name)}`, { replace: true })
     } else if (!currentProject?.name && projectName) {
       navigate('/launch-video', { replace: true })
     }
-  }, [currentProject?.name, projectName, jobId, navigate])
+  }, [currentProject?.name, projectName, jobId, currentJobId, navigate])
 
   const onJobRoute = Boolean(jobId || currentJobId)
 

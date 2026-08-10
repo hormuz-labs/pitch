@@ -230,6 +230,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   viewRef.current = view
   const currentProjectRef = useRef(currentProject)
   currentProjectRef.current = currentProject
+  const currentJobIdRef = useRef(currentJobId)
+  currentJobIdRef.current = currentJobId
 
   const seekPlayer = useCallback((seconds: number) => {
     if (!playerRef.current) return
@@ -264,6 +266,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   }, [getToken])
 
   const refreshCurrentProject = useCallback(async () => {
+    if (currentJobIdRef.current) return
     const name = currentNameRef.current
     if (!name) return
     try {
@@ -351,46 +354,49 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
           break
         case 'session.status':
         case 'session.idle':
-          setBusy(ev.type === 'session.status' && ev.properties?.status?.type === 'busy')
-          if (ev.type === 'session.idle') {
-            setBusy(false)
-            setActivity(null)
-            void (async () => {
-              void refreshMessages()
-              void refreshProjects()
-              const hadVideo = !!currentProjectRef.current?.videoUrl
-              const prevUrl = currentProjectRef.current?.videoUrl ?? null
-              await refreshCurrentProject()
-              // First render just landed — jump to the scene editor.
-              if (
-                !hadVideo &&
-                currentProjectRef.current?.videoUrl &&
-                viewRef.current === 'create'
-              ) {
-                setView('edit')
-              }
-              // Poll for updated render: the agent writes the file then goes idle;
-              // the file might not be flushed yet. Poll /scenes up to ~20s.
-              if (renderPollRef.current) clearTimeout(renderPollRef.current)
-              let attempts = 0
-              const pollRender = async () => {
-                if (attempts++ > 10 || !currentNameRef.current) return
-                const tok = await getToken().catch(() => null)
-                if (!tok) return
-                const detail = await launchApi
-                  .getProject(tok, currentNameRef.current)
-                  .catch(() => null)
-                if (!detail) return
-                const newUrl = detail.videoUrl
-                if (newUrl && newUrl !== prevUrl) {
-                  setCurrentProject(detail)
-                  setVideoVersion(v => v + 1)
-                } else {
-                  renderPollRef.current = setTimeout(() => void pollRender(), 2000)
+          if (ev.type === 'session.status') {
+            setBusy(ev.properties?.status?.type === 'busy')
+          } else if (ev.type === 'session.idle') {
+            if (!currentJobIdRef.current) {
+              setBusy(false)
+              setActivity(null)
+              void (async () => {
+                void refreshMessages()
+                void refreshProjects()
+                const hadVideo = !!currentProjectRef.current?.videoUrl
+                const prevUrl = currentProjectRef.current?.videoUrl ?? null
+                await refreshCurrentProject()
+                // First render just landed — jump to the scene editor.
+                if (
+                  !hadVideo &&
+                  currentProjectRef.current?.videoUrl &&
+                  viewRef.current === 'create'
+                ) {
+                  setView('edit')
                 }
-              }
-              void pollRender()
-            })()
+                // Poll for updated render: the agent writes the file then goes idle;
+                // the file might not be flushed yet. Poll /scenes up to ~20s.
+                if (renderPollRef.current) clearTimeout(renderPollRef.current)
+                let attempts = 0
+                const pollRender = async () => {
+                  if (attempts++ > 10 || !currentNameRef.current) return
+                  const tok = await getToken().catch(() => null)
+                  if (!tok) return
+                  const detail = await launchApi
+                    .getProject(tok, currentNameRef.current)
+                    .catch(() => null)
+                  if (!detail) return
+                  const newUrl = detail.videoUrl
+                  if (newUrl && newUrl !== prevUrl) {
+                    setCurrentProject(detail)
+                    setVideoVersion(v => v + 1)
+                  } else {
+                    renderPollRef.current = setTimeout(() => void pollRender(), 2000)
+                  }
+                }
+                void pollRender()
+              })()
+            }
           }
           break
         case 'message.part.delta': {

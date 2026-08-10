@@ -1831,8 +1831,7 @@ function AppContent() {
                     />
                   }
                 />
-                <Route path="/launch-video/job/:jobId" element={<LaunchVideoView />} />
-                <Route path="/launch-video/:projectName?" element={<LaunchVideoView />} />
+                <Route path="/launch-video/*" element={<LaunchVideoView />} />
                 <Route
                   path="/templates"
                   element={
