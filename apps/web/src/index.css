@@ -42,6 +42,12 @@ html, body, #root {
   animation: pcoin-spin 1s linear infinite;
 }
 
+/* launch-video job page: running phase dot */
+@keyframes lv-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
 @keyframes storyboard-callout-in {
   0% { opacity: 0; transform: scale(0.82); }
   70% { opacity: 1; transform: scale(1.04); }

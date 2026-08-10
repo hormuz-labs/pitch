@@ -128,6 +128,30 @@ export const EDIT_PHASE_LABELS: Record<string, string> = {
   edit_upload: 'Uploading Video',
 }
 
+// Launch-video (html-motion-video) phase weights and labels. The worker emits
+// these keys on every phase transition while the agent runs the full
+// recon → direction → storyboard → VO → build → mix → render pipeline.
+export const LAUNCH_VIDEO_PHASE_WEIGHTS: Record<string, number> = {
+  workspace_init: 5,
+  processing: 5,
+  recon: 10,
+  planning: 10,
+  voiceover: 20,
+  building: 25,
+  mixing: 10,
+  rendering: 15,
+}
+
+export const LAUNCH_VIDEO_PHASE_LABELS: Record<string, string> = {
+  processing: 'Reading Your Prompt',
+  recon: 'Researching the Product',
+  planning: 'Planning Direction',
+  voiceover: 'Recording Voiceover',
+  building: 'Building Scenes',
+  mixing: 'Mixing Audio',
+  rendering: 'Rendering Video',
+}
+
 /**
  * The contribution of each phase to overall progress (must sum to 100).
  * Heavier phases (recording, voiceover) contribute more %.
@@ -140,6 +164,7 @@ export const PHASE_WEIGHTS: Record<string, number> = {
   ...PDF_PHASE_WEIGHTS,
   ...ENHANCE_PHASE_WEIGHTS,
   ...EDIT_PHASE_WEIGHTS,
+  ...LAUNCH_VIDEO_PHASE_WEIGHTS,
 }
 
 /** Human-readable label for each phase key */
@@ -151,6 +176,7 @@ export const PHASE_LABELS: Record<string, string> = {
   ...PDF_PHASE_LABELS,
   ...ENHANCE_PHASE_LABELS,
   ...EDIT_PHASE_LABELS,
+  ...LAUNCH_VIDEO_PHASE_LABELS,
 }
 
 export interface Job {

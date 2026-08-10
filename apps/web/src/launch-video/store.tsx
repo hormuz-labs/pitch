@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import type { PhaseUpdate } from '../types'
 import {
   type ChatMessage,
   type LaunchProjectDetail,
@@ -78,6 +79,10 @@ export interface LaunchVideoStore {
   currentJobId: string | null
   /** Error message for the in-flight launch-video creation job, if it failed. */
   jobError: string | null
+  /** Live phase progress of the in-flight job (polled from the job row). */
+  jobPhases: PhaseUpdate[]
+  /** Weighted overall progress 0–100 of the in-flight job. */
+  jobProgress: number
   /** Resume tracking a launch-video job from a shared URL or refresh. */
   trackJob: (jobId: string) => Promise<void>
 }
@@ -192,6 +197,10 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   /** Error message for the in-flight launch-video creation job, if it failed. */
   const [jobError, setJobError] = useState<string | null>(null)
+  /** Live phase progress of the in-flight job (polled from the job row). */
+  const [jobPhases, setJobPhases] = useState<PhaseUpdate[]>([])
+  /** Weighted overall progress 0–100 of the in-flight job. */
+  const [jobProgress, setJobProgress] = useState(0)
 
   /** Registered by VideoPlayer so the timeline can seek it. */
   const playerRef = useRef<HTMLVideoElement | null>(null)
@@ -563,6 +572,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     setPlayhead(0)
     setCurrentJobId(null)
     setJobError(null)
+    setJobPhases([])
+    setJobProgress(0)
     playerRef.current = null
     messageSceneRef.current.clear()
     pendingSceneRef.current = null
@@ -603,6 +614,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       setBusy(true)
       setMessages(m => [...m, optimisticUserMessage(text)])
       setJobError(null)
+      setJobPhases([])
+      setJobProgress(0)
       try {
         const token = await getToken()
         if (!token) throw new Error('no token')
@@ -632,10 +645,14 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     async (jobId: string) => {
       setCurrentJobId(jobId)
       setJobError(null)
+      setJobPhases([])
+      setJobProgress(0)
       try {
         const token = await getToken()
         if (!token) throw new Error('no token')
         const job = await launchApi.getJob(token, jobId)
+        setJobPhases(job.phases ?? [])
+        setJobProgress(job.progress ?? 0)
         const projectName = (job.parameters as any)?.projectName as string | undefined
         if (projectName) {
           currentNameRef.current = projectName
@@ -671,6 +688,9 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
         const job = await launchApi.getJob(token, currentJobId)
         if (cancelled) return
         const projectName = (job.parameters as any)?.projectName as string | undefined
+        // Surface live phase progress from the job row.
+        setJobPhases(job.phases ?? [])
+        setJobProgress(job.progress ?? 0)
         if (job.status === 'COMPLETED') {
           setCurrentJobId(null)
           setBusy(false)
@@ -815,6 +835,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       mediaUrl,
       currentJobId,
       jobError,
+      jobPhases,
+      jobProgress,
       trackJob,
     }),
     [
@@ -844,6 +866,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       mediaUrl,
       currentJobId,
       jobError,
+      jobPhases,
+      jobProgress,
       trackJob,
     ],
   )

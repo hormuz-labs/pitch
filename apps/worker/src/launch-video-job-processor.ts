@@ -13,6 +13,7 @@ import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
 import { prisma } from '@saas/db'
 import { createLogger, JOB_UPDATES_CHANNEL, JobStatus } from '@saas/shared'
+import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
 import type { Redis } from 'ioredis'
 import { reportJobPhase } from './job-processor.js'
@@ -33,14 +34,6 @@ function toInternalName(userId: string, publicName: string): string {
 
 function projectDir(targetDir: string, userId: string, name: string): string {
   return path.join(targetDir, 'projects', toInternalName(userId, name))
-}
-
-function renderPath(internal: string): string {
-  return `/launch-video/files/videos/${encodeURIComponent(internal)}-launch.mp4`
-}
-
-function draftPath(internal: string): string {
-  return `/launch-video/files/videos/${encodeURIComponent(internal)}-draft.mp4`
 }
 
 /** Best-effort extraction of the session id an event belongs to. */
@@ -119,8 +112,23 @@ function detectPhase(toolName: string | undefined, reasoning?: string): string |
   if (name.includes('tts')) return 'voiceover'
   if (name.includes('render')) return 'rendering'
   if (name.includes('find_audio') || name.includes('mix') || text.includes('mix')) return 'mixing'
-  if (text.includes('storyboard') || text.includes('direction')) return 'planning'
-  if (text.includes('build') || text.includes('scene')) return 'building'
+  if (
+    text.includes('storyboard') ||
+    text.includes('direction') ||
+    text.includes('brief') ||
+    text.includes('creative')
+  )
+    return 'planning'
+  if (
+    text.includes('build') ||
+    text.includes('scene') ||
+    name.includes('write') ||
+    name.includes('edit') ||
+    name.includes('patch') ||
+    name.includes('organize') ||
+    name.includes('todo')
+  )
+    return 'building'
   return null
 }
 
@@ -189,6 +197,9 @@ export async function processLaunchVideoJob(
           if (type === 'call' || event.call) {
             const call = event.call || event
             nextPhase = detectPhase(call.name || call.tool)
+          } else if (type === 'message.part.updated' && props.part?.type === 'tool') {
+            // Tool parts carry the invoked tool (e.g. motion_tts, motion_render).
+            nextPhase = detectPhase(props.part.tool ?? props.part.name)
           } else if (type === 'message.part.updated' && props.part?.type === 'reasoning') {
             nextPhase = detectPhase(undefined, props.part.text)
           }
@@ -260,19 +271,23 @@ export async function processLaunchVideoJob(
     await publishPhase(jobId, userId, currentPhase, 'completed', connection)
   }
 
-  // Determine the rendered video URL.
+  // Locate the rendered file on disk.
   const internal = toInternalName(userId, projectName)
   const launchFile = path.join(targetDir, 'renders', `${internal}-launch.mp4`)
   const draftFile = path.join(targetDir, 'renders', `${internal}-draft.mp4`)
-  const videoUrl = existsSync(launchFile)
-    ? renderPath(internal)
-    : existsSync(draftFile)
-      ? draftPath(internal)
-      : null
+  const renderFile = existsSync(launchFile) ? launchFile : existsSync(draftFile) ? draftFile : null
 
-  if (!videoUrl) {
+  if (!renderFile) {
     throw new Error('Launch video completed but no render file was found')
   }
+
+  // Upload the finished render to object storage so it has a public, shareable
+  // URL. The editor previews drafts locally through the API, but the job's
+  // videoUrl (used by dashboard share/download) must be a real S3 URL, not a
+  // local server path.
+  const prefix = `pitch/${userId}/${projectName}/videos`
+  const videoUrl = await storage.uploadFile(renderFile, undefined, prefix)
+  jobLogger.info({ videoUrl }, 'Launch video uploaded to storage')
 
   const gitHash = process.env.GIT_HASH || undefined
 
