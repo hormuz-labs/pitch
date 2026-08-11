@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { PostHogProvider } from './analytics/PostHogProvider.tsx'
 import { ThemeProvider } from './contexts/ThemeContext.tsx'
 import './index.css'
 import App from './App.tsx'
@@ -14,9 +15,11 @@ if (!PUBLISHABLE_KEY) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
-      <ThemeProvider>
-        <App />
-      </ThemeProvider>
+      <PostHogProvider>
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
+      </PostHogProvider>
     </ClerkProvider>
   </StrictMode>,
 )
