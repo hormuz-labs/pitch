@@ -1,12 +1,15 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import * as db from '@saas/db'
-import { createLogger } from '@saas/shared'
+import { createLogger, JOB_UPDATES_CHANNEL } from '@saas/shared'
+import * as storage from '@saas/storage'
 import express, { Router } from 'express'
+import { connection } from '../config.js'
 import { createLaunchVideoJob, InsufficientCreditsError } from '../lib/job-service.js'
 import { listMusic } from '../lib/launch-video/music.js'
 import {
   eventSessionId,
   eventStream,
-  getBoundSessionForProject,
   getMessages,
   getSessionForProject,
   getSessionOwnerId,
@@ -16,7 +19,12 @@ import {
   resetEventStream,
 } from '../lib/launch-video/opencode.js'
 import { MUSIC_DIR, RENDERS_DIR, toInternalName } from '../lib/launch-video/paths.js'
-import { getProject, listProjects, mergeLaunchVideoJobs } from '../lib/launch-video/projects.js'
+import {
+  getProject,
+  listProjects,
+  mergeLaunchVideoJobs,
+  resolveLaunchVideoProjectDetail,
+} from '../lib/launch-video/projects.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api:launch-video')
@@ -32,10 +40,64 @@ function isValidProjectName(name: string): boolean {
 
 interface SseClient {
   sessionId: string
+  userId: string
+  projectName: string
   send: (ev: OpencodeEvent) => void
 }
 const sseClients = new Set<SseClient>()
 let pumpStarted = false
+const renderSyncs = new Map<string, Promise<void>>()
+
+function isIdleEvent(ev: OpencodeEvent): boolean {
+  return (
+    ev.type === 'session.idle' ||
+    (ev.type === 'session.status' && (ev.properties as any)?.status?.type === 'idle')
+  )
+}
+
+async function syncEditedRender(userId: string, projectName: string): Promise<void> {
+  const internal = toInternalName(userId, projectName)
+  const launchFile = path.join(RENDERS_DIR, `${internal}-launch.mp4`)
+  const draftFile = path.join(RENDERS_DIR, `${internal}-draft.mp4`)
+  const renderFile = existsSync(launchFile) ? launchFile : existsSync(draftFile) ? draftFile : null
+  if (!renderFile) {
+    logger.warn({ userId, projectName }, 'Edited launch-video session ended without a render')
+    return
+  }
+
+  const jobs = await db.listJobs({ id: userId })
+  const job = jobs.find(
+    item =>
+      item.parameters?.jobType === 'launch-video' && item.parameters?.projectName === projectName,
+  )
+  if (!job) {
+    logger.warn({ userId, projectName }, 'No launch-video job found for edited render')
+    return
+  }
+
+  const videoUrl = await storage.uploadFile(
+    renderFile,
+    undefined,
+    `pitch/${userId}/${projectName}/videos`,
+  )
+  const updatedJob = await db.updateJob(job.id, { videoUrl })
+  await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
+  logger.info({ userId, projectName, jobId: job.id, videoUrl }, 'Edited render uploaded')
+}
+
+function queueEditedRenderSync(client: SseClient): void {
+  const key = `${client.userId}--${client.projectName}`
+  if (renderSyncs.has(key)) return
+  const sync = syncEditedRender(client.userId, client.projectName)
+    .catch(error => {
+      logger.error(
+        { err: error, userId: client.userId, projectName: client.projectName },
+        'Failed to upload edited launch-video render',
+      )
+    })
+    .finally(() => renderSyncs.delete(key))
+  renderSyncs.set(key, sync)
+}
 
 async function startEventPump(): Promise<void> {
   if (pumpStarted) return
@@ -44,9 +106,14 @@ async function startEventPump(): Promise<void> {
     const stream = await eventStream()
     for await (const ev of stream) {
       const sid = eventSessionId(ev)
+      let projectClient: SseClient | null = null
       for (const c of sseClients) {
-        if (!sid || sid === c.sessionId) c.send(ev)
+        if (!sid || sid === c.sessionId) {
+          c.send(ev)
+          if (sid === c.sessionId) projectClient ??= c
+        }
       }
+      if (projectClient && isIdleEvent(ev)) queueEditedRenderSync(projectClient)
     }
     logger.warn('opencode event stream ended')
   } catch (err) {
@@ -82,7 +149,11 @@ router.get('/projects/:name/scenes', async (req, res) => {
     return res.status(400).json({ error: 'invalid project name' })
   }
   try {
-    const project = await getProject(userId, req.params.name)
+    const [localProject, jobs] = await Promise.all([
+      getProject(userId, req.params.name),
+      db.listJobs({ id: userId }),
+    ])
+    const project = resolveLaunchVideoProjectDetail(localProject, req.params.name, jobs)
     if (!project) return res.status(404).json({ error: 'project not found' })
     res.json(project)
   } catch (error: any) {
@@ -193,8 +264,9 @@ router.get('/projects/:name/session-state', async (req, res) => {
   }
 
   try {
-    const sessionId = await getBoundSessionForProject(userId, req.params.name)
-    if (!sessionId) return res.status(404).json({ error: 'project session not found' })
+    // The initial session can belong to a worker's OpenCode server. Validate it
+    // against this API process and replace it before attaching the live stream.
+    const { id: sessionId } = await getSessionForProject(userId, req.params.name)
     const state = await getSessionState(sessionId)
     res.json({ sessionId, ...state })
   } catch (error: any) {
@@ -214,8 +286,7 @@ router.get('/projects/:name/events', async (req, res) => {
   }
 
   try {
-    const sessionId = await getBoundSessionForProject(userId, req.params.name)
-    if (!sessionId) return res.status(404).json({ error: 'project session not found' })
+    const { id: sessionId } = await getSessionForProject(userId, req.params.name)
     const state = await getSessionState(sessionId)
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -228,6 +299,8 @@ router.get('/projects/:name/events', async (req, res) => {
 
     const client: SseClient = {
       sessionId,
+      userId,
+      projectName: req.params.name,
       send: ev => res.write(`data: ${JSON.stringify(ev)}\n\n`),
     }
     sseClients.add(client)

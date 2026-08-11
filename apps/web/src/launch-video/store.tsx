@@ -19,13 +19,13 @@ import {
 import type { PhaseUpdate } from '../types'
 import { describeLaunchVideoToolActivity } from './activity'
 import {
+  buildLaunchVideoMediaUrl,
   type ChatMessage,
   type LaunchProjectDetail,
   type LaunchProjectInfo,
   launchApi,
   type MusicTrack,
   rawText,
-  resolveFileUrl,
   type StudioEvent,
 } from './api'
 import { launchVideoProjectName } from './project-name'
@@ -842,14 +842,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   }, [busy, currentJobId, finishSessionWork, getToken, refreshMessages, sessionId])
 
   const mediaUrl = useCallback(
-    (path: string | null | undefined, version?: number): string | null => {
-      const resolved = resolveFileUrl(path)
-      if (!resolved || !mediaToken) return null
-      const tok = encodeURIComponent(mediaToken)
-      const url =
-        version !== undefined ? `${resolved}?v=${version}&token=${tok}` : `${resolved}?token=${tok}`
-      return url
-    },
+    (path: string | null | undefined, version?: number): string | null =>
+      buildLaunchVideoMediaUrl(path, mediaToken, version),
     [mediaToken],
   )
 

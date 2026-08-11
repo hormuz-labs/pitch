@@ -98,6 +98,29 @@ export function resolveFileUrl(path: string | null | undefined): string | null {
   return `${base}${path}`
 }
 
+/**
+ * Build a media URL without leaking Clerk JWTs to public object storage.
+ * API-relative files are auth-gated and still require the short-lived token.
+ */
+export function buildLaunchVideoMediaUrl(
+  path: string | null | undefined,
+  token: string | null,
+  version?: number,
+): string | null {
+  const resolved = resolveFileUrl(path)
+  if (!resolved) return null
+
+  const isPublicObjectUrl = Boolean(path && /^https?:\/\//.test(path))
+  if (!isPublicObjectUrl && !token) return null
+
+  const params = new URLSearchParams()
+  if (version !== undefined) params.set('v', String(version))
+  if (!isPublicObjectUrl && token) params.set('token', token)
+  const query = params.toString()
+  if (!query) return resolved
+  return `${resolved}${resolved.includes('?') ? '&' : '?'}${query}`
+}
+
 export const launchApi = {
   listProjects: (token: string) => api.get<LaunchProjectInfo[]>('/launch-video/projects', token),
 

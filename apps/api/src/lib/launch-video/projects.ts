@@ -36,9 +36,10 @@ export interface ProjectInfo {
   status?: string
 }
 
-interface LaunchVideoJobInfo {
+export interface LaunchVideoJobInfo {
   id: string
   status: string
+  videoUrl?: string | null
   parameters: Record<string, unknown>
 }
 
@@ -79,8 +80,11 @@ export function mergeLaunchVideoJobs(
       videoUrl: null,
       sceneCount: 0,
     }
+    const videoUrl = project.videoUrl ?? job.videoUrl ?? null
     byName.set(name, {
       ...project,
+      hasVideo: project.hasVideo || videoUrl !== null,
+      videoUrl,
       displayName: launchVideoDisplayName(job.parameters.prompt, name),
       jobId: job.id,
       status: job.status,
@@ -93,6 +97,27 @@ export function mergeLaunchVideoJobs(
 export interface ProjectDetail extends ProjectInfo {
   scenes: Scene[]
   duration: number
+}
+
+/**
+ * Combine filesystem-backed scene metadata with the durable Job row. The worker
+ * uploads completed renders to object storage, so the S3 URL remains usable
+ * even when an older project predates the shared projects/renders volume.
+ */
+export function resolveLaunchVideoProjectDetail(
+  project: ProjectDetail | null,
+  name: string,
+  jobs: LaunchVideoJobInfo[],
+): ProjectDetail | null {
+  const info = mergeLaunchVideoJobs(project ? [project] : [], jobs).find(p => p.name === name)
+  if (!info || (!project && !info.videoUrl)) return null
+
+  return {
+    ...info,
+    scenes: project?.scenes ?? [],
+    duration: project?.duration ?? 0,
+    sceneCount: project?.sceneCount ?? 0,
+  }
 }
 
 function naturalSceneOrder(a: string, b: string): number {
