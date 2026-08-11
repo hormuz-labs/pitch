@@ -597,7 +597,7 @@ const Sidebar = ({
                   {
                     key: 'launch-video',
                     label: 'Launch Video',
-                    path: '/launch-video',
+                    path: '/launch-video/new',
                     icon: (
                       <AnimatedIcon active={selectedKey === 'launch-video'} size={13}>
                         <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z" />

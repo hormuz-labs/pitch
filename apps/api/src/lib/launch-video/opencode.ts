@@ -65,6 +65,21 @@ const sessions = new Map<string, string>()
 /** in-flight session creations, deduped per internal name */
 const pendingCreates = new Map<string, Promise<string>>()
 
+interface OpencodeAuthEnv {
+  OPENCODE_SERVER_USERNAME?: string
+  OPENCODE_SERVER_PASSWORD?: string
+}
+
+/** The spawned server inherits these credentials, so its SDK client must use
+ * the same Basic header. Without it every session call returns 401. */
+export function opencodeClientOptions(baseUrl: string, env: OpencodeAuthEnv = process.env) {
+  const password = env.OPENCODE_SERVER_PASSWORD
+  if (!password) return { baseUrl }
+  const username = env.OPENCODE_SERVER_USERNAME || 'opencode'
+  const credentials = Buffer.from(`${username}:${password}`).toString('base64')
+  return { baseUrl, headers: { Authorization: `Basic ${credentials}` } }
+}
+
 /** Remember the session binding in the DB so it survives API restarts. */
 async function persistSession(userId: string, name: string, sessionId: string): Promise<void> {
   sessions.set(toInternalName(userId, name), sessionId)
@@ -84,11 +99,28 @@ export async function getSessionOwnerId(sessionId: string): Promise<string | nul
   return row?.userId ?? null
 }
 
+/**
+ * Read the session already bound to a project without starting OpenCode or
+ * validating the session against a server. Viewing a rendered project must be
+ * independent from editor-agent availability; the event route uses this only
+ * when an actual edit session is requested.
+ */
+export async function getBoundSessionForProject(
+  userId: string,
+  name: string,
+): Promise<string | null> {
+  const row = await prisma.launchVideoProject.findUnique({
+    where: { userId_name: { userId, name } },
+    select: { opencodeSessionId: true },
+  })
+  return row?.opencodeSessionId ?? null
+}
+
 async function init(): Promise<void> {
   const server = await startOpencodeServer()
   logger.info({ url: server.url, cwd: ROOT_DIR }, 'opencode server listening')
   closeServer = () => server.proc.kill()
-  client = createOpencodeClient({ baseUrl: server.url })
+  client = createOpencodeClient(opencodeClientOptions(server.url))
 
   // Warm the cache from the DB.
   try {
@@ -147,7 +179,10 @@ export async function getSessionForProject(
   }
   if (existing) {
     try {
-      const res = await client!.session.get({ path: { id: existing } })
+      const res = await client!.session.get({
+        path: { id: existing },
+        query: { directory: ROOT_DIR },
+      })
       if (res.data) return { id: existing, created: false }
     } catch {
       // fall through and create a new one
@@ -158,8 +193,14 @@ export async function getSessionForProject(
   if (pending) return { id: await pending, created: false }
 
   const create = (async () => {
-    const res = await client!.session.create({ body: { title: `video:${internal}` } })
-    const id = res.data!.id
+    const res = await client!.session.create({
+      body: { title: `video:${internal}` },
+      query: { directory: ROOT_DIR },
+    })
+    const id = res.data?.id
+    if (!id) {
+      throw new Error(`OpenCode session creation failed: ${JSON.stringify(res.error ?? res)}`)
+    }
     await persistSession(userId, name, id)
     return id
   })()
@@ -173,8 +214,60 @@ export async function getSessionForProject(
 
 export async function getMessages(sessionId: string) {
   await ensureOpencode()
-  const res = await client!.session.messages({ path: { id: sessionId } })
+  const res = await client!.session.messages({
+    path: { id: sessionId },
+    query: { directory: ROOT_DIR },
+  })
+  if (res.error) throw new Error(`OpenCode messages failed: ${JSON.stringify(res.error)}`)
   return res.data ?? []
+}
+
+type SessionMessage = Awaited<ReturnType<typeof getMessages>>[number]
+
+/**
+ * OpenCode's status endpoint can be empty while an async prompt is running.
+ * The persisted message timeline is a more reliable recovery signal: a queued
+ * user message or an assistant message without a completion timestamp means
+ * the session still has work in flight.
+ */
+export function sessionBusyFromMessages(messages: readonly SessionMessage[]): boolean {
+  const last = messages.at(-1)
+  if (!last) return false
+  if (last.info.role === 'user') return true
+  return last.info.role === 'assistant' && last.info.time?.completed == null
+}
+
+export function sessionActivityFromMessages(messages: readonly SessionMessage[]): string | null {
+  if (!sessionBusyFromMessages(messages)) return null
+  const last = messages.at(-1)
+  if (!last || last.info.role === 'user') return 'Starting the scene update…'
+
+  const tool = [...last.parts].reverse().find(part => part.type === 'tool') as any
+  if (!tool) return 'Planning the scene update…'
+
+  const name = String(tool.tool ?? '')
+  const command = String(tool.state?.input?.command ?? '')
+  if (command.includes('capture.mjs')) {
+    return command.includes('--from=')
+      ? 'Rendering the scene preview…'
+      : 'Rendering the full video…'
+  }
+  if (command.includes('ffmpeg')) return 'Encoding the updated video…'
+  if (command.includes('get-font')) return 'Checking the original website font…'
+  if (name === 'edit' || name === 'write' || name === 'patch') return 'Updating scene files…'
+  if (name === 'read' || name === 'glob' || name === 'grep') return 'Inspecting the scene…'
+  if (name === 'bash') return 'Verifying the scene update…'
+  return `Running ${name || 'the next step'}…`
+}
+
+export async function getSessionState(
+  sessionId: string,
+): Promise<{ busy: boolean; activity: string | null }> {
+  const messages = await getMessages(sessionId)
+  return {
+    busy: sessionBusyFromMessages(messages),
+    activity: sessionActivityFromMessages(messages),
+  }
 }
 
 /** Fire-and-forget prompt to the html-video agent. */
@@ -182,6 +275,7 @@ export async function prompt(sessionId: string, text: string, system?: string): 
   await ensureOpencode()
   const res = await client!.session.promptAsync({
     path: { id: sessionId },
+    query: { directory: ROOT_DIR },
     body: {
       agent: 'html-video',
       system,

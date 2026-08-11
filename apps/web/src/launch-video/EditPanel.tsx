@@ -1,20 +1,24 @@
-import { ArrowLeft, Film, Loader2 } from 'lucide-react'
+import { ArrowLeft, Download, Film, Loader2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { EditSidebar } from './EditSidebar'
+import { launchVideoProjectDestination } from './navigation'
 import { SceneTimeline } from './SceneTimeline'
 import { useLaunchVideo } from './store'
 import { VideoPlayer } from './VideoPlayer'
 
 export function EditPanel() {
+  const navigate = useNavigate()
   const {
     activity,
     busy,
     clearProject,
     currentProject,
+    mediaUrl,
     projects,
     projectsLoading,
     projectsError,
     refreshProjects,
-    selectProject,
+    videoVersion,
   } = useLaunchVideo()
 
   if (!currentProject) {
@@ -28,17 +32,23 @@ export function EditPanel() {
             {projects.map(p => (
               <button
                 key={p.name}
-                onClick={() => void selectProject(p.name)}
+                onClick={() => navigate(launchVideoProjectDestination(p))}
                 className="group flex flex-col items-start gap-1.5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 text-left shadow-[var(--shadow-sm)] hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)] transition-all cursor-pointer"
               >
                 <span className="text-[var(--text-faint)] group-hover:text-[var(--text-muted)] transition-colors">
                   <Film size={16} strokeWidth={1.75} />
                 </span>
                 <span className="text-sm font-semibold text-[var(--text-primary)] truncate w-full font-[family-name:var(--font-mono)]">
-                  {p.name}
+                  {p.displayName ?? p.name}
                 </span>
                 <span className="text-xs text-[var(--text-muted)]">
-                  {p.hasVideo ? `${p.sceneCount} scenes · rendered` : 'no render yet'}
+                  {p.jobId && (p.status === 'PENDING' || p.status === 'PROCESSING')
+                    ? 'Creating · view progress'
+                    : p.status === 'FAILED'
+                      ? 'Generation failed · view details'
+                      : p.hasVideo
+                        ? `${p.sceneCount} scenes · rendered`
+                        : 'No finished render'}
                 </span>
               </button>
             ))}
@@ -70,6 +80,11 @@ export function EditPanel() {
     )
   }
 
+  const downloadUrl = mediaUrl(currentProject.videoUrl, videoVersion)
+  const displayName =
+    projects.find(project => project.name === currentProject.name)?.displayName ??
+    currentProject.name
+
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="shrink-0 flex items-center gap-3 px-5 py-3 border-b border-[var(--border-subtle)]">
@@ -81,13 +96,23 @@ export function EditPanel() {
           Projects
         </button>
         <span className="text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-mono)] truncate">
-          {currentProject.name}
+          {displayName}
         </span>
         {busy && (
           <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] truncate">
             <Loader2 size={12} className="animate-spin shrink-0" />
             {activity ?? 'working…'}
           </span>
+        )}
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            download={`${displayName}.mp4`}
+            className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text-primary)] transition-colors no-underline"
+          >
+            <Download size={13} />
+            Download video
+          </a>
         )}
       </div>
       <div className="flex-1 min-h-0 flex">

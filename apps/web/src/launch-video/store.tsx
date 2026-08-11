@@ -17,17 +17,19 @@ import {
   useState,
 } from 'react'
 import type { PhaseUpdate } from '../types'
+import { describeLaunchVideoToolActivity } from './activity'
 import {
   type ChatMessage,
   type LaunchProjectDetail,
   type LaunchProjectInfo,
   launchApi,
   type MusicTrack,
-  messageText,
   rawText,
   resolveFileUrl,
   type StudioEvent,
 } from './api'
+import { launchVideoProjectName } from './project-name'
+import { mergeSessionChat, sessionChatSnapshot } from './session-messages'
 
 export type LaunchView = 'create' | 'edit'
 
@@ -64,7 +66,10 @@ export interface LaunchVideoStore {
   seekPlayer: (seconds: number) => void
   refreshProjects: () => Promise<void>
   refreshMusic: () => Promise<void>
-  selectProject: (name: string) => Promise<void>
+  selectProject: (
+    name: string,
+    opts?: { skipFetch?: boolean; connectEvents?: boolean },
+  ) => Promise<void>
   clearProject: () => void
   startProject: (text: string) => Promise<{ jobId: string; projectName: string }>
   sendPrompt: (text: string) => Promise<void>
@@ -96,29 +101,6 @@ export function useLaunchVideo(): LaunchVideoStore {
 }
 
 // --- Message helpers (ported from the SolidJS store) -------------------------
-
-function toChatMessages(
-  raw: Array<{
-    info: { id: string; role: string; time?: { created: number } }
-    parts: Array<{ id: string; type: string; text?: string }>
-  }>,
-): ChatMessage[] {
-  return raw
-    .filter(m => m.info.role === 'user' || m.info.role === 'assistant')
-    .map(m => {
-      const partTexts: Record<string, string> = {}
-      for (const p of m.parts) {
-        if (p.type === 'text' && p.text) partTexts[p.id] = p.text
-      }
-      return {
-        id: m.info.id,
-        role: m.info.role as 'user' | 'assistant',
-        partTexts,
-        created: m.info.time?.created ?? Date.now(),
-      }
-    })
-    .filter(m => messageText(m).length > 0)
-}
 
 function patchWithin(
   prev: ChatMessage[],
@@ -208,7 +190,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   const eventsRef = useRef<EventSource | null>(null)
   const eventsGenRef = useRef(0)
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const renderPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const eventRetryCountRef = useRef(0)
+  const sessionPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jobPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentNameRef = useRef<string | null>(null)
   /** partId -> part type, learned from message.part.updated; used to hide reasoning streams */
@@ -235,10 +218,6 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     }
   }, [getToken, sessionId]) // re-fetch when session changes (i.e. new project starts)
   sessionIdRef.current = sessionId
-  const viewRef = useRef(view)
-  viewRef.current = view
-  const currentProjectRef = useRef(currentProject)
-  currentProjectRef.current = currentProject
   const currentJobIdRef = useRef(currentJobId)
   currentJobIdRef.current = currentJobId
 
@@ -288,20 +267,42 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     }
   }, [getToken])
 
-  const refreshMessages = useCallback(async () => {
-    const sid = sessionIdRef.current
-    if (!sid) return
-    try {
-      const token = await getToken()
-      if (!token) return
-      const chat = toChatMessages(await launchApi.getMessages(token, sid))
-      // Never clobber non-empty local state (e.g. an optimistic prompt the
-      // session hasn't persisted yet) with an empty fetch.
-      setMessages(prev => (chat.length > 0 || prev.length === 0 ? chat : prev))
-    } catch {
-      // keep local state
-    }
-  }, [getToken])
+  const finishSessionWork = useCallback(async () => {
+    setBusy(false)
+    setActivity(null)
+    await refreshCurrentProject()
+    // Full renders intentionally reuse the same stable URL. Bump the cache key
+    // on completion instead of waiting for a URL string that will never change.
+    setVideoVersion(v => v + 1)
+    void refreshProjects()
+  }, [refreshCurrentProject, refreshProjects])
+
+  const refreshMessages = useCallback(
+    async (sessionOverride?: string) => {
+      const sid = sessionOverride ?? sessionIdRef.current
+      if (!sid) return
+      try {
+        const token = await getToken()
+        if (!token) return
+        const snapshot = sessionChatSnapshot(await launchApi.getMessages(token, sid))
+        setMessages(prev => mergeSessionChat(prev, snapshot.messages))
+        setSceneMessages(prev => {
+          const next = new Map<string, ChatMessage[]>()
+          const sceneIds = new Set([...prev.keys(), ...snapshot.sceneMessages.keys()])
+          for (const sceneId of sceneIds) {
+            next.set(
+              sceneId,
+              mergeSessionChat(prev.get(sceneId) ?? [], snapshot.sceneMessages.get(sceneId) ?? []),
+            )
+          }
+          return next
+        })
+      } catch {
+        // keep local state
+      }
+    },
+    [getToken],
+  )
 
   // --- SSE handling -------------------------------------------------------------
 
@@ -359,6 +360,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       switch (ev.type) {
         case 'session':
           setSessionId(ev.properties?.sessionId ?? null)
+          if (typeof ev.properties?.busy === 'boolean') setBusy(ev.properties.busy)
+          if (typeof ev.properties?.activity === 'string') setActivity(ev.properties.activity)
           void refreshMessages()
           break
         case 'session.status':
@@ -367,44 +370,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
             setBusy(ev.properties?.status?.type === 'busy')
           } else if (ev.type === 'session.idle') {
             if (!currentJobIdRef.current) {
-              setBusy(false)
-              setActivity(null)
-              void (async () => {
-                void refreshMessages()
-                void refreshProjects()
-                const hadVideo = !!currentProjectRef.current?.videoUrl
-                const prevUrl = currentProjectRef.current?.videoUrl ?? null
-                await refreshCurrentProject()
-                // First render just landed — jump to the scene editor.
-                if (
-                  !hadVideo &&
-                  currentProjectRef.current?.videoUrl &&
-                  viewRef.current === 'create'
-                ) {
-                  setView('edit')
-                }
-                // Poll for updated render: the agent writes the file then goes idle;
-                // the file might not be flushed yet. Poll /scenes up to ~20s.
-                if (renderPollRef.current) clearTimeout(renderPollRef.current)
-                let attempts = 0
-                const pollRender = async () => {
-                  if (attempts++ > 10 || !currentNameRef.current) return
-                  const tok = await getToken().catch(() => null)
-                  if (!tok) return
-                  const detail = await launchApi
-                    .getProject(tok, currentNameRef.current)
-                    .catch(() => null)
-                  if (!detail) return
-                  const newUrl = detail.videoUrl
-                  if (newUrl && newUrl !== prevUrl) {
-                    setCurrentProject(detail)
-                    setVideoVersion(v => v + 1)
-                  } else {
-                    renderPollRef.current = setTimeout(() => void pollRender(), 2000)
-                  }
-                }
-                void pollRender()
-              })()
+              void refreshMessages()
+              void finishSessionWork()
             }
           }
           break
@@ -434,9 +401,11 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
             if (part.text) setActivity(null)
             patchStreamPart(part.messageID, part.id, part.text ?? '')
           } else if (part?.type === 'tool') {
-            // Long tool phases (recon, TTS, render) stream no text — show activity.
-            const name = part.tool ?? part.name ?? 'tool'
-            setActivity(`Running ${name}…`)
+            // Tool calls are the actual live content during long silent phases.
+            // Put them in the scene chat as well as the compact header status.
+            const label = describeLaunchVideoToolActivity(part)
+            setActivity(label)
+            if (part.messageID && part.id) patchStreamPart(part.messageID, part.id, label)
           } else if (part?.type === 'patch') {
             setActivity('Editing project files…')
           } else if (part?.type === 'reasoning' && typeof part.text === 'string' && part.text) {
@@ -463,6 +432,12 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
             if (pending) {
               messageSceneRef.current.set(info.id, pending)
             }
+          } else if (info?.id && info.role === 'assistant' && info.parentID) {
+            const sceneId = messageSceneRef.current.get(info.parentID)
+            if (sceneId) {
+              messageSceneRef.current.set(info.id, sceneId)
+              pendingSceneRef.current = null
+            }
           }
           break
         }
@@ -474,7 +449,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     },
     [
       appendStreamDelta,
-      getToken,
+      finishSessionWork,
       patchStreamPart,
       refreshCurrentProject,
       refreshMessages,
@@ -485,7 +460,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   handleEventRef.current = handleEvent
 
   const connectEvents = useCallback(
-    async (name: string) => {
+    async (name: string, retry = false) => {
+      if (!retry) eventRetryCountRef.current = 0
       const gen = ++eventsGenRef.current
       if (retryRef.current) clearTimeout(retryRef.current)
       eventsRef.current?.close()
@@ -503,9 +479,14 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       }
       es.onerror = () => {
         es.close()
-        if (gen === eventsGenRef.current && currentNameRef.current === name) {
-          // Reconnect after 3 s with a brand-new token (same pattern as /jobs/stream)
-          retryRef.current = setTimeout(() => void connectEvents(name), 3000)
+        if (
+          gen === eventsGenRef.current &&
+          currentNameRef.current === name &&
+          eventRetryCountRef.current < 5
+        ) {
+          eventRetryCountRef.current++
+          const delay = Math.min(15_000, 2_000 * eventRetryCountRef.current)
+          retryRef.current = setTimeout(() => void connectEvents(name, true), delay)
         }
       }
       eventsRef.current = es
@@ -523,7 +504,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   const pendingSceneRef = useRef<string | null>(null)
 
   const selectProject = useCallback(
-    async (name: string, opts?: { skipFetch?: boolean }) => {
+    async (name: string, opts?: { skipFetch?: boolean; connectEvents?: boolean }) => {
       currentNameRef.current = name
       setSelectedScene(null)
       setMessages([])
@@ -536,28 +517,54 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       messageSceneRef.current.clear()
       pendingSceneRef.current = null
 
-      void connectEvents(name)
+      if (!opts?.connectEvents) {
+        eventsGenRef.current++
+        if (retryRef.current) clearTimeout(retryRef.current)
+        eventsRef.current?.close()
+        eventsRef.current = null
+      } else {
+        void connectEvents(name)
+      }
 
       let detail: LaunchProjectDetail | null = null
+      let activeSession: { sessionId: string; busy: boolean; activity: string | null } | null = null
       if (!opts?.skipFetch) {
         try {
           const token = await getToken()
-          if (token) detail = await launchApi.getProject(token, name).catch(() => null)
+          if (token) {
+            const [projectDetail, sessionState] = await Promise.all([
+              launchApi.getProject(token, name).catch(() => null),
+              launchApi.getSessionState(token, name).catch(() => null),
+            ])
+            detail = projectDetail
+            activeSession = sessionState
+          }
         } catch {
           detail = null
         }
       }
       if (currentNameRef.current !== name) return
       setCurrentProject(detail ?? { name, duration: 0, videoUrl: null, scenes: [] })
+      // If the browser was refreshed during an edit, recover the persisted
+      // session instead of presenting an apparently idle editor.
+      if (activeSession) {
+        setSessionId(activeSession.sessionId)
+        void refreshMessages(activeSession.sessionId)
+        if (activeSession.busy) {
+          setBusy(true)
+          setActivity(activeSession.activity)
+          void connectEvents(name)
+        }
+      }
     },
-    [connectEvents, getToken],
+    [connectEvents, getToken, refreshMessages],
   )
 
   /** Leave the current project and return to the picker. */
   const clearProject = useCallback(() => {
     eventsGenRef.current++
     if (retryRef.current) clearTimeout(retryRef.current)
-    if (renderPollRef.current) clearTimeout(renderPollRef.current)
+    if (sessionPollRef.current) clearTimeout(sessionPollRef.current)
     if (jobPollRef.current) clearTimeout(jobPollRef.current)
     eventsRef.current?.close()
     eventsRef.current = null
@@ -579,38 +586,19 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     pendingSceneRef.current = null
   }, [])
 
-  /** Generate a project slug from the prompt text, unique against existing projects.
-   *  Strips URL protocols and common TLD noise so a prompt like
-   *  "generate second video https://example.com" doesn't become "generate-second-video-https". */
-  const slugFromPrompt = (text: string): string => {
-    const cleaned = text
-      .toLowerCase()
-      .replace(/\bhttps?:\/\//g, ' ')
-      .replace(/\bwww\./g, ' ')
-      .replace(/[^a-z0-9\s]/g, ' ')
-    const noise = new Set(['http', 'https', 'www', 'com'])
-    const words = cleaned
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !noise.has(w))
-      .slice(0, 4)
-    const base = words.join('-') || 'video'
-    const taken = new Set(projectsRef.current.map(p => p.name))
-    if (!taken.has(base)) return base
-    for (let i = 2; ; i++) {
-      if (!taken.has(`${base}-${i}`)) return `${base}-${i}`
-    }
-  }
-
   /** Create (and select) a new project named after the prompt.
    *  Instead of fetching /scenes immediately (which 404s until the worker has
-   *  created the project), this queues a launch-video job and tracks it by
-   *  jobId. The caller should navigate to /launch-video/job/:jobId. */
+   *  created the project), this queues a launch-video job. Its stable jobId is
+   *  also the browser route identity, matching the regular editor. */
   const startProject = useCallback(
     async (text: string) => {
-      const name = slugFromPrompt(text)
-      // Connect the SSE stream early so live agent messages stream in; skip the
-      // scenes fetch because the project directory isn't ready yet.
-      await selectProject(name, { skipFetch: true })
+      const name = launchVideoProjectName(
+        text,
+        projectsRef.current.map(project => project.name),
+      )
+      // Creation progress belongs to the worker/job row. The editor's SSE
+      // stream is connected only after the render is complete.
+      await selectProject(name, { skipFetch: true, connectEvents: false })
       setBusy(true)
       setMessages(m => [...m, optimisticUserMessage(text)])
       setJobError(null)
@@ -638,9 +626,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     [getToken, selectProject],
   )
 
-  /** Resume tracking a launch-video job (e.g. after a refresh on
-   *  /launch-video/job/:jobId). Fetches the job row, reconnects the SSE stream,
-   *  and starts polling until the job finishes. */
+  /** Resume a launch-video route by its stable job ID. */
   const trackJob = useCallback(
     async (jobId: string) => {
       setCurrentJobId(jobId)
@@ -656,29 +642,40 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
         const projectName = (job.parameters as any)?.projectName as string | undefined
         if (projectName) {
           currentNameRef.current = projectName
-          await selectProject(projectName, { skipFetch: job.status !== 'COMPLETED' })
+          await selectProject(projectName, {
+            skipFetch: job.status !== 'COMPLETED',
+            connectEvents: false,
+          })
+          const originalPrompt = job.parameters.prompt
+          if (job.status !== 'COMPLETED' && originalPrompt) {
+            setMessages([optimisticUserMessage(originalPrompt)])
+          }
         }
         if (job.status === 'COMPLETED') {
+          await refreshProjects()
           setCurrentJobId(null)
           setBusy(false)
+          setView('edit')
         } else if (job.status === 'FAILED') {
-          setCurrentJobId(null)
           setBusy(false)
           const msg = job.error ?? 'Launch video generation failed'
           setJobError(msg)
           setMessages(m => [...m, errorMessage(msg)])
+        } else if (projectName) {
+          setBusy(true)
         }
       } catch (err: any) {
         const msg = err?.message ?? 'Failed to load job'
         setJobError(msg)
+        setBusy(false)
       }
     },
-    [getToken, selectProject],
+    [getToken, refreshProjects, selectProject],
   )
 
   // Poll the job row while a launch-video creation job is in flight.
   useEffect(() => {
-    if (!currentJobId) return
+    if (!currentJobId || jobError) return
     let cancelled = false
     const poll = async () => {
       if (cancelled) return
@@ -692,14 +689,16 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
         setJobPhases(job.phases ?? [])
         setJobProgress(job.progress ?? 0)
         if (job.status === 'COMPLETED') {
-          setCurrentJobId(null)
           setBusy(false)
           if (projectName) {
             currentNameRef.current = projectName
             await selectProject(projectName)
           }
-        } else if (job.status === 'FAILED') {
+          await refreshProjects()
+          if (cancelled) return
           setCurrentJobId(null)
+          setView('edit')
+        } else if (job.status === 'FAILED') {
           setBusy(false)
           const msg = job.error ?? 'Launch video generation failed'
           setJobError(msg)
@@ -717,7 +716,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       cancelled = true
       if (jobPollRef.current) clearTimeout(jobPollRef.current)
     }
-  }, [currentJobId, getToken, selectProject])
+  }, [currentJobId, getToken, jobError, refreshProjects, selectProject])
 
   const sendPrompt = useCallback(
     async (text: string) => {
@@ -726,6 +725,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       setBusy(true)
       setMessages(m => [...m, optimisticUserMessage(text)])
       try {
+        await connectEvents(name)
         const token = await getToken()
         if (!token) throw new Error('no token')
         await launchApi.sendPrompt(token, name, text, selectedMusicRef.current ?? undefined)
@@ -737,7 +737,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
         ])
       }
     },
-    [getToken],
+    [connectEvents, getToken],
   )
 
   const sendScenePrompt = useCallback(
@@ -759,10 +759,40 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
       // We learn the real message ID from the message.updated SSE event.
       messageSceneRef.current.set(optimistic.id, sceneId)
       try {
+        await connectEvents(name)
         const token = await getToken()
         if (!token) throw new Error('no token')
-        await launchApi.sendScenePrompt(token, name, sceneId, text)
-      } catch {
+        const result = await launchApi.sendScenePrompt(token, name, sceneId, text)
+        setSessionId(result.sessionId)
+        // The initial SSE snapshot can arrive just before the prompt is
+        // persisted and report the previous idle state. The accepted prompt
+        // is authoritative, so keep the editor busy until polling/SSE clears it.
+        setBusy(true)
+      } catch (err: any) {
+        if (err?.status === 409) {
+          pendingSceneRef.current = null
+          setSceneMessages(prev => {
+            const bucket = (prev.get(sceneId) ?? []).filter(m => m.id !== optimistic.id)
+            const m = new Map(prev)
+            m.set(sceneId, [
+              ...bucket,
+              errorMessage('Your previous edit is still working. This request was not queued.'),
+            ])
+            return m
+          })
+          const token = await getToken().catch(() => null)
+          const state = token
+            ? await launchApi.getSessionState(token, name).catch(() => null)
+            : null
+          if (state?.busy) {
+            setSessionId(state.sessionId)
+            setBusy(true)
+            setActivity(state.activity)
+          } else {
+            setBusy(false)
+          }
+          return
+        }
         setBusy(false)
         pendingSceneRef.current = null
         setSceneMessages(prev => {
@@ -773,8 +803,43 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
         })
       }
     },
-    [getToken],
+    [connectEvents, getToken],
   )
+
+  // SSE is the fast path; this poll is the recovery path for refreshes,
+  // hot-reloads, and missed idle events. OpenCode's status endpoint is not
+  // reliable for async prompts, so the API derives busy state from the
+  // persisted session message timeline.
+  useEffect(() => {
+    const name = currentNameRef.current
+    if (!busy || currentJobId || !sessionId || !name) return
+    let cancelled = false
+
+    const poll = async () => {
+      if (cancelled) return
+      try {
+        const token = await getToken()
+        if (!token) throw new Error('no token')
+        const state = await launchApi.getSessionState(token, name)
+        if (cancelled || currentNameRef.current !== name) return
+        if (!state.busy) {
+          void refreshMessages()
+          await finishSessionWork()
+          return
+        }
+        setActivity(state.activity)
+      } catch {
+        // Transient API/OpenCode failures should not turn a real render idle.
+      }
+      if (!cancelled) sessionPollRef.current = setTimeout(() => void poll(), 3000)
+    }
+
+    sessionPollRef.current = setTimeout(() => void poll(), 3000)
+    return () => {
+      cancelled = true
+      if (sessionPollRef.current) clearTimeout(sessionPollRef.current)
+    }
+  }, [busy, currentJobId, finishSessionWork, getToken, refreshMessages, sessionId])
 
   const mediaUrl = useCallback(
     (path: string | null | undefined, version?: number): string | null => {
@@ -795,7 +860,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
     return () => {
       eventsGenRef.current++
       if (retryRef.current) clearTimeout(retryRef.current)
-      if (renderPollRef.current) clearTimeout(renderPollRef.current)
+      if (sessionPollRef.current) clearTimeout(sessionPollRef.current)
       if (jobPollRef.current) clearTimeout(jobPollRef.current)
       eventsRef.current?.close()
       eventsRef.current = null

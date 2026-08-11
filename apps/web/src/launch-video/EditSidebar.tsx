@@ -1,5 +1,6 @@
 import { ArrowUp, Loader2, MousePointerClick, Wand2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { launchVideoActivityStage } from './activity'
 import { messageText } from './api'
 import { fmt } from './SceneTimeline'
 import { useLaunchVideo } from './store'
@@ -8,6 +9,8 @@ export function EditSidebar() {
   const { activity, busy, currentProject, sceneMessages, selectedScene, sendScenePrompt } =
     useLaunchVideo()
   const [draft, setDraft] = useState('')
+  const [busySince, setBusySince] = useState<number | null>(null)
+  const [now, setNow] = useState(Date.now())
   const feedRef = useRef<HTMLDivElement | null>(null)
 
   const scene = currentProject?.scenes.find(s => s.id === selectedScene) ?? null
@@ -24,6 +27,22 @@ export function EditSidebar() {
     const el = feedRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [thread.length, streamLen, busy, activity])
+
+  useEffect(() => {
+    if (!busy) {
+      setBusySince(null)
+      return
+    }
+    setBusySince(value => value ?? Date.now())
+    setNow(Date.now())
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [busy])
+
+  const stage = launchVideoActivityStage(activity)
+  const elapsed = busySince === null ? 0 : Math.max(0, Math.floor((now - busySince) / 1000))
+  const elapsedLabel =
+    elapsed >= 60 ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s` : `${elapsed}s`
 
   const submit = async () => {
     const text = draft.trim()
@@ -120,9 +139,26 @@ export function EditSidebar() {
 
         {busy && scene && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] rounded-[var(--radius-md)] rounded-bl-[var(--radius-sm)] px-3 py-2 text-xs bg-[var(--bg-sunken)] text-[var(--text-muted)] flex items-center gap-1.5">
-              <Loader2 size={11} className="animate-spin shrink-0" />
-              <span className="truncate">{activity ?? 'working…'}</span>
+            <div className="w-[92%] rounded-[var(--radius-md)] rounded-bl-[var(--radius-sm)] px-3 py-2.5 text-xs bg-[var(--bg-sunken)] text-[var(--text-muted)] flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Loader2 size={11} className="animate-spin shrink-0" />
+                <span className="truncate text-[var(--text-secondary)]">
+                  {activity ?? 'Starting the scene update…'}
+                </span>
+                <span className="ml-auto shrink-0 font-[family-name:var(--font-mono)] text-[10px] text-[var(--text-faint)]">
+                  {elapsedLabel}
+                </span>
+              </div>
+              <div className="h-1 rounded-full overflow-hidden bg-[var(--border-subtle)]">
+                <div
+                  className="h-full rounded-full bg-[var(--interactive-bg)] transition-[width] duration-700"
+                  style={{ width: `${stage.progress}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+                <span>{stage.label}</span>
+                <span>Live session · safe to leave</span>
+              </div>
             </div>
           </div>
         )}
