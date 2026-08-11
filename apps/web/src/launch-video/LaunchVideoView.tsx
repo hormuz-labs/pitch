@@ -1,24 +1,25 @@
-import { type CSSProperties, useEffect } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { PhaseUpdate } from '../types'
 import { messageText } from './api'
 import { CreatePanel } from './CreatePanel'
 import { EditPanel } from './EditPanel'
+import { resolveLaunchVideoRoute } from './navigation'
+import { calculateLaunchVideoProgress, LAUNCH_VIDEO_PHASES } from './progress'
 import { LaunchVideoProvider, useLaunchVideo } from './store'
 
-function Tabs() {
-  const { view, setView, clearProject } = useLaunchVideo()
+function Tabs({ active }: { active: 'new' | 'edit' }) {
+  const { setView, clearProject } = useLaunchVideo()
+  const navigate = useNavigate()
   const tabs = [
-    { key: 'create' as const, label: 'Create' },
-    { key: 'edit' as const, label: 'Edit' },
+    { key: 'new' as const, label: 'Create new' },
+    { key: 'edit' as const, label: 'View & edit' },
   ]
 
-  const handleTabClick = (key: 'create' | 'edit') => {
-    if (key === 'create' && view !== 'create') {
-      // Reset project state so the Create panel opens fresh.
-      clearProject()
-    }
-    setView(key)
+  const handleTabClick = (key: 'new' | 'edit') => {
+    clearProject()
+    setView(key === 'new' ? 'create' : 'edit')
+    navigate(`/launch-video/${key}`)
   }
 
   return (
@@ -29,7 +30,7 @@ function Tabs() {
             key={t.key}
             onClick={() => handleTabClick(t.key)}
             className={`h-7 px-4 rounded-full text-xs font-medium transition-all cursor-pointer border-none ${
-              view === t.key
+              active === t.key
                 ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
                 : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
@@ -41,20 +42,6 @@ function Tabs() {
     </div>
   )
 }
-
-/** Canonical launch-video pipeline, in execution order. The worker reports
- *  these phase keys as it runs recon → direction → storyboard → VO → build →
- *  mix → render. Steps not yet reached are shown as pending. */
-const LAUNCH_PHASE_ORDER: Array<{ key: string; label: string }> = [
-  { key: 'workspace_init', label: 'Setting up workspace' },
-  { key: 'processing', label: 'Reading your prompt' },
-  { key: 'recon', label: 'Researching the product' },
-  { key: 'planning', label: 'Planning creative direction' },
-  { key: 'voiceover', label: 'Recording voiceover' },
-  { key: 'building', label: 'Building scenes' },
-  { key: 'mixing', label: 'Mixing audio' },
-  { key: 'rendering', label: 'Rendering video' },
-]
 
 interface PhaseStatus {
   status: 'pending' | 'running' | 'completed' | 'failed'
@@ -97,13 +84,28 @@ function JobProgressCard({
   activity: string | null
   busy: boolean
 }) {
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    setNowMs(Date.now())
+    if (!busy) return
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [busy])
+
   const byKey = new Map(phases.map(p => [p.phase, p]))
-  const steps: Array<PhaseStatus> = LAUNCH_PHASE_ORDER.map(({ key, label }) => ({
+  let detectedRunningIndex = -1
+  for (let index = 0; index < LAUNCH_VIDEO_PHASES.length; index++) {
+    if (byKey.get(LAUNCH_VIDEO_PHASES[index].key)?.status === 'running') {
+      detectedRunningIndex = index
+    }
+  }
+  const steps: Array<PhaseStatus> = LAUNCH_VIDEO_PHASES.map(({ key, label }, index) => ({
     label: byKey.get(key)?.label ?? label,
-    status: byKey.get(key)?.status ?? 'pending',
+    status: byKey.get(key)?.status ?? (detectedRunningIndex > index ? 'completed' : 'pending'),
   }))
   const runningIndex = steps.findIndex(s => s.status === 'running')
   const currentLabel = runningIndex >= 0 ? steps[runningIndex].label : null
+  const displayedProgress = calculateLaunchVideoProgress(phases, progress, nowMs)
 
   return (
     <div className="mt-6 w-full max-w-md text-left">
@@ -118,16 +120,22 @@ function JobProgressCard({
             </p>
           </div>
           <span className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">
-            {progress}%
+            {displayedProgress}%
           </span>
         </div>
 
-        <div className="mt-3 h-1.5 rounded-full bg-[var(--border-subtle)] overflow-hidden">
+        <div
+          className="mt-3 h-1.5 rounded-full bg-[var(--border-subtle)] overflow-hidden"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={displayedProgress}
+        >
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
-              width: `${Math.min(100, Math.max(0, progress))}%`,
-              background: progress >= 100 ? '#16a34a' : 'var(--interactive-bg)',
+              width: `${displayedProgress}%`,
+              background: displayedProgress >= 100 ? '#16a34a' : 'var(--interactive-bg)',
             }}
           />
         </div>
@@ -181,12 +189,16 @@ function JobStatusPanel() {
     jobPhases,
     jobProgress,
   } = useLaunchVideo()
+  const navigate = useNavigate()
   const latestMessage = messages[messages.length - 1]
   const statusText =
     jobError ??
     (currentProject?.name ? `Building ${currentProject.name}…` : 'Generating launch video…')
   return (
     <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center px-6 pb-10">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--interactive-bg)]">
+        {jobError ? 'Launch video stopped' : 'Launch video in progress'}
+      </p>
       <h2 className="font-[family-name:var(--font-serif)] text-2xl md:text-3xl text-[var(--text-primary)] tracking-tight">
         {jobError ? 'Generation failed' : statusText}
       </h2>
@@ -201,21 +213,33 @@ function JobStatusPanel() {
           busy={busy}
         />
       )}
+      {!jobError && currentJobId && (
+        <p className="mt-4 max-w-md text-sm text-[var(--text-muted)]">
+          You can safely leave this page. Generation continues in the background, and this progress
+          screen will be waiting when you return.
+        </p>
+      )}
       {latestMessage && (
         <p className="mt-4 max-w-lg text-sm text-[var(--text-muted)]">
           {messageText(latestMessage)}
         </p>
       )}
+      <button
+        onClick={() => navigate('/dashboard')}
+        className="mt-5 h-9 px-4 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+      >
+        Back to dashboard
+      </button>
     </div>
   )
 }
 
 function LaunchVideoShell() {
   const {
-    view,
     setView,
     currentProject,
     currentJobId,
+    projects,
     selectProject,
     clearProject,
     trackJob,
@@ -224,74 +248,87 @@ function LaunchVideoShell() {
   } = useLaunchVideo()
   const { '*': splat } = useParams<{ '*': string }>()
   const navigate = useNavigate()
+  const trackedRouteRef = useRef<string | null>(null)
+  const previousRouteRef = useRef<string | undefined>(splat)
+  const route = resolveLaunchVideoRoute(splat, projects, projectsLoading)
+  const routeJobId = route.jobId
+  const projectName = route.projectName
 
-  let jobId: string | undefined
-  let projectName: string | undefined
-
-  if (splat?.startsWith('job/')) {
-    jobId = decodeURIComponent(splat.slice(4))
-  } else if (splat) {
-    projectName = decodeURIComponent(splat)
-  }
-
-  // Resume tracking a job when landing on /launch-video/job/:jobId.
+  // Migrate old /:id, /job/:id, /:name, and bare-root links.
   useEffect(() => {
-    if (jobId && !currentJobId) {
-      void trackJob(jobId)
-    }
-  }, [jobId, currentJobId, trackJob])
+    if (route.redirectTo) navigate(route.redirectTo, { replace: true })
+  }, [route.redirectTo, navigate])
 
-  // When a job is active but the URL doesn't show it yet, switch to the job view.
+  // Route-section changes reset transient project/job state. Starting a job
+  // while already on /new does not trigger this because the URL is unchanged.
   useEffect(() => {
-    if (currentJobId && !jobId) {
-      navigate(`/launch-video/job/${encodeURIComponent(currentJobId)}`, { replace: true })
-    }
-  }, [currentJobId, jobId, navigate])
-
-  // When on a job route and the job completes (currentJobId becomes null) and project detail is ready, switch to edit view.
-  useEffect(() => {
-    if (jobId && !currentJobId && currentProject?.name && !busy) {
-      navigate(`/launch-video/${encodeURIComponent(currentProject.name)}`, { replace: true })
+    const previousRoute = previousRouteRef.current
+    previousRouteRef.current = splat
+    if (previousRoute === splat) return
+    if (route.section === 'new') {
+      clearProject()
+      setView('create')
+    } else if (!routeJobId && !projectName) {
+      clearProject()
       setView('edit')
     }
-  }, [jobId, currentJobId, currentProject?.name, busy, navigate, setView])
+  }, [splat, route.section, routeJobId, projectName, clearProject, setView])
 
-  // Load the project named in the URL once the project list is ready.
+  // A direct ID route restores both running progress and completed project
+  // details. Remember the route locally so a completed job is not re-fetched
+  // when currentJobId is cleared to stop polling.
   useEffect(() => {
-    if (projectsLoading || !projectName || jobId || currentJobId) return
+    if (projectsLoading || route.resolving) return
+    if (!routeJobId) {
+      trackedRouteRef.current = null
+      return
+    }
+    if (currentJobId === routeJobId) {
+      trackedRouteRef.current = routeJobId
+      return
+    }
+    if (trackedRouteRef.current !== routeJobId) {
+      trackedRouteRef.current = routeJobId
+      void trackJob(routeJobId)
+    }
+  }, [projectsLoading, route.resolving, routeJobId, currentJobId, trackJob])
+
+  // Filesystem-only legacy projects have no job row, so they retain an
+  // explicit /edit/project/:name fallback instead of occupying the ID namespace.
+  useEffect(() => {
+    if (projectsLoading || route.resolving || !projectName || routeJobId) return
+    if (currentJobId) return
     if (!currentProject || currentProject.name !== projectName) {
+      setView('edit')
       void selectProject(projectName)
+    } else if (!busy) {
+      setView('edit')
     }
-  }, [projectsLoading, projectName, currentProject, selectProject, jobId, currentJobId])
+  }, [
+    projectsLoading,
+    route.resolving,
+    projectName,
+    currentProject,
+    selectProject,
+    routeJobId,
+    currentJobId,
+    busy,
+    setView,
+  ])
 
-  // Navigating to /launch-video (no project) clears the current project.
-  useEffect(() => {
-    if (!projectsLoading && !projectName && !jobId && !currentJobId && currentProject) {
-      clearProject()
-    }
-  }, [projectsLoading, projectName, jobId, currentJobId, currentProject, clearProject])
-
-  // Sync the URL with the active project so a refresh resumes the right session (only when not on a job route).
-  useEffect(() => {
-    if (jobId || currentJobId) return
-    if (currentProject?.name && currentProject.name !== projectName) {
-      navigate(`/launch-video/${encodeURIComponent(currentProject.name)}`, { replace: true })
-    } else if (!currentProject?.name && projectName) {
-      navigate('/launch-video', { replace: true })
-    }
-  }, [currentProject?.name, projectName, jobId, currentJobId, navigate])
-
-  const onJobRoute = Boolean(jobId || currentJobId)
+  const onJobRoute = Boolean(
+    currentJobId || (routeJobId && (!currentProject || trackedRouteRef.current !== routeJobId)),
+  )
 
   return (
     <div className="h-full flex flex-col">
-      {!onJobRoute && <Tabs />}
-      {onJobRoute ? <JobStatusPanel /> : view === 'create' ? <CreatePanel /> : <EditPanel />}
+      <Tabs active={route.section} />
+      {onJobRoute ? <JobStatusPanel /> : route.section === 'new' ? <CreatePanel /> : <EditPanel />}
     </div>
   )
 }
 
-/** Route view for /launch-video/:projectName? and /launch-video/job/:jobId. */
+/** Route view for /launch-video/new, /edit, and /edit/:jobId. */
 export function LaunchVideoView() {
   return (
     <LaunchVideoProvider>

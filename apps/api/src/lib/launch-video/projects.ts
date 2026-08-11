@@ -25,10 +25,69 @@ export interface Scene {
 
 export interface ProjectInfo {
   name: string
+  /** Human-readable website identity; the internal project name remains stable. */
+  displayName?: string
   hasVideo: boolean
   /** URL of the best available full render (launch preferred, else draft) */
   videoUrl: string | null
   sceneCount: number
+  /** Latest creation job for this project, used to route unfinished projects to progress. */
+  jobId?: string
+  status?: string
+}
+
+interface LaunchVideoJobInfo {
+  id: string
+  status: string
+  parameters: Record<string, unknown>
+}
+
+export function launchVideoDisplayName(prompt: unknown, fallback: string): string {
+  if (typeof prompt !== 'string') return fallback
+  const explicit = prompt.match(/https?:\/\/[^\s)\]}>,]+/i)?.[0]
+  if (explicit) {
+    try {
+      return new URL(explicit).host.toLowerCase().replace(/^www\./, '')
+    } catch {
+      // Fall through to bare-domain parsing.
+    }
+  }
+  const bare = prompt.match(/\b(?:www\.)?([a-z0-9](?:[a-z0-9-]{0,62}\.)+[a-z]{2,})(?::\d+)?\b/i)
+  return bare?.[1]?.toLowerCase() ?? fallback
+}
+
+/**
+ * Merge DB creation jobs into the filesystem-backed editor list. Jobs are
+ * newest-first, so the first row for a project is its current creation state.
+ */
+export function mergeLaunchVideoJobs(
+  projects: ProjectInfo[],
+  jobs: LaunchVideoJobInfo[],
+): ProjectInfo[] {
+  const byName = new Map(projects.map(project => [project.name, { ...project }]))
+  const seen = new Set<string>()
+
+  for (const job of jobs) {
+    if (job.parameters.jobType !== 'launch-video') continue
+    const name = job.parameters.projectName
+    if (typeof name !== 'string' || !name || seen.has(name)) continue
+    seen.add(name)
+
+    const project = byName.get(name) ?? {
+      name,
+      hasVideo: false,
+      videoUrl: null,
+      sceneCount: 0,
+    }
+    byName.set(name, {
+      ...project,
+      displayName: launchVideoDisplayName(job.parameters.prompt, name),
+      jobId: job.id,
+      status: job.status,
+    })
+  }
+
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export interface ProjectDetail extends ProjectInfo {

@@ -14,6 +14,12 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   server: {
+    // Optimized dependency URLs are versioned, but a dependency install can
+    // leave an already-open tab holding an old React/ReactDOM graph. Never let
+    // browsers persist dev-server modules across optimizer restarts.
+    headers: {
+      'Cache-Control': 'no-store',
+    },
     // This checkout contains enough source/public assets to exhaust the default
     // Linux inotify quota when other editors and dev servers are open. Polling
     // keeps HMR working without requiring machine-wide sysctl changes or sudo.

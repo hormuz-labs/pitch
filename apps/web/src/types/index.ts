@@ -108,6 +108,8 @@ export interface Project {
   thumbnailUrl?: string
   parameters: Record<string, any> & {
     jobType?: 'video' | 'pdf' | 'enhance' | 'edit-recording' | 'launch-video'
+    projectName?: string
+    prompt?: string
     htmlUrl?: string
     topic?: string
     slideCount?: number

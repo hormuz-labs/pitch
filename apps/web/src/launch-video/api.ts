@@ -9,9 +9,12 @@ import type { Project } from '../types'
 
 export interface LaunchProjectInfo {
   name: string
+  displayName?: string
   hasVideo: boolean
   videoUrl: string | null
   sceneCount: number
+  jobId?: string
+  status?: Project['status']
 }
 
 export interface LaunchScene {
@@ -66,8 +69,19 @@ export interface StudioEvent {
 
 export interface SessionMessagesResponse
   extends Array<{
-    info: { id: string; role: string; time?: { created: number } }
-    parts: Array<{ id: string; type: string; text?: string }>
+    info: {
+      id: string
+      role: string
+      parentID?: string
+      time?: { created: number; completed?: number }
+    }
+    parts: Array<{
+      id: string
+      type: string
+      text?: string
+      tool?: string
+      state?: { status?: string; input?: Record<string, unknown> }
+    }>
   }> {}
 
 /**
@@ -114,6 +128,12 @@ export const launchApi = {
   getMessages: (token: string, sessionId: string) =>
     api.get<SessionMessagesResponse>(
       `/launch-video/sessions/${encodeURIComponent(sessionId)}/messages`,
+      token,
+    ),
+
+  getSessionState: (token: string, name: string) =>
+    api.get<{ sessionId: string; busy: boolean; activity: string | null }>(
+      `/launch-video/projects/${encodeURIComponent(name)}/session-state`,
       token,
     ),
 

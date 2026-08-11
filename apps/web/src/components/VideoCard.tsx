@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { launchVideoDisplayName } from '../launch-video/project-name'
 import type { Project } from '../types'
 import { CrumpleDelete } from './CrumpleDelete'
 import { ShareSheet } from './ShareSheet'
@@ -23,7 +24,13 @@ const IconTrashSm = () => (
   </svg>
 )
 
-const StatusBadge = ({ status }: { status: Project['status'] }) => {
+const StatusBadge = ({
+  status,
+  isLaunchVideo,
+}: {
+  status: Project['status']
+  isLaunchVideo: boolean
+}) => {
   const map: Record<string, { label: string; className: string }> = {
     COMPLETED: { label: 'Ready', className: 'bg-green-50 text-green-700 border border-green-200' },
     FAILED: { label: 'Failed', className: 'bg-red-50 text-red-600 border border-red-200' },
@@ -36,6 +43,18 @@ const StatusBadge = ({ status }: { status: Project['status'] }) => {
       className: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     },
     PENDING: { label: 'Draft', className: 'bg-gray-100 text-gray-500 border border-gray-200' },
+  }
+  if (isLaunchVideo && status === 'PENDING') {
+    map.PENDING = {
+      label: 'Queued…',
+      className: 'bg-amber-50 text-amber-700 border border-amber-200',
+    }
+  }
+  if (isLaunchVideo && status === 'PROCESSING') {
+    map.PROCESSING = {
+      label: 'Creating…',
+      className: 'bg-amber-50 text-amber-700 border border-amber-200',
+    }
   }
   const cfg = map[status] ?? {
     label: status,
@@ -123,7 +142,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
   })
   const isLaunchVideo = project.parameters?.jobType === 'launch-video'
   const title = isLaunchVideo
-    ? project.parameters?.projectName || 'Launch Video'
+    ? launchVideoDisplayName(project.parameters)
     : project.parameters?.url
       ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
       : 'Untitled Job'
@@ -202,9 +221,10 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
                   <polygon points="5 3 19 12 5 21 5 3" />
                 </svg>
               </div>
-              {project.status === 'PROCESSING' && (
+              {(project.status === 'PROCESSING' ||
+                (isLaunchVideo && project.status === 'PENDING')) && (
                 <span className="text-[10px] font-semibold text-white/30 tracking-widest uppercase animate-pulse">
-                  Rendering
+                  {isLaunchVideo ? 'Creating video' : 'Rendering'}
                 </span>
               )}
               {project.status === 'AWAITING_REVIEW' && (
@@ -256,9 +276,13 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
           <p className="text-xs text-gray-400 mb-3">{dateStr}</p>
 
           <div className="flex items-center justify-between h-8">
-            <StatusBadge status={project.status} />
+            <StatusBadge status={project.status} isLaunchVideo={isLaunchVideo} />
 
             <div className="flex justify-end relative h-full items-center gap-1.5">
+              {isLaunchVideo &&
+                (project.status === 'PENDING' || project.status === 'PROCESSING') && (
+                  <span className="text-xs font-medium text-gray-500">View progress →</span>
+                )}
               {project.status === 'FAILED' && !crumpleTriggered && (
                 <button
                   onClick={e => {

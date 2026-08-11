@@ -1,5 +1,11 @@
 import { executeWebhookDelivery } from '@saas/db'
-import { createLogger, EDIT_QUEUE_NAME, ENHANCE_QUEUE_NAME, QUEUE_NAME, WEBHOOK_QUEUE_NAME } from '@saas/shared'
+import {
+  createLogger,
+  EDIT_QUEUE_NAME,
+  ENHANCE_QUEUE_NAME,
+  QUEUE_NAME,
+  WEBHOOK_QUEUE_NAME,
+} from '@saas/shared'
 import { Worker } from 'bullmq'
 import dotenv from 'dotenv'
 import { Redis } from 'ioredis'
@@ -122,6 +128,23 @@ worker.on('completed', job => {
 
 worker.on('failed', (job, err) => {
   logger.error({ jobId: job?.id, err }, 'Job failed')
+  if (job?.data?.parameters?.jobType === 'launch-video') {
+    void import('./launch-video-job-processor.js')
+      .then(({ recoverLaunchVideoJobFailure }) =>
+        recoverLaunchVideoJobFailure({
+          jobId: job.data.jobId,
+          userId: job.data.userId,
+          error: err,
+          connection,
+        }),
+      )
+      .catch(recoveryError => {
+        logger.error(
+          { err: recoveryError, jobId: job.id },
+          'Failed to recover launch-video worker failure',
+        )
+      })
+  }
 })
 
 // When a job's lock can't be renewed (e.g. the process was frozen through a
@@ -232,7 +255,10 @@ webhookWorker.on('completed', job => {
 })
 
 webhookWorker.on('failed', (job, err) => {
-  logger.warn({ deliveryId: job?.data?.deliveryId, err: err?.message }, 'Webhook delivery failed or scheduled for retry')
+  logger.warn(
+    { deliveryId: job?.data?.deliveryId, err: err?.message },
+    'Webhook delivery failed or scheduled for retry',
+  )
 })
 
 webhookWorker.on('error', err => {

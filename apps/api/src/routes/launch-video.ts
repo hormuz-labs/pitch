@@ -1,3 +1,4 @@
+import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
 import express, { Router } from 'express'
 import { createLaunchVideoJob, InsufficientCreditsError } from '../lib/job-service.js'
@@ -5,15 +6,17 @@ import { listMusic } from '../lib/launch-video/music.js'
 import {
   eventSessionId,
   eventStream,
+  getBoundSessionForProject,
   getMessages,
   getSessionForProject,
   getSessionOwnerId,
+  getSessionState,
   type OpencodeEvent,
   prompt,
   resetEventStream,
 } from '../lib/launch-video/opencode.js'
 import { MUSIC_DIR, RENDERS_DIR, toInternalName } from '../lib/launch-video/paths.js'
-import { getProject, listProjects } from '../lib/launch-video/projects.js'
+import { getProject, listProjects, mergeLaunchVideoJobs } from '../lib/launch-video/projects.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api:launch-video')
@@ -64,7 +67,8 @@ router.get('/projects', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
   try {
-    res.json(await listProjects(userId))
+    const [projects, jobs] = await Promise.all([listProjects(userId), db.listJobs({ id: userId })])
+    res.json(mergeLaunchVideoJobs(projects, jobs))
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to list launch-video projects')
     res.status(500).json({ error: error.message })
@@ -149,6 +153,13 @@ router.post('/projects/:name/scenes/:sceneId/prompt', async (req, res) => {
       `then run a fresh full render to renders/${internal}-launch.mp4 so the app picks up the new cut.`
 
     const { id: sessionId } = await getSessionForProject(userId, name)
+    const state = await getSessionState(sessionId)
+    if (state.busy) {
+      return res.status(409).json({
+        error: 'This project is already processing an edit',
+        sessionId,
+      })
+    }
     await prompt(sessionId, `Update ${sceneId}: ${text}`, scoped)
     res.json({ sessionId })
   } catch (error: any) {
@@ -174,6 +185,27 @@ router.get('/sessions/:id/messages', async (req, res) => {
   }
 })
 
+router.get('/projects/:name/session-state', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  if (!isValidProjectName(req.params.name)) {
+    return res.status(400).json({ error: 'invalid project name' })
+  }
+
+  try {
+    const sessionId = await getBoundSessionForProject(userId, req.params.name)
+    if (!sessionId) return res.status(404).json({ error: 'project session not found' })
+    const state = await getSessionState(sessionId)
+    res.json({ sessionId, ...state })
+  } catch (error: any) {
+    logger.error(
+      { err: error, userId, project: req.params.name },
+      'Failed to read launch-video session state',
+    )
+    res.status(500).json({ error: error.message })
+  }
+})
+
 router.get('/projects/:name/events', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
@@ -182,13 +214,17 @@ router.get('/projects/:name/events', async (req, res) => {
   }
 
   try {
-    const { id: sessionId } = await getSessionForProject(userId, req.params.name)
+    const sessionId = await getBoundSessionForProject(userId, req.params.name)
+    if (!sessionId) return res.status(404).json({ error: 'project session not found' })
+    const state = await getSessionState(sessionId)
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
     })
-    res.write(`data: ${JSON.stringify({ type: 'session', properties: { sessionId } })}\n\n`)
+    res.write(
+      `data: ${JSON.stringify({ type: 'session', properties: { sessionId, ...state } })}\n\n`,
+    )
 
     const client: SseClient = {
       sessionId,

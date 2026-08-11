@@ -1,16 +1,20 @@
 import { ArrowUp, Loader2, Music2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { messageText } from './api'
 import { MusicLibrary } from './MusicLibrary'
+import { launchVideoProjectDestination } from './navigation'
 import { useLaunchVideo } from './store'
 
 export function CreatePanel() {
+  const navigate = useNavigate()
   const {
     activity,
     busy,
     currentProject,
     messages,
     musicTracks,
+    projects,
     selectedMusic,
     sendPrompt,
     startProject,
@@ -22,6 +26,9 @@ export function CreatePanel() {
   const started = currentProject !== null
   const selectedTrackName =
     musicTracks.find(t => t.file === selectedMusic)?.name.replace(/-/g, ' ') ?? null
+  const activeProject = projects.find(
+    project => project.jobId && (project.status === 'PENDING' || project.status === 'PROCESSING'),
+  )
 
   // Auto-scroll while tokens arrive (track both count and streamed length).
   const streamLength = messages.reduce((n, m) => n + messageText(m).length, messages.length)
@@ -35,7 +42,8 @@ export function CreatePanel() {
     if (!t || busy) return
     if (!started) {
       setDraft('')
-      await startProject(t)
+      const { jobId } = await startProject(t)
+      navigate(`/launch-video/edit/${encodeURIComponent(jobId)}`)
       return
     }
     setDraft('')
@@ -54,6 +62,22 @@ export function CreatePanel() {
               Describe the product launch video you want — Pitch will direct, animate, and render it
               end to end.
             </p>
+            {activeProject?.jobId && (
+              <button
+                onClick={() => navigate(launchVideoProjectDestination(activeProject))}
+                className="mt-6 flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-left shadow-[var(--shadow-sm)] hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)] transition-all cursor-pointer"
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-pulse" />
+                <span>
+                  <span className="block text-sm font-medium text-[var(--text-primary)]">
+                    {activeProject.displayName ?? activeProject.name} is still being created
+                  </span>
+                  <span className="block text-xs text-[var(--text-muted)]">
+                    View progress — or start another video below
+                  </span>
+                </span>
+              </button>
+            )}
           </div>
         )}
 

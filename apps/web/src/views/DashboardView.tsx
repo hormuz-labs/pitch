@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PdfCard } from '../components/PdfCard'
 import { VideoCard } from '../components/VideoCard'
+import { launchVideoDestination } from '../launch-video/navigation'
 import type { Project } from '../types'
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -113,11 +114,15 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
   const [activeTab, setActiveTab] = useState<'all' | 'videos' | 'pdfs'>('all')
 
   const totalPdfsCount = useMemo(
-    () => projects.filter(p => p.parameters?.jobType === 'pdf' || p.parameters?.jobType === 'enhance').length,
+    () =>
+      projects.filter(p => p.parameters?.jobType === 'pdf' || p.parameters?.jobType === 'enhance')
+        .length,
     [projects],
   )
   const totalVideosCount = useMemo(
-    () => projects.filter(p => p.parameters?.jobType !== 'pdf' && p.parameters?.jobType !== 'enhance').length,
+    () =>
+      projects.filter(p => p.parameters?.jobType !== 'pdf' && p.parameters?.jobType !== 'enhance')
+        .length,
     [projects],
   )
 
@@ -125,9 +130,13 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
     let list = [...projects]
 
     if (activeTab === 'videos') {
-      list = list.filter(p => p.parameters?.jobType !== 'pdf' && p.parameters?.jobType !== 'enhance')
+      list = list.filter(
+        p => p.parameters?.jobType !== 'pdf' && p.parameters?.jobType !== 'enhance',
+      )
     } else if (activeTab === 'pdfs') {
-      list = list.filter(p => p.parameters?.jobType === 'pdf' || p.parameters?.jobType === 'enhance')
+      list = list.filter(
+        p => p.parameters?.jobType === 'pdf' || p.parameters?.jobType === 'enhance',
+      )
     }
 
     if (searchQuery.trim()) {
@@ -250,8 +259,6 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
             </span>
           </button>
         </div>
-
-
       </div>
 
       {/* No search results */}
@@ -346,7 +353,10 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
       {displayedProjects.length > 0 && (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {displayedProjects.map(project => {
-            if (project.parameters?.jobType === 'pdf' || project.parameters?.jobType === 'enhance') {
+            if (
+              project.parameters?.jobType === 'pdf' ||
+              project.parameters?.jobType === 'enhance'
+            ) {
               return (
                 <PdfCard
                   key={project.id}
@@ -361,8 +371,8 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
                 key={project.id}
                 project={project}
                 onClick={() =>
-                  project.parameters?.jobType === 'launch-video' && project.parameters.projectName
-                    ? navigate(`/launch-video/${encodeURIComponent(project.parameters.projectName)}`)
+                  project.parameters?.jobType === 'launch-video'
+                    ? navigate(launchVideoDestination(project))
                     : navigate(`/editor/${project.id}`)
                 }
                 onConfirmDelete={() => onDelete(project.id)}
