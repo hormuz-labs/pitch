@@ -1,13 +1,21 @@
 import { ArrowUp, Loader2, Music2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { CreditChip } from '../components/CreditChip'
+import { useBrowserProfile } from '../hooks/useBrowserProfile'
 import { messageText } from './api'
+import { LaunchAuthAssist } from './LaunchAuthAssist'
 import { MusicLibrary } from './MusicLibrary'
 import { launchVideoProjectDestination } from './navigation'
+import { websiteHostFromPrompt } from './project-name'
 import { useLaunchVideo } from './store'
+
+const LAUNCH_VIDEO_CREDIT_COST = 5
+const LAUNCH_VIDEO_DRAFT_KEY = 'launch-video:new:draft'
 
 export function CreatePanel() {
   const navigate = useNavigate()
+  const { origins, loading: originsLoading } = useBrowserProfile()
   const {
     activity,
     busy,
@@ -19,7 +27,8 @@ export function CreatePanel() {
     sendPrompt,
     startProject,
   } = useLaunchVideo()
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(() => sessionStorage.getItem(LAUNCH_VIDEO_DRAFT_KEY) ?? '')
+  const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -29,6 +38,13 @@ export function CreatePanel() {
   const activeProject = projects.find(
     project => project.jobId && (project.status === 'PENDING' || project.status === 'PROCESSING'),
   )
+  const websiteHost = websiteHostFromPrompt(draft)
+  const websiteUrl = websiteHost ? `https://${websiteHost}` : ''
+
+  useEffect(() => {
+    if (draft) sessionStorage.setItem(LAUNCH_VIDEO_DRAFT_KEY, draft)
+    else sessionStorage.removeItem(LAUNCH_VIDEO_DRAFT_KEY)
+  }, [draft])
 
   // Auto-scroll while tokens arrive (track both count and streamed length).
   const streamLength = messages.reduce((n, m) => n + messageText(m).length, messages.length)
@@ -140,6 +156,18 @@ export function CreatePanel() {
             }}
             className="w-full resize-none bg-transparent px-2 pt-1 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-faint)] outline-none disabled:opacity-60"
           />
+          {!started && websiteUrl && (
+            <LaunchAuthAssist
+              url={websiteUrl}
+              origins={origins}
+              loading={originsLoading}
+              dismissedHost={dismissedAuthHost}
+              onAuthenticate={() =>
+                navigate(`/sessions?url=${encodeURIComponent(websiteUrl)}&from=launch-video`)
+              }
+              onDismiss={() => setDismissedAuthHost(websiteHost)}
+            />
+          )}
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLibraryOpen(true)}
@@ -154,7 +182,17 @@ export function CreatePanel() {
               className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-[var(--interactive-bg)] text-[var(--interactive-text)] text-sm font-medium hover:bg-[var(--interactive-bg-hover)] transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer border-none"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <ArrowUp size={14} />}
-              {started ? 'Send' : 'Generate'}
+              {started ? (
+                'Send'
+              ) : (
+                <>
+                  Generate
+                  <CreditChip
+                    amount={LAUNCH_VIDEO_CREDIT_COST}
+                    className="bg-white text-gray-900"
+                  />
+                </>
+              )}
             </button>
           </div>
         </div>

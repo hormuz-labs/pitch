@@ -12,7 +12,12 @@ import path from 'node:path'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
 import { prisma } from '@saas/db'
-import { createLogger, JOB_UPDATES_CHANNEL, JobStatus } from '@saas/shared'
+import {
+  createLogger,
+  JOB_UPDATES_CHANNEL,
+  JobStatus,
+  LAUNCH_VIDEO_CREDIT_COST,
+} from '@saas/shared'
 import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
 import type { Redis } from 'ioredis'
@@ -407,10 +412,16 @@ export async function recoverLaunchVideoJobFailure({
   })
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob))
 
-  await db.addCredits(userId, 3, 'refund', 'Refund: Launch video generation failed', {
-    jobId,
-    idempotencyKey: `refund:launch-video:${jobId}`,
-  })
+  await db.addCredits(
+    userId,
+    LAUNCH_VIDEO_CREDIT_COST,
+    'refund',
+    'Refund: Launch video generation failed',
+    {
+      jobId,
+      idempotencyKey: `refund:launch-video:${jobId}`,
+    },
+  )
 }
 
 export async function processLaunchVideoJob(

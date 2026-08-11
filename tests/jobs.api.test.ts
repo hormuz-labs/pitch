@@ -53,6 +53,7 @@ vi.mock('../apps/api/src/middleware/auth.js', () => {
 
 import * as db from '@saas/db'
 import { connection, videoQueue } from '../apps/api/src/config.js'
+import { createLaunchVideoJob } from '../apps/api/src/lib/job-service.js'
 import { router as jobRoutes } from '../apps/api/src/routes/jobs.js'
 
 const getCreditBalance = db.getCreditBalance as ReturnType<typeof vi.fn>
@@ -90,6 +91,59 @@ function buildApp() {
   app.use('/jobs', jobRoutes)
   return app
 }
+
+describe('createLaunchVideoJob', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getCreditBalance.mockResolvedValue(10)
+    createJob.mockResolvedValue({ id: 'launch_job_1', userId: 'user_test', status: 'PENDING' })
+    deductCredit.mockResolvedValue(5)
+    queueAdd.mockResolvedValue({})
+    publish.mockResolvedValue(1)
+  })
+
+  it('charges five credits and enqueues the launch-video job', async () => {
+    await createLaunchVideoJob('user_test', 'acme-launch', 'Launch https://acme.test')
+
+    expect(deductCredit).toHaveBeenCalledWith('user_test', 5, 'Launch video generation', {
+      jobId: 'launch_job_1',
+    })
+    expect(queueAdd).toHaveBeenCalledWith(
+      'generate-video',
+      {
+        jobId: 'launch_job_1',
+        userId: 'user_test',
+        parameters: {
+          jobType: 'launch-video',
+          projectName: 'acme-launch',
+          prompt: 'Launch https://acme.test',
+        },
+      },
+      { jobId: 'launch_job_1' },
+    )
+    expect(addCredits).not.toHaveBeenCalled()
+  })
+
+  it('refunds all five credits if the launch-video job cannot be enqueued', async () => {
+    queueAdd.mockRejectedValue(new Error('redis unavailable'))
+
+    await expect(
+      createLaunchVideoJob('user_test', 'acme-launch', 'Launch https://acme.test'),
+    ).rejects.toThrow('redis unavailable')
+
+    expect(updateJob).toHaveBeenCalledWith('launch_job_1', {
+      status: 'FAILED',
+      error: 'Failed to queue launch-video job: redis unavailable',
+    })
+    expect(addCredits).toHaveBeenCalledWith(
+      'user_test',
+      5,
+      'refund',
+      'Refund: launch-video job failed to enqueue',
+      { jobId: 'launch_job_1' },
+    )
+  })
+})
 
 describe('POST /jobs', () => {
   beforeEach(() => {

@@ -348,8 +348,6 @@ export const CreateView = ({
         <h1 className="flex flex-wrap items-center gap-1 text-2xl font-bold text-gray-900">
           {!creationMode ? (
             <span>What would you like to create?</span>
-          ) : creationMode === 'launch' ? (
-            <span>Launch videos</span>
           ) : (
             <>
               <span>Create a</span>
@@ -357,7 +355,7 @@ export const CreateView = ({
                 words={['cinematic', 'stunning', 'polished', 'engaging', 'premium']}
                 interval={2500}
               />
-              <span>{creationMode === 'website' ? 'website demo' : 'demo from PDFs'}</span>
+              <span>{creationMode === 'website' ? 'website demo' : 'document demo'}</span>
             </>
           )}
         </h1>
@@ -366,9 +364,7 @@ export const CreateView = ({
             ? 'Choose a starting point. Each workflow only shows the settings it needs.'
             : creationMode === 'website'
               ? 'Tell the AI agent what to demonstrate on your product, and it will record a polished walkthrough.'
-              : creationMode === 'document'
-                ? 'Upload your source material, shape the explanation, and review the storyboard before rendering.'
-                : 'Cinematic product announcements, feature reveals, and release stories are coming soon.'}
+              : 'Upload your source material, shape the explanation, and review the storyboard before rendering.'}
         </p>
       </div>
 

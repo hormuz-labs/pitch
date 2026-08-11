@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 
-export type CreationMode = 'website' | 'document' | 'launch'
+export type CreationMode = 'website' | 'document'
 
 const modes = [
   {
     id: 'website' as const,
-    title: 'Website demo',
+    title: 'Demo Video',
     description: 'Record a guided product walkthrough from a live URL.',
     meta: 'URL · Browser recording',
     icon: (
@@ -25,7 +25,7 @@ const modes = [
   },
   {
     id: 'document' as const,
-    title: 'Demo from PDFs',
+    title: 'Document to Demo',
     description: 'Turn documents, decks, or images into a narrated explanatory video.',
     meta: 'PDF · Images · Storyboard review',
     icon: (
@@ -39,27 +39,6 @@ const modes = [
       >
         <path d="M6 2h8l4 4v16H6z" />
         <path d="M14 2v5h5M9 12h6M9 16h6" />
-      </svg>
-    ),
-  },
-  {
-    id: 'launch' as const,
-    title: 'Launch video',
-    description: 'Build a cinematic announcement for your next product or feature release.',
-    meta: 'Product footage · Brand assets',
-    comingSoon: true,
-    icon: (
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      >
-        <path d="M14.5 5.5c2.2-2.2 4.8-2.5 6-2.5 0 1.2-.3 3.8-2.5 6l-5.5 5.5-4-4z" />
-        <path d="m8.5 10.5-3 .5-2 2 5 1.5M12.5 14.5l-.5 3-2 2-1.5-5" />
-        <path d="M5.5 17.5c-1.5.5-2.5 1.5-3 3 1.5-.5 2.5-1.5 3-3Z" />
       </svg>
     ),
   },
@@ -85,31 +64,8 @@ const ModeTabs = ({
         }`}
       >
         {item.title}
-        {item.comingSoon && (
-          <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
-            Soon
-          </span>
-        )}
       </button>
     ))}
-  </div>
-)
-
-const LaunchComingSoon = () => (
-  <div className="grid min-h-[440px] place-items-center rounded-2xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
-    <div className="max-w-md">
-      <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gray-900 text-white shadow-lg shadow-gray-900/15">
-        {modes[2].icon}
-      </span>
-      <span className="mt-5 inline-flex rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-amber-700 ring-1 ring-amber-200">
-        Coming soon
-      </span>
-      <h2 className="mt-4 text-xl font-bold text-gray-900">Launch videos are on the way</h2>
-      <p className="mt-2 text-sm leading-relaxed text-gray-500">
-        Soon you’ll be able to combine product footage, feature callouts, brand assets, and
-        narration into a polished release video.
-      </p>
-    </div>
   </div>
 )
 
@@ -124,7 +80,7 @@ export const CreateModeSelector = ({
 }) => {
   if (!mode) {
     return (
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {modes.map(item => (
           <button
             key={item.id}
@@ -132,11 +88,6 @@ export const CreateModeSelector = ({
             onClick={() => onSelect(item.id)}
             className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg"
           >
-            {item.comingSoon && (
-              <span className="absolute right-4 top-4 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
-                Coming soon
-              </span>
-            )}
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-gray-100 text-gray-700 transition-colors group-hover:bg-gray-900 group-hover:text-white">
               {item.icon}
             </span>
@@ -159,7 +110,7 @@ export const CreateModeSelector = ({
       <div className="mb-4">
         <ModeTabs mode={mode} onSelect={onSelect} />
       </div>
-      {mode === 'launch' ? <LaunchComingSoon /> : children}
+      {children}
     </div>
   )
 }

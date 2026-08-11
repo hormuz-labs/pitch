@@ -494,21 +494,12 @@ These are correctness rules, independent of style:
 VO clips already exist from Phase 3. Full pipeline detail in
 `references/audio-pipeline.md`. The non-negotiables:
 
-- **Music bed — check the shared library FIRST.** The repo keeps curated
-  audio libraries at `assets/music/` (music beds) and `assets/sfx/` (SFX);
-  the API also auto-imports anything the user drops into `~/Downloads` into
-  them, so they're the canonical source. If the library looks thin, check
-  Downloads directly too:
-
-  ```bash
-  find ~/Downloads -maxdepth 1 \( -iname "*.mp3" -o -iname "*.wav" -o -iname "*.m4a" \) -exec ls -lt {} +
-  ```
-
-  Copy the best match into the project (`audio/music.mp3`) — prefer files
-  whose names say "background"/"music" and recent downloads; say which file
-  you picked. Usable SFX there (click, typing, whoosh, pop) get copied into
-  `audio/sfx/` the same way. Only fall back to Lyria generation or a
-  royalty-free download when the library and Downloads have nothing suitable.
+- **Music bed — check the curated shared library FIRST.** Use only
+  `assets/music/` for music beds and `assets/sfx/` for SFX. Never scan home,
+  Downloads, or other personal directories. Copy the best approved match into
+  the project (`audio/music.mp3`) and name the chosen file. Only fall back to
+  Lyria generation or a royalty-free download when the curated library has
+  nothing suitable.
 - **Non-overlap check:** scenes were sized to their clips in Phase 3, so
   `clip_start + clip_duration + 0.3s < next_clip_start` should hold by
   construction — verify against the real master timeline labels anyway.
@@ -608,7 +599,7 @@ final ships.
       recipe reused); GSDevTools not loaded in the render build
 - [ ] VO generated FIRST with per-clip `--style`; scene durations derived from
       measured clips via `js/timing.js`; zero overlap verified on the master
-- [ ] Music bed sourced from `assets/music/` (or ~/Downloads) when available
+- [ ] Music bed sourced from the curated `assets/music/` library when available
       (file named in the summary); mix levels verified by gap/VO extraction;
       mix extends past duration
 - [ ] Every scene reviewed via segment render before the full draft

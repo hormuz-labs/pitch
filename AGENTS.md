@@ -19,8 +19,8 @@ Launch-video layout (ported from github.com/hormuz-labs/launch-videos):
   `<userId>--` prefix is the per-user isolation boundary — the API only exposes the
   bare `<name>` to clients. The (userId, name) → opencode-session map lives in the
   `LaunchVideoProject` DB table.
-- `assets/music/` and `assets/sfx/` are the audio libraries (the API also
-  auto-imports from `~/Downloads`).
+- `assets/music/` and `assets/sfx/` are curated audio libraries. Never scan or
+  auto-import from `~/Downloads` or other personal directories.
 - Skill scripts (`tts.mjs`, `capture.mjs`, …) need `playwright` (hoisted at repo
   root), `ffmpeg`/`ffprobe`, and `GEMINI_API_KEY` for TTS.
 - Frontend lives in `apps/web/src/launch-video/` (React port of the source

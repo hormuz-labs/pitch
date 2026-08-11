@@ -6,14 +6,13 @@
  * relative paths (audio/, renders/, audit/) resolve where the skill expects.
  * Exposed to the `html-video` agent (and available to all agents).
  */
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { tool } from "@opencode-ai/plugin";
 import { z } from "zod";
-import { execFile, execFileSync } from "node:child_process";
-import { promisify } from "node:util";
-import { fileURLToPath } from "node:url";
-import { dirname, join, isAbsolute } from "node:path";
-import { existsSync, readdirSync, statSync } from "node:fs";
-import { homedir } from "node:os";
 
 const execFileAsync = promisify(execFile);
 
@@ -161,7 +160,7 @@ export const motion_screenshot = tool({
 });
 
 // ---------------------------------------------------------------------------
-// 5. Music / SFX scan (assets/ library + ~/Downloads) (Phase 5)
+// 5. Curated music / SFX library scan (Phase 5)
 // ---------------------------------------------------------------------------
 /** Shared audio library roots: assets/music + assets/sfx at the repo root. */
 function libraryRoots(cwd: string): string[] {
@@ -177,19 +176,16 @@ function libraryRoots(cwd: string): string[] {
 
 export const motion_find_audio = tool({
   description:
-    "Scan the shared audio library (assets/music/ for beds, assets/sfx/ for SFX) and " +
-    "~/Downloads for music beds and SFX (.mp3/.wav/.m4a/etc) sorted by recency, so Phase 5 " +
-    "can source a track from the library before falling back to generation. Pass 'dir' to " +
-    "scan a specific directory instead. Reports paths, sizes, and modification dates.",
+    "Scan only the curated shared audio library (assets/music/ for beds, assets/sfx/ for SFX) " +
+    "for audio sorted by recency, so Phase 5 can source an approved track before falling back " +
+    "to generation. Never scans home or personal directories. Reports paths, sizes, and " +
+    "modification dates.",
   args: {
-    dir: z.string().optional().describe("Directory to scan (default: assets/music + assets/sfx + ~/Downloads)"),
     max: z.number().int().min(1).optional().describe("Max entries per directory (default 15)"),
   },
   async execute(args, context) {
     const max = args.max ?? 15;
-    const roots = args.dir
-      ? [args.dir]
-      : [...libraryRoots(context.directory), join(homedir(), "Downloads")];
+    const roots = libraryRoots(context.directory);
     const found = [];
     for (const root of roots) {
       if (!existsSync(root)) continue;

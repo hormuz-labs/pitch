@@ -220,19 +220,21 @@ export const SessionsView = () => {
   const pollRef = useRef<number | null>(null)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [returnToNew, setReturnToNew] = useState(false)
+  const [returnPath, setReturnPath] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [redirectIn, setRedirectIn] = useState<number | null>(null)
   const [deletingOrigin, setDeletingOrigin] = useState<string | null>(null)
 
-  // Deep-link from /new (?url=<site>&from=new): prefill + open the auth modal,
-  // then strip the params so a refresh or back-nav doesn't re-fire it.
+  // Deep-link from a creation flow: prefill + open the auth modal, then strip
+  // the params so a refresh or back-nav doesn't re-fire it.
   useEffect(() => {
     const url = searchParams.get('url')
     if (!url) return
     setTargetUrl(url)
     setAuthModalOpen(true)
-    if (searchParams.get('from') === 'new') setReturnToNew(true)
+    const from = searchParams.get('from')
+    if (from === 'new') setReturnPath('/new')
+    if (from === 'launch-video') setReturnPath('/launch-video/new')
     const next = new URLSearchParams(searchParams)
     next.delete('url')
     next.delete('from')
@@ -285,17 +287,17 @@ export const SessionsView = () => {
     }
   }, [activeSession, getToken])
 
-  // Cancellable auto-redirect back to /new after a save (when we came from there).
+  // Cancellable auto-redirect back to the originating creation flow after a save.
   // Ticks down once a second; reaching 0 navigates. Cancelling sets it to null.
   useEffect(() => {
     if (redirectIn === null) return
-    if (redirectIn <= 0) {
-      navigate('/new')
+    if (redirectIn <= 0 && returnPath) {
+      navigate(returnPath)
       return
     }
     const t = window.setTimeout(() => setRedirectIn(n => (n === null ? null : n - 1)), 1000)
     return () => window.clearTimeout(t)
-  }, [redirectIn, navigate])
+  }, [redirectIn, navigate, returnPath])
 
   const handleStart = async () => {
     setActionError(null)
@@ -362,9 +364,8 @@ export const SessionsView = () => {
         })
       }
       await fetchProfile()
-      // Came here from /new — offer a short, cancellable hop back to the demo so
-      // the user can still re-auth or delete a saved login before leaving.
-      if (returnToNew) {
+      // Offer a short, cancellable hop back to the originating creation flow.
+      if (returnPath) {
         setSaved(true)
         setRedirectIn(5)
       }
@@ -394,6 +395,7 @@ export const SessionsView = () => {
   }
 
   const origins = useMemo(() => profile?.loggedInOrigins ?? [], [profile])
+  const returnLabel = returnPath === '/launch-video/new' ? 'launch video' : 'demo'
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
@@ -409,7 +411,7 @@ export const SessionsView = () => {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-emerald-900">Login saved</p>
             <p className="text-xs text-emerald-700/80">
-              Returning to your demo in{' '}
+              Returning to your {returnLabel} in{' '}
               <span className="font-semibold tabular-nums">{redirectIn}s</span> — or stay to
               re-authenticate / remove a site below.
             </p>
@@ -422,7 +424,7 @@ export const SessionsView = () => {
               Stay here
             </button>
             <button
-              onClick={() => navigate('/new')}
+              onClick={() => returnPath && navigate(returnPath)}
               className="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
             >
               Go now
@@ -437,23 +439,25 @@ export const SessionsView = () => {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-emerald-900">Login saved</p>
             <p className="text-xs text-emerald-700/80">
-              Re-authenticate or remove a site below, or head back to your demo.
+              Re-authenticate or remove a site below, or head back to your {returnLabel}.
             </p>
           </div>
           <button
-            onClick={() => navigate('/new')}
+            onClick={() => returnPath && navigate(returnPath)}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
           >
-            Return to your demo
+            Return to your {returnLabel}
           </button>
         </div>
-      ) : returnToNew ? (
+      ) : returnPath ? (
         <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white">
             <IconLock />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900">Authenticating for your demo</p>
+            <p className="text-sm font-semibold text-gray-900">
+              Authenticating for your {returnLabel}
+            </p>
             <p className="text-xs text-gray-500">
               Sign in to the site below, then click{' '}
               <strong className="font-semibold text-gray-700">Complete&nbsp;&amp;&nbsp;Save</strong>{' '}
@@ -461,10 +465,10 @@ export const SessionsView = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate('/new')}
+            onClick={() => navigate(returnPath)}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
           >
-            <IconArrowLeft size={13} /> Back to demo
+            <IconArrowLeft size={13} /> Back to {returnLabel}
           </button>
         </div>
       ) : null}
