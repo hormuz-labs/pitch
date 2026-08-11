@@ -30,7 +30,9 @@ export function SceneTimeline() {
 
       {scenes.length === 0 ? (
         <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-default)] px-4 py-6 text-center text-sm text-[var(--text-muted)]">
-          No scenes yet — they appear once the project has a timing map.
+          {currentProject?.videoUrl
+            ? 'This video is available, but its editable scene files are unavailable.'
+            : 'No scenes yet — they appear once the project has a timing map.'}
         </div>
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-2 px-1">

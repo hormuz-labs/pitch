@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   launchVideoDisplayName,
   mergeLaunchVideoJobs,
+  resolveLaunchVideoProjectDetail,
 } from '../apps/api/src/lib/launch-video/projects'
 
 describe('launch-video project list', () => {
@@ -91,5 +92,71 @@ describe('launch-video project list', () => {
       ],
     )
     expect(project.displayName).toBe('siodelhi.org')
+  })
+
+  it('uses the completed job S3 render when the API container has no local project files', () => {
+    const jobs = [
+      {
+        id: 'job-ready',
+        status: 'COMPLETED',
+        videoUrl: 'https://s3.example.test/pitch/user/acme/videos/render.mp4',
+        parameters: {
+          jobType: 'launch-video',
+          projectName: 'acme-launch',
+        },
+      },
+    ]
+
+    const [project] = mergeLaunchVideoJobs([], jobs)
+    expect(project).toEqual(
+      expect.objectContaining({
+        name: 'acme-launch',
+        hasVideo: true,
+        videoUrl: jobs[0].videoUrl,
+      }),
+    )
+
+    expect(resolveLaunchVideoProjectDetail(null, 'acme-launch', jobs)).toEqual(
+      expect.objectContaining({
+        name: 'acme-launch',
+        hasVideo: true,
+        videoUrl: jobs[0].videoUrl,
+        scenes: [],
+        duration: 0,
+      }),
+    )
+  })
+
+  it('keeps local scene metadata while falling back to the job S3 render', () => {
+    const project = {
+      name: 'acme-launch',
+      hasVideo: false,
+      videoUrl: null,
+      sceneCount: 1,
+      duration: 4,
+      scenes: [
+        {
+          id: 'scene1',
+          index: 1,
+          start: 0,
+          end: 4,
+          dur: 4,
+          vo: null,
+          draftUrl: null,
+        },
+      ],
+    }
+    const videoUrl = 'https://s3.example.test/pitch/user/acme/videos/render.mp4'
+
+    expect(
+      resolveLaunchVideoProjectDetail(project, 'acme-launch', [
+        {
+          id: 'job-ready',
+          status: 'COMPLETED',
+          videoUrl,
+          parameters: { jobType: 'launch-video', projectName: 'acme-launch' },
+        },
+      ]),
+    ).toEqual(expect.objectContaining({ videoUrl, hasVideo: true, sceneCount: 1 }))
   })
 })

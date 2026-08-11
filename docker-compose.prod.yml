@@ -28,12 +28,19 @@ services:
     ports:
       - "8080:8080"
 
+  api:
+    volumes:
+      - /opt/pitch/launch-video/projects:/app/projects
+      - /opt/pitch/launch-video/renders:/app/renders
+      - /opt/pitch/opencode-api:/root/.local/share/opencode
+
   worker:
     deploy:
       replicas: 4
     volumes:
       - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
+      - /opt/pitch/launch-video/projects:/app/projects
+      - /opt/pitch/launch-video/renders:/app/renders
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
-

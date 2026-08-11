@@ -151,6 +151,14 @@ services:
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
       CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+    volumes:
+      # The launch-video editor and every worker replica operate on the same
+      # persistent HTML project and render directories.
+      - ./projects:/app/projects
+      - ./renders:/app/renders
+      # API-side OpenCode owns follow-up edit sessions. Persist its session
+      # history across API container rebuilds without sharing it with workers.
+      - ./docker-data/opencode-api:/root/.local/share/opencode
     logging:
       driver: loki
       options:
@@ -200,6 +208,8 @@ services:
         env: "SERVICE_NAME,HOSTNAME"
     volumes:
       - ./docker-data/opencode-logs:/root/.local/share/opencode/log
+      - ./projects:/app/projects
+      - ./renders:/app/renders
     group_add:
       - "44"
       - "992"
