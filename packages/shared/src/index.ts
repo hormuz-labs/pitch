@@ -1,5 +1,8 @@
 import pino from 'pino'
 
+/** Credits charged for one HTML/GSAP launch-video generation. */
+export const LAUNCH_VIDEO_CREDIT_COST = 5
+
 /**
  * Creates a structured pino logger bound to a specific service.
  * Logs as JSON to stdout — picked up by the Loki Docker logging driver.

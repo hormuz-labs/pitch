@@ -1,5 +1,11 @@
 import * as db from '@saas/db'
-import { createLogger, JOB_UPDATES_CHANNEL, JobStatus, sendDiscordMessage } from '@saas/shared'
+import {
+  createLogger,
+  JOB_UPDATES_CHANNEL,
+  JobStatus,
+  LAUNCH_VIDEO_CREDIT_COST,
+  sendDiscordMessage,
+} from '@saas/shared'
 import * as storage from '@saas/storage'
 import { connection, editQueue, enhanceQueue, videoQueue } from '../config.js'
 
@@ -10,7 +16,7 @@ const editLogger = createLogger('api:edit')
 const launchLogger = createLogger('api:launch-video')
 
 export const EDIT_CREDIT_COST = 2
-export const LAUNCH_VIDEO_CREDIT_COST = 3
+export { LAUNCH_VIDEO_CREDIT_COST }
 
 /** Thrown when the user's credit balance cannot cover the job. Carries the
  * current balance so HTTP routes can map it to 402 and MCP tools to a tool error. */

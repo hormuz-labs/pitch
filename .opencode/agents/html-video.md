@@ -35,8 +35,9 @@ You get dedicated tools (no need to hand-build ffmpeg/playwright shell recipes):
 - **`motion_audit`** — motion audit gate: FAILS the build on static holds. Run before every
   full render.
 - **`motion_screenshot`** — Phase-0 recon capture from a live URL or HTML template.
-- **`motion_find_audio`** — scan the shared audio library (`assets/music/`, `assets/sfx/`)
-  and `~/Downloads` for a music bed / SFX (Phase 5).
+- **`motion_find_audio`** — scan only the curated shared audio library
+  (`assets/music/`, `assets/sfx/`) for a music bed / SFX (Phase 5). Never scan
+  home, Downloads, or other personal directories.
 - **`motion_verify_duration`** — ffprobe the rendered MP4 to confirm it matches the timeline.
 
 All `motion_*` tools run with the project folder as CWD, so pass paths relative to
@@ -60,8 +61,8 @@ Load the `html-motion-video` skill and follow its phases:
 5. **Phase 4 — Build.** Multi-file HTML/CSS/GSAP project via the skill's architecture rules.
    Enforce all 18 technical invariants, the anti-flicker rules, ≥3 distinct text treatments,
    and the cursor policy. Screens rebuilt natively (no flat image screenshots).
-6. **Phase 5 — Music & Mix.** Check the shared library (`assets/music/`, `assets/sfx/`)
-   FIRST with `motion_find_audio` (it also scans `~/Downloads`); build `audio/mix.wav`
+6. **Phase 5 — Music & Mix.** Check only the curated shared library
+   (`assets/music/`, `assets/sfx/`) FIRST with `motion_find_audio`; build `audio/mix.wav`
    with measured levels.
 7. **Phase 6 — Audit & Render.** Run `motion_audit` (zero warnings), render segments with
    `motion_render` to polish, then one full-timeline render, verify duration with

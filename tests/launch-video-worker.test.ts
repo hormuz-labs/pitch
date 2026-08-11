@@ -57,7 +57,7 @@ describe('launch-video worker failure recovery', () => {
     )
     expect(addCredits).toHaveBeenCalledWith(
       'user_1',
-      3,
+      5,
       'refund',
       'Refund: Launch video generation failed',
       {
