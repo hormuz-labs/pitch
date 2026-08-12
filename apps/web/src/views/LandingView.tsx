@@ -132,7 +132,7 @@ export const LandingView = () => {
                 <div className="landing-ctas landing-animate-4 mt-8 flex-wrap justify-center w-full">
                   {isSignedIn ? (
                     <a href="/dashboard" className="landing-btn-primary">
-                      Go to dashboard
+                      Dashboard
                     </a>
                   ) : (
                     <a href="/sign-up" className="landing-btn-primary">
