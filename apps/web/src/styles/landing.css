@@ -1602,3 +1602,33 @@
     padding: 56px 20px 32px;
   }
 }
+
+/* "editor" in the demo-carousel heading — the strike draws itself in when the
+   heading scrolls into view, then the word fades back. */
+.struck-editor {
+  position: relative;
+  display: inline-block;
+  transition: color 0.4s ease 0.45s;
+}
+.struck-editor::after {
+  content: '';
+  position: absolute;
+  left: -3%;
+  right: -3%;
+  top: 54%;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.struck-editor.struck {
+  color: #9ca3af;
+}
+.struck-editor.struck::after {
+  animation: struck-editor-draw 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.15s forwards;
+}
+@keyframes struck-editor-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}

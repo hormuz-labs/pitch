@@ -10,6 +10,7 @@ import { Step1Illustration } from '../components/landing/Step1Illustration'
 import { Step2Illustration } from '../components/landing/Step2Illustration'
 import { Step3Illustration } from '../components/landing/Step3Illustration'
 import { StepCard } from '../components/landing/StepCard'
+import { VideoCarousel } from '../components/landing/VideoCarousel'
 import { VideoPlayerMockup } from '../components/landing/VideoPlayerMockup'
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
 import { Process } from '../components/Process'
@@ -184,6 +185,11 @@ export const LandingView = () => {
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
+        </section>
+
+        {/* ── Demo Carousel ────────────────────────────────────── */}
+        <section className="landing-carousel" aria-label="More demos">
+          <VideoCarousel />
         </section>
 
         {/* ── How It Works ─────────────────────────────────────── */}
