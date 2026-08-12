@@ -17,7 +17,7 @@ const SLIDES: CoverflowSlide[] = [
     subtitle: 'Made with Pitch using Demo Video Feature',
     meta: [
       { label: 'Website', value: 'https://ui.shadcn.com/' },
-      { label: 'Prompt', value: 'give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component' },
+      { label: 'Prompt', value: 'Give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component' },
     ],
   },
   {
