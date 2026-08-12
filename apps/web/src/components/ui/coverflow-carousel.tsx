@@ -496,7 +496,7 @@ export function CoverflowCarousel({
                         const video = videoRefs.current[index]
                         if (video) enterFullscreen(video)
                       }}
-                      className="absolute top-2.5 right-2.5 z-10 flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                      className="absolute top-2.5 right-2.5 md:top-auto md:bottom-2.5 z-10 flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                     >
                       <Maximize className="size-4" />
                     </button>
