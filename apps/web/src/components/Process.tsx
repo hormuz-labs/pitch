@@ -378,18 +378,28 @@ export const Process = () => {
             </text>
           </g>
 
-          {/* ── CENTER LOGO BADGE (p-0 to allow SVG to fully touch the card boundary) ── */}
-          <foreignObject x={450} y={275} width={100} height={100}>
-            <div className="w-full h-full flex items-center justify-center logo-center-card">
-              <div className="relative w-16 h-16 rounded-2xl overflow-hidden border transition-all duration-500 flex items-center justify-center p-0 bg-[#111111] scale-110 border-[#8B5CF6]/40">
-                <img
-                  src="/tabLogoB.svg"
-                  alt="Pitch Logo"
-                  className="w-full h-full object-contain pointer-events-none"
-                />
-              </div>
-            </div>
-          </foreignObject>
+          {/* ── CENTER LOGO BADGE (Native SVG for iOS Safari support) ── */}
+          <g transform="translate(500, 325)">
+            <rect
+              x="-35.2"
+              y="-35.2"
+              width="70.4"
+              height="70.4"
+              rx="17.6"
+              fill="#111111"
+              stroke="rgba(139, 92, 246, 0.4)"
+              strokeWidth="1"
+              className="logo-center-card transition-all duration-500"
+            />
+            <image
+              href="/tabLogoB.svg"
+              x="-35.2"
+              y="-35.2"
+              width="70.4"
+              height="70.4"
+              style={{ pointerEvents: 'none' }}
+            />
+          </g>
         </svg>
       </div>
     </div>
