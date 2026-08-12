@@ -93,7 +93,7 @@ GSAP master timeline. A full render re-captures every frame from scratch:
 motion_render({
   out: `../../renders/${internalName}-launch.mp4`,
   fps: 60,
-  scale: 1,
+  scale: 2,   // 4K UHD — the default final quality
 })
 ```
 
@@ -267,8 +267,8 @@ window.SCENE_TIMING = {
 and audit output all inside the project's own folder, never at repo root.
 Rendered deliverables are the ONE exception: **all final MP4s from all
 projects go to the shared top-level `renders/` folder**, named with the
-project prefix (`<project>-draft.mp4`, `<project>-launch.mp4`,
-`<project>-launch-4k.mp4`). No per-project `out/` folders.
+project prefix (`<project>-draft.mp4` for iteration, `<project>-launch.mp4`
+for the 4K final). No per-project `out/` folders.
 
 ```
 <repo-root>/
@@ -289,9 +289,8 @@ project prefix (`<project>-draft.mp4`, `<project>-launch.mp4`,
 │       ├── audio/          # VO clips, music bed, SFX, mix.wav — all sound stays here
 │       └── audit/          # audit.mjs frame output (generated, gitignored)
 └── renders/                # SHARED deliverables folder for ALL projects
-    ├── <project>-draft.mp4
-    ├── <project>-launch.mp4
-    └── <project>-launch-4k.mp4
+    ├── <project>-draft.mp4     # 1080p/30fps iteration draft
+    └── <project>-launch.mp4    # final deliverable — 4K UHD (scale=2) @ 60fps
 ```
 
 Never build a monolithic single HTML file. Full shell/module/master-timeline/
@@ -488,6 +487,14 @@ These are correctness rules, independent of style:
     guessed ones** — an `inset: 0` SVG stretches non-uniformly with its host,
     so verify viewBox coordinates against audit frames and recompute; a
     hand-drawn circle that misses its target element reads as broken.
+19. **Every scene must be invisible outside its own time window.** Each
+    `.scene` starts hidden, fades in at its label, and master.js explicitly
+    fades it OUT (`autoAlpha: 0`) at the end of its window — never rely on the
+    next scene covering the previous one. A missing fade-out makes scenes
+    accumulate on top of each other in the final MP4 (the classic "scenes
+    overlapping" bug). `audit.mjs` samples every scene's midpoint and **fails
+    the build** if any non-active scene has opacity ≥ 0.05 — do not render
+    until it passes.
 
 ## Phase 5 — Music & Mix
 
@@ -529,7 +536,9 @@ project name.
 cd projects/<name>
 SKILL=../../.opencode/skills/html-motion-video
 
-# 1. Motion audit — must pass with zero static-hold warnings (output: ./audit/)
+# 1. Motion audit — must pass with zero static-hold AND zero scene-overlap
+#    warnings (output: ./audit/). The overlap check fails the build if any
+#    scene is still visible at another scene's midpoint (missing fade-out).
 node $SKILL/scripts/audit.mjs index.html
 
 # 2. SEGMENT ITERATION — render individual scenes while polishing them.
@@ -542,10 +551,10 @@ wait
 
 # 3. FINAL — always ONE full-timeline render (never concat segment files:
 #    transitions span scene boundaries, and capture.mjs already parallelizes
-#    the full render across ~6 browser workers internally):
-node $SKILL/scripts/capture.mjs index.html --fps=30 --scale=1 --out=../../renders/<name>-draft.mp4   # full draft
-node $SKILL/scripts/capture.mjs index.html --fps=60 --scale=1 --out=../../renders/<name>-launch.mp4  # final
-node $SKILL/scripts/capture.mjs index.html --fps=60 --scale=2 --out=../../renders/<name>-launch-4k.mp4  # optional 4K
+#    the full render across ~6 browser workers internally).
+#    The final deliverable is 4K UHD (scale=2) by default:
+node $SKILL/scripts/capture.mjs index.html --fps=30 --scale=1 --out=../../renders/<name>-draft.mp4   # full draft (fast, 1080p)
+node $SKILL/scripts/capture.mjs index.html --fps=60 --scale=2 --out=../../renders/<name>-launch.mp4  # final — 4K UHD
 
 # 4. Verify duration matches __DURATION() (not the audio length)
 ffprobe -v quiet -show_entries format=duration -of csv=p=0 ../../renders/<name>-launch.mp4
@@ -589,7 +598,9 @@ final ships.
 - [ ] All selectors scene-scoped; camera drift last at position 0 in each scene
 - [ ] All transitions relative-offset; no two readable screens at once
 - [ ] Gradient-text rules: inline-block, no blur, not split, `.char` targeting
-- [ ] `.scene` visibility handled via opacity (or autoAlpha) only
+- [ ] `.scene` visibility handled via opacity (or autoAlpha) only; every scene
+      explicitly fades out at the end of its window and the audit's scene
+      overlap check passes with zero violations
 - [ ] Cursor: hidden by default, appears only to act, seek-measured targeting
 - [ ] Connector paths routed around nodes; node icons non-empty
 - [ ] `CONTENT_DURATION` captured before infinite ambient; seeded rng only

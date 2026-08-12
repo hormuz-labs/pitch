@@ -49,7 +49,7 @@ const renderH = height * scale;
 
 console.log(`\n🚀 Starting Ultra-HD Video Render:`);
 console.log(`   Page:      ${pageArg}`);
-console.log(`   Res:       ${renderW}x${renderH} (4K UHD @ scale ${scale})`);
+console.log(`   Res:       ${renderW}x${renderH} (${scale >= 2 ? "4K UHD" : "1080p"} @ scale ${scale})`);
 console.log(`   FPS:       ${fps} FPS`);
 console.log(`   Workers:   ${workers} isolated parallel browser workers\n`);
 

@@ -78,6 +78,10 @@ paper grain, glow shapes…) — there is no fixed set of orbs.
 ```
 
 - `#viewport` is a fixed 1920×1080 stage.
+- **`.scene` starts hidden:** `css/base.css` sets `.scene { position: absolute;
+  inset: 0; opacity: 0; }` so every scene is invisible until master.js fades
+  it in (and back out — see §3). Without this, later scenes sit visible on top
+  of the current one from frame 0.
 - Grain, if used, is an SVG `feTurbulence` rect in `#finish-layer` at low
   opacity; keep `mix-blend-mode` appropriate to light vs dark base.
 
@@ -120,13 +124,23 @@ gsap.registerPlugin(SplitText, DrawSVGPlugin, MotionPathPlugin, CustomEase, Text
 
 const master = gsap.timeline({ paused: true });
 
-// Labels mark CONTENT START (the "<" of each scene add), not the previous
-// scene's end — so VO delays (label + 0.3s) and cue exports map to when the
-// scene is actually readable, and cursor {label, offset} math stays correct.
-master.add(scene1(), 0).addLabel("scene1", 0)
-      .add(transitionOut("#scene1", "#scene2"), ">-0.5").add(scene2(), "<").addLabel("scene2", "<")
-      .add(transitionOut("#scene2", "#scene3"), ">-0.5").add(scene3(), "<").addLabel("scene3", "<");
-      // ... relative offsets only — absolute .add(scene(), 21.0) is banned
+// Scenes chain through addScene, which wraps every scene in an explicit
+// fade-IN at its label and fade-OUT at the end of its window. The fade-out is
+// NOT optional: without it the scene stays visible under every later scene
+// and the final MP4 shows all scenes stacked on top of each other
+// (SKILL.md invariant #19 — audit.mjs fails the build on this).
+function addScene(sceneTl, sceneId, label, overlap = "-=0.4") {
+  master.addLabel(label, master.duration() ? overlap : 0);
+  master.to(`#${sceneId}`, { autoAlpha: 1, duration: 0.4, ease: "none" }, label);
+  master.add(sceneTl, label);
+  const outTime = `${label}+=${window.SCENE_TIMING[sceneId].dur}`;
+  master.to(`#${sceneId}`, { autoAlpha: 0, duration: 0.4, ease: "none" }, outTime);
+}
+
+addScene(scene1(), "scene1", "scene1", 0);
+addScene(scene2(), "scene2", "scene2", "-=0.4");
+addScene(scene3(), "scene3", "scene3", "-=0.4");
+// ... relative offsets only — absolute .add(scene(), 21.0) is banned
 
 // Capture finite duration BEFORE any infinite-repeat ambient tweens
 const CONTENT_DURATION = master.duration();
@@ -344,4 +358,7 @@ and adapt to flat pushes/wipes for Editorial/Precision). All transitions:
 
 - chained with relative offsets (`">-0.5"`),
 - outgoing scene visibly departing while incoming arrives (~0.3–0.5s overlap),
+- **the outgoing scene always ends fully transparent** (`autoAlpha: 0`) — a
+  transition that only moves/scales the old scene off-camera still leaves it
+  composited; opacity is the only guaranteed hide,
 - never two readable screens at rest simultaneously.
