@@ -535,9 +535,18 @@ export function CoverflowCarousel({
           className="mt-2 flex flex-col items-center px-6 duration-300 animate-in fade-in"
         >
           <p className="text-[15px] font-semibold tracking-tight text-foreground">{active.title}</p>
-          {active.subtitle && (
-            <p className="mt-1 text-[13px] text-muted-foreground">{active.subtitle}</p>
-          )}
+          {active.subtitle && (() => {
+            const parts = active.subtitle.split(' using ')
+            if (parts.length === 2) {
+              return (
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  {parts[0]} using{' '}
+                  <span className="font-semibold text-foreground">{parts[1]}</span>
+                </p>
+              )
+            }
+            return <p className="mt-1 text-[13px] text-muted-foreground">{active.subtitle}</p>
+          })()}
           {active.meta && active.meta.length > 0 && (
             <dl className="mt-8 w-full max-w-[340px] text-[12px]">
               {active.meta.map(row => (
