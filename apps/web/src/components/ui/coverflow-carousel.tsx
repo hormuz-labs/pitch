@@ -315,9 +315,10 @@ export function CoverflowCarousel({
   }, [selected])
 
   // Native controls only exist while the video is fullscreen.
-  // Listen to both the standard and WebKit-prefixed events for iOS Safari.
+  // • Standard browsers: fullscreenchange / webkitfullscreenchange on document
+  // • iOS Safari: webkitbeginfullscreen / webkitendfullscreen on the video element itself
   React.useEffect(() => {
-    const onFullscreenChange = () => {
+    const onDocFullscreen = () => {
       const fullEl =
         document.fullscreenElement ??
         (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement
@@ -325,11 +326,29 @@ export function CoverflowCarousel({
         if (video) video.controls = fullEl === video
       })
     }
-    document.addEventListener('fullscreenchange', onFullscreenChange)
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+    document.addEventListener('fullscreenchange', onDocFullscreen)
+    document.addEventListener('webkitfullscreenchange', onDocFullscreen)
+
+    // Per-video iOS listeners — must be attached after mount so refs are filled.
+    const perVideoCleanups = videoRefs.current.map(video => {
+      if (!video) return () => {}
+      const onBegin = () => {
+        video.controls = true
+        video.muted = false // unmute so sound works in iOS fullscreen
+      }
+      const onEnd = () => { video.controls = false }
+      video.addEventListener('webkitbeginfullscreen', onBegin)
+      video.addEventListener('webkitendfullscreen', onEnd)
+      return () => {
+        video.removeEventListener('webkitbeginfullscreen', onBegin)
+        video.removeEventListener('webkitendfullscreen', onEnd)
+      }
+    })
+
     return () => {
-      document.removeEventListener('fullscreenchange', onFullscreenChange)
-      document.removeEventListener('webkitfullscreenchange', onFullscreenChange)
+      document.removeEventListener('fullscreenchange', onDocFullscreen)
+      document.removeEventListener('webkitfullscreenchange', onDocFullscreen)
+      perVideoCleanups.forEach(fn => fn())
     }
   }, [])
 
