@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import agentcardVideo from '../../assets/carousel/agentcard.mp4'
+import demoVideo from '../../assets/demo.mp4'
 import graphifyVideo from '../../assets/carousel/graphify.mp4'
 import gtmcofounderVideo from '../../assets/carousel/gtmcofounder.mp4'
 import sioVideo from '../../assets/carousel/sio.mp4'
@@ -9,6 +10,16 @@ import supermemoryVideo from '../../assets/carousel/supermemory.mp4'
 import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel'
 
 const SLIDES: CoverflowSlide[] = [
+  {
+    src: demoVideo,
+    alt: 'Pitch demo — AI-generated narrated video pitch',
+    title: 'Pitch',
+    subtitle: 'Made with Pitch',
+    meta: [
+      { label: 'Website', value: 'https://trypitch.app/' },
+      { label: 'Prompt', value: 'Make a cinematic pitch video for Pitch' },
+    ],
+  },
   {
     src: graphifyVideo,
     alt: 'Pitch-generated demo video for Graphify',

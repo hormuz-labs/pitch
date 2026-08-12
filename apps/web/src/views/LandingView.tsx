@@ -11,7 +11,7 @@ import { Step2Illustration } from '../components/landing/Step2Illustration'
 import { Step3Illustration } from '../components/landing/Step3Illustration'
 import { StepCard } from '../components/landing/StepCard'
 import { VideoCarousel } from '../components/landing/VideoCarousel'
-import { VideoPlayerMockup } from '../components/landing/VideoPlayerMockup'
+
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
 import { Process } from '../components/Process'
 import { TextGenerateEffect } from '../components/ui/text-generate-effect'
@@ -166,9 +166,7 @@ export const LandingView = () => {
             </div>
           </div>
 
-          <div className="landing-hero-right landing-animate-6">
-            <VideoPlayerMockup />
-          </div>
+
 
           {/* Scroll cue */}
           <div className="landing-hero-scroll-cue" aria-hidden="true">
