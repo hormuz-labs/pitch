@@ -24,7 +24,7 @@ const SLIDES: CoverflowSlide[] = [
     src: graphifyVideo,
     alt: 'Pitch-generated demo video for Graphify',
     title: 'Graphify',
-    subtitle: 'Made with Pitch',
+    subtitle: 'Made with Pitch using Launch Video Feature',
     meta: [
       { label: 'Website', value: 'https://graphify.com/' },
       { label: 'Prompt', value: 'Make 70 second launch video on https://graphify.com/' },
@@ -34,7 +34,7 @@ const SLIDES: CoverflowSlide[] = [
     src: supermemoryVideo,
     alt: 'Pitch-generated demo video for Supermemory',
     title: 'Supermemory',
-    subtitle: 'Made with Pitch',
+    subtitle: 'Made with Pitch using Launch Video Feature',
     meta: [
       { label: 'Website', value: 'https://supermemory.ai/' },
       { label: 'Prompt', value: 'Make 35 second launch video of https://supermemory.ai/' },
@@ -44,7 +44,7 @@ const SLIDES: CoverflowSlide[] = [
     src: gtmcofounderVideo,
     alt: 'Pitch-generated demo video for GTM Cofounder',
     title: 'GTM Cofounder',
-    subtitle: 'Made with Pitch',
+    subtitle: 'Made with Pitch using Launch Video Feature',
     meta: [
       { label: 'Website', value: 'https://gtmcofounder.com/' },
       { label: 'Prompt', value: 'Make 40 second launch video of https://gtmcofounder.com/' },
@@ -54,7 +54,7 @@ const SLIDES: CoverflowSlide[] = [
     src: sioVideo,
     alt: 'Pitch-generated demo video for Sio',
     title: 'Students Islamic Organization',
-    subtitle: 'Made with Pitch',
+    subtitle: 'Made with Pitch using Launch Video Feature',
     meta: [
       { label: 'Website', value: 'https://siodelhi.org/' },
       { label: 'Prompt', value: 'Make 30 second launch video of https://siodelhi.org/' },
@@ -64,7 +64,7 @@ const SLIDES: CoverflowSlide[] = [
     src: agentcardVideo,
     alt: 'Pitch-generated demo video for AgentCard',
     title: 'AgentCard',
-    subtitle: 'Made with Pitch',
+    subtitle: 'Made with Pitch using Launch Video Feature',
     meta: [
       { label: 'Website', value: 'https://www.agentcard.sh/' },
       { label: 'Prompt', value: 'Make 45 second launch video of https://www.agentcard.sh/' },
