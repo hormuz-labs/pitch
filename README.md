@@ -16,8 +16,6 @@
 *A distributed execution engine that transforms procedural web interactions into studio-quality, narrated MP4s.*
 https://trypitch.co try it now
 
-
-
 </div>
 
 <br>
