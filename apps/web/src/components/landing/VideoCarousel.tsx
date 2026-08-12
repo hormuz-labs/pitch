@@ -11,16 +11,6 @@ import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel
 
 const SLIDES: CoverflowSlide[] = [
   {
-    src: demoVideo,
-    alt: 'Shadcn UI walkthrough — made with Pitch Demo Video feature',
-    title: 'Shadcn',
-    subtitle: 'Made with Pitch using Demo Video Feature',
-    meta: [
-      { label: 'Website', value: 'https://ui.shadcn.com/' },
-      { label: 'Prompt', value: 'Give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component' },
-    ],
-  },
-  {
     src: graphifyVideo,
     alt: 'Pitch-generated demo video for Graphify',
     title: 'Graphify',
@@ -51,6 +41,16 @@ const SLIDES: CoverflowSlide[] = [
     ],
   },
   {
+    src: demoVideo,
+    alt: 'Shadcn UI walkthrough — made with Pitch Demo Video feature',
+    title: 'Shadcn',
+    subtitle: 'Made with Pitch using Demo Video Feature',
+    meta: [
+      { label: 'Website', value: 'https://ui.shadcn.com/' },
+      { label: 'Prompt', value: 'Give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component' },
+    ],
+  },
+  {
     src: sioVideo,
     alt: 'Pitch-generated demo video for Sio',
     title: 'Students Islamic Organization',
@@ -71,6 +71,7 @@ const SLIDES: CoverflowSlide[] = [
     ],
   },
 ]
+
 
 /** "editor" with a strike that draws itself once the heading scrolls into view. */
 const StruckEditor = () => {
