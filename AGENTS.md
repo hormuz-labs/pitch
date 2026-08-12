@@ -10,7 +10,7 @@ worker processor; they never import from each other.
 | AI demo video (`/new`, including PDF/image → video) | `.opencode/agents/demo-generator.md` + `.opencode/tools/demo-generator.ts` | `apps/worker/src/job-processor.ts` |
 | Recording edit (upload) | `.opencode/agents/recording-editor.md` + `.opencode/tools/recording-editor.ts` | `apps/worker/src/edit-job-processor.ts` |
 | PDF / slides | `.opencode/agents/pdf-generator.md` (+ `.opencode/skills/*`) | `apps/worker/src/pdf-job-processor.ts`, `enhance-job-processor.ts` |
-| Launch video (`/launch-video`, HTML/GSAP motion graphics → MP4) | `.opencode/agents/html-video.md` + `.opencode/plugins/html-motion-tools.ts` + skills `html-motion-video`, `agent-browser` | none — driven by `apps/api/src/routes/launch-video.ts` via `@opencode-ai/sdk` (spawns its own opencode server) |
+| Launch video (`/launch-video`, HTML/GSAP motion graphics → MP4) | `.opencode/agents/html-video.md` + `.opencode/plugins/html-motion-tools.ts` + skills `html-motion-video`, `agent-browser` | `apps/worker/src/launch-video-job-processor.ts` (initial generation); API-side OpenCode session helpers drive follow-up edits |
 
 Launch-video layout (ported from github.com/hormuz-labs/launch-videos):
 

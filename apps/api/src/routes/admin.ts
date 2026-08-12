@@ -181,7 +181,7 @@ router.get('/jobs', async (_req, res) => {
   }
 })
 
-// 2b. Launch video projects (agent sessions, not queued jobs)
+// 2b. Launch video project workspaces and their persisted agent-session metadata
 router.get('/launch-videos', async (_req, res) => {
   try {
     const projects = await listAllProjects()

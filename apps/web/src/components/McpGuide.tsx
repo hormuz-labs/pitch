@@ -122,7 +122,7 @@ export function McpGuide() {
           </li>
           <li>
             <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">create_launch_video</code> —
-            AI product launch video (agent session)
+            AI product launch video (5 credits)
           </li>
           <li>
             <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">create_pdf</code> — Generate a
