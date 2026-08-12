@@ -13,6 +13,15 @@ const formatTime = (seconds: number) => {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+/** Cross-browser fullscreen — falls back to webkitEnterFullscreen for iOS Safari. */
+const enterFullscreen = (video: HTMLVideoElement) => {
+  if (video.requestFullscreen) {
+    video.requestFullscreen().catch(() => {})
+  } else if ((video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen) {
+    ;(video as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen()
+  }
+}
+
 export interface CoverflowSlide {
   src: string
   alt: string
@@ -306,14 +315,22 @@ export function CoverflowCarousel({
   }, [selected])
 
   // Native controls only exist while the video is fullscreen.
+  // Listen to both the standard and WebKit-prefixed events for iOS Safari.
   React.useEffect(() => {
     const onFullscreenChange = () => {
+      const fullEl =
+        document.fullscreenElement ??
+        (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement
       videoRefs.current.forEach(video => {
-        if (video) video.controls = document.fullscreenElement === video
+        if (video) video.controls = fullEl === video
       })
     }
     document.addEventListener('fullscreenchange', onFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', onFullscreenChange)
+    }
   }, [])
 
   const active = slides[selected]
@@ -457,7 +474,8 @@ export function CoverflowCarousel({
                       onClick={event => {
                         event.stopPropagation()
                         setSoundOn(true)
-                        videoRefs.current[index]?.requestFullscreen().catch(() => {})
+                        const video = videoRefs.current[index]
+                        if (video) enterFullscreen(video)
                       }}
                       className="absolute bottom-2.5 right-2.5 z-10 flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                     >
