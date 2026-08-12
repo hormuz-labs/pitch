@@ -12,12 +12,12 @@ import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel
 const SLIDES: CoverflowSlide[] = [
   {
     src: demoVideo,
-    alt: 'Pitch demo — AI-generated narrated video pitch',
-    title: 'Pitch',
-    subtitle: 'Made with Pitch',
+    alt: 'Shadcn UI walkthrough — made with Pitch Demo Video feature',
+    title: 'Shadcn',
+    subtitle: 'Made with Pitch using Demo Video Feature',
     meta: [
-      { label: 'Website', value: 'https://trypitch.app/' },
-      { label: 'Prompt', value: 'Make a cinematic pitch video for Pitch' },
+      { label: 'Website', value: 'https://ui.shadcn.com/' },
+      { label: 'Prompt', value: 'give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component' },
     ],
   },
   {
