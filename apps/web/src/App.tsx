@@ -1707,9 +1707,8 @@ function AppContent() {
     )
   }
 
-  // Landing page — signed-in users go straight to dashboard
+  // Landing page — always shown at /, signed-in users see the Dashboard CTA
   if (location.pathname === '/') {
-    if (userId) return <Navigate to="/dashboard" replace />
     return <LandingView />
   }
 
