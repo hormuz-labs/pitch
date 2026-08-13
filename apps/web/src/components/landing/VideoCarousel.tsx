@@ -7,19 +7,10 @@ import graphifyVideo from '../../assets/carousel/graphify.mp4'
 import gtmcofounderVideo from '../../assets/carousel/gtmcofounder.mp4'
 import sioVideo from '../../assets/carousel/sio.mp4'
 import supermemoryVideo from '../../assets/carousel/supermemory.mp4'
+import unslothVideo from '../../assets/carousel/unsloth-launch.mp4'
 import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel'
 
 const SLIDES: CoverflowSlide[] = [
-  {
-    src: graphifyVideo,
-    alt: 'Pitch-generated demo video for Graphify',
-    title: 'Graphify',
-    subtitle: 'Made with Pitch using Launch Video Feature',
-    meta: [
-      { label: 'Website', value: 'https://graphify.com/' },
-      { label: 'Prompt', value: 'Make 70 second launch video on https://graphify.com/' },
-    ],
-  },
   {
     src: supermemoryVideo,
     alt: 'Pitch-generated demo video for Supermemory',
@@ -38,6 +29,26 @@ const SLIDES: CoverflowSlide[] = [
     meta: [
       { label: 'Website', value: 'https://gtmcofounder.com/' },
       { label: 'Prompt', value: 'Make 40 second launch video of https://gtmcofounder.com/' },
+    ],
+  },
+  {
+    src: unslothVideo,
+    alt: 'Pitch-generated launch video for Unsloth AI',
+    title: 'Unsloth AI',
+    subtitle: 'Made with Pitch using Launch Video Feature',
+    meta: [
+      { label: 'Website', value: 'https://unsloth.ai/' },
+      { label: 'Prompt', value: 'Make 70 seconds launch video on https://unsloth.ai/' },
+    ],
+  },
+  {
+    src: graphifyVideo,
+    alt: 'Pitch-generated demo video for Graphify',
+    title: 'Graphify',
+    subtitle: 'Made with Pitch using Launch Video Feature',
+    meta: [
+      { label: 'Website', value: 'https://graphify.com/' },
+      { label: 'Prompt', value: 'Make 70 second launch video on https://graphify.com/' },
     ],
   },
   {
