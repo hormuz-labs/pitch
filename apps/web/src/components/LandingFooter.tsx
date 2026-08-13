@@ -1,6 +1,6 @@
 import { motion, type Variants } from 'framer-motion'
 import type { ReactNode } from 'react'
-import { FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
+import { FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
 import { PitchWordmark } from './PitchWordmark'
 
@@ -48,6 +48,7 @@ const defaultColumns: Footer15Column[] = [
     title: 'Social',
     links: [
       { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: FaXTwitter },
+      { label: 'Instagram', href: 'https://www.instagram.com/trypitch.co', icon: FaInstagram },
       {
         label: 'LinkedIn',
         href: 'https://www.linkedin.com/company/trypitchdotco/',

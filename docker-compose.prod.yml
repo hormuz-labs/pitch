@@ -1,5 +1,6 @@
 # Production overrides — applied on the Linux host via: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # Remaps volumes to stable /mnt/hdd paths and re-enables AMD GPU access for the worker.
+# Grafana / Loki / MinIO data lives on the HDD at /mnt/hdd; everything else stays on the SSD at /opt/pitch.
 
 services:
   postgres:
