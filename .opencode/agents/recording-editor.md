@@ -1,7 +1,7 @@
 ---
 description: Edits an uploaded narrated screen recording into a cinematic demo — reconstructs recordings/demo-state.json (zoom + click events) from the narration and the visuals, so the standard render pipeline (zoom-filter, cursor-fx, smart_trim, intro/outro) can finish it unchanged.
 mode: primary
-model: google/gemini-3.1-pro-preview
+model: google/gemini-3.7-flash
 temperature: 0.2
 permission:
   bash: deny

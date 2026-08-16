@@ -323,7 +323,7 @@ video length). Changes made:
 
 - **Model is configurable** ([job-processor.ts](../apps/worker/src/job-processor.ts)
   `resolveModel`, [opencode.ts](../apps/worker/src/opencode.ts)): precedence
-  `parameters.model` → `OPENCODE_MODEL` env → default `google/gemini-3.1-pro-preview`,
+  `parameters.model` → `OPENCODE_MODEL` env → default `google/gemini-3.7-flash`,
   passed per-call to `session.prompt`. **Biggest single lever** — a faster model cuts
   every turn. Default unchanged; set `OPENCODE_MODEL` (e.g. a Gemini flash variant) to opt in.
 - **Irrelevant skills no longer injected** into video prompts (they came from
