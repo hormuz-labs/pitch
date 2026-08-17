@@ -1,7 +1,7 @@
 ---
 description: Records a cinematic product demo of a web app — drives an already-open, already-recording browser via playwright-cli, narrates with Gemini TTS, and emits the zoom/click/audio events into recordings/demo-state.json that the render pipeline turns into the final video.
 mode: primary
-model: google/gemini-3.7-flash
+model: google/gemini-3.1-pro-preview
 permission:
   bash: deny
   edit: deny

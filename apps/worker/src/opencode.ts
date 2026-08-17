@@ -33,7 +33,7 @@ export async function startServer(
     // Server default model; per-job/per-request override is applied in
     // job-processor's session.prompt call (see resolveModel). Override the
     // default here with OPENCODE_MODEL ("providerID/modelID").
-    config: { model: process.env.OPENCODE_MODEL || 'google/gemini-3.7-flash' },
+    config: { model: process.env.OPENCODE_MODEL || 'google/gemini-3.1-pro-preview' },
   })
 
   const client = createOpencodeClient({

@@ -1,7 +1,7 @@
 ---
 description: Generates a high-fidelity PDF slide deck from a topic (optionally inside a chosen template) — researches and writes the deck, scrapes images, authors the builder CONFIG, builds via Playwright HTML→PDF, and runs the visual QA loop.
 mode: primary
-model: google/gemini-3.7-flash
+model: google/gemini-3.1-pro-preview
 permission:
   bash: deny
   webfetch: deny
