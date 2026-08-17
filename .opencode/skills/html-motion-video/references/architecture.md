@@ -45,10 +45,17 @@ paper grain, glow shapes…) — there is no fixed set of orbs.
     <div id="bg-layer"></div>
 
     <div id="camera">
-      <div id="scene1" class="scene"><!-- Scene HTML --></div>
-      <div id="scene2" class="scene"></div>
+      <div id="scene1" class="scene">
+        <div class="camera-content"><!-- Scene HTML --></div>
+      </div>
+      <div id="scene2" class="scene">
+        <div class="camera-content"></div>
+      </div>
       <!-- ... -->
     </div>
+
+    <!-- Persistent shared-element/portal assets during scene boundaries. -->
+    <div id="transition-layer" aria-hidden="true"></div>
 
     <!-- Cursor rig (above scenes, below finish layers). Hidden by default. -->
     <div id="cursor-rig">
@@ -67,6 +74,7 @@ paper grain, glow shapes…) — there is no fixed set of orbs.
   </div>
 
   <script src="js/timing.js"></script>
+  <script src="js/focus.js"></script>
   <script src="js/cursor.js"></script>
   <script src="js/transitions.js"></script>
   <script src="js/scenes/scene1.js"></script>
@@ -78,6 +86,10 @@ paper grain, glow shapes…) — there is no fixed set of orbs.
 ```
 
 - `#viewport` is a fixed 1920×1080 stage.
+- Each product-demo scene gets one full-stage `.camera-content` wrapper with
+  `position:absolute; inset:0; transform-origin:0 0;`. The focus director
+  transforms that wrapper; screen-edge chrome that must stay fixed lives
+  outside it.
 - **`.scene` starts hidden:** `css/base.css` sets `.scene { position: absolute;
   inset: 0; opacity: 0; }` so every scene is invisible until master.js fades
   it in (and back out — see §3). Without this, later scenes sit visible on top
@@ -100,8 +112,12 @@ function scene4() {
     // Content entrances chain from t≈0.2 onward, relative offsets
     .from("#scene4 .demo-shell", { y: 150, scale: 0.7, opacity: 0, duration: 0.9, ease: EASE.entrance }, 0.2)
     // ... all content tweens, selectors ALWAYS scoped to #scene4 ...
-    // Camera/stage drift LAST, explicit position 0, spans the full scene
-    .fromTo("#scene4", { scale: 1.0, x: -20 }, { scale: 1.08, x: 20, duration: D, ease: "none" }, 0);
+    // Semantic camera track LAST; it overlaps the interaction at explicit time.
+    .add(FocusDirector.focusElement("#scene4 .composer", {
+      label: "scene4", measureOffset: 1.15, scale: 2.1,
+      landingX: 1030, landingY: 520, hold: 1.2,
+      release: { scale: 1.08, x: -35, y: 0 },
+    }), 0.8);
 
   return tl;
 }
@@ -110,8 +126,10 @@ function scene4() {
 Rules baked into this pattern:
 - **All selectors scoped to the scene ID.** GSAP `.from()` is
   `immediateRender: true`; unscoped selectors corrupt other scenes at load.
-- **Drift tween last at position `0`** — placed first, subsequent
-  relative-offset tweens would chain after its full duration.
+- **Camera transform track last** — placing a full-duration camera tween first
+  would make subsequent relative tweens chain after it. Semantic focus tracks
+  use explicit beat positions; restrained ambient drift, when needed, starts at
+  position `0`.
 - `EASE.*`/duration constants come from a small `js/motion-tokens.js` (or top
   of transitions.js) that encodes the motion language from direction.md, so
   the whole video shares one vocabulary.
@@ -163,9 +181,15 @@ CursorController.pendingClicks.forEach((entry) => {
 });
 
 setupAmbient(CONTENT_DURATION);   // background living-motion layer (repeat: -1 allowed now)
-CursorController.bindAllClicks(); // seek-measure click targets (see §5)
 
-document.fonts.ready.then(() => { window.__READY = true; });
+// Fonts affect DOM geometry. Resolve both attention frames and cursor targets
+// only after fonts load, then signal capture readiness.
+document.fonts.ready.then(() => {
+  FocusDirector.resolveLabelTimes(master);
+  FocusDirector.bindAllFrames();  // seek-measure camera targets (see §6)
+  CursorController.bindAllClicks(); // seek-measure click targets (see §5)
+  window.__READY = true;
+});
 ```
 
 Determinism rules: no CSS animations/transitions, no `gsap.ticker`, and no
@@ -324,7 +348,88 @@ tl.add(CursorController.clickElement("#scene5 .apply-btn", { label: "scene5", of
   .to("#scene5 .apply-btn", { scale: 0.92, yoyo: true, repeat: 1, duration: 0.15 }, "<1.1");
 ```
 
-## 6. Cursor CSS (css/cursor.css)
+## 6. Focus director (js/focus.js)
+
+The focus director uses the same deferred seek-and-measure principle as the
+cursor. A scene records a placeholder timeline; after master assembly and font
+loading, the director seeks to the settled target state, measures at camera
+identity, and fills the placeholder with deterministic numeric transforms.
+
+```js
+const FocusDirector = {
+  pending: [],
+
+  focusElement(selector, opts = {}) {
+    const tl = gsap.timeline();
+    this.pending.push({ selector, opts, tl });
+    return tl;
+  },
+
+  resolveLabelTimes(master) {
+    this.pending.forEach((entry) => {
+      const { label, measureOffset = 0 } = entry.opts;
+      if (label !== undefined) {
+        entry.opts.measureTime = master.labels[label] + measureOffset;
+      }
+    });
+  },
+
+  bindAllFrames() {
+    this.pending.forEach(({ selector, opts, tl }) => {
+      const target = document.querySelector(selector);
+      if (!target) throw new Error(`FocusDirector: target not found: ${selector}`);
+      const content = target.closest(".camera-content");
+      if (!content) throw new Error(`FocusDirector: ${selector} needs .camera-content`);
+
+      if (opts.measureTime !== undefined && window.__SEEK) {
+        window.__SEEK(opts.measureTime);
+      }
+
+      const saved = {
+        x: gsap.getProperty(content, "x"),
+        y: gsap.getProperty(content, "y"),
+        scale: gsap.getProperty(content, "scale"),
+        transformOrigin: gsap.getProperty(content, "transformOrigin"),
+      };
+      gsap.set(content, { x: 0, y: 0, scale: 1, transformOrigin: "0 0" });
+
+      const cr = content.getBoundingClientRect();
+      const tr = target.getBoundingClientRect();
+      const cx = tr.left - cr.left + tr.width / 2;
+      const cy = tr.top - cr.top + tr.height / 2;
+      const scale = opts.scale || 2;
+      const frame = {
+        scale,
+        x: (opts.landingX || 960) - scale * cx,
+        y: (opts.landingY || 540) - scale * cy,
+      };
+
+      gsap.set(content, saved);
+      tl.to(content, {
+        ...frame,
+        duration: opts.duration || 0.68,
+        ease: opts.ease || "power4.inOut",
+        transformOrigin: "0 0",
+      });
+      if (opts.hold) tl.to({}, { duration: opts.hold });
+      if (opts.release) {
+        tl.to(content, {
+          ...opts.release,
+          duration: opts.releaseDuration || 0.92,
+          ease: opts.releaseEase || "power2.inOut",
+        });
+      }
+    });
+    if (window.__SEEK) window.__SEEK(0);
+  },
+};
+```
+
+This is the core calculation. Production implementations must also clamp the
+computed frame to safe margins and support normalized image hotspots. See
+`attention-camera.md` for scale tiers, hotspot math, and framing policy.
+
+## 7. Cursor CSS (css/cursor.css)
 
 Style the cursor with the **brand's accent color** from direction.md — the
 indigo below is a placeholder. On light backgrounds invert: dark pointer,
@@ -350,15 +455,24 @@ darker soft shadow, subtler glow.
 }
 ```
 
-## 7. Transitions (js/transitions.js)
+## 8. Transitions (js/transitions.js)
 
 Implement the 2–3 transition helpers your motion language calls for (see
-`creative-direction.md` Axis 3, recipes in `effects-catalog.md` #12–14 for 3D
-and adapt to flat pushes/wipes for Editorial/Precision). All transitions:
+`creative-direction.md` Axis 3, `scene-transitions.md`, and recipes in
+`effects-catalog.md` #12–14). All transitions:
 
 - chained with relative offsets (`">-0.5"`),
-- outgoing scene visibly departing while incoming arrives (~0.3–0.5s overlap),
+- classified in the storyboard as a connected bridge or motivated chapter cut,
+- preserve one named property across connected boundaries (identity, position,
+  velocity, shape, color, or meaning),
+- outgoing scene visibly departing while incoming arrives (~0.3–0.8s overlap),
 - **the outgoing scene always ends fully transparent** (`autoAlpha: 0`) — a
   transition that only moves/scales the old scene off-camera still leaves it
   composited; opacity is the only guaranteed hide,
 - never two readable screens at rest simultaneously.
+
+Persistent bridge duplicates live in `#transition-layer` above scenes and are
+hidden before/after their exact handoff window. Seek-measure their outgoing and
+incoming rectangles after fonts/assets load; never guess shared-element
+coordinates. Full hierarchy and implementation recipes:
+`scene-transitions.md`.

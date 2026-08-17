@@ -1,5 +1,10 @@
 # Creative Direction Playbook — Deriving a Bespoke Look Per Product
 
+This reference supplies questions and option spaces, not a house style. URL
+recon and product meaning outrank every menu, example, plugin suggestion, and
+numeric range below. Invent a direction outside these menus when the evidence
+supports it; never imitate a reference simply because it looked polished.
+
 This is the decision framework behind `direction.md`. Work through the 8 axes
 in order — later axes depend on earlier ones. For every choice, write one line
 of **evidence** from recon. If you can't cite evidence, you're defaulting; go
@@ -89,6 +94,12 @@ Write the chosen language's parameters into direction.md (default ease,
 entrance duration, stagger step, transition type) and reuse them everywhere —
 consistency inside a video is as important as variety between videos.
 
+Also choose a **transition vocabulary**, not only a list of eases. Pick two or
+three motifs the brand can own—shared-icon handoffs, surface expansions,
+shape/curtain wipes, directional carries, or visual match cuts—and state which
+rhetorical chapter changes deserve a hard cut. Plan every boundary with
+`scene-transitions.md`; a generic crossfade is not a creative decision.
+
 Each language also implies a **plugin palette** (all GSAP plugins are free —
 pick what fits, list it in direction.md):
 
@@ -118,6 +129,11 @@ but how much depth you *use* is a choice:
 The 3D exploded dashboard (effects catalog #17) is one option for one kind of
 scene — never a requirement. Use it only when separating layers *communicates
 something* (e.g. "one platform, many modules").
+
+Dimensionality does not decide whether the camera reframes attention. Even a
+flat Editorial video can push and pan from context to a specific word or UI
+control. Define that semantic camera grammar separately using
+`attention-camera.md`; ambient drift alone does not count as a focal move.
 
 ## Axis 5 — Composition Axis
 
@@ -154,6 +170,11 @@ Map the product's value propositions to formats:
 | "Plays well with your stack" | **Integration grid** — logo tiles cascading in, connection lines | Keep to one scene |
 
 Format-selection rules:
+- “Reconstructed UI demo” includes three evidence-preserving modes: native
+  HTML/CSS when internal parts animate; a verified screenshot/image base plate
+  for a complex or third-party surface; or a hybrid base plate with native
+  interactive overlays. Pick per beat. Do not fabricate recognizable UI, and
+  do not leave a full screenshot static.
 - A UI product's video that never convincingly shows the UI fails. An API
   product's video that fakes a dashboard also fails — show code, diagrams, or
   data flow instead.

@@ -99,15 +99,42 @@ tl.fromTo(".logo-wrap", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 
 
 ---
 
-## 4. Camera Dolly (Continuous Active Scale & Pan)
+## 4. Attention Rack (Semantic Zoom + Pan)
 
-Wrap the scene in a continuous camera tween to eliminate static frames.
+Treat the camera as an attention director. Establish enough context to orient
+the viewer, then tween scale and x/y together so one active target becomes
+unmistakable and readable. Hold it; release only after the action lands.
 
 ```js
-// Minimum scale travel MUST be >= 8% (e.g. 1.0 -> 1.08) + pan component
-tl.fromTo("#scene4", 
-  { scale: 1.0, x: -30, y: -15 }, 
-  { scale: 1.08, x: 30, y: 15, duration: sceneDuration, ease: "none" }, 0
+// Frames are measured after master-timeline assembly; values are illustrative.
+// Add this transform track last so it overlaps the content choreography.
+tl.fromTo("#scene4 .camera-content",
+  { scale: 1.0, x: 0, y: 0 },
+  { scale: 2.15, x: -510, y: 165, duration: 0.68,
+    ease: "power4.inOut", transformOrigin: "0 0" },
+  "focus-input"
+).to("#scene4 .camera-content",
+  { scale: 1.1, x: -45, y: 0, duration: 0.9, ease: "power2.inOut" },
+  "release-input"
+);
+```
+
+The focal move is normally 0.45–0.85s, followed by a 0.7–2.0s readable hold.
+Scale is chosen by legibility, not a universal percentage: a full composition
+may remain near 1×, while a small icon or password control may need 2.5–4×.
+See `attention-camera.md` for target measurement and safe framing.
+
+### Ambient dolly (subordinate)
+
+When a scene has no semantic camera beat, a restrained scale/pan drift can keep
+the frame alive. It must not compete with a focal action or run linearly through
+a UI interaction.
+
+```js
+tl.fromTo("#scene4 .camera-content",
+  { scale: 1.0, x: -18, y: -8 },
+  { scale: 1.06, x: 18, y: 8, duration: sceneDuration, ease: "none" },
+  0
 );
 ```
 
@@ -270,7 +297,9 @@ tl.from("#chartPath", { drawSVG: "0%", duration: 1.8, ease: "power2.inOut" })
 
 ## 12. 3D Camera Fly-Through Portal Transition
 
-Fly camera *through* a 3D glass card frame into the next scene.
+Use only when a real outgoing card/window/device becomes the portal into its
+own detail or result. A camera fly-through with no surviving semantic object is
+generic spectacle; choose another bridge or a chapter cut.
 
 ```js
 function transitionCameraFly(currentScene, nextScene) {
@@ -287,6 +316,10 @@ function transitionCameraFly(currentScene, nextScene) {
 
 ## 13. Zoom-Through Transition
 
+Use only when the outgoing focal surface plausibly expands into the incoming
+scene (for example, a clicked website row → verified website, chart point →
+detail view). Match the zoom origin to the measured source rectangle.
+
 ```js
 tl.to("#sceneA", { scale: 7, opacity: 0, filter: "blur(20px)", duration: 0.5, ease: "power3.in" })
   .fromTo("#sceneB", { scale: 1.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" }, "-=0.2");
@@ -294,13 +327,22 @@ tl.to("#sceneA", { scale: 7, opacity: 0, filter: "blur(20px)", duration: 0.5, ea
 
 ---
 
-## 14. 3D Whip Pan Transition
+## 14. Directional Carry Transition
+
+Preserve velocity across the boundary. Avoid gratuitous 3D rotation: outgoing
+and incoming content should share one vector so the viewer reads a continued
+flow rather than two unrelated slides.
 
 ```js
-tl.to("#sceneA", { x: -2200, rotationY: -30, opacity: 0, duration: 0.5, ease: "power4.in" })
-  .fromTo("#sceneB", { x: 2200, rotationY: 30, opacity: 0 }, { x: 0, rotationY: 0, opacity: 1, duration: 0.5, ease: "power4.out" }, "-=0.2")
-  .fromTo("#viewport", { filter: "blur(0px)" }, { filter: "blur(18px)", duration: 0.2, yoyo: true, repeat: 1, ease: "sine.inOut" }, "<-0.1");
+tl.to("#sceneA", { xPercent: -115, opacity: 0, duration: 0.42, ease: "power3.in" })
+  .fromTo("#sceneB",
+    { xPercent: 115, opacity: 1 },
+    { xPercent: 0, opacity: 1, duration: 0.52, ease: "power3.out" },
+    "-=0.18");
 ```
+
+For shared-element, surface-expansion, iris-wipe, match-cut, and chapter-cut
+patterns, use `scene-transitions.md`.
 
 ---
 
@@ -349,10 +391,11 @@ demo with one cursor interaction.
 
 **FAITHFULNESS CONTRACT (applies whenever product UI is shown, exploded or flat):**
 - Never generate a generic abstract placeholder box.
-- Inspect the provided screenshots and faithfully re-create the actual UI
-  panels (exact sidebar items, navigation links, header stat badges, hero
-  chart paths, and data cards) natively in HTML/CSS, styled with the
-  product's own design tokens.
+- Inspect the provided screenshots and preserve the actual UI panels (exact
+  sidebar items, navigation links, stat badges, chart paths, and data cards).
+  Build separable/interactive regions natively in HTML/CSS; use a verified
+  image base plate or hybrid overlay when it preserves complex product or
+  third-party UI more faithfully. See `attention-camera.md`.
 - Never fabricate product specifics you can't verify from recon (hotkey
   combos, metrics, feature names). Render the generic truth instead (a keycap
   labeled "the hotkey", not an invented "⌃Space") — a wrong detail is worse
@@ -600,13 +643,198 @@ tl.from("#scene6 .proof-card", { y: -220, duration: 0.9, ease: "cardBounce" })
 
 ---
 
+## 25. Calm Camera Recipes (apply the §1a/§1b rules in attention-camera.md)
+
+**Pan-follow (caret tracking)** — for text/lists/forms that fill
+progressively. Hold scale nearly constant and glide along the write direction,
+timed to the fill. Feels like reading, not inspecting:
+
+```js
+// One continuous glide across a row as each item highlights — replaces two
+// zoom-and-release cycles. release:false keeps the frame where the story is.
+tl.add(FocusDirector.focusElement("#scene6 .row-item-a", {
+  label: "scene6", measureOffset: 3.5, scale: 1.12,
+  duration: 0.85, hold: 1.1, release: false,
+}), 2.65)
+  .add(FocusDirector.focusElement("#scene6 .row-item-c", {
+    label: "scene6", measureOffset: 5.8, scale: 1.12,
+    duration: 1.25, ease: "sine.inOut", hold: 1.2, release: false,
+  }), 4.55);
+```
+
+**Settle-then-act (typing)** — the camera lands on the field, holds a beat,
+*then* typing starts. Never type while the camera is still traveling.
+
+**Slow end-card push** — one unreleased push (scale ≤ 1.15) starting after the
+CTA entrance and running into the scene fade. No release, no yo-yo:
+
+```js
+tl.add(FocusDirector.focusElement("#scene8 .cta", {
+  label: "scene8", measureOffset: 4.2, scale: 1.14,
+  duration: sceneDur - 4.15, ease: "sine.inOut", release: false,
+}), 3.8);
+```
+
+**Release-to-consequence** — when the result matters more than the control,
+the pull-back IS the point: release from the detail to reveal the outcome
+chart/row/relationship, then cut.
+
+## 26. Motion-Graphic Staples (element motion for no-camera scenes)
+
+Scenes without a camera reframe still need choreography. These read as
+"designed", not "template":
+
+**Card deal / fan entrance** — rows, features, integrations:
+
+```js
+tl.from("#scene7 .card", {
+  y: 90, rotation: (i) => (i - 2) * 3.5, transformOrigin: "50% 120%",
+  opacity: 0, duration: 0.6, stagger: 0.12, ease: "back.out(1.4)",
+}, 0.4);
+```
+
+**Marquee / ticker strip** — logos, keywords, or stats drifting at constant
+speed (one of the few places `ease: "none"` belongs on screen):
+
+```js
+tl.to("#scene5 .ticker-track", { xPercent: -50, duration: 18, ease: "none", repeat: -1 });
+```
+
+**Edge-wipe reveal with a traveling rule** — a clip-path inset opens while a
+1–3px accent line rides the wipe's leading edge; the line sells the wipe:
+
+```js
+tl.fromTo("#scene6 .panel", { clipPath: "inset(0 100% 0 0)" },
+  { clipPath: "inset(0 0% 0 0)", duration: 0.7, ease: "power3.inOut" })
+  .fromTo("#scene6 .wipe-edge", { x: 0 }, { x: panelWidth, duration: 0.7, ease: "power3.inOut" }, "<")
+  .to("#scene6 .wipe-edge", { opacity: 0, duration: 0.2 });
+```
+
+**Magnetic emphasis** — a key word/stat scales 1 → 1.06 → 1 with
+`sine.inOut` as the VO lands on it (pairs with §21f). Subtlety is the point:
+> 8% reads as a jump cut.
+
+**Number odometer roll** — for Precision/Editorial stats: digits translateY
+through a clipped window with a per-column stagger (use §10's counter when the
+value must count; use the odometer when the *roll itself* is the show).
+
+---
+
+## 27. Cold-Open Hooks (attention capture in the first 3 seconds)
+
+The first 3 seconds decide whether the viewer stays. A studied 20s opener ran:
+word-per-beat type on a quiet field → **color slam** on the trigger word → the
+color field **morphs into an object** that becomes the next scene's actor.
+
+**Word-per-beat cadence** — one word lands per ~0.5–0.7s, dead center, no
+camera move. The restraint is what makes the slam land:
+
+```js
+tl.from("#scene0 .hook-word", { opacity: 0, scale: 0.85, duration: 0.3,
+  stagger: 0.6, ease: "power3.out" }, 0.2);
+```
+
+**Color slam** — on the pivotal word, the whole frame inverts to the brand
+color field in ≤ 0.15s, with a punch scale on the word and an `impact-boom`
+hit. This is a deliberate violation of the video's own palette rhythm — it
+works *because* nothing else in the film does it:
+
+```js
+tl.to("#bg-layer", { backgroundColor: BRAND, duration: 0.12, ease: "power4.in" }, "slam")
+  .fromTo("#scene0 .trigger-word", { scale: 1.4 }, { scale: 1, duration: 0.35, ease: "power4.out" }, "slam");
+```
+
+**Morph-to-object** — the color field then shrinks with growing border-radius
+into a small object (pill, card, button) on the next scene's background, and
+that object *does* something (becomes a caret, a chip, the product window).
+Conserved property: color + rounded shape. The viewer's eye follows the object
+into the new scene — no cut needed.
+
+## 28. Blur-Scroll Montage (the "countless possibilities" list)
+
+A fast vertical list of use-cases/keywords scrolling with motion blur,
+decelerating onto the one that matters. Words at the frame edges stay blurred
+and dim; only the focal row is sharp. Camera may tilt a few degrees for
+energy. Implementation: a tall column of rows translating on y with a strong
+`power3.out` deceleration, plus `filter: blur()` on the column *wrapper*
+(blur on a container is safe — never on background-clipped text) that eases
+from 6px → 0 as the list settles:
+
+```js
+tl.fromTo("#scene2 .word-column", { y: 600 }, { y: -420, duration: 2.6, ease: "power3.out" }, 0)
+  .fromTo("#scene2 .column-wrap", { filter: "blur(5px)" }, { filter: "blur(0px)", duration: 0.9 }, 1.7);
+```
+
+## 29. Fantasy Drop — the cursor delivers assets into the UI
+
+The most charming product-demo move: the cursor *carries cargo*. File icons,
+images, or data chips arrive fanned under the cursor, the target container
+expands to receive them, and the items leap into place — each landing with a
+slight rotation settle, then labels pop in beneath. One `bubble-pop` per
+landing, pitch-laddered if several land in sequence:
+
+```js
+// Items staged as a fan under the cursor, traveling with it:
+tl.to(["#scene5 .cargo", "#cursor-pointer-wrap"], { x: dropX, y: dropY, duration: 0.7, ease: "power3.inOut" }, "carry")
+  // Container opens to receive:
+  .to("#scene5 .prompt-bar", { height: "+=72", duration: 0.4, ease: "power3.inOut" }, "carry+=0.45")
+  // Each item leaves the fan, arcs into its slot, settles its rotation:
+  .to("#scene5 .cargo", {
+    x: (i) => slotX(i), y: (i) => slotY(i), rotation: 0,
+    duration: 0.45, stagger: 0.14, ease: "back.out(1.8)",
+  }, "carry+=0.55")
+  .from("#scene5 .cargo-label", { opacity: 0, y: 8, duration: 0.25, stagger: 0.14 }, "carry+=0.85");
+```
+
+Rules: cargo must be visible while carried (viewer tracks the hand-off), the
+container reacts *before* the items move (it "opens" expectantly), and every
+landing gets a sound. 3–5 items is the sweet spot.
+
+## 30. Cursor Flip-and-Press (the click with personality)
+
+A plain click is fine; a flip-click is a signature. The cursor travels on its
+curved arc, **rotates up to ~90–135° during travel** (it tumbles like a tossed
+tool), snaps upright into the settle, then squash-presses. After the click it
+can fly off still rotating and exit frame — the exit is part of the gag:
+
+```js
+tl.to("#cursor-pointer-wrap", { x, duration: 0.6, ease: "power3.inOut" }, "go")
+  .to("#cursor-pointer-wrap", { y, duration: 0.6, ease: "power4.out" }, "go")
+  .to("#cursor-pointer", { rotation: 115, duration: 0.6, ease: "power2.inOut" }, "go")   // tumble
+  .to("#cursor-pointer", { rotation: 0, duration: 0.22, ease: "back.out(2.5)" })          // snap upright
+  // …squash-press + ripple as usual…
+  .to("#cursor-pointer-wrap", { x: "+=420", y: "-=260", duration: 0.5, ease: "power2.in" }, "+=0.15")
+  .to("#cursor-pointer", { rotation: -35, duration: 0.5 }, "<")                           // exits spinning
+  .to(["#cursor-pointer-wrap", "#cursor-glow"], { opacity: 0, duration: 0.2 }, "<+=0.3");
+```
+
+Use at most once per video — it's a flourish, and flourishes don't repeat.
+
+## 31. Blur-Zoom Carry (transition from prompt/ask into product result)
+
+For "ask → answer" beats: on the submit click, the source UI scales *toward*
+the viewer with rising motion blur while the result surface scales up beneath
+it; they cross-fade mid-travel. The conserved property is forward velocity —
+the click "pushes through" the screen:
+
+```js
+tl.to("#scene5 .ask-ui", { scale: 1.35, opacity: 0, filter: "blur(14px)", duration: 0.45, ease: "power2.in" }, "go")
+  .fromTo("#scene6 .result-ui", { scale: 0.92, opacity: 0, filter: "blur(10px)" },
+    { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, "go+=0.15");
+```
+
+Blur belongs on the UI containers here (never on background-clipped text —
+invariant 3). Pair with `swoosh-soft` or `riser` resolving into the reveal.
+
+---
+
 ## Per-Scene Requirements Summary
 
 | Concern | Requirement |
 |---|---|
 | Scene Entrances | Choreographed entrance in the video's motion language (staggered type or element reveals — form varies by direction) |
-| Continuous Travel | Camera/stage drift across the full scene (scale ≥ 8% or equivalent pan/tilt), expressed in the chosen dimensionality |
+| Continuous Travel | Semantic attention reframes first; restrained camera/stage drift only between focal actions. UI targets must become materially more legible |
 | Hold Content | Progressive disclosure + at least 1 mid-scene event (cursor click, counter, chart draw, text swap) |
-| Transitions | Relative offsets (`">-0.5"`), style per motion language (3D fly-through, whip pan, flat push, clip-path wipe) |
-| Product UI | Faithful native HTML/CSS reconstruction in the product's own design tokens (flat demo or #17 explode — per direction.md) |
+| Transitions | Boundary ledger marks connected bridge or chapter cut; connected transitions conserve one named property and use relative offsets |
+| Product UI | Faithful native, verified-image, or hybrid construction; one measurable focal target per interaction and no unchanged screenshot scene |
 | Quality Control | Pre-render motion audit via `node scripts/audit.mjs page.html` |

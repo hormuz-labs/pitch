@@ -19,13 +19,22 @@ skill's code examples (dark navy stage, blue/purple glow orbs, glass cards,
 Inter font) is **sample data, not a default** — reaching for it without brand
 evidence is a failure.
 
+**Reference studies are pattern libraries, never templates.** Do not copy a
+reference video's scene order, shot count, timing, scale values, transition
+sequence, palette, assets, or density. Extract the underlying communication
+principle, then derive a new execution from the current URL's brand evidence,
+product interaction model, audience, and narrative. The product-specific
+`direction.md` always outranks optional recipes and observed numeric ranges.
+An agent may reject every reference technique when another solution better
+serves the product; record that reasoning in `direction.md`.
+
 ## Workflow at a glance
 
 | Phase | Output | Gate |
 |---|---|---|
 | 0. Recon | `recon/` facts: exact brand tokens, tone, UI inventory | Colors measured from the live site, not guessed |
 | 1. Creative Direction | `direction.md` — decisions on 8 axes, each citing evidence | Passes the Uniqueness Test |
-| 2. Storyboard | Scene table: beat, format, VO line + delivery style | Arc & formats follow from direction.md |
+| 2. Storyboard | Scene table + transition ledger | Arc, focal targets, and boundary flow follow from direction.md |
 | 3. Voiceover First | All VO clips generated & measured → `js/timing.js` | Scene durations derived from real clip lengths |
 | 4. Build | Multi-file HTML/CSS/GSAP project, scenes sized to VO | Technical invariants hold; no flicker |
 | 5. Music & Mix | Music bed (`assets/music/` first), SFX, `audio/mix.wav` | Levels verified by measurement |
@@ -154,9 +163,17 @@ Inventing a palette when the founders already published one is a recon failure.
 - **Product substance:** what the product actually *is* (dashboard? CLI? mobile
   app? API? marketplace?), its 2–3 core value propositions, and the real UI
   screens/flows available in the screenshots.
-- **Screenshots are reference material only.** Never place flat screenshot
-  images on the canvas — re-create product screens natively in HTML/CSS
-  (§ Phase 4) so every element is individually animatable.
+- **Asset truth inventory (MANDATORY):** write `recon/assets.md` listing each
+  available logo, app/provider icon, product screenshot, hardware render,
+  illustration, and UI state; record its source and whether it is official.
+  Prefer provided/official assets over substitutes. Never redraw a recognizable
+  brand mark with a generic icon.
+- **Use the right UI construction mode:** native HTML/CSS for controls that must
+  animate internally; a verified real screenshot/image as a base plate for
+  complex or third-party surfaces; or a hybrid (real base plate + native
+  hotspot, cursor, highlight, and changing state). A flat screenshot left
+  unchanged for an entire scene is not a demo, but recreating a real product
+  inaccurately is worse. See `references/attention-camera.md`.
 
 ## Phase 1 — Creative Direction (the anti-sameness gate)
 
@@ -183,10 +200,26 @@ The 8 axes (menus and selection heuristics live in the reference):
    counters, kinetic type, device frame, integration grid… The reference has a
    value-proposition → format mapping table.
 7. **Narrative arc** — Problem→Relief, Demo-first, Manifesto, Montage, or
-   Metric-led. Scene count 5–9, not always 8.
+   Metric-led. Scene count 5–9, not always 8. Whatever the arc, the first 3
+   seconds need a designed hook (word-per-beat cadence, color slam,
+   morph-to-object — see `references/effects-catalog.md` §27), not a logo
+   fading in.
 8. **Audio persona** — VO voice + delivery style, music genre, SFX density,
    all matched to brand tone (default to a female voice unless the brand or
    user suggests otherwise; the *delivery style* must be brand-specific).
+
+Also define:
+
+- an **attention-camera grammar**: normal context scale, close-detail scale
+  range, preferred focal landing, and focus/release easings; and
+- a **cut-first boundary grammar**: scenes normally meet with a clean one-frame
+  cut. Opt into a shared-element or match transition only when one real object
+  genuinely continues the same causal action and the handoff is cleaner than
+  the cut in a boundary render. Never invent an interstitial bridge merely to
+  make two unrelated scenes feel connected.
+
+Read `references/attention-camera.md` and `references/scene-transitions.md`
+before storyboarding any product-demo beat.
 
 ### The Uniqueness Test (must pass before coding)
 
@@ -206,7 +239,12 @@ direction.md must end with explicit answers to:
 Choose the arc and beats per direction.md (arcs and beat menus in
 `references/creative-direction.md`). Present a table before coding:
 
-| # | Beat | Duration | Scene format | Visual concept | VO line | VO style |
+| # | Beat | Duration | Scene format | Visual concept | Focal target + camera move | Verified asset(s) | VO line | VO style |
+|---|---|---|---|---|---|---|---|---|
+
+Then present a boundary ledger:
+
+| From → To | Clean cut or connected exception | Continuing object | Conserved property | Mechanism | Duration/ease | Sound cue |
 |---|---|---|---|---|---|---|
 
 Rules:
@@ -217,6 +255,19 @@ Rules:
   speech. Short lines keep scenes punchy.
 - Each VO line gets its own delivery-style instruction matching that beat's
   emotion — never one style string reused across clips.
+- Every product-demo beat names exactly one primary focal target (selector or
+  asset), its context framing, focus framing, and release. “Full dashboard” is
+  context, never the focal target. If there is no deliberate target, rewrite
+  the beat. Non-demo beats (type, brand, stats, CTA) explicitly mark the
+  camera column “none — element motion” instead of inventing a zoom; see the
+  camera budget in §4.3 and `references/attention-camera.md` §1a.
+- Record where each recognizable image/icon comes from. Product and third-party
+  UI, app logos, provider logos, and hardware should use verified real assets.
+- Every boundary is intentional and defaults to a clean cut. A rare connected
+  beat names one surviving real element and conserves its identity, position,
+  or meaning; otherwise cut. Reject any handoff that creates a blank frame,
+  temporary third composition, arbitrary bridge dot/panel, or visible overlap.
+  See `references/scene-transitions.md`.
 - Total runtime typically 35–60s.
 
 ## Phase 3 — Voiceover First (audio drives the timing)
@@ -275,13 +326,14 @@ for the 4K final). No per-project `out/` folders.
 ├── projects/
 │   └── <project-name>/     # EVERYTHING project-specific lives here
 │       ├── direction.md    # The creative brief (Phase 1)
-│       ├── recon/          # screenshots/, dom.txt, extracted brand facts
+│       ├── recon/          # screenshots/, dom.txt, brand facts, assets.md
 │       ├── assets/         # provided logos/images (if any)
 │       ├── index.html      # Thin shell: viewport, camera rig, bg layer, script loader
 │       ├── vendor/gsap/    # copied from $SKILL/vendor/gsap — core + ALL plugins
 │       ├── css/            # base.css, scenes.css, ui-components.css, cursor.css
 │       ├── js/
 │       │   ├── timing.js   # SCENE_TIMING map generated from measured VO (Phase 3)
+│       │   ├── focus.js    # FocusDirector (measured semantic zoom/pan targets)
 │       │   ├── cursor.js   # CursorController (appear-only-to-act)
 │       │   ├── transitions.js
 │       │   ├── scenes/sceneN.js  # One module per scene, returns gsap.timeline()
@@ -341,11 +393,36 @@ see the reference). Universal rules regardless of language:
 
 - Scenes chain with **relative offsets** (`">-0.5"`) — absolute timestamp
   placements (`.add(scene(), 21.0)`) are banned.
-- **Never show two readable screens at once.** Transition overlap stays short
-  (~0.3–0.5s) and both scenes must be visibly in motion during it.
-- The per-scene camera/stage drift tween is added **last** in each scene
-  function at explicit position `0`, so it overlaps content tweens instead of
-  delaying them.
+- **Never show two complete readable screens at once.** Transition overlap is
+  normally ~0.3–0.8s depending on the bridge, and both scenes/bridge must be
+  visibly in motion during it.
+- **Cut first.** End the outgoing scene cleanly and start the incoming scene on
+  the next frame. Use a connected handoff only when the same verified object
+  literally continues the same action and a boundary-only render proves it is
+  clearer than the cut. Blank color holds, arbitrary bridge dots/panels,
+  surface-expansion interstitials, and generic fade/zoom/whip transitions are
+  banned. A bridge must never become a temporary third scene.
+- Product-demo beats use **semantic reframes**, not an automatic slow zoom:
+  context → eased lateral zoom+pan to the active control/content → readable
+  hold → lateral rack or cut. **Scale is never standalone emphasis.** A scale
+  change is allowed only when a material horizontal reframe is required to
+  acquire or follow an interaction; otherwise keep scale fixed and use layout,
+  crop, contrast, or element motion. Measure targets from the rendered DOM and
+  keep the target inside safe margins; do not guess x/y.
+- **Camera budget: not every scene gets a reframe.** Typing beats get a
+  nonlinear zoom+horizontal-pan acquisition that settles before the first
+  character; progressively filling content tracks laterally at held scale;
+  type/brand/stat/CTA scenes get element motion only. Budget ~2–5 deliberate
+  reframes per film and normally one scale acquisition per demo scene. Between
+  nearby targets, hold scale and pan—never release wide and re-zoom. Every
+  scale tween uses a visibly nonlinear acceleration/deceleration curve; linear
+  scale and ambient push-ins are banned. The full rules are in
+  `references/attention-camera.md` §1a–1c.
+- Add the camera/scene transform track **last** in each scene function at
+  explicit positions, so it overlaps content tweens instead of delaying them.
+  Where no semantic reframe is called for, use a restrained ambient drift at
+  position `0`. Full rules and implementation patterns:
+  `references/attention-camera.md`.
 
 ### 4.4 Continuous motion (no static frames) — and NO flicker
 
@@ -353,10 +430,11 @@ From first frame to last, something must always be moving — if two frames
 sampled ~1.5s apart look identical, `scripts/audit.mjs` fails the build. Per
 scene:
 
-- Continuous camera/stage travel across the full scene duration. Minimums:
-  scale travel ≥ 8% (e.g. 1.0 → 1.08) *or* equivalent pan/tilt — expressed in
-  the video's motion language (a flat Editorial video drifts x/y instead of
-  dollying in 3D).
+- Continuous meaningful travel across the scene: semantic camera reframes,
+  element motion, or — only between focal actions — restrained camera/stage
+  drift. A linear 1.0 → 1.08 zoom is ambient texture, not attention direction.
+  For UI scenes, at least one active target must become materially more legible
+  through a zoom+pan, crop/reveal, or layout reframe.
 - **Progressive disclosure:** don't show everything in the first second;
   entrances consume ≥ 40% of the scene.
 - At least one **mid-scene event** (cursor click, chart draw, counter, text
@@ -414,7 +492,11 @@ nothing more:
   Non-interactive scenes (cold open, logo, stats, CTA) have no cursor at all.
 - One deliberate click per interaction scene: swoop in on a curved arc
   (separate x/y easings), tilt into the turn, settle, squash-press, ripple,
-  elastic release, leave.
+  elastic release, leave. Two licensed variants (each at most once per video):
+  the **flip-and-press** — the cursor tumbles ~90–135° during travel, snaps
+  upright, presses, and exits still spinning; and the **cargo carry** — the
+  cursor transports fanned assets and drops them into a container that opens
+  to receive them. Recipes: `references/effects-catalog.md` §29–30.
 - **Pixel-precise targeting:** never hardcode coordinates. Use
   `CursorController.clickElement(selector, { targetTime })` — after master
   assembly, `bindAllClicks()` seeks the timeline to `targetTime`, measures
@@ -495,6 +577,18 @@ These are correctness rules, independent of style:
     overlapping" bug). `audit.mjs` samples every scene's midpoint and **fails
     the build** if any non-active scene has opacity ≥ 0.05 — do not render
     until it passes.
+20. **Zero-duration `.set()` tweens leak across measurement seeks.** Binding
+    passes (FocusDirector, CursorController, TransitionDirector) seek the
+    master timeline to measure targets; when the playhead crosses a timeline
+    whose position-0 `.set()` changes visibility, the set's values can stay
+    applied after the final rewind — e.g. a transition bridge dot parked
+    visibly mid-screen from frame 0. Rules: (a) any visibility change inside a
+    seek-crossed timeline is a `0.01s` `.to(..., { ease: "none" })`, never a
+    `.set()`; (b) overlay/bridge elements (`#bridge-*`, `#cursor-*`) default to
+    `opacity: 0` in CSS; (c) after building, probe them at several times
+    (t=0, mid-scenes, post-transition) and assert opacity 0 outside their
+    window — a leaked bridge is invisible to the scene-overlap audit because
+    it lives above all scenes.
 
 ## Phase 5 — Music & Mix
 
@@ -583,6 +677,10 @@ final ships.
 - [ ] Background system chosen from the menu — not defaulted to dark-navy + orbs
 - [ ] Typography matches the brand's font personality (not reflexively Inter)
 - [ ] One named motion language governs all easings and transitions
+- [ ] Attention-camera grammar defines context/detail scales, lateral landing,
+      a nonlinear focus ease, and the interaction that justifies each zoom
+- [ ] Boundary grammar is cut-first; every optional connected handoff names the
+      continuing real object and must beat a clean cut in a boundary render
 - [ ] Plugin palette chosen for this video; ≥ 3 distinct text treatments planned
 - [ ] Scene formats chosen per beat from the value-prop mapping (not the same
       8-scene template as the last video)
@@ -594,8 +692,23 @@ final ships.
 - [ ] Project self-contained under `projects/<name>/` (sound in `audio/`,
       recon in `recon/`); deliverables rendered to shared `renders/` with
       project-prefixed filenames
-- [ ] Multi-file structure; screens rebuilt natively (no flat screenshots)
-- [ ] All selectors scene-scoped; camera drift last at position 0 in each scene
+- [ ] Multi-file structure; UI construction mode chosen per beat (native,
+      verified real base plate, or hybrid) and no unchanged screenshot scene
+- [ ] Official/product assets used for recognizable logos, icons, UI, and
+      hardware; aspect ratios preserved and asset sources recorded
+- [ ] Every product-demo beat has one named focal target and a deliberate
+      context → focus → hold → release/cut plan
+- [ ] Camera budget respected (~2–5 reframes per film, normally one scale
+      acquisition per demo scene, none in pure type/brand/stat/CTA scenes);
+      every zoom includes material horizontal travel, uses nonlinear easing,
+      settles before typing, then tracks filling content at held scale
+- [ ] Bridge/cursor overlays probed hidden outside their windows (invariant
+      20) — no leaked `.set()` state parked on screen
+- [ ] Every boundary was reviewed as a direct cut first; any retained connected
+      handoff uses one verified continuing object, creates no blank/interstitial
+      frame, aligns exactly, and hides all bridge assets afterward
+- [ ] All selectors scene-scoped; camera transform tracks added last and overlap
+      content at explicit timeline positions
 - [ ] All transitions relative-offset; no two readable screens at once
 - [ ] Gradient-text rules: inline-block, no blur, not split, `.char` targeting
 - [ ] `.scene` visibility handled via opacity (or autoAlpha) only; every scene
