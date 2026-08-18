@@ -37,7 +37,7 @@ serves the product; record that reasoning in `direction.md`.
 | 2. Storyboard | Scene table + transition ledger | Arc, focal targets, and boundary flow follow from direction.md |
 | 3. Voiceover First | All VO clips generated & measured → `js/timing.js` | Scene durations derived from real clip lengths |
 | 4. Build | Multi-file HTML/CSS/GSAP project, scenes sized to VO | Technical invariants hold; no flicker |
-| 5. Music & Mix | Music bed (`assets/music/` first), SFX, `audio/mix.wav` | Levels verified by measurement |
+| 5. Music & SFX Mix | Music bed (`assets/music/` first), SFX cue sheet → `audio/sfx_bus.wav`, `audio/mix.wav` | Cue sheet builds clean; levels verified by measurement |
 | 6. Render | `renders/<project>-launch.mp4` (shared folder) | Audit passes, duration verified |
 
 Present direction.md + the storyboard to the user in one message, then proceed
@@ -163,11 +163,46 @@ Inventing a palette when the founders already published one is a recon failure.
 - **Product substance:** what the product actually *is* (dashboard? CLI? mobile
   app? API? marketplace?), its 2–3 core value propositions, and the real UI
   screens/flows available in the screenshots.
+- **Harvest the product's own media (do this before writing a single scene).**
+  The site already contains the assets that make the film look like the brand
+  made it: real product screenshots, real photography, real demo footage, and
+  the actual logomark as SVG. Take them:
+
+  ```bash
+  node $SKILL/scripts/harvest.mjs --url=<product-url>
+  # bot-walled site? attach to an anti-detect browser instead:
+  node $SKILL/scripts/harvest.mjs --url=<product-url> --cdp=<cloakbrowser CDP url>
+  ```
+
+  Writes files to `assets/harvested/` and a manifest to `recon/harvested.json`
+  with, for every asset: source URL, real pixel dimensions, video duration, and
+  **the section heading it appeared under** — so "the studio photo from the
+  Design Freely section" is a thing you can actually look up. It picks the
+  largest `srcset` candidate, scrolls to trigger lazy-loading, dedupes by
+  content hash, and separates likely logomarks from icons.
+
+  Third-party players (Wistia/YouTube/Vimeo) are reported but not downloaded —
+  they are players, not files. Screen-capture the playing embed via CDP or ask
+  the user for the source.
+
+  **Rights:** these are the product's own brand assets, and a film about that
+  product is the intended use. Never carry them into a different product's
+  video, and keep `recon/harvested.json` as the provenance record.
+
 - **Asset truth inventory (MANDATORY):** write `recon/assets.md` listing each
   available logo, app/provider icon, product screenshot, hardware render,
   illustration, and UI state; record its source and whether it is official.
   Prefer provided/official assets over substitutes. Never redraw a recognizable
-  brand mark with a generic icon.
+  brand mark with a generic icon — if `harvest.mjs` pulled the real logo SVG,
+  use that file.
+
+- **Use harvested media as real material, not wallpaper.** Real photography and
+  real product footage belong in the composition the way the brand uses them —
+  in the tiles/cards/device frames of your chosen layout, at the brand's own
+  radii. A harvested product video can run as a muted, looping inline clip
+  inside a reconstructed frame, which beats a still screenshot every time. The
+  ban on "a flat screenshot held static for a whole scene" still applies: the
+  asset must be framed, moved, masked, or intercut with native motion.
 - **Use the right UI construction mode:** native HTML/CSS for controls that must
   animate internally; a verified real screenshot/image as a base plate for
   complex or third-party surfaces; or a hybrid (real base plate + native
@@ -438,7 +473,9 @@ scene:
 - **Progressive disclosure:** don't show everything in the first second;
   entrances consume ≥ 40% of the scene.
 - At least one **mid-scene event** (cursor click, chart draw, counter, text
-  swap, card arrival, spotlight).
+  swap, card arrival, spotlight). Note its exact timeline position as you build
+  it — that number becomes a Phase 5 SFX cue, and reconstructing it later from a
+  draft render is guesswork.
 - A living background layer appropriate to the chosen background system
   (grid pan, slow gradient evolution, orb drift — whatever direction.md
   picked), moving positionally at constant opacity.
@@ -590,10 +627,80 @@ These are correctness rules, independent of style:
     window — a leaked bridge is invisible to the scene-overlap audit because
     it lives above all scenes.
 
-## Phase 5 — Music & Mix
+### 4.8 One more invariant, learned the expensive way
+
+21. **A scene's trailing fade-out is load-bearing twice.** It hides the scene,
+    AND its end time is what `master.duration()` reports — which is the base
+    every subsequent relative label offset (`"-=0.30"`) is measured from.
+    Removing or shortening it for one scene silently pulls **every later label
+    earlier**. This shifted scenes 7–8 by 2.1s in a finished film and desynced
+    the audio against an already-rendered 4K master. If a connected boundary
+    needs its outgoing scene hidden sooner, add a *second*, earlier fade
+    (later-inserted tweens win during the overlap) — never delete the first.
+
+    Corollary: **scene start times have exactly one authority — the page.**
+    Export them with `scripts/cues.mjs` and place VO/SFX against those numbers.
+    Summing `SCENE_TIMING[].dur` is only correct when every boundary is a plain
+    cut, so it will quietly disagree with the picture the moment you overlap one.
+
+```bash
+node $SKILL/scripts/cues.mjs        # → audio/cues.json (real labels + duration)
+```
+
+## Phase 5 — Music, SFX & Mix
 
 VO clips already exist from Phase 3. Full pipeline detail in
-`references/audio-pipeline.md`. The non-negotiables:
+`references/audio-pipeline.md`; **sound-effect design has its own reference,
+`references/sfx-design.md` — read it before writing a cue sheet.**
+
+### 5.0 Sound effects (the layer that sells the motion)
+
+Motion graphics without sound design read as a slideshow with music over it.
+Every meaningful state change — an element appearing, a tile expanding, a
+counter landing, a cursor clicking, a scene cutting — either earns a sound or is
+deliberately silent.
+
+Never browse the raw SFX folders: they hold 900+ files and a large fraction is
+meme/game-rip/weapon audio that must never reach a client render. The usable
+subset is measured, classified and curated in `references/sfx-index.json`.
+
+```bash
+node $SKILL/scripts/sfx.mjs query --list                 # the 17-event vocabulary
+node $SKILL/scripts/sfx.mjs query --event=pop --max=0.6  # ranked candidates, measured
+node $SKILL/scripts/sfx.mjs build --cues=audio/sfx-cues.json --duration=<CONTENT_DURATION>
+```
+
+Non-negotiables:
+
+- **Write `audio/sfx-cues.json` from real timeline numbers** — the labels in
+  `audio/cues.json` (from `scripts/cues.mjs`) plus the offsets you actually
+  animated. Never eyeball them off a draft, and never sum `SCENE_TIMING`
+  durations instead (see invariant #21).
+- **`sfx.mjs build` places every cue by its measured onset**, so the transient
+  lands on the frame. 218 of 310 curated clips carry pre-transient silence (up
+  to 2.2s), which is why hand-written `adelay` chains always drifted late.
+- **Travel sounds peak on the beat, not start on it** — the tool applies a
+  class lead (0.22s for `whoosh_deep`). Fast or large motion takes
+  `whoosh_deep`; only small element travel takes `whoosh_soft`.
+- **Budget ~6 cues per 30s**, one signature sound per scene. The build warns
+  past that. Sounding every stagger item, or every transition, is the clearest
+  tell of template sound design.
+- **The build must finish with zero `⚠` lines** other than a density warning you
+  have consciously accepted. Placement and off-target-source warnings are gates.
+
+### 5.1 The mix — narration above everything
+
+```bash
+node $SKILL/scripts/mix.mjs --duration=<CONTENT_DURATION> \
+  --music=audio/music.mp3 --sfx=audio/sfx_bus.wav
+```
+
+`mix.mjs` assembles the VO stem, carves and ducks the music bed against it,
+folds in the SFX bus, and then **verifies by extraction** — it measures real VO
+windows against real music-only gaps and exits non-zero if the voice is not
+≥10dB above the bed. A failing mix is a gate, not a warning: do not render.
+
+The non-negotiables for music and the final mix:
 
 - **Music bed — check the curated shared library FIRST.** Use only
   `assets/music/` for music beds and `assets/sfx/` for SFX. Never scan home,
@@ -615,7 +722,9 @@ VO clips already exist from Phase 3. Full pipeline detail in
   files, run `volumedetect` on each; if they're within a few dB, re-mix.
 - `audio/mix.wav` must extend ≥ 1.0s past `CONTENT_DURATION` — the capture
   script muxes with `-shortest`, so a short mix truncates the video.
-- SFX: max ~6 per 30s, −10 to −14dB. Over-SFX'd videos read as template renders.
+- The SFX bus is a separate stem: build `audio/sfx_bus.wav` first, then fold it
+  into `audio/mix.wav` under the VO. Verify by extraction that it sits 10–14dB
+  under the voice — see `references/sfx-design.md` §4.
 
 ## Phase 6 — Audit & Render
 
@@ -694,6 +803,8 @@ final ships.
       project-prefixed filenames
 - [ ] Multi-file structure; UI construction mode chosen per beat (native,
       verified real base plate, or hybrid) and no unchanged screenshot scene
+- [ ] `harvest.mjs` run for the target URL; real logo SVG, product screenshots
+      and any product footage pulled into `assets/harvested/` with provenance
 - [ ] Official/product assets used for recognizable logos, icons, UI, and
       hardware; aspect ratios preserved and asset sources recorded
 - [ ] Every product-demo beat has one named focal target and a deliberate
@@ -726,6 +837,12 @@ final ships.
 - [ ] Music bed sourced from the curated `assets/music/` library when available
       (file named in the summary); mix levels verified by gap/VO extraction;
       mix extends past duration
+- [ ] `mix.mjs` passed its contrast gate (narration ≥10dB above the bed, no
+      clipped VO stem, mix extends past `CONTENT_DURATION`)
+- [ ] SFX cue sheet written from real timeline numbers; `sfx.mjs build` ran with
+      zero placement/off-target warnings; ≤ ~6 cues per 30s; fast/large motion on
+      `whoosh_deep`; repeated events pull varied clips; at least one scene is
+      deliberately silent (full list: `references/sfx-design.md` §9)
 - [ ] Every scene reviewed via segment render before the full draft
 - [ ] Audit passed with zero warnings; rendered with 20-min timeout; duration
       verified with ffprobe; MP4 watched end-to-end

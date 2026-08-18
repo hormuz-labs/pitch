@@ -35,9 +35,27 @@ You get dedicated tools (no need to hand-build ffmpeg/playwright shell recipes):
 - **`motion_audit`** — motion audit gate: FAILS the build on static holds. Run before every
   full render.
 - **`motion_screenshot`** — Phase-0 recon capture from a live URL or HTML template.
+  It FAILS loudly on a bot wall rather than saving a block page — if it does,
+  re-run through an anti-detect browser over CDP.
+- **`motion_harvest`** — Phase-0: pull the product's OWN images, product
+  screenshots, logo SVGs and video files into `assets/harvested/` with a
+  provenance manifest. Do this before building scenes; real brand media beats
+  placeholder rectangles every time.
+- **`motion_cues`** — export the master timeline's real labels to
+  `audio/cues.json` before placing VO/SFX. The page is the only authority on
+  scene start times.
 - **`motion_find_audio`** — scan only the curated shared audio library
-  (`assets/music/`, `assets/sfx/`) for a music bed / SFX (Phase 5). Never scan
+  (`assets/music/`, `assets/sfx/`) for a music bed (Phase 5). Never scan
   home, Downloads, or other personal directories.
+- **`motion_sfx`** — the sound-effects tool (Phase 5): `list` the motion-event
+  vocabulary, `query` ranked measured candidates for one event, `build` the
+  synced `audio/sfx_bus.wav` from your cue sheet. Never browse the raw SFX
+  folders by hand — most of that library is unusable. Read the skill's
+  `references/sfx-design.md` before writing cues.
+- **`motion_mix`** — build and VERIFY `audio/mix.wav` (Phase 5). The narration
+  always sits above the bed: level + sidechain ducking + speech-band EQ carve.
+  It fails loudly if the voice is not ≥10dB above the music-only floor — never
+  render on a failing mix, and never hand-roll the mixdown yourself.
 - **`motion_verify_duration`** — ffprobe the rendered MP4 to confirm it matches the timeline.
 
 All `motion_*` tools run with the project folder as CWD, so pass paths relative to
@@ -61,9 +79,13 @@ Load the `html-motion-video` skill and follow its phases:
 5. **Phase 4 — Build.** Multi-file HTML/CSS/GSAP project via the skill's architecture rules.
    Enforce all 18 technical invariants, the anti-flicker rules, ≥3 distinct text treatments,
    and the cursor policy. Screens rebuilt natively (no flat image screenshots).
-6. **Phase 5 — Music & Mix.** Check only the curated shared library
-   (`assets/music/`, `assets/sfx/`) FIRST with `motion_find_audio`; build `audio/mix.wav`
-   with measured levels.
+6. **Phase 5 — Music, SFX & Mix.** Source the bed from the curated
+   `assets/music/` library with `motion_find_audio`. Design sound effects with
+   `motion_sfx` — one signature sound per scene, ~6 cues per 30s, fast/large
+   motion on `whoosh_deep` — and build `audio/sfx_bus.wav` from a cue sheet
+   written off real timeline numbers. Then fold VO + bed + SFX into
+   `audio/mix.wav` with `motion_mix`, which ducks and EQ-carves the bed against
+   the voice and gates on measured contrast.
 7. **Phase 6 — Audit & Render.** Run `motion_audit` (zero warnings), render segments with
    `motion_render` to polish, then one full-timeline render, verify duration with
    `motion_verify_duration`. Deliver to the shared `renders/` folder.

@@ -172,7 +172,48 @@ between SFX or they smear into noise.
 Discipline: **max ~6 SFX per 30 seconds.** Skip the tick on most staggers;
 over-SFX'd videos read as cheap template renders.
 
-## 4. Mixdown — Step-by-Step with Intermediate Files (MANDATORY approach)
+## 4. Mixdown — use `scripts/mix.mjs`
+
+**Do not hand-roll the mixdown.** `scripts/mix.mjs` performs the whole
+step-by-step build below, and then *verifies it by measurement*, exiting
+non-zero if the narration is not clearly above the bed:
+
+```bash
+node $SKILL/scripts/mix.mjs --duration=<CONTENT_DURATION> \
+  --music=audio/music.mp3 --sfx=audio/sfx_bus.wav
+```
+
+It reads VO placement from `js/timing.js` (`SCENE_TIMING`), or from
+`--vo-map=<json>`. Flags: `--bed-db` (bed attenuation, default −17),
+`--duck` (ducking depth, default 9), `--min-contrast` (gate, default 10dB),
+`--vo-lead` (default 0.3s), `--dry-run`.
+
+### Why the narration always wins
+
+The voice is the priority signal, and three mechanisms keep it there — level
+alone is not enough, because a bed at a "safe" average still collides with
+speech the moment it swells:
+
+1. **Level** — the bed is attenuated to ~−30dB mean against a ~−18dB voice.
+2. **Ducking** — a sidechain compressor keyed off the VO stem pulls the bed
+   down the instant a line starts (attack 8ms) and releases it smoothly
+   afterwards (320ms, so it doesn't pump between words).
+3. **Frequency separation** — gentle dips at 800Hz and 2.4kHz carve the speech
+   intelligibility band out of the *music*, so the two are not fighting for the
+   same spectrum even while both are audible. This is what stops the voice and
+   the bed sitting "on the same wavelength".
+
+The VO stem is also limited before it enters the mix, so makeup gain on a loud
+line cannot clip it.
+
+### The gate
+
+`mix.mjs` extracts real windows from the finished file — inside VO lines, and
+inside music-only gaps (including the tail after the last line) — measures each,
+and reports the contrast. Below `--min-contrast` (default 10dB) it FAILS and
+tells you which knob to turn. **Do not render with a failing mix.**
+
+### What it does internally (and what to fix if a step looks wrong)
 
 Single-pass mega `filter_complex` chains (sidechaincompress + multiple amix +
 loudnorm in one command) have **silently failed** in practice — the music

@@ -61,8 +61,14 @@ paper grain, glow shapes…) — there is no fixed set of orbs.
     <div id="cursor-rig">
       <div id="cursor-glow"></div>
       <div id="cursor-pointer-wrap">
-        <svg id="cursor-pointer" viewBox="0 0 24 24" width="28" height="28">
-          <path d="M4 2l6.5 16 2.5-6 6-2.5L4 2z"/>
+        <!-- Streamline Iconoir "Cursor Pointer" — a real pointer silhouette.
+             Its tip is at ~(1.1, 0.9) in the 16-unit viewBox, so the rotation
+             transformOrigin in cursor.js is "3px 2px" at a 44px render. -->
+        <svg id="cursor-pointer" viewBox="-0.5 -0.5 16 16" width="28" height="28"
+             fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd"
+                d="M13.2403125 5.168374999999999c0.9875625 0.401125 0.9121875 1.82375 -0.11225 2.1181875l-5.1691875 1.4859375 -2.3609375 4.8326875000000005c-0.4679375 0.9576875 -1.8820625 0.784875 -2.1055625 -0.25725000000000003L1.0856875000000001 2.1243125c-0.18887500000000002 -0.8808125 0.6848124999999999 -1.6139375 1.5195 -1.275l10.635125 4.3190625Z"
+                stroke-width="1"></path>
         </svg>
       </div>
       <div id="cursor-ripple"></div>
@@ -85,6 +91,13 @@ paper grain, glow shapes…) — there is no fixed set of orbs.
 </html>
 ```
 
+- **Self-host the fonts** (`assets/fonts/*.woff2` + a local `@font-face` in
+  `css/fonts.css`) rather than using the Google Fonts `<link>` shown above. The
+  render is deterministic only if the type metrics are: a failed CDN fetch still
+  resolves `document.fonts.ready`, so the seek-and-measure passes would happily
+  measure fallback-font geometry and bake wrong camera frames into the MP4.
+  Note that Google's variable fonts serve ONE file for every weight — declare a
+  `font-weight: 100 900` range, not four copies.
 - `#viewport` is a fixed 1920×1080 stage.
 - Each product-demo scene gets one full-stage `.camera-content` wrapper with
   `position:absolute; inset:0; transform-origin:0 0;`. The focus director
@@ -263,7 +276,7 @@ const CursorController = {
     this.ripple = document.querySelector("#cursor-ripple");
     if (this.wrap) {
       gsap.set([this.wrap, this.glow], { x: 1400, y: 760, opacity: 0 });
-      gsap.set(this.ptr, { rotation: 0, transformOrigin: "5px 2px" });
+      gsap.set(this.ptr, { rotation: 0, transformOrigin: "3px 2px" });   // the icon's tip
     }
   },
 
@@ -442,7 +455,10 @@ darker soft shadow, subtler glow.
   width: 44px; height: 44px;
   filter: drop-shadow(0 3px 10px rgba(0,0,0,0.35));
 }
-#cursor-pointer path { fill: #fff; stroke: rgba(0,0,0,0.55); stroke-width: 1.2; }
+#cursor-pointer path {
+  fill: #fff; stroke: rgba(0,0,0,0.55); stroke-width: 1;
+  stroke-linejoin: round; vector-effect: non-scaling-stroke;   /* keeps the keyline even under camera scale */
+}
 #cursor-glow {
   position: absolute; top: -14px; left: -14px; width: 72px; height: 72px;
   border-radius: 50%; opacity: 0.5; will-change: transform;
