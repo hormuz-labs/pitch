@@ -5,6 +5,10 @@
       "destination": "https://api.trypitch.co/r/$1"
     },
     {
+      "source": "/d/(.*)",
+      "destination": "https://api.trypitch.co/d/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -250,6 +250,7 @@ export async function createJob(
     pdfUrl: created.pdfUrl ?? undefined,
     audioUrl: created.audioUrl ?? undefined,
     thumbnailUrl: (created as any).thumbnailUrl ?? undefined,
+    shareSlug: (created as any).shareSlug ?? undefined,
     status: created.status as JobStatus,
     parameters: JSON.parse(created.parameters),
     phases,
@@ -271,6 +272,7 @@ export async function getJob(id: string, user?: AuthUser): Promise<Job | null> {
     pdfUrl: job.pdfUrl ?? undefined,
     audioUrl: job.audioUrl ?? undefined,
     thumbnailUrl: (job as any).thumbnailUrl ?? undefined,
+    shareSlug: (job as any).shareSlug ?? undefined,
     status: job.status as JobStatus,
     parameters: JSON.parse(job.parameters),
     phases,
@@ -305,6 +307,63 @@ export async function deleteJob(id: string, user?: AuthUser) {
   return await client.job.delete({
     where: { id },
   })
+}
+
+// ─── Public sharing ─────────────────────────────────────────────────────────
+//
+// Opt-in only — a job is never public until its owner explicitly shares it
+// (see the Job model's `isPublic == true` read carve-out in schema.zmodel).
+
+function generateShareSlug(): string {
+  return randomBytes(6).toString('base64url')
+}
+
+/** Mark a job public, assigning it a share slug on first call. Idempotent —
+ * calling again on an already-public job returns the same slug rather than
+ * rotating it, so a previously shared link keeps working. Owner-scoped via
+ * the enhanced client; throws if the job doesn't exist or isn't owned by `user`. */
+export async function makeJobPublic(id: string, user: AuthUser): Promise<{ shareSlug: string }> {
+  const client = getEnhancedPrisma(user)
+  const existing = await client.job.findUnique({ where: { id }, select: { shareSlug: true } })
+  if (!existing) throw new Error('Job not found')
+
+  if (existing.shareSlug) {
+    await client.job.update({ where: { id }, data: { isPublic: true } })
+    return { shareSlug: existing.shareSlug }
+  }
+
+  // Collision-safe: retry if generated slug already exists (same idiom as
+  // generateAffiliateCode/registerAffiliate above).
+  let shareSlug = generateShareSlug()
+  while (await prisma.job.findUnique({ where: { shareSlug } })) {
+    shareSlug = generateShareSlug()
+  }
+
+  await client.job.update({ where: { id }, data: { isPublic: true, shareSlug } })
+  return { shareSlug }
+}
+
+/** Revoke public access. The slug is kept (not cleared) so re-sharing later
+ * reuses the same URL instead of silently breaking previously shared links. */
+export async function unmakeJobPublic(id: string, user: AuthUser): Promise<void> {
+  const client = getEnhancedPrisma(user)
+  await client.job.update({ where: { id }, data: { isPublic: false } })
+}
+
+/** Anonymous lookup by share slug. Goes through the enhanced client with no
+ * user so ZenStack's `isPublic == true` policy is what actually gates this —
+ * do not bypass to the raw `prisma` client here (see getWebhookDelivery for
+ * the unsafe version of this pattern this deliberately avoids). */
+export async function getPublicJobBySlug(slug: string): Promise<Job | null> {
+  const client = getEnhancedPrisma(undefined)
+  const job = await client.job.findUnique({ where: { shareSlug: slug } })
+  if (!job) return null
+  return serializeJob(job)
+}
+
+/** Fire-and-forget view counter for real page loads of /d/:slug. */
+export async function incrementShareViews(id: string): Promise<void> {
+  await prisma.job.update({ where: { id }, data: { shareViews: { increment: 1 } } })
 }
 
 // ─── Credits ──────────────────────────────────────────────────────────────────

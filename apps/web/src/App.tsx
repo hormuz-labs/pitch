@@ -67,6 +67,7 @@ import {
   PdfCreateView,
   PdfEditorView,
   PricingView,
+  PublicDemoView,
   PublicPricingView,
   SessionsView,
   SettingsView,
@@ -1635,6 +1636,13 @@ function AppContent() {
     }
   }
 
+  const handleShare = async (id: string): Promise<string> => {
+    const token = await getToken()
+    const updatedJob = await api.post<Project>(`/jobs/${id}/share`, token!)
+    setProjects(prev => prev.map(p => (p.id === updatedJob.id ? updatedJob : p)))
+    return `${window.location.origin}/d/${updatedJob.shareSlug}`
+  }
+
   let selectedKey = 'dashboard'
   let projectTitle
   let onDownload
@@ -1684,6 +1692,14 @@ function AppContent() {
     selectedKey = 'affiliate'
   } else if (location.pathname.startsWith('/templates')) {
     selectedKey = 'templates'
+  }
+
+  // Public share page — rendered before the Clerk-loading gate (same
+  // treatment as `/` below) so it's instant for anonymous visitors clicking
+  // a shared link, and never nested inside signed-in/signed-out gating.
+  if (location.pathname.startsWith('/d/')) {
+    const slug = location.pathname.slice('/d/'.length).split('/')[0]
+    return <PublicDemoView slug={slug} />
   }
 
   if (!isLoaded) return <div className="h-screen w-screen bg-[#FDFDFD]"></div>
@@ -1791,6 +1807,7 @@ function AppContent() {
                       searchQuery={searchQuery}
                       onDelete={handleDelete}
                       onRetry={handleRetry}
+                      onShare={handleShare}
                     />
                   }
                 />

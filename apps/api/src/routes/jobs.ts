@@ -2,6 +2,7 @@ import * as db from '@saas/db'
 import {
   approveVideoStoryboard,
   createLogger,
+  deriveJobTitle,
   JOB_CANCELLATIONS_CHANNEL,
   JOB_UPDATES_CHANNEL,
   JobStatus,
@@ -46,6 +47,33 @@ router.post('/', async (req, res) => {
       return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
     }
     logger.error({ err: error, userId }, 'Failed to create job')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Unauthenticated — fetched client-side by PublicDemoView (apps/web) after
+// the meta-injection HTML from GET /d/:slug (apps/api/src/routes/share.ts)
+// has already booted the SPA. Only ever returns the safe, public field
+// subset — never the full job row (no userId, cost, parameters, etc.).
+router.get('/public/:slug', async (req, res) => {
+  try {
+    const job = await db.getPublicJobBySlug(req.params.slug)
+    if (!job || job.status !== JobStatus.COMPLETED || !job.videoUrl) {
+      return res.status(404).json({ error: 'Not found' })
+    }
+
+    db.incrementShareViews(job.id).catch(err =>
+      logger.warn({ err, jobId: job.id }, 'Failed to bump shareViews'),
+    )
+
+    res.json({
+      title: deriveJobTitle(job.parameters),
+      videoUrl: job.videoUrl,
+      thumbnailUrl: job.thumbnailUrl,
+      createdAt: job.createdAt,
+    })
+  } catch (error: any) {
+    logger.error({ err: error, slug: req.params.slug }, 'Failed to load public job')
     res.status(500).json({ error: error.message })
   }
 })
@@ -140,6 +168,39 @@ router.get('/:id/editions', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' })
     }
     logger.error({ err: error, jobId: req.params.id, userId }, 'Failed to list video editions')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.post('/:id/share', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    await db.makeJobPublic(req.params.id, { id: userId })
+    const job = await db.getJob(req.params.id, { id: userId })
+    res.json(job)
+  } catch (error: any) {
+    if (error.message === 'Job not found') {
+      return res.status(404).json({ error: 'Job not found' })
+    }
+    logger.error({ err: error, jobId: req.params.id, userId }, 'Failed to share job')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.delete('/:id/share', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const job = await db.getJob(req.params.id, { id: userId })
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+
+    await db.unmakeJobPublic(req.params.id, { id: userId })
+    res.json({ ...job, isPublic: false })
+  } catch (error: any) {
+    logger.error({ err: error, jobId: req.params.id, userId }, 'Failed to unshare job')
     res.status(500).json({ error: error.message })
   }
 })
