@@ -5,6 +5,7 @@ import agentcardVideo from '../../assets/carousel/agentcard.mp4'
 import demoVideo from '../../assets/demo.mp4'
 import graphifyVideo from '../../assets/carousel/graphify.mp4'
 import gtmcofounderVideo from '../../assets/carousel/gtmcofounder.mp4'
+import replitVideo from '../../assets/carousel/replit.mp4'
 import sioVideo from '../../assets/carousel/sio.mp4'
 import supermemoryVideo from '../../assets/carousel/supermemory.mp4'
 import unslothVideo from '../../assets/carousel/unsloth-launch.mp4'
@@ -49,6 +50,16 @@ const SLIDES: CoverflowSlide[] = [
     meta: [
       { label: 'Website', value: 'https://graphify.com/' },
       { label: 'Prompt', value: 'Make 70 second launch video on https://graphify.com/' },
+    ],
+  },
+  {
+    src: replitVideo,
+    alt: 'Pitch-generated launch video for Replit',
+    title: 'Replit',
+    subtitle: 'Made with Pitch using Launch Video Feature',
+    meta: [
+      { label: 'Website', value: 'https://replit.com/' },
+      { label: 'Prompt', value: 'Make 70 second launch video of https://replit.com' },
     ],
   },
   {
