@@ -24,6 +24,7 @@ import { router as launchVideoRoutes } from './routes/launch-video.js'
 import { router as mcpRoutes } from './routes/mcp.js'
 import { router as newsletterRoutes } from './routes/newsletter.js'
 import { router as pdfJobRoutes } from './routes/pdf-jobs.js'
+import { shareRouter } from './routes/share.js'
 import { router as uploadRoutes } from './routes/uploads.js'
 import { router as userRoutes } from './routes/users.js'
 import { router as webhookRoutes } from './routes/webhooks.js'
@@ -110,6 +111,7 @@ app.use('/users', userRoutes)
 app.use('/uploads', uploadRoutes)
 app.use('/checkout', checkoutRoutes)
 app.use(redirectRouter)
+app.use(shareRouter)
 app.use('/affiliate', affiliateRoutes)
 app.use('/admin', adminRoutes)
 app.use('/newsletter', newsletterRoutes)

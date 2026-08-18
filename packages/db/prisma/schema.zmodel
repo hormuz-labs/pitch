@@ -239,6 +239,10 @@ model Job {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  isPublic     Boolean  @default(false) // Owner opt-in: exposes this job via the public /d/:shareSlug page
+  shareSlug    String?  @unique         // Opaque public share id; assigned once on first share, reused thereafter
+  shareViews   Int      @default(0)     // Bumped on real page loads of /d/:shareSlug (not crawler HTML fetches)
+
   userProfile        UserProfile         @relation(fields: [userId], references: [id])
   creditTransactions CreditTransaction[]
   videoEditions      VideoEdition[]
@@ -246,13 +250,20 @@ model Job {
   @@index([userId])
 
   // Access policies
-  // User must be logged in to do anything
-  @@deny('all', auth() == null)
+  // User must be logged in to do anything, UNLESS the job has been opted into
+  // public sharing — that carve-out is what lets the /d/:shareSlug page (and
+  // its anonymous getPublicJobBySlug lookup) read a single public job.
+  @@deny('all', auth() == null && isPublic != true)
 
   // A user can read/write their own personal jobs
   // The auth() object will be passed in when enhancing the prisma client:
   // enhance(prisma, { user: { id: userId } })
   @@allow('all', userId == auth().id)
+
+  // Anonymous read of a job the owner has explicitly made public. Write
+  // operations for anonymous users have no matching @@allow, so they stay
+  // blocked by ZenStack's implicit default-deny regardless of this carve-out.
+  @@allow('read', isPublic == true)
 }
 
 // ── Video editions ────────────────────────────────────────────────────────────────────────────

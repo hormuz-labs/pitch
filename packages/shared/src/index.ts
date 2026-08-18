@@ -196,6 +196,9 @@ export interface Job {
   progress?: number // 0–100 computed
   createdAt: Date
   updatedAt: Date
+  isPublic?: boolean
+  shareSlug?: string
+  shareViews?: number
 }
 
 export interface CreateJobRequest {
@@ -216,5 +219,6 @@ export const WEBHOOK_QUEUE_NAME = 'webhook-delivery'
 export const JOB_UPDATES_CHANNEL = 'job-updates'
 export const JOB_CANCELLATIONS_CHANNEL = 'job-cancellations'
 export * from './discord.js'
+export * from './job-title.js'
 export * from './manager-client.js'
 export * from './video-storyboard.js'
