@@ -10,7 +10,7 @@ Target layout:
 audio/
 ├── vo_<label>.wav     # one voiceover clip per scene label
 ├── music.wav          # full-length instrumental bed
-├── sfx/               # whoosh.wav, riser.wav, impact.wav, shimmer.wav, tick.wav
+├── sfx/               # copies of the assets/sfx/ files this video uses (see §3)
 ├── cues.json          # [{label, time}] exported from the page's __CUES()
 └── mix.wav            # final mixed track (muxed into the MP4)
 ```
@@ -129,18 +129,25 @@ Practical notes:
 
 ## 3. Sound effects
 
-Gemini has no dedicated SFX model, so use a small curated kit — 5 files cover
-a whole launch video. **Check only the curated `assets/sfx/` library first.**
+Gemini has no dedicated SFX model, so use a small curated kit. **Check only the
+curated `assets/sfx/` library first** (provenance in `assets/sfx/SOURCES.md`).
 Never inspect personal directories. Fill gaps from Pixabay SFX / freesound.org
-(CC0 filter):
+(CC0 filter; preview CDN MP3s are fine — trim, fade, and normalize to
+≈ −14 LUFS / TP −2 with ffmpeg before adding):
 
 | File | Used on | Cue |
 |---|---|---|
-| `whoosh.wav` | every scene transition | at each scene label − 0.15s |
-| `riser.wav` | build into the hero scene | hero label − 1.5s |
-| `impact.wav` (deep boom/sub) | logo lands; hero cutout lands | at the landing beat |
-| `shimmer.wav` | logo light sweep | sweep start |
-| `tick.wav` (soft UI pop) | counters, card staggers | first 2–3 items only |
+| `whoosh.mp3` | scene transitions | at each scene label − 0.15s |
+| `swoosh-soft.mp3` | gentle camera moves, calm transitions | with the move's midpoint |
+| `riser.mp3` | build into the hero scene or product reveal | hero label − 1.5s (it's ~1.7s) |
+| `impact-boom.mp3` | logo/hero landing, color-slam hook, hard chapter cut | exactly at the landing beat |
+| `bubble-pop.mp3` | elements dropping into UI — icon drops, chip appearances, fantasy-drop landings | per landing; pitch-ladder (`asetrate` ±5–10%) when several land in sequence |
+| `count-tick.mp3` | counters ticking up/down, rapid list/odometer steps | per step for the first 3–5 steps, then stop or thin to every 2nd–3rd step |
+| `chime-ding.mp3` | success state, task complete, CTA accent | at the resolved frame |
+| `universfield-new-notification-*.mp3` | notification-style moments | at the badge/toast appearance |
+| `click.mp3` / `mouse-click.mp3` | cursor presses | at the squash frame |
+| `typing.mp3` / `keyboard.mp3` | typing loops (keep low, −18dB or lower) | under typing only while keys land |
+| `dragon-studio-pop-*.mp3` | generic pop alternative | interchangeable with bubble-pop |
 
 Export cue times from the page itself (labels → seconds):
 
@@ -155,10 +162,91 @@ import("playwright").then(async ({chromium}) => {
 })' > audio/cues.json
 ```
 
+**SFX choreography (studied from strong openers):** sound marks *events*, not
+scenes. A drop sequence gets one pop per item, landing on the exact frame each
+item settles; a counter gets ticks that track its cadence (and stop before the
+final value, which gets silence or a single `chime-ding`); a hook word-slam
+gets `impact-boom` on the color flip and nothing else nearby. Leave ≥ 0.15s
+between SFX or they smear into noise.
+
 Discipline: **max ~6 SFX per 30 seconds.** Skip the tick on most staggers;
 over-SFX'd videos read as cheap template renders.
 
-## 4. Mixdown — Step-by-Step with Intermediate Files (MANDATORY approach)
+## 4. Mixdown — use `scripts/mix.mjs`
+
+**Do not hand-roll the mixdown.** `scripts/mix.mjs` performs the whole
+step-by-step build below, and then *verifies it by measurement*, exiting
+non-zero if the narration is not clearly above the bed:
+
+```bash
+node $SKILL/scripts/mix.mjs --duration=<CONTENT_DURATION> \
+  --music=audio/music.mp3 --sfx=audio/sfx_bus.wav
+```
+
+It reads VO placement from `js/timing.js` (`SCENE_TIMING`), or from
+`--vo-map=<json>`. Flags: `--bed-db` (bed attenuation, default −17),
+`--duck` (ducking depth, default 9), `--min-contrast` (gate, default 10dB),
+`--vo-lead` (default 0.3s), `--dry-run`.
+
+### Why the narration always wins
+
+The voice is the priority signal, and three mechanisms keep it there — level
+alone is not enough, because a bed at a "safe" average still collides with
+speech the moment it swells:
+
+1. **Level** — the bed is attenuated to ~−30dB mean against a ~−18dB voice.
+2. **Ducking** — a sidechain compressor keyed off the VO stem pulls the bed
+   down the instant a line starts (attack 8ms) and releases it smoothly
+   afterwards (320ms, so it doesn't pump between words).
+3. **Frequency separation** — gentle dips at 800Hz and 2.4kHz carve the speech
+   intelligibility band out of the *music*, so the two are not fighting for the
+   same spectrum even while both are audible. This is what stops the voice and
+   the bed sitting "on the same wavelength".
+
+The VO stem is also limited before it enters the mix, so makeup gain on a loud
+line cannot clip it.
+
+### Music-only films (no narration)
+
+A film with no voiceover is a legitimate direction (creative-direction.md Axis
+8) — on-screen copy carries the meaning and the bed carries the emotion. Pass
+`--music-only`:
+
+```bash
+node $SKILL/scripts/mix.mjs --duration=<CONTENT_DURATION> --music-only \
+  --music=audio/music.mp3 --sfx=audio/sfx_bus.wav
+```
+
+The mix changes shape, not just level:
+
+- **No ducking** — there is no voice to duck against.
+- **No vocal-band carve** — that EQ exists to make room for speech; without it
+  the dip only dulls the track.
+- **The bed becomes the primary signal**, defaulting to −5dB attenuation
+  (≈ −17dB mean) instead of the −13dB it takes under narration.
+- **The contrast gate is replaced** by a presence check: the mix fails if it
+  averages below −30dB, i.e. the bed is inaudible.
+
+It is deliberately opt-in. A missing VO file should fail loudly, not silently
+ship a film whose narration never made it in.
+
+### How loud should the bed be under narration?
+
+Default `--bed-db` is **−13**, landing the bed near −27dB mean against a −17dB
+voice — about 10–11dB of contrast. Earlier builds used −17dB *plus* 9dB of
+ducking, which is comfortably "in spec" on paper and yet reads as **no music at
+all** in a film that is narrated end to end: the bed spends its whole life
+around −35dB. If a client says the music is missing, raise `--bed-db` before
+anything else, and re-check the gate rather than eyeballing it.
+
+### The gate
+
+`mix.mjs` extracts real windows from the finished file — inside VO lines, and
+inside music-only gaps (including the tail after the last line) — measures each,
+and reports the contrast. Below `--min-contrast` (default 10dB) it FAILS and
+tells you which knob to turn. **Do not render with a failing mix.**
+
+### What it does internally (and what to fix if a step looks wrong)
 
 Single-pass mega `filter_complex` chains (sidechaincompress + multiple amix +
 loudnorm in one command) have **silently failed** in practice — the music

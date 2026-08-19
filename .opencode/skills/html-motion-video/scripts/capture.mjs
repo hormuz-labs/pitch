@@ -6,7 +6,7 @@
  * The page MUST expose:  window.__SEEK(seconds), window.__DURATION(), window.__READY
  *
  * Usage:
- *   node capture.mjs page.html [--fps=60] [--scale=2] [--width=1920] [--height=1080]
+ *   node capture.mjs page.html [--fps=60] [--scale=2] [--out-res=720p|1080p|4k] [--width=1920] [--height=1080]
  *                    [--workers=8] [--out=out/video.mp4] [--from=<sec>] [--to=<sec>]
  *
  * --from/--to render only a segment of the timeline (e.g. one scene, for fast
@@ -19,6 +19,10 @@ import { mkdirSync, rmSync, existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
+
+/** This script's own directory — used to resolve the repo-root font for the watermark. */
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 // Parse CLI flags correctly using slice(2)
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -28,7 +32,24 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 
 const pageArg  = process.argv.slice(2).find(a => !a.startsWith("--")) ?? "index.html";
 const fps      = Number(args.fps ?? 60);
-const scale    = Number(args.scale ?? 2);               // 2x scale = 3840x2160 4K UHD
+/**
+ * Output resolution. The stage is a fixed 1920x1080 page, so this is a
+ * render/encode concern only — rendering the page at a smaller viewport would
+ * reflow every absolutely-positioned scene. 4K captures at deviceScaleFactor 2;
+ * 720p captures at 1 and is downscaled on encode.
+ *
+ * This must resolve BEFORE `scale` is read: --out-res=4k has to reach the
+ * capture pass, not just the encoder.
+ */
+const OUT_RES = { "720p": { scale: 1, height: 720 }, "1080p": { scale: 1, height: null }, "4k": { scale: 2, height: null } };
+const outRes = args["out-res"] ? OUT_RES[String(args["out-res"]).toLowerCase()] : null;
+if (args["out-res"] && !outRes) {
+  console.error(`Unknown --out-res=${args["out-res"]} (expected 720p, 1080p or 4k)`);
+  process.exit(1);
+}
+const downscale = outRes?.height ? `scale=-2:${outRes.height}` : null;
+
+const scale    = outRes ? outRes.scale : Number(args.scale ?? 2);   // 2 = 3840x2160 4K UHD
 const width    = Number(args.width ?? 1920);
 const height   = Number(args.height ?? 1080);
 // Leave at least 2 CPU cores free for macOS system responsiveness, max 6 parallel workers by default
@@ -122,9 +143,44 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
 await Promise.all(tasks);
 
 const rawVideo = resolve(`_temp_video_${process.pid}.mp4`);
-console.log("\n🎬 Assembling Video Track with FFmpeg...");
+
+/**
+ * "Powered by trypitch.co" — the same watermark the demo-video flow burns in
+ * (apps/worker/src/utils/intro-outro.ts): bottom-centre, Sorts Mill Goudy 24px,
+ * a faint dark copy behind a light one so it stays legible on both light and
+ * dark scenes.
+ *
+ * Applied HERE rather than in the page so no launch film can ship without it —
+ * the same reasoning as the audit gates: a mechanism beats a rule someone has
+ * to remember 400 lines into a build. Scales with --scale so it sits at the
+ * same relative position at 1080p and 4K. Opt out with --no-watermark.
+ */
+function watermarkFilter() {
+  if (args["no-watermark"]) return null;
+  const fontFile = resolve(HERE, "..", "..", "..", "..", "assets", "fonts", "SortsMillGoudy-Regular.ttf");
+  if (!existsSync(fontFile)) {
+    console.warn(`⚠ watermark font missing (${fontFile}) — rendering without it`);
+    return null;
+  }
+  const text = "Powered by trypitch.co";
+  const size = Math.round(24 * scale);
+  const yBase = `h-${Math.round(34 * scale)}`;
+  const esc = (p) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
+  // NB: drawtext has no letter_spacing option in ffmpeg 6 — the demo flow gets
+  // its 0.5px tracking from SVG text, which does not translate here.
+  const common = `fontfile='${esc(fontFile)}':text='${text}':fontsize=${size}:x=(w-text_w)/2`;
+  // shadow first, then the light face 1.5px above it
+  return `drawtext=${common}:y=${yBase}+${Math.round(1.5 * scale)}:fontcolor=black@0.22,` +
+         `drawtext=${common}:y=${yBase}:fontcolor=0xC9C9D4@0.62`;
+}
+
+const wm = watermarkFilter();
+const vf = [downscale, wm].filter(Boolean).join(",");
+console.log(`\n🎬 Assembling Video Track with FFmpeg...${wm ? " (+ watermark)" : ""}${downscale ? ` (→ ${outRes.height}p)` : ""}`);
 execSync(
-  `ffmpeg -y -framerate ${fps} -i "${tmp}/f_%06d.jpg" -c:v libx264 -preset fast -crf 16 -pix_fmt yuv420p -movflags +faststart "${rawVideo}"`,
+  `ffmpeg -y -framerate ${fps} -i "${tmp}/f_%06d.jpg" ` +
+  (vf ? `-vf "${vf}" ` : "") +
+  `-c:v libx264 -preset fast -crf 16 -pix_fmt yuv420p -movflags +faststart "${rawVideo}"`,
   { stdio: "inherit" }
 );
 

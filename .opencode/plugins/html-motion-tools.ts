@@ -160,6 +160,66 @@ export const motion_screenshot = tool({
 });
 
 // ---------------------------------------------------------------------------
+// 4b. Asset harvesting (Phase 0) — the product's OWN media
+// ---------------------------------------------------------------------------
+export const motion_harvest = tool({
+  description:
+    "Download the target site's own images, product screenshots, inline logo SVGs and " +
+    "video files into assets/harvested/, with a manifest (recon/harvested.json) recording " +
+    "each asset's source URL, real dimensions, duration, and the section heading it appeared " +
+    "under. Run this in Phase 0 BEFORE building scenes: a film made from the brand's real " +
+    "photography, real screens and real logomark looks like their design team made it, while " +
+    "grey placeholder rectangles look like a wireframe. Picks the largest srcset candidate, " +
+    "scrolls to trigger lazy-loading, and dedupes by content hash. Third-party players " +
+    "(Wistia/YouTube/Vimeo) are reported, not downloaded. If the site is bot-walled, pass cdp.",
+  args: {
+    url: z.string().describe("Page to harvest"),
+    cdp: z.string().optional().describe(
+      "CDP endpoint of an anti-detect browser, e.g. http://localhost:8080/api/profiles/<id>/cdp. " +
+      "Required for Cloudflare-walled sites — the same fix screenshot.mjs suggests on a block page."),
+    out: z.string().optional().describe("Asset directory (default assets/harvested)"),
+    manifest: z.string().optional().describe("Manifest path (default recon/harvested.json)"),
+    minPx: z.number().int().optional().describe("Ignore images smaller than this on both axes (default 240)"),
+    max: z.number().int().optional().describe("Max assets to download (default 48)"),
+    noScroll: z.boolean().optional().describe("Skip the lazy-load scroll pass"),
+  },
+  async execute(args, context) {
+    const a: string[] = ["--url=" + args.url];
+    if (args.cdp) a.push("--cdp=" + args.cdp);
+    if (args.out) a.push("--out=" + args.out);
+    if (args.manifest) a.push("--manifest=" + args.manifest);
+    if (args.minPx != null) a.push("--min-px=" + args.minPx);
+    if (args.max != null) a.push("--max=" + args.max);
+    if (args.noScroll) a.push("--no-scroll");
+    const out = await runScript("harvest.mjs", a, context.directory);
+    return { output: out };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 4c. Timeline label export (Phase 5 prerequisite)
+// ---------------------------------------------------------------------------
+export const motion_cues = tool({
+  description:
+    "Export the master timeline's REAL scene labels and duration to audio/cues.json. " +
+    "Run after the master timeline exists and BEFORE placing voiceover or SFX. Scene start " +
+    "times have exactly one authority — the page. Summing SCENE_TIMING durations is only " +
+    "correct when every boundary is a plain cut; any overlap shifts later labels earlier and " +
+    "drifts the audio out of sync with the picture. motion_mix reads this file when present.",
+  args: {
+    page: z.string().optional().describe("Page to read (default index.html)"),
+    out: z.string().optional().describe("Output JSON (default audio/cues.json)"),
+  },
+  async execute(args, context) {
+    const a: string[] = [];
+    if (args.page) a.push(args.page);
+    if (args.out) a.push("--out=" + args.out);
+    const out = await runScript("cues.mjs", a, context.directory);
+    return { output: out };
+  },
+});
+
+// ---------------------------------------------------------------------------
 // 5. Curated music / SFX library scan (Phase 5)
 // ---------------------------------------------------------------------------
 /** Shared audio library roots: assets/music + assets/sfx at the repo root. */
@@ -218,6 +278,114 @@ export const motion_find_audio = tool({
 });
 
 // ---------------------------------------------------------------------------
+// 5b. Curated SFX manifest — query + synced bus build (Phase 5)
+// ---------------------------------------------------------------------------
+export const motion_sfx = tool({
+  description:
+    "Query the curated SFX manifest, or build a synced SFX bus from a cue sheet. " +
+    "action='list' prints the motion-event vocabulary; action='query' returns ranked, " +
+    "measured candidates for one event; action='build' renders audio/sfx_bus.wav from " +
+    "audio/sfx-cues.json, placing every cue by its measured onset so the transient lands " +
+    "on the frame, and trimming each cue to its `dur` so a sustained sound (typing, data " +
+    "chatter, a long whoosh) stops when its animation stops instead of playing the whole " +
+    "file. NEVER browse the raw SFX folders — most of that library is meme/game/" +
+    "weapon audio that must not reach a client render. Read references/sfx-design.md first.",
+  args: {
+    action: z.enum(["list", "query", "build"]).describe(
+      "list = event vocabulary; query = candidates for one event; build = render the bus"),
+    event: z.string().optional().describe(
+      "Event name for action='query': pop, tick, click, type, select, data, notify, chime, " +
+      "success, camera, whoosh_soft, whoosh_deep, reverse, riser, impact, subdrop, glitch"),
+    max: z.number().optional().describe("Cap clip length in seconds (query): keeps travel sounds under the tween they cover"),
+    limit: z.number().int().optional().describe("Max candidates to print (query, default 12)"),
+    cues: z.string().optional().describe("Cue sheet path for build (default audio/sfx-cues.json)"),
+    duration: z.number().optional().describe("Timeline length for build — CONTENT_DURATION from __DURATION()"),
+    out: z.string().optional().describe("Output WAV for build (default audio/sfx_bus.wav)"),
+    dryRun: z.boolean().optional().describe("Build: print the placement plan without rendering"),
+  },
+  async execute(args, context) {
+    const a: string[] = [args.action === "build" ? "build" : "query"];
+    if (args.action === "list") a.push("--list");
+    if (args.event) a.push("--event=" + args.event);
+    if (args.max != null) a.push("--max=" + args.max);
+    if (args.limit != null) a.push("--limit=" + args.limit);
+    if (args.cues) a.push("--cues=" + args.cues);
+    if (args.duration != null) a.push("--duration=" + args.duration);
+    if (args.out) a.push("--out=" + args.out);
+    if (args.dryRun) a.push("--dry-run");
+    const out = await runScript("sfx.mjs", a, context.directory);
+    return { output: out };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 5c. Rebuild the SFX manifest (only when the libraries change)
+// ---------------------------------------------------------------------------
+export const motion_sfx_reindex = tool({
+  description:
+    "Rebuild references/sfx-index.json by rescanning the SFX libraries: measures duration, " +
+    "transient onset and loudness for every file, classifies each into a motion-event class, " +
+    "and drops banned (meme/game-rip/weapon/novelty) audio. Only needed when the libraries " +
+    "themselves change — not per video. Slow (~2 min); pass quick to skip loudness.",
+  args: {
+    quick: z.boolean().optional().describe("Skip loudness measurement (~6x faster, but the mixer loses level-aware clip ranking)"),
+    root: z.string().optional().describe("Absolute path of an ADDITIONAL library root to index"),
+  },
+  async execute(args, context) {
+    const a: string[] = [];
+    if (args.quick) a.push("--quick");
+    if (args.root) a.push("--root=" + args.root);
+    const out = await runScript("sfx-index.mjs", a, context.directory);
+    return { output: out };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 5d. Final mixdown with narration-priority verification (Phase 5)
+// ---------------------------------------------------------------------------
+export const motion_mix = tool({
+  description:
+    "Build audio/mix.wav from the VO clips, music bed and SFX bus — then VERIFY it. " +
+    "The narration is the priority signal: the bed is attenuated, sidechain-ducked against " +
+    "the VO, and has the speech band EQ-carved out of it so voice and music never occupy " +
+    "the same spectrum. Reads VO placement from js/timing.js (SCENE_TIMING) or --vo-map. " +
+    "FAILS (non-zero) if the narration is not at least min-contrast dB above the music-only " +
+    "floor, measured by extracting real windows from the finished file. Never hand-roll the " +
+    "mixdown; never render on a failing mix.",
+  args: {
+    duration: z.number().describe("Timeline length — CONTENT_DURATION from __DURATION()"),
+    music: z.string().optional().describe("Music bed path, e.g. audio/music.mp3"),
+    sfx: z.string().optional().describe("SFX bus from motion_sfx build, e.g. audio/sfx_bus.wav"),
+    voMap: z.string().optional().describe("JSON [{file,t}] overriding VO placement from js/timing.js"),
+    out: z.string().optional().describe("Output mix (default audio/mix.wav)"),
+    bedDb: z.number().optional().describe("Music bed attenuation in dB (default -17). Lower = quieter bed."),
+    duck: z.number().optional().describe("Ducking depth in dB the bed drops under speech (default 9)"),
+    minContrast: z.number().optional().describe("Gate: dB the VO must sit above the music-only floor (default 10)"),
+    voLead: z.number().optional().describe("Seconds between a scene's start and its VO line (default 0.3)"),
+    musicOnly: z.boolean().optional().describe(
+      "No-narration film: skip the VO stem, the ducking and the vocal-band carve, and let the " +
+      "music bed sit as the primary signal (~-17dB mean). Opt-in on purpose — without it, a " +
+      "missing VO clip fails loudly rather than silently shipping a narration-free cut."),
+    dryRun: z.boolean().optional().describe("Print the plan and VO overlap check without rendering"),
+  },
+  async execute(args, context) {
+    const a: string[] = ["--duration=" + args.duration];
+    if (args.music) a.push("--music=" + args.music);
+    if (args.sfx) a.push("--sfx=" + args.sfx);
+    if (args.voMap) a.push("--vo-map=" + args.voMap);
+    if (args.out) a.push("--out=" + args.out);
+    if (args.bedDb != null) a.push("--bed-db=" + args.bedDb);
+    if (args.duck != null) a.push("--duck=" + args.duck);
+    if (args.minContrast != null) a.push("--min-contrast=" + args.minContrast);
+    if (args.voLead != null) a.push("--vo-lead=" + args.voLead);
+    if (args.musicOnly) a.push("--music-only");
+    if (args.dryRun) a.push("--dry-run");
+    const out = await runScript("mix.mjs", a, context.directory);
+    return { output: out };
+  },
+});
+
+// ---------------------------------------------------------------------------
 // 6. Verify duration (Phase 6) — ffprobe
 // ---------------------------------------------------------------------------
 export const motion_verify_duration = tool({
@@ -237,7 +405,7 @@ export const motion_verify_duration = tool({
   },
 });
 
-const AUDIO_RE = /\.(mp3|wav|m4a|aac|flac|ogg)$/i;
+const AUDIO_RE = /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i;   // opus: the vendored SFX library format
 
 // ---------------------------------------------------------------------------
 // Plugin entry — registers all motion_* tools in opencode's hook shape.
@@ -249,6 +417,11 @@ export const htmlMotionVideo = async () => ({
     motion_audit,
     motion_screenshot,
     motion_find_audio,
+    motion_harvest,
+    motion_cues,
+    motion_sfx,
+    motion_sfx_reindex,
+    motion_mix,
     motion_verify_duration,
   },
 });

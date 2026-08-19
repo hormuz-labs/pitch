@@ -1,7 +1,59 @@
 import pino from 'pino'
 
-/** Credits charged for one HTML/GSAP launch-video generation. */
-export const LAUNCH_VIDEO_CREDIT_COST = 5
+/**
+ * Launch-video output resolutions, their credit price, and how the renderer
+ * reaches them.
+ *
+ * The GSAP stage is a fixed 1920x1080 page, so resolution is a RENDER concern,
+ * not a layout one: 4K captures the same stage at deviceScaleFactor 2, and 720p
+ * captures at 1 and downscales on encode. Rendering the page at a smaller
+ * viewport would reflow every absolutely-positioned scene.
+ */
+export const LAUNCH_VIDEO_RESOLUTIONS = {
+  '720p': { label: '720p', credits: 5, scale: 1, outHeight: 720 },
+  '1080p': { label: '1080p', credits: 8, scale: 1, outHeight: null },
+  '4k': { label: '4K', credits: 12, scale: 2, outHeight: null },
+} as const
+
+export type LaunchVideoResolution = keyof typeof LAUNCH_VIDEO_RESOLUTIONS
+
+export const DEFAULT_LAUNCH_VIDEO_RESOLUTION: LaunchVideoResolution = '1080p'
+
+/**
+ * Narration surcharge. A narrated film costs an extra TTS pass — script plus one
+ * voiceover clip per scene — on top of the render, so it prices above the
+ * music-only cut at the same resolution.
+ */
+export const LAUNCH_VIDEO_NARRATION_CREDITS = 1
+
+/**
+ * Credits for one launch video: the resolution tier, plus the narration
+ * surcharge when the film is narrated (the default).
+ */
+export function launchVideoCreditCost(resolution?: string | null, narration = true): number {
+  const key = (resolution ?? DEFAULT_LAUNCH_VIDEO_RESOLUTION) as LaunchVideoResolution
+  const tier =
+    LAUNCH_VIDEO_RESOLUTIONS[key] ?? LAUNCH_VIDEO_RESOLUTIONS[DEFAULT_LAUNCH_VIDEO_RESOLUTION]
+  return tier.credits + (narration ? LAUNCH_VIDEO_NARRATION_CREDITS : 0)
+}
+
+export function isLaunchVideoResolution(v: unknown): v is LaunchVideoResolution {
+  return typeof v === 'string' && v in LAUNCH_VIDEO_RESOLUTIONS
+}
+
+/**
+ * What a launch video cost before per-resolution pricing existed. Jobs created
+ * then carry no `resolution` in their parameters, and refunding them at today's
+ * default tier would hand back more than was ever charged.
+ */
+export const LAUNCH_VIDEO_LEGACY_CREDIT_COST = 5
+
+/**
+ * Kept for callers that predate per-resolution pricing. Equals the default
+ * (1080p) tier — do NOT use it to charge; use launchVideoCreditCost().
+ */
+export const LAUNCH_VIDEO_CREDIT_COST =
+  LAUNCH_VIDEO_RESOLUTIONS[DEFAULT_LAUNCH_VIDEO_RESOLUTION].credits
 
 /**
  * Creates a structured pino logger bound to a specific service.

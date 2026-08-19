@@ -71,7 +71,10 @@ export interface LaunchVideoStore {
     opts?: { skipFetch?: boolean; connectEvents?: boolean },
   ) => Promise<void>
   clearProject: () => void
-  startProject: (text: string) => Promise<{ jobId: string; projectName: string }>
+  startProject: (
+    text: string,
+    resolution?: string,
+  ) => Promise<{ jobId: string; projectName: string }>
   sendPrompt: (text: string) => Promise<void>
   sendScenePrompt: (sceneId: string, text: string) => Promise<void>
   /**
@@ -591,7 +594,7 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
    *  created the project), this queues a launch-video job. Its stable jobId is
    *  also the browser route identity, matching the regular editor. */
   const startProject = useCallback(
-    async (text: string) => {
+    async (text: string, resolution?: string, narration?: boolean) => {
       const name = launchVideoProjectName(
         text,
         projectsRef.current.map(project => project.name),
@@ -612,6 +615,8 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
           name,
           text,
           selectedMusicRef.current ?? undefined,
+          resolution,
+          narration,
         )
         setCurrentJobId(jobId)
         return { jobId, projectName: name }

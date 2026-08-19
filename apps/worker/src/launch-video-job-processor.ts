@@ -16,7 +16,8 @@ import {
   createLogger,
   JOB_UPDATES_CHANNEL,
   JobStatus,
-  LAUNCH_VIDEO_CREDIT_COST,
+  LAUNCH_VIDEO_LEGACY_CREDIT_COST,
+  launchVideoCreditCost,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
 import type { Job } from 'bullmq'
@@ -93,7 +94,13 @@ async function getSessionForProject(
   return { id, created: true }
 }
 
-function buildSystemPrompt(userId: string, name: string, music?: string): string {
+function buildSystemPrompt(
+  userId: string,
+  name: string,
+  music?: string,
+  resolution?: string,
+  narration = true,
+): string {
   const internal = toInternalName(userId, name)
   const dir = projectDir(process.cwd(), userId, name)
   const exists = existsSync(dir)
@@ -104,6 +111,26 @@ function buildSystemPrompt(userId: string, name: string, music?: string): string
     system +=
       `Background music: the user picked "assets/music/${music}" from the shared music library — ` +
       `copy it into the project's audio/ folder and use it as the music bed in the mix. `
+  }
+  if (narration === false) {
+    // This has to be known BEFORE the storyboard: scene durations normally come
+    // from measured TTS clips, and there are none here.
+    system +=
+      `NARRATION: OFF — this is a music-only film. Skip Phase 3 voiceover entirely (no ` +
+      `motion_tts calls, no vo_*.wav, no vo entries in js/timing.js). Derive every scene ` +
+      `duration from the storyboard instead of measured VO, and lean harder on on-screen ` +
+      `copy since nothing is spoken. Build the mix with motion_mix musicOnly: true, which ` +
+      `drops the ducking and the vocal-band carve and lets the bed sit as the primary ` +
+      `signal. `
+  }
+  if (resolution) {
+    // The user paid for a specific output tier — the final render must match it.
+    // capture.mjs owns the mapping (720p downscales from the 1080p stage, 4K
+    // captures at deviceScaleFactor 2); the agent just passes the flag.
+    system +=
+      `Output resolution: the user selected ${resolution}. The FINAL full-timeline render ` +
+      `must pass --out-res=${resolution} to capture.mjs (or resolution: '${resolution}' via ` +
+      `motion_render). Do not substitute a different --scale for the deliverable. `
   }
   system += FIRST_TURN_BRIEF
   return system
@@ -192,9 +219,15 @@ async function executeLaunchVideoJob(
   const { jobId, userId, parameters } = job.data as {
     jobId: string
     userId: string
-    parameters: { projectName: string; prompt: string; music?: string }
+    parameters: {
+      projectName: string
+      prompt: string
+      music?: string
+      resolution?: string
+      narration?: boolean
+    }
   }
-  const { projectName, prompt, music } = parameters
+  const { projectName, prompt, music, resolution, narration } = parameters
   const jobLogger = logger.child({ jobId, userId, projectName })
 
   jobLogger.info('Processing launch-video job')
@@ -285,7 +318,7 @@ async function executeLaunchVideoJob(
   })
 
   // Send the creation prompt.
-  const system = buildSystemPrompt(userId, projectName, music)
+  const system = buildSystemPrompt(userId, projectName, music, resolution, narration)
   const promptResponse = await client.session.prompt({
     path: { id: sessionId },
     query: { directory: targetDir },
@@ -412,16 +445,27 @@ export async function recoverLaunchVideoJobFailure({
   })
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(failedJob))
 
-  await db.addCredits(
-    userId,
-    LAUNCH_VIDEO_CREDIT_COST,
-    'refund',
-    'Refund: Launch video generation failed',
-    {
-      jobId,
-      idempotencyKey: `refund:launch-video:${jobId}`,
-    },
-  )
+  // Refund exactly what was charged. The price depends on the resolution tier
+  // and whether the film was narrated, so refunding a flat constant would hand
+  // back too much for a 720p music-only job and too little for a 4K narrated
+  // one. The job's own parameters are the record of what was paid.
+  // A job with no `resolution` predates per-resolution pricing and was charged
+  // the old flat rate; refunding today's default tier would over-refund it.
+  let refund = LAUNCH_VIDEO_LEGACY_CREDIT_COST
+  try {
+    const params = JSON.parse((existingJob.parameters as string) || '{}')
+    if (params.resolution) {
+      refund = launchVideoCreditCost(params.resolution, params.narration !== false)
+    }
+  } catch {
+    // Unparseable parameters: still refund rather than leave the user charged
+    // for a job that failed.
+  }
+
+  await db.addCredits(userId, refund, 'refund', 'Refund: Launch video generation failed', {
+    jobId,
+    idempotencyKey: `refund:launch-video:${jobId}`,
+  })
 }
 
 export async function processLaunchVideoJob(

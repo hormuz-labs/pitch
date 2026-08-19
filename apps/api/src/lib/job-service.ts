@@ -1,9 +1,12 @@
 import * as db from '@saas/db'
 import {
   createLogger,
+  DEFAULT_LAUNCH_VIDEO_RESOLUTION,
+  isLaunchVideoResolution,
   JOB_UPDATES_CHANNEL,
   JobStatus,
   LAUNCH_VIDEO_CREDIT_COST,
+  launchVideoCreditCost,
   sendDiscordMessage,
 } from '@saas/shared'
 import * as storage from '@saas/storage'
@@ -102,13 +105,21 @@ export async function createLaunchVideoJob(
   projectName: string,
   prompt: string,
   music?: string,
+  resolution?: string,
+  narration = true,
 ) {
   const tenantId = userId
 
+  // Price follows the requested output resolution (720p/1080p/4K). An unknown
+  // or missing value falls back to the default tier rather than the cheapest,
+  // so a malformed request can never underpay.
+  const res = isLaunchVideoResolution(resolution) ? resolution : DEFAULT_LAUNCH_VIDEO_RESOLUTION
+  const cost = launchVideoCreditCost(res, narration)
+
   const balance = await db.getCreditBalance(tenantId)
-  if (balance < LAUNCH_VIDEO_CREDIT_COST) {
+  if (balance < cost) {
     launchLogger.warn(
-      { userId, tenantId, balance },
+      { userId, tenantId, balance, resolution: res, narration, cost },
       'Launch video job blocked: insufficient credits',
     )
     throw new InsufficientCreditsError(balance)
@@ -118,14 +129,20 @@ export async function createLaunchVideoJob(
     jobType: 'launch-video',
     projectName,
     prompt,
+    resolution: res,
+    // Only recorded when narration is OFF — the default needs no marker.
+    ...(narration ? {} : { narration: false }),
     ...(music ? { music } : {}),
   }
 
   const job = await db.createJob({ userId, parameters: launchParams }, { id: userId })
 
-  await db.deductCredit(tenantId, LAUNCH_VIDEO_CREDIT_COST, 'Launch video generation', {
-    jobId: job.id,
-  })
+  await db.deductCredit(
+    tenantId,
+    cost,
+    `Launch video generation (${res}${narration ? ', narrated' : ', music only'})`,
+    { jobId: job.id },
+  )
 
   try {
     await videoQueue.add(
@@ -143,15 +160,11 @@ export async function createLaunchVideoJob(
       status: JobStatus.FAILED,
       error: `Failed to queue launch-video job: ${enqueueError.message}`,
     })
-    await db.addCredits(
-      tenantId,
-      LAUNCH_VIDEO_CREDIT_COST,
-      'refund',
-      'Refund: launch-video job failed to enqueue',
-      {
-        jobId: job.id,
-      },
-    )
+    // Refund exactly what was charged — with per-resolution pricing a flat
+    // constant would refund the wrong amount for 720p and 4K jobs.
+    await db.addCredits(tenantId, cost, 'refund', 'Refund: launch-video job failed to enqueue', {
+      jobId: job.id,
+    })
     throw enqueueError
   }
 

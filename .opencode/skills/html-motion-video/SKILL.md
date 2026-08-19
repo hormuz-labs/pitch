@@ -19,16 +19,25 @@ skill's code examples (dark navy stage, blue/purple glow orbs, glass cards,
 Inter font) is **sample data, not a default** — reaching for it without brand
 evidence is a failure.
 
+**Reference studies are pattern libraries, never templates.** Do not copy a
+reference video's scene order, shot count, timing, scale values, transition
+sequence, palette, assets, or density. Extract the underlying communication
+principle, then derive a new execution from the current URL's brand evidence,
+product interaction model, audience, and narrative. The product-specific
+`direction.md` always outranks optional recipes and observed numeric ranges.
+An agent may reject every reference technique when another solution better
+serves the product; record that reasoning in `direction.md`.
+
 ## Workflow at a glance
 
 | Phase | Output | Gate |
 |---|---|---|
 | 0. Recon | `recon/` facts: exact brand tokens, tone, UI inventory | Colors measured from the live site, not guessed |
 | 1. Creative Direction | `direction.md` — decisions on 8 axes, each citing evidence | Passes the Uniqueness Test |
-| 2. Storyboard | Scene table: beat, format, VO line + delivery style | Arc & formats follow from direction.md |
+| 2. Storyboard | Scene table + transition ledger | Arc, focal targets, and boundary flow follow from direction.md |
 | 3. Voiceover First | All VO clips generated & measured → `js/timing.js` | Scene durations derived from real clip lengths |
 | 4. Build | Multi-file HTML/CSS/GSAP project, scenes sized to VO | Technical invariants hold; no flicker |
-| 5. Music & Mix | Music bed (`assets/music/` first), SFX, `audio/mix.wav` | Levels verified by measurement |
+| 5. Music & SFX Mix | Music bed (`assets/music/` first), SFX cue sheet → `audio/sfx_bus.wav`, `audio/mix.wav` | Cue sheet builds clean; levels verified by measurement |
 | 6. Render | `renders/<project>-launch.mp4` (shared folder) | Audit passes, duration verified |
 
 Present direction.md + the storyboard to the user in one message, then proceed
@@ -154,9 +163,52 @@ Inventing a palette when the founders already published one is a recon failure.
 - **Product substance:** what the product actually *is* (dashboard? CLI? mobile
   app? API? marketplace?), its 2–3 core value propositions, and the real UI
   screens/flows available in the screenshots.
-- **Screenshots are reference material only.** Never place flat screenshot
-  images on the canvas — re-create product screens natively in HTML/CSS
-  (§ Phase 4) so every element is individually animatable.
+- **Harvest the product's own media (do this before writing a single scene).**
+  The site already contains the assets that make the film look like the brand
+  made it: real product screenshots, real photography, real demo footage, and
+  the actual logomark as SVG. Take them:
+
+  ```bash
+  node $SKILL/scripts/harvest.mjs --url=<product-url>
+  # bot-walled site? attach to an anti-detect browser instead:
+  node $SKILL/scripts/harvest.mjs --url=<product-url> --cdp=<cloakbrowser CDP url>
+  ```
+
+  Writes files to `assets/harvested/` and a manifest to `recon/harvested.json`
+  with, for every asset: source URL, real pixel dimensions, video duration, and
+  **the section heading it appeared under** — so "the studio photo from the
+  Design Freely section" is a thing you can actually look up. It picks the
+  largest `srcset` candidate, scrolls to trigger lazy-loading, dedupes by
+  content hash, and separates likely logomarks from icons.
+
+  Third-party players (Wistia/YouTube/Vimeo) are reported but not downloaded —
+  they are players, not files. Screen-capture the playing embed via CDP or ask
+  the user for the source.
+
+  **Rights:** these are the product's own brand assets, and a film about that
+  product is the intended use. Never carry them into a different product's
+  video, and keep `recon/harvested.json` as the provenance record.
+
+- **Asset truth inventory (MANDATORY):** write `recon/assets.md` listing each
+  available logo, app/provider icon, product screenshot, hardware render,
+  illustration, and UI state; record its source and whether it is official.
+  Prefer provided/official assets over substitutes. Never redraw a recognizable
+  brand mark with a generic icon — if `harvest.mjs` pulled the real logo SVG,
+  use that file.
+
+- **Use harvested media as real material, not wallpaper.** Real photography and
+  real product footage belong in the composition the way the brand uses them —
+  in the tiles/cards/device frames of your chosen layout, at the brand's own
+  radii. A harvested product video can run as a muted, looping inline clip
+  inside a reconstructed frame, which beats a still screenshot every time. The
+  ban on "a flat screenshot held static for a whole scene" still applies: the
+  asset must be framed, moved, masked, or intercut with native motion.
+- **Use the right UI construction mode:** native HTML/CSS for controls that must
+  animate internally; a verified real screenshot/image as a base plate for
+  complex or third-party surfaces; or a hybrid (real base plate + native
+  hotspot, cursor, highlight, and changing state). A flat screenshot left
+  unchanged for an entire scene is not a demo, but recreating a real product
+  inaccurately is worse. See `references/attention-camera.md`.
 
 ## Phase 1 — Creative Direction (the anti-sameness gate)
 
@@ -183,10 +235,26 @@ The 8 axes (menus and selection heuristics live in the reference):
    counters, kinetic type, device frame, integration grid… The reference has a
    value-proposition → format mapping table.
 7. **Narrative arc** — Problem→Relief, Demo-first, Manifesto, Montage, or
-   Metric-led. Scene count 5–9, not always 8.
+   Metric-led. Scene count 5–9, not always 8. Whatever the arc, the first 3
+   seconds need a designed hook (word-per-beat cadence, color slam,
+   morph-to-object — see `references/effects-catalog.md` §27), not a logo
+   fading in.
 8. **Audio persona** — VO voice + delivery style, music genre, SFX density,
    all matched to brand tone (default to a female voice unless the brand or
    user suggests otherwise; the *delivery style* must be brand-specific).
+
+Also define:
+
+- an **attention-camera grammar**: normal context scale, close-detail scale
+  range, preferred focal landing, and focus/release easings; and
+- a **cut-first boundary grammar**: scenes normally meet with a clean one-frame
+  cut. Opt into a shared-element or match transition only when one real object
+  genuinely continues the same causal action and the handoff is cleaner than
+  the cut in a boundary render. Never invent an interstitial bridge merely to
+  make two unrelated scenes feel connected.
+
+Read `references/attention-camera.md` and `references/scene-transitions.md`
+before storyboarding any product-demo beat.
 
 ### The Uniqueness Test (must pass before coding)
 
@@ -206,7 +274,12 @@ direction.md must end with explicit answers to:
 Choose the arc and beats per direction.md (arcs and beat menus in
 `references/creative-direction.md`). Present a table before coding:
 
-| # | Beat | Duration | Scene format | Visual concept | VO line | VO style |
+| # | Beat | Duration | Scene format | Visual concept | Focal target + camera move | Verified asset(s) | VO line | VO style |
+|---|---|---|---|---|---|---|---|---|
+
+Then present a boundary ledger:
+
+| From → To | Clean cut or connected exception | Continuing object | Conserved property | Mechanism | Duration/ease | Sound cue |
 |---|---|---|---|---|---|---|
 
 Rules:
@@ -217,6 +290,19 @@ Rules:
   speech. Short lines keep scenes punchy.
 - Each VO line gets its own delivery-style instruction matching that beat's
   emotion — never one style string reused across clips.
+- Every product-demo beat names exactly one primary focal target (selector or
+  asset), its context framing, focus framing, and release. “Full dashboard” is
+  context, never the focal target. If there is no deliberate target, rewrite
+  the beat. Non-demo beats (type, brand, stats, CTA) explicitly mark the
+  camera column “none — element motion” instead of inventing a zoom; see the
+  camera budget in §4.3 and `references/attention-camera.md` §1a.
+- Record where each recognizable image/icon comes from. Product and third-party
+  UI, app logos, provider logos, and hardware should use verified real assets.
+- Every boundary is intentional and defaults to a clean cut. A rare connected
+  beat names one surviving real element and conserves its identity, position,
+  or meaning; otherwise cut. Reject any handoff that creates a blank frame,
+  temporary third composition, arbitrary bridge dot/panel, or visible overlap.
+  See `references/scene-transitions.md`.
 - Total runtime typically 35–60s.
 
 ## Phase 3 — Voiceover First (audio drives the timing)
@@ -275,13 +361,14 @@ for the 4K final). No per-project `out/` folders.
 ├── projects/
 │   └── <project-name>/     # EVERYTHING project-specific lives here
 │       ├── direction.md    # The creative brief (Phase 1)
-│       ├── recon/          # screenshots/, dom.txt, extracted brand facts
+│       ├── recon/          # screenshots/, dom.txt, brand facts, assets.md
 │       ├── assets/         # provided logos/images (if any)
 │       ├── index.html      # Thin shell: viewport, camera rig, bg layer, script loader
 │       ├── vendor/gsap/    # copied from $SKILL/vendor/gsap — core + ALL plugins
 │       ├── css/            # base.css, scenes.css, ui-components.css, cursor.css
 │       ├── js/
 │       │   ├── timing.js   # SCENE_TIMING map generated from measured VO (Phase 3)
+│       │   ├── focus.js    # FocusDirector (measured semantic zoom/pan targets)
 │       │   ├── cursor.js   # CursorController (appear-only-to-act)
 │       │   ├── transitions.js
 │       │   ├── scenes/sceneN.js  # One module per scene, returns gsap.timeline()
@@ -296,6 +383,26 @@ for the 4K final). No per-project `out/` folders.
 Never build a monolithic single HTML file. Full shell/module/master-timeline/
 plugin/cursor code lives in `references/architecture.md`; read it when
 scaffolding.
+
+### 4.1b Wire the harvested assets in — before writing scenes
+
+Phase 0 pulled the product's real logomark, screens and footage. **Use them
+now.** The failure mode is not disagreeing with the rule, it is forgetting: by
+the time you are deep in scene code, the files sit unused in
+`assets/harvested/` while a hand-drawn approximation goes into the CTA.
+
+- Copy what the film uses into `assets/` with clear names (`mark.svg`,
+  `wordmark.svg`) and reference them, or inline the SVG markup so it can
+  inherit `currentColor`.
+- **A logotype is a drawing, not a word.** Never retype a brand's wordmark in
+  a substitute font — if their logo is pixel lettering, using Inter for the
+  name is as wrong as redrawing the mark.
+- Inlining a harvested SVG fragment? **Self-close the shape tags.** Browsers
+  parse `<rect …>` from a live DOM fine, but pasted into your HTML an unclosed
+  `<rect>` *nests* instead of forming siblings, and only the first one renders.
+
+`audit.mjs` fails the build if a harvested logomark is never referenced or
+inlined (`--allow-missing-logo` to opt out for a film with no lockup).
 
 ### 4.2 GSAP plugin roster — vendored in the repo; actually use it
 
@@ -341,11 +448,36 @@ see the reference). Universal rules regardless of language:
 
 - Scenes chain with **relative offsets** (`">-0.5"`) — absolute timestamp
   placements (`.add(scene(), 21.0)`) are banned.
-- **Never show two readable screens at once.** Transition overlap stays short
-  (~0.3–0.5s) and both scenes must be visibly in motion during it.
-- The per-scene camera/stage drift tween is added **last** in each scene
-  function at explicit position `0`, so it overlaps content tweens instead of
-  delaying them.
+- **Never show two complete readable screens at once.** Transition overlap is
+  normally ~0.3–0.8s depending on the bridge, and both scenes/bridge must be
+  visibly in motion during it.
+- **Cut first.** End the outgoing scene cleanly and start the incoming scene on
+  the next frame. Use a connected handoff only when the same verified object
+  literally continues the same action and a boundary-only render proves it is
+  clearer than the cut. Blank color holds, arbitrary bridge dots/panels,
+  surface-expansion interstitials, and generic fade/zoom/whip transitions are
+  banned. A bridge must never become a temporary third scene.
+- Product-demo beats use **semantic reframes**, not an automatic slow zoom:
+  context → eased lateral zoom+pan to the active control/content → readable
+  hold → lateral rack or cut. **Scale is never standalone emphasis.** A scale
+  change is allowed only when a material horizontal reframe is required to
+  acquire or follow an interaction; otherwise keep scale fixed and use layout,
+  crop, contrast, or element motion. Measure targets from the rendered DOM and
+  keep the target inside safe margins; do not guess x/y.
+- **Camera budget: not every scene gets a reframe.** Typing beats get a
+  nonlinear zoom+horizontal-pan acquisition that settles before the first
+  character; progressively filling content tracks laterally at held scale;
+  type/brand/stat/CTA scenes get element motion only. Budget ~2–5 deliberate
+  reframes per film and normally one scale acquisition per demo scene. Between
+  nearby targets, hold scale and pan—never release wide and re-zoom. Every
+  scale tween uses a visibly nonlinear acceleration/deceleration curve; linear
+  scale and ambient push-ins are banned. The full rules are in
+  `references/attention-camera.md` §1a–1c.
+- Add the camera/scene transform track **last** in each scene function at
+  explicit positions, so it overlaps content tweens instead of delaying them.
+  Where no semantic reframe is called for, use a restrained ambient drift at
+  position `0`. Full rules and implementation patterns:
+  `references/attention-camera.md`.
 
 ### 4.4 Continuous motion (no static frames) — and NO flicker
 
@@ -353,14 +485,17 @@ From first frame to last, something must always be moving — if two frames
 sampled ~1.5s apart look identical, `scripts/audit.mjs` fails the build. Per
 scene:
 
-- Continuous camera/stage travel across the full scene duration. Minimums:
-  scale travel ≥ 8% (e.g. 1.0 → 1.08) *or* equivalent pan/tilt — expressed in
-  the video's motion language (a flat Editorial video drifts x/y instead of
-  dollying in 3D).
+- Continuous meaningful travel across the scene: semantic camera reframes,
+  element motion, or — only between focal actions — restrained camera/stage
+  drift. A linear 1.0 → 1.08 zoom is ambient texture, not attention direction.
+  For UI scenes, at least one active target must become materially more legible
+  through a zoom+pan, crop/reveal, or layout reframe.
 - **Progressive disclosure:** don't show everything in the first second;
   entrances consume ≥ 40% of the scene.
 - At least one **mid-scene event** (cursor click, chart draw, counter, text
-  swap, card arrival, spotlight).
+  swap, card arrival, spotlight). Note its exact timeline position as you build
+  it — that number becomes a Phase 5 SFX cue, and reconstructing it later from a
+  draft render is guesswork.
 - A living background layer appropriate to the chosen background system
   (grid pan, slow gradient evolution, orb drift — whatever direction.md
   picked), moving positionally at constant opacity.
@@ -414,7 +549,11 @@ nothing more:
   Non-interactive scenes (cold open, logo, stats, CTA) have no cursor at all.
 - One deliberate click per interaction scene: swoop in on a curved arc
   (separate x/y easings), tilt into the turn, settle, squash-press, ripple,
-  elastic release, leave.
+  elastic release, leave. Two licensed variants (each at most once per video):
+  the **flip-and-press** — the cursor tumbles ~90–135° during travel, snaps
+  upright, presses, and exits still spinning; and the **cargo carry** — the
+  cursor transports fanned assets and drops them into a container that opens
+  to receive them. Recipes: `references/effects-catalog.md` §29–30.
 - **Pixel-precise targeting:** never hardcode coordinates. Use
   `CursorController.clickElement(selector, { targetTime })` — after master
   assembly, `bindAllClicks()` seeks the timeline to `targetTime`, measures
@@ -495,11 +634,103 @@ These are correctness rules, independent of style:
     overlapping" bug). `audit.mjs` samples every scene's midpoint and **fails
     the build** if any non-active scene has opacity ≥ 0.05 — do not render
     until it passes.
+20. **Zero-duration `.set()` tweens leak across measurement seeks.** Binding
+    passes (FocusDirector, CursorController, TransitionDirector) seek the
+    master timeline to measure targets; when the playhead crosses a timeline
+    whose position-0 `.set()` changes visibility, the set's values can stay
+    applied after the final rewind — e.g. a transition bridge dot parked
+    visibly mid-screen from frame 0. Rules: (a) any visibility change inside a
+    seek-crossed timeline is a `0.01s` `.to(..., { ease: "none" })`, never a
+    `.set()`; (b) overlay/bridge elements (`#bridge-*`, `#cursor-*`) default to
+    `opacity: 0` in CSS; (c) after building, probe them at several times
+    (t=0, mid-scenes, post-transition) and assert opacity 0 outside their
+    window — a leaked bridge is invisible to the scene-overlap audit because
+    it lives above all scenes.
 
-## Phase 5 — Music & Mix
+### 4.8 Two more invariants, learned the expensive way
+
+21. **A scene's trailing fade-out is load-bearing twice.** It hides the scene,
+    AND its end time is what `master.duration()` reports — which is the base
+    every subsequent relative label offset (`"-=0.30"`) is measured from.
+    Removing or shortening it for one scene silently pulls **every later label
+    earlier**. This shifted scenes 7–8 by 2.1s in a finished film and desynced
+    the audio against an already-rendered 4K master. If a connected boundary
+    needs its outgoing scene hidden sooner, add a *second*, earlier fade
+    (later-inserted tweens win during the overlap) — never delete the first.
+
+    Corollary: **scene start times have exactly one authority — the page.**
+    Export them with `scripts/cues.mjs` and place VO/SFX against those numbers.
+    Summing `SCENE_TIMING[].dur` is only correct when every boundary is a plain
+    cut, so it will quietly disagree with the picture the moment you overlap one.
+
+```bash
+node $SKILL/scripts/cues.mjs        # → audio/cues.json (real labels + duration)
+```
+
+22. **Ambient motion must live ON the master timeline.** `gsap.to(...)` creates a
+    tween on the global ticker, i.e. wall-clock time — and `__SEEK` does not
+    control that. The renderer captures frames by seeking, out of order, across
+    parallel workers, so a ticker-driven background sits somewhere different on
+    every frame and the finished video **shakes** instead of drifting. It looks
+    perfectly smooth in a live browser, so it passes review and only shows up in
+    the MP4. Add ambient with `master.to(el, {...}, 0)` AFTER capturing
+    `CONTENT_DURATION`. `audit.mjs` fails the build on this — it seeks to the
+    same timestamp twice and compares the frames.
+
+## Phase 5 — Music, SFX & Mix
 
 VO clips already exist from Phase 3. Full pipeline detail in
-`references/audio-pipeline.md`. The non-negotiables:
+`references/audio-pipeline.md`; **sound-effect design has its own reference,
+`references/sfx-design.md` — read it before writing a cue sheet.**
+
+### 5.0 Sound effects (the layer that sells the motion)
+
+Motion graphics without sound design read as a slideshow with music over it.
+Every meaningful state change — an element appearing, a tile expanding, a
+counter landing, a cursor clicking, a scene cutting — either earns a sound or is
+deliberately silent.
+
+Never browse the raw SFX folders: they hold 900+ files and a large fraction is
+meme/game-rip/weapon audio that must never reach a client render. The usable
+subset is measured, classified and curated in `references/sfx-index.json`.
+
+```bash
+node $SKILL/scripts/sfx.mjs query --list                 # the 17-event vocabulary
+node $SKILL/scripts/sfx.mjs query --event=pop --max=0.6  # ranked candidates, measured
+node $SKILL/scripts/sfx.mjs build --cues=audio/sfx-cues.json --duration=<CONTENT_DURATION>
+```
+
+Non-negotiables:
+
+- **Write `audio/sfx-cues.json` from real timeline numbers** — the labels in
+  `audio/cues.json` (from `scripts/cues.mjs`) plus the offsets you actually
+  animated. Never eyeball them off a draft, and never sum `SCENE_TIMING`
+  durations instead (see invariant #21).
+- **`sfx.mjs build` places every cue by its measured onset**, so the transient
+  lands on the frame. 218 of 310 curated clips carry pre-transient silence (up
+  to 2.2s), which is why hand-written `adelay` chains always drifted late.
+- **Travel sounds peak on the beat, not start on it** — the tool applies a
+  class lead (0.22s for `whoosh_deep`). Fast or large motion takes
+  `whoosh_deep`; only small element travel takes `whoosh_soft`.
+- **Budget ~6 cues per 30s**, one signature sound per scene. The build warns
+  past that. Sounding every stagger item, or every transition, is the clearest
+  tell of template sound design.
+- **The build must finish with zero `⚠` lines** other than a density warning you
+  have consciously accepted. Placement and off-target-source warnings are gates.
+
+### 5.1 The mix — narration above everything
+
+```bash
+node $SKILL/scripts/mix.mjs --duration=<CONTENT_DURATION> \
+  --music=audio/music.mp3 --sfx=audio/sfx_bus.wav
+```
+
+`mix.mjs` assembles the VO stem, carves and ducks the music bed against it,
+folds in the SFX bus, and then **verifies by extraction** — it measures real VO
+windows against real music-only gaps and exits non-zero if the voice is not
+≥10dB above the bed. A failing mix is a gate, not a warning: do not render.
+
+The non-negotiables for music and the final mix:
 
 - **Music bed — check the curated shared library FIRST.** Use only
   `assets/music/` for music beds and `assets/sfx/` for SFX. Never scan home,
@@ -521,7 +752,9 @@ VO clips already exist from Phase 3. Full pipeline detail in
   files, run `volumedetect` on each; if they're within a few dB, re-mix.
 - `audio/mix.wav` must extend ≥ 1.0s past `CONTENT_DURATION` — the capture
   script muxes with `-shortest`, so a short mix truncates the video.
-- SFX: max ~6 per 30s, −10 to −14dB. Over-SFX'd videos read as template renders.
+- The SFX bus is a separate stem: build `audio/sfx_bus.wav` first, then fold it
+  into `audio/mix.wav` under the VO. Verify by extraction that it sits 10–14dB
+  under the voice — see `references/sfx-design.md` §4.
 
 ## Phase 6 — Audit & Render
 
@@ -556,6 +789,10 @@ wait
 node $SKILL/scripts/capture.mjs index.html --fps=30 --scale=1 --out=../../renders/<name>-draft.mp4   # full draft (fast, 1080p)
 node $SKILL/scripts/capture.mjs index.html --fps=60 --scale=2 --out=../../renders/<name>-launch.mp4  # final — 4K UHD
 
+# Every render burns in the "Powered by trypitch.co" watermark automatically
+# (bottom-centre, Sorts Mill Goudy, scaled to the output) — the same mark the
+# demo-video flow applies. Pass --no-watermark for a white-label deliverable.
+
 # 4. Verify duration matches __DURATION() (not the audio length)
 ffprobe -v quiet -show_entries format=duration -of csv=p=0 ../../renders/<name>-launch.mp4
 ```
@@ -583,6 +820,10 @@ final ships.
 - [ ] Background system chosen from the menu — not defaulted to dark-navy + orbs
 - [ ] Typography matches the brand's font personality (not reflexively Inter)
 - [ ] One named motion language governs all easings and transitions
+- [ ] Attention-camera grammar defines context/detail scales, lateral landing,
+      a nonlinear focus ease, and the interaction that justifies each zoom
+- [ ] Boundary grammar is cut-first; every optional connected handoff names the
+      continuing real object and must beat a clean cut in a boundary render
 - [ ] Plugin palette chosen for this video; ≥ 3 distinct text treatments planned
 - [ ] Scene formats chosen per beat from the value-prop mapping (not the same
       8-scene template as the last video)
@@ -594,8 +835,28 @@ final ships.
 - [ ] Project self-contained under `projects/<name>/` (sound in `audio/`,
       recon in `recon/`); deliverables rendered to shared `renders/` with
       project-prefixed filenames
-- [ ] Multi-file structure; screens rebuilt natively (no flat screenshots)
-- [ ] All selectors scene-scoped; camera drift last at position 0 in each scene
+- [ ] Multi-file structure; UI construction mode chosen per beat (native,
+      verified real base plate, or hybrid) and no unchanged screenshot scene
+- [ ] `harvest.mjs` run for the target URL; real logo SVG, product screenshots
+      and any product footage pulled into `assets/harvested/` with provenance
+- [ ] The harvested logomark is actually USED (referenced or inlined) — the
+      audit gate enforces this; no hand-drawn marks, no logotype retyped in a
+      substitute font
+- [ ] Official/product assets used for recognizable logos, icons, UI, and
+      hardware; aspect ratios preserved and asset sources recorded
+- [ ] Every product-demo beat has one named focal target and a deliberate
+      context → focus → hold → release/cut plan
+- [ ] Camera budget respected (~2–5 reframes per film, normally one scale
+      acquisition per demo scene, none in pure type/brand/stat/CTA scenes);
+      every zoom includes material horizontal travel, uses nonlinear easing,
+      settles before typing, then tracks filling content at held scale
+- [ ] Bridge/cursor overlays probed hidden outside their windows (invariant
+      20) — no leaked `.set()` state parked on screen
+- [ ] Every boundary was reviewed as a direct cut first; any retained connected
+      handoff uses one verified continuing object, creates no blank/interstitial
+      frame, aligns exactly, and hides all bridge assets afterward
+- [ ] All selectors scene-scoped; camera transform tracks added last and overlap
+      content at explicit timeline positions
 - [ ] All transitions relative-offset; no two readable screens at once
 - [ ] Gradient-text rules: inline-block, no blur, not split, `.char` targeting
 - [ ] `.scene` visibility handled via opacity (or autoAlpha) only; every scene
@@ -613,6 +874,12 @@ final ships.
 - [ ] Music bed sourced from the curated `assets/music/` library when available
       (file named in the summary); mix levels verified by gap/VO extraction;
       mix extends past duration
+- [ ] `mix.mjs` passed its contrast gate (narration ≥10dB above the bed, no
+      clipped VO stem, mix extends past `CONTENT_DURATION`)
+- [ ] SFX cue sheet written from real timeline numbers; `sfx.mjs build` ran with
+      zero placement/off-target warnings; ≤ ~6 cues per 30s; fast/large motion on
+      `whoosh_deep`; repeated events pull varied clips; at least one scene is
+      deliberately silent (full list: `references/sfx-design.md` §9)
 - [ ] Every scene reviewed via segment render before the full draft
 - [ ] Audit passed with zero warnings; rendered with 20-min timeout; duration
       verified with ffprobe; MP4 watched end-to-end
