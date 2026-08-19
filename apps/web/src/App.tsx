@@ -87,13 +87,17 @@ const BlogPostView = lazyNamed(() => import('./components/Blog'), 'BlogPostView'
 const PrivacyPolicy = lazyNamed(() => import('./components/PrivacyPolicy'), 'PrivacyPolicy')
 const TermsOfService = lazyNamed(() => import('./components/TermsOfService'), 'TermsOfService')
 
-const PageLoader = ({ fullScreen = false }: { fullScreen?: boolean }) => (
-  <div
-    className={`flex w-full items-center justify-center ${fullScreen ? 'h-screen' : 'h-full min-h-[40vh]'}`}
-  >
-    <LoadingCoin className="h-10 w-10" />
-  </div>
-)
+// In-shell route loading keeps the coin; full-screen fallbacks (landing and
+// other public pages) stay blank so there's no spinner flash before a page's
+// own intro (the landing page opens with its stair preloader).
+const PageLoader = ({ fullScreen = false }: { fullScreen?: boolean }) =>
+  fullScreen ? (
+    <div className="h-screen w-screen bg-[#FDFDFD]" />
+  ) : (
+    <div className="flex h-full min-h-[40vh] w-full items-center justify-center">
+      <LoadingCoin className="h-10 w-10" />
+    </div>
+  )
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
