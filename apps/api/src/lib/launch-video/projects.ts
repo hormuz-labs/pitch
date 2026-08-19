@@ -80,7 +80,7 @@ export function mergeLaunchVideoJobs(
       videoUrl: null,
       sceneCount: 0,
     }
-    const videoUrl = project.videoUrl ?? job.videoUrl ?? null
+    const videoUrl = job.videoUrl ?? project.videoUrl ?? null
     byName.set(name, {
       ...project,
       hasVideo: project.hasVideo || videoUrl !== null,

@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@prisma/client', () => {
   const instance = {
-    job: { findUnique: vi.fn(), update: vi.fn() },
+    job: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
   }
   function PrismaClient() {
     return instance
@@ -33,6 +33,7 @@ import { enhance } from '@zenstackhq/runtime'
 import {
   getPublicJobBySlug,
   incrementShareViews,
+  listJobs,
   makeJobPublic,
   unmakeJobPublic,
 } from '../packages/db/src/index.js'
@@ -59,6 +60,30 @@ function rawJob(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+})
+
+describe('listJobs', () => {
+  it('scopes the job query to the requesting user, not the public carve-out', async () => {
+    prisma.job.findMany.mockResolvedValue([])
+
+    await listJobs({ id: 'owner_user' })
+
+    expect(prisma.job.findMany).toHaveBeenCalledWith({
+      where: { userId: 'owner_user' },
+      orderBy: { createdAt: 'desc' },
+    })
+  })
+
+  it('does not filter when no user context is given', async () => {
+    prisma.job.findMany.mockResolvedValue([])
+
+    await listJobs()
+
+    expect(prisma.job.findMany).toHaveBeenCalledWith({
+      where: undefined,
+      orderBy: { createdAt: 'desc' },
+    })
+  })
 })
 
 describe('makeJobPublic', () => {

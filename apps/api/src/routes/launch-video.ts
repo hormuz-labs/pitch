@@ -82,6 +82,13 @@ async function syncEditedRender(userId: string, projectName: string): Promise<vo
   )
   const updatedJob = await db.updateJob(job.id, { videoUrl })
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
+  // S3 keys are unique per upload, so the project URL changes after an edit.
+  // Nudge the studio to re-fetch now that the new render is live.
+  for (const c of sseClients) {
+    if (c.userId === userId && c.projectName === projectName) {
+      c.send({ type: 'render.updated', properties: { videoUrl } })
+    }
+  }
   logger.info({ userId, projectName, jobId: job.id, videoUrl }, 'Edited render uploaded')
 }
 

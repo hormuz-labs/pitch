@@ -260,10 +260,14 @@ model Job {
   // enhance(prisma, { user: { id: userId } })
   @@allow('all', userId == auth().id)
 
-  // Anonymous read of a job the owner has explicitly made public. Write
-  // operations for anonymous users have no matching @@allow, so they stay
-  // blocked by ZenStack's implicit default-deny regardless of this carve-out.
-  @@allow('read', isPublic == true)
+  // Anonymous read of a job the owner has explicitly made public — this is
+  // what powers the /d/:shareSlug page. Scoped to anonymous access only so the
+  // carve-out cannot leak shared demo/launch videos into other users'
+  // authenticated dashboard/job listings (an authenticated user's reads are
+  // limited to `userId == auth().id` above). Write operations for anonymous
+  // users have no matching @@allow, so they stay blocked by ZenStack's
+  // implicit default-deny regardless of this carve-out.
+  @@allow('read', isPublic == true && auth() == null)
 }
 
 // ── Video editions ────────────────────────────────────────────────────────────────────────────
