@@ -127,6 +127,30 @@ describe('launch-video project list', () => {
     )
   })
 
+  it('prefers the job S3 render over the local API path when both exist', () => {
+    const s3Url = 'https://s3.example.test/pitch/user/acme/videos/render.mp4'
+    const [project] = mergeLaunchVideoJobs(
+      [
+        {
+          name: 'acme-launch',
+          hasVideo: true,
+          videoUrl: '/launch-video/files/videos/user--acme-launch.mp4',
+          sceneCount: 0,
+        },
+      ],
+      [
+        {
+          id: 'job-ready',
+          status: 'COMPLETED',
+          videoUrl: s3Url,
+          parameters: { jobType: 'launch-video', projectName: 'acme-launch' },
+        },
+      ],
+    )
+
+    expect(project.videoUrl).toBe(s3Url)
+  })
+
   it('keeps local scene metadata while falling back to the job S3 render', () => {
     const project = {
       name: 'acme-launch',

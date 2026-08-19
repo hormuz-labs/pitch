@@ -448,6 +448,12 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
           setBusy(false)
           setActivity(null)
           break
+        case 'render.updated':
+          // The API just uploaded an edited render to a fresh S3 key; refetch
+          // the project so the player/download use the new public URL.
+          void refreshCurrentProject()
+          void refreshProjects()
+          break
       }
     },
     [

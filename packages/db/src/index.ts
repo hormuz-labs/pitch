@@ -282,7 +282,12 @@ export async function getJob(id: string, user?: AuthUser): Promise<Job | null> {
 
 export async function listJobs(user?: AuthUser): Promise<Job[]> {
   const client = getEnhancedPrisma(user)
+  // Scope to the requesting user explicitly. Relying on the access policy
+  // alone is not enough: ZenStack's `isPublic == true` read carve-out applies
+  // to authenticated clients too, which would leak other users' shared
+  // demo/launch videos into every dashboard's job list.
   const jobs = await client.job.findMany({
+    where: user ? { userId: user.id } : undefined,
     orderBy: { createdAt: 'desc' },
   })
 
