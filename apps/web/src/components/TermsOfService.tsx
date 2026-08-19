@@ -1,12 +1,18 @@
 import { useAuth } from '@clerk/react'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
+import { Seo } from './Seo'
 
 export const TermsOfService = () => {
   const { isSignedIn } = useAuth()
 
   return (
     <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+      <Seo
+        title="Terms of Service — Pitch"
+        description="The terms that govern your use of Pitch, the AI product demo video generator."
+        path="/terms"
+      />
       {!isSignedIn && <LandingNav />}
       <div className="max-w-3xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1">
         <div className="relative inline-block mb-8">

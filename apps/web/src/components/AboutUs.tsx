@@ -1,12 +1,18 @@
 import { useAuth } from '@clerk/react'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
+import { Seo } from './Seo'
 
 export const AboutUs = () => {
   const { isSignedIn } = useAuth()
 
   return (
     <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+      <Seo
+        title="About Us — Pitch"
+        description="Pitch is building the autonomous way to make product demo videos — an AI agent that navigates your real product and renders a narrated, cinematic video in minutes."
+        path="/about"
+      />
       {!isSignedIn && <LandingNav />}
       <div className="max-w-3xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1">
         <div className="relative inline-block mb-8">

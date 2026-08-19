@@ -2,9 +2,11 @@ import { useAuth } from '@clerk/react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_URL } from '../config'
+import { blogBreadcrumbJsonLd, blogPostingJsonLd } from '../lib/seo'
 import { ContinuousPagination } from './ContinuousPagination'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
+import { Seo } from './Seo'
 
 interface Keyword {
   text: string
@@ -528,6 +530,13 @@ export const BlogPostView = () => {
 
   return (
     <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+      <Seo
+        title={`${post.title} — Pitch Blog`}
+        description={post.excerpt}
+        path={`/blog/${post.slug}`}
+        type="article"
+        jsonLd={[blogPostingJsonLd(post), blogBreadcrumbJsonLd(post)]}
+      />
       {!isSignedIn && <LandingNav />}
 
       <div className="max-w-6xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1 w-full">
@@ -710,6 +719,11 @@ export const Blog = () => {
 
   return (
     <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+      <Seo
+        title="Blog — Pitch"
+        description="Guides on AI demo videos, product marketing, and go-to-market for SaaS founders — from the team building Pitch, the AI demo video generator."
+        path="/blog"
+      />
       {!isSignedIn && <LandingNav />}
 
       <div className="max-w-6xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1 w-full">
