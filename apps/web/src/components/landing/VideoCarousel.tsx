@@ -13,13 +13,13 @@ import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel
 
 const SLIDES: CoverflowSlide[] = [
   {
-    src: supermemoryVideo,
-    alt: 'Pitch-generated demo video for Supermemory',
-    title: 'Supermemory',
+    src: graphifyVideo,
+    alt: 'Pitch-generated demo video for Graphify',
+    title: 'Graphify',
     subtitle: 'Made with Pitch using Launch Video Feature',
     meta: [
-      { label: 'Website', value: 'https://supermemory.ai/' },
-      { label: 'Prompt', value: 'Make 35 second launch video of https://supermemory.ai/' },
+      { label: 'Website', value: 'https://graphify.com/' },
+      { label: 'Prompt', value: 'Make 70 second launch video on https://graphify.com/' },
     ],
   },
   {
@@ -33,6 +33,17 @@ const SLIDES: CoverflowSlide[] = [
     ],
   },
   {
+    src: supermemoryVideo,
+    alt: 'Pitch-generated demo video for Supermemory',
+    title: 'Supermemory',
+    subtitle: 'Made with Pitch using Launch Video Feature',
+    meta: [
+      { label: 'Website', value: 'https://supermemory.ai/' },
+      { label: 'Prompt', value: 'Make 35 second launch video of https://supermemory.ai/' },
+    ],
+  },
+
+  {
     src: unslothVideo,
     alt: 'Pitch-generated launch video for Unsloth AI',
     title: 'Unsloth AI',
@@ -42,26 +53,7 @@ const SLIDES: CoverflowSlide[] = [
       { label: 'Prompt', value: 'Make 70 seconds launch video on https://unsloth.ai/' },
     ],
   },
-  {
-    src: graphifyVideo,
-    alt: 'Pitch-generated demo video for Graphify',
-    title: 'Graphify',
-    subtitle: 'Made with Pitch using Launch Video Feature',
-    meta: [
-      { label: 'Website', value: 'https://graphify.com/' },
-      { label: 'Prompt', value: 'Make 70 second launch video on https://graphify.com/' },
-    ],
-  },
-  {
-    src: replitVideo,
-    alt: 'Pitch-generated launch video for Replit',
-    title: 'Replit',
-    subtitle: 'Made with Pitch using Launch Video Feature',
-    meta: [
-      { label: 'Website', value: 'https://replit.com/' },
-      { label: 'Prompt', value: 'Make 70 second launch video of https://replit.com' },
-    ],
-  },
+
   {
     src: demoVideo,
     alt: 'Shadcn UI walkthrough — made with Pitch Demo Video feature',
@@ -90,6 +82,17 @@ const SLIDES: CoverflowSlide[] = [
     meta: [
       { label: 'Website', value: 'https://www.agentcard.sh/' },
       { label: 'Prompt', value: 'Make 45 second launch video of https://www.agentcard.sh/' },
+    ],
+  },
+
+  {
+    src: replitVideo,
+    alt: 'Pitch-generated launch video for Replit',
+    title: 'Replit',
+    subtitle: 'Made with Pitch using Launch Video Feature',
+    meta: [
+      { label: 'Website', value: 'https://replit.com/' },
+      { label: 'Prompt', value: 'Make 70 second launch video of https://replit.com' },
     ],
   },
 ]
