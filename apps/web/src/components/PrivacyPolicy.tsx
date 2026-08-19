@@ -1,12 +1,18 @@
 import { useAuth } from '@clerk/react'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
+import { Seo } from './Seo'
 
 export const PrivacyPolicy = () => {
   const { isSignedIn } = useAuth()
 
   return (
     <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+      <Seo
+        title="Privacy Policy — Pitch"
+        description="How Pitch collects, uses, and protects your data when you generate AI product demo videos."
+        path="/privacy"
+      />
       {!isSignedIn && <LandingNav />}
       <div className="max-w-3xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1">
         <div className="relative inline-block mb-8">

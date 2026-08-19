@@ -7,6 +7,31 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   envDir: '../../',
+  build: {
+    rollupOptions: {
+      output: {
+        // Vite 8 (Rolldown) only supports the function form of manualChunks.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/]@clerk[\\/]/.test(id)) return 'vendor-clerk'
+          if (/[\\/]node_modules[\\/](gsap)[\\/]/.test(id)) return 'vendor-gsap'
+          if (/[\\/]node_modules[\\/](framer-motion|motion|motion-dom|motion-utils)[\\/]/.test(id))
+            return 'vendor-motion'
+          if (
+            /[\\/]node_modules[\\/](jspdf|html-to-image|html2canvas|qrcode|dompurify)[\\/]/.test(id)
+          )
+            return 'vendor-pdf'
+          if (/[\\/]node_modules[\\/]posthog-js[\\/]/.test(id)) return 'vendor-posthog'
+          if (
+            /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(
+              id,
+            )
+          )
+            return 'vendor-react'
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

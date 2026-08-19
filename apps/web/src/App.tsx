@@ -7,9 +7,12 @@ import {
   useUser,
 } from '@clerk/react'
 import {
+  type ComponentType,
   cloneElement,
   createContext,
   isValidElement,
+  lazy,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -30,7 +33,6 @@ import * as ToastPrimitive from '@radix-ui/react-toast'
 import { Key, X } from 'lucide-react'
 import { BiSolidZap } from 'react-icons/bi'
 import tabLogoB from './assets/tabLogoB.svg'
-import { AboutUs } from './components/AboutUs'
 import { AnimatedAdminIcon } from './components/AnimatedAdminIcon'
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon'
 import { AnimatedIcon } from './components/AnimatedIcon'
@@ -40,40 +42,58 @@ import { AnimatedSettingsIcon } from './components/AnimatedSettingsIcon'
 import { AnimatedShareIcon } from './components/AnimatedShareIcon'
 import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
-import { Blog, BlogPostView } from './components/Blog'
 import { CreditPopover } from './components/CreditPopover'
+import { LoadingCoin } from './components/LoadingCoin'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
-import { PrivacyPolicy } from './components/PrivacyPolicy'
-import { TermsOfService } from './components/TermsOfService'
 import { API_URL } from './config'
-import { LaunchVideoView } from './launch-video/LaunchVideoView'
 import { api } from './lib/api'
 import { parseSSELog } from './lib/events'
 import { captureRefFromUrl, getRefCode } from './lib/referral'
 import { SLIDE_TEMPLATES } from './lib/slideBlocks'
 import { cn } from './lib/utils'
 import type { LogEntry, Project } from './types'
-import {
-  AdminView,
-  AffiliateView,
-  ApiKeysView,
-  CheckoutReturnView,
-  CreateView,
-  DashboardView,
-  EditorView,
-  EditRecordingView,
-  EnhanceView,
-  LandingView,
-  PdfCreateView,
-  PdfEditorView,
-  PricingView,
-  PublicDemoView,
-  PublicPricingView,
-  SessionsView,
-  SettingsView,
-  TemplatesView,
-} from './views'
-import { AuthView } from './views/AuthView'
+
+// Route-level code splitting — every view loads on demand instead of landing
+// in the entry bundle. See vite.config.ts manualChunks for vendor splitting.
+const lazyNamed = <T,>(loader: () => Promise<T>, key: keyof T) =>
+  lazy(() => loader().then(m => ({ default: m[key] as ComponentType<any> })))
+
+const AdminView = lazyNamed(() => import('./views/AdminView'), 'AdminView')
+const AffiliateView = lazyNamed(() => import('./views/AffiliateView'), 'AffiliateView')
+const ApiKeysView = lazyNamed(() => import('./views/ApiKeysView'), 'ApiKeysView')
+const CheckoutReturnView = lazyNamed(
+  () => import('./views/CheckoutReturnView'),
+  'CheckoutReturnView',
+)
+const CreateView = lazyNamed(() => import('./views/CreateView'), 'CreateView')
+const DashboardView = lazyNamed(() => import('./views/DashboardView'), 'DashboardView')
+const EditorView = lazyNamed(() => import('./views/EditorView'), 'EditorView')
+const EditRecordingView = lazyNamed(() => import('./views/EditRecordingView'), 'EditRecordingView')
+const EnhanceView = lazyNamed(() => import('./views/EnhanceView'), 'EnhanceView')
+const LandingView = lazyNamed(() => import('./views/LandingView'), 'LandingView')
+const PdfCreateView = lazyNamed(() => import('./views/PdfCreateView'), 'PdfCreateView')
+const PdfEditorView = lazyNamed(() => import('./views/PdfEditorView'), 'PdfEditorView')
+const PricingView = lazyNamed(() => import('./views/PricingView'), 'PricingView')
+const PublicDemoView = lazyNamed(() => import('./views/PublicDemoView'), 'PublicDemoView')
+const PublicPricingView = lazyNamed(() => import('./views/PublicPricingView'), 'PublicPricingView')
+const SessionsView = lazyNamed(() => import('./views/SessionsView'), 'SessionsView')
+const SettingsView = lazyNamed(() => import('./views/SettingsView'), 'SettingsView')
+const TemplatesView = lazyNamed(() => import('./views/TemplatesView'), 'TemplatesView')
+const AuthView = lazyNamed(() => import('./views/AuthView'), 'AuthView')
+const LaunchVideoView = lazyNamed(() => import('./launch-video/LaunchVideoView'), 'LaunchVideoView')
+const AboutUs = lazyNamed(() => import('./components/AboutUs'), 'AboutUs')
+const Blog = lazyNamed(() => import('./components/Blog'), 'Blog')
+const BlogPostView = lazyNamed(() => import('./components/Blog'), 'BlogPostView')
+const PrivacyPolicy = lazyNamed(() => import('./components/PrivacyPolicy'), 'PrivacyPolicy')
+const TermsOfService = lazyNamed(() => import('./components/TermsOfService'), 'TermsOfService')
+
+const PageLoader = ({ fullScreen = false }: { fullScreen?: boolean }) => (
+  <div
+    className={`flex w-full items-center justify-center ${fullScreen ? 'h-screen' : 'h-full min-h-[40vh]'}`}
+  >
+    <LoadingCoin className="h-10 w-10" />
+  </div>
+)
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
@@ -1699,7 +1719,11 @@ function AppContent() {
   // a shared link, and never nested inside signed-in/signed-out gating.
   if (location.pathname.startsWith('/d/')) {
     const slug = location.pathname.slice('/d/'.length).split('/')[0]
-    return <PublicDemoView slug={slug} />
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <PublicDemoView slug={slug} />
+      </Suspense>
+    )
   }
 
   if (!isLoaded) return <div className="h-screen w-screen bg-[#FDFDFD]"></div>
@@ -1714,7 +1738,9 @@ function AppContent() {
     return (
       <>
         <Show when="signed-in">
-          <CheckoutReturnView />
+          <Suspense fallback={<PageLoader fullScreen />}>
+            <CheckoutReturnView />
+          </Suspense>
         </Show>
         <Show when="signed-out">
           <Navigate to="/sign-in" replace />
@@ -1725,7 +1751,11 @@ function AppContent() {
 
   // Landing page — always shown at /, signed-in users see the Dashboard CTA
   if (location.pathname === '/') {
-    return <LandingView />
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <LandingView />
+      </Suspense>
+    )
   }
 
   return (
@@ -1798,124 +1828,131 @@ function AppContent() {
             />
 
             <main className="app-shell-main flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
-              <Routes>
-                <Route
-                  path="/dashboard"
-                  element={
-                    <DashboardView
-                      projects={projects}
-                      searchQuery={searchQuery}
-                      onDelete={handleDelete}
-                      onRetry={handleRetry}
-                      onShare={handleShare}
-                    />
-                  }
-                />
-                <Route
-                  path="/new"
-                  element={
-                    <CreateView
-                      isMobile={isMobile}
-                      formValues={formValues}
-                      setFormValues={setFormValues}
-                      isSubmitting={isSubmitting}
-                      onQueueJob={handleQueueJob}
-                    />
-                  }
-                />
-                <Route
-                  path="/pdf"
-                  element={
-                    <PdfCreateView isSubmitting={isSubmitting} onQueuePdfJob={handleQueuePdfJob} />
-                  }
-                />
-                <Route
-                  path="/enhance"
-                  element={
-                    <EnhanceView
-                      isSubmitting={isSubmitting}
-                      onQueueEnhanceJob={handleQueueEnhanceJob}
-                    />
-                  }
-                />
-                <Route
-                  path="/edit"
-                  element={
-                    <EditRecordingView
-                      isSubmitting={isSubmitting}
-                      onQueueEditJob={handleQueueEditJob}
-                    />
-                  }
-                />
-                <Route path="/launch-video/*" element={<LaunchVideoView />} />
-                <Route
-                  path="/templates"
-                  element={
-                    <TemplatesView
-                      isSubmitting={isSubmitting}
-                      onQueuePdfJob={handleQueuePdfJob}
-                      onDetailModeChange={setTemplatesInDetail}
-                      clearSelectionRef={clearTemplatesSelectionRef}
-                    />
-                  }
-                />
-                <Route
-                  path="/pdfeditor/:id"
-                  element={
-                    <PdfEditorView
-                      projects={projects}
-                      setPdfSlides={setPdfSlides}
-                      activePdfSlide={activePdfSlide}
-                      setActivePdfSlide={setActivePdfSlide}
-                      setOnScrollToPdfSlide={setOnScrollToPdfSlide}
-                      setOnAddPdfSlide={setOnAddPdfSlide}
-                      setOnReorderPdfSlides={setOnReorderPdfSlides}
-                      setOnSetPdfSlideBg={setOnSetPdfSlideBg}
-                      setOnDeletePdfSlide={setOnDeletePdfSlide}
-                    />
-                  }
-                />
-                <Route path="/pricing" element={<PricingView />} />
-                <Route path="/settings" element={<SettingsView />} />
-                <Route path="/api-keys" element={<ApiKeysView />} />
-                <Route path="/sessions" element={<SessionsView />} />
-                <Route path="/affiliate" element={<AffiliateView />} />
-                <Route path="/admin" element={<AdminView />} />
-                <Route
-                  path="/editor/:id"
-                  element={
-                    <EditorView
-                      projects={projects}
-                      jobLogs={jobLogs}
-                      isMobile={isMobile}
-                      onDelete={handleDelete}
-                      onUpdate={handleProjectUpdate}
-                    />
-                  }
-                />
-                <Route path="/about" element={<AboutUs />} />
-                <Route path="/blog" element={<Blog />} />
-                <Route path="/blog/:slug" element={<BlogPostView />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/terms" element={<TermsOfService />} />
-              </Routes>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <DashboardView
+                        projects={projects}
+                        searchQuery={searchQuery}
+                        onDelete={handleDelete}
+                        onRetry={handleRetry}
+                        onShare={handleShare}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/new"
+                    element={
+                      <CreateView
+                        isMobile={isMobile}
+                        formValues={formValues}
+                        setFormValues={setFormValues}
+                        isSubmitting={isSubmitting}
+                        onQueueJob={handleQueueJob}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/pdf"
+                    element={
+                      <PdfCreateView
+                        isSubmitting={isSubmitting}
+                        onQueuePdfJob={handleQueuePdfJob}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/enhance"
+                    element={
+                      <EnhanceView
+                        isSubmitting={isSubmitting}
+                        onQueueEnhanceJob={handleQueueEnhanceJob}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/edit"
+                    element={
+                      <EditRecordingView
+                        isSubmitting={isSubmitting}
+                        onQueueEditJob={handleQueueEditJob}
+                      />
+                    }
+                  />
+                  <Route path="/launch-video/*" element={<LaunchVideoView />} />
+                  <Route
+                    path="/templates"
+                    element={
+                      <TemplatesView
+                        isSubmitting={isSubmitting}
+                        onQueuePdfJob={handleQueuePdfJob}
+                        onDetailModeChange={setTemplatesInDetail}
+                        clearSelectionRef={clearTemplatesSelectionRef}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/pdfeditor/:id"
+                    element={
+                      <PdfEditorView
+                        projects={projects}
+                        setPdfSlides={setPdfSlides}
+                        activePdfSlide={activePdfSlide}
+                        setActivePdfSlide={setActivePdfSlide}
+                        setOnScrollToPdfSlide={setOnScrollToPdfSlide}
+                        setOnAddPdfSlide={setOnAddPdfSlide}
+                        setOnReorderPdfSlides={setOnReorderPdfSlides}
+                        setOnSetPdfSlideBg={setOnSetPdfSlideBg}
+                        setOnDeletePdfSlide={setOnDeletePdfSlide}
+                      />
+                    }
+                  />
+                  <Route path="/pricing" element={<PricingView />} />
+                  <Route path="/settings" element={<SettingsView />} />
+                  <Route path="/api-keys" element={<ApiKeysView />} />
+                  <Route path="/sessions" element={<SessionsView />} />
+                  <Route path="/affiliate" element={<AffiliateView />} />
+                  <Route path="/admin" element={<AdminView />} />
+                  <Route
+                    path="/editor/:id"
+                    element={
+                      <EditorView
+                        projects={projects}
+                        jobLogs={jobLogs}
+                        isMobile={isMobile}
+                        onDelete={handleDelete}
+                        onUpdate={handleProjectUpdate}
+                      />
+                    }
+                  />
+                  <Route path="/about" element={<AboutUs />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/blog/:slug" element={<BlogPostView />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                </Routes>
+              </Suspense>
             </main>
           </div>
         </div>
       </Show>
       <Show when="signed-out">
-        <Routes>
-          <Route path="/" element={<LandingView />} />
-          <Route path="/sign-in" element={<AuthView mode="sign-in" />} />
-          <Route path="/sign-up" element={<AuthView mode="sign-up" />} />
-          <Route path="/pricing" element={<PublicPricingView />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:slug" element={<BlogPostView />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<PageLoader fullScreen />}>
+          <Routes>
+            <Route path="/" element={<LandingView />} />
+            <Route path="/sign-in" element={<AuthView mode="sign-in" />} />
+            <Route path="/sign-up" element={<AuthView mode="sign-up" />} />
+            <Route path="/pricing" element={<PublicPricingView />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPostView />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </Show>
     </>
   )

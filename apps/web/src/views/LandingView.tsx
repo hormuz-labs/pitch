@@ -14,10 +14,12 @@ import { VideoCarousel } from '../components/landing/VideoCarousel'
 
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
 import { Process } from '../components/Process'
+import { Seo } from '../components/Seo'
 import { TextGenerateEffect } from '../components/ui/text-generate-effect'
 import { useStepSequence } from '../hooks/useStepSequence'
 import '../styles/landing.css'
 import demoVideo from '../assets/demo.mp4'
+import demoThumbnail from '../assets/demo-thumbnail.jpg'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -105,6 +107,11 @@ export const LandingView = () => {
 
   return (
     <>
+      <Seo
+        title="Pitch — Turn any URL into a cinematic product demo video"
+        description="An AI agent navigates your live product, writes the script, and renders a narrated 1080p demo video in minutes. No recording. No editing."
+        path="/"
+      />
       <DoubleStairPreloader onComplete={() => setPreloaderDone(true)} />
 
       <div className="landing-root landing-grain">
@@ -150,8 +157,6 @@ export const LandingView = () => {
               </div>
             </div>
           </div>
-
-
 
           {/* Scroll cue */}
           <div className="landing-hero-scroll-cue" aria-hidden="true">
@@ -285,6 +290,8 @@ export const LandingView = () => {
             <video
               ref={videoRef}
               src={demoVideo}
+              poster={demoThumbnail}
+              preload="none"
               className="w-full h-full object-cover"
               autoPlay
               controls
