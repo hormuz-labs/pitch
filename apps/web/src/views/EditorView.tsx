@@ -468,23 +468,38 @@ export const EditorView = ({
     }
   }
 
-  const handleShareComplete = (option: { id: string; name: string }, videoUrl: string) => {
+  const handleShareComplete = async (option: { id: string; name: string }) => {
+    // Share the branded public page rather than the raw signed video URL —
+    // same reasoning as VideoCard's handleShareComplete. Falls back to the
+    // raw URL if the share endpoint is unreachable, so sharing still works.
+    let shareUrl = activeVideoUrl!
+    if (selectedProject) {
+      try {
+        const token = await getToken()
+        const updated = await api.post<Project>(`/jobs/${selectedProject.id}/share`, token!)
+        onUpdate(updated)
+        shareUrl = `${window.location.origin}/d/${updated.shareSlug}`
+      } catch (err) {
+        console.error('Failed to create share link, falling back to raw video URL:', err)
+      }
+    }
+
     const text = encodeURIComponent(
       'Just generated a cinematic product demo using Pitch. Create your own at https://trypitch.co 🚀',
     )
     const twitterText = encodeURIComponent(
       'Just generated a cinematic product demo using @trypitchdotco. Create your own at https://trypitch.co 🚀',
     )
-    const url = encodeURIComponent(videoUrl)
+    const url = encodeURIComponent(shareUrl)
 
     if (option.id === 'copy') {
-      navigator.clipboard.writeText(videoUrl)
+      navigator.clipboard.writeText(shareUrl)
     } else if (option.id === 'whatsapp') {
       window.open(`https://wa.me/?text=${text}%20${url}`, '_blank')
     } else if (option.id === 'twitter') {
       window.open(`https://twitter.com/intent/tweet?text=${twitterText}&url=${url}`, '_blank')
     } else if (option.id === 'instagram') {
-      navigator.clipboard.writeText(videoUrl)
+      navigator.clipboard.writeText(shareUrl)
       alert('Video URL copied! Open Instagram to share.')
     }
   }
@@ -633,7 +648,7 @@ export const EditorView = ({
 
                   <ShareSheet
                     users={shareOptions}
-                    onShareComplete={option => handleShareComplete(option, activeVideoUrl!)}
+                    onShareComplete={option => handleShareComplete(option)}
                     containerClassName="w-full"
                     className="w-full flex items-center justify-center gap-0 sm:gap-2 px-3 py-2 h-[38px] bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                     placement="top"

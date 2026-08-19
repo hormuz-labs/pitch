@@ -44,7 +44,7 @@ const errorResult = (error: unknown): ToolTextResult => {
       content: [
         {
           type: 'text',
-          text: `Insufficient credits: your current balance is ${error.balance}. Buy or earn more credits, then retry.`,
+          text: `Insufficient credits: your current balance is ${error.balance}. Buy more at https://trypitch.co/pricing, then retry.`,
         },
       ],
     }

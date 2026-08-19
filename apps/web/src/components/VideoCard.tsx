@@ -77,6 +77,7 @@ export interface VideoCardProps {
   onClick: () => void
   onConfirmDelete: () => void
   onRetry: () => void
+  onShare: () => Promise<string>
 }
 
 import { FaInstagram, FaWhatsapp, FaXTwitter } from 'react-icons/fa6'
@@ -130,7 +131,13 @@ const shareOptions = [
   },
 ]
 
-export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoCardProps) => {
+export const VideoCard = ({
+  project,
+  onClick,
+  onConfirmDelete,
+  onRetry,
+  onShare,
+}: VideoCardProps) => {
   const [crumpleTriggered, setCrumpleTriggered] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [duration, setDuration] = useState<number | null>(null)
@@ -147,23 +154,33 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
       ? project.parameters.url.replace(/^https?:\/\//, '').split('/')[0]
       : 'Untitled Job'
 
-  const handleShareComplete = (option: { id: string; name: string }, videoUrl: string) => {
+  const handleShareComplete = async (option: { id: string; name: string }) => {
+    // Share the branded public page (with a real link preview and a path
+    // back to Pitch) rather than the raw signed video URL. Falls back to the
+    // raw URL if the share endpoint is unreachable, so sharing still works.
+    let shareUrl: string
+    try {
+      shareUrl = await onShare()
+    } catch {
+      shareUrl = project.videoUrl!
+    }
+
     const text = encodeURIComponent(
       'Just generated a cinematic product demo using Pitch. Create your own at https://trypitch.co 🚀',
     )
     const twitterText = encodeURIComponent(
       'Just generated a cinematic product demo using @trypitchdotco. Create your own at https://trypitch.co 🚀',
     )
-    const url = encodeURIComponent(videoUrl)
+    const url = encodeURIComponent(shareUrl)
 
     if (option.id === 'copy') {
-      navigator.clipboard.writeText(videoUrl)
+      navigator.clipboard.writeText(shareUrl)
     } else if (option.id === 'whatsapp') {
       window.open(`https://wa.me/?text=${text}%20${url}`, '_blank')
     } else if (option.id === 'twitter') {
       window.open(`https://twitter.com/intent/tweet?text=${twitterText}&url=${url}`, '_blank')
     } else if (option.id === 'instagram') {
-      navigator.clipboard.writeText(videoUrl)
+      navigator.clipboard.writeText(shareUrl)
       alert('Video URL copied! Open Instagram to share.')
     }
   }
@@ -331,7 +348,7 @@ export const VideoCard = ({ project, onClick, onConfirmDelete, onRetry }: VideoC
           <div className="absolute top-3 right-3 z-20">
             <ShareSheet
               users={shareOptions}
-              onShareComplete={option => handleShareComplete(option, project.videoUrl!)}
+              onShareComplete={option => handleShareComplete(option)}
             />
           </div>
         )}

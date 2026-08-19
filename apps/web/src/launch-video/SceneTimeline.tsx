@@ -1,3 +1,4 @@
+import { Film } from 'lucide-react'
 import type { LaunchScene } from './api'
 import { SceneThumb } from './SceneThumb'
 import { useLaunchVideo } from './store'
@@ -29,7 +30,8 @@ export function SceneTimeline() {
       </div>
 
       {scenes.length === 0 ? (
-        <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-default)] px-4 py-6 text-center text-sm text-[var(--text-muted)]">
+        <div className="flex flex-col items-center gap-2 rounded-[var(--radius-md)] border border-dashed border-[var(--border-default)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+          <Film size={18} strokeWidth={1.5} className="text-[var(--text-faint)]" />
           {currentProject?.videoUrl
             ? 'This video is available, but its editable scene files are unavailable.'
             : 'No scenes yet — they appear once the project has a timing map.'}

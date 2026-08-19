@@ -127,6 +127,9 @@ export interface Project {
   error?: string // Reason for failure, if any
   createdAt: string
   updatedAt: string
+  isPublic?: boolean
+  shareSlug?: string
+  shareViews?: number
 }
 
 export interface VideoEdition {

@@ -106,9 +106,16 @@ interface DashboardViewProps {
   searchQuery: string
   onDelete: (id: string) => void
   onRetry: (id: string) => void
+  onShare: (id: string) => Promise<string>
 }
 
-export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: DashboardViewProps) => {
+export const DashboardView = ({
+  projects,
+  searchQuery,
+  onDelete,
+  onRetry,
+  onShare,
+}: DashboardViewProps) => {
   const navigate = useNavigate()
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
   const [activeTab, setActiveTab] = useState<'all' | 'videos' | 'pdfs'>('all')
@@ -377,6 +384,7 @@ export const DashboardView = ({ projects, searchQuery, onDelete, onRetry }: Dash
                 }
                 onConfirmDelete={() => onDelete(project.id)}
                 onRetry={() => onRetry(project.id)}
+                onShare={() => onShare(project.id)}
               />
             )
           })}
