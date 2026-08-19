@@ -36,29 +36,187 @@ model UserProfile {
   role      String   @default("user") // "user" or "admin"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  subscriptions      Subscription[]
+  topUpPurchases     TopUpPurchase[]
+  creditTransactions CreditTransaction[]
+  jobs               Job[]
+  affiliate          Affiliate?
+  browserProfile     BrowserProfile?
+  browserSessions    BrowserSession[]
+  apiKeys            ApiKey[]
+  webhookEndpoints   WebhookEndpoint[]
+  webhookDeliveries  WebhookDelivery[]
 }
 
-// Credit balance per tenant (orgId or userId when no org)
-model CreditBalance {
-  tenantId  String   @id         // orgId if in an org, otherwise userId
-  balance   Int      @default(0)
-  updatedAt DateTime @updatedAt
+// ── ApiKey (MCP / programmatic access) ────────────────────────────────────────
+//
+// One row per user-minted API key. The full key is shown once at creation and
+// never stored — only its SHA-256 hash (`keyHash`) and a display `prefix`.
+// Authentication: hash the presented Bearer token and look it up by `keyHash`;
+// reject when `revokedAt` is set.
+//
+// NOTE: mapped to "PitchApiKey" because the shared dev database already has an
+// unrelated "ApiKey" table owned by the launch-videos service.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String                       // Clerk user ID
+  name       String
+  prefix     String                       // first ~12 chars of the key, for display
+  keyHash    String    @unique            // SHA-256 hex of the full key
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
-  transactions CreditTransaction[]
+  userProfile UserProfile @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("PitchApiKey")
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
 }
 
-// Immutable ledger of every credit change
+// ── BrowserProfile ────────────────────────────────────────────────────────────
+//
+// One stealth-browser profile per user. The profile dir is a real Chromium
+// user-data-dir managed by CloakBrowser — cookies, localStorage, IndexedDB and
+// site permissions persist across sessions and across jobs.
+//
+// `profileDir` is the absolute path on the host that runs the browser-host
+// service (Phase 1: dev machine; Phase 2: shared volume; Phase 3: rehydrated
+// from `storageStateKey` in S3 on each worker).
+//
+// `loggedInOrigins` is a JSON string array of origins where the user has
+// completed a login flow — used to render badges on the /sessions UI.
+model BrowserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  profileDir      String                     // absolute path on the browser-host
+  storageStateKey String?                    // S3 key for the serialised storage_state.json (phase 3)
+  loggedInOrigins String   @default("[]")    // JSON: string[]
+  lastSyncedAt    DateTime?
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userProfile UserProfile      @relation(fields: [userId], references: [id])
+  sessions    BrowserSession[]
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
+}
+
+// ── BrowserSession ────────────────────────────────────────────────────────────
+//
+// A transient handle on a running CloakBrowser process. One row per
+// "Authenticate" click. Lifecycle:
+//   STARTING → READY → CLOSED   (happy path)
+//                  ↘ ERROR      (spawn or capture failure)
+//                  ↘ EXPIRED    (idle GC)
+//
+// `cdpPort` is the local CDP debugging port; agent-browser connects here.
+// `noVncUrl` is filled in Phase 2 when we start streaming the headed window.
+model BrowserSession {
+  id          String    @id @default(cuid())
+  userId      String
+  profileId   String
+  status      String    @default("STARTING") // STARTING | READY | CLOSED | ERROR | EXPIRED
+  startUrl    String?
+  cdpPort     Int?
+  noVncUrl    String?
+  pid         Int?
+  error       String?
+  startedAt   DateTime  @default(now())
+  readyAt     DateTime?
+  closedAt    DateTime?
+  expiresAt   DateTime
+
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  browserProfile BrowserProfile @relation(fields: [profileId], references: [id])
+
+  @@index([userId, status])
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
+}
+
+// ── Subscription (Dodo recurring product) ────────────────────────────────────
+//
+// One row per active or historical Dodo subscription for a user.
+// When a subscription is created or renewed we also write a CreditTransaction.
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String                        // Clerk user ID
+  dodoSubscriptionId String @unique             // Dodo subscription_id (sub_xxx)
+  planKey         String                        // "starter" | "pro" | "enterprise"
+  status          String    @default("active")  // active | cancelled | past_due | paused
+  creditsPerCycle Int                           // credits granted each billing cycle
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  userProfile     UserProfile @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
+
+  @@index([userId])
+  @@index([dodoSubscriptionId])
+}
+
+// ── TopUpPurchase (Dodo one-time payment) ─────────────────────────────────────
+//
+// One row per completed one-time top-up purchase.
+// Each row represents real money spent — used for audit and support.
+model TopUpPurchase {
+  id            String   @id @default(cuid())
+  userId        String                       // Clerk user ID
+  dodoPaymentId String   @unique             // Dodo payment_id (pay_xxx)
+  packKey       String                       // "topup_10" | "topup_50"
+  credits       Int                          // credits granted
+  amountUsd     Float                        // amount paid in USD
+  createdAt     DateTime @default(now())
+
+  userProfile   UserProfile @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
+
+  @@index([userId])
+  @@index([dodoPaymentId])
+}
+
+// ── CreditTransaction (immutable ledger) ──────────────────────────────────────
+//
+// Every credit movement in the system is recorded here.
+// The current balance is always SUM(delta) WHERE userId = ?
+// — there is no separate mutable balance counter.
+//
+// type values:
+//   subscription_grant  — monthly credits from an active subscription cycle
+//   topup_grant         — credits from a one-time top-up purchase
+//   usage               — credits spent on a job
+//   refund              — credits returned when a job fails
+//   admin_adjustment    — manual grant or deduction by an admin
+//   promo               — promotional credits (e.g. beta sign-up bonus)
 model CreditTransaction {
-  id        String   @id @default(cuid())
-  tenantId  String
-  delta     Int                        // positive = added, negative = deducted
-  reason    String                     // e.g. "job_created", "job_failed_refund", "admin_adjustment"
-  jobId     String?                    // reference to the related job if applicable
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String                        // Clerk user ID
+  delta          Int                           // positive = credit, negative = debit
+  type           String                        // see values above
+  description    String                        // human-readable reason
+  jobId          String?                       // set for usage / refund transactions
+  subscriptionId String?                       // set for subscription_grant transactions (FK to Subscription.id)
+  topUpId        String?                       // set for topup_grant transactions (FK to TopUpPurchase.id)
+  idempotencyKey String?  @unique              // prevents double-grants (e.g. dodo event id)
+  createdAt      DateTime @default(now())
 
-  balance   CreditBalance @relation(fields: [tenantId], references: [tenantId])
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  job            Job?           @relation(fields: [jobId], references: [id])
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
+  topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
 
-  @@index([tenantId])
+  @@index([userId])
+  @@index([idempotencyKey])
 }
 
 model Job {
@@ -66,6 +224,8 @@ model Job {
   userId       String
   status       String
   videoUrl     String?
+  rawVideoUrl  String?
+  pdfUrl       String?
   audioUrl     String?
   thumbnailUrl String?  // S3/MinIO URL of the intro screenshot — uploaded early so dashboard shows branded thumbnail immediately
   parameters   String
@@ -73,36 +233,94 @@ model Job {
   error        String?  // Reason for failure, if any
   workerId     String?  // Hostname/ID of the worker that processed the job
   cost         Float    @default(0) // Total cost of the opencode session in USD
+  gitHash      String?
+  rating       String?  // 'up' or 'down'
+  feedback     String?  // User's written review
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  isPublic     Boolean  @default(false) // Owner opt-in: exposes this job via the public /d/:shareSlug page
+  shareSlug    String?  @unique         // Opaque public share id; assigned once on first share, reused thereafter
+  shareViews   Int      @default(0)     // Bumped on real page loads of /d/:shareSlug (not crawler HTML fetches)
+
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
+  videoEditions      VideoEdition[]
 
   @@index([userId])
 
   // Access policies
-  // User must be logged in to do anything
-  @@deny('all', auth() == null)
+  // User must be logged in to do anything, UNLESS the job has been opted into
+  // public sharing — that carve-out is what lets the /d/:shareSlug page (and
+  // its anonymous getPublicJobBySlug lookup) read a single public job.
+  @@deny('all', auth() == null && isPublic != true)
 
   // A user can read/write their own personal jobs
   // The auth() object will be passed in when enhancing the prisma client:
   // enhance(prisma, { user: { id: userId } })
   @@allow('all', userId == auth().id)
+
+  // Anonymous read of a job the owner has explicitly made public. Write
+  // operations for anonymous users have no matching @@allow, so they stay
+  // blocked by ZenStack's implicit default-deny regardless of this carve-out.
+  @@allow('read', isPublic == true)
 }
 
-// ── Affiliate Program ─────────────────────────────────────────────────────────
+// ── Video editions ────────────────────────────────────────────────────────────────────────────
+
+// Every successful storyboard render keeps its own storage URLs and storyboard snapshot.
+model VideoEdition {
+  id                 String   @id @default(cuid())
+  jobId              String
+  editionNumber      Int
+  videoUrl           String
+  rawVideoUrl        String?
+  audioUrl           String?
+  thumbnailUrl       String?
+  storyboard         String?
+  storyboardRevision Int?
+  createdAt          DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, editionNumber])
+  @@unique([jobId, videoUrl])
+  @@index([jobId, createdAt])
+
+  @@deny('all', auth() == null)
+  @@allow('all', job.userId == auth().id)
+}
+
+// ── Affiliate Program ────────────────────────────────────────────────────────────────────────────
 
 // One record per influencer who has joined the affiliate program
 model Affiliate {
   id            String   @id @default(cuid())
   userId        String   @unique        // Clerk user ID
   code          String   @unique        // e.g. "MUKUND-X7K2" — human-readable, URL-safe
-  commissionPct Float    @default(20.0) // Percentage of sale credited as commission
   status        String   @default("active")  // active | suspended | pending
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  userProfile UserProfile           @relation(fields: [userId], references: [id])
   clicks      AffiliateClick[]
+  leads       AffiliateLead[]
   conversions AffiliateConversion[]
   payouts     AffiliatePayout[]
+}
+
+// A referred signup attributed to an affiliate (paid or not) — drives the
+// "signups" count and rewards. One row per referred user (first-touch).
+model AffiliateLead {
+  id             String   @id @default(cuid())
+  affiliateId    String
+  clickId        String?  // which click led to this signup, if known
+  referredUserId String   @unique // Clerk userId of the referred user
+  createdAt      DateTime @default(now())
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
 }
 
 // Every click on an affiliate link — used for analytics and attribution
@@ -122,38 +340,120 @@ model AffiliateClick {
   @@index([clickedAt])
 }
 
-// A confirmed sale attributed to an influencer (first purchase only)
+// A referred user's first purchase. Used to dedupe the purchase reward (one per
+// referred user, ever) and to surface revenue driven. Rewards are paid in
+// credits, not cash — there is no commission field.
 model AffiliateConversion {
   id            String   @id @default(cuid())
   affiliateId   String
   clickId       String?  // which specific click led to this conversion
   referredUserId String  // Clerk userId of the person who signed up & purchased
-  saleAmountUsd Float    // sale amount in USD (Stripe reports in USD cents → convert)
-  commissionAmt Float    // saleAmountUsd * commissionPct / 100
-  status        String   @default("pending") // pending | approved | paid | rejected
-  stripeSessionId String? // Stripe Checkout session ID for audit trail
+  saleAmountUsd Float    // sale amount in USD (Dodo reports in USD cents → convert)
+  status        String   @default("pending") // pending | approved | rejected
+  dodoSessionId String? // Dodo Checkout session ID for audit trail
   createdAt     DateTime @default(now())
 
   affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
-  @@unique([affiliateId, referredUserId]) // one commission per referred user, ever
+  @@unique([affiliateId, referredUserId]) // one reward per referred user, ever
   @@index([affiliateId])
   @@index([referredUserId])
 }
 
-// A payout request from an influencer, settled via Stripe Connect or bank transfer
+// A payout request from an influencer, settled via Dodo or bank transfer
 model AffiliatePayout {
   id          String   @id @default(cuid())
   affiliateId String
   amount      Float    // total USD amount
   currency    String   @default("USD")
-  method      String   // "stripe" | "bank"
+  method      String   // "dodo" | "bank"
   status      String   @default("requested") // requested | processing | paid | failed
-  reference   String?  // Stripe transfer ID or bank ref
+  reference   String?  // Dodo transfer ID or bank ref
   requestedAt DateTime @default(now())
   paidAt      DateTime?
 
   affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@index([affiliateId])
+}
+
+// ── Newsletter Subscribers ────────────────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  // Allow anyone to subscribe (create) without auth
+  @@allow('create', true)
+}
+
+// ── Launch video studio ─────────────────────────────────────────────────────
+
+// Maps a user's launch-video project dir (projects/<userId>--<name>/) to the
+// opencode session that builds it, so the API can keep talking to the same
+// agent session across restarts. Scoped per user.
+model LaunchVideoProject {
+  id                String   @id @default(cuid())
+  userId            String   // Clerk user id — owner of the project
+  name              String   // public project name (unique per user)
+  opencodeSessionId String   @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+
+  // Internal registry — the API uses the base prisma client, never the
+  // enhanced per-user one, so deny everything for enhanced clients.
+  @@deny('all', true)
+}
+
+// ── Outbound Webhooks ───────────────────────────────────────────────────────
+
+model WebhookEndpoint {
+  id         String    @id @default(cuid())
+  userId     String
+  url        String
+  secret     String
+  events     String    @default("[\"job.completed\",\"job.failed\"]")
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userProfile UserProfile       @relation(fields: [userId], references: [id])
+  deliveries  WebhookDelivery[]
+
+  @@index([userId])
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
+}
+
+model WebhookDelivery {
+  id           String           @id @default(cuid())
+  endpointId   String?
+  userId       String
+  jobId        String
+  event        String
+  payload      String
+  status       String           @default("PENDING") // PENDING | SUCCESS | FAILED
+  statusCode   Int?
+  responseBody String?
+  error        String?
+  attempts     Int              @default(0)
+  maxAttempts  Int              @default(5)
+  nextRetryAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  userProfile  UserProfile      @relation(fields: [userId], references: [id])
+  endpoint     WebhookEndpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([status])
+
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
 }

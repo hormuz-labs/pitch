@@ -1,6 +1,7 @@
 <div align="center">
 
 <pre>
+
     ____  ______________  __
    / __ \/  _/_  __/ __ \/ / /
   / /_/ // /  / / / / / / /_/ / 
@@ -13,7 +14,10 @@
 ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 *A distributed execution engine that transforms procedural web interactions into studio-quality, narrated MP4s.*
-trypitch.co
+https://trypitch.co try it now
+
+
+
 </div>
 
 <br>
@@ -56,7 +60,6 @@ Structured for scale using **Bun Workspaces**.
 |:--------------|:----------------------|:----------|
 | **`apps/`**   | `api`                 | REST Gateway for job ingestion and status polling. |
 |               | `worker`              | Headless compute nodes consuming the BullMQ pipeline. |
-|               | `job-cli`             | Terminal interface for local orchestration. |
 |               | `mock-server`         | Synthetic endpoint for isolation testing. |
 |               | `web`                 | React/Vite dashboard for job visualization. |
 | **`packages/`**| `db`                 | Prisma ORM schema and database abstraction layer. |
@@ -70,8 +73,9 @@ Structured for scale using **Bun Workspaces**.
 ■ **Runtime:** `Bun` (Native execution, Workspace orchestration)  
 ■ **Message Broker:** `Redis` + `BullMQ`  
 ■ **Database:** `SQLite` + `Prisma` (Production swappable)  
-■ **AI / Voice:** `@google/genai` (Gemini 3.1 Flash TTS Preview)  
-■ **Rendering:** `Puppeteer` + `FFmpeg` (`fluent-ffmpeg`)  
+■ **AI / Voice:** Google Gemini TTS (`generativelanguage.googleapis.com`)  
+■ **Browser Automation:** `playwright-cli` connected to `cloakbrowser-manager`  
+■ **Rendering:** `FFmpeg`  
 
 <br>
 
@@ -116,5 +120,7 @@ For an **official commercial license**, reach out at [officialtrypitch@gmail.com
   <i>"Code as Cinema."</i> <br><br>
   <b>© 2026 Hormuz Labs</b> · Free for personal use · <a href="mailto:officialtrypitch@gmail.com">Commercial license</a>
 </div>
+
+Amen
 
 

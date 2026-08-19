@@ -1,1 +1,1 @@
-export * from './AdminView';
+export * from './AdminView'

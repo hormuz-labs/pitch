@@ -1,29 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
 import {
+  AnimatePresence,
   motion,
   useMotionValue,
-  useTransform,
   useMotionValueEvent,
-  AnimatePresence,
-} from 'framer-motion';
-import {
-  TbPlayerPauseFilled,
-  TbPlayerPlayFilled,
-  TbRotateClockwise2,
-} from 'react-icons/tb';
+  useTransform,
+} from 'framer-motion'
+import type React from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { TbPlayerPauseFilled, TbPlayerPlayFilled, TbRotateClockwise2 } from 'react-icons/tb'
 
 interface WaveformScrubProps {
-  duration?: number;
-  fileName?: string;
-  waveformHeights?: number[];
-  onConfirm?: () => void;
+  duration?: number
+  fileName?: string
+  waveformHeights?: number[]
+  onConfirm?: () => void
 }
 
 const DEFAULT_WAVEFORM = [
-  4, 7, 9, 6, 11, 14, 12, 8, 5, 10, 15, 13, 11, 9, 6, 10, 12, 9, 7, 5, 8, 12,
-  10, 7, 6, 9, 13, 11, 8, 6, 5, 11, 8, 6, 5, 11, 8, 6, 5, 8, 5, 10, 15, 13, 11,
-  9,
-];
+  4, 7, 9, 6, 11, 14, 12, 8, 5, 10, 15, 13, 11, 9, 6, 10, 12, 9, 7, 5, 8, 12, 10, 7, 6, 9, 13, 11,
+  8, 6, 5, 11, 8, 6, 5, 11, 8, 6, 5, 8, 5, 10, 15, 13, 11, 9,
+]
 
 export const WaveformScrub: React.FC<WaveformScrubProps> = ({
   duration = 30,
@@ -31,107 +27,103 @@ export const WaveformScrub: React.FC<WaveformScrubProps> = ({
   waveformHeights = DEFAULT_WAVEFORM,
   onConfirm,
 }) => {
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [containerWidth, setContainerWidth] = useState(0)
 
-  const [audioDuration, setAudioDuration] = useState(duration);
+  const [audioDuration, setAudioDuration] = useState(duration)
 
-  const waveformRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const x = useMotionValue(0);
+  const waveformRef = useRef<HTMLDivElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const x = useMotionValue(0)
 
-  const isFinished = currentTime >= audioDuration;
+  const isFinished = currentTime >= audioDuration
 
   useEffect(() => {
     const updateWidth = () => {
       if (waveformRef.current) {
-        const newWidth = waveformRef.current.offsetWidth;
-        setContainerWidth(newWidth);
-        x.set((currentTime / audioDuration) * newWidth);
+        const newWidth = waveformRef.current.offsetWidth
+        setContainerWidth(newWidth)
+        x.set((currentTime / audioDuration) * newWidth)
       }
-    };
+    }
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, [audioDuration, currentTime, x]);
+    updateWidth()
+    window.addEventListener('resize', updateWidth)
+    return () => window.removeEventListener('resize', updateWidth)
+  }, [audioDuration, currentTime, x])
 
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.play().catch(e => {
-          console.error("Audio play failed:", e);
-          setIsPlaying(false);
-        });
+          console.error('Audio play failed:', e)
+          setIsPlaying(false)
+        })
       } else {
-        audioRef.current.pause();
+        audioRef.current.pause()
       }
     }
-  }, [isPlaying]);
+  }, [isPlaying])
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
-      const current = audioRef.current.currentTime;
-      setCurrentTime(current);
+      const current = audioRef.current.currentTime
+      setCurrentTime(current)
       if (containerWidth > 0 && isPlaying) {
-        x.set((current / audioDuration) * containerWidth);
+        x.set((current / audioDuration) * containerWidth)
       }
     }
-  };
+  }
 
   const handleEnded = () => {
-    setIsPlaying(false);
-    setCurrentTime(audioDuration);
-  };
+    setIsPlaying(false)
+    setCurrentTime(audioDuration)
+  }
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
-      const dur = audioRef.current.duration;
-      if (dur && !isNaN(dur) && dur !== Infinity) {
-        setAudioDuration(dur);
+      const dur = audioRef.current.duration
+      if (dur && !Number.isNaN(dur) && dur !== Infinity) {
+        setAudioDuration(dur)
       }
     }
-  };
+  }
 
-  useMotionValueEvent(x, 'change', (latest) => {
+  useMotionValueEvent(x, 'change', latest => {
     if (!isPlaying && containerWidth > 0) {
-      const progress = latest / containerWidth;
-      const newTime = progress * audioDuration;
-      setCurrentTime(newTime);
+      const progress = latest / containerWidth
+      const newTime = progress * audioDuration
+      setCurrentTime(newTime)
       if (audioRef.current) {
-        audioRef.current.currentTime = newTime;
+        audioRef.current.currentTime = newTime
       }
     }
-  });
+  })
 
-  const activeProgress = useTransform(
-    x,
-    [0, containerWidth || 1],
-    ['0%', '100%'],
-  );
-  const displayTime = Math.max(0, Math.round(audioDuration - currentTime));
+  const activeProgress = useTransform(x, [0, containerWidth || 1], ['0%', '100%'])
+  const displayTime = Math.max(0, Math.round(audioDuration - currentTime))
 
   const handleTogglePlay = () => {
     if (isFinished) {
-      setCurrentTime(0);
-      x.set(0);
+      setCurrentTime(0)
+      x.set(0)
       if (audioRef.current) {
-        audioRef.current.currentTime = 0;
+        audioRef.current.currentTime = 0
       }
-      setIsPlaying(true);
+      setIsPlaying(true)
     } else {
-      setIsPlaying(!isPlaying);
+      setIsPlaying(!isPlaying)
     }
-  };
+  }
 
   const getAudioUrl = (name: string) => {
     try {
-      return new URL(`../assets/sounds/${name}`, import.meta.url).href;
-    } catch (e) {
-      return '';
+      return new URL(`../assets/sounds/${name}`, import.meta.url).href
+    } catch (_e) {
+      return ''
     }
-  };
+  }
 
   return (
     <div className="w-full mt-3">
@@ -257,5 +249,5 @@ export const WaveformScrub: React.FC<WaveformScrubProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

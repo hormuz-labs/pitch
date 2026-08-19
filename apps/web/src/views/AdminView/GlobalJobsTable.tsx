@@ -1,67 +1,171 @@
-import { formatIST, formatDuration } from './JobDetailsModal';
+import { formatDuration, formatIST } from './JobDetailsModal'
 
-export function GlobalJobsTable({ jobs, onSelectJob }: { jobs: any[], onSelectJob: (job: any) => void }) {
+export function GlobalJobsTable({
+  jobs,
+  onSelectJob,
+}: {
+  jobs: any[]
+  onSelectJob: (job: any) => void
+}) {
   if (!jobs || jobs.length === 0) {
-    return <div className="p-8 text-center text-gray-500 text-sm">No jobs found in the system.</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="mb-3 opacity-40"
+        >
+          <polygon points="23 7 16 12 23 17 23 7" />
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+        </svg>
+        <p className="text-sm font-medium">No jobs in the system</p>
+      </div>
+    )
+  }
+
+  const statusStyle = (status: string) => {
+    if (status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
+    if (status === 'FAILED') return 'bg-red-100 text-red-700'
+    if (status === 'PROCESSING') return 'bg-blue-100 text-blue-700'
+    return 'bg-amber-100 text-amber-700'
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm text-left">
-        <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="px-5 py-3 font-medium">Job ID / URL</th>
-            <th className="px-5 py-3 font-medium">User</th>
-            <th className="px-5 py-3 font-medium">Worker</th>
-            <th className="px-5 py-3 font-medium">Status</th>
-            <th className="px-5 py-3 font-medium">Cost</th>
-            <th className="px-5 py-3 font-medium">Created (IST)</th>
-            <th className="px-5 py-3 font-medium">Duration</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {jobs.map(job => (
-            <tr 
-              key={job.id} 
-              onClick={() => onSelectJob(job)}
-              className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
-            >
-              <td className="px-5 py-3">
-                <div className="font-mono text-xs text-gray-500 mb-1">{job.id.slice(-8)}</div>
-                <div className="font-medium text-gray-900 truncate max-w-[200px]" title={job.parameters?.url}>
-                  {job.parameters?.url || 'No URL'}
-                </div>
-              </td>
-              <td className="px-5 py-3">
-                <div className="font-medium text-gray-900">{job.userName || 'Unknown'}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{job.userEmail}</div>
-              </td>
-              <td className="px-5 py-3">
-                <div className="font-mono text-xs text-gray-500">{job.workerId || '-'}</div>
-              </td>
-              <td className="px-5 py-3">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${
-                  job.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                  job.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {job.status}
-                </span>
-                {job.isRefunded && <div className="text-[10px] text-purple-600 font-medium mt-1">REFUNDED</div>}
-              </td>
-              <td className="px-5 py-3 text-gray-600 text-xs font-medium">
-                {job.cost ? `$${job.cost.toFixed(4)}` : '-'}
-              </td>
-              <td className="px-5 py-3 text-gray-600 text-xs whitespace-nowrap">
-                {formatIST(job.createdAt)}
-              </td>
-              <td className="px-5 py-3 text-gray-600 text-xs">
-                {formatDuration(job.timeTakenMs)}
-              </td>
+    <div className="w-full">
+      {/* Scrollable table wrapper — isolated scroll, never clipped by parent */}
+      <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <table className="text-sm text-left" style={{ minWidth: 720 }}>
+          <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">
+                Job / URL
+              </th>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">User</th>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">Status</th>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">Rating</th>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap text-right">
+                Cost
+              </th>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">
+                Created (IST)
+              </th>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">Duration</th>
+              <th className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">Worker</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {jobs.map(job => (
+              <tr
+                key={job.id}
+                onClick={() => onSelectJob(job)}
+                className="hover:bg-indigo-50/30 transition-colors cursor-pointer"
+              >
+                <td className="px-4 py-3">
+                  <div className="font-mono text-[10px] text-gray-400 mb-0.5">
+                    {job.id.slice(-8)}
+                  </div>
+                  <div
+                    className="font-medium text-gray-800 text-xs"
+                    style={{
+                      maxWidth: 180,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={job.parameters?.url}
+                  >
+                    {job.parameters?.url || <span className="text-gray-400">No URL</span>}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-gray-900 text-sm whitespace-nowrap">
+                    {job.userName || 'Unknown'}
+                  </div>
+                  <div className="text-xs text-gray-400 whitespace-nowrap">{job.userEmail}</div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ${statusStyle(job.status)}`}
+                  >
+                    {job.status}
+                  </span>
+                  {job.phases && job.phases.length > 0 && (
+                    <div className="flex items-center gap-1 mt-2">
+                      {job.phases.map((p: any, i: number) => (
+                        <span
+                          key={i}
+                          title={`${p.label}: ${p.status}`}
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            p.status === 'completed'
+                              ? 'bg-emerald-500'
+                              : p.status === 'running'
+                                ? 'bg-blue-500 animate-pulse'
+                                : p.status === 'failed'
+                                  ? 'bg-red-500'
+                                  : 'bg-gray-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {job.status === 'PROCESSING' &&
+                    job.phases &&
+                    (() => {
+                      const runningPhase = job.phases.find((p: any) => p.status === 'running')
+                      if (runningPhase) {
+                        return (
+                          <div
+                            className="text-[9px] text-blue-600 font-semibold mt-1 uppercase tracking-wider truncate max-w-[120px]"
+                            title={runningPhase.label}
+                          >
+                            {runningPhase.label}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
+                  {job.isRefunded && (
+                    <div className="text-[10px] text-purple-600 font-semibold mt-1">↩ REFUNDED</div>
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {job.rating === 'up' ? (
+                    <span className="text-base" title="Positive">
+                      👍
+                    </span>
+                  ) : job.rating === 'down' ? (
+                    <span className="text-base" title="Negative">
+                      👎
+                    </span>
+                  ) : (
+                    <span className="text-gray-300 text-xs">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <span className="text-xs font-semibold text-gray-600">
+                    {job.cost ? `$${job.cost.toFixed(4)}` : '—'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                  {formatIST(job.createdAt)}
+                </td>
+                <td className="px-4 py-3 text-xs text-gray-500 font-medium whitespace-nowrap">
+                  {formatDuration(job.timeTakenMs)}
+                </td>
+                <td className="px-4 py-3">
+                  <span className="font-mono text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                    {job.workerId ? job.workerId.slice(0, 14) : '—'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
-  );
+  )
 }

@@ -1,24 +1,75 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   envDir: '../../',
+  build: {
+    rollupOptions: {
+      output: {
+        // Vite 8 (Rolldown) only supports the function form of manualChunks.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/]@clerk[\\/]/.test(id)) return 'vendor-clerk'
+          if (/[\\/]node_modules[\\/](gsap)[\\/]/.test(id)) return 'vendor-gsap'
+          if (/[\\/]node_modules[\\/](framer-motion|motion|motion-dom|motion-utils)[\\/]/.test(id))
+            return 'vendor-motion'
+          if (
+            /[\\/]node_modules[\\/](jspdf|html-to-image|html2canvas|qrcode|dompurify)[\\/]/.test(id)
+          )
+            return 'vendor-pdf'
+          if (/[\\/]node_modules[\\/]posthog-js[\\/]/.test(id)) return 'vendor-posthog'
+          if (
+            /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(
+              id,
+            )
+          )
+            return 'vendor-react'
+        },
+      },
+    },
+  },
   resolve: {
-    dedupe: ['react', 'react-dom']
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+    dedupe: ['react', 'react-dom'],
   },
   server: {
+    // Optimized dependency URLs are versioned, but a dependency install can
+    // leave an already-open tab holding an old React/ReactDOM graph. Never let
+    // browsers persist dev-server modules across optimizer restarts.
+    headers: {
+      'Cache-Control': 'no-store',
+    },
+    // This checkout contains enough source/public assets to exhaust the default
+    // Linux inotify quota when other editors and dev servers are open. Polling
+    // keeps HMR working without requiring machine-wide sysctl changes or sudo.
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
     proxy: {
+      // All API traffic — including the VNC WebSocket proxy at
+      // /browser/profiles/:id/vnc — goes to the local API. ws:true upgrades the
+      // VNC connection; the API handles manager auth and Origin stripping, so
+      // there's nothing manager-specific to configure here.
       '/api': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        ws: true,
+        rewrite: path => path.replace(/^\/api/, ''),
       },
       '/r': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
+      },
+      '/d/': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: false,
       },
     },
   },

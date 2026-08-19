@@ -51,11 +51,32 @@ opencode-logs/
 **/demo-cinematic-*/
 **/frame-*.png
 *.mp4
+!assets/backgrounds/*.mp4
+!apps/web/public/backgrounds/*.mp4
 *.wav
 *.mov
-\n# Generated Demos\ndemo/\n
-demos/**
+*.webm
+
+# Generated Demos
+demos/
+
+# Recording editor artifacts
+recordings/
+
 .vercel
 .playwright-cli/
 docker-data/
 actions-runner/
+.pitch-dev.pid
+
+.agents/
+output.pdf
+pptx/
+qa-renders/
+
+projects/
+renders/
+
+# Raw SFX source packs — hundreds of MB, and the SOURCE for the vendored library.
+# What gets committed is assets/sfx-lib/ (~9MB, produced by scripts/sfx-vendor.mjs).
+assets/1000+UR.FASTEDITOR SFX/

@@ -1,20 +1,4 @@
 services:
-  # ---------------------------------------------------------------------------
-  # Cloudflare Tunnel — zero-trust ingress, no open ports required
-  # ---------------------------------------------------------------------------
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: pitch_cloudflared
-    restart: always
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-    depends_on:
-      - api
-      - minio
-      - loki
-      - grafana
-
   postgres:
     image: postgres:15-alpine
     container_name: pitch_postgres
@@ -32,6 +16,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  pgweb:
+    image: sosedoff/pgweb:latest
+    container_name: pitch_pgweb
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://postgres:password@postgres:5432/pitch?sslmode=disable
+      - AUTH_USER=${PGWEB_USER:-admin}
+      - AUTH_PASS=${PGWEB_PASSWORD:-supersecret123}
+    ports:
+      - "127.0.0.1:8081:8081"
+    # Bound to localhost; external access is via the host-level cloudflared systemd service
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
@@ -56,7 +55,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9002:9000"
+      - "127.0.0.1:9002:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - ./docker-data/minio:/data
     healthcheck:
@@ -71,7 +71,7 @@ services:
     restart: always
     user: "10001:10001"
     ports:
-      - "3101:3100"
+      - "127.0.0.1:3101:3100"
     volumes:
       - ./docker-data/loki:/loki
     command: -config.file=/etc/loki/local-config.yaml
@@ -87,7 +87,7 @@ services:
     restart: always
     user: "472:0"
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
@@ -100,6 +100,41 @@ services:
       loki:
         condition: service_healthy
 
+  cloakbrowser-manager:
+    image: cloakhq/cloakbrowser-manager
+    container_name: cloakbrowser_manager
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - cloakprofiles:/data
+    group_add:
+      - "44"
+      - "992"
+
+  # ---------------------------------------------------------------------------
+  # Transcription — local Whisper (transformers.js on Bun, model baked into the
+  # image). Serves the recording-editor flow: the worker posts uploaded
+  # narration here for word-level transcripts. Host port mapping also lets a
+  # host-run worker reach it.
+  # ---------------------------------------------------------------------------
+  transcription:
+    image: pitch-transcription:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/transcription/Dockerfile
+    container_name: pitch_transcription
+    restart: always
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-Xenova/whisper-small}
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   api:
     image: pitch-api:${IMAGE_TAG:-latest}
     build:
@@ -107,12 +142,23 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: pitch_api
     restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
+      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+    volumes:
+      # The launch-video editor and every worker replica operate on the same
+      # persistent HTML project and render directories.
+      - ./projects:/app/projects
+      - ./renders:/app/renders
+      # API-side OpenCode owns follow-up edit sessions. Persist its session
+      # history across API container rebuilds without sharing it with workers.
+      - ./docker-data/opencode-api:/root/.local/share/opencode
     logging:
       driver: loki
       options:
@@ -132,6 +178,8 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
+      cloakbrowser-manager:
+        condition: service_started
 
   worker:
     image: pitch-worker:${IMAGE_TAG:-latest}
@@ -145,6 +193,8 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
+      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+      TRANSCRIPTION_SERVICE_URL: http://transcription:4000/transcribe
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
     logging:
       driver: loki
@@ -158,12 +208,11 @@ services:
         env: "SERVICE_NAME,HOSTNAME"
     volumes:
       - ./docker-data/opencode-logs:/root/.local/share/opencode/log
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
+      - ./projects:/app/projects
+      - ./renders:/app/renders
     group_add:
-      - video
-      - render
+      - "44"
+      - "992"
     deploy:
       replicas: 1
     depends_on:
@@ -175,4 +224,10 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
+      cloakbrowser-manager:
+        condition: service_started
+      transcription:
+        condition: service_healthy
 
+volumes:
+  cloakprofiles:

@@ -1,7 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "permission": "allow",
-  "plugin": [
-    ".opencode/plugins/video-budget.ts"
-  ]
+  "plugin": [".opencode/plugins/video-budget.ts", ".opencode/plugins/html-motion-tools.ts"],
+  "agent": {
+    "html-video": {
+      "mode": "primary",
+      "permission": { "bash": "allow", "edit": "allow" }
+    }
+  }
 }

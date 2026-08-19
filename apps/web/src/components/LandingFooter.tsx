@@ -1,163 +1,219 @@
-import { useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import gsap from 'gsap';
-import { PitchWordmark } from './PitchWordmark';
+import { motion, type Variants } from 'framer-motion'
+import type { ReactNode } from 'react'
+import { FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
+import { Link } from 'react-router-dom'
+import { PitchWordmark } from './PitchWordmark'
 
-const SOCIAL_LINKS = [
-  {
-    label: 'X (Twitter)',
-    href: '#',
-    d: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z',
-  },
-  {
-    label: 'GitHub',
-    href: '#',
-    d: 'M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z',
-  },
-  {
-    label: 'LinkedIn',
-    href: 'https://www.linkedin.com/company/trypitchdotco/',
-    d: 'M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z',
-  },
-];
+export interface Footer15Link {
+  label: string
+  href: string
+  icon?: React.ComponentType<{ className?: string; size?: number }>
+}
 
-const NAV_COLS: { heading: string; links: { label: string; to: string }[] }[] = [
+export interface Footer15Column {
+  title: string
+  links: Footer15Link[]
+}
+
+export interface Footer15Props {
+  /** Custom logo mark element */
+  logoIcon?: ReactNode
+  /** Short brand description / tagline */
+  description?: string
+  /** Navigation columns */
+  columns?: Footer15Column[]
+}
+
+const defaultColumns: Footer15Column[] = [
   {
-    heading: 'Product',
+    title: 'Company',
     links: [
-      { label: 'Pricing',      to: '/pricing' },
+      { label: 'About Us', href: '/about' },
+      { label: 'Blog', href: '/blog' },
+      { label: 'Contact', href: 'mailto:support@trypitch.co' },
     ],
   },
   {
-    heading: 'Company',
+    title: 'Legal',
     links: [
-      { label: 'About Us', to: '/about' },
-      { label: 'Contact',  to: 'mailto:support@trypitch.co' },
+      { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Terms of Service', href: '/terms' },
     ],
   },
   {
-    heading: 'Legal',
+    title: 'Product',
+    links: [{ label: 'Pricing', href: '/pricing' }],
+  },
+  {
+    title: 'Social',
     links: [
-      { label: 'Privacy Policy', to: '/privacy' },
-      { label: 'Terms of Service', to: '/terms' },
+      { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: FaXTwitter },
+      { label: 'Instagram', href: 'https://www.instagram.com/trypitch.co', icon: FaInstagram },
+      {
+        label: 'LinkedIn',
+        href: 'https://www.linkedin.com/company/trypitchdotco/',
+        icon: FaLinkedinIn,
+      },
     ],
   },
-];
+]
 
-export const LandingFooter = () => {
-  const wrapRef = useRef<HTMLDivElement>(null);
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.09,
+      delayChildren: 0.05,
+    },
+  },
+}
 
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
+const navStagger: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.07,
+      delayChildren: 0.02,
+    },
+  },
+}
 
-    const RADIUS = 180;
-    const STRENGTH = 0.5;
+const riseItem: Variants = {
+  hidden: { opacity: 0, y: 18, filter: 'blur(6px)' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { type: 'spring', duration: 0.6, bounce: 0 },
+  },
+}
 
-    const onMove = (e: MouseEvent) => {
-      if (window.innerWidth < 1024) return;
-      const rect = wrap.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = e.clientX - cx;
-      const dy = e.clientY - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+const linkStagger: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+}
 
-      if (dist < RADIUS) {
-        const t = 1 - dist / RADIUS;
-        gsap.to(wrap, {
-          x: dx * STRENGTH * t,
-          y: dy * STRENGTH * t,
-          // color drives currentColor on the SVG inside
-          color: `rgba(255,255,255,${0.45 + t * 0.55})`,
-          duration: 0.3,
-          ease: 'power2.out',
-          overwrite: 'auto',
-        });
-      } else {
-        gsap.to(wrap, {
-          x: 0,
-          y: 0,
-          color: 'rgba(255,255,255,1)',
-          duration: 0.7,
-          ease: 'elastic.out(1,0.45)',
-          overwrite: 'auto',
-        });
-      }
-    };
+const linkItem: Variants = {
+  hidden: { opacity: 0, y: 5 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', duration: 0.4, bounce: 0 },
+  },
+}
 
-    window.addEventListener('mousemove', onMove);
-    return () => window.removeEventListener('mousemove', onMove);
-  }, []);
-
+export function Footer15({
+  logoIcon,
+  description = 'The AI agent that turns your product URL into a cinematic pitch video in minutes.',
+  columns = defaultColumns,
+}: Footer15Props) {
   return (
-    <footer className="landing-footer">
-      <div className="landing-footer-inner">
-        <div className="landing-footer-top">
-
-          {/* Brand column */}
-          <div className="landing-footer-brand">
-            {/*
-              GSAP animates `color` on this wrapper.
-              PitchWordmark uses fill="currentColor" so it inherits it.
-              Initial color is dim; brightens as cursor approaches.
-            */}
-            <div
-              ref={wrapRef}
-              className="landing-footer-wordmark"
-              aria-label="Pitch"
-              style={{ color: 'rgba(255,255,255,1)' }}
-            >
-              <PitchWordmark />
+    <footer className="w-full overflow-hidden rounded-t-4xl bg-black text-white font-sans antialiased sm:rounded-t-[2.5rem] md:rounded-t-[3rem]">
+      <motion.div
+        variants={staggerContainer}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.1 }}
+        className="px-6 pt-6 pb-2 sm:px-10 sm:pt-8 lg:px-14 lg:pt-10 xl:px-20"
+      >
+        <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-center gap-8 text-center">
+          <motion.div
+            variants={riseItem}
+            className="flex shrink-0 flex-col items-center text-center gap-5"
+          >
+            <div className="flex items-center justify-center w-full">
+              <span className="shrink-0 text-white">
+                {logoIcon ?? (
+                  <PitchWordmark className="text-white" style={{ height: '40px', width: 'auto' }} />
+                )}
+              </span>
             </div>
 
-            <p className="landing-footer-tagline">
-              The AI agent that turns your product URL into a cinematic pitch video in minutes.
+            <p className="text-xs leading-relaxed font-light tracking-wide sm:whitespace-nowrap text-zinc-400">
+              {description}
             </p>
+          </motion.div>
 
-            <div className="landing-footer-socials">
-              {SOCIAL_LINKS.map(({ label, href, d }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  className="landing-footer-social"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d={d} />
-                  </svg>
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Nav columns */}
-          <nav className="landing-footer-nav" aria-label="Footer navigation">
-            {NAV_COLS.map(({ heading, links }) => (
-              <div key={heading} className="landing-footer-nav-col">
-                <p className="landing-footer-nav-heading">{heading}</p>
-                <ul className="landing-footer-nav-list">
-                  {links.map(({ label, to }) => (
-                    <li key={label}>
-                      {to.startsWith('mailto:')
-                        ? <a href={to} className="landing-footer-nav-link">{label}</a>
-                        : <Link to={to} className="landing-footer-nav-link">{label}</Link>
-                      }
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <motion.nav
+            variants={navStagger}
+            aria-label="Footer navigation"
+            className="grid w-full max-w-4xl grid-cols-2 sm:grid-cols-4 gap-x-12 gap-y-8"
+          >
+            {columns.map(col => (
+              <motion.div key={col.title} variants={riseItem} className="text-center sm:text-left">
+                <h3 className="text-[10px] leading-none font-bold tracking-widest uppercase text-zinc-100">
+                  {col.title}
+                </h3>
+                {col.title === 'Social' ? (
+                  <div className="flex flex-row gap-4 justify-center sm:justify-start items-center mt-4 leading-none">
+                    {col.links.map(link => {
+                      const Icon = link.icon
+                      return (
+                        <motion.a
+                          key={link.label}
+                          href={link.href}
+                          variants={linkItem}
+                          whileHover={{ scale: 1.15 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center text-white hover:text-zinc-300 transition-colors duration-200"
+                          aria-label={link.label}
+                        >
+                          {Icon && <Icon className="size-3.5" />}
+                        </motion.a>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <motion.ul variants={linkStagger} className="mt-3 flex flex-col gap-3">
+                    {col.links.map(link => (
+                      <motion.li key={link.label} variants={linkItem}>
+                        {link.href.startsWith('/') && !link.href.startsWith('//') ? (
+                          <Link
+                            to={link.href}
+                            className="inline-block text-xs leading-none font-light tracking-wide text-zinc-400 transition-colors duration-200 hover:text-white"
+                          >
+                            {link.label}
+                          </Link>
+                        ) : (
+                          <a
+                            href={link.href}
+                            className="inline-block text-xs leading-none font-light tracking-wide text-zinc-400 transition-colors duration-200 hover:text-white"
+                            target={link.href.startsWith('http') ? '_blank' : undefined}
+                            rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                          >
+                            {link.label}
+                          </a>
+                        )}
+                      </motion.li>
+                    ))}
+                  </motion.ul>
+                )}
+              </motion.div>
             ))}
-          </nav>
+          </motion.nav>
         </div>
+      </motion.div>
 
-        {/* Bottom bar */}
-        <div className="landing-footer-bottom">
-          <p className="landing-footer-copy">© {new Date().getFullYear()} Pitch. All rights reserved.</p>
+      {/* Copyright row */}
+      <div className="mt-6 border-t border-zinc-900 px-6 py-4 sm:px-10 lg:px-14 xl:px-20">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-center text-center text-xs text-zinc-500">
+          <p className="text-[10px] leading-none font-light tracking-widest uppercase text-zinc-500">
+            © {new Date().getFullYear()} Pitch. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
-  );
-};
+  )
+}
+
+export const LandingFooter = () => {
+  return (
+    <div className="flex w-full items-end">
+      <Footer15 />
+    </div>
+  )
+}

@@ -46,4 +46,17 @@ apps/web/dist/
 demos/
 *.webm
 *.mp4
-demos/
+!assets/backgrounds/*.mp4
+!apps/web/public/backgrounds/*.mp4
+
+# Local dev data directories (large, not needed in images)
+docker-data/
+.playwright-cli/
+recordings/
+grafana/
+
+# Local tooling artifacts
+output.html
+outreach-plan.md
+skills-lock.json
+timestamps.json

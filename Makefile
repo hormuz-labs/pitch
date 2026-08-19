@@ -8,7 +8,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev prod down logs ps test test-watch
+.PHONY: help dev prod down logs ps test test-watch unittest integration
 
 help:
 	@echo ""
@@ -19,8 +19,10 @@ help:
 	@echo "  $(GREEN)make down$(RESET)       — stop and remove all containers"
 	@echo "  $(GREEN)make logs$(RESET)       — tail logs for all running containers"
 	@echo "  $(GREEN)make ps$(RESET)         — list container status"
-	@echo "  $(GREEN)make test$(RESET)       — run all tests once (vitest run)"
-	@echo "  $(GREEN)make test-watch$(RESET) — run tests in watch mode (vitest)"
+	@echo "  $(GREEN)make unittest$(RESET)    — run fast pure unit tests (no browser)"
+	@echo "  $(GREEN)make integration$(RESET) — run browser-driven integration tests (playwright-cli)"
+	@echo "  $(GREEN)make test$(RESET)        — alias for unittest"
+	@echo "  $(GREEN)make test-watch$(RESET)  — run unit tests in watch mode (vitest)"
 	@echo ""
 
 # ─── Development ──────────────────────────────────────────────────────────────
@@ -43,19 +45,25 @@ dev:
 		case "$$raw" in 2) choice="all" ;; *) choice="essential" ;; esac; \
 	fi; \
 	echo ""; \
-	case "$$choice" in \
+		case "$$choice" in \
 		essential) \
-			echo "  $(GREEN)Starting essential containers (postgres, redis, minio)...$(RESET)"; \
-			docker compose -p pitch up -d postgres redis minio; \
+			echo "  $(YELLOW)Cleaning up previous containers and processes...$(RESET)"; \
+			docker compose -p pitch down --remove-orphans 2>/dev/null; \
+			for p in 3000 5173 4098; do \
+				pid=$$(lsof -ti :$$p 2>/dev/null) && kill $$pid 2>/dev/null && echo "  killed process on port $$p" || true; \
+			done; \
 			echo ""; \
-			echo "  $(GREEN)Waiting for services to be healthy...$(RESET)"; \
-			sleep 3; \
+			echo "  $(GREEN)Starting essential containers (postgres, redis, minio)...$(RESET)"; \
+			docker compose -p pitch up -d --wait postgres redis minio; \
 			echo ""; \
 			if [ ! -d node_modules ] || [ bun.lock -nt node_modules ]; then \
 				echo "  $(GREEN)Installing dependencies...$(RESET)"; \
 				bun install; \
 				echo ""; \
 			fi; \
+			echo "  $(GREEN)Applying database migrations...$(RESET)"; \
+			bun run db:deploy; \
+			echo ""; \
 			echo "  $(GREEN)Starting bun dev servers (Ctrl+C to stop all)...$(RESET)"; \
 			echo ""; \
 			bun run dev ;; \
@@ -94,11 +102,21 @@ ps:
 	docker compose -p pitch ps
 
 # ─── Testing ──────────────────────────────────────────────────────────────────
-test:
+unittest:
 	@echo ""
-	@echo "  $(BOLD)$(CYAN)Running tests...$(RESET)"
+	@echo "  $(BOLD)$(CYAN)Running unit tests...$(RESET)"
 	@echo ""
 	bun run test
+	@echo ""
+
+# `make test` stays as an alias for the fast unit suite.
+test: unittest
+
+integration:
+	@echo ""
+	@echo "  $(BOLD)$(CYAN)Running browser integration tests (playwright-cli)...$(RESET)"
+	@echo ""
+	bun run test:integration
 	@echo ""
 
 test-watch:

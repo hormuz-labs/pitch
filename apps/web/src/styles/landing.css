@@ -312,7 +312,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: var(--accent);
+  background: #000000;
   color: #ffffff;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
@@ -327,7 +327,7 @@
 }
 
 .landing-btn-primary:hover {
-  background: var(--accent-hover);
+  background: #222222;
 }
 
 .landing-btn-secondary {
@@ -1107,20 +1107,16 @@
 .landing-footer-social {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
   text-decoration: none;
-  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
 .landing-footer-social:hover {
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.15);
 }
 
 .landing-footer-nav {
@@ -1423,7 +1419,7 @@
 
 /* Desktop hero: larger padding */
 @media (min-width: 1024px) {
-  .landing-hero { padding: 48px 40px 72px; }
+  .landing-hero { padding: 16px 40px 72px; }
 }
 
 /* Footer nav: wrap on mobile */
@@ -1447,4 +1443,192 @@
   }
   .landing-hero-scroll-cue,
   .landing-mockup-rec-dot { animation: none; }
+}
+
+/* ── FAQ ───────────────────────────────────────────────── */
+.landing-faq {
+  width: 100%;
+  position: relative;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.landing-faq-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 80px 24px 96px;
+  position: relative;
+  /* No ::before left rail */
+}
+
+.landing-faq-header {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+@media (min-width: 1024px) {
+  .landing-faq-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.landing-faq-list {
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Radix accordion items ────────────────────────────────────────── */
+.landing-faq-accordion {
+  width: 100%;
+}
+
+.landing-faq-accordion-item {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.landing-faq-accordion-trigger {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 0;
+  font-family: var(--font-sans);
+  font-size: clamp(16px, 1.6vw, 18px);
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.landing-faq-accordion-trigger:hover {
+  color: #000;
+}
+
+.landing-faq-accordion-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  width: 16px;
+  height: 16px;
+  position: relative;
+}
+
+@keyframes faq-slide-down {
+  from { height: 0; opacity: 0; }
+  to   { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+@keyframes faq-slide-up {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to   { height: 0; opacity: 0; }
+}
+
+.landing-faq-accordion-content {
+  overflow: hidden;
+}
+
+.landing-faq-accordion-content[data-state="open"] {
+  animation: faq-slide-down 0.24s var(--ease-out);
+}
+
+.landing-faq-accordion-content[data-state="closed"] {
+  animation: faq-slide-up 0.18s var(--ease-in);
+}
+
+.landing-faq-a {
+  margin: 0;
+  padding: 0 36px 28px 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text-muted);
+  max-width: 760px;
+}
+
+@media (max-width: 640px) {
+  .landing-faq-inner { padding: 56px 20px 72px; }
+}
+
+/* ── Process section ─────────────────────────────────────────────── */
+.landing-process-section {
+  width: 100%;
+  position: relative;
+  background: var(--bg-page);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.landing-process-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 80px 24px 48px;
+  position: relative;
+}
+
+.landing-process-header {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-bottom: 0;
+  padding-bottom: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.landing-process-content {
+  margin-top: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .landing-process-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+@media (max-width: 767px) {
+  .landing-process-inner {
+    padding: 56px 20px 32px;
+  }
+}
+
+/* "editor" in the demo-carousel heading — the strike draws itself in when the
+   heading scrolls into view, then the word fades back. */
+.struck-editor {
+  position: relative;
+  display: inline-block;
+  transition: color 0.4s ease 0.45s;
+}
+.struck-editor::after {
+  content: '';
+  position: absolute;
+  left: -3%;
+  right: -3%;
+  top: 54%;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.struck-editor.struck {
+  color: #9ca3af;
+}
+.struck-editor.struck::after {
+  animation: struck-editor-draw 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.15s forwards;
+}
+@keyframes struck-editor-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }

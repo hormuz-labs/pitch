@@ -20,64 +20,199 @@ model User {
 }
 
 model UserProfile {
-  id        String   @id()
-  email     String
-  firstName String?
-  lastName  String?
-  imageUrl  String?
-  role      String   @default("user")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt()
+  id                 String              @id()
+  email              String
+  firstName          String?
+  lastName           String?
+  imageUrl           String?
+  role               String              @default("user")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
+  subscriptions      Subscription[]
+  topUpPurchases     TopUpPurchase[]
+  creditTransactions CreditTransaction[]
+  jobs               Job[]
+  affiliate          Affiliate?
+  browserProfile     BrowserProfile?
+  browserSessions    BrowserSession[]
+  apiKeys            ApiKey[]
+  webhookEndpoints   WebhookEndpoint[]
+  webhookDeliveries  WebhookDelivery[]
 }
 
-model CreditBalance {
-  tenantId     String              @id()
-  balance      Int                 @default(0)
-  updatedAt    DateTime            @updatedAt()
-  transactions CreditTransaction[]
+model ApiKey {
+  id          String      @id() @default(cuid())
+  userId      String
+  name        String
+  prefix      String
+  keyHash     String      @unique()
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  userProfile UserProfile @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("PitchApiKey")
+}
+
+model BrowserProfile {
+  id              String           @id() @default(cuid())
+  userId          String           @unique()
+  profileDir      String
+  storageStateKey String?
+  loggedInOrigins String           @default("[]")
+  lastSyncedAt    DateTime?
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt()
+  userProfile     UserProfile      @relation(fields: [userId], references: [id])
+  sessions        BrowserSession[]
+}
+
+model BrowserSession {
+  id             String         @id() @default(cuid())
+  userId         String
+  profileId      String
+  status         String         @default("STARTING")
+  startUrl       String?
+  cdpPort        Int?
+  noVncUrl       String?
+  pid            Int?
+  error          String?
+  startedAt      DateTime       @default(now())
+  readyAt        DateTime?
+  closedAt       DateTime?
+  expiresAt      DateTime
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  browserProfile BrowserProfile @relation(fields: [profileId], references: [id])
+
+  @@index([userId, status])
+}
+
+model Subscription {
+  id                 String              @id() @default(cuid())
+  userId             String
+  dodoSubscriptionId String              @unique()
+  planKey            String
+  status             String              @default("active")
+  creditsPerCycle    Int
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
+
+  @@index([userId])
+  @@index([dodoSubscriptionId])
+}
+
+model TopUpPurchase {
+  id                 String              @id() @default(cuid())
+  userId             String
+  dodoPaymentId      String              @unique()
+  packKey            String
+  credits            Int
+  amountUsd          Float
+  createdAt          DateTime            @default(now())
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
+
+  @@index([userId])
+  @@index([dodoPaymentId])
 }
 
 model CreditTransaction {
-  id        String        @id() @default(cuid())
-  tenantId  String
-  delta     Int
-  reason    String
-  jobId     String?
-  createdAt DateTime      @default(now())
-  balance   CreditBalance @relation(fields: [tenantId], references: [tenantId])
+  id             String         @id() @default(cuid())
+  userId         String
+  delta          Int
+  type           String
+  description    String
+  jobId          String?
+  subscriptionId String?
+  topUpId        String?
+  idempotencyKey String?        @unique()
+  createdAt      DateTime       @default(now())
+  userProfile    UserProfile    @relation(fields: [userId], references: [id])
+  job            Job?           @relation(fields: [jobId], references: [id])
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
+  topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
 
-  @@index([tenantId])
+  @@index([userId])
+  @@index([idempotencyKey])
 }
 
 model Job {
-  id           String   @id() @default(cuid())
-  userId       String
-  status       String
-  videoUrl     String?
-  audioUrl     String?
-  thumbnailUrl String?
-  parameters   String
-  phases       String?
-  error        String?
-  workerId     String?
-  cost         Float    @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt()
+  id                 String              @id() @default(cuid())
+  userId             String
+  status             String
+  videoUrl           String?
+  rawVideoUrl        String?
+  pdfUrl             String?
+  audioUrl           String?
+  thumbnailUrl       String?
+  parameters         String
+  phases             String?
+  error              String?
+  workerId           String?
+  cost               Float               @default(0)
+  gitHash            String?
+  rating             String?
+  feedback           String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
+  isPublic           Boolean             @default(false)
+  shareSlug          String?             @unique()
+  shareViews         Int                 @default(0)
+  userProfile        UserProfile         @relation(fields: [userId], references: [id])
+  creditTransactions CreditTransaction[]
+  videoEditions      VideoEdition[]
 
   @@index([userId])
 }
 
+model VideoEdition {
+  id                 String   @id() @default(cuid())
+  jobId              String
+  editionNumber      Int
+  videoUrl           String
+  rawVideoUrl        String?
+  audioUrl           String?
+  thumbnailUrl       String?
+  storyboard         String?
+  storyboardRevision Int?
+  createdAt          DateTime @default(now())
+  job                Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, editionNumber])
+  @@unique([jobId, videoUrl])
+  @@index([jobId, createdAt])
+}
+
 model Affiliate {
-  id            String                @id() @default(cuid())
-  userId        String                @unique()
-  code          String                @unique()
-  commissionPct Float                 @default(20.0)
-  status        String                @default("active")
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt()
-  clicks        AffiliateClick[]
-  conversions   AffiliateConversion[]
-  payouts       AffiliatePayout[]
+  id          String                @id() @default(cuid())
+  userId      String                @unique()
+  code        String                @unique()
+  status      String                @default("active")
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt()
+  userProfile UserProfile           @relation(fields: [userId], references: [id])
+  clicks      AffiliateClick[]
+  leads       AffiliateLead[]
+  conversions AffiliateConversion[]
+  payouts     AffiliatePayout[]
+}
+
+model AffiliateLead {
+  id             String    @id() @default(cuid())
+  affiliateId    String
+  clickId        String?
+  referredUserId String    @unique()
+  createdAt      DateTime  @default(now())
+  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
 }
 
 model AffiliateClick {
@@ -96,16 +231,15 @@ model AffiliateClick {
 }
 
 model AffiliateConversion {
-  id              String    @id() @default(cuid())
-  affiliateId     String
-  clickId         String?
-  referredUserId  String
-  saleAmountUsd   Float
-  commissionAmt   Float
-  status          String    @default("pending")
-  stripeSessionId String?
-  createdAt       DateTime  @default(now())
-  affiliate       Affiliate @relation(fields: [affiliateId], references: [id])
+  id             String    @id() @default(cuid())
+  affiliateId    String
+  clickId        String?
+  referredUserId String
+  saleAmountUsd  Float
+  status         String    @default("pending")
+  dodoSessionId  String?
+  createdAt      DateTime  @default(now())
+  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@unique([affiliateId, referredUserId])
   @@index([affiliateId])
@@ -125,4 +259,61 @@ model AffiliatePayout {
   affiliate   Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@index([affiliateId])
+}
+
+model NewsletterSubscriber {
+  id        String   @id() @default(cuid())
+  email     String   @unique()
+  createdAt DateTime @default(now())
+}
+
+model LaunchVideoProject {
+  id                String   @id() @default(cuid())
+  userId            String
+  name              String
+  opencodeSessionId String   @unique()
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt()
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model WebhookEndpoint {
+  id          String            @id() @default(cuid())
+  userId      String
+  url         String
+  secret      String
+  events      String            @default("[\"job.completed\",\"job.failed\"]")
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt()
+  userProfile UserProfile       @relation(fields: [userId], references: [id])
+  deliveries  WebhookDelivery[]
+
+  @@index([userId])
+}
+
+model WebhookDelivery {
+  id           String           @id() @default(cuid())
+  endpointId   String?
+  userId       String
+  jobId        String
+  event        String
+  payload      String
+  status       String           @default("PENDING")
+  statusCode   Int?
+  responseBody String?
+  error        String?
+  attempts     Int              @default(0)
+  maxAttempts  Int              @default(5)
+  nextRetryAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt()
+  userProfile  UserProfile      @relation(fields: [userId], references: [id])
+  endpoint     WebhookEndpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([status])
 }

@@ -7,25 +7,38 @@
     "packages/*"
   ],
   "scripts": {
-    "setup": "bun run db:up && echo 'Waiting for databases to start...' && sleep 3 && bun run db:migrate",
+    "setup": "bun run db:up && echo 'Waiting for databases to start...' && sleep 3 && bun run db:deploy",
     "db:up": "docker compose -p pitch up -d",
     "db:down": "docker compose -p pitch down",
-    "db:migrate": "./node_modules/.bin/dotenv -o -e .env -- ./node_modules/.bin/prisma migrate dev --schema=packages/db/prisma/schema.prisma --name init",
+    "db:migrate": "./node_modules/.bin/dotenv -o -e .env -- ./node_modules/.bin/prisma migrate dev --schema=packages/db/prisma/schema.prisma",
+    "db:deploy": "./node_modules/.bin/dotenv -o -e .env -- ./node_modules/.bin/prisma migrate deploy --schema=packages/db/prisma/schema.prisma",
     "db:sync": "./node_modules/.bin/dotenv -o -e .env -- ./node_modules/.bin/prisma migrate deploy --schema=packages/db/prisma/schema.prisma",
+    "db:status": "./node_modules/.bin/dotenv -o -e .env -- ./node_modules/.bin/prisma migrate status --schema=packages/db/prisma/schema.prisma",
     "db:studio": "./node_modules/.bin/dotenv -o -e .env -- bunx @zenstackhq/proxy --schema=packages/db/prisma/schema.zmodel",
     "postinstall": "bunx zenstack generate --schema packages/db/prisma/schema.zmodel || (test -n \"$VERCEL\" && echo 'Postinstall failed on Vercel, but continuing as only web is required')",
     "build": "bun --filter '*' build",
     "dev": "bun --filter '*' dev",
+    "dev:api": "bun --filter api dev",
+    "dev:worker": "bun --filter worker dev",
+    "dev:web": "bun --filter @pitch/web dev",
     "start": "bun --filter '*' start",
-    "job-cli": "bun apps/job-cli/src/index.ts",
-    "credits": "bun apps/job-cli/src/index.ts credits",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write",
+    "format": "biome format --write",
+    "check": "biome check",
+    "check:fix": "biome check --write",
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
+    "test:integration": "vitest run --project integration"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@types/node": "^20.0.0",
     "@types/supertest": "^7.2.0",
-    "@zenstackhq/runtime": "^2.22.1",
+    "@zenstackhq/runtime": "2.22.1",
+    "cors": "^2.8.6",
+    "express": "^4.18.2",
     "axios": "^1.15.2",
     "bullmq": "^5.76.3",
     "bun-types": "^1.3.13",
@@ -34,17 +47,14 @@
     "rimraf": "^5.0.0",
     "supertest": "^7.2.2",
     "typescript": "^5.0.0",
+    "prisma": "6.19.3",
     "vitest": "^4.1.5",
-    "zenstack": "^2.22.1"
+    "zenstack": "2.22.1"
   },
   "dependencies": {
-    "@google/genai": "",
     "dotenv": "",
-    "fluent-ffmpeg": "",
     "gsap": "^3.15.0",
-    "mime": "",
     "ogl": "^1.0.11",
-    "playwright": "^1.59.1",
-    "puppeteer": ""
+    "playwright": "^1.62.1"
   }
 }

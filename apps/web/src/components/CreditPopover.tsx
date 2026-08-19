@@ -1,96 +1,261 @@
-import * as Popover from '@radix-ui/react-popover';
-import { DollarSignIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
-import { useEffect, useState } from 'react';
-import walletIcon from '../assets/wallet.svg';
-import { API_URL } from '../config';
+import { useAuth } from '@clerk/react'
+import * as Popover from '@radix-ui/react-popover'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import pCoinIcon from '../assets/pCoin.svg'
+import { API_URL } from '../config'
+import { LoadingCoin } from './LoadingCoin'
+
+const PLAN_LABELS: Record<string, string> = {
+  starter: 'Starter',
+  pro: 'Pro',
+  enterprise: 'Enterprise',
+}
+
+const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
+  starter: { bg: '#eff6ff', text: '#1d4ed8' },
+  pro: { bg: '#f5f3ff', text: '#7c3aed' },
+  enterprise: { bg: '#fffbeb', text: '#b45309' },
+}
 
 export const CreditPopover = () => {
-  const navigate = useNavigate();
-  const { getToken } = useAuth();
-  const [credits, setCredits] = useState<number | null>(null);
+  const navigate = useNavigate()
+  const { getToken, userId } = useAuth()
+  const [credits, setCredits] = useState<number | null>(null)
+  const [plan, setPlan] = useState<string | null>(null)
+  // Credits newly earned from referrals since this user last saw the coin.
+  const [referralNudge, setReferralNudge] = useState<number | null>(null)
+  const [spinning, setSpinning] = useState(false)
+  const isFirstLoad = useRef(true)
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const token = await getToken({ skipCache: true });
-        if (!token) return;
+        const token = await getToken({ skipCache: true })
+        if (!token) return
         const res = await fetch(`${API_URL}/credits`, {
           headers: { Authorization: `Bearer ${token}` },
-        });
+        })
         if (res.ok) {
-          const data = await res.json();
-          setCredits(data.balance);
+          const data = await res.json()
+          setCredits(data.balance)
+          setPlan(data.activeSubscription?.planKey ?? null)
+
+          // Surface a one-time nudge when referral earnings have grown since the
+          // user last loaded the coin (the reward is granted while they're away,
+          // when a friend signs up or upgrades). Tracked per-user in localStorage.
+          if (userId && Array.isArray(data.transactions)) {
+            const earned = data.transactions
+              .filter((t: any) => t.type === 'referral' && t.delta > 0)
+              .reduce((s: number, t: any) => s + t.delta, 0)
+            const key = `pitch:seenReferralCredits:${userId}`
+            const seenRaw = localStorage.getItem(key)
+            if (seenRaw !== null) {
+              const seen = parseInt(seenRaw, 10) || 0
+              if (earned > seen) setReferralNudge(earned - seen)
+            }
+            localStorage.setItem(key, String(earned))
+          }
         }
       } catch {
         // silently fail — UI falls back to dash
       }
-    };
-    fetchBalance();
+    }
+    fetchBalance()
 
-    const handleCreditsChanged = () => {
-      fetchBalance();
-    };
+    window.addEventListener('credits-changed', fetchBalance)
+    return () => window.removeEventListener('credits-changed', fetchBalance)
+  }, [getToken, userId])
 
-    window.addEventListener('credits-changed', handleCreditsChanged);
-    return () => window.removeEventListener('credits-changed', handleCreditsChanged);
-  }, [getToken]);
+  // Spin the coin once whenever credits changes (skip very first load).
+  // Respects prefers-reduced-motion — skip animation if user prefers it.
+  useEffect(() => {
+    if (credits === null) return
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false
+      return
+    }
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reducedMotion) return
+    if (spinTimer.current) clearTimeout(spinTimer.current)
+    // Two rAFs ensure the class removal is painted before re-adding.
+    // setState here is intentional — coin spin is display-only feedback.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSpinning(false)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSpinning(true)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        spinTimer.current = setTimeout(() => setSpinning(false), 650)
+      })
+    })
+  }, [credits])
+
+  // Auto-dismiss the referral nudge after a few seconds.
+  useEffect(() => {
+    if (referralNudge === null) return
+    const t = setTimeout(() => setReferralNudge(null), 9000)
+    return () => clearTimeout(t)
+  }, [referralNudge])
+
+  const planLabel = plan ? (PLAN_LABELS[plan] ?? plan) : 'Free'
+  const triggerLabel =
+    credits !== null ? `${credits} credits available — ${planLabel} plan` : 'Credits loading'
 
   return (
-    <Popover.Root>
-      <Popover.Trigger asChild>
-        <button
-          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 border border-gray-200 text-gray-700 bg-white rounded-lg transition-all hover:bg-gray-50 active:scale-95 cursor-pointer font-medium text-sm shadow-sm"
-          id="header-credits-btn"
-        >
-          <img src={walletIcon} alt="Wallet" className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <div className="flex items-center -ml-1">
-            <DollarSignIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-700 -mr-0.5" />
-            <span>{credits ?? '—'}</span>
-          </div>
-        </button>
-      </Popover.Trigger>
-      
-      <Popover.Portal>
-        <Popover.Content 
-          className="w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 font-sans"
-          align="end"
-          sideOffset={8}
-        >
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 block">Credits</span>
-                <span className="text-lg font-bold text-gray-900">
-                  {credits ?? '—'} available
-                </span>
+    <div className="relative">
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button
+            aria-label={triggerLabel}
+            className={[
+              'flex items-center justify-center gap-1 md:gap-1.5 px-2 md:px-3 h-9',
+              'border border-gray-200 text-gray-700 bg-white rounded-lg',
+              'transition-colors duration-150',
+              'hover:bg-gray-50 cursor-pointer font-semibold text-base md:text-sm',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1',
+              'motion-safe:active:scale-95',
+              'min-w-[56px] shrink-0',
+            ].join(' ')}
+            id="header-credits-btn"
+          >
+            {credits === null ? (
+              <LoadingCoin className="w-[22px] h-[22px] shrink-0" aria-hidden="true" />
+            ) : (
+              <img
+                src={pCoinIcon}
+                alt=""
+                aria-hidden="true"
+                width="22"
+                height="22"
+                className={`w-[22px] h-[22px] shrink-0${spinning ? ' pcoin-spin' : ''}`}
+              />
+            )}
+            {credits !== null && <span className="tabular-nums">{credits}</span>}
+          </button>
+        </Popover.Trigger>
+
+        <Popover.Portal>
+          <Popover.Content
+            role="dialog"
+            aria-label="Credits and plan details"
+            className="w-72 sm:w-80 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl z-50 font-sans"
+            align="end"
+            sideOffset={8}
+            style={{ overscrollBehavior: 'contain' }}
+          >
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 block">
+                    Credits
+                  </span>
+                  <span className="text-lg font-bold text-gray-900 tabular-nums">
+                    {credits ?? '—'} available
+                  </span>
+                </div>
               </div>
-            </div>
-            
-            <p className="text-[13px] leading-relaxed text-gray-500">
-              Each video generation costs 3 credits. Credits never expire.
-            </p>
 
-            <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 mt-1">
-              <span className="rounded-md bg-gray-900 px-2 py-0.5 text-[10px] font-bold tracking-tight text-white">
-                Early Access
-              </span>
+              <p className="text-[13px] leading-relaxed text-gray-500">
+                Each video generation costs 3 credits. Credits never expire.
+              </p>
+
+              {/* Near-miss nudge: only when the user can't yet afford a video
+                (< 3 credits, so they're 1–2 short). Above that they already have
+                enough for at least one video and the nudge reads as noise. We
+                don't call it a "free" video — a video always costs 3 credits;
+                we just point at the cheapest paths to the next one (refer → +1,
+                or top up). */}
+              {credits !== null && credits > 0 && credits < 3 && (
+                <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5">
+                  <p className="text-[13px] font-semibold text-amber-900 leading-snug">
+                    You're {3 - credits} credit{3 - credits === 1 ? '' : 's'} from your next video.
+                  </p>
+                  <p className="text-[11px] text-amber-700 mt-0.5 mb-2.5">
+                    Refer a friend to earn +1 credit each — or top up below.
+                  </p>
+                  <button
+                    onClick={() => {
+                      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+                      navigate('/affiliate')
+                    }}
+                    className={[
+                      'w-full py-2 px-3 bg-gray-900 text-white text-xs font-semibold rounded-lg',
+                      'transition-colors duration-150 cursor-pointer hover:bg-gray-800 active:bg-black',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1',
+                    ].join(' ')}
+                  >
+                    Refer a friend &nbsp;+1 credit
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                <span className="text-xs text-gray-500 font-medium">Current plan</span>
+                {plan ? (
+                  <span
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                    style={{
+                      background: PLAN_COLORS[plan]?.bg ?? '#f3f4f6',
+                      color: PLAN_COLORS[plan]?.text ?? '#374151',
+                    }}
+                  >
+                    {PLAN_LABELS[plan] ?? plan}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                    Free
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+                  navigate('/pricing')
+                }}
+                className={[
+                  'w-full py-2.5 px-4 border border-gray-200 text-gray-900 text-sm font-medium rounded-xl',
+                  'transition-colors duration-150 cursor-pointer',
+                  'hover:bg-gray-50 active:bg-gray-100',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1',
+                ].join(' ')}
+              >
+                {plan ? 'Manage Plan' : 'View Pricing Plans'}
+              </button>
             </div>
-            
-            <button 
-              onClick={() => {
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-                navigate('/pricing');
-              }}
-              className="w-full mt-2 py-2.5 px-4 border border-gray-200 text-gray-900 hover:bg-gray-50 text-sm font-medium rounded-xl transition-colors cursor-pointer"
-            >
-              View Pricing Plans
-            </button>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+
+      {/* Referral reward nudge — anchored under the coin */}
+      {referralNudge !== null && (
+        <div
+          role="status"
+          className="absolute right-0 top-full mt-2 z-50 w-64 rounded-2xl border border-amber-200 bg-white p-3.5 shadow-2xl font-sans animate-in fade-in slide-in-from-top-1"
+        >
+          <button
+            aria-label="Dismiss"
+            onClick={() => setReferralNudge(null)}
+            className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 cursor-pointer text-sm leading-none"
+          >
+            ✕
+          </button>
+          <div className="flex items-start gap-2.5 pr-3">
+            <span className="text-xl leading-none mt-0.5">🎉</span>
+            <div>
+              <p className="text-[13px] font-bold text-gray-900 leading-snug">
+                You earned {referralNudge} credit{referralNudge === 1 ? '' : 's'}!
+              </p>
+              <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
+                A friend joined with your referral link. Added to your balance.
+              </p>
+            </div>
           </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
-  );
-};
-
+        </div>
+      )}
+    </div>
+  )
+}

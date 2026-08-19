@@ -1,58 +1,46 @@
-import { useState, useRef, useEffect, type FC } from 'react';
-import {
-  motion,
-  AnimatePresence,
-  MotionConfig,
-} from 'motion/react';
-import { ChevronDown } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { ChevronDown } from 'lucide-react'
+import { AnimatePresence, MotionConfig, motion } from 'motion/react'
+import { type FC, useEffect, useRef, useState } from 'react'
+import { cn } from '../lib/utils'
 
 export interface Option {
-  id: string;
-  label: string;
-  icon: React.ElementType;
+  id: string
+  label: string
+  icon: React.ElementType
 }
 
 interface OptionPickerProps {
-  options: Option[];
-  selectedId: string;
-  onSelect: (id: string) => void;
+  options: Option[]
+  selectedId: string
+  onSelect: (id: string) => void
 }
 
 export const OptionPicker: FC<OptionPickerProps> = ({ options, selectedId, onSelect }) => {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const selected = options.find((o) => o.id === selectedId) || options[0];
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState<boolean>(false)
+  const selected = options.find(o => o.id === selectedId) || options[0]
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
-  const toggleOpen = () => setIsOpen((prev) => !prev);
+  const toggleOpen = () => setIsOpen(prev => !prev)
   const handleSelect = (option: Option) => {
-    onSelect(option.id);
-    setIsOpen(false);
-  };
+    onSelect(option.id)
+    setIsOpen(false)
+  }
 
-  const data = options;
+  const data = options
 
   return (
-    <div
-      className="relative inline-block perspective-[1200px] transform-3d"
-      ref={containerRef}
-    >
-      <MotionConfig
-        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-      >
+    <div className="relative inline-block perspective-[1200px] transform-3d" ref={containerRef}>
+      <MotionConfig transition={{ type: 'spring', damping: 20, stiffness: 300 }}>
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -81,8 +69,8 @@ export const OptionPicker: FC<OptionPickerProps> = ({ options, selectedId, onSel
               role="menu"
             >
               <div className="relative flex flex-col min-w-max gap-1 rounded-2xl border border-neutral-100 bg-[#F3F3F3] p-1.5 whitespace-nowrap shadow-lg">
-                {data.map((option) => {
-                  const isActive = selected.id === option.id;
+                {data.map(option => {
+                  const isActive = selected.id === option.id
 
                   return (
                     <motion.button
@@ -99,7 +87,7 @@ export const OptionPicker: FC<OptionPickerProps> = ({ options, selectedId, onSel
                         {option.label}
                       </span>
                     </motion.button>
-                  );
+                  )
                 })}
               </div>
             </motion.div>
@@ -121,50 +109,26 @@ export const OptionPicker: FC<OptionPickerProps> = ({ options, selectedId, onSel
               exit={{ opacity: 0, scale: 0.5, filter: 'blur(4px)' }}
               className="flex items-center gap-2"
             >
-              <selected.icon
-                size={16}
-                className="transition-colors duration-300"
-              />
+              <selected.icon size={16} className="transition-colors duration-300" />
             </motion.div>
           </AnimatePresence>
-          <AnimatedText
-            value={selected.label}
-            className="text-sm font-medium"
-          />
+          <AnimatedText value={selected.label} className="text-sm font-medium" />
 
-          <motion.div
-            animate={{ rotate: isOpen ? 180 : 0 }}
-            className="flex items-center ml-auto"
-          >
-            <ChevronDown
-              size={16}
-              className="transition-colors duration-300"
-              strokeWidth={2.5}
-            />
+          <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="flex items-center ml-auto">
+            <ChevronDown size={16} className="transition-colors duration-300" strokeWidth={2.5} />
           </motion.div>
         </motion.button>
       </MotionConfig>
     </div>
-  );
-};
+  )
+}
 
-const AnimatedText = ({
-  value,
-  className,
-}: {
-  value: string;
-  className?: string;
-}) => {
+const AnimatedText = ({ value, className }: { value: string; className?: string }) => {
   return (
-    <div
-      className={cn(
-        'flex tracking-tight will-change-transform',
-        className,
-      )}
-    >
+    <div className={cn('flex tracking-tight will-change-transform', className)}>
       <AnimatePresence mode="popLayout" initial={false}>
         {value.split('').map((char, index) => {
-          const displayChar = char === ' ' ? '\u00A0' : char;
+          const displayChar = char === ' ' ? '\u00A0' : char
 
           return (
             <motion.span
@@ -186,9 +150,9 @@ const AnimatedText = ({
             >
               {displayChar}
             </motion.span>
-          );
+          )
         })}
       </AnimatePresence>
     </div>
-  );
-};
+  )
+}

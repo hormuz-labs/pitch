@@ -1,5 +1,6 @@
 # Production overrides — applied on the Linux host via: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# Remaps volumes to stable /opt/pitch paths and re-enables AMD GPU access for the worker.
+# Remaps volumes to stable /mnt/hdd paths and re-enables AMD GPU access for the worker.
+# Grafana / Loki / MinIO data lives on the HDD at /mnt/hdd; everything else stays on the SSD at /opt/pitch.
 
 services:
   postgres:
@@ -12,24 +13,35 @@ services:
 
   minio:
     volumes:
-      - /opt/pitch/minio:/data
+      - /mnt/hdd/minio:/data
 
   loki:
     volumes:
-      - /opt/pitch/loki:/loki
+      - /mnt/hdd/loki:/loki
 
   grafana:
     volumes:
-      - /opt/pitch/grafana:/var/lib/grafana
-      - /opt/pitch/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-      - /opt/pitch/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - /mnt/hdd/grafana:/var/lib/grafana
+      - /mnt/hdd/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - /mnt/hdd/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+
+  cloakbrowser-manager:
+    ports:
+      - "8080:8080"
+
+  api:
+    volumes:
+      - /opt/pitch/launch-video/projects:/app/projects
+      - /opt/pitch/launch-video/renders:/app/renders
+      - /opt/pitch/opencode-api:/root/.local/share/opencode
 
   worker:
     deploy:
       replicas: 4
     volumes:
       - /opt/pitch/opencode-logs:/root/.local/share/opencode/log
+      - /opt/pitch/launch-video/projects:/app/projects
+      - /opt/pitch/launch-video/renders:/app/renders
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
-

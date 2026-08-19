@@ -1,19 +1,19 @@
-import { cn } from '../lib/utils';
-import { useEffect, useState, type FC, type ReactNode } from 'react';
-import { AnimatePresence, motion, MotionConfig } from 'motion/react';
-import useMeasure from 'react-use-measure';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react'
+import { type FC, type ReactNode, useEffect, useState } from 'react'
+import useMeasure from 'react-use-measure'
+import { cn } from '../lib/utils'
 
 export interface TimedUndoActionProps {
-  initialSeconds?: number;
-  deleteLabel?: string;
-  undoLabel?: string;
-  icon?: ReactNode;
+  initialSeconds?: number
+  deleteLabel?: string
+  undoLabel?: string
+  icon?: ReactNode
   /** Called when the countdown expires (actual delete commits) */
-  onConfirm?: () => void;
+  onConfirm?: () => void
   /** Called when the user clicks to undo before countdown ends */
-  onUndo?: () => void;
+  onUndo?: () => void
   /** Called after either confirm or undo has been handled (for cleanup) */
-  onDismiss?: () => void;
+  onDismiss?: () => void
 }
 
 export const TimedUndoAction: FC<TimedUndoActionProps> = ({
@@ -26,40 +26,40 @@ export const TimedUndoAction: FC<TimedUndoActionProps> = ({
   onDismiss,
 }) => {
   // Start in deleting state (already triggered by the user clicking the card's delete button)
-  const [isDeleting, setIsDeleting] = useState(true);
-  const [countDown, setCountDown] = useState(initialSeconds);
-  const [ref, bounds] = useMeasure({ offsetSize: true });
+  const [isDeleting, setIsDeleting] = useState(true)
+  const [countDown, setCountDown] = useState(initialSeconds)
+  const [ref, bounds] = useMeasure({ offsetSize: true })
 
   const handleClick = () => {
     if (isDeleting) {
       // User clicked Undo
-      setIsDeleting(false);
-      onUndo?.();
-      onDismiss?.();
+      setIsDeleting(false)
+      onUndo?.()
+      onDismiss?.()
     }
-  };
+  }
 
   useEffect(() => {
-    if (!isDeleting) return;
+    if (!isDeleting) return
 
     const interval = setInterval(() => {
-      setCountDown((prev) => prev - 1);
-    }, 1000);
+      setCountDown(prev => prev - 1)
+    }, 1000)
 
     return () => {
-      clearInterval(interval);
-    };
-  }, [isDeleting]);
+      clearInterval(interval)
+    }
+  }, [isDeleting])
 
   useEffect(() => {
     if (isDeleting && countDown <= 0) {
-      setIsDeleting(false);
-      onConfirm?.();
-      onDismiss?.();
+      setIsDeleting(false)
+      onConfirm?.()
+      onDismiss?.()
       // Reset countdown for future renders if component doesn't unmount
-      setCountDown(initialSeconds);
+      setCountDown(initialSeconds)
     }
-  }, [isDeleting, countDown, initialSeconds, onConfirm, onDismiss]);
+  }, [isDeleting, countDown, initialSeconds, onConfirm, onDismiss])
 
   return (
     <div className="flex w-full items-center justify-center font-sans">
@@ -144,27 +144,24 @@ export const TimedUndoAction: FC<TimedUndoActionProps> = ({
         </MotionConfig>
       </div>
     </div>
-  );
-};
+  )
+}
 
 function AnimatedText({
   text,
   className,
   delayStep = 0.014,
 }: {
-  text: string;
-  className?: string;
-  delayStep?: number;
+  text: string
+  className?: string
+  delayStep?: number
 }) {
-  const chars = text.split('');
+  const chars = text.split('')
 
   return (
     <span className={className} style={{ display: 'inline-flex' }}>
       <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
-          key={text}
-          style={{ display: 'inline-flex', willChange: 'transform' }}
-        >
+        <motion.span key={text} style={{ display: 'inline-flex', willChange: 'transform' }}>
           {chars.map((char, i) => (
             <motion.span
               key={i}
@@ -189,7 +186,7 @@ function AnimatedText({
         </motion.span>
       </AnimatePresence>
     </span>
-  );
+  )
 }
 
-export default TimedUndoAction;
+export default TimedUndoAction
