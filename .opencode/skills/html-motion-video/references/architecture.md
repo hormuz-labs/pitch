@@ -195,6 +195,19 @@ CursorController.pendingClicks.forEach((entry) => {
 
 setupAmbient(CONTENT_DURATION);   // background living-motion layer (repeat: -1 allowed now)
 
+// ⚠ Ambient tweens MUST be added to `master`, not created as bare gsap.to():
+//
+//   master.to(el, { x: 40, repeat: -1, yoyo: true, ease: "sine.inOut" }, 0);   ✅
+//   gsap.to(el,   { x: 40, repeat: -1, yoyo: true, ease: "sine.inOut" });      ❌
+//
+// A bare tween runs on the GLOBAL TICKER — wall-clock time, which __SEEK does
+// not control. The renderer seeks frame by frame across parallel workers in
+// arbitrary real-time order, so ticker-driven ambient is in an uncorrelated
+// position on every frame: the finished MP4 shakes instead of drifting. It
+// looks perfectly smooth in a live browser, which is why it survives review.
+// `audit.mjs` now fails the build on this (it seeks to the same time twice and
+// compares frames).
+
 // Fonts affect DOM geometry. Resolve both attention frames and cursor targets
 // only after fonts load, then signal capture readiness.
 document.fonts.ready.then(() => {

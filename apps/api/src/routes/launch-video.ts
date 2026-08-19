@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import * as db from '@saas/db'
-import { createLogger, JOB_UPDATES_CHANNEL } from '@saas/shared'
+import { createLogger, isLaunchVideoResolution, JOB_UPDATES_CHANNEL } from '@saas/shared'
 import * as storage from '@saas/storage'
 import express, { Router } from 'express'
 import { connection } from '../config.js'
@@ -182,10 +182,23 @@ router.post('/projects/:name/prompt', async (req, res) => {
   }
   const text = String(req.body?.text ?? '').trim()
   const music = String(req.body?.music ?? '').trim()
+  const resolution = String(req.body?.resolution ?? '').trim()
+  // Narration defaults ON; only an explicit `false` selects a music-only film.
+  const narration = req.body?.narration === false ? false : true
   if (!text) return res.status(400).json({ error: 'text is required' })
+  if (resolution && !isLaunchVideoResolution(resolution)) {
+    return res.status(400).json({ error: 'invalid resolution' })
+  }
 
   try {
-    const job = await createLaunchVideoJob(userId, name, text, music || undefined)
+    const job = await createLaunchVideoJob(
+      userId,
+      name,
+      text,
+      music || undefined,
+      resolution || undefined,
+      narration,
+    )
     res.status(202).json({ jobId: job.id })
   } catch (error: any) {
     if (error instanceof InsufficientCreditsError) {

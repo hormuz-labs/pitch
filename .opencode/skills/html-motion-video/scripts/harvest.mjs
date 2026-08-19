@@ -22,6 +22,7 @@
  *   --manifest  manifest path (default recon/harvested.json)
  *   --min-px    ignore images smaller than this on both axes (default 240)
  *   --max       max assets to download (default 48)
+ *   --max-mb    skip any single asset larger than this (default 20)
  *   --no-scroll skip the lazy-load scroll pass
  *
  * RIGHTS: these are the product's own brand assets. Using them in a film about
@@ -50,6 +51,9 @@ const outDir = args.out ?? "assets/harvested";
 const manifestPath = args.manifest ?? "recon/harvested.json";
 const minPx = Number(args["min-px"] ?? 240);
 const maxAssets = Number(args.max ?? 48);
+// A launch film never needs an 80MB source file, and a page full of hero
+// videos will happily fill a disk. Skip anything oversized and say so.
+const maxBytes = Number(args["max-mb"] ?? 20) * 1e6;
 const doScroll = !args["no-scroll"];
 
 mkdirSync(resolve(outDir), { recursive: true });
@@ -288,9 +292,23 @@ for (const c of candidates.assets) {
   if (saved.length >= maxAssets) break;
   n++;
   try {
+    // Check the size before pulling the bytes down.
+    try {
+      const head = await page.request.fetch(c.src, { method: "HEAD", timeout: 20000 });
+      const len = Number(head.headers()["content-length"] || 0);
+      if (len > maxBytes) {
+        console.log(`   ⊘ ${(len / 1e6).toFixed(0)}MB (over --max-mb) ${c.src.split("/").pop().slice(0, 60)}`);
+        continue;
+      }
+    } catch { /* no HEAD support — fall through and size-check the body */ }
+
     const res = await page.request.get(c.src, { timeout: 45000 });
     if (!res.ok()) { console.log(`   ✗ ${res.status()} ${c.src.slice(0, 90)}`); continue; }
     const buf = await res.body();
+    if (buf.length > maxBytes) {
+      console.log(`   ⊘ ${(buf.length / 1e6).toFixed(0)}MB (over --max-mb) ${c.src.split("/").pop().slice(0, 60)}`);
+      continue;
+    }
     if (buf.length < 1500) continue;                     // tracking pixels, spacers
 
     const hash = createHash("sha1").update(buf).digest("hex").slice(0, 10);

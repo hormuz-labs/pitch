@@ -22,6 +22,7 @@
  *   node $SKILL/scripts/mix.mjs --duration=70.4
  *   node $SKILL/scripts/mix.mjs --duration=70.4 --music=audio/music.mp3 --sfx=audio/sfx_bus.wav
  *   node $SKILL/scripts/mix.mjs --duration=70.4 --dry-run
+ *   node $SKILL/scripts/mix.mjs --duration=70.4 --music-only --music=audio/music.mp3
  *
  * VO placement is derived from js/timing.js (SCENE_TIMING), or override with
  *   --vo-map=audio/vo-map.json   →  [{ "file": "audio/vo_s1.wav", "t": 0.3 }, ...]
@@ -50,11 +51,33 @@ const VO_LEAD = Number(flag("vo-lead", 0.3));     // gap between scene start and
 const DRY = !!flag("dry-run");
 const TAIL = 1.4;                                  // mix must outlast the video
 
+/**
+ * Music-only films (no narration) are a legitimate direction — see the skill's
+ * audio persona axis. Without a voice there is nothing to duck against and
+ * nothing to carve room for, so the bed becomes the PRIMARY signal and sits far
+ * louder than the ~-30dB it lives at under speech.
+ *
+ * Deliberately opt-in: a missing VO file should fail loudly rather than quietly
+ * shipping a silent-narration cut.
+ */
+const MUSIC_ONLY = !!flag("music-only");
+
 // --- mix targets (measured means, not filter settings) ----------------------
 const VO_TARGET_MEAN = -18;      // dense speech
-const BED_ATTEN_DB = Number(flag("bed-db", -17));
+// Under narration the bed is support (-13dB). With no voice it is the whole
+// track — but it must still leave room for the SFX, which are the only thing
+// marking events in a silent film. At -5dB the bed simply buried them.
+const BED_ATTEN_DB = Number(flag("bed-db", MUSIC_ONLY ? -10 : -13));
+
+/**
+ * SFX gain trim. The per-class SFX levels are tuned for a mix whose loudest
+ * element is a voice; with no voice, the same levels sit far too low against a
+ * bed that has moved up. Lift them so events still read as events.
+ */
+const SFX_TRIM_DB = Number(flag("sfx-db", MUSIC_ONLY ? 6 : 0));
 const DUCK_DEPTH = Number(flag("duck", 9));        // extra dB the bed drops under speech
 const MIN_CONTRAST = Number(flag("min-contrast", 10));  // VO vs music-only gap
+
 
 if (!DURATION) {
   console.error("--duration=<seconds> required (CONTENT_DURATION from __DURATION()).");
@@ -147,9 +170,13 @@ if (!voClips) {
   if (voClips) voSource = "js/timing.js (summed durations — run scripts/cues.mjs for real labels)";
 }
 
-if (!voClips || !voClips.length) {
+if (MUSIC_ONLY) {
+  voClips = [];
+  voSource = "none — music-only mix";
+} else if (!voClips || !voClips.length) {
   console.error(
-    "No voiceover found. Provide --vo-map=<json> or a js/timing.js with SCENE_TIMING entries carrying `vo` paths."
+    "No voiceover found. Provide --vo-map=<json> or a js/timing.js with SCENE_TIMING entries carrying `vo` paths.\n" +
+    "If this film is intentionally narration-free, pass --music-only."
   );
   process.exit(1);
 }
@@ -174,8 +201,11 @@ for (let i = 0; i < voClips.length - 1; i++) {
     );
   }
 }
-const lastEnd = voClips[voClips.length - 1].t + voClips[voClips.length - 1].dur;
-if (lastEnd > DURATION) {
+// Guarded: there is no "last line" in a music-only mix.
+const lastEnd = voClips.length
+  ? voClips[voClips.length - 1].t + voClips[voClips.length - 1].dur
+  : 0;
+if (voClips.length && lastEnd > DURATION) {
   problems.push(`VO runs past the timeline: last line ends at ${lastEnd.toFixed(2)}s > ${DURATION}s`);
 }
 
@@ -205,7 +235,7 @@ mkdirSync(tmp, { recursive: true });
 mkdirSync(dirname(OUT), { recursive: true });
 
 const VO_FULL = join(tmp, "vo_full.wav");
-{
+if (!MUSIC_ONLY) {
   const inputs = voClips.flatMap(c => ["-i", c.path]);
   // highpass clears rumble the TTS sometimes carries; compression evens the
   // line-to-line level so ducking triggers consistently.
@@ -226,8 +256,12 @@ const VO_FULL = join(tmp, "vo_full.wav");
     "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", VO_FULL,
   ]);
 }
-const voStats = await meanVolume(VO_FULL);
-console.log(`\nStep A  vo_full        mean ${voStats.mean}dB  peak ${voStats.peak}dB`);
+if (!MUSIC_ONLY) {
+  const voStats = await meanVolume(VO_FULL);
+  console.log(`\nStep A  vo_full        mean ${voStats.mean}dB  peak ${voStats.peak}dB`);
+} else {
+  console.log(`\nStep A  vo_full        (skipped — music-only)`);
+}
 
 // ---------------------------------------------------------------------------
 // 3. Step B — music bed: trimmed, vocal-band carved, attenuated
@@ -245,8 +279,9 @@ if (MUSIC) {
     "-af",
     `aresample=48000,aformat=channel_layouts=stereo,` +
     `atrim=0:${(DURATION + TAIL).toFixed(3)},asetpts=PTS-STARTPTS,` +
-    `equalizer=f=800:t=q:w=1.1:g=-2.5,` +
-    `equalizer=f=2400:t=q:w=1.0:g=-3.5,` +
+    // The carve exists to make room for a voice; with none, it just dulls the
+    // track, so it is skipped in music-only mode.
+    (MUSIC_ONLY ? "" : `equalizer=f=800:t=q:w=1.1:g=-2.5,equalizer=f=2400:t=q:w=1.0:g=-3.5,`) +
     `volume=${BED_ATTEN_DB}dB,` +
     `apad=whole_dur=${(DURATION + TAIL).toFixed(3)}`,
     "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", BED,
@@ -255,6 +290,9 @@ if (MUSIC) {
   console.log(`Step B  music_bed      mean ${bedStats.mean}dB  peak ${bedStats.peak}dB  (carved + ${BED_ATTEN_DB}dB)`);
 
   // ---- Step C — duck the bed against the VO ------------------------------
+  if (MUSIC_ONLY) {
+    console.log(`Step C  music_ducked   (skipped — nothing to duck against)`);
+  } else {
   const DUCKED = join(tmp, "music_ducked.wav");
   // ratio derived from the requested depth; threshold low enough that normal
   // speech level triggers it, release long enough to avoid pumping between words.
@@ -269,17 +307,27 @@ if (MUSIC) {
   const duckStats = await meanVolume(DUCKED);
   console.log(`Step C  music_ducked   mean ${duckStats.mean}dB  peak ${duckStats.peak}dB  (sidechained to VO)`);
   BED = DUCKED;
+  }
 }
 
 // ---------------------------------------------------------------------------
 // 4. Step D — final assembly
 // ---------------------------------------------------------------------------
-const stems = [VO_FULL];
+const stems = MUSIC_ONLY ? [] : [VO_FULL];
 if (BED) stems.push(BED);
+let SFX_STEM = null;
 if (SFX) {
   const sfxPath = abs(SFX);
   if (!existsSync(sfxPath)) { console.error(`SFX bus not found: ${sfxPath}`); process.exit(1); }
-  stems.push(sfxPath);
+  SFX_STEM = sfxPath;
+  if (SFX_TRIM_DB !== 0) {
+    SFX_STEM = join(tmp, "sfx_trimmed.wav");
+    await sh(["-i", sfxPath, "-af", `volume=${SFX_TRIM_DB}dB`,
+      "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", SFX_STEM]);
+    const t = await meanVolume(SFX_STEM);
+    console.log(`Step C2 sfx_trimmed    mean ${t.mean}dB  (${SFX_TRIM_DB > 0 ? "+" : ""}${SFX_TRIM_DB}dB for a voiceless mix)`);
+  }
+  stems.push(SFX_STEM);
 }
 
 const fadeOutAt = Math.max(0, DURATION - 1.5);
@@ -347,7 +395,16 @@ for (const w of gapWindows) { const r = await measureWindow(w); gapM.push(r); co
 rmSync(tmp, { recursive: true, force: true });
 
 let failed = false;
-if (voM.length && gapM.length) {
+if (MUSIC_ONLY) {
+  // No voice to measure against — check the bed is actually present instead.
+  if (outStats.mean < -30) {
+    console.log(`\n❌ FAIL — music-only mix averages ${outStats.mean}dB; the bed is inaudible.`);
+    console.log(`   Raise --bed-db (currently ${BED_ATTEN_DB}).`);
+    failed = true;
+  } else {
+    console.log(`\n✅ music-only mix at ${outStats.mean}dB mean · peak ${outStats.peak}dB`);
+  }
+} else if (voM.length && gapM.length) {
   const voAvg = voM.reduce((s, x) => s + x.mean, 0) / voM.length;
   const gapAvg = gapM.reduce((s, x) => s + x.mean, 0) / gapM.length;
   // How far the voice sits ABOVE the music-only floor. Both are negative dBFS

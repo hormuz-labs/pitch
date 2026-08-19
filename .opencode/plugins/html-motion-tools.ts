@@ -362,6 +362,10 @@ export const motion_mix = tool({
     duck: z.number().optional().describe("Ducking depth in dB the bed drops under speech (default 9)"),
     minContrast: z.number().optional().describe("Gate: dB the VO must sit above the music-only floor (default 10)"),
     voLead: z.number().optional().describe("Seconds between a scene's start and its VO line (default 0.3)"),
+    musicOnly: z.boolean().optional().describe(
+      "No-narration film: skip the VO stem, the ducking and the vocal-band carve, and let the " +
+      "music bed sit as the primary signal (~-17dB mean). Opt-in on purpose — without it, a " +
+      "missing VO clip fails loudly rather than silently shipping a narration-free cut."),
     dryRun: z.boolean().optional().describe("Print the plan and VO overlap check without rendering"),
   },
   async execute(args, context) {
@@ -374,6 +378,7 @@ export const motion_mix = tool({
     if (args.duck != null) a.push("--duck=" + args.duck);
     if (args.minContrast != null) a.push("--min-contrast=" + args.minContrast);
     if (args.voLead != null) a.push("--vo-lead=" + args.voLead);
+    if (args.musicOnly) a.push("--music-only");
     if (args.dryRun) a.push("--dry-run");
     const out = await runScript("mix.mjs", a, context.directory);
     return { output: out };

@@ -130,11 +130,24 @@ export const launchApi = {
       token,
     ),
 
-  sendPrompt: (token: string, name: string, text: string, music?: string) =>
+  sendPrompt: (
+    token: string,
+    name: string,
+    text: string,
+    music?: string,
+    resolution?: string,
+    narration?: boolean,
+  ) =>
     api.post<{ jobId: string }>(
       `/launch-video/projects/${encodeURIComponent(name)}/prompt`,
       token,
-      { text, music: music || undefined },
+      {
+        text,
+        music: music || undefined,
+        resolution: resolution || undefined,
+        // only send the non-default (false); undefined keeps narrated behaviour
+        narration: narration === false ? false : undefined,
+      },
     ),
 
   /** Fetch the job row for a launch-video creation job. */

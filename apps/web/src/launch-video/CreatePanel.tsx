@@ -1,4 +1,4 @@
-import { ArrowUp, Loader2, Music2 } from 'lucide-react'
+import { ArrowUp, Loader2, Mic, MicOff, Monitor, Music2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CreditChip } from '../components/CreditChip'
@@ -10,8 +10,28 @@ import { launchVideoProjectDestination } from './navigation'
 import { websiteHostFromPrompt } from './project-name'
 import { useLaunchVideo } from './store'
 
-const LAUNCH_VIDEO_CREDIT_COST = 5
 const LAUNCH_VIDEO_DRAFT_KEY = 'launch-video:new:draft'
+const LAUNCH_VIDEO_RES_KEY = 'launch-video:new:resolution'
+const LAUNCH_VIDEO_NARRATION_KEY = 'launch-video:new:narration'
+
+/**
+ * Display-only mirror of the server's pricing table (packages/shared →
+ * LAUNCH_VIDEO_RESOLUTIONS). Deliberately duplicated rather than imported:
+ * @saas/shared is a server package that pulls in pino, and the web app does not
+ * depend on it. The SERVER is authoritative — it revalidates the resolution and
+ * recomputes the charge, so a stale value here can only mis-display a price,
+ * never mis-bill. Keep the two in sync.
+ */
+const LAUNCH_VIDEO_RESOLUTIONS = {
+  '720p': { label: '720p', credits: 5 },
+  '1080p': { label: '1080p', credits: 8 },
+  '4k': { label: '4K', credits: 12 },
+} as const
+/** Narration adds a TTS pass on top of the render. */
+const LAUNCH_VIDEO_NARRATION_CREDITS = 1
+type LaunchVideoResolution = keyof typeof LAUNCH_VIDEO_RESOLUTIONS
+const DEFAULT_LAUNCH_VIDEO_RESOLUTION: LaunchVideoResolution = '1080p'
+const RESOLUTION_ORDER: LaunchVideoResolution[] = ['720p', '1080p', '4k']
 
 export function CreatePanel() {
   const navigate = useNavigate()
@@ -30,6 +50,15 @@ export function CreatePanel() {
   const [draft, setDraft] = useState(() => sessionStorage.getItem(LAUNCH_VIDEO_DRAFT_KEY) ?? '')
   const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [narration, setNarration] = useState<boolean>(
+    () => sessionStorage.getItem(LAUNCH_VIDEO_NARRATION_KEY) !== 'off',
+  )
+  const [resolution, setResolution] = useState<LaunchVideoResolution>(() => {
+    const saved = sessionStorage.getItem(LAUNCH_VIDEO_RES_KEY)
+    return saved && saved in LAUNCH_VIDEO_RESOLUTIONS
+      ? (saved as LaunchVideoResolution)
+      : DEFAULT_LAUNCH_VIDEO_RESOLUTION
+  })
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const started = currentProject !== null
@@ -46,6 +75,14 @@ export function CreatePanel() {
     else sessionStorage.removeItem(LAUNCH_VIDEO_DRAFT_KEY)
   }, [draft])
 
+  useEffect(() => {
+    sessionStorage.setItem(LAUNCH_VIDEO_RES_KEY, resolution)
+  }, [resolution])
+
+  useEffect(() => {
+    sessionStorage.setItem(LAUNCH_VIDEO_NARRATION_KEY, narration ? 'on' : 'off')
+  }, [narration])
+
   // Auto-scroll while tokens arrive (track both count and streamed length).
   const streamLength = messages.reduce((n, m) => n + messageText(m).length, messages.length)
   useEffect(() => {
@@ -58,7 +95,7 @@ export function CreatePanel() {
     if (!t || busy) return
     if (!started) {
       setDraft('')
-      const { jobId } = await startProject(t)
+      const { jobId } = await startProject(t, resolution, narration)
       navigate(`/launch-video/edit/${encodeURIComponent(jobId)}`)
       return
     }
@@ -169,13 +206,76 @@ export function CreatePanel() {
             />
           )}
           <div className="flex items-center justify-between">
-            <button
-              onClick={() => setLibraryOpen(true)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-[var(--border-subtle)] bg-transparent text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text-primary)] transition-colors cursor-pointer max-w-[220px]"
-            >
-              <Music2 size={13} className="shrink-0" />
-              <span className="truncate">{selectedTrackName ?? 'Music'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLibraryOpen(true)}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-[var(--border-subtle)] bg-transparent text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text-primary)] transition-colors cursor-pointer max-w-[220px]"
+              >
+                <Music2 size={13} className="shrink-0" />
+                <span className="truncate">{selectedTrackName ?? 'Music'}</span>
+              </button>
+
+              {/* Narration on/off. A narration-free film is a different edit —
+                  scene lengths come from the storyboard instead of measured
+                  voiceover — so it is chosen up front, not at mix time. */}
+              {!started && (
+                <button
+                  onClick={() => setNarration(v => !v)}
+                  aria-pressed={narration}
+                  title={
+                    narration
+                      ? `Narrated — an AI voiceover is written and recorded (+${LAUNCH_VIDEO_NARRATION_CREDITS} credit)`
+                      : 'Music only — no voiceover, on-screen copy carries the story'
+                  }
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs font-medium transition-colors cursor-pointer ${
+                    narration
+                      ? 'border-[var(--border-subtle)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text-primary)]'
+                      : 'border-transparent bg-[var(--bg-sunken)] text-[var(--text-primary)]'
+                  }`}
+                >
+                  {narration ? (
+                    <Mic size={13} className="shrink-0" />
+                  ) : (
+                    <MicOff size={13} className="shrink-0" />
+                  )}
+                  <span className="truncate">{narration ? 'Narration' : 'Music only'}</span>
+                </button>
+              )}
+
+              {/* Output resolution. Hidden once a project has started: the tier
+                  was paid for at creation, so it is no longer changeable. */}
+              {!started && (
+                <div
+                  role="radiogroup"
+                  aria-label="Output resolution"
+                  className="inline-flex items-center h-8 rounded-full border border-[var(--border-subtle)] p-0.5"
+                >
+                  <Monitor size={13} className="shrink-0 mx-1.5 text-[var(--text-muted)]" />
+                  {RESOLUTION_ORDER.map(key => {
+                    const opt = LAUNCH_VIDEO_RESOLUTIONS[key]
+                    const active = resolution === key
+                    return (
+                      <button
+                        key={key}
+                        role="radio"
+                        aria-checked={active}
+                        title={`${opt.label} — ${
+                          opt.credits + (narration ? LAUNCH_VIDEO_NARRATION_CREDITS : 0)
+                        } credits`}
+                        onClick={() => setResolution(key)}
+                        className={`h-7 px-2.5 rounded-full text-xs font-medium transition-colors cursor-pointer border-none ${
+                          active
+                            ? 'bg-[var(--interactive-bg)] text-[var(--interactive-text)]'
+                            : 'bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
             <button
               disabled={busy || !draft.trim()}
               onClick={() => void send(draft)}
@@ -188,7 +288,10 @@ export function CreatePanel() {
                 <>
                   Generate
                   <CreditChip
-                    amount={LAUNCH_VIDEO_CREDIT_COST}
+                    amount={
+                      LAUNCH_VIDEO_RESOLUTIONS[resolution].credits +
+                      (narration ? LAUNCH_VIDEO_NARRATION_CREDITS : 0)
+                    }
                     className="bg-white text-gray-900"
                   />
                 </>

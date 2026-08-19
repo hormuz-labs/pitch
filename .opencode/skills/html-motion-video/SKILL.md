@@ -384,6 +384,26 @@ Never build a monolithic single HTML file. Full shell/module/master-timeline/
 plugin/cursor code lives in `references/architecture.md`; read it when
 scaffolding.
 
+### 4.1b Wire the harvested assets in — before writing scenes
+
+Phase 0 pulled the product's real logomark, screens and footage. **Use them
+now.** The failure mode is not disagreeing with the rule, it is forgetting: by
+the time you are deep in scene code, the files sit unused in
+`assets/harvested/` while a hand-drawn approximation goes into the CTA.
+
+- Copy what the film uses into `assets/` with clear names (`mark.svg`,
+  `wordmark.svg`) and reference them, or inline the SVG markup so it can
+  inherit `currentColor`.
+- **A logotype is a drawing, not a word.** Never retype a brand's wordmark in
+  a substitute font — if their logo is pixel lettering, using Inter for the
+  name is as wrong as redrawing the mark.
+- Inlining a harvested SVG fragment? **Self-close the shape tags.** Browsers
+  parse `<rect …>` from a live DOM fine, but pasted into your HTML an unclosed
+  `<rect>` *nests* instead of forming siblings, and only the first one renders.
+
+`audit.mjs` fails the build if a harvested logomark is never referenced or
+inlined (`--allow-missing-logo` to opt out for a film with no lockup).
+
 ### 4.2 GSAP plugin roster — vendored in the repo; actually use it
 
 The skill ships the **complete GSAP 3.15 dist — core plus every plugin,
@@ -627,7 +647,7 @@ These are correctness rules, independent of style:
     window — a leaked bridge is invisible to the scene-overlap audit because
     it lives above all scenes.
 
-### 4.8 One more invariant, learned the expensive way
+### 4.8 Two more invariants, learned the expensive way
 
 21. **A scene's trailing fade-out is load-bearing twice.** It hides the scene,
     AND its end time is what `master.duration()` reports — which is the base
@@ -646,6 +666,16 @@ These are correctness rules, independent of style:
 ```bash
 node $SKILL/scripts/cues.mjs        # → audio/cues.json (real labels + duration)
 ```
+
+22. **Ambient motion must live ON the master timeline.** `gsap.to(...)` creates a
+    tween on the global ticker, i.e. wall-clock time — and `__SEEK` does not
+    control that. The renderer captures frames by seeking, out of order, across
+    parallel workers, so a ticker-driven background sits somewhere different on
+    every frame and the finished video **shakes** instead of drifting. It looks
+    perfectly smooth in a live browser, so it passes review and only shows up in
+    the MP4. Add ambient with `master.to(el, {...}, 0)` AFTER capturing
+    `CONTENT_DURATION`. `audit.mjs` fails the build on this — it seeks to the
+    same timestamp twice and compares the frames.
 
 ## Phase 5 — Music, SFX & Mix
 
@@ -759,6 +789,10 @@ wait
 node $SKILL/scripts/capture.mjs index.html --fps=30 --scale=1 --out=../../renders/<name>-draft.mp4   # full draft (fast, 1080p)
 node $SKILL/scripts/capture.mjs index.html --fps=60 --scale=2 --out=../../renders/<name>-launch.mp4  # final — 4K UHD
 
+# Every render burns in the "Powered by trypitch.co" watermark automatically
+# (bottom-centre, Sorts Mill Goudy, scaled to the output) — the same mark the
+# demo-video flow applies. Pass --no-watermark for a white-label deliverable.
+
 # 4. Verify duration matches __DURATION() (not the audio length)
 ffprobe -v quiet -show_entries format=duration -of csv=p=0 ../../renders/<name>-launch.mp4
 ```
@@ -805,6 +839,9 @@ final ships.
       verified real base plate, or hybrid) and no unchanged screenshot scene
 - [ ] `harvest.mjs` run for the target URL; real logo SVG, product screenshots
       and any product footage pulled into `assets/harvested/` with provenance
+- [ ] The harvested logomark is actually USED (referenced or inlined) — the
+      audit gate enforces this; no hand-drawn marks, no logotype retyped in a
+      substitute font
 - [ ] Official/product assets used for recognizable logos, icons, UI, and
       hardware; aspect ratios preserved and asset sources recorded
 - [ ] Every product-demo beat has one named focal target and a deliberate

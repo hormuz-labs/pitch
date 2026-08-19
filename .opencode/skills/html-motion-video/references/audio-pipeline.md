@@ -206,6 +206,39 @@ speech the moment it swells:
 The VO stem is also limited before it enters the mix, so makeup gain on a loud
 line cannot clip it.
 
+### Music-only films (no narration)
+
+A film with no voiceover is a legitimate direction (creative-direction.md Axis
+8) — on-screen copy carries the meaning and the bed carries the emotion. Pass
+`--music-only`:
+
+```bash
+node $SKILL/scripts/mix.mjs --duration=<CONTENT_DURATION> --music-only \
+  --music=audio/music.mp3 --sfx=audio/sfx_bus.wav
+```
+
+The mix changes shape, not just level:
+
+- **No ducking** — there is no voice to duck against.
+- **No vocal-band carve** — that EQ exists to make room for speech; without it
+  the dip only dulls the track.
+- **The bed becomes the primary signal**, defaulting to −5dB attenuation
+  (≈ −17dB mean) instead of the −13dB it takes under narration.
+- **The contrast gate is replaced** by a presence check: the mix fails if it
+  averages below −30dB, i.e. the bed is inaudible.
+
+It is deliberately opt-in. A missing VO file should fail loudly, not silently
+ship a film whose narration never made it in.
+
+### How loud should the bed be under narration?
+
+Default `--bed-db` is **−13**, landing the bed near −27dB mean against a −17dB
+voice — about 10–11dB of contrast. Earlier builds used −17dB *plus* 9dB of
+ducking, which is comfortably "in spec" on paper and yet reads as **no music at
+all** in a film that is narrated end to end: the bed spends its whole life
+around −35dB. If a client says the music is missing, raise `--bed-db` before
+anything else, and re-check the gate rather than eyeballing it.
+
 ### The gate
 
 `mix.mjs` extracts real windows from the finished file — inside VO lines, and
