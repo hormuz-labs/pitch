@@ -1972,9 +1972,113 @@ function ScrollToTop() {
   return null
 }
 
+/** Detect Instagram's in-app browser WebView by UA string. */
+function isInstagramWebView(): boolean {
+  const ua = navigator.userAgent || ''
+  return /Instagram/i.test(ua)
+}
+
+/**
+ * Banner shown to visitors arriving via the Instagram in-app browser.
+ * Instagram WebView is a restricted environment that causes JS errors
+ * (TypeError, postMessage failures) and blocks PostHog session recording.
+ * Prompting users to open in a real browser fixes both issues.
+ */
+function InstagramBanner() {
+  const [visible, setVisible] = useState(() => isInstagramWebView())
+
+  if (!visible) return null
+
+  const openInBrowser = () => {
+    // Most Android Instagram WebViews respect this intent; iOS users need to
+    // use the "Open in browser" option in the three-dot menu manually.
+    const url = window.location.href
+    // Try to force open via a scheme that bypasses the in-app browser on Android
+    window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`
+    // Fallback: just copy/show the URL after a short delay
+    setTimeout(() => {
+      try {
+        navigator.clipboard?.writeText(url)
+      } catch {
+        // clipboard not available in WebView — that's fine
+      }
+    }, 300)
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99999,
+        background: 'linear-gradient(90deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        padding: '10px 14px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: 13,
+        fontWeight: 500,
+        lineHeight: 1.4,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
+      }}
+      role="alert"
+      aria-live="polite"
+      id="instagram-webview-banner"
+    >
+      <span style={{ flex: 1 }}>
+        🌐 For the best experience, open this page in your browser — some features don't work inside
+        Instagram.
+      </span>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <button
+          onClick={openInBrowser}
+          style={{
+            background: 'rgba(255,255,255,0.22)',
+            border: '1px solid rgba(255,255,255,0.4)',
+            borderRadius: 8,
+            color: '#fff',
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '5px 10px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+          id="instagram-banner-open-btn"
+        >
+          Open in browser
+        </button>
+        <button
+          onClick={() => setVisible(false)}
+          aria-label="Dismiss"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'rgba(255,255,255,0.8)',
+            fontSize: 18,
+            lineHeight: 1,
+            cursor: 'pointer',
+            padding: '2px 4px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+          id="instagram-banner-dismiss-btn"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <InstagramBanner />
       <ScrollToTop />
       <ToastShell>
         <AppContent />
@@ -1982,3 +2086,4 @@ function App() {
     </BrowserRouter>
   )
 }
+

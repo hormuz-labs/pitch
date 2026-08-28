@@ -227,7 +227,13 @@ export function LaunchVideoProvider({ children }: { children: ReactNode }) {
   const seekPlayer = useCallback((seconds: number) => {
     if (!playerRef.current) return
     playerRef.current.currentTime = seconds
-    void playerRef.current.play()
+    const playPromise = playerRef.current.play()
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        if (err.name === 'AbortError') return
+        console.warn('Seek play failed:', err)
+      })
+    }
   }, [])
 
   // --- Data fetching ----------------------------------------------------------

@@ -8,7 +8,15 @@ export const VideoPlayerMockup = () => {
 
   const handlePlay = () => {
     setHasStarted(true)
-    videoRef.current?.play()
+    const video = videoRef.current
+    if (!video) return
+    const playPromise = video.play()
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        if (err.name === 'AbortError') return
+        console.warn('Video play failed:', err)
+      })
+    }
   }
 
   return (
