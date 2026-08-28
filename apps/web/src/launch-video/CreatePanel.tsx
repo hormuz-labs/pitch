@@ -1,6 +1,6 @@
 import { ArrowUp, Loader2, Mic, MicOff, Monitor, Music2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CreditChip } from '../components/CreditChip'
 import { useBrowserProfile } from '../hooks/useBrowserProfile'
 import { messageText } from './api'
@@ -35,6 +35,8 @@ const RESOLUTION_ORDER: LaunchVideoResolution[] = ['720p', '1080p', '4k']
 
 export function CreatePanel() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const urlPrompt = searchParams.get('prompt')
   const { origins, loading: originsLoading } = useBrowserProfile()
   const {
     activity,
@@ -47,7 +49,9 @@ export function CreatePanel() {
     sendPrompt,
     startProject,
   } = useLaunchVideo()
-  const [draft, setDraft] = useState(() => sessionStorage.getItem(LAUNCH_VIDEO_DRAFT_KEY) ?? '')
+  const [draft, setDraft] = useState(
+    () => urlPrompt || sessionStorage.getItem(LAUNCH_VIDEO_DRAFT_KEY) || '',
+  )
   const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [narration, setNarration] = useState<boolean>(
@@ -59,6 +63,16 @@ export function CreatePanel() {
       ? (saved as LaunchVideoResolution)
       : DEFAULT_LAUNCH_VIDEO_RESOLUTION
   })
+
+  // Sync draft whenever prompt in URL searchParams changes
+  useEffect(() => {
+    const promptFromUrl = searchParams.get('prompt')
+    if (promptFromUrl) {
+      setDraft(promptFromUrl)
+      sessionStorage.setItem(LAUNCH_VIDEO_DRAFT_KEY, promptFromUrl)
+    }
+  }, [searchParams])
+
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const started = currentProject !== null
