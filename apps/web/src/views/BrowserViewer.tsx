@@ -54,11 +54,16 @@ export const BrowserViewer: React.FC<BrowserViewerProps> = ({
   const toggleFullscreen = () => {
     if (!wrapperRef.current) return
     if (!document.fullscreenElement) {
+      // Fullscreen API is not available in Instagram WebView, older iOS Safari,
+      // or some embedded browsers — guard before calling.
+      if (!document.fullscreenEnabled || typeof wrapperRef.current.requestFullscreen !== 'function') {
+        return
+      }
       wrapperRef.current.requestFullscreen().catch(err => {
         console.error(`Error attempting to enable full-screen mode: ${err.message}`)
       })
     } else {
-      document.exitFullscreen()
+      document.exitFullscreen().catch(() => {})
     }
   }
 

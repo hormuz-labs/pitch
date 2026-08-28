@@ -44,7 +44,13 @@ export function MusicLibrary({ onClose }: { onClose: () => void }) {
     if (!src) return
     const audio = new Audio(src)
     audio.onended = () => setPreviewing(null)
-    void audio.play()
+    const playPromise = audio.play()
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        if (err.name === 'AbortError') return // interrupted by pause — safe to ignore
+        console.warn('Audio play failed:', err)
+      })
+    }
     audioRef.current = audio
     setPreviewing(file)
   }

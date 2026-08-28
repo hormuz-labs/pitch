@@ -68,7 +68,9 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     const tl = gsap.timeline({ delay: CURSOR_START })
 
     tl.call(() => {
-      const r = pitches.getBoundingClientRect()
+      const el = pitchesRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
       const isMobile = window.innerWidth < 768
       const tx = r.left + r.width / 2 - 10
       const ty = r.top + r.height / 2 + (isMobile ? 2 : 8)
@@ -79,17 +81,18 @@ export const DoubleStairPreloader = ({ onComplete }: { onComplete?: () => void }
     tl.to(
       cursor,
       {
-        x: () =>
-          pitchesRef.current!.getBoundingClientRect().left +
-          pitchesRef.current!.getBoundingClientRect().width / 2 -
-          10,
+        x: () => {
+          const el = pitchesRef.current
+          if (!el) return 0
+          const r = el.getBoundingClientRect()
+          return r.left + r.width / 2 - 10
+        },
         y: () => {
+          const el = pitchesRef.current
+          if (!el) return 0
           const isMobile = window.innerWidth < 768
-          return (
-            pitchesRef.current!.getBoundingClientRect().top +
-            pitchesRef.current!.getBoundingClientRect().height / 2 +
-            (isMobile ? 2 : 8)
-          )
+          const r = el.getBoundingClientRect()
+          return r.top + r.height / 2 + (isMobile ? 2 : 8)
         },
         duration: 0.45,
         ease: 'power3.out',
