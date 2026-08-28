@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/react'
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BackgroundPicker } from '../components/BackgroundPicker'
 import { ContainerTextFlip } from '../components/ContainerTextFlip'
 import { CreditChip } from '../components/CreditChip'
@@ -218,6 +218,7 @@ export const CreateView = ({
   const [headerPairs] = useState<{ key: string; value: string }[]>([])
   const [cookiePairs] = useState<{ key: string; value: string }[]>([])
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { origins, loading: originsLoading } = useBrowserProfile()
   const [dismissedAuthHost, setDismissedAuthHost] = useState<string | null>(null)
   const [showWizard, setShowWizard] = useState(() => shouldShowWizard())
@@ -227,6 +228,32 @@ export const CreateView = ({
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { getToken } = useAuth()
+
+  useEffect(() => {
+    const prompt = searchParams.get('prompt')
+    if (prompt) {
+      const urlMatch = prompt.match(/https?:\/\/[^\s)\]}>,]+/i)?.[0]
+      const nextValues = { ...formValues }
+      let changed = false
+
+      if (urlMatch && !formValues.url) {
+        nextValues.url = urlMatch
+        setCreationMode('website')
+        changed = true
+      } else if (!formValues.url && !formValues.assets?.length) {
+        setCreationMode('website')
+      }
+
+      if (!formValues.instructions) {
+        nextValues.instructions = prompt
+        changed = true
+      }
+
+      if (changed) {
+        setFormValues(nextValues)
+      }
+    }
+  }, [searchParams])
 
   const update = (key: string, value: any) => {
     setFormValues({ ...formValues, [key]: value })

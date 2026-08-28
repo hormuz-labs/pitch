@@ -1,5 +1,6 @@
 import type React from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CreditChip } from '../components/CreditChip'
 
 const IconPlay = () => (
@@ -94,11 +95,19 @@ interface PdfCreateViewProps {
 }
 
 export const PdfCreateView = ({ isSubmitting, onQueuePdfJob }: PdfCreateViewProps) => {
-  const [topic, setTopic] = useState('')
+  const [searchParams] = useSearchParams()
+  const [topic, setTopic] = useState(() => searchParams.get('prompt') || '')
   const [slideCount, setSlideCount] = useState(10)
   const [headings, setHeadings] = useState<string[]>(Array(20).fill(''))
   const [showHeadings, setShowHeadings] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const prompt = searchParams.get('prompt')
+    if (prompt) {
+      setTopic(prompt)
+    }
+  }, [searchParams])
 
   const wordCount = (text: string) => {
     const clean = text.trim().replace(/\s+/g, ' ')

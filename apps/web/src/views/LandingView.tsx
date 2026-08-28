@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { DoubleStairPreloader } from '../components/DoubleStairPreloader'
 import { LandingFooter } from '../components/LandingFooter'
 import { LandingNav } from '../components/LandingNav'
+import { LandingChatInput } from '../components/landing/LandingChatInput'
 import { LandingFaqAccordion } from '../components/landing/LandingFaqAccordion'
 import { Step1Illustration } from '../components/landing/Step1Illustration'
 import { Step2Illustration } from '../components/landing/Step2Illustration'
@@ -158,20 +159,9 @@ export const LandingView = () => {
             </div>
           </div>
 
-          {/* Scroll cue */}
-          <div className="landing-hero-scroll-cue" aria-hidden="true">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+          {/* AI Chatbox — positioned at the bottom of the front landing page */}
+          <div className="landing-hero-chat-wrap landing-animate-5">
+            <LandingChatInput />
           </div>
         </section>
 
