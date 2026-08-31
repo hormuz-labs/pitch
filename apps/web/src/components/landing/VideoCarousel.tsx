@@ -1,15 +1,23 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import agentcardVideo from '../../assets/carousel/agentcard.mp4'
-import demoVideo from '../../assets/demo.mp4'
-import graphifyVideo from '../../assets/carousel/graphify.mp4'
-import gtmcofounderVideo from '../../assets/carousel/gtmcofounder.mp4'
-import replitVideo from '../../assets/carousel/replit.mp4'
-import sioVideo from '../../assets/carousel/sio.mp4'
-import supermemoryVideo from '../../assets/carousel/supermemory.mp4'
-import unslothVideo from '../../assets/carousel/unsloth-launch.mp4'
 import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel'
+
+/** Public MinIO bucket holding the carousel demo videos. Override per-env with VITE_CAROUSEL_ASSET_URL. */
+const ASSET_BASE = (
+  import.meta.env.VITE_CAROUSEL_ASSET_URL || 'https://s3.trypitch.co/carousel/carousel'
+).replace(/\/$/, '')
+
+const video = (name: string) => `${ASSET_BASE}/${name}`
+
+const agentcardVideo = video('agentcard.mp4')
+const demoVideo = video('demo.mp4')
+const graphifyVideo = video('graphify.mp4')
+const gtmcofounderVideo = video('gtmcofounder.mp4')
+const replitVideo = video('replit.mp4')
+const sioVideo = video('sio.mp4')
+const supermemoryVideo = video('supermemory.mp4')
+const unslothVideo = video('unsloth-launch.mp4')
 
 const SLIDES: CoverflowSlide[] = [
   {
