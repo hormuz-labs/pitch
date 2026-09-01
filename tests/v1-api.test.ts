@@ -315,17 +315,21 @@ describe('POST /v1/launch-videos', () => {
   })
 
   // Project names become directory names on disk.
-  it.each(['../escape', 'a/b', 'a\\b', '.hidden', '.', '..'])(
-    'rejects the traversal-prone name %j',
-    async name => {
-      const res = await auth(request(app).post('/v1/launch-videos')).send({
-        name,
-        prompt: 'Anything.',
-      })
-      expect(res.status).toBe(400)
-      expect(createLaunchVideoJob).not.toHaveBeenCalled()
-    },
-  )
+  it.each([
+    '../escape',
+    'a/b',
+    'a\\b',
+    '.hidden',
+    '.',
+    '..',
+  ])('rejects the traversal-prone name %j', async name => {
+    const res = await auth(request(app).post('/v1/launch-videos')).send({
+      name,
+      prompt: 'Anything.',
+    })
+    expect(res.status).toBe(400)
+    expect(createLaunchVideoJob).not.toHaveBeenCalled()
+  })
 })
 
 // ── Create: decks and recordings ─────────────────────────────────────────────

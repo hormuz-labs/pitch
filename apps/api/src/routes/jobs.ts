@@ -245,11 +245,19 @@ router.post('/:id/edit', async (req, res) => {
     const balance = await db.getCreditBalance(userId)
     if (balance < 3) return res.status(402).json({ error: 'Insufficient credits', balance })
 
-    chargedRevision = sourceEdition.storyboardRevision ?? sourceEdition.storyboard.revision
+    // db types the stored storyboard as Record<string, unknown>, so the nested
+    // revision arrives as `unknown`. Narrow it rather than trusting the shape.
+    const storedRevision = sourceEdition.storyboard.revision
+    chargedRevision =
+      sourceEdition.storyboardRevision ??
+      (typeof storedRevision === 'number' ? storedRevision : null)
     const idempotencyKey = `video_edit:${id}:from:${sourceEdition.id}:after:${currentEdition.id}`
     await db.deductCredit(userId, 3, 'Video editing', { jobId: id, idempotencyKey })
 
-    const storyboard = { ...sourceEdition.storyboard, status: 'draft' as const }
+    const storyboard: Record<string, unknown> = {
+      ...sourceEdition.storyboard,
+      status: 'draft' as const,
+    }
     delete storyboard.approvedRevision
     let updatedJob
     try {
