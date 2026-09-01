@@ -29,7 +29,10 @@ html, body, #root {
   background-color: var(--bg-sunken, #e6e6e6);
   color: var(--text-primary, #111827);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden forces overflow-y:auto on these elements, which
+     turns them into scroll containers and breaks position:sticky anywhere in
+     the app (e.g. the landing "how it works" panel). */
+  overflow-x: clip;
 }
 
 /* Scrollbar */

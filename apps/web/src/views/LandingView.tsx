@@ -1,39 +1,29 @@
 import { useAuth, useClerk } from '@clerk/react'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useEffect, useRef, useState } from 'react'
 import { DoubleStairPreloader } from '../components/DoubleStairPreloader'
 import { LandingFooter } from '../components/LandingFooter'
 import { LandingNav } from '../components/LandingNav'
+import { HowItWorks } from '../components/landing/HowItWorks'
 import { LandingChatInput } from '../components/landing/LandingChatInput'
 import { LandingFaqAccordion } from '../components/landing/LandingFaqAccordion'
-import { Step1Illustration } from '../components/landing/Step1Illustration'
-import { Step2Illustration } from '../components/landing/Step2Illustration'
-import { Step3Illustration } from '../components/landing/Step3Illustration'
-import { StepCard } from '../components/landing/StepCard'
-import { VideoCarousel } from '../components/landing/VideoCarousel'
-
+import { McpConnect } from '../components/landing/McpConnect'
+import { ScrollSpreadFilms } from '../components/landing/ScrollSpreadFilms'
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
-import { Process } from '../components/Process'
 import { Seo } from '../components/Seo'
-import { TextGenerateEffect } from '../components/ui/text-generate-effect'
-import { useStepSequence } from '../hooks/useStepSequence'
 import '../styles/landing.css'
+import '../styles/landing-broadcast.css'
 import demoVideo from '../assets/demo.mp4'
 import demoThumbnail from '../assets/demo-thumbnail.jpg'
-
-gsap.registerPlugin(ScrollTrigger)
 
 export const LandingView = () => {
   const clerk = useClerk()
   const { isSignedIn } = useAuth()
-  const [preloaderDone, setPreloaderDone] = useState(false)
+  const [, setPreloaderDone] = useState(false)
   const [videoOpen, setVideoOpen] = useState(false)
-  const seq = useStepSequence(3)
-  const hiwRef = useRef<HTMLElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  // Close modal on Escape key
+  // Close modal on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setVideoOpen(false)
@@ -41,60 +31,6 @@ export const LandingView = () => {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
-
-  // GSAP ScrollTrigger — How It Works section
-  useEffect(() => {
-    if (!hiwRef.current) return
-
-    const ctx = gsap.context(() => {
-      // Header
-      const hiwHeader = gsap.utils.toArray('.landing-hiw-header')
-      if (hiwHeader.length > 0) {
-        gsap.from(hiwHeader, {
-          opacity: 0,
-          y: 40,
-          duration: 0.8,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: '.landing-hiw-header',
-            start: 'top 85%',
-            toggleActions: 'play none none none',
-          },
-        })
-      }
-
-      // Step cards — staggered
-      const stepCards = gsap.utils.toArray('.landing-step-card')
-      if (stepCards.length > 0) {
-        gsap.from(stepCards, {
-          opacity: 0,
-          y: 52,
-          duration: 0.75,
-          ease: 'power3.out',
-          stagger: 0.13,
-          scrollTrigger: {
-            trigger: '.landing-hiw-grid',
-            start: 'top 75%',
-            toggleActions: 'play none none none',
-          },
-        })
-      }
-    }, hiwRef)
-
-    return () => ctx.revert()
-  }, [])
-
-  // Start card sequence when How It Works section enters view
-  useEffect(() => {
-    if (!hiwRef.current) return
-    const st = ScrollTrigger.create({
-      trigger: hiwRef.current,
-      start: 'top 70%',
-      once: true,
-      onEnter: () => seq.start(),
-    })
-    return () => st.kill()
-  }, [seq.start])
 
   // Keyboard shortcut: G → open sign-in modal
   useEffect(() => {
@@ -106,138 +42,117 @@ export const LandingView = () => {
     return () => window.removeEventListener('keydown', onKey)
   }, [clerk])
 
+  // Lightweight scroll reveal
+  useEffect(() => {
+    const els = rootRef.current?.querySelectorAll('.lb-reveal')
+    if (!els?.length) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      els.forEach(el => el.classList.add('is-in'))
+      return
+    }
+    const io = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-in')
+            io.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
+    )
+    els.forEach(el => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+
   return (
     <>
       <Seo
-        title="Pitch — Turn any URL into a cinematic product demo video"
-        description="An AI agent navigates your live product, writes the script, and renders a narrated 1080p demo video in minutes. No recording. No editing."
+        title="Pitch — An agent uses your product, then films the demo"
+        description="Give Pitch a URL and a paragraph of direction. An AI agent runs the real flows in a browser, narrates what happened, and cuts a scored 1080p demo video in minutes. No recording. No editing."
         path="/"
       />
       <DoubleStairPreloader onComplete={() => setPreloaderDone(true)} />
 
-      <div className="landing-root landing-grain">
+      <div className="lb-root" ref={rootRef}>
         <LandingNav />
 
         {/* ── Hero ─────────────────────────────────────────────── */}
-        <section className="landing-hero" aria-labelledby="hero-heading">
-          <div className="landing-hero-left" style={{ maxWidth: '100%' }}>
-            <div className="flex flex-col lg:flex-row items-center justify-between w-full gap-8 lg:gap-16 mt-4">
-              <div className="flex flex-col items-center text-center flex-1 max-w-xl">
-                <div
-                  className="landing-hero-logo-wrap landing-animate-1"
-                  aria-hidden="true"
-                  style={{ margin: '0 auto 24px auto' }}
-                >
-                  <PitchLogoAnimation startAnimation={preloaderDone} />
-                </div>
-
-                <TextGenerateEffect
-                  words="What if your website could pitch itself? Just drop your URL, describe what you want, and our AI agent does the rest — visiting your site, crafting the script, and delivering a professional, narrated pitch video in minutes."
-                  highlights={['pitch', 'itself', 'AI', 'agent', 'narrated', 'video']}
-                  className="landing-subtitle landing-animate-3 !m-0"
-                />
-
-                <div className="landing-ctas landing-animate-4 mt-8 flex-wrap justify-center w-full">
-                  {isSignedIn ? (
-                    <a href="/dashboard" className="landing-btn-primary">
-                      Dashboard
-                    </a>
-                  ) : (
-                    <a href="/sign-up" className="landing-btn-primary">
-                      Generate a demo
-                    </a>
-                  )}
-                  <button className="landing-btn-secondary" onClick={() => setVideoOpen(true)}>
-                    Watch a sample
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 w-full max-w-3xl landing-animate-5">
-                <Process />
-              </div>
+        <section className="lb-band lb-hero" aria-labelledby="hero-heading">
+          <div className="lb-hero-in">
+            <h1 id="hero-heading" className="sr-only">
+              Pitch — an agent that uses your product, then films the demo
+            </h1>
+            <div className="lb-wordmark" aria-hidden="true">
+              <PitchLogoAnimation startAnimation loop={false} />
             </div>
-          </div>
+            <p className="lb-hero-tag">
+              A <b>frontier</b> agent that visits your product, runs the real flows, and films the
+              demo.
+            </p>
 
-          {/* AI Chatbox — positioned at the bottom of the front landing page */}
-          <div className="landing-hero-chat-wrap landing-animate-5">
-            <LandingChatInput />
+            <div className="lb-composer-wrap">
+              <LandingChatInput />
+            </div>
+
+            <p className="lb-hintrow">
+              First render is on the house — no card. Or{' '}
+              <button
+                type="button"
+                onClick={() => setVideoOpen(true)}
+                style={{
+                  background: 'none',
+                  border: 0,
+                  padding: 0,
+                  font: 'inherit',
+                  color: 'inherit',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                  cursor: 'pointer',
+                }}
+              >
+                watch one first
+              </button>
+              .
+            </p>
           </div>
         </section>
 
-        {/* ── Demo Carousel ────────────────────────────────────── */}
-        <section className="landing-carousel" aria-label="More demos">
-          <VideoCarousel />
+        {/* ── Films — single video spreads into a fan on scroll ── */}
+        <div id="work">
+          <ScrollSpreadFilms />
+        </div>
+
+        {/* ── How it works — sticky left panel, scrolling steps ── */}
+        <HowItWorks />
+
+        {/* ── MCP / API — connect to existing agents ───────────── */}
+        <McpConnect />
+
+        {/* ── FAQ ──────────────────────────────────────────────── */}
+        <section id="faq" className="lb-band lb-interview" aria-labelledby="faq-heading">
+          <div className="lb-wrap lb-reveal">
+            <p className="lb-chy">FAQ</p>
+            <h2 id="faq-heading" className="lb-h2">
+              Questions.
+            </h2>
+          </div>
+          <div className="lb-wrap">
+            <LandingFaqAccordion />
+          </div>
         </section>
 
-        {/* ── How It Works ─────────────────────────────────────── */}
-        <section ref={hiwRef} className="landing-hiw" aria-labelledby="hiw-heading">
-          <div className="landing-hiw-inner">
-            <div className="landing-hiw-header">
-              <div>
-                <p className="landing-hiw-eyebrow">01 — How it works</p>
-                <h2 id="hiw-heading" className="landing-hiw-heading">
-                  Lights. Script. Render.
-                </h2>
-              </div>
-              <p className="landing-hiw-tagline">
-                No editing timeline. No actors. No script doctors. Just one agent that browses,
-                narrates, and renders.
+        {/* ── Endcap ───────────────────────────────────────────── */}
+        <section className="lb-band lb-endcap">
+          <div className="lb-wrap lb-reveal">
+            <div className="lb-endcap-box">
+              <h2 className="lb-h2">Point it at your site.</h2>
+              <p className="lb-endcap-sub">
+                One URL in, a narrated 1080p demo out. First render is free.
               </p>
-            </div>
-
-            <div className="landing-hiw-grid">
-              <StepCard
-                numeral="i."
-                step="Step 01"
-                title="Drop your URL"
-                description="Point the agent at your live product. It opens a real browser, navigates flows, and waits for state."
-                {...seq.cardProps(0)}
-              >
-                <Step1Illustration {...seq.stepProps(0)} />
-              </StepCard>
-
-              <StepCard
-                numeral="ii."
-                step="Step 02"
-                title="Direct the scene"
-                description="Tell the agent in plain English. Pick a voice, a theme, the pace. Subtitles optional."
-                {...seq.cardProps(1)}
-              >
-                <Step2Illustration {...seq.stepProps(1)} />
-              </StepCard>
-
-              <StepCard
-                numeral="iii."
-                step="Step 03"
-                title="Receive the cut"
-                description="Get a narrated, scored, color-graded 1080p MP4. Edit captions, swap voices, or re-render any scene."
-                {...seq.cardProps(2)}
-              >
-                <Step3Illustration {...seq.stepProps(2)} />
-              </StepCard>
-            </div>
-          </div>
-        </section>
-
-        {/* ── FAQ ────────────────────────────────────────────────── */}
-        <section className="landing-faq" aria-labelledby="faq-heading">
-          <div className="landing-faq-inner">
-            <div className="landing-faq-header">
-              <div>
-                <p className="landing-hiw-eyebrow">02 — Questions</p>
-                <h2 id="faq-heading" className="landing-hiw-heading">
-                  Asked &amp; answered.
-                </h2>
-              </div>
-              <p className="landing-hiw-tagline">
-                Quick context on how Pitch works, what it costs, and how it differs from Loom,
-                Synthesia, and the rest.
-              </p>
-            </div>
-
-            <div className="landing-faq-list">
-              <LandingFaqAccordion />
+              <a href={isSignedIn ? '/dashboard' : '/sign-up'} className="lb-cta">
+                {isSignedIn ? 'Open dashboard' : 'Send the agent'}
+              </a>
             </div>
           </div>
         </section>
@@ -245,7 +160,7 @@ export const LandingView = () => {
         <LandingFooter />
       </div>
 
-      {/* ── Video Modal ─────────────────────────────────────────────────────── */}
+      {/* ── Video Modal ──────────────────────────────────────────── */}
       {videoOpen && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8"
@@ -257,7 +172,6 @@ export const LandingView = () => {
             style={{ aspectRatio: '16/9' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Close button */}
             <button
               onClick={() => setVideoOpen(false)}
               className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors border-none cursor-pointer"

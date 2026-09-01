@@ -17,7 +17,9 @@ const formatTime = (seconds: number) => {
 const enterFullscreen = (video: HTMLVideoElement) => {
   if (video.requestFullscreen) {
     video.requestFullscreen().catch(() => {})
-  } else if ((video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen) {
+  } else if (
+    (video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen
+  ) {
     ;(video as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen()
   }
 }
@@ -25,6 +27,8 @@ const enterFullscreen = (video: HTMLVideoElement) => {
 export interface CoverflowSlide {
   src: string
   alt: string
+  /** Poster frame shown before the clip loads. */
+  poster?: string
   title?: string
   subtitle?: string
   meta?: { label: string; value: string }[]
@@ -56,6 +60,11 @@ export interface CoverflowCarouselProps {
   label?: string
   className?: string
   cardClassName?: string
+  /** 0 collapses every card onto the centre; 1 is the full coverflow. Drive it
+      from a scroll timeline for a "single video opens into the reel" reveal. */
+  spreadRef?: React.MutableRefObject<number>
+  /** Filled with the carousel's repaint fn so an external timeline can nudge it. */
+  paintRef?: React.MutableRefObject<(() => void) | null>
 }
 
 export function CoverflowCarousel({
@@ -75,6 +84,8 @@ export function CoverflowCarousel({
   label = 'Cover carousel',
   className,
   cardClassName,
+  spreadRef,
+  paintRef,
 }: CoverflowCarouselProps) {
   const count = slides.length
 
@@ -140,9 +151,15 @@ export function CoverflowCarousel({
       // Capped short of edge-on so a far card never turns its back.
       const tilt = Math.min(rotate * ramp, 82) * Math.sign(offset)
 
+      // 0 stacks every card on the centre; 1 is the full rake.
+      const rawSpread = spreadRef ? Math.max(0, Math.min(1, spreadRef.current)) : 1
+      // Smoothstep gives the reel zero velocity at both the stacked and fully
+      // open states. That removes the visual snap when scrolling either way.
+      const s = rawSpread * rawSpread * (3 - 2 * rawSpread)
+
       card.style.transform =
-        `translateX(calc(-50% + ${offset * pitch}px)) ` +
-        `translateZ(${-depth * width * ramp}px) rotateY(${-tilt}deg) ` +
+        `translateX(calc(-50% + ${offset * pitch * s}px)) ` +
+        `translateZ(${-depth * width * ramp * s}px) rotateY(${-tilt * s}deg) ` +
         // The centre card looms a little larger; the boost eases off smoothly
         // as a card travels out, so settle and drag stay fluid.
         `scale(${1 + Math.max(0, 1 - distance) * focusScale})`
@@ -150,10 +167,20 @@ export function CoverflowCarousel({
       // A card is teleported across the ring at exactly half a turn out, so it
       // has to be gone by then or the jump is visible.
       const edge = loop ? Math.min(1, Math.max(0, count / 2 - distance)) : 1
-      card.style.opacity = String(Math.max(0, 1 - fade * distance) * edge)
+      const baseOpacity = Math.max(0, 1 - fade * distance) * edge
+      // While collapsed, only the centre card shows; neighbours fade in with s.
+      card.style.opacity = String(distance < 0.5 ? baseOpacity : baseOpacity * s)
       card.style.zIndex = String(100 - Math.round(distance))
     })
-  }, [count, depth, fade, falloff, focusScale, gap, loop, rotate])
+  }, [count, depth, fade, falloff, focusScale, gap, loop, rotate, spreadRef])
+
+  React.useEffect(() => {
+    if (!paintRef) return
+    paintRef.current = paint
+    return () => {
+      paintRef.current = null
+    }
+  }, [paint, paintRef])
 
   const settle = React.useCallback(
     (target: number) => {
@@ -280,12 +307,18 @@ export function CoverflowCarousel({
     })
   }, [selected, soundOn])
 
-  // A video always plays from the top when it reaches the centre.
+  // Only the centre video decodes and plays. Autoplaying every offscreen clip
+  // competes with the transform animation for main-thread and GPU time.
   React.useEffect(() => {
-    const video = videoRefs.current[selected]
-    if (!video) return
-    video.currentTime = 0
-    if (video.paused) video.play().catch(() => {})
+    videoRefs.current.forEach((video, index) => {
+      if (!video) return
+      if (index === selected) {
+        video.currentTime = 0
+        if (video.paused) video.play().catch(() => {})
+      } else if (!video.paused) {
+        video.pause()
+      }
+    })
   }, [selected])
 
   // Track the centre video for the play/pause + time display.
@@ -336,7 +369,9 @@ export function CoverflowCarousel({
         video.controls = true
         video.muted = false // unmute so sound works in iOS fullscreen
       }
-      const onEnd = () => { video.controls = false }
+      const onEnd = () => {
+        video.controls = false
+      }
       video.addEventListener('webkitbeginfullscreen', onBegin)
       video.addEventListener('webkitendfullscreen', onEnd)
       return () => {
@@ -406,23 +441,29 @@ export function CoverflowCarousel({
                 aria-roledescription="slide"
                 aria-label={`${index + 1} of ${count}`}
                 className={cn(
-                  'group absolute left-1/2 top-0 aspect-video overflow-hidden rounded-2xl bg-muted shadow-xl will-change-transform',
+                  'group absolute left-1/2 top-0 aspect-video overflow-hidden rounded-2xl bg-muted shadow-xl',
                   cardClassName,
                 )}
-                style={{ width: 'var(--cf-card)' }}
+                style={{
+                  width: 'var(--cf-card)',
+                  willChange: 'transform, opacity',
+                  backfaceVisibility: 'hidden',
+                  contain: 'layout paint',
+                }}
               >
                 <video
                   ref={node => {
                     videoRefs.current[index] = node
                   }}
-                  src={slide.src}
+                  src={slide.poster ? slide.src : `${slide.src}#t=0.6`}
+                  poster={slide.poster}
                   aria-label={slide.alt}
                   muted
                   loop
-                  autoPlay
                   playsInline
+                  preload="metadata"
                   disablePictureInPicture
-                  className="h-full w-full select-none object-cover pointer-events-none"
+                  className="h-full w-full select-none bg-neutral-900 object-cover pointer-events-none"
                 />
                 {index === selected && (
                   <>
@@ -535,18 +576,19 @@ export function CoverflowCarousel({
           className="mt-2 flex flex-col items-center px-6 duration-300 animate-in fade-in"
         >
           <p className="text-[15px] font-semibold tracking-tight text-foreground">{active.title}</p>
-          {active.subtitle && (() => {
-            const parts = active.subtitle.split(' using ')
-            if (parts.length === 2) {
-              return (
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                  {parts[0]} using{' '}
-                  <span className="font-semibold text-foreground">{parts[1]}</span>
-                </p>
-              )
-            }
-            return <p className="mt-1 text-[13px] text-muted-foreground">{active.subtitle}</p>
-          })()}
+          {active.subtitle &&
+            (() => {
+              const parts = active.subtitle.split(' using ')
+              if (parts.length === 2) {
+                return (
+                  <p className="mt-1 text-[13px] text-muted-foreground">
+                    {parts[0]} using{' '}
+                    <span className="font-semibold text-foreground">{parts[1]}</span>
+                  </p>
+                )
+              }
+              return <p className="mt-1 text-[13px] text-muted-foreground">{active.subtitle}</p>
+            })()}
           {active.meta && active.meta.length > 0 && (
             <dl className="mt-8 w-full max-w-[340px] text-[12px]">
               {active.meta.map(row => (

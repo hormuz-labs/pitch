@@ -19,7 +19,7 @@ const sioVideo = video('sio.mp4')
 const supermemoryVideo = video('supermemory.mp4')
 const unslothVideo = video('unsloth-launch.mp4')
 
-const SLIDES: CoverflowSlide[] = [
+export const SLIDES: CoverflowSlide[] = [
   {
     src: graphifyVideo,
     alt: 'Pitch-generated demo video for Graphify',
@@ -69,7 +69,11 @@ const SLIDES: CoverflowSlide[] = [
     subtitle: 'Made with Pitch using Demo Video Feature',
     meta: [
       { label: 'Website', value: 'https://ui.shadcn.com/' },
-      { label: 'Prompt', value: 'Give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component' },
+      {
+        label: 'Prompt',
+        value:
+          'Give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component',
+      },
     ],
   },
   {
@@ -105,7 +109,6 @@ const SLIDES: CoverflowSlide[] = [
   },
 ]
 
-
 /** "editor" with a strike that draws itself once the heading scrolls into view. */
 const StruckEditor = () => {
   const ref = useRef<HTMLSpanElement>(null)
@@ -134,19 +137,21 @@ const StruckEditor = () => {
   )
 }
 
-export const VideoCarousel = () => (
+export const VideoCarousel = ({ showHeader = true }: { showHeader?: boolean }) => (
   <div className="w-full overflow-hidden py-6">
-    <div className="flex flex-col items-center gap-4 px-6 pb-8 text-center">
-      <h2
-        className="landing-hiw-heading !text-center"
-        style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}
-      >
-        One prompt. Our <StruckEditor /> agent did the rest.
-      </h2>
-      <p className="landing-hiw-tagline !text-center max-w-xl">
-        Made with Pitch&apos;s Launch Video feature — in under 10 minutes.
-      </p>
-    </div>
+    {showHeader && (
+      <div className="flex flex-col items-center gap-4 px-6 pb-8 text-center">
+        <h2
+          className="landing-hiw-heading !text-center"
+          style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}
+        >
+          One prompt. Our <StruckEditor /> agent did the rest.
+        </h2>
+        <p className="landing-hiw-tagline !text-center max-w-xl">
+          Made with Pitch&apos;s Launch Video feature — in under 10 minutes.
+        </p>
+      </div>
+    )}
     <CoverflowCarousel
       slides={SLIDES}
       showCaption

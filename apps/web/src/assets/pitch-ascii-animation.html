@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitch — animated P mark</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #eeece6; }
+  body { min-height: 100vh; display: grid; place-items: center; padding: 18px; box-sizing: border-box; }
+  canvas { width: min(820px, 96vw); height: auto; display: block; }
+</style>
+</head>
+<body>
+<canvas id="p-ascii-canvas" width="720" height="720"></canvas>
+<script>
+(function () {
+  // Tweakables
+  var CELL = 13;      // glyph grid size (px on a 720 canvas)
+  var BLOOM = 5;      // edge softness in logo units
+  var SPEED = 1;      // loop speed multiplier
+  var THEME = 'light';// 'light' | 'dark'
+
+  // P pixel-block geometry (svg 200x200 coords)
+  var blocks = [];
+  var xs = [53, 86, 119], ys = [45, 68, 91, 114, 137];
+  var rows = [[0,1,2],[0,2],[0,1,2],[0],[0]];
+  rows.forEach(function (cols, r) {
+    cols.forEach(function (c) { blocks.push({ x: xs[c], y: ys[r], w: 28, h: 18 }); });
+  });
+
+  function dist(px, py) {
+    var m = 1e9;
+    for (var k = 0; k < blocks.length; k++) {
+      var b = blocks[k];
+      var dx = Math.max(b.x - px, 0, px - (b.x + b.w));
+      var dy = Math.max(b.y - py, 0, py - (b.y + b.h));
+      var d = Math.hypot(dx, dy);
+      if (d < m) m = d;
+    }
+    return m;
+  }
+
+  function hash(i, j) {
+    var s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  }
+
+  var fams = [
+    ['.', '\u25B5', '\u25B4', '\u25B2'],
+    ['.', '\u00B7', '\u2022', '\u25CF'],
+    ['.', ':', '+', '#'],
+    ['.', '\u00B7', '*', '\u2733']
+  ];
+
+  var cv = document.getElementById('p-ascii-canvas');
+  var ctx = cv.getContext('2d');
+
+  function draw(t) {
+    var S = cv.width;
+    var cell = CELL;
+    var dark = THEME === 'dark';
+    ctx.fillStyle = dark ? '#111111' : '#eeece6';
+    ctx.fillRect(0, 0, S, S);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = Math.round(cell * 0.92) + 'px ui-monospace, Menlo, monospace';
+    ctx.fillStyle = dark ? '#ffffff' : '#050505';
+
+    var period = 9 / SPEED;
+    var phase = (t % period) / period * Math.PI * 2;
+    var scale = S / 200 * 1.42;
+    var off = (S - 200 * scale) / 2;
+    var n = Math.ceil(S / cell);
+
+    for (var j = 0; j < n; j++) {
+      for (var i = 0; i < n; i++) {
+        var cx = i * cell + cell / 2, cy = j * cell + cell / 2;
+        var px = (cx - off) / scale, py = (cy - off) / scale;
+        var d = dist(px, py);
+        var core = d <= 0 ? 1 : Math.pow(Math.max(0, 1 - d / BLOOM), 2.2) * 0.75;
+        if (core <= 0.001) continue;
+        var wave = 0.5 + 0.5 * Math.sin((px * 0.05 + py * 0.032) - phase * 2);
+        var breathe = 0.5 + 0.5 * Math.sin(phase);
+        var nz = hash(i, j);
+        var solid = Math.pow(core, 0.5);
+        var val = solid * (0.72 + 0.28 * wave) * (0.88 + 0.12 * breathe) - nz * 0.18 * (1 - core);
+        if (val < 0.1) continue;
+        var a = Math.atan2(py - 100, px - 100) + phase + nz * 0.5;
+        var fam = fams[((Math.floor(a / (Math.PI / 2)) % 4) + 4) % 4];
+        var lvl = Math.min(3, Math.max(0, Math.floor(val * 4.2)));
+        ctx.globalAlpha = Math.min(1, 0.48 + val * 1.05);
+        ctx.fillText(fam[lvl], cx, cy);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  draw(0);
+  (function loop(ts) { draw(ts / 1000); requestAnimationFrame(loop); })(0);
+})();
+</script>
+</body>
+</html>
