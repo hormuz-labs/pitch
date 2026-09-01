@@ -52,9 +52,13 @@ vi.mock('../apps/api/src/middleware/auth.js', () => {
 })
 
 import * as db from '@saas/db'
+import { DEFAULT_LAUNCH_VIDEO_RESOLUTION, launchVideoCreditCost } from '@saas/shared'
 import { connection, videoQueue } from '../apps/api/src/config.js'
 import { createLaunchVideoJob } from '../apps/api/src/lib/job-service.js'
 import { router as jobRoutes } from '../apps/api/src/routes/jobs.js'
+
+/** What a launch video costs with nothing specified: 1080p, narrated. */
+const DEFAULT_COST = launchVideoCreditCost(DEFAULT_LAUNCH_VIDEO_RESOLUTION, true)
 
 const getCreditBalance = db.getCreditBalance as ReturnType<typeof vi.fn>
 const createJob = db.createJob as ReturnType<typeof vi.fn>
@@ -102,12 +106,18 @@ describe('createLaunchVideoJob', () => {
     publish.mockResolvedValue(1)
   })
 
-  it('charges five credits and enqueues the launch-video job', async () => {
+  it('charges the default-tier price and enqueues the launch-video job', async () => {
     await createLaunchVideoJob('user_test', 'acme-launch', 'Launch https://acme.test')
 
-    expect(deductCredit).toHaveBeenCalledWith('user_test', 5, 'Launch video generation', {
-      jobId: 'launch_job_1',
-    })
+    // Priced from the helper rather than a literal, so this tracks the tier
+    // table instead of duplicating it. The table itself is pinned by the
+    // /v1/pricing assertions in tests/v1-api.test.ts.
+    expect(deductCredit).toHaveBeenCalledWith(
+      'user_test',
+      DEFAULT_COST,
+      'Launch video generation (1080p, narrated)',
+      { jobId: 'launch_job_1' },
+    )
     expect(queueAdd).toHaveBeenCalledWith(
       'generate-video',
       {
@@ -117,6 +127,7 @@ describe('createLaunchVideoJob', () => {
           jobType: 'launch-video',
           projectName: 'acme-launch',
           prompt: 'Launch https://acme.test',
+          resolution: DEFAULT_LAUNCH_VIDEO_RESOLUTION,
         },
       },
       { jobId: 'launch_job_1' },
@@ -124,7 +135,25 @@ describe('createLaunchVideoJob', () => {
     expect(addCredits).not.toHaveBeenCalled()
   })
 
-  it('refunds all five credits if the launch-video job cannot be enqueued', async () => {
+  it('charges the cheaper tier for a 720p music-only cut', async () => {
+    await createLaunchVideoJob(
+      'user_test',
+      'acme-launch',
+      'Launch https://acme.test',
+      undefined,
+      '720p',
+      false,
+    )
+
+    expect(deductCredit).toHaveBeenCalledWith(
+      'user_test',
+      launchVideoCreditCost('720p', false),
+      'Launch video generation (720p, music only)',
+      { jobId: 'launch_job_1' },
+    )
+  })
+
+  it('refunds exactly what was charged if the launch-video job cannot be enqueued', async () => {
     queueAdd.mockRejectedValue(new Error('redis unavailable'))
 
     await expect(
@@ -137,7 +166,31 @@ describe('createLaunchVideoJob', () => {
     })
     expect(addCredits).toHaveBeenCalledWith(
       'user_test',
-      5,
+      DEFAULT_COST,
+      'refund',
+      'Refund: launch-video job failed to enqueue',
+      { jobId: 'launch_job_1' },
+    )
+  })
+
+  it('refunds the 720p price for a 720p job, not the default tier', async () => {
+    queueAdd.mockRejectedValue(new Error('redis unavailable'))
+
+    await expect(
+      createLaunchVideoJob(
+        'user_test',
+        'acme-launch',
+        'Launch https://acme.test',
+        undefined,
+        '720p',
+        true,
+      ),
+    ).rejects.toThrow('redis unavailable')
+
+    // Refunding a flat constant here would hand back more than was taken.
+    expect(addCredits).toHaveBeenCalledWith(
+      'user_test',
+      launchVideoCreditCost('720p', true),
       'refund',
       'Refund: launch-video job failed to enqueue',
       { jobId: 'launch_job_1' },

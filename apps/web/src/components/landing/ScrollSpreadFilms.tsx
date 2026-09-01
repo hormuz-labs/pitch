@@ -27,6 +27,7 @@ export const ScrollSpreadFilms = () => {
 
   useEffect(() => {
     const setSpread = (v: number) => {
+      if (Math.abs(spreadRef.current - v) < 0.001) return
       spreadRef.current = v
       paintRef.current?.()
     }
@@ -41,9 +42,9 @@ export const ScrollSpreadFilms = () => {
         start: 'top top',
         end: () => `+=${Math.round(window.innerHeight * 1.35)}`,
         pin: true,
-        // Enough filtering to absorb trackpad noise without making the reel
-        // feel like it is trailing behind the user's scroll.
-        scrub: 0.55,
+        // Lenis already filters wheel input; keep only a tiny amount of local
+        // interpolation so the pinned reveal stays attached to the page.
+        scrub: 0.18,
         onRefresh: () => paintRef.current?.(),
         onUpdate: self => {
           const p = self.progress
@@ -51,8 +52,12 @@ export const ScrollSpreadFilms = () => {
           setSpread(gsap.utils.clamp(0, 1, (p - 0.12) / 0.88))
           const h = headerRef.current
           if (h) {
-            h.style.opacity = String(gsap.utils.clamp(0.35, 1, 1 - p * 1.7))
-            h.style.transform = `translateY(${(-p * 22).toFixed(1)}px)`
+            // Start clearing the copy just before the reel separates, then get
+            // it fully out of the frame during the opening movement. Deriving
+            // both values from progress keeps the transition reversible.
+            const headerFade = gsap.utils.clamp(0, 1, (p - 0.025) / 0.3)
+            h.style.opacity = String(1 - headerFade)
+            h.style.transform = `translateY(${(-headerFade * 28).toFixed(1)}px)`
           }
         },
       })

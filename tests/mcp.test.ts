@@ -261,11 +261,15 @@ describe('POST /mcp tools/call', () => {
       jobId: 'launch-job-1',
       status: 'PENDING',
     })
+    // resolution is left undefined so the service applies its own default;
+    // narration defaults to true, which is what the price is quoted against.
     expect(createLaunchVideoJob).toHaveBeenCalledWith(
       'user_mcp',
       'summer-drop',
       'A 45-second launch video for our new sunglasses brand.',
       'sunset-drive.mp3',
+      undefined,
+      true,
     )
   })
 
@@ -290,7 +294,46 @@ describe('POST /mcp tools/call', () => {
       'winter-drop',
       'Epic winter gear launch.',
       'epic-orchard.wav',
+      undefined,
+      true,
     )
+  })
+
+  it('create_launch_video forwards resolution and narration', async () => {
+    createLaunchVideoJob.mockResolvedValue({ id: 'launch-job-3', status: 'PENDING' })
+
+    const res = await callTool('create_launch_video', {
+      name: 'budget-cut',
+      prompt: 'Short teaser, no voiceover.',
+      resolution: '720p',
+      narration: false,
+    })
+
+    expect(res.status).toBe(200)
+    const rpc = parseRpcResponse(res)
+    expect(rpc.result.isError).toBeUndefined()
+    expect(createLaunchVideoJob).toHaveBeenCalledWith(
+      'user_mcp',
+      'budget-cut',
+      'Short teaser, no voiceover.',
+      undefined,
+      '720p',
+      false,
+    )
+  })
+
+  it('create_launch_video rejects an unknown resolution before charging', async () => {
+    const res = await callTool('create_launch_video', {
+      name: 'typo-tier',
+      prompt: 'Anything.',
+      resolution: '8k',
+    })
+
+    // The tool schema rejects it, so the job service is never reached and no
+    // credits move. A silent fallback here would charge the 1080p price.
+    expect(createLaunchVideoJob).not.toHaveBeenCalled()
+    const rpc = parseRpcResponse(res)
+    expect(rpc.error ?? rpc.result?.isError).toBeTruthy()
   })
 
   it('create_launch_video reports insufficient credits with the balance', async () => {

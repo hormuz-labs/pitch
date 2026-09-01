@@ -107,6 +107,7 @@ export function CoverflowCarousel({
   } | null>(null)
 
   const [selected, setSelected] = React.useState(0)
+  const [isInViewport, setIsInViewport] = React.useState(false)
   /** Browsers only allow audio after a user gesture — flipped on first interaction. */
   const [soundOn, setSoundOn] = React.useState(false)
   const videoRefs = React.useRef<(HTMLVideoElement | null)[]>([])
@@ -289,6 +290,17 @@ export function CoverflowCarousel({
     return () => observer.disconnect()
   }, [paint])
 
+  React.useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+    const observer = new IntersectionObserver(([entry]) => setIsInViewport(entry.isIntersecting), {
+      rootMargin: '160px 0px',
+      threshold: 0.01,
+    })
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [])
+
   React.useEffect(
     () => () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
@@ -312,14 +324,14 @@ export function CoverflowCarousel({
   React.useEffect(() => {
     videoRefs.current.forEach((video, index) => {
       if (!video) return
-      if (index === selected) {
+      if (index === selected && isInViewport) {
         video.currentTime = 0
         if (video.paused) video.play().catch(() => {})
       } else if (!video.paused) {
         video.pause()
       }
     })
-  }, [selected])
+  }, [selected, isInViewport])
 
   // Track the centre video for the play/pause + time display.
   React.useEffect(() => {
@@ -461,7 +473,7 @@ export function CoverflowCarousel({
                   muted
                   loop
                   playsInline
-                  preload="metadata"
+                  preload={index === selected ? 'metadata' : 'none'}
                   disablePictureInPicture
                   className="h-full w-full select-none bg-neutral-900 object-cover pointer-events-none"
                 />

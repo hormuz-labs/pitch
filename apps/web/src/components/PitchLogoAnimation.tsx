@@ -4,12 +4,19 @@ export const PitchLogoAnimation = ({
   startAnimation = true,
   color = 'var(--logo-fill, #111111)',
   loop = false,
+  onComplete,
 }: {
   startAnimation?: boolean
   color?: string
   loop?: boolean
+  onComplete?: () => void
 }) => {
   const containerRef = useRef<SVGSVGElement>(null)
+  const onCompleteRef = useRef(onComplete)
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
 
   useEffect(() => {
     if (!containerRef.current || !startAnimation) return
@@ -33,6 +40,12 @@ export const PitchLogoAnimation = ({
         const t = setTimeout(() => block.classList.add('visible'), delay)
         timers.push(t)
       })
+
+      const completionDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 0
+        : maxDelay + 280
+      const completionT = setTimeout(() => onCompleteRef.current?.(), completionDelay)
+      timers.push(completionT)
 
       if (loop) {
         const resetT = setTimeout(() => {

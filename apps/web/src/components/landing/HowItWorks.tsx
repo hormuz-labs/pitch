@@ -224,26 +224,37 @@ export const HowItWorks = () => {
           })
         }
         steps.forEach((el, i) => {
-          gsap.fromTo(
-            el,
-            { autoAlpha: 0.1, y: 34 },
-            {
-              autoAlpha: 1,
-              y: 0,
-              ease: 'none',
-              scrollTrigger: { trigger: el, start: 'top 82%', end: 'top 40%', scrub: true },
-            },
-          )
-          // every step fades out as it leaves the top — except the last, which
-          // carries the closing CTA and should stay put
-          if (i < steps.length - 1) {
-            gsap.to(el, {
-              autoAlpha: 0.1,
-              y: -34,
-              ease: 'none',
-              scrollTrigger: { trigger: el, start: 'bottom 58%', end: 'bottom 16%', scrub: true },
-            })
+          const smoothstep = (value: number) => value * value * (3 - 2 * value)
+          const paintStep = (progress: number) => {
+            const enterEnd = 0.3
+            const exitStart = 0.7
+            let visibility = 1
+            let y = 0
+
+            if (progress < enterEnd) {
+              const eased = smoothstep(progress / enterEnd)
+              visibility = eased
+              y = 34 * (1 - eased)
+            } else if (progress > exitStart) {
+              const eased = smoothstep((progress - exitStart) / (1 - exitStart))
+              visibility = 1 - eased
+              y = -34 * eased
+            }
+
+            gsap.set(el, { autoAlpha: 0.1 + visibility * 0.9, y })
           }
+
+          gsap.set(el, { autoAlpha: 0.1, y: 34 })
+          ScrollTrigger.create({
+            trigger: el,
+            start: 'top 88%',
+            end: 'bottom 12%',
+            onUpdate: self => paintStep(self.progress),
+            onRefresh: self => paintStep(self.progress),
+            onLeave: () => paintStep(1),
+            onLeaveBack: () => paintStep(0),
+          })
+
           ScrollTrigger.create({
             trigger: el,
             start: 'top 58%',
@@ -276,7 +287,17 @@ export const HowItWorks = () => {
           {STEPS.map((s, i) => (
             <div key={s.n} className={cx('lb-hiw-visual', i === active && 'is-active')}>
               <div className="lb-hiw-visual-in">
-                <s.Mock />
+                <div className="hiw-stage-meta">
+                  <span>
+                    <i /> agent pipeline
+                  </span>
+                  <span>
+                    {s.n} / {String(STEPS.length).padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="hiw-stage-card">
+                  <s.Mock />
+                </div>
                 <div className="lb-hiw-dots">
                   {STEPS.map((x, j) => (
                     <i key={x.n} className={cx(j <= active && 'is-on')} />

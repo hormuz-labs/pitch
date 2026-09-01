@@ -1,4 +1,8 @@
 import { useAuth, useClerk } from '@clerk/react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import Lenis from 'lenis'
+import 'lenis/dist/lenis.css'
 import { useEffect, useRef, useState } from 'react'
 import { DoubleStairPreloader } from '../components/DoubleStairPreloader'
 import { LandingFooter } from '../components/LandingFooter'
@@ -15,13 +19,52 @@ import '../styles/landing-broadcast.css'
 import demoVideo from '../assets/demo.mp4'
 import demoThumbnail from '../assets/demo-thumbnail.jpg'
 
+gsap.registerPlugin(ScrollTrigger)
+
 export const LandingView = () => {
   const clerk = useClerk()
   const { isSignedIn } = useAuth()
   const [, setPreloaderDone] = useState(false)
+  const [heroLogoDone, setHeroLogoDone] = useState(false)
   const [videoOpen, setVideoOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const lenisRef = useRef<Lenis | null>(null)
+
+  // Lenis and GSAP share one ticker so pinned ScrollTriggers read the exact
+  // same interpolated scroll position that is painted to the page.
+  useEffect(() => {
+    const lenis = new Lenis({
+      autoRaf: false,
+      anchors: true,
+      lerp: 0.12,
+      smoothWheel: true,
+      wheelMultiplier: 0.9,
+      touchMultiplier: 1,
+      respectReducedMotion: true,
+    })
+    lenisRef.current = lenis
+
+    const update = (time: number) => lenis.raf(time * 1000)
+    lenis.on('scroll', ScrollTrigger.update)
+    gsap.ticker.add(update)
+    gsap.ticker.lagSmoothing(0)
+
+    const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh())
+    return () => {
+      cancelAnimationFrame(refreshFrame)
+      gsap.ticker.remove(update)
+      gsap.ticker.lagSmoothing(500, 33)
+      lenis.off('scroll', ScrollTrigger.update)
+      lenis.destroy()
+      lenisRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (videoOpen) lenisRef.current?.stop()
+    else lenisRef.current?.start()
+  }, [videoOpen])
 
   // Close modal on Escape
   useEffect(() => {
@@ -84,7 +127,17 @@ export const LandingView = () => {
               Pitch — an agent that uses your product, then films the demo
             </h1>
             <div className="lb-wordmark" aria-hidden="true">
-              <PitchLogoAnimation startAnimation loop={false} />
+              <PitchLogoAnimation
+                startAnimation
+                loop={false}
+                onComplete={() => setHeroLogoDone(true)}
+              />
+              <span
+                className={`lb-wordmark-credit${heroLogoDone ? ' is-visible' : ''}`}
+                data-text="by Hormuz Labs"
+              >
+                by Hormuz Labs
+              </span>
             </div>
             <p className="lb-hero-tag">
               A <b>frontier</b> agent that visits your product, runs the real flows, and films the
@@ -144,15 +197,26 @@ export const LandingView = () => {
 
         {/* ── Endcap ───────────────────────────────────────────── */}
         <section className="lb-band lb-endcap">
-          <div className="lb-wrap lb-reveal">
-            <div className="lb-endcap-box">
-              <h2 className="lb-h2">Point it at your site.</h2>
-              <p className="lb-endcap-sub">
-                One URL in, a narrated 1080p demo out. First render is free.
-              </p>
-              <a href={isSignedIn ? '/dashboard' : '/sign-up'} className="lb-cta">
-                {isSignedIn ? 'Open dashboard' : 'Send the agent'}
-              </a>
+          <div className="lb-endcap-inner">
+            <div className="lb-endcap-copy">
+              <h2 className="lb-endcap-title">
+                Your next demo is
+                <br /> one <em>sentence</em> away.
+              </h2>
+              <div className="lb-endcap-actions">
+                <a
+                  className="lb-endcap-link"
+                  href="mailto:support@trypitch.co?subject=Pitch%20demo"
+                >
+                  Book a demo <span aria-hidden="true">↗</span>
+                </a>
+                <a href={isSignedIn ? '/dashboard' : '/sign-up'} className="lb-endcap-primary">
+                  {isSignedIn ? 'Open dashboard' : 'Get started'}
+                </a>
+              </div>
+            </div>
+            <div className="lb-endcap-word" aria-hidden="true">
+              PITCH
             </div>
           </div>
         </section>

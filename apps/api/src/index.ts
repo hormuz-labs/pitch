@@ -27,6 +27,7 @@ import { router as pdfJobRoutes } from './routes/pdf-jobs.js'
 import { shareRouter } from './routes/share.js'
 import { router as uploadRoutes } from './routes/uploads.js'
 import { router as userRoutes } from './routes/users.js'
+import { router as v1Routes } from './routes/v1.js'
 import { router as webhookRoutes } from './routes/webhooks.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -50,6 +51,10 @@ app.use('/webhooks', webhookRoutes)
 // base64 file uploads that exceed the default JSON limit, so it mounts with
 // its own parser before the global express.json() and clerkMiddleware().
 app.use('/mcp', express.json({ limit: '750mb' }), mcpRoutes)
+
+// Public REST API. Same API-key auth and same base64 upload ceiling as /mcp, so
+// it mounts alongside it, ahead of Clerk.
+app.use('/v1', cors({ origin: true }), express.json({ limit: '750mb' }), v1Routes)
 
 app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: true, credentials: true }))

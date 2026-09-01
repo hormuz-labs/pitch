@@ -1,6 +1,6 @@
 import { motion, type Variants } from 'framer-motion'
 import type { ReactNode } from 'react'
-import { FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
+import { FaDiscord, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
 import { PitchWordmark } from './PitchWordmark'
 
@@ -24,6 +24,18 @@ export interface Footer15Props {
   columns?: Footer15Column[]
 }
 
+/** Shared by the footer's Social column and the landing navbar. */
+export const SOCIALS: Footer15Link[] = [
+  { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: FaXTwitter },
+  { label: 'Instagram', href: 'https://www.instagram.com/trypitch.co', icon: FaInstagram },
+  {
+    label: 'LinkedIn',
+    href: 'https://www.linkedin.com/company/trypitchdotco/',
+    icon: FaLinkedinIn,
+  },
+  { label: 'Discord', href: 'https://discord.gg/a4SBW36mD', icon: FaDiscord },
+]
+
 const defaultColumns: Footer15Column[] = [
   {
     title: 'Company',
@@ -42,19 +54,15 @@ const defaultColumns: Footer15Column[] = [
   },
   {
     title: 'Product',
-    links: [{ label: 'Pricing', href: '/pricing' }],
+    links: [
+      { label: 'Pricing', href: '/pricing' },
+      { label: 'Docs', href: '/docs' },
+      { label: 'API Reference', href: '/docs/api' },
+    ],
   },
   {
     title: 'Social',
-    links: [
-      { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: FaXTwitter },
-      { label: 'Instagram', href: 'https://www.instagram.com/trypitch.co', icon: FaInstagram },
-      {
-        label: 'LinkedIn',
-        href: 'https://www.linkedin.com/company/trypitchdotco/',
-        icon: FaLinkedinIn,
-      },
-    ],
+    links: SOCIALS,
   },
 ]
 

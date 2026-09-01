@@ -57,13 +57,19 @@ export default defineConfig({
       // /browser/profiles/:id/vnc — goes to the local API. ws:true upgrades the
       // VNC connection; the API handles manager auth and Origin stripping, so
       // there's nothing manager-specific to configure here.
-      '/api': {
+      // Anchored with a trailing slash on purpose. A bare '/api' key is a prefix
+      // match, so it also swallowed the SPA route /api-keys and rewrote it to
+      // /-keys on the API. Every real call is API_URL + '/path', so requiring
+      // the slash costs nothing.
+      '^/api/': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         ws: true,
         rewrite: path => path.replace(/^\/api/, ''),
       },
-      '/r': {
+      // Same reasoning: referral links are /r/<code>, and a bare '/r' would
+      // capture any future route starting with those characters.
+      '^/r/': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },

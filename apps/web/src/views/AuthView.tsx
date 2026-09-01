@@ -1,9 +1,10 @@
 import { useSignIn, useSignUp } from '@clerk/react'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import pitchWordmark from '../assets/logoB.svg'
 import logoTab from '../assets/logoTab.png'
 import pitchAsciiAnimationUrl from '../assets/pitch-ascii-animation.html?url'
+import { safeRedirect } from '../lib/redirect'
 import '../styles/auth.css'
 
 const CALLBACK_URL = `${window.location.origin}/sso-callback`
@@ -40,8 +41,15 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
   const { signIn } = useSignIn()
   const { signUp } = useSignUp()
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => setTab(mode), [mode])
+
+  // Where to land after auth. `?redirect=` carries the page the visitor was
+  // actually trying to reach (set by the signed-out catch-all in App.tsx and by
+  // the landing CTAs). Only same-site paths are accepted: a value starting with
+  // `//` or a scheme would hand an open redirect to anyone who can craft a link.
+  const redirectTo = safeRedirect(new URLSearchParams(location.search).get('redirect'))
 
   const oauth = async () => {
     setLoading(true)
@@ -50,7 +58,7 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
       const handler = tab === 'sign-in' ? signIn : signUp
       const result = await handler?.sso({
         strategy: 'oauth_google',
-        redirectUrl: '/dashboard',
+        redirectUrl: redirectTo,
         redirectCallbackUrl: CALLBACK_URL,
       })
       if (result?.error) {
@@ -65,7 +73,9 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
     }
   }
 
-  const switchMode = (next: 'sign-in' | 'sign-up') => navigate(`/${next}`)
+  // Keep ?redirect= when toggling between sign-in and sign-up, so switching
+  // tabs does not quietly lose where the visitor was headed.
+  const switchMode = (next: 'sign-in' | 'sign-up') => navigate(`/${next}${location.search}`)
 
   return (
     <main className="auth-page">

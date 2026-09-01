@@ -1,5 +1,10 @@
 # MCP Server & API Keys
 
+> Public-facing docs live at `apps/web/src/docs/pages.tsx` and render at
+> https://trypitch.co/docs. This file is the internal companion: keep both in
+> sync when tools, costs, or auth change. The `pk_` key also authenticates the
+> REST API in `apps/api/src/routes/v1.ts`.
+
 The API exposes a remote [Model Context Protocol](https://modelcontextprotocol.io)
 server so external agents can use the product the same way humans do in the web
 UI — create demo videos, product launch videos, generate PDFs, enhance decks,
@@ -47,7 +52,7 @@ takes effect immediately.
 | Tool | Cost | Description |
 |---|---|---|
 | `create_demo_video` | 3 credits | AI demo video for a product URL. Args: `url` (required), `instructions?`, `script?`, `voice?`, `assets?` (URLs). |
-| `create_launch_video` | 5 credits | AI product launch video (HTML/GSAP → MP4). Args: `name` (required), `prompt` (required), `music?` (shared library filename). |
+| `create_launch_video` | 6 / 9 / 13 credits | AI product launch video (HTML/GSAP → MP4). Priced by resolution (720p / 1080p / 4K) plus 1 credit for narration; see `launchVideoCreditCost` in `packages/shared`. Args: `name` (required), `prompt` (required), `music?`, `resolution?` (`720p`\|`1080p`\|`4k`, default 1080p), `narration?` (default true). |
 | `create_pdf` | 1 credit | Generate a PDF/slides deck. Args: `topic` (required), `instructions?`. |
 | `enhance_presentation` | 1 credit | Enhance a PDF/PPTX. Args: `fileBase64`, `fileName` (≤ 50 MB), `mode?` (`recreate`/`preserve`), `enhancePrompt?`, `slideCount?`. |
 | `edit_recording` | 2 credits | Edit a narrated screen recording. Args: `fileBase64`, `fileName` (≤ 500 MB; mp4/webm/mov/mkv/avi), `productName?`, `productUrl?`, `instructions?`. |

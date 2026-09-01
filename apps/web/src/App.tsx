@@ -67,6 +67,7 @@ const CheckoutReturnView = lazyNamed(
 )
 const CreateView = lazyNamed(() => import('./views/CreateView'), 'CreateView')
 const DashboardView = lazyNamed(() => import('./views/DashboardView'), 'DashboardView')
+const DocsView = lazyNamed(() => import('./views/DocsView'), 'DocsView')
 const EditorView = lazyNamed(() => import('./views/EditorView'), 'EditorView')
 const EditRecordingView = lazyNamed(() => import('./views/EditRecordingView'), 'EditRecordingView')
 const EnhanceView = lazyNamed(() => import('./views/EnhanceView'), 'EnhanceView')
@@ -74,6 +75,7 @@ const LandingView = lazyNamed(() => import('./views/LandingView'), 'LandingView'
 const PdfCreateView = lazyNamed(() => import('./views/PdfCreateView'), 'PdfCreateView')
 const PdfEditorView = lazyNamed(() => import('./views/PdfEditorView'), 'PdfEditorView')
 const PricingView = lazyNamed(() => import('./views/PricingView'), 'PricingView')
+const ProductView = lazyNamed(() => import('./views/ProductView'), 'ProductView')
 const PublicDemoView = lazyNamed(() => import('./views/PublicDemoView'), 'PublicDemoView')
 const PublicPricingView = lazyNamed(() => import('./views/PublicPricingView'), 'PublicPricingView')
 const SessionsView = lazyNamed(() => import('./views/SessionsView'), 'SessionsView')
@@ -1762,6 +1764,27 @@ function AppContent() {
     )
   }
 
+  // Docs (/docs and /docs/:slug) — standalone, outside the app shell.
+  if (location.pathname === '/docs' || location.pathname.startsWith('/docs/')) {
+    const slug = location.pathname.slice('/docs'.length).replace(/^\//, '').split('/')[0]
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <DocsView slug={slug} />
+      </Suspense>
+    )
+  }
+
+  // Product pages (/product/:slug) — standalone marketing pages, same
+  // treatment as `/`: rendered outside the signed-in/out app shell.
+  if (location.pathname.startsWith('/product/')) {
+    const slug = location.pathname.slice('/product/'.length).split('/')[0]
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <ProductView slug={slug} />
+      </Suspense>
+    )
+  }
+
   return (
     <>
       <Show when="signed-in">
@@ -1954,7 +1977,9 @@ function AppContent() {
             <Route path="/blog/:slug" element={<BlogPostView />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Anything else is a signed-in page. Send them to sign-up carrying
+                where they were going, so auth returns them there. */}
+            <Route path="*" element={<SignUpThenReturn />} />
           </Routes>
         </Suspense>
       </Show>
@@ -1963,6 +1988,17 @@ function AppContent() {
 }
 
 export default App
+
+/**
+ * Signed-out visitor asking for a signed-in page (say /api-keys from the docs).
+ * Bounce to sign-up with the destination attached instead of dumping them on
+ * the landing page, so AuthView can return them there once they are in.
+ */
+function SignUpThenReturn() {
+  const { pathname, search, hash } = useLocation()
+  const target = `${pathname}${search}${hash}`
+  return <Navigate to={`/sign-up?redirect=${encodeURIComponent(target)}`} replace />
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -2086,4 +2122,3 @@ function App() {
     </BrowserRouter>
   )
 }
-

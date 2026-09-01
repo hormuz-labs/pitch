@@ -12,7 +12,7 @@
       "headers": [
         {
           "name": "X-API-Key",
-          "description": "Pitch API key (pk_...). Create one at https://trypitch.co/api-keys",
+          "description": "Pitch API key (pk_...). Create one at https://trypitch.co/api-keys. Clients that can send a bearer token should use `Authorization: Bearer pk_...` instead; both are accepted. Docs at https://trypitch.co/docs/mcp",
           "isRequired": true,
           "isSecret": true
         }

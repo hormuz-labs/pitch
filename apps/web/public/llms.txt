@@ -10,6 +10,46 @@ Pitch is built for founders, product marketers, and agencies who need polished p
 2. Direct the scene — describe what to show in plain English, pick a voice, theme, and pace.
 3. Receive the cut — a narrated, scored, color-graded 1080p MP4, editable scene-by-scene.
 
+## For developers and AI agents
+
+Pitch has two programmatic surfaces. Both use the same `pk_` API key, created at https://trypitch.co/api-keys, and both spend from the same credit balance.
+
+- MCP server: `POST https://api.trypitch.co/mcp`. Streamable HTTP, stateless. Auth header `Authorization: Bearer pk_...` (or `X-API-Key: pk_...`). Listed on the official MCP registry as `co.trypitch/pitch`. Works in Claude, Cursor, ChatGPT, and Perplexity.
+- REST API: `https://api.trypitch.co/v1`. Same auth. Create a job, then poll it.
+
+Every output is a job. Creating one returns `202` with a job id and charges credits immediately. Poll `GET /v1/jobs/{id}` every 10 seconds until `status` is `COMPLETED`, `FAILED`, or `AWAITING_REVIEW`. The result is in `videoUrl` or `pdfUrl`.
+
+### Endpoints
+
+- `POST /v1/videos` — demo video from a product URL. 3 credits.
+- `POST /v1/launch-videos` — cinematic launch film. 6 credits at 720p, 9 at 1080p (default), 13 at 4K. Set `narration: false` to save 1.
+- `POST /v1/decks` — slide deck from a topic. 1 credit.
+- `POST /v1/decks/enhance` — redesign a PDF or PPTX, base64, max 50 MB. 1 credit.
+- `POST /v1/recordings/edit` — cut a screen recording, base64, max 500 MB. 2 credits.
+- `GET /v1/jobs`, `GET /v1/jobs/{id}` — job state and results. Free.
+- `GET /v1/launch-videos`, `GET /v1/launch-videos/{name}` — projects and scene breakdowns. Free.
+- `GET /v1/credits` — balance and ledger. Free.
+- `GET /v1/pricing` — current credit prices. Free, no key.
+
+### MCP tools
+
+`create_demo_video` (3), `create_launch_video` (6-13), `create_pdf` (1), `enhance_presentation` (1), `edit_recording` (2), `get_job`, `list_jobs`, `get_launch_video`, `list_launch_videos`, `get_credits`.
+
+### Developer docs
+
+- [Docs home](https://trypitch.co/docs): overview of both surfaces
+- [Getting started](https://trypitch.co/docs/getting-started): first video with curl
+- [AI agents (MCP)](https://trypitch.co/docs/mcp): connect Claude, Cursor, ChatGPT, Perplexity
+- [Authentication](https://trypitch.co/docs/authentication): API keys and headers
+- [Credits](https://trypitch.co/docs/credits): what everything costs
+- [Files and uploads](https://trypitch.co/docs/files): base64 uploads and limits
+- [Polling jobs](https://trypitch.co/docs/polling): statuses, phases, and a loop that handles every case
+- [Errors](https://trypitch.co/docs/errors): codes and what is safe to retry
+- [REST API reference](https://trypitch.co/docs/api): every endpoint and field
+- [MCP tools reference](https://trypitch.co/docs/tools): every tool and argument
+- [OpenAPI spec](https://trypitch.co/openapi.json): machine-readable API definition
+- [llms-full.txt](https://trypitch.co/llms-full.txt): the full developer docs as one file
+
 ## Pricing
 
 - Starter — $10/month, 10 credits (3 videos)
@@ -49,9 +89,13 @@ Pitch is built for founders, product marketers, and agencies who need polished p
 - [Zero-Shot Demo Video: Generate a Product Walkthrough from Just a URL](https://trypitch.co/blog/zero-shot-demo-video-from-url): Generate a professional demo video from a product URL alone — no script or editor.
 - [Product-Led Growth + AI: The 2026 Playbook](https://trypitch.co/blog/product-led-growth-ai-2026): PLG companies using AI for demos and onboarding grow revenue faster.
 
-## Docs
+## Site
 
 - [Landing page](https://trypitch.co/): product overview, sample video, how it works
+- [Launch videos](https://trypitch.co/product/launch-videos): cinematic launch films
+- [Product demos](https://trypitch.co/product/product-demos): narrated walkthroughs of real flows
+- [Explainers](https://trypitch.co/product/explainers): short clips that make the complex obvious
+- [Pitch decks](https://trypitch.co/product/pitch-decks): investor and sales decks from a URL
 - [Pricing](https://trypitch.co/pricing): subscriptions and one-time top-ups
 - [Machine-readable pricing](https://trypitch.co/pricing.md): structured pricing for AI agents
 - [Blog](https://trypitch.co/blog): guides on AI demo videos and SaaS go-to-market
