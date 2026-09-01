@@ -154,13 +154,20 @@ router.get('/pricing', (_req, res) => {
 
 // ── auth ────────────────────────────────────────────────────────────────────
 
+// Express 4 does not catch a rejected promise from an async middleware, so a
+// database failure here would leave the request hanging forever instead of
+// answering. Catch it and map it to the documented 500.
 router.use(async (req, res, next) => {
-  const userId = await resolveApiKey(req)
-  if (!userId) {
-    return fail(res, 401, 'unauthorized', 'Invalid or revoked API key')
+  try {
+    const userId = await resolveApiKey(req)
+    if (!userId) {
+      return fail(res, 401, 'unauthorized', 'Invalid or revoked API key')
+    }
+    ;(req as any).apiUserId = userId
+    next()
+  } catch (error) {
+    failFromError(res, error, 'API key lookup')
   }
-  ;(req as any).apiUserId = userId
-  next()
 })
 
 const uid = (req: any): string => req.apiUserId

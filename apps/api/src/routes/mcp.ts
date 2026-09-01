@@ -11,10 +11,13 @@ export const router = Router()
 // Stateless Streamable HTTP: a fresh McpServer + transport per request, closed
 // when the response closes. Authenticated by API key, never by Clerk.
 router.post('/', async (req, res) => {
-  const userId = await requireApiKey(req, res)
-  if (!userId) return
-
+  // Inside the try: requireApiKey hits the database, and an async throw out of
+  // an Express 4 handler is not caught anywhere, so a DB failure used to hang
+  // the request rather than answer it.
   try {
+    const userId = await requireApiKey(req, res)
+    if (!userId) return
+
     const server = buildMcpServer(userId)
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
     res.on('close', () => {
