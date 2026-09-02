@@ -8,8 +8,59 @@ import { API_URL } from '../config'
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
+/** Event fired when the API cannot be reached at all (see ConnectionGate). */
+export const API_UNREACHABLE_EVENT = 'pitch:api-unreachable'
+/** Event fired on any successful response, so a down state can clear itself. */
+export const API_REACHABLE_EVENT = 'pitch:api-reachable'
+
+/**
+ * Statuses that mean "the request never got to our server". 502/504 are the
+ * usual proxy failures; 52x and 530 are Cloudflare's own codes, including 1033
+ * (tunnel down), which arrives as 530 with a Cloudflare HTML body. Treating
+ * these as HTTP errors made them surface as a raw Cloudflare page or a blank
+ * screen rather than something we control.
+ */
+const UNREACHABLE_STATUSES = new Set([502, 503, 504, 521, 522, 523, 524, 530])
+
+export interface ApiError extends Error {
+  status?: number
+  /** True when the backend could not be reached, as opposed to refusing. */
+  unreachable?: boolean
+}
+
+function announce(unreachable: boolean) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(unreachable ? API_UNREACHABLE_EVENT : API_REACHABLE_EVENT))
+}
+
+/** fetch, but a transport failure becomes a typed, announced ApiError. */
+async function send(input: string, init: RequestInit): Promise<Response> {
+  let res: Response
+  try {
+    res = await fetch(input, init)
+  } catch (cause) {
+    // fetch only rejects when the request never completed: DNS, TLS, refused
+    // connection, offline. Anything the server answered lands below.
+    const err: ApiError = new Error('Could not reach the Pitch API', { cause })
+    err.unreachable = true
+    announce(true)
+    throw err
+  }
+
+  if (UNREACHABLE_STATUSES.has(res.status)) {
+    const err: ApiError = new Error(`Pitch API unreachable (HTTP ${res.status})`)
+    err.status = res.status
+    err.unreachable = true
+    announce(true)
+    throw err
+  }
+
+  announce(false)
+  return res
+}
+
 async function request<T>(method: Method, path: string, token: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await send(`${API_URL}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -20,7 +71,7 @@ async function request<T>(method: Method, path: string, token: string, body?: un
   })
 
   if (!res.ok) {
-    const err: any = new Error(`HTTP ${res.status}`)
+    const err: ApiError = new Error(`HTTP ${res.status}`)
     err.status = res.status
     throw err
   }
@@ -38,7 +89,7 @@ async function formRequest<T>(
   token: string,
   body: FormData,
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await send(`${API_URL}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -48,7 +99,7 @@ async function formRequest<T>(
   })
 
   if (!res.ok) {
-    const err: any = new Error(`HTTP ${res.status}`)
+    const err: ApiError = new Error(`HTTP ${res.status}`)
     err.status = res.status
     throw err
   }

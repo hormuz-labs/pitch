@@ -1,0 +1,236 @@
+/*
+ * Status pages — 404 and "backend unreachable".
+ *
+ * Reference-locked to the landing page (landing-broadcast.css): #ededed marble,
+ * Geist at 400 with heavy negative tracking, Geist Mono for metadata, one vivid
+ * blue reserved for the status dot, hairline cool-gray rules, 4px/999px pills,
+ * no shadows, no gradients. Tokens are declared locally rather than pulled from
+ * .lb-root because these pages render outside the landing shell.
+ */
+.status-root {
+  --st-bg: #ededed;
+  --st-surface: #fafafa;
+  --st-ink: #020202;
+  --st-ink-2: #3d3a39;
+  --st-ink-dim: #8a8580;
+  --st-line: #dcdcda;
+  --st-line-2: #b8b3b0;
+  --st-accent: #1385d6;
+  --st-watermark: #dededc;
+
+  --st-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --st-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 48px 24px;
+  overflow: hidden;
+  background: var(--st-bg);
+  color: var(--st-ink);
+  font-family: var(--st-sans);
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+}
+
+[data-theme='dark'] .status-root {
+  --st-bg: #0a0a0a;
+  --st-surface: #121212;
+  --st-ink: #f4f4f3;
+  --st-ink-2: #b2aeaa;
+  --st-ink-dim: #6c6864;
+  --st-line: #222221;
+  --st-line-2: #33322f;
+  --st-accent: #3db4f5;
+  --st-watermark: #171717;
+}
+
+/* oversized status code, sunk behind the copy — the landing endcap's motif */
+.status-watermark {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--st-watermark);
+  font-family: var(--st-sans);
+  font-size: clamp(13rem, 42vw, 34rem);
+  font-weight: 650;
+  line-height: 0.72;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+.status-mark {
+  position: relative;
+  z-index: 1;
+  color: var(--st-ink);
+  opacity: 0.92;
+  margin-bottom: 4px;
+}
+
+.status-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 46ch;
+}
+
+.status-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--st-ink-dim);
+  font-family: var(--st-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.status-eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--st-accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .status-root[data-variant='offline'] .status-eyebrow::before {
+    animation: status-pulse 2s ease-out infinite;
+  }
+}
+@keyframes status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--st-accent) 0%, transparent); }
+  45% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--st-accent) 18%, transparent); }
+}
+
+.status-title {
+  margin: 14px 0 0;
+  font-family: var(--st-sans);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 4.2vw, 2.9rem);
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  color: var(--st-ink);
+}
+.status-title em { font-style: italic; font-family: Georgia, 'Times New Roman', serif; }
+
+.status-body {
+  margin: 14px 0 0;
+  max-width: 44ch;
+  font-size: 1rem;
+  color: var(--st-ink-2);
+  text-wrap: pretty;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.status-cta,
+.status-ghost {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-family: var(--st-sans);
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s ease, background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+.status-cta {
+  border: 1px solid var(--st-ink);
+  background: var(--st-ink);
+  color: var(--st-bg);
+}
+.status-cta:hover { opacity: 0.88; }
+.status-ghost {
+  border: 1px solid var(--st-line-2);
+  background: transparent;
+  color: var(--st-ink);
+}
+.status-ghost:hover { border-color: var(--st-ink); }
+.status-cta:active,
+.status-ghost:active { transform: scale(0.98); }
+.status-cta:focus-visible,
+.status-ghost:focus-visible,
+.status-links a:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 3px; }
+
+/* machine-readable detail line — reads as terminal output, not an apology */
+.status-detail {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  margin-top: 30px;
+  padding: 9px 14px;
+  border: 1px solid var(--st-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--st-surface) 62%, transparent);
+  color: var(--st-ink-dim);
+  font-family: var(--st-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* Values keep their real casing — a URL path is case-sensitive, so uppercasing
+   it in the detail strip would misreport what was actually requested. */
+.status-detail b {
+  color: var(--st-ink-2);
+  font-weight: 400;
+  text-transform: none;
+}
+
+.status-links {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--st-line);
+  width: min(520px, 100%);
+  font-family: var(--st-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.status-links a {
+  color: var(--st-ink-dim);
+  text-decoration: none;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+.status-links a:hover { color: var(--st-ink); text-decoration: underline; }
+
+@media (max-width: 560px) {
+  .status-root { padding: 36px 20px; }
+  .status-detail { font-size: 9.5px; }
+  .status-links { gap: 14px; }
+}

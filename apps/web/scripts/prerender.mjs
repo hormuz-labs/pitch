@@ -88,6 +88,14 @@ const port = server.address().port
 const base = `http://127.0.0.1:${port}`
 
 // ── Render each route ────────────────────────────────────────────────────────
+// The API's share routes (/d/:slug) fetch the deployed app shell and inject
+// per-job OG tags into it. That shell used to be `/`, which was an empty SPA
+// stub — but `/` is now a fully prerendered landing page, so a share link would
+// paint the whole homepage before React replaced it with the demo. Keep a copy
+// of the content-free build output for that purpose before `/` is overwritten.
+fs.copyFileSync(path.join(dist, 'index.html'), path.join(dist, 'app-shell.html'))
+console.log('wrote dist/app-shell.html (content-free shell for share routes)')
+
 const browser = await chromium.launch()
 const page = await browser.newPage()
 // The landing intro overlay in index.html removes itself ~1.9s after paint.

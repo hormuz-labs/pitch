@@ -3,6 +3,9 @@ import type { ReactNode } from 'react'
 import { FaDiscord, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
 import { PitchWordmark } from './PitchWordmark'
+// Same reasoning as LandingNav: the footer is shared chrome, so it carries its
+// own stylesheet instead of depending on which view happened to import it.
+import '../styles/landing-broadcast.css'
 
 export interface Footer15Link {
   label: string
@@ -220,7 +223,7 @@ export function Footer15({
 
 export const LandingFooter = () => {
   return (
-    <div className="flex w-full items-end">
+    <div className="lb-chrome flex w-full items-end">
       <Footer15 />
     </div>
   )

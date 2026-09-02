@@ -8,6 +8,11 @@ import { SOCIALS } from './LandingFooter'
 import { McpModal } from './landing/McpModal'
 import { PRODUCTS, ProductGlyph } from './landing/productCatalog'
 import { PitchLogoAnimation } from './PitchLogoAnimation'
+// The nav owns its stylesheet rather than trusting the host page to have
+// imported it. /blog, /about, /privacy and /terms all render this component
+// without importing any landing CSS, which left the bar completely unstyled.
+import '../styles/landing.css'
+import '../styles/landing-broadcast.css'
 
 /**
  * "Product" mega-menu — opens on hover / focus / tap. While open the page
@@ -177,7 +182,7 @@ export const LandingNav = () => {
   return (
     <>
       {/* Announcement bar */}
-      <div className="landing-announcement" role="banner">
+      <div className="landing-announcement lb-chrome" role="banner">
         <span>$5 in render credits when you sign up</span>
         <Link to="/sign-up" className="landing-announcement-cta">
           Claim
@@ -186,7 +191,7 @@ export const LandingNav = () => {
 
       {/* Navbar */}
       <nav
-        className="lb-nav"
+        className="lb-nav lb-chrome"
         aria-label="Main navigation"
         data-mobile-open={mobileOpen || undefined}
       >
