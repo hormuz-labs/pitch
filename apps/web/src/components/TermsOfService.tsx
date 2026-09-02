@@ -7,7 +7,7 @@ export const TermsOfService = () => {
   const { isSignedIn } = useAuth()
 
   return (
-    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'lb-root'}`}>
       <Seo
         title="Terms of Service — Pitch"
         description="The terms that govern your use of Pitch, the AI product demo video generator."

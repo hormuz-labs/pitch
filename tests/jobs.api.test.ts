@@ -26,6 +26,7 @@ vi.mock('@saas/db', () => ({
   deleteJob: vi.fn(),
   prisma: {
     userProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+    onboardingSurvey: { findUnique: vi.fn().mockResolvedValue({ id: 'survey_1' }) },
   },
 }))
 
@@ -206,6 +207,19 @@ describe('POST /jobs', () => {
     deductCredit.mockResolvedValue(7)
     queueAdd.mockResolvedValue({})
     publish.mockResolvedValue(1)
+  })
+
+  it('blocks job creation until onboarding is complete', async () => {
+    vi.mocked((db as any).prisma.onboardingSurvey.findUnique).mockResolvedValueOnce(null)
+
+    const res = await request(buildApp())
+      .post('/jobs')
+      .send({ parameters: { url: 'https://example.com' } })
+
+    expect(res.status).toBe(428)
+    expect(res.body.error).toContain('Complete onboarding')
+    expect(createJob).not.toHaveBeenCalled()
+    expect(deductCredit).not.toHaveBeenCalled()
   })
 
   it('creates, deducts credits, and enqueues on the happy path', async () => {

@@ -1340,6 +1340,7 @@ function AppContent() {
           refCode: getRefCode() ?? undefined,
         })
         sessionStorage.setItem(sessionKey, '1')
+        window.dispatchEvent(new Event('pitch:user-synced'))
         window.dispatchEvent(new Event('credits-changed')) // Trigger credit fetch after sync
       } catch (err) {
         console.error('Failed to sync user profile:', err)
@@ -1390,6 +1391,7 @@ function AppContent() {
                   refCode: getRefCode() ?? undefined,
                 })
                 sessionStorage.setItem(`user_synced_${userId}`, '1')
+                window.dispatchEvent(new Event('pitch:user-synced'))
                 window.dispatchEvent(new Event('credits-changed'))
               }
             } catch (syncErr) {
@@ -1796,7 +1798,7 @@ function AppContent() {
             className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
             style={{ backgroundColor: '#e6e6e6' }}
           >
-            <OnboardingSurvey />
+            <OnboardingSurvey enabled={location.pathname === '/dashboard'} />
             {(!isMobile ? selectedKey !== 'settings' : true) && (
               <Sidebar
                 selectedKey={selectedKey}

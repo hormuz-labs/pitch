@@ -16,6 +16,7 @@ import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js
 import { router as apiKeyRoutes } from './routes/api-keys.js'
 import { router as browserRoutes } from './routes/browser.js'
 import { router as checkoutRoutes } from './routes/checkout.js'
+import { router as clerkWebhookRoutes } from './routes/clerk-webhooks.js'
 import { router as creditRoutes } from './routes/credits.js'
 import { router as editJobRoutes } from './routes/edit-jobs.js'
 import { router as enhanceJobRoutes } from './routes/enhance-jobs.js'
@@ -44,7 +45,9 @@ const logger = createLogger('api')
 
 export const app = express()
 
-// Dodo webhook needs raw body — must come before express.json()
+// Clerk and Dodo webhooks need their untouched request bodies and must mount
+// before express.json() and Clerk's session middleware.
+app.use('/webhooks/clerk', clerkWebhookRoutes)
 app.use('/webhooks', webhookRoutes)
 
 // MCP endpoint: API-key auth (Clerk must never see these Bearer tokens) and

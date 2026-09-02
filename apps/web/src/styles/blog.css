@@ -1,0 +1,408 @@
+/*
+ * Blog. Reuses the landing token set (.lb-root supplies --lb-*) exactly the way
+ * docs.css does, so the writing, the docs and the marketing pages read as one
+ * design: Geist at 400 with negative tracking for headings, Geist Mono for
+ * metadata, hairline cool-gray rules, one accent reserved for dots and marks.
+ */
+
+/* ── page header ───────────────────────────────────────────────────────── */
+.blog-shell {
+  width: 100%;
+  max-width: 1100px;
+  flex: 1;
+  margin: 0 auto;
+  padding: 40px 32px 88px;
+}
+
+.blog-head {
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--lb-line);
+}
+.blog-title {
+  margin: 14px 0 0;
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: clamp(2rem, 3.4vw, 2.6rem);
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  color: var(--lb-ink);
+}
+.blog-lede {
+  margin: 14px 0 0;
+  max-width: 62ch;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  color: var(--lb-ink-2);
+}
+
+/* ── category filter — same pill language as the MCP tabs ──────────────── */
+.blog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 26px;
+}
+.blog-filter {
+  font-family: var(--lb-sans);
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+  color: var(--lb-ink-2);
+  background: transparent;
+  border: 1px solid var(--lb-line-2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-out), border-color 0.15s var(--ease-out),
+    background 0.15s var(--ease-out);
+}
+.blog-filter:hover { color: var(--lb-ink); border-color: var(--lb-ink); }
+.blog-filter.is-on {
+  color: var(--lb-btn-ink);
+  background: var(--lb-btn);
+  border-color: var(--lb-btn);
+}
+.blog-filter:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+
+/* ── card grid ─────────────────────────────────────────────────────────── */
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 30px;
+}
+@media (max-width: 900px) { .blog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .blog-grid { grid-template-columns: 1fr; } }
+
+.blog-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--lb-line);
+  border-radius: 14px;
+  background: var(--lb-surface);
+  /* No resting shadow — the system separates surfaces with hairlines, and the
+     lift is reserved for the hover state so the grid reads flat and calm. */
+  transition: border-color 0.18s var(--ease-out), transform 0.18s var(--ease-out),
+    background 0.18s var(--ease-out);
+}
+.blog-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--lb-ink-dim);
+  background: var(--lb-surface-2);
+}
+.blog-card:focus-within { border-color: var(--lb-ink-dim); }
+
+.blog-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--lb-mono);
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}
+.blog-card-meta i {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--lb-accent);
+}
+
+.blog-card-title { margin: 0; }
+:is(.lb-root, .lb-chrome) .blog-card-title a {
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: 1.02rem;
+  line-height: 1.28;
+  letter-spacing: -0.025em;
+  color: var(--lb-ink);
+  text-decoration: none;
+}
+.blog-card:hover .blog-card-title a { color: var(--lb-ink); }
+
+.blog-card-excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--lb-ink-2);
+}
+
+.blog-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+:is(.lb-root, .lb-chrome) .blog-tag {
+  font-family: var(--lb-mono);
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  color: var(--lb-ink-2);
+  background: var(--lb-bg);
+  border: 1px solid var(--lb-line);
+  border-radius: 999px;
+  padding: 3px 9px;
+  text-decoration: none;
+  transition: color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+}
+:is(.lb-root, .lb-chrome) .blog-tag:hover { color: var(--lb-ink); border-color: var(--lb-line-2); }
+.blog-tag:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+
+.blog-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lb-line);
+  font-family: var(--lb-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}
+:is(.lb-root, .lb-chrome) .blog-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lb-ink-dim);
+  text-decoration: none;
+  transition: color 0.15s var(--ease-out);
+}
+.blog-card:hover .blog-more { color: var(--lb-ink); }
+.blog-more svg { transition: transform 0.18s var(--ease-out); }
+.blog-card:hover .blog-more svg { transform: translateX(2px); }
+.blog-more:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+
+.blog-empty {
+  margin: 64px 0;
+  text-align: center;
+  font-family: var(--lb-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}
+
+.blog-pagination { display: flex; justify-content: center; margin-top: 40px; }
+
+/* ── dark panel — the system's "film surface", shared by the newsletter
+   and the post-footer CTA (same object as .mcp-panel) ─────────────────── */
+.blog-panel {
+  margin-top: 56px;
+  padding: 32px;
+  border: 1px solid var(--lb-screen-line);
+  border-radius: 14px;
+  background: var(--lb-screen);
+}
+/* Wide panels put the form beside the copy instead of stranding it under a
+   half-empty slab of black. Below 820px it stacks. */
+@media (min-width: 820px) {
+  .blog-panel--split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+    align-items: center;
+    column-gap: 48px;
+  }
+  .blog-panel--split .blog-news-form { margin-top: 0; }
+}
+.blog-panel-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--lb-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lb-screen-dim);
+}
+.blog-panel-kicker i {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--lb-accent);
+}
+.blog-panel-title {
+  margin: 12px 0 0;
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: -0.035em;
+  color: var(--lb-screen-ink);
+}
+.blog-panel-copy {
+  margin: 10px 0 0;
+  max-width: 52ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--lb-screen-dim);
+}
+.blog-news-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.blog-panel-copy:last-of-type { margin-bottom: 0; }
+.blog-news-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--lb-screen-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--lb-screen-ink);
+  font-family: var(--lb-sans);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.15s var(--ease-out), background 0.15s var(--ease-out);
+}
+.blog-news-input::placeholder { color: var(--lb-screen-dim); }
+.blog-news-input:focus {
+  border-color: var(--lb-accent);
+  background: rgba(255, 255, 255, 0.07);
+}
+.blog-news-submit {
+  flex: none;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--lb-screen-ink);
+  border-radius: 999px;
+  background: var(--lb-screen-ink);
+  color: var(--lb-screen);
+  font-family: var(--lb-sans);
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: opacity 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+}
+.blog-news-submit:hover { opacity: 0.88; }
+.blog-news-submit:active { transform: scale(0.98); }
+.blog-news-input:focus-visible,
+.blog-news-submit:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+
+.blog-news-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 22px;
+  height: 40px;
+  font-family: var(--lb-mono);
+  font-size: 11.5px;
+  color: #4ade80;
+}
+.blog-news-error {
+  margin: 10px 0 0;
+  font-family: var(--lb-mono);
+  font-size: 11px;
+  color: #f87171;
+}
+
+/* ── post view ─────────────────────────────────────────────────────────── */
+.blog-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--lb-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+  text-decoration: none;
+  transition: color 0.15s var(--ease-out);
+}
+:is(.lb-root, .lb-chrome) .blog-back:hover { color: var(--lb-ink); }
+.blog-back svg { transition: transform 0.18s var(--ease-out); }
+.blog-back:hover svg { transform: translateX(-2px); }
+
+@media (max-width: 560px) {
+  .blog-shell { padding: 28px 20px 64px; }
+  .blog-panel { padding: 24px 20px 26px; }
+  .blog-news-form { flex-direction: column; }
+  .blog-news-submit { width: 100%; }
+}
+
+/* ── post-footer CTA — same panel, a link instead of a form ────────────── */
+:is(.lb-root, .lb-chrome) .blog-panel-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  margin-top: 22px;
+  padding: 0 20px;
+  border: 1px solid var(--lb-screen-ink);
+  border-radius: 999px;
+  background: var(--lb-screen-ink);
+  color: var(--lb-screen);
+  font-family: var(--lb-sans);
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: opacity 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+}
+.blog-panel-cta:hover { opacity: 0.88; }
+.blog-panel-cta:active { transform: scale(0.98); }
+.blog-panel-cta svg { transition: transform 0.18s var(--ease-out); }
+.blog-panel-cta:hover svg { transform: translateX(2px); }
+.blog-panel-cta:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+
+/* ── post view ─────────────────────────────────────────────────────────── */
+/* Capped to the docs measure. The article ran the full 1100px shell, which is
+   roughly 150 characters a line — far past comfortable reading. */
+.blog-post { max-width: 720px; }
+.blog-post-head {
+  margin-top: 26px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--lb-line);
+}
+.blog-post-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--lb-mono);
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}
+.blog-post-meta i {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--lb-accent);
+}
+.blog-post-title {
+  margin: 14px 0 0;
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 3.2vw, 2.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  color: var(--lb-ink);
+}
+.blog-post-body p {
+  margin: 18px 0 0;
+  font-size: 0.96rem;
+  line-height: 1.68;
+  color: var(--lb-ink-2);
+}
+.blog-post-body { margin-top: 12px; }
+
+.blog-related {
+  margin-top: 44px;
+  padding-top: 26px;
+  border-top: 1px solid var(--lb-line);
+}
+.blog-related-label {
+  margin: 0 0 12px;
+  font-family: var(--lb-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}

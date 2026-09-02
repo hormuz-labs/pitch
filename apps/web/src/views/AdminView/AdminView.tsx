@@ -259,15 +259,15 @@ export function AdminView() {
                     ? (data?.users?.length ?? '')
                     : tab.key === 'onboarding'
                       ? (data?.users?.filter((user: any) => user.onboardingSurvey).length ?? '')
-                    : tab.key === 'jobs'
-                      ? globalJobs.length
-                      : tab.key === 'launch-videos'
-                        ? launchVideos.length
-                        : tab.key === 'feedback'
-                          ? (analytics?.feedbackSummary?.total ?? '')
-                          : tab.key === 'affiliates'
-                            ? (analytics?.affiliates?.length ?? '')
-                            : ''
+                      : tab.key === 'jobs'
+                        ? globalJobs.length
+                        : tab.key === 'launch-videos'
+                          ? launchVideos.length
+                          : tab.key === 'feedback'
+                            ? (analytics?.feedbackSummary?.total ?? '')
+                            : tab.key === 'affiliates'
+                              ? (analytics?.affiliates?.length ?? '')
+                              : ''
                 return (
                   <button
                     key={tab.key}

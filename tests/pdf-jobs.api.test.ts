@@ -22,6 +22,7 @@ vi.mock('../packages/db/src/index.js', () => ({
   addCredits: vi.fn(),
   prisma: {
     userProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+    onboardingSurvey: { findUnique: vi.fn().mockResolvedValue({ id: 'survey_1' }) },
     job: { findUnique: vi.fn() },
   },
 }))
@@ -234,7 +235,9 @@ beforeEach(() => {
 describe('POST /pdf-jobs', () => {
   it('returns 401 when unauthenticated', async () => {
     ;(__setAuth as any)({ userId: '' })
-    const res = await request(app).post('/pdf-jobs').send({ parameters: { topic: 'Test' } })
+    const res = await request(app)
+      .post('/pdf-jobs')
+      .send({ parameters: { topic: 'Test' } })
     expect(res.status).toBe(401)
   })
 
@@ -261,12 +264,9 @@ describe('POST /pdf-jobs', () => {
     expect(res.status).toBe(201)
     expect(res.body.id).toBe('pdf_job_1')
     expect(res.body.parameters.jobType).toBe('pdf')
-    expect(db.deductCredit).toHaveBeenCalledWith(
-      'user_test',
-      1,
-      'PDF generation',
-      { jobId: 'pdf_job_1' },
-    )
+    expect(db.deductCredit).toHaveBeenCalledWith('user_test', 1, 'PDF generation', {
+      jobId: 'pdf_job_1',
+    })
   })
 
   it('adds jobType pdf to parameters', async () => {
@@ -298,7 +298,11 @@ describe('POST /pdf-jobs', () => {
 
     expect(videoQueue.add).toHaveBeenCalledWith(
       'generate-video',
-      { jobId: 'pdf_job_1', userId: 'user_test', parameters: expect.objectContaining({ jobType: 'pdf' }) },
+      {
+        jobId: 'pdf_job_1',
+        userId: 'user_test',
+        parameters: expect.objectContaining({ jobType: 'pdf' }),
+      },
       { jobId: 'pdf_job_1' },
     )
   })
@@ -313,10 +317,7 @@ describe('POST /pdf-jobs', () => {
       .post('/pdf-jobs')
       .send({ parameters: { topic: 'Renewable Energy' } })
 
-    expect(connection.publish).toHaveBeenCalledWith(
-      JOB_UPDATES_CHANNEL,
-      JSON.stringify(job),
-    )
+    expect(connection.publish).toHaveBeenCalledWith(JOB_UPDATES_CHANNEL, JSON.stringify(job))
   })
 
   it('returns 500 on db error', async () => {
@@ -430,9 +431,7 @@ describe('DELETE /pdf-jobs/:id', () => {
 
   it('publishes cancellation and refunds when pdf job is processing', async () => {
     vi.mocked(db.getJob).mockResolvedValue(makePdfJob({ status: JobStatus.PROCESSING }) as any)
-    vi.mocked(db.updateJob).mockResolvedValue(
-      makePdfJob({ status: JobStatus.FAILED }) as any,
-    )
+    vi.mocked(db.updateJob).mockResolvedValue(makePdfJob({ status: JobStatus.FAILED }) as any)
     vi.mocked(db.addCredits).mockResolvedValue(5)
 
     const res = await request(app).delete('/pdf-jobs/pdf_job_1')

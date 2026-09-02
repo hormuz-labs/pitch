@@ -36,6 +36,7 @@ vi.mock('../apps/api/src/lib/clerk.js', () => ({
 vi.mock('@saas/db', () => ({
   prisma: {
     userProfile: { findUnique: vi.fn() },
+    onboardingSurvey: { findUnique: vi.fn(), create: vi.fn() },
     creditTransaction: { aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 0 } }) },
   },
   upsertUser: vi.fn(),
@@ -89,8 +90,47 @@ beforeEach(() => {
   _userId = 'user_attacker'
   _verifiedProfile = null
   vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue(null)
+  vi.mocked((db as any).prisma.onboardingSurvey.findUnique).mockResolvedValue(null)
   vi.mocked((db as any).upsertUser).mockImplementation(async (input: any) => input)
   app = buildApp()
+})
+
+describe('onboarding survey', () => {
+  const validAnswers = {
+    creationGoal: 'product-demos',
+    role: 'founder',
+    teamSize: 'just-me',
+    monthlyVolume: '1-2',
+    discoverySource: 'google',
+  }
+
+  it('is required before completion and is persisted once', async () => {
+    const before = await request(app).get('/users/onboarding')
+    expect(before.status).toBe(200)
+    expect(before.body.completed).toBe(false)
+
+    vi.mocked((db as any).prisma.onboardingSurvey.create).mockResolvedValue({
+      id: 'survey_1',
+      userId: 'user_attacker',
+      ...validAnswers,
+    })
+    const completed = await request(app).post('/users/onboarding').send(validAnswers)
+    expect(completed.status).toBe(201)
+    expect(completed.body.completed).toBe(true)
+  })
+
+  it('rejects a second response for the same user', async () => {
+    vi.mocked((db as any).prisma.onboardingSurvey.findUnique).mockResolvedValue({ id: 'survey_1' })
+    const response = await request(app).post('/users/onboarding').send(validAnswers)
+    expect(response.status).toBe(409)
+  })
+
+  it('rejects values outside the server allowlists', async () => {
+    const response = await request(app)
+      .post('/users/onboarding')
+      .send({ ...validAnswers, role: 'super-admin' })
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('POST /users/sync', () => {

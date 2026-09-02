@@ -40,6 +40,7 @@ vi.mock('@saas/db', () => ({
   addCredits: (...a: any[]) => addCredits(...(a as [])),
   prisma: {
     launchVideoProject: { findUnique: vi.fn(), upsert: vi.fn() },
+    onboardingSurvey: { findUnique: vi.fn().mockResolvedValue({ id: 'survey_1' }) },
     // The success path fires a Discord notification off this model.
     userProfile: { findUnique: vi.fn(() => Promise.resolve({ email: 'a@b.c' })) },
   },

@@ -1,9 +1,13 @@
 .onboarding-survey {
   position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center;
-  overflow-y: auto; padding: 28px; background: rgba(235, 235, 233, .94);
-  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  overflow-y: auto; padding: 28px; background: rgba(235, 235, 233, .86);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  animation: onboarding-survey-in 240ms cubic-bezier(.22, 1, .36, 1) both;
 }
-.onboarding-survey-card { width: min(100%, 610px); padding: 34px 38px; color: #111; }
+.onboarding-survey-card {
+  width: min(100%, 610px); padding: 34px 38px; color: #111;
+  animation: onboarding-survey-card-in 360ms cubic-bezier(.22, 1, .36, 1) both;
+}
 .onboarding-survey-brand { display: flex; justify-content: center; margin-bottom: 16px; }
 .onboarding-survey-brand svg { width: auto; height: 30px; }
 .onboarding-survey-kicker { margin: 0; text-align: center; font-size: 14px; font-weight: 600; }
@@ -26,6 +30,10 @@
 .onboarding-survey-actions .is-continue:disabled { border-color: #c9c9c6; background: #c9c9c6; color: #777; cursor: not-allowed; }
 .onboarding-survey-error { margin: 16px 0 0; color: #b42318; text-align: center; font-size: 12px; }
 .onboarding-survey-note { margin: 16px 0 0; color: #777; text-align: center; font-size: 11px; line-height: 1.5; }
+.onboarding-survey-status-error { padding-top: 24px; text-align: center; }
+.onboarding-survey-status-error p { margin: 0 auto 22px; max-width: 390px; color: #666; font-size: 14px; line-height: 1.5; }
+.onboarding-survey-status-error button { min-height: 48px; min-width: 180px; border: 1px solid #111; border-radius: 12px; background: #111; color: #fff; font: 550 14px/1 inherit; cursor: pointer; }
+.onboarding-survey-status-error button:focus-visible { outline: 2px solid #1385d6; outline-offset: 3px; }
 @media (max-width: 600px) {
   .onboarding-survey { align-items: start; padding: 22px 16px; }
   .onboarding-survey-card { padding: 22px 0; }
@@ -33,5 +41,14 @@
   .onboarding-survey-options button { min-height: 50px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .onboarding-survey, .onboarding-survey-card { animation: none; }
   .onboarding-survey-progress span, .onboarding-survey-options button { transition: none; }
+}
+@keyframes onboarding-survey-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes onboarding-survey-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }

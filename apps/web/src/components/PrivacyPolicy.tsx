@@ -7,7 +7,7 @@ export const PrivacyPolicy = () => {
   const { isSignedIn } = useAuth()
 
   return (
-    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'lb-root'}`}>
       <Seo
         title="Privacy Policy — Pitch"
         description="How Pitch collects, uses, and protects your data when you generate AI product demo videos."

@@ -822,7 +822,8 @@
 }
 .lb-hero .landing-chat-submit-glass--active,
 [data-theme='light'] .lb-hero .landing-chat-submit-glass--active { background: var(--lb-btn) !important; }
-.lb-hero .landing-chat-submit {
+.lb-hero .landing-chat-submit,
+[data-theme='light'] .lb-hero .landing-chat-submit {
   width: 32px;
   height: 32px;
   cursor: pointer;
@@ -1446,11 +1447,12 @@
   object-fit: contain;
   border-radius: 4px;
   flex: none;
-  /* render every brand mark as a small uniform app tile so a dark PNG logo,
-     a coloured SVG and an opaque screenshot all sit the same on any tab */
-  background: #fff;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.09);
-  padding: 1px;
+  /* Marks sit directly on the surface. They used to be boxed on an opaque white
+     tile, which put a white square around every transparent logo on the marble
+     canvas — more conspicuous than the inconsistency it was hiding. */
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 .mcp-tab:hover { color: var(--lb-ink); border-color: var(--lb-ink); }
 .mcp-tab:hover svg { color: var(--lb-ink); }
