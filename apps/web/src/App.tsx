@@ -44,6 +44,7 @@ import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
 import { CreditPopover } from './components/CreditPopover'
 import { LoadingCoin } from './components/LoadingCoin'
+import { OnboardingSurvey } from './components/OnboardingSurvey'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
 import { API_URL } from './config'
 import { api } from './lib/api'
@@ -1792,6 +1793,7 @@ function AppContent() {
           className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
           style={{ backgroundColor: '#e6e6e6' }}
         >
+          <OnboardingSurvey />
           {(!isMobile ? selectedKey !== 'settings' : true) && (
             <Sidebar
               selectedKey={selectedKey}

@@ -38,6 +38,21 @@ model UserProfile {
   apiKeys            ApiKey[]
   webhookEndpoints   WebhookEndpoint[]
   webhookDeliveries  WebhookDelivery[]
+  onboardingSurvey   OnboardingSurvey?
+}
+
+model OnboardingSurvey {
+  id              String      @id() @default(cuid())
+  userId          String      @unique()
+  creationGoal    String
+  role            String
+  teamSize        String
+  monthlyVolume   String
+  discoverySource String
+  completedAt     DateTime    @default(now())
+  userProfile     UserProfile @relation(fields: [userId], references: [id])
+
+  @@index([completedAt])
 }
 
 model ApiKey {

@@ -5,11 +5,7 @@
  * (sign-up first for logged-out visitors, via ProductView).
  */
 import { Clapperboard, Lightbulb, MonitorPlay, Presentation } from 'lucide-react'
-
-/** Public MinIO bucket holding the sample videos (same source as VideoCarousel). */
-const ASSET_BASE = (
-  import.meta.env.VITE_CAROUSEL_ASSET_URL || 'https://s3.trypitch.co/carousel/carousel'
-).replace(/\/$/, '')
+import { carouselAsset } from './carouselAssets'
 
 export type ProductSlug = 'launch-videos' | 'product-demos' | 'explainers' | 'pitch-decks'
 type IconKey = 'clapperboard' | 'monitor-play' | 'lightbulb' | 'presentation'
@@ -74,7 +70,7 @@ export const PRODUCTS: ProductEntry[] = [
         p: 'Swap the voice, trim a scene or restyle a caption without a full re-render.',
       },
     ],
-    sampleSrc: `${ASSET_BASE}/graphify.mp4`,
+    sampleSrc: carouselAsset('graphify.mp4'),
     sampleCaption: 'Graphify: “Make a 70-second launch video on graphify.com”',
     seoDescription:
       'Give Pitch a URL and a line of direction. An AI agent films your real product and cuts a scored, narrated 1080p launch video in minutes. No recording, no editing.',
@@ -104,7 +100,7 @@ export const PRODUCTS: ProductEntry[] = [
         p: 'Flow changed? Ask for a re-cut of the affected scene. The rest of the demo stays put.',
       },
     ],
-    sampleSrc: `${ASSET_BASE}/demo.mp4`,
+    sampleSrc: carouselAsset('demo.mp4'),
     sampleCaption: 'shadcn/ui: a narrated walkthrough of the component workflow',
     seoDescription:
       'Pitch signs into your product, clicks through the real flow end to end, and narrates it as a clean demo video. Point it at onboarding or a single feature and get a shareable walkthrough.',
@@ -133,7 +129,7 @@ export const PRODUCTS: ProductEntry[] = [
         p: 'The agent reads your site and docs first, so the wording matches how you already describe it.',
       },
     ],
-    sampleSrc: `${ASSET_BASE}/gtmcofounder.mp4`,
+    sampleSrc: carouselAsset('gtmcofounder.mp4'),
     sampleCaption: 'GTM Cofounder: a 40-second “what it does and why” explainer',
     seoDescription:
       'Pitch turns the concept that needs a whiteboard into a tight 30-second explainer covering the problem, product, and payoff. It is built from your real screens and captioned for the timeline.',

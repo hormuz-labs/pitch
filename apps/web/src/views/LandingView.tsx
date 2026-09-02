@@ -4,7 +4,6 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 import 'lenis/dist/lenis.css'
 import { useEffect, useRef, useState } from 'react'
-import { DoubleStairPreloader } from '../components/DoubleStairPreloader'
 import { LandingFooter } from '../components/LandingFooter'
 import { LandingNav } from '../components/LandingNav'
 import { HowItWorks } from '../components/landing/HowItWorks'
@@ -13,17 +12,21 @@ import { McpConnect } from '../components/landing/McpConnect'
 import { ScrollSpreadFilms } from '../components/landing/ScrollSpreadFilms'
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
 import { Seo } from '../components/Seo'
+import { carouselAsset } from '../components/landing/carouselAssets'
 import '../styles/landing.css'
 import '../styles/landing-broadcast.css'
-import demoVideo from '../assets/demo.mp4'
 import demoThumbnail from '../assets/demo-thumbnail.jpg'
+
+// Streamed from the same public bucket as the carousel films rather than
+// bundled. The local copy was a 24.7 MB asset emitted into every deploy for a
+// video that only plays if a visitor opens the "watch one first" modal.
+const demoVideo = carouselAsset('demo.mp4')
 
 gsap.registerPlugin(ScrollTrigger)
 
 export const LandingView = () => {
   const clerk = useClerk()
   const { isSignedIn } = useAuth()
-  const [, setPreloaderDone] = useState(false)
   const [heroLogoDone, setHeroLogoDone] = useState(false)
   const [videoOpen, setVideoOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -135,8 +138,6 @@ export const LandingView = () => {
         description="Give Pitch a URL and a paragraph of direction. An AI agent runs the real flows in a browser, narrates what happened, and cuts a scored 1080p demo video in minutes. No recording. No editing."
         path="/"
       />
-      <DoubleStairPreloader onComplete={() => setPreloaderDone(true)} />
-
       <div className="lb-root" ref={rootRef}>
         <LandingNav />
 

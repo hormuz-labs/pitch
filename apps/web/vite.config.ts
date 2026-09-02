@@ -23,10 +23,13 @@ export default defineConfig({
           if (/[\\/]node_modules[\\/](gsap)[\\/]/.test(id)) return 'vendor-gsap'
           if (/[\\/]node_modules[\\/](framer-motion|motion|motion-dom|motion-utils)[\\/]/.test(id))
             return 'vendor-motion'
-          if (
-            /[\\/]node_modules[\\/](jspdf|html-to-image|html2canvas|qrcode|dompurify)[\\/]/.test(id)
-          )
-            return 'vendor-pdf'
+          // jspdf/html-to-image/qrcode are deliberately NOT grouped. Every one of
+          // them is reachable only from lazily-loaded views, but bundling them
+          // into a single manual chunk made that chunk the home of Rolldown's
+          // shared __vitePreload helper — which the entry needs for its own
+          // route-level dynamic imports. The entry then statically imported the
+          // whole 645 kB group, so every landing visitor downloaded jsPDF.
+          // Left unassigned, they ride along with the views that actually use them.
           if (/[\\/]node_modules[\\/]posthog-js[\\/]/.test(id)) return 'vendor-posthog'
           if (
             /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(

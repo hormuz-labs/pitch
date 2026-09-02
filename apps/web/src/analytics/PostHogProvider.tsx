@@ -47,7 +47,10 @@ const options = {
   },
   // Surface console errors inside PostHog session replay timeline.
   enable_recording_console_log: true,
-} satisfies Partial<PostHogConfig>
+  // `__preview_send_client_session_params` is an undocumented preview flag that
+  // posthog-js accepts at runtime but does not declare in PostHogConfig, so the
+  // index signature is what lets `satisfies` still check every other key here.
+} satisfies Partial<PostHogConfig> & Record<string, unknown>
 
 function ClerkPostHogIdentity() {
   const { isLoaded, isSignedIn, user } = useUser()

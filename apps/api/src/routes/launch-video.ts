@@ -5,7 +5,7 @@ import { createLogger, isLaunchVideoResolution, JOB_UPDATES_CHANNEL } from '@saa
 import * as storage from '@saas/storage'
 import express, { Router } from 'express'
 import { connection } from '../config.js'
-import { createLaunchVideoJob, InsufficientCreditsError } from '../lib/job-service.js'
+import { createLaunchVideoJob, InsufficientCreditsError, OnboardingRequiredError } from '../lib/job-service.js'
 import { listMusic } from '../lib/launch-video/music.js'
 import {
   eventSessionId,
@@ -211,6 +211,7 @@ router.post('/projects/:name/prompt', async (req, res) => {
     if (error instanceof InsufficientCreditsError) {
       return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
     }
+    if (error instanceof OnboardingRequiredError) return res.status(428).json({ error: error.message })
     logger.error({ err: error, userId, project: name }, 'Failed to create launch-video job')
     res.status(500).json({ error: error.message })
   }

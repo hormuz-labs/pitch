@@ -54,6 +54,7 @@ router.get('/dashboard', async (_req, res) => {
 
     const users = await db.prisma.userProfile.findMany({
       orderBy: { createdAt: 'desc' },
+      include: { onboardingSurvey: true },
     })
 
     const userIds = users.map(u => u.id)
@@ -113,6 +114,7 @@ router.get('/dashboard', async (_req, res) => {
         creditsBought,
         subscription: activeSub,
         topUps: userTopUps,
+        onboardingSurvey: u.onboardingSurvey,
       }
     })
 

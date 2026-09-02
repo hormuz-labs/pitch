@@ -10,6 +10,60 @@ const logger = createLogger('api')
 
 export const router = Router()
 
+const ONBOARDING_OPTIONS = {
+  creationGoal: ['product-demos', 'launch-videos', 'onboarding', 'pitch-decks', 'explainers', 'social-clips', 'investor-updates', 'other'],
+  role: ['founder', 'product-manager', 'marketer', 'designer', 'developer', 'sales-success', 'agency-freelancer', 'other'],
+  teamSize: ['just-me', '2-10', '11-50', '51-200', '201-1000', '1000-plus'],
+  monthlyVolume: ['1-2', '3-5', '6-10', '11-25', '26-50', '50-plus'],
+  discoverySource: ['google', 'x-twitter', 'linkedin', 'youtube', 'chatgpt', 'claude', 'friend-teammate', 'community', 'other'],
+} as const
+
+router.get('/onboarding', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const survey = await db.prisma.onboardingSurvey.findUnique({ where: { userId } })
+    res.json({ completed: !!survey, survey })
+  } catch (error: any) {
+    logger.error({ err: error, userId }, 'Failed to fetch onboarding status')
+    res.status(500).json({ error: 'Failed to fetch onboarding status' })
+  }
+})
+
+router.post('/onboarding', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const answers = req.body as Record<string, unknown>
+  for (const [field, options] of Object.entries(ONBOARDING_OPTIONS)) {
+    if (typeof answers[field] !== 'string' || !(options as readonly string[]).includes(answers[field] as string)) {
+      return res.status(400).json({ error: `Invalid ${field}` })
+    }
+  }
+
+  try {
+    const existing = await db.prisma.onboardingSurvey.findUnique({ where: { userId } })
+    if (existing) return res.status(409).json({ error: 'Onboarding already completed' })
+
+    const survey = await db.prisma.onboardingSurvey.create({
+      data: {
+        userId,
+        creationGoal: answers.creationGoal as string,
+        role: answers.role as string,
+        teamSize: answers.teamSize as string,
+        monthlyVolume: answers.monthlyVolume as string,
+        discoverySource: answers.discoverySource as string,
+      },
+    })
+    res.status(201).json({ completed: true, survey })
+  } catch (error: any) {
+    if (error?.code === 'P2002') return res.status(409).json({ error: 'Onboarding already completed' })
+    logger.error({ err: error, userId }, 'Failed to save onboarding survey')
+    res.status(500).json({ error: 'Failed to save onboarding survey' })
+  }
+})
+
 router.get('/me', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return

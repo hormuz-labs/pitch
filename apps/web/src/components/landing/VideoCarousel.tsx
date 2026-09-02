@@ -2,13 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel'
-
-/** Public MinIO bucket holding the carousel demo videos. Override per-env with VITE_CAROUSEL_ASSET_URL. */
-const ASSET_BASE = (
-  import.meta.env.VITE_CAROUSEL_ASSET_URL || 'https://s3.trypitch.co/carousel/carousel'
-).replace(/\/$/, '')
-
-const video = (name: string) => `${ASSET_BASE}/${name}`
+import { carouselAsset as video } from './carouselAssets'
 
 const agentcardVideo = video('agentcard.mp4')
 const demoVideo = video('demo.mp4')

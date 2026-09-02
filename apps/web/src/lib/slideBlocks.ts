@@ -1,6 +1,11 @@
 // Pure HTML factories for blocks the PDF editor can insert into a slide.
 // Kept framework-free and side-effect-free so the markup contract is unit-testable.
-import QRCode from 'qrcode'
+//
+// `qrcode` is loaded on demand inside createQrBlockHTML rather than imported at
+// the top. App.tsx pulls SLIDE_TEMPLATES from this module eagerly, so a static
+// import put the whole vendor-pdf chunk (jspdf + html-to-image + qrcode, ~645 kB)
+// into the entry graph of every route — including the public landing page, which
+// never renders a QR code.
 
 // Layering model for free-positioned elements relative to a slide's text layer
 // (the template's `.content` sits at z-index:10, so front=above, back=below).
@@ -152,6 +157,7 @@ export function createIconBlockHTML(name: string, color = 'var(--primary,#6366f1
 export async function createQrBlockHTML(text: string): Promise<string> {
   const value = text.trim()
   if (!value) return ''
+  const { default: QRCode } = await import('qrcode')
   const dataUrl = await QRCode.toDataURL(value, { margin: 1, width: 320 })
   return `<img src="${dataUrl}" alt="QR code for ${escapeAttr(value)}" style="display:block;width:180px;height:180px;border-radius:8px;margin:16px 0;" />`
 }

@@ -74,6 +74,7 @@ export interface LaunchVideoStore {
   startProject: (
     text: string,
     resolution?: string,
+    narration?: boolean,
   ) => Promise<{ jobId: string; projectName: string }>
   sendPrompt: (text: string) => Promise<void>
   sendScenePrompt: (sceneId: string, text: string) => Promise<void>

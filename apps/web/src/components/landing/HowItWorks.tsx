@@ -84,12 +84,17 @@ const AgentPipelineFrame = ({ active }: { active: number }) => {
       ref={viewportRef}
       style={{ height: PIPELINE_CROP_HEIGHT * scale }}
     >
+      {/* Deferred on purpose: this frame boots its own React 18 + ReactDOM UMD
+          pair from unpkg, and the section sits well below the fold. Eager
+          loading put ~200 kB of third-party script on the landing page's
+          critical path for a panel most visitors have not scrolled to yet. */}
       <iframe
         ref={frameRef}
         className="lb-hiw-pipeline-frame"
         src={agentPipelineUrl}
         title="Agent pipeline animation"
         tabIndex={-1}
+        loading="lazy"
         style={{ transform: `scale(${scale})` }}
       />
     </div>
