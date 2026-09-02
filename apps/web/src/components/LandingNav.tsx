@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Menu, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
@@ -152,7 +152,7 @@ const ProductMenu = () => {
           <div className="lb-mega-foot">
             <span>One agent. Idea to finished cut.</span>
             <Link to="/#work" onClick={() => setOpen(false)}>
-              See the work &rarr;
+              See the work
             </Link>
           </div>
         </div>
@@ -178,8 +178,36 @@ export const LandingNav = () => {
   const { isSignedIn } = useAuth()
   const { theme, toggle } = useTheme()
   const [mcpOpen, setMcpOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const mobileMenuId = useId()
+  const mobileButtonRef = useRef<HTMLButtonElement>(null)
 
   const affiliatesHref = isSignedIn ? '/affiliate' : '/sign-up?redirect=%2Faffiliate'
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMobileOpen(false)
+      mobileButtonRef.current?.focus()
+    }
+    const onResize = () => {
+      if (window.innerWidth > 880) setMobileOpen(false)
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    window.addEventListener('resize', onResize)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [mobileOpen])
+
+  const closeMobile = () => setMobileOpen(false)
 
   return (
     <>
@@ -192,7 +220,11 @@ export const LandingNav = () => {
       </div>
 
       {/* Navbar */}
-      <nav className="lb-nav" aria-label="Main navigation">
+      <nav
+        className="lb-nav"
+        aria-label="Main navigation"
+        data-mobile-open={mobileOpen || undefined}
+      >
         <div className="lb-nav-in">
           <Link to="/" aria-label="Pitch home" className="lb-brand">
             <img
@@ -205,7 +237,7 @@ export const LandingNav = () => {
             <span className="lb-brand-word">
               {/* static: the hero owns the animated wordmark, the nav is a mark */}
               <PitchLogoAnimation startAnimation={false} loop={false} color="currentColor" />
-              <span className="lb-brand-by">by Hormuz Labs</span>
+              <span className="lb-brand-by">A Frontier Agent</span>
             </span>
           </Link>
 
@@ -245,19 +277,123 @@ export const LandingNav = () => {
 
             <button
               type="button"
-              className="lb-theme-toggle"
+              className="lb-theme-toggle lb-theme-toggle--desktop"
               onClick={toggle}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
             </button>
 
-            <Link to={isSignedIn ? '/dashboard' : '/sign-up'} className="lb-cta">
-              {isSignedIn ? 'Dashboard' : 'Start a cut'}
+            <Link
+              to={isSignedIn ? '/dashboard' : '/sign-up'}
+              className="lb-cta"
+              onClick={closeMobile}
+            >
+              {isSignedIn ? 'Dashboard' : 'Get started'}
             </Link>
+
+            <button
+              ref={mobileButtonRef}
+              type="button"
+              className="lb-mobile-toggle"
+              aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileOpen}
+              aria-controls={mobileMenuId}
+              onClick={() => setMobileOpen(open => !open)}
+            >
+              {mobileOpen ? <X size={16} aria-hidden /> : <Menu size={17} aria-hidden />}
+            </button>
           </div>
         </div>
+
+        {mobileOpen && (
+          <div id={mobileMenuId} className="lb-mobile-menu" aria-label="Mobile navigation">
+            <p className="lb-mobile-menu-label">Product</p>
+            <div className="lb-mobile-products">
+              {PRODUCTS.map(product => (
+                <Link
+                  key={product.slug}
+                  to={`/product/${product.slug}`}
+                  className="lb-mobile-product"
+                  onClick={closeMobile}
+                >
+                  <span className="lb-mobile-product-icon">
+                    <ProductGlyph icon={product.icon} size={15} />
+                  </span>
+                  <span>{product.name}</span>
+                </Link>
+              ))}
+            </div>
+
+            <div className="lb-mobile-links">
+              <Link to="/pricing" onClick={closeMobile}>
+                Pricing
+              </Link>
+              <Link to={affiliatesHref} onClick={closeMobile}>
+                Affiliates
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  closeMobile()
+                  setMcpOpen(true)
+                }}
+              >
+                API / MCP
+              </button>
+              <Link to="/docs" onClick={closeMobile}>
+                Docs
+              </Link>
+            </div>
+
+            <div className="lb-mobile-appearance">
+              <span>Appearance</span>
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </button>
+            </div>
+
+            <div className="lb-mobile-socials">
+              <span>Follow</span>
+              <div>
+                {SOCIALS.map(social => {
+                  const Icon = social.icon
+                  return (
+                    <a
+                      key={social.label}
+                      href={social.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={social.label}
+                      onClick={closeMobile}
+                    >
+                      {Icon ? <Icon size={17} /> : social.label}
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
+
+      {createPortal(
+        <button
+          type="button"
+          className="lb-mobile-scrim"
+          data-open={mobileOpen || undefined}
+          aria-label="Close navigation menu"
+          aria-hidden={!mobileOpen}
+          tabIndex={mobileOpen ? 0 : -1}
+          onClick={closeMobile}
+        />,
+        document.body,
+      )}
 
       <McpModal open={mcpOpen} onClose={() => setMcpOpen(false)} />
     </>

@@ -59,7 +59,7 @@ export const PRODUCTS: ProductEntry[] = [
     ctaLabel: 'Make a launch video',
     eyebrow: 'Product · Launch videos',
     title: 'Launch films, from one sentence.',
-    lede: 'Drop a URL and a line of direction. The agent visits your product, picks the moments worth showing, then narrates, scores and grades a cinematic 1080p launch video — ready for launch day.',
+    lede: 'Drop a URL and a line of direction. The agent visits your product, picks the moments worth showing, then narrates, scores and grades a cinematic 1080p launch video, ready for launch day.',
     points: [
       {
         h: 'Shot on the real product',
@@ -67,7 +67,7 @@ export const PRODUCTS: ProductEntry[] = [
       },
       {
         h: 'Narrated, scored, graded',
-        p: 'A written VO in 40+ languages, a music bed and a colour grade — one pass, one place.',
+        p: 'A written VO in 40+ languages, a music bed and a colour grade. One pass, one place.',
       },
       {
         h: 'Every layer stays editable',
@@ -75,9 +75,9 @@ export const PRODUCTS: ProductEntry[] = [
       },
     ],
     sampleSrc: `${ASSET_BASE}/graphify.mp4`,
-    sampleCaption: 'Graphify — “Make a 70-second launch video on graphify.com”',
+    sampleCaption: 'Graphify: “Make a 70-second launch video on graphify.com”',
     seoDescription:
-      'Give Pitch a URL and a line of direction. An AI agent films your real product and cuts a scored, narrated 1080p launch video in minutes — no recording, no editing.',
+      'Give Pitch a URL and a line of direction. An AI agent films your real product and cuts a scored, narrated 1080p launch video in minutes. No recording, no editing.',
   },
   {
     slug: 'product-demos',
@@ -89,7 +89,7 @@ export const PRODUCTS: ProductEntry[] = [
     ctaLabel: 'Make a product demo',
     eyebrow: 'Product · Product demos',
     title: 'Demos that walk the real flow.',
-    lede: 'Point Pitch at a flow — onboarding, the core loop, a single feature — and it signs in, clicks through it end to end, and narrates each step as a clean demo video.',
+    lede: 'Point Pitch at a flow such as onboarding, the core loop, or a single feature. It signs in, clicks through it end to end, and narrates each step as a clean demo video.',
     points: [
       {
         h: 'It actually uses the product',
@@ -101,11 +101,11 @@ export const PRODUCTS: ProductEntry[] = [
       },
       {
         h: 'Re-shoot on a prompt',
-        p: 'Flow changed? Ask for a re-cut of the affected scene — the rest of the demo stays put.',
+        p: 'Flow changed? Ask for a re-cut of the affected scene. The rest of the demo stays put.',
       },
     ],
     sampleSrc: `${ASSET_BASE}/demo.mp4`,
-    sampleCaption: 'shadcn/ui — a narrated walkthrough of the component workflow',
+    sampleCaption: 'shadcn/ui: a narrated walkthrough of the component workflow',
     seoDescription:
       'Pitch signs into your product, clicks through the real flow end to end, and narrates it as a clean demo video. Point it at onboarding or a single feature and get a shareable walkthrough.',
   },
@@ -118,10 +118,10 @@ export const PRODUCTS: ProductEntry[] = [
     ctaLabel: 'Make an explainer',
     eyebrow: 'Product · Explainers',
     title: 'Make the complex obvious.',
-    lede: 'For the concept that always needs a whiteboard. Pitch builds a tight explainer that frames the problem, shows the product solving it, and lands the point — short enough to drop in a thread.',
+    lede: 'For the concept that always needs a whiteboard. Pitch builds a tight explainer that frames the problem, shows the product solving it, and lands the point. It is short enough to drop in a thread.',
     points: [
       {
-        h: 'Problem → product → payoff',
+        h: 'Problem, product, payoff',
         p: 'A three-beat structure the agent fills with your real screens and a plain-language script.',
       },
       {
@@ -134,9 +134,9 @@ export const PRODUCTS: ProductEntry[] = [
       },
     ],
     sampleSrc: `${ASSET_BASE}/gtmcofounder.mp4`,
-    sampleCaption: 'GTM Cofounder — a 40-second “what it does and why” explainer',
+    sampleCaption: 'GTM Cofounder: a 40-second “what it does and why” explainer',
     seoDescription:
-      'Pitch turns the concept that needs a whiteboard into a tight 30-second explainer — problem, product, payoff — built from your real screens and captioned for the timeline.',
+      'Pitch turns the concept that needs a whiteboard into a tight 30-second explainer covering the problem, product, and payoff. It is built from your real screens and captioned for the timeline.',
   },
   {
     slug: 'pitch-decks',
@@ -147,7 +147,7 @@ export const PRODUCTS: ProductEntry[] = [
     ctaLabel: 'Make a deck',
     eyebrow: 'Product · Pitch decks',
     title: 'Decks, built from your URL.',
-    lede: 'Same agent, a different deliverable. Pitch researches your product and market, then writes and designs a slide deck — investor pitch, sales one-pager, board update — as an editable PDF.',
+    lede: 'Same agent, a different deliverable. Pitch researches your product and market, then writes and designs an investor pitch, sales one-pager, or board update as an editable PDF.',
     points: [
       {
         h: 'Researched, not templated',
@@ -155,16 +155,16 @@ export const PRODUCTS: ProductEntry[] = [
       },
       {
         h: 'Structured like a real pitch',
-        p: 'Problem, solution, market, product, model, ask — with charts and tables where the numbers go.',
+        p: 'Problem, solution, market, product, model, and ask, with charts and tables where the numbers go.',
       },
       {
         h: 'Editable slide by slide',
-        p: 'Every slide stays open in the editor — restyle, reorder or rewrite before you export.',
+        p: 'Every slide stays open in the editor. Restyle, reorder or rewrite before you export.',
       },
     ],
     sampleCaption: 'A 10-slide seed deck generated from a single product URL',
     seoDescription:
-      'Pitch researches your product and market, then writes and designs an editable slide deck — investor pitch, sales one-pager or board update — as a PDF you can still edit slide by slide.',
+      'Pitch researches your product and market, then writes and designs an editable investor pitch, sales one-pager, or board update as a PDF you can still edit slide by slide.',
   },
 ]
 

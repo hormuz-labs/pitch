@@ -36,7 +36,7 @@ export const McpConnect = () => (
         Plug Pitch into your existing agents.
       </h2>
       <p className="lb-sub lb-muted">
-        Call Pitch from Claude, Cursor, ChatGPT or any agent over MCP — it visits the URL, films the
+        Call Pitch from Claude, Cursor, ChatGPT or any agent over MCP. It visits the URL, films the
         demo and hands the file back. It&rsquo;s on the official MCP registry as{' '}
         <code className="lb-mcp-name">{REGISTRY_NAME}</code>.
       </p>
@@ -50,7 +50,7 @@ export const McpConnect = () => (
           Get an API key
         </a>
         <a className="lb-cta" href="/docs">
-          Go to docs <span aria-hidden="true">→</span>
+          Go to docs
         </a>
       </div>
     </div>

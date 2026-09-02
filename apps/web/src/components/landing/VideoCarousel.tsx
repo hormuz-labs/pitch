@@ -64,7 +64,7 @@ export const SLIDES: CoverflowSlide[] = [
 
   {
     src: demoVideo,
-    alt: 'Shadcn UI walkthrough — made with Pitch Demo Video feature',
+    alt: 'Shadcn UI walkthrough made with the Pitch Demo Video feature',
     title: 'Shadcn',
     subtitle: 'Made with Pitch using Demo Video Feature',
     meta: [
@@ -148,7 +148,7 @@ export const VideoCarousel = ({ showHeader = true }: { showHeader?: boolean }) =
           One prompt. Our <StruckEditor /> agent did the rest.
         </h2>
         <p className="landing-hiw-tagline !text-center max-w-xl">
-          Made with Pitch&apos;s Launch Video feature — in under 10 minutes.
+          Made with Pitch&apos;s Launch Video feature in under 10 minutes.
         </p>
       </div>
     )}

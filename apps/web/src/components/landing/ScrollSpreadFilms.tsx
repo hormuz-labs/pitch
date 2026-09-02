@@ -83,13 +83,13 @@ export const ScrollSpreadFilms = () => {
     <section className="lb-band lb-spread" ref={sectionRef} aria-labelledby="films-heading">
       <div className="lb-spread-inner">
         <div className="lb-spread-header lb-wrap" ref={headerRef}>
-          <p className="lb-chy">URL &rarr; film</p>
+          <p className="lb-chy">URL to film</p>
           <h2 id="films-heading" className="lb-h2">
             A sentence in. <i>A film out.</i>
           </h2>
           <p className="lb-sub lb-muted">
-            One URL and a line of direction. Scroll to open the reel &mdash; every clip still
-            carries the brief that made it.
+            One URL and a line of direction. Scroll to open the reel. Every clip still carries the
+            brief that made it.
           </p>
         </div>
 

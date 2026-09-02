@@ -132,7 +132,7 @@ export const LandingView = () => {
   return (
     <>
       <Seo
-        title="Pitch — An agent uses your product, then films the demo"
+        title="Pitch: An agent uses your product, then films the demo"
         description="Give Pitch a URL and a paragraph of direction. An AI agent runs the real flows in a browser, narrates what happened, and cuts a scored 1080p demo video in minutes. No recording. No editing."
         path="/"
       />
@@ -145,7 +145,7 @@ export const LandingView = () => {
         <section className="lb-band lb-hero" aria-labelledby="hero-heading">
           <div className="lb-hero-in">
             <h1 id="hero-heading" className="sr-only">
-              Pitch — an agent that uses your product, then films the demo
+              Pitch, an agent that uses your product, then films the demo
             </h1>
             <div className="lb-wordmark" aria-hidden="true">
               <PitchLogoAnimation
@@ -170,7 +170,7 @@ export const LandingView = () => {
             </div>
 
             <p className="lb-hintrow">
-              First render is on the house — no card. Or{' '}
+              First render is on the house. No card. Or{' '}
               <button
                 type="button"
                 onClick={() => setVideoOpen(true)}
@@ -229,7 +229,7 @@ export const LandingView = () => {
                   className="lb-endcap-link"
                   href="mailto:support@trypitch.co?subject=Pitch%20demo"
                 >
-                  Book a demo <span aria-hidden="true">↗</span>
+                  Book a demo
                 </a>
                 <a href={isSignedIn ? '/dashboard' : '/sign-up'} className="lb-endcap-primary">
                   {isSignedIn ? 'Open dashboard' : 'Get started'}

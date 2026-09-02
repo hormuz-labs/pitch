@@ -7,6 +7,12 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   envDir: '../../',
+  // Dashboard-only dependencies live behind lazy route imports. Pre-bundle
+  // them at startup so opening /dashboard cannot trigger a second optimizer
+  // pass that invalidates module URLs already loaded by the browser.
+  optimizeDeps: {
+    include: ['motion/react', 'react-icons/fi'],
+  },
   build: {
     rollupOptions: {
       output: {

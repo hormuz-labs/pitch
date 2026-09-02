@@ -38,7 +38,7 @@ export const McpModal = ({ open, onClose }: { open: boolean; onClose: () => void
             <p className="lb-chy">MCP · API</p>
             <h2 id="mcp-modal-title">Connect Pitch to your agent</h2>
             <p className="mcp-modal-sub">
-              Call Pitch over the Model Context Protocol — it visits the URL, films the demo and
+              Call Pitch over the Model Context Protocol. It visits the URL, films the demo and
               hands the file back. It&rsquo;s on the official registry as{' '}
               <code className="lb-mcp-name">{REGISTRY_NAME}</code>.
             </p>
@@ -57,7 +57,7 @@ export const McpModal = ({ open, onClose }: { open: boolean; onClose: () => void
             Get an API key
           </a>
           <a className="lb-cta" href="/docs">
-            Go to docs <span aria-hidden="true">→</span>
+            Go to docs
           </a>
         </div>
       </div>

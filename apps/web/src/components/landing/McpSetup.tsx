@@ -61,13 +61,16 @@ const CONTENT: Record<string, { cmd: string; lines: Line[] }> = {
   ${MCP_URL} \\
   --header "Authorization: Bearer pk_your_key"`,
       },
-      { kind: 'ok', text: 'Or add it as a custom connector in claude.ai → Settings → Connectors.' },
+      {
+        kind: 'ok',
+        text: 'Or add it as a custom connector in claude.ai under Settings, then Connectors.',
+      },
     ],
   },
   cursor: {
     cmd: 'connect cursor',
     lines: [
-      { kind: 'step', n: 1, text: 'Add to .cursor/mcp.json (Settings → MCP → New server):' },
+      { kind: 'step', n: 1, text: 'Add to .cursor/mcp.json under Settings, MCP, then New server:' },
       {
         kind: 'code',
         text: `{
@@ -85,7 +88,11 @@ const CONTENT: Record<string, { cmd: string; lines: Line[] }> = {
   chatgpt: {
     cmd: 'connect chatgpt',
     lines: [
-      { kind: 'step', n: 1, text: 'Settings → Connectors → Advanced → Developer mode → Add' },
+      {
+        kind: 'step',
+        n: 1,
+        text: 'Open Settings, Connectors, Advanced, Developer mode, then Add.',
+      },
       { kind: 'step', n: 2, text: 'Paste this URL:' },
       { kind: 'url' },
       { kind: 'step', n: 3, text: 'Auth: custom header  Authorization = Bearer pk_your_key' },
@@ -95,7 +102,7 @@ const CONTENT: Record<string, { cmd: string; lines: Line[] }> = {
   perplexity: {
     cmd: 'connect perplexity',
     lines: [
-      { kind: 'step', n: 1, text: 'Settings → Connectors → Add connector → Custom (MCP)' },
+      { kind: 'step', n: 1, text: 'Open Settings, Connectors, Add connector, then Custom (MCP).' },
       { kind: 'step', n: 2, text: 'Paste this URL:' },
       { kind: 'url' },
       { kind: 'step', n: 3, text: 'Auth header  Authorization = Bearer pk_your_key' },
@@ -107,7 +114,7 @@ const CONTENT: Record<string, { cmd: string; lines: Line[] }> = {
     lines: [
       { kind: 'step', n: 1, text: 'Streamable-HTTP endpoint, bearer-token auth:' },
       { kind: 'url' },
-      { kind: 'ok', text: `On the official MCP registry — add ${REGISTRY_NAME}.` },
+      { kind: 'ok', text: `On the official MCP registry, add ${REGISTRY_NAME}.` },
     ],
   },
   api: {

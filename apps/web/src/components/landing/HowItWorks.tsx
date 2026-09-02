@@ -207,7 +207,7 @@ const EditMock = () => (
     </div>
     <div className="hiw-ed-chat hiw-stagger">
       <p className="hiw-ed-msg hiw-in">Trim the intro to two seconds</p>
-      <p className="hiw-ed-sys hiw-in">Re-cut scene 01 — nothing else changes</p>
+      <p className="hiw-ed-sys hiw-in">Re-cut scene 01. Nothing else changes.</p>
     </div>
   </div>
 )
@@ -253,7 +253,7 @@ const STEPS = [
     n: '02',
     kicker: 'Understanding',
     title: 'Research',
-    body: 'The agent reads your site and brand — real colours, type and tone, plus the flows actually worth showing.',
+    body: 'The agent reads your site and brand: real colours, type and tone, plus the flows actually worth showing.',
     chips: ['Reads your site', 'Pulls brand', 'Finds the flows'],
     Mock: ResearchMock,
     mini: <MiniLine>signed in · walked 6 flows · 240 frames captured</MiniLine>,
@@ -280,7 +280,7 @@ const STEPS = [
     n: '05',
     kicker: 'Iterate',
     title: 'Edit',
-    body: 'Every layer stays editable — swap a voice, trim a scene, restyle a caption. No full re-render, no hallucinated frames.',
+    body: 'Every layer stays editable. Swap a voice, trim a scene, restyle a caption. No full re-render, no hallucinated frames.',
     chips: ['Edit any scene', 'Swap the voice', 'No re-render'],
     Mock: EditMock,
     mini: <MiniVersion tag="V2" note="completely editable" />,
@@ -361,7 +361,7 @@ export const HowItWorks = () => {
           One agent. Idea to finished cut.
         </h2>
         <p className="lb-sub lb-muted">
-          Research, planning, shooting, voiceover, scoring and edit — one pass, one place.
+          Research, planning, shooting, voiceover, scoring and edit. One pass, one place.
         </p>
       </div>
 
@@ -405,7 +405,7 @@ export const HowItWorks = () => {
                       className="lb-cta lb-cta--ghost"
                       href="mailto:support@trypitch.co?subject=Pitch%20demo"
                     >
-                      Book a demo ↗
+                      Book a demo
                     </a>
                     <a className="lb-cta" href="/sign-up">
                       Get started
