@@ -9,7 +9,6 @@ import { LandingFooter } from '../components/LandingFooter'
 import { LandingNav } from '../components/LandingNav'
 import { HowItWorks } from '../components/landing/HowItWorks'
 import { LandingChatInput } from '../components/landing/LandingChatInput'
-import { LandingFaqAccordion } from '../components/landing/LandingFaqAccordion'
 import { McpConnect } from '../components/landing/McpConnect'
 import { ScrollSpreadFilms } from '../components/landing/ScrollSpreadFilms'
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
@@ -202,19 +201,6 @@ export const LandingView = () => {
 
         {/* ── MCP / API — connect to existing agents ───────────── */}
         <McpConnect />
-
-        {/* ── FAQ ──────────────────────────────────────────────── */}
-        <section id="faq" className="lb-band lb-interview" aria-labelledby="faq-heading">
-          <div className="lb-wrap lb-reveal">
-            <p className="lb-chy">FAQ</p>
-            <h2 id="faq-heading" className="lb-h2">
-              Questions.
-            </h2>
-          </div>
-          <div className="lb-wrap">
-            <LandingFaqAccordion />
-          </div>
-        </section>
 
         {/* ── Endcap ───────────────────────────────────────────── */}
         <section className="lb-band lb-endcap">

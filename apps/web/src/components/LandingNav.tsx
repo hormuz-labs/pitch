@@ -4,44 +4,10 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import tabLogoB from '../assets/tabLogoB.svg'
-import tabLogoW from '../assets/tabLogoW.svg'
-import { useTheme } from '../contexts/ThemeContext'
 import { SOCIALS } from './LandingFooter'
 import { McpModal } from './landing/McpModal'
 import { PRODUCTS, ProductGlyph } from './landing/productCatalog'
 import { PitchLogoAnimation } from './PitchLogoAnimation'
-
-const SunIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-  </svg>
-)
-
-const MoonIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-  </svg>
-)
 
 /**
  * "Product" mega-menu — opens on hover / focus / tap. While open the page
@@ -176,7 +142,6 @@ const ProductMenu = () => {
 
 export const LandingNav = () => {
   const { isSignedIn } = useAuth()
-  const { theme, toggle } = useTheme()
   const [mcpOpen, setMcpOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const mobileMenuId = useId()
@@ -227,13 +192,7 @@ export const LandingNav = () => {
       >
         <div className="lb-nav-in">
           <Link to="/" aria-label="Pitch home" className="lb-brand">
-            <img
-              src={theme === 'dark' ? tabLogoW : tabLogoB}
-              alt=""
-              className="lb-brand-mark"
-              width={26}
-              height={26}
-            />
+            <img src={tabLogoB} alt="" className="lb-brand-mark" width={26} height={26} />
             <span className="lb-brand-word">
               {/* static: the hero owns the animated wordmark, the nav is a mark */}
               <PitchLogoAnimation startAnimation={false} loop={false} color="currentColor" />
@@ -275,14 +234,7 @@ export const LandingNav = () => {
               })}
             </div>
 
-            <button
-              type="button"
-              className="lb-theme-toggle lb-theme-toggle--desktop"
-              onClick={toggle}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </button>
+            {/* Theme toggle intentionally hidden while the site is light-only. */}
 
             <Link
               to={isSignedIn ? '/dashboard' : '/sign-up'}
@@ -346,17 +298,7 @@ export const LandingNav = () => {
               </Link>
             </div>
 
-            <div className="lb-mobile-appearance">
-              <span>Appearance</span>
-              <button
-                type="button"
-                onClick={toggle}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              </button>
-            </div>
+            {/* Mobile theme control intentionally hidden while the site is light-only. */}
 
             <div className="lb-mobile-socials">
               <span>Follow</span>

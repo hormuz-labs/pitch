@@ -7,10 +7,8 @@ import { Check, Copy, Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import tabLogoB from '../assets/tabLogoB.svg'
-import tabLogoW from '../assets/tabLogoW.svg'
 import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
 import { Seo } from '../components/Seo'
-import { useTheme } from '../contexts/ThemeContext'
 import { type Block, DOC_PAGES, findPage } from '../docs/pages'
 import '../styles/landing.css'
 import '../styles/landing-broadcast.css'
@@ -21,37 +19,6 @@ const anchor = (text: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
-
-const SunIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-  </svg>
-)
-const MoonIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-  </svg>
-)
 
 const CodeBlock = ({ code, lang }: { code: string; lang?: string }) => {
   const [copied, setCopied] = useState(false)
@@ -146,7 +113,6 @@ const renderBlock = (b: Block, i: number) => {
 }
 
 export const DocsView = ({ slug = '' }: { slug?: string }) => {
-  const { theme, toggle } = useTheme()
   const [navOpen, setNavOpen] = useState(false)
   const [activeId, setActiveId] = useState('')
   const page = findPage(slug)
@@ -189,16 +155,10 @@ export const DocsView = ({ slug = '' }: { slug?: string }) => {
       <div className="lb-root docs-root">
         <header className="docs-top">
           <Link to="/" className="lb-brand docs-brand" aria-label="Pitch home">
-            <img
-              src={theme === 'dark' ? tabLogoW : tabLogoB}
-              alt=""
-              className="lb-brand-mark"
-              width={26}
-              height={26}
-            />
+            <img src={tabLogoB} alt="" className="lb-brand-mark" width={26} height={26} />
             <span className="lb-brand-word">
               <PitchLogoAnimation startAnimation={false} loop={false} color="currentColor" />
-              <span className="lb-brand-by">by Hormuz Labs</span>
+              <span className="lb-brand-by">A Frontier Agent</span>
             </span>
           </Link>
 
@@ -210,14 +170,7 @@ export const DocsView = ({ slug = '' }: { slug?: string }) => {
           </nav>
 
           <div className="docs-top-right">
-            <button
-              type="button"
-              className="lb-theme-toggle"
-              onClick={toggle}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </button>
+            {/* Theme toggle intentionally hidden while docs are light-only. */}
             <Link to="/api-keys" className="lb-cta">
               Get an API key
             </Link>
