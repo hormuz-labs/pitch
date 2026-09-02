@@ -135,6 +135,7 @@ export const AuthView = ({ mode = 'sign-in' }: Props) => {
             <a href="/privacy">Privacy Policy</a>.
           </p>
         </div>
+
         {loading && (
           <div className="auth-connecting" role="status" aria-live="polite">
             <div className="auth-connecting-dialog">

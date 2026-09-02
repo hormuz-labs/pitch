@@ -37,10 +37,16 @@ export const LandingView = () => {
     const lenis = new Lenis({
       autoRaf: false,
       anchors: true,
-      lerp: 0.12,
+      // A restrained lerp keeps long landing-page passes fluid without making
+      // controls feel detached from the wheel or trackpad.
+      lerp: 0.085,
       smoothWheel: true,
-      wheelMultiplier: 0.9,
+      wheelMultiplier: 0.85,
       touchMultiplier: 1,
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      overscroll: true,
+      syncTouch: false,
       respectReducedMotion: true,
     })
     lenisRef.current = lenis
@@ -51,8 +57,23 @@ export const LandingView = () => {
     gsap.ticker.lagSmoothing(0)
 
     const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh())
+    let disposed = false
+    void document.fonts.ready.then(() => {
+      if (disposed) return
+      lenis.resize()
+      ScrollTrigger.refresh()
+    })
+
+    const refreshAfterLoad = () => {
+      lenis.resize()
+      ScrollTrigger.refresh()
+    }
+    window.addEventListener('load', refreshAfterLoad, { once: true })
+
     return () => {
+      disposed = true
       cancelAnimationFrame(refreshFrame)
+      window.removeEventListener('load', refreshAfterLoad)
       gsap.ticker.remove(update)
       gsap.ticker.lagSmoothing(500, 33)
       lenis.off('scroll', ScrollTrigger.update)

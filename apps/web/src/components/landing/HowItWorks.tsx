@@ -8,10 +8,93 @@
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useEffect, useRef, useState } from 'react'
+import agentPipelineUrl from './Agent Pipeline v2.dc.html?url'
 
 gsap.registerPlugin(ScrollTrigger)
 
 const cx = (...c: (string | false)[]) => c.filter(Boolean).join(' ')
+
+const PIPELINE_CROP_WIDTH = 560
+const PIPELINE_CROP_HEIGHT = 455
+
+type DcFrameWindow = Window & {
+  __dcSetProps?: (name: string, props: Record<string, unknown>) => void
+}
+
+/**
+ * The supplied DC composition includes its own right-hand copy. This viewport
+ * deliberately crops to the animated pipeline on the left; the page's native
+ * scrollytelling column remains the accessible source of step content.
+ */
+const AgentPipelineFrame = ({ active }: { active: number }) => {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const [scale, setScale] = useState(0.82)
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+
+    const resize = () => setScale(viewport.clientWidth / PIPELINE_CROP_WIDTH)
+    resize()
+    const observer = new ResizeObserver(resize)
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    let retry: ReturnType<typeof setTimeout> | undefined
+    let attempts = 0
+
+    const syncStep = () => {
+      const frame = frameRef.current
+      const frameWindow = frame?.contentWindow as DcFrameWindow | null
+      const frameDocument = frame?.contentDocument
+      if (!frameWindow?.__dcSetProps || !frameDocument) {
+        if (attempts++ < 80) retry = setTimeout(syncStep, 100)
+        return
+      }
+
+      frameWindow.__dcSetProps('Root', { autoplay: false, speed: 1 })
+      requestAnimationFrame(() => {
+        const bars = Array.from(frameDocument.querySelectorAll<HTMLElement>('div')).filter(
+          element => element.style.cursor === 'pointer' && element.style.height === '2px',
+        )
+        bars[active]?.click()
+      })
+    }
+
+    const onBoot = (event: MessageEvent) => {
+      if (event.source === frameRef.current?.contentWindow && event.data?.type === '__dc_booted') {
+        syncStep()
+      }
+    }
+
+    window.addEventListener('message', onBoot)
+    syncStep()
+    return () => {
+      window.removeEventListener('message', onBoot)
+      if (retry) clearTimeout(retry)
+    }
+  }, [active])
+
+  return (
+    <div
+      className="lb-hiw-pipeline-viewport"
+      ref={viewportRef}
+      style={{ height: PIPELINE_CROP_HEIGHT * scale }}
+    >
+      <iframe
+        ref={frameRef}
+        className="lb-hiw-pipeline-frame"
+        src={agentPipelineUrl}
+        title="Agent pipeline animation"
+        tabIndex={-1}
+        style={{ transform: `scale(${scale})` }}
+      />
+    </div>
+  )
+}
 
 /* ── left panels ─────────────────────────────────────────────── */
 
@@ -284,28 +367,9 @@ export const HowItWorks = () => {
 
       <div className="lb-wrap lb-hiw-grid">
         <div className="lb-hiw-stage" aria-hidden="true">
-          {STEPS.map((s, i) => (
-            <div key={s.n} className={cx('lb-hiw-visual', i === active && 'is-active')}>
-              <div className="lb-hiw-visual-in">
-                <div className="hiw-stage-meta">
-                  <span>
-                    <i /> agent pipeline
-                  </span>
-                  <span>
-                    {s.n} / {String(STEPS.length).padStart(2, '0')}
-                  </span>
-                </div>
-                <div className="hiw-stage-card">
-                  <s.Mock />
-                </div>
-                <div className="lb-hiw-dots">
-                  {STEPS.map((x, j) => (
-                    <i key={x.n} className={cx(j <= active && 'is-on')} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
+          <div className="lb-hiw-visual is-active">
+            <AgentPipelineFrame active={active} />
+          </div>
         </div>
 
         <ol className="lb-hiw-steps">
