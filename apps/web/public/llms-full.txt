@@ -1,0 +1,766 @@
+# Pitch developer documentation
+
+> Pitch turns a product URL into a finished video. An AI agent opens a real browser, walks through
+> the product, writes the script, records the screen, and renders an MP4. The same engine builds
+> slide decks and cleans up screen recordings you already have.
+>
+> There are two ways in: an MCP server for AI agents, and a REST API for your own code. Both take
+> the same API key and spend from the same credit balance.
+>
+> This file is the full developer documentation in one place. The same content, paginated, is at
+> https://trypitch.co/docs
+
+Base URL:      https://api.trypitch.co
+MCP endpoint:  https://api.trypitch.co/mcp
+MCP registry:  co.trypitch/pitch
+API keys:      https://trypitch.co/api-keys
+OpenAPI spec:  https://trypitch.co/openapi.json
+Support:       support@trypitch.co
+
+
+================================================================================
+OVERVIEW
+================================================================================
+
+Two surfaces, one key.
+
+                MCP                                REST
+Endpoint        POST /mcp                          /v1/*
+Use it when     an AI agent decides what to make   your code already knows
+Shape           JSON-RPC tool calls                plain HTTP and JSON
+Set up in       Claude, Cursor, ChatGPT, Perplexity  curl, any HTTP client
+
+What you can make
+
+  Output          What it is                                          Credits
+  Demo video      the agent drives your live product and narrates     3
+  Launch video    a scripted, scored, cinematic film                  6 to 13
+  Deck            a slide deck written and designed from a topic      1
+  Deck enhance    a redesign of a PDF or PPTX you upload              1
+  Recording edit  a cut of a screen recording you already made        2
+
+How a job runs
+
+Every output is a job. You create it, we queue it, a worker picks it up. Creating a job returns
+right away with an id. The work takes minutes, not milliseconds, so you poll for the result.
+
+  create  ->  PENDING  ->  PROCESSING  ->  COMPLETED
+                                \
+                                 ->  FAILED
+
+Credits come off the balance when the job is created, not when it finishes. If we fail to queue it,
+we refund and mark it failed in the same step.
+
+
+================================================================================
+GETTING STARTED
+================================================================================
+
+1. Create an API key
+
+Go to https://trypitch.co/api-keys and press Create key. Pitch keys start with pk_.
+
+The full key is shown once. We store only its SHA-256 hash, so we cannot show it to you again or
+recover it. Copy it somewhere safe. If you lose it, revoke it and make a new one.
+
+The key acts as the user who made it. Jobs it creates belong to that user and spend that user's
+credits.
+
+2. Check your credits
+
+  curl https://api.trypitch.co/v1/credits \
+    -H "Authorization: Bearer pk_your_key"
+
+  {
+    "balance": 42,
+    "plan": "pro",
+    "transactions": [ ... ]
+  }
+
+A demo video costs 3 credits. If the balance is short, job creation fails with
+402 insufficient_credits and nothing is charged.
+
+3. Create a job
+
+  curl -X POST https://api.trypitch.co/v1/videos \
+    -H "Authorization: Bearer pk_your_key" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "url": "https://trypitch.co",
+      "instructions": "Walk through sign-up and the first render. Keep it under 60 seconds."
+    }'
+
+It answers 202 Accepted as soon as the job is queued.
+
+  {
+    "id": "cm4x8k2p90001abcd",
+    "type": "video",
+    "status": "PENDING",
+    "progress": 0,
+    "cost": 0,
+    "videoUrl": null,
+    "createdAt": "2026-09-02T10:14:03.221Z"
+  }
+
+4. Poll for the result
+
+Ask for the job every few seconds until it stops being PENDING or PROCESSING. Ten seconds is a good
+interval. Most videos land in a few minutes.
+
+  curl https://api.trypitch.co/v1/jobs/cm4x8k2p90001abcd \
+    -H "Authorization: Bearer pk_your_key"
+
+  {
+    "id": "cm4x8k2p90001abcd",
+    "type": "video",
+    "status": "COMPLETED",
+    "progress": 100,
+    "cost": 3,
+    "videoUrl": "https://s3.trypitch.co/pitch/.../final.mp4",
+    "thumbnailUrl": "https://s3.trypitch.co/pitch/.../thumb.jpg",
+    "shareUrl": null,
+    "error": null
+  }
+
+Download videoUrl and you are done.
+
+The same thing in Node
+
+  const KEY = process.env.PITCH_API_KEY
+  const api = (path, init) =>
+    fetch("https://api.trypitch.co" + path, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${KEY}`,
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    }).then(async r => {
+      const body = await r.json()
+      if (!r.ok) throw new Error(body.error?.message ?? r.statusText)
+      return body
+    })
+
+  const job = await api("/v1/videos", {
+    method: "POST",
+    body: JSON.stringify({ url: "https://trypitch.co" }),
+  })
+
+  let state = job
+  while (state.status === "PENDING" || state.status === "PROCESSING") {
+    await new Promise(r => setTimeout(r, 10_000))
+    state = await api(`/v1/jobs/${job.id}`)
+  }
+
+  if (state.status === "FAILED") throw new Error(state.error)
+  console.log(state.videoUrl)
+
+
+================================================================================
+AI AGENTS (MCP)
+================================================================================
+
+The server speaks the Model Context Protocol over Streamable HTTP. It is listed on the official MCP
+registry as co.trypitch/pitch.
+
+  Endpoint        POST https://api.trypitch.co/mcp
+  Transport       Streamable HTTP, stateless
+  Auth            Authorization: Bearer pk_...
+  Registry name   co.trypitch/pitch
+
+Stateless means every request stands alone. There is no session id and no server-sent stream to
+hold open. GET and DELETE on /mcp return 405 Method Not Allowed on purpose.
+
+Claude
+
+  claude mcp add --transport http pitch \
+    https://api.trypitch.co/mcp \
+    --header "Authorization: Bearer pk_your_key"
+
+In claude.ai: Settings, then Connectors, then Add custom connector.
+
+Cursor
+
+Settings, then MCP, then New server. Or edit .cursor/mcp.json:
+
+  {
+    "mcpServers": {
+      "pitch": {
+        "url": "https://api.trypitch.co/mcp",
+        "headers": { "Authorization": "Bearer pk_your_key" }
+      }
+    }
+  }
+
+ChatGPT
+
+Settings, then Connectors, then Advanced, then Developer mode, then Add.
+
+  URL     https://api.trypitch.co/mcp
+  Header  Authorization: Bearer pk_your_key
+
+The same connector works from the Responses and Agents APIs.
+
+Perplexity
+
+Settings, then Connectors, then Add connector, then Custom (MCP). Paste the endpoint and set the
+auth header. The same setup works in Comet and the Perplexity API.
+
+Any other client
+
+If a client speaks Streamable HTTP and lets you set a header, it works.
+
+  curl -X POST https://api.trypitch.co/mcp \
+    -H "Authorization: Bearer pk_your_key" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    -d '{ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }'
+
+Most clients need the Accept header to include both application/json and text/event-stream. The MCP
+SDK sets this for you.
+
+Telling the agent how to behave
+
+Agents tend to call a create tool and then stop, because the job is not finished yet. Put something
+like this in your system prompt:
+
+  When you use Pitch:
+  - Call get_credits before a create tool so you know the job can pay for itself.
+  - A create tool returns a jobId. The video is not ready at that point.
+  - Poll get_job every 10 seconds until status is COMPLETED or FAILED.
+  - On COMPLETED, give the user videoUrl or pdfUrl.
+  - On FAILED, read the error field and say what went wrong.
+  - Never call a create tool twice for the same request.
+
+That last line matters. Every create tool spends credits at once, so a retried call is a second
+charge, not a resumed job.
+
+
+================================================================================
+AUTHENTICATION
+================================================================================
+
+Getting a key
+
+Sign in and open https://trypitch.co/api-keys. Press Create key, give it a name, and copy the value.
+Keys look like pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+
+We store a SHA-256 hash of the key and the first 12 characters, nothing else. That prefix is what
+you see in the list, so you can tell keys apart without us keeping the secret.
+
+Sending it
+
+Use a bearer token. This is the form to prefer everywhere.
+
+  Authorization: Bearer pk_your_key
+
+Some MCP clients only let you set a plain header with a plain value. For those, this also works:
+
+  X-API-Key: pk_your_key
+
+The two are equivalent. If both are present, Authorization wins.
+
+What a key can do
+
+A key acts as the user who created it. There are no scopes and no per-key limits yet. Anything that
+user can do in the app, the key can do through the API, and every credit it spends lands in that
+user's ledger next to their browser usage.
+
+Revoking
+
+Press Revoke on the keys page. It takes effect on the next request. Revoked keys stay in the list so
+you can see what was in use and when it was last used.
+
+Jobs already running under a revoked key keep running. Revoking stops new requests, it does not
+cancel work in flight.
+
+Keeping keys safe
+
+  - Put keys in environment variables, never in source control.
+  - Never ship a key to a browser or a mobile app. Call Pitch from your server.
+  - Use one key per system, so you can revoke one without breaking the rest.
+  - Rotate by making the new key first, switching over, then revoking the old one.
+
+When auth fails
+
+A missing, unknown, or revoked key returns 401 on both surfaces.
+
+  { "error": { "code": "unauthorized", "message": "Invalid or revoked API key" } }
+
+There is no way to tell those three cases apart from the response, on purpose.
+
+
+================================================================================
+CREDITS
+================================================================================
+
+What things cost
+
+  Job type        REST                        MCP tool               Credits
+  Demo video      POST /v1/videos             create_demo_video      3
+  Launch video    POST /v1/launch-videos      create_launch_video    6 to 13
+  Deck            POST /v1/decks              create_pdf             1
+  Deck enhance    POST /v1/decks/enhance      enhance_presentation   1
+  Recording edit  POST /v1/recordings/edit    edit_recording         2
+  Any read        GET /v1/*                   get_*                  free
+
+Launch video pricing
+
+Launch videos are the one variable price. The resolution sets the base, and narration adds one
+credit on top, because a narrated film needs a script and a voiceover clip per scene.
+
+  Resolution        Narrated (default)   Music only
+  720p              6                    5
+  1080p (default)   9                    8
+  4K                13                   12
+
+If you send no resolution, you get 1080p and pay 9. An unrecognised value also falls back to 1080p
+rather than the cheapest tier, so a typo can never underpay.
+
+Reading the balance
+
+  curl https://api.trypitch.co/v1/credits -H "Authorization: Bearer pk_your_key"
+
+  {
+    "balance": 42,
+    "plan": "pro",
+    "transactions": [
+      { "amount": -3, "reason": "Video generation", "jobId": "cm4x...", "createdAt": "..." },
+      { "amount": 50, "reason": "Subscription renewal", "createdAt": "..." }
+    ]
+  }
+
+The balance is the sum of the ledger, not a stored counter. transactions returns the 20 most recent
+entries, newest first. Negative amounts are spend, positive are top-ups and refunds.
+
+Checking a price first
+
+  curl https://api.trypitch.co/v1/pricing
+
+  {
+    "video": 3,
+    "deck": 1,
+    "deck.enhance": 1,
+    "recording.edit": 2,
+    "launch_video": {
+      "default": 9,
+      "byResolution": {
+        "720p":  { "narrated": 6,  "musicOnly": 5 },
+        "1080p": { "narrated": 9,  "musicOnly": 8 },
+        "4k":    { "narrated": 13, "musicOnly": 12 }
+      }
+    }
+  }
+
+This endpoint needs no key.
+
+When you run out
+
+We check the balance before creating anything. If it is short, the request fails with 402, no job is
+made, and nothing is charged.
+
+  {
+    "error": {
+      "code": "insufficient_credits",
+      "message": "Not enough credits. Balance is 2. Buy more at https://trypitch.co/pricing.",
+      "balance": 2
+    }
+  }
+
+Over MCP the same case comes back as a tool error whose text carries the balance.
+
+Refunds
+
+Credits come off as soon as the job row is written. If the queue is unreachable at that moment, we
+mark the job FAILED and put the exact amount back in the same step, so a broken queue never silently
+eats credits.
+
+A job that fails while a worker is running it is not refunded automatically. Email
+support@trypitch.co if a job failed for a reason on our side.
+
+Credits never expire.
+
+
+================================================================================
+FILES AND UPLOADS
+================================================================================
+
+Two jobs take a file you already have. Send it base64-encoded in the JSON body. There is no separate
+upload step and no multipart form. This keeps MCP and REST identical, since an MCP tool call cannot
+carry a multipart body.
+
+Limits
+
+  Job                                  Max size   Accepted
+  Deck enhance    POST /v1/decks/enhance      50 MB     .pdf .pptx
+  Recording edit  POST /v1/recordings/edit   500 MB     .mp4 .webm .mov .mkv .avi
+
+Sizes are measured after decoding. Base64 is about a third larger than the raw file, so a 500 MB
+video is roughly a 667 MB request body. The type is read from the extension in fileName, not from
+the bytes.
+
+Sending a file
+
+  curl -X POST https://api.trypitch.co/v1/decks/enhance \
+    -H "Authorization: Bearer pk_your_key" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -n --arg f "$(base64 -w0 deck.pdf)" \
+      '{ fileBase64: $f, fileName: "deck.pdf", mode: "recreate" }')"
+
+In Node:
+
+  import { readFile } from "node:fs/promises"
+  const file = await readFile("recording.mp4")
+
+  await fetch("https://api.trypitch.co/v1/recordings/edit", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.PITCH_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fileBase64: file.toString("base64"),
+      fileName: "recording.mp4",
+      productName: "Acme",
+      productUrl: "https://acme.com",
+      instructions: "Cut the dead air at the start. Add intro and outro cards.",
+    }),
+  })
+
+What happens to your file
+
+We decode it to a temp file, check the extension and size, upload it to object storage, and delete
+the temp copy. The stored input is what the worker reads. Output files live in the same bucket and
+are served over HTTPS.
+
+Assets for a demo video
+
+Demo videos take assets differently. You pass assets, an array of public URLs to PDFs or images, and
+we fetch them.
+
+  { "url": "https://trypitch.co", "assets": ["https://example.com/brand-guide.pdf"] }
+
+Passing assets changes the flow. The job plans first and stops at AWAITING_REVIEW so a human can
+approve the plan in the app before it records. Scripts that expect a video to appear on its own will
+hang.
+
+Errors
+
+  413  payload_too_large        the decoded file is over the limit for that job
+  415  unsupported_media_type   the extension is not in the accepted list
+  400  invalid_request          the base64 decoded to nothing
+
+
+================================================================================
+POLLING JOBS
+================================================================================
+
+Statuses
+
+  PENDING           queued, no worker has picked it up yet          keep polling
+  PROCESSING        a worker is on it                               keep polling
+  AWAITING_REVIEW   planning done, a human must approve in the app  stop, it will not move
+  COMPLETED         done, the result URL is populated               stop
+  FAILED            something broke, error says what                stop
+
+AWAITING_REVIEW only happens on a demo video created with assets. If your script does not handle it,
+it will poll forever. Treat it as terminal and tell the user to approve the plan in the dashboard.
+
+How often
+
+Every 10 seconds is right. Faster does not make the render faster. Demo videos usually finish in a
+few minutes, launch videos take longer because they run a full recon, script, build, and mix pass.
+
+A loop that handles every case
+
+  const TERMINAL = ["COMPLETED", "FAILED", "AWAITING_REVIEW"]
+
+  async function waitFor(jobId, { intervalMs = 10_000, timeoutMs = 30 * 60_000 } = {}) {
+    const deadline = Date.now() + timeoutMs
+
+    while (Date.now() < deadline) {
+      const res = await fetch(`https://api.trypitch.co/v1/jobs/${jobId}`, {
+        headers: { Authorization: `Bearer ${process.env.PITCH_API_KEY}` },
+      })
+
+      // Transient. Wait and try again rather than giving up on the job.
+      if (res.status >= 500) {
+        await sleep(intervalMs)
+        continue
+      }
+      if (!res.ok) throw new Error((await res.json()).error.message)
+
+      const job = await res.json()
+      if (TERMINAL.includes(job.status)) return job
+
+      await sleep(intervalMs)
+    }
+
+    throw new Error(`Job ${jobId} did not finish in time`)
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+Progress
+
+progress is a number from 0 to 100. It is a weighted sum of finished phases, not a time estimate, so
+it moves in jumps. phases lists what the worker is doing.
+
+  {
+    "status": "PROCESSING",
+    "progress": 70,
+    "phases": [
+      { "phase": "workspace_init",        "label": "Workspace Initialization", "status": "completed" },
+      { "phase": "video_recording",       "label": "Video Recording",          "status": "completed" },
+      { "phase": "ffmpeg_postprocessing", "label": "FFmpeg Post-Processing",   "status": "running"   },
+      { "phase": "intro_outro",           "label": "Intro & Outro Cards",      "status": "pending"   }
+    ]
+  }
+
+Different job types run different phases. Do not hardcode the list, read the labels.
+
+Where the result lands
+
+  video           videoUrl
+  launch_video    videoUrl
+  recording.edit  videoUrl
+  deck            pdfUrl
+  deck.enhance    pdfUrl
+
+Videos also get a thumbnailUrl. shareUrl is set only if someone turned on sharing for that job in
+the app.
+
+Listing jobs
+
+  curl "https://api.trypitch.co/v1/jobs?type=video&limit=10" \
+    -H "Authorization: Bearer pk_your_key"
+
+Launch video detail
+
+Launch videos are also projects, addressed by the name you gave them. Once the worker has built the
+workspace you can read the scene breakdown, which is more useful than a percentage.
+
+  curl https://api.trypitch.co/v1/launch-videos/acme-launch \
+    -H "Authorization: Bearer pk_your_key"
+
+  {
+    "name": "acme-launch",
+    "hasVideo": true,
+    "videoUrl": "https://s3.trypitch.co/renders/acme-launch-launch.mp4",
+    "sceneCount": 5,
+    "duration": 58.4,
+    "scenes": [
+      { "id": "s1", "index": 1, "start": 0, "end": 6.2, "dur": 6.2, "vo": "Meet Acme.", "draftUrl": null }
+    ]
+  }
+
+
+================================================================================
+ERRORS
+================================================================================
+
+Every REST failure has the same shape and a stable code. Match on the code, not the message.
+
+  {
+    "error": {
+      "code": "insufficient_credits",
+      "message": "Not enough credits. Balance is 2. Buy more at https://trypitch.co/pricing.",
+      "balance": 2
+    }
+  }
+
+code and message are always present. Some codes add a field, like balance above. Messages are
+written for people and may change. Codes will not.
+
+Codes
+
+  400  invalid_request         a field is missing, the wrong type, or out of range. The message
+                               names the field. Fix the body, retrying will not help.
+  401  unauthorized            the key is missing, unknown, or revoked.
+  402  insufficient_credits    the balance cannot cover the job. Nothing was created or charged.
+                               Top up, then retry the same request.
+  404  not_found               no job or project with that id, or it belongs to someone else.
+  413  payload_too_large       the decoded file is over the limit.
+  415  unsupported_media_type  the extension is not accepted for that job.
+  500  internal_error          something broke on our side. Retry with backoff.
+
+What is safe to retry
+
+There are no idempotency keys yet, so a retried create is a second job and a second charge. Retry
+writes only when you never got a response at all, and check the job list first.
+
+  GET                              yes, always safe
+  400, 401, 402, 404, 413, 415     no, fix the cause first
+  500 on a read                    yes, with backoff
+  500 on a create                  check GET /v1/jobs first, the job may exist
+  no response, timeout             same, list jobs before firing again
+
+Job failure is not an HTTP error
+
+A job that fails while rendering still returns 200. The failure is in the body.
+
+  {
+    "id": "cm4x8k2p90001abcd",
+    "status": "FAILED",
+    "error": "Navigation timed out after 30s: https://example.com is unreachable",
+    "videoUrl": null
+  }
+
+Common causes: the URL is behind a login, blocked our browser, or was down. Sites that need a
+sign-in cannot be demoed from a public URL alone.
+
+Errors over MCP
+
+MCP has no status codes. A failed tool call returns a normal result with isError: true and the
+message as text, so the agent can read it and react.
+
+  {
+    "isError": true,
+    "content": [
+      { "type": "text", "text": "Insufficient credits: your current balance is 2. Buy more at https://trypitch.co/pricing, then retry." }
+    ]
+  }
+
+A bad key is the exception. That fails before MCP is reached, so the client sees a plain 401 and
+usually reports the server as unreachable.
+
+
+================================================================================
+REST API REFERENCE
+================================================================================
+
+  Base URL          https://api.trypitch.co
+  Auth              Authorization: Bearer pk_...
+  Content type      application/json
+  Create response   202 Accepted with a job object
+
+The job object
+
+  id            string          use it to poll
+  type          string          video | launch_video | deck | deck.enhance | recording.edit
+  status        string          PENDING | PROCESSING | AWAITING_REVIEW | COMPLETED | FAILED
+  progress      number          0 to 100
+  cost          number          credits charged, 0 until the worker settles it
+  videoUrl      string | null   set when a video job completes
+  pdfUrl        string | null   set when a deck job completes
+  thumbnailUrl  string | null   poster frame for videos
+  shareUrl      string | null   only if sharing was turned on in the app
+  error         string | null   set when status is FAILED
+  phases        array           phase, label, status
+  createdAt     string          ISO 8601
+  updatedAt     string          ISO 8601
+
+POST /v1/videos          3 credits
+
+  url            string    required   public product URL
+  instructions   string    optional   what to show, tone, length
+  script         string    optional   your own narration, one is written if omitted
+  voice          string    optional   voice id
+  assets         string[]  optional   public URLs to PDFs or images. Triggers AWAITING_REVIEW
+
+POST /v1/launch-videos   6 to 13 credits
+
+  name           string    required   project name, unique per user. No / or \, no leading dot
+  prompt         string    required   creative brief: product, audience, tone, length
+  music          string    optional   track filename from the shared library
+  resolution     string    optional   720p | 1080p (default) | 4k. Sets the price
+  narration      boolean   optional   default true. False saves 1 credit
+
+POST /v1/decks           1 credit
+
+  topic          string    required
+  instructions   string    optional
+
+POST /v1/decks/enhance   1 credit, max 50 MB, .pdf .pptx
+
+  fileBase64     string    required   base64 of the file
+  fileName       string    required   the extension decides the type
+  mode           string    optional   recreate (default) rebuilds it, preserve keeps the layout
+  enhancePrompt  string    optional   what to change
+  slideCount     number    optional   target slide count in recreate mode
+
+POST /v1/recordings/edit  2 credits, max 500 MB, .mp4 .webm .mov .mkv .avi
+
+  fileBase64     string    required   base64 of the video
+  fileName       string    required   the extension decides the type
+  productName    string    optional   used on the intro card
+  productUrl     string    optional   used on the outro card
+  instructions   string    optional   guidance for the editor
+
+GET /v1/jobs             free
+
+  type   query   video | launch_video | deck | deck.enhance | recording.edit
+  limit  query   default 50, max 100
+
+  { "data": [ { "id": "cm4x...", "type": "video", "status": "COMPLETED", ... } ], "total": 37 }
+
+GET /v1/jobs/{id}        free. 404 if it does not exist or is not yours.
+
+GET /v1/launch-videos    free
+
+  { "data": [ { "name": "acme-launch", "hasVideo": true, "videoUrl": "...", "sceneCount": 5 } ] }
+
+GET /v1/launch-videos/{name}  free. One project with its scene breakdown.
+
+GET /v1/credits          free. Balance, plan, and the 20 most recent ledger entries.
+
+GET /v1/pricing          free, no key. Current credit prices.
+
+Not there yet
+
+Being straight about the edges: there are no webhooks, so you have to poll. There are no idempotency
+keys, so a retried create is a second charge. There is no cursor pagination on job lists, only a
+limit. There is no way to cancel a running job through the API. Email support@trypitch.co if you
+need one of these.
+
+
+================================================================================
+MCP TOOLS REFERENCE
+================================================================================
+
+Every tool returns a JSON string in a text block. Create tools return { "jobId", "status" }. Read
+tools return the object. On failure the result has isError: true.
+
+create_demo_video        3 credits
+  url            string    required
+  instructions   string    optional
+  script         string    optional
+  voice          string    optional
+  assets         string[]  optional
+
+create_launch_video      6 to 13 credits
+  name           string    required   project name, unique per user
+  prompt         string    required   creative brief
+  music          string    optional   track from the shared library
+  resolution     string    optional   720p | 1080p | 4k
+  narration      boolean   optional   default true
+
+create_pdf               1 credit
+  topic          string    required
+  instructions   string    optional
+
+enhance_presentation     1 credit, max 50 MB
+  fileBase64     string    required
+  fileName       string    required
+  mode           string    optional   recreate | preserve
+  enhancePrompt  string    optional
+  slideCount     number    optional
+
+edit_recording           2 credits, max 500 MB
+  fileBase64     string    required
+  fileName       string    required
+  productName    string    optional
+  productUrl     string    optional
+  instructions   string    optional
+
+get_job                  free. Takes jobId. This is what the agent polls.
+
+list_jobs                free. Optional type: video | pdf | enhance | edit-recording.
+                         Note these are the older internal names and differ from the REST ones.
+                         REST uses deck where MCP uses pdf.
+
+get_launch_video         free. Takes name. Scenes, durations, and the render URL when ready.
+
+list_launch_videos       free. All launch video projects for the key owner.
+
+get_credits              free. Balance, subscription, and transactions. Call it before a create tool.

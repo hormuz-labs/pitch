@@ -47,6 +47,26 @@ model UserProfile {
   apiKeys            ApiKey[]
   webhookEndpoints   WebhookEndpoint[]
   webhookDeliveries  WebhookDelivery[]
+  onboardingSurvey   OnboardingSurvey?
+}
+
+// One immutable onboarding response per Clerk user. The unique userId is the
+// server-side guarantee that the survey can only be completed once.
+model OnboardingSurvey {
+  id               String      @id @default(cuid())
+  userId           String      @unique
+  creationGoal     String
+  role             String
+  teamSize         String
+  monthlyVolume    String
+  discoverySource  String
+  completedAt      DateTime    @default(now())
+
+  userProfile UserProfile @relation(fields: [userId], references: [id])
+
+  @@index([completedAt])
+  @@deny('all', auth() == null)
+  @@allow('all', userId == auth().id)
 }
 
 // ── ApiKey (MCP / programmatic access) ────────────────────────────────────────

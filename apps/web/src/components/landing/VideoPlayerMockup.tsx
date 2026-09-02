@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
-import demoVideo from '../../assets/demo.mp4'
 import thumbnail from '../../assets/demo-thumbnail.jpg'
+import { carouselAsset } from './carouselAssets'
+
+const demoVideo = carouselAsset('demo.mp4')
 
 export const VideoPlayerMockup = () => {
   const [hasStarted, setHasStarted] = useState(false)

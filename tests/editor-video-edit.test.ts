@@ -3,6 +3,9 @@ import { createElement } from '../apps/web/node_modules/react'
 import { renderToStaticMarkup } from '../apps/web/node_modules/react-dom/server'
 import { MemoryRouter, Route, Routes } from '../apps/web/node_modules/react-router-dom'
 
+// Needs @clerk/react in test.server.deps.inline (vitest.config.ts): vitest
+// cannot intercept a module Vite externalises, and without the mock EditorView's
+// useAuth throws for want of a <ClerkProvider>.
 vi.mock('@clerk/react', () => ({ useAuth: () => ({ getToken: vi.fn() }) }))
 
 import type { Project } from '../apps/web/src/types'

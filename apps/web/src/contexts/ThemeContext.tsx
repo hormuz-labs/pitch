@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -10,13 +10,16 @@ interface ThemeCtx {
 const ThemeContext = createContext<ThemeCtx | null>(null)
 
 const STORAGE_KEY = 'pitch-theme'
+const LIGHT_THEME: Theme = 'light'
+const noThemeToggle = () => {}
+const lightThemeContext: ThemeCtx = { theme: LIGHT_THEME, toggle: noThemeToggle }
 
 function getInitial(): Theme {
-  return 'light'
+  return LIGHT_THEME
 }
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>(getInitial)
+  const theme = getInitial()
 
   // Apply to <html> so all pages inherit via data-theme
   useEffect(() => {
@@ -26,11 +29,9 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     } catch {}
   }, [theme])
 
-  const toggle = useCallback(() => {
-    setTheme(t => (t === 'dark' ? 'light' : 'dark'))
-  }, [])
-
-  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>
+  // Dark mode is intentionally disabled. Keep the context API stable for any
+  // older consumers while making the public experience light-only.
+  return <ThemeContext.Provider value={lightThemeContext}>{children}</ThemeContext.Provider>
 }
 
 export const useTheme = () => {

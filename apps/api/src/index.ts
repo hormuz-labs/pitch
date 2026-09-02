@@ -16,6 +16,7 @@ import { router as affiliateRoutes, redirectRouter } from './routes/affiliate.js
 import { router as apiKeyRoutes } from './routes/api-keys.js'
 import { router as browserRoutes } from './routes/browser.js'
 import { router as checkoutRoutes } from './routes/checkout.js'
+import { router as clerkWebhookRoutes } from './routes/clerk-webhooks.js'
 import { router as creditRoutes } from './routes/credits.js'
 import { router as editJobRoutes } from './routes/edit-jobs.js'
 import { router as enhanceJobRoutes } from './routes/enhance-jobs.js'
@@ -27,6 +28,7 @@ import { router as pdfJobRoutes } from './routes/pdf-jobs.js'
 import { shareRouter } from './routes/share.js'
 import { router as uploadRoutes } from './routes/uploads.js'
 import { router as userRoutes } from './routes/users.js'
+import { router as v1Routes } from './routes/v1.js'
 import { router as webhookRoutes } from './routes/webhooks.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -43,13 +45,19 @@ const logger = createLogger('api')
 
 export const app = express()
 
-// Dodo webhook needs raw body — must come before express.json()
+// Clerk and Dodo webhooks need their untouched request bodies and must mount
+// before express.json() and Clerk's session middleware.
+app.use('/webhooks/clerk', clerkWebhookRoutes)
 app.use('/webhooks', webhookRoutes)
 
 // MCP endpoint: API-key auth (Clerk must never see these Bearer tokens) and
 // base64 file uploads that exceed the default JSON limit, so it mounts with
 // its own parser before the global express.json() and clerkMiddleware().
 app.use('/mcp', express.json({ limit: '750mb' }), mcpRoutes)
+
+// Public REST API. Same API-key auth and same base64 upload ceiling as /mcp, so
+// it mounts alongside it, ahead of Clerk.
+app.use('/v1', cors({ origin: true }), express.json({ limit: '750mb' }), v1Routes)
 
 app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: true, credentials: true }))

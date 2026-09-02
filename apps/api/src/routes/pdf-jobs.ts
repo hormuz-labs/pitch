@@ -8,7 +8,11 @@ import {
 } from '@saas/shared'
 import { Router } from 'express'
 import { connection, videoQueue } from '../config.js'
-import { createPdfJob, InsufficientCreditsError } from '../lib/job-service.js'
+import {
+  createPdfJob,
+  InsufficientCreditsError,
+  OnboardingRequiredError,
+} from '../lib/job-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api:pdf')
@@ -41,6 +45,8 @@ router.post('/', async (req, res) => {
     if (error instanceof InsufficientCreditsError) {
       return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
     }
+    if (error instanceof OnboardingRequiredError)
+      return res.status(428).json({ error: error.message })
     logger.error({ err: error, userId }, 'Failed to create PDF job')
     res.status(500).json({ error: error.message })
   }

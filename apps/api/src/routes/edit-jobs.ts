@@ -11,7 +11,12 @@ import multer from 'multer'
 import * as os from 'os'
 import * as path from 'path'
 import { connection, editQueue } from '../config.js'
-import { createEditJob, EDIT_CREDIT_COST, InsufficientCreditsError } from '../lib/job-service.js'
+import {
+  createEditJob,
+  EDIT_CREDIT_COST,
+  InsufficientCreditsError,
+  OnboardingRequiredError,
+} from '../lib/job-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api:edit')
@@ -73,6 +78,8 @@ router.post('/', upload.single('file'), async (req, res) => {
     if (error instanceof InsufficientCreditsError) {
       return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
     }
+    if (error instanceof OnboardingRequiredError)
+      return res.status(428).json({ error: error.message })
     logger.error({ err: error, userId }, 'Failed to create edit job')
     res.status(500).json({ error: error.message })
   }

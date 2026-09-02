@@ -1,11 +1,15 @@
-import { randomUUID } from 'node:crypto'
-import { unlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { extname, join } from 'node:path'
+import { unlink } from 'node:fs/promises'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as db from '@saas/db'
-import { createLogger } from '@saas/shared'
+import { createLogger, launchVideoCreditCost } from '@saas/shared'
 import { z } from 'zod'
+import {
+  EDIT_EXTS,
+  EDIT_MAX_BYTES,
+  ENHANCE_EXTS,
+  ENHANCE_MAX_BYTES,
+  stageBase64Upload,
+} from '../lib/base64-upload.js'
 import {
   createDemoVideoJob,
   createEditJob,
@@ -18,12 +22,7 @@ import { getProject, listProjects } from '../lib/launch-video/projects.js'
 
 const logger = createLogger('api:mcp')
 
-const ENHANCE_MAX_BYTES = 50 * 1024 * 1024 // 50 MB
-const ENHANCE_EXTS = ['.pdf', '.pptx']
-const EDIT_MAX_BYTES = 500 * 1024 * 1024 // 500 MB
-const EDIT_EXTS = ['.mp4', '.webm', '.mov', '.mkv', '.avi']
-
-/** Project names double as directory names — keep path traversal out. */
+/** Project names double as directory names, so keep path traversal out. */
 function isValidProjectName(name: string): boolean {
   return /^[^/\\]+$/.test(name) && name !== '..' && name !== '.' && !name.startsWith('.')
 }
@@ -51,32 +50,6 @@ const errorResult = (error: unknown): ToolTextResult => {
   }
   const message = error instanceof Error ? error.message : String(error)
   return { isError: true, content: [{ type: 'text', text: message }] }
-}
-
-/** Decode a base64 upload, validate extension + size, and stage it as a temp
- * file for the job services (which expect a local path, like multer produces). */
-const stageUpload = async (
-  fileBase64: string,
-  fileName: string,
-  allowedExts: string[],
-  maxBytes: number,
-): Promise<string> => {
-  const ext = extname(fileName).toLowerCase()
-  if (!allowedExts.includes(ext)) {
-    throw new Error(`Unsupported file type: ${ext || '(none)'}. Allowed: ${allowedExts.join(', ')}`)
-  }
-  const buffer = Buffer.from(fileBase64, 'base64')
-  if (buffer.length === 0) {
-    throw new Error('fileBase64 decoded to an empty file')
-  }
-  if (buffer.length > maxBytes) {
-    throw new Error(
-      `File is too large: ${(buffer.length / 1024 / 1024).toFixed(1)} MB exceeds the ${maxBytes / 1024 / 1024} MB limit.`,
-    )
-  }
-  const tmpFilePath = join(tmpdir(), `mcp-upload-${randomUUID()}${ext}`)
-  await writeFile(tmpFilePath, buffer)
-  return tmpFilePath
 }
 
 /** Builds a stateless MCP server bound to a single API-key-authenticated user. */
@@ -161,7 +134,7 @@ export const buildMcpServer = (userId: string): McpServer => {
     async ({ fileBase64, fileName, mode, enhancePrompt, slideCount }) => {
       let tmpFilePath: string | undefined
       try {
-        tmpFilePath = await stageUpload(fileBase64, fileName, ENHANCE_EXTS, ENHANCE_MAX_BYTES)
+        tmpFilePath = await stageBase64Upload(fileBase64, fileName, ENHANCE_EXTS, ENHANCE_MAX_BYTES)
         const job = await createEnhanceJob(userId, {
           tmpFilePath,
           originalFileName: fileName,
@@ -197,7 +170,7 @@ export const buildMcpServer = (userId: string): McpServer => {
     async ({ fileBase64, fileName, productName, productUrl, instructions }) => {
       let tmpFilePath: string | undefined
       try {
-        tmpFilePath = await stageUpload(fileBase64, fileName, EDIT_EXTS, EDIT_MAX_BYTES)
+        tmpFilePath = await stageBase64Upload(fileBase64, fileName, EDIT_EXTS, EDIT_MAX_BYTES)
         const job = await createEditJob(userId, {
           tmpFilePath,
           originalFileName: fileName,
@@ -225,7 +198,10 @@ export const buildMcpServer = (userId: string): McpServer => {
       description:
         'Start an AI product launch video project. The agent runs the full html-motion-video ' +
         'workflow end-to-end (recon, direction, storyboard, VO, build, mix, render). ' +
-        'Costs 5 credits. Poll get_job by the returned job id to check progress and get the final video URL.',
+        `Cost depends on resolution and narration: ${launchVideoCreditCost('720p', true)} credits at 720p, ` +
+        `${launchVideoCreditCost('1080p', true)} at 1080p (the default), ${launchVideoCreditCost('4k', true)} at 4K. ` +
+        'Turning narration off saves 1 credit. ' +
+        'Poll get_job by the returned job id to check progress and get the final video URL.',
       inputSchema: {
         name: z
           .string()
@@ -237,9 +213,17 @@ export const buildMcpServer = (userId: string): McpServer => {
           .string()
           .optional()
           .describe('Filename of a track from the shared music library (assets/music/<music>)'),
+        resolution: z
+          .enum(['720p', '1080p', '4k'])
+          .optional()
+          .describe('Output resolution. Sets the price. Defaults to 1080p.'),
+        narration: z
+          .boolean()
+          .optional()
+          .describe('Narrate the film. Defaults to true. Set false for a music-only cut.'),
       },
     },
-    async ({ name, prompt: userPrompt, music }) => {
+    async ({ name, prompt: userPrompt, music, resolution, narration }) => {
       if (!isValidProjectName(name)) {
         return errorResult(
           new Error(
@@ -249,7 +233,14 @@ export const buildMcpServer = (userId: string): McpServer => {
       }
 
       try {
-        const job = await createLaunchVideoJob(userId, name, userPrompt, music)
+        const job = await createLaunchVideoJob(
+          userId,
+          name,
+          userPrompt,
+          music,
+          resolution,
+          narration ?? true,
+        )
         return jsonResult({ jobId: job.id, status: job.status })
       } catch (error) {
         logger.error({ err: error, userId, project: name }, 'MCP create_launch_video failed')

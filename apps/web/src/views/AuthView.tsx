@@ -1,14 +1,16 @@
 import { useSignIn, useSignUp } from '@clerk/react'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import pitchWordmark from '../assets/logoB.svg'
 import logoTab from '../assets/logoTab.png'
-import { PitchLogoAnimation } from '../components/PitchLogoAnimation'
+import pitchAsciiAnimationUrl from '../assets/pitch-ascii-animation.html?url'
+import { safeRedirect } from '../lib/redirect'
 import '../styles/auth.css'
 
 const CALLBACK_URL = `${window.location.origin}/sso-callback`
 
 const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path
       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
       fill="#4285F4"
@@ -34,104 +36,131 @@ interface Props {
 
 export const AuthView = ({ mode = 'sign-in' }: Props) => {
   const [tab, setTab] = useState<'sign-in' | 'sign-up'>(mode)
-  const [loading, setLoading] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const { signIn } = useSignIn()
   const { signUp } = useSignUp()
   const navigate = useNavigate()
+  const location = useLocation()
 
-  useEffect(() => {
-    setTab(mode)
-  }, [mode])
+  useEffect(() => setTab(mode), [mode])
 
-  const oauth = async (strategy: 'oauth_google') => {
-    setLoading(strategy)
+  // Where to land after auth. `?redirect=` carries the page the visitor was
+  // actually trying to reach (set by the signed-out catch-all in App.tsx and by
+  // the landing CTAs). Only same-site paths are accepted: a value starting with
+  // `//` or a scheme would hand an open redirect to anyone who can craft a link.
+  const redirectTo = safeRedirect(new URLSearchParams(location.search).get('redirect'))
+
+  const oauth = async () => {
+    setLoading(true)
+    setError('')
     try {
       const handler = tab === 'sign-in' ? signIn : signUp
       const result = await handler?.sso({
-        strategy,
-        redirectUrl: '/dashboard',
+        strategy: 'oauth_google',
+        redirectUrl: redirectTo,
         redirectCallbackUrl: CALLBACK_URL,
       })
       if (result?.error) {
         console.error(result.error)
-        setLoading(null)
+        setError('We couldn’t connect to Google. Please try again.')
+        setLoading(false)
       }
-    } catch (e) {
-      console.error(e)
-      setLoading(null)
+    } catch (oauthError) {
+      console.error(oauthError)
+      setError('We couldn’t connect to Google. Please try again.')
+      setLoading(false)
     }
   }
 
-  const btnOpacity = (provider: string) => (loading && loading !== provider ? 0.45 : 1)
+  // Keep ?redirect= when toggling between sign-in and sign-up, so switching
+  // tabs does not quietly lose where the visitor was headed.
+  const switchMode = (next: 'sign-in' | 'sign-up') => navigate(`/${next}${location.search}`)
 
   return (
-    <div className="auth-page">
-      <div className="auth-dot-grid" />
-      <div className="auth-vignette" />
-
-      {loading && (
-        <div className="auth-redirect-banner" aria-busy="true" aria-live="polite">
-          <div className="auth-redirect-banner-logo">
-            <PitchLogoAnimation startAnimation loop color="currentColor" />
-          </div>
-          <p className="auth-redirect-banner-caption">Redirecting to Google…</p>
+    <main className="auth-page">
+      <section className="auth-showcase" aria-label="Pitch product preview">
+        <div className="auth-art">
+          <iframe
+            src={pitchAsciiAnimationUrl}
+            title="Animated Pitch logo"
+            className="auth-ascii-animation"
+          />
         </div>
-      )}
+      </section>
 
-      <div className="auth-card">
-        {/* Logo */}
-        <div className="auth-card-logo">
-          <a href="/">
-            <img src={logoTab} alt="PITCH" className="auth-card-logo-img" />
+      <section className="auth-form-side">
+        <a href="/" className="auth-mobile-brand" aria-label="Pitch home">
+          <img src={pitchWordmark} alt="Pitch" />
+        </a>
+        <div className="auth-form-wrap">
+          <a href="/" className="auth-form-brand" aria-label="Pitch home">
+            <img src={pitchWordmark} alt="Pitch" />
           </a>
-        </div>
-
-        {/* Tab switcher */}
-        <div className="auth-tabs">
-          {(['sign-in', 'sign-up'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => navigate(`/${t}`)}
-              className={`auth-tab ${tab === t ? 'auth-tab--active' : 'auth-tab--inactive'}`}
-            >
-              {t === 'sign-in' ? 'Sign in' : 'Sign up'}
+          <div className="auth-heading">
+            <h2>{tab === 'sign-up' ? 'Create your account' : 'Sign in to Pitch'}</h2>
+            <p>
+              {tab === 'sign-up'
+                ? 'Start creating your first standout pitch.'
+                : 'Continue creating something remarkable.'}
+            </p>
+          </div>
+          <button
+            className="auth-google-btn"
+            onClick={oauth}
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? <span className="auth-spinner" /> : <GoogleIcon />}
+            <span>
+              {loading
+                ? 'Connecting to Google…'
+                : `${tab === 'sign-up' ? 'Sign up' : 'Continue'} with Google`}
+            </span>
+          </button>
+          {error && (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div id="clerk-captcha" />
+          <p className="auth-switch">
+            {tab === 'sign-in' ? 'New to Pitch? ' : 'Already have an account? '}
+            <button onClick={() => switchMode(tab === 'sign-in' ? 'sign-up' : 'sign-in')}>
+              {tab === 'sign-in' ? 'Create an account' : 'Sign in'}
             </button>
-          ))}
+          </p>
+          <p className="auth-legal">
+            By continuing, you agree to our <a href="/terms">Terms of Service</a> and{' '}
+            <a href="/privacy">Privacy Policy</a>.
+          </p>
         </div>
 
-        <p className="auth-subtitle">
-          {tab === 'sign-in' ? 'Welcome back to Pitch.' : 'Start pitching in minutes.'}
-        </p>
-
-        <div className="auth-providers">
-          <button
-            className="auth-btn auth-btn--social"
-            style={{ opacity: btnOpacity('oauth_google') }}
-            onClick={() => oauth('oauth_google')}
-            disabled={!!loading}
-          >
-            <GoogleIcon />
-            <span>Continue with Google</span>
-          </button>
-        </div>
-
-        <div id="clerk-captcha" />
-
-        <p className="auth-switch" style={{ marginTop: 16 }}>
-          {tab === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
-          <button
-            className="auth-switch-btn"
-            onClick={() => navigate(tab === 'sign-in' ? '/sign-up' : '/sign-in')}
-          >
-            {tab === 'sign-in' ? 'Create account' : 'Sign in'}
-          </button>
-        </p>
-      </div>
-
-      <p className="auth-footer-note">
-        By continuing, you agree to our <a href="/privacy">Privacy Policy</a> and{' '}
-        <a href="#">Terms</a>.
-      </p>
-    </div>
+        {loading && (
+          <div className="auth-connecting" role="status" aria-live="polite">
+            <div className="auth-connecting-dialog">
+              <div className="auth-provider-link">
+                <span className="auth-provider-logo auth-provider-logo--pitch">
+                  <img src={logoTab} alt="Pitch" />
+                </span>
+                <span className="auth-link-line">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <span className="auth-provider-logo">
+                  <GoogleIcon />
+                </span>
+              </div>
+              <h3>Connecting to Google</h3>
+              <p>A secure Google window is opening. This should only take a moment.</p>
+              <div className="auth-progress">
+                <span />
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   )
 }

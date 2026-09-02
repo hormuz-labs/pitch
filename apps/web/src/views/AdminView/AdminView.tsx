@@ -7,14 +7,16 @@ import { GlobalJobsTable } from './GlobalJobsTable'
 import { JobDetailsModal } from './JobDetailsModal'
 import { LaunchVideoDetailsModal } from './LaunchVideoDetailsModal'
 import { LaunchVideosTable } from './LaunchVideosTable'
+import { OnboardingPanel } from './OnboardingPanel'
 import { StatsCards } from './StatsCards'
 import { UserJobsModal } from './UserJobsModal'
 import { UsersTable } from './UsersTable'
 
-type AdminTab = 'users' | 'jobs' | 'launch-videos' | 'feedback' | 'affiliates'
+type AdminTab = 'users' | 'onboarding' | 'jobs' | 'launch-videos' | 'feedback' | 'affiliates'
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'users', label: 'Users', icon: '👥' },
+  { key: 'onboarding', label: 'Onboarding', icon: '◫' },
   { key: 'jobs', label: 'Jobs', icon: '🎬' },
   { key: 'launch-videos', label: 'Launch Videos', icon: '🚀' },
   { key: 'feedback', label: 'Feedback', icon: '⭐' },
@@ -255,15 +257,17 @@ export function AdminView() {
                 const count =
                   tab.key === 'users'
                     ? (data?.users?.length ?? '')
-                    : tab.key === 'jobs'
-                      ? globalJobs.length
-                      : tab.key === 'launch-videos'
-                        ? launchVideos.length
-                        : tab.key === 'feedback'
-                          ? (analytics?.feedbackSummary?.total ?? '')
-                          : tab.key === 'affiliates'
-                            ? (analytics?.affiliates?.length ?? '')
-                            : ''
+                    : tab.key === 'onboarding'
+                      ? (data?.users?.filter((user: any) => user.onboardingSurvey).length ?? '')
+                      : tab.key === 'jobs'
+                        ? globalJobs.length
+                        : tab.key === 'launch-videos'
+                          ? launchVideos.length
+                          : tab.key === 'feedback'
+                            ? (analytics?.feedbackSummary?.total ?? '')
+                            : tab.key === 'affiliates'
+                              ? (analytics?.affiliates?.length ?? '')
+                              : ''
                 return (
                   <button
                     key={tab.key}
@@ -339,6 +343,8 @@ export function AdminView() {
             {activeTab === 'users' && (
               <UsersTable users={filteredUsers} onSelectUser={setSelectedUserId} />
             )}
+
+            {activeTab === 'onboarding' && <OnboardingPanel users={data?.users ?? []} />}
 
             {activeTab === 'jobs' && (
               <GlobalJobsTable jobs={filteredJobs} onSelectJob={setSelectedJob} />

@@ -1,17 +1,19 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import agentcardVideo from '../../assets/carousel/agentcard.mp4'
-import demoVideo from '../../assets/demo.mp4'
-import graphifyVideo from '../../assets/carousel/graphify.mp4'
-import gtmcofounderVideo from '../../assets/carousel/gtmcofounder.mp4'
-import replitVideo from '../../assets/carousel/replit.mp4'
-import sioVideo from '../../assets/carousel/sio.mp4'
-import supermemoryVideo from '../../assets/carousel/supermemory.mp4'
-import unslothVideo from '../../assets/carousel/unsloth-launch.mp4'
 import { CoverflowCarousel, type CoverflowSlide } from '../ui/coverflow-carousel'
+import { carouselAsset as video } from './carouselAssets'
 
-const SLIDES: CoverflowSlide[] = [
+const agentcardVideo = video('agentcard.mp4')
+const demoVideo = video('demo.mp4')
+const graphifyVideo = video('graphify.mp4')
+const gtmcofounderVideo = video('gtmcofounder.mp4')
+const replitVideo = video('replit.mp4')
+const sioVideo = video('sio.mp4')
+const supermemoryVideo = video('supermemory.mp4')
+const unslothVideo = video('unsloth-launch.mp4')
+
+export const SLIDES: CoverflowSlide[] = [
   {
     src: graphifyVideo,
     alt: 'Pitch-generated demo video for Graphify',
@@ -56,12 +58,16 @@ const SLIDES: CoverflowSlide[] = [
 
   {
     src: demoVideo,
-    alt: 'Shadcn UI walkthrough — made with Pitch Demo Video feature',
+    alt: 'Shadcn UI walkthrough made with the Pitch Demo Video feature',
     title: 'Shadcn',
     subtitle: 'Made with Pitch using Demo Video Feature',
     meta: [
       { label: 'Website', value: 'https://ui.shadcn.com/' },
-      { label: 'Prompt', value: 'Give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component' },
+      {
+        label: 'Prompt',
+        value:
+          'Give a walkthrough of the https://ui.shadcn.com/ and tell us how to add a component',
+      },
     ],
   },
   {
@@ -97,7 +103,6 @@ const SLIDES: CoverflowSlide[] = [
   },
 ]
 
-
 /** "editor" with a strike that draws itself once the heading scrolls into view. */
 const StruckEditor = () => {
   const ref = useRef<HTMLSpanElement>(null)
@@ -126,19 +131,21 @@ const StruckEditor = () => {
   )
 }
 
-export const VideoCarousel = () => (
+export const VideoCarousel = ({ showHeader = true }: { showHeader?: boolean }) => (
   <div className="w-full overflow-hidden py-6">
-    <div className="flex flex-col items-center gap-4 px-6 pb-8 text-center">
-      <h2
-        className="landing-hiw-heading !text-center"
-        style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}
-      >
-        One prompt. Our <StruckEditor /> agent did the rest.
-      </h2>
-      <p className="landing-hiw-tagline !text-center max-w-xl">
-        Made with Pitch&apos;s Launch Video feature — in under 10 minutes.
-      </p>
-    </div>
+    {showHeader && (
+      <div className="flex flex-col items-center gap-4 px-6 pb-8 text-center">
+        <h2
+          className="landing-hiw-heading !text-center"
+          style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}
+        >
+          One prompt. Our <StruckEditor /> agent did the rest.
+        </h2>
+        <p className="landing-hiw-tagline !text-center max-w-xl">
+          Made with Pitch&apos;s Launch Video feature in under 10 minutes.
+        </p>
+      </div>
+    )}
     <CoverflowCarousel
       slides={SLIDES}
       showCaption

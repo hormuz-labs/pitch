@@ -11,7 +11,11 @@ import {
 } from '@saas/shared'
 import { Router } from 'express'
 import { connection, subscriber, videoQueue } from '../config.js'
-import { createDemoVideoJob, InsufficientCreditsError } from '../lib/job-service.js'
+import {
+  createDemoVideoJob,
+  InsufficientCreditsError,
+  OnboardingRequiredError,
+} from '../lib/job-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api')
@@ -46,6 +50,8 @@ router.post('/', async (req, res) => {
     if (error instanceof InsufficientCreditsError) {
       return res.status(402).json({ error: 'Insufficient credits', balance: error.balance })
     }
+    if (error instanceof OnboardingRequiredError)
+      return res.status(428).json({ error: error.message })
     logger.error({ err: error, userId }, 'Failed to create job')
     res.status(500).json({ error: error.message })
   }
@@ -245,11 +251,19 @@ router.post('/:id/edit', async (req, res) => {
     const balance = await db.getCreditBalance(userId)
     if (balance < 3) return res.status(402).json({ error: 'Insufficient credits', balance })
 
-    chargedRevision = sourceEdition.storyboardRevision ?? sourceEdition.storyboard.revision
+    // db types the stored storyboard as Record<string, unknown>, so the nested
+    // revision arrives as `unknown`. Narrow it rather than trusting the shape.
+    const storedRevision = sourceEdition.storyboard.revision
+    chargedRevision =
+      sourceEdition.storyboardRevision ??
+      (typeof storedRevision === 'number' ? storedRevision : null)
     const idempotencyKey = `video_edit:${id}:from:${sourceEdition.id}:after:${currentEdition.id}`
     await db.deductCredit(userId, 3, 'Video editing', { jobId: id, idempotencyKey })
 
-    const storyboard = { ...sourceEdition.storyboard, status: 'draft' as const }
+    const storyboard: Record<string, unknown> = {
+      ...sourceEdition.storyboard,
+      status: 'draft' as const,
+    }
     delete storyboard.approvedRevision
     let updatedJob
     try {

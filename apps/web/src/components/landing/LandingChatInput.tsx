@@ -9,6 +9,16 @@
 
 import { useAuth } from '@clerk/react'
 import { AnimatePresence, motion } from 'framer-motion'
+import {
+  ArrowUp,
+  Clapperboard,
+  Code2,
+  Compass,
+  Crosshair,
+  MonitorPlay,
+  Plus,
+  Presentation,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -24,26 +34,60 @@ const AGENTS: { value: Agent; label: string; href: string }[] = [
   { value: 'pdf-maker', label: 'PDF Maker', href: '/pdf' },
 ]
 
+/** One-click prompt starters shown beneath the composer. */
+const SUGGESTIONS: { label: string; agent: Agent; prompt: string }[] = [
+  {
+    label: 'Launch video',
+    agent: 'launch-video',
+    prompt: 'Make a 60-second cinematic launch video for https://trypitch.co',
+  },
+  {
+    label: 'Product walkthrough',
+    agent: 'demo-video',
+    prompt: 'Record a narrated walkthrough of the core flow on https://trypitch.co',
+  },
+  {
+    label: 'Onboarding tour',
+    agent: 'demo-video',
+    prompt: 'Give a guided tour of the sign-up and onboarding flow on https://trypitch.co',
+  },
+  {
+    label: 'Feature deep-dive',
+    agent: 'demo-video',
+    prompt: 'Do a focused deep-dive on the main feature of https://trypitch.co',
+  },
+  {
+    label: 'Investor deck',
+    agent: 'pdf-maker',
+    prompt: 'Create a 10-slide investor pitch deck for https://trypitch.co',
+  },
+  {
+    label: 'API demo',
+    agent: 'demo-video',
+    prompt: 'Demonstrate the API and developer experience of https://trypitch.co',
+  },
+]
+
 const PLACEHOLDERS: Record<Agent, string[]> = {
   'launch-video': [
-    'Make a 60-second cinematic launch video for https://my-startup.com',
-    'Create an upbeat product reveal video for https://acme.dev',
-    'Generate a high-energy launch trailer for https://supermemory.ai',
-    'Build a fast-paced 45-second launch video for https://graphify.com',
-    'Produce a modern motion graphics launch video for https://unsloth.ai',
-    'Craft a dynamic SaaS product launch video for https://app.replit.com',
+    'Make a 60-second cinematic launch video for https://trypitch.co',
+    'Create an upbeat product reveal video for https://trypitch.co',
+    'Generate a high-energy launch trailer for https://trypitch.co',
+    'Build a fast-paced 45-second launch video for https://trypitch.co',
+    'Produce a modern motion graphics launch video for https://trypitch.co',
+    'Craft a dynamic SaaS product launch video for https://trypitch.co',
     'Create an Apple-style announcement video for https://trypitch.co',
-    'Generate an AI feature release launch video for https://agentcard.sh',
+    'Generate an AI feature release launch video for https://trypitch.co',
   ],
   'demo-video': [
-    'Walk through the onboarding and signup flow on https://my-app.com',
-    'Record an interactive demo of the analytics dashboard at https://dashboard.io',
-    'Demonstrate how to add and customize a component on https://ui.shadcn.com',
-    'Show a step-by-step checkout and payment flow on https://store.example.com',
-    'Create a narrated feature walkthrough of https://agentcard.sh',
-    'Navigate our settings and team invite flow with clean cursor zooms on https://acme.io',
-    'Record a guided tour of the workspace editor on https://linear.app',
-    'Create a customer onboarding product tour for https://notion.so',
+    'Walk through the onboarding and sign-up flow on https://trypitch.co',
+    'Record an interactive demo of the dashboard on https://trypitch.co',
+    'Demonstrate how to generate your first video on https://trypitch.co',
+    'Show a step-by-step tour of the editor on https://trypitch.co',
+    'Create a narrated feature walkthrough of https://trypitch.co',
+    'Navigate the settings and team invite flow on https://trypitch.co',
+    'Record a guided tour of the workspace on https://trypitch.co',
+    'Create a customer onboarding product tour for https://trypitch.co',
   ],
   'pdf-maker': [
     'Create a 10-slide seed round investor pitch deck for an AI startup',
@@ -57,88 +101,38 @@ const PLACEHOLDERS: Record<Agent, string[]> = {
   ],
 }
 
-// ── Professional SVG icons ────────────────────────────────────────────────────
+// ── Icons (lucide) ───────────────────────────────────────────────────────────
+
+const AGENT_ICONS: Record<Agent, typeof Clapperboard> = {
+  'launch-video': Clapperboard,
+  'demo-video': MonitorPlay,
+  'pdf-maker': Presentation,
+}
 
 const AgentIcon = ({ agent, size = 14 }: { agent: Agent; size?: number }) => {
-  if (agent === 'launch-video') {
-    // Clapperboard
-    return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z" />
-        <path d="m6.2 5.3 3.1 3.9" />
-        <path d="m12.4 3.4 3.1 4" />
-        <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-      </svg>
-    )
-  }
-  if (agent === 'demo-video') {
-    // Monitor / screen recording
-    return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <rect x="2" y="3" width="20" height="14" rx="2" />
-        <path d="M8 21h8" />
-        <path d="M12 17v4" />
-        <polygon points="10 8 16 11 10 14 10 8" />
-      </svg>
-    )
-  }
-  // pdf-maker — document with lines
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-    </svg>
-  )
+  const Icon = AGENT_ICONS[agent]
+  return <Icon size={size} strokeWidth={1.75} aria-hidden />
 }
 
 const ArrowUpIcon = ({ size = 16 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <line x1="12" y1="19" x2="12" y2="5" />
-    <polyline points="5 12 12 5 19 12" />
-  </svg>
+  <ArrowUp size={size} strokeWidth={2.25} aria-hidden />
 )
+
+const PlusIcon = () => <Plus size={16} strokeWidth={2} aria-hidden />
+
+const SUGGESTION_ICONS: Record<string, typeof Clapperboard> = {
+  'Launch video': Clapperboard,
+  'Product walkthrough': MonitorPlay,
+  'Onboarding tour': Compass,
+  'Feature deep-dive': Crosshair,
+  'Investor deck': Presentation,
+  'API demo': Code2,
+}
+
+const SuggestionIcon = ({ label }: { label: string }) => {
+  const Icon = SUGGESTION_ICONS[label] ?? Code2
+  return <Icon size={13} strokeWidth={1.75} aria-hidden />
+}
 
 const ChevronDownIcon = () => (
   <svg
@@ -270,6 +264,7 @@ export const LandingChatInput = () => {
   const [isDeleting, setIsDeleting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const typeRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const currentFullText = PLACEHOLDERS[agent][placeholderIndex] ?? PLACEHOLDERS[agent][0]
 
@@ -343,10 +338,15 @@ export const LandingChatInput = () => {
   const currentAgent = AGENTS.find(a => a.value === agent)!
 
   const handleSend = () => {
-    if (!canSend) return
-    const encoded = encodeURIComponent(input.trim())
     const base = currentAgent.href
-    const dest = base.includes('?') ? `${base}&prompt=${encoded}` : `${base}?prompt=${encoded}`
+    const trimmed = input.trim()
+    const dest = trimmed
+      ? base.includes('?')
+        ? `${base}&prompt=${encodeURIComponent(trimmed)}`
+        : `${base}?prompt=${encodeURIComponent(trimmed)}`
+      : base
+    // Signed in → straight into the job/editor flow. Otherwise → sign-up, then
+    // Clerk redirects back to that same flow.
     if (isSignedIn) {
       navigate(dest)
     } else {
@@ -362,10 +362,47 @@ export const LandingChatInput = () => {
     if (e.key === 'Escape') setDropdownOpen(false)
   }
 
+  // Stop any in-flight suggestion typing on unmount.
+  useEffect(
+    () => () => {
+      if (typeRef.current) clearInterval(typeRef.current)
+    },
+    [],
+  )
+
+  const handleSuggestion = (s: (typeof SUGGESTIONS)[number]) => {
+    if (typeRef.current) clearInterval(typeRef.current)
+    setAgent(s.agent)
+    setDisplayedText('')
+    setIsDeleting(false)
+    setInput('')
+    textareaRef.current?.focus()
+
+    const full = s.prompt
+    let i = 0
+    typeRef.current = setInterval(() => {
+      i += 1
+      setInput(full.slice(0, i))
+      if (i >= full.length) {
+        if (typeRef.current) clearInterval(typeRef.current)
+        typeRef.current = null
+        // select the sample URL so the user can type theirs straight over it
+        requestAnimationFrame(() => {
+          const el = textareaRef.current
+          if (!el) return
+          const u = full.indexOf('https://')
+          if (u >= 0) el.setSelectionRange(u, full.length)
+        })
+      }
+    }, 22)
+  }
+
   return (
     <div className="landing-chat-root">
       <motion.div
         layout
+        initial={{ opacity: 0, y: 14, filter: 'blur(4px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
         transition={{ type: 'spring', stiffness: 400, damping: 36, mass: 0.8 }}
         onClick={e => {
           if (
@@ -413,8 +450,20 @@ export const LandingChatInput = () => {
 
           {/* Bottom toolbar */}
           <div data-focus-target="true" className="landing-chat-toolbar">
-            {/* Agent dropdown trigger */}
-            <div onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className="landing-chat-plus"
+              aria-label="Add context"
+              onClick={e => {
+                e.stopPropagation()
+                textareaRef.current?.focus()
+              }}
+            >
+              <PlusIcon />
+            </button>
+
+            <div className="landing-chat-toolbar-right" onClick={e => e.stopPropagation()}>
+              {/* Mode selector */}
               <button
                 ref={triggerRef}
                 type="button"
@@ -425,7 +474,7 @@ export const LandingChatInput = () => {
                 onClick={() => setDropdownOpen(v => !v)}
               >
                 <span className="landing-chat-dropdown-icon">
-                  <AgentIcon agent={agent} size={14} />
+                  <AgentIcon agent={agent} size={13} />
                 </span>
                 <span className="landing-chat-dropdown-label">{currentAgent.label}</span>
                 <span
@@ -434,23 +483,20 @@ export const LandingChatInput = () => {
                   <ChevronDownIcon />
                 </span>
               </button>
-            </div>
 
-            {/* Portal dropdown */}
-            <DropdownMenu
-              open={dropdownOpen}
-              triggerRef={triggerRef}
-              agents={AGENTS}
-              agent={agent}
-              onSelect={v => {
-                setAgent(v)
-                setDropdownOpen(false)
-                textareaRef.current?.focus()
-              }}
-            />
+              <DropdownMenu
+                open={dropdownOpen}
+                triggerRef={triggerRef}
+                agents={AGENTS}
+                agent={agent}
+                onSelect={v => {
+                  setAgent(v)
+                  setDropdownOpen(false)
+                  textareaRef.current?.focus()
+                }}
+              />
 
-            {/* Submit — LiquidGlass */}
-            <div onClick={e => e.stopPropagation()}>
+              {/* Submit */}
               <LiquidGlass
                 scale={0.28}
                 radius="9999px"
@@ -463,17 +509,51 @@ export const LandingChatInput = () => {
                 <button
                   type="button"
                   onClick={handleSend}
-                  disabled={!canSend}
-                  aria-label="Send prompt"
+                  aria-label={
+                    canSend ? 'Send prompt' : isSignedIn ? 'Open the editor' : 'Get started'
+                  }
                   id="landing-chat-submit"
                   className={`landing-chat-submit${canSend ? ' landing-chat-submit--active' : ''}`}
                 >
-                  <ArrowUpIcon size={16} />
+                  <ArrowUpIcon size={15} />
                 </button>
               </LiquidGlass>
             </div>
           </div>
         </div>
+      </motion.div>
+
+      {/* One-click prompt starters */}
+      <motion.div
+        className="landing-chat-suggestions"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.045, delayChildren: 0.15 } },
+        }}
+      >
+        {SUGGESTIONS.map(s => (
+          <motion.button
+            key={s.label}
+            type="button"
+            className="landing-chat-suggestion"
+            onClick={() => handleSuggestion(s)}
+            variants={{
+              hidden: { opacity: 0, y: 6 },
+              visible: {
+                opacity: 1,
+                y: 0,
+                transition: { type: 'spring', duration: 0.4, bounce: 0 },
+              },
+            }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.96 }}
+          >
+            <SuggestionIcon label={s.label} />
+            {s.label}
+          </motion.button>
+        ))}
       </motion.div>
     </div>
   )

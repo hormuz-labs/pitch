@@ -41,9 +41,11 @@ if (blogPosts.length === 0) {
 }
 
 const routes = [
-  // "Turn any URL" only appears once the LandingView <Seo> has run — the
-  // index.html default title alone would pass a weaker marker.
-  { path: '/', expect: 'Turn any URL' },
+  // The landing page is verified structurally, not by copy. It previously waited
+  // on a headline string that later changed, so `/` silently stopped
+  // prerendering and shipped as an empty SPA shell while every other route was
+  // fine. A selector survives copy edits; marketing copy does not.
+  { path: '/', selector: '.lb-root .lb-endcap-title' },
   { path: '/pricing', expect: 'Pricing' },
   { path: '/about', expect: 'About Us' },
   { path: '/blog', expect: 'Blog' },
@@ -86,27 +88,55 @@ const port = server.address().port
 const base = `http://127.0.0.1:${port}`
 
 // ── Render each route ────────────────────────────────────────────────────────
+// The API's share routes (/d/:slug) fetch the deployed app shell and inject
+// per-job OG tags into it. That shell used to be `/`, which was an empty SPA
+// stub — but `/` is now a fully prerendered landing page, so a share link would
+// paint the whole homepage before React replaced it with the demo. Keep a copy
+// of the content-free build output for that purpose before `/` is overwritten.
+fs.copyFileSync(path.join(dist, 'index.html'), path.join(dist, 'app-shell.html'))
+console.log('wrote dist/app-shell.html (content-free shell for share routes)')
+
 const browser = await chromium.launch()
 const page = await browser.newPage()
+// The landing intro overlay in index.html removes itself ~1.9s after paint.
+// Flag the prerender run so it leaves the markup alone and the captured HTML
+// still carries the intro for real visitors.
+await page.addInitScript(() => {
+  window.__PITCH_PRERENDER__ = true
+})
 
 const failures = []
 for (const route of routes) {
   try {
     await page.goto(`${base}${route.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-    // Wait for the route's own <title> — set by the Seo component after mount.
-    await page.waitForFunction(
-      expected => document.title.includes(expected),
-      route.expect,
-      { timeout: 30_000 },
-    )
+    // Wait for the route to actually render: a structural selector where the
+    // route declares one, otherwise the route's own <title> (set by <Seo> on mount).
+    if (route.selector) {
+      await page.waitForSelector(route.selector, { timeout: 30_000 })
+    } else {
+      await page.waitForFunction(
+        expected => document.title.includes(expected),
+        route.expect,
+        { timeout: 30_000 },
+      )
+    }
     // And for real content in the root (some pages have no <h1>).
     await page.waitForFunction(
       () => (document.getElementById('root')?.innerText?.trim().length ?? 0) > 100,
       { timeout: 30_000 },
     )
 
-    const html = `<!doctype html>\n${await page.evaluate(() => document.documentElement.outerHTML)}`
-    if (!html.includes(route.expect)) {
+    // Vite injects preload <link>s and lazy-chunk stylesheets with the absolute
+    // origin the page was loaded from. Left as-is, every prerendered page would
+    // ship links to this throwaway localhost server and fetch none of them in
+    // production — the landing page in particular would paint unstyled until the
+    // client re-injected its CSS. Rewrite the base back to root-relative.
+    const raw = await page.evaluate(() => document.documentElement.outerHTML)
+    const html = `<!doctype html>\n${raw.split(base).join('')}`
+    if (html.includes('127.0.0.1:')) {
+      throw new Error('rendered HTML still references the prerender server origin')
+    }
+    if (route.expect && !html.includes(route.expect)) {
       throw new Error(`expected marker ${JSON.stringify(route.expect)} not in rendered HTML`)
     }
 

@@ -42,8 +42,10 @@ import { AnimatedSettingsIcon } from './components/AnimatedSettingsIcon'
 import { AnimatedShareIcon } from './components/AnimatedShareIcon'
 import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
+import { ConnectionGate } from './components/ConnectionGate'
 import { CreditPopover } from './components/CreditPopover'
 import { LoadingCoin } from './components/LoadingCoin'
+import { OnboardingSurvey } from './components/OnboardingSurvey'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
 import { API_URL } from './config'
 import { api } from './lib/api'
@@ -67,6 +69,7 @@ const CheckoutReturnView = lazyNamed(
 )
 const CreateView = lazyNamed(() => import('./views/CreateView'), 'CreateView')
 const DashboardView = lazyNamed(() => import('./views/DashboardView'), 'DashboardView')
+const DocsView = lazyNamed(() => import('./views/DocsView'), 'DocsView')
 const EditorView = lazyNamed(() => import('./views/EditorView'), 'EditorView')
 const EditRecordingView = lazyNamed(() => import('./views/EditRecordingView'), 'EditRecordingView')
 const EnhanceView = lazyNamed(() => import('./views/EnhanceView'), 'EnhanceView')
@@ -74,6 +77,7 @@ const LandingView = lazyNamed(() => import('./views/LandingView'), 'LandingView'
 const PdfCreateView = lazyNamed(() => import('./views/PdfCreateView'), 'PdfCreateView')
 const PdfEditorView = lazyNamed(() => import('./views/PdfEditorView'), 'PdfEditorView')
 const PricingView = lazyNamed(() => import('./views/PricingView'), 'PricingView')
+const ProductView = lazyNamed(() => import('./views/ProductView'), 'ProductView')
 const PublicDemoView = lazyNamed(() => import('./views/PublicDemoView'), 'PublicDemoView')
 const PublicPricingView = lazyNamed(() => import('./views/PublicPricingView'), 'PublicPricingView')
 const SessionsView = lazyNamed(() => import('./views/SessionsView'), 'SessionsView')
@@ -82,6 +86,7 @@ const TemplatesView = lazyNamed(() => import('./views/TemplatesView'), 'Template
 const AuthView = lazyNamed(() => import('./views/AuthView'), 'AuthView')
 const LaunchVideoView = lazyNamed(() => import('./launch-video/LaunchVideoView'), 'LaunchVideoView')
 const AboutUs = lazyNamed(() => import('./components/AboutUs'), 'AboutUs')
+const NotFoundView = lazyNamed(() => import('./views/StatusView'), 'NotFoundView')
 const Blog = lazyNamed(() => import('./components/Blog'), 'Blog')
 const BlogPostView = lazyNamed(() => import('./components/Blog'), 'BlogPostView')
 const PrivacyPolicy = lazyNamed(() => import('./components/PrivacyPolicy'), 'PrivacyPolicy')
@@ -1335,6 +1340,7 @@ function AppContent() {
           refCode: getRefCode() ?? undefined,
         })
         sessionStorage.setItem(sessionKey, '1')
+        window.dispatchEvent(new Event('pitch:user-synced'))
         window.dispatchEvent(new Event('credits-changed')) // Trigger credit fetch after sync
       } catch (err) {
         console.error('Failed to sync user profile:', err)
@@ -1385,6 +1391,7 @@ function AppContent() {
                   refCode: getRefCode() ?? undefined,
                 })
                 sessionStorage.setItem(`user_synced_${userId}`, '1')
+                window.dispatchEvent(new Event('pitch:user-synced'))
                 window.dispatchEvent(new Event('credits-changed'))
               }
             } catch (syncErr) {
@@ -1762,185 +1769,217 @@ function AppContent() {
     )
   }
 
+  // Docs (/docs and /docs/:slug) — standalone, outside the app shell.
+  if (location.pathname === '/docs' || location.pathname.startsWith('/docs/')) {
+    const slug = location.pathname.slice('/docs'.length).replace(/^\//, '').split('/')[0]
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <DocsView slug={slug} />
+      </Suspense>
+    )
+  }
+
+  // Product pages (/product/:slug) — standalone marketing pages, same
+  // treatment as `/`: rendered outside the signed-in/out app shell.
+  if (location.pathname.startsWith('/product/')) {
+    const slug = location.pathname.slice('/product/'.length).split('/')[0]
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <ProductView slug={slug} />
+      </Suspense>
+    )
+  }
+
   return (
     <>
       <Show when="signed-in">
-        <div
-          className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
-          style={{ backgroundColor: '#e6e6e6' }}
-        >
-          {(!isMobile ? selectedKey !== 'settings' : true) && (
-            <Sidebar
-              selectedKey={selectedKey}
-              navigate={path => {
-                navigate(path)
-                if (isMobile) setCollapsed(true)
-              }}
-              isMobile={isMobile}
-              collapsed={collapsed}
-              onClose={() => setCollapsed(true)}
-              isAdmin={isAdmin}
-              pdfSlides={pdfSlides}
-              activePdfSlide={activePdfSlide}
-              onScrollToPdfSlide={onScrollToPdfSlide || undefined}
-              onAddPdfSlide={onAddPdfSlide || undefined}
-              onReorderPdfSlides={onReorderPdfSlides || undefined}
-              onSetPdfSlideBg={onSetPdfSlideBg || undefined}
-              onDeletePdfSlide={onDeletePdfSlide || undefined}
-            />
-          )}
-
+        <ConnectionGate>
           <div
-            className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200"
-            style={{ backgroundColor: '#ffffff' }}
+            className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
+            style={{ backgroundColor: '#e6e6e6' }}
           >
-            <TopHeader
-              isMobile={isMobile}
-              isDetailPage={
-                selectedKey === 'create' ||
-                selectedKey === 'pdf-create' ||
-                selectedKey === 'enhance' ||
-                selectedKey === 'editor' ||
-                selectedKey === 'pdfeditor' ||
-                selectedKey === 'settings' ||
-                (selectedKey === 'templates' && templatesInDetail)
-              }
-              backLabel={
-                selectedKey === 'templates' && templatesInDetail
-                  ? 'Back to Templates Gallery'
-                  : undefined
-              }
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onToggle={() => setCollapsed(c => !c)}
-              onNew={() => navigate('/new')}
-              onBack={() => {
-                if (selectedKey === 'templates' && templatesInDetail) {
-                  clearTemplatesSelectionRef.current?.()
-                } else {
-                  navigate('/dashboard')
-                }
-              }}
-              projectTitle={projectTitle}
-              onDownload={onDownload}
-              isPricingPage={selectedKey === 'pricing'}
-              isSettingsPage={selectedKey === 'settings'}
-              isNewPage={selectedKey === 'create'}
-              isEditorPage={selectedKey === 'editor'}
-              isPdfEditorPage={selectedKey === 'pdfeditor'}
-              onSignOut={() => signOut()}
-            />
+            <OnboardingSurvey enabled={location.pathname === '/dashboard'} />
+            {(!isMobile ? selectedKey !== 'settings' : true) && (
+              <Sidebar
+                selectedKey={selectedKey}
+                navigate={path => {
+                  navigate(path)
+                  if (isMobile) setCollapsed(true)
+                }}
+                isMobile={isMobile}
+                collapsed={collapsed}
+                onClose={() => setCollapsed(true)}
+                isAdmin={isAdmin}
+                pdfSlides={pdfSlides}
+                activePdfSlide={activePdfSlide}
+                onScrollToPdfSlide={onScrollToPdfSlide || undefined}
+                onAddPdfSlide={onAddPdfSlide || undefined}
+                onReorderPdfSlides={onReorderPdfSlides || undefined}
+                onSetPdfSlideBg={onSetPdfSlideBg || undefined}
+                onDeletePdfSlide={onDeletePdfSlide || undefined}
+              />
+            )}
 
-            <main className="app-shell-main flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <DashboardView
-                        projects={projects}
-                        searchQuery={searchQuery}
-                        onDelete={handleDelete}
-                        onRetry={handleRetry}
-                        onShare={handleShare}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/new"
-                    element={
-                      <CreateView
-                        isMobile={isMobile}
-                        formValues={formValues}
-                        setFormValues={setFormValues}
-                        isSubmitting={isSubmitting}
-                        onQueueJob={handleQueueJob}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/pdf"
-                    element={
-                      <PdfCreateView
-                        isSubmitting={isSubmitting}
-                        onQueuePdfJob={handleQueuePdfJob}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/enhance"
-                    element={
-                      <EnhanceView
-                        isSubmitting={isSubmitting}
-                        onQueueEnhanceJob={handleQueueEnhanceJob}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/edit"
-                    element={
-                      <EditRecordingView
-                        isSubmitting={isSubmitting}
-                        onQueueEditJob={handleQueueEditJob}
-                      />
-                    }
-                  />
-                  <Route path="/launch-video/*" element={<LaunchVideoView />} />
-                  <Route
-                    path="/templates"
-                    element={
-                      <TemplatesView
-                        isSubmitting={isSubmitting}
-                        onQueuePdfJob={handleQueuePdfJob}
-                        onDetailModeChange={setTemplatesInDetail}
-                        clearSelectionRef={clearTemplatesSelectionRef}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/pdfeditor/:id"
-                    element={
-                      <PdfEditorView
-                        projects={projects}
-                        setPdfSlides={setPdfSlides}
-                        activePdfSlide={activePdfSlide}
-                        setActivePdfSlide={setActivePdfSlide}
-                        setOnScrollToPdfSlide={setOnScrollToPdfSlide}
-                        setOnAddPdfSlide={setOnAddPdfSlide}
-                        setOnReorderPdfSlides={setOnReorderPdfSlides}
-                        setOnSetPdfSlideBg={setOnSetPdfSlideBg}
-                        setOnDeletePdfSlide={setOnDeletePdfSlide}
-                      />
-                    }
-                  />
-                  <Route path="/pricing" element={<PricingView />} />
-                  <Route path="/settings" element={<SettingsView />} />
-                  <Route path="/api-keys" element={<ApiKeysView />} />
-                  <Route path="/sessions" element={<SessionsView />} />
-                  <Route path="/affiliate" element={<AffiliateView />} />
-                  <Route path="/admin" element={<AdminView />} />
-                  <Route
-                    path="/editor/:id"
-                    element={
-                      <EditorView
-                        projects={projects}
-                        jobLogs={jobLogs}
-                        isMobile={isMobile}
-                        onDelete={handleDelete}
-                        onUpdate={handleProjectUpdate}
-                      />
-                    }
-                  />
-                  <Route path="/about" element={<AboutUs />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/blog/:slug" element={<BlogPostView />} />
-                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                  <Route path="/terms" element={<TermsOfService />} />
-                </Routes>
-              </Suspense>
-            </main>
+            <div
+              className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200"
+              style={{ backgroundColor: '#ffffff' }}
+            >
+              <TopHeader
+                isMobile={isMobile}
+                isDetailPage={
+                  selectedKey === 'create' ||
+                  selectedKey === 'pdf-create' ||
+                  selectedKey === 'enhance' ||
+                  selectedKey === 'editor' ||
+                  selectedKey === 'pdfeditor' ||
+                  selectedKey === 'settings' ||
+                  (selectedKey === 'templates' && templatesInDetail)
+                }
+                backLabel={
+                  selectedKey === 'templates' && templatesInDetail
+                    ? 'Back to Templates Gallery'
+                    : undefined
+                }
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onToggle={() => setCollapsed(c => !c)}
+                onNew={() => navigate('/new')}
+                onBack={() => {
+                  if (selectedKey === 'templates' && templatesInDetail) {
+                    clearTemplatesSelectionRef.current?.()
+                  } else {
+                    navigate('/dashboard')
+                  }
+                }}
+                projectTitle={projectTitle}
+                onDownload={onDownload}
+                isPricingPage={selectedKey === 'pricing'}
+                isSettingsPage={selectedKey === 'settings'}
+                isNewPage={selectedKey === 'create'}
+                isEditorPage={selectedKey === 'editor'}
+                isPdfEditorPage={selectedKey === 'pdfeditor'}
+                onSignOut={() => signOut()}
+              />
+
+              <main className="app-shell-main flex-1 overflow-y-auto overflow-x-hidden bg-white rounded-b-2xl relative">
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    {/* The signed-in tree has no landing page, so `/` matched
+                        nothing and rendered an empty shell — and once the 404
+                        catch-all was added below, a plain 404. It is also where
+                        Clerk's OAuth callback lands a user when the flow carried
+                        no explicit destination, which is why a normal Google
+                        sign-in finished on a blank homepage instead of the app. */}
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <DashboardView
+                          projects={projects}
+                          searchQuery={searchQuery}
+                          onDelete={handleDelete}
+                          onRetry={handleRetry}
+                          onShare={handleShare}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/new"
+                      element={
+                        <CreateView
+                          isMobile={isMobile}
+                          formValues={formValues}
+                          setFormValues={setFormValues}
+                          isSubmitting={isSubmitting}
+                          onQueueJob={handleQueueJob}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/pdf"
+                      element={
+                        <PdfCreateView
+                          isSubmitting={isSubmitting}
+                          onQueuePdfJob={handleQueuePdfJob}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/enhance"
+                      element={
+                        <EnhanceView
+                          isSubmitting={isSubmitting}
+                          onQueueEnhanceJob={handleQueueEnhanceJob}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/edit"
+                      element={
+                        <EditRecordingView
+                          isSubmitting={isSubmitting}
+                          onQueueEditJob={handleQueueEditJob}
+                        />
+                      }
+                    />
+                    <Route path="/launch-video/*" element={<LaunchVideoView />} />
+                    <Route
+                      path="/templates"
+                      element={
+                        <TemplatesView
+                          isSubmitting={isSubmitting}
+                          onQueuePdfJob={handleQueuePdfJob}
+                          onDetailModeChange={setTemplatesInDetail}
+                          clearSelectionRef={clearTemplatesSelectionRef}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/pdfeditor/:id"
+                      element={
+                        <PdfEditorView
+                          projects={projects}
+                          setPdfSlides={setPdfSlides}
+                          activePdfSlide={activePdfSlide}
+                          setActivePdfSlide={setActivePdfSlide}
+                          setOnScrollToPdfSlide={setOnScrollToPdfSlide}
+                          setOnAddPdfSlide={setOnAddPdfSlide}
+                          setOnReorderPdfSlides={setOnReorderPdfSlides}
+                          setOnSetPdfSlideBg={setOnSetPdfSlideBg}
+                          setOnDeletePdfSlide={setOnDeletePdfSlide}
+                        />
+                      }
+                    />
+                    <Route path="/pricing" element={<PricingView />} />
+                    <Route path="/settings" element={<SettingsView />} />
+                    <Route path="/api-keys" element={<ApiKeysView />} />
+                    <Route path="/sessions" element={<SessionsView />} />
+                    <Route path="/affiliate" element={<AffiliateView />} />
+                    <Route path="/admin" element={<AdminView />} />
+                    <Route
+                      path="/editor/:id"
+                      element={
+                        <EditorView
+                          projects={projects}
+                          jobLogs={jobLogs}
+                          isMobile={isMobile}
+                          onDelete={handleDelete}
+                          onUpdate={handleProjectUpdate}
+                        />
+                      }
+                    />
+                    <Route path="/about" element={<AboutUs />} />
+                    <Route path="/blog" element={<Blog />} />
+                    <Route path="/blog/:slug" element={<BlogPostView />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/terms" element={<TermsOfService />} />
+                    <Route path="*" element={<NotFoundView />} />
+                  </Routes>
+                </Suspense>
+              </main>
+            </div>
           </div>
-        </div>
+        </ConnectionGate>
       </Show>
       <Show when="signed-out">
         <Suspense fallback={<PageLoader fullScreen />}>
@@ -1954,7 +1993,9 @@ function AppContent() {
             <Route path="/blog/:slug" element={<BlogPostView />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* A signed-in page sends them to sign-up carrying where they were
+                going; anything we do not recognise is a genuine 404. */}
+            <Route path="*" element={<SignUpThenReturn />} />
           </Routes>
         </Suspense>
       </Show>
@@ -1963,6 +2004,44 @@ function AppContent() {
 }
 
 export default App
+
+/**
+ * Signed-out visitor asking for a signed-in page (say /api-keys from the docs).
+ * Bounce to sign-up with the destination attached instead of dumping them on
+ * the landing page, so AuthView can return them there once they are in.
+ */
+/**
+ * Every path the signed-in tree serves. A signed-out visitor asking for one of
+ * these wants a page that exists and simply needs an account; anything outside
+ * the list is a typo or a dead link and deserves a 404 rather than a sign-up
+ * wall, which used to swallow every mistyped URL on the site.
+ */
+const APP_ROUTES = [
+  '/admin',
+  '/affiliate',
+  '/api-keys',
+  '/dashboard',
+  '/edit',
+  '/editor',
+  '/enhance',
+  '/launch-video',
+  '/new',
+  '/pdf',
+  '/pdfeditor',
+  '/sessions',
+  '/settings',
+  '/templates',
+]
+
+function SignUpThenReturn() {
+  const { pathname, search, hash } = useLocation()
+  const isAppRoute = APP_ROUTES.some(
+    route => pathname === route || pathname.startsWith(`${route}/`),
+  )
+  if (!isAppRoute) return <NotFoundView />
+  const target = `${pathname}${search}${hash}`
+  return <Navigate to={`/sign-up?redirect=${encodeURIComponent(target)}`} replace />
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -2086,4 +2165,3 @@ function App() {
     </BrowserRouter>
   )
 }
-

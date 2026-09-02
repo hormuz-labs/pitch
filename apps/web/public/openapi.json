@@ -1,0 +1,471 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Pitch API",
+    "version": "1.0.0",
+    "description": "Turn a product URL into a finished video, or a topic into a slide deck. Every output is a job: create it, then poll it. Credits are charged at creation. Full guides at https://trypitch.co/docs.",
+    "contact": { "name": "Pitch support", "email": "support@trypitch.co", "url": "https://trypitch.co/docs" }
+  },
+  "servers": [{ "url": "https://api.trypitch.co", "description": "Production" }],
+  "security": [{ "bearerAuth": [] }],
+  "tags": [
+    { "name": "Create", "description": "Endpoints that queue a job and spend credits." },
+    { "name": "Jobs", "description": "Read job state and results." },
+    { "name": "Launch videos", "description": "Launch video projects and their scenes." },
+    { "name": "Billing", "description": "Credit balance and prices." }
+  ],
+  "paths": {
+    "/v1/videos": {
+      "post": {
+        "tags": ["Create"],
+        "summary": "Create a demo video",
+        "description": "An agent opens the URL in a real browser, walks the product, narrates, and renders an MP4. Costs 3 credits. Passing `assets` makes the job stop at AWAITING_REVIEW after planning.",
+        "operationId": "createVideo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "format": "uri", "description": "Public product URL", "example": "https://trypitch.co" },
+                  "instructions": { "type": "string", "description": "What to show, tone, length" },
+                  "script": { "type": "string", "description": "Your own narration. One is written if omitted" },
+                  "voice": { "type": "string", "description": "Narration voice id" },
+                  "assets": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "uri" },
+                    "description": "Public URLs to PDFs or images. Triggers a review step"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "$ref": "#/components/responses/Job" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "402": { "$ref": "#/components/responses/InsufficientCredits" }
+        }
+      }
+    },
+    "/v1/launch-videos": {
+      "get": {
+        "tags": ["Launch videos"],
+        "summary": "List launch video projects",
+        "operationId": "listLaunchVideos",
+        "responses": {
+          "200": {
+            "description": "Projects owned by the key holder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/ProjectInfo" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Create"],
+        "summary": "Create a launch video",
+        "description": "A scripted, scored, cinematic film built scene by scene. Cost depends on resolution and narration: 720p is 6, 1080p is 9, 4K is 13, minus 1 credit if narration is false.",
+        "operationId": "createLaunchVideo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "prompt"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Project name, unique per user. No slashes, cannot start with a dot",
+                    "example": "acme-launch"
+                  },
+                  "prompt": { "type": "string", "description": "Creative brief: product, audience, tone, length" },
+                  "music": { "type": "string", "description": "Track filename from the shared library" },
+                  "resolution": { "type": "string", "enum": ["720p", "1080p", "4k"], "default": "1080p" },
+                  "narration": { "type": "boolean", "default": true, "description": "False saves 1 credit" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "$ref": "#/components/responses/Job" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "402": { "$ref": "#/components/responses/InsufficientCredits" }
+        }
+      }
+    },
+    "/v1/launch-videos/{name}": {
+      "get": {
+        "tags": ["Launch videos"],
+        "summary": "Get a launch video project",
+        "description": "Scene breakdown with start, end, duration, voiceover line, and per-scene draft renders.",
+        "operationId": "getLaunchVideo",
+        "parameters": [
+          { "name": "name", "in": "path", "required": true, "schema": { "type": "string" }, "example": "acme-launch" }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectDetail" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/decks": {
+      "post": {
+        "tags": ["Create"],
+        "summary": "Create a slide deck",
+        "description": "Researches the topic, writes the copy, designs the slides, and renders a PDF. Costs 1 credit.",
+        "operationId": "createDeck",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["topic"],
+                "properties": {
+                  "topic": { "type": "string", "example": "Seed round deck for an AI video startup" },
+                  "instructions": { "type": "string", "description": "Free-text guidance" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "$ref": "#/components/responses/Job" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "402": { "$ref": "#/components/responses/InsufficientCredits" }
+        }
+      }
+    },
+    "/v1/decks/enhance": {
+      "post": {
+        "tags": ["Create"],
+        "summary": "Enhance an existing deck",
+        "description": "Redesigns a PDF or PPTX you upload. Costs 1 credit. Max 50 MB after decoding.",
+        "operationId": "enhanceDeck",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fileBase64", "fileName"],
+                "properties": {
+                  "fileBase64": { "type": "string", "description": "Base64 of the file" },
+                  "fileName": { "type": "string", "description": "The extension decides the type", "example": "deck.pdf" },
+                  "mode": { "type": "string", "enum": ["recreate", "preserve"], "default": "recreate" },
+                  "enhancePrompt": { "type": "string" },
+                  "slideCount": { "type": "integer", "minimum": 1, "description": "Target slide count in recreate mode" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "$ref": "#/components/responses/Job" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "402": { "$ref": "#/components/responses/InsufficientCredits" },
+          "413": { "$ref": "#/components/responses/TooLarge" },
+          "415": { "$ref": "#/components/responses/UnsupportedType" }
+        }
+      }
+    },
+    "/v1/recordings/edit": {
+      "post": {
+        "tags": ["Create"],
+        "summary": "Edit a screen recording",
+        "description": "Cuts a narrated screen recording into a polished demo. Costs 2 credits. Max 500 MB after decoding.",
+        "operationId": "editRecording",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fileBase64", "fileName"],
+                "properties": {
+                  "fileBase64": { "type": "string", "description": "Base64 of the video" },
+                  "fileName": { "type": "string", "example": "recording.mp4" },
+                  "productName": { "type": "string", "description": "Used on the intro card" },
+                  "productUrl": { "type": "string", "description": "Used on the outro card" },
+                  "instructions": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "$ref": "#/components/responses/Job" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "402": { "$ref": "#/components/responses/InsufficientCredits" },
+          "413": { "$ref": "#/components/responses/TooLarge" },
+          "415": { "$ref": "#/components/responses/UnsupportedType" }
+        }
+      }
+    },
+    "/v1/jobs": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "List jobs",
+        "description": "Your jobs, newest first.",
+        "operationId": "listJobs",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["video", "launch_video", "deck", "deck.enhance", "recording.edit"]
+            }
+          },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50, "maximum": 100 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Job" } },
+                    "total": { "type": "integer", "description": "Total matching jobs before the limit" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/jobs/{id}": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Get a job",
+        "description": "Poll this every 10 seconds until status is COMPLETED, FAILED, or AWAITING_REVIEW.",
+        "operationId": "getJob",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "The job",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Job" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/credits": {
+      "get": {
+        "tags": ["Billing"],
+        "summary": "Get the credit balance",
+        "operationId": "getCredits",
+        "responses": {
+          "200": {
+            "description": "Balance, plan, and the 20 most recent ledger entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "balance": { "type": "number" },
+                    "plan": { "type": ["string", "null"] },
+                    "transactions": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/pricing": {
+      "get": {
+        "tags": ["Billing"],
+        "summary": "Get credit prices",
+        "description": "Current price of each job type. No key needed.",
+        "operationId": "getPricing",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Prices in credits",
+            "content": {
+              "application/json": {
+                "example": {
+                  "video": 3,
+                  "deck": 1,
+                  "deck.enhance": 1,
+                  "recording.edit": 2,
+                  "launch_video": {
+                    "default": 9,
+                    "byResolution": {
+                      "720p": { "narrated": 6, "musicOnly": 5 },
+                      "1080p": { "narrated": 9, "musicOnly": 8 },
+                      "4k": { "narrated": 13, "musicOnly": 12 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Your Pitch API key, created at https://trypitch.co/api-keys. Send it as `Authorization: Bearer pk_...`. The header `X-API-Key: pk_...` also works for clients that cannot set a bearer token."
+      }
+    },
+    "schemas": {
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "cm4x8k2p90001abcd" },
+          "type": {
+            "type": "string",
+            "enum": ["video", "launch_video", "deck", "deck.enhance", "recording.edit"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["PENDING", "PROCESSING", "AWAITING_REVIEW", "COMPLETED", "FAILED"]
+          },
+          "progress": { "type": "number", "minimum": 0, "maximum": 100 },
+          "cost": { "type": "number", "description": "Credits charged" },
+          "videoUrl": { "type": ["string", "null"], "description": "Set when a video job completes" },
+          "pdfUrl": { "type": ["string", "null"], "description": "Set when a deck job completes" },
+          "thumbnailUrl": { "type": ["string", "null"] },
+          "shareUrl": { "type": ["string", "null"], "description": "Only if sharing was enabled in the app" },
+          "error": { "type": ["string", "null"], "description": "Set when status is FAILED" },
+          "phases": { "type": "array", "items": { "$ref": "#/components/schemas/Phase" } },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Phase": {
+        "type": "object",
+        "properties": {
+          "phase": { "type": "string", "example": "video_recording" },
+          "label": { "type": "string", "example": "Video Recording" },
+          "status": { "type": "string", "enum": ["pending", "running", "completed", "failed"] }
+        }
+      },
+      "ProjectInfo": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "hasVideo": { "type": "boolean" },
+          "videoUrl": { "type": ["string", "null"] },
+          "sceneCount": { "type": "integer" }
+        }
+      },
+      "ProjectDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ProjectInfo" },
+          {
+            "type": "object",
+            "properties": {
+              "duration": { "type": "number", "description": "Seconds" },
+              "scenes": { "type": "array", "items": { "$ref": "#/components/schemas/Scene" } }
+            }
+          }
+        ]
+      },
+      "Scene": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "index": { "type": "integer" },
+          "start": { "type": "number" },
+          "end": { "type": "number" },
+          "dur": { "type": "number" },
+          "vo": { "type": ["string", "null"], "description": "Voiceover line" },
+          "draftUrl": { "type": ["string", "null"] }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_request",
+                  "unauthorized",
+                  "insufficient_credits",
+                  "not_found",
+                  "payload_too_large",
+                  "unsupported_media_type",
+                  "internal_error"
+                ]
+              },
+              "message": { "type": "string" },
+              "balance": { "type": "number", "description": "Present on insufficient_credits" }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Job": {
+        "description": "Job queued",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Job" } } }
+      },
+      "BadRequest": {
+        "description": "A field is missing, the wrong type, or out of range",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "The API key is missing, unknown, or revoked",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "InsufficientCredits": {
+        "description": "The balance cannot cover the job. Nothing was created or charged",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "No such job or project, or it belongs to someone else",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "TooLarge": {
+        "description": "The decoded file is over the limit",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "UnsupportedType": {
+        "description": "The file extension is not accepted for that job",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  }
+}

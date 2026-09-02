@@ -32,9 +32,25 @@ export class InsufficientCreditsError extends Error {
   }
 }
 
+export class OnboardingRequiredError extends Error {
+  constructor() {
+    super('Complete onboarding before creating your first job')
+    this.name = 'OnboardingRequiredError'
+  }
+}
+
+async function requireCompletedOnboarding(userId: string) {
+  const completed = await db.prisma.onboardingSurvey.findUnique({
+    where: { userId },
+    select: { id: true },
+  })
+  if (!completed) throw new OnboardingRequiredError()
+}
+
 /** AI demo video job (3 credits). Rolls back (mark failed + refund) when the
  * enqueue/publish step fails after the job row and credit deduction committed. */
 export async function createDemoVideoJob(userId: string, parameters: any) {
+  await requireCompletedOnboarding(userId)
   const tenantId = userId
   const requiresReview = Array.isArray(parameters?.assets) && parameters.assets.length > 0
   const jobParameters = requiresReview ? { ...parameters, workflowStage: 'PLANNING' } : parameters
@@ -108,6 +124,7 @@ export async function createLaunchVideoJob(
   resolution?: string,
   narration = true,
 ) {
+  await requireCompletedOnboarding(userId)
   const tenantId = userId
 
   // Price follows the requested output resolution (720p/1080p/4K). An unknown
@@ -191,6 +208,7 @@ export async function createLaunchVideoJob(
 /** PDF job (1 credit). Forces jobType: 'pdf' onto the parameters; queued on
  * the shared video queue where the worker dispatches by jobType. */
 export async function createPdfJob(userId: string, parameters: any) {
+  await requireCompletedOnboarding(userId)
   const tenantId = userId
 
   const balance = await db.getCreditBalance(tenantId)
@@ -248,6 +266,7 @@ export interface EnhanceJobInput {
 /** Presentation enhance job (1 credit). Uploads the local temp file to
  * storage, then queues on the dedicated enhance queue. */
 export async function createEnhanceJob(userId: string, input: EnhanceJobInput) {
+  await requireCompletedOnboarding(userId)
   const tenantId = userId
   const { tmpFilePath, originalFileName, mode, enhancePrompt, slideCount } = input
 
@@ -315,6 +334,7 @@ export interface EditJobInput {
 /** Recording edit job (EDIT_CREDIT_COST credits). Uploads the local temp file
  * to storage, then queues on the dedicated edit queue. */
 export async function createEditJob(userId: string, input: EditJobInput) {
+  await requireCompletedOnboarding(userId)
   const tenantId = userId
   const { tmpFilePath, originalFileName, productName, productUrl, instructions } = input
 

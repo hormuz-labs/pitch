@@ -14,13 +14,13 @@ const items: readonly AccordionItemData[] = [
     value: 'faq-1',
     title: 'How is Pitch different from Loom?',
     content:
-      'Loom records you clicking around your product. Pitch is autonomous — an AI agent opens a real browser, navigates your product, writes the script, and produces a polished, narrated video with cinematic cursor motion and color grading. Loom is what you record. Pitch is what you publish.',
+      'Loom records you clicking around your product. Pitch is autonomous. An AI agent opens a real browser, navigates your product, writes the script, and produces a polished, narrated video with cinematic cursor motion and color grading. Loom is what you record. Pitch is what you publish.',
   },
   {
     value: 'faq-2',
     title: 'How is Pitch different from Synthesia or HeyGen?',
     content:
-      'Synthesia and HeyGen generate talking-head avatars. Pitch shows your actual product — the AI agent navigates your real website and narrates what is happening on screen. It is a product demo, not an avatar presentation.',
+      'Synthesia and HeyGen generate talking-head avatars. Pitch shows your actual product. The AI agent navigates your real website and narrates what is happening on screen. It is a product demo, not an avatar presentation.',
   },
   {
     value: 'faq-3',

@@ -175,18 +175,136 @@
     </script>
     <link rel="preconnect" href="https://live-mutt-97.clerk.accounts.dev" />
     <link rel="dns-prefetch" href="https://live-mutt-97.clerk.accounts.dev" />
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VC3NZ72GWY"></script>
+    <!-- Google tag (gtag.js) — queued immediately, fetched after load.
+         The tag is ~500 kB and an `async` script in <head> still competes with
+         the render-blocking stylesheet for bandwidth on a cold connection.
+         dataLayer calls made before the script arrives are replayed by it, so
+         the pageview is not lost by waiting. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-VC3NZ72GWY');
+      addEventListener('load', function () {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-VC3NZ72GWY';
+        document.head.appendChild(s);
+      });
     </script>
+    <style>
+      /* Stair preloader — pure CSS so the intro runs on the prerendered HTML at
+         first paint, with no JS parsed. Panels animate `transform`, not
+         top/bottom, so the 20 sheets composite on the GPU instead of forcing
+         layout every frame. Whole sequence ends at ~1.79s.
+         Timeline: type 0.05-0.64s · cursor 0.42-0.98s · text out 0.86-1.16s ·
+         stairs 0.92-1.79s. */
+      #pitch-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        overflow: hidden;
+        pointer-events: none;
+        contain: strict;
+      }
+      #pitch-preloader .plcols { position: absolute; inset: 0; display: flex; }
+      #pitch-preloader .plcol { position: relative; flex: 1; height: 100%; }
+      #pitch-preloader .plp {
+        position: absolute;
+        left: -1%;
+        width: 102%;
+        height: 51vh;
+        background: #000;
+        will-change: transform;
+        animation: pl-open 0.55s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+        animation-delay: calc(0.92s + var(--c) * 0.035s);
+      }
+      #pitch-preloader .plp-t { top: 0; --pl-to: -100%; }
+      #pitch-preloader .plp-b { bottom: 0; --pl-to: 100%; }
+      @keyframes pl-open { to { transform: translate3d(0, var(--pl-to), 0); } }
+
+      #pitch-preloader .pltext {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 24px;
+        mix-blend-mode: difference;
+        animation: pl-fade 0.3s ease 0.86s forwards;
+      }
+      @keyframes pl-fade { to { opacity: 0; } }
+      #pitch-preloader .pltext-in { display: flex; flex-wrap: nowrap; gap: 0 clamp(6px, 2vw, 24px); }
+      #pitch-preloader .plw { display: inline-flex; }
+      #pitch-preloader .plw-i { font-style: italic; }
+      #pitch-preloader .plc {
+        color: #fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-weight: 700;
+        font-size: clamp(10px, 3.5vw, 35px);
+        letter-spacing: -0.02em;
+        white-space: pre;
+        opacity: 0;
+        animation: pl-char 0.01s linear forwards;
+        animation-delay: calc(0.05s + var(--i) * 0.018s);
+      }
+      @keyframes pl-char { to { opacity: 1; } }
+
+      #pitch-preloader .plcur {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 60;
+        color: #fff;
+        opacity: 0;
+        filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+        transform: translate3d(120px, 78px, 0);
+        animation: pl-cursor 0.56s cubic-bezier(0.33, 1, 0.68, 1) 0.42s forwards;
+      }
+      @keyframes pl-cursor {
+        0%   { opacity: 0; transform: translate3d(120px, 78px, 0) scale(1); }
+        25%  { opacity: 1; }
+        68%  { opacity: 1; transform: translate3d(30px, 6px, 0) scale(1); }
+        82%  { opacity: 1; transform: translate3d(30px, 6px, 0) scale(0.78); }
+        100% { opacity: 0; transform: translate3d(30px, 6px, 0) scale(1); }
+      }
+
+      html.pl-lock, html.pl-lock body { overflow: hidden; }
+      @media (prefers-reduced-motion: reduce) { #pitch-preloader { display: none; } }
+    </style>
   </head>
   <body>
+    <div id="pitch-preloader" aria-hidden="true">
+      <div class="plcols"><div class="plcol" style="--c:9"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:8"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:7"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:6"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:5"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:4"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:3"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:2"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:1"><i class="plp plp-t"></i><i class="plp plp-b"></i></div><div class="plcol" style="--c:0"><i class="plp plp-t"></i><i class="plp plp-b"></i></div></div>
+      <div class="pltext"><div class="pltext-in"><span class="plw"><span class="plc" style="--i:0">A</span><span class="plc" style="--i:1">u</span><span class="plc" style="--i:2">t</span><span class="plc" style="--i:3">o</span><span class="plc" style="--i:4">m</span><span class="plc" style="--i:5">a</span><span class="plc" style="--i:6">t</span><span class="plc" style="--i:7">i</span><span class="plc" style="--i:8">n</span><span class="plc" style="--i:9">g</span></span><span class="plw"><span class="plc" style="--i:10">c</span><span class="plc" style="--i:11">i</span><span class="plc" style="--i:12">n</span><span class="plc" style="--i:13">e</span><span class="plc" style="--i:14">m</span><span class="plc" style="--i:15">a</span><span class="plc" style="--i:16">t</span><span class="plc" style="--i:17">i</span><span class="plc" style="--i:18">c</span></span><span class="plw"><span class="plc" style="--i:19">p</span><span class="plc" style="--i:20">r</span><span class="plc" style="--i:21">o</span><span class="plc" style="--i:22">d</span><span class="plc" style="--i:23">u</span><span class="plc" style="--i:24">c</span><span class="plc" style="--i:25">t</span></span><span class="plw plw-i"><span class="plc" style="--i:26">p</span><span class="plc" style="--i:27">i</span><span class="plc" style="--i:28">t</span><span class="plc" style="--i:29">c</span><span class="plc" style="--i:30">h</span><span class="plc" style="--i:31">e</span><span class="plc" style="--i:32">s</span><span class="plc" style="--i:33">.</span></span></div></div>
+      <svg class="plcur" viewBox="0 0 24 24" fill="none" width="22" height="22"><path d="M20.5056 10.7754C21.1225 10.5355 21.431 10.4155 21.5176 10.2459C21.5926 10.099 21.5903 9.92446 21.5115 9.77954C21.4205 9.61226 21.109 9.50044 20.486 9.2768L4.59629 3.5728C4.0866 3.38983 3.83175 3.29835 3.66514 3.35605C3.52029 3.40621 3.40645 3.52004 3.35629 3.6649C3.29859 3.8315 3.39008 4.08635 3.57304 4.59605L9.277 20.4858C9.50064 21.1088 9.61246 21.4203 9.77973 21.5113C9.92465 21.5901 10.0991 21.5924 10.2461 21.5174C10.4157 21.4308 10.5356 21.1223 10.7756 20.5054L13.3724 13.8278C13.4194 13.707 13.4429 13.6466 13.4792 13.5957C13.5114 13.5506 13.5508 13.5112 13.5959 13.479C13.6468 13.4427 13.7072 13.4192 13.828 13.3722L20.5056 10.7754Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
     <div id="root"></div>
+    <script>
+      // Drives the CSS intro above. Runs before paint so a returning visitor or a
+      // non-landing route never sees a frame of it. The animation itself needs no
+      // JS — this only clears the overlay when the sequence is over.
+      (function () {
+        var el = document.getElementById('pitch-preloader')
+        if (!el) return
+        var run = location.pathname === '/'
+        try { if (sessionStorage.getItem('preloader_done') === '1') run = false } catch (e) {}
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) run = false
+        if (!run) { el.remove(); return }
+        // The build-time prerenderer sets this so the pristine markup is captured
+        // into dist/index.html instead of a half-removed DOM.
+        if (window.__PITCH_PRERENDER__) return
+        var root = document.documentElement
+        root.classList.add('pl-lock')
+        setTimeout(function () {
+          root.classList.remove('pl-lock')
+          el.remove()
+          try { sessionStorage.setItem('preloader_done', '1') } catch (e) {}
+        }, 1900)
+      })()
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
