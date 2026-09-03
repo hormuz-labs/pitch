@@ -4,7 +4,7 @@ import * as path from 'node:path'
 import { promisify } from 'node:util'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
-import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
+import { getClerkUserEmail, sendJobCompletedEmail, sendJobFailedEmail } from '@saas/email'
 import {
   createLogger,
   JOB_CANCELLATIONS_CHANNEL,
@@ -345,7 +345,14 @@ export async function pushJobResult(
           videoTitle = parameters?.productName || parameters?.originalFileName || 'pitch.com'
         }
       }
-      await sendJobCompleteEmail({ to: userEmail, jobId, videoUrl, videoTitle })
+      await sendJobCompletedEmail({
+        to: userEmail,
+        firstName: userProfile?.firstName,
+        jobId,
+        outputUrl: videoUrl,
+        title: videoTitle,
+        kind: isEditJob ? 'recording-edit' : 'demo',
+      })
     }
   } catch (err: any) {
     logger.warn({ err, jobId }, 'Notifications or email failed')
@@ -1506,6 +1513,16 @@ export function createJobProcessor(connection: Redis, targetDir: string) {
           await sendDiscordMessage(
             `❌ **Video Creation Failed** (Worker error)\nJob ID: \`${jobId}\`\nUser: ${email}\nTarget URL: ${urlParam}${instructions}\nError: ${errorMessage}`,
           )
+          if (userProfile?.email) {
+            await sendJobFailedEmail({
+              to: userProfile.email,
+              firstName: userProfile.firstName,
+              jobId,
+              kind: parameters?.jobType === 'edit-recording' ? 'recording-edit' : 'demo',
+              error: errorMessage,
+              refundedCredits: parameters?.jobType === 'pdf' ? 1 : 3,
+            })
+          }
         } catch (updateErr: any) {
           jobLogger.warn(
             { err: updateErr },

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import * as db from '@saas/db'
+import { sendWelcomeEmail } from '@saas/email'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
 import { type Request, Router } from 'express'
 import { REFERRAL_REWARDS, SIGNUP_BONUS_CREDITS } from '../config.js'
@@ -195,6 +196,19 @@ router.post('/sync', async (req, res) => {
         idempotencyKey: `signup_bonus:${userId}`,
       })
       logger.info({ userId }, `Applied signup bonus credits (${SIGNUP_BONUS_CREDITS})`)
+      try {
+        const welcome = await sendWelcomeEmail({
+          to: email,
+          firstName,
+          credits: SIGNUP_BONUS_CREDITS,
+          userId,
+        })
+        if (welcome.error) {
+          logger.warn({ userId, error: welcome.error }, 'Welcome email was not sent')
+        }
+      } catch (err) {
+        logger.warn({ err, userId }, 'Welcome email was not sent')
+      }
 
       // Referral attribution: if this user arrived through an affiliate link, the
       // web app sends the `refCode` in the sync body (the `?ref=<CODE>` query

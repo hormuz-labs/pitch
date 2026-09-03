@@ -6,11 +6,9 @@ import * as path from 'node:path'
 import { promisify } from 'node:util'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
-import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
+import { getClerkUserEmail, sendJobCompletedEmail, sendJobFailedEmail } from '@saas/email'
 import {
   createLogger,
-  ENHANCE_PHASE_LABELS,
-  JOB_CANCELLATIONS_CHANNEL,
   JOB_UPDATES_CHANNEL,
   JobStatus,
   type PhaseUpdate,
@@ -132,11 +130,13 @@ async function pushEnhancedResult(
     )
     const userEmail = await getClerkUserEmail(userId)
     if (userEmail && pdfUrl) {
-      await sendJobCompleteEmail({
+      await sendJobCompletedEmail({
         to: userEmail,
+        firstName: userProfile?.firstName,
         jobId,
-        videoUrl: pdfUrl,
-        videoTitle: `Enhanced: ${fileName}`,
+        outputUrl: pdfUrl,
+        title: `Enhanced: ${fileName}`,
+        kind: 'enhancement',
       })
     }
   } catch (err: any) {
@@ -528,6 +528,16 @@ export async function processEnhanceJob(
       await sendDiscordMessage(
         `❌ **Presentation Enhancement Failed**\nJob ID: \`${jobId}\`\nUser: ${email}\nError: ${error.message}`,
       )
+      if (userProfile?.email) {
+        await sendJobFailedEmail({
+          to: userProfile.email,
+          firstName: userProfile.firstName,
+          jobId,
+          kind: 'enhancement',
+          error: error.message,
+          refundedCredits: 1,
+        })
+      }
     } catch (refundError: any) {
       jobLogger.error({ err: refundError }, 'Failed to handle enhance job failure cleanup')
     }

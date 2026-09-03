@@ -12,6 +12,7 @@ import path from 'node:path'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
 import { prisma } from '@saas/db'
+import { sendJobCompletedEmail, sendJobFailedEmail } from '@saas/email'
 import {
   createLogger,
   JOB_UPDATES_CHANNEL,
@@ -394,6 +395,18 @@ async function executeLaunchVideoJob(
   })
   await connection.publish(JOB_UPDATES_CHANNEL, JSON.stringify(updatedJob))
 
+  const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
+  if (userProfile?.email) {
+    await sendJobCompletedEmail({
+      to: userProfile.email,
+      firstName: userProfile.firstName,
+      jobId,
+      kind: 'launch-video',
+      outputUrl: videoUrl,
+      title: projectName,
+    }).catch(err => logger.warn({ err, jobId }, 'Failed to send launch-video completion email'))
+  }
+
   jobLogger.info({ videoUrl }, 'Launch video rendered')
   return { videoUrl }
 }
@@ -466,6 +479,18 @@ export async function recoverLaunchVideoJobFailure({
     jobId,
     idempotencyKey: `refund:launch-video:${jobId}`,
   })
+
+  const userProfile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
+  if (userProfile?.email) {
+    await sendJobFailedEmail({
+      to: userProfile.email,
+      firstName: userProfile.firstName,
+      jobId,
+      kind: 'launch-video',
+      error: errorMessage,
+      refundedCredits: refund,
+    }).catch(err => logger.warn({ err, jobId }, 'Failed to send launch-video failure email'))
+  }
 }
 
 export async function processLaunchVideoJob(
