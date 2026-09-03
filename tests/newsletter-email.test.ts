@@ -14,6 +14,8 @@ describe('newsletter email rendering', () => {
     })
 
     expect(result.html).toContain('@media only screen and (max-width:620px)')
+    expect(result.html).toContain('.footer-link{display:inline-block!important')
+    expect(result.html).not.toContain('.footer-link{display:block!important')
     expect(result.html).toContain('MCP tools are here')
     expect(result.html).toContain('Hi Ada,')
     expect(result.html).toContain('<pre')

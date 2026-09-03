@@ -10,6 +10,7 @@ export {
   type TransactionalEmailContent,
 } from './transactional.js'
 
+import { embedSocialIcons } from './social-assets.js'
 import { sendJobCompletedEmail } from './transactional.js'
 
 // ─── Clerk: fetch user email ──────────────────────────────────────────────────
@@ -514,7 +515,7 @@ export function renderNewsletterEmail({
   )
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>@media only screen and (max-width:620px){.email-shell{width:100%!important}.mobile-pad{padding-left:24px!important;padding-right:24px!important}.hero-title{font-size:30px!important;line-height:36px!important}.outer-pad{padding:16px 8px!important}.cta{display:block!important;text-align:center!important}.footer-link{display:block!important;margin:0 0 10px!important}}</style></head>
+<style>@media only screen and (max-width:620px){.email-shell{width:100%!important}.mobile-pad{padding-left:24px!important;padding-right:24px!important}.hero-title{font-size:30px!important;line-height:36px!important}.outer-pad{padding:16px 8px!important}.cta{display:block!important;text-align:center!important}.footer-link{display:inline-block!important;margin:0 14px 8px 0!important;white-space:nowrap!important}}</style></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#111827;-webkit-text-size-adjust:100%;word-spacing:normal">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeEmailHtml(message.slice(0, 120))}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:#f3f4f6">
@@ -579,6 +580,7 @@ export async function sendNewsletterEmail(
   const resend = createResend()
   if (!resend) return { error: 'RESEND_API_KEY is not configured' }
   const content = renderNewsletterEmail(input)
+  const embedded = embedSocialIcons(content.html)
 
   const { data, error } = await resend.emails.send({
     from: process.env.NEWSLETTER_FROM ?? 'Adnan from Pitch <noreply@trypitch.co>',
@@ -586,7 +588,8 @@ export async function sendNewsletterEmail(
     replyTo: 'support@trypitch.co',
     subject: input.subject,
     text: content.text,
-    html: content.html,
+    html: embedded.html,
+    attachments: embedded.attachments,
     headers: {
       'List-Unsubscribe': `<${input.unsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',

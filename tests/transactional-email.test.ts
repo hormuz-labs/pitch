@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { embedSocialIcons } from '../packages/email/src/social-assets.js'
 import { renderTransactionalEmail } from '../packages/email/src/transactional.js'
 
 describe('transactional email rendering', () => {
@@ -43,5 +44,17 @@ describe('transactional email rendering', () => {
 
     expect(result.html).toContain('href="#"')
     expect(result.html).not.toContain('href="javascript:')
+  })
+
+  it('embeds social icons into the email message', () => {
+    const embedded = embedSocialIcons(
+      '<img src="https://trypitch.co/email/social/youtube.png" alt="YouTube">',
+    )
+
+    expect(embedded.html).toContain('src="cid:pitch-social-youtube"')
+    expect(embedded.attachments).toHaveLength(5)
+    expect(
+      embedded.attachments.find(item => item.filename === 'youtube.png')?.content.length,
+    ).toBeGreaterThan(0)
   })
 })
