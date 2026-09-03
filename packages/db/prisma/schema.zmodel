@@ -410,10 +410,10 @@ model NewsletterSubscriber {
   userId         String?   @unique
   source         String    @default("website")
   status         String    @default("subscribed")
-  unsubscribeToken String  @unique @default(cuid())
+  unsubscribeToken String? @unique @default(cuid())
   unsubscribedAt DateTime?
   createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  updatedAt      DateTime  @default(now()) @updatedAt
 
   // Allow anyone to subscribe (create) without auth
   @@allow('create', true)

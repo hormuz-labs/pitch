@@ -274,7 +274,7 @@ router.post('/newsletter/send', async (req, res) => {
             message,
             ctaLabel: ctaLabel || undefined,
             ctaUrl: ctaUrl || undefined,
-            unsubscribeUrl: `${publicUrl}/newsletter/unsubscribe?token=${encodeURIComponent(contact.unsubscribeToken)}`,
+            unsubscribeUrl: `${publicUrl}/newsletter/unsubscribe?token=${encodeURIComponent(contact.unsubscribeToken || '')}`,
           }),
         ),
       )
