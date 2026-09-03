@@ -1,4 +1,5 @@
 import * as db from '@saas/db'
+import { sendBillingEmail } from '@saas/email'
 import { createLogger } from '@saas/shared'
 import DodoPayments from 'dodopayments'
 import express, { Router } from 'express'
@@ -86,6 +87,12 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       })
 
       logger.info({ userId, planKey, credits, subscriptionId }, '[Dodo] Subscription activated')
+      await sendBillingNotification(userId, 'subscription-started', subscriptionId, {
+        plan: pack?.label ?? planKey,
+        credits,
+        amount: formatWebhookAmount(data.recurring_pre_tax_amount, data.currency),
+        periodEnd,
+      })
       await handleAffiliateConversion(data, metadata, userId, event.type as string)
     }
 
@@ -123,6 +130,12 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       })
 
       logger.info({ userId, planKey, credits, subscriptionId }, '[Dodo] Subscription renewed')
+      await sendBillingNotification(userId, 'subscription-renewed', subscriptionId, {
+        plan: pack?.label ?? planKey,
+        credits,
+        amount: formatWebhookAmount(data.recurring_pre_tax_amount, data.currency),
+        periodEnd,
+      })
     }
 
     // ── Subscription cancelled ────────────────────────────────────────────────
@@ -131,6 +144,9 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       if (subscriptionId) {
         await db.cancelSubscription(subscriptionId)
         logger.info({ subscriptionId }, '[Dodo] Subscription cancelled')
+        if (userId) {
+          await sendBillingNotification(userId, 'subscription-cancelled', subscriptionId)
+        }
       }
     }
 
@@ -156,6 +172,11 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       })
 
       logger.info({ userId, packKey, credits, paymentId, amountUsd }, '[Dodo] Top-up purchased')
+      await sendBillingNotification(userId, 'topup', paymentId, {
+        plan: pack?.label ?? packKey,
+        credits,
+        amount: formatWebhookAmount(data.total_amount, data.currency),
+      })
       await handleAffiliateConversion(data, metadata, userId, event.type as string)
     }
   } catch (err: unknown) {
@@ -169,6 +190,47 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
 
   res.json({ received: true })
 })
+
+function formatWebhookAmount(minorUnits: unknown, currency: unknown): string | undefined {
+  if (typeof minorUnits !== 'number') return undefined
+  const currencyCode = typeof currency === 'string' && currency ? currency.toUpperCase() : 'USD'
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode }).format(
+      minorUnits / 100,
+    )
+  } catch {
+    return `${(minorUnits / 100).toFixed(2)} ${currencyCode}`
+  }
+}
+
+async function sendBillingNotification(
+  userId: string,
+  event: 'subscription-started' | 'subscription-renewed' | 'subscription-cancelled' | 'topup',
+  referenceId: string,
+  details: { plan?: string; credits?: number; amount?: string; periodEnd?: Date } = {},
+) {
+  try {
+    const user = await db.prisma.userProfile.findUnique({ where: { id: userId } })
+    if (!user?.email) return
+    const result = await sendBillingEmail({
+      to: user.email,
+      firstName: user.firstName,
+      event,
+      referenceId,
+      plan: details.plan,
+      credits: details.credits,
+      amount: details.amount,
+      periodEnd: details.periodEnd?.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+    })
+    if (result.error) logger.warn({ userId, event, error: result.error }, 'Billing email failed')
+  } catch (err) {
+    logger.warn({ err, userId, event }, 'Billing email failed')
+  }
+}
 
 // ── Duplicate subscription guard ──────────────────────────────────────────────
 // Belt-and-suspenders: even if the POST /checkout guard hits a race condition,

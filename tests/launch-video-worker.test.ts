@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const findJob = vi.fn()
 const updateJob = vi.fn()
 const addCredits = vi.fn()
+const findUser = vi.fn()
 
 vi.mock('@saas/db', () => ({
   prisma: {
     job: { findUnique: findJob },
+    userProfile: { findUnique: findUser },
   },
   updateJob,
   addCredits,
@@ -28,6 +30,7 @@ describe('launch-video worker failure recovery', () => {
     })
     updateJob.mockResolvedValue({ id: 'job_launch_1', status: 'FAILED' })
     addCredits.mockResolvedValue(28)
+    findUser.mockResolvedValue(null)
   })
 
   it('marks the job failed and refunds launch credits idempotently', async () => {

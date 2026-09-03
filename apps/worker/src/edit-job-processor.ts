@@ -26,6 +26,7 @@ import * as path from 'node:path'
 import { promisify } from 'node:util'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
+import { sendJobFailedEmail } from '@saas/email'
 import {
   createLogger,
   JOB_UPDATES_CHANNEL,
@@ -444,6 +445,16 @@ export async function processEditJob(
       await sendDiscordMessage(
         `❌ **Recording Edit Failed**\nJob ID: \`${jobId}\`\nUser: ${email}\nError: ${error.message}`,
       )
+      if (userProfile?.email) {
+        await sendJobFailedEmail({
+          to: userProfile.email,
+          firstName: userProfile.firstName,
+          jobId,
+          kind: 'recording-edit',
+          error: error.message,
+          refundedCredits: EDIT_CREDIT_COST,
+        })
+      }
     } catch (cleanupErr: any) {
       jobLogger.error({ err: cleanupErr }, 'Failed to handle edit job failure cleanup')
     }

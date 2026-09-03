@@ -1,5 +1,17 @@
 import { Resend } from 'resend'
 
+export {
+  type JobEmailKind,
+  renderTransactionalEmail,
+  sendBillingEmail,
+  sendJobCompletedEmail,
+  sendJobFailedEmail,
+  sendWelcomeEmail,
+  type TransactionalEmailContent,
+} from './transactional.js'
+
+import { sendJobCompletedEmail } from './transactional.js'
+
 // ─── Clerk: fetch user email ──────────────────────────────────────────────────
 
 /**
@@ -419,34 +431,15 @@ export async function sendJobCompleteEmail({
   videoUrl: string
   videoTitle?: string // e.g. "razorpay.com" — shown inside the thumbnail block
 }): Promise<void> {
-  const resend = createResend()
-  if (!resend) {
-    console.warn('[Email] RESEND_API_KEY not set — skipping email notification')
-    return
-  }
-
-  const from = 'Pitch <noreply@trypitch.co>'
-
-  const { error } = await resend.emails.send({
-    from,
+  const result = await sendJobCompletedEmail({
     to,
-    replyTo: 'support@trypitch.co',
-
-    subject: 'Your demo video is ready',
-
-    text: jobCompleteText(videoUrl, jobId),
-    html: jobCompleteHtml(videoUrl, to, videoTitle),
-
-    headers: {
-      'List-Unsubscribe': `<${process.env.UNSUBSCRIBE_BASE_URL ?? 'https://trypitch.co'}/unsubscribe?email=${encodeURIComponent(to)}>`,
-      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      Precedence: 'transactional',
-      'X-Mailer': 'Pitch/1.0 Resend',
-    },
+    jobId,
+    outputUrl: videoUrl,
+    title: videoTitle,
+    kind: 'demo',
   })
-
-  if (error) {
-    console.warn(`[Email] Failed to send job-complete notification to ${to}:`, error.message)
+  if (result.error) {
+    console.warn(`[Email] Failed to send job-complete notification to ${to}:`, result.error)
   } else {
     console.log(`[Email] Sent job-complete notification to ${to} for job ${jobId}`)
   }
@@ -535,7 +528,6 @@ export function renderNewsletterEmail({
       </td></tr>
       <tr><td class="mobile-pad" style="padding:42px 40px 46px;background-color:#111111;background-image:linear-gradient(135deg,#111111 0%,#1f1f1f 60%,#383838 100%);color:#ffffff">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr><td style="padding-bottom:14px;color:#b6b6b6;font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase">A note from Adnan</td></tr>
           <tr><td class="hero-title" style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:38px;line-height:44px;font-weight:750;letter-spacing:-1.2px;color:#ffffff">${safeSubject}</td></tr>
           <tr><td style="padding-top:26px"><span style="display:inline-block;width:54px;height:4px;border-radius:4px;background:#ffffff;font-size:0;line-height:0">&nbsp;</span></td></tr>
         </table>
@@ -560,6 +552,13 @@ export function renderNewsletterEmail({
             <a class="footer-link" href="mailto:support@trypitch.co" style="color:#374151;text-decoration:underline;margin-right:18px">Contact us</a>
             <a class="footer-link" href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#374151;text-decoration:underline">Unsubscribe</a>
           </td></tr>
+          <tr><td style="padding-top:16px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td style="padding-right:9px"><a href="https://x.com/trypitchdotco" aria-label="Pitch on X"><img src="https://trypitch.co/email/social/x.png" width="30" height="30" alt="X" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td style="padding-right:9px"><a href="https://www.instagram.com/trypitch.co" aria-label="Pitch on Instagram"><img src="https://trypitch.co/email/social/instagram.png" width="30" height="30" alt="Instagram" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td style="padding-right:9px"><a href="https://www.linkedin.com/company/trypitchdotco/" aria-label="Pitch on LinkedIn"><img src="https://trypitch.co/email/social/linkedin.png" width="30" height="30" alt="LinkedIn" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td style="padding-right:9px"><a href="https://discord.gg/a4SBW36mD" aria-label="Pitch on Discord"><img src="https://trypitch.co/email/social/discord.png" width="30" height="30" alt="Discord" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td><a href="https://www.youtube.com/@trypitchdotco" aria-label="Pitch on YouTube"><img src="https://trypitch.co/email/social/youtube.png" width="30" height="30" alt="YouTube" style="display:block;width:30px;height:30px;border:0"></a></td>
+          </tr></table></td></tr>
           <tr><td style="padding-top:18px;font-size:11px;line-height:18px;color:#9ca3af">You received this email because you signed up for Pitch or joined our updates list.</td></tr>
         </table>
       </td></tr>
@@ -569,7 +568,7 @@ export function renderNewsletterEmail({
 
   return {
     html,
-    text: `${greeting}\n\n${message}\n\nAdnan\nCo-founder, Pitch\n\n${ctaLabel?.trim() || 'See what is new at Pitch'}: ${ctaUrl?.trim() || process.env.NEWSLETTER_CTA_URL || 'https://trypitch.co'}\n\nUnsubscribe: ${unsubscribeUrl}`,
+    text: `${greeting}\n\n${message}\n\nAdnan\nCo-founder, Pitch\n\n${ctaLabel?.trim() || 'See what is new at Pitch'}: ${ctaUrl?.trim() || process.env.NEWSLETTER_CTA_URL || 'https://trypitch.co'}\n\nFollow Pitch:\nX: https://x.com/trypitchdotco\nInstagram: https://www.instagram.com/trypitch.co\nLinkedIn: https://www.linkedin.com/company/trypitchdotco/\nDiscord: https://discord.gg/a4SBW36mD\nYouTube: https://www.youtube.com/@trypitchdotco\n\nUnsubscribe: ${unsubscribeUrl}`,
   }
 }
 

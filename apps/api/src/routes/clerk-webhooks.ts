@@ -39,11 +39,13 @@ export async function deleteClerkUserData(userId: string) {
       await tx.affiliate.deleteMany({ where: { id: affiliate.id } })
     }
 
-    // These are Clerk IDs without a UserProfile foreign key.
+    // These are Clerk IDs without a UserProfile foreign key. Keep the newsletter
+    // row as a suppression record so deleting and recreating an account cannot
+    // silently undo an unsubscribe. Only detach the old Clerk identity.
     await tx.affiliateLead.deleteMany({ where: { referredUserId: userId } })
     await tx.affiliateConversion.deleteMany({ where: { referredUserId: userId } })
     await tx.launchVideoProject.deleteMany({ where: { userId } })
-    await tx.newsletterSubscriber.deleteMany({ where: { userId } })
+    await tx.newsletterSubscriber.updateMany({ where: { userId }, data: { userId: null } })
     await tx.userProfile.deleteMany({ where: { id: userId } })
   })
 }

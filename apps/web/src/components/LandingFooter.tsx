@@ -1,6 +1,6 @@
 import { motion, type Variants } from 'framer-motion'
 import type { ReactNode } from 'react'
-import { FaDiscord, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
+import { FaDiscord, FaInstagram, FaLinkedinIn, FaXTwitter, FaYoutube } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
 import { PitchWordmark } from './PitchWordmark'
 // Same reasoning as LandingNav: the footer is shared chrome, so it carries its
@@ -37,6 +37,7 @@ export const SOCIALS: Footer15Link[] = [
     icon: FaLinkedinIn,
   },
   { label: 'Discord', href: 'https://discord.gg/a4SBW36mD', icon: FaDiscord },
+  { label: 'YouTube', href: 'https://www.youtube.com/@trypitchdotco', icon: FaYoutube },
 ]
 
 const defaultColumns: Footer15Column[] = [

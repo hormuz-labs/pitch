@@ -29,7 +29,8 @@ function unsubscribePage(valid: boolean): string {
     .watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-54%);font-size:clamp(11rem,38vw,30rem);font-weight:650;line-height:.72;letter-spacing:-.06em;color:#dededc;white-space:nowrap;user-select:none}
     .content{position:relative;z-index:1;display:flex;max-width:560px;flex-direction:column;align-items:center}
     .logo{display:block;width:56px;height:56px;margin:0 0 24px;border-radius:12px}
-    .face{display:grid;width:106px;height:106px;margin-bottom:24px;place-items:center;border:2px solid #111;border-radius:50%;background:#ededed;font-family:'Courier New',monospace;font-size:40px;font-weight:700;line-height:1}
+    .face{display:grid;width:106px;height:106px;margin-bottom:24px;place-items:center;border:2px solid #111;border-radius:50%;background:#ededed}
+    .face svg{display:block;width:62px;height:62px}
     .eyebrow{display:flex;align-items:center;gap:8px;margin:0;color:#77736f;font-family:'Geist Mono Variable',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
     .eyebrow:before{content:'';width:6px;height:6px;border-radius:50%;background:#111}
     h1{margin:14px 0 0;font-size:clamp(2rem,6vw,3rem);font-weight:450;line-height:1.05;letter-spacing:-.045em;text-wrap:balance}
@@ -40,7 +41,7 @@ function unsubscribePage(valid: boolean): string {
     .button:hover{opacity:.82}.button:focus-visible{outline:2px solid #111;outline-offset:3px}
     .detail{display:flex;gap:14px;margin-top:30px;padding:9px 14px;border:1px solid #d4d4d1;border-radius:8px;background:rgba(250,250,250,.55);color:#77736f;font-family:'Geist Mono Variable',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
     .detail b{color:#3d3a39;font-weight:500;text-transform:none}
-    @media(max-width:520px){.page{padding:32px 20px}.logo{width:48px;height:48px}.face{width:90px;height:90px;font-size:34px}.detail{font-size:9px}}
+    @media(max-width:520px){.page{padding:32px 20px}.logo{width:48px;height:48px}.face{width:90px;height:90px}.face svg{width:54px;height:54px}.detail{font-size:9px}}
   </style>
 </head>
 <body>
@@ -48,7 +49,13 @@ function unsubscribePage(valid: boolean): string {
     <div class="watermark" aria-hidden="true">BYE</div>
     <section class="content">
       <img class="logo" src="https://trypitch.co/tabLogoB.svg" width="56" height="56" alt="Pitch">
-      <div class="face" aria-label="Sad face">:(</div>
+      <div class="face" role="img" aria-label="Sad face">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="22" cy="25" r="2.4" fill="#111"/>
+          <circle cx="42" cy="25" r="2.4" fill="#111"/>
+          <path d="M20 46c3.2-7 8.1-10.5 12-10.5S40.8 39 44 46" fill="none" stroke="#111" stroke-width="2.8" stroke-linecap="round"/>
+        </svg>
+      </div>
       <p class="eyebrow">${eyebrow}</p>
       <h1>${title}</h1>
       <p class="body">${body}</p>

@@ -21,6 +21,7 @@ describe('newsletter email rendering', () => {
     expect(result.html).not.toContain('<secret>')
     expect(result.html).toContain('Read the docs</a>')
     expect(result.html).not.toContain('Read the docs&nbsp;&nbsp;→')
+    expect(result.html).toContain('https://www.youtube.com/@trypitchdotco')
     expect(result.text).toContain('```json')
   })
 })

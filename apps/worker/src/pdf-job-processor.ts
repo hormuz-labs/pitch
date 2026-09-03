@@ -4,7 +4,7 @@ import * as path from 'node:path'
 import { promisify } from 'node:util'
 import type { OpencodeClient } from '@opencode-ai/sdk'
 import * as db from '@saas/db'
-import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
+import { getClerkUserEmail, sendJobCompletedEmail, sendJobFailedEmail } from '@saas/email'
 import {
   createLogger,
   JOB_UPDATES_CHANNEL,
@@ -87,11 +87,13 @@ async function pushPdfResult(
 
     const userEmail = await getClerkUserEmail(userId)
     if (userEmail && pdfUrl) {
-      await sendJobCompleteEmail({
+      await sendJobCompletedEmail({
         to: userEmail,
+        firstName: userProfile?.firstName,
         jobId,
-        videoUrl: pdfUrl,
-        videoTitle: topic || 'Presentation',
+        outputUrl: pdfUrl,
+        title: topic || 'Presentation',
+        kind: 'pdf',
       })
     }
   } catch (err: any) {
@@ -468,6 +470,16 @@ Build directory: ${buildDir} (pdf_scaffold creates it).`
       await sendDiscordMessage(
         `❌ **PDF Presentation Failed**\nJob ID: \`${jobId}\`\nUser: ${email}\nTopic: ${topic}\nError: ${error.message}`,
       )
+      if (userProfile?.email) {
+        await sendJobFailedEmail({
+          to: userProfile.email,
+          firstName: userProfile.firstName,
+          jobId,
+          kind: 'pdf',
+          error: error.message,
+          refundedCredits: 1,
+        })
+      }
     } catch (refundError: any) {
       jobLogger.error({ err: refundError }, 'Failed to handle PDF job failure cleanup')
     }
