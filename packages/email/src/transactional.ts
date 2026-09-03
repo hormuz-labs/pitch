@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { embedSocialIcons } from './social-assets.js'
 
 export type JobEmailKind = 'demo' | 'recording-edit' | 'launch-video' | 'pdf' | 'enhancement'
 
@@ -131,6 +132,7 @@ async function sendTransactional(
     return { error: 'RESEND_API_KEY is not configured' }
   }
   const rendered = renderTransactionalEmail(content, options?.firstName)
+  const embedded = embedSocialIcons(rendered.html)
   const resend = new Resend(apiKey)
   const { data, error } = await resend.emails.send(
     {
@@ -138,8 +140,9 @@ async function sendTransactional(
       to,
       replyTo: process.env.EMAIL_REPLY_TO || 'support@trypitch.co',
       subject: content.subject,
-      html: rendered.html,
+      html: embedded.html,
       text: rendered.text,
+      attachments: embedded.attachments,
       headers: { Precedence: 'transactional', 'X-Mailer': 'Pitch/1.0 Resend' },
     },
     options?.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : undefined,
