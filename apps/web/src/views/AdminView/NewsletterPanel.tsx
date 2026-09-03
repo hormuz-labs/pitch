@@ -17,6 +17,28 @@ type Audience = {
   unsubscribed: number
 }
 
+type Campaign = {
+  id: string
+  subject: string
+  message: string
+  ctaLabel?: string | null
+  ctaUrl?: string | null
+  sentByEmail: string
+  sentByName?: string | null
+  status: string
+  recipientCount: number
+  sentCount: number
+  failedCount: number
+  createdAt: string
+  deliveries: Array<{
+    id: string
+    email: string
+    status: string
+    providerId?: string | null
+    error?: string | null
+  }>
+}
+
 export function NewsletterPanel({
   audience,
   onRefresh,
@@ -39,6 +61,8 @@ export function NewsletterPanel({
   const [newEmail, setNewEmail] = React.useState('')
   const [newFirstName, setNewFirstName] = React.useState('')
   const [audienceMessage, setAudienceMessage] = React.useState('')
+  const [syncingUsers, setSyncingUsers] = React.useState(false)
+  const [campaigns, setCampaigns] = React.useState<Campaign[]>([])
   const selectionInitialized = React.useRef(false)
 
   const subscribedContacts = React.useMemo(
@@ -56,6 +80,22 @@ export function NewsletterPanel({
       return new Set([...previous].filter(id => validIds.has(id)))
     })
   }, [subscribedContacts])
+
+  const fetchHistory = async () => {
+    try {
+      const token = await getToken()
+      if (!token) return
+      setCampaigns(await api.get<Campaign[]>('/admin/newsletter/history', token))
+    } catch (error) {
+      console.error('Newsletter history fetch failed:', error)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchHistory()
+    // Fetch once when this admin panel mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const showPreview = async () => {
     if (!subject.trim() || !message.trim()) return
@@ -124,6 +164,29 @@ export function NewsletterPanel({
     }
   }
 
+  const syncUsers = async () => {
+    setSyncingUsers(true)
+    setAudienceMessage('')
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Authentication required')
+      const sync = await api.post<{
+        users: number
+        added: number
+        updated: number
+        suppressed: number
+      }>('/admin/newsletter/sync-users', token)
+      setAudienceMessage(
+        `Synced ${sync.users} users. ${sync.added} added, ${sync.updated} updated, ${sync.suppressed} opt-outs preserved.`,
+      )
+      await onRefresh()
+    } catch {
+      setAudienceMessage('Users could not be synced.')
+    } finally {
+      setSyncingUsers(false)
+    }
+  }
+
   const send = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!subject.trim() || !message.trim() || !selectedIds.size) return
@@ -147,6 +210,7 @@ export function NewsletterPanel({
         setMessage('')
       }
       onRefresh()
+      fetchHistory()
     } catch (error: any) {
       setResult(error?.message || 'The update could not be sent.')
     } finally {
@@ -281,6 +345,14 @@ export function NewsletterPanel({
             </button>
             <button
               type="button"
+              onClick={syncUsers}
+              disabled={syncingUsers}
+              className="text-xs font-semibold text-gray-500 hover:text-gray-900 disabled:opacity-40"
+            >
+              {syncingUsers ? 'Syncing…' : 'Sync users'}
+            </button>
+            <button
+              type="button"
               onClick={onRefresh}
               className="text-xs font-semibold text-gray-500 hover:text-gray-900"
             >
@@ -390,6 +462,91 @@ export function NewsletterPanel({
           )}
         </div>
       </div>
+
+      <section className="border-t border-gray-100 lg:col-span-2">
+        <div className="flex items-center justify-between px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">Send history</h2>
+            <p className="mt-0.5 text-xs text-gray-400">
+              Campaign content, sender, and recipient-level delivery results
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={fetchHistory}
+            className="text-xs font-semibold text-gray-500 hover:text-gray-900"
+          >
+            Refresh history
+          </button>
+        </div>
+        <div className="divide-y divide-gray-100 border-t border-gray-100">
+          {campaigns.map(campaign => (
+            <details key={campaign.id} className="group px-5 py-4 sm:px-6">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">{campaign.subject}</p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {new Date(campaign.createdAt).toLocaleString()} · sent by{' '}
+                    {campaign.sentByName || campaign.sentByEmail}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold capitalize text-gray-600">
+                    {campaign.status}
+                  </span>
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    {campaign.sentCount} sent
+                    {campaign.failedCount ? ` · ${campaign.failedCount} failed` : ''}
+                  </p>
+                </div>
+              </summary>
+              <div className="mt-4 grid gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 lg:grid-cols-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Message
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-gray-700">
+                    {campaign.message}
+                  </p>
+                  {campaign.ctaLabel && (
+                    <p className="mt-3 text-xs text-gray-500">
+                      CTA: {campaign.ctaLabel} · {campaign.ctaUrl}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Recipients ({campaign.recipientCount})
+                  </p>
+                  <div className="mt-2 max-h-48 space-y-1.5 overflow-auto">
+                    {campaign.deliveries.map(delivery => (
+                      <div
+                        key={delivery.id}
+                        className="flex items-center justify-between gap-3 text-xs"
+                      >
+                        <span className="truncate text-gray-600">{delivery.email}</span>
+                        <span
+                          className={
+                            delivery.status === 'sent' ? 'text-emerald-600' : 'text-red-600'
+                          }
+                          title={delivery.error || undefined}
+                        >
+                          {delivery.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </details>
+          ))}
+          {!campaigns.length && (
+            <p className="px-6 py-10 text-center text-sm text-gray-400">
+              Sent campaigns will appear here.
+            </p>
+          )}
+        </div>
+      </section>
 
       {previewHtml && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-3 sm:p-6">

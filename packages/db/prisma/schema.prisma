@@ -291,6 +291,41 @@ model NewsletterSubscriber {
   @@index([status, createdAt])
 }
 
+model NewsletterCampaign {
+  id             String               @id() @default(cuid())
+  subject        String
+  message        String
+  ctaLabel       String?
+  ctaUrl         String?
+  sentByUserId   String
+  sentByEmail    String
+  sentByName     String?
+  status         String               @default("sending")
+  recipientCount Int
+  sentCount      Int                  @default(0)
+  failedCount    Int                  @default(0)
+  createdAt      DateTime             @default(now())
+  completedAt    DateTime?
+  deliveries     NewsletterDelivery[]
+
+  @@index([createdAt])
+}
+
+model NewsletterDelivery {
+  id         String             @id() @default(cuid())
+  campaignId String
+  email      String
+  firstName  String?
+  status     String
+  providerId String?
+  error      String?
+  createdAt  DateTime           @default(now())
+  campaign   NewsletterCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([email])
+}
+
 model LaunchVideoProject {
   id                String   @id() @default(cuid())
   userId            String
