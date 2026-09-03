@@ -7,15 +7,24 @@ import { GlobalJobsTable } from './GlobalJobsTable'
 import { JobDetailsModal } from './JobDetailsModal'
 import { LaunchVideoDetailsModal } from './LaunchVideoDetailsModal'
 import { LaunchVideosTable } from './LaunchVideosTable'
+import { NewsletterPanel } from './NewsletterPanel'
 import { OnboardingPanel } from './OnboardingPanel'
 import { StatsCards } from './StatsCards'
 import { UserJobsModal } from './UserJobsModal'
 import { UsersTable } from './UsersTable'
 
-type AdminTab = 'users' | 'onboarding' | 'jobs' | 'launch-videos' | 'feedback' | 'affiliates'
+type AdminTab =
+  | 'users'
+  | 'newsletter'
+  | 'onboarding'
+  | 'jobs'
+  | 'launch-videos'
+  | 'feedback'
+  | 'affiliates'
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'users', label: 'Users', icon: '👥' },
+  { key: 'newsletter', label: 'Email list', icon: '✉️' },
   { key: 'onboarding', label: 'Onboarding', icon: '◫' },
   { key: 'jobs', label: 'Jobs', icon: '🎬' },
   { key: 'launch-videos', label: 'Launch Videos', icon: '🚀' },
@@ -29,6 +38,7 @@ export function AdminView() {
   const [globalJobs, setGlobalJobs] = React.useState<any[]>([])
   const [launchVideos, setLaunchVideos] = React.useState<any[]>([])
   const [analytics, setAnalytics] = React.useState<any | null>(null)
+  const [newsletter, setNewsletter] = React.useState<any | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState('')
 
@@ -86,6 +96,16 @@ export function AdminView() {
     }
   }
 
+  const fetchNewsletter = async () => {
+    try {
+      const token = await getToken()
+      if (!token) return
+      setNewsletter(await api.get<any>('/admin/newsletter', token))
+    } catch (err: any) {
+      console.error('Newsletter fetch failed:', err)
+    }
+  }
+
   React.useEffect(() => {
     let isMounted = true
     const load = async () => {
@@ -95,6 +115,7 @@ export function AdminView() {
           fetchGlobalJobs(),
           fetchLaunchVideos(),
           fetchAnalytics(),
+          fetchNewsletter(),
         ])
       } finally {
         if (isMounted) setLoading(false)
@@ -257,17 +278,19 @@ export function AdminView() {
                 const count =
                   tab.key === 'users'
                     ? (data?.users?.length ?? '')
-                    : tab.key === 'onboarding'
-                      ? (data?.users?.filter((user: any) => user.onboardingSurvey).length ?? '')
-                      : tab.key === 'jobs'
-                        ? globalJobs.length
-                        : tab.key === 'launch-videos'
-                          ? launchVideos.length
-                          : tab.key === 'feedback'
-                            ? (analytics?.feedbackSummary?.total ?? '')
-                            : tab.key === 'affiliates'
-                              ? (analytics?.affiliates?.length ?? '')
-                              : ''
+                    : tab.key === 'newsletter'
+                      ? (newsletter?.subscribed ?? '')
+                      : tab.key === 'onboarding'
+                        ? (data?.users?.filter((user: any) => user.onboardingSurvey).length ?? '')
+                        : tab.key === 'jobs'
+                          ? globalJobs.length
+                          : tab.key === 'launch-videos'
+                            ? launchVideos.length
+                            : tab.key === 'feedback'
+                              ? (analytics?.feedbackSummary?.total ?? '')
+                              : tab.key === 'affiliates'
+                                ? (analytics?.affiliates?.length ?? '')
+                                : ''
                 return (
                   <button
                     key={tab.key}
@@ -345,6 +368,10 @@ export function AdminView() {
             )}
 
             {activeTab === 'onboarding' && <OnboardingPanel users={data?.users ?? []} />}
+
+            {activeTab === 'newsletter' && (
+              <NewsletterPanel audience={newsletter} onRefresh={fetchNewsletter} />
+            )}
 
             {activeTab === 'jobs' && (
               <GlobalJobsTable jobs={filteredJobs} onSelectJob={setSelectedJob} />

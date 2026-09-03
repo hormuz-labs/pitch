@@ -36,6 +36,11 @@ vi.mock('../apps/api/src/lib/clerk.js', () => ({
 vi.mock('@saas/db', () => ({
   prisma: {
     userProfile: { findUnique: vi.fn() },
+    newsletterSubscriber: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
+    },
     onboardingSurvey: { findUnique: vi.fn(), create: vi.fn() },
     creditTransaction: { aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 0 } }) },
   },
@@ -90,6 +95,7 @@ beforeEach(() => {
   _userId = 'user_attacker'
   _verifiedProfile = null
   vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue(null)
+  vi.mocked((db as any).prisma.newsletterSubscriber.findFirst).mockResolvedValue(null)
   vi.mocked((db as any).prisma.onboardingSurvey.findUnique).mockResolvedValue(null)
   vi.mocked((db as any).upsertUser).mockImplementation(async (input: any) => input)
   app = buildApp()

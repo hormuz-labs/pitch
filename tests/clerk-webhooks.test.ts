@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     affiliateConversion: remove(),
     affiliatePayout: remove(),
     launchVideoProject: remove(),
+    newsletterSubscriber: remove(),
     userProfile: remove(),
   }
   return {
@@ -62,6 +63,9 @@ describe('POST /webhooks/clerk', () => {
       where: { id: 'affiliate_1' },
     })
     expect(mocks.tx.launchVideoProject.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user_deleted' },
+    })
+    expect(mocks.tx.newsletterSubscriber.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'user_deleted' },
     })
     expect(mocks.tx.userProfile.deleteMany).toHaveBeenLastCalledWith({
