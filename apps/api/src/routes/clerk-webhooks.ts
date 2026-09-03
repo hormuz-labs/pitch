@@ -43,6 +43,7 @@ export async function deleteClerkUserData(userId: string) {
     await tx.affiliateLead.deleteMany({ where: { referredUserId: userId } })
     await tx.affiliateConversion.deleteMany({ where: { referredUserId: userId } })
     await tx.launchVideoProject.deleteMany({ where: { userId } })
+    await tx.newsletterSubscriber.deleteMany({ where: { userId } })
     await tx.userProfile.deleteMany({ where: { id: userId } })
   })
 }

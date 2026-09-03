@@ -174,6 +174,22 @@ router.post('/sync', async (req, res) => {
     const profile = await db.upsertUser({ id: userId, email, firstName, lastName, imageUrl })
     logger.info({ userId }, 'User profile synced')
 
+    // Keep the audience synced without re-subscribing a contact who opted out.
+    const normalizedEmail = email.trim().toLowerCase()
+    const newsletterContact = await db.prisma.newsletterSubscriber.findFirst({
+      where: { OR: [{ userId }, { email: normalizedEmail }] },
+    })
+    if (newsletterContact) {
+      await db.prisma.newsletterSubscriber.update({
+        where: { id: newsletterContact.id },
+        data: { email: normalizedEmail, userId, firstName },
+      })
+    } else {
+      await db.prisma.newsletterSubscriber.create({
+        data: { email: normalizedEmail, firstName, userId, source: 'signup' },
+      })
+    }
+
     if (!existingUser) {
       await db.addCredits(userId, SIGNUP_BONUS_CREDITS, 'promo', 'New user signup bonus', {
         idempotencyKey: `signup_bonus:${userId}`,

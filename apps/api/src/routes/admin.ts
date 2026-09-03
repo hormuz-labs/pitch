@@ -1,4 +1,5 @@
 import * as db from '@saas/db'
+import { renderNewsletterEmail, sendNewsletterEmail } from '@saas/email'
 import {
   createLogger,
   JOB_CANCELLATIONS_CHANNEL,
@@ -36,6 +37,183 @@ const requireAdmin = async (req: any, res: any, next: any) => {
 }
 
 router.use(requireAdmin)
+
+router.get('/newsletter', async (_req, res) => {
+  try {
+    const subscribers = await db.prisma.newsletterSubscriber.findMany({
+      where: { status: { not: 'removed' } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        source: true,
+        status: true,
+        createdAt: true,
+        unsubscribedAt: true,
+      },
+    })
+    res.json({
+      subscribers,
+      subscribed: subscribers.filter(contact => contact.status === 'subscribed').length,
+      unsubscribed: subscribers.filter(contact => contact.status === 'unsubscribed').length,
+    })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to list newsletter audience')
+    res.status(500).json({ error: 'Failed to load newsletter audience' })
+  }
+})
+
+router.post('/newsletter/subscribers', async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+  const firstName =
+    typeof req.body?.firstName === 'string' && req.body.firstName.trim()
+      ? req.body.firstName.trim().slice(0, 100)
+      : undefined
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address' })
+  }
+
+  try {
+    const existing = await db.prisma.newsletterSubscriber.findUnique({ where: { email } })
+    if (existing?.status === 'unsubscribed') {
+      return res.status(409).json({ error: 'This contact previously unsubscribed' })
+    }
+    const subscriber = existing
+      ? await db.prisma.newsletterSubscriber.update({
+          where: { id: existing.id },
+          data: {
+            ...(firstName ? { firstName } : {}),
+            status: 'subscribed',
+            unsubscribedAt: null,
+            source: 'manual',
+          },
+        })
+      : await db.prisma.newsletterSubscriber.create({
+          data: { email, firstName, source: 'manual' },
+        })
+    return res.status(existing ? 200 : 201).json(subscriber)
+  } catch (error: any) {
+    logger.error({ err: error, email }, 'Failed to add newsletter contact')
+    return res.status(500).json({ error: 'Failed to add newsletter contact' })
+  }
+})
+
+router.delete('/newsletter/subscribers/:id', async (req, res) => {
+  try {
+    const deleted = await db.prisma.newsletterSubscriber.updateMany({
+      where: { id: req.params.id },
+      data: { status: 'removed', unsubscribedAt: new Date() },
+    })
+    if (!deleted.count) return res.status(404).json({ error: 'Contact not found' })
+    return res.status(204).send()
+  } catch (error: any) {
+    logger.error({ err: error, subscriberId: req.params.id }, 'Failed to delete newsletter contact')
+    return res.status(500).json({ error: 'Failed to delete newsletter contact' })
+  }
+})
+
+router.post('/newsletter/preview', (req, res) => {
+  const subject =
+    typeof req.body?.subject === 'string' ? req.body.subject.trim().replace(/[—–]/g, '-') : ''
+  const message =
+    typeof req.body?.message === 'string' ? req.body.message.trim().replace(/[—–]/g, '-') : ''
+  const ctaLabel = typeof req.body?.ctaLabel === 'string' ? req.body.ctaLabel.trim() : ''
+  const ctaUrl = typeof req.body?.ctaUrl === 'string' ? req.body.ctaUrl.trim() : ''
+  if (!subject || !message) {
+    return res.status(400).json({ error: 'Subject and message are required for preview' })
+  }
+  if (ctaUrl && !/^https?:\/\/[^\s]+$/i.test(ctaUrl)) {
+    return res.status(400).json({ error: 'CTA URL must be a complete http or https URL' })
+  }
+
+  const content = renderNewsletterEmail({
+    to: 'preview@trypitch.co',
+    firstName: 'Adnan',
+    subject,
+    message,
+    ctaLabel: ctaLabel || undefined,
+    ctaUrl: ctaUrl || undefined,
+    unsubscribeUrl: 'https://api.trypitch.co/newsletter/unsubscribe?token=preview',
+  })
+  return res.json({ html: content.html })
+})
+
+router.post('/newsletter/send', async (req, res) => {
+  const subject =
+    typeof req.body?.subject === 'string' ? req.body.subject.trim().replace(/[—–]/g, '-') : ''
+  const message =
+    typeof req.body?.message === 'string' ? req.body.message.trim().replace(/[—–]/g, '-') : ''
+  const ctaLabel = typeof req.body?.ctaLabel === 'string' ? req.body.ctaLabel.trim() : ''
+  const ctaUrl = typeof req.body?.ctaUrl === 'string' ? req.body.ctaUrl.trim() : ''
+  const recipientIds: string[] | null = Array.isArray(req.body?.recipientIds)
+    ? [
+        ...new Set<string>(
+          req.body.recipientIds.filter((id: unknown): id is string => typeof id === 'string'),
+        ),
+      ]
+    : null
+  if (!subject || !message)
+    return res.status(400).json({ error: 'Subject and message are required' })
+  if (subject.length > 180 || message.length > 20_000) {
+    return res.status(400).json({ error: 'Newsletter content is too long' })
+  }
+  if (ctaLabel.length > 60) return res.status(400).json({ error: 'CTA label is too long' })
+  if (ctaUrl && !/^https?:\/\/[^\s]+$/i.test(ctaUrl)) {
+    return res.status(400).json({ error: 'CTA URL must be a complete http or https URL' })
+  }
+  if (recipientIds && recipientIds.length === 0) {
+    return res.status(400).json({ error: 'Select at least one subscribed contact' })
+  }
+  if (recipientIds && recipientIds.length > 5_000) {
+    return res.status(400).json({ error: 'Too many recipients selected' })
+  }
+
+  try {
+    const subscribers = await db.prisma.newsletterSubscriber.findMany({
+      where: {
+        status: 'subscribed',
+        ...(recipientIds ? { id: { in: recipientIds } } : {}),
+      },
+      select: { email: true, firstName: true, unsubscribeToken: true },
+    })
+    const publicUrl = (process.env.NEWSLETTER_PUBLIC_URL ?? 'https://api.trypitch.co').replace(
+      /\/$/,
+      '',
+    )
+    let sent = 0
+    const failures: string[] = []
+
+    // A small concurrency window avoids hammering the mail provider while keeping
+    // an admin send responsive for a typical early-stage audience.
+    for (let offset = 0; offset < subscribers.length; offset += 8) {
+      const batch = subscribers.slice(offset, offset + 8)
+      const results = await Promise.all(
+        batch.map(contact =>
+          sendNewsletterEmail({
+            to: contact.email,
+            firstName: contact.firstName,
+            subject,
+            message,
+            ctaLabel: ctaLabel || undefined,
+            ctaUrl: ctaUrl || undefined,
+            unsubscribeUrl: `${publicUrl}/newsletter/unsubscribe?token=${encodeURIComponent(contact.unsubscribeToken)}`,
+          }),
+        ),
+      )
+      results.forEach((result, index) => {
+        if (result.error) failures.push(batch[index].email)
+        else sent += 1
+      })
+    }
+
+    logger.info({ sent, failed: failures.length }, 'Newsletter broadcast completed')
+    res.json({ sent, failed: failures.length, failures })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to send newsletter broadcast')
+    res.status(500).json({ error: 'Failed to send newsletter broadcast' })
+  }
+})
 
 // 1. Dashboard Overview
 router.get('/dashboard', async (_req, res) => {

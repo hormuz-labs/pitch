@@ -277,9 +277,18 @@ model AffiliatePayout {
 }
 
 model NewsletterSubscriber {
-  id        String   @id() @default(cuid())
-  email     String   @unique()
-  createdAt DateTime @default(now())
+  id               String    @id() @default(cuid())
+  email            String    @unique()
+  firstName        String?
+  userId           String?   @unique()
+  source           String    @default("website")
+  status           String    @default("subscribed")
+  unsubscribeToken String    @unique() @default(cuid())
+  unsubscribedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt()
+
+  @@index([status, createdAt])
 }
 
 model LaunchVideoProject {
