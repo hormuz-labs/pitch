@@ -2065,32 +2065,49 @@ to {
   color: var(--faint);
 }
 
-/* Example prompts under the create composer. */
+/* Starter chips under the create composer.
 
-.lv-studio .examples {
+   These used to be five full-width sentences stacked under the box, which read
+   as a fixed menu of the only five things on offer, and looked ragged against a
+   centred hero. A centred strip of pills says the same thing in a fifth of the
+   space, and each pill names an output rather than a whole sentence. */
+
+.lv-studio .starters {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
 }
 
-.lv-studio .example {
-  padding: 8px 12px;
+.lv-studio .starter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 999px;
   background: var(--panel);
   color: var(--muted);
   font-size: 12.5px;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1;
   white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
 
-.lv-studio .example:hover:not(:disabled) {
+.lv-studio .starter svg {
+  color: var(--faint);
+  transition: color 0.12s;
+}
+
+.lv-studio .starter:hover:not(:disabled) {
   border-color: var(--accent);
   background: var(--panel);
   color: var(--ink);
+}
+
+.lv-studio .starter:hover:not(:disabled) svg {
+  color: var(--accent-ink);
 }
 
 /* Dropping a file on the create page opens the editor. */

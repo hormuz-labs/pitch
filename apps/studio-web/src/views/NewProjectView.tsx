@@ -11,7 +11,7 @@
  * video until you are looking at it and can select the part you mean.
  */
 import { useAuth } from '@clerk/react'
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../App'
 import { createProject, type UploadRef, uploads as uploadFiles } from '../lib/studio-api'
@@ -24,12 +24,79 @@ const MAX_UPLOAD_MB = 500
 const ACCEPT =
   '.pdf,.pptx,.ppt,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a'
 
-const EXAMPLES = [
-  'A 60-second cinematic launch video for https://yourproduct.com — bold, fast, end on the pricing page.',
-  'Walk through https://yourproduct.com: sign in, create a project, show the dashboard updating live.',
-  'A 10-slide investor deck: problem, product, traction, market, team, ask.',
-  'Cut the dead air out of this recording, zoom on the clicks, add an intro card.',
-  'Turn the background music down and trim the first eight seconds.',
+const Glyph = ({ children }: { children: ReactNode }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width="15"
+    height="15"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {children}
+  </svg>
+)
+
+/**
+ * The four things the studio is asked for most often — not a menu of what it
+ * can do. Each one drops a real sentence into the composer with the part you
+ * have to change already selected, so the chip is a head start on typing
+ * rather than a mode you enter.
+ */
+const STARTERS: { label: string; glyph: ReactNode; prompt: string; select: string }[] = [
+  {
+    label: 'Launch video',
+    glyph: (
+      <Glyph>
+        <rect x="2.5" y="5" width="13" height="13" rx="3" />
+        <path d="m8 9.5 4 2.2-4 2.3z" />
+        <path d="m18.5 3.5.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" />
+      </Glyph>
+    ),
+    prompt:
+      'A 60-second cinematic launch video for https://yourproduct.com — bold, fast, end on the pricing page.',
+    select: 'https://yourproduct.com',
+  },
+  {
+    label: 'Product walkthrough',
+    glyph: (
+      <Glyph>
+        <rect x="3" y="4.5" width="18" height="14" rx="2" />
+        <path d="M3 8.5h18" />
+        <path d="m11 12 5.5 2.2-2.3.9-.9 2.3z" />
+      </Glyph>
+    ),
+    prompt:
+      'Walk through https://yourproduct.com: sign in, create a project, show the dashboard updating live.',
+    select: 'https://yourproduct.com',
+  },
+  {
+    label: 'Slide deck',
+    glyph: (
+      <Glyph>
+        <rect x="3" y="4" width="18" height="11.5" rx="1.5" />
+        <path d="M12 15.5v3" />
+        <path d="M8.5 20.5h7" />
+      </Glyph>
+    ),
+    prompt: 'A 10-slide investor deck — problem, product, traction, market, team, ask.',
+    select: 'investor',
+  },
+  {
+    label: 'Edit a video',
+    glyph: (
+      <Glyph>
+        <path d="M2.5 12h5" />
+        <path d="M16.5 12h5" />
+        <rect x="7.5" y="7" width="9" height="10" rx="2" />
+      </Glyph>
+    ),
+    prompt: 'Turn the background music down and cut the dead air out of this recording.',
+    select: 'the background music down',
+  },
 ]
 
 export function NewProjectView() {
@@ -45,6 +112,8 @@ export function NewProjectView() {
   const [error, setError] = useState<string | null>(null)
   const [creditsError, setCreditsError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  /** A new object every click, so re-picking the same starter re-selects. */
+  const [starter, setStarter] = useState<{ select: string } | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
   const textarea = useRef<HTMLTextAreaElement | null>(null)
   const dragDepth = useRef(0)
@@ -52,6 +121,16 @@ export function NewProjectView() {
   useEffect(() => {
     textarea.current?.focus()
   }, [])
+
+  // A starter is only a head start if the bit you must replace is already
+  // selected — otherwise you are hunting for a URL inside a sentence.
+  useEffect(() => {
+    const el = textarea.current
+    if (!starter || !el) return
+    el.focus()
+    const at = el.value.indexOf(starter.select)
+    if (at >= 0) el.setSelectionRange(at, at + starter.select.length)
+  }, [starter])
 
   /**
    * Upload, then go straight to the editor. Anything the user might have typed
@@ -235,18 +314,21 @@ export function NewProjectView() {
           )}
 
           {!prompt.trim() && files.length === 0 && (
-            <div className="examples">
-              {EXAMPLES.map(example => (
+            <div className="starters">
+              {STARTERS.map(s => (
                 <button
-                  key={example}
+                  key={s.label}
                   type="button"
-                  className="example"
+                  className="starter"
+                  title={s.prompt}
                   onClick={() => {
-                    setPrompt(example)
-                    textarea.current?.focus()
+                    setPrompt(s.prompt)
+                    setError(null)
+                    setStarter({ select: s.select })
                   }}
                 >
-                  {example}
+                  {s.glyph}
+                  {s.label}
                 </button>
               ))}
             </div>
