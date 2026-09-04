@@ -58,10 +58,13 @@ const { router: uploadRoutes } = await import('./routes/uploads.js')
 const { router: userRoutes } = await import('./routes/users.js')
 const { router: v1Routes } = await import('./routes/v1.js')
 const { router: webhookRoutes } = await import('./routes/webhooks.js')
+const { router: clerkWebhookRoutes } = await import('./routes/clerk-webhooks.js')
 
 export const app = express()
 
-// Dodo webhook needs raw body — must come before express.json()
+// Clerk and Dodo webhooks need their untouched request bodies and must mount
+// before express.json() and Clerk's session middleware.
+app.use('/webhooks/clerk', clerkWebhookRoutes)
 app.use('/webhooks', webhookRoutes)
 
 // MCP + public REST API: API-key auth (Clerk must never see these Bearer

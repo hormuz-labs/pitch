@@ -1,5 +1,18 @@
 import { Resend } from 'resend'
 
+export {
+  type JobEmailKind,
+  renderTransactionalEmail,
+  sendBillingEmail,
+  sendJobCompletedEmail,
+  sendJobFailedEmail,
+  sendWelcomeEmail,
+  type TransactionalEmailContent,
+} from './transactional.js'
+
+import { embedSocialIcons } from './social-assets.js'
+import { sendJobCompletedEmail } from './transactional.js'
+
 // ─── Clerk: fetch user email ──────────────────────────────────────────────────
 
 /**
@@ -419,35 +432,171 @@ export async function sendJobCompleteEmail({
   videoUrl: string
   videoTitle?: string // e.g. "razorpay.com" — shown inside the thumbnail block
 }): Promise<void> {
-  const resend = createResend()
-  if (!resend) {
-    console.warn('[Email] RESEND_API_KEY not set — skipping email notification')
-    return
-  }
-
-  const from = 'Pitch <noreply@trypitch.co>'
-
-  const { error } = await resend.emails.send({
-    from,
+  const result = await sendJobCompletedEmail({
     to,
-    replyTo: 'support@trypitch.co',
-
-    subject: 'Your demo video is ready',
-
-    text: jobCompleteText(videoUrl, jobId),
-    html: jobCompleteHtml(videoUrl, to, videoTitle),
-
-    headers: {
-      'List-Unsubscribe': `<${process.env.UNSUBSCRIBE_BASE_URL ?? 'https://trypitch.co'}/unsubscribe?email=${encodeURIComponent(to)}>`,
-      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      Precedence: 'transactional',
-      'X-Mailer': 'Pitch/1.0 Resend',
-    },
+    jobId,
+    outputUrl: videoUrl,
+    title: videoTitle,
+    kind: 'demo',
   })
-
-  if (error) {
-    console.warn(`[Email] Failed to send job-complete notification to ${to}:`, error.message)
+  if (result.error) {
+    console.warn(`[Email] Failed to send job-complete notification to ${to}:`, result.error)
   } else {
     console.log(`[Email] Sent job-complete notification to ${to} for job ${jobId}`)
   }
+}
+
+function escapeEmailHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
+
+export type NewsletterEmailInput = {
+  to: string
+  firstName?: string | null
+  subject: string
+  message: string
+  unsubscribeUrl: string
+  ctaLabel?: string
+  ctaUrl?: string
+}
+
+function renderNewsletterMessage(message: string): string {
+  const blocks: string[] = []
+  const codePattern = /```([^\n`]*)\n([\s\S]*?)```/g
+  let cursor = 0
+
+  const addProse = (value: string) => {
+    for (const paragraph of value.split(/\n\s*\n/)) {
+      const content = paragraph.trim()
+      if (!content) continue
+      blocks.push(
+        `<p style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:16px;line-height:27px;color:#374151;margin:0 0 20px">${escapeEmailHtml(content).replaceAll('\n', '<br>')}</p>`,
+      )
+    }
+  }
+
+  for (const match of message.matchAll(codePattern)) {
+    const index = match.index ?? 0
+    addProse(message.slice(cursor, index))
+    const language = match[1].trim()
+    blocks.push(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 22px"><tr><td style="padding:0;background:#111111;border-radius:10px;overflow:hidden">
+      ${language ? `<div style="padding:9px 14px;border-bottom:1px solid #303030;color:#a3a3a3;font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:10px;line-height:15px;text-transform:uppercase;letter-spacing:.08em">${escapeEmailHtml(language)}</div>` : ''}
+      <pre style="margin:0;padding:16px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:#f5f5f5;font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:12px;line-height:20px"><code>${escapeEmailHtml(match[2].replace(/\n$/, ''))}</code></pre>
+    </td></tr></table>`)
+    cursor = index + match[0].length
+  }
+  addProse(message.slice(cursor))
+  return blocks.join('')
+}
+
+/** Builds the exact HTML and plain-text alternatives sent through Resend. */
+export function renderNewsletterEmail({
+  firstName,
+  subject,
+  message,
+  unsubscribeUrl,
+  ctaLabel,
+  ctaUrl,
+}: NewsletterEmailInput): { html: string; text: string } {
+  const greeting = firstName?.trim() ? `Hi ${firstName.trim()},` : 'Hi there,'
+  const safeMessage = renderNewsletterMessage(message)
+  const safeSubject = escapeEmailHtml(subject)
+  const buttonLabel = escapeEmailHtml(ctaLabel?.trim() || 'See what is new at Pitch')
+  const buttonUrl = escapeEmailHtml(
+    ctaUrl?.trim() || process.env.NEWSLETTER_CTA_URL || 'https://trypitch.co',
+  )
+  const logoUrl = escapeEmailHtml(
+    process.env.NEWSLETTER_LOGO_URL ?? 'https://trypitch.co/tabLogoB.svg',
+  )
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>@media only screen and (max-width:620px){.email-shell{width:100%!important}.mobile-pad{padding-left:24px!important;padding-right:24px!important}.hero-title{font-size:30px!important;line-height:36px!important}.outer-pad{padding:16px 8px!important}.cta{display:block!important;text-align:center!important}.footer-link{display:inline-block!important;margin:0 14px 8px 0!important;white-space:nowrap!important}}</style></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#111827;-webkit-text-size-adjust:100%;word-spacing:normal">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeEmailHtml(message.slice(0, 120))}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:#f3f4f6">
+  <tr><td class="outer-pad" align="center" style="padding:36px 16px">
+    <table class="email-shell" role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.10)">
+      <tr><td class="mobile-pad" style="padding:26px 40px;background:#ffffff;border-bottom:1px solid #e5e7eb">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td valign="middle"><img src="${logoUrl}" width="42" height="42" alt="Pitch" style="display:block;width:42px;height:42px;border:0"></td>
+          <td valign="middle" align="right" style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#6b7280;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">Product notes</td>
+        </tr></table>
+      </td></tr>
+      <tr><td class="mobile-pad" style="padding:42px 40px 46px;background-color:#111111;background-image:linear-gradient(135deg,#111111 0%,#1f1f1f 60%,#383838 100%);color:#ffffff">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td class="hero-title" style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:38px;line-height:44px;font-weight:750;letter-spacing:-1.2px;color:#ffffff">${safeSubject}</td></tr>
+          <tr><td style="padding-top:26px"><span style="display:inline-block;width:54px;height:4px;border-radius:4px;background:#ffffff;font-size:0;line-height:0">&nbsp;</span></td></tr>
+        </table>
+      </td></tr>
+      <tr><td class="mobile-pad" style="padding:42px 40px 38px">
+        <p style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:18px;line-height:29px;font-weight:700;color:#111827;margin:0 0 20px">${escapeEmailHtml(greeting)}</p>
+        ${safeMessage}
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:32px"><tr><td bgcolor="#111111" style="border-radius:10px">
+          <a class="cta" href="${buttonUrl}" style="display:inline-block;padding:14px 22px;color:#ffffff;text-decoration:none;font-size:14px;line-height:18px;font-weight:700">${buttonLabel}</a>
+        </td></tr></table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:38px"><tr>
+          <td width="42" valign="top"><div style="width:38px;height:38px;border-radius:50%;background:#111111;color:#ffffff;text-align:center;line-height:38px;font-size:14px;font-weight:800">A</div></td>
+          <td valign="middle" style="padding-left:10px;font-size:13px;line-height:19px;color:#6b7280"><strong style="color:#111827">Adnan</strong><br>Co-founder, Pitch</td>
+        </tr></table>
+      </td></tr>
+      <tr><td class="mobile-pad" style="padding:27px 40px;background:#f9fafb;border-top:1px solid #e5e7eb">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td style="font-size:13px;line-height:21px;font-weight:700;color:#111827;padding-bottom:9px">Pitch</td></tr>
+          <tr><td style="font-size:12px;line-height:20px;color:#6b7280;padding-bottom:15px">Beautiful product demos, launch videos, and presentations made with AI.</td></tr>
+          <tr><td style="font-size:12px;line-height:20px">
+            <a class="footer-link" href="https://trypitch.co" style="color:#374151;text-decoration:underline;margin-right:18px">Visit Pitch</a>
+            <a class="footer-link" href="mailto:support@trypitch.co" style="color:#374151;text-decoration:underline;margin-right:18px">Contact us</a>
+            <a class="footer-link" href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#374151;text-decoration:underline">Unsubscribe</a>
+          </td></tr>
+          <tr><td style="padding-top:16px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td style="padding-right:9px"><a href="https://x.com/trypitchdotco" aria-label="Pitch on X"><img src="https://trypitch.co/email/social/x.png" width="30" height="30" alt="X" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td style="padding-right:9px"><a href="https://www.instagram.com/trypitch.co" aria-label="Pitch on Instagram"><img src="https://trypitch.co/email/social/instagram.png" width="30" height="30" alt="Instagram" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td style="padding-right:9px"><a href="https://www.linkedin.com/company/trypitchdotco/" aria-label="Pitch on LinkedIn"><img src="https://trypitch.co/email/social/linkedin.png" width="30" height="30" alt="LinkedIn" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td style="padding-right:9px"><a href="https://discord.gg/a4SBW36mD" aria-label="Pitch on Discord"><img src="https://trypitch.co/email/social/discord.png" width="30" height="30" alt="Discord" style="display:block;width:30px;height:30px;border:0"></a></td>
+            <td><a href="https://www.youtube.com/@trypitchdotco" aria-label="Pitch on YouTube"><img src="https://trypitch.co/email/social/youtube.png" width="30" height="30" alt="YouTube" style="display:block;width:30px;height:30px;border:0"></a></td>
+          </tr></table></td></tr>
+          <tr><td style="padding-top:18px;font-size:11px;line-height:18px;color:#9ca3af">You received this email because you signed up for Pitch or joined our updates list.</td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+
+  return {
+    html,
+    text: `${greeting}\n\n${message}\n\nAdnan\nCo-founder, Pitch\n\n${ctaLabel?.trim() || 'See what is new at Pitch'}: ${ctaUrl?.trim() || process.env.NEWSLETTER_CTA_URL || 'https://trypitch.co'}\n\nFollow Pitch:\nX: https://x.com/trypitchdotco\nInstagram: https://www.instagram.com/trypitch.co\nLinkedIn: https://www.linkedin.com/company/trypitchdotco/\nDiscord: https://discord.gg/a4SBW36mD\nYouTube: https://www.youtube.com/@trypitchdotco\n\nUnsubscribe: ${unsubscribeUrl}`,
+  }
+}
+
+/** Sends one consent-aware product update to a newsletter subscriber. */
+export async function sendNewsletterEmail(
+  input: NewsletterEmailInput,
+): Promise<{ id?: string; error?: string }> {
+  const resend = createResend()
+  if (!resend) return { error: 'RESEND_API_KEY is not configured' }
+  const content = renderNewsletterEmail(input)
+  const embedded = embedSocialIcons(content.html)
+
+  const { data, error } = await resend.emails.send({
+    from: process.env.NEWSLETTER_FROM ?? 'Adnan from Pitch <noreply@trypitch.co>',
+    to: input.to,
+    replyTo: 'support@trypitch.co',
+    subject: input.subject,
+    text: content.text,
+    html: embedded.html,
+    attachments: embedded.attachments,
+    headers: {
+      'List-Unsubscribe': `<${input.unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      Precedence: 'bulk',
+    },
+  })
+
+  if (error) return { error: error.message }
+  return { id: data?.id }
 }

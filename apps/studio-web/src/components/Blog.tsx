@@ -7,6 +7,7 @@ import { ContinuousPagination } from './ContinuousPagination'
 import { LandingFooter } from './LandingFooter'
 import { LandingNav } from './LandingNav'
 import { Seo } from './Seo'
+import '../styles/blog.css'
 
 interface Keyword {
   text: string
@@ -499,7 +500,7 @@ export const BlogPostView = () => {
 
   if (!post) {
     return (
-      <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+      <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'lb-root'}`}>
         {!isSignedIn && <LandingNav />}
         <div className="max-w-6xl mx-auto px-6 pt-12 pb-16 flex-1">
           <Link
@@ -529,7 +530,7 @@ export const BlogPostView = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'lb-root'}`}>
       <Seo
         title={`${post.title} — Pitch Blog`}
         description={post.excerpt}
@@ -539,21 +540,19 @@ export const BlogPostView = () => {
       />
       {!isSignedIn && <LandingNav />}
 
-      <div className="max-w-6xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1 w-full">
+      <div className="blog-shell blog-post">
         {/* Back link */}
-        <Link
-          to="/blog"
-          className="text-sm text-gray-400 hover:text-gray-700 transition-colors mb-8 inline-flex items-center gap-1.5 no-underline"
-        >
+        <Link to="/blog" className="blog-back">
           <svg
-            width="13"
-            height="13"
+            width="12"
+            height="12"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
+            aria-hidden="true"
           >
             <path d="M19 12H5" />
             <path d="m12 19-7-7 7-7" />
@@ -561,103 +560,66 @@ export const BlogPostView = () => {
           Back to Blog
         </Link>
 
-        {/* Meta */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
+        {/* Header */}
+        <header className="blog-post-head">
+          <p className="blog-post-meta">
+            <i aria-hidden="true" />
             {post.category}
-          </span>
-          <span className="w-[3px] h-[3px] rounded-full bg-gray-300" aria-hidden="true" />
-          <span className="text-[10px] text-gray-400">{post.readTime}</span>
-          <span className="w-[3px] h-[3px] rounded-full bg-gray-300" aria-hidden="true" />
-          <span className="text-[10px] text-gray-400">{post.date}</span>
-        </div>
-
-        {/* Title */}
-        <div className="relative inline-block mb-8">
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 leading-snug">{post.title}</h1>
-          <svg
-            className="hidden sm:block absolute w-[110%] h-3 -bottom-2 -left-[5%] text-gray-800"
-            viewBox="0 0 100 10"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0 8 Q 50 0 100 8"
-              stroke="currentColor"
-              strokeWidth="2"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
+            <span aria-hidden="true">·</span>
+            {post.readTime}
+            <span aria-hidden="true">·</span>
+            {post.date}
+          </p>
+          <h1 className="blog-post-title">{post.title}</h1>
+        </header>
 
         {/* Article body */}
-        <div className="space-y-5 text-gray-600 leading-relaxed mt-4">
+        <div className="blog-post-body">
           {post.content.map((paragraph, i) => (
-            <p key={i} className="text-[15px] leading-[1.8]">
-              {paragraph}
-            </p>
+            <p key={i}>{paragraph}</p>
           ))}
         </div>
 
         {/* SEO keyword anchors */}
-        <div className="flex flex-wrap gap-2 mt-10 pt-8 border-t border-black/[0.07]">
-          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400 w-full mb-1">
-            Related topics
-          </span>
-          {post.keywords.map(kw => (
-            <a
-              key={kw.text}
-              href={kw.href}
-              className="text-[12px] font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 hover:text-gray-800 px-3 py-1 rounded-full no-underline transition-colors duration-150"
-              title={kw.text}
-            >
-              {kw.text}
-            </a>
-          ))}
+        <div className="blog-related">
+          <p className="blog-related-label">Related topics</p>
+          <div className="blog-tags">
+            {post.keywords.map(kw => (
+              <a key={kw.text} href={kw.href} className="blog-tag" title={kw.text}>
+                {kw.text}
+              </a>
+            ))}
+          </div>
         </div>
 
-        {/* CTA */}
-        <section
-          className="mt-10 rounded-2xl overflow-hidden"
-          style={{ background: '#111111', border: '1px solid #222222' }}
-        >
-          <div className="px-7 py-8">
-            <h2 className="text-xl font-bold mb-1.5" style={{ color: '#ffffff' }}>
-              Ready to create your own demo video?
-            </h2>
-            <p className="text-sm mb-6" style={{ color: '#888888' }}>
-              Drop your product URL and let Pitch generate a cinematic, narrated demo video in
-              minutes.
-            </p>
-            <Link
-              to="/sign-up"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold no-underline transition-colors duration-150"
-              style={{ background: '#ffffff', color: '#111111' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#e5e5e5')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#ffffff')}
+        {/* CTA — the same dark panel as the newsletter on the index */}
+        <section className="blog-panel" style={{ marginTop: 44 }}>
+          <p className="blog-panel-kicker">
+            <i aria-hidden="true" />
+            Try it
+          </p>
+          <h2 className="blog-panel-title">Ready to create your own demo video?</h2>
+          <p className="blog-panel-copy">
+            Drop your product URL and let Pitch generate a cinematic, narrated demo video in
+            minutes.
+          </p>
+          <Link to="/sign-up" className="blog-panel-cta">
+            Generate a demo free
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              Generate a demo free
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
-          {/* Bottom accent strip */}
-          <div
-            className="h-[3px] w-full"
-            style={{ background: 'linear-gradient(90deg, #333 0%, #555 50%, #333 100%)' }}
-            aria-hidden="true"
-          />
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </Link>
         </section>
       </div>
 
@@ -670,7 +632,6 @@ export const BlogPostView = () => {
 export const Blog = () => {
   const { isSignedIn } = useAuth()
   const [activeCategory, setActiveCategory] = useState('All')
-  const [hoveredSlug, setHoveredSlug] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [email, setEmail] = useState('')
   const [isSubscribed, setIsSubscribed] = useState(false)
@@ -718,7 +679,7 @@ export const Blog = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'bg-[#FDFDFD]'}`}>
+    <div className={`min-h-screen flex flex-col ${isSignedIn ? '' : 'lb-root'}`}>
       <Seo
         title="Blog — Pitch"
         description="Guides on AI demo videos, product marketing, and go-to-market for SaaS founders — from the team building Pitch, the AI demo video generator."
@@ -726,157 +687,91 @@ export const Blog = () => {
       />
       {!isSignedIn && <LandingNav />}
 
-      <div className="max-w-6xl mx-auto px-6 pt-6 pb-16 text-gray-800 flex-1 w-full">
-        {/* ── Title ── */}
-        <div className="relative inline-block mb-4">
-          <h1 className="text-2xl sm:text-3xl font-bold">Blog</h1>
-          <svg
-            className="absolute w-[110%] h-3 -bottom-2 -left-[5%] text-gray-800"
-            viewBox="0 0 100 10"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0 8 Q 50 0 100 8"
-              stroke="currentColor"
-              strokeWidth="2"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-
-        <p className="text-sm text-gray-500 mb-8 mt-6">
-          Ideas on AI video, product growth, and the future of how software sells itself.
-        </p>
+      <div className="blog-shell">
+        {/* ── Header ── */}
+        <header className="blog-head">
+          <p className="lb-chy">Writing</p>
+          <h1 className="blog-title">Notes from the cutting room</h1>
+          <p className="blog-lede">
+            Ideas on AI video, product growth, and the future of how software sells itself.
+          </p>
+        </header>
 
         {/* ── Category filter ── */}
-        <div className="flex flex-wrap gap-2 mb-8">
+        <div className="blog-filters">
           {CATEGORIES.map(cat => (
             <button
               key={cat}
+              type="button"
               onClick={() => handleCategoryChange(cat)}
-              className={`text-[13px] font-medium px-3 py-1.5 rounded-full border-none cursor-pointer transition-all duration-150 ${
-                activeCategory === cat
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
-              }`}
+              aria-pressed={activeCategory === cat}
+              className={`blog-filter${activeCategory === cat ? ' is-on' : ''}`}
             >
               {cat}
             </button>
           ))}
         </div>
 
-        {/* ── 3-column grid ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {paginated.map(post => {
-            const hovered = hoveredSlug === post.slug
-            return (
-              <article
-                key={post.slug}
-                onMouseEnter={() => setHoveredSlug(post.slug)}
-                onMouseLeave={() => setHoveredSlug(null)}
-                aria-labelledby={`post-title-${post.slug}`}
-                className="flex flex-col bg-white rounded-2xl overflow-hidden border border-black/[0.08]"
-                style={{
-                  boxShadow: hovered
-                    ? '0 2px 4px rgba(0,0,0,0.04), 0 12px 36px rgba(0,0,0,0.12), 0 28px 64px rgba(0,0,0,0.08)'
-                    : '0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)',
-                  transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-                  borderColor: hovered ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.08)',
-                  transition:
-                    'transform 0.28s cubic-bezier(0.22,1,0.36,1), box-shadow 0.28s cubic-bezier(0.22,1,0.36,1), border-color 0.2s ease',
-                }}
-              >
-                {/* Body */}
-                <div className="flex flex-col flex-1 px-5 pt-5 pb-4 gap-2.5">
-                  {/* Meta */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                      {post.category}
-                    </span>
-                    <span
-                      className="w-[3px] h-[3px] rounded-full bg-gray-300 flex-shrink-0"
-                      aria-hidden="true"
-                    />
-                    <span className="text-[10px] text-gray-400">{post.readTime}</span>
-                  </div>
+        {/* ── Card grid ── */}
+        <div className="blog-grid">
+          {paginated.map(post => (
+            <article
+              key={post.slug}
+              aria-labelledby={`post-title-${post.slug}`}
+              className="blog-card"
+            >
+              <p className="blog-card-meta">
+                <i aria-hidden="true" />
+                {post.category}
+                <span aria-hidden="true">·</span>
+                {post.readTime}
+              </p>
 
-                  {/* Title */}
-                  <h2 id={`post-title-${post.slug}`} className="m-0">
-                    <Link
-                      to={`/blog/${post.slug}`}
-                      className="text-[15px] font-bold leading-snug tracking-tight text-gray-800 hover:text-black no-underline transition-colors duration-150"
-                    >
-                      {post.title}
-                    </Link>
-                  </h2>
+              <h2 id={`post-title-${post.slug}`} className="blog-card-title">
+                <Link to={`/blog/${post.slug}`}>{post.title}</Link>
+              </h2>
 
-                  {/* Excerpt */}
-                  <p
-                    className="text-[13px] leading-relaxed text-gray-500 m-0 flex-1"
-                    style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
+              <p className="blog-card-excerpt">{post.excerpt}</p>
+
+              <div className="blog-tags" aria-label="Related topics">
+                {post.keywords.map(kw => (
+                  <a key={kw.text} href={kw.href} className="blog-tag" title={kw.text}>
+                    {kw.text}
+                  </a>
+                ))}
+              </div>
+
+              <div className="blog-card-foot">
+                <span>{post.date}</span>
+                <Link to={`/blog/${post.slug}`} className="blog-more" tabIndex={-1}>
+                  Read
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    {post.excerpt}
-                  </p>
-
-                  {/* SEO keyword anchors */}
-                  <div className="flex flex-wrap gap-1.5 mt-1" aria-label="Related topics">
-                    {post.keywords.map(kw => (
-                      <a
-                        key={kw.text}
-                        href={kw.href}
-                        className="text-[11px] font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 hover:text-gray-800 px-2 py-0.5 rounded-full no-underline transition-colors duration-150"
-                        title={kw.text}
-                      >
-                        {kw.text}
-                      </a>
-                    ))}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-black/[0.06]">
-                    <span className="text-[11px] text-gray-400">{post.date}</span>
-                    <Link
-                      to={`/blog/${post.slug}`}
-                      className="inline-flex items-center gap-1 text-[12px] font-semibold no-underline transition-colors duration-150"
-                      style={{ color: hovered ? '#111' : '#9ca3af' }}
-                    >
-                      Read more
-                      <svg
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M5 12h14" />
-                        <path d="m12 5 7 7-7 7" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            )
-          })}
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+            </article>
+          ))}
         </div>
 
         {filtered.length === 0 && (
-          <p className="text-center py-16 text-gray-400 text-sm">
-            No posts in this category yet. Check back soon!
-          </p>
+          <p className="blog-empty">No posts in this category yet — check back soon.</p>
         )}
 
         {/* ── Pagination ── */}
         {totalPages > 1 && (
-          <div className="mt-10 flex justify-center">
+          <div className="blog-pagination">
             <ContinuousPagination
               totalPages={totalPages}
               defaultPage={currentPage}
@@ -888,39 +783,41 @@ export const Blog = () => {
           </div>
         )}
 
-        {/* ── Newsletter ── */}
-        <section
-          className="mt-14 rounded-2xl overflow-hidden"
-          style={{ background: '#111111', border: '1px solid #222222' }}
-        >
-          <div className="px-7 py-8">
-            <h2 className="text-xl font-bold mb-1.5" style={{ color: '#ffffff' }}>
-              New posts, every week.
-            </h2>
-            <p className="text-sm mb-6" style={{ color: '#888888' }}>
+        {/* ── Newsletter — the system's dark "film surface", as used by .mcp-panel ── */}
+        <section className="blog-panel blog-panel--split">
+          <div>
+            <p className="blog-panel-kicker">
+              <i aria-hidden="true" />
+              Newsletter
+            </p>
+            <h2 className="blog-panel-title">New posts, every week.</h2>
+            <p className="blog-panel-copy">
               Get the latest on AI video, product growth, and demo strategies — directly in your
               inbox.
             </p>
+          </div>
+
+          <div>
             {isSubscribed ? (
-              <div className="flex items-center gap-2 text-green-400 text-sm font-medium h-10 mt-1">
+              <div className="blog-news-done">
                 <svg
-                  width="16"
-                  height="16"
+                  width="15"
+                  height="15"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="shrink-0"
+                  aria-hidden="true"
                 >
                   <path d="M20 6 9 17l-5-5" />
                 </svg>
-                Thanks for subscribing! Check your inbox for updates.
+                Subscribed — check your inbox.
               </div>
             ) : (
               <form
-                className="flex gap-2 flex-wrap"
+                className="blog-news-form"
                 onSubmit={handleSubscribe}
                 aria-label="Newsletter signup"
               >
@@ -932,45 +829,16 @@ export const Blog = () => {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="flex-1 min-w-0 h-10 px-4 rounded-lg text-sm outline-none transition-all duration-150"
-                  style={{
-                    background: '#1a1a1a',
-                    border: '1px solid #333333',
-                    color: '#ffffff',
-                  }}
-                  onFocus={e => {
-                    e.currentTarget.style.borderColor = '#555555'
-                    e.currentTarget.style.background = '#222222'
-                  }}
-                  onBlur={e => {
-                    e.currentTarget.style.borderColor = '#333333'
-                    e.currentTarget.style.background = '#1a1a1a'
-                  }}
+                  className="blog-news-input"
                 />
-                <button
-                  type="submit"
-                  id="newsletter-submit-btn"
-                  className="flex-shrink-0 h-10 px-5 rounded-lg text-sm font-bold border-none cursor-pointer transition-colors duration-150"
-                  style={{ background: '#ffffff', color: '#111111' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#e5e5e5')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#ffffff')}
-                >
+                <button type="submit" id="newsletter-submit-btn" className="blog-news-submit">
                   Subscribe
                 </button>
               </form>
             )}
-            {errorMsg && (
-              <div className="text-red-400 text-xs mt-2.5 animate-in fade-in duration-200">
-                {errorMsg}
-              </div>
-            )}
+
+            {errorMsg && <p className="blog-news-error">{errorMsg}</p>}
           </div>
-          {/* Bottom accent strip */}
-          <div
-            className="h-[3px] w-full"
-            style={{ background: 'linear-gradient(90deg, #333 0%, #555 50%, #333 100%)' }}
-            aria-hidden="true"
-          />
         </section>
       </div>
 

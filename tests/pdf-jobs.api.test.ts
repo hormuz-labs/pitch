@@ -22,6 +22,7 @@ vi.mock('../packages/db/src/index.js', () => ({
   addCredits: vi.fn(),
   prisma: {
     userProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+    onboardingSurvey: { findUnique: vi.fn().mockResolvedValue({ id: 'survey_1' }) },
     job: { findUnique: vi.fn() },
   },
 }))

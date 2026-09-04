@@ -65,6 +65,7 @@ const lazyNamed = <T,>(loader: () => Promise<T>, key: keyof T) =>
 const StudioView = lazyNamed(() => import('./studio/StudioView'), 'StudioView')
 
 const AdminView = lazyNamed(() => import('./views/AdminView'), 'AdminView')
+const NotFoundView = lazyNamed(() => import('./views/StatusView'), 'NotFoundView')
 const AffiliateView = lazyNamed(() => import('./views/AffiliateView'), 'AffiliateView')
 const ApiKeysView = lazyNamed(() => import('./views/ApiKeysView'), 'ApiKeysView')
 const CheckoutReturnView = lazyNamed(
@@ -845,6 +846,7 @@ function AppContent() {
           refCode: getRefCode() ?? undefined,
         })
         sessionStorage.setItem(sessionKey, '1')
+        window.dispatchEvent(new Event('pitch:user-synced'))
         window.dispatchEvent(new Event('credits-changed')) // Trigger credit fetch after sync
       } catch (err) {
         console.error('Failed to sync user profile:', err)
@@ -879,6 +881,7 @@ function AppContent() {
                 refCode: getRefCode() ?? undefined,
               })
               sessionStorage.setItem(`user_synced_${userId}`, '1')
+              window.dispatchEvent(new Event('pitch:user-synced'))
               window.dispatchEvent(new Event('credits-changed'))
             }
           } catch (syncErr) {
@@ -1126,7 +1129,7 @@ function AppContent() {
                       path="/launch-video/*"
                       element={<Navigate to="/new?flow=launch-video" replace />}
                     />
-                    <Route path="*" element={<Navigate to="/projects" replace />} />
+                    <Route path="*" element={<NotFoundView />} />
                   </Routes>
                 </Suspense>
               </main>

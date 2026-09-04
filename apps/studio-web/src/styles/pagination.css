@@ -1,0 +1,50 @@
+/*
+ * Pagination. Uses the landing token set (--lb-*) so it reads as the same
+ * object family as the nav pills and the blog filters: hairline borders,
+ * one solid ink fill for the active page, no gradients or shadows.
+ */
+.pg-root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  user-select: none;
+}
+.pg-pages { position: relative; display: flex; gap: 8px; }
+
+.pg-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--lb-line);
+  border-radius: 999px;
+  background: var(--lb-surface);
+  color: var(--lb-ink-2);
+  font-family: var(--lb-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+}
+.pg-btn:hover:not(:disabled) { color: var(--lb-ink); border-color: var(--lb-ink-dim); }
+.pg-btn:disabled { color: var(--lb-line-2); cursor: not-allowed; }
+.pg-btn:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+
+/* The active page is one ink pill that slides between slots (layoutId). */
+.pg-page.is-on { border-color: transparent; }
+.pg-page-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--lb-btn);
+}
+.pg-page-label { position: relative; z-index: 1; }
+.pg-page.is-on .pg-page-label { color: var(--lb-btn-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-btn { transition: none; }
+}

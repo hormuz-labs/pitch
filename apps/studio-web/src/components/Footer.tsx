@@ -1,6 +1,6 @@
 import gsap from 'gsap'
 import { useEffect, useRef } from 'react'
-import { FaLinkedinIn, FaXTwitter } from 'react-icons/fa6'
+import { FaLinkedinIn, FaXTwitter, FaYoutube } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { PitchWordmark } from './PitchWordmark'
@@ -15,6 +15,11 @@ const SOCIAL_LINKS = [
     label: 'LinkedIn',
     href: 'https://www.linkedin.com/company/trypitchdotco/',
     icon: FaLinkedinIn,
+  },
+  {
+    label: 'YouTube',
+    href: 'https://www.youtube.com/@trypitchdotco',
+    icon: FaYoutube,
   },
 ]
 

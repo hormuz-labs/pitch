@@ -1076,7 +1076,10 @@ export async function listWebhookEndpoints(user: AuthUser): Promise<WebhookEndpo
   return endpoints.map(serializeWebhookEndpoint)
 }
 
-export async function getWebhookEndpoint(id: string, user: AuthUser): Promise<WebhookEndpoint | null> {
+export async function getWebhookEndpoint(
+  id: string,
+  user: AuthUser,
+): Promise<WebhookEndpoint | null> {
   const client = getEnhancedPrisma(user)
   const endpoint = await client.webhookEndpoint.findUnique({ where: { id } })
   return endpoint ? serializeWebhookEndpoint(endpoint) : null
@@ -1118,7 +1121,9 @@ export async function deleteWebhookEndpoint(id: string, user: AuthUser): Promise
   return true
 }
 
-export async function listActiveWebhookEndpointsForUser(userId: string): Promise<WebhookEndpoint[]> {
+export async function listActiveWebhookEndpointsForUser(
+  userId: string,
+): Promise<WebhookEndpoint[]> {
   const endpoints = await prisma.webhookEndpoint.findMany({
     where: { userId, isActive: true },
   })
@@ -1187,7 +1192,10 @@ export async function listWebhookDeliveries(
   return deliveries.map(serializeWebhookDelivery)
 }
 
-export async function getWebhookDelivery(id: string, user?: AuthUser): Promise<WebhookDelivery | null> {
+export async function getWebhookDelivery(
+  id: string,
+  user?: AuthUser,
+): Promise<WebhookDelivery | null> {
   const client = user ? getEnhancedPrisma(user) : prisma
   const delivery = await (client as any).webhookDelivery.findUnique({ where: { id } })
   return delivery ? serializeWebhookDelivery(delivery) : null

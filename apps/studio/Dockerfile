@@ -20,8 +20,11 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 
 COPY . .
 
-# zenstack spawns `prisma generate` via a shell; put the pinned workspace
-# prisma on PATH so it never pulls a newer one from the network.
+# zenstack spawns `prisma generate` via a shell. prisma is a packages/db devDep
+# and (with --ignore-scripts) isn't hoisted to the root node_modules/.bin, so the
+# shell finds no local prisma and pulls Prisma 7.x from the network — which rejects
+# `url = env(...)` in the schema (P1012). Put the workspace bin on PATH so it uses
+# the pinned Prisma 6.19.3.
 RUN PATH="/app/packages/db/node_modules/.bin:$PATH" ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────

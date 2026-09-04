@@ -3,6 +3,7 @@
  * jobs; the old Job table is read for feedback/history only.
  */
 import * as db from '@saas/db'
+import { renderNewsletterEmail, sendNewsletterEmail } from '@saas/email'
 import { createLogger } from '@saas/shared'
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
@@ -350,6 +351,286 @@ router.get('/analytics', async (_req, res) => {
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch admin analytics')
     res.status(500).json({ error: error.message })
+  }
+})
+
+// ── Newsletter ───────────────────────────────────────────────────────────────
+// The email list and its broadcasts. Brought over from apps/api when the
+// flows collapsed into the studio; the routes are unchanged.
+
+router.get('/newsletter', async (_req, res) => {
+  try {
+    const subscribers = await db.prisma.newsletterSubscriber.findMany({
+      where: { status: { not: 'removed' } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        source: true,
+        status: true,
+        createdAt: true,
+        unsubscribedAt: true,
+      },
+    })
+    res.json({
+      subscribers,
+      subscribed: subscribers.filter(contact => contact.status === 'subscribed').length,
+      unsubscribed: subscribers.filter(contact => contact.status === 'unsubscribed').length,
+    })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to list newsletter audience')
+    res.status(500).json({ error: 'Failed to load newsletter audience' })
+  }
+})
+
+router.post('/newsletter/subscribers', async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+  const firstName =
+    typeof req.body?.firstName === 'string' && req.body.firstName.trim()
+      ? req.body.firstName.trim().slice(0, 100)
+      : undefined
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address' })
+  }
+
+  try {
+    const existing = await db.prisma.newsletterSubscriber.findUnique({ where: { email } })
+    if (existing?.status === 'unsubscribed') {
+      return res.status(409).json({ error: 'This contact previously unsubscribed' })
+    }
+    const subscriber = existing
+      ? await db.prisma.newsletterSubscriber.update({
+          where: { id: existing.id },
+          data: {
+            ...(firstName ? { firstName } : {}),
+            status: 'subscribed',
+            unsubscribedAt: null,
+            source: 'manual',
+          },
+        })
+      : await db.prisma.newsletterSubscriber.create({
+          data: { email, firstName, source: 'manual' },
+        })
+    return res.status(existing ? 200 : 201).json(subscriber)
+  } catch (error: any) {
+    logger.error({ err: error, email }, 'Failed to add newsletter contact')
+    return res.status(500).json({ error: 'Failed to add newsletter contact' })
+  }
+})
+
+router.post('/newsletter/sync-users', async (_req, res) => {
+  try {
+    const users = await db.prisma.userProfile.findMany({
+      select: { id: true, email: true, firstName: true },
+    })
+    let added = 0
+    let updated = 0
+    let suppressed = 0
+
+    for (const user of users) {
+      const email = user.email.trim().toLowerCase()
+      const existing = await db.prisma.newsletterSubscriber.findFirst({
+        where: { OR: [{ userId: user.id }, { email }] },
+      })
+      if (existing) {
+        await db.prisma.newsletterSubscriber.update({
+          where: { id: existing.id },
+          data: { email, firstName: user.firstName, userId: user.id },
+        })
+        updated += 1
+        if (existing.status !== 'subscribed') suppressed += 1
+      } else {
+        await db.prisma.newsletterSubscriber.create({
+          data: { email, firstName: user.firstName, userId: user.id, source: 'user-sync' },
+        })
+        added += 1
+      }
+    }
+
+    logger.info({ users: users.length, added, updated, suppressed }, 'Synced users to newsletter')
+    return res.json({ users: users.length, added, updated, suppressed })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to sync users to newsletter')
+    return res.status(500).json({ error: 'Failed to sync users to newsletter' })
+  }
+})
+
+router.get('/newsletter/history', async (_req, res) => {
+  try {
+    const campaigns = await db.prisma.newsletterCampaign.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: { deliveries: { orderBy: { createdAt: 'asc' } } },
+    })
+    return res.json(campaigns)
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to load newsletter history')
+    return res.status(500).json({ error: 'Failed to load newsletter history' })
+  }
+})
+
+router.delete('/newsletter/subscribers/:id', async (req, res) => {
+  try {
+    const deleted = await db.prisma.newsletterSubscriber.updateMany({
+      where: { id: req.params.id },
+      data: { status: 'removed', unsubscribedAt: new Date() },
+    })
+    if (!deleted.count) return res.status(404).json({ error: 'Contact not found' })
+    return res.status(204).send()
+  } catch (error: any) {
+    logger.error({ err: error, subscriberId: req.params.id }, 'Failed to delete newsletter contact')
+    return res.status(500).json({ error: 'Failed to delete newsletter contact' })
+  }
+})
+
+router.post('/newsletter/preview', (req, res) => {
+  const subject =
+    typeof req.body?.subject === 'string' ? req.body.subject.trim().replace(/[—–]/g, '-') : ''
+  const message =
+    typeof req.body?.message === 'string' ? req.body.message.trim().replace(/[—–]/g, '-') : ''
+  const ctaLabel = typeof req.body?.ctaLabel === 'string' ? req.body.ctaLabel.trim() : ''
+  const ctaUrl = typeof req.body?.ctaUrl === 'string' ? req.body.ctaUrl.trim() : ''
+  if (!subject || !message) {
+    return res.status(400).json({ error: 'Subject and message are required for preview' })
+  }
+  if (ctaUrl && !/^https?:\/\/[^\s]+$/i.test(ctaUrl)) {
+    return res.status(400).json({ error: 'CTA URL must be a complete http or https URL' })
+  }
+
+  const content = renderNewsletterEmail({
+    to: 'preview@trypitch.co',
+    firstName: 'Adnan',
+    subject,
+    message,
+    ctaLabel: ctaLabel || undefined,
+    ctaUrl: ctaUrl || undefined,
+    unsubscribeUrl: 'https://api.trypitch.co/newsletter/unsubscribe?token=preview',
+  })
+  return res.json({ html: content.html })
+})
+
+router.post('/newsletter/send', async (req, res) => {
+  const subject =
+    typeof req.body?.subject === 'string' ? req.body.subject.trim().replace(/[—–]/g, '-') : ''
+  const message =
+    typeof req.body?.message === 'string' ? req.body.message.trim().replace(/[—–]/g, '-') : ''
+  const ctaLabel = typeof req.body?.ctaLabel === 'string' ? req.body.ctaLabel.trim() : ''
+  const ctaUrl = typeof req.body?.ctaUrl === 'string' ? req.body.ctaUrl.trim() : ''
+  const recipientIds: string[] | null = Array.isArray(req.body?.recipientIds)
+    ? [
+        ...new Set<string>(
+          req.body.recipientIds.filter((id: unknown): id is string => typeof id === 'string'),
+        ),
+      ]
+    : null
+  if (!subject || !message)
+    return res.status(400).json({ error: 'Subject and message are required' })
+  if (subject.length > 180 || message.length > 20_000) {
+    return res.status(400).json({ error: 'Newsletter content is too long' })
+  }
+  if (ctaLabel.length > 60) return res.status(400).json({ error: 'CTA label is too long' })
+  if (ctaUrl && !/^https?:\/\/[^\s]+$/i.test(ctaUrl)) {
+    return res.status(400).json({ error: 'CTA URL must be a complete http or https URL' })
+  }
+  if (recipientIds && recipientIds.length === 0) {
+    return res.status(400).json({ error: 'Select at least one subscribed contact' })
+  }
+  if (recipientIds && recipientIds.length > 5_000) {
+    return res.status(400).json({ error: 'Too many recipients selected' })
+  }
+
+  try {
+    const subscribers = await db.prisma.newsletterSubscriber.findMany({
+      where: {
+        status: 'subscribed',
+        ...(recipientIds ? { id: { in: recipientIds } } : {}),
+      },
+      select: { email: true, firstName: true, unsubscribeToken: true },
+    })
+    const publicUrl = (process.env.NEWSLETTER_PUBLIC_URL ?? 'https://api.trypitch.co').replace(
+      /\/$/,
+      '',
+    )
+    let sent = 0
+    const failures: string[] = []
+    const admin = (req as any).adminUser as {
+      id: string
+      email: string
+      firstName?: string | null
+      lastName?: string | null
+    }
+    const campaign = await db.prisma.newsletterCampaign.create({
+      data: {
+        subject,
+        message,
+        ctaLabel: ctaLabel || null,
+        ctaUrl: ctaUrl || null,
+        sentByUserId: admin.id,
+        sentByEmail: admin.email,
+        sentByName: [admin.firstName, admin.lastName].filter(Boolean).join(' ') || null,
+        recipientCount: subscribers.length,
+      },
+    })
+    const deliveries: Array<{
+      campaignId: string
+      email: string
+      firstName: string | null
+      status: string
+      providerId: string | null
+      error: string | null
+    }> = []
+
+    // A small concurrency window avoids hammering the mail provider while keeping
+    // an admin send responsive for a typical early-stage audience.
+    for (let offset = 0; offset < subscribers.length; offset += 8) {
+      const batch = subscribers.slice(offset, offset + 8)
+      const results = await Promise.all(
+        batch.map(contact =>
+          sendNewsletterEmail({
+            to: contact.email,
+            firstName: contact.firstName,
+            subject,
+            message,
+            ctaLabel: ctaLabel || undefined,
+            ctaUrl: ctaUrl || undefined,
+            unsubscribeUrl: `${publicUrl}/newsletter/unsubscribe?token=${encodeURIComponent(contact.unsubscribeToken || '')}`,
+          }),
+        ),
+      )
+      results.forEach((result, index) => {
+        const contact = batch[index]
+        if (result.error) failures.push(contact.email)
+        else sent += 1
+        deliveries.push({
+          campaignId: campaign.id,
+          email: contact.email,
+          firstName: contact.firstName,
+          status: result.error ? 'failed' : 'sent',
+          providerId: result.id ?? null,
+          error: result.error ?? null,
+        })
+      })
+    }
+
+    if (deliveries.length) {
+      await db.prisma.newsletterDelivery.createMany({ data: deliveries })
+    }
+    await db.prisma.newsletterCampaign.update({
+      where: { id: campaign.id },
+      data: {
+        status: failures.length ? (sent ? 'partial' : 'failed') : 'completed',
+        sentCount: sent,
+        failedCount: failures.length,
+        completedAt: new Date(),
+      },
+    })
+
+    logger.info({ sent, failed: failures.length }, 'Newsletter broadcast completed')
+    res.json({ sent, failed: failures.length, failures, campaignId: campaign.id })
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to send newsletter broadcast')
+    res.status(500).json({ error: 'Failed to send newsletter broadcast' })
   }
 })
 

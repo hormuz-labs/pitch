@@ -16,13 +16,34 @@ const APP_URL = (process.env.APP_URL || 'https://trypitch.co').replace(/\/$/, ''
 let cachedShell: { html: string; fetchedAt: number } | null = null
 const SHELL_CACHE_TTL_MS = 60_000
 
+/** First URL that answers 2xx with HTML. Throws if none do. */
+async function fetchFirst(urls: string[]): Promise<string> {
+  let lastError: unknown
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const html = await res.text()
+      // A missing static file can be answered by the SPA catch-all rewrite, so
+      // confirm this really is a document before caching it.
+      if (html.includes('<div id="root"')) return html
+      throw new Error('response is not the app shell')
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError ?? new Error('no app shell URL responded')
+}
+
 async function getAppShellHtml(): Promise<string> {
   if (cachedShell && Date.now() - cachedShell.fetchedAt < SHELL_CACHE_TTL_MS)
     return cachedShell.html
   try {
-    const html = await fetch(`${APP_URL}/`, { signal: AbortSignal.timeout(5000) }).then(r =>
-      r.text(),
-    )
+    // app-shell.html is the build's content-free stub (see
+    // apps/web/scripts/prerender.mjs). `/` is a prerendered landing page, so
+    // using it here would flash the homepage before the demo view mounts. Dev
+    // and any build without the shell fall back to `/`, which is the stub there.
+    const html = await fetchFirst([`${APP_URL}/app-shell.html`, `${APP_URL}/`])
     cachedShell = { html, fetchedAt: Date.now() }
     return html
   } catch (error) {

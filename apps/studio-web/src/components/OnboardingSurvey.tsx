@@ -96,9 +96,10 @@ const EMPTY_ANSWERS: Answers = {
   discoverySource: '',
 }
 
-export const OnboardingSurvey = () => {
+export const OnboardingSurvey = ({ enabled }: { enabled: boolean }) => {
   const { getToken } = useAuth()
-  const [required, setRequired] = useState(false)
+  const [status, setStatus] = useState<'checking' | 'required' | 'complete' | 'error'>('checking')
+  const [statusCheck, setStatusCheck] = useState(0)
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS)
   const [submitting, setSubmitting] = useState(false)
@@ -107,27 +108,50 @@ export const OnboardingSurvey = () => {
   const selected = answers[question.key]
 
   useEffect(() => {
+    if (!enabled) return
+
     let cancelled = false
-    void (async () => {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    setStatus('checking')
+
+    const checkStatus = async (attempt = 0) => {
       try {
         const token = await getToken()
-        if (!token) return
+        if (!token) throw new Error('Authentication token is not ready')
         const result = await api.get<{ completed: boolean }>('/users/onboarding', token)
-        if (!cancelled) setRequired(!result.completed)
+        if (!cancelled) setStatus(result.completed ? 'complete' : 'required')
       } catch {
-        // Do not lock the application during a transient status-check failure.
+        if (cancelled) return
+        if (attempt < 3) {
+          retryTimer = setTimeout(() => void checkStatus(attempt + 1), 400 * 2 ** attempt)
+        } else {
+          setStatus('error')
+        }
       }
-    })()
-    // A 428 from the API (onboarding required) re-opens the survey.
-    const onRequired = () => setRequired(true)
+    }
+
+    const recheckAfterSync = () => {
+      if (retryTimer) clearTimeout(retryTimer)
+      setStatus('checking')
+      void checkStatus()
+    }
+
+    // A 428 from the API means the server has decided onboarding is required,
+    // whatever this check last concluded — re-open on the server's say-so.
+    const onRequired = () => setStatus('required')
+
+    void checkStatus()
+    window.addEventListener('pitch:user-synced', recheckAfterSync)
     window.addEventListener('onboarding-required', onRequired)
     return () => {
       cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+      window.removeEventListener('pitch:user-synced', recheckAfterSync)
       window.removeEventListener('onboarding-required', onRequired)
     }
-  }, [getToken])
+  }, [enabled, getToken, statusCheck])
 
-  if (!required) return null
+  if (!enabled || status === 'checking' || status === 'complete') return null
 
   const continueSurvey = async () => {
     if (!selected) return
@@ -142,9 +166,9 @@ export const OnboardingSurvey = () => {
       const token = await getToken()
       if (!token) throw new Error('Your session expired. Please sign in again.')
       await api.post('/users/onboarding', token, answers)
-      setRequired(false)
+      setStatus('complete')
     } catch (submissionError: any) {
-      if (submissionError?.status === 409) setRequired(false)
+      if (submissionError?.status === 409) setStatus('complete')
       else setError('We could not save your answers. Please try again.')
     } finally {
       setSubmitting(false)
@@ -163,55 +187,75 @@ export const OnboardingSurvey = () => {
           <PitchWordmark />
         </div>
         <p className="onboarding-survey-kicker">Welcome to Pitch</p>
-        <div
-          className="onboarding-survey-progress"
-          aria-label={`Step ${step + 1} of ${QUESTIONS.length}`}
-        >
-          <span style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
-        </div>
-
-        <h1 id="onboarding-title">{question.title}</h1>
-        <div className="onboarding-survey-options">
-          {question.options.map(option => (
+        {status === 'error' ? (
+          <div className="onboarding-survey-status-error" role="alert">
+            <h1 id="onboarding-title">We could not load your setup</h1>
+            <p>Check your connection, then try again. Your dashboard is still safe.</p>
             <button
-              key={option.value}
               type="button"
-              className={selected === option.value ? 'is-selected' : ''}
-              aria-pressed={selected === option.value}
-              onClick={() => setAnswers(current => ({ ...current, [question.key]: option.value }))}
+              onClick={() => {
+                setStatus('checking')
+                setStatusCheck(current => current + 1)
+              }}
             >
-              {option.label}
+              Try again
             </button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            <div
+              className="onboarding-survey-progress"
+              aria-label={`Step ${step + 1} of ${QUESTIONS.length}`}
+            >
+              <span style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
+            </div>
 
-        {error && (
-          <p className="onboarding-survey-error" role="alert">
-            {error}
-          </p>
+            <h1 id="onboarding-title">{question.title}</h1>
+            <div className="onboarding-survey-options">
+              {question.options.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={selected === option.value ? 'is-selected' : ''}
+                  aria-pressed={selected === option.value}
+                  onClick={() =>
+                    setAnswers(current => ({ ...current, [question.key]: option.value }))
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {error && (
+              <p className="onboarding-survey-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="onboarding-survey-actions">
+              {step > 0 && (
+                <button
+                  type="button"
+                  className="is-back"
+                  onClick={() => setStep(current => current - 1)}
+                >
+                  Back
+                </button>
+              )}
+              <button
+                type="button"
+                className="is-continue"
+                disabled={!selected || submitting}
+                onClick={continueSurvey}
+              >
+                {submitting ? 'Saving…' : step === QUESTIONS.length - 1 ? 'Finish' : 'Continue'}
+              </button>
+            </div>
+            <p className="onboarding-survey-note">
+              Your answers help us improve Pitch. They are visible only to the Pitch admin team.
+            </p>
+          </>
         )}
-        <div className="onboarding-survey-actions">
-          {step > 0 && (
-            <button
-              type="button"
-              className="is-back"
-              onClick={() => setStep(current => current - 1)}
-            >
-              Back
-            </button>
-          )}
-          <button
-            type="button"
-            className="is-continue"
-            disabled={!selected || submitting}
-            onClick={continueSurvey}
-          >
-            {submitting ? 'Saving…' : step === QUESTIONS.length - 1 ? 'Finish' : 'Continue'}
-          </button>
-        </div>
-        <p className="onboarding-survey-note">
-          Your answers help us improve Pitch. They are visible only to the Pitch admin team.
-        </p>
       </div>
     </div>
   )

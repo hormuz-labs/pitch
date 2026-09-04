@@ -16,7 +16,7 @@
  * Loaded after landing.css; scoped to `.lb-root`; themed via [data-theme].
  */
 
-.lb-root {
+:is(.lb-root, .lb-chrome) {
   /* light — Factory marble */
   --lb-bg:        #ededed;
   --lb-surface:   #fafafa;
@@ -38,7 +38,13 @@
 
   --lb-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --lb-mono: 'Geist Mono Variable', ui-monospace, 'JetBrains Mono', monospace;
+}
 
+/* Only a page root paints. `.lb-chrome` carries the tokens alone so the shared
+   nav and footer can be dropped onto any page — /blog, /about, /privacy — and
+   still resolve every var they use, without also painting a second full-page
+   background or a second grain overlay over whatever page hosts them. */
+.lb-root {
   background: var(--lb-bg);
   color: var(--lb-ink);
   font-family: var(--lb-sans);
@@ -49,7 +55,7 @@
   overflow-x: clip;
 }
 
-[data-theme='dark'] .lb-root {
+[data-theme='dark'] :is(.lb-root, .lb-chrome) {
   --lb-bg:        #0a0a0a;
   --lb-surface:   #121212;
   --lb-surface-2: #171716;
@@ -76,8 +82,8 @@
   mix-blend-mode: overlay;
 }
 
-.lb-root ::selection { background: var(--lb-ink); color: var(--lb-bg); }
-.lb-root :where(a) { color: inherit; text-decoration: none; }
+:is(.lb-root, .lb-chrome) ::selection { background: var(--lb-ink); color: var(--lb-bg); }
+:is(.lb-root, .lb-chrome) :where(a) { color: inherit; text-decoration: none; }
 .lb-wrap { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
 
 /* eyebrow — Geist Mono, uppercase, with a status dot */
@@ -128,7 +134,8 @@
 
 /* ── announcement + nav ─────────────────────────────────────────── */
 /* Compact blue promo rail with high-contrast, readable typography. */
-.lb-root .landing-announcement {
+:is(.lb-root, .lb-chrome) .landing-announcement,
+.landing-announcement.lb-chrome {
   min-height: 30px;
   padding-block: 4px;
   background: #1385d6;
@@ -141,11 +148,12 @@
   text-transform: none;
   text-shadow: none;
 }
-.lb-root .landing-announcement > span {
+:is(.lb-root, .lb-chrome) .landing-announcement > span,
+.landing-announcement.lb-chrome > span {
   display: inline-flex;
   align-items: center;
 }
-.lb-root .landing-announcement-cta {
+:is(.lb-root, .lb-chrome) .landing-announcement-cta {
   background: #ffffff;
   color: #0f6fb4;
   border: 0;
@@ -160,7 +168,7 @@
   text-decoration: none;
   transition: background 160ms var(--ease-out), transform 160ms var(--ease-out);
 }
-.lb-root .landing-announcement-cta:hover {
+:is(.lb-root, .lb-chrome) .landing-announcement-cta:hover {
   opacity: 1;
   background: #f4f8fb;
   color: #0f6fb4;
@@ -199,7 +207,7 @@
 }
 
 /* left — mark + animated PITCH wordmark + tagline (Motion-style lockup) */
-.lb-root .lb-brand {
+:is(.lb-root, .lb-chrome) .lb-brand {
   color: var(--lb-ink);
   line-height: 1;
   display: flex;
@@ -255,18 +263,18 @@
   gap: 14px;
   margin-right: 6px;
 }
-.lb-root .lb-nav-social a {
+:is(.lb-root, .lb-chrome) .lb-nav-social a {
   display: inline-flex;
   color: var(--lb-ink-dim);
   transition: color 0.15s var(--ease-out);
 }
-.lb-root .lb-nav-social a:hover { color: var(--lb-ink); }
-.lb-root .lb-nav-social a:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 3px; border-radius: 3px; }
+:is(.lb-root, .lb-chrome) .lb-nav-social a:hover { color: var(--lb-ink); }
+:is(.lb-root, .lb-chrome) .lb-nav-social a:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 3px; border-radius: 3px; }
 @media (max-width: 700px) {
   .lb-nav-social { display: none; }
   .lb-nav-in { padding: 11px 24px; }
 }
-.lb-root .lb-nav-link {
+:is(.lb-root, .lb-chrome) .lb-nav-link {
   font-family: var(--lb-sans);
   font-size: 13px;
   color: var(--lb-ink-2);
@@ -279,14 +287,14 @@
   gap: 4px;
   transition: color 0.15s var(--ease-out);
 }
-.lb-root .lb-nav-link:hover,
-.lb-root .lb-nav-link[aria-expanded='true'] { color: var(--lb-ink); }
+:is(.lb-root, .lb-chrome) .lb-nav-link:hover,
+:is(.lb-root, .lb-chrome) .lb-nav-link[aria-expanded='true'] { color: var(--lb-ink); }
 .lb-nav-caret { transition: transform 0.2s var(--ease-out); }
 .lb-nav-link[aria-expanded='true'] .lb-nav-caret { transform: rotate(180deg); }
 
 @media (max-width: 880px) {
   .lb-nav-center { display: none; }
-  .lb-root .lb-brand { flex: none; }
+  :is(.lb-root, .lb-chrome) .lb-brand { flex: none; }
   .lb-nav-r { flex: none; }
 }
 @media (max-width: 420px) { .lb-brand-by { display: none; } }
@@ -448,7 +456,7 @@
 
 @media (max-width: 560px) {
   .lb-nav-r { gap: 8px; }
-  .lb-root .lb-nav-r .lb-cta { padding-inline: 14px; }
+  :is(.lb-root, .lb-chrome) .lb-nav-r .lb-cta { padding-inline: 14px; }
   .lb-mobile-menu { padding-inline: 20px; }
 }
 
@@ -464,7 +472,7 @@
   position: fixed;
   inset: 0;
   /* `top` is set inline to the navbar's bottom edge so the nav stays crisp.
-     Portalled onto <body>, outside .lb-root — hence the literal fallbacks. */
+     Portalled onto <body>, outside :is(.lb-root, .lb-chrome) — hence the literal fallbacks. */
   z-index: 40;
   background: color-mix(in srgb, var(--lb-bg, #ededed) 34%, transparent);
   backdrop-filter: blur(7px) saturate(1.08);
@@ -588,7 +596,7 @@
 .lb-theme-toggle:hover { color: var(--lb-ink); border-color: var(--lb-ink-dim); }
 
 .lb-cta,
-.lb-root .lb-cta {
+:is(.lb-root, .lb-chrome) .lb-cta {
   background: var(--lb-btn);
   color: var(--lb-btn-ink);
   border: 1px solid var(--lb-btn);
@@ -605,15 +613,15 @@
 .lb-cta:hover { opacity: 0.88; }
 .lb-cta:active { transform: scale(0.97); }
 .lb-cta--ghost,
-.lb-root .lb-cta--ghost {
+:is(.lb-root, .lb-chrome) .lb-cta--ghost {
   background: transparent;
   color: var(--lb-ink);
   border: 1px solid var(--lb-line-2);
 }
 .lb-cta--ghost:hover { opacity: 1; border-color: var(--lb-ink); }
-.lb-root .lb-cta:focus-visible,
+:is(.lb-root, .lb-chrome) .lb-cta:focus-visible,
 .lb-theme-toggle:focus-visible,
-.lb-root .lb-nav-link:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+:is(.lb-root, .lb-chrome) .lb-nav-link:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
 
 /* ── hero — centered, composer as the stage (Motion-style) ──────── */
 .lb-hero { border-top: 0; padding: clamp(52px, 9vh, 104px) 0 clamp(44px, 7vh, 76px); }
@@ -814,7 +822,8 @@
 }
 .lb-hero .landing-chat-submit-glass--active,
 [data-theme='light'] .lb-hero .landing-chat-submit-glass--active { background: var(--lb-btn) !important; }
-.lb-hero .landing-chat-submit {
+.lb-hero .landing-chat-submit,
+[data-theme='light'] .lb-hero .landing-chat-submit {
   width: 32px;
   height: 32px;
   cursor: pointer;
@@ -1408,7 +1417,7 @@
   gap: 12px;
   flex-wrap: wrap;
 }
-.lb-root .lb-hiw-cta .lb-cta { padding: 10px 20px; font-size: 13.5px; }
+:is(.lb-root, .lb-chrome) .lb-hiw-cta .lb-cta { padding: 10px 20px; font-size: 13.5px; }
 
 /* ── MCP / API — connect to existing agents ────────────────────── */
 .lb-mcp-head { text-align: center; margin-bottom: 8px; }
@@ -1438,11 +1447,12 @@
   object-fit: contain;
   border-radius: 4px;
   flex: none;
-  /* render every brand mark as a small uniform app tile so a dark PNG logo,
-     a coloured SVG and an opaque screenshot all sit the same on any tab */
-  background: #fff;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.09);
-  padding: 1px;
+  /* Marks sit directly on the surface. They used to be boxed on an opaque white
+     tile, which put a white square around every transparent logo on the marble
+     canvas — more conspicuous than the inconsistency it was hiding. */
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 .mcp-tab:hover { color: var(--lb-ink); border-color: var(--lb-ink); }
 .mcp-tab:hover svg { color: var(--lb-ink); }
@@ -1660,17 +1670,17 @@
 /* ── FAQ ───────────────────────────────────────────────────────── */
 .lb-interview { padding-bottom: clamp(44px, 5vw, 60px); }
 .lb-interview .lb-wrap { margin-bottom: 12px; }
-.lb-root .landing-faq { background: transparent; padding: 0; }
-.lb-root .landing-faq-inner { padding: 0; max-width: 1100px; }
-.lb-root .landing-faq-list { margin-top: 28px; }
-.lb-root .landing-faq-accordion-item { border-color: var(--lb-line); }
-.lb-root .landing-faq-accordion-trigger {
+:is(.lb-root, .lb-chrome) .landing-faq { background: transparent; padding: 0; }
+:is(.lb-root, .lb-chrome) .landing-faq-inner { padding: 0; max-width: 1100px; }
+:is(.lb-root, .lb-chrome) .landing-faq-list { margin-top: 28px; }
+:is(.lb-root, .lb-chrome) .landing-faq-accordion-item { border-color: var(--lb-line); }
+:is(.lb-root, .lb-chrome) .landing-faq-accordion-trigger {
   color: var(--lb-ink); font-family: var(--lb-sans);
   font-weight: 400; letter-spacing: -0.02em;
 }
-.lb-root .landing-faq-accordion-trigger:hover { color: var(--lb-ink-2); }
-.lb-root .landing-faq-accordion-icon { color: var(--lb-ink-dim); }
-.lb-root .landing-faq-a { color: var(--lb-ink-2); font-family: var(--lb-sans); }
+:is(.lb-root, .lb-chrome) .landing-faq-accordion-trigger:hover { color: var(--lb-ink-2); }
+:is(.lb-root, .lb-chrome) .landing-faq-accordion-icon { color: var(--lb-ink-dim); }
+:is(.lb-root, .lb-chrome) .landing-faq-a { color: var(--lb-ink-2); font-family: var(--lb-sans); }
 
 /* ── endcap — full-bleed closing statement ────────────────────── */
 .lb-endcap {
@@ -1772,14 +1782,32 @@
 }
 [data-theme='dark'] .lb-endcap-word { color: #171717; }
 
+/* Shared public-page footer.
+   The component's own default is a black, round-topped block, which read as a
+   different site the moment you left the landing page. Every page that mounts
+   the footer gets the landing's marble treatment instead. The landing keeps its
+   own glass variant below — that rule is more specific, so it still wins there
+   and this is only the appearance everywhere else. */
+.lb-chrome footer {
+  border: 0;
+  border-top: 1px solid var(--lb-line);
+  border-radius: 0;
+  background: var(--lb-bg);
+  color: var(--lb-ink);
+}
+.lb-chrome footer :is(.text-white, .text-zinc-100, .text-zinc-300, .text-zinc-400, .text-zinc-500) {
+  color: var(--lb-ink);
+}
+.lb-chrome footer .border-zinc-900 { border-color: var(--lb-line); }
+
 /* The landing footer overlaps the endcap as a translucent continuation, letting
    the bottom of the oversized wordmark remain visible through the glass. */
-.lb-root .lb-endcap + div {
+:is(.lb-root, .lb-chrome) .lb-endcap + div {
   position: relative;
   z-index: 3;
   margin-top: -118px;
 }
-.lb-root .lb-endcap + div footer {
+:is(.lb-root, .lb-chrome) .lb-endcap + div footer {
   border: 1px solid rgba(2, 2, 2, 0.12);
   border-right: 0;
   border-bottom: 0;
@@ -1791,14 +1819,14 @@
   backdrop-filter: blur(7px) saturate(108%);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.55), 0 -14px 36px rgba(2, 2, 2, 0.02);
 }
-.lb-root .lb-endcap + div footer .text-white,
-.lb-root .lb-endcap + div footer .text-zinc-100 { color: var(--lb-ink); }
-.lb-root .lb-endcap + div footer .text-zinc-300,
-.lb-root .lb-endcap + div footer .text-zinc-400,
-.lb-root .lb-endcap + div footer .text-zinc-500 { color: var(--lb-ink); }
-.lb-root .lb-endcap + div footer .border-zinc-900 { border-color: var(--lb-line); }
+:is(.lb-root, .lb-chrome) .lb-endcap + div footer .text-white,
+:is(.lb-root, .lb-chrome) .lb-endcap + div footer .text-zinc-100 { color: var(--lb-ink); }
+:is(.lb-root, .lb-chrome) .lb-endcap + div footer .text-zinc-300,
+:is(.lb-root, .lb-chrome) .lb-endcap + div footer .text-zinc-400,
+:is(.lb-root, .lb-chrome) .lb-endcap + div footer .text-zinc-500 { color: var(--lb-ink); }
+:is(.lb-root, .lb-chrome) .lb-endcap + div footer .border-zinc-900 { border-color: var(--lb-line); }
 
-[data-theme='dark'] .lb-root .lb-endcap + div footer {
+[data-theme='dark'] :is(.lb-root, .lb-chrome) .lb-endcap + div footer {
   border-top-color: rgba(255, 255, 255, 0.12);
   background: rgba(3, 3, 3, 0.36);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 -14px 36px rgba(0, 0, 0, 0.08);
@@ -1859,7 +1887,8 @@
   .lb-endcap-inner { padding-top: 36px; }
   .lb-endcap-actions { gap: 20px; }
   .lb-endcap-word { bottom: -0.1em; font-size: clamp(8rem, 39vw, 13rem); }
-  .lb-root .landing-announcement { font-size: 10px; letter-spacing: 0; gap: 8px; }
+  :is(.lb-root, .lb-chrome) .landing-announcement,
+  .landing-announcement.lb-chrome { font-size: 10px; letter-spacing: 0; gap: 8px; }
   .lb-chy { font-size: 10.5px; }
   .landing-chat-suggestion { font-size: 11.5px; padding: 5px 11px; }
 }

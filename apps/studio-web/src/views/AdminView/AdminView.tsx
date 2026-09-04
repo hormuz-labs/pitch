@@ -4,16 +4,18 @@ import { api } from '../../lib/api'
 import { FLOW_IDS, FLOWS, type FlowId } from '../../lib/studio-api'
 import { AffiliatesPanel } from './AffiliatesPanel'
 import { FeedbackPanel } from './FeedbackPanel'
+import { NewsletterPanel } from './NewsletterPanel'
 import { OnboardingPanel } from './OnboardingPanel'
 import { ProjectDetailsModal } from './ProjectDetailsModal'
 import { type AdminProject, ProjectsTable } from './ProjectsTable'
 import { StatsCards } from './StatsCards'
 import { UsersTable } from './UsersTable'
 
-type AdminTab = 'users' | 'onboarding' | 'projects' | 'feedback' | 'affiliates'
+type AdminTab = 'users' | 'newsletter' | 'onboarding' | 'projects' | 'feedback' | 'affiliates'
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'users', label: 'Users', icon: '👥' },
+  { key: 'newsletter', label: 'Email list', icon: '✉️' },
   { key: 'onboarding', label: 'Onboarding', icon: '◫' },
   { key: 'projects', label: 'Projects', icon: '🎬' },
   { key: 'feedback', label: 'Feedback', icon: '⭐' },
@@ -33,6 +35,7 @@ export function AdminView() {
   const [data, setData] = React.useState<any>(null)
   const [projects, setProjects] = React.useState<AdminProject[]>([])
   const [analytics, setAnalytics] = React.useState<any | null>(null)
+  const [newsletter, setNewsletter] = React.useState<any | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState('')
 
@@ -67,6 +70,16 @@ export function AdminView() {
     }
   }
 
+  const fetchNewsletter = async () => {
+    try {
+      const token = await getToken()
+      if (!token) return
+      setNewsletter(await api.get<any>('/admin/newsletter', token))
+    } catch (err: any) {
+      console.error('Newsletter fetch failed:', err)
+    }
+  }
+
   const fetchAnalytics = async () => {
     try {
       const token = await getToken()
@@ -82,7 +95,7 @@ export function AdminView() {
     let isMounted = true
     const load = async () => {
       try {
-        await Promise.all([fetchDashboard(), fetchProjects(), fetchAnalytics()])
+        await Promise.all([fetchDashboard(), fetchProjects(), fetchAnalytics(), fetchNewsletter()])
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -234,15 +247,17 @@ export function AdminView() {
                 const count =
                   tab.key === 'users'
                     ? (data?.users?.length ?? '')
-                    : tab.key === 'onboarding'
-                      ? (data?.users?.filter((user: any) => user.onboardingSurvey).length ?? '')
-                      : tab.key === 'projects'
-                        ? projects.length
-                        : tab.key === 'feedback'
-                          ? (analytics?.feedbackSummary?.total ?? '')
-                          : tab.key === 'affiliates'
-                            ? (analytics?.affiliates?.length ?? '')
-                            : ''
+                    : tab.key === 'newsletter'
+                      ? (newsletter?.subscribed ?? '')
+                      : tab.key === 'onboarding'
+                        ? (data?.users?.filter((user: any) => user.onboardingSurvey).length ?? '')
+                        : tab.key === 'projects'
+                          ? projects.length
+                          : tab.key === 'feedback'
+                            ? (analytics?.feedbackSummary?.total ?? '')
+                            : tab.key === 'affiliates'
+                              ? (analytics?.affiliates?.length ?? '')
+                              : ''
                 return (
                   <button
                     key={tab.key}
@@ -321,6 +336,10 @@ export function AdminView() {
             {/* Tab content */}
             {activeTab === 'users' && (
               <UsersTable users={filteredUsers} onSelectUser={setSelectedUserId} />
+            )}
+
+            {activeTab === 'newsletter' && (
+              <NewsletterPanel audience={newsletter} onRefresh={fetchNewsletter} />
             )}
 
             {activeTab === 'onboarding' && <OnboardingPanel users={data?.users ?? []} />}
