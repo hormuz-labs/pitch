@@ -106,7 +106,14 @@ async function candidates(
 ): Promise<Array<{ kind: string; rel: string; at: number }>> {
   const out: Array<{ kind: string; rel: string; at: number }> = []
 
-  const shots = await mtimeOf(ws.dir, 'js/shots.js')
+  // shots.js sits at the workspace ROOT — it is what index.html loads
+  // (<script src="shots.js">), what describeLaunch reads, and what the skill
+  // tells the agent to write. Looking for it under js/ found nothing in any
+  // project ever created, so every finished launch film reported no preview,
+  // hasResult() said false, and the project was marked "finished without
+  // producing anything" and refunded while the film sat there complete.
+  // js/ stays as a fallback for anything that predates the convention.
+  const shots = (await mtimeOf(ws.dir, 'shots.js')) ?? (await mtimeOf(ws.dir, 'js/shots.js'))
   const index = await mtimeOf(ws.dir, 'index.html')
   if (shots && index) out.push({ kind: 'launch', rel: 'index.html', at: Math.max(shots, index) })
 
