@@ -90,7 +90,16 @@ if (!b64) { console.error("No audio in response:", JSON.stringify(json).slice(0,
 mkdirSync(dirname(resolve(out)), { recursive: true });
 const raw = out + ".pcm";
 writeFileSync(raw, Buffer.from(b64, "base64"));
-execSync(`ffmpeg -y -f s16le -ar 24000 -ac 1 -i "${raw}" "${out}"`, { stdio: "pipe" });
+// Trim the silence Gemini pads the read with (one take arrived with 11.7s of
+// it up front): audio.voStart in shots.js means "the voice starts here", and
+// a pace measured over dead air called a 3.5 words/s sprint "1.9, human".
+// 0.15s is left at each end so the first word is not clipped.
+execSync(
+  `ffmpeg -y -f s16le -ar 24000 -ac 1 -i "${raw}" -af ` +
+    `"silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.15,areverse,` +
+    `silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.15,areverse" "${out}"`,
+  { stdio: "pipe" },
+);
 rmSync(raw);
 const dur = Number(execSync(`ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${out}"`).toString().trim());
 const txt = out.replace(/\.\w+$/, "") + ".txt";
