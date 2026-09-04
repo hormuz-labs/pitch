@@ -1,10 +1,13 @@
 /**
  * Deck build tools — pi extension for the studio's deck flow. These tools run
- * on the HOST (the agent's own bash/read/write/edit live in a Gondolin VM
- * with no node, no browser and no network) and wrap the executable steps of
- * the ppt-generator / ppt-enhancer pipeline:
+ * on the HOST because the agent's own bash lives in a Gondolin VM with no
+ * browser and no network (it does have node), and every step below needs one
+ * or both. They wrap the executable steps of the ppt-generator / ppt-enhancer
+ * pipeline:
  *
- *   pdf_scaffold       copy the builder (+ inject the chosen template's
+ *   pdf_parse          parse an uploaded PDF/PPTX into build/parsed-slides.json
+                      (+ build/input-images/ for a preserved PPTX)
+   pdf_scaffold       copy the builder (+ inject the chosen template's
  *                      layouts/CSS) into <workspace>/build/, ready for CONFIG
  *                      authoring
  *   pdf_scrape_images  fetch Pinterest/Unsplash images (Gemini fallback) for the
@@ -30,6 +33,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { hostAction } from '../lib/studio-host.ts'
 
 const execFileAsync = promisify(execFile)
 const BIG_BUFFER = 64 * 1024 * 1024
@@ -237,6 +241,14 @@ export default function pdfTools(pi: ExtensionAPI) {
             '(--rich-prompt keyword::prompt). Only used if scraping comes up short.',
         }),
       ),
+      engineOrder: Type.Optional(
+        Type.String({
+          description:
+            'Which sources to try, in order, comma-separated from pinterest, unsplash, gemini. ' +
+            'Default is pinterest,unsplash,gemini. Templates whose image_source is "gemini-only" ' +
+            'want "gemini,pinterest" so the look is generated rather than scraped.',
+        }),
+      ),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
       const script = path.join(PPT_SKILL, 'reference', 'scrape_images.js')
@@ -255,6 +267,14 @@ export default function pdfTools(pi: ExtensionAPI) {
       const scriptArgs = [script, '--topic', scratchTopic, '--keywords', ...keywords]
       for (const [kw, prompt] of Object.entries(args.richPrompts || {})) {
         scriptArgs.push('--rich-prompt', `${kw}::${prompt}`)
+      }
+      if (args.engineOrder) {
+        const order = String(args.engineOrder)
+          .split(',')
+          .map(e => e.trim().toLowerCase())
+          .filter(e => ['pinterest', 'unsplash', 'gemini'].includes(e))
+        if (!order.length) return text('ERROR: engineOrder must name pinterest, unsplash or gemini')
+        scriptArgs.push('--engine-order', order.join(','))
       }
       let log = ''
       let failure: string | null = null
@@ -298,10 +318,38 @@ export default function pdfTools(pi: ExtensionAPI) {
   })
 
   pi.registerTool({
+    name: 'pdf_parse',
+    label: 'Parse a presentation',
+    description:
+      'Parse an uploaded PDF or PPTX in the workspace into build/parsed-slides.json — the structured ' +
+      'slide text the enhance workflow outlines from — and, for a PPTX in preserve mode, extract its ' +
+      'embedded images into build/input-images/. An attached deck is normally parsed for you before your ' +
+      'first turn, so call this ONLY when build/parsed-slides.json is missing, or when the user changes ' +
+      'the mode (recreate ⇄ preserve) after the fact. It rewrites the file, so never call it to "check".',
+    parameters: Type.Object({
+      file: Type.String({
+        description:
+          'Workspace-relative .pdf or .pptx, e.g. "input/pitch.pdf" or "uploads/deck.pptx"',
+      }),
+      mode: Type.Optional(
+        Type.Union([Type.Literal('recreate'), Type.Literal('preserve')], {
+          description:
+            'recreate (default) rebuilds the design from scratch and keeps only the content; ' +
+            'preserve keeps the slide count, the headings and the original embedded images.',
+        }),
+      ),
+    }),
+    async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
+      return text(await hostAction(ctx.cwd, 'pdf_parse', { file: args.file, mode: args.mode }))
+    },
+  })
+
+  pi.registerTool({
     name: 'pdf_build',
     label: 'Build deck',
     description:
-      'Build the deck from build/pdf-builder.js (the ONLY way to run the builder — your bash has no node). ' +
+      'Build the deck from build/pdf-builder.js (the ONLY way to run it — the builder needs Playwright ' +
+      'and the network, and your VM has neither). ' +
       'Renders the CONFIG slides via Playwright: writes build/output.html + build/output.pdf, runs the DOM QA ' +
       '(build/qa-report.json), screenshots every slide into build/qa-renders/, and on success copies ' +
       'output.html to deck.html — the deck the studio previews. Re-run after each CONFIG fix — the QA loop ' +

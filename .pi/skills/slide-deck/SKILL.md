@@ -36,7 +36,8 @@ project's folder (the only writable place):
   `images/<keyword>/` (scraped), `qa-renders/slide_N.png`, `qa-report.json`,
   `output.html` / `output.pdf` (the last build)
 - `build/parsed-slides.json` and `build/input-images/` — an enhance job's
-  parsed upload (already produced for you; never re-parse)
+  parsed upload, produced for you before your first turn. Read it; re-parse
+  only with `pdf_parse` and only if it is missing or the mode changed.
 - `input/` — the uploaded file itself
 - `renders/slide-NN.png` — pages rendered by `deck_render`
 - `notes.md` — yours, if you want a scratchpad
@@ -45,9 +46,8 @@ The skills are mounted read-only at `/.pi/skills/…` (that is where the paths
 in your skills listing resolve; `../../.pi/skills/…` from `/workspace` works
 too). Read a skill's SKILL.md with `read` before you use it.
 
-**The VM has NO node, NO npm, NO browser and NO network.** Every executable
-step of the skills is a host tool; when a skill says to run a command, use the
-tool instead and translate its paths:
+**The VM has node and python, but NO ffmpeg, NO browser and NO network.** So
+anything that fetches, renders or encodes is a host tool.
 
 That limit is on YOU, not on the deck. `pdf_build` runs on the host, in a real
 browser with network access, so the CDN `<script>` tags in the builder template
@@ -56,9 +56,13 @@ conclude a chart cannot work because you cannot reach the CDN from the VM, and
 never rewrite the template to avoid it — build the deck and let `pdf_build`
 tell you what actually rendered.
 
+The deep skills name these tools directly. If an older instruction still shows
+a shell command, this is the translation:
+
 | The skill says | You do |
 |---|---|
-| copy `pdf-builder-template.js` / `qa-dom.js` to `/tmp/ppt-<JOB_ID>/`, `npm install playwright` | `pdf_scaffold({ template? })` → `build/pdf-builder.js` (CONFIG.jobId is pre-filled) |
+| copy `pdf-builder-template.js` / `qa-dom.js` into a build dir, `npm install playwright` | `pdf_scaffold({ template? })` → `build/pdf-builder.js` (CONFIG.jobId is pre-filled) |
+| re-parse an uploaded PDF/PPTX, or switch recreate ⇄ preserve | `pdf_parse({ file, mode })` → `build/parsed-slides.json` |
 | `node scrape_images.js --topic … --keywords …`; images in `pptx/ppt-<topic>/images/<kw>/` | `pdf_scrape_images({ keywords, richPrompts? })` → `build/images/<keyword-slug>/` (the result lists the files) |
 | `cd <buildDir> && node pdf-builder.js`; read `qa-renders/` | `pdf_build()` → `build/qa-renders/slide_N.png`, and `deck.html` on success |
 | "the worker uploads output.pdf / output.html" | `deck_publish({ summary })` |
@@ -120,10 +124,10 @@ selector: …` — and `[n]` in their text refers to those elements.
 3. **Keep every slide a self-contained 1280×720 page.** No overflow, no
    elements escaping the slide box, no template placeholder text.
 4. **Images**: keep existing `src`s; never invent remote URLs. A new image
-   must be fetched with `pdf_scrape_images` and embedded as base64 — the VM
-   cannot base64-encode files (no node), so either reuse a data URI already in
-   the deck or add the image through the CONFIG + `pdf_build` route. If an
-   image must go, remove the element cleanly.
+   must be fetched with `pdf_scrape_images` and embedded as base64. The VM has
+   node, so encoding one is a one-liner; the CONFIG + `pdf_build` route does it
+   for you and is usually less work. If an image must go, remove the element
+   cleanly.
 5. **Look before you publish.** `deck_render({ slides: [3] })`, then `read`
    `renders/slide-03.png`; fix any overflow the tool flags or you see.
 6. **Publish once per turn** with a one-line summary. Never publish a broken

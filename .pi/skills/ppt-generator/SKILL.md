@@ -286,12 +286,12 @@ Read [image-scraping.md](image-scraping.md) for the full Playwright script and G
 ### Overview
 
 You MUST execute the Node.js Playwright script to fetch real images before building the presentation. For each keyword:
-1. Run the scraper using: `node .pi/skills/ppt-generator/reference/scrape_images.js --topic "<topic>" --keywords <keywords> [--rich-prompt "keyword::rich prompt" ...]`
+1. Call `pdf_scrape_images({ keywords, richPrompts?, engineOrder? })`. It runs the scraper on the host (your VM has no network) and writes the files into `build/images/<keyword-slug>/` in your workspace; the result lists exactly what landed.
 2. The script scrapes **Pinterest first** (2 images per keyword). **Dribbble is no longer used**.
 3. If Pinterest yields fewer than 2 images, the script automatically generates the missing image(s) with the **Gemini API** using `GEMINI_API_KEY` from `.env`.
 4. **Unsplash** is optional; use `--engine-order pinterest,unsplash,gemini` to include it.
 5. The script automatically handles downloading via Playwright request context to avoid rate-limits or blocking.
-6. Images will be saved directly to `pptx/ppt-<topic-slug>/images/<keyword>/` as:
+6. Images land in `build/images/<keyword-slug>/` as:
    - `pinterest_01.jpg`, `pinterest_02.jpg` (primary)
    - `gemini_01.png`, `gemini_02.png` (fallback generation, only if Pinterest < 2)
    - `gemini_prompt.txt` (the prompt used for any Gemini generation)

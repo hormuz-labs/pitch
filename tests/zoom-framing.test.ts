@@ -4,9 +4,9 @@ import {
   computeScrollTargetY,
   computeZoomFraming,
   cropWindow,
-  fitZoomForBox,
   FRAME_H,
   FRAME_W,
+  fitZoomForBox,
   isBoxFullyVisible,
 } from '../apps/studio/src/render/utils/zoom-framing.js'
 
@@ -152,7 +152,12 @@ describe('INVARIANT: after framing, the element is fully visible in the camera w
   for (const p of positions) {
     for (const s of sizes) {
       for (const rz of zooms) {
-        const box = { x: Math.min(p.x, FRAME_W - s.w), y: Math.min(p.y, FRAME_H - s.h), w: s.w, h: s.h }
+        const box = {
+          x: Math.min(p.x, FRAME_W - s.w),
+          y: Math.min(p.y, FRAME_H - s.h),
+          w: s.w,
+          h: s.h,
+        }
         it(`box ${JSON.stringify(box)} @zoom=${rz} stays fully framed`, () => {
           const f = computeZoomFraming(box, rz)
           // The element must fit the window at this zoom for full visibility; fit-zoom

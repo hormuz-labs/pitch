@@ -3,12 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import {
-  buildSlideshowHtml,
-  labelForRegion,
-  type Slide,
-  toFileUrl,
-} from '../.pi/lib/slideshow.ts'
+import { buildSlideshowHtml, labelForRegion, type Slide, toFileUrl } from '../.pi/lib/slideshow.ts'
 
 describe('toFileUrl', () => {
   it('prefixes absolute paths and passes through URLs', () => {

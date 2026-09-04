@@ -6,6 +6,8 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAppShell } from '../App'
+import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
 import { BrowserPreview } from './previews/BrowserPreview'
 import { DeckPreview } from './previews/DeckPreview'
@@ -230,6 +232,7 @@ function ExportMenu({ store }: { store: ProjectStore }) {
 function Topbar({ store }: { store: ProjectStore }) {
   const s = store
   const navigate = useNavigate()
+  const { isMobile, toggleSidebar } = useAppShell()
   const p = s.project
   const [shareUrl, setShareUrl] = useState<string | null>(
     p?.shareSlug && p.isPublic ? `${window.location.origin}/d/${p.shareSlug}` : null,
@@ -242,7 +245,7 @@ function Topbar({ store }: { store: ProjectStore }) {
   const hasOutput = (p?.outputs.length ?? 0) > 0
   return (
     <div className="job-topbar">
-      <button className="topbar-btn" onClick={() => navigate('/projects')}>
+      <button className="topbar-btn topbar-back" onClick={() => navigate('/projects')}>
         ← Projects
       </button>
       <div className="nav-crumb">
@@ -299,7 +302,65 @@ function Topbar({ store }: { store: ProjectStore }) {
         >
           Delete
         </button>
+        {/* The one thing the shell header carried that this bar still needs.
+            The credit balance is NOT here: it lives by the send button, where
+            you are about to spend it. */}
+        {isMobile && (
+          <span className="topbar-shell">
+            <button
+              type="button"
+              className="topbar-btn"
+              aria-label="Open the menu"
+              onClick={toggleSidebar}
+            >
+              ☰
+            </button>
+          </span>
+        )}
       </span>
+    </div>
+  )
+}
+
+/**
+ * One tray under the stage, two things in it.
+ *
+ * The strip picks a part of the ARTIFACT; the shelf picks a file to work
+ * WITH. Both answer "which one do you mean", and stacking them would spend
+ * twice the height on the same question — so they share the space and the
+ * user says which they are looking for. With nothing to strip through (a
+ * plain uploaded video, a fresh project) the shelf is simply the tray.
+ */
+function Tray({
+  strip,
+  stripLabel,
+  store,
+}: {
+  strip: React.ReactNode
+  stripLabel: string
+  store: ProjectStore
+}) {
+  const [tab, setTab] = useState<'strip' | 'assets'>('strip')
+  if (!strip) return <AssetShelf store={store} />
+  return (
+    <div className="tray">
+      <div className="tray-tabs">
+        <button
+          type="button"
+          className={`tray-tab${tab === 'strip' ? ' on' : ''}`}
+          onClick={() => setTab('strip')}
+        >
+          {stripLabel}
+        </button>
+        <button
+          type="button"
+          className={`tray-tab${tab === 'assets' ? ' on' : ''}`}
+          onClick={() => setTab('assets')}
+        >
+          Assets{store.assets.length > 0 ? ` (${store.assets.length})` : ''}
+        </button>
+      </div>
+      {tab === 'strip' ? strip : <AssetShelf store={store} />}
     </div>
   )
 }
@@ -333,6 +394,7 @@ export function StudioView({ projectId }: { projectId: string }) {
   ) : (desc?.scenes?.length ?? 0) > 0 || desc?.preview?.kind === 'html' ? (
     <SceneStrip store={s} />
   ) : null
+  const stripLabel = desc?.slides ? 'Slides' : 'Scenes'
 
   return (
     <div className="lv-studio">
@@ -345,7 +407,7 @@ export function StudioView({ projectId }: { projectId: string }) {
                 <Preview store={s} />
               </div>
             </div>
-            {strip}
+            <Tray strip={strip} stripLabel={stripLabel} store={s} />
           </div>
           <div
             className="resize-handle"

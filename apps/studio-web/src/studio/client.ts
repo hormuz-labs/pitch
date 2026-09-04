@@ -123,6 +123,20 @@ export interface UploadRef {
   size: number
 }
 
+export type AssetKind = 'image' | 'video' | 'audio' | 'pdf' | 'other'
+export type AssetOrigin = 'upload' | 'generated' | 'harvested'
+
+/** A file the project works WITH. `path` is workspace-relative — what tools take. */
+export interface Asset {
+  path: string
+  name: string
+  kind: AssetKind
+  origin: AssetOrigin
+  size: number
+  mtime: string
+  url: string
+}
+
 /** Absolute or app-relative URL for an API path (`/files/…`, `/projects/…`). */
 export function apiUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path
@@ -199,4 +213,7 @@ export const studio = {
   share: (token: string, id: string) => api.post<Project>(`${p(id)}/share`, token),
   unshare: (token: string, id: string) => api.delete<Project>(`${p(id)}/share`, token),
   upload: (token: string, form: FormData) => api.postForm<UploadRef[]>('/uploads', token, form),
+  assets: (token: string, id: string) => api.get<Asset[]>(`${p(id)}/assets`, token),
+  addAssets: (token: string, id: string, uploads: UploadRef[]) =>
+    api.post<Asset[]>(`${p(id)}/assets`, token, { uploads }),
 }

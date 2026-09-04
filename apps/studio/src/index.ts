@@ -26,6 +26,7 @@ const logger = createLogger('studio')
 // import. There is one agent and it can reach all of them; a pipeline that
 // fails to load costs the studio that capability, not the whole app.
 await import('./pipelines/media.js')
+await import('./pipelines/video-gen.js')
 await import('./flows/launch-video/index.js')
 await import('./flows/deck/index.js').catch(err =>
   logger.warn({ err }, 'deck pipeline unavailable'),

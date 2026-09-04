@@ -1,0 +1,153 @@
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { buildContext } from '../apps/studio/src/agent/index.js'
+import { describeUsage, videoFromInteraction } from '../apps/studio/src/pipelines/video-gen.js'
+import { kindOf, listAssets } from '../apps/studio/src/projects/assets.js'
+import type { Workspace } from '../apps/studio/src/studio/paths.js'
+import { withTargetLegend } from '../apps/studio-web/src/studio/useProject.js'
+
+function workspace(): Workspace {
+  const dir = mkdtempSync(path.join(tmpdir(), 'studio-assets-'))
+  return { flow: 'studio', userId: 'user_1', name: 'demo', internal: 'studio--user_1--demo', dir }
+}
+
+function write(ws: Workspace, rel: string, body = 'x', atSec?: number): void {
+  const file = path.join(ws.dir, rel)
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, body)
+  if (atSec) utimesSync(file, atSec, atSec)
+}
+
+describe('kindOf', () => {
+  it('recognises the media a project works with', () => {
+    expect(kindOf('logo.PNG')).toBe('image')
+    expect(kindOf('clip.mov')).toBe('video')
+    expect(kindOf('bed.wav')).toBe('audio')
+    expect(kindOf('pitch.pdf')).toBe('pdf')
+  })
+
+  it('ignores everything else, so the shelf stays a shelf', () => {
+    for (const f of ['pdf-builder.js', 'notes.md', 'shots.js', 'project.json'])
+      expect(kindOf(f), f).toBeNull()
+  })
+})
+
+describe('listAssets', () => {
+  it('is empty for a workspace that does not exist yet', async () => {
+    expect(await listAssets({ ...workspace(), dir: '/nope/nowhere' })).toEqual([])
+  })
+
+  it('collects material from every source and labels where it came from', async () => {
+    const ws = workspace()
+    write(ws, 'uploads/logo.png', 'x', 1_000_000)
+    write(ws, 'renders/gen-establishing.mp4', 'x', 2_000_000)
+    write(ws, 'recon/brand/hero.jpg', 'x', 3_000_000)
+
+    const assets = await listAssets(ws)
+    expect(assets.map(a => a.path)).toEqual([
+      'recon/brand/hero.jpg',
+      'renders/gen-establishing.mp4',
+      'uploads/logo.png',
+    ])
+    expect(assets.map(a => a.origin)).toEqual(['harvested', 'generated', 'upload'])
+    // The path is the point: it is what a tool takes.
+    expect(assets[1].path).toBe('renders/gen-establishing.mp4')
+    expect(assets[1].url).toContain('studio--user_1--demo')
+  })
+
+  it('leaves working files and pipeline intermediates off the shelf', async () => {
+    const ws = workspace()
+    write(ws, 'build/qa-renders/slide_1.png')
+    write(ws, 'renders/__intermediate.mp4')
+    write(ws, 'vendor/gsap/gsap.min.js')
+    write(ws, 'build/pdf-builder.js')
+    expect(await listAssets(ws)).toEqual([])
+  })
+
+  it('does not list the recording editor’s duplicate of an upload', async () => {
+    const ws = workspace()
+    write(ws, 'uploads/clip.mov')
+    write(ws, 'recording/upload.mov')
+    expect((await listAssets(ws)).map(a => a.path)).toEqual(['uploads/clip.mov'])
+  })
+})
+
+describe('asset targets', () => {
+  it('reads a picked file as a path, not as an element', () => {
+    const out = withTargetLegend('use [1] as the first frame', [
+      {
+        ref: 1,
+        sceneId: null,
+        tagName: 'asset',
+        className: '',
+        id: '',
+        text: 'logo.png',
+        selector: 'uploads/logo.png',
+        asset: 'uploads/logo.png',
+        assetOrigin: 'yours',
+      },
+    ])
+    expect(out).toContain('[1] the file uploads/logo.png')
+    expect(out).not.toContain('<asset')
+    expect(out.endsWith('use [1] as the first frame')).toBe(true)
+  })
+
+  it('tells the agent a file target is material, not the thing to change', async () => {
+    const ws = workspace()
+    const context = await buildContext(ws, {
+      first: false,
+      options: {},
+      targets: [{ asset: 'uploads/logo.png', assetOrigin: 'yours' }],
+    })
+    expect(context).toContain('[1] the file uploads/logo.png (yours)')
+    expect(context).toContain('material to USE')
+    expect(context).not.toContain('Change these, not their neighbours')
+  })
+
+  it('still says "change these" for an element target', async () => {
+    const ws = workspace()
+    const context = await buildContext(ws, {
+      first: false,
+      options: {},
+      targets: [{ tagName: 'h1', className: 'title', slide: 2, text: 'Hello', selector: '.title' }],
+    })
+    expect(context).toContain('Change these, not their neighbours')
+  })
+})
+
+describe('video generation replies', () => {
+  it('finds the clip in the interaction, whichever way it was delivered', () => {
+    const uri = videoFromInteraction({
+      steps: [
+        { type: 'thought', signature: '…' },
+        {
+          type: 'model_output',
+          content: [{ type: 'video', uri: 'https://x/f:download?alt=media' }],
+        },
+      ],
+    })
+    expect(uri?.uri).toBe('https://x/f:download?alt=media')
+
+    const inline = videoFromInteraction({
+      steps: [{ type: 'model_output', content: [{ mime_type: 'video/mp4', data: 'AAAA' }] }],
+    })
+    expect(inline?.data).toBe('AAAA')
+  })
+
+  it('returns nothing when the model answered without a video', () => {
+    expect(videoFromInteraction({ steps: [{ type: 'model_output', content: [] }] })).toBeNull()
+    expect(videoFromInteraction({})).toBeNull()
+  })
+
+  it('summarises what the generation cost', () => {
+    expect(
+      describeUsage({
+        total_tokens: 20669,
+        output_tokens_by_modality: [{ modality: 'video', tokens: 19310 }],
+      }),
+    ).toBe('20,669 tokens, 19,310 of them video')
+    expect(describeUsage(null)).toBe('')
+  })
+})

@@ -86,7 +86,7 @@ Extract these from the job context:
 | `enhancePrompt` | string | User's specific instructions (e.g. "make it a dark-tech pitch") |
 | `parsedSlidesPath` | string | Absolute path to the parsed slides JSON |
 | `extractedImagesDir` | string | Dir with extracted PPTX images (only in preserve mode) |
-| `buildDir` | string | Output directory (e.g. `/tmp/ppt-{JOB_ID}`) |
+| `buildDir` | string | Always `build/` in your workspace |
 | `jobId` | string | Unique job identifier |
 
 ---
@@ -163,15 +163,15 @@ Read `.pi/skills/ppt-generator/image-scraping.md` for the full Playwright script
 Generate a **15–30 word rich descriptive prompt** and a **3–5 word concrete Pinterest search query**
 for each slide that needs an image. Run:
 
-```bash
-node .pi/skills/ppt-generator/reference/scrape_images.js \
-  --topic "<topic>" \
-  --keywords "<keyword1>" "<keyword2>" \
-  --rich-prompt "<keyword1>::<rich image prompt>" \
-  --rich-prompt "<keyword2>::<rich image prompt>"
+```
+pdf_scrape_images({
+  keywords: ["<keyword1>", "<keyword2>"],
+  richPrompts: { "<keyword1>": "<rich image prompt>", "<keyword2>": "<rich image prompt>" }
+})
 ```
 
-Images save to `{buildDir}/images/{keyword}/`.
+Images land in `build/images/<keyword-slug>/`. Reference them from the CONFIG
+relative to `build/`: `getBase64Image('images/<keyword-slug>/pinterest_01.jpg')`.
 
 **MANDATORY**: After scraping, verify all downloaded files with `ls {buildDir}/images/{keyword}/`
 before assigning paths to slides.
@@ -293,7 +293,8 @@ The worker detects these files and handles upload + job completion automatically
 ppt-enhancer/
 ├── SKILL.md                          ← this file (pipeline for both modes)
 └── scripts/
-    └── parse_presentation.js         ← parses PDF/PPTX → structured JSON + image extraction
+    └── parse_presentation.js         ← run for you before your first turn; call
+                                         pdf_parse({ file, mode }) only to re-parse
 ```
 
 Shared files (from ppt-generator):

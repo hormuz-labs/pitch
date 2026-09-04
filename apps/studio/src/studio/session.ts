@@ -65,7 +65,7 @@ let initPromise: Promise<void> | null = null
 
 const AGENT_DIR = process.env.PI_AGENT_DIR || path.join(homedir(), '.pi', 'agent')
 const SANDBOX_EXTENSION = path.join(PI_EXTENSIONS_DIR, 'gondolin-sandbox.ts')
-const MODEL_SPEC = process.env.STUDIO_MODEL || 'google/gemini-3.7-flash'
+const MODEL_SPEC = process.env.STUDIO_MODEL || 'google/gemini-3.8-flash'
 const THINKING_LEVEL = (process.env.STUDIO_THINKING || 'high') as any
 
 function resolveModel(spec = MODEL_SPEC): { model?: any; thinkingLevel?: any } {

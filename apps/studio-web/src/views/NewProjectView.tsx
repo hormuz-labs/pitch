@@ -14,6 +14,7 @@ import { useAuth } from '@clerk/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../App'
+import { CreditPopover } from '../components/CreditPopover'
 import { createProject, type UploadRef, uploads as uploadFiles } from '../lib/studio-api'
 import { describeStudioError, isCreditsError } from '../lib/studio-errors'
 import { cn } from '../lib/utils'
@@ -289,6 +290,9 @@ export function NewProjectView() {
                 </button>
               </div>
               <div className="tool-row">
+                <span className="composer-credits">
+                  <CreditPopover variant="marker" />
+                </span>
                 <button
                   type="button"
                   className="send-btn"

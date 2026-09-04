@@ -18,11 +18,67 @@ const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
   enterprise: { bg: '#fffbeb', text: '#b45309' },
 }
 
-export const CreditPopover = () => {
+const R = 5.5
+const CIRCUMFERENCE = 2 * Math.PI * R
+
+/**
+ * A dollar sign and a ring that fills as credit is spent.
+ *
+ * The number is deliberately absent: a running balance in the corner of every
+ * screen is a thing to worry about, and the only moment it is actionable is
+ * when you go looking for it — which is a click away, in the popover. The ring
+ * carries the one bit that matters at a glance, which is roughly how much is
+ * left, and it goes amber near the end.
+ */
+function UsageGauge({ used, loading }: { used: number; loading: boolean }) {
+  const filled = Math.max(0, Math.min(1, used))
+  const low = filled >= 0.85
+  return (
+    <span className="inline-flex items-center gap-[3px]" aria-hidden="true">
+      <span className="text-[11px] leading-none">$</span>
+      <svg width="14" height="14" viewBox="0 0 14 14" className={low ? 'text-amber-500' : ''}>
+        <circle
+          cx="7"
+          cy="7"
+          r={R}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          opacity="0.25"
+        />
+        {!loading && filled > 0 && (
+          <circle
+            cx="7"
+            cy="7"
+            r={R}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={CIRCUMFERENCE * (1 - filled)}
+            transform="rotate(-90 7 7)"
+            style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+          />
+        )}
+      </svg>
+    </span>
+  )
+}
+
+/**
+ * `chip` is the bordered pill the app shell used to keep in its header.
+ * `marker` is a quiet inline number for the composer footer — the balance
+ * matters where you are about to spend it, and nowhere else, so it sits next
+ * to the send button instead of following the user around the app.
+ */
+export const CreditPopover = ({ variant = 'chip' }: { variant?: 'chip' | 'marker' }) => {
   const navigate = useNavigate()
   const { getToken, userId } = useAuth()
   const [credits, setCredits] = useState<number | null>(null)
   const [plan, setPlan] = useState<string | null>(null)
+  /** Share of everything ever granted that has been spent, 0–1. Drives the ring. */
+  const [used, setUsed] = useState(0)
   // Credits newly earned from referrals since this user last saw the coin.
   const [referralNudge, setReferralNudge] = useState<number | null>(null)
   const [spinning, setSpinning] = useState(false)
@@ -41,6 +97,21 @@ export const CreditPopover = () => {
           const data = await res.json()
           setCredits(data.balance)
           setPlan(data.activeSubscription?.planKey ?? null)
+
+          // "How much of what I have has gone" — granted is every credit ever
+          // added (plan, top-up, referral), spent is every credit taken. A top
+          // up grows the denominator, so the ring backs off, which is the
+          // behaviour someone watching it expects.
+          if (Array.isArray(data.transactions)) {
+            let granted = 0
+            let spent = 0
+            for (const t of data.transactions) {
+              const delta = Number(t.delta) || 0
+              if (delta > 0) granted += delta
+              else spent -= delta
+            }
+            setUsed(granted > 0 ? Math.min(1, spent / granted) : 0)
+          }
 
           // Surface a one-time nudge when referral earnings have grown since the
           // user last loaded the coin (the reward is granted while they're away,
@@ -110,30 +181,45 @@ export const CreditPopover = () => {
         <Popover.Trigger asChild>
           <button
             aria-label={triggerLabel}
-            className={[
-              'flex items-center justify-center gap-1 md:gap-1.5 px-2 md:px-3 h-9',
-              'border border-gray-200 text-gray-700 bg-white rounded-lg',
-              'transition-colors duration-150',
-              'hover:bg-gray-50 cursor-pointer font-semibold text-base md:text-sm',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1',
-              'motion-safe:active:scale-95',
-              'min-w-[56px] shrink-0',
-            ].join(' ')}
+            className={
+              variant === 'marker'
+                ? [
+                    'inline-flex items-center gap-1 px-0 py-0 border-none bg-transparent',
+                    'text-gray-400 hover:text-gray-700 cursor-pointer text-[11px] font-medium',
+                    'transition-colors duration-150 focus-visible:outline-none',
+                    'focus-visible:ring-1 focus-visible:ring-gray-400 rounded',
+                  ].join(' ')
+                : [
+                    'flex items-center justify-center gap-1 md:gap-1.5 px-2 md:px-3 h-9',
+                    'border border-gray-200 text-gray-700 bg-white rounded-lg',
+                    'transition-colors duration-150',
+                    'hover:bg-gray-50 cursor-pointer font-semibold text-base md:text-sm',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1',
+                    'motion-safe:active:scale-95',
+                    'min-w-[56px] shrink-0',
+                  ].join(' ')
+            }
             id="header-credits-btn"
           >
-            {credits === null ? (
-              <LoadingCoin className="w-[22px] h-[22px] shrink-0" aria-hidden="true" />
+            {variant === 'marker' ? (
+              <UsageGauge used={used} loading={credits === null} />
             ) : (
-              <img
-                src={pCoinIcon}
-                alt=""
-                aria-hidden="true"
-                width="22"
-                height="22"
-                className={`w-[22px] h-[22px] shrink-0${spinning ? ' pcoin-spin' : ''}`}
-              />
+              <>
+                {credits === null ? (
+                  <LoadingCoin className="w-[22px] h-[22px] shrink-0" aria-hidden="true" />
+                ) : (
+                  <img
+                    src={pCoinIcon}
+                    alt=""
+                    aria-hidden="true"
+                    width={22}
+                    height={22}
+                    className={`w-[22px] h-[22px] shrink-0${spinning ? ' pcoin-spin' : ''}`}
+                  />
+                )}
+                {credits !== null && <span className="tabular-nums">{credits}</span>}
+              </>
             )}
-            {credits !== null && <span className="tabular-nums">{credits}</span>}
           </button>
         </Popover.Trigger>
 
@@ -159,7 +245,9 @@ export const CreditPopover = () => {
               </div>
 
               <p className="text-[13px] leading-relaxed text-gray-500">
-                Each video generation costs 3 credits. Credits never expire.
+                You are billed for what the work costs — the agent's thinking, plus the machine time
+                spent recording, generating and rendering. Asking for a change is nearly free; a 4K
+                export is not. Credits never expire.
               </p>
 
               {/* Near-miss nudge: only when the user can't yet afford a video
@@ -168,10 +256,13 @@ export const CreditPopover = () => {
                 don't call it a "free" video — a video always costs 3 credits;
                 we just point at the cheapest paths to the next one (refer → +1,
                 or top up). */}
-              {credits !== null && credits > 0 && credits < 3 && (
+              {/* Running low. There is no fixed per-video price any more, so this
+                  is a "top up before you start something big" nudge, not a
+                  "you cannot afford one video" one. */}
+              {credits !== null && credits > 0 && credits < 5 && (
                 <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5">
                   <p className="text-[13px] font-semibold text-amber-900 leading-snug">
-                    You're {3 - credits} credit{3 - credits === 1 ? '' : 's'} from your next video.
+                    You're down to {credits} credit{credits === 1 ? '' : 's'}.
                   </p>
                   <p className="text-[11px] text-amber-700 mt-0.5 mb-2.5">
                     Refer a friend to earn +1 credit each — or top up below.

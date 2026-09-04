@@ -1543,15 +1543,94 @@ to {
   flex-direction: column;
 }
 
+/* The project header. This IS the page header — the app shell hides its own
+   on this route, because two stacked bars with two identical back buttons is
+   what we had before. Matches the shell header's height and padding so the
+   panel looks the same on the way in and out. */
 .lv-studio .job-topbar {
   display: flex;
   align-items: center;
   gap: 14px;
-  height: 48px;
-  padding: 0 14px;
+  height: 64px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--border);
   background: var(--paper);
   flex: 0 0 auto;
+}
+
+.lv-studio .job-topbar .editor-project {
+  font-size: 15px;
+}
+
+/* Credits and the mobile menu, pushed clear of the project's own actions. */
+.lv-studio .topbar-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+/* CreditPopover comes from the app shell and styles itself with Tailwind, but
+   `.lv-studio button` is an element selector and outranks a utility class, so
+   without this the credit chip lands in the topbar painted accent-orange.
+   Give it the same shape as the buttons beside it instead. */
+.lv-studio .topbar-shell button {
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+}
+
+.lv-studio .topbar-shell button:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+/* Narrow screens: this one bar now carries what two used to, so the parts
+   that are merely nice to have give way before anything overlaps. The title
+   truncates, the kind/status pills go, and Delete goes with them — a
+   destructive action is no loss on a phone. */
+@media (max-width: 720px) {
+  .lv-studio .job-topbar {
+    height: 56px;
+    padding: 0 12px;
+    gap: 10px;
+  }
+  .lv-studio .job-topbar .nav-crumb {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* Credits are on every other route and in the sidebar; on a phone the
+     project's own name is worth more than repeating the balance here. */
+  .lv-studio .job-topbar .status-pill,
+  .lv-studio .job-topbar .topbar-credits,
+  .lv-studio .job-topbar .topbar-btn.danger {
+    display: none;
+  }
+  /* Back becomes the arrow alone, so the project's name gets the width. */
+  .lv-studio .job-topbar .topbar-back {
+    font-size: 0;
+    padding: 5px 8px;
+  }
+  .lv-studio .job-topbar .topbar-back::before {
+    content: '←';
+    font-size: 15px;
+  }
+  .lv-studio .job-topbar .topbar-btn {
+    padding: 5px 9px;
+    white-space: nowrap;
+  }
+  .lv-studio .topbar-actions {
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+  .lv-studio .topbar-shell {
+    margin-left: 0;
+    padding-left: 10px;
+  }
 }
 
 .lv-studio .create-view .hero-title {
@@ -2143,4 +2222,179 @@ to {
 
 .lv-studio .video-select-ask:hover:not(:disabled) {
   background: var(--accent-hover);
+}
+
+
+/* --- The tray: strip and shelf ---------------------------------------------
+
+   The strip picks part of the artifact, the shelf picks a file to work with.
+   They share one band under the stage rather than stacking, because the stage
+   is the thing people came to look at. */
+
+.lv-studio .tray {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+
+.lv-studio .tray > .timeline {
+  border-top: none;
+}
+
+.lv-studio .tray-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 14px 0;
+  background: var(--paper);
+}
+
+.lv-studio .tray-tab {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.lv-studio .tray-tab:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.lv-studio .tray-tab.on {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+/* --- The asset shelf ------------------------------------------------------- */
+
+.lv-studio .asset-shelf {
+  position: relative;
+}
+
+.lv-studio .asset-shelf.dropping::after {
+  content: 'Drop to add to this project';
+  position: absolute;
+  inset: 6px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.lv-studio .asset-add {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lv-studio .asset-add:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.lv-studio .asset-error {
+  color: var(--danger);
+}
+
+.lv-studio .asset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 96px;
+  flex: 0 0 auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--muted);
+  text-align: left;
+}
+
+.lv-studio .asset-card:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* Picked assets stay marked, because a [n] chip in the composer does not say
+   which card it came from. */
+.lv-studio .asset-card.picked {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--ink);
+}
+
+.lv-studio .asset-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+
+.lv-studio .asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lv-studio .asset-glyph {
+  font-size: 18px;
+  color: var(--faint);
+}
+
+.lv-studio .asset-name {
+  font-size: 11.5px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-studio .asset-meta {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+/* The credit balance, where it is about to be spent. Faint by design: it is a
+   reference, not a call to action, so it must not compete with Send.
+
+   The button reset matters — `.lv-studio button` is an element selector and
+   beats CreditPopover's own utility classes, which is how a quiet marker ends
+   up painted accent-orange. */
+.lv-studio .composer-credits {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.lv-studio .composer-credits button {
+  padding: 2px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--faint);
+}
+
+.lv-studio .composer-credits button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--muted);
 }

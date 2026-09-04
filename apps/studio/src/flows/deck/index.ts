@@ -100,10 +100,25 @@ export async function parseUpload(
   mode: EnhanceMode,
 ): Promise<{ file: string; slides: number }> {
   const name = path.basename(upload.name).replace(/[^\w.-]+/g, '_') || 'input.pdf'
-  const inputDir = path.join(ws.dir, 'input')
-  const buildDir = path.join(ws.dir, 'build')
-  const inputPath = path.join(inputDir, name)
+  const inputPath = path.join(ws.dir, 'input', name)
   await download(upload.url, inputPath)
+  return parsePresentation(ws, inputPath, mode)
+}
+
+/**
+ * Parse a PDF/PPTX that is already in the workspace. Split out of parseUpload
+ * because the agent needs it too: an enhance mode is chosen at creation, but
+ * the user can change their mind mid-conversation ("keep the original
+ * layout"), and a pre-parse that failed used to leave no way back.
+ */
+export async function parsePresentation(
+  ws: Workspace,
+  inputPath: string,
+  mode: EnhanceMode,
+): Promise<{ file: string; slides: number }> {
+  const name = path.basename(inputPath)
+  const inputDir = path.dirname(inputPath)
+  const buildDir = path.join(ws.dir, 'build')
   await mkdir(buildDir, { recursive: true })
 
   const { stdout, stderr } = await execFileAsync(
@@ -137,7 +152,7 @@ export async function parseUpload(
     'utf8',
   )
   await rm(parsedSrc, { force: true })
-  return { file: `input/${name}`, slides: slides.length }
+  return { file: path.relative(ws.dir, inputPath), slides: slides.length }
 }
 
 export function deckUpload(uploads: UploadRef[]): UploadRef | undefined {
@@ -246,6 +261,24 @@ async function publish(ws: Workspace, summary: string): Promise<string> {
   logger.info({ workspace: ws.internal, projectId: row.id }, 'deck published')
   return `Published: PDF and HTML are now the project's outputs. ${summary ?? ''}`.trim()
 }
+
+registerHostAction('pdf_parse', async (ws, p) => {
+  const rel = String(p.file ?? '')
+  if (!rel || path.isAbsolute(rel) || rel.includes('..'))
+    throw new Error('file must be a workspace-relative path to the uploaded PDF or PPTX')
+  if (!DECK_UPLOAD.test(rel)) throw new Error('only .pdf and .pptx files can be parsed')
+  const abs = path.resolve(ws.dir, rel)
+  if (!abs.startsWith(`${path.resolve(ws.dir)}${path.sep}`))
+    throw new Error(`path escapes the workspace: "${rel}"`)
+  if (!existsSync(abs)) throw new Error(`no such file in the workspace: ${rel}`)
+  const mode: EnhanceMode = p.mode === 'preserve' ? 'preserve' : 'recreate'
+  const { slides } = await parsePresentation(ws, abs, mode)
+  return (
+    `Parsed ${rel} in ${mode} mode: ${slides} slide(s) → build/parsed-slides.json` +
+    `${existsSync(path.join(ws.dir, 'build', 'input-images')) ? ' (+ build/input-images/)' : ''}. ` +
+    'Read the JSON before outlining; its image paths are relative to build/.'
+  )
+})
 
 registerHostAction('deck_render', async (ws, p) => {
   return renderSlides(ws, Array.isArray(p.slides) ? p.slides.map(Number) : undefined)

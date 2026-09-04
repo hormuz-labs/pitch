@@ -323,7 +323,7 @@ video length). Changes made:
 
 - **Model is configurable** ([job-processor.ts](../apps/worker/src/job-processor.ts)
   `resolveModel`, [pi.ts](../apps/worker/src/pi.ts)): precedence
-  `parameters.model` → `PI_AGENT_MODEL` env → default `google/gemini-3.7-flash`,
+  `parameters.model` → `PI_AGENT_MODEL` env → default `google/gemini-3.8-flash`,
   passed per-call to `session.prompt`. **Biggest single lever** — a faster model cuts
   every turn. Default unchanged; set `PI_AGENT_MODEL` (e.g. a Gemini flash variant) to opt in.
 - **Irrelevant skills no longer injected** into video prompts (they came from

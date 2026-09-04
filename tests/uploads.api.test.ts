@@ -55,7 +55,8 @@ describe('POST /uploads', () => {
     vi.clearAllMocks()
     __setUserId('user_test')
     uploadFile.mockImplementation(
-      async (localPath: string) => `http://minio.local/pitch-videos/x/${localPath.split('/').pop()}`,
+      async (localPath: string) =>
+        `http://minio.local/pitch-videos/x/${localPath.split('/').pop()}`,
     )
   })
 

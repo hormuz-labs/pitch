@@ -33,6 +33,7 @@ export const EXTENSIONS: string[] = [
   extension('recording-tools.ts'), // uploaded recordings: probe, transcribe, inspect
   extension('recording-flow-tools.ts'), // uploaded recordings: render the edit
   extension('media-tools.ts'), // anything else: probe, ffmpeg, publish
+  extension('video-gen-tools.ts'), // footage nobody has: generate a clip
 ]
 
 /** Every skill directory under .pi/skills. */

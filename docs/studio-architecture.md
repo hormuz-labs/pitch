@@ -108,10 +108,24 @@ uploads/<name>            everything the user attached, verbatim
 recording/upload.<ext>    an attached video, where the recording editor looks
 input/<name>              an attached PDF/PPTX, parsed into build/
 build/                    deck working directory
-renders/                  finished media (+ <name>.timeline.json beat maps)
+renders/                  finished media (+ <name>.timeline.json beat maps,
+                          + <name>.mp4.omni.json for a generated clip)
 vendor/gsap/              the launch engine's runtime
 audio/                    music bed and narration
 ```
+
+### The asset shelf
+
+`projects/assets.ts` derives a shelf from the workspace — `uploads/`, `input/`,
+`renders/`, `audio/`, `recon/`, `build/images/`, `build/input-images/`, media
+files only, intermediates excluded. It is derived rather than stored because
+the agent adds to it without telling anyone.
+
+An asset is addressed by its **workspace-relative path**, which is exactly what
+every tool takes. So clicking a card in the shelf and naming a file in a tool
+call are the same act: the `[n]` chip carries `asset: "uploads/logo.png"`, and
+`buildContext` renders it as *the file uploads/logo.png* with a line saying it
+is material to USE, not the artifact to change.
 
 ### Pipelines
 
@@ -123,7 +137,23 @@ The four products survive as **host actions** plus a skill, not as flows:
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
+| generated footage | `video_generate` | `generated-video` |
 | anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
+
+`video_generate` is the odd one out: everything else RENDERS something that
+exists (a GSAP composition, a real browser session, printed slides), and it
+INVENTS footage — Gemini Omni, one synchronous POST to `/v1beta/interactions`,
+~10 s of video with its own audio, back as a Files API URI. It is for shots
+with no real source; the skill is mostly about when NOT to use it, because the
+model will happily invent product UI that does not exist. Model spend is not
+metered, but the call blocks for the whole generation, so the wall clock the
+bridge already times is a fair proxy for its cost.
+
+Skills are documentation for tools, so anything executable is a tool: the deep
+deck skills name `pdf_parse` / `pdf_scaffold` / `pdf_scrape_images` /
+`pdf_build` rather than the `node …` commands they used to print. The VM has
+node and python but no ffmpeg, no browser and no network, so anything that
+fetches, renders or encodes has to be a host tool anyway.
 
 Host actions are registered with `registerHostAction(name, fn)` and called by
 the extensions through the `__pitchStudioHost` bridge, with the workspace as
@@ -147,6 +177,8 @@ POST   /projects/:id/stop
 GET    /projects/:id/messages          Entry[]
 GET    /projects/:id/events            SSE (see below)
 GET    /projects/:id/thumbnail?t=      JPEG from the live preview (html/deck) or the render at t
+GET    /projects/:id/assets            Asset[] — the shelf, derived from the workspace
+POST   /projects/:id/assets            { uploads[] } → stages them into uploads/; runs no turn
 POST   /projects/:id/export            { res } → RenderStatus   (a launch page renders; anything else re-uploads)
 GET    /projects/:id/export            RenderStatus
 POST   /projects/:id/export/cancel
@@ -186,12 +218,21 @@ preview renderer by `description.preview.kind`:
 - `video`  — the latest render, with the beat strip and moment selection
 - `browser`— the live noVNC view of the browser the demo agent is driving
 
-## Selecting in a video
+## Selecting
 
 Every artifact is edited the same way: point at the thing you want changed,
-then say what should change. The launch and deck previews select DOM elements
-through the injected inspector. A video has no DOM, so its unit of selection
-is **time**.
+then say what should change. There are three kinds of pointer and they all end
+as `[n]` chips in the composer:
+
+| You click | The chip carries | It means |
+|---|---|---|
+| an element in the preview | `tagName`, `selector`, `sceneId`/`slide` | change this |
+| the video track | `time`, and `endTime` for a drag | change this stretch |
+| a card on the asset shelf | `asset` (a workspace path) | use this file |
+
+The first two are the subject of the request; the third is material. The
+launch and deck previews select DOM elements through the injected inspector.
+A video has no DOM, so its unit of selection is **time**.
 
 Under the player is a track. Drag across it for a **range**, click it for a
 **moment**; either becomes a `[n]` chip in the composer, carrying `time` and

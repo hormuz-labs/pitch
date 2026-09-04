@@ -44,8 +44,12 @@ describe('studio workspace naming', () => {
   })
 
   it('slugifies prompts around the product host', () => {
-    expect(slugify('A launch video for https://www.acme.io/pricing today')).toBe('launch-acme-io-today')
-    expect(slugify('Make a deck about quarterly revenue growth')).toBe('deck-quarterly-revenue-growth')
+    expect(slugify('A launch video for https://www.acme.io/pricing today')).toBe(
+      'launch-acme-io-today',
+    )
+    expect(slugify('Make a deck about quarterly revenue growth')).toBe(
+      'deck-quarterly-revenue-growth',
+    )
     expect(slugify('!!!', 'fallback')).toBe('fallback')
   })
 })

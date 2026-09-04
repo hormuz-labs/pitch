@@ -16,6 +16,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react'
 import {
@@ -108,6 +109,23 @@ interface ToastEntry {
 interface ToastCtx {
   toast: (message: string, variant?: ToastVariant) => void
 }
+
+/**
+ * What a route needs from the shell when it draws its own header.
+ *
+ * The studio does: its own bar already carries the back link, the title, the
+ * status and the actions, so the shell header above it was a second, emptier
+ * copy of the same thing. The studio takes over the header and borrows the
+ * two shell-owned pieces — the credit balance, and the way into the nav on
+ * mobile — through this.
+ */
+interface AppShellCtx {
+  isMobile: boolean
+  toggleSidebar: () => void
+}
+const AppShellContext = createContext<AppShellCtx | null>(null)
+export const useAppShell = (): AppShellCtx =>
+  useContext(AppShellContext) ?? { isMobile: false, toggleSidebar: () => {} }
 
 const ToastContext = createContext<ToastCtx | null>(null)
 export const useToast = () => {
@@ -742,8 +760,6 @@ const TopHeader = ({
         </button>
       ) : null}
 
-      {!isSettingsPage && <CreditPopover />}
-
       {isMobile && (
         <button
           onClick={onToggle}
@@ -907,6 +923,11 @@ function AppContent() {
     selectedKey = 'templates'
   }
 
+  const shell = useMemo(
+    () => ({ isMobile, toggleSidebar: () => setCollapsed(c => !c) }),
+    [isMobile],
+  )
+
   const isStudio = selectedKey === 'studio'
   const isDetailPage =
     isStudio ||
@@ -983,113 +1004,120 @@ function AppContent() {
   return (
     <>
       <Show when="signed-in">
-        <div
-          className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
-          style={{ backgroundColor: '#e6e6e6' }}
-        >
-          <OnboardingSurvey />
-          {(!isMobile ? selectedKey !== 'settings' && !isStudio : true) && (
-            <Sidebar
-              selectedKey={selectedKey}
-              navigate={p => {
-                navigate(p)
-                if (isMobile) setCollapsed(true)
-              }}
-              isMobile={isMobile}
-              collapsed={collapsed}
-              onClose={() => setCollapsed(true)}
-              isAdmin={isAdmin}
-            />
-          )}
-
+        <AppShellContext.Provider value={shell}>
           <div
-            className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200"
-            style={{ backgroundColor: '#ffffff' }}
+            className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
+            style={{ backgroundColor: '#e6e6e6' }}
           >
-            <TopHeader
-              isMobile={isMobile}
-              isDetailPage={isDetailPage}
-              backLabel={
-                selectedKey === 'templates' && templatesInDetail
-                  ? 'Back to Templates Gallery'
-                  : undefined
-              }
-              showSearch={selectedKey === 'projects'}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onToggle={() => setCollapsed(c => !c)}
-              onNew={() => navigate('/new')}
-              onBack={() => {
-                if (selectedKey === 'templates' && templatesInDetail) {
-                  clearTemplatesSelection?.()
-                } else {
-                  navigate('/projects')
-                }
-              }}
-              title={
-                selectedKey === 'pricing'
-                  ? 'Pricing'
-                  : selectedKey === 'templates' && !templatesInDetail
-                    ? 'Templates'
-                    : undefined
-              }
-              isPricingPage={selectedKey === 'pricing'}
-              isSettingsPage={selectedKey === 'settings'}
-              onSignOut={() => signOut()}
-            />
+            <OnboardingSurvey />
+            {(!isMobile ? selectedKey !== 'settings' && !isStudio : true) && (
+              <Sidebar
+                selectedKey={selectedKey}
+                navigate={p => {
+                  navigate(p)
+                  if (isMobile) setCollapsed(true)
+                }}
+                isMobile={isMobile}
+                collapsed={collapsed}
+                onClose={() => setCollapsed(true)}
+                isAdmin={isAdmin}
+              />
+            )}
 
-            <main
-              className={cn(
-                'app-shell-main flex-1 overflow-x-hidden bg-white rounded-b-2xl relative',
-                isStudio ? 'overflow-hidden' : 'overflow-y-auto',
-              )}
+            <div
+              className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200"
+              style={{ backgroundColor: '#ffffff' }}
             >
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/projects" element={<ProjectsView searchQuery={searchQuery} />} />
-                  <Route path="/new" element={<NewProjectView />} />
-                  <Route path="/p/:id" element={<StudioRoute />} />
-                  <Route path="/legacy/:id" element={<LegacyRoute />} />
-                  <Route
-                    path="/templates"
-                    element={
-                      <TemplatesView
-                        onDetailModeChange={setTemplatesInDetail}
-                        onClearSelectionReady={(fn: (() => void) | null) =>
-                          setClearTemplatesSelection(() => fn)
-                        }
-                      />
+              {/* The studio route draws its own header (see Topbar in
+                StudioView) — rendering this one too gave every project two
+                stacked bars with two identical back buttons. */}
+              {!isStudio && (
+                <TopHeader
+                  isMobile={isMobile}
+                  isDetailPage={isDetailPage}
+                  backLabel={
+                    selectedKey === 'templates' && templatesInDetail
+                      ? 'Back to Templates Gallery'
+                      : undefined
+                  }
+                  showSearch={selectedKey === 'projects'}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onToggle={() => setCollapsed(c => !c)}
+                  onNew={() => navigate('/new')}
+                  onBack={() => {
+                    if (selectedKey === 'templates' && templatesInDetail) {
+                      clearTemplatesSelection?.()
+                    } else {
+                      navigate('/projects')
                     }
-                  />
-                  <Route path="/pricing" element={<PricingView />} />
-                  <Route path="/settings" element={<SettingsView />} />
-                  <Route path="/api-keys" element={<ApiKeysView />} />
-                  <Route path="/sessions" element={<SessionsView />} />
-                  <Route path="/affiliate" element={<AffiliateView />} />
-                  <Route path="/admin" element={<AdminView />} />
-                  <Route path="/about" element={<AboutUs />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/blog/:slug" element={<BlogPostView />} />
-                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                  <Route path="/terms" element={<TermsOfService />} />
-                  {/* Old app URLs → the studio. */}
-                  <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
-                  <Route path="/pdf" element={<Navigate to="/new?flow=deck" replace />} />
-                  <Route path="/enhance" element={<Navigate to="/new?flow=deck" replace />} />
-                  <Route
-                    path="/edit"
-                    element={<Navigate to="/new?flow=recording-edit" replace />}
-                  />
-                  <Route
-                    path="/launch-video/*"
-                    element={<Navigate to="/new?flow=launch-video" replace />}
-                  />
-                  <Route path="*" element={<Navigate to="/projects" replace />} />
-                </Routes>
-              </Suspense>
-            </main>
+                  }}
+                  title={
+                    selectedKey === 'pricing'
+                      ? 'Pricing'
+                      : selectedKey === 'templates' && !templatesInDetail
+                        ? 'Templates'
+                        : undefined
+                  }
+                  isPricingPage={selectedKey === 'pricing'}
+                  isSettingsPage={selectedKey === 'settings'}
+                  onSignOut={() => signOut()}
+                />
+              )}
+
+              <main
+                className={cn(
+                  'app-shell-main flex-1 overflow-x-hidden bg-white rounded-b-2xl relative',
+                  isStudio ? 'overflow-hidden' : 'overflow-y-auto',
+                )}
+              >
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/projects" element={<ProjectsView searchQuery={searchQuery} />} />
+                    <Route path="/new" element={<NewProjectView />} />
+                    <Route path="/p/:id" element={<StudioRoute />} />
+                    <Route path="/legacy/:id" element={<LegacyRoute />} />
+                    <Route
+                      path="/templates"
+                      element={
+                        <TemplatesView
+                          onDetailModeChange={setTemplatesInDetail}
+                          onClearSelectionReady={(fn: (() => void) | null) =>
+                            setClearTemplatesSelection(() => fn)
+                          }
+                        />
+                      }
+                    />
+                    <Route path="/pricing" element={<PricingView />} />
+                    <Route path="/settings" element={<SettingsView />} />
+                    <Route path="/api-keys" element={<ApiKeysView />} />
+                    <Route path="/sessions" element={<SessionsView />} />
+                    <Route path="/affiliate" element={<AffiliateView />} />
+                    <Route path="/admin" element={<AdminView />} />
+                    <Route path="/about" element={<AboutUs />} />
+                    <Route path="/blog" element={<Blog />} />
+                    <Route path="/blog/:slug" element={<BlogPostView />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/terms" element={<TermsOfService />} />
+                    {/* Old app URLs → the studio. */}
+                    <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
+                    <Route path="/pdf" element={<Navigate to="/new?flow=deck" replace />} />
+                    <Route path="/enhance" element={<Navigate to="/new?flow=deck" replace />} />
+                    <Route
+                      path="/edit"
+                      element={<Navigate to="/new?flow=recording-edit" replace />}
+                    />
+                    <Route
+                      path="/launch-video/*"
+                      element={<Navigate to="/new?flow=launch-video" replace />}
+                    />
+                    <Route path="*" element={<Navigate to="/projects" replace />} />
+                  </Routes>
+                </Suspense>
+              </main>
+            </div>
           </div>
-        </div>
+        </AppShellContext.Provider>
       </Show>
       <Show when="signed-out">
         <Suspense fallback={<PageLoader fullScreen />}>

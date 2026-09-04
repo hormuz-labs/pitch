@@ -193,6 +193,11 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
 
   if (turn.targets?.length) {
     const lines = turn.targets.map((t, i) => {
+      // A file the user picked off the shelf. The path is workspace-relative,
+      // which is what every tool takes, so say so plainly and let the agent
+      // use it verbatim rather than going looking for it.
+      if (typeof t.asset === 'string' && t.asset)
+        return `[${i + 1}] the file ${t.asset}${t.assetOrigin ? ` (${t.assetOrigin})` : ''}`
       // A selection on a video is a time, not a node: a range the user dragged
       // across the track, or a single moment they clicked.
       if (typeof t.time === 'number') {
@@ -212,14 +217,21 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       return `[${i + 1}] <${t.tagName}${t.className ? ` class="${t.className}"` : ''}> in ${where}${t.text ? ` — "${t.text}"` : ''}${t.selector ? ` · selector: ${t.selector}` : ''}`
     })
     const timed = turn.targets.some(t => typeof t.time === 'number')
+    const filed = turn.targets.some(t => typeof t.asset === 'string' && t.asset)
     parts.push(
       [
-        `The user selected these on the artifact and referenced them as [n] below:`,
+        `The user selected these and referenced them as [n] below:`,
         lines.join('\n'),
         timed
           ? 'Those times are on the video that is on screen now. Work on exactly that span — media_probe it first, then one media_ffmpeg edit — and leave the rest of the video untouched.'
-          : 'Change these, not their neighbours.',
-      ].join('\n'),
+          : null,
+        filed
+          ? 'Those paths are workspace-relative and already exist — pass them straight to a tool. They are material to USE, not the artifact to change.'
+          : null,
+        timed || filed ? null : 'Change these, not their neighbours.',
+      ]
+        .filter(Boolean)
+        .join('\n'),
     )
   }
 

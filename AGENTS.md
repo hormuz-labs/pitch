@@ -30,6 +30,7 @@ owned.
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
+| generated footage | `video_generate` | `generated-video` |
 | anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
 
 Rules:
@@ -43,8 +44,17 @@ Rules:
   the preview follows the work. Do not reintroduce a stored notion of what a
   project "is".
 - Dropping a file opens the editor: `POST /projects` with an empty prompt
-  creates and seeds the project without running a turn. Selection on a video
-  is a time range (`time` / `endTime` on a target), not a DOM node.
+  creates and seeds the project without running a turn. A target is one of
+  three things: a DOM node, a time range on a video (`time` / `endTime`), or a
+  file off the asset shelf (`asset`, a workspace-relative path). The first two
+  are what to change; the third is material to use.
+- The asset shelf (`projects/assets.ts`, `GET|POST /projects/:id/assets`) is
+  DERIVED from the workspace, never stored — the agent adds to it without
+  telling anyone. Write generated files where the shelf looks (`renders/`,
+  `uploads/`) and give them names a person can read on a card.
+- Skills are documentation for TOOLS. If a skill tells the agent to run a
+  command, that command should be a tool instead — the VM has node and python
+  but no ffmpeg, no browser and no network, so most of them have to be.
 - Pipelines live in `apps/studio/src/flows/*/` and `pipelines/`. They register
   host actions and export helpers; they never import each other.
 - Extensions reach the server only through **host actions**
@@ -53,8 +63,8 @@ Rules:
   is metered.
 - Built-in tools (`read`, `edit`, `write`, `find`, `grep`, `ls`, `bash`) run
   inside a Gondolin VM: `/workspace` rw, `/engine`, `/.pi/skills`, `/assets`
-  ro, no network, no node. Anything needing a browser, ffmpeg, an API key or
-  the network is a host tool.
+  ro, no network. It has node and python; it has no ffmpeg, no browser and no
+  egress, so anything needing those, or an API key, is a host tool.
 - Nothing is charged up front. `projects/usage.ts` meters model spend plus
   host compute and draws down credits as the cost crosses each boundary.
 - `apps/studio/src/render/` is the ffmpeg pipeline (moved from the old

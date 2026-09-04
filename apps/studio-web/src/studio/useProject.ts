@@ -6,6 +6,7 @@
 import { useAuth } from '@clerk/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  type Asset,
   mediaUrl as buildMediaUrl,
   type Entry,
   type ExportStatus,
@@ -30,6 +31,15 @@ export interface SelectedElement {
   time?: number
   /** End of a selected range, in seconds. Absent for a single moment. */
   endTime?: number
+  /**
+   * Workspace-relative path — set when the target is a FILE on the shelf
+   * rather than something on the artifact. It is the same string the agent's
+   * tools take, so pointing at it in the UI and naming it in a tool call are
+   * the same act.
+   */
+  asset?: string
+  /** How the file got here: the user added it, or the studio made it. */
+  assetOrigin?: string
 }
 
 export interface Target extends SelectedElement {
@@ -40,6 +50,11 @@ export interface Target extends SelectedElement {
 export function withTargetLegend(text: string, list: Target[]): string {
   if (list.length === 0) return text
   const lines = list.map(t => {
+    // A file on the shelf is addressed by its path, which is what a tool takes.
+    if (t.asset)
+      return [`[${t.ref}] the file ${t.asset}`, t.text ? `"${t.text}"` : null]
+        .filter(Boolean)
+        .join(' · ')
     // A moment or a range in a video has no DOM node — address it by time.
     if (typeof t.time === 'number') {
       const where =
@@ -172,6 +187,7 @@ export function useProject(id: string | undefined) {
   const [playhead, setPlayhead] = useState(0)
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null)
   const [mediaToken, setMediaToken] = useState<string | null>(null)
+  const [assets, setAssets] = useState<Asset[]>([])
 
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const player = useRef<PlayerCtrl | null>(null)
@@ -237,6 +253,37 @@ export function useProject(id: string | undefined) {
     }
   }, [getToken])
 
+  /**
+   * The shelf is derived from the workspace, so it is re-read rather than
+   * mutated: the agent adds to it (a generated clip, a harvested logo) without
+   * going through the client.
+   */
+  const refreshAssets = useCallback(async () => {
+    const pid = idRef.current
+    if (!pid) return
+    try {
+      const list = await studio.assets(await getToken(), pid)
+      if (idRef.current === pid) setAssets(list)
+    } catch {
+      /* the shelf is an aid, not the artifact — a failed listing is not an error */
+    }
+  }, [getToken])
+
+  const addAssets = useCallback(
+    async (files: FileList | File[]) => {
+      const pid = idRef.current
+      const picked = Array.from(files)
+      if (!pid || !picked.length) return
+      const token = await getToken()
+      const form = new FormData()
+      for (const f of picked) form.append('files', f)
+      const uploaded = await studio.upload(token, form)
+      await studio.addAssets(token, pid, uploaded)
+      await refreshAssets()
+    },
+    [getToken, refreshAssets],
+  )
+
   // A relevant file changed in the workspace: re-read the description and
   // reload the preview, landing on whatever is new.
   const onPreviewChanged = useCallback(async () => {
@@ -252,7 +299,8 @@ export function useProject(id: string | undefined) {
     else autoSeek.current = { t: playheadRef.current, play: playingRef.current }
     setLiveCount(busyRef.current && scenes.length ? scenes.length : null)
     setVideoVersion(v => v + 1)
-  }, [refresh])
+    void refreshAssets()
+  }, [refresh, refreshAssets])
 
   const handleEvent = useCallback(
     (ev: StudioEvent) => {
@@ -368,6 +416,7 @@ export function useProject(id: string | undefined) {
     setSelectedSlide(null)
     setTargets([])
     targetsRef.current = []
+    setAssets([])
     nextRef.current = 1
     setInspectMode(false)
     setDraftState('')
@@ -381,7 +430,7 @@ export function useProject(id: string | undefined) {
     void (async () => {
       const token = await getToken().catch(() => null)
       if (!token || idRef.current !== id) return
-      const [detail, log, exp] = await Promise.all([
+      const [detail, log, exp, shelf] = await Promise.all([
         studio.get(token, id).catch((err: any) => {
           setLoadError(
             err?.status === 404
@@ -392,9 +441,11 @@ export function useProject(id: string | undefined) {
         }),
         studio.messages(token, id).catch(() => ({ entries: [] as Entry[], busy: false })),
         studio.getExport(token, id).catch(() => null),
+        studio.assets(token, id).catch(() => [] as Asset[]),
       ])
       if (idRef.current !== id) return
       if (detail) setProject(detail)
+      setAssets(shelf)
       setEntries(prev => (log.entries.length > 0 || prev.length === 0 ? log.entries : prev))
       setBusy(log.busy)
       if (exp) {
@@ -660,6 +711,9 @@ export function useProject(id: string | undefined) {
     remove,
     share,
     upload,
+    assets,
+    refreshAssets,
+    addAssets,
     refresh,
     mediaUrl,
     mediaToken,

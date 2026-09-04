@@ -77,7 +77,9 @@ interface, routes, events).
 ■ **Runtime:** `Bun` (one server process; agents are pi sessions)  
 ■ **Agent runtime:** `pi` + `Gondolin` micro-VM sandboxes  
 ■ **Database:** `PostgreSQL` + `Prisma`  
-■ **AI / Voice:** Google Gemini TTS (`generativelanguage.googleapis.com`)  
+■ **AI / Voice:** Google Gemini — the studio agent (`STUDIO_MODEL`, default
+`google/gemini-3.8-flash`), TTS, vision grounding, and generated footage via
+Gemini Omni (`generativelanguage.googleapis.com`)  
 ■ **Browser Automation:** `playwright-cli` connected to `cloakbrowser-manager`  
 ■ **Rendering:** `FFmpeg`  
 

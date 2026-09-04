@@ -250,24 +250,25 @@ Read [image-scraping.md](../ppt-generator/image-scraping.md) for full commands.
 
 Generate 2–3 concrete search keywords per image slot. Run the scraper:
 
-```bash
-node .pi/skills/ppt-generator/reference/scrape_images.js \
-  --topic "<topic>" \
-  --keywords "<keyword1>" "<keyword2>" \
-  --rich-prompt "<keyword1>::<rich image prompt>" \
-  --rich-prompt "<keyword2>::<rich image prompt>"
+```
+pdf_scrape_images({
+  keywords: ["<keyword1>", "<keyword2>"],
+  richPrompts: { "<keyword1>": "<rich image prompt>", "<keyword2>": "<rich image prompt>" }
+})
 ```
 
-**CRITICAL: If `image_source` or `image_strategy` is `gemini-only`**, you MUST add `--engine-order gemini,pinterest` to the end of the scrape command. This forces the scraper to try Gemini first, and only fallback to Pinterest if Gemini fails.
-```bash
-node .pi/skills/ppt-generator/reference/scrape_images.js \
-  --topic "<topic>" \
-  --keywords "<keyword1>" "<keyword2>" \
-  --rich-prompt "<keyword1>::<rich image prompt>" \
-  --engine-order gemini,pinterest
+**CRITICAL: if `image_source` or `image_strategy` is `gemini-only`**, pass
+`engineOrder: "gemini,pinterest"` so the look is generated rather than
+scraped, falling back to Pinterest only if Gemini fails.
+```
+pdf_scrape_images({
+  keywords: ["<keyword1>", "<keyword2>"],
+  richPrompts: { "<keyword1>": "<rich image prompt>" },
+  engineOrder: "gemini,pinterest"
+})
 ```
 
-Images download to `pptx/ppt-<topic-slug>/images/<keyword>/`. By default, the pipeline is:
+Images land in `build/images/<keyword-slug>/`. By default, the pipeline is:
 1. **Pinterest** — tries to download 2 images per keyword.
 2. **Gemini API** — generates any remaining missing images using `GEMINI_API_KEY` from `.env`.
 3. **Unsplash** — optional; only used if `--engine-order` includes `unsplash`.
@@ -311,10 +312,10 @@ For each slide that needs an image:
 ## Step 7 — Build HTML Slides
 
 Copy [../ppt-generator/pdf-builder-template.js](../ppt-generator/pdf-builder-template.js)
-to `/tmp/ppt-<JOB_ID>/pdf-builder.js`.
+into `build/pdf-builder.js`.
 
 Also copy [../ppt-generator/reference/qa-dom.js](../ppt-generator/reference/qa-dom.js)
-to `/tmp/ppt-<JOB_ID>/reference/qa-dom.js`. DOM QA is required and runs automatically
+into `build/reference/qa-dom.js`. DOM QA is required and runs automatically
 when `pdf-builder.js` executes.
 
 **CRITICAL**: Fill CONFIG from spec_lock values — never invent:
@@ -359,10 +360,13 @@ const CONFIG = {
 renderer functions for each template-specific layout code, as well as template-specific CSS.
 **MANDATORY**: DO NOT manually copy-paste the layout and CSS blocks. Instead, use the provided injection script:
 
-```bash
-cd /tmp/ppt-<JOB_ID>
-node .pi/skills/template-ppt/scripts/inject_template.js .pi/skills/ppt-generator/pdf-builder-template.js .pi/skills/template-ppt/templates/<TEMPLATE_DIR>/skill.md pdf-builder.js
 ```
+pdf_scaffold({ template: "<TEMPLATE_ID>" })
+```
+
+That runs the injector on the host and leaves `build/pdf-builder.js` in your
+workspace with the template's layout pool and stylesheet already in it, and
+`CONFIG.jobId` pre-filled. Do not run the injector yourself.
 
 This will automatically parse the `skill.md` file, extract the `renderChart` override, all layout renderers, and all custom CSS, and inject them into `pdf-builder.js` cleanly.
 
@@ -373,11 +377,12 @@ fonts, and layout codes match exactly.
 
 ## Step 8 — Build PDF
 
-```bash
-cd /tmp/ppt-<JOB_ID>
-npm install playwright
-node pdf-builder.js
 ```
+pdf_build()
+```
+
+It runs the builder on the host, in a real browser with network access, so the
+template's CDN `<script>` tags load normally.
 
 `pdf-builder.js` automatically runs **DOM QA** first. It inspects every slide in the rendered HTML and writes `qa-report.json`.
 
@@ -422,7 +427,7 @@ LOOP:
 
 ## Exit — Build Complete
 
-Once QA passes, `output.pdf` and `output.html` are at `/tmp/ppt-<JOB_ID>/`.
+Once QA passes, `build/output.pdf` and `build/output.html` exist and `deck.html` is the deck the studio previews.
 The worker detects these files and handles upload automatically.
 
 ---

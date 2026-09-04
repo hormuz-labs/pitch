@@ -4,6 +4,7 @@
 import { createLogger } from '@saas/shared'
 import express from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { addAssets, listAssets } from '../projects/assets.js'
 import { cancelExport, exportProject, getExport } from '../projects/export.js'
 import * as projects from '../projects/service.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
@@ -84,6 +85,36 @@ router.delete('/:id', async (req, res) => {
     res.status(204).end()
   } catch (err) {
     fail(res, err, 'delete project failed')
+  }
+})
+
+/**
+ * The project's material: what the agent has to work WITH. Derived from the
+ * workspace every time rather than stored, because the agent adds to it —
+ * a generated clip, a harvested logo — without telling anyone.
+ */
+router.get('/:id/assets', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const p = await projects.getRow(userId, req.params.id)
+    res.json(await listAssets(projects.workspaceOf(p)))
+  } catch (err) {
+    fail(res, err, 'list assets failed')
+  }
+})
+
+/** Add files mid-session. Takes refs from /uploads; runs no turn and costs nothing. */
+router.post('/:id/assets', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const uploads = Array.isArray(req.body?.uploads) ? req.body.uploads : []
+    if (!uploads.length) return res.status(400).json({ error: 'uploads is required' })
+    const p = await projects.getRow(userId, req.params.id)
+    res.json(await addAssets(projects.workspaceOf(p), uploads))
+  } catch (err) {
+    fail(res, err, 'add assets failed')
   }
 })
 

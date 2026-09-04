@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { CreditPopover } from '../components/CreditPopover'
 import type { ProjectStore } from './useProject'
 
 const fmtTime = (t: number) =>
@@ -166,6 +167,10 @@ export function Composer({ store }: { store: ProjectStore }) {
             {s.targets.length
               ? ' · Refer to elements as [1], [2]…'
               : ' · Enter to send · Shift+Enter for a new line'}
+          </span>
+          {/* The balance belongs next to the thing that spends it. */}
+          <span className="composer-credits">
+            <CreditPopover variant="marker" />
           </span>
           <button
             className="inspector-send"
