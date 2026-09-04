@@ -6,8 +6,10 @@
  * its own project; the live namespace behaviour is in
  * tests/integration/sandbox.integration.test.ts, which needs Linux.
  */
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   bwrapArgs,
   bwrapCommand,
@@ -181,3 +183,63 @@ describe('a sandbox that will not start explains itself', () => {
     expect(explainBwrapFailure('')).toBeNull()
   })
 })
+
+describe('a symlink is not a way out', () => {
+  // The guard used to compare the LEXICAL path, which the agent's own shell
+  // can defeat from inside the sandbox: `ln -s /app/.env notes.md` makes a
+  // link whose target is dangling in there and perfectly real to a file tool
+  // running out here. `read notes.md` then returned the secret key.
+  let root: string
+  let ws: string
+  let engine: string
+
+  beforeAll(() => {
+    root = realRoot()
+    ws = path.join(root, 'projects', 'acme')
+    engine = path.join(root, 'engine')
+    mkdirSync(ws, { recursive: true })
+    mkdirSync(engine, { recursive: true })
+    mkdirSync(path.join(root, 'projects', 'other'), { recursive: true })
+    writeFileSync(path.join(root, '.env'), 'CLERK_SECRET_KEY=sk_live_LEAKED\n')
+    writeFileSync(path.join(ws, 'shots.js'), 'window.SHOTS = {}\n')
+    writeFileSync(path.join(engine, 'schema.md'), '# schema\n')
+    symlinkSync(path.join(root, '.env'), path.join(ws, 'notes.md'))
+    symlinkSync(root, path.join(ws, 'up'))
+    symlinkSync(path.join(root, 'projects', 'other'), path.join(ws, 'theirs'))
+  })
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }))
+
+  const shared = () => ({ '/engine': engine })
+  const at = (p: string, mode: 'read' | 'write' = 'read') => toHostPath(ws, shared(), p, mode)
+
+  it('refuses a link pointing at the secrets', () => {
+    expect(() => at('notes.md')).toThrow(SandboxPathError)
+    expect(() => at('/workspace/notes.md')).toThrow(SandboxPathError)
+  })
+
+  it('refuses a link used as a directory to climb out', () => {
+    expect(() => at('up/.env')).toThrow(SandboxPathError)
+    expect(() => at('theirs/shots.js')).toThrow(SandboxPathError)
+  })
+
+  it('refuses writing through a link, too', () => {
+    expect(() => at('notes.md', 'write')).toThrow(SandboxPathError)
+    expect(() => at('up/planted.js', 'write')).toThrow(SandboxPathError)
+  })
+
+  it('still allows ordinary files, and files that do not exist yet', () => {
+    expect(at('shots.js')).toBe(path.join(ws, 'shots.js'))
+    expect(at('audio/vo.wav', 'write')).toBe(path.join(ws, 'audio/vo.wav'))
+    expect(at('deep/not/made/yet.json', 'write')).toBe(path.join(ws, 'deep/not/made/yet.json'))
+  })
+
+  it('still reaches the shared mounts', () => {
+    expect(at('../../engine/schema.md')).toBe(path.join(engine, 'schema.md'))
+  })
+})
+
+/** A temp root with its own symlinks resolved (macOS /tmp is one). */
+function realRoot(): string {
+  return mkdtempSync(path.join(tmpdir(), 'sandbox-link-'))
+}

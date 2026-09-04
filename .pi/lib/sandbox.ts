@@ -17,6 +17,7 @@
  * Everything here is pure: argv construction and path resolution, so it can be
  * tested anywhere. `bwrap` itself only exists on Linux.
  */
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
 
 export const GUEST_WORKSPACE = '/workspace'
@@ -76,12 +77,20 @@ export function toHostPath(
     host = path.resolve(workspace, trimmed)
   }
 
-  const inWorkspace = contains(workspace, host)
+  // Resolve symlinks before deciding. Comparing the LEXICAL path is not a
+  // boundary: the shell can create a link inside its own workspace pointing
+  // anywhere on the host — `ln -s /app/.env notes.md` — and the link's target
+  // is dangling inside the sandbox but perfectly real to a file tool running
+  // out here. Without this the guard says "notes.md, inside the workspace" and
+  // the read returns CLERK_SECRET_KEY.
+  const real = realpath(host)
+  const inWorkspace = contains(realpath(workspace), real)
   if (!inWorkspace) {
-    const readable = Object.values(shared).some(root => contains(root, host))
+    const readable = Object.values(shared).some(root => contains(realpath(root), real))
     if (!readable) {
       throw new SandboxPathError(
-        `${input} resolves outside this project (${host}). Your workspace is ${GUEST_WORKSPACE}.`,
+        `${input} leads outside this project. Your workspace is ${GUEST_WORKSPACE}, and a link ` +
+          `out of it is still outside it.`,
       )
     }
     if (mode === 'write') {
@@ -91,6 +100,29 @@ export function toHostPath(
     }
   }
   return host
+}
+
+/**
+ * The path with every symlink in it resolved.
+ *
+ * A path being written does not exist yet, and neither may its parents, so
+ * resolve the deepest ancestor that does exist and re-attach the rest: a
+ * symlink can only hide in a component that is already there.
+ */
+function realpath(target: string): string {
+  let head = target
+  const tail: string[] = []
+  for (;;) {
+    try {
+      return tail.length ? path.join(realpathSync.native(head), ...tail) : realpathSync.native(head)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return path.resolve(target)
+      const parent = path.dirname(head)
+      if (parent === head) return path.resolve(target)
+      tail.unshift(path.basename(head))
+      head = parent
+    }
+  }
 }
 
 /** Host path → the guest path the agent knows it by, for messages it reads. */
