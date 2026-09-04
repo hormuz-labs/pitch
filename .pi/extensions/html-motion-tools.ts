@@ -2,8 +2,9 @@
  * HTML Motion Video — pi extension wrapping the html-motion-video skill's
  * executable scripts (recon, screenshot, harvest, tts, align, sync, cues/check,
  * sfx, mix, audit, capture) plus two small host helpers (find_audio,
- * verify_duration). sfx-index.mjs and sfx-vendor.mjs are maintainer scripts
- * that build the shared SFX library and are deliberately not tools.
+ * verify_duration). Every .mjs in that folder backs exactly one tool; the two
+ * maintainer scripts that build the shared SFX library live in the repo's
+ * scripts/ instead, since the agent never runs them.
  *
  * Every tool runs with the session's cwd — the job's sandboxed workspace — so
  * relative paths (audio/, renders/, audit/) resolve inside it.

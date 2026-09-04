@@ -23,8 +23,9 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SKILL = resolve(HERE, "..");
-const REPO = resolve(SKILL, "..", "..", "..");
+const REPO_ROOT = resolve(HERE, "..");
+const SKILL = resolve(REPO_ROOT, ".pi", "skills", "html-motion-video");
+const REPO = REPO_ROOT;
 
 const args = process.argv.slice(2);
 const QUICK = args.includes("--quick");

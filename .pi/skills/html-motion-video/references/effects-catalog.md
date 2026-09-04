@@ -1,5 +1,16 @@
 # Effects Catalog — After Effects-Style Recipes in GSAP
 
+Twenty-seven effect recipes, kept as a PATTERN LIBRARY — lift the idea and
+re-implement it as a `mount`/`animate` factory in `js/shots.custom.js`, on the
+returned timeline. Some snippets predate the engine and name the old
+`js/scenes/` pipeline; the ideas port, the plumbing does not. Colors, fonts and
+easings here are placeholders — substitute direction.md.
+
+Several of these need a GSAP plugin, and all of them are now loaded and
+registered (`motion_schema({ section: "custom shot types" })` lists what each
+one buys): the SVG line draw wants `DrawSVGPlugin` and `MotionPathPlugin`, the
+logo mask reveal `MorphSVGPlugin`, a thrown card `Draggable` + `InertiaPlugin`.
+
 All recipes assume a paused master timeline (see SKILL.md Phases 3–4). Each `sceneN()`
 returns a `gsap.timeline()` that gets `.add()`-ed to the master timeline using relative position offsets (`">-0.5"`).
 Never use CSS animations/transitions or `gsap.ticker` — everything lives on the timeline so `__SEEK(t)` is deterministic.

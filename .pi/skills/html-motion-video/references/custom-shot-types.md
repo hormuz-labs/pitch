@@ -5,8 +5,7 @@ into every one of them.
 
 Add `js/shots.custom.js` defining `window.ProjectShotFactories` (schema.md
 "Custom shot types"). `window.ShotKit` gives you `h`, `qs`, `splitChars`,
-`mixedLine`, `rng`, `EASE`. The archived references in
-`references/archive/` are a pattern library for this: text treatments,
+`mixedLine`, `rng`, `EASE`. `references/effects-catalog.md` is a pattern library for this: text treatments,
 counters, card deals, match cuts — re-implemented as a `mount`/`animate` pair.
 
 Invariants for any factory:

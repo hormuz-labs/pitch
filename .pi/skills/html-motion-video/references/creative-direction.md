@@ -79,7 +79,7 @@ And vary the type shots: the engine gives you `type-field` (stacked slam),
 ones** across the film; the same type shot for every headline is a fail. A
 treatment the engine lacks (scramble decode, word rotator, ink-fill sweep)
 becomes a project factory in `js/shots.custom.js` — see
-`references/archive/effects-catalog.md` for recipes to re-implement.
+`references/effects-catalog.md` for recipes to re-implement.
 
 ## Axis 3 — Motion Language
 
