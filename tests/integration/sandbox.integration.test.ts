@@ -12,13 +12,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { bwrapCommand, explainBwrapFailure, type SharedMounts } from '../../.pi/lib/sandbox'
+import { bwrapCommand, explainBwrapFailure } from '../../.pi/lib/sandbox'
 
 const BWRAP = process.env.STUDIO_BWRAP || 'bwrap'
 
 let root: string
 let workspace: string
-let shared: SharedMounts
+let shared: string[]
 
 function run(command: string) {
   const argv = bwrapCommand(command, { workspace, shared })
@@ -29,7 +29,7 @@ function run(command: string) {
 function bwrapWorks(): boolean {
   const dir = mkdtempSync(path.join(tmpdir(), 'bwrap-probe-'))
   try {
-    const r = spawnSync(BWRAP, bwrapCommand('true', { workspace: dir, shared: {} }), {
+    const r = spawnSync(BWRAP, bwrapCommand('true', { workspace: dir, shared: [] }), {
       encoding: 'utf8',
     })
     return r.status === 0 && !explainBwrapFailure(r.stderr ?? '')
@@ -55,7 +55,7 @@ describeLive('the agent’s shell is confined to its project', () => {
     writeFileSync(path.join(root, 'projects', 'studio--user_2--secret', 'shots.js'), 'other user\n')
     writeFileSync(path.join(root, 'engine', 'schema.md'), '# the shot schema\n')
     writeFileSync(path.join(workspace, 'shots.js'), 'window.SHOTS = {}\n')
-    shared = { '/engine': path.join(root, 'engine') }
+    shared = [path.join(root, 'engine')]
   })
 
   afterAll(() => rmSync(root, { recursive: true, force: true }))
@@ -68,13 +68,13 @@ describeLive('the agent’s shell is confined to its project', () => {
     expect(run('echo made > new.txt && cat new.txt').out).toBe('made')
   })
 
-  it('reads the shared references at ../../engine, as the skills write it', () => {
+  it('reads the shared references at the path the host has them', () => {
+    expect(run(`cat ${shared[0]}/schema.md`).out).toBe('# the shot schema')
     expect(run('cat ../../engine/schema.md').out).toBe('# the shot schema')
-    expect(run('cat /engine/schema.md').out).toBe('# the shot schema')
   })
 
   it('cannot write to a shared reference', () => {
-    const r = run('echo tampered > /engine/schema.md 2>&1; cat /engine/schema.md')
+    const r = run(`echo tampered > ${shared[0]}/schema.md 2>&1; cat ${shared[0]}/schema.md`)
     expect(r.out).toContain('# the shot schema')
     expect(r.out).not.toContain('tampered')
   })

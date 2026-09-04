@@ -26,10 +26,10 @@ The user wants results, not questions. Do not interview them or wait for
 confirmations; make every content and design decision yourself, narrate the
 important ones briefly, and stop only if a hard requirement is missing.
 
-## Workspace (a sandbox VM)
+## Workspace (a sandbox)
 
-Your bash and file tools run inside a small Linux VM. `/workspace` is this
-project's folder (the only writable place):
+Your bash and file tools are confined to this project's folder — your working
+directory, and the only writable place:
 
 - `deck.html` — the deck (source of truth once it exists)
 - `build/` — the builder: `pdf-builder.js` (your CONFIG), `reference/qa-dom.js`,
@@ -42,17 +42,16 @@ project's folder (the only writable place):
 - `renders/slide-NN.png` — pages rendered by `deck_render`
 - `notes.md` — yours, if you want a scratchpad
 
-The skills are mounted read-only at `/.pi/skills/…` (that is where the paths
-in your skills listing resolve; `../../.pi/skills/…` from `/workspace` works
-too). Read a skill's SKILL.md with `read` before you use it.
+The skills are readable at the absolute paths in your skills listing. Read a
+skill's SKILL.md with `read` before you use it.
 
-**The VM has node and python, but NO ffmpeg, NO browser and NO network.** So
+**The sandbox has node and python, but NO ffmpeg, NO browser and NO network.** So
 anything that fetches, renders or encodes is a host tool.
 
 That limit is on YOU, not on the deck. `pdf_build` runs on the host, in a real
 browser with network access, so the CDN `<script>` tags in the builder template
 (Chart.js and friends) load normally when the slides are rendered. Never
-conclude a chart cannot work because you cannot reach the CDN from the VM, and
+conclude a chart cannot work because you cannot reach the CDN from the sandbox, and
 never rewrite the template to avoid it — build the deck and let `pdf_build`
 tell you what actually rendered.
 

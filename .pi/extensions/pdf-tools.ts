@@ -29,18 +29,16 @@ import { execFile, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { REPO_ROOT, SKILLS_DIR, workspaceOf } from '../lib/paths.ts'
 import { hostAction } from '../lib/studio-host.ts'
 
 const execFileAsync = promisify(execFile)
 const BIG_BUFFER = 64 * 1024 * 1024
 
-const HERE = path.dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = path.resolve(HERE, '..', '..')
-const SKILLS_DIR = path.join(REPO_ROOT, '.pi', 'skills')
 const PPT_SKILL = path.join(SKILLS_DIR, 'ppt-generator')
 const TEMPLATE_SKILL = path.join(SKILLS_DIR, 'template-ppt')
 /** Where scrape_images.js writes (path.resolve(__dirname, '../../../../pptx') from ppt-generator/reference). */
@@ -50,10 +48,7 @@ function text(out: string) {
   return { content: [{ type: 'text' as const, text: out }], details: {} }
 }
 
-/** The session's cwd is the project workspace. */
-function workspaceDir(ctx: any): string {
-  return ctx?.cwd || process.env.WORKSPACE_DIR || process.cwd()
-}
+const workspaceDir = workspaceOf
 
 function buildDirOf(ctx: any): string {
   return path.join(workspaceDir(ctx), 'build')

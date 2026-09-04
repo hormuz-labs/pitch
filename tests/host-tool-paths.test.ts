@@ -1,20 +1,15 @@
 /**
- * The host tools' path guard.
+ * The media tools' workspace-relative guard.
  *
- * The agent's shell is sandboxed; these tools are NOT. motion_*, media_* and
- * the deck tools run in the API process with its full privileges, and they
- * take paths from the agent — so the guard in front of them is the only thing
- * between "render this page" and "read /app/.env".
- *
- * Both guards used to compare the LEXICAL path, which the shell defeats from
- * inside its own sandbox: `ln -s /app/.env notes.md` makes a link whose target
- * is dangling in there and perfectly real out here.
+ * media_probe, media_ffmpeg and media_publish take workspace-RELATIVE paths
+ * (the API resolves them itself) and share the symlink rule every other tool
+ * gets from .pi/lib/paths.ts: `ln -s /app/.env notes.md` inside the sandbox
+ * is a link whose target is dangling in there and perfectly real out here.
  */
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { contains, resolveSymlinks } from '../.pi/lib/sandbox'
 import { insideWorkspace } from '../apps/api/src/pipelines/media'
 
 let root: string
@@ -34,36 +29,6 @@ beforeAll(() => {
 })
 
 afterAll(() => rmSync(root, { recursive: true, force: true }))
-
-describe('resolveSymlinks', () => {
-  it('resolves a link to its real target', () => {
-    expect(resolveSymlinks(path.join(ws, 'notes.md'))).toBe(
-      resolveSymlinks(path.join(root, '.env')),
-    )
-  })
-
-  it('resolves a link used as a directory component', () => {
-    expect(resolveSymlinks(path.join(ws, 'up', '.env'))).toBe(
-      resolveSymlinks(path.join(root, '.env')),
-    )
-  })
-
-  it('leaves a path that does not exist yet alone, resolving only its real parents', () => {
-    expect(resolveSymlinks(path.join(ws, 'renders/out.mp4'))).toBe(
-      path.join(resolveSymlinks(ws), 'renders/out.mp4'),
-    )
-    expect(resolveSymlinks(path.join(ws, 'a/b/c/d.json'))).toBe(
-      path.join(resolveSymlinks(ws), 'a/b/c/d.json'),
-    )
-  })
-
-  it('does not report a link as contained just because it sits in the workspace', () => {
-    const real = resolveSymlinks(ws)
-    expect(contains(real, resolveSymlinks(path.join(ws, 'index.html')))).toBe(true)
-    expect(contains(real, resolveSymlinks(path.join(ws, 'notes.md')))).toBe(false)
-    expect(contains(real, resolveSymlinks(path.join(ws, 'theirs/shots.js')))).toBe(false)
-  })
-})
 
 describe('insideWorkspace (media_probe, media_ffmpeg, media_publish)', () => {
   const at = (p: string) => insideWorkspace({ dir: ws } as never, p)

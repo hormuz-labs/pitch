@@ -4,166 +4,46 @@
  * The agent's shell runs inside the API container, which holds every secret
  * the product has — Clerk, Dodo, S3, Gemini, the database URL — and a
  * projects/ volume containing every user's workspace. So `bash` gets a mount
- * namespace of its own: this project's folder read-write, the three shared
+ * namespace of its own: this project's folder read-write, the shared
  * references read-only, and nothing else. No network, no host environment.
  *
- * This replaces a Gondolin micro-VM. The VM was correct but expensive: a KVM
+ * Everything is bound at the path it already has (see ../lib/paths.ts), so
+ * the shell, the file tools and the host tools agree about every path without
+ * translation. The file tools run in this process against the real
+ * filesystem with `resolveIn` in front of them; that one check is the whole
+ * of their security, and it is the same check the host tools apply.
+ *
+ * This replaced a Gondolin micro-VM. The VM was correct but expensive: a KVM
  * guest per session, qemu in the image, and a re-implementation of read,
- * write, edit, ls, find and grep against its virtual filesystem. Only ONE tool
- * ever needed the isolation. The file tools are plain host filesystem access,
- * and one path check (`toHostPath` below) is the whole of their security — the
- * same check html-motion-tools.ts already applies to its own arguments.
+ * write, edit, ls, find and grep against its virtual filesystem, when only
+ * ONE tool ever needed the isolation.
  *
- * Everything here is pure: argv construction and path resolution, so it can be
- * tested anywhere. `bwrap` itself only exists on Linux.
+ * Everything here is pure — argv construction — so it can be tested anywhere.
+ * `bwrap` itself only exists on Linux.
  */
-import { realpathSync } from 'node:fs'
-import path from 'node:path'
-
-export const GUEST_WORKSPACE = '/workspace'
-
-/**
- * Guest path → host path. The agent sees /workspace and the same
- * ../../engine, ../../.pi/skills and ../../assets the skills have always
- * named, so nothing it reads has to change.
- */
-export type SharedMounts = Record<string, string>
-
-export class SandboxPathError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'SandboxPathError'
-  }
-}
-
-const toPosix = (value: string) => value.split(path.sep).join(path.posix.sep)
-
-/**
- * Resolve a path the agent named to a real host path, or refuse.
- *
- * Relative paths resolve against the workspace, so `../../engine/schema.md`
- * lands on the read-only engine mount exactly as it does inside the shell.
- * Absolute paths must name a mount. Everything else — /app/.env, another
- * project, /etc/shadow — is refused, and writes are refused anywhere but the
- * workspace.
- */
-export function toHostPath(
-  workspace: string,
-  shared: SharedMounts,
-  input: string,
-  mode: 'read' | 'write' = 'read',
-): string {
-  const trimmed = toPosix(String(input ?? '').trim()).replace(/^@/, '')
-  if (!trimmed) return workspace
-
-  let host: string
-  if (path.posix.isAbsolute(trimmed)) {
-    const guest = path.posix.normalize(trimmed)
-    if (guest === GUEST_WORKSPACE || guest.startsWith(`${GUEST_WORKSPACE}/`)) {
-      host = path.resolve(workspace, `.${guest.slice(GUEST_WORKSPACE.length)}`)
-    } else {
-      const mount = Object.keys(shared)
-        .sort((a, b) => b.length - a.length)
-        .find(g => guest === g || guest.startsWith(`${g}/`))
-      if (!mount) {
-        throw new SandboxPathError(
-          `${input} is outside this project. You can reach ${GUEST_WORKSPACE} (your workspace) ` +
-            `and ${Object.keys(shared).sort().join(', ')} (read-only) — nothing else on this machine.`,
-        )
-      }
-      host = path.resolve(shared[mount], `.${guest.slice(mount.length)}`)
-    }
-  } else {
-    host = path.resolve(workspace, trimmed)
-  }
-
-  // Resolve symlinks before deciding. Comparing the LEXICAL path is not a
-  // boundary: the shell can create a link inside its own workspace pointing
-  // anywhere on the host — `ln -s /app/.env notes.md` — and the link's target
-  // is dangling inside the sandbox but perfectly real to a file tool running
-  // out here. Without this the guard says "notes.md, inside the workspace" and
-  // the read returns CLERK_SECRET_KEY.
-  const real = resolveSymlinks(host)
-  const inWorkspace = contains(resolveSymlinks(workspace), real)
-  if (!inWorkspace) {
-    const readable = Object.values(shared).some(root => contains(resolveSymlinks(root), real))
-    if (!readable) {
-      throw new SandboxPathError(
-        `${input} leads outside this project. Your workspace is ${GUEST_WORKSPACE}, and a link ` +
-          `out of it is still outside it.`,
-      )
-    }
-    if (mode === 'write') {
-      throw new SandboxPathError(
-        `${input} is on a read-only shared mount — write inside ${GUEST_WORKSPACE}.`,
-      )
-    }
-  }
-  return host
-}
-
-/**
- * The path with every symlink in it resolved.
- *
- * A path being written does not exist yet, and neither may its parents, so
- * resolve the deepest ancestor that does exist and re-attach the rest: a
- * symlink can only hide in a component that is already there.
- */
-export function resolveSymlinks(target: string): string {
-  let head = target
-  const tail: string[] = []
-  for (;;) {
-    try {
-      return tail.length ? path.join(realpathSync.native(head), ...tail) : realpathSync.native(head)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return path.resolve(target)
-      const parent = path.dirname(head)
-      if (parent === head) return path.resolve(target)
-      tail.unshift(path.basename(head))
-      head = parent
-    }
-  }
-}
-
-/** Host path → the guest path the agent knows it by, for messages it reads. */
-export function toGuestPath(workspace: string, shared: SharedMounts, host: string): string {
-  if (contains(workspace, host)) {
-    const rel = path.relative(workspace, host)
-    return rel ? path.posix.join(GUEST_WORKSPACE, toPosix(rel)) : GUEST_WORKSPACE
-  }
-  for (const [guest, root] of Object.entries(shared)) {
-    if (contains(root, host)) {
-      const rel = path.relative(root, host)
-      return rel ? path.posix.join(guest, toPosix(rel)) : guest
-    }
-  }
-  return toPosix(host)
-}
-
-export function contains(root: string, child: string): boolean {
-  const rel = path.relative(root, child)
-  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
-}
+import { SHARED_ROOTS } from './paths.ts'
 
 /**
  * The guest's whole environment. Never the host's: that is where the API keys
  * are, and an agent that can read process.env has read every secret.
  */
-export function sandboxEnv(term = 'xterm'): Record<string, string> {
+export function sandboxEnv(workspace: string, term = 'xterm'): Record<string, string> {
   return {
     HOME: '/root',
     PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
     TERM: term,
     LANG: 'C.UTF-8',
-    PWD: GUEST_WORKSPACE,
+    PWD: workspace,
     STUDIO_SANDBOX: 'bwrap',
   }
 }
 
 export interface BwrapOptions {
+  /** Bound read-write, at its own path. */
   workspace: string
-  shared: SharedMounts
-  /** Guest cwd; must be inside a mount. Defaults to the workspace. */
+  /** Bound read-only, each at its own path. Defaults to the shared references. */
+  shared?: readonly string[]
+  /** Guest cwd; must be inside a bound directory. Defaults to the workspace. */
   cwd?: string
   env?: Record<string, string>
   shell?: string
@@ -189,9 +69,9 @@ export interface BwrapOptions {
 export function bwrapArgs(options: BwrapOptions): string[] {
   const {
     workspace,
-    shared,
-    cwd = GUEST_WORKSPACE,
-    env = sandboxEnv(),
+    shared = SHARED_ROOTS,
+    cwd = workspace,
+    env = sandboxEnv(workspace),
     shell = '/bin/bash',
   } = options
   const args = [
@@ -237,14 +117,12 @@ export function bwrapArgs(options: BwrapOptions): string[] {
     '/dev',
     '--tmpfs',
     '/tmp',
-    // The project, and the shared references at the paths the skills name.
+    // The project, and the shared references, each where it already is.
     '--bind',
     workspace,
-    GUEST_WORKSPACE,
+    workspace,
   ]
-  for (const [guest, host] of Object.entries(shared)) {
-    args.push('--ro-bind', host, guest)
-  }
+  for (const root of shared) args.push('--ro-bind-try', root, root)
   for (const [key, value] of Object.entries(env)) args.push('--setenv', key, value)
   args.push('--chdir', cwd, shell)
   return args

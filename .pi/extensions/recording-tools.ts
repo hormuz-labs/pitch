@@ -40,6 +40,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { workspaceOf } from '../lib/paths.ts'
 
 const execAsync = promisify(exec)
 
@@ -119,9 +120,7 @@ function text(out: string) {
 }
 
 // ── path helpers ─────────────────────────────────────────────────────────────
-function baseDir(ctx: any): string {
-  return ctx?.cwd || process.env.WORKSPACE_DIR || process.cwd()
-}
+const baseDir = workspaceOf
 function recordingsDir(base: string): string {
   const dir = path.join(base, 'recording')
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })

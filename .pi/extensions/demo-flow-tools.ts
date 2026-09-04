@@ -10,6 +10,7 @@
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
 
 export default function demoFlowTools(pi: ExtensionAPI) {
@@ -22,7 +23,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
       'has uploads. Returns the manifest summary; demo_list_assets reads the same manifest later.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'demo_prepare_assets', {}))
+      return text(await hostAction(workspaceOf(ctx), 'demo_prepare_assets', {}))
     },
   })
 
@@ -38,7 +39,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
       url: Type.Optional(Type.String({ description: 'Page to open once recording has started' })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'demo_record_start', { url: p.url }))
+      return text(await hostAction(workspaceOf(ctx), 'demo_record_start', { url: p.url }))
     },
   })
 
@@ -50,7 +51,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
       'logo capture) is done — before demo_render, and always before you finish a turn.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'demo_record_stop', {}))
+      return text(await hostAction(workspaceOf(ctx), 'demo_record_stop', {}))
     },
   })
 
@@ -85,7 +86,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       return text(
-        await hostAction(ctx.cwd, 'demo_render', {
+        await hostAction(workspaceOf(ctx), 'demo_render', {
           background: p.background,
           shape: p.shape,
           inset: p.inset,
@@ -106,7 +107,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
       'recording. Requires demo_prepare_assets first. Returns a per-scene summary.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'storyboard_plan', {}))
+      return text(await hostAction(workspaceOf(ctx), 'storyboard_plan', {}))
     },
   })
 
@@ -129,7 +130,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       return text(
-        await hostAction(ctx.cwd, 'storyboard_save', { json: p.json, summary: p.summary }),
+        await hostAction(workspaceOf(ctx), 'storyboard_save', { json: p.json, summary: p.summary }),
       )
     },
   })

@@ -14,6 +14,7 @@
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
 
 export default function mediaTools(pi: ExtensionAPI) {
@@ -31,7 +32,7 @@ export default function mediaTools(pi: ExtensionAPI) {
       }),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'media_probe', { file: p.file }))
+      return text(await hostAction(workspaceOf(ctx), 'media_probe', { file: p.file }))
     },
   })
 
@@ -58,7 +59,11 @@ export default function mediaTools(pi: ExtensionAPI) {
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       return text(
-        await hostAction(ctx.cwd, 'media_ffmpeg', { args: p.args, out: p.out, why: p.why }),
+        await hostAction(workspaceOf(ctx), 'media_ffmpeg', {
+          args: p.args,
+          out: p.out,
+          why: p.why,
+        }),
       )
     },
   })
@@ -75,7 +80,9 @@ export default function mediaTools(pi: ExtensionAPI) {
       label: Type.String({ description: 'Short name for the download, e.g. "Quieter music"' }),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'media_publish', { file: p.file, label: p.label }))
+      return text(
+        await hostAction(workspaceOf(ctx), 'media_publish', { file: p.file, label: p.label }),
+      )
     },
   })
 }

@@ -67,6 +67,7 @@ import {
   resolveNarrationEmphasis,
   runNarratedEmphasisBeat,
 } from '../lib/narrated-emphasis.ts'
+import { workspaceOf } from '../lib/paths.ts'
 import {
   advanceSlideshowProgress,
   appendAutoZoomOut,
@@ -188,9 +189,7 @@ const VOICE_STYLES: Record<string, string> = {
 
 // ── path / state helpers ───────────────────────────────────────────────────
 /** Session working directory: pi's ctx.cwd (what OpenCode called context.directory). */
-function baseDir(ctx: any): string {
-  return ctx?.cwd || process.env.WORKSPACE_DIR || process.cwd()
-}
+const baseDir = workspaceOf
 function configPath(base: string) {
   return path.join(base, 'recording', 'demo-config.json')
 }

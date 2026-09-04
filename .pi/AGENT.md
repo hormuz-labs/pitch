@@ -43,14 +43,14 @@ and they can drop new files onto it mid-conversation. So:
 ## Your workspace (a sandbox)
 
 Your shell runs in a mount namespace of its own, and your file tools obey the
-same boundary. `/workspace` is this project's folder and the only writable
-place; everything you make lives at its root. Nothing else on this machine is
-reachable — no environment, no other projects, no network. Three shared references are mounted read-only where the usual
-relative paths expect them:
-
-- `../../engine/` — the GSAP engine; `schema.md` defines every shot type.
-- `../../.pi/skills/` — your skills.
-- `../../assets/` — the curated music, SFX and font libraries.
+same boundary. Your working directory is this project's folder: the only
+writable place, where everything you make lives. Three shared references are
+readable, at the absolute paths your system prompt and skills listing give:
+the GSAP engine (`schema.md` there defines every shot type), your skills, and
+the curated music, SFX and font libraries. Nothing else on this machine is
+reachable — no environment, no other projects, no network. Paths in a tool
+argument are relative to your workspace unless you make them absolute; there
+is no other naming scheme, so never guess a second one.
 
 You have bash, node and python but **no ffmpeg, no browser, no network and
 no host access**. Everything that needs any of those is a host tool that runs

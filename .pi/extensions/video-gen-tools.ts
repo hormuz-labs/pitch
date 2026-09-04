@@ -12,6 +12,7 @@
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
 
 export default function videoGenTools(pi: ExtensionAPI) {
@@ -79,7 +80,7 @@ export default function videoGenTools(pi: ExtensionAPI) {
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       return text(
-        await hostAction(ctx.cwd, 'video_generate', {
+        await hostAction(workspaceOf(ctx), 'video_generate', {
           prompt: p.prompt,
           out: p.out,
           resolution: p.resolution,

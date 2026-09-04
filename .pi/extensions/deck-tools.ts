@@ -7,6 +7,7 @@
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
 
 export default function deckTools(pi: ExtensionAPI) {
@@ -25,7 +26,7 @@ export default function deckTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'deck_render', { slides: p.slides }))
+      return text(await hostAction(workspaceOf(ctx), 'deck_render', { slides: p.slides }))
     },
   })
 
@@ -41,7 +42,7 @@ export default function deckTools(pi: ExtensionAPI) {
       summary: Type.String({ description: 'One line describing what changed (shown to the user)' }),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      return text(await hostAction(ctx.cwd, 'deck_publish', { summary: p.summary }))
+      return text(await hostAction(workspaceOf(ctx), 'deck_publish', { summary: p.summary }))
     },
   })
 }

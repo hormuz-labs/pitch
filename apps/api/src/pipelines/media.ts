@@ -10,11 +10,12 @@
  * ffmpeg is powerful enough to read and write anywhere on the host, so every
  * path here is resolved against the workspace and rejected if it escapes.
  */
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
+import { resolveSymlinks } from '../../../../.pi/lib/paths.ts'
 import { addOutput, projectRowFor } from '../projects/service.js'
 import { execAsync, getMediaDurationSec } from '../render/media.js'
 import { registerHostAction } from '../studio/host-actions.js'
@@ -27,32 +28,6 @@ const logger = createLogger('studio:media')
  * would happily read /etc/passwd or write over another user's project, so
  * this is the boundary — not a convenience.
  */
-/**
- * The path with every symlink in it resolved.
- *
- * A path being written does not exist yet, and neither may its parents, so
- * resolve the deepest ancestor that does exist and re-attach the rest: a
- * symlink can only hide in a component that is already there.
- *
- * (The agent's file tools apply the same rule — .pi/lib/sandbox.ts. Keep the
- * two in step.)
- */
-function resolveSymlinks(target: string): string {
-  let head = target
-  const tail: string[] = []
-  for (;;) {
-    try {
-      const real = realpathSync.native(head)
-      return tail.length ? path.join(real, ...tail) : real
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return path.resolve(target)
-      const parent = path.dirname(head)
-      if (parent === head) return path.resolve(target)
-      tail.unshift(path.basename(head))
-      head = parent
-    }
-  }
-}
 
 export function insideWorkspace(ws: Workspace, rel: string): string {
   if (typeof rel !== 'string' || !rel.trim())

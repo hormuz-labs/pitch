@@ -8,23 +8,28 @@
  *
  * The `<userId>--` segment is the per-user isolation boundary: file routes and
  * directory listings check it; clients only ever see project ids and names.
+ *
+ * The directories themselves come from .pi/lib/paths.ts, which the host tools
+ * and the sandbox share: one answer for where the engine, skills, assets and
+ * projects are, so the API and the agent never disagree about a path.
  */
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+export {
+  ASSETS_DIR,
+  ENGINE_DIR,
+  EXTENSIONS_DIR as PI_EXTENSIONS_DIR,
+  MUSIC_DIR,
+  PI_DIR,
+  PROJECTS_DIR,
+  REPO_ROOT as ROOT_DIR,
+  SFX_DIR,
+  SKILLS_DIR,
+} from '../../../../.pi/lib/paths.ts'
 
-// apps/api/src/studio → repo root (works from src/ and dist/ alike)
-export const ROOT_DIR = path.resolve(__dirname, '../../../..')
-export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(ROOT_DIR, 'projects')
-export const ENGINE_DIR = path.join(ROOT_DIR, 'engine')
-export const PI_DIR = path.join(ROOT_DIR, '.pi')
-export const PI_EXTENSIONS_DIR = path.join(PI_DIR, 'extensions')
-export const SKILLS_DIR = path.join(PI_DIR, 'skills')
+import { PROJECTS_DIR, SKILLS_DIR } from '../../../../.pi/lib/paths.ts'
+
 export const MOTION_SKILL_DIR = path.join(SKILLS_DIR, 'html-motion-video')
-export const ASSETS_DIR = path.join(ROOT_DIR, 'assets')
-export const MUSIC_DIR = path.join(ASSETS_DIR, 'music')
-export const SFX_DIR = path.join(ASSETS_DIR, 'sfx')
 
 /**
  * Only a directory-naming key now. New projects are all 'studio'; the four old

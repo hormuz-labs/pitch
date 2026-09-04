@@ -20,13 +20,19 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
-import { contains, resolveSymlinks } from '../lib/sandbox.ts'
+import {
+  ASSETS_DIR,
+  ENGINE_DIR,
+  MUSIC_DIR,
+  relativeIn,
+  resolveIn,
+  workspaceOf,
+} from '../lib/paths.ts'
 
 const execFileAsync = promisify(execFile)
 
@@ -49,33 +55,9 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const SCRIPTS = join(HERE, '..', 'skills', 'html-motion-video', 'scripts')
 const MAX_BUFFER = 16 * 1024 * 1024
 const AUDIO_RE = /\.(mp3|wav|m4a|aac|flac|ogg)$/i
-const REPO_ROOT = resolve(HERE, '..', '..')
 
 function text(out: string) {
   return { content: [{ type: 'text' as const, text: out }], details: {} }
-}
-
-/**
- * These scripts run on the host, but the agent only knows guest paths. A raw
- * host path in an error ("/app/projects/studio--user_xxx--foo/audio/x.json")
- * has already cost an agent several turns guessing at the mapping, so rewrite
- * every mount back to the name the agent's own shell uses.
- */
-function toGuestPaths(out: string, cwd: string): string {
-  let s = out.split(cwd).join('/workspace')
-  for (const [guest, host] of [
-    ['/engine', join(REPO_ROOT, 'engine')],
-    ['/.pi/skills', join(REPO_ROOT, '.pi', 'skills')],
-    ['/assets', join(REPO_ROOT, 'assets')],
-  ] as const) {
-    s = s.split(host).join(guest)
-  }
-  return s
-}
-
-/** text(), in the guest paths the agent actually has. */
-function guestText(out: string, cwd: string) {
-  return text(toGuestPaths(out, cwd))
 }
 
 async function runScript(name: string, args: string[], cwd: string, timeoutMs = 1_200_000) {
@@ -86,73 +68,14 @@ async function runScript(name: string, args: string[], cwd: string, timeoutMs = 
       maxBuffer: MAX_BUFFER,
       timeout: timeoutMs,
     })
-    return toGuestPaths(`${stdout}\n${stderr}`.trim(), cwd)
+    return `${stdout}\n${stderr}`.trim()
   } catch (err) {
     // A failing script's own diagnosis lives in its output, not in "Command
     // failed with exit code 1" — surface it, or the agent invents a workaround.
     const e = err as { stdout?: string; stderr?: string; message?: string }
     const detail = `${e.stdout ?? ''}\n${e.stderr ?? ''}`.trim() || e.message || String(err)
-    throw new Error(toGuestPaths(detail, cwd))
+    throw new Error(detail)
   }
-}
-
-const PROJECTS_DIR = join(REPO_ROOT, 'projects')
-const READ_ROOTS = [
-  join(REPO_ROOT, 'engine'),
-  join(REPO_ROOT, '.pi', 'skills'),
-  join(REPO_ROOT, 'assets'),
-]
-
-/**
- * Containment, with symlinks resolved on BOTH sides.
- *
- * Comparing the lexical path is not a boundary: the agent's shell can make a
- * link inside its own workspace pointing anywhere on this machine, and these
- * tools run out here where it resolves. `ln -s /app/.env notes.md` followed by
- * motion_render({ page: "notes.md" }) is the shape of it.
- * (The same rule guards the file tools — see ../lib/sandbox.ts.)
- */
-function within(child: string, parent: string): boolean {
-  return contains(resolveSymlinks(parent), resolveSymlinks(child))
-}
-
-/**
- * Resolve a path the agent handed us and refuse anything outside its
- * workspace. These tools run on the HOST with full privileges — the agent's
- * own shell is sandboxed and these are not — so they must not become a side
- * door: writes stay in the workspace; reads may also touch the shared
- * references.
- */
-function resolvePath(cwd: string, p: string, mode: 'read' | 'write' = 'write'): string {
-  // The VM mounts the workspace at /workspace and the shared references at
-  // /engine, /.pi/skills and /assets — map guest paths back to the host.
-  let mapped = p
-  if (p === '/workspace' || p.startsWith('/workspace/'))
-    mapped = join(cwd, p.slice('/workspace'.length))
-  else if (p === '/engine' || p.startsWith('/engine/')) mapped = join(REPO_ROOT, p.slice(1))
-  else if (p.startsWith('/.pi/skills')) mapped = join(REPO_ROOT, p.slice(1))
-  else if (p === '/assets' || p.startsWith('/assets/')) mapped = join(REPO_ROOT, p.slice(1))
-  const abs = resolve(cwd, mapped)
-  if (/^\.env(\..*)?$/.test(abs.split('/').pop() ?? '')) {
-    throw new Error(`Refusing to touch ${p}: secrets are off limits.`)
-  }
-  const inWorkspace = within(abs, cwd)
-  if (mode === 'write' && !inWorkspace) {
-    throw new Error(`Refusing to write outside the workspace: ${p}`)
-  }
-  if (mode === 'read' && !inWorkspace) {
-    const shared = READ_ROOTS.some(r => within(abs, r))
-    if (!shared || within(abs, PROJECTS_DIR)) {
-      throw new Error(`Refusing to read outside the workspace or shared references: ${p}`)
-    }
-  }
-  return abs
-}
-
-/** Workspace-relative form of a validated path, for scripts that run with cwd = workspace. */
-function rel(cwd: string, p: string, mode: 'read' | 'write' = 'write'): string {
-  const abs = resolvePath(cwd, p, mode)
-  return within(abs, cwd) ? relative(cwd, abs) || '.' : abs
 }
 
 // ── The engine's schema, served in pieces ─────────────────────────────────────
@@ -162,7 +85,7 @@ function rel(cwd: string, p: string, mode: 'read' | 'write' = 'write'): string {
 // later model request — the single largest document in a run after SKILL.md.
 // So it is a tool: ask for the types you are actually using.
 
-const SCHEMA_PATH = join(REPO_ROOT, 'engine', 'schema.md')
+const SCHEMA_PATH = join(ENGINE_DIR, 'schema.md')
 
 /**
  * The `## Types` table, as type name → its row.
@@ -252,15 +175,16 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       if (!p.text && !p.script)
         return text('motion_tts needs `text` (the whole script) or `script` (a file path).')
-      const a = ['--out=' + rel(ctx.cwd, p.out || 'audio/vo.wav')]
-      if (p.script) a.push('--script=' + rel(ctx.cwd, p.script, 'read'))
+      const a = ['--out=' + relativeIn(ws, p.out || 'audio/vo.wav', 'write')]
+      if (p.script) a.push('--script=' + relativeIn(ws, p.script))
       else a.push('--text=' + p.text)
       if (p.voice) a.push('--voice=' + p.voice)
       if (p.style) a.push('--style=' + p.style)
       if (p.model) a.push('--model=' + p.model)
-      return text(await runScript('tts.mjs', a, ctx.cwd))
+      return text(await runScript('tts.mjs', a, ws))
     },
   })
 
@@ -279,13 +203,14 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       out: Type.Optional(Type.String({ description: 'Output JSON (default audio/vo-words.json)' })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      const a = ['--vo=' + rel(ctx.cwd, p.vo || 'audio/vo.wav', 'read')]
-      if (p.script) a.push('--script=' + rel(ctx.cwd, p.script, 'read'))
-      if (p.out) a.push('--out=' + rel(ctx.cwd, p.out))
+      const ws = workspaceOf(ctx)
+      const a = ['--vo=' + relativeIn(ws, p.vo || 'audio/vo.wav')]
+      if (p.script) a.push('--script=' + relativeIn(ws, p.script))
+      if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       try {
-        return text(await runScript('align.mjs', a, ctx.cwd, 300_000))
+        return text(await runScript('align.mjs', a, ws, 300_000))
       } catch (err: any) {
-        return guestText(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim(), ctx.cwd)
+        return text(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim())
       }
     },
   })
@@ -311,15 +236,16 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       const a: string[] = []
       if (p.write) a.push('--write')
       if (p.lead !== undefined) a.push('--lead=' + p.lead)
-      if (p.shots) a.push('--shots=' + rel(ctx.cwd, p.shots))
-      if (p.words) a.push('--words=' + rel(ctx.cwd, p.words, 'read'))
+      if (p.shots) a.push('--shots=' + relativeIn(ws, p.shots, 'write'))
+      if (p.words) a.push('--words=' + relativeIn(ws, p.words))
       try {
-        return text(await runScript('sync.mjs', a, ctx.cwd, 120_000))
+        return text(await runScript('sync.mjs', a, ws, 120_000))
       } catch (err: any) {
-        return guestText(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim(), ctx.cwd)
+        return text(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim())
       }
     },
   })
@@ -365,15 +291,16 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       to: Type.Optional(Type.Number({ minimum: 0, description: 'Segment end (s)' })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       const a: string[] = []
-      if (p.page) a.push(rel(ctx.cwd, p.page, 'read'))
-      a.push('--out=' + rel(ctx.cwd, p.out))
+      if (p.page) a.push(relativeIn(ws, p.page))
+      a.push('--out=' + relativeIn(ws, p.out, 'write'))
       if (p.out_res) a.push('--out-res=' + p.out_res)
       else if (p.scale === undefined) a.push('--scale=1')
       for (const k of ['fps', 'scale', 'width', 'height', 'workers', 'from', 'to'] as const) {
         if (p[k] !== undefined) a.push(`--${k}=` + p[k])
       }
-      return text(await runScript('capture.mjs', a, ctx.cwd))
+      return text(await runScript('capture.mjs', a, ws))
     },
   })
 
@@ -406,15 +333,16 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       const a: string[] = []
-      if (p.page) a.push(rel(ctx.cwd, p.page, 'read'))
+      if (p.page) a.push(relativeIn(ws, p.page))
       if (p.step) a.push('--step=' + p.step)
       if (p.max_quiet) a.push('--max-quiet=' + p.max_quiet)
       if (p.min_eps) a.push('--min-eps=' + p.min_eps)
-      if (p.out) a.push('--out=' + rel(ctx.cwd, p.out))
+      if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       if (p.allow_missing_logo) a.push('--allow-missing-logo')
       try {
-        return text(await runScript('audit.mjs', a, ctx.cwd))
+        return text(await runScript('audit.mjs', a, ws))
       } catch (err: any) {
         // A failed gate is a result, not a crash: hand the scorecard back verbatim.
         const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
@@ -445,21 +373,22 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       wait: Type.Optional(Type.Integer({ description: 'Ms to wait after load' })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       if (!p.url && !p.html) {
         throw new Error("Provide either 'url' or 'html' to motion_screenshot.")
       }
       if (p.url && !/^https?:\/\//i.test(p.url)) {
         throw new Error('url must be an http(s) URL.')
       }
-      const a = ['--out=' + rel(ctx.cwd, p.out)]
+      const a = ['--out=' + relativeIn(ws, p.out, 'write')]
       if (p.url) a.push('--url=' + p.url)
-      if (p.html) a.push('--html=' + rel(ctx.cwd, p.html, 'read'))
+      if (p.html) a.push('--html=' + relativeIn(ws, p.html))
       if (p.width) a.push('--width=' + p.width)
       if (p.height) a.push('--height=' + p.height)
       if (p.selector) a.push('--selector=' + p.selector)
       if (p.fullPage) a.push('--fullPage=true')
       if (p.wait) a.push('--wait=' + p.wait)
-      return text(await runScript('screenshot.mjs', a, ctx.cwd))
+      return text(await runScript('screenshot.mjs', a, ws))
     },
   })
 
@@ -500,16 +429,17 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       if (!/^https?:\/\//i.test(p.url)) throw new Error('url must be an http(s) URL.')
       const a = ['--url=' + p.url]
-      if (p.out) a.push('--out=' + rel(ctx.cwd, p.out))
+      if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       if (p.fonts === false) a.push('--no-fonts')
-      else if (p.fonts_dir) a.push('--fonts=' + rel(ctx.cwd, p.fonts_dir))
+      else if (p.fonts_dir) a.push('--fonts=' + relativeIn(ws, p.fonts_dir, 'write'))
       if (p.cdp) a.push('--cdp=' + p.cdp)
       if (p.width) a.push('--width=' + p.width)
       if (p.wait) a.push('--wait=' + p.wait)
       try {
-        return text(await runScript('recon.mjs', a, ctx.cwd, 240_000))
+        return text(await runScript('recon.mjs', a, ws, 240_000))
       } catch (err: any) {
         const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
         if (out) return text(out)
@@ -538,12 +468,13 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       if (!/^https?:\/\//i.test(p.url)) throw new Error('url must be an http(s) URL.')
       const a = ['--url=' + p.url]
       if (p.cdp) a.push('--cdp=' + p.cdp)
       if (p.min_px) a.push('--min-px=' + p.min_px)
       if (p.max) a.push('--max=' + p.max)
-      return text(await runScript('harvest.mjs', a, ctx.cwd, 300_000))
+      return text(await runScript('harvest.mjs', a, ws, 300_000))
     },
   })
 
@@ -560,10 +491,11 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       const a: string[] = ['--check']
-      if (p.page) a.push(rel(ctx.cwd, p.page, 'read'))
+      if (p.page) a.push(relativeIn(ws, p.page))
       try {
-        return text(await runScript('cues.mjs', a, ctx.cwd, 120_000))
+        return text(await runScript('cues.mjs', a, ws, 120_000))
       } catch (err: any) {
         const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
         if (out) return text(out)
@@ -583,10 +515,11 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       out: Type.Optional(Type.String({ description: 'Output JSON (default audio/cues.json)' })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       const a: string[] = []
-      if (p.page) a.push(rel(ctx.cwd, p.page, 'read'))
-      if (p.out) a.push('--out=' + rel(ctx.cwd, p.out))
-      return text(await runScript('cues.mjs', a, ctx.cwd, 120_000))
+      if (p.page) a.push(relativeIn(ws, p.page))
+      if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
+      return text(await runScript('cues.mjs', a, ws, 120_000))
     },
   })
 
@@ -621,6 +554,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       const a: string[] = []
       if (p.mode === 'list') a.push('query', '--list')
       else if (p.mode === 'query') {
@@ -630,12 +564,12 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         if (p.limit) a.push('--limit=' + p.limit)
       } else {
         a.push('build')
-        if (p.cues) a.push('--cues=' + rel(ctx.cwd, p.cues, 'read'))
+        if (p.cues) a.push('--cues=' + relativeIn(ws, p.cues))
         if (p.duration !== undefined) a.push('--duration=' + p.duration)
-        if (p.out) a.push('--out=' + rel(ctx.cwd, p.out))
+        if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
         if (p.dry_run) a.push('--dry-run')
       }
-      return text(await runScript('sfx.mjs', a, ctx.cwd, 300_000))
+      return text(await runScript('sfx.mjs', a, ws, 300_000))
     },
   })
 
@@ -662,16 +596,17 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       dry_run: Type.Optional(Type.Boolean({ description: 'Plan only' })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       const a = ['--duration=' + p.duration]
-      if (p.music) a.push('--music=' + rel(ctx.cwd, p.music, 'read'))
-      if (p.sfx) a.push('--sfx=' + rel(ctx.cwd, p.sfx, 'read'))
+      if (p.music) a.push('--music=' + relativeIn(ws, p.music))
+      if (p.sfx) a.push('--sfx=' + relativeIn(ws, p.sfx))
       if (p.music_only) a.push('--music-only')
       if (p.bed_db !== undefined) a.push('--bed-db=' + p.bed_db)
       if (p.duck !== undefined) a.push('--duck=' + p.duck)
-      if (p.vo_map) a.push('--vo-map=' + rel(ctx.cwd, p.vo_map, 'read'))
-      if (p.out) a.push('--out=' + rel(ctx.cwd, p.out))
+      if (p.vo_map) a.push('--vo-map=' + relativeIn(ws, p.vo_map))
+      if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       if (p.dry_run) a.push('--dry-run')
-      return text(await runScript('mix.mjs', a, ctx.cwd, 600_000))
+      return text(await runScript('mix.mjs', a, ws, 600_000))
     },
   })
 
@@ -696,23 +631,24 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
       if (p.src || p.copy_to) {
         if (!p.src || !p.copy_to) {
           throw new Error('To import audio, provide both src and copy_to.')
         }
-        const srcAbs = resolvePath(ctx.cwd, p.src, 'read')
+        const srcAbs = resolveIn(ws, p.src)
         if (!AUDIO_RE.test(srcAbs) || !existsSync(srcAbs)) {
           throw new Error(`Not an existing audio file: ${p.src}`)
         }
-        const dest = resolvePath(ctx.cwd, p.copy_to)
+        const dest = resolveIn(ws, p.copy_to, 'write')
         mkdirSync(dirname(dest), { recursive: true })
         copyFileSync(srcAbs, dest)
         return text(`Imported ${p.src} -> ${p.copy_to}`)
       }
 
-      const root = p.dir ? resolvePath(ctx.cwd, p.dir, 'read') : join(REPO_ROOT, 'assets', 'music')
+      const root = p.dir ? resolveIn(ws, p.dir) : MUSIC_DIR
       const max = p.max ?? 15
-      if (!existsSync(root)) return guestText(`Directory not found: ${root}`, ctx.cwd)
+      if (!existsSync(root)) return text(`Directory not found: ${root}`)
       const found: Array<{ p: string; ms: number; mtime: Date }> = []
       const entries = readdirSync(root).filter(e => !e.startsWith('.'))
       for (const file of entries.filter(e => AUDIO_RE.test(e))) {
@@ -736,14 +672,14 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         }
         if (found.length >= max) break
       }
-      if (found.length === 0) return guestText(`No audio files found under ${root}`, ctx.cwd)
+      if (found.length === 0) return text(`No audio files found under ${root}`)
       const lines = found
         .map(
           f =>
             `${f.p}  [${f.ms.toFixed(1)} MB]  ${f.mtime.toISOString().slice(0, 16).replace('T', ' ')}`,
         )
         .join('\n')
-      return guestText(`Audio candidates under ${root}:\n${lines}`, ctx.cwd)
+      return text(`Audio candidates under ${root}:\n${lines}`)
     },
   })
 
@@ -757,7 +693,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       file: Type.String({ description: 'MP4 path to probe (workspace-relative)' }),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      const abs = resolvePath(ctx.cwd, p.file, 'read')
+      const ws = workspaceOf(ctx)
+      const abs = resolveIn(ws, p.file)
       if (!existsSync(abs)) throw new Error(`File not found: ${abs}`)
       const dur = execFileSync(
         'ffprobe',
@@ -865,8 +802,9 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      const out = resolvePath(ctx.cwd, 'index.html', 'write')
-      const title = String(p.title ?? basename(ctx.cwd)).replace(/[<>]/g, '')
+      const ws = workspaceOf(ctx)
+      const out = resolveIn(ws, 'index.html', 'write')
+      const title = String(p.title ?? basename(ws)).replace(/[<>]/g, '')
       // The whole licensed GSAP set, from the shared assets mount. The
       // compiler registers whatever it finds on window, so loading all of
       // them is what makes them real for a custom shot type — they were
@@ -912,7 +850,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         '',
       ].join('\n')
       writeFileSync(out, html)
-      const vendor = existsSync(join(REPO_ROOT, 'assets', 'gsap', 'gsap.min.js'))
+      const vendor = existsSync(join(ASSETS_DIR, 'gsap', 'gsap.min.js'))
       return text(
         `index.html written (${plugins.length} GSAP plugins${p.custom ? ' + js/shots.custom.js' : ''}).\n` +
           (vendor

@@ -5,6 +5,7 @@
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
 
 export default function recordingFlowTools(pi: ExtensionAPI) {
@@ -26,7 +27,7 @@ export default function recordingFlowTools(pi: ExtensionAPI) {
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       return text(
-        await hostAction(ctx.cwd, 'edit_render', {
+        await hostAction(workspaceOf(ctx), 'edit_render', {
           productName: p.productName,
           productUrl: p.productUrl,
         }),
