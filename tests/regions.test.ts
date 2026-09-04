@@ -9,7 +9,7 @@ import {
   type PageWords,
   parsePdfBbox,
   parseTesseractTsv,
-} from '../apps/worker/src/utils/regions.js'
+} from '../apps/studio/src/render/utils/regions.js'
 
 const SAMPLE_BBOX = `<?xml version="1.0"?>
 <html><body><doc>

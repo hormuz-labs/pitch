@@ -8,7 +8,7 @@ import {
   labelForRegion,
   type Slide,
   toFileUrl,
-} from '../.opencode/lib/slideshow.ts'
+} from '../.pi/lib/slideshow.ts'
 
 describe('toFileUrl', () => {
   it('prefixes absolute paths and passes through URLs', () => {

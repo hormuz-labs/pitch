@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBrowserChromeSvg } from '../apps/worker/src/utils/browser-chrome.js'
+import { buildBrowserChromeSvg } from '../apps/studio/src/render/utils/browser-chrome.js'
 
 describe('buildBrowserChromeSvg', () => {
   it('renders a 1920x56 SVG containing traffic lights and the escaped URL', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { annotationProtectionSegments } from '../apps/worker/src/utils/smart_trim'
+import { annotationProtectionSegments } from '../apps/studio/src/render/utils/smart_trim'
 
 describe('annotationProtectionSegments', () => {
   it('protects the draw-on lead and explanatory hold within video bounds', () => {

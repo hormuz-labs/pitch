@@ -6,7 +6,7 @@
  *   POST /transcribe  → multipart form, field `file` = WAV audio
  *                     ← { text, segments: [{ start, end, text, words: [...] }] }
  *
- * This is what the recording-editor opencode tools (TRANSCRIPTION_SERVICE_URL)
+ * This is what the recording-editor agent tools (TRANSCRIPTION_SERVICE_URL)
  * and the worker's edit-recording flow call. Runs fully local — no external
  * API calls at request time.
  */

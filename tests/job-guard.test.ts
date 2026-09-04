@@ -5,7 +5,7 @@ vi.mock('@saas/db', () => ({
 }))
 
 import * as db from '@saas/db'
-import { jobAlreadyTerminal } from '../apps/worker/src/utils/job-guard'
+import { jobAlreadyTerminal } from '../apps/studio/src/render/utils/job-guard'
 
 describe('job guard', () => {
   beforeEach(() => vi.clearAllMocks())

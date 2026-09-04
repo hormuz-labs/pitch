@@ -145,12 +145,14 @@ model CreditTransaction {
   type           String
   description    String
   jobId          String?
+  projectId      String?
   subscriptionId String?
   topUpId        String?
   idempotencyKey String?        @unique()
   createdAt      DateTime       @default(now())
   userProfile    UserProfile    @relation(fields: [userId], references: [id])
   job            Job?           @relation(fields: [jobId], references: [id])
+  project        Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
   topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
 
@@ -282,15 +284,44 @@ model NewsletterSubscriber {
   createdAt DateTime @default(now())
 }
 
-model LaunchVideoProject {
-  id                String   @id() @default(cuid())
-  userId            String
-  name              String
-  opencodeSessionId String   @unique()
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt()
+model StudioProject {
+  id          String   @id() @default(cuid())
+  userId      String
+  flow        String   @default("launch-video")
+  name        String
+  sessionFile String?
+  jobId       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
 
-  @@unique([userId, name])
+  @@unique([userId, flow, name])
+  @@index([userId])
+  @@index([jobId])
+}
+
+model Project {
+  id                 String              @id() @default(cuid())
+  userId             String
+  flow               String
+  name               String
+  title              String
+  prompt             String              @default("")
+  options            String              @default("{}")
+  sessionFile        String?
+  creditsCharged     Int                 @default(0)
+  usageUsd           Float               @default(0)
+  outputs            String              @default("[]")
+  thumbnailUrl       String?
+  lastError          String?
+  isPublic           Boolean             @default(false)
+  shareSlug          String?             @unique()
+  shareViews         Int                 @default(0)
+  legacyJobId        String?             @unique()
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
+  creditTransactions CreditTransaction[]
+
+  @@unique([userId, flow, name])
   @@index([userId])
 }
 

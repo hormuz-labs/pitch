@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDemoJobInput } from '../apps/worker/src/utils/demo-job-input'
+import { buildDemoJobInput } from '../apps/studio/src/render/utils/demo-job-input'
 
 describe('buildDemoJobInput', () => {
   it('keeps prepared assets on the standard demo-generator without inventing an empty URL instruction', () => {

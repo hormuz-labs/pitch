@@ -1,14 +1,14 @@
 import { exec, execSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildAnnotateEvalJs } from '../../.opencode/lib/annotations'
+import { buildAnnotateEvalJs } from '../../.pi/lib/annotations'
 import {
   applyStoryboardToSlides,
   pageRectToViewportRect,
   resolveManifestSlides,
-} from '../../.opencode/lib/asset-demo'
-import { ELEMENT_BOX_JS, parseElementBoxJson } from '../../.opencode/lib/demo-core'
-import { buildSlideshowHtml } from '../../.opencode/lib/slideshow'
+} from '../../.pi/lib/asset-demo'
+import { ELEMENT_BOX_JS, parseElementBoxJson } from '../../.pi/lib/demo-core'
+import { buildSlideshowHtml } from '../../.pi/lib/slideshow'
 
 const execAsync = promisify(exec)
 const PLAYWRIGHT_SESSION = 'asset-slideshow-integration'

@@ -30,49 +30,53 @@ PITCH bridges the gap between raw functional testing and high-end marketing exec
 
 ## ▌ SYSTEM ARCHITECTURE
 
-The pipeline operates on a horizontally scalable worker model coordinated by **BullMQ** and **Redis**. 
+Pitch is **one studio**. Every product — launch video, demo video, slide deck,
+recording edit — is a *project*: a workspace directory, a resumable **pi** agent
+session with every tool the studio has, and a live preview the browser plays.
+The user chats; the thread shows everything the model does; the preview reloads
+whenever the agent saves; things picked in the preview become numbered targets
+in the next prompt. There are no workers or queues.
 
 ```text
-  [ CLIENT ]                          [ REDIS CLUSTER ]
-      │                                       │
-      │ (1) Dispatch Job                      │ (3) Enqueue
-      ▼                                       ▼
-  [ API GATEWAY ] ──────────────────► [ WORKER NODES ] ──────┐
-  express / REST                                             │
-                                                             │ (4) Delegate
-                                                             ▼
-                                                [ OPENCODE SKILL CORE ]
-  [ DISTRIBUTED STORAGE ] ◄────────────────────      auto-demo-gen
-      ▲                                                      │
-      │ (6) Save MP4 Payload                                 │ (5) Execute
-      │                                                      ▼
-  [ FFMPEG ENGINE ] ◄─── [ PUPPETEER DOM ] ◄─── [ GEMINI 3.1 TTS ]
-   x264 Encoding          Frame Extraction       Audio Narration
+  [ studio-web ]  ──chat / SSE / preview──►  [ studio ]  express, one process
+                                                 │
+                              ┌──────────────────┼──────────────────┐
+                              ▼                  ▼                  ▼
+                       [ pi session ]     [ workspace ]      [ host tools ]
+                       per project         projects/<…>/     ffmpeg · Playwright
+                       (Gondolin VM for    sources, renders   Gemini TTS · whisper
+                        launch / deck)     watched → preview   CloakBrowser
+                                                 │
+                                                 ▼
+                                       [ object storage ]  published outputs
 ```
+
+See `docs/studio-architecture.md` for the contract (project model, agent
+interface, routes, events).
 
 <br>
 
 ## ▌ MONOREPO TOPOLOGY
 
-Structured for scale using **Bun Workspaces**.
-
-| Matrix        | Entity                | Directive |
-|:--------------|:----------------------|:----------|
-| **`apps/`**   | `api`                 | REST Gateway for job ingestion and status polling. |
-|               | `worker`              | Headless compute nodes consuming the BullMQ pipeline. |
-|               | `mock-server`         | Synthetic endpoint for isolation testing. |
-|               | `web`                 | React/Vite dashboard for job visualization. |
-| **`packages/`**| `db`                 | Prisma ORM schema and database abstraction layer. |
-|               | `shared`              | Unified types, queue names, and utility constants. |
-|               | `storage`             | File handling and blob persistence logic. |
+| Matrix         | Entity          | Directive |
+|:---------------|:----------------|:----------|
+| **`apps/`**    | `studio`        | The server: auth, credits, projects, agent sessions, previews, renders, share, MCP, admin. |
+|                | `studio-web`    | The React app: projects grid, chat-first "new project", the StudioView. |
+|                | `transcription` | Local Whisper service used by the recording-edit tools. |
+| **`.pi/`**     | `AGENT.md`, `extensions`, `skills`, `lib` | The agent: its base prompt, host tools as pi extensions, skills. |
+| **`engine/`**  |                 | The shots.js compiler and the studio inspector that previews load. |
+| **`packages/`**| `db`            | Prisma/ZenStack schema and data access. |
+|                | `shared`        | Types, pricing, logging, manager client. |
+|                | `storage`       | Object storage (S3/MinIO). |
+|                | `email`         | Transactional email. |
 
 <br>
 
 ## ▌ TECHNICAL STACK
 
-■ **Runtime:** `Bun` (Native execution, Workspace orchestration)  
-■ **Message Broker:** `Redis` + `BullMQ`  
-■ **Database:** `SQLite` + `Prisma` (Production swappable)  
+■ **Runtime:** `Bun` (one server process; agents are pi sessions)  
+■ **Agent runtime:** `pi` + `Gondolin` micro-VM sandboxes  
+■ **Database:** `PostgreSQL` + `Prisma`  
 ■ **AI / Voice:** Google Gemini TTS (`generativelanguage.googleapis.com`)  
 ■ **Browser Automation:** `playwright-cli` connected to `cloakbrowser-manager`  
 ■ **Rendering:** `FFmpeg`  

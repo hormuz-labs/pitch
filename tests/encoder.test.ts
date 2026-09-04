@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { __setNvencForTesting, videoEncodeArgs } from '../apps/worker/src/utils/encoder'
+import { __setNvencForTesting, videoEncodeArgs } from '../apps/studio/src/render/utils/encoder'
 
 afterEach(() => {
   __setNvencForTesting(null) // reset the cached probe

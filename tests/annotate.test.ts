@@ -12,7 +12,7 @@ import {
   overlayInnerHtml,
   padForStyle,
   sanitizeColor,
-} from '../.opencode/lib/annotations.ts'
+} from '../.pi/lib/annotations.ts'
 
 describe('sanitizeColor', () => {
   it('accepts safe color literals', () => {

@@ -1,5 +1,5 @@
 /**
- * Unit tests for the pure demo-generator logic (.opencode/lib/demo-core.ts).
+ * Unit tests for the pure demo-generator logic (.pi/lib/demo-core.ts).
  *
  * These import the real functions DIRECTLY — no @opencode-ai/plugin stub, no module
  * alias, no mocked playwright-cli. Every case exercises a genuine decision the demo
@@ -19,7 +19,7 @@ import {
   parseClickRef,
   parseElementBoxJson,
   parseMimeType,
-} from '../.opencode/lib/demo-core'
+} from '../.pi/lib/demo-core'
 
 describe('parseMimeType', () => {
   it('reads the sample rate from the mime parameters', () => {

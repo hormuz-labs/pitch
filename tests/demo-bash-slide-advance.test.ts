@@ -2,7 +2,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { demo_bash } from '../.opencode/tools/demo-generator'
+import demoTools from '../.pi/extensions/demo-tools.ts'
+import { collectTools } from '../.pi/lib/testing.ts'
+
+const { demo_bash } = collectTools(demoTools)
 
 const originalPath = process.env.PATH
 
@@ -13,7 +16,7 @@ describe('demo_bash slide advance', () => {
 
   it('injects a zoom-out event when advancing a slideshow while zoomed in', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-bash-advance-'))
-    const recordings = path.join(base, 'recordings')
+    const recordings = path.join(base, 'recording')
     const bin = path.join(base, 'bin')
     fs.mkdirSync(recordings, { recursive: true })
     fs.mkdirSync(bin, { recursive: true })
@@ -63,11 +66,9 @@ describe('demo_bash slide advance', () => {
     fs.chmodSync(playwright, 0o755)
     process.env.PATH = `${bin}:${originalPath ?? ''}`
 
-    const result = await demo_bash.execute({ command: 'playwright-cli press ArrowRight' }, {
-      directory: base,
-    } as any)
+    const result = await demo_bash.run({ command: 'playwright-cli press ArrowRight' }, base)
 
-    expect(JSON.parse(result.output)).toMatchObject({ stdout: '', stderr: '' })
+    expect(JSON.parse(result)).toMatchObject({ stdout: '', stderr: '' })
 
     const state = JSON.parse(fs.readFileSync(path.join(recordings, 'demo-state.json'), 'utf-8'))
     expect(state.zoomEvents).toHaveLength(2)
@@ -77,7 +78,7 @@ describe('demo_bash slide advance', () => {
 
   it('does not inject a zoom-out event when already zoomed out', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-bash-advance-out-'))
-    const recordings = path.join(base, 'recordings')
+    const recordings = path.join(base, 'recording')
     const bin = path.join(base, 'bin')
     fs.mkdirSync(recordings, { recursive: true })
     fs.mkdirSync(bin, { recursive: true })
@@ -130,9 +131,7 @@ describe('demo_bash slide advance', () => {
     fs.chmodSync(playwright, 0o755)
     process.env.PATH = `${bin}:${originalPath ?? ''}`
 
-    await demo_bash.execute({ command: 'playwright-cli press ArrowRight' }, {
-      directory: base,
-    } as any)
+    await demo_bash.run({ command: 'playwright-cli press ArrowRight' }, base)
 
     const state = JSON.parse(fs.readFileSync(path.join(recordings, 'demo-state.json'), 'utf-8'))
     expect(state.zoomEvents).toHaveLength(2)

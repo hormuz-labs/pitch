@@ -1,0 +1,4 @@
+[install]
+# The repo relies on a hoisted node_modules (root-level @clerk, @saas, vitest
+# aliases). Newer bun defaults to the isolated linker for workspaces.
+linker = "hoisted"

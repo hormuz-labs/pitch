@@ -7,11 +7,11 @@ import {
   createSlideshowProgress,
   markCurrentSlideAnalyzed,
   markCurrentSlideNarrated,
-} from '../.opencode/lib/slideshow-progress'
+} from '../.pi/lib/slideshow-progress'
 import {
   expectedSlideshowSlideCount,
   validateSlideshowCoverage,
-} from '../apps/worker/src/utils/slideshow-progress'
+} from '../apps/studio/src/render/utils/slideshow-progress'
 
 describe('slideshow progress guard', () => {
   it('requires Gemini page understanding before slideshow narration', () => {

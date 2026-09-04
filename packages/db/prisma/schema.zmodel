@@ -224,7 +224,8 @@ model CreditTransaction {
   delta          Int                           // positive = credit, negative = debit
   type           String                        // see values above
   description    String                        // human-readable reason
-  jobId          String?                       // set for usage / refund transactions
+  jobId          String?                       // set for usage / refund transactions (legacy jobs)
+  projectId      String?                       // set for usage / refund transactions (studio projects)
   subscriptionId String?                       // set for subscription_grant transactions (FK to Subscription.id)
   topUpId        String?                       // set for topup_grant transactions (FK to TopUpPurchase.id)
   idempotencyKey String?  @unique              // prevents double-grants (e.g. dodo event id)
@@ -232,6 +233,7 @@ model CreditTransaction {
 
   userProfile    UserProfile    @relation(fields: [userId], references: [id])
   job            Job?           @relation(fields: [jobId], references: [id])
+  project        Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
   topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
 
@@ -412,25 +414,66 @@ model NewsletterSubscriber {
   @@allow('create', true)
 }
 
-// ── Launch video studio ─────────────────────────────────────────────────────
+// ── Studio projects ─────────────────────────────────────────────────────────
 
-// Maps a user's launch-video project dir (projects/<userId>--<name>/) to the
-// opencode session that builds it, so the API can keep talking to the same
-// agent session across restarts. Scoped per user.
-model LaunchVideoProject {
-  id                String   @id @default(cuid())
-  userId            String   // Clerk user id — owner of the project
-  name              String   // public project name (unique per user)
-  opencodeSessionId String   @unique
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+// One row per agent workspace the API's studio drives: a launch-video project
+// (projects/<userId>--<name>/) or a chat-edit workspace for another flow
+// (projects/<flow>--<userId>--<jobId>/). `sessionFile` is the pi session file
+// the studio resumes across restarts. Scoped per user.
+model StudioProject {
+  id          String   @id @default(cuid())
+  userId      String   // Clerk user id — owner of the workspace
+  flow        String   @default("launch-video") // launch-video | pdf | demo-video
+  name        String   // public project name (launch-video) or job id (other flows)
+  sessionFile String?  // pi session file path, set once the agent has spoken
+  jobId       String?  // Job row that paid for / owns this workspace
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@unique([userId, name])
+  @@unique([userId, flow, name])
   @@index([userId])
+  @@index([jobId])
 
   // Internal registry — the API uses the base prisma client, never the
   // enhanced per-user one, so deny everything for enhanced clients.
   @@deny('all', true)
+}
+
+// ── Studio projects ─────────────────────────────────────────────────────────
+
+// A studio project: one workspace directory, one resumable pi session, one
+// preview. Status is derived at runtime (session busy / workspace contents),
+// never stored. `outputs` is a JSON array of { kind, url, res?, label?, createdAt }.
+model Project {
+  id             String   @id @default(cuid())
+  userId         String   // Clerk user id — owner of the workspace
+  flow           String   // launch-video | demo-video | deck | recording-edit
+  name           String   // slug; the workspace directory name (unique per user + flow)
+  title          String
+  prompt         String   @default("")
+  options        String   @default("{}") // JSON
+  sessionFile    String?  // pi session file, set once the agent has spoken
+  creditsCharged Int      @default(0) // credits billed so far (usage, not upfront)
+  usageUsd       Float    @default(0) // measured cost: model spend + render seconds
+  outputs        String   @default("[]") // JSON Output[]
+  thumbnailUrl   String?
+  lastError      String?
+  isPublic       Boolean  @default(false)
+  shareSlug      String?  @unique
+  shareViews     Int      @default(0)
+  legacyJobId    String?  @unique // imported from the old Job table (read-only)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  creditTransactions CreditTransaction[]
+
+  @@unique([userId, flow, name])
+  @@index([userId])
+
+  // Deny everything when not authenticated (public share pages read via the base client).
+  @@deny('all', auth() == null && isPublic != true)
+  @@allow('all', userId == auth().id)
+  @@allow('read', isPublic == true && auth() == null)
 }
 
 // ── Outbound Webhooks ───────────────────────────────────────────────────────

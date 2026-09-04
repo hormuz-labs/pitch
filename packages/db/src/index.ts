@@ -420,6 +420,7 @@ export async function addCredits(
   description: string,
   opts?: {
     jobId?: string
+    projectId?: string
     subscriptionId?: string
     topUpId?: string
     idempotencyKey?: string
@@ -447,6 +448,7 @@ export async function addCredits(
       type,
       description,
       jobId: opts?.jobId,
+      projectId: opts?.projectId,
       subscriptionId: opts?.subscriptionId,
       topUpId: opts?.topUpId,
       idempotencyKey: opts?.idempotencyKey,
@@ -469,6 +471,7 @@ export async function deductCredit(
   description: string,
   opts?: {
     jobId?: string
+    projectId?: string
     idempotencyKey?: string
   },
 ): Promise<number> {
@@ -491,6 +494,7 @@ export async function deductCredit(
         type: 'usage',
         description,
         jobId: opts?.jobId,
+        projectId: opts?.projectId,
         idempotencyKey: opts?.idempotencyKey,
       },
     })

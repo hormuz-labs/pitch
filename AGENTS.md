@@ -1,76 +1,81 @@
-# Agent & Worker Guide
+# Agent & Studio Guide
 
-## Job flows — keep them isolated
+Pitch is **one studio with one agent**. A *project* is a workspace directory,
+a resumable **pi** session, and a live preview. The user chats; the thread
+shows everything the model does; the preview reloads when the agent saves;
+things picked in the preview become numbered targets in the next prompt. Read
+`docs/studio-architecture.md` before changing anything.
 
-Four independent flows. Each owns its agent prompt, tool module, state files, and
-worker processor; they never import from each other.
+```
+apps/studio        the server (auth, usage billing, projects, sessions, previews, renders, share, MCP, admin)
+apps/studio-web    the app (projects grid, one "new project" door, StudioView, settings…)
+.pi/AGENT.md       the agent's base prompt: what a project is, which skill to read
+.pi/extensions/    host tools (pi extensions; helpers live in .pi/lib)
+.pi/skills/        skills the agent reads on demand — including the four named outcomes
+engine/            the shots.js compiler + studio inspector the previews load
+packages/          db (Prisma/ZenStack), shared, storage, email
+```
 
-| Flow | Agent + tools | Worker processor |
+## There are no flows
+
+A project is not a category. Nothing decides at creation whether it is "a
+deck" or "a demo": the agent gets every tool, reads the request, picks a
+pipeline, and can change its mind next turn. That is what lets someone upload
+a video and ask for the music to be quieter — a request no per-product flow
+owned.
+
+| Pipeline | Host actions | Skill |
 |---|---|---|
-| AI demo video (`/new`, including PDF/image → video) | `.opencode/agents/demo-generator.md` + `.opencode/tools/demo-generator.ts` | `apps/worker/src/job-processor.ts` |
-| Recording edit (upload) | `.opencode/agents/recording-editor.md` + `.opencode/tools/recording-editor.ts` | `apps/worker/src/edit-job-processor.ts` |
-| PDF / slides | `.opencode/agents/pdf-generator.md` (+ `.opencode/skills/*`) | `apps/worker/src/pdf-job-processor.ts`, `enhance-job-processor.ts` |
-| Launch video (`/launch-video`, HTML/GSAP motion graphics → MP4) | `.opencode/agents/html-video.md` + `.opencode/plugins/html-motion-tools.ts` + skills `html-motion-video`, `agent-browser` | `apps/worker/src/launch-video-job-processor.ts` (initial generation); API-side OpenCode session helpers drive follow-up edits |
-
-Launch-video layout (ported from github.com/hormuz-labs/launch-videos):
-
-- Projects are self-contained dirs in `projects/<userId>--<name>/` (index.html, css/,
-  js/, audio/, vendor/gsap); renders land in `renders/<userId>--<name>-*.mp4`. The
-  `<userId>--` prefix is the per-user isolation boundary — the API only exposes the
-  bare `<name>` to clients. The (userId, name) → opencode-session map lives in the
-  `LaunchVideoProject` DB table.
-- `assets/music/` and `assets/sfx/` are curated audio libraries. Never scan or
-  auto-import from `~/Downloads` or other personal directories.
-- Skill scripts (`tts.mjs`, `capture.mjs`, …) need `playwright` (hoisted at repo
-  root), `ffmpeg`/`ffprobe`, and `GEMINI_API_KEY` for TTS.
-- Frontend lives in `apps/web/src/launch-video/` (React port of the source
-  SolidJS "Video Studio"); backend helpers in `apps/api/src/lib/launch-video/`.
+| launch film | `motion_*` | `launch-video` → `html-motion-video` |
+| demo recording | `demo_*`, `storyboard_*` | `demo-video` |
+| slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
+| recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
+| anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
 
 Rules:
 
-- **Never import across flows.** Demo-only helpers in `job-processor.ts`
-  (webm combine, birth-time/trimSec math, narration mixing) must not leak into
-  `edit-job-processor.ts` or vice versa. Shared code lives in
-  `apps/worker/src/utils/` and nowhere else.
-- **Agent tool modules never import worker code or each other.** They communicate
-  with the worker only through files in the per-job `recordings/` directory.
-- **PDF/image → video is a variant of the AI demo-video flow, not the PDF-output
-  flow.** `job-processor.ts` prepares `recordings/assets/<session>/assets.json`,
-  stores its path in `demo-config.json`, and uses the normal `demo-generator`;
-  the agent continues to emit `demo-state.json` consumed by the same renderer.
+- The agent is `apps/studio/src/agent/`: `toolkit.ts` (every extension, every
+  skill, the built-ins, the base prompt), `index.ts` (`prepare`, `context`),
+  `describe.ts` (what the workspace holds). Add a capability as a host tool
+  plus a skill — never as a new flow, and never by branching on `Project.flow`,
+  which now only names a directory.
+- `describe()` **looks** at the workspace and previews the newest artifact, so
+  the preview follows the work. Do not reintroduce a stored notion of what a
+  project "is".
+- Dropping a file opens the editor: `POST /projects` with an empty prompt
+  creates and seeds the project without running a turn. Selection on a video
+  is a time range (`time` / `endTime` on a target), not a DOM node.
+- Pipelines live in `apps/studio/src/flows/*/` and `pipelines/`. They register
+  host actions and export helpers; they never import each other.
+- Extensions reach the server only through **host actions**
+  (`registerHostAction`, `hostAction()` from `.pi/lib/studio-host.ts`), never
+  by importing server code. Every host action is timed — that is how compute
+  is metered.
+- Built-in tools (`read`, `edit`, `write`, `find`, `grep`, `ls`, `bash`) run
+  inside a Gondolin VM: `/workspace` rw, `/engine`, `/.pi/skills`, `/assets`
+  ro, no network, no node. Anything needing a browser, ffmpeg, an API key or
+  the network is a host tool.
+- Nothing is charged up front. `projects/usage.ts` meters model spend plus
+  host compute and draws down credits as the cost crosses each boundary.
+- `apps/studio/src/render/` is the ffmpeg pipeline (moved from the old
+  worker). Keep it pure — no DB, no storage — and keep `render/utils/*` tests green.
+- The directory is the truth: `Project` rows are the registry (owner, session
+  file, published outputs, sharing). Status is derived, never stored.
 
-## Shared contracts (the only coupling between flows)
+## Server
 
-- **`recordings/demo-state.json`** — written by BOTH the demo-generator and the
-  recording-editor tools, with the same schema (`zoomEvents`, `clickEvents`,
-  `audioClips`; all times relative to `startTime` from the flow's config file).
-  Keep those shared fields in sync. Flow-specific fields stay local:
-  `annotationEvents` belongs to demo generation and protects callouts during
-  smart trimming; the recording editor does not emit annotations.
-- **`apps/worker/src/utils/*`** (`zoom-filter`, `cursor-fx`, `smart_trim`,
-  `intro-outro`, `encoder`, `background`, `job-guard`) — used by multiple flows.
-  Keep them pure (no fs/DB side effects beyond their explicit inputs), keep
-  exported signatures stable, and keep their tests in `tests/` green. A breaking
-  change here hits every flow at once.
-- **Timeline semantics** — `startTime` vs the raw WebM timeline (`trimSec`), and
-  why the audio mix sits on the post-trim timeline: see
-  `docs/demo-video-pipeline.md` §1 and §6 before touching render code.
+- Clerk JWTs (`requireAuth`) for the app; API keys (`resolveApiKey`) for `/mcp`
+  and `/v1`, mounted before `clerkMiddleware`. `?token=` is accepted on SSE,
+  thumbnails and `/files/*`; preview subresources use the signed `pitch_preview` cookie.
+- `/projects` is the only creation path (REST, MCP and v1 all go through
+  `projects/service.ts createProject`). Never charge credits anywhere else.
+- The studio loads `.pi/extensions/*.ts` and `.pi/skills/*` when a session is
+  created; restart the server after editing them (open sessions keep the old code).
+- Docker: `apps/studio/Dockerfile` on `pitch-base` (ffmpeg, Playwright, QEMU,
+  Node 22, whisper-cli); compose mounts `./projects`, `docker-data/pi`,
+  `gondolin-cache`, `whisper`, passes `/dev/kvm`. Linux is the deploy target.
 
-## API surface (apps/api)
+## Checks before committing
 
-- Two auth schemes: Clerk JWTs (`requireAuth`) for the web app, and user-minted
-  API keys (`requireApiKey`, `ApiKey` model → `PitchApiKey` table) for the MCP
-  endpoint. `/mcp` mounts before `clerkMiddleware` — never route API-key
-  Bearer tokens through Clerk.
-- All job creation (REST routes AND MCP tools in `apps/api/src/mcp/`) goes
-  through `apps/api/src/lib/job-service.ts`. Never duplicate the
-  credit-gate/deduct/enqueue sequence in a new caller — extend the service.
-- See `docs/mcp-server.md` for the MCP endpoint, tools, and credit costs.
-
-## Worker
-
-- The worker does **not** hot-reload (`bun src/index.ts`). Restart it after
-  editing worker code or anything under `.opencode/` — a running worker keeps
-  using the old code.
-- Checks before committing: `bunx biome check <changed files>` and
-  `bunx vitest run tests/`.
+`bunx biome check <changed files>` and `bunx vitest run tests/`; `bunx tsc
+--noEmit -p apps/studio/tsconfig.json` and `-p apps/studio-web/tsconfig.app.json`.

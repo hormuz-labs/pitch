@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { searchGiphy } from '../apps/web/src/lib/giphy'
+import { searchGiphy } from '../apps/studio-web/src/lib/giphy'
 
 describe('searchGiphy', () => {
   it('requests g-rated GIFs with the exact user query and returns animated image renditions', async () => {

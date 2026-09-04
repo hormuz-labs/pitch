@@ -50,8 +50,8 @@ jobs:
           export ENV_FILE="/workspace/.env"
           echo "Deploying commit: $IMAGE_TAG"
 
-          # Build api and worker (using local Docker cache on the self-hosted runner)
-          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build api worker
+          # Build the studio (using local Docker cache on the self-hosted runner)
+          docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml build studio
 
           # Recreate containers with the specific image tag
           # Using --remove-orphans prevents conflicts if old containers exist with the same name

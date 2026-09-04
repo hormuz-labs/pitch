@@ -1,7 +1,7 @@
 /**
  * Tests for the file upload API route (/uploads).
  *
- * Mounts the REAL router from apps/api/src/routes/uploads.ts —
+ * Mounts the REAL router from apps/studio/src/routes/uploads.ts —
  * only @saas/storage and @clerk/express are mocked, so multer parsing,
  * mime filtering, and the auth guard are exercised for real.
  */
@@ -11,12 +11,12 @@ import request from 'supertest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@saas/storage', () => ({
-  uploadBuffer: vi.fn(),
+  uploadFile: vi.fn(),
 }))
 
 // Auth is configurable per-test via the exported setter; mocking the
 // middleware module directly avoids pulling in real Clerk.
-vi.mock('../apps/api/src/middleware/auth.js', () => {
+vi.mock('../apps/studio/src/middleware/auth.js', () => {
   let _userId: string | null = 'user_test'
   return {
     requireAuth: (_req: any, res: any) => {
@@ -34,10 +34,10 @@ vi.mock('../apps/api/src/middleware/auth.js', () => {
 
 import * as storage from '@saas/storage'
 // @ts-expect-error — __setUserId is injected by the vi.mock factory
-import { __setUserId } from '../apps/api/src/middleware/auth.js'
-import { router as uploadRoutes } from '../apps/api/src/routes/uploads.js'
+import { __setUserId } from '../apps/studio/src/middleware/auth.js'
+import { router as uploadRoutes } from '../apps/studio/src/routes/uploads.js'
 
-const uploadBuffer = storage.uploadBuffer as ReturnType<typeof vi.fn>
+const uploadFile = storage.uploadFile as ReturnType<typeof vi.fn>
 
 const PNG_1x1 = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
@@ -54,8 +54,8 @@ describe('POST /uploads', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     __setUserId('user_test')
-    uploadBuffer.mockImplementation(
-      async (_buf: Buffer, filename: string) => `http://minio.local/pitch-videos/x/${filename}`,
+    uploadFile.mockImplementation(
+      async (localPath: string) => `http://minio.local/pitch-videos/x/${localPath.split('/').pop()}`,
     )
   })
 
@@ -65,7 +65,7 @@ describe('POST /uploads', () => {
       .post('/uploads')
       .attach('files', PNG_1x1, { filename: 'a.png', contentType: 'image/png' })
     expect(res.status).toBe(401)
-    expect(uploadBuffer).not.toHaveBeenCalled()
+    expect(uploadFile).not.toHaveBeenCalled()
   })
 
   it('returns 400 when no files are attached', async () => {
@@ -88,10 +88,8 @@ describe('POST /uploads', () => {
         size: PNG_1x1.length,
       },
     ])
-    expect(uploadBuffer).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      'logo.png',
-      'image/png',
+    expect(uploadFile).toHaveBeenCalledWith(
+      expect.stringMatching(/logo\.png$/),
       undefined,
       'pitch/user_test/uploads',
     )
@@ -109,7 +107,7 @@ describe('POST /uploads', () => {
     expect(res.status).toBe(201)
     expect(res.body).toHaveLength(2)
     expect(res.body.map((f: any) => f.name)).toEqual(['a.png', 'deck.pdf'])
-    expect(uploadBuffer).toHaveBeenCalledTimes(2)
+    expect(uploadFile).toHaveBeenCalledTimes(2)
   })
 
   it('rejects a batch of only-unsupported files with a 4xx (not a crash/500)', async () => {
@@ -122,7 +120,7 @@ describe('POST /uploads', () => {
 
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
-    expect(uploadBuffer).not.toHaveBeenCalled()
+    expect(uploadFile).not.toHaveBeenCalled()
   })
 
   it('uploads the supported files and silently skips an unsupported one (no batch failure)', async () => {
@@ -149,7 +147,7 @@ describe('POST /uploads', () => {
   })
 
   it('returns 500 when storage upload fails', async () => {
-    uploadBuffer.mockRejectedValue(new Error('minio down'))
+    uploadFile.mockRejectedValue(new Error('minio down'))
     const res = await request(buildApp())
       .post('/uploads')
       .attach('files', PNG_1x1, { filename: 'a.png', contentType: 'image/png' })

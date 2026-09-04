@@ -7,8 +7,8 @@ const read = (relativePath: string) =>
 
 describe('prepared-asset narration guidance', () => {
   it('requires atomic emphasis while the matching statistic is spoken', () => {
-    const agent = read('.opencode/agents/demo-generator.md')
-    const skill = read('.opencode/skills/asset-demo/SKILL.md')
+    const agent = read('.pi/skills/demo-video/SKILL.md')
+    const skill = read('.pi/skills/asset-demo/SKILL.md')
 
     for (const guidance of [agent, skill]) {
       expect(guidance).toContain('emphasis')
@@ -21,8 +21,8 @@ describe('prepared-asset narration guidance', () => {
   })
 
   it('uses Gemini on rendered slide pixels as the primary PDF targeting source', () => {
-    const agent = read('.opencode/agents/demo-generator.md')
-    const skill = read('.opencode/skills/asset-demo/SKILL.md')
+    const agent = read('.pi/skills/demo-video/SKILL.md')
+    const skill = read('.pi/skills/asset-demo/SKILL.md')
 
     for (const guidance of [agent, skill]) {
       expect(guidance).toMatch(/Gemini[- ]first/i)
@@ -35,8 +35,8 @@ describe('prepared-asset narration guidance', () => {
   })
 
   it('requires rendered-pixel page understanding before narrating every slide', () => {
-    const agent = read('.opencode/agents/demo-generator.md')
-    const skill = read('.opencode/skills/asset-demo/SKILL.md')
+    const agent = read('.pi/skills/demo-video/SKILL.md')
+    const skill = read('.pi/skills/asset-demo/SKILL.md')
 
     for (const guidance of [agent, skill]) {
       expect(guidance).toContain('demo_analyze_slide')

@@ -4,7 +4,7 @@ import {
   box2dToViewportRect,
   groundVisualRegion,
   parseGroundingResponse,
-} from '../.opencode/lib/visual-grounding'
+} from '../.pi/lib/visual-grounding'
 
 describe('analyzeVisualSlide', () => {
   it('returns narration-ready facts and boxes from rendered pixels without extracted text', async () => {

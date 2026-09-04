@@ -1,0 +1,49 @@
+{
+  "name": "studio",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "predev": "bunx zenstack generate --schema ../../packages/db/prisma/schema.zmodel",
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.4.14",
+    "@clerk/express": "^2.1.12",
+    "@earendil-works/gondolin": "^0.12.0",
+    "@earendil-works/pi-coding-agent": "^0.84.4",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@saas/db": "workspace:*",
+    "@saas/email": "workspace:*",
+    "@saas/shared": "workspace:*",
+    "@saas/storage": "workspace:*",
+    "@sinclair/typebox": "^0.34.52",
+    "@types/cors": "^2.8.19",
+    "adm-zip": "^0.5.10",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dodopayments": "^1.1.0",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "playwright": "^1.62.1",
+    "standardwebhooks": "^1.0.0",
+    "ws": "^8.18.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.5",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^4.17.17",
+    "@types/multer": "^1.4.12",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/ws": "^8.5.12"
+  }
+}

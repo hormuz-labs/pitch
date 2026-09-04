@@ -7,7 +7,7 @@ import {
   PAN_DURATION,
   planCameraMoves,
   type ZoomEvent,
-} from '../apps/worker/src/utils/zoom-filter'
+} from '../apps/studio/src/render/utils/zoom-filter'
 
 describe('fitZoomForBox', () => {
   it('zooms tighter on small elements (clamped to 2.2)', () => {

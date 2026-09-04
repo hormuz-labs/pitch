@@ -32,20 +32,6 @@ services:
       postgres:
         condition: service_healthy
 
-  redis:
-    image: redis:7-alpine
-    container_name: pitch_redis
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./docker-data/redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   minio:
     image: minio/minio:latest
     container_name: pitch_minio
@@ -114,9 +100,9 @@ services:
 
   # ---------------------------------------------------------------------------
   # Transcription — local Whisper (transformers.js on Bun, model baked into the
-  # image). Serves the recording-editor flow: the worker posts uploaded
+  # image). Serves the recording-edit flow: the studio posts uploaded
   # narration here for word-level transcripts. Host port mapping also lets a
-  # host-run worker reach it.
+  # host-run studio reach it.
   # ---------------------------------------------------------------------------
   transcription:
     image: pitch-transcription:${IMAGE_TAG:-latest}
@@ -135,12 +121,12 @@ services:
       timeout: 5s
       retries: 6
 
-  api:
-    image: pitch-api:${IMAGE_TAG:-latest}
+  studio:
+    image: pitch-studio:${IMAGE_TAG:-latest}
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
-    container_name: pitch_api
+      dockerfile: apps/studio/Dockerfile
+    container_name: pitch_studio
     restart: always
     ports:
       - "127.0.0.1:3000:3000"
@@ -148,54 +134,24 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
-      REDIS_URL: redis://redis:6379
-      MINIO_ENDPOINT: http://minio:9000
-      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
-    volumes:
-      # The launch-video editor and every worker replica operate on the same
-      # persistent HTML project and render directories.
-      - ./projects:/app/projects
-      - ./renders:/app/renders
-      # API-side OpenCode owns follow-up edit sessions. Persist its session
-      # history across API container rebuilds without sharing it with workers.
-      - ./docker-data/opencode-api:/root/.local/share/opencode
-    logging:
-      driver: loki
-      options:
-        loki-url: http://localhost:3101/loki/api/v1/push
-        loki-batch-size: "400"
-        loki-timeout: "10s"
-        loki-retries: "3"
-        loki-external-labels: "job=api,container_name={{.Name}}"
-        labels: "job=api"
-        env: "SERVICE_NAME,HOSTNAME"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      loki:
-        condition: service_healthy
-      cloakbrowser-manager:
-        condition: service_started
-
-  worker:
-    image: pitch-worker:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-    restart: always
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
-      REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: http://minio:9000
       CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
       TRANSCRIPTION_SERVICE_URL: http://transcription:4000/transcribe
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
+    volumes:
+      # Project workspaces: sources, recordings, renders. The directory is the truth.
+      - ./projects:/app/projects
+      # pi session history (resumable conversations), Gondolin guest images, whisper model.
+      - ./docker-data/pi:/root/.pi/agent
+      - ./docker-data/gondolin-cache:/root/.cache/gondolin
+      - ./docker-data/whisper:/root/.cache/whisper-cpp
+    # Sandbox VMs boot far faster with KVM; remove on hosts without /dev/kvm
+    # (Gondolin falls back to software emulation).
+    devices:
+      - /dev/kvm:/dev/kvm
+    group_add:
+      - "44"
+      - "992"
     logging:
       driver: loki
       options:
@@ -203,22 +159,11 @@ services:
         loki-batch-size: "400"
         loki-timeout: "10s"
         loki-retries: "3"
-        loki-external-labels: "job=worker,container_name={{.Name}}"
-        labels: "job=worker"
+        loki-external-labels: "job=studio,container_name={{.Name}}"
+        labels: "job=studio"
         env: "SERVICE_NAME,HOSTNAME"
-    volumes:
-      - ./docker-data/opencode-logs:/root/.local/share/opencode/log
-      - ./projects:/app/projects
-      - ./renders:/app/renders
-    group_add:
-      - "44"
-      - "992"
-    deploy:
-      replicas: 1
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
       minio:
         condition: service_healthy

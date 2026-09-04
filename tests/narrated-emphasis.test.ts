@@ -3,7 +3,7 @@ import {
   chooseNarratedEmphasisSource,
   resolveNarrationEmphasis,
   runNarratedEmphasisBeat,
-} from '../.opencode/lib/narrated-emphasis'
+} from '../.pi/lib/narrated-emphasis'
 
 describe('runNarratedEmphasisBeat', () => {
   it('prefers a validated rectangle over an accidental manifest-ID target', () => {

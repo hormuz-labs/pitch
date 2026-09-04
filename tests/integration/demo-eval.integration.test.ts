@@ -12,7 +12,7 @@
 import { exec, execSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { ELEMENT_BOX_JS, parseElementBoxJson } from '../../.opencode/lib/demo-core'
+import { ELEMENT_BOX_JS, parseElementBoxJson } from '../../.pi/lib/demo-core'
 
 const execAsync = promisify(exec)
 const hasCli = (() => {

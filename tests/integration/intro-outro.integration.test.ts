@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
-import { addIntroOutro } from '../../apps/worker/src/utils/intro-outro'
+import { addIntroOutro } from '../../apps/studio/src/render/utils/intro-outro'
 
 const run = promisify(execFile)
 const temporaryDirectories: string[] = []

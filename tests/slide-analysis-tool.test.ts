@@ -2,7 +2,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { demo_analyze_slide, demo_narrate } from '../.opencode/tools/demo-generator'
+import demoTools from '../.pi/extensions/demo-tools.ts'
+import { collectTools } from '../.pi/lib/testing.ts'
+
+const { demo_analyze_slide, demo_narrate } = collectTools(demoTools)
 
 const originalPath = process.env.PATH
 const originalApiKey = process.env.GEMINI_API_KEY
@@ -20,7 +23,7 @@ afterEach(() => {
 describe('demo_analyze_slide', () => {
   it('analyzes the current rendered slide once and reuses its cached narration plan', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'slide-analysis-tool-'))
-    const recordings = path.join(base, 'recordings')
+    const recordings = path.join(base, 'recording')
     const bin = path.join(base, 'bin')
     fs.mkdirSync(recordings, { recursive: true })
     fs.mkdirSync(bin, { recursive: true })
@@ -68,10 +71,10 @@ describe('demo_analyze_slide', () => {
     })
     vi.stubGlobal('fetch', fetchImpl)
 
-    const first = await demo_analyze_slide.execute({}, { directory: base } as any)
-    const second = await demo_analyze_slide.execute({}, { directory: base } as any)
-    const firstOutput = JSON.parse(first.output)
-    const secondOutput = JSON.parse(second.output)
+    const first = await demo_analyze_slide.run({}, base)
+    const second = await demo_analyze_slide.run({}, base)
+    const firstOutput = JSON.parse(first)
+    const secondOutput = JSON.parse(second)
 
     expect(firstOutput).toMatchObject({
       status: 'slide_analyzed',
@@ -100,7 +103,7 @@ describe('demo_analyze_slide', () => {
 
   it('blocks slideshow narration until the current rendered page is analyzed', async () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'slide-analysis-required-'))
-    const recordings = path.join(base, 'recordings')
+    const recordings = path.join(base, 'recording')
     fs.mkdirSync(recordings, { recursive: true })
     fs.writeFileSync(
       path.join(recordings, 'demo-config.json'),
@@ -117,11 +120,9 @@ describe('demo_analyze_slide', () => {
       }),
     )
 
-    const result = await demo_narrate.execute({ text: 'This must not reach text to speech.' }, {
-      directory: base,
-    } as any)
+    const result = await demo_narrate.run({ text: 'This must not reach text to speech.' }, base)
 
-    expect(JSON.parse(result.output)).toMatchObject({
+    expect(JSON.parse(result)).toMatchObject({
       status: 'slide_analysis_required',
       error: 'Analyze slide 1 of 2 before narrating.',
     })

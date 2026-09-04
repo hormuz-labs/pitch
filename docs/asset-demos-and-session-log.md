@@ -9,11 +9,11 @@ follow-up session that fixed, hardened, and completed it.
 > Companion to [demo-video-pipeline.md](demo-video-pipeline.md), which documents
 > the core URL-based recording/zoom/cursor pipeline this feature builds on.
 
-> **Current wiring (2026-07-16):** OpenCode's scoped-tool refactor removed the
-> historical `.opencode/plugins/demo-tools.ts`. Asset tools now live in
-> `.opencode/tools/demo-generator.ts`; `job-processor.ts` again calls
+> **Current wiring (2026-07-16):** The scoped-tool refactor removed the
+> historical `.pi/extensions/demo-tools.ts`. Asset tools now live in
+> `.pi/extensions/demo-tools.ts`; `job-processor.ts` again calls
 > `prepareAssets()`, stores the manifest path in `demo-config.json`, and keeps
-> prepared-asset jobs on `.opencode/agents/demo-generator.md`. The asset-specific
+> prepared-asset jobs on `.pi/agents/demo-generator.md`. The asset-specific
 > tools are `demo_list_assets`, `demo_build_slideshow`, `demo_analyze_slide`,
 > `demo_ground_region`, and `demo_clear_annotations`. Gemini first analyzes every
 > rendered page into a factual summary and confidence-gated narration points,
@@ -37,8 +37,8 @@ follow-up session that fixed, hardened, and completed it.
 
 ## 1. Background: how URL demos already worked
 
-The agent produces a demo by driving a real browser via an OpenCode plugin
-([.opencode/plugins/demo-tools.ts](../.opencode/plugins/demo-tools.ts)) whose tools
+The agent produces a demo by driving a real browser via a pi extension
+([.pi/extensions/demo-tools.ts](../.pi/extensions/demo-tools.ts)) whose tools
 accumulate events into `recordings/demo-state.json`, which the worker later
 composites into the final video:
 
@@ -73,7 +73,7 @@ A prior session run under **Kimi Code** (a different CLI agent) started the
   text, `ffprobe` image dims, write an `assets.json` manifest.
 - **Agent tools** — `list_assets` and a basic `build_slideshow` (one opaque
   `<img>` per slide) in the plugin; a new
-  [.opencode/skills/asset-demo/SKILL.md](../.opencode/skills/asset-demo/SKILL.md);
+  [.pi/skills/asset-demo/SKILL.md](../.pi/skills/asset-demo/SKILL.md);
   `poppler-utils` added to [Dockerfile.base](../Dockerfile.base).
 
 ### What Kimi left broken
@@ -176,11 +176,11 @@ the *geometry*.
 |------|------|--------|
 | Region extraction (pure) | [apps/worker/src/utils/regions.ts](../apps/worker/src/utils/regions.ts) **(new)** | Parse `pdftotext -bbox` XML + `tesseract` TSV; group words into phrase-level regions in percent-of-page. Pure & unit-tested. |
 | Preprocessing | [apps/worker/src/utils/assets.ts](../apps/worker/src/utils/assets.ts) | Call the extractors; store `pageData[{image, regions}]` (PDF) / `regions` (image) in the manifest. Tesseract-missing degrades gracefully (image still renders). |
-| Responsive slideshow (pure) | [.opencode/lib/slideshow.ts](../.opencode/lib/slideshow.ts) **(new)** | `buildSlideshowHtml`: full-bleed responsive page fitting, title cards, cross-fades, and a transparent `role="button"` hotspot per region. Recording-only slides hide counters/navigation. |
-| Slideshow tool | [.opencode/plugins/demo-tools.ts](../.opencode/plugins/demo-tools.ts) | `build_slideshow` now pulls region data from the manifest and emits hotspots. |
-| Annotation builders (pure) | [.opencode/lib/annotations.ts](../.opencode/lib/annotations.ts) **(new)** | `buildAnnotateEvalJs` / `buildClearAnnotationsJs`: in-page overlay JS for each style, with color sanitization. |
-| Annotation tools | [.opencode/plugins/demo-tools.ts](../.opencode/plugins/demo-tools.ts) | `annotate` (styles: `circle`, `box`, `underline`, `highlighter`, `arrow`, `spotlight`) + `clear_annotations`. Target a ref or an explicit rect. Work on URL demos too. |
-| Agent guidance | [job-processor.ts](../apps/worker/src/job-processor.ts) + [asset-demo/SKILL.md](../.opencode/skills/asset-demo/SKILL.md) | Teach the snapshot → narrate → zoom_in → annotate → hold → clear choreography. |
+| Responsive slideshow (pure) | [.pi/lib/slideshow.ts](../.pi/lib/slideshow.ts) **(new)** | `buildSlideshowHtml`: full-bleed responsive page fitting, title cards, cross-fades, and a transparent `role="button"` hotspot per region. Recording-only slides hide counters/navigation. |
+| Slideshow tool | [.pi/extensions/demo-tools.ts](../.pi/extensions/demo-tools.ts) | `build_slideshow` now pulls region data from the manifest and emits hotspots. |
+| Annotation builders (pure) | [.pi/lib/annotations.ts](../.pi/lib/annotations.ts) **(new)** | `buildAnnotateEvalJs` / `buildClearAnnotationsJs`: in-page overlay JS for each style, with color sanitization. |
+| Annotation tools | [.pi/extensions/demo-tools.ts](../.pi/extensions/demo-tools.ts) | `annotate` (styles: `circle`, `box`, `underline`, `highlighter`, `arrow`, `spotlight`) + `clear_annotations`. Target a ref or an explicit rect. Work on URL demos too. |
+| Agent guidance | [job-processor.ts](../apps/worker/src/job-processor.ts) + [asset-demo/SKILL.md](../.pi/skills/asset-demo/SKILL.md) | Teach the snapshot → narrate → zoom_in → annotate → hold → clear choreography. |
 | Dependency | [Dockerfile.base](../Dockerfile.base) | Add `tesseract-ocr`. |
 
 ### How a hotspot maps onto the image
@@ -287,7 +287,7 @@ sudo apt-get install -y tesseract-ocr        # + tesseract-ocr-urd etc. for non-
 Then **restart `make dev`** — the worker dev script is `bun src/index.ts` (no
 `--watch`), so it must restart to pick up worker-side changes. No `bun install`
 needed (no new npm deps in the feature); the plugin's sibling `.ts` imports are
-resolved by opencode/Bun at load time.
+resolved by pi/Bun at load time.
 
 ### Production
 `Dockerfile.base` changed, so the **base image must be rebuilt**. CI
@@ -322,10 +322,10 @@ model round-trips × number of beats, plus real-time narration playback (inheren
 video length). Changes made:
 
 - **Model is configurable** ([job-processor.ts](../apps/worker/src/job-processor.ts)
-  `resolveModel`, [opencode.ts](../apps/worker/src/opencode.ts)): precedence
-  `parameters.model` → `OPENCODE_MODEL` env → default `google/gemini-3.1-pro-preview`,
+  `resolveModel`, [pi.ts](../apps/worker/src/pi.ts)): precedence
+  `parameters.model` → `PI_AGENT_MODEL` env → default `google/gemini-3.7-flash`,
   passed per-call to `session.prompt`. **Biggest single lever** — a faster model cuts
-  every turn. Default unchanged; set `OPENCODE_MODEL` (e.g. a Gemini flash variant) to opt in.
+  every turn. Default unchanged; set `PI_AGENT_MODEL` (e.g. a Gemini flash variant) to opt in.
 - **Irrelevant skills no longer injected** into video prompts (they came from
   `.claude`/`.agents`: accessibility, owasp, remotion, caveman, …). Re-enable with `INJECT_SKILLS=1`.
 - **Asset preprocessing runs concurrently** (`prepareAssets`, cap 6, order preserved) —

@@ -31,13 +31,13 @@ dev:
 	@echo "  $(BOLD)Development mode$(RESET)"
 	@echo ""
 	@if command -v fzf > /dev/null 2>&1; then \
-		choice=$$(printf "essential — postgres, redis & minio in Docker; run web/api/worker with bun\nall       — full stack in Docker" \
+		choice=$$(printf "essential — postgres & minio in Docker; run studio + web with bun\nall       — full stack in Docker" \
 			| fzf --ansi --no-info --height=4 --prompt="  How do you want to run? " \
 			| awk '{print $$1}'); \
 	else \
 		echo "  $(YELLOW)tip: install fzf for a nicer dropdown (brew install fzf)$(RESET)"; \
 		echo ""; \
-		printf "  [1] essential — postgres, redis & minio in Docker; run web/api/worker with bun\n"; \
+		printf "  [1] essential — postgres & minio in Docker; run studio + web with bun\n"; \
 		printf "  [2] all       — full stack in Docker\n"; \
 		echo ""; \
 		printf "  Choice [1/2]: "; \
@@ -49,12 +49,12 @@ dev:
 		essential) \
 			echo "  $(YELLOW)Cleaning up previous containers and processes...$(RESET)"; \
 			docker compose -p pitch down --remove-orphans 2>/dev/null; \
-			for p in 3000 5173 4098; do \
+			for p in 3000 5174; do \
 				pid=$$(lsof -ti :$$p 2>/dev/null) && kill $$pid 2>/dev/null && echo "  killed process on port $$p" || true; \
 			done; \
 			echo ""; \
-			echo "  $(GREEN)Starting essential containers (postgres, redis, minio)...$(RESET)"; \
-			docker compose -p pitch up -d --wait postgres redis minio; \
+			echo "  $(GREEN)Starting essential containers (postgres, minio)...$(RESET)"; \
+			docker compose -p pitch up -d --wait postgres minio; \
 			echo ""; \
 			if [ ! -d node_modules ] || [ bun.lock -nt node_modules ]; then \
 				echo "  $(GREEN)Installing dependencies...$(RESET)"; \
@@ -80,9 +80,9 @@ prod:
 	@echo ""
 	@echo "  $(BOLD)$(CYAN)Starting production stack...$(RESET)"
 	@echo ""
-	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml stop api worker
-	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml rm -f api worker
-	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml build --no-cache api worker
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml stop studio
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml rm -f studio
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml build --no-cache studio
 	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml up -d
 	@echo ""
 	@echo "  $(GREEN)Production stack is up. Run 'make logs' to tail output.$(RESET)"
@@ -96,7 +96,7 @@ down:
 	@echo ""
 
 logs:
-	docker compose -p pitch logs -f api worker
+	docker compose -p pitch logs -f studio
 
 ps:
 	docker compose -p pitch ps

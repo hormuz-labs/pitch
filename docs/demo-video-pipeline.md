@@ -12,7 +12,7 @@ It is a reference for the code in:
 - `apps/worker/src/utils/smart_trim.ts` — dead‑air trimming
 - `apps/worker/src/utils/intro-outro.ts` — intro/outro cards
 - `apps/worker/src/utils/encoder.ts` — GPU/CPU encoder selection
-- `.opencode/tools/demo-generator.ts` + `.opencode/agents/demo-generator.md` — the shared event tools and URL/PDF-video prompt
+- `.pi/extensions/demo-tools.ts` + `.pi/agents/demo-generator.md` — the shared event tools and URL/PDF-video prompt
 
 ---
 
@@ -128,7 +128,7 @@ page.
 
 ---
 
-## 4. Navigation‑aware framing (`.opencode/tools/demo-generator.ts`)
+## 4. Navigation‑aware framing (`.pi/extensions/demo-tools.ts`)
 
 **Problem:** when a click navigated to a new page/view, the camera stayed zoomed on
 the old click position (a now‑meaningless spot) while the new content sat off‑screen.
@@ -147,7 +147,7 @@ page is a fresh zoom‑in, not a pan across the navigation.
 
 ---
 
-## 5. Smarter zoom decisions & prompt (`demo-generator.ts` tools + `.opencode/agents/demo-generator.md`)
+## 5. Smarter zoom decisions & prompt (`demo-generator.ts` tools + `.pi/agents/demo-generator.md`)
 
 - **Auto‑fit zoom** in `demo_zoom_in` (uses the bounding box; only when the agent
   didn't pass an explicit zoom). Default 1.7, max 2.5.
@@ -158,7 +158,7 @@ page is a fresh zoom‑in, not a pan across the navigation.
 - **`demo_zoom_in` is pan‑aware** — its description tells the model that re‑calling
   it while zoomed pans to the new target (don't `demo_zoom_out`/`demo_zoom_in`
   between adjacent fields).
-- **Prompt camera rules** (in `.opencode/agents/demo-generator.md`): zoom is a
+- **Prompt camera rules** (in `.pi/agents/demo-generator.md`): zoom is a
   *spotlight* used sparingly — only to highlight a real feature/value; **skip**
   login/auth forms, cookie/consent popups, nav, and page loads; **pan** between
   adjacent targets; **zoom out on navigation**. The worker (`job-processor.ts`)
@@ -426,9 +426,9 @@ npx vitest run tests/zoom-filter.test.ts tests/cursor-fx.test.ts tests/encoder.t
   (`Ctrl+C` the `make dev`, then `make dev` again — or `bun run dev:worker`).
   A long‑running worker will keep using old code and none of these effects will
   appear.
-- **Agents + tools reload with the worker** — OpenCode is spawned per job, so
-  restarting the worker picks up `.opencode/agents/*.md` and `.opencode/tools/*.ts`
-  too. `opencode.json` no longer registers a demo-tools plugin; each flow
+- **Agents + tools reload with the worker** — agents are pi sessions created per job, so
+  restarting the worker picks up `.pi/agents/*.md` and `.pi/extensions/*.ts`
+  too. each flow
   (demo, PDF, recording-editor) has its own scoped agent + tool module.
 - **Source `webm` is cleaned up** after each job, so re‑rendering only the ffmpeg
   stage from a finished job isn't currently possible — verify on a fresh render.

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   analyzeStoryboardPage,
   buildStoryboardDraft,
-} from '../apps/worker/src/utils/storyboard-planner'
+} from '../apps/studio/src/render/utils/storyboard-planner'
 
 describe('PDF video storyboard planning', () => {
   it('turns every prepared page into an ordered reviewable scene', async () => {

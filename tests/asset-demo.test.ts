@@ -4,7 +4,7 @@ import {
   pageRectToViewportRect,
   resolveManifestSlides,
   zoomEventForViewportRect,
-} from '../.opencode/lib/asset-demo'
+} from '../.pi/lib/asset-demo'
 
 describe('resolveManifestSlides', () => {
   it('preserves manifest order and attaches OCR regions to PDF pages and images', () => {

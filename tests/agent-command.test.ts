@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { runAgentCommand } from '../.opencode/lib/agent-command'
+import { runAgentCommand } from '../.pi/lib/agent-command'
 
 describe('runAgentCommand', () => {
   it('kills a stalled browser command at its deadline', async () => {
