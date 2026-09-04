@@ -608,8 +608,11 @@ async function build() {
     console.log(`Starting Visual QA for ${slides.length} slides...`);
     
     for (let i = 0; i < slides.length; i++) {
-        const slidePath = path.join(qaDir, `slide_${i + 1}.png`);
-        await slides[i].screenshot({ path: slidePath });
+        // JPEG, not PNG: the agent reads every one of these, and each read is
+        // re-sent on every later model request. A 1280×720 PNG is ~400KB; this
+        // is ~60KB and every overflow, collision and contrast fault still shows.
+        const slidePath = path.join(qaDir, `slide_${i + 1}.jpg`);
+        await slides[i].screenshot({ path: slidePath, type: 'jpeg', quality: 82 });
         console.log(`  [QA] Slide ${i + 1} rendered to ${slidePath}`);
     }
 

@@ -18,7 +18,7 @@
  *
  * The build directory is `<ctx.cwd>/build` — the session's cwd is the project
  * workspace, mounted at /workspace inside the agent's VM, so the agent edits
- * `build/deck-config.js` and reads `build/qa-renders/*.png` with its built-in
+ * `build/deck-config.js` and reads `build/qa-renders/*.jpg` with its built-in
  * tools. The skill scripts themselves are unchanged: the scraper still writes
  * under <repo>/pptx/ppt-<topic>/ and the builder still copies its outputs to
  * $WORKSPACE_ROOT/pptx/ppt-<jobId>/, so these tools point those at scratch
@@ -386,7 +386,7 @@ export default function pdfTools(pi: ExtensionAPI) {
         const renders = fs.existsSync(qaDir)
           ? fs
               .readdirSync(qaDir)
-              .filter(f => f.endsWith('.png'))
+              .filter(f => /\.(jpe?g|png)$/i.test(f))
               .sort(
                 (a, b) =>
                   Number.parseInt(a.replace(/\D/g, ''), 10) -
@@ -404,7 +404,7 @@ export default function pdfTools(pi: ExtensionAPI) {
             `- deck.html: ${ok ? 'updated from build/output.html (the studio preview reloads)' : 'unchanged'}\n` +
             `- qa-renders: ${renders.length} slide screenshot(s) in build/qa-renders/` +
             `${renders.length ? ` — ${renders.join(', ')}` : ''}\n` +
-            `${renders.length ? '\nRead each PNG (build/qa-renders/<file>) with the read tool for Visual QA; patch build/deck-config.js and re-run pdf_build on any defect. When every slide is clean, deck_publish.\n' : ''}` +
+            `${renders.length ? '\nRead each render (build/qa-renders/<file>) with the read tool for Visual QA; patch build/deck-config.js and re-run pdf_build on any defect. When every slide is clean, deck_publish.\n' : ''}` +
             `\n--- build output (tail) ---\n${out.slice(-4000)}`,
         )
       } catch (e: any) {

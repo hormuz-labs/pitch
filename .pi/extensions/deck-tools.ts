@@ -15,7 +15,7 @@ export default function deckTools(pi: ExtensionAPI) {
     name: 'deck_render',
     label: 'Render slides',
     description:
-      'Render deck.html to PNGs (one per .slide, 1280×720) under renders/slide-NN.png in your workspace so ' +
+      'Render deck.html to JPEGs (one per .slide, 1280×720) under renders/slide-NN.jpg in your workspace so ' +
       'you can LOOK at the result with the read tool before publishing; each line also flags elements ' +
       'that overflow their page. Pass `slides` to render a subset (1-based).',
     parameters: Type.Object({

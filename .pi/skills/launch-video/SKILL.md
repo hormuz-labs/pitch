@@ -55,7 +55,9 @@ than reading it whole). References are pattern libraries, never templates;
 **0. Recon.** `motion_recon` on the home page and one product page (different
 `out`), `motion_screenshot` for 2–3 reference frames, `motion_harvest` for
 the logo, screens and photos. Read `recon/brand-tokens.md` before a word of
-direction; write `recon/assets.md` (what is available, what is official).
+direction; `recon/harvested.json` says what each harvested file is — never
+read the image or SVG files themselves; write `recon/assets.md` (what is
+available, what is official).
 Fonts: recon self-hosts the brand's files and prints the `brand.fonts`
 snippet; if it found none, choose a self-hostable equivalent by personality
 (creative-direction.md Axis 2), never a CDN link. From the copy and the

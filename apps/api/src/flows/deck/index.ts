@@ -188,8 +188,10 @@ async function renderSlides(ws: Workspace, wanted?: number[]): Promise<string> {
     const lines: string[] = []
     for (const n of targets) {
       const el = page.locator('.slide').nth(n - 1)
-      const rel = `renders/slide-${String(n).padStart(2, '0')}.png`
-      await el.screenshot({ path: path.join(ws.dir, rel) })
+      // JPEG: the agent reads these, and every read rides along on each later
+      // model request — a quality-82 JPEG is a sixth of the PNG.
+      const rel = `renders/slide-${String(n).padStart(2, '0')}.jpg`
+      await el.screenshot({ path: path.join(ws.dir, rel), type: 'jpeg', quality: 82 })
       const overflow = await el.evaluate(node => {
         const r = node.getBoundingClientRect()
         const bad: string[] = []

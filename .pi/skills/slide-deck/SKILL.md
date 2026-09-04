@@ -23,12 +23,12 @@ existing deck (the user points at slides and elements).
 - `deck.html` — the deck, and the truth once it exists.
 - `build/deck-config.js` — the CONFIG you author (theme + slides); the small
   file you edit. `build/pdf-builder.js` renders it: never edit the builder.
-- `build/images/<keyword-slug>/` — scraped images; `build/qa-renders/slide_N.png`
+- `build/images/<keyword-slug>/` — scraped images; `build/qa-renders/slide_N.jpg`
   and `build/qa-report.json` — the last build's QA; `build/output.html` /
   `output.pdf` — the last build.
 - `build/parsed-slides.json` (+ `build/input-images/`) — an enhance job's
   parsed upload, produced before your first turn; `input/` — the upload.
-- `renders/slide-NN.png` — pages rendered by `deck_render`.
+- `renders/slide-NN.jpg` — pages rendered by `deck_render`.
 - In this skill directory: `design-library.md` (50 measured brand palettes)
   and `templates/<name>/spec_lock.md` + `skill.md` for each template.
 
@@ -84,7 +84,7 @@ you; never invent a filename or a remote URL.
    unless the brand's own), then the slides. No placeholder text anywhere.
 7. `pdf_build`. A DOM-QA failure (text overflow, missing image, layout
    break) aborts and lists the defects: fix the config, build again.
-8. **Visual QA — never skipped.** `read` EVERY `build/qa-renders/slide_N.png`
+8. **Visual QA — never skipped.** `read` EVERY `build/qa-renders/slide_N.jpg`
    and look: overflow, collision, empty slide, missing image, white text on a
    light image (raise the overlay), template placeholder, token drift (with a
    template, re-read `spec_lock.md` before each fix round). Patch the config,
@@ -141,7 +141,7 @@ clicked elements, a legend — `[1] <h1> in slide 3 · text "…" · selector: �
 4. Images keep their `src`; a new one is fetched with `pdf_scrape_images` and
    embedded as base64 (node can encode one in a line). Remove an image cleanly.
 5. **Look before you publish**: `deck_render({ slides: [3] })`, `read`
-   `renders/slide-03.png`, fix what the tool flags or you see.
+   `renders/slide-03.jpg`, fix what the tool flags or you see.
 6. `deck_publish` once per turn with a one-line summary; never a broken or
    half-finished deck. If the request is ambiguous, take the most sensible
    reading, do it, and say what you assumed.
