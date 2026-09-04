@@ -139,13 +139,17 @@ function factoryClasses(): Map<string, string[]> {
   return out
 }
 
-/** Top-level `## ` sections, as heading (lowercased, no punctuation) → body. */
+/**
+ * `## ` and `### ` sections, as heading (lowercased, no punctuation) → body.
+ * The `### ui-frame` block lives under Types, and the agent asks for it by
+ * name — so sub-headings are sections too.
+ */
 function schemaSections(md: string): Map<string, string> {
   const out = new Map<string, string>()
   let name = 'intro'
   let buf: string[] = []
   for (const line of md.split('\n')) {
-    const m = line.match(/^##\s+(.+?)\s*$/)
+    const m = line.match(/^##+\s+(.+?)\s*$/)
     if (m) {
       out.set(name, buf.join('\n').trim())
       name = m[1]
@@ -764,9 +768,11 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
           )
         }
         const common = sections.get('common shot fields') ?? ''
-        const uiFrame = p.types.some((t: string) => /ui-frame/.test(t))
-          ? `\n\n${sections.get('ui-frame  the product demo shot') ?? ''}`
-          : ''
+        const uiFrameKey = [...sections.keys()].find(k => k.startsWith('uiframe'))
+        const uiFrame =
+          p.types.some((t: string) => /ui-frame/.test(t)) && uiFrameKey
+            ? `\n\n${sections.get(uiFrameKey)}`
+            : ''
         return text(
           [
             common,

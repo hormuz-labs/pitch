@@ -37,11 +37,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get -qq update \
     && apt-get install -y -qq --no-install-recommends git cmake build-essential \
     && git clone --depth 1 https://github.com/ggml-org/whisper.cpp /tmp/whisper.cpp \
-    && cmake -S /tmp/whisper.cpp -B /tmp/whisper.cpp/build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF \
+    # Static: the shared-library build left whisper-cli unable to find
+    # libwhisper.so.1 in the image (the copy below it used to rely on silently
+    # did nothing), and every narrated film failed at motion_align.
+    && cmake -S /tmp/whisper.cpp -B /tmp/whisper.cpp/build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DBUILD_SHARED_LIBS=OFF \
     && cmake --build /tmp/whisper.cpp/build -j"$(nproc)" --target whisper-cli \
     && install -m 755 /tmp/whisper.cpp/build/bin/whisper-cli /usr/local/bin/whisper-cli \
-    && (cp /tmp/whisper.cpp/build/src/libwhisper.so* /tmp/whisper.cpp/build/ggml/src/libggml*.so* /usr/local/lib/ 2>/dev/null || true) \
-    && ldconfig \
+    && whisper-cli --help > /dev/null 2>&1 \
     && rm -rf /tmp/whisper.cpp \
     && apt-get purge -y -qq git cmake build-essential && apt-get autoremove -y -qq \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

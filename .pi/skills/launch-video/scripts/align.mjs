@@ -83,8 +83,18 @@ const duration = Number(execSync(`ffprobe -v quiet -show_entries format=duration
 
 const jsonBase = join(tmp, "words");
 const prompt = scriptText.slice(0, 600);   // biases the recogniser toward the real copy (brand names, numbers)
-execFileSync(WHISPER, ["-m", MODEL, "-f", wav16, "-l", LANG, "-ml", "1", "-sow", "-oj", "-of", jsonBase, "-np",
-  "--prompt", prompt], { stdio: "pipe", maxBuffer: 32 * 1024 * 1024 });
+try {
+  execFileSync(WHISPER, ["-m", MODEL, "-f", wav16, "-l", LANG, "-ml", "1", "-sow", "-oj", "-of", jsonBase, "-np",
+    "--prompt", prompt], { stdio: "pipe", maxBuffer: 32 * 1024 * 1024 });
+} catch (err) {
+  // A broken whisper-cli (missing shared library, bad model file) is a host
+  // problem. Say so in one line rather than dumping a Node stack the agent
+  // then spends turns investigating from inside a sandbox that cannot fix it.
+  const detail = String(err.stderr || err.message || err).trim().split("\n").filter(Boolean).slice(-3).join(" | ");
+  console.error(`❌ whisper-cli failed on the host, so the narration cannot be aligned: ${detail}\n` +
+    "   This is a studio installation problem (the whisper.cpp build in Dockerfile.base), not something you can fix from the workspace. Report it and stop.");
+  process.exit(1);
+}
 const raw = JSON.parse(readFileSync(jsonBase + ".json", "utf8"));
 const heard = (raw.transcription || [])
   .map(t => ({ w: t.text.trim(), s: t.offsets.from / 1000, e: t.offsets.to / 1000 }))

@@ -45,8 +45,10 @@ duration; you report what it came out at. "Shorter" means cut a shot.
 References in this directory, read on demand: `creative-direction.md`
 (the brief), `pacing.md` (why the numbers), `audio.md` (bed, narration,
 SFX, mix), `attention-camera.md` (`ui-frame` focus), `effects-catalog.md`
-(31 effect recipes for custom factories). References are pattern libraries,
-never templates; `direction.md` outranks every example in them.
+(31 effect recipes — 34KB, so open it only when you are writing a custom
+factory, and `grep` its `## ` headings for the one recipe you need rather
+than reading it whole). References are pattern libraries, never templates;
+`direction.md` outranks every example in them.
 
 ## Workflow — the user is watching the preview grow
 

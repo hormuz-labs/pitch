@@ -97,7 +97,7 @@ export function familiesFor(evidence: ProjectEvidence): Set<Family> {
     need.add('motion')
   if (/\b(deck|slide|slides|presentation|powerpoint|pitch deck|keynote)\b/.test(words))
     need.add('deck')
-  if (/\b(demo|walkthrough|walk through|tutorial|screencast|narrat)\w*\b/.test(words))
+  if (/\b(demo|walkthrough|walk through|tutorial|screencast)\w*\b/.test(words))
     need.add('demo')
   if (/\b(recording|screen record|footage|my video|this video|the video i)\b/.test(words))
     need.add('recording')

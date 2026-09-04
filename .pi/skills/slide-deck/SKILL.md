@@ -104,14 +104,20 @@ rebuilding from the config throws away hand edits — say so if you must.
 - **Every slide has a visual** (image, chart, stat cards); at least one
   data chart per deck. Title slide: title + subtitle only. Quote slide: one
   quote and attribution.
-- **Layouts** (the only ones the base builder renders — anything else is an
-  empty slide): `COVER` (full-bleed image, transparent overlay; slide 1 and
-  the last slide) · `SPLIT-L` (text 55% / image) · `SPLIT-R` · `SPLIT-INFO`
-  (`category` badge, `title`, 25–40 word `body`, `image`, and `cards:
-  [{heading, text}]` ×3) · `STAT` (`stats: [{value ≤ 6 chars, label, description
-  8–18 words}]`, 2–4 of them) · `CHART-FULL` · `SPLIT-CHART`. Slide 2 is
-  `SPLIT-L` or `SPLIT-INFO`; never the same layout twice in a row. A template
-  replaces this pool with its own codes from `spec_lock.md`.
+- **Layouts and their fields** — the complete contract of the base builder;
+  anything else renders an empty slide, and the builder itself is not
+  documentation, so never read or grep it:
+  `COVER` (`title`, `subtitle`, `image`; slide 1 and the last slide) ·
+  `SPLIT-L` / `SPLIT-R` (`title`, `bullets[]`, `image`; text 55%) ·
+  `SPLIT-INFO` (`category` 2–4 word badge, `title`, `body` 25–40 words,
+  `image`, `cards: [{heading, text}]` ×3) · `STAT` (`title`, `stats:
+  [{value ≤ 6 chars, label, description 8–18 words}]` ×2–4) · `CHART-FULL`
+  (`title`, `chartType`, `chartData`, `source`, optional `bullets`) ·
+  `SPLIT-CHART` (the same plus `bullets` on the left). Every slide may carry
+  `notes`. Slide 2 is `SPLIT-L` or `SPLIT-INFO`; never the same layout twice
+  in a row. A template (only when the context gives a template id — do not
+  browse `templates/` otherwise) replaces this pool with the codes in its
+  `spec_lock.md`.
 - **Charts**: `chartType` ∈ column, column-stacked, column-100, bar (long
   labels / rankings), bar-stacked, line / area / area-stacked (time on X),
   pie (≤ 5 slices) / donut (preferred), scatter / bubble (`{x, y, r}` points),

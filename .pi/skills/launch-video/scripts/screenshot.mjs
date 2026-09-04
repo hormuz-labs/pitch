@@ -47,10 +47,18 @@ const page = await studio.newPage();
 const targetUrl = url ? String(url) : localPageUrl(html);
 console.log(`📸 Capturing screenshot from: ${targetUrl}`);
 
-await page.goto(targetUrl, { waitUntil: "networkidle" });
-if (args.wait) {
-  await page.waitForTimeout(Number(args.wait));
+// "load", then a bounded wait for the network to settle: a real product site
+// with analytics beacons or a long-poll never reaches networkidle, and a
+// screenshot that times out on that is a screenshot of nothing.
+try {
+  await page.goto(targetUrl, { waitUntil: "load", timeout: 60000 });
+} catch (err) {
+  console.error(`❌ could not load ${targetUrl}: ${err.message.split("\n")[0]}`);
+  await studio.close().catch(() => {});
+  process.exit(1);
 }
+await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+await page.waitForTimeout(Number(args.wait) || 800);
 
 /**
  * A bot-wall is the single most dangerous Phase-0 failure: the capture
