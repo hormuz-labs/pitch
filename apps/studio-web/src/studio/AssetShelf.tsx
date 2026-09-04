@@ -3,15 +3,18 @@
  *
  * The stage shows the artifact. This shows the material: the file the user
  * dropped, the logo recon harvested, the clip the agent generated, anything
- * added mid-session. It sits under the stage next to the scene strip because
- * it answers the same kind of question — which thing do you mean?
+ * added mid-session.
  *
- * Clicking an asset is the same act as clicking an element or dragging a range
- * on the video track: it becomes a `[n]` chip in the composer. The chip's
- * value is the WORKSPACE-RELATIVE PATH, which is exactly what the agent's
- * tools take, so "use [1] as the first frame" needs no lookup in between.
+ * A card does two things, because there are two questions. Clicking it OPENS
+ * the asset — a 96px card is enough to recognise a file you already know and
+ * not enough to check one. The `+` in its corner REFERENCES it: the same act
+ * as clicking an element or dragging a range on the video track, producing a
+ * `[n]` chip in the composer. The chip carries the WORKSPACE-RELATIVE PATH,
+ * which is exactly what the agent's tools take, so "use [1] as the first
+ * frame" needs no lookup in between.
  */
 import { useRef, useState } from 'react'
+import { AssetViewer } from './AssetViewer'
 import type { Asset } from './client'
 import type { ProjectStore } from './useProject'
 
@@ -43,43 +46,64 @@ function AssetCard({
   store,
   asset,
   picked,
+  onOpen,
 }: {
   store: ProjectStore
   asset: Asset
   picked: boolean
+  onOpen: () => void
 }) {
   const [failed, setFailed] = useState(false)
-  const src = store.mediaUrl(asset.url)
-  const showImage = asset.kind === 'image' && src && !failed
+  // The thumbnail is a picture OF the file — a frame from a video, a PDF's
+  // first page — so every kind shows what it is, not what type it is.
+  const thumb = store.mediaUrl(asset.thumbUrl)
+  const showThumb = !!thumb && !failed
+
+  const reference = () =>
+    store.addTarget({
+      sceneId: null,
+      tagName: 'asset',
+      className: '',
+      id: '',
+      text: asset.name,
+      selector: asset.path,
+      asset: asset.path,
+      assetOrigin: ORIGIN_LABEL[asset.origin] ?? asset.origin,
+    })
 
   return (
-    <button
-      type="button"
-      className={`asset-card${picked ? ' picked' : ''}`}
-      title={`${asset.path} · ${size(asset.size)}`}
-      onClick={() =>
-        store.addTarget({
-          sceneId: null,
-          tagName: 'asset',
-          className: '',
-          id: '',
-          text: asset.name,
-          selector: asset.path,
-          asset: asset.path,
-          assetOrigin: ORIGIN_LABEL[asset.origin] ?? asset.origin,
-        })
-      }
-    >
-      <span className="asset-thumb">
-        {showImage ? (
-          <img src={src} alt="" draggable={false} onError={() => setFailed(true)} />
-        ) : (
-          <span className="asset-glyph">{KIND_GLYPH[asset.kind] ?? KIND_GLYPH.other}</span>
-        )}
-      </span>
-      <span className="asset-name">{asset.name}</span>
-      <span className="asset-meta">{ORIGIN_LABEL[asset.origin] ?? asset.origin}</span>
-    </button>
+    <div className={`asset-card${picked ? ' picked' : ''}`}>
+      <button
+        type="button"
+        className="asset-open"
+        title={`${asset.path} · ${size(asset.size)} — click to open`}
+        onClick={onOpen}
+      >
+        <span className="asset-thumb">
+          {showThumb ? (
+            <img src={thumb} alt="" draggable={false} onError={() => setFailed(true)} />
+          ) : (
+            <span className="asset-glyph">{KIND_GLYPH[asset.kind] ?? KIND_GLYPH.other}</span>
+          )}
+          {(asset.kind === 'video' || asset.kind === 'audio') && (
+            <span className="asset-play" aria-hidden="true">
+              ▶
+            </span>
+          )}
+        </span>
+        <span className="asset-name">{asset.name}</span>
+        <span className="asset-meta">{ORIGIN_LABEL[asset.origin] ?? asset.origin}</span>
+      </button>
+      <button
+        type="button"
+        className="asset-ref"
+        title={picked ? 'Already referenced' : 'Reference this file in your next message'}
+        aria-label={`Reference ${asset.name}`}
+        onClick={reference}
+      >
+        {picked ? '✓' : '+'}
+      </button>
+    </div>
   )
 }
 
@@ -88,6 +112,7 @@ export function AssetShelf({ store }: { store: ProjectStore }) {
   const [dragging, setDragging] = useState(false)
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [open, setOpen] = useState<Asset | null>(null)
   const input = useRef<HTMLInputElement | null>(null)
   const depth = useRef(0)
 
@@ -135,7 +160,7 @@ export function AssetShelf({ store }: { store: ProjectStore }) {
         <h2>Assets</h2>
         <span className="timeline-meta">
           {s.assets.length > 0
-            ? `${s.assets.length} file${s.assets.length === 1 ? '' : 's'} · click one to reference it`
+            ? `${s.assets.length} file${s.assets.length === 1 ? '' : 's'} · click to open, + to reference`
             : 'files this project can use'}
         </span>
         <input
@@ -165,10 +190,18 @@ export function AssetShelf({ store }: { store: ProjectStore }) {
       ) : (
         <div className="strip">
           {s.assets.map(asset => (
-            <AssetCard key={asset.path} store={s} asset={asset} picked={chosen.has(asset.path)} />
+            <AssetCard
+              key={asset.path}
+              store={s}
+              asset={asset}
+              picked={chosen.has(asset.path)}
+              onOpen={() => setOpen(asset)}
+            />
           ))}
         </div>
       )}
+
+      {open && <AssetViewer store={s} asset={open} onClose={() => setOpen(null)} />}
     </div>
   )
 }

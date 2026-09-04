@@ -197,7 +197,9 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       // which is what every tool takes, so say so plainly and let the agent
       // use it verbatim rather than going looking for it.
       if (typeof t.asset === 'string' && t.asset)
-        return `[${i + 1}] the file ${t.asset}${t.assetOrigin ? ` (${t.assetOrigin})` : ''}`
+        return t.page
+          ? `[${i + 1}] page ${t.page} of ${t.asset}`
+          : `[${i + 1}] the file ${t.asset}${t.assetOrigin ? ` (${t.assetOrigin})` : ''}`
       // A selection on a video is a time, not a node: a range the user dragged
       // across the track, or a single moment they clicked.
       if (typeof t.time === 'number') {

@@ -4,7 +4,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildContext } from '../apps/studio/src/agent/index.js'
 import { describeUsage, videoFromInteraction } from '../apps/studio/src/pipelines/video-gen.js'
-import { kindOf, listAssets } from '../apps/studio/src/projects/assets.js'
+import { assetThumbnail, kindOf, listAssets } from '../apps/studio/src/projects/assets.js'
 import type { Workspace } from '../apps/studio/src/studio/paths.js'
 import { withTargetLegend } from '../apps/studio-web/src/studio/useProject.js'
 
@@ -36,7 +36,7 @@ describe('kindOf', () => {
 
 describe('listAssets', () => {
   it('is empty for a workspace that does not exist yet', async () => {
-    expect(await listAssets({ ...workspace(), dir: '/nope/nowhere' })).toEqual([])
+    expect(await listAssets({ ...workspace(), dir: '/nope/nowhere' }, 'proj1')).toEqual([])
   })
 
   it('collects material from every source and labels where it came from', async () => {
@@ -45,7 +45,7 @@ describe('listAssets', () => {
     write(ws, 'renders/gen-establishing.mp4', 'x', 2_000_000)
     write(ws, 'recon/brand/hero.jpg', 'x', 3_000_000)
 
-    const assets = await listAssets(ws)
+    const assets = await listAssets(ws, 'proj1')
     expect(assets.map(a => a.path)).toEqual([
       'recon/brand/hero.jpg',
       'renders/gen-establishing.mp4',
@@ -63,14 +63,14 @@ describe('listAssets', () => {
     write(ws, 'renders/__intermediate.mp4')
     write(ws, 'vendor/gsap/gsap.min.js')
     write(ws, 'build/pdf-builder.js')
-    expect(await listAssets(ws)).toEqual([])
+    expect(await listAssets(ws, 'proj1')).toEqual([])
   })
 
   it('does not list the recording editor’s duplicate of an upload', async () => {
     const ws = workspace()
     write(ws, 'uploads/clip.mov')
     write(ws, 'recording/upload.mov')
-    expect((await listAssets(ws)).map(a => a.path)).toEqual(['uploads/clip.mov'])
+    expect((await listAssets(ws, 'proj1')).map(a => a.path)).toEqual(['uploads/clip.mov'])
   })
 })
 
@@ -149,5 +149,57 @@ describe('video generation replies', () => {
       }),
     ).toBe('20,669 tokens, 19,310 of them video')
     expect(describeUsage(null)).toBe('')
+  })
+})
+
+describe('page targets', () => {
+  it('addresses a PDF page by file and page, not as an element', () => {
+    const out = withTargetLegend('rebuild [1] with a lighter palette', [
+      {
+        ref: 1,
+        sceneId: null,
+        tagName: 'page',
+        className: '',
+        id: '',
+        text: '',
+        selector: 'uploads/pitch-deck.pdf#page=4',
+        asset: 'uploads/pitch-deck.pdf',
+        page: 4,
+      },
+    ])
+    expect(out).toContain('[1] page 4 of uploads/pitch-deck.pdf')
+    expect(out).not.toContain('<page')
+  })
+
+  it('reaches the agent as a page of a file', async () => {
+    const context = await buildContext(workspace(), {
+      first: false,
+      options: {},
+      targets: [{ asset: 'uploads/pitch-deck.pdf', page: 4 }],
+    })
+    expect(context).toContain('[1] page 4 of uploads/pitch-deck.pdf')
+    expect(context).toContain('material to USE')
+  })
+})
+
+describe('asset thumbnails', () => {
+  it('offers a thumbnail for everything with something to show', async () => {
+    const ws = workspace()
+    write(ws, 'renders/gen.mp4')
+    write(ws, 'uploads/logo.png')
+    write(ws, 'input/deck.pdf')
+    write(ws, 'audio/mix.wav')
+    const by = Object.fromEntries((await listAssets(ws, 'proj1')).map(a => [a.kind, a]))
+    for (const kind of ['video', 'image', 'pdf'])
+      expect(by[kind]?.thumbUrl, kind).toContain('/assets/thumb?path=')
+    // Audio has no picture; the shelf shows a glyph instead of a broken image.
+    expect(by.audio?.thumbUrl).toBeNull()
+  })
+
+  it('refuses to render anything that is not shelf material', async () => {
+    const ws = workspace()
+    write(ws, 'build/pdf-builder.js')
+    for (const path of ['../../../etc/passwd', '/etc/passwd', 'build/pdf-builder.js'])
+      expect(await assetThumbnail(ws, { path }), path).toBeNull()
   })
 })

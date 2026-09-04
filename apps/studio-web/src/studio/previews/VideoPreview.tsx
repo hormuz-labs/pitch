@@ -21,6 +21,57 @@ const fmtPrecise = (t: number) => `${fmt(t)}.${Math.floor((t % 1) * 10)}`
 /** A drag shorter than this is a click: one moment, not a range. */
 const CLICK_SECONDS = 0.25
 
+/** How many stills to lay out. Enough to find a beat, few enough to scan. */
+const FRAME_COUNT = 12
+
+/**
+ * The film strip: evenly spaced stills across the whole clip.
+ *
+ * The track says WHEN; this says WHAT. Scrubbing to find the shot you meant
+ * is the slow part of editing a video you did not make, and a row of frames
+ * removes it — click one and the player goes there with that moment selected,
+ * ready to say what should happen to it.
+ *
+ * The frames come from the project's own thumbnail route, which reads them
+ * with ffmpeg and caches them, so this costs one request per frame once.
+ */
+function Frames({
+  store,
+  duration,
+  onPick,
+}: {
+  store: ProjectStore
+  duration: number
+  onPick: (t: number) => void
+}) {
+  if (!duration) return null
+  // Offset by half a step: the first and last frames of a clip are often
+  // black, and the middle of each slice is representative of it.
+  const step = duration / FRAME_COUNT
+  const times = Array.from({ length: FRAME_COUNT }, (_, i) => i * step + step / 2)
+  const playing = (t: number) => store.playhead >= t - step / 2 && store.playhead < t + step / 2
+
+  return (
+    <div className="video-frames">
+      {times.map(t => {
+        const url = store.thumbnailUrl(t)
+        return (
+          <button
+            type="button"
+            key={t.toFixed(3)}
+            className={`video-frame${playing(t) ? ' on' : ''}`}
+            title={`Jump to ${fmt(t)} and select it`}
+            onClick={() => onPick(t)}
+          >
+            {url && <img src={url} alt="" loading="lazy" draggable={false} />}
+            <span className="video-frame-time">{fmt(t)}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export function VideoPreview({ store, src }: { store: ProjectStore; src: string }) {
   const s = store
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -192,6 +243,15 @@ export function VideoPreview({ store, src }: { store: ProjectStore; src: string 
           <span>0:00</span>
           <span>{fmt(duration)}</span>
         </div>
+
+        <Frames
+          store={s}
+          duration={duration}
+          onPick={t => {
+            seek(t)
+            setRange({ start: t, end: t })
+          }}
+        />
       </div>
 
       {s.busy && (

@@ -75,7 +75,11 @@ app.use(cookieParser())
 
 // EventSource / <video> / <img> / <iframe> can't set Authorization headers, so
 // a Clerk session token may ride in ?token= for streams and files.
-const TOKEN_QUERY_PATHS = [/^\/projects\/[^/]+\/(events|thumbnail)$/, /^\/files\//]
+const TOKEN_QUERY_PATHS = [
+  /^\/projects\/[^/]+\/(events|thumbnail)$/,
+  /^\/projects\/[^/]+\/assets\/thumb$/,
+  /^\/files\//,
+]
 app.use((req, _res, next) => {
   if (
     req.query.token &&

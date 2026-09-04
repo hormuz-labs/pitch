@@ -4,7 +4,7 @@
 import { createLogger } from '@saas/shared'
 import express from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { addAssets, listAssets } from '../projects/assets.js'
+import { addAssets, assetThumbnail, listAssets } from '../projects/assets.js'
 import { cancelExport, exportProject, getExport } from '../projects/export.js'
 import * as projects from '../projects/service.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
@@ -98,7 +98,7 @@ router.get('/:id/assets', async (req, res) => {
   if (!userId) return
   try {
     const p = await projects.getRow(userId, req.params.id)
-    res.json(await listAssets(projects.workspaceOf(p)))
+    res.json(await listAssets(projects.workspaceOf(p), p.id))
   } catch (err) {
     fail(res, err, 'list assets failed')
   }
@@ -112,9 +112,33 @@ router.post('/:id/assets', async (req, res) => {
     const uploads = Array.isArray(req.body?.uploads) ? req.body.uploads : []
     if (!uploads.length) return res.status(400).json({ error: 'uploads is required' })
     const p = await projects.getRow(userId, req.params.id)
-    res.json(await addAssets(projects.workspaceOf(p), uploads))
+    res.json(await addAssets(projects.workspaceOf(p), p.id, uploads))
   } catch (err) {
     fail(res, err, 'add assets failed')
+  }
+})
+
+/**
+ * A picture of one asset: a video frame, a PDF page, a scaled still. Served
+ * like the other media routes (a `?token=` is accepted) because an <img> can
+ * send no headers. Cached hard — the URL changes when the file does.
+ */
+router.get('/:id/assets/thumb', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const p = await projects.getRow(userId, req.params.id)
+    const at = req.query.at === undefined ? undefined : Number(req.query.at)
+    const buf = await assetThumbnail(projects.workspaceOf(p), {
+      path: String(req.query.path ?? ''),
+      at: Number.isFinite(at) ? at : undefined,
+    })
+    if (!buf) return res.status(404).end()
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.setHeader('Cache-Control', 'private, max-age=60')
+    res.end(buf)
+  } catch (err) {
+    fail(res, err, 'asset thumbnail failed')
   }
 })
 

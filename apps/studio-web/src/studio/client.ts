@@ -136,7 +136,11 @@ export interface Asset {
   origin: AssetOrigin
   size: number
   mtime: string
+  /** The file itself — for opening and playing. */
   url: string
+  /** A picture OF the file. Null for audio, which has nothing to show. */
+  thumbUrl: string | null
+  pages?: number
 }
 
 /** Absolute or app-relative URL for an API path (`/files/…`, `/projects/…`). */

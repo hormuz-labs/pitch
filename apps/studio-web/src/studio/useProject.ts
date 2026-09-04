@@ -40,6 +40,8 @@ export interface SelectedElement {
   asset?: string
   /** How the file got here: the user added it, or the studio made it. */
   assetOrigin?: string
+  /** 1-based page of a PDF the user pointed at. Rides alongside `asset`. */
+  page?: number
 }
 
 export interface Target extends SelectedElement {
@@ -50,9 +52,13 @@ export interface Target extends SelectedElement {
 export function withTargetLegend(text: string, list: Target[]): string {
   if (list.length === 0) return text
   const lines = list.map(t => {
-    // A file on the shelf is addressed by its path, which is what a tool takes.
+    // A file is addressed by its path, which is what a tool takes; a page of
+    // a PDF is that path plus a page number.
     if (t.asset)
-      return [`[${t.ref}] the file ${t.asset}`, t.text ? `"${t.text}"` : null]
+      return [
+        t.page ? `[${t.ref}] page ${t.page} of ${t.asset}` : `[${t.ref}] the file ${t.asset}`,
+        t.text ? `"${t.text}"` : null,
+      ]
         .filter(Boolean)
         .join(' · ')
     // A moment or a range in a video has no DOM node — address it by time.

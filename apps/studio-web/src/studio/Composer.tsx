@@ -74,15 +74,23 @@ export function Composer({ store }: { store: ProjectStore }) {
               <div key={t.ref} className="element-chip" title={t.selector}>
                 <span className="element-chip-ref">{t.ref}</span>
                 <span className="element-chip-tag">
-                  {typeof t.time === 'number'
-                    ? typeof t.endTime === 'number' && t.endTime > t.time
-                      ? `${fmtTime(t.time)}–${fmtTime(t.endTime)}`
-                      : fmtTime(t.time)
-                    : t.tagName}
-                  {typeof t.time !== 'number' && t.className ? `.${t.className.split(' ')[0]}` : ''}
+                  {t.page
+                    ? `page ${t.page}`
+                    : typeof t.time === 'number'
+                      ? typeof t.endTime === 'number' && t.endTime > t.time
+                        ? `${fmtTime(t.time)}–${fmtTime(t.endTime)}`
+                        : fmtTime(t.time)
+                      : t.tagName}
+                  {!t.page && typeof t.time !== 'number' && t.className
+                    ? `.${t.className.split(' ')[0]}`
+                    : ''}
                 </span>
                 {t.text && <span className="element-chip-text">“{t.text}”</span>}
-                {t.slide ? (
+                {/* A page names its file; a slide or scene names where in the
+                    artifact it sits. Never both — "page slide 4" is nonsense. */}
+                {t.page ? (
+                  <span className="element-chip-scene">{t.asset?.split('/').pop()}</span>
+                ) : t.slide ? (
                   <span className="element-chip-scene">slide {t.slide}</span>
                 ) : t.sceneId && typeof t.time !== 'number' ? (
                   <span className="element-chip-scene">{t.sceneId}</span>
@@ -173,13 +181,28 @@ export function Composer({ store }: { store: ProjectStore }) {
           <span className="composer-credits">
             <CreditPopover variant="marker" />
           </span>
-          <button
-            className="inspector-send"
-            disabled={s.busy || uploading || !s.draft.trim()}
-            onClick={() => void send()}
-          >
-            {sendLabel}
-          </button>
+          {/* While the agent is working, the button that sends is the button
+              that stops. A disabled "Working…" told the user what was
+              happening and gave them no way out of it — and the only Stop was
+              in the header, away from where they are looking. */}
+          {s.busy ? (
+            <button
+              className="inspector-send stop"
+              title="Stop the agent"
+              onClick={() => void s.stop()}
+            >
+              <span className="stop-glyph" aria-hidden="true" />
+              Stop
+            </button>
+          ) : (
+            <button
+              className="inspector-send"
+              disabled={uploading || !s.draft.trim()}
+              onClick={() => void send()}
+            >
+              {sendLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>
