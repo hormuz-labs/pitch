@@ -1,10 +1,10 @@
 /**
  * Which tools a session is built with.
  *
- * Measured on a real launch film: 58 tools, ~42KB of names, descriptions and
+ * Measured on a real launch film: 58 tools, ~40KB of names, descriptions and
  * schemas, shipped on every one of 60 model requests — about a quarter of the
- * token bill, mostly for tools the project never calls. pi cannot vary the
- * tool list per turn, so the families are chosen when the session is built.
+ * token bill, mostly for tools the project never calls. Every extension is
+ * loaded once; the tools the model is shown are chosen per turn.
  *
  * The rule this must not break: a project is not a category. Anything can
  * become anything, so the gate has to widen on its own rather than decide once
@@ -12,8 +12,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  activeToolNames,
   EXTENSIONS,
-  extensionsFor,
   FAMILIES,
   type Family,
   familiesFor,
@@ -98,18 +98,38 @@ describe('a project is not a category', () => {
   })
 })
 
-describe('the extension list', () => {
-  it('is a real reduction for a launch film', () => {
-    const film = extensionsFor({ prompt: 'launch video', files: ['shots.js', 'index.html'] })
-    expect(film.length).toBeLessThan(EXTENSIONS.length)
-    expect(film.some(e => e.includes('recording-tools'))).toBe(false)
-    expect(film.some(e => e.includes('pdf-tools'))).toBe(false)
-    expect(film.some(e => e.includes('html-motion-tools'))).toBe(true)
+describe('the active tool list', () => {
+  // What pi would report after loading every extension.
+  const loaded = new Map<string, string[]>([
+    [FAMILIES.core[0], ['media_probe', 'media_ffmpeg', 'media_publish']],
+    [FAMILIES.motion[0], ['motion_recon', 'motion_render']],
+    [FAMILIES.motion[1], ['video_generate']],
+    [FAMILIES.deck[0], ['deck_render', 'deck_publish']],
+    [FAMILIES.deck[1], ['pdf_scaffold', 'pdf_build']],
+    [FAMILIES.demo[0], ['demo_narrate']],
+    [FAMILIES.demo[1], ['demo_record_start']],
+    [FAMILIES.recording[0], ['probe_video']],
+    [FAMILIES.recording[1], ['edit_render']],
+  ])
+  const files = ['read', 'write', 'edit', 'ls', 'find', 'grep', 'bash']
+
+  it('is a real reduction for a launch film, and keeps the file tools', () => {
+    const film = activeToolNames(
+      familiesFor({ prompt: 'launch video', files: ['shots.js', 'index.html'] }),
+      loaded,
+      files,
+    )
+    expect(film).toEqual(
+      expect.arrayContaining([...files, 'media_probe', 'motion_render', 'video_generate']),
+    )
+    expect(film).not.toContain('probe_video')
+    expect(film).not.toContain('pdf_build')
+    expect(film).not.toContain('demo_narrate')
   })
 
-  it('deduplicates extensions two families share', () => {
-    const both = extensionsFor({ prompt: 'make me a video' }) // motion + demo, both want video-gen
-    expect(both.length).toBe(new Set(both).size)
+  it('names each tool once when two families share an extension', () => {
+    const both = activeToolNames(familiesFor({ prompt: 'make me a video' }), loaded, files)
+    expect(both.filter(n => n === 'video_generate')).toHaveLength(1)
   })
 
   it('covers every family in EXTENSIONS, so nothing is orphaned', () => {

@@ -25,10 +25,12 @@ import {
 import { prisma } from '@saas/db'
 import { createLogger } from '@saas/shared'
 import {
-  extensionsForFamilies,
+  activeToolNames,
+  EXTENSIONS,
   type Family,
   familiesFor,
   type ProjectEvidence,
+  type ToolsByExtension,
 } from '../agent/toolkit.js'
 import type { getAgent } from '../flows/index.js'
 import { ASSET_PATH } from '../projects/assets.js'
@@ -54,8 +56,12 @@ export interface Session {
   projectId: string
   ws: Workspace
   agent: Agent
-  /** Tool families this session was built with; it is rebuilt when they grow. */
+  /** Tool families shown so far; they only ever grow, per turn, from evidence. */
   families: Set<Family>
+  /** Every tool pi loaded, by the extension file that registered it. */
+  toolsByExtension: ToolsByExtension
+  /** The sandboxed file tools, active on every turn. */
+  alwaysOn: string[]
   session: any
   entries: Entry[]
   busy: boolean
@@ -281,26 +287,13 @@ async function evidenceFor(ws: Workspace, opts: OpenSessionOptions): Promise<Pro
 /**
  * Get (or lazily create) the pi session bound to a project.
  *
- * The session carries a fixed tool list — pi cannot vary it per turn — so the
- * families are chosen from the project's evidence when it is built. When a
- * later turn needs one it does not have ("now turn this deck into a video"),
- * the cached session is dropped and rebuilt with the wider set. That is safe
- * because it happens BETWEEN turns and the transcript is resumed from disk:
- * the conversation continues, the toolkit is simply bigger.
+ * Every extension is loaded once; which tools the model is SHOWN is decided
+ * per turn (see activateTools), so a session never has to be rebuilt when a
+ * deck turns into a film — the toolkit simply widens before the next prompt.
  */
 export async function getSession(opts: OpenSessionOptions): Promise<Session> {
   const existing = sessions.get(opts.projectId)
-  if (existing) {
-    const needed = familiesFor(await evidenceFor(opts.ws, opts))
-    const missing = [...needed].filter(f => !existing.families.has(f))
-    if (!missing.length || existing.busy) return existing
-    logger.info(
-      { projectId: opts.projectId, adding: missing },
-      'the project needs more tools than this session has — rebuilding it',
-    )
-    await existing.session.abort().catch(() => {})
-    sessions.delete(opts.projectId)
-  }
+  if (existing) return existing
   const pending = pendingCreates.get(opts.projectId)
   if (pending) return pending
 
@@ -317,15 +310,7 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       forget: forgetSessionFile,
     })) as SessionManager
 
-    const families = familiesFor(await evidenceFor(ws, opts))
-    const extensions = [
-      ...(agent.sandbox ? [SANDBOX_EXTENSION] : []),
-      ...extensionsForFamilies(families),
-    ]
-    logger.info(
-      { projectId: opts.projectId, families: [...families], extensions: extensions.length },
-      'session toolkit',
-    )
+    const extensions = [...(agent.sandbox ? [SANDBOX_EXTENSION] : []), ...EXTENSIONS]
     const allowedExt = new Set(extensions.map(p => path.resolve(p)))
     const resourceLoader = new DefaultResourceLoader({
       cwd: ws.dir,
@@ -348,9 +333,14 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
     for (const e of ext?.errors ?? [])
       logger.warn({ err: e.error, path: e.path }, 'extension failed to load')
 
-    const extensionTools: string[] = (ext?.extensions ?? []).flatMap((e: any) => [
-      ...(e.tools?.keys?.() ?? []),
-    ])
+    const toolsByExtension = new Map<string, string[]>()
+    for (const e of ext?.extensions ?? []) {
+      toolsByExtension.set(path.resolve(e.resolvedPath ?? e.path), [...(e.tools?.keys?.() ?? [])])
+    }
+    const extensionTools: string[] = [...toolsByExtension.values()].flat()
+    const alwaysOn = agent.sandbox
+      ? (toolsByExtension.get(path.resolve(SANDBOX_EXTENSION)) ?? [])
+      : [...agent.builtinTools]
     const { session } = await createAgentSession({
       cwd: ws.dir,
       modelRuntime,
@@ -368,7 +358,9 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       projectId: opts.projectId,
       ws,
       agent,
-      families,
+      families: new Set<Family>(),
+      toolsByExtension,
+      alwaysOn,
       session,
       entries: [],
       busy: false,
@@ -379,6 +371,7 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       cost: 0,
     }
     session.subscribe((ev: any) => onPiEvent(s, ev))
+    await activateTools(s, opts)
     sessions.set(opts.projectId, s)
     watchWorkspace(
       ws.dir,
@@ -430,6 +423,28 @@ export function listBusy(): Set<string> {
   return new Set([...sessions.values()].filter(s => s.busy).map(s => s.projectId))
 }
 
+/**
+ * Show the model the tools this turn needs.
+ *
+ * The families come from the evidence — the workspace's files, this turn's
+ * words, the uploads — and accumulate: once a project has been a deck it can
+ * always edit the deck. pi rebuilds the system prompt with the new set, and
+ * the change applies to the next prompt, which is exactly when this runs.
+ */
+async function activateTools(s: Session, opts: OpenSessionOptions): Promise<void> {
+  const needed = familiesFor(await evidenceFor(s.ws, opts))
+  const added = [...needed].filter(f => !s.families.has(f))
+  for (const f of added) s.families.add(f)
+  const names = activeToolNames(s.families, s.toolsByExtension, s.alwaysOn)
+  s.session.setActiveToolsByName(names)
+  if (added.length || s.turn === 0) {
+    logger.info(
+      { projectId: s.projectId, families: [...s.families], added, tools: names.length },
+      'session toolkit',
+    )
+  }
+}
+
 /** Fire-and-forget prompt; `context` rides along in a tagged block. */
 export async function promptSession(
   opts: OpenSessionOptions,
@@ -442,6 +457,7 @@ export async function promptSession(
     err.code = 'BUSY'
     throw err
   }
+  await activateTools(s, opts)
   addEntry(s, 'user', text)
   setBusy(s, true)
   s.turn += 1

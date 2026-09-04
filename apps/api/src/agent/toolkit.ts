@@ -19,19 +19,20 @@ import { PI_DIR, PI_EXTENSIONS_DIR, SKILLS_DIR } from '../studio/paths.js'
 const extension = (file: string) => path.join(PI_EXTENSIONS_DIR, file)
 
 /**
- * Every pipeline, plus the general media toolbox.
+ * Every pipeline, plus the general media toolbox, grouped by what they are for.
  *
  * "Loading them all is cheap" turned out to be wrong. Measured on a real
- * 30-second launch film: 58 tools, ~42KB of names, descriptions and JSON
- * schemas, and pi has no way to vary the tool list per turn — so that 42KB
- * ships on every one of the 60 model requests the run took. About a quarter
- * of the entire token bill, most of it for tools the project will never call:
- * a launch film pays for eleven demo_*, eight recording_* and four pdf_*.
+ * 30-second launch film: 58 tools, ~40KB of names, descriptions and JSON
+ * schemas, shipped on every one of the 60 model requests the run took —
+ * about a quarter of the token bill, most of it for tools the project never
+ * calls: a launch film paying for eleven demo_*, eight recording_* and four
+ * pdf_*.
  *
- * So the families below load per session instead (see extensionsFor). This is
- * NOT the old flow registry coming back: nothing is decided by what kind of
- * project this is, the families widen on their own as evidence appears, and
- * any project can still become anything. It is lazy loading, not a category.
+ * So every extension is loaded once, and the ACTIVE tools are chosen per turn
+ * (pi's setActiveToolsByName) from these families. This is NOT the old flow
+ * registry coming back: nothing is decided by what kind of project this is,
+ * the families widen on their own as evidence appears, and any project can
+ * still become anything. It is what the model is shown, not what exists.
  */
 export const FAMILIES = {
   /** Always: the file tools' companion for "this is nearly right, but…". */
@@ -52,7 +53,7 @@ export const FAMILIES = {
 
 export type Family = keyof typeof FAMILIES
 
-/** Everything, for callers that want the whole toolkit (tests, tooling). */
+/** Every extension, deduplicated — what a session loads. */
 export const EXTENSIONS: string[] = [...new Set(Object.values(FAMILIES).flat() as string[])]
 
 /** What the workspace already holds, as evidence of what this project is. */
@@ -113,16 +114,26 @@ export function familiesFor(evidence: ProjectEvidence): Set<Family> {
   return need
 }
 
-/** The extension files for a set of families, deduplicated. */
-export function extensionsForFamilies(families: Iterable<Family>): string[] {
-  const out = new Set<string>()
-  for (const f of families) for (const e of FAMILIES[f]) out.add(e)
-  return [...out]
-}
+/** Tool names by the extension file that registered them, as pi loaded them. */
+export type ToolsByExtension = ReadonlyMap<string, readonly string[]>
 
-/** The extensions this project needs, from its evidence. */
-export function extensionsFor(evidence: ProjectEvidence): string[] {
-  return extensionsForFamilies(familiesFor(evidence))
+/**
+ * The tools a turn is shown: the always-on ones (the sandboxed file tools),
+ * plus every tool of every family in `families`. Pure, so the choice is
+ * testable without booting pi.
+ */
+export function activeToolNames(
+  families: Iterable<Family>,
+  toolsByExtension: ToolsByExtension,
+  alwaysOn: Iterable<string> = [],
+): string[] {
+  const names = new Set<string>(alwaysOn)
+  for (const family of families) {
+    for (const file of FAMILIES[family]) {
+      for (const name of toolsByExtension.get(path.resolve(file)) ?? []) names.add(name)
+    }
+  }
+  return [...names]
 }
 
 /** Every skill directory under .pi/skills. */
@@ -136,7 +147,7 @@ export async function skills(): Promise<string[]> {
  * Sandboxed file tools for every project. The demo and recording pipelines
  * used to run with no built-in tools at all, so the agent could record a video
  * it was then unable to read back. Their real work happens in host tools
- * either way, so the VM costs them nothing and buys them a workspace.
+ * either way, so the sandbox costs them nothing and buys them a workspace.
  */
 export const BUILTIN_TOOLS = ['read', 'edit', 'write', 'find', 'grep', 'ls', 'bash']
 
