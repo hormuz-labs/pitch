@@ -12,11 +12,12 @@
 import { execFile, execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
+import { contains, resolveSymlinks } from '../lib/sandbox.ts'
 
 const execFileAsync = promisify(execFile)
 
@@ -88,16 +89,25 @@ const READ_ROOTS = [
   join(REPO_ROOT, 'assets'),
 ]
 
+/**
+ * Containment, with symlinks resolved on BOTH sides.
+ *
+ * Comparing the lexical path is not a boundary: the agent's shell can make a
+ * link inside its own workspace pointing anywhere on this machine, and these
+ * tools run out here where it resolves. `ln -s /app/.env notes.md` followed by
+ * motion_render({ page: "notes.md" }) is the shape of it.
+ * (The same rule guards the file tools — see ../lib/sandbox.ts.)
+ */
 function within(child: string, parent: string): boolean {
-  const c = resolve(child)
-  return c === parent || c.startsWith(parent + '/')
+  return contains(resolveSymlinks(parent), resolveSymlinks(child))
 }
 
 /**
  * Resolve a path the agent handed us and refuse anything outside its
- * workspace. These tools run on the HOST (the agent's own shell and file
- * tools live in a VM), so they must not become a side door: writes stay in
- * the workspace; reads may also touch the shared references.
+ * workspace. These tools run on the HOST with full privileges — the agent's
+ * own shell is sandboxed and these are not — so they must not become a side
+ * door: writes stay in the workspace; reads may also touch the shared
+ * references.
  */
 function resolvePath(cwd: string, p: string, mode: 'read' | 'write' = 'write'): string {
   // The VM mounts the workspace at /workspace and the shared references at
@@ -128,7 +138,7 @@ function resolvePath(cwd: string, p: string, mode: 'read' | 'write' = 'write'): 
 /** Workspace-relative form of a validated path, for scripts that run with cwd = workspace. */
 function rel(cwd: string, p: string, mode: 'read' | 'write' = 'write'): string {
   const abs = resolvePath(cwd, p, mode)
-  return within(abs, cwd) ? abs.slice(cwd.length + 1) || '.' : abs
+  return within(abs, cwd) ? relative(cwd, abs) || '.' : abs
 }
 
 export default function htmlMotionTools(pi: ExtensionAPI) {

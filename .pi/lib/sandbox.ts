@@ -83,10 +83,10 @@ export function toHostPath(
   // is dangling inside the sandbox but perfectly real to a file tool running
   // out here. Without this the guard says "notes.md, inside the workspace" and
   // the read returns CLERK_SECRET_KEY.
-  const real = realpath(host)
-  const inWorkspace = contains(realpath(workspace), real)
+  const real = resolveSymlinks(host)
+  const inWorkspace = contains(resolveSymlinks(workspace), real)
   if (!inWorkspace) {
-    const readable = Object.values(shared).some(root => contains(realpath(root), real))
+    const readable = Object.values(shared).some(root => contains(resolveSymlinks(root), real))
     if (!readable) {
       throw new SandboxPathError(
         `${input} leads outside this project. Your workspace is ${GUEST_WORKSPACE}, and a link ` +
@@ -109,7 +109,7 @@ export function toHostPath(
  * resolve the deepest ancestor that does exist and re-attach the rest: a
  * symlink can only hide in a component that is already there.
  */
-function realpath(target: string): string {
+export function resolveSymlinks(target: string): string {
   let head = target
   const tail: string[] = []
   for (;;) {
@@ -140,7 +140,7 @@ export function toGuestPath(workspace: string, shared: SharedMounts, host: strin
   return toPosix(host)
 }
 
-function contains(root: string, child: string): boolean {
+export function contains(root: string, child: string): boolean {
   const rel = path.relative(root, child)
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
 }
