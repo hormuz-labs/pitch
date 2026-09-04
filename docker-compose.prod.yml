@@ -29,9 +29,7 @@ services:
     volumes:
       - /opt/pitch/launch-video/projects:/app/projects
       - /opt/pitch/pi:/root/.pi/agent
-      - /opt/pitch/gondolin-cache:/root/.cache/gondolin
       - /opt/pitch/whisper:/root/.cache/whisper-cpp
     devices:
-      - /dev/kvm:/dev/kvm
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri

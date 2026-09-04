@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         libatspi2.0-0 libcups2 libxshmfence1 libgbm1 fonts-noto-color-emoji fonts-noto-cjk fonts-freefont-ttf ffmpeg \
         poppler-utils \
         tesseract-ocr \
-        qemu-system-x86 qemu-system-arm qemu-utils \
+        bubblewrap \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     # Node 22 (the html-motion-video skill scripts and the Gondolin sandbox
     # need a current Node; Debian's package is too old).

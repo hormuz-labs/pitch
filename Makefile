@@ -8,7 +8,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev prod down logs ps test test-watch unittest integration
+.PHONY: help dev prod down logs ps test test-watch unittest integration sandbox-check
 
 help:
 	@echo ""
@@ -23,6 +23,7 @@ help:
 	@echo "  $(GREEN)make integration$(RESET) — run browser-driven integration tests (playwright-cli)"
 	@echo "  $(GREEN)make test$(RESET)        — alias for unittest"
 	@echo "  $(GREEN)make test-watch$(RESET)  — run unit tests in watch mode (vitest)"
+	@echo "  $(GREEN)make sandbox-check$(RESET) — verify the agent's shell is confined on this host"
 	@echo ""
 
 # ─── Development ──────────────────────────────────────────────────────────────
@@ -124,3 +125,12 @@ test-watch:
 	@echo "  $(BOLD)$(CYAN)Running tests in watch mode...$(RESET)"
 	@echo ""
 	bun run test:watch
+
+# ─── Sandbox ──────────────────────────────────────────────────────────────────
+# The agent's shell runs under bubblewrap, which needs to create a user
+# namespace and mount inside it — and a container normally forbids both. Which
+# restriction bites depends on the host kernel, so this asks rather than
+# guesses. Run it after any change to the api service's security settings.
+sandbox-check:
+	@docker compose -p pitch exec -T api node scripts/sandbox-check.mjs \
+		|| node scripts/sandbox-check.mjs

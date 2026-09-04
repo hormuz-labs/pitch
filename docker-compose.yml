@@ -145,14 +145,23 @@ services:
     volumes:
       # Project workspaces: sources, recordings, renders. The directory is the truth.
       - ./projects:/app/projects
-      # pi session history (resumable conversations), Gondolin guest images, whisper model.
+      # pi session history (resumable conversations) and the whisper model.
       - ./docker-data/pi:/root/.pi/agent
-      - ./docker-data/gondolin-cache:/root/.cache/gondolin
       - ./docker-data/whisper:/root/.cache/whisper-cpp
-    # Sandbox VMs boot far faster with KVM; remove on hosts without /dev/kvm
-    # (Gondolin falls back to software emulation).
-    devices:
-      - /dev/kvm:/dev/kvm
+    # The agent's shell runs under bubblewrap, which needs to create a user
+    # namespace and mount inside it. Docker's default seccomp profile blocks
+    # the first and the docker-default AppArmor profile blocks the second.
+    #
+    # This is a real trade-off: it loosens the container that holds every
+    # secret in order to confine the shell running inside it. Run
+    # `make sandbox-check` on the host to find the smallest set that works
+    # there — on many Linux hosts seccomp:unconfined alone is enough, and
+    # SYS_ADMIN is only needed where the kernel refuses the sandbox's loopback.
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    cap_add:
+      - SYS_ADMIN
     group_add:
       - "44"
       - "992"

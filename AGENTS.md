@@ -81,9 +81,11 @@ Rules:
   `projects/service.ts createProject`). Never charge credits anywhere else.
 - The studio loads `.pi/extensions/*.ts` and `.pi/skills/*` when a session is
   created; restart the server after editing them (open sessions keep the old code).
-- Docker: `apps/api/Dockerfile` on `pitch-base` (ffmpeg, Playwright, QEMU,
-  Node 22, whisper-cli); compose mounts `./projects`, `docker-data/pi`,
-  `gondolin-cache`, `whisper`, passes `/dev/kvm`. Linux is the deploy target.
+- Docker: `apps/api/Dockerfile` on `pitch-base` (ffmpeg, bubblewrap, Node 22,
+  whisper-cli — no browser, that is CloakBrowser over CDP); compose mounts
+  `./projects`, `docker-data/pi` and `whisper`. The agent's shell is sandboxed
+  with bubblewrap, which needs the `security_opt`/`cap_add` on the api service
+  — `make sandbox-check` reports what a given host requires. Linux only.
 
 ## Checks before committing
 
