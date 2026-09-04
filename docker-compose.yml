@@ -165,16 +165,6 @@ services:
     group_add:
       - "44"
       - "992"
-    logging:
-      driver: loki
-      options:
-        loki-url: http://localhost:3101/loki/api/v1/push
-        loki-batch-size: "400"
-        loki-timeout: "10s"
-        loki-retries: "3"
-        loki-external-labels: "job=api,container_name={{.Name}}"
-        labels: "job=api"
-        env: "SERVICE_NAME,HOSTNAME"
     depends_on:
       postgres:
         condition: service_healthy

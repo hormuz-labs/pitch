@@ -6,6 +6,8 @@
  * its own project; the live namespace behaviour is in
  * tests/integration/sandbox.integration.test.ts, which needs Linux.
  */
+
+import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -15,6 +17,8 @@ import {
   bwrapCommand,
   explainBwrapFailure,
   GUEST_WORKSPACE,
+  resolveSymlinks,
+  runInSandbox,
   SandboxPathError,
   type SharedMounts,
   sandboxEnv,
@@ -243,3 +247,88 @@ describe('a symlink is not a way out', () => {
 function realRoot(): string {
   return mkdtempSync(path.join(tmpdir(), 'sandbox-link-'))
 }
+
+describe('running a command in the sandbox', () => {
+  /** A stand-in for the bwrap child process. */
+  function fakeSpawn(script: (child: any) => void) {
+    return ((_cmd: string, _argv: string[]) => {
+      const child: any = new EventEmitter()
+      child.stdout = new EventEmitter()
+      child.stderr = new EventEmitter()
+      child.kill = () => {}
+      queueMicrotask(() => script(child))
+      return child
+    }) as never
+  }
+
+  it('hands onData BYTES, not a string', async () => {
+    // A string here throws ERR_INVALID_ARG_TYPE inside pi's TextDecoder, and
+    // that uncaught exception takes the whole studio process down. The first
+    // bash call an agent made killed the API this way.
+    const seen: unknown[] = []
+    await runInSandbox('echo hi', {
+      workspace: '/ws',
+      shared: {},
+      onData: c => seen.push(c),
+      spawnFn: fakeSpawn(child => {
+        child.stdout.emit('data', Buffer.from('hello'))
+        child.stderr.emit('data', Buffer.from('warn'))
+        child.emit('close', 0)
+      }),
+    })
+    expect(seen).toHaveLength(2)
+    for (const chunk of seen) expect(Buffer.isBuffer(chunk)).toBe(true)
+  })
+
+  it('returns the command’s own exit code', async () => {
+    const r = await runInSandbox('exit 3', {
+      workspace: '/ws',
+      shared: {},
+      onData: () => {},
+      spawnFn: fakeSpawn(child => child.emit('close', 3)),
+    })
+    expect(r.exitCode).toBe(3)
+  })
+
+  it('turns a sandbox that will not start into an explained failure', async () => {
+    await expect(
+      runInSandbox('true', {
+        workspace: '/ws',
+        shared: {},
+        onData: () => {},
+        spawnFn: fakeSpawn(child => {
+          child.stderr.emit('data', Buffer.from('bwrap: No permissions to create a new namespace'))
+          child.emit('close', 1)
+        }),
+      }),
+    ).rejects.toThrow(/sandbox could not start.*seccomp/s)
+  })
+
+  it('never falls back to running unconfined when bwrap is missing', async () => {
+    await expect(
+      runInSandbox('true', {
+        workspace: '/ws',
+        shared: {},
+        onData: () => {},
+        spawnFn: fakeSpawn(child => {
+          const err: NodeJS.ErrnoException = new Error('spawn bwrap ENOENT')
+          err.code = 'ENOENT'
+          child.emit('error', err)
+        }),
+      }),
+    ).rejects.toThrow(/sandbox could not start.*bubblewrap/s)
+  })
+
+  it('does not mistake a failed command for a broken sandbox', async () => {
+    const r = await runInSandbox('nope', {
+      workspace: '/ws',
+      shared: {},
+      onData: () => {},
+      spawnFn: fakeSpawn(child => {
+        child.stderr.emit('data', Buffer.from('nope: command not found'))
+        child.emit('close', 127)
+      }),
+    })
+    expect(r.exitCode).toBe(127)
+  })
+})

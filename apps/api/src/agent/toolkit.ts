@@ -29,7 +29,6 @@ export const EXTENSIONS: string[] = [
   extension('pdf-tools.ts'), // decks: scaffold, scrape images, build
   extension('demo-tools.ts'), // demos: drive the browser and narrate
   extension('demo-flow-tools.ts'), // demos: record / stop / render
-  extension('storyboard-tools.ts'), // demos from PDFs and images
   extension('recording-tools.ts'), // uploaded recordings: probe, transcribe, inspect
   extension('recording-flow-tools.ts'), // uploaded recordings: render the edit
   extension('media-tools.ts'), // anything else: probe, ffmpeg, publish

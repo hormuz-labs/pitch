@@ -8,7 +8,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev prod down logs ps test test-watch unittest integration sandbox-check
+.PHONY: help dev prod down logs ps test test-watch unittest integration sandbox-check whisper-model
 
 help:
 	@echo ""
@@ -24,6 +24,7 @@ help:
 	@echo "  $(GREEN)make test$(RESET)        — alias for unittest"
 	@echo "  $(GREEN)make test-watch$(RESET)  — run unit tests in watch mode (vitest)"
 	@echo "  $(GREEN)make sandbox-check$(RESET) — verify the agent's shell is confined on this host"
+	@echo "  $(GREEN)make whisper-model$(RESET) — fetch the model motion_align needs"
 	@echo ""
 
 # ─── Development ──────────────────────────────────────────────────────────────
@@ -134,3 +135,26 @@ test-watch:
 sandbox-check:
 	@docker compose -p pitch exec -T api node scripts/sandbox-check.mjs \
 		|| node scripts/sandbox-check.mjs
+
+# ─── Narration alignment ──────────────────────────────────────────────────────
+# motion_align needs a ggml model and the image deliberately does not bake one
+# in (~1.5GB). docker-compose mounts ./docker-data/whisper at the cache path
+# the tool looks in, so dropping the file there is the whole install.
+#
+# Without it motion_align fails on every narrated video — and a failing
+# motion_align is what once led an agent to hand-write a word timeline and cut
+# a film to invented timings. WHISPER_MODEL_FILE=ggml-base.en.bin is a ~150MB
+# alternative if the large model is too much.
+WHISPER_MODEL_FILE ?= ggml-large-v3-turbo.bin
+WHISPER_MODEL_URL  ?= https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$(WHISPER_MODEL_FILE)
+
+whisper-model:
+	@mkdir -p docker-data/whisper
+	@if [ -s docker-data/whisper/$(WHISPER_MODEL_FILE) ]; then \
+		echo "  $(GREEN)✓$(RESET) docker-data/whisper/$(WHISPER_MODEL_FILE) is already there"; \
+	else \
+		echo "  downloading $(WHISPER_MODEL_FILE) — this is large, once"; \
+		curl -fL --progress-bar -o docker-data/whisper/$(WHISPER_MODEL_FILE).part $(WHISPER_MODEL_URL) \
+			&& mv docker-data/whisper/$(WHISPER_MODEL_FILE).part docker-data/whisper/$(WHISPER_MODEL_FILE) \
+			&& echo "  $(GREEN)✓$(RESET) motion_align can align narration now (restart the api container)"; \
+	fi

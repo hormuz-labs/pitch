@@ -297,3 +297,78 @@ export function explainBwrapFailure(stderr: string): string | null {
   }
   return null
 }
+
+// ── Running a command ─────────────────────────────────────────────────────────
+
+export interface SandboxExecOptions {
+  onData: (chunk: Buffer) => void
+  signal?: AbortSignal
+  /** Seconds. */
+  timeout?: number
+  spawnFn?: typeof import('node:child_process').spawn
+  bwrap?: string
+}
+
+/**
+ * Run one command in the sandbox, streaming its output.
+ *
+ * `onData` is handed BYTES, never a string. pi's bash tool feeds what it
+ * receives straight to a TextDecoder, so a string throws
+ * ERR_INVALID_ARG_TYPE deep inside the tool — an uncaught exception that
+ * takes the whole studio process down. The first bash call an agent made
+ * killed the API this way.
+ *
+ * A sandbox that will not start is a hard failure, never a fall back to
+ * running unconfined: this process holds every API key the product has.
+ */
+export async function runInSandbox(
+  command: string,
+  options: BwrapOptions & SandboxExecOptions,
+): Promise<{ exitCode: number }> {
+  const { onData, signal, timeout, spawnFn, bwrap = 'bwrap', ...bwrapOptions } = options
+  if (signal?.aborted) throw new Error('aborted')
+  const spawn = spawnFn ?? (await import('node:child_process')).spawn
+  const argv = bwrapCommand(command, bwrapOptions)
+
+  return await new Promise<{ exitCode: number }>((resolve, reject) => {
+    const child = spawn(bwrap, argv, { stdio: ['ignore', 'pipe', 'pipe'] })
+    let stderrHead = ''
+    let settled = false
+    let timer: NodeJS.Timeout | undefined
+
+    const finish = (fn: () => void) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      fn()
+    }
+    function onAbort() {
+      child.kill('SIGKILL')
+      finish(() => reject(new Error('aborted')))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (timeout && timeout > 0) {
+      timer = setTimeout(() => {
+        child.kill('SIGKILL')
+        finish(() => reject(new Error(`timeout:${timeout}`)))
+      }, timeout * 1000)
+    }
+
+    child.stdout?.on('data', (chunk: Buffer) => onData(chunk))
+    child.stderr?.on('data', (chunk: Buffer) => {
+      if (stderrHead.length < 2000) stderrHead += chunk.toString()
+      onData(chunk)
+    })
+    child.on('error', (err: NodeJS.ErrnoException) => {
+      const why = explainBwrapFailure(String(err.code ?? err))
+      finish(() => reject(new Error(`the sandbox could not start: ${why ?? String(err)}`)))
+    })
+    child.on('close', (code: number | null) => {
+      // bwrap prints its own diagnosis and exits before the command ever runs.
+      const why = code !== 0 ? explainBwrapFailure(stderrHead) : null
+      if (why) finish(() => reject(new Error(`the sandbox could not start: ${why}`)))
+      else finish(() => resolve({ exitCode: code ?? 0 }))
+    })
+  })
+}

@@ -64,6 +64,11 @@ function toGuestPaths(out: string, cwd: string): string {
   return s
 }
 
+/** text(), in the guest paths the agent actually has. */
+function guestText(out: string, cwd: string) {
+  return text(toGuestPaths(out, cwd))
+}
+
 async function runScript(name: string, args: string[], cwd: string, timeoutMs = 1_200_000) {
   try {
     const { stdout, stderr } = await execFileAsync(NODE, [join(SCRIPTS, name), ...args], {
@@ -222,7 +227,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       try {
         return text(await runScript('align.mjs', a, ctx.cwd, 300_000))
       } catch (err: any) {
-        return text(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim())
+        return guestText(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim(), ctx.cwd)
       }
     },
   })
@@ -256,7 +261,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       try {
         return text(await runScript('sync.mjs', a, ctx.cwd, 120_000))
       } catch (err: any) {
-        return text(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim())
+        return guestText(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim(), ctx.cwd)
       }
     },
   })
@@ -649,7 +654,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
 
       const root = p.dir ? resolvePath(ctx.cwd, p.dir, 'read') : join(REPO_ROOT, 'assets', 'music')
       const max = p.max ?? 15
-      if (!existsSync(root)) return text(`Directory not found: ${root}`)
+      if (!existsSync(root)) return guestText(`Directory not found: ${root}`, ctx.cwd)
       const found: Array<{ p: string; ms: number; mtime: Date }> = []
       const entries = readdirSync(root).filter(e => !e.startsWith('.'))
       for (const file of entries.filter(e => AUDIO_RE.test(e))) {
@@ -673,14 +678,14 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         }
         if (found.length >= max) break
       }
-      if (found.length === 0) return text(`No audio files found under ${root}`)
+      if (found.length === 0) return guestText(`No audio files found under ${root}`, ctx.cwd)
       const lines = found
         .map(
           f =>
             `${f.p}  [${f.ms.toFixed(1)} MB]  ${f.mtime.toISOString().slice(0, 16).replace('T', ' ')}`,
         )
         .join('\n')
-      return text(`Audio candidates under ${root}:\n${lines}`)
+      return guestText(`Audio candidates under ${root}:\n${lines}`, ctx.cwd)
     },
   })
 

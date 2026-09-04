@@ -14,7 +14,6 @@
  *
  * This replaced a Gondolin micro-VM. See ../lib/sandbox.ts for why.
  */
-import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent'
@@ -29,8 +28,6 @@ import {
   createWriteTool,
 } from '@earendil-works/pi-coding-agent'
 import {
-  bwrapCommand,
-  explainBwrapFailure,
   GUEST_WORKSPACE,
   SandboxPathError,
   type SharedMounts,
@@ -60,18 +57,9 @@ const BASH_DESCRIPTION =
   'file a tool produces (vo-words.json, cues.json, brand-tokens.json) — those are measurements, ' +
   'and a plausible substitute is a fabricated result nothing downstream can detect.'
 
-/**
- * Run one command under bwrap.
- *
- * A sandbox that cannot start is a hard failure, never a fallback to running
- * unconfined: this process holds every API key the product has, and the whole
- * point is that the shell cannot read them. `explainBwrapFailure` turns the
- * kernel's refusal into the compose setting that fixes it.
- */
 function bwrapBashOps(workspace: () => string): BashOperations {
   return {
     exec: async (command, cwd, { onData, signal, timeout, env }) => {
-      if (signal?.aborted) throw new Error('aborted')
       const ws = workspace()
       // The tool hands us its own cwd; keep it inside a mount.
       let guestCwd = GUEST_WORKSPACE
@@ -80,62 +68,16 @@ function bwrapBashOps(workspace: () => string): BashOperations {
       } catch {
         guestCwd = GUEST_WORKSPACE
       }
-
-      const argv = bwrapCommand(command, {
+      return runInSandbox(command, {
         workspace: ws,
         shared: SHARED,
         cwd: guestCwd,
         env: sandboxEnv(env?.TERM),
         shell: SHELL,
-      })
-
-      return await new Promise<{ exitCode: number }>((resolve, reject) => {
-        const child = spawn(BWRAP, argv, { stdio: ['ignore', 'pipe', 'pipe'] })
-        let stderrHead = ''
-        let settled = false
-        const finish = (fn: () => void) => {
-          if (settled) return
-          settled = true
-          clearTimeout(timer)
-          signal?.removeEventListener('abort', onAbort)
-          fn()
-        }
-
-        const onAbort = () => {
-          child.kill('SIGKILL')
-          finish(() => reject(new Error('aborted')))
-        }
-        signal?.addEventListener('abort', onAbort, { once: true })
-
-        const timer =
-          timeout && timeout > 0
-            ? setTimeout(() => {
-                child.kill('SIGKILL')
-                finish(() => reject(new Error(`timeout:${timeout}`)))
-              }, timeout * 1000)
-            : (undefined as unknown as NodeJS.Timeout)
-
-        child.stdout.on('data', (c: Buffer) => onData(c.toString()))
-        child.stderr.on('data', (c: Buffer) => {
-          const text = c.toString()
-          if (stderrHead.length < 2000) stderrHead += text
-          onData(text)
-        })
-
-        child.on('error', err => {
-          const why = explainBwrapFailure(String((err as NodeJS.ErrnoException).code ?? err))
-          finish(() => reject(new Error(`the sandbox could not start: ${why ?? String(err)}`)))
-        })
-
-        child.on('close', code => {
-          // bwrap exits 1 with its own diagnostic before the command ever runs.
-          const why = code !== 0 ? explainBwrapFailure(stderrHead) : null
-          if (why) {
-            finish(() => reject(new Error(`the sandbox could not start: ${why}`)))
-            return
-          }
-          finish(() => resolve({ exitCode: code ?? 0 }))
-        })
+        bwrap: BWRAP,
+        onData: onData as (chunk: Buffer) => void,
+        signal,
+        timeout,
       })
     },
   }
