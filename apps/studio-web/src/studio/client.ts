@@ -105,6 +105,8 @@ export type StudioEvent =
   | { type: 'tool'; name: string; args: Record<string, unknown> }
   | { type: 'status'; busy: boolean }
   | { type: 'idle'; aborted?: boolean; failed?: boolean }
+  /** Shelf material changed; nothing the stage draws did. */
+  | { type: 'assets'; files: string[] }
   | { type: 'error'; message: string }
   | {
       type: 'preview'

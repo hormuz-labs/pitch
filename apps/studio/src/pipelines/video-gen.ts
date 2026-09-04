@@ -145,8 +145,11 @@ async function previousIdFrom(ws: Workspace, ref: string): Promise<string> {
 registerHostAction('video_generate', async (ws, params) => {
   const prompt = String(params.prompt ?? '').trim()
   if (!prompt) throw new Error('prompt is required')
-  const outRel = String(params.out ?? '')
-  if (!/\.mp4$/i.test(outRel)) throw new Error('out must be a workspace-relative .mp4 path')
+  // A bare filename lands in renders/, which is where the asset shelf looks.
+  // A clip written to the workspace root is one the user cannot point at.
+  const asked = String(params.out ?? '')
+  if (!/\.mp4$/i.test(asked)) throw new Error('out must be a workspace-relative .mp4 path')
+  const outRel = asked.includes('/') ? asked : `renders/${asked}`
   const out = insideWorkspace(ws, outRel)
 
   const aspect = String(params.aspect ?? '16:9')

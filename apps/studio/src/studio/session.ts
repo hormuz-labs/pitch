@@ -25,6 +25,7 @@ import {
 import { prisma } from '@saas/db'
 import { createLogger } from '@saas/shared'
 import type { getAgent } from '../flows/index.js'
+import { ASSET_PATH } from '../projects/assets.js'
 import { emitProjectEvent, type StudioEvent } from './events.js'
 import { PI_EXTENSIONS_DIR, type Workspace } from './paths.js'
 import { unwatchWorkspace, watchWorkspace } from './watch.js'
@@ -279,6 +280,7 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       ws.dir,
       {
         relevant: agent.relevant,
+        assets: ASSET_PATH,
         probe: async dir => {
           const d = await agent.describe({ ...ws, dir })
           return { ok: !d.error, error: d.error ?? null, description: d }

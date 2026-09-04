@@ -339,6 +339,12 @@ export function useProject(id: string | undefined) {
           setLiveCount(null)
           setVideoVersion(v => v + 1)
           void refresh()
+          // Backstop: whatever the turn made is finished now, including
+          // anything written somewhere the watcher does not cover.
+          void refreshAssets()
+          break
+        case 'assets':
+          void refreshAssets()
           break
         case 'preview':
           if (!ev.ok) {
@@ -365,7 +371,7 @@ export function useProject(id: string | undefined) {
           break
       }
     },
-    [onPreviewChanged, refresh],
+    [onPreviewChanged, refresh, refreshAssets],
   )
 
   const connect = useCallback(

@@ -26,9 +26,23 @@ export interface PreviewEvent extends PreviewProbe {
   files: string[]
 }
 
+/**
+ * Shelf material changed and nothing the preview draws did.
+ *
+ * Deliberately carries no probe: describing the workspace is the expensive
+ * half of a preview event, and it also nudges the player. A harvested logo
+ * appearing must not reseek the video the user is watching.
+ */
+export interface AssetsEvent {
+  type: 'assets'
+  files: string[]
+}
+
 export interface WatchSpec {
   /** Workspace-relative paths whose changes affect what the preview shows. */
   relevant: RegExp
+  /** Paths that are material on the asset shelf but change no preview. */
+  assets: RegExp
   probe: (dir: string) => Promise<PreviewProbe>
   debounceMs?: number
 }
@@ -47,7 +61,7 @@ const watches = new Map<string, Watch>()
 export function watchWorkspace(
   dir: string,
   spec: WatchSpec,
-  emit: (ev: PreviewEvent) => void,
+  emit: (ev: PreviewEvent | AssetsEvent) => void,
 ): void {
   if (watches.has(dir)) return
   if (!existsSync(dir)) return
@@ -57,7 +71,8 @@ export function watchWorkspace(
     watcher = watch(dir, { recursive: true }, (_event, filename) => {
       if (!filename) return
       const rel = String(filename).replace(/\\/g, '/')
-      if (IGNORE.test(rel) || !spec.relevant.test(rel)) return
+      if (IGNORE.test(rel)) return
+      if (!spec.relevant.test(rel) && !spec.assets.test(rel)) return
       const w = watches.get(dir)
       if (!w) return
       w.pending.add(rel)
@@ -83,12 +98,20 @@ export function unwatchWorkspace(dir: string): void {
   watches.delete(dir)
 }
 
-async function flush(dir: string, spec: WatchSpec, emit: (ev: PreviewEvent) => void) {
+async function flush(dir: string, spec: WatchSpec, emit: (ev: PreviewEvent | AssetsEvent) => void) {
   const w = watches.get(dir)
   if (!w) return
   const files = [...w.pending].sort()
   w.pending.clear()
   w.timer = null
+
+  // A preview event re-describes the workspace and reloads the stage, so it is
+  // only for changes the stage actually shows. A batch of pure shelf writes
+  // gets the cheap event instead.
+  if (!files.some(f => spec.relevant.test(f))) {
+    emit({ type: 'assets', files })
+    return
+  }
   const probe = await spec.probe(dir)
   emit({ type: 'preview', files, ...probe })
 }
