@@ -5,7 +5,7 @@
 import { API_URL } from '../config'
 import { api } from '../lib/api'
 
-/** Only a legacy directory key; new projects are all 'studio'. */
+/** Only a workspace-directory key; new projects are all 'studio'. */
 export type FlowId = 'studio' | 'launch-video' | 'demo-video' | 'deck' | 'recording-edit'
 
 export interface Output {
@@ -50,7 +50,7 @@ export interface Description {
   extra?: Record<string, unknown>
 }
 
-export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed' | 'legacy'
+export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed'
 
 export interface Project {
   id: string
@@ -66,7 +66,6 @@ export interface Project {
   lastError: string | null
   isPublic: boolean
   shareSlug: string | null
-  legacyJobId: string | null
   createdAt: string
   updatedAt: string
   status: ProjectStatus
@@ -174,11 +173,8 @@ export function mediaUrl(
 const p = (id: string) => `/projects/${encodeURIComponent(id)}`
 
 export const studio = {
-  list: (token: string, flow?: FlowId, importLegacy = false) =>
-    api.get<Project[]>(
-      `/projects${flow || importLegacy ? `?${new URLSearchParams({ ...(flow ? { flow } : {}), ...(importLegacy ? { import: '1' } : {}) })}` : ''}`,
-      token,
-    ),
+  list: (token: string, flow?: FlowId) =>
+    api.get<Project[]>(`/projects${flow ? `?flow=${encodeURIComponent(flow)}` : ''}`, token),
   create: (
     token: string,
     body: {

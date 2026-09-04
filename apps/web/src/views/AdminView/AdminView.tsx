@@ -3,7 +3,6 @@ import React from 'react'
 import { api } from '../../lib/api'
 import { FLOW_IDS, FLOWS, type FlowId } from '../../lib/studio-api'
 import { AffiliatesPanel } from './AffiliatesPanel'
-import { FeedbackPanel } from './FeedbackPanel'
 import { NewsletterPanel } from './NewsletterPanel'
 import { OnboardingPanel } from './OnboardingPanel'
 import { ProjectDetailsModal } from './ProjectDetailsModal'
@@ -11,14 +10,13 @@ import { type AdminProject, ProjectsTable } from './ProjectsTable'
 import { StatsCards } from './StatsCards'
 import { UsersTable } from './UsersTable'
 
-type AdminTab = 'users' | 'newsletter' | 'onboarding' | 'projects' | 'feedback' | 'affiliates'
+type AdminTab = 'users' | 'newsletter' | 'onboarding' | 'projects' | 'affiliates'
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'users', label: 'Users', icon: '👥' },
   { key: 'newsletter', label: 'Email list', icon: '✉️' },
   { key: 'onboarding', label: 'Onboarding', icon: '◫' },
   { key: 'projects', label: 'Projects', icon: '🎬' },
-  { key: 'feedback', label: 'Feedback', icon: '⭐' },
   { key: 'affiliates', label: 'Affiliates', icon: '🔗' },
 ]
 
@@ -253,11 +251,9 @@ export function AdminView() {
                         ? (data?.users?.filter((user: any) => user.onboardingSurvey).length ?? '')
                         : tab.key === 'projects'
                           ? projects.length
-                          : tab.key === 'feedback'
-                            ? (analytics?.feedbackSummary?.total ?? '')
-                            : tab.key === 'affiliates'
-                              ? (analytics?.affiliates?.length ?? '')
-                              : ''
+                          : tab.key === 'affiliates'
+                            ? (analytics?.affiliates?.length ?? '')
+                            : ''
                 return (
                   <button
                     key={tab.key}
@@ -347,8 +343,6 @@ export function AdminView() {
             {activeTab === 'projects' && (
               <ProjectsTable projects={filteredProjects} onSelectProject={setSelectedProject} />
             )}
-
-            {activeTab === 'feedback' && <FeedbackPanel analytics={analytics} />}
 
             {activeTab === 'affiliates' && <AffiliatesPanel analytics={analytics} />}
           </div>

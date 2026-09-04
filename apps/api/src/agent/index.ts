@@ -173,11 +173,6 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       : `You are iterating on "${ws.name}". ${await inventory(ws)}\nOptions: ${optionSummary(options)}.\n\nApply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the media_* tools before regenerating anything.`,
   )
 
-  if (turn.legacy?.outputs.length) {
-    const previous = turn.legacy.outputs.map(o => `${o.kind}: ${o.url}`).join('\n')
-    parts.push(`This project was imported from earlier work:\n${previous}`)
-  }
-
   if (turn.slide) parts.push(`The user is looking at slide ${turn.slide}.`)
 
   if (turn.scene?.startsWith('beat-')) {

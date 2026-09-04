@@ -727,7 +727,7 @@ The project object
   id            string          use it to poll and to prompt
   flow          string          launch-video | demo-video | deck | recording-edit
   title         string          derived from the prompt, URL, topic, or file name
-  status        string          working | ready | failed | empty (legacy for imported pre-studio jobs, read-only)
+  status        string          working | ready | failed | empty
   busy          boolean         true while status is working
   prompt        string          the first message
   options       object          the flow options given at creation

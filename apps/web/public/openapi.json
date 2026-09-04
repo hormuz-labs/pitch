@@ -333,8 +333,8 @@
           },
           "status": {
             "type": "string",
-            "enum": ["working", "ready", "failed", "empty", "legacy"],
-            "description": "Derived, never stored. working while the agent has a turn in flight; ready when there is a preview or an output; failed when the last turn produced nothing (see error); empty otherwise. legacy marks a read-only project imported from the pre-studio job API"
+            "enum": ["working", "ready", "failed", "empty"],
+            "description": "Derived, never stored. working while the agent has a turn in flight; ready when there is a preview or an output; failed when the last turn produced nothing (see error); empty otherwise"
           },
           "busy": { "type": "boolean", "description": "True while status is working" },
           "prompt": { "type": "string", "description": "The first message" },

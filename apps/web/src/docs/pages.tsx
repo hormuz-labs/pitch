@@ -1423,8 +1423,7 @@ const restApi: DocPage = {
           <C key="d">status</C>,
           'string',
           <>
-            <C>working</C>, <C>ready</C>, <C>failed</C>, <C>empty</C>. Imported pre-studio jobs
-            report <C>legacy</C> and are read-only
+            <C>working</C>, <C>ready</C>, <C>failed</C>, <C>empty</C>
           </>,
         ],
         [

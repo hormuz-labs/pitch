@@ -27,7 +27,6 @@ export async function deleteClerkUserData(userId: string) {
 
     // Ledger rows reference jobs, subscriptions, and top-ups, so remove them first.
     await tx.creditTransaction.deleteMany({ where: { userId } })
-    await tx.job.deleteMany({ where: { userId } })
     await tx.subscription.deleteMany({ where: { userId } })
     await tx.topUpPurchase.deleteMany({ where: { userId } })
 
@@ -44,10 +43,8 @@ export async function deleteClerkUserData(userId: string) {
     // silently undo an unsubscribe. Only detach the old Clerk identity.
     await tx.affiliateLead.deleteMany({ where: { referredUserId: userId } })
     await tx.affiliateConversion.deleteMany({ where: { referredUserId: userId } })
-    // The flow collapse replaced launchVideoProject with the studio's own
-    // project tables; a deleted account must take its workspaces with it.
+    // A deleted account takes its workspaces with it.
     await tx.project.deleteMany({ where: { userId } })
-    await tx.studioProject.deleteMany({ where: { userId } })
     await tx.newsletterSubscriber.updateMany({ where: { userId }, data: { userId: null } })
     await tx.userProfile.deleteMany({ where: { id: userId } })
   })

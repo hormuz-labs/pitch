@@ -123,15 +123,6 @@ shareRouter.get('/d/:slug', async (req, res) => {
         image: project.thumbnailUrl || `${APP_URL}/tabLogoB.svg`,
         video,
       }
-    } else {
-      // Links minted before the studio point at Job rows.
-      const job = await db.getPublicJobBySlug(req.params.slug).catch(() => null)
-      if (job?.videoUrl)
-        meta = {
-          title: job.parameters?.projectName || job.parameters?.url || 'Pitch demo',
-          image: job.thumbnailUrl || `${APP_URL}/tabLogoB.svg`,
-          video: job.videoUrl,
-        }
     }
     res.set('Content-Type', 'text/html; charset=utf-8')
     if (!meta) return res.send(html)

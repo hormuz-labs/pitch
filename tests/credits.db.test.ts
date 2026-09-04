@@ -101,14 +101,14 @@ describe('addCredits', () => {
     expect(result).toBe(10)
   })
 
-  it('attaches jobId to the transaction record when provided', async () => {
+  it('attaches projectId to the transaction record when provided', async () => {
     mockPrisma.creditTransaction.create.mockResolvedValue({})
     mockPrisma.creditTransaction.aggregate.mockResolvedValue({ _sum: { delta: 5 } })
 
-    await addCredits('user_1', 5, 'refund', 'job failed refund', { jobId: 'job_abc' })
+    await addCredits('user_1', 5, 'refund', 'render failed refund', { projectId: 'proj_abc' })
 
     expect(mockPrisma.creditTransaction.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ jobId: 'job_abc' }),
+      data: expect.objectContaining({ projectId: 'proj_abc' }),
     })
   })
 
@@ -135,15 +135,15 @@ describe('deductCredit', () => {
     const createMock = vi.fn().mockResolvedValue({})
     mockPrisma.$transaction = makeTx({ aggregate: aggregateMock, create: createMock })
 
-    expect(await deductCredit('user_1', 1, 'job_created', { jobId: 'job_xyz' })).toBe(4)
+    expect(await deductCredit('user_1', 1, 'turn_billed', { projectId: 'proj_xyz' })).toBe(4)
 
     expect(createMock).toHaveBeenCalledWith({
       data: {
         userId: 'user_1',
         delta: -1,
         type: 'usage',
-        description: 'job_created',
-        jobId: 'job_xyz',
+        description: 'turn_billed',
+        projectId: 'proj_xyz',
         idempotencyKey: undefined,
       },
     })

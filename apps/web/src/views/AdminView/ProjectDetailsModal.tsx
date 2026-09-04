@@ -62,13 +62,6 @@ export function ProjectDetailsModal({
             <Row label="Workspace">
               <span className="font-mono text-xs break-all">{project.name}</span>
             </Row>
-            <Row label="Legacy job">
-              {project.legacyJobId ? (
-                <span className="font-mono text-xs">{project.legacyJobId}</span>
-              ) : (
-                <span className="text-gray-400 text-xs">—</span>
-              )}
-            </Row>
           </div>
 
           <Row label="User">

@@ -31,7 +31,6 @@ model UserProfile {
   subscriptions      Subscription[]
   topUpPurchases     TopUpPurchase[]
   creditTransactions CreditTransaction[]
-  jobs               Job[]
   affiliate          Affiliate?
   browserProfile     BrowserProfile?
   browserSessions    BrowserSession[]
@@ -144,67 +143,18 @@ model CreditTransaction {
   delta          Int
   type           String
   description    String
-  jobId          String?
   projectId      String?
   subscriptionId String?
   topUpId        String?
   idempotencyKey String?        @unique()
   createdAt      DateTime       @default(now())
   userProfile    UserProfile    @relation(fields: [userId], references: [id])
-  job            Job?           @relation(fields: [jobId], references: [id])
   project        Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
   topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
 
   @@index([userId])
   @@index([idempotencyKey])
-}
-
-model Job {
-  id                 String              @id() @default(cuid())
-  userId             String
-  status             String
-  videoUrl           String?
-  rawVideoUrl        String?
-  pdfUrl             String?
-  audioUrl           String?
-  thumbnailUrl       String?
-  parameters         String
-  phases             String?
-  error              String?
-  workerId           String?
-  cost               Float               @default(0)
-  gitHash            String?
-  rating             String?
-  feedback           String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt()
-  isPublic           Boolean             @default(false)
-  shareSlug          String?             @unique()
-  shareViews         Int                 @default(0)
-  userProfile        UserProfile         @relation(fields: [userId], references: [id])
-  creditTransactions CreditTransaction[]
-  videoEditions      VideoEdition[]
-
-  @@index([userId])
-}
-
-model VideoEdition {
-  id                 String   @id() @default(cuid())
-  jobId              String
-  editionNumber      Int
-  videoUrl           String
-  rawVideoUrl        String?
-  audioUrl           String?
-  thumbnailUrl       String?
-  storyboard         String?
-  storyboardRevision Int?
-  createdAt          DateTime @default(now())
-  job                Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  @@unique([jobId, editionNumber])
-  @@unique([jobId, videoUrl])
-  @@index([jobId, createdAt])
 }
 
 model Affiliate {
@@ -328,21 +278,6 @@ model NewsletterDelivery {
   @@index([email])
 }
 
-model StudioProject {
-  id          String   @id() @default(cuid())
-  userId      String
-  flow        String   @default("launch-video")
-  name        String
-  sessionFile String?
-  jobId       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt()
-
-  @@unique([userId, flow, name])
-  @@index([userId])
-  @@index([jobId])
-}
-
 model Project {
   id                 String              @id() @default(cuid())
   userId             String
@@ -360,7 +295,6 @@ model Project {
   isPublic           Boolean             @default(false)
   shareSlug          String?             @unique()
   shareViews         Int                 @default(0)
-  legacyJobId        String?             @unique()
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt()
   creditTransactions CreditTransaction[]

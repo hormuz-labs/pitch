@@ -40,7 +40,6 @@ model UserProfile {
   subscriptions      Subscription[]
   topUpPurchases     TopUpPurchase[]
   creditTransactions CreditTransaction[]
-  jobs               Job[]
   affiliate          Affiliate?
   browserProfile     BrowserProfile?
   browserSessions    BrowserSession[]
@@ -224,7 +223,6 @@ model CreditTransaction {
   delta          Int                           // positive = credit, negative = debit
   type           String                        // see values above
   description    String                        // human-readable reason
-  jobId          String?                       // set for usage / refund transactions (legacy jobs)
   projectId      String?                       // set for usage / refund transactions (studio projects)
   subscriptionId String?                       // set for subscription_grant transactions (FK to Subscription.id)
   topUpId        String?                       // set for topup_grant transactions (FK to TopUpPurchase.id)
@@ -232,7 +230,6 @@ model CreditTransaction {
   createdAt      DateTime @default(now())
 
   userProfile    UserProfile    @relation(fields: [userId], references: [id])
-  job            Job?           @relation(fields: [jobId], references: [id])
   project        Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   subscription   Subscription?  @relation(fields: [subscriptionId], references: [id])
   topUp          TopUpPurchase? @relation(fields: [topUpId], references: [id])
@@ -241,81 +238,7 @@ model CreditTransaction {
   @@index([idempotencyKey])
 }
 
-model Job {
-  id           String   @id @default(cuid())
-  userId       String
-  status       String
-  videoUrl     String?
-  rawVideoUrl  String?
-  pdfUrl       String?
-  audioUrl     String?
-  thumbnailUrl String?  // S3/MinIO URL of the intro screenshot — uploaded early so dashboard shows branded thumbnail immediately
-  parameters   String
-  phases       String?  // JSON: PhaseUpdate[] — persisted for page-refresh resilience
-  error        String?  // Reason for failure, if any
-  workerId     String?  // Hostname/ID of the worker that processed the job
-  cost         Float    @default(0) // Total cost of the opencode session in USD
-  gitHash      String?
-  rating       String?  // 'up' or 'down'
-  feedback     String?  // User's written review
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  isPublic     Boolean  @default(false) // Owner opt-in: exposes this job via the public /d/:shareSlug page
-  shareSlug    String?  @unique         // Opaque public share id; assigned once on first share, reused thereafter
-  shareViews   Int      @default(0)     // Bumped on real page loads of /d/:shareSlug (not crawler HTML fetches)
-
-  userProfile        UserProfile         @relation(fields: [userId], references: [id])
-  creditTransactions CreditTransaction[]
-  videoEditions      VideoEdition[]
-
-  @@index([userId])
-
-  // Access policies
-  // User must be logged in to do anything, UNLESS the job has been opted into
-  // public sharing — that carve-out is what lets the /d/:shareSlug page (and
-  // its anonymous getPublicJobBySlug lookup) read a single public job.
-  @@deny('all', auth() == null && isPublic != true)
-
-  // A user can read/write their own personal jobs
-  // The auth() object will be passed in when enhancing the prisma client:
-  // enhance(prisma, { user: { id: userId } })
-  @@allow('all', userId == auth().id)
-
-  // Anonymous read of a job the owner has explicitly made public — this is
-  // what powers the /d/:shareSlug page. Scoped to anonymous access only so the
-  // carve-out cannot leak shared demo/launch videos into other users'
-  // authenticated dashboard/job listings (an authenticated user's reads are
-  // limited to `userId == auth().id` above). Write operations for anonymous
-  // users have no matching @@allow, so they stay blocked by ZenStack's
-  // implicit default-deny regardless of this carve-out.
-  @@allow('read', isPublic == true && auth() == null)
-}
-
 // ── Video editions ────────────────────────────────────────────────────────────────────────────
-
-// Every successful storyboard render keeps its own storage URLs and storyboard snapshot.
-model VideoEdition {
-  id                 String   @id @default(cuid())
-  jobId              String
-  editionNumber      Int
-  videoUrl           String
-  rawVideoUrl        String?
-  audioUrl           String?
-  thumbnailUrl       String?
-  storyboard         String?
-  storyboardRevision Int?
-  createdAt          DateTime @default(now())
-
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  @@unique([jobId, editionNumber])
-  @@unique([jobId, videoUrl])
-  @@index([jobId, createdAt])
-
-  @@deny('all', auth() == null)
-  @@allow('all', job.userId == auth().id)
-}
 
 // ── Affiliate Program ────────────────────────────────────────────────────────────────────────────
 
@@ -459,29 +382,6 @@ model NewsletterDelivery {
 
 // ── Studio projects ─────────────────────────────────────────────────────────
 
-// One row per agent workspace the API's studio drives: a launch-video project
-// (projects/<userId>--<name>/) or a chat-edit workspace for another flow
-// (projects/<flow>--<userId>--<jobId>/). `sessionFile` is the pi session file
-// the studio resumes across restarts. Scoped per user.
-model StudioProject {
-  id          String   @id @default(cuid())
-  userId      String   // Clerk user id — owner of the workspace
-  flow        String   @default("launch-video") // launch-video | pdf | demo-video
-  name        String   // public project name (launch-video) or job id (other flows)
-  sessionFile String?  // pi session file path, set once the agent has spoken
-  jobId       String?  // Job row that paid for / owns this workspace
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, flow, name])
-  @@index([userId])
-  @@index([jobId])
-
-  // Internal registry — the API uses the base prisma client, never the
-  // enhanced per-user one, so deny everything for enhanced clients.
-  @@deny('all', true)
-}
-
 // ── Studio projects ─────────────────────────────────────────────────────────
 
 // A studio project: one workspace directory, one resumable pi session, one
@@ -504,7 +404,6 @@ model Project {
   isPublic       Boolean  @default(false)
   shareSlug      String?  @unique
   shareViews     Int      @default(0)
-  legacyJobId    String?  @unique // imported from the old Job table (read-only)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

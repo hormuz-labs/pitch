@@ -58,8 +58,6 @@ export interface TurnInput {
   targets?: Array<Record<string, any>>
   scene?: string | null
   slide?: number | null
-  /** Legacy project imported from a Job row — hydrate the workspace from its outputs. */
-  legacy?: { jobId: string; outputs: Output[] } | null
 }
 
 export interface UploadRef {

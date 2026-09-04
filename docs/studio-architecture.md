@@ -43,7 +43,6 @@ Project {
   thumbnailUrl  String?
   lastError     String?
   isPublic / shareSlug / shareViews
-  legacyJobId   String?  imported from the old Job table (read-only project)
   createdAt / updatedAt
 }
 ```
@@ -271,8 +270,8 @@ credit and many cheap turns still add up. Asking a question costs almost
 nothing; encoding 4K does not. A turn needs a balance of at least one credit
 to start.
 
-## Legacy
+## There is no legacy path
 
-`Job` rows are imported as read-only projects (`legacyJobId`) by one mapping —
-a finished job is a prompt, some options and the files it produced, whichever
-pipeline made it. "Edit" on one opens a new project hydrated from that output.
+The pre-studio job queue is gone: `Job`, `VideoEdition` and `StudioProject`
+were dropped, along with the read-only project view that displayed imported
+jobs. A project is the only thing the studio knows about.

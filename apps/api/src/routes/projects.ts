@@ -29,10 +29,6 @@ router.get('/', async (req, res) => {
   try {
     const flow =
       typeof req.query.flow === 'string' && isFlowId(req.query.flow) ? req.query.flow : undefined
-    if (req.query.import === '1')
-      await projects
-        .importLegacyJobs(userId)
-        .catch(err => logger.warn({ err }, 'legacy import failed'))
     res.json(await projects.listProjects(userId, flow))
   } catch (err) {
     fail(res, err, 'list projects failed')

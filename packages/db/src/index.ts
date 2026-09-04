@@ -1,5 +1,4 @@
 import { type Prisma, PrismaClient } from '@prisma/client'
-import { type Job, JobStatus, PHASE_WEIGHTS, type PhaseUpdate } from '@saas/shared'
 import { enhance } from '@zenstackhq/runtime'
 import * as dotenv from 'dotenv'
 import path from 'path'
@@ -24,351 +23,6 @@ export interface AuthUser extends Record<string, unknown> {
 
 export function getEnhancedPrisma(user?: AuthUser) {
   return enhance(prisma, { user })
-}
-
-/** Parse the raw phases JSON string and compute weighted progress 0–100 */
-function parseJobPhases(rawPhases: string | null | undefined): {
-  phases: PhaseUpdate[]
-  progress: number
-} {
-  const phases: PhaseUpdate[] = rawPhases ? JSON.parse(rawPhases) : []
-  const progress = phases
-    .filter(p => p.status === 'completed')
-    .reduce((acc, p) => acc + (PHASE_WEIGHTS[p.phase] ?? 0), 0)
-  return { phases, progress }
-}
-
-function serializeJob(updated: any) {
-  const { phases, progress } = parseJobPhases(updated.phases)
-  return {
-    ...updated,
-    videoUrl: updated.videoUrl ?? undefined,
-    rawVideoUrl: updated.rawVideoUrl ?? undefined,
-    pdfUrl: updated.pdfUrl ?? undefined,
-    audioUrl: updated.audioUrl ?? undefined,
-    thumbnailUrl: updated.thumbnailUrl ?? undefined,
-    status: updated.status as JobStatus,
-    parameters: JSON.parse(updated.parameters),
-    phases,
-    progress,
-  }
-}
-
-export interface VideoEdition {
-  id: string
-  jobId: string
-  editionNumber: number
-  videoUrl: string
-  rawVideoUrl?: string
-  audioUrl?: string
-  thumbnailUrl?: string
-  storyboard?: Record<string, unknown>
-  storyboardRevision?: number
-  createdAt: Date
-}
-
-function serializeVideoEdition(edition: any): VideoEdition {
-  return {
-    ...edition,
-    rawVideoUrl: edition.rawVideoUrl ?? undefined,
-    audioUrl: edition.audioUrl ?? undefined,
-    thumbnailUrl: edition.thumbnailUrl ?? undefined,
-    storyboard: edition.storyboard ? JSON.parse(edition.storyboard) : undefined,
-    storyboardRevision: edition.storyboardRevision ?? undefined,
-  }
-}
-
-export async function saveVideoEdition(input: {
-  jobId: string
-  videoUrl: string
-  rawVideoUrl?: string
-  audioUrl?: string
-  thumbnailUrl?: string
-  storyboard?: Record<string, unknown>
-}): Promise<VideoEdition> {
-  const edition = await prisma.$transaction(async tx => {
-    const existing = await tx.videoEdition.findUnique({
-      where: { jobId_videoUrl: { jobId: input.jobId, videoUrl: input.videoUrl } },
-    })
-    if (existing) return existing
-
-    const latest = await tx.videoEdition.findFirst({
-      where: { jobId: input.jobId },
-      orderBy: { editionNumber: 'desc' },
-      select: { editionNumber: true },
-    })
-    const revision = input.storyboard?.revision
-    return tx.videoEdition.create({
-      data: {
-        jobId: input.jobId,
-        editionNumber: (latest?.editionNumber ?? 0) + 1,
-        videoUrl: input.videoUrl,
-        rawVideoUrl: input.rawVideoUrl,
-        audioUrl: input.audioUrl,
-        thumbnailUrl: input.thumbnailUrl,
-        storyboard: input.storyboard ? JSON.stringify(input.storyboard) : undefined,
-        storyboardRevision: typeof revision === 'number' ? revision : undefined,
-      },
-    })
-  })
-  return serializeVideoEdition(edition)
-}
-
-export async function listVideoEditions(jobId: string): Promise<VideoEdition[]> {
-  const editions = await prisma.videoEdition.findMany({
-    where: { jobId },
-    orderBy: { editionNumber: 'desc' },
-  })
-  return editions.map(serializeVideoEdition)
-}
-
-export async function getVideoEdition(
-  jobId: string,
-  editionId: string,
-): Promise<VideoEdition | null> {
-  const edition = await prisma.videoEdition.findFirst({ where: { id: editionId, jobId } })
-  return edition ? serializeVideoEdition(edition) : null
-}
-
-export async function completeVideoJobWithEdition(
-  id: string,
-  data: {
-    videoUrl: string
-    rawVideoUrl?: string
-    gitHash?: string
-    storyboard: Record<string, unknown>
-  },
-) {
-  const updated = await prisma.$transaction(async tx => {
-    const currentJob = await tx.job.findUniqueOrThrow({ where: { id } })
-    const existing = await tx.videoEdition.findUnique({
-      where: { jobId_videoUrl: { jobId: id, videoUrl: data.videoUrl } },
-    })
-    if (!existing) {
-      const latest = await tx.videoEdition.findFirst({
-        where: { jobId: id },
-        orderBy: { editionNumber: 'desc' },
-        select: { editionNumber: true },
-      })
-      const revision = data.storyboard.revision
-      await tx.videoEdition.create({
-        data: {
-          jobId: id,
-          editionNumber: (latest?.editionNumber ?? 0) + 1,
-          videoUrl: data.videoUrl,
-          rawVideoUrl: data.rawVideoUrl,
-          audioUrl: currentJob.audioUrl,
-          thumbnailUrl: currentJob.thumbnailUrl,
-          storyboard: JSON.stringify(data.storyboard),
-          storyboardRevision: typeof revision === 'number' ? revision : undefined,
-        },
-      })
-    }
-
-    return tx.job.update({
-      where: { id },
-      data: {
-        status: JobStatus.COMPLETED,
-        videoUrl: data.videoUrl,
-        ...(data.rawVideoUrl !== undefined ? { rawVideoUrl: data.rawVideoUrl } : {}),
-        ...(data.gitHash !== undefined ? { gitHash: data.gitHash } : {}),
-      },
-    })
-  })
-  return serializeJob(updated)
-}
-
-export async function updateJob(
-  id: string,
-  data: {
-    status?: JobStatus
-    videoUrl?: string
-    rawVideoUrl?: string
-    pdfUrl?: string
-    audioUrl?: string
-    thumbnailUrl?: string
-    phases?: string | null // raw JSON string from publishPhaseUpdate
-    error?: string | null
-    workerId?: string | null
-    cost?: number
-    gitHash?: string
-    rating?: string
-    feedback?: string
-    parameters?: Record<string, unknown>
-  },
-) {
-  console.log(`[DB] Updating job ${id}:`, { ...data, phases: data.phases ? '<phases>' : undefined })
-
-  // Build the Prisma data object dynamically so we never pass `undefined`
-  // for fields that weren't supplied. Passing explicit undefined can cause
-  // ZenStack/Prisma to reject the update with "Invalid invocation".
-  const updateData: Prisma.JobUpdateInput = {}
-  if (data.status !== undefined) updateData.status = data.status
-  if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl
-  if (data.rawVideoUrl !== undefined) updateData.rawVideoUrl = data.rawVideoUrl
-  if (data.pdfUrl !== undefined) updateData.pdfUrl = data.pdfUrl
-  if (data.audioUrl !== undefined) updateData.audioUrl = data.audioUrl
-  if (data.thumbnailUrl !== undefined) updateData.thumbnailUrl = data.thumbnailUrl
-  if (data.error !== undefined) updateData.error = data.error
-  if (data.workerId !== undefined) updateData.workerId = data.workerId
-  if (data.cost !== undefined) updateData.cost = data.cost
-  if (data.gitHash !== undefined) updateData.gitHash = data.gitHash
-  if (data.rating !== undefined) updateData.rating = data.rating
-  if (data.feedback !== undefined) updateData.feedback = data.feedback
-  if (data.phases !== undefined) updateData.phases = data.phases
-  if (data.parameters !== undefined) updateData.parameters = JSON.stringify(data.parameters)
-
-  // System-level bypass for webhook/worker updates
-  const updated = await prisma.job.update({
-    where: { id },
-    data: updateData,
-  })
-
-  return serializeJob(updated)
-}
-
-export async function createJob(
-  data: { userId: string; parameters: any },
-  user?: AuthUser,
-): Promise<Job> {
-  console.log(`[DB] Creating job for user ${data.userId}`)
-
-  const client = getEnhancedPrisma(user)
-  const created = await client.job.create({
-    data: {
-      userId: data.userId,
-      status: JobStatus.PENDING,
-      parameters: JSON.stringify(data.parameters),
-    },
-  })
-
-  const { phases, progress } = parseJobPhases((created as any).phases)
-  return {
-    ...created,
-    videoUrl: created.videoUrl ?? undefined,
-    rawVideoUrl: created.rawVideoUrl ?? undefined,
-    pdfUrl: created.pdfUrl ?? undefined,
-    audioUrl: created.audioUrl ?? undefined,
-    thumbnailUrl: (created as any).thumbnailUrl ?? undefined,
-    shareSlug: (created as any).shareSlug ?? undefined,
-    status: created.status as JobStatus,
-    parameters: JSON.parse(created.parameters),
-    phases,
-    progress,
-  }
-}
-
-export async function getJob(id: string, user?: AuthUser): Promise<Job | null> {
-  const client = getEnhancedPrisma(user)
-  const job = await client.job.findUnique({ where: { id } })
-
-  if (!job) return null
-
-  const { phases, progress } = parseJobPhases((job as any).phases)
-  return {
-    ...job,
-    videoUrl: job.videoUrl ?? undefined,
-    rawVideoUrl: job.rawVideoUrl ?? undefined,
-    pdfUrl: job.pdfUrl ?? undefined,
-    audioUrl: job.audioUrl ?? undefined,
-    thumbnailUrl: (job as any).thumbnailUrl ?? undefined,
-    shareSlug: (job as any).shareSlug ?? undefined,
-    status: job.status as JobStatus,
-    parameters: JSON.parse(job.parameters),
-    phases,
-    progress,
-  }
-}
-
-export async function listJobs(user?: AuthUser): Promise<Job[]> {
-  const client = getEnhancedPrisma(user)
-  // Scope to the requesting user explicitly. Relying on the access policy
-  // alone is not enough: ZenStack's `isPublic == true` read carve-out applies
-  // to authenticated clients too, which would leak other users' shared
-  // demo/launch videos into every dashboard's job list.
-  const jobs = await client.job.findMany({
-    where: user ? { userId: user.id } : undefined,
-    orderBy: { createdAt: 'desc' },
-  })
-
-  return jobs.map((job: any) => {
-    const { phases, progress } = parseJobPhases(job.phases)
-    return {
-      ...job,
-      videoUrl: job.videoUrl ?? undefined,
-      audioUrl: job.audioUrl ?? undefined,
-      thumbnailUrl: job.thumbnailUrl ?? undefined,
-      status: job.status as JobStatus,
-      parameters: JSON.parse(job.parameters),
-      phases,
-      progress,
-    }
-  })
-}
-
-export async function deleteJob(id: string, user?: AuthUser) {
-  console.log(`[DB] Deleting job ${id}`)
-  const client = getEnhancedPrisma(user)
-  return await client.job.delete({
-    where: { id },
-  })
-}
-
-// ─── Public sharing ─────────────────────────────────────────────────────────
-//
-// Opt-in only — a job is never public until its owner explicitly shares it
-// (see the Job model's `isPublic == true` read carve-out in schema.zmodel).
-
-function generateShareSlug(): string {
-  return randomBytes(6).toString('base64url')
-}
-
-/** Mark a job public, assigning it a share slug on first call. Idempotent —
- * calling again on an already-public job returns the same slug rather than
- * rotating it, so a previously shared link keeps working. Owner-scoped via
- * the enhanced client; throws if the job doesn't exist or isn't owned by `user`. */
-export async function makeJobPublic(id: string, user: AuthUser): Promise<{ shareSlug: string }> {
-  const client = getEnhancedPrisma(user)
-  const existing = await client.job.findUnique({ where: { id }, select: { shareSlug: true } })
-  if (!existing) throw new Error('Job not found')
-
-  if (existing.shareSlug) {
-    await client.job.update({ where: { id }, data: { isPublic: true } })
-    return { shareSlug: existing.shareSlug }
-  }
-
-  // Collision-safe: retry if generated slug already exists (same idiom as
-  // generateAffiliateCode/registerAffiliate above).
-  let shareSlug = generateShareSlug()
-  while (await prisma.job.findUnique({ where: { shareSlug } })) {
-    shareSlug = generateShareSlug()
-  }
-
-  await client.job.update({ where: { id }, data: { isPublic: true, shareSlug } })
-  return { shareSlug }
-}
-
-/** Revoke public access. The slug is kept (not cleared) so re-sharing later
- * reuses the same URL instead of silently breaking previously shared links. */
-export async function unmakeJobPublic(id: string, user: AuthUser): Promise<void> {
-  const client = getEnhancedPrisma(user)
-  await client.job.update({ where: { id }, data: { isPublic: false } })
-}
-
-/** Anonymous lookup by share slug. Goes through the enhanced client with no
- * user so ZenStack's `isPublic == true` policy is what actually gates this —
- * do not bypass to the raw `prisma` client here (see getWebhookDelivery for
- * the unsafe version of this pattern this deliberately avoids). */
-export async function getPublicJobBySlug(slug: string): Promise<Job | null> {
-  const client = getEnhancedPrisma(undefined)
-  const job = await client.job.findUnique({ where: { shareSlug: slug } })
-  if (!job) return null
-  return serializeJob(job)
-}
-
-/** Fire-and-forget view counter for real page loads of /d/:slug. */
-export async function incrementShareViews(id: string): Promise<void> {
-  await prisma.job.update({ where: { id }, data: { shareViews: { increment: 1 } } })
 }
 
 // ─── Credits ──────────────────────────────────────────────────────────────────
@@ -419,7 +73,6 @@ export async function addCredits(
   type: CreditTransactionType,
   description: string,
   opts?: {
-    jobId?: string
     projectId?: string
     subscriptionId?: string
     topUpId?: string
@@ -447,7 +100,6 @@ export async function addCredits(
       delta: amount,
       type,
       description,
-      jobId: opts?.jobId,
       projectId: opts?.projectId,
       subscriptionId: opts?.subscriptionId,
       topUpId: opts?.topUpId,
@@ -470,7 +122,6 @@ export async function deductCredit(
   amount: number,
   description: string,
   opts?: {
-    jobId?: string
     projectId?: string
     idempotencyKey?: string
   },
@@ -493,7 +144,6 @@ export async function deductCredit(
         delta: -amount,
         type: 'usage',
         description,
-        jobId: opts?.jobId,
         projectId: opts?.projectId,
         idempotencyKey: opts?.idempotencyKey,
       },

@@ -1,6 +1,6 @@
 /**
  * Admin: users, projects, credits, affiliates, analytics. Projects replace
- * jobs; the old Job table is read for feedback/history only.
+ * projects.
  */
 import * as db from '@saas/db'
 import { renderNewsletterEmail, sendNewsletterEmail } from '@saas/email'
@@ -63,9 +63,8 @@ router.get('/dashboard', async (_req, res) => {
       orderBy: { createdAt: 'desc' },
     })
     const revenueAgg = await db.prisma.topUpPurchase.aggregate({ _sum: { amountUsd: true } })
-    const [totalProjects, totalLegacyJobs, failedProjects] = await Promise.all([
+    const [totalProjects, failedProjects] = await Promise.all([
       db.prisma.project.count(),
-      db.prisma.job.count(),
       db.prisma.project.count({ where: { lastError: { not: null } } }),
     ])
     const busy = listBusy()
@@ -97,7 +96,6 @@ router.get('/dashboard', async (_req, res) => {
         activeSessions: busy.size,
         totalProjects,
         failedProjects,
-        totalLegacyJobs,
         totalUsers: users.length,
         totalRevenue: revenueAgg._sum?.amountUsd ?? 0,
       },
@@ -134,9 +132,7 @@ async function decorate(rows: any[]) {
           ? 'failed'
           : outputs.length
             ? 'ready'
-            : r.legacyJobId
-              ? 'legacy'
-              : 'empty',
+            : 'empty',
       userEmail: user?.email || 'Unknown',
       userName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
       isRefunded: refunded.has(r.id),
@@ -282,10 +278,10 @@ router.get('/users/:id/affiliate', async (req, res) => {
   }
 })
 
-// 7. Analytics: feedback summary (legacy jobs) + affiliates overview
+// 7. Analytics: affiliates overview
 router.get('/analytics', async (_req, res) => {
   try {
-    const [affiliatesRaw, jobsWithFeedbackRaw, referralCreditRows] = await Promise.all([
+    const [affiliatesRaw, referralCreditRows] = await Promise.all([
       db.prisma.affiliate.findMany({
         include: {
           userProfile: { select: { email: true, firstName: true, lastName: true, imageUrl: true } },
@@ -294,22 +290,6 @@ router.get('/analytics', async (_req, res) => {
           _count: { select: { leads: true } },
         },
         orderBy: { createdAt: 'desc' },
-      }),
-      db.prisma.job.findMany({
-        where: { OR: [{ rating: { not: null } }, { feedback: { not: null } }] },
-        orderBy: { updatedAt: 'desc' },
-        select: {
-          id: true,
-          userId: true,
-          rating: true,
-          feedback: true,
-          status: true,
-          cost: true,
-          createdAt: true,
-          updatedAt: true,
-          parameters: true,
-          userProfile: { select: { email: true, firstName: true, lastName: true } },
-        },
       }),
       db.prisma.creditTransaction.groupBy({
         by: ['userId'],
@@ -337,17 +317,7 @@ router.get('/analytics', async (_req, res) => {
         conversions: a.conversions,
       }
     })
-    const jobsWithFeedback = jobsWithFeedbackRaw.map(j => ({
-      ...j,
-      parameters: parse(j.parameters, {}),
-    }))
-    const feedbackSummary = {
-      thumbsUp: jobsWithFeedback.filter(j => j.rating === 'up').length,
-      thumbsDown: jobsWithFeedback.filter(j => j.rating === 'down').length,
-      withText: jobsWithFeedback.filter(j => j.feedback && j.feedback.trim().length > 0).length,
-      total: jobsWithFeedback.length,
-    }
-    res.json({ affiliates, jobsWithFeedback, feedbackSummary })
+    res.json({ affiliates })
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch admin analytics')
     res.status(500).json({ error: error.message })

@@ -75,19 +75,6 @@ async function download(url: string, dest: string): Promise<void> {
   await writeFile(dest, Buffer.from(await res.arrayBuffer()))
 }
 
-/** Pull a published deck HTML into deck.html (legacy import / "Edit" on an old job). */
-export async function hydrate(ws: Workspace, htmlUrl: string): Promise<void> {
-  const marker = path.join(ws.dir, '.source-url')
-  const current = existsSync(marker) ? await readFile(marker, 'utf8') : ''
-  if (current.trim() === htmlUrl && existsSync(path.join(ws.dir, 'deck.html'))) return
-  const res = await fetch(htmlUrl)
-  if (!res.ok) throw new Error(`Could not fetch the deck HTML (${res.status})`)
-  await mkdir(ws.dir, { recursive: true })
-  await writeFile(path.join(ws.dir, 'deck.html'), await res.text(), 'utf8')
-  await writeFile(marker, htmlUrl, 'utf8')
-  logger.info({ workspace: ws.internal }, 'deck hydrated from published HTML')
-}
-
 /**
  * Download an uploaded PDF/PPTX to input/<name> and run the skill's parser.
  * The parser writes parsed-slides.json (+ input-images/ for preserve+pptx)

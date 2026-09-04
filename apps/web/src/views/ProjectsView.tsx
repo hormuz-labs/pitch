@@ -50,15 +50,12 @@ const IconPlus = () => (
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-/** Where a project opens: legacy rows get the read-only page. */
-export const projectPath = (p: Pick<Project, 'id' | 'status'>) =>
-  p.status === 'legacy' ? `/legacy/${p.id}` : `/p/${p.id}`
+export const projectPath = (p: Pick<Project, 'id'>) => `/p/${p.id}`
 
 const STATUS: Record<ProjectStatus, { label: string; cls: string }> = {
   working: { label: 'Working', cls: 'bg-blue-50 text-blue-700 border-blue-100' },
   ready: { label: 'Ready', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
   failed: { label: 'Failed', cls: 'bg-red-50 text-red-600 border-red-100' },
-  legacy: { label: 'Legacy', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
   empty: { label: 'Draft', cls: 'bg-amber-50 text-amber-700 border-amber-100' },
 }
 
@@ -271,9 +268,7 @@ export function ProjectsView({ searchQuery = '' }: { searchQuery?: string }) {
       const token = await getToken()
       if (!token) return
       setMediaToken(token)
-      // The first load also imports finished legacy jobs as read-only projects.
-      const rows = await listProjects(token, undefined, { importLegacy: !imported.current })
-      imported.current = true
+      const rows = await listProjects(token)
       setProjects(rows)
       setError(null)
     } catch (err) {

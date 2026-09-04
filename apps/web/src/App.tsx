@@ -74,7 +74,6 @@ const CheckoutReturnView = lazyNamed(
 )
 const DocsView = lazyNamed(() => import('./views/DocsView'), 'DocsView')
 const LandingView = lazyNamed(() => import('./views/LandingView'), 'LandingView')
-const LegacyProjectView = lazyNamed(() => import('./views/LegacyProjectView'), 'LegacyProjectView')
 const NewProjectView = lazyNamed(() => import('./views/NewProjectView'), 'NewProjectView')
 const PricingView = lazyNamed(() => import('./views/PricingView'), 'PricingView')
 const ProductView = lazyNamed(() => import('./views/ProductView'), 'ProductView')
@@ -785,12 +784,6 @@ function StudioRoute() {
   return <StudioView projectId={id} />
 }
 
-function LegacyRoute() {
-  const { id } = useParams<{ id: string }>()
-  if (!id) return <Navigate to="/projects" replace />
-  return <LegacyProjectView projectId={id} />
-}
-
 // ── App Content ───────────────────────────────────────────────────────────────
 function AppContent() {
   const { getToken, isLoaded, userId } = useAuth()
@@ -912,8 +905,6 @@ function AppContent() {
     selectedKey = isFlowId(flow) ? `new-${flow}` : 'new'
   } else if (path.startsWith('/p/')) {
     selectedKey = 'studio'
-  } else if (path.startsWith('/legacy/')) {
-    selectedKey = 'legacy'
   } else if (path.startsWith('/settings')) {
     selectedKey = 'settings'
   } else if (path.startsWith('/api-keys')) {
@@ -951,7 +942,6 @@ function AppContent() {
   const isStudio = selectedKey === 'studio'
   const isDetailPage =
     isStudio ||
-    selectedKey === 'legacy' ||
     selectedKey.startsWith('new') ||
     selectedKey === 'settings' ||
     (selectedKey === 'templates' && templatesInDetail)
@@ -1096,7 +1086,6 @@ function AppContent() {
                     <Route path="/projects" element={<ProjectsView searchQuery={searchQuery} />} />
                     <Route path="/new" element={<NewProjectView />} />
                     <Route path="/p/:id" element={<StudioRoute />} />
-                    <Route path="/legacy/:id" element={<LegacyRoute />} />
                     <Route
                       path="/templates"
                       element={

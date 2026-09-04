@@ -55,7 +55,7 @@ export const FLOWS: Record<FlowId, { title: string; short: string; blurb: string
 
 // ── Project shapes (mirror apps/api/src/projects/service.ts) ───────────────
 
-export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed' | 'legacy'
+export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed'
 
 export interface Output {
   kind: 'video' | 'pdf' | 'html' | 'thumbnail'
@@ -117,7 +117,6 @@ export interface Project {
   isPublic: boolean
   shareSlug: string | null
   shareViews: number
-  legacyJobId: string | null
   createdAt: string
   updatedAt: string
   /** Derived, never stored. */
@@ -239,17 +238,8 @@ const p = (id: string) => `/projects/${encodeURIComponent(id)}`
 
 // ── Client ────────────────────────────────────────────────────────────────────
 
-export const listProjects = (
-  token: string,
-  flow?: FlowId,
-  opts: { importLegacy?: boolean } = {},
-) => {
-  const q = new URLSearchParams()
-  if (flow) q.set('flow', flow)
-  if (opts.importLegacy) q.set('import', '1')
-  const query = q.toString()
-  return api.get<Project[]>(`/projects${query ? `?${query}` : ''}`, token)
-}
+export const listProjects = (token: string, flow?: FlowId) =>
+  api.get<Project[]>(`/projects${flow ? `?flow=${encodeURIComponent(flow)}` : ''}`, token)
 
 export const getFlows = (token: string) => api.get<FlowInfo[]>('/projects/flows', token)
 

@@ -50,7 +50,7 @@ export class NotFoundError extends Error {
   status = 404
 }
 
-export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed' | 'legacy'
+export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed'
 
 export interface ProjectRow {
   id: string
@@ -68,7 +68,6 @@ export interface ProjectRow {
   isPublic: boolean
   shareSlug: string | null
   shareViews: number
-  legacyJobId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -117,7 +116,6 @@ function statusOf(
   /** Cheap filesystem answer, for lists that do not describe every project. */
   artifact = false,
 ): ProjectStatus {
-  if (p.legacyJobId && !p.sessionFile) return 'legacy'
   if (busy) return 'working'
   const hasSomething =
     Boolean(desc?.preview) || artifact || p.outputs.length > 0 || (desc?.outputs.length ?? 0) > 0
@@ -289,7 +287,6 @@ export async function promptProject(
     targets: opts.targets,
     scene: opts.scene ?? null,
     slide: opts.slide ?? null,
-    legacy: p.legacyJobId ? { jobId: p.legacyJobId, outputs: p.outputs } : null,
   })
   const s = await promptSession(
     { projectId: p.id, ws, agent, sessionFile: p.sessionFile },
@@ -484,87 +481,4 @@ async function dispatchProjectWebhooks(p: ProjectRow): Promise<void> {
   } catch (err) {
     logger.warn({ err, projectId: p.id }, 'webhook dispatch failed')
   }
-}
-
-// ── Legacy import ─────────────────────────────────────────────────────────────
-
-interface LegacyJob {
-  id: string
-  parameters: Record<string, any>
-  videoUrl?: string | null
-  pdfUrl?: string | null
-  thumbnailUrl?: string | null
-  createdAt: Date | string
-}
-
-/**
- * An old Job row as a read-only project. There is one mapping now rather than
- * one per flow: a finished job is a prompt, some options and the files it
- * produced, whichever pipeline made it.
- */
-function importJob(
-  job: LegacyJob,
-): { options: Record<string, any>; outputs: Output[]; title: string; prompt: string } | null {
-  const params = job.parameters ?? {}
-  const createdAt = new Date(job.createdAt).toISOString()
-  const outputs: Output[] = []
-  if (job.videoUrl) outputs.push({ kind: 'video', url: job.videoUrl, label: 'Video', createdAt })
-  if (job.pdfUrl) outputs.push({ kind: 'pdf', url: job.pdfUrl, label: 'PDF', createdAt })
-  if (job.thumbnailUrl) outputs.push({ kind: 'thumbnail', url: job.thumbnailUrl, createdAt })
-  if (outputs.length === 0) return null
-
-  const prompt = String(
-    params.instructions ?? params.prompt ?? params.topic ?? params.description ?? '',
-  ).trim()
-  const source = String(params.url ?? params.originalFileName ?? params.inputFileUrl ?? '')
-  const host = source.match(/https?:\/\/([^/\s)]+)/i)?.[1]?.replace(/^www\./i, '')
-  const title =
-    host ??
-    (params.topic ? String(params.topic) : '') ??
-    (prompt ? prompt.slice(0, 60) : '') ??
-    `Job ${job.id.slice(-6)}`
-
-  return { options: params, outputs, title: title || `Job ${job.id.slice(-6)}`, prompt }
-}
-
-/** Import old Job rows as read-only projects (once per job). */
-export async function importLegacyJobs(userId: string): Promise<number> {
-  const jobs = await db.listJobs({ id: userId })
-  const existing = new Set(
-    (
-      await db.prisma.project.findMany({
-        where: { userId, legacyJobId: { not: null } },
-        select: { legacyJobId: true },
-      })
-    ).map(r => r.legacyJobId),
-  )
-  let imported = 0
-  for (const job of jobs) {
-    if (existing.has(job.id) || job.status !== 'COMPLETED') continue
-    const mapped = importJob(job as any)
-    if (!mapped) continue
-    const name = await uniqueName(
-      userId,
-      'studio',
-      slugify(mapped.title, `legacy-${job.id.slice(-6)}`),
-    )
-    await db.prisma.project.create({
-      data: {
-        userId,
-        flow: 'studio',
-        name,
-        title: mapped.title,
-        prompt: mapped.prompt,
-        options: JSON.stringify(mapped.options),
-        outputs: JSON.stringify(mapped.outputs),
-        thumbnailUrl: job.thumbnailUrl ?? null,
-        legacyJobId: job.id,
-        isPublic: Boolean((job as any).isPublic),
-        shareSlug: (job as any).shareSlug ?? null,
-        createdAt: new Date(job.createdAt),
-      },
-    })
-    imported++
-  }
-  return imported
 }

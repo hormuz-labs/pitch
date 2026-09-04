@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => {
     apiKey: remove(),
     onboardingSurvey: remove(),
     creditTransaction: remove(),
-    job: remove(),
     subscription: remove(),
     topUpPurchase: remove(),
     affiliateClick: remove(),
@@ -21,7 +20,6 @@ const mocks = vi.hoisted(() => {
     affiliateConversion: remove(),
     affiliatePayout: remove(),
     project: remove(),
-    studioProject: remove(),
     newsletterSubscriber: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     userProfile: remove(),
   }
@@ -59,15 +57,11 @@ describe('POST /webhooks/clerk', () => {
     expect(mocks.tx.onboardingSurvey.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'user_deleted' },
     })
-    expect(mocks.tx.job.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user_deleted' } })
     expect(mocks.tx.affiliate.deleteMany).toHaveBeenCalledWith({
       where: { id: 'affiliate_1' },
     })
-    // launchVideoProject became the studio's own project tables.
+    // A deleted account takes its workspaces with it.
     expect(mocks.tx.project.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'user_deleted' },
-    })
-    expect(mocks.tx.studioProject.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'user_deleted' },
     })
     expect(mocks.tx.newsletterSubscriber.updateMany).toHaveBeenCalledWith({
