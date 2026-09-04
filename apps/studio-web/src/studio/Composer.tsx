@@ -153,7 +153,8 @@ export function Composer({ store }: { store: ProjectStore }) {
               title="Attach files (PDF, images, video)"
               onClick={() => fileInput.current?.click()}
             >
-              📎 attach
+              <span className="attach-glyph">📎</span>
+              attach
             </button>
             <input
               ref={fileInput}

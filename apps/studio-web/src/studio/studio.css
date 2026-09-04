@@ -631,12 +631,33 @@
   min-height: 0;
   display: flex;
 }
+/**
+ * The stage is one dark panel from the header to the bottom of the window —
+ * player, track and tray together — because all three are about the artifact.
+ *
+ * The tray used to be a white slab under a dark player, which put a second
+ * horizontal rule up against the chat panel's own divider: two lines meeting
+ * one vertical line at two different heights, right where the eye goes. Now
+ * there is exactly one line between the two panes.
+ *
+ * Redefining the tokens rather than restyling each class is deliberate: the
+ * strips, the tray tabs, the asset cards and their buttons all read from
+ * these, so they follow the ground they are standing on.
+ */
 .lv-studio .editor-stage {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--stage);
+
+  --paper: transparent;
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel-2: rgba(255, 255, 255, 0.1);
+  --ink: #edebe8;
+  --muted: #a3a09b;
+  --faint: #78756f;
+  --border: rgba(255, 255, 255, 0.11);
 }
 /* Player */
 
@@ -648,6 +669,7 @@
   justify-content: center;
   padding: 20px;
   position: relative;
+  overflow: hidden;
 }
 .lv-studio .player-stage {
   width: 100%;
@@ -782,6 +804,24 @@
   background: #000;
   border-radius: 8px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* The selectable video is a COLUMN: player on top, track underneath. A flex
+   item's `max-height: 100%` is 100% of the whole column, so the player claimed
+   the full height and pushed the track — and itself — straight out of the
+   stage. It has to be the item that flexes, with min-height:0 so it may
+   actually shrink, and no forced ratio: object-fit letterboxes whatever shape
+   the footage really is (portrait uploads are common). */
+.lv-studio .video-container > video {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+.lv-studio .video-container > .video-select {
+  flex: 0 0 auto;
 }
 /* Building stage (nothing to preview yet) */
 
@@ -1430,12 +1470,29 @@ to {
   gap: 10px;
 }
 .lv-studio .job-composer-hint {
+  flex: 1 1 auto;
   color: var(--faint);
   font-size: 11.5px;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The attach button sits inside the hint text; without this the paperclip
+   runs into the word after it on a narrow sidebar. */
+.lv-studio .job-composer-hint .target-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 3px;
+}
+
+/* The emoji's glyph is wider than the advance the font reserves for it, so a
+   plain space is not enough — it laps over the word beside it. */
+.lv-studio .attach-glyph {
+  font-size: 10px;
+  line-height: 1;
 }
 .lv-studio .inspector-send {
   flex: 0 0 auto;
@@ -2275,6 +2332,13 @@ to {
   position: relative;
 }
 
+.lv-studio .asset-shelf .timeline-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .lv-studio .asset-shelf.dropping::after {
   content: 'Drop to add to this project';
   position: absolute;
@@ -2293,7 +2357,9 @@ to {
 }
 
 .lv-studio .asset-add {
+  flex: 0 0 auto;
   margin-left: auto;
+  white-space: nowrap;
   padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2381,9 +2447,9 @@ to {
    beats CreditPopover's own utility classes, which is how a quiet marker ends
    up painted accent-orange. */
 .lv-studio .composer-credits {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  margin-right: 10px;
 }
 
 .lv-studio .composer-credits button {
