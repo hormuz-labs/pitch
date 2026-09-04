@@ -79,6 +79,13 @@
       "CustomEase", "CustomWiggle", "CustomBounce", "SplitText", "TextPlugin",
       "ScrambleTextPlugin", "Physics2DPlugin", "PhysicsPropsPlugin", "MotionPathPlugin",
       "MorphSVGPlugin", "DrawSVGPlugin", "Flip", "RoughEase", "SlowMo", "ExpoScaleEase",
+      // The rest of the licensed set. A custom shot type can reach for any of
+      // them: Draggable/InertiaPlugin for thrown cards, Observer for input,
+      // CSSRulePlugin for ::before/::after, EaselPlugin and PixiPlugin for
+      // canvas stages, ScrollTrigger/ScrollSmoother/ScrollToPlugin for a
+      // scrolled UI shot. All of them ship in ../../assets/gsap/.
+      "Draggable", "InertiaPlugin", "Observer", "CSSRulePlugin", "EaselPlugin",
+      "PixiPlugin", "ScrollTrigger", "ScrollSmoother", "ScrollToPlugin",
     ];
     const found = names.map((n) => window[n]).filter(Boolean);
     if (found.length) gsap.registerPlugin(...found);

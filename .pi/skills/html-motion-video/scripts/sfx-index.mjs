@@ -5,7 +5,7 @@
  * Scans the shared SFX libraries, measures every file (duration + peak +
  * integrated loudness), classifies it into a semantic MOTION EVENT class from
  * folder/filename evidence, drops everything on the ban list, and writes
- *   references/sfx-index.json
+ *   data/sfx-index.json
  *
  * The agent NEVER browses the raw library — 900+ files, most of them unusable.
  * It queries the manifest through sfx.mjs instead.
@@ -297,7 +297,7 @@ const manifest = {
   clips: entries,
 };
 
-const outPath = join(SKILL, "references", "sfx-index.json");
+const outPath = join(SKILL, "data", "sfx-index.json");
 writeFileSync(outPath, JSON.stringify(manifest, null, 2));
 
 console.log(`\n${entries.length} clips indexed in ${((Date.now() - t0) / 1000).toFixed(1)}s → ${relative(REPO, outPath)}\n`);

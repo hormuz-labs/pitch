@@ -12,7 +12,7 @@ import path from 'node:path'
 import express from 'express'
 import { PREVIEW_COOKIE, setPreviewCookie, verifyPreviewGrant } from '../lib/preview-auth.js'
 import { requireAuth } from '../middleware/auth.js'
-import { ENGINE_DIR, MUSIC_DIR, ownsInternal, PROJECTS_DIR } from '../studio/paths.js'
+import { ASSETS_DIR, ENGINE_DIR, MUSIC_DIR, ownsInternal, PROJECTS_DIR } from '../studio/paths.js'
 
 export const router = express.Router()
 
@@ -79,4 +79,8 @@ router.use('/projects/:internal', previewAuth, (req, res, next) => {
 })
 
 router.use('/engine', previewAuth, express.static(ENGINE_DIR, { maxAge: '5m' }))
+// The GSAP runtime, shared. index.html reaches it as ../../assets/gsap/…,
+// which from /files/projects/<internal>/ resolves here — the same trick
+// ../../engine/ uses. It used to be copied into every workspace.
+router.use('/assets', previewAuth, express.static(ASSETS_DIR, { maxAge: '5m' }))
 router.use('/music', previewAuth, express.static(MUSIC_DIR))

@@ -853,7 +853,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     description:
       'Write index.html — the thin shell that loads the GSAP vendor bundle, shots.js and the engine, ' +
       'in the one order that works. Call this once before your first shots.js instead of writing the ' +
-      'page by hand; it also reports whether vendor/gsap is in place. Pass custom: true when you have ' +
+      'page by hand; the script order is the whole of it. Pass custom: true when you have ' +
       'added js/shots.custom.js.',
     parameters: Type.Object({
       title: Type.Optional(
@@ -866,6 +866,10 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const out = resolvePath(ctx.cwd, 'index.html', 'write')
       const title = String(p.title ?? basename(ctx.cwd)).replace(/[<>]/g, '')
+      // The whole licensed GSAP set, from the shared assets mount. The
+      // compiler registers whatever it finds on window, so loading all of
+      // them is what makes them real for a custom shot type — they were
+      // vendored into every project and then never loaded.
       const plugins = [
         'gsap.min.js',
         'CustomEase.min.js',
@@ -875,8 +879,21 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         'TextPlugin.min.js',
         'ScrambleTextPlugin.min.js',
         'Physics2DPlugin.min.js',
+        'PhysicsPropsPlugin.min.js',
         'MotionPathPlugin.min.js',
+        'MorphSVGPlugin.min.js',
+        'DrawSVGPlugin.min.js',
+        'Flip.min.js',
         'EasePack.min.js',
+        'Draggable.min.js',
+        'InertiaPlugin.min.js',
+        'Observer.min.js',
+        'CSSRulePlugin.min.js',
+        'EaselPlugin.min.js',
+        'PixiPlugin.min.js',
+        'ScrollTrigger.min.js',
+        'ScrollSmoother.min.js',
+        'ScrollToPlugin.min.js',
       ]
       const html = [
         '<!DOCTYPE html>',
@@ -884,7 +901,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         '<link rel="stylesheet" href="../../engine/css/shots.css"></head>',
         '<body>',
         '  <div id="viewport"><div id="camera"></div></div>',
-        ...plugins.map(f => `  <script src="vendor/gsap/${f}"></script>`),
+        ...plugins.map(f => `  <script src="../../assets/gsap/${f}"></script>`),
         '  <script src="shots.js"></script>',
         '  <script src="../../engine/js/icons.js"></script>',
         '  <script src="../../engine/js/factories.js"></script>',
@@ -894,12 +911,12 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         '',
       ].join('\n')
       writeFileSync(out, html)
-      const vendor = existsSync(join(ctx.cwd, 'vendor', 'gsap', 'gsap.min.js'))
+      const vendor = existsSync(join(REPO_ROOT, 'assets', 'gsap', 'gsap.min.js'))
       return text(
         `index.html written (${plugins.length} GSAP plugins${p.custom ? ' + js/shots.custom.js' : ''}).\n` +
           (vendor
-            ? 'vendor/gsap is in place.'
-            : '⚠ vendor/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
+            ? 'GSAP loads from the shared ../../assets/gsap/.'
+            : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
           '\nNext: write shots.js, then motion_check.',
       )
     },

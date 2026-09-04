@@ -34,7 +34,7 @@ const execFileAsync = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SKILL = resolve(HERE, "..");
 const REPO = resolve(SKILL, "..", "..", "..");
-const MANIFEST = join(SKILL, "references", "sfx-index.json");
+const MANIFEST = join(SKILL, "data", "sfx-index.json");
 
 const argv = process.argv.slice(2);
 const flag = (n, d = null) => {
@@ -166,7 +166,7 @@ const clips = results.filter(Boolean);
 const outBytes = clips.reduce((t, c) => t + c.bytes, 0);
 
 // Keep the pre-vendor manifest so the original packs remain re-indexable.
-const sourceCopy = join(SKILL, "references", "sfx-index.source.json");
+const sourceCopy = join(SKILL, "data", "sfx-index.source.json");
 if (!existsSync(sourceCopy)) {
   writeFileSync(sourceCopy, JSON.stringify(manifest, null, 2));
   console.log(`\n  kept pre-vendor manifest → ${relative(REPO, sourceCopy)}`);

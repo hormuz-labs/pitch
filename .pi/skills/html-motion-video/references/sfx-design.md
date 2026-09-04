@@ -6,7 +6,7 @@ often.
 
 The library is large (900+ files) and only partly usable. **Never browse it
 directly.** Everything usable is measured and classified in
-`references/sfx-index.json` and queried through the `motion_sfx` tool.
+`data/sfx-index.json` and queried through the `motion_sfx` tool.
 
 ```js
 motion_sfx({ mode: "list" })                                   // the event vocabulary

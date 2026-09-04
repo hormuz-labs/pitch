@@ -211,8 +211,8 @@ shows the user an error instead of a film. If narration is planned, the
 ### 3.1 index.html
 
 `motion_scaffold()` writes it — the GSAP vendor bundle, `shots.js` and the
-engine in the one order that compiles, and it tells you if `vendor/gsap` is
-missing. Pass `custom: true` once you have added `js/shots.custom.js`. Do not
+engine in the one order that compiles. GSAP is shared at `../../assets/gsap/`,
+not copied into the project. Pass `custom: true` once you have added `js/shots.custom.js`. Do not
 write the page by hand; the script order is the whole of it.
 
 ### 3.2 shots.js

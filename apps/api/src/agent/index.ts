@@ -15,10 +15,9 @@
  *   input/<name>              an attached PDF/PPTX, parsed into build/
  *   build/                    deck working directory
  *   renders/                  finished media
- *   vendor/gsap/              the launch engine's runtime
  *   audio/                    music bed and narration
  */
-import { cpSync, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
@@ -27,7 +26,7 @@ import { stageMusic } from '../flows/launch-video/index.js'
 import { download, extOf } from '../flows/recording-edit/index.js'
 import type { Description, TurnInput, UploadRef } from '../flows/types.js'
 import { describeBeat, readTimeline, scenesFromTimeline } from '../render/utils/beats.js'
-import { MOTION_SKILL_DIR, type Workspace } from '../studio/paths.js'
+import type { Workspace } from '../studio/paths.js'
 import { describeWorkspace, hasArtifact, RELEVANT } from './describe.js'
 import { BUILTIN_TOOLS, EXTENSIONS, skills, systemPrompt } from './toolkit.js'
 
@@ -67,13 +66,6 @@ export async function prepareWorkspace(
       mkdir(path.join(ws.dir, d), { recursive: true }),
     ),
   )
-
-  // The launch engine's runtime, once. Cheap, and the alternative is a project
-  // that cannot become a launch film later.
-  const vendorDst = path.join(ws.dir, 'vendor', 'gsap')
-  const vendorSrc = path.join(MOTION_SKILL_DIR, 'vendor', 'gsap')
-  if (!existsSync(vendorDst) && existsSync(vendorSrc))
-    cpSync(vendorSrc, vendorDst, { recursive: true })
 
   const previous = await readProjectFile(ws)
   const known = new Map((previous.uploads ?? []).map(u => [u.url, u]))
@@ -138,7 +130,9 @@ async function inventory(ws: Workspace): Promise<string> {
   for (const u of project.uploads ?? [])
     lines.push(`- uploads/${path.basename(u.name)} (${u.type || 'file'})`)
   if (existsSync(path.join(ws.dir, 'deck.html'))) lines.push('- deck.html (a slide deck)')
-  if (existsSync(path.join(ws.dir, 'js', 'shots.js'))) lines.push('- js/shots.js (a launch film)')
+  // shots.js is at the workspace root — the same wrong path that made every
+  // finished film report as "produced nothing" (see agent/describe.ts).
+  if (existsSync(path.join(ws.dir, 'shots.js'))) lines.push('- shots.js (a launch film)')
   const renders = await readdir(path.join(ws.dir, 'renders')).catch(() => [] as string[])
   for (const r of renders.filter(f => /\.mp4$/i.test(f) && !f.startsWith('__') && f !== 'raw.mp4'))
     lines.push(`- renders/${r}`)

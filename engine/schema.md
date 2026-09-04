@@ -129,7 +129,33 @@ consequence). Skip `focus` when the whole screen is the point.
 ## Custom shot types
 
 When no built-in type shows a beat well, add one **in the project**, never in
-the engine:
+the engine.
+
+**The whole GSAP set is registered and yours to use** — `motion_scaffold`
+loads all of it from `../../assets/gsap/` and the compiler registers whatever
+it finds, so a custom factory can call any of these without touching
+index.html:
+
+| plugin | what it buys a shot |
+|---|---|
+| `Flip` | an element moving between two layouts as one continuous motion — a card leaving a grid to become the hero |
+| `MorphSVGPlugin` | one shape becoming another: a logo mark morphing into an icon, a chart turning into a check |
+| `DrawSVGPlugin` | a stroke drawing itself — underlines, connectors, a signature, a route on a map |
+| `MotionPathPlugin` | anything travelling a curve rather than a straight line |
+| `Physics2DPlugin` / `PhysicsPropsPlugin` | gravity, throw, bounce — debris, confetti, cards falling out of frame |
+| `Draggable` + `InertiaPlugin` | a thrown/flicked element that carries momentum and settles |
+| `ScrollTrigger` / `ScrollSmoother` / `ScrollToPlugin` | a scrolled UI shot: drive a fake page scroll off the timeline |
+| `Observer` | unified pointer/wheel/touch input for an interactive-looking beat |
+| `CSSRulePlugin` | animating `::before` / `::after` — sweeps and masks with no extra DOM |
+| `EaselPlugin` / `PixiPlugin` | a canvas stage, when DOM cannot do the effect |
+| `SplitText`, `ScrambleTextPlugin`, `TextPlugin` | the type treatments the built-in types already use |
+| `CustomEase`, `CustomWiggle`, `CustomBounce`, `RoughEase`, `SlowMo`, `ExpoScaleEase` | the easing vocabulary; the shared named eases are `whip`, `slamHard`, `settle`, `shake` |
+
+`window.__PLUGINS` lists what registered on the page. Everything still has to
+run on the returned timeline — see Rules; a plugin does not excuse a bare
+`gsap.to`.
+
+Declare it in the project:
 
 ```html
 <script src="js/shots.custom.js"></script>   <!-- after factories.js, before compiler.js -->
