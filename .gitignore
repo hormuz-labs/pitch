@@ -71,11 +71,15 @@ actions-runner/
 
 .agents/
 output.pdf
-pptx/
-qa-renders/
 
-projects/
-renders/
+# Scratch and workspace output at the REPO ROOT only. These were unanchored,
+# and `projects/` matches at any depth — which silently untracked
+# apps/studio/src/projects/ (the project service, assets, usage, thumbnails,
+# export) and broke the container build. Leading slashes keep them to the root.
+/pptx/
+/qa-renders/
+/projects/
+/renders/
 
 # Raw SFX source packs — hundreds of MB, and the SOURCE for the vendored library.
 # What gets committed is assets/sfx-lib/ (~9MB, produced by scripts/sfx-vendor.mjs).
