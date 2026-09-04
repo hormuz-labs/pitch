@@ -13,7 +13,7 @@
  * across restarts.
  */
 import { existsSync, mkdirSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
+import { readdir, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import {
@@ -24,6 +24,12 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { prisma } from '@saas/db'
 import { createLogger } from '@saas/shared'
+import {
+  extensionsForFamilies,
+  type Family,
+  familiesFor,
+  type ProjectEvidence,
+} from '../agent/toolkit.js'
 import type { getAgent } from '../flows/index.js'
 import { ASSET_PATH } from '../projects/assets.js'
 import { emitProjectEvent, type StudioEvent } from './events.js'
@@ -48,6 +54,8 @@ export interface Session {
   projectId: string
   ws: Workspace
   agent: Agent
+  /** Tool families this session was built with; it is rebuilt when they grow. */
+  families: Set<Family>
   session: any
   entries: Entry[]
   busy: boolean
@@ -247,12 +255,52 @@ export interface OpenSessionOptions {
   ws: Workspace
   agent: Agent
   sessionFile: string | null
+  /** The user's words this turn, so a new need widens the toolkit. */
+  prompt?: string
+  uploads?: string[]
 }
 
-/** Get (or lazily create) the pi session bound to a project. */
+/**
+ * What this project's workspace shows, for familiesFor().
+ *
+ * A shallow listing plus the two nested paths the classifier looks at; the
+ * agent's own files are what say a deck has become a film.
+ */
+async function evidenceFor(ws: Workspace, opts: OpenSessionOptions): Promise<ProjectEvidence> {
+  const files: string[] = []
+  for (const name of await readdir(ws.dir).catch(() => [] as string[])) {
+    files.push(name)
+    if (name === 'recording' || name === 'uploads' || name === 'build') {
+      for (const inner of await readdir(path.join(ws.dir, name)).catch(() => [] as string[]))
+        files.push(`${name}/${inner}`)
+    }
+  }
+  return { files, prompt: opts.prompt, uploads: opts.uploads }
+}
+
+/**
+ * Get (or lazily create) the pi session bound to a project.
+ *
+ * The session carries a fixed tool list — pi cannot vary it per turn — so the
+ * families are chosen from the project's evidence when it is built. When a
+ * later turn needs one it does not have ("now turn this deck into a video"),
+ * the cached session is dropped and rebuilt with the wider set. That is safe
+ * because it happens BETWEEN turns and the transcript is resumed from disk:
+ * the conversation continues, the toolkit is simply bigger.
+ */
 export async function getSession(opts: OpenSessionOptions): Promise<Session> {
   const existing = sessions.get(opts.projectId)
-  if (existing) return existing
+  if (existing) {
+    const needed = familiesFor(await evidenceFor(opts.ws, opts))
+    const missing = [...needed].filter(f => !existing.families.has(f))
+    if (!missing.length || existing.busy) return existing
+    logger.info(
+      { projectId: opts.projectId, adding: missing },
+      'the project needs more tools than this session has — rebuilding it',
+    )
+    await existing.session.abort().catch(() => {})
+    sessions.delete(opts.projectId)
+  }
   const pending = pendingCreates.get(opts.projectId)
   if (pending) return pending
 
@@ -269,7 +317,15 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       forget: forgetSessionFile,
     })) as SessionManager
 
-    const extensions = [...(agent.sandbox ? [SANDBOX_EXTENSION] : []), ...agent.extensions]
+    const families = familiesFor(await evidenceFor(ws, opts))
+    const extensions = [
+      ...(agent.sandbox ? [SANDBOX_EXTENSION] : []),
+      ...extensionsForFamilies(families),
+    ]
+    logger.info(
+      { projectId: opts.projectId, families: [...families], extensions: extensions.length },
+      'session toolkit',
+    )
     const allowedExt = new Set(extensions.map(p => path.resolve(p)))
     const resourceLoader = new DefaultResourceLoader({
       cwd: ws.dir,
@@ -312,6 +368,7 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       projectId: opts.projectId,
       ws,
       agent,
+      families,
       session,
       entries: [],
       busy: false,

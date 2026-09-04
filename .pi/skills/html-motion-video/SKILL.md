@@ -76,26 +76,10 @@ reloads the preview when you finish a turn.
 
 ## Shot-edit workflow (studio scene and element prompts)
 
-When the user targets a shot or clicks elements in the preview, you receive a
-scoped prompt naming the shot id and, for elements, a legend of `[n]` targets
-with tag, class, text and selector. Follow this instead of Phases 0–6:
-
-1. **Edit only that shot's entry in `shots.js`.** Change its fields, `bg`,
-   `cut`, or `type`. Do not touch other shots.
-2. **Keep `dur`** unless the user asks for a longer/shorter shot — every later
-   shot and the audio mix shift with it.
-3. **Need a look the engine has no field for?** Add or extend a type in
-   `js/shots.custom.js` (see §3.3). Never edit `../../engine/`.
-4. **Verify.** `motion_audit`, or `motion_render` with `from`/`to` for one
-   shot. Do not full-render. Say what changed.
-
-Element targets map to shot fields: a `.word`/`.type-line`/`.type-center` is a
-`lines`/`parts`/`text` field; `.punch-card` is a `color-punch`; `.mq-item` is a
-marquee `items` entry; `.notif` is `device-notif.notif`; `.ui-frame` is a
-`ui-frame` shot (its `src`, `focus`, `cursor`, `caption`); `.logo-lockup` is
-`logo-sting`/`logo-cta`.
-
----
+When the user targets a shot or clicks elements in the preview you get a scoped
+prompt naming the shot id. Read `references/shot-edits.md` and follow that
+instead of Phases 0–6: edit only that shot's entry in `shots.js`, keep its
+`dur`, verify with `motion_audit` or a `from`/`to` `motion_render`.
 
 ## Phase 0 — Product Recon
 
@@ -224,35 +208,12 @@ Every save must be a complete, evaluating literal — a half-written array
 shows the user an error instead of a film. If narration is planned, the
 `cue` phrases go in as you write each shot; `motion_sync` retimes them later.
 
-### 3.1 index.html (thin shell, unchanged between projects)
+### 3.1 index.html
 
-```html
-<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>Launch</title>
-<link rel="stylesheet" href="../../engine/css/shots.css"></head>
-<body>
-  <div id="viewport"><div id="camera"></div></div>
-  <script src="vendor/gsap/gsap.min.js"></script>
-  <script src="vendor/gsap/CustomEase.min.js"></script>
-  <script src="vendor/gsap/CustomWiggle.min.js"></script>
-  <script src="vendor/gsap/CustomBounce.min.js"></script>
-  <script src="vendor/gsap/SplitText.min.js"></script>
-  <script src="vendor/gsap/TextPlugin.min.js"></script>
-  <script src="vendor/gsap/ScrambleTextPlugin.min.js"></script>
-  <script src="vendor/gsap/Physics2DPlugin.min.js"></script>
-  <script src="vendor/gsap/MotionPathPlugin.min.js"></script>
-  <script src="vendor/gsap/EasePack.min.js"></script>
-  <script src="shots.js"></script>
-  <script src="../../engine/js/icons.js"></script>
-  <script src="../../engine/js/factories.js"></script>
-  <!-- <script src="js/shots.custom.js"></script>  only if you added types -->
-  <script src="../../engine/js/compiler.js"></script>
-</body></html>
-```
-
-`vendor/gsap/` is already in the workspace (all plugins). The compiler
-registers every plugin it finds and names the shared eases (`whip`,
-`slamHard`, `settle`, `shake`). No other stylesheets or scripts.
+`motion_scaffold()` writes it — the GSAP vendor bundle, `shots.js` and the
+engine in the one order that compiles, and it tells you if `vendor/gsap` is
+missing. Pass `custom: true` once you have added `js/shots.custom.js`. Do not
+write the page by hand; the script order is the whole of it.
 
 ### 3.2 shots.js
 
@@ -281,27 +242,9 @@ Field discipline:
 
 ### 3.3 Custom shot types (when the engine lacks a look)
 
-Add `js/shots.custom.js` defining `window.ProjectShotFactories` (schema.md
-"Custom shot types"). `window.ShotKit` gives you `h`, `qs`, `splitChars`,
-`mixedLine`, `rng`, `EASE`. The archived references in
-`references/archive/` are a pattern library for this: text treatments,
-counters, card deals, match cuts — re-implemented as a `mount`/`animate` pair.
-
-Invariants for any factory:
-1. Everything on the returned timeline — no CSS animations/transitions, no
-   bare `gsap.to`, no `gsap.ticker`, no `Math.random()` (use `rng(seed)`).
-2. Selectors scoped to the shot's `el`.
-3. **Anti-flicker:** no infinite `yoyo` on opacity, brightness, glow or
-   `box-shadow`. Light sweeps are one-shot accents, max 2–3 per film.
-4. No `filter: blur()` on background-clipped text; `display: inline-block` on
-   any `-webkit-background-clip: text` element.
-5. Null tween targets crash the build — guard optional elements.
-6. Text swaps stay on the timeline (`tl.set(...)`), never in callbacks.
-7. **Time everything as fractions of `D`** (`D * 0.4`), never absolute
-   seconds. A shot lasts exactly its `dur` — the compiler pins the next cut
-   there and compresses a longer factory timeline to fit (the audit reports
-   it; > 1.6× fails). With narration, `dur` comes from the words, so a
-   factory hard-coded to 3s will be rushed in a 1.7s cue interval.
+Only when no built-in type gets there: `motion_schema({ section: "custom shot
+types" })` for the contract, and `references/custom-shot-types.md` for the
+seven invariants and a worked example. Never edit `../../engine/`.
 
 ### 3.4 Check it
 

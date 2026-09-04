@@ -40,12 +40,6 @@ export class InsufficientCreditsError extends Error {
     super(`Insufficient credits (balance: ${balance})`)
   }
 }
-export class OnboardingRequiredError extends Error {
-  status = 428
-  constructor() {
-    super('Complete onboarding before creating a project')
-  }
-}
 export class NotFoundError extends Error {
   status = 404
 }
@@ -102,11 +96,6 @@ function safeJson<T>(v: unknown, fallback: T): T {
 
 export function workspaceOf(p: Pick<ProjectRow, 'flow' | 'userId' | 'name'>): Workspace {
   return workspaceFor(p.flow, p.userId, p.name)
-}
-
-async function requireOnboarding(userId: string): Promise<void> {
-  const survey = await db.prisma.onboardingSurvey.findUnique({ where: { userId } })
-  if (!survey) throw new OnboardingRequiredError()
 }
 
 function statusOf(
@@ -213,7 +202,6 @@ export async function createProject(
     throw Object.assign(new Error('prompt is required'), { status: 400 })
   const options = input.options ?? {}
   const uploads = input.uploads ?? []
-  await requireOnboarding(userId)
 
   // Nothing is charged for opening a project: the studio bills what the work
   // actually costs, turn by turn (projects/usage.ts). The balance check is
@@ -289,7 +277,17 @@ export async function promptProject(
     slide: opts.slide ?? null,
   })
   const s = await promptSession(
-    { projectId: p.id, ws, agent, sessionFile: p.sessionFile },
+    {
+      projectId: p.id,
+      ws,
+      agent,
+      sessionFile: p.sessionFile,
+      // The words decide the toolkit when the workspace is still empty, and
+      // widen it later: "now turn this deck into a video" needs motion tools
+      // the deck session was never given.
+      prompt: `${p.prompt ?? ''}\n${text}`,
+      uploads: opts.uploads?.map(u => u.name),
+    },
     text,
     context,
   )

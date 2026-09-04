@@ -10,9 +10,17 @@
  */
 
 import { execFile, execFileSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
@@ -144,6 +152,55 @@ function resolvePath(cwd: string, p: string, mode: 'read' | 'write' = 'write'): 
 function rel(cwd: string, p: string, mode: 'read' | 'write' = 'write'): string {
   const abs = resolvePath(cwd, p, mode)
   return within(abs, cwd) ? relative(cwd, abs) || '.' : abs
+}
+
+// ── The engine's schema, served in pieces ─────────────────────────────────────
+//
+// engine/schema.md is 11.6KB and the agent used to read all of it to write a
+// film that touches four shot types. Read once, it is then re-sent on every
+// later model request — the single largest document in a run after SKILL.md.
+// So it is a tool: ask for the types you are actually using.
+
+const SCHEMA_PATH = join(REPO_ROOT, 'engine', 'schema.md')
+
+/**
+ * The `## Types` table, as type name → its row.
+ *
+ * Scoped to that one section: schema.md has several tables whose first cell is
+ * a backticked name, and matching them all offered `dur` and `bg` as shot
+ * types.
+ */
+function schemaTypes(md: string): Map<string, string> {
+  const out = new Map<string, string>()
+  const start = md.indexOf('\n## Types')
+  if (start === -1) return out
+  const rest = md.slice(start + 1)
+  const end = rest.indexOf('\n## ', 1)
+  for (const line of (end === -1 ? rest : rest.slice(0, end)).split('\n')) {
+    const m = line.match(/^\|\s*`([a-z-]+)`\s*\|(.*)\|\s*$/)
+    if (m) out.set(m[1], line)
+  }
+  return out
+}
+
+/** Top-level `## ` sections, as heading (lowercased, no punctuation) → body. */
+function schemaSections(md: string): Map<string, string> {
+  const out = new Map<string, string>()
+  let name = 'intro'
+  let buf: string[] = []
+  for (const line of md.split('\n')) {
+    const m = line.match(/^##\s+(.+?)\s*$/)
+    if (m) {
+      out.set(name, buf.join('\n').trim())
+      name = m[1]
+        .toLowerCase()
+        .replace(/[^a-z ]/g, '')
+        .trim()
+      buf = [line]
+    } else buf.push(line)
+  }
+  out.set(name, buf.join('\n').trim())
+  return out
 }
 
 export default function htmlMotionTools(pi: ExtensionAPI) {
@@ -707,6 +764,144 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         { encoding: 'utf8' },
       ).trim()
       return text(`${p.file}: ${Number(dur).toFixed(3)}s`)
+    },
+  })
+
+  pi.registerTool({
+    name: 'motion_schema',
+    label: 'Shot schema',
+    description:
+      "The engine's shot schema, in pieces. Call it with no arguments for the shot-type list and the " +
+      'sections available; with `types` for the exact fields of the types you are writing; with ' +
+      '`section` for one of: density layer, narration spine, common shot fields, ui-frame, custom shot ' +
+      'types, rules. Read the whole file only if you really need all of it.',
+    parameters: Type.Object({
+      types: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            'Shot types to describe, e.g. ["word-cut","pile"]. Unknown names are reported.',
+        }),
+      ),
+      section: Type.Optional(
+        Type.String({
+          description: 'One section by heading, e.g. "custom shot types" or "rules".',
+        }),
+      ),
+    }),
+    async execute(_id, p: any) {
+      let md: string
+      try {
+        md = readFileSync(SCHEMA_PATH, 'utf8')
+      } catch (err) {
+        return text(`Could not read the engine schema: ${(err as Error).message}`)
+      }
+      const types = schemaTypes(md)
+      const sections = schemaSections(md)
+
+      if (p.section) {
+        const key = String(p.section)
+          .toLowerCase()
+          .replace(/[^a-z ]/g, '')
+          .trim()
+        const hit =
+          sections.get(key) ??
+          [...sections.entries()].find(([k]) => k.includes(key) || key.includes(k))?.[1]
+        if (!hit)
+          return text(`No section "${p.section}". Sections: ${[...sections.keys()].join(', ')}`)
+        return text(hit)
+      }
+
+      if (p.types?.length) {
+        const rows: string[] = []
+        const missing: string[] = []
+        for (const t of p.types) {
+          const row = types.get(String(t).replace(/^`|`$/g, ''))
+          if (row) rows.push(row)
+          else missing.push(String(t))
+        }
+        const common = sections.get('common shot fields') ?? ''
+        const uiFrame = p.types.some((t: string) => /ui-frame/.test(t))
+          ? `\n\n${sections.get('ui-frame  the product demo shot') ?? ''}`
+          : ''
+        return text(
+          [
+            common,
+            '',
+            '| type | Fields |',
+            '|---|---|',
+            ...rows,
+            uiFrame,
+            missing.length
+              ? `\n⚠ not shot types: ${missing.join(', ')} — the list is ${[...types.keys()].join(', ')}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        )
+      }
+
+      return text(
+        `Shot types (motion_schema({ types: [...] }) for their fields):\n  ${[...types.keys()].join(', ')}\n\n` +
+          `Sections (motion_schema({ section: "..." })):\n  ${[...sections.keys()].filter(k => k !== 'intro').join(', ')}`,
+      )
+    },
+  })
+
+  pi.registerTool({
+    name: 'motion_scaffold',
+    label: 'Scaffold the page',
+    description:
+      'Write index.html — the thin shell that loads the GSAP vendor bundle, shots.js and the engine, ' +
+      'in the one order that works. Call this once before your first shots.js instead of writing the ' +
+      'page by hand; it also reports whether vendor/gsap is in place. Pass custom: true when you have ' +
+      'added js/shots.custom.js.',
+    parameters: Type.Object({
+      title: Type.Optional(
+        Type.String({ description: 'Page <title>; defaults to the project name.' }),
+      ),
+      custom: Type.Optional(
+        Type.Boolean({ description: 'Load js/shots.custom.js as well (default false).' }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const out = resolvePath(ctx.cwd, 'index.html', 'write')
+      const title = String(p.title ?? basename(ctx.cwd)).replace(/[<>]/g, '')
+      const plugins = [
+        'gsap.min.js',
+        'CustomEase.min.js',
+        'CustomWiggle.min.js',
+        'CustomBounce.min.js',
+        'SplitText.min.js',
+        'TextPlugin.min.js',
+        'ScrambleTextPlugin.min.js',
+        'Physics2DPlugin.min.js',
+        'MotionPathPlugin.min.js',
+        'EasePack.min.js',
+      ]
+      const html = [
+        '<!DOCTYPE html>',
+        '<html lang="en"><head><meta charset="UTF-8"><title>' + title + '</title>',
+        '<link rel="stylesheet" href="../../engine/css/shots.css"></head>',
+        '<body>',
+        '  <div id="viewport"><div id="camera"></div></div>',
+        ...plugins.map(f => `  <script src="vendor/gsap/${f}"></script>`),
+        '  <script src="shots.js"></script>',
+        '  <script src="../../engine/js/icons.js"></script>',
+        '  <script src="../../engine/js/factories.js"></script>',
+        ...(p.custom ? ['  <script src="js/shots.custom.js"></script>'] : []),
+        '  <script src="../../engine/js/compiler.js"></script>',
+        '</body></html>',
+        '',
+      ].join('\n')
+      writeFileSync(out, html)
+      const vendor = existsSync(join(ctx.cwd, 'vendor', 'gsap', 'gsap.min.js'))
+      return text(
+        `index.html written (${plugins.length} GSAP plugins${p.custom ? ' + js/shots.custom.js' : ''}).\n` +
+          (vendor
+            ? 'vendor/gsap is in place.'
+            : '⚠ vendor/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
+          '\nNext: write shots.js, then motion_check.',
+      )
     },
   })
 }
