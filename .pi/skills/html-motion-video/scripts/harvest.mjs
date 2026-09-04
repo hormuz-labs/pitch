@@ -30,7 +30,7 @@
  * carry them into a different product's video, and record provenance (this
  * script writes the source URL for every file).
  */
-import { chromium } from "playwright";
+import { openStudioBrowser } from "./lib/browser.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -60,19 +60,15 @@ mkdirSync(resolve(outDir), { recursive: true });
 mkdirSync(resolve(manifestPath, ".."), { recursive: true });
 
 // ---------------------------------------------------------------------------
-let browser, page, ownsBrowser = false;
-if (args.cdp) {
-  browser = await chromium.connectOverCDP(args.cdp);
-  const ctx = browser.contexts()[0] || (await browser.newContext());
-  page = ctx.pages()[0] || (await ctx.newPage());
-  await page.setViewportSize({ width: 1920, height: 1080 });
-} else {
-  browser = await chromium.launch();
-  ownsBrowser = true;
-  page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-}
+// The CloakBrowser by default — the logo and screens have to come off the real
+// page, not off a bot wall.
+const studio = await openStudioBrowser({
+  cdp: args.cdp === true ? null : args.cdp,
+  viewport: { width: 1920, height: 1080 },
+});
+const page = await studio.newPage();
 
-console.log(`🔎 Harvesting ${url}${args.cdp ? " (over CDP)" : ""}`);
+console.log(`🔎 Harvesting ${url} (${studio.mode === "cdp" ? "CloakBrowser over CDP" : "local Chromium"})`);
 await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
 await page.waitForTimeout(4000);
 
@@ -93,7 +89,7 @@ const title = await page.title();
 const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 800) || "");
 if (/sorry, you have been blocked|attention required|checking your browser|access denied|just a moment/i
       .test(`${title} ${bodyText}`)) {
-  if (ownsBrowser) await browser.close();
+  await studio.close();
   console.error(
     `\n❌ BOT WALL — nothing harvested.\n   Title: ${JSON.stringify(title)}\n` +
     `   Re-run with --cdp=<cloakbrowser CDP url> (see screenshot.mjs for the recipe).\n`
@@ -364,7 +360,7 @@ const manifest = {
 };
 writeFileSync(resolve(manifestPath), JSON.stringify(manifest, null, 2));
 
-if (ownsBrowser) await browser.close();
+await studio.close();
 
 console.log(`\n✨ ${saved.length} media + ${svgFiles.length} svg → ${outDir}`);
 console.log(`   manifest: ${manifestPath}`);

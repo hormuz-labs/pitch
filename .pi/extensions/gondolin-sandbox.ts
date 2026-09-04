@@ -515,9 +515,11 @@ export default function gondolinSandbox(pi: ExtensionAPI) {
     ...base.bash,
     description:
       'Run a shell command inside the sandbox VM. Your workspace is /workspace (this project); ' +
-      '../../engine, ../../.pi/skills and ../../assets are mounted read-only. The VM has a plain ' +
-      'Linux userland with no node, ffmpeg, browser or network — use the motion_* tools for ' +
-      'recon, harvesting, audio, audit and rendering.',
+      '../../engine, ../../.pi/skills and ../../assets are mounted read-only. The VM has bash, ' +
+      'node and python, but NO ffmpeg, browser or network — recon, harvesting, audio, audit and ' +
+      'rendering are motion_* tools that run outside it. When one of those tools fails, say so ' +
+      'and stop: you cannot install what it is missing from here, and a hand-written stand-in ' +
+      'for its output (vo-words.json, cues.json, brand-tokens.json) is a fabricated result.',
     async execute(id, params, signal, onUpdate, ctx) {
       const activeVm = await ensureVm(ctx)
       return createBashTool(GUEST_WORKSPACE, {

@@ -22,26 +22,29 @@
  * timeline longer than its shot's `dur`, which the compiler compresses).
  * Exit 1 on a page error or a page that never becomes ready.
  */
-import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 
 const args = process.argv.slice(2);
 const page_ = args.find(a => !a.startsWith("--")) || "index.html";
 const outArg = args.find(a => a.startsWith("--out="));
 const out = outArg ? outArg.slice(6) : "audio/cues.json";
 const CHECK = args.includes("--check");
+const cdpArg = args.find(a => a.startsWith("--cdp="));
 
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+// The browser is the CloakBrowser, so it cannot see this folder: the page and
+// every file it pulls are served into it from disk (see lib/browser.mjs).
+const studio = await openStudioBrowser({ cdp: cdpArg?.slice(6) });
+const page = await studio.newPage();
 const errors = [];
 page.on("pageerror", e => errors.push(e.message));
 page.on("console", m => { if (m.type() === "error") errors.push(`console: ${m.text()}`); });
-await page.goto("file://" + resolve(page_), { waitUntil: "domcontentloaded" });
+await page.goto(localPageUrl(page_), { waitUntil: "domcontentloaded" });
 try {
   await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
 } catch {
-  await browser.close();
+  await studio.close();
   console.error(`❌ window.__READY never became true in ${page_}` +
     (errors.length ? `\n   page errors:\n   - ${errors.join("\n   - ")}` : "\n   (no page error was thrown — is compiler.js loaded last, and does shots.js define window.SHOTS?)"));
   process.exit(1);
@@ -53,7 +56,7 @@ const data = await page.evaluate(() => ({
   shots: (window.SHOTS && Array.isArray(window.SHOTS.shots)) ? window.SHOTS.shots.map((s) => ({ id: s.id, type: s.type, dur: s.dur })) : [],
   overruns: window.__OVERRUNS || [],
 }));
-await browser.close();
+await studio.close();
 
 if (!CHECK) {
   mkdirSync(dirname(resolve(out)), { recursive: true });

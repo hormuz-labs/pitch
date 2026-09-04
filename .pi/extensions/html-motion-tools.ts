@@ -39,22 +39,48 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const SCRIPTS = join(HERE, '..', 'skills', 'html-motion-video', 'scripts')
 const MAX_BUFFER = 16 * 1024 * 1024
 const AUDIO_RE = /\.(mp3|wav|m4a|aac|flac|ogg)$/i
+const REPO_ROOT = resolve(HERE, '..', '..')
 
 function text(out: string) {
   return { content: [{ type: 'text' as const, text: out }], details: {} }
 }
 
-async function runScript(name: string, args: string[], cwd: string, timeoutMs = 1_200_000) {
-  const { stdout, stderr } = await execFileAsync(NODE, [join(SCRIPTS, name), ...args], {
-    cwd,
-    encoding: 'utf8',
-    maxBuffer: MAX_BUFFER,
-    timeout: timeoutMs,
-  })
-  return `${stdout}\n${stderr}`.trim()
+/**
+ * These scripts run on the host, but the agent only knows guest paths. A raw
+ * host path in an error ("/app/projects/studio--user_xxx--foo/audio/x.json")
+ * has already cost an agent several turns guessing at the mapping, so rewrite
+ * every mount back to the name the agent's own shell uses.
+ */
+function toGuestPaths(out: string, cwd: string): string {
+  let s = out.split(cwd).join('/workspace')
+  for (const [guest, host] of [
+    ['/engine', join(REPO_ROOT, 'engine')],
+    ['/.pi/skills', join(REPO_ROOT, '.pi', 'skills')],
+    ['/assets', join(REPO_ROOT, 'assets')],
+  ] as const) {
+    s = s.split(host).join(guest)
+  }
+  return s
 }
 
-const REPO_ROOT = resolve(HERE, '..', '..')
+async function runScript(name: string, args: string[], cwd: string, timeoutMs = 1_200_000) {
+  try {
+    const { stdout, stderr } = await execFileAsync(NODE, [join(SCRIPTS, name), ...args], {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: MAX_BUFFER,
+      timeout: timeoutMs,
+    })
+    return toGuestPaths(`${stdout}\n${stderr}`.trim(), cwd)
+  } catch (err) {
+    // A failing script's own diagnosis lives in its output, not in "Command
+    // failed with exit code 1" — surface it, or the agent invents a workaround.
+    const e = err as { stdout?: string; stderr?: string; message?: string }
+    const detail = `${e.stdout ?? ''}\n${e.stderr ?? ''}`.trim() || e.message || String(err)
+    throw new Error(toGuestPaths(detail, cwd))
+  }
+}
+
 const PROJECTS_DIR = join(REPO_ROOT, 'projects')
 const READ_ROOTS = [
   join(REPO_ROOT, 'engine'),

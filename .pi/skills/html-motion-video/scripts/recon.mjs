@@ -24,7 +24,7 @@
  *   node $SKILL/scripts/recon.mjs --url=... --no-fonts
  *   node $SKILL/scripts/recon.mjs --url=... --cdp=http://localhost:8080/api/profiles/<id>/cdp
  */
-import { chromium } from "playwright";
+import { openStudioBrowser } from "./lib/browser.mjs";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 
@@ -73,16 +73,16 @@ function lum({ r, g, b }) {
 const toHex = (s) => { const c = parseRgb(s); return c && c.a > 0.05 ? hex(c) : null; };
 
 // ---- browser ----------------------------------------------------------------
-let browser;
-if (args.cdp) browser = await chromium.connectOverCDP(String(args.cdp));
-else browser = await chromium.launch();
-const context = args.cdp ? browser.contexts()[0] ?? (await browser.newContext()) : await browser.newContext({
+// The CloakBrowser by default: measuring a brand means getting the real page,
+// and plain headless Chromium is what marketing sites block. Its own
+// fingerprint is the point, so we do not override the user agent.
+const studio = await openStudioBrowser({
+  cdp: args.cdp === true ? null : args.cdp,
   viewport: { width, height },
   deviceScaleFactor: 1,
-  userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 });
+const context = studio.context;
 const page = await context.newPage();
-if (args.cdp) await page.setViewportSize({ width, height });
 
 // Every font file the page pulls, so Google Fonts / CDN faces are known
 // even when their stylesheet is cross-origin and hidden from CSSOM.
@@ -98,7 +98,7 @@ page.on("response", async (res) => {
   } catch (_) {}
 });
 
-console.log(`🔎 Measuring ${url}${args.cdp ? " (over CDP)" : ""}`);
+console.log(`🔎 Measuring ${url} (${studio.mode === "cdp" ? "CloakBrowser over CDP" : "local Chromium"})`);
 await page.goto(String(url), { waitUntil: "domcontentloaded", timeout: 45000 });
 await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
 await page.waitForTimeout(waitMs);
@@ -112,7 +112,7 @@ if (/sorry, you have been blocked|attention required|checking your browser|acces
     `❌ Bot wall detected at ${url} ("${title0}"). Nothing measured.\n` +
     `   Re-run with --cdp=<cloakbrowser CDP url> (see screenshot.mjs for the recipe).`,
   );
-  await browser.close();
+  await studio.close();
   process.exit(2);
 }
 
@@ -421,7 +421,7 @@ if (fontsDir) {
   }
 }
 
-await browser.close();
+await studio.close();
 
 // ---- write -----------------------------------------------------------------------
 const tokens = {

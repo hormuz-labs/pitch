@@ -20,7 +20,8 @@
  *   node scripts/audit.mjs page.html [--step=0.25] [--event=0.006] [--max-quiet=1.5]
  *                          [--min-eps=0.7] [--threshold=0.003] [--out=audit] [--allow-missing-logo]
  */
-import { chromium } from "playwright";
+import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
@@ -44,10 +45,12 @@ mkdirSync(outDir, { recursive: true });
 
 console.log(`\n🔍 Motion Audit — ${pageArg}`);
 
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+// The CloakBrowser is not on this machine; the page is served into it from
+// disk over the studio.local origin (see lib/browser.mjs).
+const studio = await openStudioBrowser({ cdp: args.cdp === true ? null : args.cdp });
+const page = await studio.newPage();
 
-const base = /^https?:/.test(pageArg) ? pageArg : "file://" + resolve(pageArg);
+const base = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
 const url = base + (base.includes("?") ? "&" : "?") + "audit";
 await page.goto(url, { waitUntil: "domcontentloaded" });
 await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
@@ -263,12 +266,15 @@ let determinismWarnings = 0;
   const away = Math.min(duration * 0.8, Math.max(2, duration - 0.5));
   const grab = async (t) => { await page.evaluate((tt) => window.__SEEK(tt), t); await page.waitForTimeout(140); return page.screenshot(); };
   const first = await grab(probe); await grab(away); const second = await grab(probe);
-  if (Buffer.compare(first, second) !== 0) {
+  // Pixels, not bytes: see getBufferDiffRatio. 0.1% of pixels is far below any
+  // designed motion and far above the browser's own rasterization noise.
+  const drift = getBufferDiffRatio(first, second);
+  if (drift > 0.001) {
     determinismWarnings++;
-    console.error(`\n❌ NON-DETERMINISTIC at ${probe.toFixed(1)}s — something animates on the global ticker (bare gsap.to / CSS animation). Put it on the returned timeline.`);
+    console.error(`\n❌ NON-DETERMINISTIC at ${probe.toFixed(1)}s (${(drift * 100).toFixed(1)}% of pixels moved) — something animates on the global ticker (bare gsap.to / CSS animation). Put it on the returned timeline.`);
   }
 }
-await browser.close();
+await studio.close();
 
 // ---------------------------------------------------------------------------
 // 6. Harvested logo used?
@@ -355,9 +361,22 @@ if (fails.length) {
   console.log(`\n✅ AUDIT PASSED — dense, continuous, deterministic. Frames in '${outDir}/'.\n`);
 }
 
+/**
+ * How much of the picture changed between two frames, as a fraction of pixels.
+ *
+ * This decodes both PNGs rather than sampling their bytes. Comparing
+ * compressed bytes was fine while every frame came from a plain headless
+ * Chromium here; the CloakBrowser perturbs its own rasterization, so two
+ * pixel-identical frames can encode to different bytes and one changed pixel
+ * near the top of the image shifts nearly every byte after it. Byte sampling
+ * then reported ~0.87 for an identical frame and ~0.92 for a completely
+ * different one — a gate that could not tell a cut from a re-render.
+ */
 function getBufferDiffRatio(bufA, bufB) {
-  if (bufA.length !== bufB.length) return 1.0;
-  let diffBytes = 0, sampled = 0;
-  for (let i = 0; i < bufA.length; i += 16) { sampled++; if (Math.abs(bufA[i] - bufB[i]) > 10) diffBytes++; }
-  return diffBytes / sampled;
+  try {
+    return pixelDiffRatio(bufA, bufB);
+  } catch {
+    // An undecodable frame is a real difference, not a reason to crash.
+    return bufA.equals(bufB) ? 0 : 1;
+  }
 }

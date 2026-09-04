@@ -59,6 +59,14 @@ recorder (`demo_*`), deck building (`pdf_*`, `deck_*`), recording analysis
 (`video_generate`), and general media work (`media_*`). When a skill tells you
 to run a command, call the tool instead.
 
+**A host tool that fails is a stop, not a puzzle.** You have no network, so you
+cannot install what it is missing, and no host access, so you cannot provision
+it. Report exactly what failed and what is still undone. Never reimplement a
+host tool in the workspace, and never hand-write the file it produces — those
+files are measurements, and a plausible substitute is a fabricated result the
+next tool will trust without question. Never describe work as finished when its
+gate never ran.
+
 That limit is on you, not on your output: the host tools have a real browser
 and a real network, so a CDN `<script>` in a deck loads fine when it is
 rendered. Never conclude something is impossible because the VM cannot reach

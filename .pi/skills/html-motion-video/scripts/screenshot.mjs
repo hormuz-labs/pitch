@@ -10,9 +10,9 @@
  *   # Synthetic HTML template capture:
  *   node scripts/screenshot.mjs --html=recon/templates/dashboard.html --out=recon/screenshots/02-dashboard.png [--scale=2]
  */
-import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
   const i = a.indexOf("=");
@@ -35,13 +35,16 @@ if (!url && !html) {
 
 mkdirSync(dirname(resolve(out)), { recursive: true });
 
-const browser = await chromium.launch();
-const page = await browser.newPage({
+// The CloakBrowser: it is the one that gets past bot walls, and a --html
+// template is served into it from disk (see lib/browser.mjs).
+const studio = await openStudioBrowser({
+  cdp: args.cdp === true ? null : args.cdp,
   viewport: { width, height },
-  deviceScaleFactor: scale
+  deviceScaleFactor: scale,
 });
+const page = await studio.newPage();
 
-const targetUrl = url ? url : "file://" + resolve(html);
+const targetUrl = url ? String(url) : localPageUrl(html);
 console.log(`📸 Capturing screenshot from: ${targetUrl}`);
 
 await page.goto(targetUrl, { waitUntil: "networkidle" });
@@ -71,21 +74,16 @@ const hit = blockSignals.find(re => re.test(pageTitle) || re.test(bodyText));
 
 if (hit && url) {
   await page.screenshot({ path: out });   // keep it for inspection
-  await browser.close();
+  await studio.close();
   console.error(
     `\n❌ BOT WALL — this is NOT usable recon.\n` +
     `   Page title: ${JSON.stringify(pageTitle)}\n` +
     `   Matched:    ${hit}\n` +
     `   Saved anyway for inspection: ${out}\n\n` +
-    `   Plain headless Chromium is blocked on this host. Capture through an\n` +
-    `   anti-detect browser instead — this repo runs a CloakBrowser manager:\n\n` +
-    `     curl -s -X POST http://localhost:8080/api/profiles \\\n` +
-    `       -H 'Content-Type: application/json' -d '{"name":"recon","platform":"windows"}'\n` +
-    `     curl -s -X POST http://localhost:8080/api/profiles/<id>/launch\n` +
-    `     # then connect Playwright over CDP:\n` +
-    `     chromium.connectOverCDP('http://localhost:8080/api/profiles/<id>/cdp')\n\n` +
-    `   No login is needed for a public marketing page — the fingerprint is\n` +
-    `   what gets you through. Do NOT proceed to Phase 1 on a block page.\n`
+    `   This capture already ran through ${studio.mode === "cdp" ? "the CloakBrowser" : "a local Chromium"}, and the site still\n` +
+    `   blocked it. Do NOT proceed to Phase 1 on a block page and do NOT install\n` +
+    `   a browser — try a different page on the same site, raise --wait, or pass\n` +
+    `   --cdp=<endpoint> for a profile that is signed in.\n`
   );
   process.exit(2);
 }
@@ -102,5 +100,5 @@ if (selector) {
   await page.screenshot({ path: out, fullPage });
 }
 
-await browser.close();
+await studio.close();
 console.log(`✨ Reference screenshot saved to: ${out}\n`);

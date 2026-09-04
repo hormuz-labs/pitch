@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Deterministic multi-worker parallel seek-and-capture renderer: HTML+GSAP page -> high-fps MP4.
- * Requires: playwright (npm i playwright && npx playwright install chromium), ffmpeg.
+ * Requires: ffmpeg, and a CloakBrowser reachable over CDP (lib/browser.mjs).
+ * There is NO local Chromium in the studio image and none is ever installed —
+ * every worker is a tab in the CloakBrowser, and the page is served into it
+ * from disk over the studio.local origin.
  *
  * The page MUST expose:  window.__SEEK(seconds), window.__DURATION(), window.__READY
  *
@@ -13,13 +16,13 @@
  * iteration; several segment renders can run in parallel). Segment renders
  * skip the audio mux — only full renders mux audio/mix.wav.
  */
-import { chromium } from "playwright";
 import { execSync } from "node:child_process";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 
 /** This script's own directory — used to resolve the repo-root font for the watermark. */
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -52,7 +55,9 @@ const downscale = outRes?.height ? `scale=-2:${outRes.height}` : null;
 const scale    = outRes ? outRes.scale : Number(args.scale ?? 2);   // 2 = 3840x2160 4K UHD
 const width    = Number(args.width ?? 1920);
 const height   = Number(args.height ?? 1080);
-// Leave at least 2 CPU cores free for macOS system responsiveness, max 6 parallel workers by default
+// Workers are tabs in the one CloakBrowser, not browser processes: the
+// screenshots are what costs time, and Page.captureScreenshot on a background
+// tab returns that tab's own frame, so they overlap cleanly.
 const defaultWorkers = Math.max(1, Math.min(6, os.cpus().length - 2));
 const workers  = Number(args.workers ?? defaultWorkers);
 const out      = String(args.out ?? "out/video.mp4");
@@ -72,29 +77,30 @@ console.log(`\n🚀 Starting Ultra-HD Video Render:`);
 console.log(`   Page:      ${pageArg}`);
 console.log(`   Res:       ${renderW}x${renderH} (${scale >= 2 ? "4K UHD" : "1080p"} @ scale ${scale})`);
 console.log(`   FPS:       ${fps} FPS`);
-console.log(`   Workers:   ${workers} isolated parallel browser workers\n`);
+console.log(`   Workers:   ${workers} parallel capture tabs`);
 
-const chromiumFlags = [
-  `--force-device-scale-factor=${scale}`,
-  "--ignore-gpu-blocklist",
-  "--enable-gpu-rasterization",
-  "--enable-zero-copy",
-  "--disable-dev-shm-usage",
-  "--no-sandbox",
-  "--mute-audio"
-];
+/**
+ * We do not launch the browser, so --force-device-scale-factor is not ours to
+ * pass. `deviceScaleFactor` on the context makes the page rasterize at `scale`,
+ * and `clip.scale` below makes Page.captureScreenshot return those physical
+ * pixels (raw CDP otherwise hands back CSS pixels).
+ */
+const clip = { x: 0, y: 0, width, height, scale };
 
-// Get total animation duration using init browser
-const initBrowser = await chromium.launch({ args: chromiumFlags });
-const initPage = await initBrowser.newPage({
+const cdpArg = process.argv.slice(2).find(a => a.startsWith("--cdp="));
+const studio = await openStudioBrowser({
+  cdp: cdpArg?.slice("--cdp=".length),
   viewport: { width, height },
-  deviceScaleFactor: scale
+  deviceScaleFactor: scale,
 });
-const url = /^https?:/.test(pageArg) ? pageArg : "file://" + resolve(pageArg);
+console.log(`   Browser:   ${studio.mode === "cdp" ? `CloakBrowser over CDP (${studio.endpoint})` : "local Chromium"}\n`);
+
+const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
+const initPage = await studio.newPage();
 await initPage.goto(url, { waitUntil: "domcontentloaded" });
 await initPage.waitForFunction("window.__READY === true", null, { timeout: 30000 });
 const duration = await initPage.evaluate("window.__DURATION()");
-await initBrowser.close();
+await initPage.close();
 
 const from = Math.max(0, Number(args.from ?? 0));
 const to   = args.to !== undefined ? Math.min(Number(args.to), duration) : duration;
@@ -108,17 +114,13 @@ const chunkSize = Math.ceil(total / workers);
 const startMs = Date.now();
 let completedFrames = 0;
 
-// Launch isolated browser process per worker to avoid single-browser process IPC/GPU lock contention
+// One tab per worker, each seeking its own slice of the timeline.
 const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
   const startFrame = workerIdx * chunkSize;
   const endFrame = Math.min(startFrame + chunkSize, total);
   if (startFrame >= total) return;
 
-  const workerBrowser = await chromium.launch({ args: chromiumFlags });
-  const page = await workerBrowser.newPage({
-    viewport: { width, height },
-    deviceScaleFactor: scale
-  });
+  const page = await studio.newPage();
   const cdp = await page.context().newCDPSession(page);
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
@@ -126,7 +128,7 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
   for (let i = startFrame; i < endFrame; i++) {
     const t = from + i / fps;
     await page.evaluate((seekT) => { window.__SEEK(seekT); }, t);
-    const { data } = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 80, optimizeForSpeed: true });
+    const { data } = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 80, optimizeForSpeed: true, captureBeyondViewport: false, clip });
     const n = String(i).padStart(6, "0");
     await writeFile(`${tmp}/f_${n}.jpg`, Buffer.from(data, "base64"));
     completedFrames++;
@@ -137,10 +139,10 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
     }
   }
   await page.close();
-  await workerBrowser.close();
 });
 
 await Promise.all(tasks);
+await studio.close();
 
 const rawVideo = resolve(`_temp_video_${process.pid}.mp4`);
 

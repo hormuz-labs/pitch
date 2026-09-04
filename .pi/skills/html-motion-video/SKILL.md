@@ -45,6 +45,17 @@ a hold. That is a slideshow with a narrator. So every shot you write is
   ambient off, ≥ 0.7 events/s, 8–16 shots. It prints a per-shot table; a
   shot under 1 ev/s is lazy. Fix it, don't argue with it.
 
+## Length is approximate
+
+"Make me a 60-second video" means *around a minute* — a film that lands at 54s
+or 67s is the same film. Never stretch a shot, pad the tail, rush the read or
+add a shot you do not believe in to hit a number, and never report the length
+as if it were a spec you met. Cut to the material: the shot list, the ev/s
+table and one continuous read at a human pace decide the duration, and you say
+what it came out at. The only hard timing constraints are the audit's
+(8–16 shots, avg ≤ 3.4s, no quiet stretch > 1.5s) and the mix running ≥ 1s past
+`__DURATION()`.
+
 ## Workflow at a glance
 
 | Phase | Output | Gate |
@@ -92,7 +103,14 @@ Evidence before taste. Everything lands in `recon/` and `assets/`.
 
 ### 0.1 Brand tokens (measure, don't guess)
 
-Your shell has no browser, so the measuring is a host tool:
+Your shell has no browser, so the measuring is a host tool. Neither does the
+studio: there is no Chromium on the host either, on purpose. Every `motion_*`
+tool that needs a page drives the **CloakBrowser** over CDP — the anti-detect
+browser that gets recon past bot walls — and serves your workspace into it, so
+a local `index.html` renders there exactly as it does in the preview. You never
+install a browser, and `playwright install` is never the answer to a failing
+tool: if one reports it cannot reach a browser, that is a host problem. Say so
+and stop.
 
 ```js
 motion_recon({ url: "<product-url>" })                                   // → recon/brand-tokens.md + .json, assets/fonts/
@@ -117,7 +135,7 @@ Never write brand-tokens.md by hand from a screenshot: a measured light
 
 ```js
 motion_harvest({ url: "<product-url>" })
-motion_harvest({ url: "<product-url>", cdp: "<CDP url>" })   // bot-walled sites
+motion_harvest({ url: "<product-url>", cdp: "<CDP url>" })   // only to override the default browser
 ```
 
 Writes `assets/harvested/` plus `recon/harvested.json` (source URL, pixel size,
@@ -355,6 +373,25 @@ screencast; never Remotion/React.
 - [ ] One motion language governs `cut` choices, drift and any custom factory
 - [ ] Shot formats chosen per beat — not the same sequence as the last film
 - [ ] Audio persona (bed genre, narration yes/no and register, SFX density) matches brand tone
+
+## When a host tool fails
+
+`motion_recon`, `motion_harvest`, `motion_align`, `motion_check`, `motion_cues`,
+`motion_audit` and `motion_render` run outside your VM, with the browser, the
+network and the models you do not have. If one fails, you cannot fix it from
+your shell — you have no network and no way to reach the host.
+
+So: **report the failure and stop.** Do not install anything. Do not
+reimplement the tool in the workspace. Above all do not hand-write the file it
+was supposed to produce — `audio/vo-words.json`, `audio/cues.json`,
+`recon/brand-tokens.json` are measurements, and a plausible-looking substitute
+is a fabricated result that every later tool will silently trust. A film built
+on invented word timings is not a film that is nearly right; it is one whose
+picture is unrelated to its voice.
+
+Never claim the video is built when a gate never passed. "The audio is done;
+`motion_check` cannot run because the studio has no browser" is a useful
+report. "I have built the 60-second launch video" when nothing rendered is not.
 
 ## Checklist B — Technical (before final audit)
 

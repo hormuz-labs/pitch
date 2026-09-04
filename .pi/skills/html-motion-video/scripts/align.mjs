@@ -57,7 +57,15 @@ function findModel() {
 }
 const MODEL = findModel();
 if (!MODEL) {
-  console.error("❌ no whisper.cpp model. Install one, e.g.:\n   mkdir -p ~/.cache/whisper-cpp && curl -L -o ~/.cache/whisper-cpp/ggml-large-v3-turbo.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin\n   (or set WHISPER_MODEL=/path/to/ggml-*.bin)");
+  // Deliberately NOT a runnable command: this is a host provisioning gap, and
+  // the agent's shell is a network-less VM. An agent handed a curl line has
+  // run it in the guest, watched it fail, and then hand-written a fake word
+  // timeline rather than stopping.
+  console.error("❌ no whisper.cpp model on the host, so narration cannot be aligned.\n" +
+    "   This is a host setup problem you cannot fix from your shell — do NOT hand-write\n" +
+    "   audio/vo-words.json, and do NOT run motion_sync against invented timings.\n" +
+    "   Tell the user: the studio needs a ggml model in the whisper cache volume\n" +
+    "   (docker-data/whisper), or WHISPER_MODEL pointing at one.");
   process.exit(1);
 }
 try { execFileSync("which", [WHISPER], { stdio: "pipe" }); } catch {

@@ -18,6 +18,15 @@ description: How the studio builds a product launch film: a shots.js shot list c
    `motion_audit` will fail it (8–16 shots, avg ≤ 3.4s, no quiet stretch
    > 1.5s, ≥ 0.7 events/s). Read `references/pacing.md` once.
 
+## "Sixty seconds" means about a minute
+
+A length the user names is a target, not a spec. 54s and 67s are both "a
+60-second video", and nobody watching one counts. Never stretch a shot, pad the
+tail, speed up the read or add a shot you do not believe in to hit the number —
+the shot list and one continuous read at a human pace decide the duration, and
+you report what it came out at. Same for "make it shorter": cut a shot, do not
+compress eight of them.
+
 ## Preview-first, shot by shot
 
 The studio plays your live `index.html` and **reloads it every time you save
@@ -38,6 +47,9 @@ to inspect one shot while polishing.
 
 All `motion_*` tools run in the workspace (render timeout 20 minutes).
 Seek-and-capture only — never screencast, Remotion, React, or AI video.
+Every one that needs a page drives the CloakBrowser over CDP; there is no
+Chromium to install anywhere, and a tool that reports it cannot reach a browser
+is a host problem to report, not one to work around.
 
 - **`motion_recon`** — Phase 0: MEASURE the brand from the live DOM → `recon/brand-tokens.md`
   (+ `.json`): bg/ink/accent, :root variables, headline and body type, CTA
