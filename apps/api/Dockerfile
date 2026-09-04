@@ -6,7 +6,7 @@ WORKDIR /app
 
 COPY package.json bun.lock bunfig.toml ./
 COPY apps/api/package.json apps/api/
-COPY apps/studio-web/package.json apps/studio-web/
+COPY apps/web/package.json apps/web/
 COPY apps/transcription/package.json apps/transcription/
 COPY packages/db/package.json packages/db/
 COPY packages/email/package.json packages/email/

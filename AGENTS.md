@@ -8,7 +8,7 @@ things picked in the preview become numbered targets in the next prompt. Read
 
 ```
 apps/api        the server (auth, usage billing, projects, sessions, previews, renders, share, MCP, admin)
-apps/studio-web    the app (projects grid, one "new project" door, StudioView, settings…)
+apps/web    the app (projects grid, one "new project" door, StudioView, settings…)
 .pi/AGENT.md       the agent's base prompt: what a project is, which skill to read
 .pi/extensions/    host tools (pi extensions; helpers live in .pi/lib)
 .pi/skills/        skills the agent reads on demand — including the four named outcomes
@@ -88,4 +88,4 @@ Rules:
 ## Checks before committing
 
 `bunx biome check <changed files>` and `bunx vitest run tests/`; `bunx tsc
---noEmit -p apps/api/tsconfig.json` and `-p apps/studio-web/tsconfig.app.json`.
+--noEmit -p apps/api/tsconfig.json` and `-p apps/web/tsconfig.app.json`.

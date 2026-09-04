@@ -11,7 +11,7 @@ pieces:
   — the `motion_*` host tools; `.pi/skills/html-motion-video/` — the skill.
 - `engine/` — the shots.js compiler the preview plays (`js/compiler.js` carries the
   studio postMessage transport and the shot-aware inspector).
-- Web: `apps/studio-web/src/studio/previews/HtmlPreview.tsx` (iframe player, inspector,
+- Web: `apps/web/src/studio/previews/HtmlPreview.tsx` (iframe player, inspector,
   synced audio), `Strips.tsx` (scene strip), the export menu in `StudioView.tsx`.
 
 Pricing: resolution + narration charged at creation; exporting above the paid tier

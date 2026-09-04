@@ -38,7 +38,7 @@ whenever the agent saves; things picked in the preview become numbered targets
 in the next prompt. There are no workers or queues.
 
 ```text
-  [ studio-web ]  ──chat / SSE / preview──►  [ studio ]  express, one process
+  [ web ]        ──chat / SSE / preview──►  [ api ]     express, one process
                                                  │
                               ┌──────────────────┼──────────────────┐
                               ▼                  ▼                  ▼
@@ -61,7 +61,7 @@ interface, routes, events).
 | Matrix         | Entity          | Directive |
 |:---------------|:----------------|:----------|
 | **`apps/`**    | `studio`        | The server: auth, credits, projects, agent sessions, previews, renders, share, MCP, admin. |
-|                | `studio-web`    | The React app: projects grid, chat-first "new project", the StudioView. |
+|                | `web`           | The React app: projects grid, chat-first "new project", the StudioView. |
 |                | `transcription` | Local Whisper service used by the recording-edit tools. |
 | **`.pi/`**     | `AGENT.md`, `extensions`, `skills`, `lib` | The agent: its base prompt, host tools as pi extensions, skills. |
 | **`engine/`**  |                 | The shots.js compiler and the studio inspector that previews load. |

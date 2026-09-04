@@ -6,7 +6,7 @@ import { buildContext } from '../apps/api/src/agent/index.js'
 import { describeUsage, videoFromInteraction } from '../apps/api/src/pipelines/video-gen.js'
 import { assetThumbnail, deleteAsset, kindOf, listAssets } from '../apps/api/src/projects/assets.js'
 import type { Workspace } from '../apps/api/src/studio/paths.js'
-import { withTargetLegend } from '../apps/studio-web/src/studio/useProject.js'
+import { withTargetLegend } from '../apps/web/src/studio/useProject.js'
 
 function workspace(): Workspace {
   const dir = mkdtempSync(path.join(tmpdir(), 'studio-assets-'))

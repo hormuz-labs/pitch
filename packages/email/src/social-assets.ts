@@ -20,7 +20,7 @@ export function embedSocialIcons(html: string): {
       const contentId = `pitch-social-${name}`
       const filename = `${name}.png`
       const content = readFileSync(
-        new URL(`../../../apps/studio-web/public/email/social/${filename}`, import.meta.url),
+        new URL(`../../../apps/web/public/email/social/${filename}`, import.meta.url),
       )
       embeddedHtml = embeddedHtml.replaceAll(
         `https://trypitch.co/email/social/${filename}`,

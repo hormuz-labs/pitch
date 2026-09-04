@@ -19,7 +19,7 @@ runs as host tools in child processes.
 
 ```
 apps/api        the server: auth, credits, projects, sessions, previews, renders, share, MCP, admin
-apps/studio-web    the app: projects grid, one "new project" door, StudioView, settings…
+apps/web    the app: projects grid, one "new project" door, StudioView, settings…
 .pi/               AGENT.md (the base prompt), extensions (host tools), skills, libs
 engine/            the shots.js compiler a launch film plays live
 packages/*         db (Prisma/ZenStack), shared, storage, email — unchanged

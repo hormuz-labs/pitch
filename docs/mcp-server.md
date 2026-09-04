@@ -1,6 +1,6 @@
 # MCP Server & API Keys
 
-> Public-facing docs live at `apps/studio-web/src/docs/pages.tsx` and render at
+> Public-facing docs live at `apps/web/src/docs/pages.tsx` and render at
 > https://trypitch.co/docs. This file is the internal companion: keep both in
 > sync when tools, costs, or auth change. The `pk_` key also authenticates the
 > REST API in `apps/api/src/routes/v1.ts`.
