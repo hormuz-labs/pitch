@@ -190,6 +190,48 @@ function onPiEvent(s: Session, ev: any): void {
   }
 }
 
+/**
+ * Resume a saved transcript, or start a new one.
+ *
+ * Best-effort by design. The transcript lives OUTSIDE the workspace, under
+ * ~/.pi/agent/sessions, so it can go missing on its own — a cleared volume, a
+ * pruned container, a project deleted from under it — and `existsSync` only
+ * says it was there a moment ago. Losing the history is a far smaller problem
+ * than a project that can never take another turn, so anything that goes wrong
+ * here falls back to a fresh session and forgets the path.
+ */
+export async function resumeOrCreate(
+  projectId: string,
+  savedPath: string | null,
+  dir: string,
+  deps: {
+    open: (file: string, dir: string) => unknown
+    create: (dir: string) => unknown
+    exists: (file: string) => boolean
+    forget: (projectId: string) => Promise<void>
+  },
+): Promise<unknown> {
+  if (savedPath) {
+    try {
+      if (deps.exists(savedPath)) return deps.open(savedPath, dir)
+    } catch (err) {
+      logger.warn(
+        { err, projectId, savedPath },
+        'could not resume the saved session; starting a fresh one',
+      )
+    }
+    await deps.forget(projectId)
+  }
+  return deps.create(dir)
+}
+
+/** Drop a sessionFile the row still names but the disk no longer has. */
+async function forgetSessionFile(projectId: string): Promise<void> {
+  await prisma.project
+    .update({ where: { id: projectId }, data: { sessionFile: null } })
+    .catch(err => logger.warn({ err, projectId }, 'could not clear the stale session file'))
+}
+
 async function persistSessionFile(projectId: string, sessionFile: string): Promise<void> {
   await prisma.project
     .update({ where: { id: projectId }, data: { sessionFile } })
@@ -216,11 +258,12 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
     mkdirSync(ws.dir, { recursive: true })
 
     const prompt = await agent.systemPrompt()
-    const savedPath = opts.sessionFile
-    const sessionManager =
-      savedPath && existsSync(savedPath)
-        ? SessionManager.open(savedPath, undefined, ws.dir)
-        : SessionManager.create(ws.dir)
+    const sessionManager = (await resumeOrCreate(opts.projectId, opts.sessionFile, ws.dir, {
+      open: (file, dir) => SessionManager.open(file, undefined, dir),
+      create: dir => SessionManager.create(dir),
+      exists: existsSync,
+      forget: forgetSessionFile,
+    })) as SessionManager
 
     const extensions = [...(agent.sandbox ? [SANDBOX_EXTENSION] : []), ...agent.extensions]
     const allowedExt = new Set(extensions.map(p => path.resolve(p)))
@@ -292,7 +335,7 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
     if (typeof session.sessionFile === 'string')
       await persistSessionFile(opts.projectId, session.sessionFile)
     logger.info(
-      { projectId: opts.projectId, workspace: ws.internal, resumed: Boolean(savedPath) },
+      { projectId: opts.projectId, workspace: ws.internal, resumed: Boolean(opts.sessionFile) },
       'session ready',
     )
     return s
@@ -342,9 +385,22 @@ export async function promptSession(
   setBusy(s, true)
   s.turn += 1
   const full = context ? `<studio-context>\n${context}\n</studio-context>\n\n${text}` : text
-  void s.session.prompt(full).catch((err: unknown) => {
+  void s.session.prompt(full).catch(async (err: unknown) => {
     logger.error({ err, projectId: s.projectId }, 'prompt failed')
-    emit(s, { type: 'error', message: String((err as Error)?.message ?? err) })
+    // A missing transcript poisons the cached session: every later turn throws
+    // the same ENOENT until the process restarts. Drop it so the next attempt
+    // builds a fresh one, and say so in words the user can act on.
+    const missing = (err as NodeJS.ErrnoException)?.code === 'ENOENT'
+    if (missing) {
+      sessions.delete(s.projectId)
+      await forgetSessionFile(s.projectId)
+    }
+    emit(s, {
+      type: 'error',
+      message: missing
+        ? 'This project lost its conversation history. Send that again and it will start a new one — the workspace and its files are untouched.'
+        : String((err as Error)?.message ?? err),
+    })
     setBusy(s, false)
     emit(s, { type: 'idle', turn: s.turn, cost: s.cost, failed: true })
   })
