@@ -1,11 +1,15 @@
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import {
   createLogger,
   createManagerProfile,
+  getManagerHeaders,
   getManagerProfile,
   launchManagerProfile,
   managerCdpHttpUrl,
   stopManagerProfile,
 } from '@saas/shared'
+import type { Browser, BrowserContext, Page } from 'playwright'
 
 const logger = createLogger('worker:manager-browser')
 
@@ -148,4 +152,145 @@ export async function startManagerBrowser(userId: string): Promise<ManagerBrowse
       }
     },
   }
+}
+
+// ── The studio's shared browser ───────────────────────────────────────────────
+//
+// startManagerBrowser above is for a recording: it drives the USER's own
+// profile and deliberately restarts it for a clean session. Everything else
+// that needs a page — deck renders, project thumbnails — wants a warm,
+// long-lived browser that is nobody's session, so it gets a named shared
+// profile instead and never stops it.
+//
+// There is no Chromium in this image (Dockerfile.base sets
+// PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1), so this is the only browser there is.
+// It also cannot see this container's filesystem, which is why local pages are
+// served into it by request interception rather than loaded over file://.
+
+/** Synthetic origin the workspace is served under. Never resolved by DNS. */
+export const STUDIO_LOCAL_ORIGIN = 'http://studio.local'
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.htm': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.txt': 'text/plain; charset=utf-8',
+}
+
+export function contentTypeFor(filePath: string): string {
+  const dot = filePath.lastIndexOf('.')
+  return (
+    (dot === -1 ? undefined : MIME[filePath.slice(dot).toLowerCase()]) ?? 'application/octet-stream'
+  )
+}
+
+/**
+ * URL for a local page. The path component IS the absolute filesystem path, so
+ * a relative reference inside the page (`../../engine/js/x.js`) resolves to the
+ * right file without any base-href rewriting.
+ */
+export function localPageUrl(filePath: string, query = ''): string {
+  const abs = path.resolve(filePath)
+  const suffix = query ? (query.startsWith('?') ? query : `?${query}`) : ''
+  return `${STUDIO_LOCAL_ORIGIN}${abs.split('/').map(encodeURIComponent).join('/')}${suffix}`
+}
+
+/** The filesystem path a studio.local URL points at, or null if it is not ours. */
+export function localPathFromUrl(url: string): string | null {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return null
+  }
+  if (`${u.protocol}//${u.host}` !== STUDIO_LOCAL_ORIGIN) return null
+  const p = decodeURIComponent(u.pathname)
+  return p.startsWith('/') ? p : null
+}
+
+/**
+ * Serve http://studio.local/<abs-path> out of the local filesystem. The route
+ * is scoped to the synthetic origin so a page's real network requests — Google
+ * Fonts, a chart CDN — are never routed through interception.
+ */
+export async function serveLocalFiles(target: BrowserContext | Page): Promise<void> {
+  await target.route(`${STUDIO_LOCAL_ORIGIN}/**`, async route => {
+    const p = localPathFromUrl(route.request().url())
+    if (p === null) return route.continue()
+    try {
+      return await route.fulfill({
+        status: 200,
+        contentType: contentTypeFor(p),
+        body: await readFile(p),
+      })
+    } catch (err) {
+      return route.fulfill({
+        status: (err as NodeJS.ErrnoException)?.code === 'ENOENT' ? 404 : 500,
+        contentType: 'text/plain; charset=utf-8',
+        body: `${(err as NodeJS.ErrnoException)?.code ?? 'ERROR'} ${p}`,
+      })
+    }
+  })
+}
+
+function sharedProfileName(): string {
+  return process.env.STUDIO_CDP_PROFILE || 'studio-motion'
+}
+
+/**
+ * Ensure the shared CloakBrowser profile is running and return its CDP URL.
+ * Unlike startManagerBrowser this never stops a running profile — several
+ * thumbnails and a deck render share one warm browser, isolated by context.
+ */
+export async function ensureSharedProfile(name = sharedProfileName()): Promise<string> {
+  let profile = await getManagerProfile(name)
+  if (!profile) profile = await createManagerProfile(name)
+  if (profile.status !== 'running') {
+    logger.info({ name, profileId: profile.id }, 'launching the shared CloakBrowser profile')
+    await launchManagerProfile(profile.id)
+  }
+  const url = managerCdpHttpUrl(profile.id)
+  const deadline = Date.now() + 60_000
+  let lastError = 'no response'
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${url}/json/version`, { headers: getManagerHeaders() })
+      if (res.ok) return url
+      lastError = `HTTP ${res.status}`
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+    }
+    await new Promise(r => setTimeout(r, 1000))
+  }
+  throw new Error(`Shared CloakBrowser profile ${name} exposed no CDP endpoint (${lastError})`)
+}
+
+/**
+ * Connect to the shared CloakBrowser. Closing the returned Browser only drops
+ * this connection — the manager owns the process and keeps it warm.
+ */
+export async function connectStudioBrowser(name = sharedProfileName()): Promise<Browser> {
+  const endpoint = await ensureSharedProfile(name)
+  const { chromium } = await import('playwright')
+  logger.info({ endpoint }, 'connecting to the shared CloakBrowser over CDP')
+  return chromium.connectOverCDP(endpoint)
 }

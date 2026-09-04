@@ -29,7 +29,7 @@ import { execFile, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
@@ -90,8 +90,21 @@ function npmGlobalRoot(): string | null {
   return globalNodeModules
 }
 
+/**
+ * The studio browser library, as a file:// URL the deck scripts can `import()`.
+ *
+ * They cannot reach it by a relative path: pdf_scaffold copies the builder into
+ * <workspace>/build/, so "../lib/browser.mjs" would point at the workspace. And
+ * they cannot reach it by a bare specifier either — NODE_PATH is a CommonJS
+ * mechanism and these are ESM imports. So the tool that runs them says where it
+ * is.
+ */
+const BROWSER_LIB = pathToFileURL(
+  path.join(SKILLS_DIR, 'html-motion-video', 'scripts', 'lib', 'browser.mjs'),
+).href
+
 function nodeEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-  const env = { ...process.env, ...extra }
+  const env = { ...process.env, ...extra, STUDIO_BROWSER_LIB: BROWSER_LIB }
   const roots = [path.join(REPO_ROOT, 'node_modules'), npmGlobalRoot(), env.NODE_PATH].filter(
     (p): p is string => Boolean(p),
   )

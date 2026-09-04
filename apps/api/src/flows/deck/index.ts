@@ -16,6 +16,7 @@ import * as storage from '@saas/storage'
 import { nodeBinary } from '../../lib/node.js'
 import { addOutput } from '../../projects/service.js'
 import { getBrowser } from '../../projects/thumbnails.js'
+import { localPageUrl, serveLocalFiles } from '../../render/utils/manager-browser.js'
 import { registerHostAction } from '../../studio/host-actions.js'
 import { ROOT_DIR, SKILLS_DIR, type Workspace } from '../../studio/paths.js'
 import type { Slide, TurnInput, UploadRef } from '../types.js'
@@ -161,7 +162,21 @@ async function renderSlides(ws: Workspace, wanted?: number[]): Promise<string> {
   const browser = await getBrowser()
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
   try {
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 })
+    // The browser is in another container: it cannot see ws.dir, and
+    // page.setContent never completes over a CDP connection. Serve deck.html
+    // into it and navigate instead.
+    await serveLocalFiles(page)
+    await page.goto(localPageUrl(path.join(ws.dir, 'deck.html')), {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    })
+    // Headed Chrome lays out classic scrollbars, which creep into a slide
+    // screenshot; the published deck.html is not touched.
+    await page
+      .addStyleTag({
+        content: 'html{scrollbar-width:none}::-webkit-scrollbar{width:0;height:0;display:none}',
+      })
+      .catch(() => {})
     await page.waitForTimeout(1200)
     const count: number = await page.evaluate(() => document.querySelectorAll('.slide').length)
     if (count === 0) return 'deck.html has no .slide elements — nothing to render.'
@@ -205,13 +220,17 @@ async function renderSlides(ws: Workspace, wanted?: number[]): Promise<string> {
 }
 
 /** Render deck.html to build/output.pdf: one 1280×720 page per .slide. */
-async function renderPdf(ws: Workspace, html: string): Promise<string> {
+async function renderPdf(ws: Workspace): Promise<string> {
   const out = path.join(ws.dir, 'build', 'output.pdf')
   await mkdir(path.dirname(out), { recursive: true })
   const browser = await getBrowser()
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
   try {
-    await page.setContent(html, { waitUntil: 'load', timeout: 30000 })
+    await serveLocalFiles(page)
+    await page.goto(localPageUrl(path.join(ws.dir, 'deck.html')), {
+      waitUntil: 'load',
+      timeout: 30000,
+    })
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
     await page.evaluate(() => (document as any).fonts?.ready).catch(() => {})
     await page.waitForTimeout(1500)
@@ -232,7 +251,7 @@ async function publish(ws: Workspace, summary: string): Promise<string> {
   })
   if (!row) throw new Error('This workspace is not bound to a deck project')
 
-  const pdfPath = await renderPdf(ws, html)
+  const pdfPath = await renderPdf(ws)
   const prefix = `pitch/${ws.userId}/${ws.name}/deck`
   const htmlUrl = await storage.uploadFile(path.join(ws.dir, 'deck.html'), undefined, prefix)
   const pdfUrl = await storage.uploadFile(pdfPath, undefined, prefix)

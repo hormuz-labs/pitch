@@ -1,6 +1,16 @@
 const fs = require('fs');
 const path = require('path');
-const { chromium } = require('playwright');
+const os = require('os');
+/**
+ * The browser is the CloakBrowser over CDP — the studio image has no Chromium.
+ * The tool that runs this script points STUDIO_BROWSER_LIB at the library that
+ * connects to it and serves local files into it.
+ */
+async function studioBrowserLib() {
+    const lib = process.env.STUDIO_BROWSER_LIB;
+    if (!lib) throw new Error('STUDIO_BROWSER_LIB is not set — run this through its pdf_* tool, never by hand.');
+    return import(lib);
+}
 
 const CRITICAL_TYPES = new Set(['TEXT_OVERFLOW', 'IMAGE_MISSING', 'LAYOUT_BREAK']);
 const WARNING_TYPES = new Set(['CONTRAST_WARNING', 'PLACEHOLDER_TEXT']);
@@ -278,14 +288,23 @@ async function runDomQA(input, options = {}) {
         ? input
         : fs.readFileSync(input, 'utf8');
 
-    const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
-        viewport: options.viewport || { width: 1280, height: 720 }
+    // setContent never completes over a CDP connection, and the remote browser
+    // cannot see this folder anyway — render from a file served into it.
+    const { openStudioBrowser, localPageUrl } = await studioBrowserLib();
+    const isFile = typeof input === 'string' && !input.trim().startsWith('<');
+    let source = isFile ? path.resolve(input) : null;
+    if (!source) {
+        source = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'qa-dom-')), 'input.html');
+        fs.writeFileSync(source, html, 'utf8');
+    }
+
+    const browser = await openStudioBrowser({
+        viewport: options.viewport || { width: 1280, height: 720 },
     });
-    const page = await context.newPage();
+    const page = await browser.newPage();
 
     try {
-        await page.setContent(html, { waitUntil: 'networkidle', timeout: 30000 });
+        await page.goto(localPageUrl(source), { waitUntil: 'networkidle', timeout: 30000 });
         // Wait for Chart.js and fonts
         await page.waitForTimeout(options.waitMs || 3000);
 

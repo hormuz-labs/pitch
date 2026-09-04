@@ -178,27 +178,54 @@ describe('frame comparison (the audit gates rest on this)', () => {
   })
 })
 
-describe('the motion scripts never reach for a local Chromium', () => {
-  it('has no chromium.launch left in any browser-driving script', () => {
-    const out = execFileSync('grep', ['-rn', 'chromium', new URL('.', SCRIPTS).pathname], {
-      encoding: 'utf8',
-    }).trim()
-    // lib/browser.mjs is the one place that imports playwright's chromium, and
-    // only to connect over CDP or to reuse an already-installed binary.
-    const offenders = out.split('\n').filter(l => !l.includes('/lib/browser.mjs:'))
-    expect(offenders.filter(l => /chromium\.launch\(/.test(l))).toEqual([])
+describe('nothing in the studio reaches for a local Chromium', () => {
+  const REPO = new URL('..', import.meta.url).pathname
+
+  // Executable files only — the skills' prose says "playwright install is never
+  // the answer", and that sentence is the point, not a violation.
+  const CODE = ['--include=*.ts', '--include=*.js', '--include=*.mjs', '--include=*.cjs']
+
+  function grep(pattern: string, ...dirs: string[]): string[] {
+    try {
+      const out = execFileSync('grep', ['-rnE', ...CODE, pattern, ...dirs], {
+        encoding: 'utf8',
+      }).trim()
+      return out ? out.split('\n') : []
+    } catch {
+      return [] // grep exits 1 when it matches nothing
+    }
+  }
+
+  // The two places allowed to name chromium: they connect over CDP, and fall
+  // back to an already-installed binary rather than installing one.
+  const ALLOWED = ['/scripts/lib/browser.mjs:', '/render/utils/manager-browser.ts:']
+  const offenders = (lines: string[]) => lines.filter(l => !ALLOWED.some(a => l.includes(a)))
+
+  it('has no chromium.launch left in the skills or the api', () => {
+    expect(offenders(grep('chromium\\.launch\\(', `${REPO}.pi`, `${REPO}apps/api/src`))).toEqual([])
   })
 
   it('never tells the agent to install a browser', () => {
-    const out = execFileSync(
-      'grep',
-      ['-rniE', 'playwright install|install chromium', new URL('.', SCRIPTS).pathname],
-      {
-        encoding: 'utf8',
-      },
-    ).trim()
-    // Only lib/browser.mjs mentions it, to say "do NOT run this".
-    const lines = out ? out.split('\n') : []
-    expect(lines.filter(l => !l.includes('/lib/browser.mjs:'))).toEqual([])
+    expect(
+      offenders(grep('playwright install|install chromium', `${REPO}.pi`, `${REPO}apps/api/src`)),
+    ).toEqual([])
+  })
+
+  it('never calls setContent, which does not complete over a CDP connection', () => {
+    // Every renderer writes its HTML and navigates to it through the
+    // studio.local route instead.
+    expect(offenders(grep('\\.setContent\\(', `${REPO}.pi`, `${REPO}apps/api/src`))).toEqual([])
+  })
+})
+
+describe('the api serves local files into the remote browser the same way', () => {
+  it('agrees with the skill library on the URL mapping', async () => {
+    const api = await import('../apps/api/src/render/utils/manager-browser')
+    const p = '/app/projects/acme/deck.html'
+    expect(api.localPageUrl(p)).toBe(browser.localPageUrl(p))
+    expect(api.localPathFromUrl(api.localPageUrl(p))).toBe(p)
+    expect(api.localPathFromUrl('https://example.com/deck.html')).toBeNull()
+    expect(api.contentTypeFor('/x/deck.html')).toMatch(/^text\/html/)
+    expect(api.contentTypeFor('/x/mystery')).toBe('application/octet-stream')
   })
 })

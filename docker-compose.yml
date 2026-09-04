@@ -136,6 +136,10 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       MINIO_ENDPOINT: http://minio:9000
       CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+      # The CloakBrowser renders deck previews and project thumbnails, and it
+      # runs in its own container — it must reach this one by a name the compose
+      # network resolves, not by loopback.
+      STUDIO_INTERNAL_ORIGIN: http://api:3000
       TRANSCRIPTION_SERVICE_URL: http://transcription:4000/transcribe
       HSA_OVERRIDE_GFX_VERSION: "10.3.0"
     volumes:

@@ -1,4 +1,15 @@
-const { chromium } = require('playwright');
+/**
+ * The browser is the CloakBrowser, reached over CDP — there is no Chromium in
+ * the studio image to launch. pdf_build points STUDIO_BROWSER_LIB at the
+ * library that connects to it; it also serves this folder into that browser,
+ * which is why the deck is rendered from output.html on disk rather than
+ * page.setContent (setContent never completes over a CDP connection).
+ */
+async function studioBrowserLib() {
+    const lib = process.env.STUDIO_BROWSER_LIB;
+    if (!lib) throw new Error('STUDIO_BROWSER_LIB is not set — run the builder through pdf_build, never by hand.');
+    return import(lib);
+}
 const fs = require('fs');
 const path = require('path');
 const { runDomQAOnExistingPage, formatReport, writeReport } = require('./reference/qa-dom.js');
@@ -574,10 +585,14 @@ function generateHTML(config) {
 async function build() {
     const html = generateHTML(CONFIG);
     fs.writeFileSync('output.html', html, 'utf8');
-    const browser = await chromium.launch();
+    const { openStudioBrowser, localPageUrl } = await studioBrowserLib();
+    const browser = await openStudioBrowser({ viewport: { width: 1280, height: 720 } });
     const page = await browser.newPage();
-    await page.setViewportSize({ width: 1280, height: 720 });
-    await page.setContent(html);
+    await page.goto(localPageUrl(path.resolve('output.html')), { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // The CloakBrowser is headed, so its scrollbars take layout space and creep
+    // into the slide screenshots (headless draws overlay scrollbars). Hide them
+    // on the live page only — output.html is published as deck.html untouched.
+    await page.addStyleTag({ content: 'html{scrollbar-width:none}::-webkit-scrollbar{width:0;height:0;display:none}' }).catch(() => {});
 
     // ── Wait for Chart.js CDN + all canvas renders (replaces blind timeout) ──
     // Phase 1: wait until Chart.js is globally available (CDN loaded)
