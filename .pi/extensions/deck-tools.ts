@@ -34,10 +34,7 @@ export default function deckTools(pi: ExtensionAPI) {
     name: 'deck_publish',
     label: 'Publish deck',
     description:
-      "Publish deck.html as the project's slide deck: renders a fresh PDF from it (build/output.pdf, one " +
-      "1280×720 page per .slide), uploads both the HTML and the PDF, and records them as the project's " +
-      "outputs (the user's Download buttons). Call it once per turn, after the QA renders confirmed every " +
-      'slide is clean. Never publish a deck with template placeholder text or broken image paths.',
+      "Publish deck.html as the project's deck: renders a fresh PDF (one 1280×720 page per .slide), uploads the HTML and the PDF and records them as the project's outputs. Once per turn, after the QA renders are clean; never with placeholder text or broken images.",
     parameters: Type.Object({
       summary: Type.String({ description: 'One line describing what changed (shown to the user)' }),
     }),

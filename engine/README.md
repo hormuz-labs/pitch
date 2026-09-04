@@ -26,5 +26,5 @@ gate and exercises every density feature.
 Render (from the project folder — the studio's Export button does the same):
 
 ```
-node ../../.pi/skills/html-motion-video/scripts/capture.mjs index.html --fps=60 --out-res=1080p --out=renders/launch-1080p.mp4
+node ../../.pi/skills/launch-video/scripts/capture.mjs index.html --fps=60 --out-res=1080p --out=renders/launch-1080p.mp4
 ```

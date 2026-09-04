@@ -750,11 +750,7 @@ export default function demoTools(pi: ExtensionAPI) {
     name: 'demo_narrate',
     label: 'Demo narrate',
     description:
-      'Speak a natural, conversational voiceover to the user. Use this tool to guide the user through the demo. ' +
-      'When the line is ABOUT a specific element on the page, pass its ref as `focus`: the page smoothly ' +
-      'scrolls to bring that element to the center of view (the viewer sees you travel there) BEFORE you start ' +
-      'speaking, so you are always talking about something centered and visible — never about something off-screen. ' +
-      'For a PDF/image slide, call demo_analyze_slide first and pass a returned rectangle as viewport emphasis so its zoom and annotation begin before speech. Use demo_ground_region only to retry or locate another visual target.',
+      'Speak one line of narration. Pass `focus` (an element ref) when the line is about a specific element: the page scrolls it to centre before speech. On a PDF/image slide pass `emphasis` (a rectangle from demo_analyze_slide or demo_ground_region) so the zoom and callout begin with the voice.',
     parameters: Type.Object({
       text: Type.String({ description: 'The text to be spoken' }),
       focus: Type.Optional(
@@ -935,12 +931,7 @@ export default function demoTools(pi: ExtensionAPI) {
     name: 'demo_zoom_in',
     label: 'Demo zoom in',
     description:
-      'Move the cinematic camera to focus on a specific element. ' +
-      "Pass the element's ref exactly as it appears (e.g. 'e53'). " +
-      'IMPORTANT: if the camera is ALREADY zoomed in, calling this again on a ' +
-      'nearby element smoothly PANS to it at the same zoom — do NOT zoom_out ' +
-      'and zoom_in again for adjacent fields/buttons. ' +
-      'Only call zoom_out when you are done highlighting this area entirely.',
+      'Move the camera onto an element (ref from the snapshot). While already zoomed, calling it on a nearby element pans smoothly — do not zoom out between adjacent fields.',
     parameters: Type.Object({
       target: Type.String({
         description: "Element ref from snapshot (e.g. 'e53'). Do NOT include [ref=...].",
@@ -1250,7 +1241,7 @@ export default function demoTools(pi: ExtensionAPI) {
     name: 'demo_ground_region',
     label: 'Demo ground region',
     description:
-      'Gemini Agentic Vision retry for PDF/image content. Screenshots the actual visible 1920x1080 slide pixels and returns a confidence-gated viewport rect even when the source has no readable text layer. Use after demo_analyze_slide only when a returned box needs correction or you need another visual target; use OCR/page rectangles only if grounding cannot find it.',
+      'Gemini grounding on the current 1920×1080 slide pixels: a confidence-gated viewport rect for a described target, even with no text layer. Use after demo_analyze_slide to correct a box or find another target; a found rect is staged for the next narration.',
     parameters: Type.Object({
       query: Type.String({
         description: 'A precise visual target, e.g. "the blue revenue bar for Q4".',

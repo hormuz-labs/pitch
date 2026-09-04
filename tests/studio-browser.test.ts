@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process'
 import { deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 
-const SCRIPTS = new URL('../.pi/skills/html-motion-video/scripts/', import.meta.url)
+const SCRIPTS = new URL('../.pi/skills/launch-video/scripts/', import.meta.url)
 const browser = await import(new URL('lib/browser.mjs', SCRIPTS).href)
 const png = await import(new URL('lib/png.mjs', SCRIPTS).href)
 

@@ -1,5 +1,5 @@
 /**
- * HTML Motion Video — pi extension wrapping the html-motion-video skill's
+ * Launch films — pi extension wrapping the launch-video skill's
  * executable scripts (recon, screenshot, harvest, tts, align, sync, cues/check,
  * sfx, mix, audit, capture) plus two small host helpers (find_audio,
  * verify_duration). Every .mjs in that folder backs exactly one tool; the two
@@ -52,7 +52,7 @@ function nodeBinary(): string {
 const NODE = nodeBinary()
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const SCRIPTS = join(HERE, '..', 'skills', 'html-motion-video', 'scripts')
+const SCRIPTS = join(HERE, '..', 'skills', 'launch-video', 'scripts')
 const MAX_BUFFER = 16 * 1024 * 1024
 const AUDIO_RE = /\.(mp3|wav|m4a|aac|flac|ogg)$/i
 
@@ -107,6 +107,38 @@ function schemaTypes(md: string): Map<string, string> {
   return out
 }
 
+/**
+ * The DOM classes each built-in type mounts, read from the engine's own
+ * factories: `beats.sel` and the studio's element targets name them, and the
+ * agent used to read all 30KB of factories.js (four times, in one film) to
+ * find out what they were.
+ */
+function factoryClasses(): Map<string, string[]> {
+  const out = new Map<string, string[]>()
+  let js: string
+  try {
+    js = readFileSync(join(ENGINE_DIR, 'js', 'factories.js'), 'utf8')
+  } catch {
+    return out
+  }
+  const registry = js.match(/"[a-z-]+":\s*\{\s*mount:\s*([A-Za-z]+)/g) ?? []
+  for (const entry of registry) {
+    const m = entry.match(/"([a-z-]+)":\s*\{\s*mount:\s*([A-Za-z]+)/)
+    if (!m) continue
+    const [, type, fn] = m
+    const start = js.indexOf(`function ${fn}(`)
+    if (start === -1) continue
+    const end = js.indexOf('\n  function ', start + 1)
+    const body = js.slice(start, end === -1 ? undefined : end)
+    const classes = new Set<string>()
+    for (const c of body.matchAll(/class(?:Name\s*=\s*|=)["'`]([^"'`$]+)["'`]/g)) {
+      for (const name of c[1].split(/\s+/)) if (name) classes.add(`.${name}`)
+    }
+    out.set(type, [...classes])
+  }
+  return out
+}
+
 /** Top-level `## ` sections, as heading (lowercased, no punctuation) → body. */
 function schemaSections(md: string): Map<string, string> {
   const out = new Map<string, string>()
@@ -132,11 +164,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_tts',
     label: 'Motion TTS',
     description:
-      'Gemini TTS narration — ONE continuous read of the whole script (default out audio/vo.wav; the exact ' +
-      'text is saved beside it as audio/vo.txt). Narration is a direction.md decision (Axis 8), never a ' +
-      "default. Never generate one clip per shot: separate clips restart the voice's intonation and leave " +
-      'dead air between lines (the robotic sound). Next: set audio.vo to the WAV in shots.js, motion_align, ' +
-      'put `cue` phrases on shots/beats/lines, motion_sync.',
+      'Record the narration: ONE continuous Gemini TTS read of the whole script → audio/vo.wav (the text saved beside it as audio/vo.txt). One call per film, never one per shot. Then set audio.vo in shots.js, motion_align, cue every shot, motion_sync.',
     parameters: Type.Object({
       text: Type.Optional(
         Type.String({
@@ -164,7 +192,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       style: Type.Optional(
         Type.String({
           description:
-            "One delivery direction for the whole read: emotion, register, 'natural unhurried conversational pace, one continuous flowing read'. Never ask for fast/brisk — 1.9–2.4 words/s sounds human; the picture carries the energy.",
+            'One delivery direction for the whole read (emotion, register, pace). Never ask for fast or brisk.',
         }),
       ),
       model: Type.Optional(
@@ -219,10 +247,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_sync',
     label: 'Sync Picture to Narration',
     description:
-      'Cut the picture to the words: reads shot `cue` phrases (and beat/line/more cues) against audio/vo-words.json, ' +
-      'retimes every shot so it lands ~0.12s before its cue word, fills beat `at`, `lineAt`, `moreAt`, and with ' +
-      'write=true edits the numbers in shots.js (backup shots.js.bak) and re-times audio/sfx-cues.json. ' +
-      'Without write it prints the plan. Run after every copy or cue change, then motion_cues → motion_sfx → motion_mix → motion_audit.',
+      'Cut the picture to the words: reads shot/beat/line/more `cue` phrases against audio/vo-words.json and retimes shots.js so each lands ~0.12s before its word. write=true edits shots.js (backup shots.js.bak) and re-times audio/sfx-cues.json; otherwise it prints the plan. Run after every script or cue change.',
     parameters: Type.Object({
       write: Type.Optional(
         Type.Boolean({ description: 'Apply to shots.js (default false = plan only)' }),
@@ -254,11 +279,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_render',
     label: 'Motion Render',
     description:
-      'Render index.html to MP4 via deterministic multi-worker seek-and-capture. ' +
-      'Use it for a close look at ONE shot (from/to, fps 30, no audio) while polishing. ' +
-      'The studio previews the live HTML and has its own Export button for deliverables, so only ' +
-      'run a full render when the user explicitly asks you for an MP4 in chat; then write ' +
-      'renders/launch-<res>.mp4 with out_res set, at fps 60, after motion_audit passes.',
+      'Render index.html to MP4 by deterministic seek-and-capture. With from/to (fps 30, no audio) to look closely at ONE shot while polishing. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after motion_audit passes.',
     parameters: Type.Object({
       out: Type.String({
         description:
@@ -308,14 +329,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      'The philosophy gate. Loads index.html?audit (drift and ambient OFF so only designed ' +
-      'events count), samples every 0.25s and scores the film: shot-list lint (8–16 shots, ' +
-      'type beats ≤ 3.2s, hook ≤ 3s), the narration contract (ONE continuous read in audio.vo, ' +
-      'every shot cued and landing 0–0.35s before its word, per-shot clips FAIL), factory overruns, event density (≥ 0.7 ' +
-      'events/s and no quiet stretch longer than 1.5s), static holds, scene overlap, seek ' +
-      'determinism, harvested logo used. Prints a per-shot table with ev/s so you can see ' +
-      'which shot is lazy. GATE — the build FAILS on any ❌; fix and re-run, never argue. ' +
-      'Writes one frame per second to ./audit/.',
+      'The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: shot-list lint (8–16 shots, type beats ≤ 3.2s, hook ≤ 3s), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism, overlap, harvested logo used. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
@@ -396,13 +410,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_recon',
     label: 'Measure Brand',
     description:
-      'Phase 0.1/0.3/0.4 in one call: load the product site in a real browser and MEASURE its brand — ' +
-      'body bg/ink/font, every --custom-property on :root, headline and body type (family, weight, size, ' +
-      "tracking), the primary CTA's computed styles, surfaces by area, saturated colors by use, theme-color, " +
-      'and the page copy (title, description, headings, CTA labels, nav, paragraphs). Writes ' +
-      "recon/brand-tokens.md + .json, and self-hosts the brand's own web-font files into assets/fonts/ with a " +
-      'ready brand.fonts snippet. Run it on the home page and 1–2 product pages (different out paths). Every ' +
-      'hex and font in direction.md must come from here — never restyle a site from memory.',
+      "Measure the product's brand from the live page in a real browser: body bg/ink/font, :root custom properties, headline and body type, the primary CTA's computed styles, surfaces, saturated colours, theme-color and the page copy → recon/brand-tokens.md + .json; self-hosts the brand's web fonts into assets/fonts/ with a ready brand.fonts snippet. Run on the home page and 1–2 product pages (different out paths).",
     parameters: Type.Object({
       url: Type.String({ description: 'Page to measure (http/https)' }),
       out: Type.Optional(
@@ -482,11 +490,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_check',
     label: 'Check Cut',
     description:
-      'Fast compile check while building shot by shot (seconds, not the full audit): loads index.html in a ' +
-      "headless browser and reports page errors, shot count, real duration, every shot's start time and any " +
-      "factory overrun (a timeline longer than its shot's dur — the compiler compresses it; > 1.6× fails the " +
-      'audit). Run it after every batch of shots you save. The studio preview reloads on its own when you ' +
-      'save; this is your own confirmation that the page compiles.',
+      "Fast compile check (seconds, not the audit): loads index.html and reports page errors, shot count, real duration, every shot's start time and any factory overrun (> 1.6× fails the audit). Run after every batch of shots you save.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),
@@ -614,10 +618,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_find_audio',
     label: 'Find Audio',
     description:
-      "List the curated music library (assets/music at the repo root, the same one the studio's " +
-      'Music picker shows) sorted by recency, or another directory the user names. If the user ' +
-      'picked a bed in the studio it is already in audio/ — use that. Pass copy_to (a ' +
-      'workspace-relative path like audio/music.mp3) with src to import a listed file.',
+      "List the curated music library (the one the studio's Music picker shows), newest first, or another directory. A bed the user picked is already in audio/. Pass src + copy_to (workspace-relative) to import a listed file.",
     parameters: Type.Object({
       dir: Type.Optional(
         Type.String({ description: "Directory to scan (default: the repo's assets/music)" }),
@@ -709,10 +710,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_schema',
     label: 'Shot schema',
     description:
-      "The engine's shot schema, in pieces. Call it with no arguments for the shot-type list and the " +
-      'sections available; with `types` for the exact fields of the types you are writing; with ' +
-      '`section` for one of: density layer, narration spine, common shot fields, ui-frame, custom shot ' +
-      'types, rules. Read the whole file only if you really need all of it.',
+      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one of: density layer, narration spine, common shot fields, ui-frame, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
       types: Type.Optional(
         Type.Array(Type.String(), {
@@ -752,10 +750,18 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       if (p.types?.length) {
         const rows: string[] = []
         const missing: string[] = []
+        const classes = factoryClasses()
         for (const t of p.types) {
-          const row = types.get(String(t).replace(/^`|`$/g, ''))
-          if (row) rows.push(row)
-          else missing.push(String(t))
+          const name = String(t).replace(/^`|`$/g, '')
+          const row = types.get(name)
+          if (!row) {
+            missing.push(String(t))
+            continue
+          }
+          const mounted = classes.get(name)
+          rows.push(
+            mounted?.length ? `${row.replace(/\|\s*$/, '')} DOM: ${mounted.join(' ')} |` : row,
+          )
         }
         const common = sections.get('common shot fields') ?? ''
         const uiFrame = p.types.some((t: string) => /ui-frame/.test(t))

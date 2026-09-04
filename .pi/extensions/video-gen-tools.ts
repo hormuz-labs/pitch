@@ -20,13 +20,7 @@ export default function videoGenTools(pi: ExtensionAPI) {
     name: 'video_generate',
     label: 'Generate video',
     description:
-      'Generate a NEW video clip from a text description (optionally animating an image from the ' +
-      'workspace) with Gemini Omni, and write it into the workspace. Clips are about 10 seconds and ' +
-      'come WITH their own audio. Use it for footage nobody has — establishing shots, textures, ' +
-      'metaphors, abstract transitions, B-roll around the real product. Do NOT use it to show the ' +
-      "product itself: it invents plausible-looking UI, so a launch film's product shots must come " +
-      'from motion_* or a real recording. Generation is slow and billed, so write the prompt properly ' +
-      '(read the generated-video skill) and preview a 360p draft before committing to 1080p.',
+      'Generate a NEW ~10s clip (with its own audio) from a text prompt, optionally animating a workspace image, with Gemini Omni, into the workspace. For footage nobody has — establishing shots, textures, metaphors, B-roll — never for the product itself, whose UI it invents. Slow and billed: read the generated-video skill, draft at 360p, refine with `continues`, then 1080p.',
     parameters: Type.Object({
       prompt: Type.String({
         description:

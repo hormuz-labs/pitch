@@ -26,7 +26,7 @@ owned.
 
 | Pipeline | Host actions | Skill |
 |---|---|---|
-| launch film | `motion_*` | `launch-video` → `html-motion-video` |
+| launch film | `motion_*` | `launch-video` |
 | demo recording | `demo_*`, `storyboard_*` | `demo-video` |
 | slide deck | `pdf_*`, `deck_render`, `deck_publish` | `slide-deck` |
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |

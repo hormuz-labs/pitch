@@ -8,7 +8,7 @@ pieces:
   steering, pricing, legacy import), `describe.ts` (shots.js → scenes, preview,
   exports), `export.ts` (capture.mjs render → S3 output).
 - `.pi/APPEND_SYSTEM.md` — the agent's system prompt; `.pi/extensions/html-motion-tools.ts`
-  — the `motion_*` host tools; `.pi/skills/html-motion-video/` — the skill.
+  — the `motion_*` host tools; `.pi/skills/launch-video/` — the skill.
 - `engine/` — the shots.js compiler the preview plays (`js/compiler.js` carries the
   studio postMessage transport and the shot-aware inspector).
 - Web: `apps/web/src/studio/previews/HtmlPreview.tsx` (iframe player, inspector,

@@ -29,7 +29,7 @@ export {
 
 import { PROJECTS_DIR, SKILLS_DIR } from '../../../../.pi/lib/paths.ts'
 
-export const MOTION_SKILL_DIR = path.join(SKILLS_DIR, 'html-motion-video')
+export const MOTION_SKILL_DIR = path.join(SKILLS_DIR, 'launch-video')
 
 /**
  * Only a directory-naming key now. New projects are all 'studio'; the four old

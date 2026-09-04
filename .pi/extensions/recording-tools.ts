@@ -453,14 +453,7 @@ export default function recordingTools(pi: ExtensionAPI) {
     name: 'inspect_frames',
     label: 'Inspect frames',
     description:
-      'Ask Gemini 3 Flash (Agentic Vision, code execution enabled) to verify a candidate ' +
-      'action window. Grabs frames across the window, attaches the matching transcript ' +
-      'excerpt (plus one sentence of context on each side), and asks WHERE on screen the ' +
-      'action happens — the element clicked/filled, or the region showing the result the ' +
-      'narration refers to (NOT the mouse cursor) — and WHEN. Returns structured JSON: ' +
-      '{ actionFound, actionTimeSec, eventType, bbox, confidence, label }. bbox is in ' +
-      'full-frame 1920x1080 pixels and feeds record_zoom_in directly. If actionFound is ' +
-      'false, skip the window or widen it and retry once.',
+      'Verify a candidate action window with Gemini vision: samples frames across it, attaches the matching transcript excerpt, and returns { actionFound, actionTimeSec, eventType, bbox, confidence, label } — where on screen the action or its result happens (not the cursor) and when. bbox is full-frame 1920×1080 pixels, ready for record_zoom_in. If actionFound is false, skip or widen once.',
     parameters: Type.Object({
       videoPath: Type.String({ description: 'Path to the uploaded video file.' }),
       windowStartSec: Type.Number({
@@ -616,11 +609,7 @@ export default function recordingTools(pi: ExtensionAPI) {
     name: 'record_zoom_in',
     label: 'Record zoom in',
     description:
-      'Record a camera zoom-in onto a verified action. Pass the bbox returned by ' +
-      'inspect_frames — the zoom level auto-fits the element (small controls get a ' +
-      'tighter zoom, large regions a looser one, clamped to 1.3-2.2) and the camera is ' +
-      'clamped so the zoom window never leaves the frame. Alternatively pass explicit ' +
-      'x/y (pixel centre) with an optional zoom. Call this once per verified action.',
+      'Record a camera zoom-in at a verified action. Pass the bbox from inspect_frames (the zoom auto-fits, 1.3–2.2, clamped to the frame) or explicit x/y with an optional zoom. Once per verified action.',
     parameters: Type.Object({
       videoTimeSec: Type.Number({
         description: 'When the zoom lands, in video seconds — use inspect_frames actionTimeSec.',
@@ -738,10 +727,7 @@ export default function recordingTools(pi: ExtensionAPI) {
     name: 'record_click',
     label: 'Record click',
     description:
-      'Record a cursor/click event at a verified action point (drives the gliding-cursor ' +
-      'overlay and click emphasis downstream). Only call when inspect_frames confirmed a ' +
-      'real click/fill (eventType click or fill) with decent confidence — a missed click ' +
-      'just means no emphasis there, a phantom click adds noise.',
+      'Record a click at a verified action point (drives the cursor overlay and click emphasis). Only when inspect_frames confirmed a click or fill with decent confidence.',
     parameters: Type.Object({
       videoTimeSec: Type.Number({
         description: 'Click time in video seconds (inspect_frames actionTimeSec).',

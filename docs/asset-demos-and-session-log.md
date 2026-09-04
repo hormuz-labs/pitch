@@ -73,7 +73,7 @@ A prior session run under **Kimi Code** (a different CLI agent) started the
   text, `ffprobe` image dims, write an `assets.json` manifest.
 - **Agent tools** — `list_assets` and a basic `build_slideshow` (one opaque
   `<img>` per slide) in the plugin; a new
-  [.pi/skills/asset-demo/SKILL.md](../.pi/skills/asset-demo/SKILL.md);
+  [.pi/skills/demo-video/SKILL.md](../.pi/skills/demo-video/SKILL.md);
   `poppler-utils` added to [Dockerfile.base](../Dockerfile.base).
 
 ### What Kimi left broken
@@ -180,7 +180,7 @@ the *geometry*.
 | Slideshow tool | [.pi/extensions/demo-tools.ts](../.pi/extensions/demo-tools.ts) | `build_slideshow` now pulls region data from the manifest and emits hotspots. |
 | Annotation builders (pure) | [.pi/lib/annotations.ts](../.pi/lib/annotations.ts) **(new)** | `buildAnnotateEvalJs` / `buildClearAnnotationsJs`: in-page overlay JS for each style, with color sanitization. |
 | Annotation tools | [.pi/extensions/demo-tools.ts](../.pi/extensions/demo-tools.ts) | `annotate` (styles: `circle`, `box`, `underline`, `highlighter`, `arrow`, `spotlight`) + `clear_annotations`. Target a ref or an explicit rect. Work on URL demos too. |
-| Agent guidance | [job-processor.ts](../apps/worker/src/job-processor.ts) + [asset-demo/SKILL.md](../.pi/skills/asset-demo/SKILL.md) | Teach the snapshot → narrate → zoom_in → annotate → hold → clear choreography. |
+| Agent guidance | [job-processor.ts](../apps/worker/src/job-processor.ts) + [demo-video/SKILL.md](../.pi/skills/asset-demo/SKILL.md) | Teach the snapshot → narrate → zoom_in → annotate → hold → clear choreography. |
 | Dependency | [Dockerfile.base](../Dockerfile.base) | Add `tesseract-ocr`. |
 
 ### How a hotspot maps onto the image

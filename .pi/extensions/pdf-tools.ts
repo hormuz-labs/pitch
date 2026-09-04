@@ -2,13 +2,13 @@
  * Deck build tools — pi extension for the studio's deck flow. These tools run
  * on the HOST because the agent's own bash lives in a Gondolin VM with no
  * browser and no network (it does have node), and every step below needs one
- * or both. They wrap the executable steps of the ppt-generator / ppt-enhancer
+ * or both. They wrap the executable steps of the slide-deck
  * pipeline:
  *
  *   pdf_parse          parse an uploaded PDF/PPTX into build/parsed-slides.json
                       (+ build/input-images/ for a preserved PPTX)
    pdf_scaffold       copy the builder (+ inject the chosen template's
- *                      layouts/CSS) into <workspace>/build/, ready for CONFIG
+ *                      layouts/CSS) into <workspace>/build/, ready for the config
  *                      authoring
  *   pdf_scrape_images  fetch Pinterest/Unsplash images (Gemini fallback) for the
  *                      deck's keywords into <workspace>/build/images/<keyword>/
@@ -18,7 +18,7 @@
  *
  * The build directory is `<ctx.cwd>/build` — the session's cwd is the project
  * workspace, mounted at /workspace inside the agent's VM, so the agent edits
- * `build/pdf-builder.js` and reads `build/qa-renders/*.png` with its built-in
+ * `build/deck-config.js` and reads `build/qa-renders/*.png` with its built-in
  * tools. The skill scripts themselves are unchanged: the scraper still writes
  * under <repo>/pptx/ppt-<topic>/ and the builder still copies its outputs to
  * $WORKSPACE_ROOT/pptx/ppt-<jobId>/, so these tools point those at scratch
@@ -39,9 +39,8 @@ import { hostAction } from '../lib/studio-host.ts'
 const execFileAsync = promisify(execFile)
 const BIG_BUFFER = 64 * 1024 * 1024
 
-const PPT_SKILL = path.join(SKILLS_DIR, 'ppt-generator')
-const TEMPLATE_SKILL = path.join(SKILLS_DIR, 'template-ppt')
-/** Where scrape_images.js writes (path.resolve(__dirname, '../../../../pptx') from ppt-generator/reference). */
+const DECK_SKILL = path.join(SKILLS_DIR, 'slide-deck')
+/** Where scrape_images.js writes (path.resolve(__dirname, '../../../../pptx') from slide-deck/reference). */
 const SCRAPER_PPTX_DIR = path.join(REPO_ROOT, 'pptx')
 
 function text(out: string) {
@@ -95,7 +94,7 @@ function npmGlobalRoot(): string | null {
  * is.
  */
 const BROWSER_LIB = pathToFileURL(
-  path.join(SKILLS_DIR, 'html-motion-video', 'scripts', 'lib', 'browser.mjs'),
+  path.join(SKILLS_DIR, 'launch-video', 'scripts', 'lib', 'browser.mjs'),
 ).href
 
 function nodeEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
@@ -147,12 +146,7 @@ export default function pdfTools(pi: ExtensionAPI) {
     name: 'pdf_scaffold',
     label: 'Scaffold deck build',
     description:
-      'Set up the deck build directory `build/` in your workspace: copies pdf-builder-template.js in as ' +
-      "build/pdf-builder.js (with the template's layouts/CSS injected when a template is given), stages " +
-      'the DOM-QA script, and pre-fills CONFIG.jobId. Call this ONCE, after loading the skill and before ' +
-      'scraping images or authoring the CONFIG; then edit the CONFIG object inside build/pdf-builder.js ' +
-      'with the built-in edit tool. Refuses to overwrite an existing build/pdf-builder.js unless `force` ' +
-      'is true (that discards the CONFIG you authored).',
+      "Set up build/ in the workspace: writes build/deck-config.js (the theme + slides file YOU author; jobId and template pre-filled), build/pdf-builder.js (the renderer — with a template's layouts and CSS injected when one is given — which you never edit) and the DOM-QA script. Call once, before scraping images or authoring the config. Refuses to overwrite an existing deck-config.js unless force is true.",
     parameters: Type.Object({
       template: Type.Optional(
         Type.String({
@@ -171,19 +165,20 @@ export default function pdfTools(pi: ExtensionAPI) {
       const ws = workspaceDir(ctx)
       const buildDir = buildDirOf(ctx)
       const builderOut = path.join(buildDir, 'pdf-builder.js')
+      const configOut = path.join(buildDir, 'deck-config.js')
       try {
-        if (fs.existsSync(builderOut) && !args.force) {
+        if (fs.existsSync(configOut) && !args.force) {
           return text(
-            `build/pdf-builder.js already exists — edit its CONFIG instead, or call pdf_scaffold with force: true to start over.`,
+            `build/deck-config.js already exists — edit it instead, or call pdf_scaffold with force: true to start over.`,
           )
         }
         fs.mkdirSync(path.join(buildDir, 'reference'), { recursive: true })
 
-        const builderTemplate = path.join(PPT_SKILL, 'pdf-builder-template.js')
+        const builderTemplate = path.join(DECK_SKILL, 'pdf-builder-template.js')
         if (!fs.existsSync(builderTemplate))
           return text(`ERROR: builder template not found at ${builderTemplate}`)
         fs.copyFileSync(
-          path.join(PPT_SKILL, 'reference', 'qa-dom.js'),
+          path.join(DECK_SKILL, 'reference', 'qa-dom.js'),
           path.join(buildDir, 'reference', 'qa-dom.js'),
         )
 
@@ -195,10 +190,10 @@ export default function pdfTools(pi: ExtensionAPI) {
               `ERROR: unknown template "${args.template}". Known: ${Object.keys(TEMPLATE_DIRS).join(', ')}`,
             )
           }
-          const templateSkillMd = path.join(TEMPLATE_SKILL, 'templates', dirName, 'skill.md')
+          const templateSkillMd = path.join(DECK_SKILL, 'templates', dirName, 'skill.md')
           if (!fs.existsSync(templateSkillMd))
             return text(`ERROR: template skill.md not found at ${templateSkillMd}`)
-          const injector = path.join(TEMPLATE_SKILL, 'scripts', 'inject_template.js')
+          const injector = path.join(DECK_SKILL, 'scripts', 'inject_template.js')
           await execFileAsync(NODE, [injector, builderTemplate, templateSkillMd, builderOut], {
             cwd: REPO_ROOT,
             env: nodeEnv(),
@@ -209,18 +204,25 @@ export default function pdfTools(pi: ExtensionAPI) {
           fs.copyFileSync(builderTemplate, builderOut)
         }
 
-        // CONFIG.jobId only names the builder's courtesy copy folder; pre-fill
-        // it with the workspace name so the agent never has to think about it.
-        const jobId = path.basename(ws)
-        const src = fs.readFileSync(builderOut, 'utf8')
-        const patched = src.replace(/jobId:\s*(['"])\1/, `jobId: '${jobId.replace(/'/g, '')}'`)
-        if (patched !== src) fs.writeFileSync(builderOut, patched, 'utf8')
+        // The config is the small file the agent authors; the builder it never
+        // touches. jobId only names the builder's courtesy copy folder, so it
+        // and the template id are pre-filled from what we already know.
+        const jobId = path.basename(ws).replace(/'/g, '')
+        const skeleton = fs.readFileSync(path.join(DECK_SKILL, 'deck-config-template.js'), 'utf8')
+        fs.writeFileSync(
+          configOut,
+          skeleton
+            .replace(/jobId:\s*'',/, `jobId: '${jobId}',`)
+            .replace(/template:\s*'',/, `template: '${args.template ?? ''}',`),
+          'utf8',
+        )
 
         return text(
           `Build directory ready: build/ (in your workspace)\n` +
-            `- builder: build/pdf-builder.js${injected ? ` (template ${args.template} injected)` : ''} — CONFIG.jobId is pre-filled${args.template ? `; set CONFIG.template to "${args.template}"` : ''}\n` +
-            `- DOM QA: build/reference/qa-dom.js (runs inside pdf_build)\n` +
-            `Next: pdf_scrape_images for your keywords, author the CONFIG object in build/pdf-builder.js ` +
+            `- build/deck-config.js — YOUR file: the theme and the slides (jobId${args.template ? ' and template' : ''} pre-filled)\n` +
+            `- build/pdf-builder.js${injected ? ` (template ${args.template} injected)` : ''} — the renderer; never edit it\n` +
+            `- build/reference/qa-dom.js — the DOM QA pdf_build runs\n` +
+            `Next: pdf_scrape_images for your keywords, author build/deck-config.js ` +
             `(image paths relative to build/, e.g. getBase64Image('images/<keyword>/pinterest_01.jpg')), then pdf_build.`,
         )
       } catch (e) {
@@ -233,10 +235,7 @@ export default function pdfTools(pi: ExtensionAPI) {
     name: 'pdf_scrape_images',
     label: 'Scrape deck images',
     description:
-      'Fetch images for the deck (this is the ONLY way to get images — your bash has no network). Runs the ' +
-      'Pinterest → Unsplash → Gemini-fallback scraper for each keyword and writes the files under ' +
-      'build/images/<keyword-slug>/ in your workspace; the result lists exactly what landed. Reference those ' +
-      "files from the CONFIG relative to build/ (getBase64Image('images/<keyword-slug>/<file>')).",
+      'Fetch images for the deck — the only way; your shell has no network. Runs the Pinterest → Unsplash → Gemini scraper per keyword and writes build/images/<keyword-slug>/ in the workspace; the result lists exactly what landed. Reference those files from the config relative to build/.',
     parameters: Type.Object({
       keywords: Type.Array(Type.String(), {
         description:
@@ -259,7 +258,7 @@ export default function pdfTools(pi: ExtensionAPI) {
       ),
     }),
     async execute(_id, args: any, _signal, _onUpdate, ctx: any) {
-      const script = path.join(PPT_SKILL, 'reference', 'scrape_images.js')
+      const script = path.join(DECK_SKILL, 'reference', 'scrape_images.js')
       if (!fs.existsSync(script)) return text(`ERROR: scraper not found at ${script}`)
       const keywords: string[] = (args.keywords ?? [])
         .map((k: unknown) => String(k).trim())
@@ -329,11 +328,7 @@ export default function pdfTools(pi: ExtensionAPI) {
     name: 'pdf_parse',
     label: 'Parse a presentation',
     description:
-      'Parse an uploaded PDF or PPTX in the workspace into build/parsed-slides.json — the structured ' +
-      'slide text the enhance workflow outlines from — and, for a PPTX in preserve mode, extract its ' +
-      'embedded images into build/input-images/. An attached deck is normally parsed for you before your ' +
-      'first turn, so call this ONLY when build/parsed-slides.json is missing, or when the user changes ' +
-      'the mode (recreate ⇄ preserve) after the fact. It rewrites the file, so never call it to "check".',
+      'Parse an uploaded PDF or PPTX into build/parsed-slides.json (and, for a PPTX in preserve mode, its embedded images into build/input-images/). An attached deck is parsed before your first turn: call this only when that file is missing or the mode changed. It rewrites the file.',
     parameters: Type.Object({
       file: Type.String({
         description:
@@ -356,24 +351,20 @@ export default function pdfTools(pi: ExtensionAPI) {
     name: 'pdf_build',
     label: 'Build deck',
     description:
-      'Build the deck from build/pdf-builder.js (the ONLY way to run it — the builder needs Playwright ' +
-      'and the network, and your VM has neither). ' +
-      'Renders the CONFIG slides via Playwright: writes build/output.html + build/output.pdf, runs the DOM QA ' +
-      '(build/qa-report.json), screenshots every slide into build/qa-renders/, and on success copies ' +
-      'output.html to deck.html — the deck the studio previews. Re-run after each CONFIG fix — the QA loop ' +
-      'is: read build/qa-renders/*.png with the built-in read tool, patch the CONFIG/layouts with edit, then ' +
-      'pdf_build again. Note: rebuilding overwrites deck.html, so hand edits made to deck.html are lost.',
+      'Build the deck from build/deck-config.js via build/pdf-builder.js in a real browser (the only way to run it): writes build/output.html + output.pdf, runs the DOM QA (build/qa-report.json), screenshots every slide into build/qa-renders/, and on success copies output.html to deck.html — the deck the studio previews. Re-run after each config fix. Rebuilding overwrites deck.html, so hand edits made there are lost.',
     parameters: Type.Object({}),
     async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceDir(ctx)
       const buildDir = buildDirOf(ctx)
       const builder = path.join(buildDir, 'pdf-builder.js')
-      if (!fs.existsSync(builder))
-        return text('ERROR: build/pdf-builder.js not found — run pdf_scaffold first.')
+      if (!fs.existsSync(builder) || !fs.existsSync(path.join(buildDir, 'deck-config.js')))
+        return text(
+          'ERROR: build/deck-config.js or build/pdf-builder.js is missing — run pdf_scaffold first.',
+        )
       if (!fs.existsSync(path.join(buildDir, 'reference', 'qa-dom.js'))) {
         fs.mkdirSync(path.join(buildDir, 'reference'), { recursive: true })
         fs.copyFileSync(
-          path.join(PPT_SKILL, 'reference', 'qa-dom.js'),
+          path.join(DECK_SKILL, 'reference', 'qa-dom.js'),
           path.join(buildDir, 'reference', 'qa-dom.js'),
         )
       }
@@ -413,7 +404,7 @@ export default function pdfTools(pi: ExtensionAPI) {
             `- deck.html: ${ok ? 'updated from build/output.html (the studio preview reloads)' : 'unchanged'}\n` +
             `- qa-renders: ${renders.length} slide screenshot(s) in build/qa-renders/` +
             `${renders.length ? ` — ${renders.join(', ')}` : ''}\n` +
-            `${renders.length ? '\nRead each PNG (build/qa-renders/<file>) with the read tool for Visual QA; patch build/pdf-builder.js and re-run pdf_build on any defect. When every slide is clean, deck_publish.\n' : ''}` +
+            `${renders.length ? '\nRead each PNG (build/qa-renders/<file>) with the read tool for Visual QA; patch build/deck-config.js and re-run pdf_build on any defect. When every slide is clean, deck_publish.\n' : ''}` +
             `\n--- build output (tail) ---\n${out.slice(-4000)}`,
         )
       } catch (e: any) {

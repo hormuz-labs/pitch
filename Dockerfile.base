@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         tesseract-ocr \
         bubblewrap \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    # Node 22 (the html-motion-video skill scripts and the Gondolin sandbox
+    # Node 22 (the launch-video skill scripts and the Gondolin sandbox
     # need a current Node; Debian's package is too old).
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y -qq --no-install-recommends nodejs \

@@ -1,7 +1,7 @@
 /**
  * Slide deck: generate from a topic, enhance an uploaded PDF/PPTX, and edit
  * the result by chat — one agent, one workspace. The deck is `deck.html`
- * (one `.slide` per 1280×720 page) built by the ppt-generator builder from
+ * (one `.slide` per 1280×720 page) built by the slide-deck builder from
  * `build/pdf-builder.js` through the pdf_* host tools; `deck_render` looks at
  * pages, `deck_publish` uploads the HTML and a fresh PDF as the outputs.
  */
@@ -25,7 +25,7 @@ const execFileAsync = promisify(execFile)
 const logger = createLogger('studio:deck')
 
 const RELEVANT = /^(deck\.html|build\/output\.(html|pdf)|renders\/.+)$/
-const PARSER = path.join(SKILLS_DIR, 'ppt-enhancer', 'scripts', 'parse_presentation.js')
+const PARSER = path.join(SKILLS_DIR, 'slide-deck', 'scripts', 'parse_presentation.js')
 const DECK_UPLOAD = /\.(pdf|pptx)$/i
 
 type EnhanceMode = 'recreate' | 'preserve'
@@ -331,9 +331,9 @@ function generateBrief(options: Record<string, any>): string {
       ? `Preferred slide headings, in order: ${JSON.stringify(headings)}. `
       : 'Slide headings: choose them from the topic structure. ') +
     (options.template
-      ? `Template id: "${options.template}" — follow the template-ppt skill: read the template's spec_lock.md and skill.md first, and pass the id to pdf_scaffold. `
-      : 'No template selected — follow the ppt-generator skill. ') +
-    'Workflow: load the skill → outline → pdf_scaffold → pdf_scrape_images → author the CONFIG in build/pdf-builder.js → pdf_build → read every build/qa-renders PNG and fix until clean → deck_publish once. '
+      ? `Template id: "${options.template}" — read the slide-deck skill, then the template's spec_lock.md and skill.md, and pass the id to pdf_scaffold. `
+      : 'No template selected — follow the slide-deck skill. ') +
+    'Workflow: load the skill → outline → pdf_scaffold → pdf_scrape_images → author build/deck-config.js → pdf_build → read every build/qa-renders PNG and fix until clean → deck_publish once. '
   )
 }
 
@@ -350,7 +350,7 @@ function enhanceBrief(ws: Workspace, options: Record<string, any>): string {
   if (typeof options.inputFile === 'string') inputFile = options.inputFile
   const hasImages = existsSync(path.join(ws.dir, 'build', 'input-images'))
   return (
-    `ENHANCE the uploaded presentation${inputFile ? ` (${inputFile})` : ''} in "${mode}" mode following the ppt-enhancer skill exactly. ` +
+    `ENHANCE the uploaded presentation${inputFile ? ` (${inputFile})` : ''} in "${mode}" mode following the slide-deck skill's enhance workflow exactly. ` +
     (existsSync(parsed)
       ? `The upload is already parsed: build/parsed-slides.json holds ${slides} slide(s) — read it first, never re-parse. `
       : 'The upload could not be parsed automatically: read input/ with your file tools and reconstruct the outline yourself. ') +
@@ -358,6 +358,6 @@ function enhanceBrief(ws: Workspace, options: Record<string, any>): string {
       ? `Keep the slide count and section headings. ${hasImages ? 'Extracted images are in build/input-images/ (paths in the JSON are relative to build/); list them, skip files under 5 KB, and scrape a supplementary image only where nothing usable exists. ' : 'No images could be extracted (PDF input) — scrape one image per slide that needs one. '}`
       : 'Redesign freely with fresh images and a premium palette, but every original point must survive. ') +
     `The user's message is the enhancement brief (tone, audience, extra asks). ` +
-    'Workflow: load the skill → read the parsed slides → pdf_scaffold → images → author the CONFIG in build/pdf-builder.js → pdf_build → read every build/qa-renders PNG and fix until clean → deck_publish once. '
+    'Workflow: load the skill → read the parsed slides → pdf_scaffold → images → author build/deck-config.js → pdf_build → read every build/qa-renders PNG and fix until clean → deck_publish once. '
   )
 }

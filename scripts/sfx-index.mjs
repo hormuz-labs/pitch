@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * sfx-index.mjs — build the curated SFX manifest for html-motion-video.
+ * sfx-index.mjs — build the curated SFX manifest for the launch-video skill.
  *
  * Scans the shared SFX libraries, measures every file (duration + peak +
  * integrated loudness), classifies it into a semantic MOTION EVENT class from
@@ -24,7 +24,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..");
-const SKILL = resolve(REPO_ROOT, ".pi", "skills", "html-motion-video");
+const SKILL = resolve(REPO_ROOT, ".pi", "skills", "launch-video");
 const REPO = REPO_ROOT;
 
 const args = process.argv.slice(2);

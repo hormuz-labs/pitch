@@ -1,7 +1,7 @@
 /**
  * Launch video: a shots.js shot list compiled by the shared GSAP engine,
  * previewed live, exported by seek-and-capture. The agent works sandboxed
- * with the html-motion-video skill and the motion_* host tools.
+ * with the launch-video skill and the motion_* host tools.
  */
 import { existsSync } from 'node:fs'
 import { copyFile, mkdir, readdir } from 'node:fs/promises'
@@ -18,7 +18,7 @@ const RELEVANT =
 
 const FIRST_TURN_BRIEF =
   'The user wants results, not questions. Do NOT interview the user or wait for confirmations ' +
-  '— run the html-motion-video workflow immediately: recon, direction.md, shot list, shots.js, ' +
+  '— run the launch-video workflow immediately: recon, direction.md, shot list, shots.js, ' +
   "audio mix, motion_audit. Your CWD is this job's workspace; the video is a shots.js shot list " +
   'compiled by the shared engine (index.html loads ../../engine/). Make every creative decision ' +
   'yourself, grounded in recon evidence, and briefly narrate your choices as you go. Build ' +

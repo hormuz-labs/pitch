@@ -80,7 +80,7 @@ skill before you start**. Do not work from memory of these formats.
 
 | The user wants | Read |
 |---|---|
-| a launch film, promo, teaser, feature announcement | `launch-video`, then `html-motion-video` |
+| a launch film, promo, teaser, feature announcement | `launch-video` |
 | a narrated walkthrough of a live site or an uploaded PDF/deck | `demo-video` |
 | slides, a deck, a PDF presentation, or a rebuild of an uploaded one | `slide-deck` |
 | an uploaded screen recording cut into a demo | `recording-edit` |

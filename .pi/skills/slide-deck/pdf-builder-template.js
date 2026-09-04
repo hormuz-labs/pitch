@@ -228,42 +228,15 @@ function renderChart(slide, themeObj) {
 }
 
 /**
- * CONFIGURATION ENGINE
-
- * Update these tokens based on the chosen theme and generated slides.
+ * CONFIGURATION
+ *
+ * The deck's content and theme live in build/deck-config.js — a small file the
+ * agent authors and edits; this builder is never edited. pdf_scaffold writes
+ * the skeleton (deck-config-template.js in the skill).
  */
-const CONFIG = {
-    jobId: '',
-    topicSlug: '',                      // ← Agent fills this (e.g. 'dark-matter-energy')                          // ← Agent fills this
-    title: 'PRESENTATION TITLE',       // ← Agent fills this
-    subtitle: 'Subtitle goes here',     // ← Agent fills this
-    presenter: 'Presenter Name',        // ← Agent fills this
-    date: 'Month Year',                 // ← Agent fills this
-    theme: {
-        primary:     null,  // ← Agent fills: e.g. '#3B82F6'
-        secondary:   null,  // ← Agent fills: e.g. '#93C5FD'
-        bg:          null,  // ← Agent fills: e.g. '#0B0F19'
-        accent:      null,  // ← Agent fills: e.g. '#FFFFFF'
-        fontDisplay: null,  // ← Agent fills: e.g. "'Outfit', sans-serif"
-        fontBody:    null,  // ← Agent fills: e.g. "'Inter', sans-serif"
-    },
-    slides: [
-        /* Example slide structure:
-        {
-            layout: 'COVER',
-            title: 'TITLE',
-            subtitle: 'SUBTITLE',
-            image: 'https://images.unsplash.com/...' 
-        },
-        {
-            layout: 'SPLIT-R',
-            title: 'SLIDE TITLE',
-            bullets: ['Point 1', 'Point 2'],
-            image: 'local/path/to/image.jpg'
-        }
-        */
-    ]
-};
+// The config calls getBase64Image() for its images; make it reachable there.
+global.getBase64Image = getBase64Image;
+const CONFIG = require('./deck-config.js');
 
 /**
  * HTML TEMPLATE GENERATOR

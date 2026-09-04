@@ -183,7 +183,7 @@ export const EDIT_PHASE_LABELS: Record<string, string> = {
   edit_upload: 'Uploading Video',
 }
 
-// Launch-video (html-motion-video) phase weights and labels. The worker emits
+// Launch-video phase weights and labels. The worker emits
 // these keys on every phase transition while the agent runs the full
 // recon → direction → storyboard → VO → build → mix → render pipeline.
 export const LAUNCH_VIDEO_PHASE_WEIGHTS: Record<string, number> = {

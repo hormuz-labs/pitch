@@ -22,10 +22,7 @@ export default function mediaTools(pi: ExtensionAPI) {
     name: 'media_probe',
     label: 'Probe media',
     description:
-      'Inspect a media file in the workspace with ffprobe: duration, container, and every video/audio ' +
-      'stream with its codec, resolution, channels and volume level. Call this BEFORE editing a file — ' +
-      'it tells you which stream index the narration is on versus the music bed, and whether the edit ' +
-      'you are about to make is even possible.',
+      "Inspect a workspace media file with ffprobe: duration, container, and every stream's codec, resolution, channels and volume. Call before editing a file — it says which stream is the narration and which the bed.",
     parameters: Type.Object({
       file: Type.String({
         description: 'Workspace-relative path, e.g. "renders/demo-1.mp4" or "recording/upload.mp4"',
@@ -40,12 +37,7 @@ export default function mediaTools(pi: ExtensionAPI) {
     name: 'media_ffmpeg',
     label: 'Edit media',
     description:
-      'Run one ffmpeg command over workspace files to make an edit the named pipelines do not cover — ' +
-      'change the level of a track, trim, crop, concatenate, replace or mix audio, change speed, extract ' +
-      'a frame or a clip. Give `args` as the arguments AFTER "ffmpeg -y", with every path workspace-' +
-      'relative; the output path must be inside the workspace too. Write to a NEW file rather than over ' +
-      'the input, then tell the user what changed. Probe first, and prefer stream copy (-c copy) when ' +
-      'only the container changes, so quality survives.',
+      'Run one ffmpeg command over workspace files for an edit the pipelines do not cover — levels, trim, crop, concat, replace or mix audio, speed, a frame or a clip. `args` are the arguments after `ffmpeg -y`, every path workspace-relative, the output inside the workspace and a NEW file. Probe first; prefer -c copy when only the container changes.',
     parameters: Type.Object({
       args: Type.Array(Type.String(), {
         description:
