@@ -159,7 +159,9 @@ file it produces — `audio/vo-words.json`, `audio/cues.json`,
 fabricated result every later tool will trust. A film cut to invented word
 timings is not nearly right; its picture is unrelated to its voice. Never
 call the film built when a gate never ran: "the audio is done; `motion_check`
-could not run" is a useful report, "I built the 60-second video" is not.
+could not run" is a useful report, "I built the 60-second video" is not. If
+you finish the film without a step the user asked for — a music-only cut
+when they asked for narration — the first line of your summary says so.
 
 ## Before you stop
 

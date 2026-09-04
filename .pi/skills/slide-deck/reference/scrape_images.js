@@ -131,7 +131,11 @@ async function generateGeminiImage(keyword, richPrompt, outDir, index) {
     const promptFile = path.join(outDir, 'gemini_prompt.txt');
     fs.writeFileSync(promptFile, prompt);
 
-    const dest = path.join(outDir, `gemini_${String(index).padStart(2, '0')}.png`);
+    // Named by what Gemini actually returned: it usually answers with JPEG
+    // bytes, and a .png that is not a PNG confuses every size probe after it.
+    const destFor = mimeType =>
+        path.join(outDir, `gemini_${String(index).padStart(2, '0')}.${/jpe?g/i.test(mimeType) ? 'jpg' : 'png'}`);
+    let dest = destFor('image/png');
     console.log(`  [Gemini] Generating image for '${keyword}'...`);
 
     const models = [GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL];
@@ -143,6 +147,7 @@ async function generateGeminiImage(keyword, richPrompt, outDir, index) {
             if (!image) {
                 throw new Error('No image part found in Gemini response');
             }
+            dest = destFor(image.mimeType);
             fs.writeFileSync(dest, image.data);
             console.log(`  ✓ Gemini:  1 image (${model})`);
             return dest;

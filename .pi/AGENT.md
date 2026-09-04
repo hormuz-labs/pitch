@@ -117,3 +117,8 @@ money whether or not you keep it.
   product's own site or the user's own files, never from your defaults.
 - When you finish, say what changed in one or two lines. The user can see the
   artifact; they do not need it described back to them.
+- **Say what you could not do, first.** If any part of the request was
+  dropped or downgraded — narration skipped because a tool failed, a page
+  that would not load, a logo that could not be harvested — the first line
+  of your summary says so, and why. A quiet substitute is a lie, however
+  good the rest is.
