@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ProjectStore } from '../useProject'
-import { InspectButton } from './HtmlPreview'
+import { InspectButton, SelectToggle } from './HtmlPreview'
 
 export function DeckPreview({ store, src }: { store: ProjectStore; src: string }) {
   const s = store
@@ -93,6 +93,7 @@ export function DeckPreview({ store, src }: { store: ProjectStore; src: string }
           }}
         />
       </div>
+      <SelectToggle active={s.inspectMode} onClick={() => s.setInspectMode(!s.inspectMode)} />
       {s.inspectMode && (
         <div className="preview-inspect-banner">
           <span className="preview-inspect-pulse" />

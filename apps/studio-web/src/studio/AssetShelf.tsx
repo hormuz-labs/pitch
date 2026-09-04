@@ -91,8 +91,10 @@ function AssetCard({
             </span>
           )}
         </span>
-        <span className="asset-name">{asset.name}</span>
-        <span className="asset-meta">{ORIGIN_LABEL[asset.origin] ?? asset.origin}</span>
+        <span className="asset-lines">
+          <span className="asset-name">{asset.name}</span>
+          <span className="asset-meta">{ORIGIN_LABEL[asset.origin] ?? asset.origin}</span>
+        </span>
       </button>
       <button
         type="button"

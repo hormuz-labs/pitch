@@ -34,7 +34,7 @@ export type Preview =
   | { kind: 'html'; url: string }
   | { kind: 'deck'; url: string }
   | { kind: 'video'; url: string }
-  | { kind: 'pdf'; url: string }
+  | { kind: 'pdf'; url: string; path: string; pages: number }
   | { kind: 'browser'; profileId: string }
   | null
 

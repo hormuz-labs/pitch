@@ -13,6 +13,7 @@ import path from 'node:path'
 import { parseSlides } from '../flows/deck/index.js'
 import { describeLaunch } from '../flows/launch-video/describe.js'
 import type { Description, Output } from '../flows/types.js'
+import { pdfPageCount } from '../projects/assets.js'
 import { readTimeline, scenesFromTimeline } from '../render/utils/beats.js'
 import { fileUrl, type Workspace } from '../studio/paths.js'
 
@@ -163,7 +164,15 @@ export async function describeWorkspace(ws: Workspace): Promise<Description> {
   if (best.kind === 'deck') return deckDescription(ws)
   if (best.kind === 'pdf')
     return {
-      preview: { kind: 'pdf', url: fileUrl(ws.internal, best.rel) },
+      // `path` and `pages` are what the page picker needs. They come from the
+      // description rather than the asset shelf because a deck's own
+      // build/output.pdf is previewable without being shelf material.
+      preview: {
+        kind: 'pdf',
+        url: fileUrl(ws.internal, best.rel),
+        path: best.rel,
+        pages: await pdfPageCount(ws, best.rel),
+      },
       outputs: [
         {
           kind: 'pdf',

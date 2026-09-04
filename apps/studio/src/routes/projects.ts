@@ -4,7 +4,7 @@
 import { createLogger } from '@saas/shared'
 import express from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { addAssets, assetThumbnail, listAssets } from '../projects/assets.js'
+import { addAssets, assetThumbnail, deleteAsset, listAssets } from '../projects/assets.js'
 import { cancelExport, exportProject, getExport } from '../projects/export.js'
 import * as projects from '../projects/service.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
@@ -115,6 +115,21 @@ router.post('/:id/assets', async (req, res) => {
     res.json(await addAssets(projects.workspaceOf(p), p.id, uploads))
   } catch (err) {
     fail(res, err, 'add assets failed')
+  }
+})
+
+/** Remove one file from the shelf. Only shelf material can be named. */
+router.delete('/:id/assets', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const rel = String(req.query.path ?? '')
+    if (!rel) return res.status(400).json({ error: 'path is required' })
+    const p = await projects.getRow(userId, req.params.id)
+    const removed = await deleteAsset(projects.workspaceOf(p), rel)
+    res.json({ removed })
+  } catch (err) {
+    fail(res, err, 'delete asset failed')
   }
 })
 

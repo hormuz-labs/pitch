@@ -35,7 +35,7 @@ export type Preview =
   | { kind: 'html'; url: string }
   | { kind: 'deck'; url: string }
   | { kind: 'video'; url: string }
-  | { kind: 'pdf'; url: string }
+  | { kind: 'pdf'; url: string; path: string; pages: number }
   | { kind: 'browser'; profileId: string }
   | null
 
@@ -222,4 +222,9 @@ export const studio = {
   assets: (token: string, id: string) => api.get<Asset[]>(`${p(id)}/assets`, token),
   addAssets: (token: string, id: string, uploads: UploadRef[]) =>
     api.post<Asset[]>(`${p(id)}/assets`, token, { uploads }),
+  deleteAsset: (token: string, id: string, assetPath: string) =>
+    api.delete<{ removed: boolean }>(
+      `${p(id)}/assets?path=${encodeURIComponent(assetPath)}`,
+      token,
+    ),
 }

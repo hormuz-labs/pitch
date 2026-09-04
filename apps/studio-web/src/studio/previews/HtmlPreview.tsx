@@ -284,6 +284,7 @@ export function HtmlPreview({ store, src }: { store: ProjectStore; src: string }
         {s.previewNote && <div className="preview-note">{s.previewNote}</div>}
         {audioSrc && <audio ref={audioRef} src={audioSrc} preload="auto" muted={muted} />}
       </div>
+      <SelectToggle active={s.inspectMode} onClick={toggleInspect} />
       {s.inspectMode && (
         <div className="preview-inspect-banner">
           <span className="preview-inspect-pulse" />
@@ -386,6 +387,30 @@ export const ExitFsIcon = () => (
     <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
   </svg>
 )
+/**
+ * The always-visible way in to selecting.
+ *
+ * There is a cursor glyph in the player's control bar, but that bar fades out
+ * unless you are hovering it, so the one affordance the whole studio is built
+ * on — point at the thing you want changed — was invisible until you went
+ * looking. This sits in the corner of the stage and says what it does.
+ */
+export function SelectToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`select-toggle${active ? ' on' : ''}`}
+      onClick={onClick}
+      title={active ? 'Stop selecting (esc)' : 'Click elements to reference them (i)'}
+    >
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+        <path d="M3.5 3.5v17l4.5-4.5 3 6.5 3-1.5-3-6.5h6z" />
+      </svg>
+      {active ? 'Selecting — esc to stop' : 'Select'}
+    </button>
+  )
+}
+
 export function InspectButton({ active, onClick }: { active: boolean; onClick: () => void }) {
   return (
     <button

@@ -4,7 +4,12 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildContext } from '../apps/studio/src/agent/index.js'
 import { describeUsage, videoFromInteraction } from '../apps/studio/src/pipelines/video-gen.js'
-import { assetThumbnail, kindOf, listAssets } from '../apps/studio/src/projects/assets.js'
+import {
+  assetThumbnail,
+  deleteAsset,
+  kindOf,
+  listAssets,
+} from '../apps/studio/src/projects/assets.js'
 import type { Workspace } from '../apps/studio/src/studio/paths.js'
 import { withTargetLegend } from '../apps/studio-web/src/studio/useProject.js'
 
@@ -201,5 +206,34 @@ describe('asset thumbnails', () => {
     write(ws, 'build/pdf-builder.js')
     for (const path of ['../../../etc/passwd', '/etc/passwd', 'build/pdf-builder.js'])
       expect(await assetThumbnail(ws, { path }), path).toBeNull()
+  })
+})
+
+describe('deleteAsset', () => {
+  it('removes shelf material and says so', async () => {
+    const ws = workspace()
+    write(ws, 'uploads/clip.mp4')
+    expect(await deleteAsset(ws, 'uploads/clip.mp4')).toBe(true)
+    expect((await listAssets(ws, 'proj1')).length).toBe(0)
+  })
+
+  it('reports a file that was already gone rather than throwing', async () => {
+    expect(await deleteAsset(workspace(), 'uploads/never-existed.mp4')).toBe(false)
+  })
+
+  it('refuses anything that is not shelf material', async () => {
+    const ws = workspace()
+    write(ws, 'build/pdf-builder.js')
+    write(ws, 'project.json')
+    for (const bad of [
+      '../../../etc/hosts',
+      '/etc/hosts',
+      'build/pdf-builder.js',
+      'project.json',
+      'vendor/gsap/gsap.min.js',
+      // Thumbnail-able but not shelf material: the deck's own output stays.
+      'build/output.pdf',
+    ])
+      await expect(deleteAsset(ws, bad), bad).rejects.toThrow()
   })
 })

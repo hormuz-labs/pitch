@@ -12,7 +12,6 @@
  * rebuild it, pull it out.
  */
 import { useEffect, useState } from 'react'
-import type { Asset } from '../client'
 import type { ProjectStore } from '../useProject'
 
 /** Enough pages to find your way around without rendering a whole book. */
@@ -21,13 +20,14 @@ const MAX_PAGES = 60
 export function PdfPreview({ store, src }: { store: ProjectStore; src: string }) {
   const s = store
   const [page, setPage] = useState(1)
+  const thumbBase = `/projects/${s.project?.id ?? ''}/assets/thumb`
 
-  // Which asset this preview IS, so a page target can name its path. The
-  // shelf already lists it; matching on the URL avoids a second lookup.
-  const asset: Asset | undefined = s.assets.find(
-    a => src.includes(encodeURI(a.path)) || src.includes(a.path),
-  )
-  const pages = Math.min(asset?.pages ?? 0, MAX_PAGES)
+  // The description carries the PDF's own path and page count. It is not read
+  // off the asset shelf, because a deck's build/output.pdf is previewable
+  // without being material anyone would point at.
+  const preview = s.project?.description.preview
+  const pdf = preview?.kind === 'pdf' ? preview : null
+  const pages = Math.min(pdf?.pages ?? 0, MAX_PAGES)
 
   useEffect(() => {
     setPage(1)
@@ -35,15 +35,15 @@ export function PdfPreview({ store, src }: { store: ProjectStore; src: string })
 
   const pick = (n: number) => {
     setPage(n)
-    if (!asset) return
+    if (!pdf) return
     s.addTarget({
       sceneId: null,
       tagName: 'page',
       className: '',
       id: '',
       text: '',
-      selector: `${asset.path}#page=${n}`,
-      asset: asset.path,
+      selector: `${pdf.path}#page=${n}`,
+      asset: pdf.path,
       page: n,
     })
   }
@@ -57,7 +57,7 @@ export function PdfPreview({ store, src }: { store: ProjectStore; src: string })
       {pages > 1 && (
         <div className="pdf-pages">
           <div className="pdf-pages-hint">
-            {`Page ${page} of ${asset?.pages}`} · click a page to reference it
+            {`Page ${page} of ${pdf?.pages}`} · click a page to reference it
           </div>
           <div className="strip">
             {Array.from({ length: pages }, (_, i) => i + 1).map(n => (
@@ -69,9 +69,13 @@ export function PdfPreview({ store, src }: { store: ProjectStore; src: string })
                 onClick={() => pick(n)}
               >
                 <span className="pdf-page-thumb">
-                  {asset?.thumbUrl && (
+                  {pdf && (
                     <img
-                      src={store.mediaUrl(`${asset.thumbUrl}&at=${n}`) ?? ''}
+                      src={
+                        store.mediaUrl(
+                          `${thumbBase}?path=${encodeURIComponent(pdf.path)}&at=${n}`,
+                        ) ?? ''
+                      }
                       alt={`Page ${n}`}
                       loading="lazy"
                       draggable={false}

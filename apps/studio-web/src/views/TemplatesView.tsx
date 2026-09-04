@@ -2638,12 +2638,21 @@ export const TemplatesView = ({
     onDetailModeChange?.(false)
   }
 
-  // Expose clearSelection so the shell's back button can trigger it
+  // Expose clearSelection so the shell's back button can trigger it.
+  //
+  // Registered ONCE, through a ref, rather than on every change of the
+  // callback prop. Keyed on the prop it re-fired whenever the parent
+  // re-rendered, and since registering sets state in the parent, that was a
+  // loop — one an inline arrow up there is enough to start. A ref makes the
+  // parent's memoisation an optimisation rather than a correctness condition.
+  const readyRef = useRef(onClearSelectionReady)
+  readyRef.current = onClearSelectionReady
+  const clearRef = useRef(clearSelection)
+  clearRef.current = clearSelection
   useEffect(() => {
-    onClearSelectionReady?.(clearSelection)
-    return () => onClearSelectionReady?.(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClearSelectionReady])
+    readyRef.current?.(() => clearRef.current())
+    return () => readyRef.current?.(null)
+  }, [])
 
   const wordCount = (text: string) => {
     const clean = text.trim().replace(/\s+/g, ' ')

@@ -927,6 +927,19 @@ function AppContent() {
     selectedKey = 'templates'
   }
 
+  /**
+   * Stable identity, deliberately.
+   *
+   * TemplatesView registers its clear-selection function from an effect keyed
+   * on this prop. Passed as an inline arrow it was a new function on every
+   * App render, so the effect re-fired, set state here, re-rendered App, and
+   * made another new function — "Maximum update depth exceeded" on /templates.
+   */
+  const onClearTemplatesSelectionReady = useCallback(
+    (fn: (() => void) | null) => setClearTemplatesSelection(() => fn),
+    [],
+  )
+
   const shell = useMemo(
     () => ({ isMobile, toggleSidebar: () => setCollapsed(c => !c) }),
     [isMobile],
@@ -1086,9 +1099,7 @@ function AppContent() {
                       element={
                         <TemplatesView
                           onDetailModeChange={setTemplatesInDetail}
-                          onClearSelectionReady={(fn: (() => void) | null) =>
-                            setClearTemplatesSelection(() => fn)
-                          }
+                          onClearSelectionReady={onClearTemplatesSelectionReady}
                         />
                       }
                     />

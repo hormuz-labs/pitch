@@ -290,6 +290,20 @@ export function useProject(id: string | undefined) {
     [getToken, refreshAssets],
   )
 
+  const deleteAsset = useCallback(
+    async (assetPath: string) => {
+      const pid = idRef.current
+      if (!pid) return
+      await studio.deleteAsset(await getToken(), pid, assetPath)
+      // Drop any chip pointing at it: a [n] naming a file that no longer
+      // exists is worse than no chip at all.
+      targetsRef.current = targetsRef.current.filter(t => t.asset !== assetPath)
+      setTargets(targetsRef.current)
+      await refreshAssets()
+    },
+    [getToken, refreshAssets],
+  )
+
   // A relevant file changed in the workspace: re-read the description and
   // reload the preview, landing on whatever is new.
   const onPreviewChanged = useCallback(async () => {
@@ -726,6 +740,7 @@ export function useProject(id: string | undefined) {
     assets,
     refreshAssets,
     addAssets,
+    deleteAsset,
     refresh,
     mediaUrl,
     mediaToken,
