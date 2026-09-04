@@ -90,8 +90,8 @@ const IGNORED = /(^|\/)(__|\.)|(^|\/)qa-renders\//
  * at the same time.
  */
 export const ASSET_PATH = new RegExp(
-  `^(?:${SOURCES.map(s => s.dir.replace(/\//g, '\\/')).join('|')})\\/.+\\.(?:${KINDS.map(
-    ([re]) => re.source.replace(/^\\\.|\$$/g, '').replace(/^\(|\)$/g, ''),
+  `^(?:${SOURCES.map(s => s.dir.replace(/\//g, '\\/')).join('|')})\\/.+\\.(?:${KINDS.map(([re]) =>
+    re.source.replace(/^\\\.|\$$/g, '').replace(/^\(|\)$/g, ''),
   ).join('|')})$`,
   'i',
 )
@@ -200,7 +200,8 @@ export async function deleteAsset(ws: Workspace, rel: string): Promise<boolean> 
   if (!ASSET_PATH.test(rel)) throw new Error(`not a removable asset: "${rel}"`)
   const file = path.resolve(ws.dir, rel)
   const root = path.resolve(ws.dir)
-  if (!file.startsWith(`${root}${path.sep}`)) throw new Error(`path escapes the workspace: "${rel}"`)
+  if (!file.startsWith(`${root}${path.sep}`))
+    throw new Error(`path escapes the workspace: "${rel}"`)
   if (!existsSync(file)) return false
   await rm(file, { force: true })
   // Its thumbnails are now pictures of nothing.
@@ -262,8 +263,23 @@ async function frameThumbnail(file: string, atSec: number): Promise<Buffer | nul
     // -ss before -i seeks by keyframe: fast, and a thumbnail does not need
     // frame accuracy. `thumbnail` picks the most representative frame of the
     // window rather than whatever black frame a cut happens to land on.
-    ['-ss', String(atSec), '-i', file, '-frames:v', '1', '-vf', `thumbnail,scale=${THUMB_WIDTH}:-2`,
-     '-f', 'image2pipe', '-vcodec', 'mjpeg', '-q:v', '6', 'pipe:1'],
+    [
+      '-ss',
+      String(atSec),
+      '-i',
+      file,
+      '-frames:v',
+      '1',
+      '-vf',
+      `thumbnail,scale=${THUMB_WIDTH}:-2`,
+      '-f',
+      'image2pipe',
+      '-vcodec',
+      'mjpeg',
+      '-q:v',
+      '6',
+      'pipe:1',
+    ],
     { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 } as any,
   )
   const buf = Buffer.from(stdout as any)

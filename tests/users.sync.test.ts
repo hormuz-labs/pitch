@@ -1,6 +1,6 @@
 /**
  * Security regression tests for POST /users/sync in
- * apps/studio/src/routes/users.ts.
+ * apps/api/src/routes/users.ts.
  *
  * Pins the fix for the privilege-escalation bug where a body-supplied email
  * was written verbatim to UserProfile.email, letting any user claim an admin
@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock requireAuth at the middleware path users.ts imports.
 let _userId: string | null = 'user_attacker'
-vi.mock('../apps/studio/src/middleware/auth.js', () => ({
+vi.mock('../apps/api/src/middleware/auth.js', () => ({
   requireAuth: (_req: any, res: any) => {
     if (!_userId) {
       res.status(401).json({ error: 'Unauthorized' })
@@ -26,7 +26,7 @@ vi.mock('../apps/studio/src/middleware/auth.js', () => ({
 
 // Mock the thin Clerk wrapper so we control the verified profile.
 let _verifiedProfile: any = null
-vi.mock('../apps/studio/src/lib/clerk.js', () => ({
+vi.mock('../apps/api/src/lib/clerk.js', () => ({
   getVerifiedClerkProfile: vi.fn(async (_id: string) => {
     if (!_verifiedProfile) throw new Error('No verified profile configured in test')
     return _verifiedProfile
@@ -58,7 +58,7 @@ vi.mock('@saas/shared', () => ({
 }))
 
 // admin.ts pulls bullmq/redis from config.js — stub them so the router can mount.
-vi.mock('../apps/studio/src/config.js', () => ({
+vi.mock('../apps/api/src/config.js', () => ({
   videoQueue: {
     getJobCounts: vi
       .fn()
@@ -77,9 +77,9 @@ vi.mock('../apps/studio/src/config.js', () => ({
 }))
 
 import * as db from '@saas/db'
-import { getVerifiedClerkProfile } from '../apps/studio/src/lib/clerk.js'
-import { router as adminRouter } from '../apps/studio/src/routes/admin.js'
-import { router as usersRouter } from '../apps/studio/src/routes/users.js'
+import { getVerifiedClerkProfile } from '../apps/api/src/lib/clerk.js'
+import { router as adminRouter } from '../apps/api/src/routes/admin.js'
+import { router as usersRouter } from '../apps/api/src/routes/users.js'
 
 function buildApp() {
   const app = express()

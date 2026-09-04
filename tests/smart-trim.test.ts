@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   findInitialBlankSegmentFromSignalStats,
   resolveAudioDuration,
-} from '../apps/studio/src/render/utils/smart_trim'
+} from '../apps/api/src/render/utils/smart_trim'
 
 describe('resolveAudioDuration', () => {
   it('returns 0 when there is no audio stream at all', () => {

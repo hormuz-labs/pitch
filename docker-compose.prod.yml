@@ -25,7 +25,7 @@ services:
     ports:
       - "8080:8080"
 
-  studio:
+  api:
     volumes:
       - /opt/pitch/launch-video/projects:/app/projects
       - /opt/pitch/pi:/root/.pi/agent

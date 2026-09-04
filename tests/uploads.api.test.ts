@@ -1,7 +1,7 @@
 /**
  * Tests for the file upload API route (/uploads).
  *
- * Mounts the REAL router from apps/studio/src/routes/uploads.ts —
+ * Mounts the REAL router from apps/api/src/routes/uploads.ts —
  * only @saas/storage and @clerk/express are mocked, so multer parsing,
  * mime filtering, and the auth guard are exercised for real.
  */
@@ -16,7 +16,7 @@ vi.mock('@saas/storage', () => ({
 
 // Auth is configurable per-test via the exported setter; mocking the
 // middleware module directly avoids pulling in real Clerk.
-vi.mock('../apps/studio/src/middleware/auth.js', () => {
+vi.mock('../apps/api/src/middleware/auth.js', () => {
   let _userId: string | null = 'user_test'
   return {
     requireAuth: (_req: any, res: any) => {
@@ -34,8 +34,8 @@ vi.mock('../apps/studio/src/middleware/auth.js', () => {
 
 import * as storage from '@saas/storage'
 // @ts-expect-error — __setUserId is injected by the vi.mock factory
-import { __setUserId } from '../apps/studio/src/middleware/auth.js'
-import { router as uploadRoutes } from '../apps/studio/src/routes/uploads.js'
+import { __setUserId } from '../apps/api/src/middleware/auth.js'
+import { router as uploadRoutes } from '../apps/api/src/routes/uploads.js'
 
 const uploadFile = storage.uploadFile as ReturnType<typeof vi.fn>
 

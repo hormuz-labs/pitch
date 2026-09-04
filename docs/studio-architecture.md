@@ -18,7 +18,7 @@ session (pi multiplexes them); heavy work (ffmpeg, Playwright, TTS, whisper)
 runs as host tools in child processes.
 
 ```
-apps/studio        the server: auth, credits, projects, sessions, previews, renders, share, MCP, admin
+apps/api        the server: auth, credits, projects, sessions, previews, renders, share, MCP, admin
 apps/studio-web    the app: projects grid, one "new project" door, StudioView, settings…
 .pi/               AGENT.md (the base prompt), extensions (host tools), skills, libs
 engine/            the shots.js compiler a launch film plays live
@@ -62,7 +62,7 @@ opens with the upload as its preview and no turn is run, because you cannot
 say what you want about a video until you are looking at it and can select
 the part you mean. Nothing is billed until the first real ask.
 
-## The agent (`apps/studio/src/agent/`)
+## The agent (`apps/api/src/agent/`)
 
 ```ts
 // agent/toolkit.ts — one toolkit, for every project
@@ -160,7 +160,7 @@ the extensions through the `__pitchStudioHost` bridge, with the workspace as
 the authority (`.pi/lib/studio-host.ts`). Every call is timed, which is how
 compute is metered.
 
-## Routes (`apps/studio`)
+## Routes (`apps/api`)
 
 Auth: Clerk JWT (`requireAuth`) for the app; API keys for `/mcp` and `/v1`.
 Media elements cannot send headers, so `?token=` is accepted on `/projects/:id/events`,
@@ -258,7 +258,7 @@ range — it just has no beats drawn on the track.
 ## Credits
 
 Nothing is charged to open a project. The studio meters what the work costs
-and bills that (`apps/studio/src/projects/usage.ts`):
+and bills that (`apps/api/src/projects/usage.ts`):
 
 | Metered | Where it comes from |
 |---|---|

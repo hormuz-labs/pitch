@@ -3,12 +3,12 @@
  * "On this page" list from the h2s without a markdown pipeline.
  *
  * Every fact here is checked against the code:
- *   auth        apps/studio/src/middleware/auth.ts
- *   REST        apps/studio/src/routes/v1.ts
- *   shapes      apps/studio/src/lib/public-api.ts
- *   MCP         apps/studio/src/mcp/server.ts
- *   credits     packages/shared/src/index.ts, apps/studio/src/flows/<flow>/index.ts
- *   project     apps/studio/src/projects/service.ts
+ *   auth        apps/api/src/middleware/auth.ts
+ *   REST        apps/api/src/routes/v1.ts
+ *   shapes      apps/api/src/lib/public-api.ts
+ *   MCP         apps/api/src/mcp/server.ts
+ *   credits     packages/shared/src/index.ts, apps/api/src/flows/<flow>/index.ts
+ *   project     apps/api/src/projects/service.ts
  * If you change one, change the other.
  */
 import type { ReactNode } from 'react'

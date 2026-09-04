@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('@clerk/express/webhooks', () => ({ verifyWebhook: mocks.verifyWebhook }))
 vi.mock('@saas/db', () => ({ prisma: { $transaction: mocks.transaction } }))
 
-import { router } from '../apps/studio/src/routes/clerk-webhooks.js'
+import { router } from '../apps/api/src/routes/clerk-webhooks.js'
 
 const app = express()
 app.use('/webhooks/clerk', router)

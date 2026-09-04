@@ -1,5 +1,5 @@
 /**
- * Unit tests for the /api-keys routes (apps/studio/src/routes/api-keys.ts).
+ * Unit tests for the /api-keys routes (apps/api/src/routes/api-keys.ts).
  *
  * Mounts the REAL router — only @saas/db (the workspace specifier the router
  * imports) and @clerk/express are mocked, so the suite runs with zero
@@ -34,14 +34,14 @@ vi.mock('@clerk/express', () => {
 // @ts-expect-error — __setAuth is injected by the vi.mock factory
 import * as clerk from '@clerk/express'
 import * as db from '@saas/db'
-import { router as apiKeyRoutes } from '../apps/studio/src/routes/api-keys.js'
+import { router as apiKeyRoutes } from '../apps/api/src/routes/api-keys.js'
 
 const __setAuth = (clerk as any).__setAuth
 const listApiKeys = db.listApiKeys as ReturnType<typeof vi.fn>
 const createApiKey = db.createApiKey as ReturnType<typeof vi.fn>
 const revokeApiKey = db.revokeApiKey as ReturnType<typeof vi.fn>
 
-// ── Build the Express app (mirrors apps/studio/src/index.ts) ────────────────────
+// ── Build the Express app (mirrors apps/api/src/index.ts) ────────────────────
 function buildApp() {
   const app = express()
   app.use(express.json())

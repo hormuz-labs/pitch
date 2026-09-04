@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { describeBeat, scenesFromTimeline } from '../apps/studio/src/render/utils/beats.js'
-import { mapThroughKeptSegments } from '../apps/studio/src/render/utils/smart_trim.js'
-import { inspectorTag } from '../apps/studio/src/routes/files.js'
+import { describeBeat, scenesFromTimeline } from '../apps/api/src/render/utils/beats.js'
+import { mapThroughKeptSegments } from '../apps/api/src/render/utils/smart_trim.js'
+import { inspectorTag } from '../apps/api/src/routes/files.js'
 
 describe('mapThroughKeptSegments', () => {
   const kept = [

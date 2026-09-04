@@ -2,9 +2,9 @@ import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { describeWorkspace, RELEVANT } from '../apps/studio/src/agent/describe.js'
-import { COMPUTE_USD_PER_SEC, creditsOwed, usageUsd } from '../apps/studio/src/projects/usage.js'
-import type { Workspace } from '../apps/studio/src/studio/paths.js'
+import { describeWorkspace, RELEVANT } from '../apps/api/src/agent/describe.js'
+import { COMPUTE_USD_PER_SEC, creditsOwed, usageUsd } from '../apps/api/src/projects/usage.js'
+import type { Workspace } from '../apps/api/src/studio/paths.js'
 import { withTargetLegend } from '../apps/studio-web/src/studio/useProject.js'
 
 function workspace(): Workspace {

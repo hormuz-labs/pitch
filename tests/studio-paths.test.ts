@@ -6,7 +6,7 @@ import {
   parseInternal,
   slugify,
   workspaceFor,
-} from '../apps/studio/src/studio/paths'
+} from '../apps/api/src/studio/paths'
 
 describe('studio workspace naming', () => {
   it('keeps the historical launch-video layout and prefixes other flows', () => {

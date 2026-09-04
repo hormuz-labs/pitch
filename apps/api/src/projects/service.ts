@@ -10,10 +10,17 @@ import path from 'node:path'
 import * as db from '@saas/db'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
 import { getAgent } from '../flows/index.js'
-import { chargeTurn, MIN_BALANCE } from './usage.js'
 import type { Description, Output, UploadRef } from '../flows/types.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
-import { type FlowId, isFlowId, isValidProjectName, PROJECTS_DIR, slugify, type Workspace, workspaceFor } from '../studio/paths.js'
+import {
+  type FlowId,
+  isFlowId,
+  isValidProjectName,
+  PROJECTS_DIR,
+  slugify,
+  type Workspace,
+  workspaceFor,
+} from '../studio/paths.js'
 import {
   closeSession,
   type Entry,
@@ -23,6 +30,7 @@ import {
   stopSession,
   takeModelCost,
 } from '../studio/session.js'
+import { chargeTurn, MIN_BALANCE } from './usage.js'
 
 const logger = createLogger('studio:projects')
 
@@ -112,10 +120,7 @@ function statusOf(
   if (p.legacyJobId && !p.sessionFile) return 'legacy'
   if (busy) return 'working'
   const hasSomething =
-    Boolean(desc?.preview) ||
-    artifact ||
-    p.outputs.length > 0 ||
-    (desc?.outputs.length ?? 0) > 0
+    Boolean(desc?.preview) || artifact || p.outputs.length > 0 || (desc?.outputs.length ?? 0) > 0
   if (hasSomething) return 'ready'
   return p.lastError ? 'failed' : 'empty'
 }
@@ -173,7 +178,9 @@ export function getEntries(projectId: string): Entry[] {
 
 async function uniqueName(userId: string, flow: FlowId, base: string): Promise<string> {
   const taken = new Set(
-    (await db.prisma.project.findMany({ where: { userId, flow }, select: { name: true } })).map(r => r.name),
+    (await db.prisma.project.findMany({ where: { userId, flow }, select: { name: true } })).map(
+      r => r.name,
+    ),
   )
   if (!taken.has(base) && !existsSync(workspaceFor(flow, userId, base).dir)) return base
   for (let i = 2; ; i++) {
@@ -198,10 +205,14 @@ export interface CreateProjectInput {
  * project without running a turn. The upload is already the preview, and
  * nothing is billed until the user actually asks for something.
  */
-export async function createProject(userId: string, input: CreateProjectInput): Promise<ProjectDetail> {
+export async function createProject(
+  userId: string,
+  input: CreateProjectInput,
+): Promise<ProjectDetail> {
   const agent = getAgent()
   const prompt = String(input.prompt ?? '').trim()
-  if (!prompt && !(input.uploads?.length)) throw Object.assign(new Error('prompt is required'), { status: 400 })
+  if (!prompt && !input.uploads?.length)
+    throw Object.assign(new Error('prompt is required'), { status: 400 })
   const options = input.options ?? {}
   const uploads = input.uploads ?? []
   await requireOnboarding(userId)
@@ -262,11 +273,16 @@ interface PromptOptions {
   options?: Record<string, any>
 }
 
-export async function promptProject(p: ProjectRow, text: string, opts: PromptOptions = {}): Promise<void> {
+export async function promptProject(
+  p: ProjectRow,
+  text: string,
+  opts: PromptOptions = {},
+): Promise<void> {
   const agent = getAgent()
   const ws = workspaceOf(p)
   const first = opts.first ?? false
-  if (opts.uploads?.length && !first) await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
+  if (opts.uploads?.length && !first)
+    await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
   const context = await agent.context(ws, {
     first,
     options: { ...p.options, ...(opts.options ?? {}) },
@@ -275,10 +291,17 @@ export async function promptProject(p: ProjectRow, text: string, opts: PromptOpt
     slide: opts.slide ?? null,
     legacy: p.legacyJobId ? { jobId: p.legacyJobId, outputs: p.outputs } : null,
   })
-  const s = await promptSession({ projectId: p.id, ws, agent, sessionFile: p.sessionFile }, text, context)
+  const s = await promptSession(
+    { projectId: p.id, ws, agent, sessionFile: p.sessionFile },
+    text,
+    context,
+  )
   billTurn(p, s.turn)
   if (first) followFirstTurn(p, s.turn)
-  if (p.lastError) await db.prisma.project.update({ where: { id: p.id }, data: { lastError: null } }).catch(() => {})
+  if (p.lastError)
+    await db.prisma.project
+      .update({ where: { id: p.id }, data: { lastError: null } })
+      .catch(() => {})
 }
 
 /**
@@ -310,7 +333,11 @@ function followFirstTurn(p: ProjectRow, turn: number): void {
       }
       await failProject(
         p,
-        ev.aborted ? 'Stopped before anything was produced' : ev.failed ? 'The agent failed' : 'The agent finished without producing anything',
+        ev.aborted
+          ? 'Stopped before anything was produced'
+          : ev.failed
+            ? 'The agent failed'
+            : 'The agent finished without producing anything',
         true,
       )
     })()
@@ -318,7 +345,9 @@ function followFirstTurn(p: ProjectRow, turn: number): void {
 }
 
 export async function failProject(p: ProjectRow, error: string, refund: boolean): Promise<void> {
-  await db.prisma.project.update({ where: { id: p.id }, data: { lastError: error } }).catch(() => {})
+  await db.prisma.project
+    .update({ where: { id: p.id }, data: { lastError: error } })
+    .catch(() => {})
   if (refund && p.creditsCharged > 0) {
     await db
       .addCredits(p.userId, p.creditsCharged, 'refund', 'Refund: the project produced nothing', {
@@ -327,7 +356,10 @@ export async function failProject(p: ProjectRow, error: string, refund: boolean)
       })
       .catch(err => logger.warn({ err, projectId: p.id }, 'refund failed'))
   }
-  emitProjectEvent(p.id, { type: 'project', project: await getRow(p.userId, p.id).catch(() => null) })
+  emitProjectEvent(p.id, {
+    type: 'project',
+    project: await getRow(p.userId, p.id).catch(() => null),
+  })
 }
 
 /** Record an output published to object storage on the project row. */
@@ -342,7 +374,10 @@ export async function projectRowFor(ws: { userId: string; name: string }) {
 
 export async function addOutput(userId: string, id: string, output: Output): Promise<ProjectRow> {
   const p = await getRow(userId, id)
-  const outputs = [output, ...p.outputs.filter(o => !(o.kind === output.kind && o.res === output.res))]
+  const outputs = [
+    output,
+    ...p.outputs.filter(o => !(o.kind === output.kind && o.res === output.res)),
+  ]
   const thumbnailUrl = output.kind === 'thumbnail' ? output.url : p.thumbnailUrl
   const row = await db.prisma.project.update({
     where: { id },
@@ -406,7 +441,10 @@ function slug(): string {
 export async function shareProject(userId: string, id: string): Promise<ProjectRow> {
   const p = await getRow(userId, id)
   if (p.isPublic && p.shareSlug) return p
-  const row = await db.prisma.project.update({ where: { id }, data: { isPublic: true, shareSlug: p.shareSlug ?? slug() } })
+  const row = await db.prisma.project.update({
+    where: { id },
+    data: { isPublic: true, shareSlug: p.shareSlug ?? slug() },
+  })
   return parseRow(row)
 }
 
@@ -419,7 +457,9 @@ export async function unshareProject(userId: string, id: string): Promise<Projec
 export async function getPublicProject(shareSlug: string): Promise<ProjectRow | null> {
   const r = await db.prisma.project.findFirst({ where: { shareSlug, isPublic: true } })
   if (!r) return null
-  await db.prisma.project.update({ where: { id: r.id }, data: { shareViews: { increment: 1 } } }).catch(() => {})
+  await db.prisma.project
+    .update({ where: { id: r.id }, data: { shareViews: { increment: 1 } } })
+    .catch(() => {})
   return parseRow(r)
 }
 
@@ -462,7 +502,9 @@ interface LegacyJob {
  * one per flow: a finished job is a prompt, some options and the files it
  * produced, whichever pipeline made it.
  */
-function importJob(job: LegacyJob): { options: Record<string, any>; outputs: Output[]; title: string; prompt: string } | null {
+function importJob(
+  job: LegacyJob,
+): { options: Record<string, any>; outputs: Output[]; title: string; prompt: string } | null {
   const params = job.parameters ?? {}
   const createdAt = new Date(job.createdAt).toISOString()
   const outputs: Output[] = []
@@ -489,16 +531,23 @@ function importJob(job: LegacyJob): { options: Record<string, any>; outputs: Out
 export async function importLegacyJobs(userId: string): Promise<number> {
   const jobs = await db.listJobs({ id: userId })
   const existing = new Set(
-    (await db.prisma.project.findMany({ where: { userId, legacyJobId: { not: null } }, select: { legacyJobId: true } })).map(
-      r => r.legacyJobId,
-    ),
+    (
+      await db.prisma.project.findMany({
+        where: { userId, legacyJobId: { not: null } },
+        select: { legacyJobId: true },
+      })
+    ).map(r => r.legacyJobId),
   )
   let imported = 0
   for (const job of jobs) {
     if (existing.has(job.id) || job.status !== 'COMPLETED') continue
     const mapped = importJob(job as any)
     if (!mapped) continue
-    const name = await uniqueName(userId, 'studio', slugify(mapped.title, `legacy-${job.id.slice(-6)}`))
+    const name = await uniqueName(
+      userId,
+      'studio',
+      slugify(mapped.title, `legacy-${job.id.slice(-6)}`),
+    )
     await db.prisma.project.create({
       data: {
         userId,

@@ -53,7 +53,7 @@ export const FLOWS: Record<FlowId, { title: string; short: string; blurb: string
   },
 }
 
-// ── Project shapes (mirror apps/studio/src/projects/service.ts) ───────────────
+// ── Project shapes (mirror apps/api/src/projects/service.ts) ───────────────
 
 export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed' | 'legacy'
 

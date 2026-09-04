@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// apps/studio/src/studio → repo root (works from src/ and dist/ alike)
+// apps/api/src/studio → repo root (works from src/ and dist/ alike)
 export const ROOT_DIR = path.resolve(__dirname, '../../../..')
 export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(ROOT_DIR, 'projects')
 export const ENGINE_DIR = path.join(ROOT_DIR, 'engine')

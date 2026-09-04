@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlides } from '../apps/studio/src/flows/deck/index'
+import { parseSlides } from '../apps/api/src/flows/deck/index'
 
 describe('deck slide parsing', () => {
   it('counts .slide pages and picks their first heading', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planTitleCards } from '../apps/studio/src/render/utils/intro-outro'
+import { planTitleCards } from '../apps/api/src/render/utils/intro-outro'
 
 describe('title-card assembly plan', () => {
   it('adds no card time when a PDF storyboard leaves intro and outro disabled', () => {

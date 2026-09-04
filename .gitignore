@@ -74,7 +74,7 @@ output.pdf
 
 # Scratch and workspace output at the REPO ROOT only. These were unanchored,
 # and `projects/` matches at any depth — which silently untracked
-# apps/studio/src/projects/ (the project service, assets, usage, thumbnails,
+# apps/api/src/projects/ (the project service, assets, usage, thumbnails,
 # export) and broke the container build. Leading slashes keep them to the root.
 /pptx/
 /qa-renders/

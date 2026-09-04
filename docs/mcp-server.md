@@ -3,7 +3,7 @@
 > Public-facing docs live at `apps/studio-web/src/docs/pages.tsx` and render at
 > https://trypitch.co/docs. This file is the internal companion: keep both in
 > sync when tools, costs, or auth change. The `pk_` key also authenticates the
-> REST API in `apps/studio/src/routes/v1.ts`.
+> REST API in `apps/api/src/routes/v1.ts`.
 
 The studio exposes a remote [Model Context Protocol](https://modelcontextprotocol.io)
 server so external agents can use the product the same way humans do in the web
@@ -62,7 +62,7 @@ takes effect immediately.
 ### Credit costs
 
 Charged once, at `create_project`, by `flow.price(options)`
-(`apps/studio/src/flows/<flow>/index.ts`). Every `prompt_project` after that
+(`apps/api/src/flows/<flow>/index.ts`). Every `prompt_project` after that
 is free. The charge is refunded if the first turn ends with nothing usable.
 
 | Flow | Credits | Options |
@@ -75,7 +75,7 @@ is free. The charge is refunded if the first turn ends with nothing usable.
 ### Project shape
 
 Every tool that touches a project returns the same object
-(`publicProject` in `apps/studio/src/lib/public-api.ts`):
+(`publicProject` in `apps/api/src/lib/public-api.ts`):
 
 ```json
 {
@@ -112,21 +112,21 @@ state but has no export endpoint yet.
 
 ## Implementation notes
 
-- `apps/studio/src/routes/mcp.ts` mounts the stateless transport; auth is
-  `requireApiKey` in `apps/studio/src/middleware/auth.ts`.
-- `apps/studio/src/mcp/server.ts` registers the tools. `create_project`,
+- `apps/api/src/routes/mcp.ts` mounts the stateless transport; auth is
+  `requireApiKey` in `apps/api/src/middleware/auth.ts`.
+- `apps/api/src/mcp/server.ts` registers the tools. `create_project`,
   `prompt_project`, `get_project` and `list_projects` call the shared helpers in
-  `apps/studio/src/lib/public-api.ts` (`createFromApi`, `promptFromApi`,
+  `apps/api/src/lib/public-api.ts` (`createFromApi`, `promptFromApi`,
   `getFromApi`, `listFromApi`), which wrap the same project service the app
-  uses (`apps/studio/src/projects/service.ts`: credit-gate → create row →
+  uses (`apps/api/src/projects/service.ts`: credit-gate → create row →
   deduct → prepare workspace → first turn), so usage tracking is identical for
   humans and agents. Base64 uploads are staged to object storage by
-  `stageBase64Upload` (`apps/studio/src/lib/base64-upload.ts`) before the
+  `stageBase64Upload` (`apps/api/src/lib/base64-upload.ts`) before the
   project is created. `/v1` uses the same helpers.
-- The route is mounted before `clerkMiddleware` in `apps/studio/src/index.ts`
+- The route is mounted before `clerkMiddleware` in `apps/api/src/index.ts`
   with its own `express.json({ limit: '750mb' })` (base64 uploads up to
   500 MB must survive body parsing).
-- API-key CRUD for the UI lives in `apps/studio/src/routes/api-keys.ts`
+- API-key CRUD for the UI lives in `apps/api/src/routes/api-keys.ts`
   (Clerk-authenticated), backed by the `ApiKey` model (table `PitchApiKey` —
   the plain `ApiKey` table name is taken by an unrelated service in the dev
   database).

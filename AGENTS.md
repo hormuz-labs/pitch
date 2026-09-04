@@ -7,7 +7,7 @@ things picked in the preview become numbered targets in the next prompt. Read
 `docs/studio-architecture.md` before changing anything.
 
 ```
-apps/studio        the server (auth, usage billing, projects, sessions, previews, renders, share, MCP, admin)
+apps/api        the server (auth, usage billing, projects, sessions, previews, renders, share, MCP, admin)
 apps/studio-web    the app (projects grid, one "new project" door, StudioView, settings…)
 .pi/AGENT.md       the agent's base prompt: what a project is, which skill to read
 .pi/extensions/    host tools (pi extensions; helpers live in .pi/lib)
@@ -35,7 +35,7 @@ owned.
 
 Rules:
 
-- The agent is `apps/studio/src/agent/`: `toolkit.ts` (every extension, every
+- The agent is `apps/api/src/agent/`: `toolkit.ts` (every extension, every
   skill, the built-ins, the base prompt), `index.ts` (`prepare`, `context`),
   `describe.ts` (what the workspace holds). Add a capability as a host tool
   plus a skill — never as a new flow, and never by branching on `Project.flow`,
@@ -55,7 +55,7 @@ Rules:
 - Skills are documentation for TOOLS. If a skill tells the agent to run a
   command, that command should be a tool instead — the VM has node and python
   but no ffmpeg, no browser and no network, so most of them have to be.
-- Pipelines live in `apps/studio/src/flows/*/` and `pipelines/`. They register
+- Pipelines live in `apps/api/src/flows/*/` and `pipelines/`. They register
   host actions and export helpers; they never import each other.
 - Extensions reach the server only through **host actions**
   (`registerHostAction`, `hostAction()` from `.pi/lib/studio-host.ts`), never
@@ -67,7 +67,7 @@ Rules:
   egress, so anything needing those, or an API key, is a host tool.
 - Nothing is charged up front. `projects/usage.ts` meters model spend plus
   host compute and draws down credits as the cost crosses each boundary.
-- `apps/studio/src/render/` is the ffmpeg pipeline (moved from the old
+- `apps/api/src/render/` is the ffmpeg pipeline (moved from the old
   worker). Keep it pure — no DB, no storage — and keep `render/utils/*` tests green.
 - The directory is the truth: `Project` rows are the registry (owner, session
   file, published outputs, sharing). Status is derived, never stored.
@@ -81,11 +81,11 @@ Rules:
   `projects/service.ts createProject`). Never charge credits anywhere else.
 - The studio loads `.pi/extensions/*.ts` and `.pi/skills/*` when a session is
   created; restart the server after editing them (open sessions keep the old code).
-- Docker: `apps/studio/Dockerfile` on `pitch-base` (ffmpeg, Playwright, QEMU,
+- Docker: `apps/api/Dockerfile` on `pitch-base` (ffmpeg, Playwright, QEMU,
   Node 22, whisper-cli); compose mounts `./projects`, `docker-data/pi`,
   `gondolin-cache`, `whisper`, passes `/dev/kvm`. Linux is the deploy target.
 
 ## Checks before committing
 
 `bunx biome check <changed files>` and `bunx vitest run tests/`; `bunx tsc
---noEmit -p apps/studio/tsconfig.json` and `-p apps/studio-web/tsconfig.app.json`.
+--noEmit -p apps/api/tsconfig.json` and `-p apps/studio-web/tsconfig.app.json`.

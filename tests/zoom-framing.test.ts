@@ -8,7 +8,7 @@ import {
   FRAME_W,
   fitZoomForBox,
   isBoxFullyVisible,
-} from '../apps/studio/src/render/utils/zoom-framing.js'
+} from '../apps/api/src/render/utils/zoom-framing.js'
 
 const VIEW = FRAME_H // 1080 viewport height for window scrolling
 

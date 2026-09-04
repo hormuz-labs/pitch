@@ -1,5 +1,5 @@
 /**
- * Tests for the worker asset pipeline (apps/studio/src/render/utils/assets.ts).
+ * Tests for the worker asset pipeline (apps/api/src/render/utils/assets.ts).
  *
  * Uses REAL poppler (pdftoppm/pdftotext/pdfinfo) and ffprobe against tiny
  * generated fixtures, served over a local HTTP server so the download path
@@ -15,7 +15,7 @@ import {
   type AssetManifest,
   formatAssetManifestForPrompt,
   prepareAssets,
-} from '../apps/studio/src/render/utils/assets.js'
+} from '../apps/api/src/render/utils/assets.js'
 
 const PNG_1x1 = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',

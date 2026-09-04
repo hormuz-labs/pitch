@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ASSET_PATH } from '../apps/studio/src/projects/assets.js'
-import { unwatchWorkspace, watchWorkspace } from '../apps/studio/src/studio/watch.js'
+import { ASSET_PATH } from '../apps/api/src/projects/assets.js'
+import { unwatchWorkspace, watchWorkspace } from '../apps/api/src/studio/watch.js'
 
 describe('ASSET_PATH', () => {
   it('matches material the shelf lists, wherever it was written', () => {

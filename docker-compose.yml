@@ -121,12 +121,12 @@ services:
       timeout: 5s
       retries: 6
 
-  studio:
-    image: pitch-studio:${IMAGE_TAG:-latest}
+  api:
+    image: pitch-api:${IMAGE_TAG:-latest}
     build:
       context: .
-      dockerfile: apps/studio/Dockerfile
-    container_name: pitch_studio
+      dockerfile: apps/api/Dockerfile
+    container_name: pitch_api
     restart: always
     ports:
       - "127.0.0.1:3000:3000"
@@ -159,8 +159,8 @@ services:
         loki-batch-size: "400"
         loki-timeout: "10s"
         loki-retries: "3"
-        loki-external-labels: "job=studio,container_name={{.Name}}"
-        labels: "job=studio"
+        loki-external-labels: "job=api,container_name={{.Name}}"
+        labels: "job=api"
         env: "SERVICE_NAME,HOSTNAME"
     depends_on:
       postgres:

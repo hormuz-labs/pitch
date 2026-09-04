@@ -11,12 +11,12 @@ dotenv.config({ path: path.resolve(import.meta.dirname, '../../.env') })
 process.env.PREVIEW_COOKIE_SECRET ??= 'dev-preview-secret'
 
 const db = await import('@saas/db')
-await import('../../apps/studio/src/flows/launch-video/index.ts')
-await import('../../apps/studio/src/flows/deck/index.ts')
-await import('../../apps/studio/src/flows/demo-video/index.ts')
-await import('../../apps/studio/src/flows/recording-edit/index.ts')
-const { createProject, getProject } = await import('../../apps/studio/src/projects/service.ts')
-const { onProjectEvent } = await import('../../apps/studio/src/studio/events.ts')
+await import('../../apps/api/src/flows/launch-video/index.ts')
+await import('../../apps/api/src/flows/deck/index.ts')
+await import('../../apps/api/src/flows/demo-video/index.ts')
+await import('../../apps/api/src/flows/recording-edit/index.ts')
+const { createProject, getProject } = await import('../../apps/api/src/projects/service.ts')
+const { onProjectEvent } = await import('../../apps/api/src/studio/events.ts')
 
 const userId = process.env.SMOKE_USER ?? 'user_smoke'
 const flow = (process.argv[2] ?? 'launch-video') as any

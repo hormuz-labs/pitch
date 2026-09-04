@@ -12,7 +12,7 @@
  * directory resolve relative to it. All state lives under recording/
  * (demo-config.json, demo-state.json, slideshow-progress.json,
  * pending-grounding.json, slide-analyses.json, audio/, grounding/) — the same
- * layout apps/studio/src/render/recording.ts writes.
+ * layout apps/api/src/render/recording.ts writes.
  *
  * Several projects record at once in ONE studio process, so every
  * playwright-cli call is scoped to the session named after the workspace

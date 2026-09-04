@@ -8,8 +8,8 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import type { Browser } from 'playwright'
 import { createLogger } from '@saas/shared'
+import type { Browser } from 'playwright'
 import { getAgent } from '../flows/index.js'
 import { PREVIEW_COOKIE, previewGrant } from '../lib/preview-auth.js'
 import { describeProject, type ProjectRow, workspaceOf } from './service.js'
@@ -25,7 +25,9 @@ export async function getBrowser(): Promise<Browser> {
   if (browserPromise) return browserPromise
   browserPromise = (async () => {
     const { chromium } = await import('playwright')
-    const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] })
+    const browser = await chromium.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    })
     browser.on('disconnected', () => {
       sharedBrowser = null
       browserPromise = null
@@ -69,7 +71,10 @@ export async function projectThumbnail(p: ProjectRow, t: number): Promise<Buffer
   const desc = await describeProject(p)
   if (!desc.preview) return null
   const thumbsDir = path.join(ws.dir, '.thumbs')
-  const cacheFile = path.join(thumbsDir, `${desc.preview.kind}_${t.toFixed(2).replace(/\./g, '_')}.jpg`)
+  const cacheFile = path.join(
+    thumbsDir,
+    `${desc.preview.kind}_${t.toFixed(2).replace(/\./g, '_')}.jpg`,
+  )
   try {
     if (existsSync(cacheFile)) {
       const thumbStat = await stat(cacheFile)
@@ -82,25 +87,69 @@ export async function projectThumbnail(p: ProjectRow, t: number): Promise<Buffer
   let buf: Buffer | null = null
   try {
     if (desc.preview.kind === 'video') {
-      const local = path.join(ws.dir, decodeURIComponent(desc.preview.url.split(`/${encodeURIComponent(ws.internal)}/`)[1] ?? ''))
+      const local = path.join(
+        ws.dir,
+        decodeURIComponent(desc.preview.url.split(`/${encodeURIComponent(ws.internal)}/`)[1] ?? ''),
+      )
       const file = existsSync(local) ? local : desc.preview.url
-      const { stdout } = await execFileP('ffmpeg', ['-ss', String(t), '-i', file, '-frames:v', '1', '-vf', 'scale=640:-2', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-q:v', '5', 'pipe:1'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024 } as any)
+      const { stdout } = await execFileP(
+        'ffmpeg',
+        [
+          '-ss',
+          String(t),
+          '-i',
+          file,
+          '-frames:v',
+          '1',
+          '-vf',
+          'scale=640:-2',
+          '-f',
+          'image2pipe',
+          '-vcodec',
+          'mjpeg',
+          '-q:v',
+          '5',
+          'pipe:1',
+        ],
+        { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024 } as any,
+      )
       buf = Buffer.from(stdout as any)
     } else if (desc.preview.kind === 'html' || desc.preview.kind === 'deck') {
       const browser = await getBrowser()
       const origin = new URL(apiOrigin())
       const context = await browser.newContext({ viewport: { width: 1280, height: 720 } })
       try {
-        await context.addCookies([{ name: PREVIEW_COOKIE, value: previewGrant(p.userId), domain: origin.hostname, path: '/', httpOnly: true, secure: false, sameSite: 'Lax' }])
+        await context.addCookies([
+          {
+            name: PREVIEW_COOKIE,
+            value: previewGrant(p.userId),
+            domain: origin.hostname,
+            path: '/',
+            httpOnly: true,
+            secure: false,
+            sameSite: 'Lax',
+          },
+        ])
         const page = await context.newPage()
-        await page.goto(`${apiOrigin()}${desc.preview.url}`, { waitUntil: 'domcontentloaded', timeout: 10000 })
+        await page.goto(`${apiOrigin()}${desc.preview.url}`, {
+          waitUntil: 'domcontentloaded',
+          timeout: 10000,
+        })
         if (desc.preview.kind === 'html') {
-          await page.waitForFunction("() => window.__READY === true || typeof window.__SEEK === 'function'", null, { timeout: 8000 }).catch(() => {})
+          await page
+            .waitForFunction(
+              "() => window.__READY === true || typeof window.__SEEK === 'function'",
+              null,
+              { timeout: 8000 },
+            )
+            .catch(() => {})
           await page.evaluate(`if (typeof window.__SEEK === 'function') window.__SEEK(${t});`)
         } else {
           await page.waitForTimeout(600)
           const slide = Math.max(1, Math.round(t))
-          await page.evaluate(`(() => { const s = document.querySelectorAll('.slide')[${slide - 1}]; if (s) s.scrollIntoView({ block: 'start' }); })()`)
+          await page.evaluate(
+            `(() => { const s = document.querySelectorAll('.slide')[${slide - 1}]; if (s) s.scrollIntoView({ block: 'start' }); })()`,
+          )
         }
         await page.waitForTimeout(200)
         buf = await page.screenshot({ type: 'jpeg', quality: 75 })
@@ -113,7 +162,9 @@ export async function projectThumbnail(p: ProjectRow, t: number): Promise<Buffer
     return null
   }
   if (buf) {
-    void mkdir(thumbsDir, { recursive: true }).then(() => writeFile(cacheFile, buf!)).catch(() => {})
+    void mkdir(thumbsDir, { recursive: true })
+      .then(() => writeFile(cacheFile, buf!))
+      .catch(() => {})
   }
   return buf
 }

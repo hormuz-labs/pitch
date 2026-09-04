@@ -5,7 +5,7 @@
  * (prepare assets → open the user's browser and start recording → let the
  * agent drive → stop → ffmpeg render → publish) is now a set of host actions
  * the agent calls itself, in order, from the chat. Each tool forwards to the
- * studio (apps/studio/src/flows/demo-video/index.ts) with the session's
+ * studio (apps/api/src/flows/demo-video/index.ts) with the session's
  * workspace as authority; the browser-driving tools live in demo-tools.ts.
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'

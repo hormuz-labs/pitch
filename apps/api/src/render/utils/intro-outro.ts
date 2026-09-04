@@ -13,7 +13,7 @@ const execAsync = promisify(exec)
 // module so it works regardless of cwd. Loaded into Resvg below so the intro brand
 // name and the "Powered by" watermark render in this classic serif.
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-// apps/studio/src/render/utils → repo root is five levels up.
+// apps/api/src/render/utils → repo root is five levels up.
 const FONT_DIR = path.resolve(__dirname, '../../../../../assets/fonts')
 const EXPECTED_GOUDY_FONTS = [
   path.join(FONT_DIR, 'SortsMillGoudy-Regular.ttf'),

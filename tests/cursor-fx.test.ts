@@ -4,7 +4,7 @@ import {
   type ClickEvent,
   planCursorPath,
   planHandWindows,
-} from '../apps/studio/src/render/utils/cursor-fx'
+} from '../apps/api/src/render/utils/cursor-fx'
 
 describe('planCursorPath', () => {
   it('returns no points when there are no clicks', () => {

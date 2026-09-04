@@ -72,7 +72,7 @@ import { JOB_UPDATES_CHANNEL, JobStatus, QUEUE_NAME } from '../packages/shared/s
 
 const __setAuth = (clerk as any).__setAuth
 
-// ── Build the Express app (mirrors apps/studio/src/index.ts without app.listen) ─
+// ── Build the Express app (mirrors apps/api/src/index.ts without app.listen) ─
 function buildApp() {
   const app = express()
   app.use(express.json())

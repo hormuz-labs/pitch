@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 let _userId: string | null = 'user_test'
 
-vi.mock('../apps/studio/src/middleware/auth.js', () => ({
+vi.mock('../apps/api/src/middleware/auth.js', () => ({
   requireAuth: (_req: any, res: any) => {
     if (!_userId) {
       res.status(401).json({ error: 'Unauthorized' })
@@ -68,7 +68,7 @@ vi.mock('@saas/db', () => mockDb)
 vi.mock('../packages/db/src/index.js', () => mockDb)
 
 // Mock bullmq queue
-vi.mock('../apps/studio/src/config.js', () => ({
+vi.mock('../apps/api/src/config.js', () => ({
   webhookQueue: {
     add: vi.fn().mockResolvedValue({ id: 'bull_job_1' }),
   },
@@ -77,7 +77,7 @@ vi.mock('../apps/studio/src/config.js', () => ({
   DODO_ENV: 'test_mode',
 }))
 
-import { router as webhookRoutes } from '../apps/studio/src/routes/webhooks.js'
+import { router as webhookRoutes } from '../apps/api/src/routes/webhooks.js'
 import {
   computeWebhookSignature,
   dispatchJobWebhooks,

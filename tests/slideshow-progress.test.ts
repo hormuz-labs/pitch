@@ -11,7 +11,7 @@ import {
 import {
   expectedSlideshowSlideCount,
   validateSlideshowCoverage,
-} from '../apps/studio/src/render/utils/slideshow-progress'
+} from '../apps/api/src/render/utils/slideshow-progress'
 
 describe('slideshow progress guard', () => {
   it('requires Gemini page understanding before slideshow narration', () => {

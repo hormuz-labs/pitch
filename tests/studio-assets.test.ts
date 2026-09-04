@@ -2,15 +2,10 @@ import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { buildContext } from '../apps/studio/src/agent/index.js'
-import { describeUsage, videoFromInteraction } from '../apps/studio/src/pipelines/video-gen.js'
-import {
-  assetThumbnail,
-  deleteAsset,
-  kindOf,
-  listAssets,
-} from '../apps/studio/src/projects/assets.js'
-import type { Workspace } from '../apps/studio/src/studio/paths.js'
+import { buildContext } from '../apps/api/src/agent/index.js'
+import { describeUsage, videoFromInteraction } from '../apps/api/src/pipelines/video-gen.js'
+import { assetThumbnail, deleteAsset, kindOf, listAssets } from '../apps/api/src/projects/assets.js'
+import type { Workspace } from '../apps/api/src/studio/paths.js'
 import { withTargetLegend } from '../apps/studio-web/src/studio/useProject.js'
 
 function workspace(): Workspace {

@@ -5,7 +5,7 @@ FROM oven/bun:1-debian AS builder
 WORKDIR /app
 
 COPY package.json bun.lock bunfig.toml ./
-COPY apps/studio/package.json apps/studio/
+COPY apps/api/package.json apps/api/
 COPY apps/studio-web/package.json apps/studio-web/
 COPY apps/transcription/package.json apps/transcription/
 COPY packages/db/package.json packages/db/
@@ -41,4 +41,4 @@ ARG GIT_HASH
 ENV GIT_HASH=${GIT_HASH}
 EXPOSE 3000
 
-CMD ["sh", "-c", "bunx prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/studio/src/index.ts"]
+CMD ["sh", "-c", "bunx prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/api/src/index.ts"]

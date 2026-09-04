@@ -4,7 +4,7 @@ The launch-video flow is one of the four studio flows; the architecture, routes,
 events and flow interface are documented in `studio-architecture.md`. Flow-specific
 pieces:
 
-- `apps/studio/src/flows/launch-video/` — `index.ts` (registration, per-turn
+- `apps/api/src/flows/launch-video/` — `index.ts` (registration, per-turn
   steering, pricing, legacy import), `describe.ts` (shots.js → scenes, preview,
   exports), `export.ts` (capture.mjs render → S3 output).
 - `.pi/APPEND_SYSTEM.md` — the agent's system prompt; `.pi/extensions/html-motion-tools.ts`
