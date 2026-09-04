@@ -1,3 +1,5 @@
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Entry } from './client'
 
 function lastIsQuiet(list: Entry[]): boolean {
@@ -5,6 +7,43 @@ function lastIsQuiet(list: Entry[]): boolean {
   if (!last) return true
   if (last.role === 'tool' && last.tool?.status === 'running') return false
   return last.role === 'user' || last.role === 'tool'
+}
+
+/**
+ * The agent writes markdown, because that is what agents write. Rendering it
+ * as plain text left `**bold**` and `- ` on screen as literal punctuation,
+ * which is the model's formatting showing through instead of doing its job.
+ *
+ * Raw HTML is deliberately NOT enabled: this text comes from a model that has
+ * been reading the user's own files and web pages, so it is not trusted markup.
+ * react-markdown builds React elements, so there is no innerHTML to escape.
+ *
+ * The text streams, so it is parsed mid-sentence on every update. Half-written
+ * emphasis simply renders as the literal characters until its closing marker
+ * arrives — it corrects itself rather than flickering between trees.
+ */
+function AgentMarkdown({ text }: { text: string }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        // The sidebar is narrow and resizable; a long URL must not widen it.
+        a: ({ children, ...props }) => (
+          <a {...props} target="_blank" rel="noreferrer noopener">
+            {children}
+          </a>
+        ),
+        // GFM tables scroll inside themselves rather than stretching the panel.
+        table: ({ children, ...props }) => (
+          <div className="md-scroll">
+            <table {...props}>{children}</table>
+          </div>
+        ),
+      }}
+    >
+      {text}
+    </Markdown>
+  )
 }
 
 /** The full agent log: chat bubbles plus thinking / tool-run lines — everything the model does. */
@@ -41,7 +80,13 @@ export function Thread({ entries, busy }: { entries: Entry[]; busy: boolean }) {
           )
         }
         if (!e.text.trim()) return null
-        return (
+        // Only the agent's own messages are markdown. What the user typed is
+        // shown back exactly as they typed it — asterisks and all.
+        return e.role === 'assistant' ? (
+          <div key={e.id} className="msg assistant md">
+            <AgentMarkdown text={e.text} />
+          </div>
+        ) : (
           <div key={e.id} className={`msg ${e.role}`}>
             {e.text}
           </div>

@@ -52,13 +52,17 @@ import { api, isApiError } from './lib/api'
 import { captureRefFromUrl, getRefCode } from './lib/referral'
 import { FLOWS, type FlowId, isFlowId } from './lib/studio-api'
 import { cn } from './lib/utils'
-import { StudioView } from './studio/StudioView'
 import type { UserProfile } from './types'
 
 // Route-level code splitting — every view loads on demand instead of landing
 // in the entry bundle. See vite.config.ts manualChunks for vendor splitting.
 const lazyNamed = <T,>(loader: () => Promise<T>, key: keyof T) =>
   lazy(() => loader().then(m => ({ default: m[key] as ComponentType<any> })))
+
+// The studio is the one view that was NOT split, so its markdown renderer and
+// preview code sat in the entry bundle for everyone — including people who
+// never open a project. It follows the same rule as every other view now.
+const StudioView = lazyNamed(() => import('./studio/StudioView'), 'StudioView')
 
 const AdminView = lazyNamed(() => import('./views/AdminView'), 'AdminView')
 const AffiliateView = lazyNamed(() => import('./views/AffiliateView'), 'AffiliateView')
