@@ -37,6 +37,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { loadShots, voStartOf } from "./lib/vo-words.mjs";
+import { breathFilter, breathsOf } from "./lib/breaths.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -321,6 +322,12 @@ if (MUSIC) {
   const musicPath = abs(MUSIC);
   if (!existsSync(musicPath)) { console.error(`Music not found: ${musicPath}`); process.exit(1); }
   BED = join(tmp, "music_bed.wav");
+  // Breaths: the `breath` beats the page exported through cues.mjs. The bed
+  // dips there — the pause before a payoff both reference films have.
+  let breaths = [];
+  try { breaths = breathsOf(JSON.parse(readFileSync(abs("audio/cues.json"), "utf8"))); } catch { breaths = []; }
+  if (flag("no-breaths")) breaths = [];
+  const breathAf = breathFilter(breaths);
   // The carve: two gentle dips across the speech intelligibility band. Gentle
   // and wide beats one deep notch — the bed keeps its character, the voice
   // gets a clear lane.
@@ -333,11 +340,12 @@ if (MUSIC) {
     // track, so it is skipped in music-only mode.
     (MUSIC_ONLY ? "" : `equalizer=f=800:t=q:w=1.1:g=-2.5,equalizer=f=2400:t=q:w=1.0:g=-3.5,`) +
     `volume=${BED_ATTEN_DB}dB,` +
+    (breathAf ? `${breathAf},` : "") +
     `apad=whole_dur=${(DURATION + TAIL).toFixed(3)}`,
     "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", BED,
   ]);
   const bedStats = await meanVolume(BED);
-  console.log(`Step B  music_bed      mean ${bedStats.mean}dB  peak ${bedStats.peak}dB  (carved + ${BED_ATTEN_DB}dB)`);
+  console.log(`Step B  music_bed      mean ${bedStats.mean}dB  peak ${bedStats.peak}dB  (carved + ${BED_ATTEN_DB}dB${breaths.length ? ` · ${breaths.length} breath${breaths.length === 1 ? "" : "s"} at ${breaths.map((b) => b.at.toFixed(1) + "s").join(", ")}` : ""})`);
 
   // ---- Step C — duck the bed against the VO ------------------------------
   if (MUSIC_ONLY) {

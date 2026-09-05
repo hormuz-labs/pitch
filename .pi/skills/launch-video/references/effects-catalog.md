@@ -938,3 +938,23 @@ lut, vibrance, contrast, gamma, saturation, vignette, grain }` is the finish,
 applied to the render and to `motion_review`'s sheets alike. All of it is a
 direction.md decision (Axis 1 finish, Axis 3 shutter); nothing here is on by
 default.
+
+## 30. The two grammars, in fields
+
+The reference studies behind `designs/chain.md` and `designs/chapters.md`
+were rebuilt as engine fields, so most of what they do is a shot field, not
+a recipe: a changing sentence is `line` (steps, tones, typing, rotate, keep,
+a slot), an object across shots is an `actor` (poses, morph chain, born from
+an element, landing into one), the cut that never shows is `cut: "flood"`
+or a blur exit, the scale cut is `zoom` / `zoom-out`, the press is a
+`ripple` or `halo` beat, the pause is a `breath`, cards and rows are a
+`cascade`, five screens are a `device-3d` `ring`. `motion_schema({ section:
+"actors" })` and `motion_schema({ types: ["line"] })` have the fields.
+
+What still wants a project type, with the recipe to start from: confetti
+with depth (§22 with blur by size), a check drawing inside the disc (§23 /
+DrawSVG on a `shape` actor's landing), a card flipping into eight (§17's
+exploded stack, or Flip), an extruded countdown glyph (§26 with
+`ExtrudeGeometry` of a `TextGeometry` glyph), the blob that trails a
+fly-past (a `shape` actor with a large `blur` pose, or a canvas metaball on
+`ShotKit.frameHook`).

@@ -56,17 +56,20 @@ const data = await page.evaluate(() => ({
   shots: (window.SHOTS && Array.isArray(window.SHOTS.shots)) ? window.SHOTS.shots.map((s) => ({ id: s.id, type: s.type, dur: s.dur })) : [],
   overruns: window.__OVERRUNS || [],
   brand: window.__BRAND || {},
+  // `breath` beats: the bed ducks here (mix.mjs reads them from cues.json).
+  breaths: window.__BREATHS || [],
+  design: window.__DESIGN || null,
 }));
 await studio.close();
 
 if (!CHECK) {
   mkdirSync(dirname(resolve(out)), { recursive: true });
-  writeFileSync(out, JSON.stringify({ duration: data.duration, cues: data.cues }, null, 2));
+  writeFileSync(out, JSON.stringify({ duration: data.duration, cues: data.cues, breaths: data.breaths }, null, 2));
 }
 
 const head = CHECK
-  ? `${errors.length ? "❌" : "✅"} ${page_} compiles — ${data.shots.length} shots · ${data.duration.toFixed(2)}s · ${data.overruns.length} overrun${data.overruns.length === 1 ? "" : "s"}`
-  : `✨ ${out} — duration ${data.duration.toFixed(2)}s, ${data.cues.length} labels`;
+  ? `${errors.length ? "❌" : "✅"} ${page_} compiles — ${data.shots.length} shots · ${data.duration.toFixed(2)}s · ${data.overruns.length} overrun${data.overruns.length === 1 ? "" : "s"}${data.design ? ` · design ${data.design}` : ""}`
+  : `✨ ${out} — duration ${data.duration.toFixed(2)}s, ${data.cues.length} labels${data.breaths.length ? `, ${data.breaths.length} breath${data.breaths.length === 1 ? "" : "s"}` : ""}`;
 console.log(head);
 const byLabel = new Map(data.cues.map((c) => [c.label, c.time]));
 for (const c of data.cues) {

@@ -599,8 +599,23 @@
       });
     }
     if (shot.cursor) {
-      screen.appendChild(h(`<div class="ui-cursor"><div class="ui-ripple"></div><svg viewBox="0 0 24 24" width="48" height="48"><path d="M4 2l16 9-7 2-3 8z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`));
+      // The pointer, or (`hand: true`) the big cartoon hand the reference
+      // films use at hero scale.
+      const hand = shot.cursor.hand
+        ? `<svg viewBox="0 0 64 64" width="64" height="64"><path d="M22 58c-6 0-9-4-11-9L5 34c-1-3 1-6 4-6 2 0 3 1 4 3l4 7V14c0-3 2-5 5-5s5 2 5 5v14h2V11c0-3 2-5 5-5s5 2 5 5v17h2V15c0-3 2-5 5-5s5 2 5 5v13h2v-7c0-3 2-5 5-5s5 2 5 5v20c0 10-7 17-17 17H22z" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><path d="M27 32v10M34 32v10M41 32v10" stroke="#111" stroke-width="3" stroke-linecap="round"/></svg>`
+        : `<svg viewBox="0 0 24 24" width="48" height="48"><path d="M4 2l16 9-7 2-3 8z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+      screen.appendChild(h(`<div class="ui-cursor ${shot.cursor.hand ? "hand" : ""}"><div class="ui-ripple"></div>${hand}</div>`));
     }
+    if (Array.isArray(shot.cursors)) {
+      // Named collaborator cursors, each with a colour and a label, moving
+      // along waypoints: the product is being used by several people.
+      shot.cursors.forEach((c, i) => {
+        const color = c.color || "var(--accent)";
+        screen.appendChild(h(`<div class="ui-cursor-named" data-i="${i}"><svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 8z" fill="${color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="tag" style="background:${color}">${c.label || ""}</span></div>`));
+      });
+    }
+    if (shot.cursor && shot.cursor.zoom) screen.appendChild(h(`<div class="ui-veil"></div>`));
+    if (shot.aura) wrap.classList.add("aura");
     wrap.appendChild(screen);
     cam.appendChild(wrap);
     el.appendChild(cam);
@@ -701,12 +716,42 @@
       tl.to(node, { scale: 0.82, duration: 0.09, ease: "power2.in" }, at + 0.82);
       tl.fromTo(ripple, { scale: 0, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 0.5, ease: "power2.out" }, at + 0.86);
       tl.to(node, { scale: 1, duration: 0.18, ease: "back.out(2)" }, at + 0.94);
-      if (cur.leave !== false) tl.to(node, { opacity: 0, duration: 0.25 }, at + 1.5);
+      if (cur.leave !== false && !cur.zoom) tl.to(node, { opacity: 0, duration: 0.25 }, at + 1.5);
       if (cur.then) {
         // Post-click state: swap the screenshot (e.g. the resulting screen).
         tl.set(qs(el, ".ui-img"), { attr: { src: cur.then } }, at + 1.0);
       }
+      if (cur.zoom) {
+        // The click pushes the camera into the clicked point and the rest of
+        // the screen blurs to white: what was clicked becomes the subject.
+        const z = cur.zoom === true ? {} : cur.zoom;
+        const zs = z.scale || 2.6;
+        const zAt = at + (z.at ?? 1.0);
+        const zDur = z.dur ?? 0.3;
+        const p = toStage(cur.x, cur.y);
+        tl.to(cam, { scale: zs, x: 960 - zs * p.x, y: 540 - zs * p.y, duration: zDur, ease: z.ease || "power3.inOut", transformOrigin: "0 0" }, zAt);
+        if (z.dof !== false) {
+          const veil = el.querySelector(".ui-veil");
+          const img = el.querySelector(".ui-img");
+          if (veil) tl.to(veil, { opacity: z.veil ?? 0.7, duration: zDur, ease: "power2.in" }, zAt);
+          if (img) tl.to(img, { filter: `blur(${z.blur ?? 8}px)`, duration: zDur, ease: "power2.in" }, zAt);
+        }
+        tl.to(node, { scale: zs > 1.8 ? 0.7 : 1, duration: zDur, ease: "power2.inOut" }, zAt);
+      }
     }
+    // Named cursors travel their waypoints.
+    (shot.cursors || []).forEach((c, i) => {
+      const node = el.querySelector(`.ui-cursor-named[data-i="${i}"]`);
+      if (!node || !Array.isArray(c.path) || !c.path.length) return;
+      const p0 = c.path[0];
+      gsap.set(node, { x: p0.x * sw, y: p0.y * sh, opacity: 0 });
+      tl.to(node, { opacity: 1, duration: 0.2 }, p0.at ?? 0.2);
+      for (let k = 1; k < c.path.length; k++) {
+        const a = c.path[k - 1], b = c.path[k];
+        const t0 = a.at ?? 0.2, t1 = b.at ?? t0 + 0.8;
+        tl.to(node, { x: b.x * sw, y: b.y * sh, duration: Math.max(0.1, t1 - t0), ease: "power1.inOut" }, t0);
+      }
+    });
     return tl;
   }
 
@@ -837,7 +882,7 @@
   }
   function captionMount(el, shot) {
     if (!shot.caption) return;
-    const cap = h(`<div class="ui-caption ${shot.captionPos === "top" ? "top" : "bottom"} type-center"></div>`);
+    const cap = h(`<div class="ui-caption ${shot.captionPos === "top" ? "top" : shot.captionPos === "center" ? "center" : "bottom"} type-center"></div>`);
     mixedLine(cap, shot.caption);
     el.appendChild(cap);
   }
@@ -911,7 +956,7 @@
     el.dataset.bg = shot.bg || "ink";
     const spec = DEVICES[shot.device];
     if (!spec) throw new Error(`device-3d: \`device\` must be one of ${Object.keys(DEVICES).join(", ")} (shot ${shot.id})`);
-    if (!shot.src) throw new Error(`device-3d: \`src\` (a harvested screenshot for the screen) is required (shot ${shot.id})`);
+    if (!shot.src && !(shot.ring && Array.isArray(shot.ring.srcs) && shot.ring.srcs.length)) throw new Error(`device-3d: \`src\` (a harvested screenshot for the screen) or \`ring.srcs\` is required (shot ${shot.id})`);
     const st = three(el, { shadows: true, fov: shot.fov || 30 });
     const { THREE, scene } = st;
     const accent = new THREE.Color(cssColor("--accent", "#65A8EF"));
@@ -932,28 +977,54 @@
     const inner = new THREE.Group();
     group.add(inner);
     const bodyMat = new THREE.MeshPhysicalMaterial({ color: body, metalness: 0.55, roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.25 });
-    const slab = roundedSlab(THREE, spec.w, spec.h, spec.t, spec.r, bodyMat);
     const sw = spec.w - spec.bezel * 2;
     const sh = spec.h - spec.bezel * 2;
-    const screenMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
     const align = shot.align || "top";
-    screenMat.map = st.texture(shot.src, (tex) => {
-      // object-fit: cover on the screen plane, from the image's real size.
-      const ia = tex.image.width / tex.image.height;
-      const sa = sw / sh;
-      tex.repeat.set(1, 1); tex.offset.set(0, 0);
-      if (ia > sa) { tex.repeat.x = sa / ia; tex.offset.x = (1 - tex.repeat.x) / 2; }
-      else { tex.repeat.y = ia / sa; tex.offset.y = align === "top" ? 1 - tex.repeat.y : (1 - tex.repeat.y) / 2; }
-      tex.needsUpdate = true;
-      screenMat.needsUpdate = true;
-    });
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), screenMat);
-    screen.position.z = spec.t / 2 + 2.5;
-    const lid = new THREE.Group();
-    lid.add(slab, screen);
-    inner.add(lid);
+    // A screen: the slab with a cover-fit texture of `src` on its front.
+    const makeLid = (src) => {
+      const slab = roundedSlab(THREE, spec.w, spec.h, spec.t, spec.r, bodyMat);
+      const screenMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+      screenMat.map = st.texture(src, (tex) => {
+        // object-fit: cover on the screen plane, from the image's real size.
+        const ia = tex.image.width / tex.image.height;
+        const sa = sw / sh;
+        tex.repeat.set(1, 1); tex.offset.set(0, 0);
+        if (ia > sa) { tex.repeat.x = sa / ia; tex.offset.x = (1 - tex.repeat.x) / 2; }
+        else { tex.repeat.y = ia / sa; tex.offset.y = align === "top" ? 1 - tex.repeat.y : (1 - tex.repeat.y) / 2; }
+        tex.needsUpdate = true;
+        screenMat.needsUpdate = true;
+      });
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), screenMat);
+      screen.position.z = spec.t / 2 + 2.5;
+      const lid = new THREE.Group();
+      lid.add(slab, screen);
+      return lid;
+    };
+    const ring = shot.ring;
+    if (ring && Array.isArray(ring.srcs) && ring.srcs.length) {
+      // Several screens on a ring around the view axis, seen from inside:
+      // each lies tangent to the circle and leans in toward the camera. The
+      // group's spin is the orbit; `turn` still tilts the whole ring.
+      const n = ring.srcs.length;
+      const R = ring.radius || 760;
+      const z = ring.z ?? -250;
+      const lean = ring.lean ?? 0.55;
+      ring.srcs.forEach((src, i) => {
+        const a = (i / n) * Math.PI * 2 + (ring.offset || 0) * Math.PI / 180;
+        const lid = makeLid(src);
+        lid.position.set(R * Math.cos(a), R * Math.sin(a), z);
+        // Face a point in front of the ring's centre, then lie along the ring.
+        lid.lookAt(new THREE.Vector3(R * Math.cos(a) * (1 - lean), R * Math.sin(a) * (1 - lean), z + 1400));
+        lid.rotateZ(a + Math.PI / 2);
+        inner.add(lid);
+      });
+      inner.userData.ring = true;
+    } else {
+      inner.add(makeLid(shot.src));
+    }
+    const lid = inner.children[0];
     let floorY = -spec.h / 2 - 70;
-    if (spec.base) {
+    if (spec.base && !inner.userData.ring) {
       // A laptop: the lid stands on a base and leans back a little.
       const depth = spec.h * 0.72;
       const base = roundedSlab(THREE, spec.w, depth, spec.t, spec.r, bodyMat);
@@ -964,11 +1035,13 @@
       inner.add(base);
       floorY = -spec.h / 2 - spec.t - 2;
     }
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.ShadowMaterial({ opacity: shot.shadow ?? 0.42 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = floorY;
-    floor.receiveShadow = true;
-    scene.add(floor);
+    if (!inner.userData.ring) {
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.ShadowMaterial({ opacity: shot.shadow ?? 0.42 }));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = floorY;
+      floor.receiveShadow = true;
+      scene.add(floor);
+    }
     scene.add(group);
     stages.set(el, { group, inner });
     captionMount(el, shot);
@@ -978,14 +1051,279 @@
     const { group, inner } = stages.get(el);
     const rad = (d) => (d * Math.PI) / 180;
     const turn = shot.turn || {};
+    if (inner.userData.ring) {
+      // The ring orbits (spin, degrees from → to) and leans by `turn`; it
+      // arrives from far down the axis.
+      const spin = shot.ring.spin || [-14, 14];
+      const from = turn.from || [4, -6];
+      const to = turn.to || [-3, 5];
+      tl.fromTo(inner.rotation, { z: rad(spin[0]) }, { z: rad(spin[1]), duration: D, ease: shot.ring.ease || "none" }, 0);
+      tl.fromTo(group.rotation, { x: rad(from[0]), y: rad(from[1]) }, { x: rad(to[0]), y: rad(to[1]), duration: D, ease: turn.ease || "sine.inOut" }, 0);
+      if (shot.enter !== "none") tl.fromTo(group.position, { z: -2600 }, { z: 0, duration: Math.min(D * 0.5, 1.2), ease: "power3.out" }, 0);
+      if (shot.exit3d === "through") tl.to(group.position, { z: 1800, duration: Math.min(0.6, D * 0.25), ease: "power3.in" }, D - Math.min(0.6, D * 0.25));
+      captionIn(tl, el);
+      return tl;
+    }
     if (!shot.turn) console.warn("[device-3d] no `turn` on", shot.id, "— decide the angles; the fallback is a house move");
     const from = turn.from || [8, -55];
     const to = turn.to || [2, 18];
     tl.fromTo(group.rotation, { x: rad(from[0]), y: rad(from[1]) }, { x: rad(to[0]), y: rad(to[1]), duration: D, ease: turn.ease || "power2.inOut" }, 0);
+    const oy = shot.offsetY || 0;
     if (shot.enter !== "none") {
-      tl.fromTo(group.position, { z: -1000, y: -120 }, { z: 0, y: 0, duration: Math.min(D * 0.6, 1.4), ease: "power3.out" }, 0);
-    }
+      tl.fromTo(group.position, { z: -1000, y: oy - 120 }, { z: 0, y: oy, duration: Math.min(D * 0.6, 1.4), ease: "power3.out" }, 0);
+    } else if (oy) tl.set(group.position, { y: oy }, 0);
     if (shot.hover !== false) tl.fromTo(inner.position, { y: -8 }, { y: 8, duration: D, ease: "sine.inOut" }, 0);
+    captionIn(tl, el);
+    return tl;
+  }
+
+  /* ---------- line ---------- */
+  // The sentence as protagonist. A line of words that changes over the shot
+  // in steps: a word ADDS (present in one frame, the line re-centres and
+  // settles), the line is REPLACED (out: shrink + blur; in: from 1.5× and
+  // blurred), one word is KEPT (the others blur out in place and it slides
+  // to the centre), a word ROTATES through alternatives (instant swaps with
+  // shrinking holds), the line TYPES itself (a caret, chars per second, the
+  // noun taking its tone as it is typed) and finally goes OUT (blur | left |
+  // right | fade | shrink). Parts carry a tone — ink | accent | muted |
+  // gradient — never a weight change; a `slot` part reserves room for an
+  // actor to sit between the words.
+  //
+  // { type: "line", size: 96, align?: "center"|"left", x?, y?, weight?,
+  //   container?: "glass"|"pill", typing?: { cps: 22, caret: true },
+  //   steps: [ { at, add: parts } | { at, replace: parts } | { at, keep: "style" | index }
+  //          | { at, out: "blur"|"left"|"right"|"fade"|"shrink" } ] }
+  // part: { text, tone?, weight?, rotate?: [alts], every?: seconds | [seconds…], slot?: name, w? }
+  function lineWord(p, typing) {
+    if (p.slot) {
+      const s = document.createElement("span");
+      s.className = `lw slot slot-${p.slot}`;
+      s.style.width = (p.w || 300) + "px";
+      s.style.height = "0.9em";
+      return s;
+    }
+    const w = document.createElement("span");
+    w.className = "lw";
+    w.dataset.tone = p.tone || "ink";
+    if (p.weight) w.style.fontWeight = String(p.weight);
+    const text = String(p.text ?? "");
+    if (typing) {
+      [...text].forEach((ch) => {
+        const c = document.createElement("span");
+        c.className = "ch pending";
+        c.textContent = ch === " " ? " " : ch;
+        w.appendChild(c);
+      });
+    } else w.textContent = text;
+    if (Array.isArray(p.rotate)) { w.dataset.rotate = JSON.stringify(p.rotate); w.dataset.every = JSON.stringify(p.every ?? 0.5); }
+    return w;
+  }
+  function lineMount(el, shot) {
+    el.dataset.bg = shot.bg || "bg";
+    const box = h(`<div class="line-box ${shot.align === "left" ? "left" : ""} ${shot.container ? `${shot.container} mat-${shot.container}` : ""}"></div>`);
+    box.style.fontSize = (shot.size || 96) + "px";
+    if (shot.weight) box.style.fontWeight = String(shot.weight);
+    if (shot.x != null) box.style.left = shot.x + "px";
+    if (shot.y != null) box.style.top = shot.y + "px";
+    if (shot.color) box.style.color = shot.color;
+    const typing = !!shot.typing;
+    const steps = shot.steps || [{ at: 0, add: shot.parts || [{ text: shot.text || "" }] }];
+    const meta = [];
+    steps.forEach((st, k) => {
+      const parts = st.add || st.replace;
+      const words = [];
+      if (Array.isArray(parts)) {
+        const spacer = () => {
+          const sp = document.createElement("span");
+          sp.className = "lw lsp";
+          sp.dataset.step = String(k);
+          sp.style.display = "none";
+          sp.textContent = " ";
+          box.appendChild(sp);
+          words.push(sp);
+        };
+        parts.forEach((p, j) => {
+          // A space before every word except the first of the line; an added
+          // step continues the line, so its first word gets one too — unless
+          // the copy already carries the space at a part's edge.
+          const prev = j > 0 ? parts[j - 1] : null;
+          const edgeSpace = (prev && /\s$/.test(String(prev.text ?? ""))) || /^\s/.test(String(p.text ?? ""));
+          if ((j > 0 || (st.add && k > 0)) && !edgeSpace) spacer();
+          const w = lineWord(p, typing && !p.slot);
+          w.dataset.step = String(k);
+          w.style.display = "none";
+          box.appendChild(w);
+          words.push(w);
+        });
+      }
+      meta.push({ ...st, words });
+    });
+    if (typing) {
+      const caret = h(`<span class="line-caret" style="display:none"></span>`);
+      box.appendChild(caret);
+    }
+    box.__steps = meta;
+    el.appendChild(box);
+    gsap.set(box, { xPercent: shot.align === "left" ? 0 : -50, yPercent: -50 });
+  }
+  function lineAnimate(el, shot, D) {
+    const tl = gsap.timeline();
+    const box = qs(el, ".line-box");
+    const steps = box.__steps || [];
+    const typing = shot.typing || null;
+    const cps = typing ? (typing.cps || 22) : 0;
+    const caret = box.querySelector(".line-caret");
+    let visible = [];
+    let typeEnd = 0;
+    const widthOf = (els) => els.reduce((a, w) => a + w.offsetWidth, 0);
+    const typeWords = (words, t0) => {
+      // Chars appear one by one; the caret sits after the last visible char.
+      let t = t0;
+      words.forEach((w) => {
+        tl.set(w, { display: "inline-block" }, t);
+        const chars = w.querySelectorAll(".ch");
+        chars.forEach((c) => { tl.set(c, { className: "ch" }, t); t += 1 / cps; });
+        if (!chars.length) t += 0.5 / cps;
+      });
+      if (caret) { tl.set(caret, { display: "inline-block", opacity: 1 }, t0); }
+      typeEnd = Math.max(typeEnd, t);
+      // A hero line that would outgrow the frame scales down as it is typed
+      // (the reference lands its sentence at reading size while still typing):
+      // typing.shrink = the scale it settles at, typing.fit = the width that
+      // triggers it (1560px), estimated from the character count.
+      if (typing.shrink !== false) {
+        const size = shot.size || 96;
+        const chars = words.reduce((a, w) => a + (w.textContent || "").length, 0);
+        const est = chars * size * 0.52;
+        const fit = typing.fit || 1560;
+        if (est > fit) {
+          const atChar = Math.floor((fit / est) * chars);
+          const when = t0 + atChar / cps;
+          const to = typing.shrink || Math.max(0.3, fit / est);
+          tl.to(box, { scale: to, duration: 0.45, ease: "power3.inOut", transformOrigin: "50% 50%" }, when);
+        }
+      }
+      return t;
+    };
+    steps.forEach((st) => {
+      const t = Math.min(Math.max(0, st.at ?? 0), D - 0.05);
+      if (st.add) {
+        const real = st.words.filter((w) => !w.classList.contains("lsp"));
+        if (typing) { typeWords(st.words.filter((w) => !w.classList.contains("slot")), t); tl.set(st.words.filter((w) => w.classList.contains("slot")), { display: "inline-block" }, t); }
+        else {
+          tl.set(st.words, { display: "inline-block" }, t);
+          // The new words are there in one frame; the line settles onto its
+          // new centre from where the old words were, a touch oversize.
+          tl.fromTo(box, { x: () => widthOf(st.words) / 2 }, { x: 0, duration: 0.4, ease: "expo.out" }, t);
+          tl.fromTo(real, { scale: 1.08, y: 8, transformOrigin: "50% 80%" }, { scale: 1, y: 0, duration: 0.4, ease: "expo.out" }, t);
+        }
+        visible = visible.concat(st.words);
+      } else if (st.replace) {
+        const old = visible.filter((w) => !w.classList.contains("lsp"));
+        if (old.length) {
+          tl.to(old, { scale: 0.9, filter: "blur(12px)", opacity: 0, duration: 0.17, ease: "power3.in", transformOrigin: "50% 50%" }, t);
+          tl.set(visible, { display: "none" }, t + 0.17);
+        }
+        const real = st.words.filter((w) => !w.classList.contains("lsp"));
+        if (typing) typeWords(st.words, t + 0.1);
+        else {
+          tl.set(st.words, { display: "inline-block" }, t + 0.1);
+          tl.set(box, { x: 0 }, t + 0.1);
+          tl.fromTo(real, { scale: 1.5, filter: "blur(20px)", opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, filter: "blur(0px)", opacity: 1, duration: 0.27, ease: "expo.out" }, t + 0.1);
+        }
+        visible = st.words.slice();
+      } else if (st.keep != null) {
+        const real = visible.filter((w) => !w.classList.contains("lsp") && !w.classList.contains("slot"));
+        const kept = typeof st.keep === "number" ? real[st.keep]
+          : real.find((w) => w.textContent.replace(/ /g, " ").trim().toLowerCase() === String(st.keep).trim().toLowerCase());
+        if (!kept) { console.warn("[line] keep found no word", st.keep, "in", shot.id); return; }
+        const others = visible.filter((w) => w !== kept);
+        tl.to(others, { opacity: 0, filter: "blur(6px)", duration: 0.3, ease: "power2.in", stagger: 0.05 }, t);
+        if (caret) tl.set(caret, { display: "none" }, t);
+        tl.to(box, {
+          x: () => { const k = kept.getBoundingClientRect(); const b = box.getBoundingClientRect(); return -(k.left + k.width / 2 - (b.left + b.width / 2)); },
+          duration: 0.5, ease: "power3.inOut",
+        }, t + 0.2);
+        visible = [kept];
+      } else if (st.out) {
+        const o = st.out === true ? "blur" : st.out;
+        if (o === "blur") tl.to(box, { y: "-=70", opacity: 0, filter: "blur(14px)", duration: 0.3, ease: "power3.in" }, t);
+        else if (o === "left" || o === "right") tl.to(box, { x: o === "left" ? -1600 : 1600, duration: 0.5, ease: "power3.in" }, t);
+        else if (o === "fade") tl.to(box, { opacity: 0, duration: 0.3 }, t);
+        else if (o === "shrink") tl.to(box, { scale: 0.3, opacity: 0, filter: "blur(8px)", duration: 0.25, ease: "power3.in" }, t);
+      }
+    });
+    // Rotating words: instant swaps, holds shrinking toward the exit.
+    box.querySelectorAll(".lw[data-rotate]").forEach((w) => {
+      const alts = JSON.parse(w.dataset.rotate);
+      const every = JSON.parse(w.dataset.every);
+      const step = steps.find((s) => s.words.includes(w));
+      let t = (step ? (step.at ?? 0) : 0) + (Array.isArray(every) ? every[0] : every);
+      alts.forEach((alt, i) => {
+        tl.set(w, { text: { value: alt } }, Math.min(t, D - 0.05));
+        t += Array.isArray(every) ? (every[i + 1] ?? every[every.length - 1]) : every;
+      });
+    });
+    if (caret && typing && typing.caret !== false && typeEnd < D) {
+      const n = Math.max(0, Math.floor((D - typeEnd) / 0.9));
+      if (n > 0) tl.fromTo(caret, { opacity: 1 }, { opacity: 0.05, duration: 0.45, ease: "steps(1)", repeat: n * 2 - 1, yoyo: true }, typeEnd + 0.2);
+    }
+    return tl;
+  }
+
+  /* ---------- cascade ---------- */
+  // Items land one after another at one anchor and push the earlier ones
+  // away — up (comments, rows) or left (a strip of cards) — while the earlier
+  // ones fall out of focus. { items: [{ src | html, w, h }], every, dir: "up"|"left",
+  //   gap, x, y, start, dof: true, enter: "rise"|"fade" }
+  function cascadeMount(el, shot) {
+    el.dataset.bg = shot.bg || "bg";
+    const field = h(`<div class="cascade"></div>`);
+    (shot.items || []).forEach((it, i) => {
+      const node = h(`<div class="cascade-item" data-i="${i}"></div>`);
+      const w = it.w || shot.w || 560, hgt = it.h || shot.h || 340;
+      node.style.width = w + "px";
+      node.style.height = hgt + "px";
+      if (it.r != null) node.style.borderRadius = it.r + "px";
+      if (it.src) node.appendChild(h(`<img src="${it.src}" alt="" draggable="false">`));
+      else node.appendChild(h(`<div class="ci-html">${it.html || ""}</div>`));
+      field.appendChild(node);
+    });
+    el.appendChild(field);
+    if (shot.caption) captionMount(el, shot);
+  }
+  function cascadeAnimate(el, shot, D) {
+    const tl = gsap.timeline();
+    const items = [...el.querySelectorAll(".cascade-item")];
+    const n = items.length;
+    const every = shot.every ?? Math.min(0.5, Math.max(0.12, (D * 0.6) / Math.max(1, n)));
+    const dir = shot.dir || "up";
+    const gap = shot.gap ?? 24;
+    const ax = shot.x ?? 960, ay = shot.y ?? (dir === "up" ? 640 : 540);
+    const dof = shot.dof !== false;
+    items.forEach((it, k) => {
+      const w = parseFloat(it.style.width), hgt = parseFloat(it.style.height);
+      gsap.set(it, { left: ax - w / 2, top: ay - hgt / 2, opacity: 0 });
+    });
+    items.forEach((it, k) => {
+      const t = (shot.start ?? 0.1) + k * every;
+      const hgt = parseFloat(it.style.height), w = parseFloat(it.style.width);
+      // Earlier items step away and defocus by their distance from the newest.
+      for (let j = 0; j < k; j++) {
+        const d = k - j;
+        const move = dir === "up" ? { y: "-=" + (hgt + gap) } : dir === "left" ? { x: "-=" + (w + gap) } : { x: "+=" + (w + gap) };
+        tl.to(items[j], { ...move, duration: 0.4, ease: "power3.inOut" }, t);
+        if (dof) tl.to(items[j], { filter: `blur(${Math.min(12, 2 * d)}px)`, opacity: Math.max(0.2, 1 - 0.22 * d), scale: 1 - Math.min(0.12, 0.025 * d), duration: 0.4, ease: "power2.out", transformOrigin: "50% 50%" }, t);
+      }
+      const from = shot.enter === "fade" ? { opacity: 0, filter: "blur(8px)" } : dir === "up" ? { y: "+=90", opacity: 0, filter: "blur(8px)" } : { x: "+=" + (w * 0.6), opacity: 0, filter: "blur(8px)" };
+      tl.fromTo(it, from, { x: dir === "up" ? 0 : undefined, y: dir === "up" ? undefined : 0, opacity: 1, filter: "blur(0px)", duration: 0.38, ease: "expo.out" }, t);
+    });
+    if (shot.scroll && n) {
+      // After the last item, the whole set keeps travelling (a marquee).
+      const last = (shot.start ?? 0.1) + (n - 1) * every + 0.4;
+      const move = dir === "up" ? { y: "-=" + shot.scroll } : { x: "-=" + shot.scroll };
+      tl.to(items, { ...move, duration: Math.max(0.3, D - last), ease: "none" }, last);
+    }
     captionIn(tl, el);
     return tl;
   }
@@ -1007,6 +1345,8 @@
     "logo-cta": { mount: ctaMount, animate: ctaAnimate },
     "stat-counter": { mount: statMount, animate: statAnimate },
     "ui-frame": { mount: uiMount, animate: uiAnimate },
+    "line": { mount: lineMount, animate: lineAnimate },
+    "cascade": { mount: cascadeMount, animate: cascadeAnimate },
     "lottie": { mount: lottieMount, animate: lottieAnimate },
     "rive": { mount: riveMount, animate: riveAnimate },
     "device-3d": { mount: device3dMount, animate: device3dAnimate },

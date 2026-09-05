@@ -112,3 +112,28 @@ lost. Strike a line when it is done.
 - **`docker-compose.yml` pins postgres to host port 5433**, which another
   project on this machine also used; the local `da-dev-pg` container had to be
   stopped. A `.override.yml` or a free default port would avoid that.
+
+## Film grammar v2 (2026-09-06: actors, line, cascade, flood, ring)
+
+- **An `image` actor with an SVG `src` blurs when a pose scales it up** — the
+  browser rasterizes the `<img>` at its layout width, so `into` a 480px mark
+  from a 170px actor is soft for the 10 frames of the landing. Give SVG actors
+  their largest size as `w` and pose them *down*, or accept the landing blur
+  (the shutter reads it as motion).
+- **The audit's hook rule is one number for every design.** A chain's opening
+  `line` legitimately runs 3–4s (the reference's does 4.5s); the ⚠ fires at
+  3s. `lib/design-rules.mjs` should give the chain a 4.5s hook.
+- **`device-3d` `ring` with landscape screens crowds the centre** (cards
+  900 wide on a 800 radius). Portrait screens are the reference's case; a
+  landscape ring wants `radius` ≥ 860 and the centre caption kept to 3–4
+  words.
+- **A `ui-frame` caption at the bottom collides with a tall frame** (787px
+  centred leaves 70px below it; the 72px caption sits on the edge). The type
+  should lower the frame or pick the free side; today the author sets
+  `height` ≤ 700 or uses `captionPos: "top"`.
+- **The flood's halo is a straight ramp over `pre` 0.3s**; the reference's
+  blooms over 6 frames with a faster start. Fine at 0.3s, invisible at 0.2s.
+- **The agent-in-the-loop run of the new skill has not happened yet.** The
+  heyclicky chain film was built by hand following SKILL.md; the studio
+  session (Gemini, `google/gemini-3.7-flash`) reading `designs/chain.md` and
+  posing actors is the test that matters next.
