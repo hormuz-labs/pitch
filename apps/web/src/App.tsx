@@ -1,16 +1,7 @@
-import {
-  AuthenticateWithRedirectCallback,
-  Show,
-  UserButton,
-  useAuth,
-  useClerk,
-  useUser,
-} from '@clerk/react'
+import { AuthenticateWithRedirectCallback, Show, UserButton, useAuth, useUser } from '@clerk/react'
 import {
   type ComponentType,
-  cloneElement,
   createContext,
-  isValidElement,
   lazy,
   Suspense,
   useCallback,
@@ -31,8 +22,23 @@ import {
 } from 'react-router-dom'
 import './index.css'
 import * as ToastPrimitive from '@radix-ui/react-toast'
-import { Key, X } from 'lucide-react'
+import {
+  AppWindow,
+  ChevronRight,
+  Gift,
+  History,
+  Key,
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PlugZap,
+  Plus,
+  Search,
+  Shield,
+  X,
+} from 'lucide-react'
 import { BiSolidZap } from 'react-icons/bi'
+import { FaDiscord } from 'react-icons/fa6'
 import tabLogoB from './assets/tabLogoB.svg'
 import { AnimatedAdminIcon } from './components/AnimatedAdminIcon'
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon'
@@ -42,15 +48,15 @@ import { AnimatedSettingsIcon } from './components/AnimatedSettingsIcon'
 import { AnimatedShareIcon } from './components/AnimatedShareIcon'
 import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
-import { CreditPopover } from './components/CreditPopover'
-import { FlowGlyph } from './components/FlowGlyph'
 import { LoadingCoin } from './components/LoadingCoin'
+import { PitchWordmark } from './components/PitchWordmark'
 import { OnboardingSurvey } from './components/OnboardingSurvey'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
+import { SettingsModal, type SettingsSection } from './components/SettingsModal'
 import { API_URL } from './config'
 import { api, isApiError } from './lib/api'
 import { captureRefFromUrl, getRefCode } from './lib/referral'
-import { FLOWS, type FlowId, isFlowId } from './lib/studio-api'
+import { isFlowId, listProjects, type Project } from './lib/studio-api'
 import { cn } from './lib/utils'
 import type { UserProfile } from './types'
 
@@ -77,7 +83,7 @@ const LandingView = lazyNamed(() => import('./views/LandingView'), 'LandingView'
 const NewProjectView = lazyNamed(() => import('./views/NewProjectView'), 'NewProjectView')
 const PricingView = lazyNamed(() => import('./views/PricingView'), 'PricingView')
 const ProductView = lazyNamed(() => import('./views/ProductView'), 'ProductView')
-const ProjectsView = lazyNamed(() => import('./views/ProjectsView'), 'ProjectsView')
+const AffiliatesView = lazyNamed(() => import('./views/AffiliatesView'), 'AffiliatesView')
 const PublicDemoView = lazyNamed(() => import('./views/PublicDemoView'), 'PublicDemoView')
 const PublicPricingView = lazyNamed(() => import('./views/PublicPricingView'), 'PublicPricingView')
 const SessionsView = lazyNamed(() => import('./views/SessionsView'), 'SessionsView')
@@ -126,15 +132,23 @@ interface ToastCtx {
 interface AppShellCtx {
   isMobile: boolean
   toggleSidebar: () => void
+  openSettings: (section?: SettingsSection) => void
 }
 const AppShellContext = createContext<AppShellCtx | null>(null)
 export const useAppShell = (): AppShellCtx =>
-  useContext(AppShellContext) ?? { isMobile: false, toggleSidebar: () => {} }
+  useContext(AppShellContext) ?? {
+    isMobile: false,
+    toggleSidebar: () => {},
+    openSettings: () => {},
+  }
 
 const ToastContext = createContext<ToastCtx | null>(null)
 export const useToast = () => {
   const ctx = useContext(ToastContext)
-  if (!ctx) throw new Error('useToast must be used inside ToastShell')
+  // Fast Refresh swaps the App module under already-mounted views, and a view
+  // holding the old context would otherwise crash the whole tree on the next
+  // render. Degrade to a console note; a full reload restores the real one.
+  if (!ctx) return { toast: (message: string) => console.warn('[toast]', message) }
   return ctx
 }
 
@@ -246,73 +260,6 @@ function ToastShell({ children }: { children: React.ReactNode }) {
 
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
-const IconSearch = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
-)
-const IconPlus = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-)
-const IconMenu = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <rect x="2" y="5" width="20" height="3.5" rx="1" />
-    <rect x="2" y="10.5" width="20" height="3.5" rx="1" />
-    <rect x="2" y="16" width="20" height="3.5" rx="1" />
-  </svg>
-)
-const IconArrowLeft = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="19" y1="12" x2="5" y2="12" />
-    <polyline points="12 19 5 12 12 5" />
-  </svg>
-)
-const IconChevronRight = () => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-)
-
 // ── Nav Item ─────────────────────────────────────────────────────────────────
 interface NavItemProps {
   icon: React.ReactNode
@@ -335,103 +282,8 @@ const NavItem = ({ icon, label, active, onClick }: NavItemProps) => (
   </button>
 )
 
-interface NavGroupChild {
-  key: string
-  label: string
-  path: string
-  icon?: React.ReactNode
-}
-interface NavGroupProps {
-  icon: React.ReactNode
-  label: string
-  children: NavGroupChild[]
-  selectedKey: string
-  onNavigate: (path: string) => void
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
-}
-const NavGroup = ({
-  icon,
-  label,
-  children,
-  selectedKey,
-  onNavigate,
-  isOpen,
-  onOpenChange,
-}: NavGroupProps) => {
-  const isChildActive = children.some(c => c.key === selectedKey)
-  const isActive = isOpen || isChildActive
-
-  const toggle = () => onOpenChange(!isOpen)
-
-  const animatedIcon = isValidElement<{ active?: boolean }>(icon)
-    ? cloneElement(icon, { active: isActive })
-    : icon
-
-  return (
-    <div className="space-y-1">
-      <button
-        onClick={toggle}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ease-out cursor-pointer border-none outline-none group
-          ${
-            isActive
-              ? 'bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] hover:[background-position:100%_center] text-white shadow-sm'
-              : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent'
-          }`}
-      >
-        <span className="flex items-center gap-2.5">
-          <span
-            className={`transition-colors duration-200 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}
-          >
-            {animatedIcon}
-          </span>
-          {label}
-        </span>
-        <span
-          className={`transition-transform duration-200 ease-out ${isOpen ? 'rotate-90' : ''} ${isActive ? 'text-white/80' : 'text-gray-400'}`}
-        >
-          <IconChevronRight />
-        </span>
-      </button>
-      <div
-        className={`grid transition-[grid-template-rows] duration-200 ease-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-      >
-        <div className="overflow-hidden">
-          <div className="ml-3.5 pl-3 pr-1 py-1 space-y-0.5 border-l border-gray-200/80">
-            {children.map(child => {
-              const active = child.key === selectedKey
-              return (
-                <button
-                  key={child.key}
-                  onClick={() => onNavigate(child.path)}
-                  className={`w-full flex items-center gap-2 text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer border-none outline-none relative
-                    ${
-                      active
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent hover:translate-x-0.5'
-                    }`}
-                >
-                  {active && (
-                    <span className="absolute -left-[13px] inset-y-0 w-[3px] bg-gray-900 rounded-r-full" />
-                  )}
-                  {child.icon && (
-                    <span className={`shrink-0 ${active ? 'text-gray-700' : 'text-gray-400'}`}>
-                      {child.icon}
-                    </span>
-                  )}
-                  <span className="truncate">{child.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-interface SidebarProps {
+interface LegacySidebarProps {
   selectedKey: string
   navigate: (path: string) => void
   isMobile: boolean
@@ -447,14 +299,14 @@ const PLAN_LABELS: Record<string, string> = {
 
 const isNewKey = (key: string) => key.startsWith('new-')
 
-const Sidebar = ({
+export const LegacySidebar = ({
   selectedKey,
   navigate,
   isMobile,
   collapsed,
   onClose,
   isAdmin,
-}: SidebarProps) => {
+}: LegacySidebarProps) => {
   const { getToken } = useAuth()
   const [plan, setPlan] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(isNewKey(selectedKey))
@@ -579,7 +431,9 @@ const Sidebar = ({
           {item(
             'affiliate',
             'Affiliate',
-            '/affiliate',
+            // The public pitch, the same page a signed-out visitor gets. Your
+            // own link and totals are one click on from it, at /affiliate.
+            '/affiliates',
             <AnimatedShareIcon active={selectedKey === 'affiliate' && !newOpen} />,
           )}
           {isAdmin &&
@@ -638,165 +492,390 @@ const Sidebar = ({
   )
 }
 
-// ── Top Header ────────────────────────────────────────────────────────────────
-interface TopHeaderProps {
+interface SidebarProps {
+  selectedKey: string
+  selectedProjectId?: string
+  navigate: (path: string) => void
   isMobile: boolean
-  isDetailPage: boolean
-  backLabel?: string
-  showSearch: boolean
-  searchQuery: string
-  onSearchChange: (q: string) => void
+  collapsed: boolean
+  onClose: () => void
   onToggle: () => void
-  onNew: () => void
-  onBack: () => void
-  title?: string
-  isPricingPage?: boolean
-  isSettingsPage?: boolean
-  onSignOut?: () => void
+  isAdmin?: boolean
+  openSettings: (section?: SettingsSection) => void
 }
-const TopHeader = ({
-  isMobile,
-  isDetailPage,
-  backLabel,
-  showSearch,
-  searchQuery,
-  onSearchChange,
-  onToggle,
-  onNew,
-  onBack,
-  title,
-  isPricingPage,
-  isSettingsPage,
-  onSignOut,
-}: TopHeaderProps) => (
-  <header className="app-shell-header h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
-    {/* Left: logo + search / back */}
-    <div className="flex items-center gap-3 shrink-0">
-      {isMobile && (
-        <Link
-          to="/"
-          className="w-9 h-9 flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors group"
-        >
-          <img
-            src={tabLogoB}
-            alt="Pitch"
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-          />
-        </Link>
-      )}
-      {isDetailPage ? (
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer p-0 shrink-0"
-          id="header-back-btn"
-        >
-          <IconArrowLeft />
-          <span className="hidden sm:inline">{backLabel ?? 'Back to Projects'}</span>
-        </button>
-      ) : title ? (
-        <h2 className="text-lg font-bold text-gray-900 ml-1">{title}</h2>
-      ) : (
-        <div className="hidden sm:flex items-center h-8 shrink-0 sm:w-48" />
-      )}
-    </div>
 
-    {showSearch ? (
-      <div className="flex-1 min-w-0 px-2 sm:px-4 md:px-0 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-[240px]">
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <IconSearch />
-          </span>
-          <input
-            type="text"
-            placeholder="Search projects…"
-            className="flex h-9 md:h-10 w-full rounded-lg border border-gray-200 bg-white pl-9 md:pl-10 pr-8 md:pr-10 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all"
-            id="global-search-input"
-            value={searchQuery}
-            onChange={e => onSearchChange(e.target.value)}
-          />
-          {searchQuery && (
+/**
+ * The app is a history of conversations, not a dashboard of project cards.
+ * Keep that model visible everywhere: starting new work and resuming old work
+ * now happen in the same, persistent rail.
+ */
+const Sidebar = ({
+  selectedKey,
+  selectedProjectId,
+  navigate,
+  isMobile,
+  collapsed,
+  onClose,
+  onToggle,
+  isAdmin,
+  openSettings,
+}: SidebarProps) => {
+  const { getToken } = useAuth()
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectQuery, setProjectQuery] = useState('')
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyQuery, setHistoryQuery] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const nextProjects = await listProjects(token)
+        if (cancelled) return
+        setProjects(nextProjects)
+      } catch {
+        // Navigation should remain usable if history or billing is unavailable.
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [getToken, selectedKey])
+
+  const go = (path: string) => {
+    navigate(path)
+    // The drawer floats over the page now; leaving it open after a navigation
+    // would keep the destination blurred behind it.
+    onClose()
+  }
+  const normalizedQuery = projectQuery.trim().toLowerCase()
+  const visibleProjects = projects
+    .filter(project => !normalizedQuery || project.title.toLowerCase().includes(normalizedQuery))
+    .slice(0, 30)
+
+  // Recents grouped the way you remember them: what you touched today, this
+  // week, and everything before. While searching, one flat list reads better.
+  const chatGroups: { label: string; items: typeof visibleProjects }[] = []
+  if (!normalizedQuery) {
+    const startOfToday = new Date().setHours(0, 0, 0, 0)
+    const weekMs = 7 * 24 * 60 * 60 * 1000
+    const buckets = [
+      { label: 'Today', items: [] as typeof visibleProjects },
+      { label: 'This week', items: [] as typeof visibleProjects },
+      { label: 'Older', items: [] as typeof visibleProjects },
+    ]
+    for (const project of visibleProjects) {
+      const at = new Date(project.updatedAt).getTime()
+      buckets[at >= startOfToday ? 0 : at >= startOfToday - weekMs ? 1 : 2].items.push(project)
+    }
+    chatGroups.push(...buckets.filter(b => b.items.length))
+  }
+
+  const chatButton = (project: (typeof visibleProjects)[number]) => (
+    <button
+      type="button"
+      key={project.id}
+      className={cn('conversation-sidebar__chat', project.id === selectedProjectId && 'is-active')}
+      onClick={() => go(`/p/${project.id}`)}
+      title={project.title}
+    >
+      <MessageSquare size={13} />
+      <span>{project.title || 'Untitled project'}</span>
+      {project.busy && <i aria-label="Working" />}
+    </button>
+  )
+
+  // The collapsed rail's hover panel: the same recents, flying out.
+  const railQuery = historyQuery.trim().toLowerCase()
+  const railChats = projects
+    .filter(p => !railQuery || p.title.toLowerCase().includes(railQuery))
+    .slice(0, 8)
+
+  useEffect(() => {
+    const startNewChat = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return
+      event.preventDefault()
+      navigate('/new')
+      if (isMobile) onClose()
+    }
+    window.addEventListener('keydown', startNewChat)
+    return () => window.removeEventListener('keydown', startNewChat)
+  }, [isMobile, navigate, onClose])
+
+  return (
+    <>
+      {isMobile && !collapsed && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-40 border-0 bg-black/20 backdrop-blur-[6px]"
+          onClick={onClose}
+        />
+      )}
+      {!isMobile && !collapsed && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="conversation-sidebar__scrim"
+          onClick={onClose}
+        />
+      )}
+      <aside
+        className={cn(
+          'conversation-sidebar flex shrink-0 flex-col',
+          isMobile && 'fixed inset-y-0 left-0 z-50 transition-transform duration-200',
+          isMobile && collapsed && '-translate-x-full',
+          !isMobile && collapsed && 'is-collapsed',
+        )}
+      >
+        <div className="conversation-sidebar__brand">
+          <button
+            type="button"
+            className="conversation-sidebar__wordmark"
+            onClick={() => go('/new')}
+          >
+            <img src={tabLogoB} alt="" />
+            <PitchWordmark className="conversation-sidebar__wordmark-svg" />
+          </button>
+          <button
+            type="button"
+            className="conversation-sidebar__icon"
+            onClick={isMobile ? onClose : onToggle}
+            aria-label="Collapse sidebar"
+          >
+            {isMobile ? <X size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        </div>
+
+        <nav className="conversation-sidebar__primary" aria-label="Primary">
+          <button
+            type="button"
+            className={cn(
+              'conversation-sidebar__new',
+              selectedKey.startsWith('new') && 'is-active',
+            )}
+            onClick={() => go('/new')}
+          >
+            <Plus size={17} />
+            <span>New chat</span>
+          </button>
+          <button
+            type="button"
+            className={cn('conversation-sidebar__row', selectedKey === 'sessions' && 'is-active')}
+            onClick={() => go('/sessions')}
+          >
+            <AppWindow size={16} />
+            <span>Browser sessions</span>
+          </button>
+          <button
+            type="button"
+            className="conversation-sidebar__row"
+            onClick={() => openSettings('mcp')}
+          >
+            <PlugZap size={16} />
+            <span>API / MCP</span>
+          </button>
+          {isAdmin && (
             <button
-              onClick={() => onSearchChange('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer text-xs"
+              type="button"
+              className={cn('conversation-sidebar__row', selectedKey === 'admin' && 'is-active')}
+              onClick={() => go('/admin')}
             >
-              ✕
+              <Shield size={16} />
+              <span>Admin</span>
             </button>
           )}
+        </nav>
+
+        <div className="conversation-sidebar__search">
+          <Search size={14} />
+          <input
+            aria-label="Search chats"
+            placeholder="Search chats…"
+            value={projectQuery}
+            onChange={event => setProjectQuery(event.target.value)}
+          />
         </div>
-      </div>
-    ) : isDetailPage && title ? (
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[200px] sm:max-w-sm hidden md:block">
-        <p className="text-base font-medium text-gray-900 truncate">{title}</p>
-      </div>
-    ) : null}
 
-    {/* Right: actions + credits (credits kept right-most) */}
-    <div className="flex items-center gap-2 md:gap-3 shrink-0">
-      {isSettingsPage && onSignOut ? (
-        <button
-          onClick={onSignOut}
-          className="flex items-center justify-center gap-1.5 w-9 h-9 px-0 md:w-auto md:h-auto md:px-3.5 md:py-2 bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium rounded-lg transition-colors border-none cursor-pointer"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="conversation-sidebar__history">
+          {visibleProjects.length ? (
+            normalizedQuery ? (
+              <>
+                <p className="conversation-sidebar__section-title">Recent chats</p>
+                {visibleProjects.map(chatButton)}
+              </>
+            ) : (
+              chatGroups.map(group => (
+                <div key={group.label} className="conversation-sidebar__group">
+                  <p className="conversation-sidebar__section-title">{group.label}</p>
+                  {group.items.map(chatButton)}
+                </div>
+              ))
+            )
+          ) : (
+            <span className="conversation-sidebar__empty">
+              {projectQuery ? 'No matching chats' : 'Your projects will appear here'}
+            </span>
+          )}
+        </div>
+
+        <div className="conversation-sidebar__footer">
+          <a
+            className="conversation-sidebar__discord"
+            href="https://discord.gg/a4SBW36mD"
+            target="_blank"
+            rel="noreferrer"
           >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span className="hidden sm:inline">Sign Out</span>
-        </button>
-      ) : !isMobile && !isDetailPage && !isPricingPage ? (
-        <button
-          onClick={onNew}
-          className="flex items-center gap-1.5 px-3 py-1.5 md:px-3.5 md:py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
-          id="new-project-btn"
-        >
-          <IconPlus />
-          <span className="hidden sm:inline">New project</span>
-        </button>
-      ) : null}
-
-      {isMobile && (
-        <button
-          onClick={onToggle}
-          className="text-gray-900 transition-colors w-9 h-9 flex items-center justify-center ml-1 rounded-lg border border-gray-200 hover:bg-gray-50 bg-white cursor-pointer"
-          id="sidebar-toggle-btn"
-        >
-          <IconMenu />
-        </button>
+            <FaDiscord size={16} />
+            <span>Discord Community</span>
+          </a>
+          <button
+            type="button"
+            className="conversation-sidebar__invite"
+            onClick={() => openSettings('rewards')}
+          >
+            <Gift size={16} />
+            <span>
+              <strong>Invite a friend</strong>
+              <small>Earn credits when they sign up</small>
+            </span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </aside>
+      {!isMobile && (
+        <aside className="conversation-sidebar__rail" aria-label="Quick navigation">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+            title={collapsed ? 'Open sidebar' : 'Close sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
+          <button type="button" onClick={() => go('/new')} aria-label="New chat" title="New chat">
+            <Plus size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => go('/sessions')}
+            aria-label="Browser sessions"
+            title="Browser sessions"
+          >
+            <AppWindow size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => openSettings('mcp')}
+            aria-label="API and MCP"
+            title="API / MCP"
+          >
+            <PlugZap size={16} />
+          </button>
+          {isAdmin && (
+            <button type="button" onClick={() => go('/admin')} aria-label="Admin" title="Admin">
+              <Shield size={16} />
+            </button>
+          )}
+          <div
+            className="conversation-sidebar__rail-pop"
+            onMouseEnter={() => setHistoryOpen(true)}
+            onMouseLeave={() => {
+              setHistoryOpen(false)
+              setHistoryQuery('')
+            }}
+            onFocus={() => setHistoryOpen(true)}
+            onBlur={e => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setHistoryOpen(false)
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => go('/sessions')}
+              aria-label="Recent chats"
+              title="Recent chats"
+              aria-expanded={historyOpen}
+            >
+              <History size={16} />
+            </button>
+            {historyOpen && (
+              <div className="conversation-sidebar__rail-history">
+                <p>History</p>
+                <div className="conversation-sidebar__rail-history-list">
+                  {railChats.length ? (
+                    railChats.map(project => (
+                      <button
+                        type="button"
+                        key={project.id}
+                        onClick={() => go(`/p/${project.id}`)}
+                        title={project.title}
+                      >
+                        <MessageSquare size={13} />
+                        <span>{project.title || 'Untitled project'}</span>
+                        {project.busy && <i aria-label="Working" />}
+                      </button>
+                    ))
+                  ) : (
+                    <span className="conversation-sidebar__rail-history-empty">
+                      {historyQuery ? 'No matching chats' : 'No chats yet'}
+                    </span>
+                  )}
+                </div>
+                <div className="conversation-sidebar__rail-history-search">
+                  <Search size={12} />
+                  <input
+                    aria-label="Search all chats"
+                    placeholder="Search all chats"
+                    value={historyQuery}
+                    onChange={e => setHistoryQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <span />
+          <button
+            type="button"
+            onClick={() => {
+              window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+            }}
+            aria-label="Discord Community"
+            title="Discord Community"
+          >
+            <FaDiscord size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => openSettings('rewards')}
+            aria-label="Invite a friend"
+            title="Invite a friend"
+          >
+            <Gift size={16} />
+          </button>
+        </aside>
       )}
-    </div>
-  </header>
-)
+    </>
+  )
+}
 
 // ── Studio route ──────────────────────────────────────────────────────────────
 function StudioRoute() {
   const { id } = useParams<{ id: string }>()
-  if (!id) return <Navigate to="/projects" replace />
+  if (!id) return <Navigate to="/new" replace />
   return <StudioView projectId={id} />
 }
 
 // ── App Content ───────────────────────────────────────────────────────────────
 function AppContent() {
   const { getToken, isLoaded, userId } = useAuth()
-  const { signOut } = useClerk()
   const { user } = useUser()
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
-  const [collapsed, setCollapsed] = useState(window.innerWidth < 1024)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [collapsed, setCollapsed] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-
-  // Track whether the user has selected a specific template (detail mode)
-  const [templatesInDetail, setTemplatesInDetail] = useState(false)
-  const [clearTemplatesSelection, setClearTemplatesSelection] = useState<(() => void) | null>(null)
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -899,7 +978,7 @@ function AppContent() {
 
   // ── Route → nav key ────────────────────────────────────────────────────────
   const path = location.pathname
-  let selectedKey = 'projects'
+  let selectedKey = 'new'
   if (path.startsWith('/new')) {
     const flow = new URLSearchParams(location.search).get('flow')
     selectedKey = isFlowId(flow) ? `new-${flow}` : 'new'
@@ -921,30 +1000,16 @@ function AppContent() {
     selectedKey = 'templates'
   }
 
-  /**
-   * Stable identity, deliberately.
-   *
-   * TemplatesView registers its clear-selection function from an effect keyed
-   * on this prop. Passed as an inline arrow it was a new function on every
-   * App render, so the effect re-fired, set state here, re-rendered App, and
-   * made another new function — "Maximum update depth exceeded" on /templates.
-   */
-  const onClearTemplatesSelectionReady = useCallback(
-    (fn: (() => void) | null) => setClearTemplatesSelection(() => fn),
-    [],
-  )
-
   const shell = useMemo(
-    () => ({ isMobile, toggleSidebar: () => setCollapsed(c => !c) }),
+    () => ({
+      isMobile,
+      toggleSidebar: () => setCollapsed(c => !c),
+      openSettings: (section: SettingsSection = 'account') => setSettingsSection(section),
+    }),
     [isMobile],
   )
 
   const isStudio = selectedKey === 'studio'
-  const isDetailPage =
-    isStudio ||
-    selectedKey.startsWith('new') ||
-    selectedKey === 'settings' ||
-    (selectedKey === 'templates' && templatesInDetail)
 
   // Public share page — rendered before the Clerk-loading gate (same
   // treatment as `/` below) so it's instant for anonymous visitors clicking
@@ -1000,6 +1065,16 @@ function AppContent() {
     )
   }
 
+  // The affiliate pitch (/affiliates) — public, outside the shell. The
+  // signed-in dashboard with the actual link stays at /affiliate.
+  if (path === '/affiliates') {
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <AffiliatesView />
+      </Suspense>
+    )
+  }
+
   // Product pages (/product/:slug) — standalone marketing pages, same
   // treatment as `/`: rendered outside the signed-in/out app shell.
   if (path.startsWith('/product/')) {
@@ -1016,85 +1091,49 @@ function AppContent() {
       <Show when="signed-in">
         <AppShellContext.Provider value={shell}>
           <div
-            className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
-            style={{ backgroundColor: '#e6e6e6' }}
+            className="app-shell-bg flex h-screen w-screen overflow-hidden"
+            style={{ backgroundColor: '#ededed' }}
           >
             <OnboardingSurvey />
-            {(!isMobile ? selectedKey !== 'settings' && !isStudio : true) && (
-              <Sidebar
-                selectedKey={selectedKey}
-                navigate={p => {
-                  navigate(p)
-                  if (isMobile) setCollapsed(true)
-                }}
-                isMobile={isMobile}
-                collapsed={collapsed}
-                onClose={() => setCollapsed(true)}
-                isAdmin={isAdmin}
+            {settingsSection && (
+              <SettingsModal
+                section={settingsSection}
+                onSectionChange={setSettingsSection}
+                onClose={() => setSettingsSection(null)}
               />
             )}
+            <Sidebar
+              selectedKey={selectedKey}
+              selectedProjectId={path.startsWith('/p/') ? path.split('/')[2] : undefined}
+              navigate={p => {
+                navigate(p)
+                if (isMobile) setCollapsed(true)
+              }}
+              isMobile={isMobile}
+              collapsed={collapsed}
+              onClose={() => setCollapsed(true)}
+              onToggle={() => setCollapsed(value => !value)}
+              isAdmin={isAdmin}
+              openSettings={section => setSettingsSection(section ?? 'account')}
+            />
 
             <div
-              className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200"
+              className="app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l border-gray-200"
               style={{ backgroundColor: '#ffffff' }}
             >
-              {/* The studio route draws its own header (see Topbar in
-                StudioView) — rendering this one too gave every project two
-                stacked bars with two identical back buttons. */}
-              {!isStudio && (
-                <TopHeader
-                  isMobile={isMobile}
-                  isDetailPage={isDetailPage}
-                  backLabel={
-                    selectedKey === 'templates' && templatesInDetail
-                      ? 'Back to Templates Gallery'
-                      : undefined
-                  }
-                  showSearch={selectedKey === 'projects'}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onToggle={() => setCollapsed(c => !c)}
-                  onNew={() => navigate('/new')}
-                  onBack={() => {
-                    if (selectedKey === 'templates' && templatesInDetail) {
-                      clearTemplatesSelection?.()
-                    } else {
-                      navigate('/projects')
-                    }
-                  }}
-                  title={
-                    selectedKey === 'pricing'
-                      ? 'Pricing'
-                      : selectedKey === 'templates' && !templatesInDetail
-                        ? 'Templates'
-                        : undefined
-                  }
-                  isPricingPage={selectedKey === 'pricing'}
-                  isSettingsPage={selectedKey === 'settings'}
-                  onSignOut={() => signOut()}
-                />
-              )}
-
               <main
                 className={cn(
-                  'app-shell-main flex-1 overflow-x-hidden bg-white rounded-b-2xl relative',
+                  'app-shell-main flex-1 overflow-x-hidden bg-white relative',
                   isStudio ? 'overflow-hidden' : 'overflow-y-auto',
+                  selectedKey.startsWith('new') && 'new-shell-main',
                 )}
               >
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    <Route path="/projects" element={<ProjectsView searchQuery={searchQuery} />} />
+                    <Route path="/projects" element={<Navigate to="/new" replace />} />
                     <Route path="/new" element={<NewProjectView />} />
                     <Route path="/p/:id" element={<StudioRoute />} />
-                    <Route
-                      path="/templates"
-                      element={
-                        <TemplatesView
-                          onDetailModeChange={setTemplatesInDetail}
-                          onClearSelectionReady={onClearTemplatesSelectionReady}
-                        />
-                      }
-                    />
+                    <Route path="/templates" element={<TemplatesView />} />
                     <Route path="/pricing" element={<PricingView />} />
                     <Route path="/settings" element={<SettingsView />} />
                     <Route path="/api-keys" element={<ApiKeysView />} />
@@ -1107,7 +1146,7 @@ function AppContent() {
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />
                     {/* Old app URLs → the studio. */}
-                    <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
+                    <Route path="/dashboard" element={<Navigate to="/new" replace />} />
                     <Route path="/pdf" element={<Navigate to="/new?flow=deck" replace />} />
                     <Route path="/enhance" element={<Navigate to="/new?flow=deck" replace />} />
                     <Route

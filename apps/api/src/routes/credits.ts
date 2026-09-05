@@ -22,8 +22,28 @@ router.get('/', async (req, res) => {
   if (!userId) return
 
   try {
-    const summary = await db.getCreditSummary(userId)
-    res.json(summary)
+    const [summary, projects] = await Promise.all([
+      db.getCreditSummary(userId),
+      db.prisma.project.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          title: true,
+          creditsCharged: true,
+          usageUsd: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+      }),
+    ])
+    res.json({
+      ...summary,
+      usage: {
+        credits: projects.reduce((total, project) => total + project.creditsCharged, 0),
+        usd: projects.reduce((total, project) => total + project.usageUsd, 0),
+        projects,
+      },
+    })
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to fetch credits')
     res.status(500).json({ error: error.message })

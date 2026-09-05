@@ -152,7 +152,9 @@ export const LandingNav = () => {
   const mobileMenuId = useId()
   const mobileButtonRef = useRef<HTMLButtonElement>(null)
 
-  const affiliatesHref = isSignedIn ? '/affiliate' : '/sign-up?redirect=%2Faffiliate'
+  // The pitch is public now, so the nav points everyone at it; its own CTA is
+  // what routes you on to the dashboard or to sign-up.
+  const affiliatesHref = '/affiliates'
 
   useEffect(() => {
     if (!mobileOpen) return
@@ -241,11 +243,7 @@ export const LandingNav = () => {
 
             {/* Theme toggle intentionally hidden while the site is light-only. */}
 
-            <Link
-              to={isSignedIn ? '/projects' : '/sign-up'}
-              className="lb-cta"
-              onClick={closeMobile}
-            >
+            <Link to={isSignedIn ? '/new' : '/sign-up'} className="lb-cta" onClick={closeMobile}>
               {isSignedIn ? 'Dashboard' : 'Get started'}
             </Link>
 

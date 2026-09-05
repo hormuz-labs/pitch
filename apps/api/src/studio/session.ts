@@ -264,6 +264,8 @@ export interface OpenSessionOptions {
   /** The user's words this turn, so a new need widens the toolkit. */
   prompt?: string
   uploads?: string[]
+  /** A `provider/id` the user picked in the composer; falls back to STUDIO_MODEL. */
+  model?: string
 }
 
 /**
@@ -344,7 +346,7 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
     const { session } = await createAgentSession({
       cwd: ws.dir,
       modelRuntime,
-      ...resolveModel(),
+      ...resolveModel(opts.model),
       sessionManager,
       resourceLoader,
       // Sandboxed: pi's built-ins run inside the VM, so they stay as they are.
@@ -407,6 +409,25 @@ export function peekSession(projectId: string): Session | undefined {
   return sessions.get(projectId)
 }
 
+export const STUDIO_DEFAULT_MODEL = MODEL_SPEC
+
+/**
+ * What the composer's model picker may offer: only models the runtime can
+ * actually run — a provider without a configured key would fail the turn.
+ */
+export async function listStudioModels(): Promise<{ spec: string; label: string }[]> {
+  await initStudio()
+  const seen = new Set<string>()
+  const out: { spec: string; label: string }[] = []
+  for (const m of await modelRuntime.getAvailable()) {
+    const spec = `${m.provider}/${m.id}`
+    if (seen.has(spec)) continue
+    seen.add(spec)
+    out.push({ spec, label: m.name || m.id })
+  }
+  return out
+}
+
 /**
  * Model spend since the last time this was called, in USD. Reading it zeroes
  * the counter so a turn is billed exactly once (projects/usage.ts).
@@ -445,6 +466,20 @@ async function activateTools(s: Session, opts: OpenSessionOptions): Promise<void
   }
 }
 
+/**
+ * Switch a live session to the model the user picked. pi's setModel validates
+ * auth itself and records the change in the transcript, so a resumed session
+ * keeps the choice.
+ */
+async function applyModel(s: Session, spec: string): Promise<void> {
+  const { model } = resolveModel(spec)
+  if (!model) return
+  const current = s.session.model
+  if (current && current.provider === model.provider && current.id === model.id) return
+  await s.session.setModel(model)
+  logger.info({ projectId: s.projectId, model: spec }, 'session model switched')
+}
+
 /** Fire-and-forget prompt; `context` rides along in a tagged block. */
 export async function promptSession(
   opts: OpenSessionOptions,
@@ -452,6 +487,7 @@ export async function promptSession(
   context?: string,
 ): Promise<Session> {
   const s = await getSession(opts)
+  if (opts.model) await applyModel(s, opts.model)
   if (s.busy) {
     const err: any = new Error('The agent is still working on this project')
     err.code = 'BUSY'

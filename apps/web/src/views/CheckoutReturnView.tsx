@@ -184,7 +184,7 @@ export const CheckoutReturnView = () => {
       email={receipt.email || user?.primaryEmailAddress?.emailAddress}
       label={receipt.label}
       payerName={user?.fullName || 'there'}
-      onClose={() => navigate('/projects')}
+      onClose={() => navigate('/new')}
       onRetry={() => navigate('/pricing')}
     />
   )

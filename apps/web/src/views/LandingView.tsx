@@ -218,7 +218,7 @@ export const LandingView = () => {
                 >
                   Book a demo
                 </a>
-                <a href={isSignedIn ? '/projects' : '/sign-up'} className="lb-endcap-primary">
+                <a href={isSignedIn ? '/new' : '/sign-up'} className="lb-endcap-primary">
                   {isSignedIn ? 'Open dashboard' : 'Get started'}
                 </a>
               </div>

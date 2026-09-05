@@ -14,6 +14,38 @@ import '../styles/landing.css'
 import '../styles/landing-broadcast.css'
 import '../styles/docs.css'
 
+const escapeCode = (value: string) =>
+  value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+
+const syntaxToken =
+  /(^[ \t]*#[^\n]*|^[ \t]*\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\$\{[^}]+\}|\$[A-Za-z_][\w]*|\b(?:async|await|break|case|catch|class|const|continue|curl|default|delete|do|else|export|extends|false|finally|for|from|function|get|if|import|in|instanceof|let|new|null|patch|post|return|set|static|switch|throw|true|try|typeof|var|while)\b|\b\d+(?:\.\d+)?\b)/gim
+
+const tokenClass = (token: string) => {
+  const trimmed = token.trimStart()
+  if (trimmed.startsWith('#') || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+    return 'hljs-comment'
+  }
+  if (/^["'`]/.test(token)) return 'hljs-string'
+  if (token.startsWith('$')) return 'hljs-variable'
+  if (/^\d/.test(token)) return 'hljs-number'
+  if (/^(true|false|null)$/i.test(token)) return 'hljs-literal'
+  return 'hljs-keyword'
+}
+
+const highlightedCode = (code: string, lang?: string) => {
+  if (!lang || lang === 'text') return null
+
+  let cursor = 0
+  let html = ''
+  for (const match of code.matchAll(syntaxToken)) {
+    const index = match.index ?? 0
+    html += escapeCode(code.slice(cursor, index))
+    html += `<span class="${tokenClass(match[0])}">${escapeCode(match[0])}</span>`
+    cursor = index + match[0].length
+  }
+  return html + escapeCode(code.slice(cursor))
+}
+
 const anchor = (text: string) =>
   text
     .toLowerCase()
@@ -22,6 +54,7 @@ const anchor = (text: string) =>
 
 const CodeBlock = ({ code, lang }: { code: string; lang?: string }) => {
   const [copied, setCopied] = useState(false)
+  const highlighted = highlightedCode(code, lang)
   const copy = () => {
     navigator.clipboard?.writeText(code).catch(() => {})
     setCopied(true)
@@ -37,7 +70,14 @@ const CodeBlock = ({ code, lang }: { code: string; lang?: string }) => {
         </button>
       </div>
       <pre>
-        <code>{code}</code>
+        {highlighted ? (
+          <code
+            className={`hljs language-${lang}`}
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+          />
+        ) : (
+          <code>{code}</code>
+        )}
       </pre>
     </div>
   )
@@ -123,7 +163,23 @@ export const DocsView = ({ slug = '' }: { slug?: string }) => {
     const id = window.location.hash.slice(1)
     if (id) document.getElementById(id)?.scrollIntoView()
     else window.scrollTo(0, 0)
-  }, [])
+  }, [slug])
+
+  // The mobile navigation is a viewport sheet. Keep the article from moving
+  // behind it and support the same Escape-to-close behavior as a dialog.
+  useEffect(() => {
+    if (!navOpen) return
+    const previousOverflow = document.body.style.overflow
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setNavOpen(false)
+    }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [navOpen])
 
   // Highlight the heading nearest the top of the viewport.
   useEffect(() => {
@@ -179,6 +235,8 @@ export const DocsView = ({ slug = '' }: { slug?: string }) => {
               className="docs-menu-btn"
               onClick={() => setNavOpen(v => !v)}
               aria-label={navOpen ? 'Close navigation' : 'Open navigation'}
+              aria-expanded={navOpen}
+              aria-controls="docs-mobile-navigation"
             >
               {navOpen ? <X size={17} /> : <Menu size={17} />}
             </button>
@@ -186,7 +244,7 @@ export const DocsView = ({ slug = '' }: { slug?: string }) => {
         </header>
 
         <div className="docs-shell">
-          <aside className={`docs-side${navOpen ? ' is-open' : ''}`}>
+          <aside id="docs-mobile-navigation" className={`docs-side${navOpen ? ' is-open' : ''}`}>
             {groups.map(group => (
               <div key={group} className="docs-side-group">
                 <p className="docs-side-title">{group}</p>

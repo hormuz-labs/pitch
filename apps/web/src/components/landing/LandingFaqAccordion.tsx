@@ -3,13 +3,14 @@ import { MinusIcon, PlusIcon } from 'lucide-react'
 
 import { Accordion, AccordionContent, AccordionItem } from '@/components/accordion'
 
-type AccordionItemData = {
+export type AccordionItemData = {
   value: string
   title: string
   content: string
 }
 
-const items: readonly AccordionItemData[] = [
+/** The product questions — what /pricing and the landing page ask. */
+const PRODUCT_FAQ: readonly AccordionItemData[] = [
   {
     value: 'faq-1',
     title: 'How is Pitch different from Loom?',
@@ -48,7 +49,17 @@ const items: readonly AccordionItemData[] = [
   },
 ] as const
 
-export const LandingFaqAccordion = () => {
+/**
+ * The site's one accordion. It defaults to the product questions so the
+ * pricing page can drop it in bare, and takes its own set for pages that ask
+ * something else — /affiliates, say.
+ */
+export const LandingFaqAccordion = ({
+  items = PRODUCT_FAQ,
+}: {
+  items?: readonly AccordionItemData[]
+}) => {
+  if (items.length === 0) return null
   return (
     <Accordion className="landing-faq-accordion" type="multiple" defaultValue={[items[0].value]}>
       {items.map(item => (

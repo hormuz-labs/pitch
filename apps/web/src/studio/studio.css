@@ -3031,3 +3031,278 @@ to {
   background: var(--accent);
   color: #fff;
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Studio chrome, aligned with the rest of the product
+   ──────────────────────────────────────────────────────────────────────────
+   The studio was written before /new and the landing settled on one visual
+   language, so it carried its own: an orange accent, 8px corners, Inter, a
+   near-white page. Everything below re-grounds the chrome on what the front
+   door already uses — the #ededed marble canvas, white panels on hairline
+   borders, pill buttons, ink instead of a warm accent, Geist — WITHOUT
+   touching the stage, which stays dark because it is a monitor, exactly as
+   the landing shows its films on #060606.
+
+   Tokens first: the strips, tray, asset cards, composer and thread all read
+   from them, so re-pointing the tokens moves the whole surface at once and
+   the rules after this only fix shapes the tokens cannot carry.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.lv-studio {
+  --paper: #ededed;
+  --panel: #ffffff;
+  --panel-2: #f4f3f1;
+  --ink: #111111;
+  --muted: #56514d;
+  --faint: #8f8b86;
+  --border: #dcdbd8;
+
+  /* One accent for the whole product: the landing's blue, used the way the
+     landing uses it — selection, focus, the live dot. Never a button fill. */
+  --accent: #1385d6;
+  --accent-hover: #0f6fb4;
+  --accent-soft: #e7f1fb;
+  --accent-ink: #0f6fb4;
+
+  --sans: 'Geist Variable', 'Geist', Inter, system-ui, sans-serif;
+}
+
+/* The page itself, and the shell panel it sits in. */
+.lv-studio .editor-wrap { background: var(--paper); }
+
+/* ── the header bar ─────────────────────────────────────────────────────── */
+
+.lv-studio .job-topbar {
+  height: 60px;
+  padding: 0 16px;
+  gap: 12px;
+  background: var(--panel);
+}
+
+.lv-studio .job-topbar .editor-project {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* Pills, like every other button in the product. */
+.lv-studio .topbar-btn,
+.lv-studio .topbar-shell button {
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12.5px;
+  border-color: var(--border);
+  color: var(--muted);
+  background: transparent;
+}
+.lv-studio .topbar-btn:hover:not(:disabled),
+.lv-studio .topbar-shell button:hover:not(:disabled) {
+  border-color: #b9b5b1;
+  background: var(--panel-2);
+  color: var(--ink);
+}
+.lv-studio .topbar-btn.primary,
+.lv-studio .topbar-btn.primary:hover:not(:disabled) {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+.lv-studio .topbar-btn.export { min-width: 122px; }
+.lv-studio .topbar-btn.export.open { background: var(--panel-2); border-color: #b9b5b1; }
+
+/* Danger reads as danger only once you are on it — a red button sitting in
+   the bar all day is a threat, not a control. */
+.lv-studio .topbar-btn.danger { color: var(--faint); border-color: var(--border); }
+.lv-studio .topbar-btn.danger:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: rgba(192, 57, 43, 0.45);
+  background: rgba(192, 57, 43, 0.05);
+}
+
+/* Status pills: lowercase and quiet, matching the chips on /new rather than
+   the uppercase mono badges this bar used to carry. */
+.lv-studio .status-pill {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 450;
+  font-size: 11.5px;
+  padding: 3px 10px;
+  color: var(--faint);
+  background: var(--panel-2);
+  border-color: transparent;
+}
+.lv-studio .status-pill.busy {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.lv-studio .status-pill.ready {
+  color: #2f6b48;
+  background: #e9f3ec;
+  border-color: transparent;
+}
+
+.lv-studio .export-menu {
+  border-radius: 14px;
+  border-color: var(--border);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 10%), 0 2px 6px rgb(0 0 0 / 4%);
+}
+.lv-studio .topbar-btn.export .export-fill { background: var(--accent-soft); }
+
+/* ── the agent panel ────────────────────────────────────────────────────── */
+
+.lv-studio .edit-sidebar {
+  /* Width arrives as a custom property so the drag can set it on desktop and
+     a media query can drop it for a stacked phone layout without !important. */
+  width: var(--sidebar-w, 420px);
+  background: var(--paper);
+  border-left: 1px solid var(--border);
+}
+.lv-studio .feed-header { padding: 14px 18px 2px; }
+.lv-studio .feed-header h2 {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+.lv-studio .feed { padding: 12px 18px 14px; }
+.lv-studio .feed-empty { font-size: 12.5px; color: var(--faint); }
+.lv-studio .msg { font-size: 13px; border-radius: 14px; }
+.lv-studio .msg.user { background: var(--ink); color: #ffffff; }
+
+.lv-studio .composer-wrap { max-width: none; }
+.lv-studio .composer-box {
+  border-radius: 18px;
+  border-color: #d6d5d2;
+  box-shadow: 0 16px 42px rgb(0 0 0 / 6%), 0 2px 7px rgb(0 0 0 / 3%);
+}
+.lv-studio .composer-box:focus-within {
+  border-color: #aaa8a4;
+  box-shadow: 0 20px 48px rgb(0 0 0 / 8%), 0 0 0 3px rgb(0 0 0 / 3%);
+}
+.lv-studio .composer-box textarea { font-size: 14px; color: #171615; }
+.lv-studio .send-btn { border-radius: 999px; }
+.lv-studio .music-btn { font-size: 12px; color: var(--muted); }
+.lv-studio .music-btn:hover:not(:disabled) { border-color: #b9b5b1; }
+.lv-studio .music-btn-icon { color: var(--muted); }
+
+/* The drag handle only means anything while the two panes sit side by side. */
+.lv-studio .resize-handle:active::after { background: var(--ink); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Responsive
+   ──────────────────────────────────────────────────────────────────────────
+   The editor was a fixed two-column layout at every width: below about a
+   thousand pixels the stage and the thread were both too narrow to use. It
+   now stacks — artifact on top, agent beneath it — and each keeps its own
+   scroll so the composer stays on screen and the page itself never scrolls.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1180px) {
+  .lv-studio .edit-sidebar { width: clamp(320px, 34vw, 420px); }
+}
+
+@media (max-width: 900px) {
+  .lv-studio .editor { flex-direction: column; }
+  /* Enough of the artifact to judge it, the rest of the height to the
+     conversation that changes it. */
+  .lv-studio .editor-stage {
+    flex: 0 0 auto;
+    height: clamp(220px, 40vh, 380px);
+    min-height: 0;
+  }
+  .lv-studio .player { padding: 12px; }
+  .lv-studio .resize-handle { display: none; }
+  .lv-studio .edit-sidebar {
+    width: auto;
+    max-width: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 720px) {
+  .lv-studio .editor-stage { height: clamp(200px, 36vh, 300px); }
+  .lv-studio .feed { padding: 10px 12px 12px; }
+  .lv-studio .feed-header { padding: 10px 12px 2px; }
+  .lv-studio .composer-wrap { padding: 0 12px 12px; }
+  .lv-studio .msg { max-width: 94%; }
+  /* The tray's tabs and cards scroll sideways rather than wrapping into a
+     second row that would eat the stage. */
+  .lv-studio .tray-tabs { overflow-x: auto; scrollbar-width: none; }
+  .lv-studio .tray-tabs::-webkit-scrollbar { display: none; }
+}
+
+/* Once the layout stacks, the bar cannot hold the title and every control on
+   one line: something has to give, and previously it was the title — the one
+   thing that tells you which project you are in — while the buttons broke
+   their own labels across two lines. So the bar wraps to two rows instead,
+   back arrow and name above, actions beneath, and nothing is dropped. Delete
+   comes back with them; it is only a click away from a confirm dialog. */
+.lv-studio .topbar-btn { white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .lv-studio .job-topbar {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .lv-studio .job-topbar .nav-crumb {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lv-studio .job-topbar .editor-project {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .lv-studio .topbar-actions {
+    flex: 1 0 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+    gap: 6px;
+    /* On the narrowest phones even the actions alone do not fit one line, so
+       they wrap rather than pushing the bar off the screen. */
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  /* Delete is no longer competing with the title for the same line. */
+  .lv-studio .job-topbar .topbar-btn.danger { display: inline-flex; }
+  /* Tightened just enough that Stop, the export, the link, delete and the
+     menu land on one row under the title instead of spilling onto a third. */
+  .lv-studio .job-topbar .topbar-btn {
+    padding: 5px 9px;
+    font-size: 12px;
+  }
+  .lv-studio .topbar-shell {
+    margin-left: 2px;
+    padding-left: 6px;
+  }
+  .lv-studio .topbar-btn.export {
+    min-width: 0;
+    max-width: 180px;
+  }
+  .lv-studio .topbar-btn.export .export-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Phones: the render label is the first thing that has to give, since the
+   stage behind it is already showing what it is rendering. */
+@media (max-width: 480px) {
+  .lv-studio .topbar-btn.export { max-width: 132px; }
+}
