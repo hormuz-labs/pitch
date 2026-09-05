@@ -75,7 +75,19 @@ router.use('/projects/:internal', previewAuth, (req, res, next) => {
     )
     return
   }
-  express.static(dir, { dotfiles: 'deny' })(req, res, next)
+  // A download link names the file it should save as; the browser ignores
+  // the `download` attribute across origins, so the header has to say it.
+  const saveAs = typeof req.query.download === 'string' ? req.query.download : null
+  express.static(dir, {
+    dotfiles: 'deny',
+    setHeaders: saveAs
+      ? r =>
+          r.setHeader(
+            'Content-Disposition',
+            `attachment; filename*=UTF-8''${encodeURIComponent(saveAs)}`,
+          )
+      : undefined,
+  })(req, res, next)
 })
 
 router.use('/engine', previewAuth, express.static(ENGINE_DIR, { maxAge: '5m' }))

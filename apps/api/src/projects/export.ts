@@ -39,7 +39,7 @@ export interface Exporter {
     p: ProjectRow,
     opts: Record<string, any>,
     publish: (o: Output) => Promise<void>,
-  ): ExportStatus
+  ): ExportStatus | Promise<ExportStatus>
   status(projectId: string): ExportStatus
   cancel(projectId: string): boolean
 }
@@ -114,5 +114,5 @@ export async function exportProject(
   const detail = await getProject(userId, id)
   if (!detail.description.preview)
     throw Object.assign(new Error('nothing to export yet'), { status: 409 })
-  return exporter.start(p, body, o => addOutput(userId, id, o).then(() => undefined))
+  return await exporter.start(p, body, o => addOutput(userId, id, o).then(() => undefined))
 }

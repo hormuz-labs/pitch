@@ -613,11 +613,11 @@ export function useProject(id: string | undefined) {
   const download = useCallback(
     (url: string, label: string) => {
       const a = document.createElement('a')
-      a.href = mediaUrl(url) ?? url
+      a.href = buildMediaUrl(url, mediaToken, undefined, { download: label }) ?? url
       a.download = label
       a.click()
     },
-    [mediaUrl],
+    [mediaToken],
   )
 
   const pollExport = useCallback(
@@ -732,6 +732,7 @@ export function useProject(id: string | undefined) {
     exportStatus,
     exportVideo,
     cancelExport,
+    download,
     send,
     stop,
     remove,

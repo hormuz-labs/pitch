@@ -142,12 +142,16 @@ function ExportMenu({ store }: { store: ProjectStore }) {
               : have
                 ? 'outdated · re-render'
                 : 'render'
+        const ready = have && !have.stale
         return {
           key: o.res,
           label: `${o.label}${paid === o.res ? ' · included' : ''}`,
           note: o.note,
           status,
-          onClick: () => void s.exportVideo({ res: o.res }),
+          onClick: () =>
+            ready
+              ? s.download(have.url, `${s.project?.title ?? 'export'}-${o.res}.mp4`)
+              : void s.exportVideo({ res: o.res }),
         }
       })
     : [...outputs, ...localOutputs.filter(l => !outputs.some(o => o.url === l.url))]

@@ -91,7 +91,7 @@ function naturalOrder(a: string, b: string): number {
   return na - nb
 }
 
-async function newestMtime(targets: string[]): Promise<number> {
+export async function newestMtime(targets: string[]): Promise<number> {
   let newest = 0
   for (const t of targets) {
     if (!existsSync(t)) continue

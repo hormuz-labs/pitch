@@ -2,9 +2,15 @@
  * MP4 export for launch videos: the skill's capture.mjs renderer (seek and
  * capture at 60 fps with the mix muxed) into renders/launch-<res>.mp4, then
  * published to object storage as a project output. One render per project.
+ *
+ * The download is always the workspace file, served by /files: object
+ * storage is where the output is PUBLISHED (share page, webhooks), and its
+ * public URL need not resolve from wherever the app is running. A render
+ * that is still newer than its sources is handed back, never redone.
  */
 import { type ChildProcess, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
@@ -14,7 +20,7 @@ import { nodeBinary } from '../../lib/node.js'
 import type { Exporter, ExportStatus } from '../../projects/export.js'
 import { type ProjectRow, workspaceOf } from '../../projects/service.js'
 import { fileUrl, MOTION_SKILL_DIR } from '../../studio/paths.js'
-import { RENDER_RESES, type RenderRes, renderFile } from './describe.js'
+import { newestMtime, RENDER_RESES, type RenderRes, renderFile, sourceTargets } from './describe.js'
 
 const logger = createLogger('studio:launch-export')
 const CAPTURE = path.join(MOTION_SKILL_DIR, 'scripts', 'capture.mjs')
@@ -53,7 +59,7 @@ export const launchExporter: Exporter = {
     }
     return true
   },
-  start(p, opts, publish) {
+  async start(p, opts, publish) {
     const existing = jobs.get(p.id)
     if (existing?.running) return statusOf(existing)
     const res = String(opts.res ?? '1080p') as RenderRes
@@ -62,6 +68,22 @@ export const launchExporter: Exporter = {
     const ws = workspaceOf(p)
     if (!existsSync(path.join(ws.dir, 'index.html')))
       throw Object.assign(new Error('nothing to render yet'), { status: 409 })
+    const outFile = renderFile(res)
+    if (!opts.force && (await isFresh(ws.dir, outFile))) {
+      const done: Job = {
+        ...IDLE,
+        res,
+        url: fileUrl(ws.internal, outFile),
+        progress: 100,
+        stage: 'done',
+        startedAt: Date.now(),
+        finishedAt: Date.now(),
+        proc: null,
+        tail: [],
+      }
+      jobs.set(p.id, done)
+      return statusOf(done)
+    }
     if (!existsSync(CAPTURE)) throw new Error('capture script not found')
     const job: Job = {
       ...IDLE,
@@ -73,7 +95,6 @@ export const launchExporter: Exporter = {
       tail: [],
     }
     jobs.set(p.id, job)
-    const outFile = renderFile(res)
     void ensureMix(ws.dir)
       .catch(err => logger.warn({ err, projectId: p.id }, 'mix step failed'))
       .finally(() => {
@@ -83,6 +104,14 @@ export const launchExporter: Exporter = {
       })
     return statusOf(job)
   },
+}
+
+/** The render exists and nothing it was cut from has changed since. */
+async function isFresh(dir: string, outFile: string): Promise<boolean> {
+  const file = path.join(dir, outFile)
+  if (!existsSync(file)) return false
+  const [st, sourcesAt] = await Promise.all([stat(file), newestMtime(sourceTargets(dir))])
+  return st.size > 0 && sourcesAt <= st.mtimeMs
 }
 
 function spawnCapture(
@@ -147,7 +176,6 @@ function spawnCapture(
             undefined,
             `pitch/${p.userId}/${p.name}/videos`,
           )
-          job.url = url
           await publish({
             kind: 'video',
             url,
@@ -156,7 +184,7 @@ function spawnCapture(
             createdAt: new Date().toISOString(),
           })
         } catch (err) {
-          logger.warn({ err, projectId: p.id }, 'render upload failed — serving the local file')
+          logger.warn({ err, projectId: p.id }, 'render publish failed — the local file stands')
         } finally {
           job.stage = 'done'
           job.running = false
