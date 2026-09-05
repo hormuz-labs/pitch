@@ -8,9 +8,7 @@ import {
 } from '@clerk/react'
 import {
   type ComponentType,
-  cloneElement,
   createContext,
-  isValidElement,
   lazy,
   Suspense,
   useCallback,
@@ -31,8 +29,24 @@ import {
 } from 'react-router-dom'
 import './index.css'
 import * as ToastPrimitive from '@radix-ui/react-toast'
-import { Key, X } from 'lucide-react'
+import {
+  ChevronRight,
+  Gift,
+  History,
+  Key,
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plug,
+  Plus,
+  Search,
+  Shapes,
+  Shield,
+  Users,
+  X,
+} from 'lucide-react'
 import { BiSolidZap } from 'react-icons/bi'
+import { FaDiscord } from 'react-icons/fa6'
 import tabLogoB from './assets/tabLogoB.svg'
 import { AnimatedAdminIcon } from './components/AnimatedAdminIcon'
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon'
@@ -42,15 +56,14 @@ import { AnimatedSettingsIcon } from './components/AnimatedSettingsIcon'
 import { AnimatedShareIcon } from './components/AnimatedShareIcon'
 import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
-import { CreditPopover } from './components/CreditPopover'
-import { FlowGlyph } from './components/FlowGlyph'
 import { LoadingCoin } from './components/LoadingCoin'
 import { OnboardingSurvey } from './components/OnboardingSurvey'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
+import { SettingsModal, type SettingsSection } from './components/SettingsModal'
 import { API_URL } from './config'
 import { api, isApiError } from './lib/api'
 import { captureRefFromUrl, getRefCode } from './lib/referral'
-import { FLOWS, type FlowId, isFlowId } from './lib/studio-api'
+import { isFlowId, listProjects, type Project } from './lib/studio-api'
 import { cn } from './lib/utils'
 import type { UserProfile } from './types'
 
@@ -77,7 +90,6 @@ const LandingView = lazyNamed(() => import('./views/LandingView'), 'LandingView'
 const NewProjectView = lazyNamed(() => import('./views/NewProjectView'), 'NewProjectView')
 const PricingView = lazyNamed(() => import('./views/PricingView'), 'PricingView')
 const ProductView = lazyNamed(() => import('./views/ProductView'), 'ProductView')
-const ProjectsView = lazyNamed(() => import('./views/ProjectsView'), 'ProjectsView')
 const PublicDemoView = lazyNamed(() => import('./views/PublicDemoView'), 'PublicDemoView')
 const PublicPricingView = lazyNamed(() => import('./views/PublicPricingView'), 'PublicPricingView')
 const SessionsView = lazyNamed(() => import('./views/SessionsView'), 'SessionsView')
@@ -126,10 +138,15 @@ interface ToastCtx {
 interface AppShellCtx {
   isMobile: boolean
   toggleSidebar: () => void
+  openSettings: (section?: SettingsSection) => void
 }
 const AppShellContext = createContext<AppShellCtx | null>(null)
 export const useAppShell = (): AppShellCtx =>
-  useContext(AppShellContext) ?? { isMobile: false, toggleSidebar: () => {} }
+  useContext(AppShellContext) ?? {
+    isMobile: false,
+    toggleSidebar: () => {},
+    openSettings: () => {},
+  }
 
 const ToastContext = createContext<ToastCtx | null>(null)
 export const useToast = () => {
@@ -298,21 +315,6 @@ const IconArrowLeft = () => (
     <polyline points="12 19 5 12 12 5" />
   </svg>
 )
-const IconChevronRight = () => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-)
-
 // ── Nav Item ─────────────────────────────────────────────────────────────────
 interface NavItemProps {
   icon: React.ReactNode
@@ -335,103 +337,8 @@ const NavItem = ({ icon, label, active, onClick }: NavItemProps) => (
   </button>
 )
 
-interface NavGroupChild {
-  key: string
-  label: string
-  path: string
-  icon?: React.ReactNode
-}
-interface NavGroupProps {
-  icon: React.ReactNode
-  label: string
-  children: NavGroupChild[]
-  selectedKey: string
-  onNavigate: (path: string) => void
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
-}
-const NavGroup = ({
-  icon,
-  label,
-  children,
-  selectedKey,
-  onNavigate,
-  isOpen,
-  onOpenChange,
-}: NavGroupProps) => {
-  const isChildActive = children.some(c => c.key === selectedKey)
-  const isActive = isOpen || isChildActive
-
-  const toggle = () => onOpenChange(!isOpen)
-
-  const animatedIcon = isValidElement<{ active?: boolean }>(icon)
-    ? cloneElement(icon, { active: isActive })
-    : icon
-
-  return (
-    <div className="space-y-1">
-      <button
-        onClick={toggle}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ease-out cursor-pointer border-none outline-none group
-          ${
-            isActive
-              ? 'bg-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 [background-size:200%_auto] [background-position:0%_center] hover:[background-position:100%_center] text-white shadow-sm'
-              : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent'
-          }`}
-      >
-        <span className="flex items-center gap-2.5">
-          <span
-            className={`transition-colors duration-200 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}
-          >
-            {animatedIcon}
-          </span>
-          {label}
-        </span>
-        <span
-          className={`transition-transform duration-200 ease-out ${isOpen ? 'rotate-90' : ''} ${isActive ? 'text-white/80' : 'text-gray-400'}`}
-        >
-          <IconChevronRight />
-        </span>
-      </button>
-      <div
-        className={`grid transition-[grid-template-rows] duration-200 ease-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-      >
-        <div className="overflow-hidden">
-          <div className="ml-3.5 pl-3 pr-1 py-1 space-y-0.5 border-l border-gray-200/80">
-            {children.map(child => {
-              const active = child.key === selectedKey
-              return (
-                <button
-                  key={child.key}
-                  onClick={() => onNavigate(child.path)}
-                  className={`w-full flex items-center gap-2 text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer border-none outline-none relative
-                    ${
-                      active
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'text-gray-500 hover:bg-[#e6e6e6] hover:text-gray-800 bg-transparent hover:translate-x-0.5'
-                    }`}
-                >
-                  {active && (
-                    <span className="absolute -left-[13px] inset-y-0 w-[3px] bg-gray-900 rounded-r-full" />
-                  )}
-                  {child.icon && (
-                    <span className={`shrink-0 ${active ? 'text-gray-700' : 'text-gray-400'}`}>
-                      {child.icon}
-                    </span>
-                  )}
-                  <span className="truncate">{child.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-interface SidebarProps {
+interface LegacySidebarProps {
   selectedKey: string
   navigate: (path: string) => void
   isMobile: boolean
@@ -447,14 +354,14 @@ const PLAN_LABELS: Record<string, string> = {
 
 const isNewKey = (key: string) => key.startsWith('new-')
 
-const Sidebar = ({
+export const LegacySidebar = ({
   selectedKey,
   navigate,
   isMobile,
   collapsed,
   onClose,
   isAdmin,
-}: SidebarProps) => {
+}: LegacySidebarProps) => {
   const { getToken } = useAuth()
   const [plan, setPlan] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(isNewKey(selectedKey))
@@ -638,6 +545,272 @@ const Sidebar = ({
   )
 }
 
+interface SidebarProps {
+  selectedKey: string
+  selectedProjectId?: string
+  navigate: (path: string) => void
+  isMobile: boolean
+  collapsed: boolean
+  onClose: () => void
+  onToggle: () => void
+  isAdmin?: boolean
+  openSettings: (section?: SettingsSection) => void
+}
+
+/**
+ * The app is a history of conversations, not a dashboard of project cards.
+ * Keep that model visible everywhere: starting new work and resuming old work
+ * now happen in the same, persistent rail.
+ */
+const Sidebar = ({
+  selectedKey,
+  selectedProjectId,
+  navigate,
+  isMobile,
+  collapsed,
+  onClose,
+  onToggle,
+  isAdmin,
+  openSettings,
+}: SidebarProps) => {
+  const { getToken } = useAuth()
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectQuery, setProjectQuery] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const nextProjects = await listProjects(token)
+        if (cancelled) return
+        setProjects(nextProjects)
+      } catch {
+        // Navigation should remain usable if history or billing is unavailable.
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [getToken, selectedKey])
+
+  const go = (path: string) => {
+    navigate(path)
+    if (isMobile) onClose()
+  }
+  const normalizedQuery = projectQuery.trim().toLowerCase()
+  const visibleProjects = projects
+    .filter(project => !normalizedQuery || project.title.toLowerCase().includes(normalizedQuery))
+    .slice(0, 30)
+
+  useEffect(() => {
+    const startNewChat = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return
+      event.preventDefault()
+      navigate('/new')
+      if (isMobile) onClose()
+    }
+    window.addEventListener('keydown', startNewChat)
+    return () => window.removeEventListener('keydown', startNewChat)
+  }, [isMobile, navigate, onClose])
+
+  return (
+    <>
+      {isMobile && !collapsed && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-40 border-0 bg-black/20"
+          onClick={onClose}
+        />
+      )}
+      <aside
+        className={cn(
+          'conversation-sidebar flex shrink-0 flex-col',
+          isMobile && 'fixed inset-y-0 left-0 z-50 transition-transform duration-200',
+          isMobile && collapsed && '-translate-x-full',
+          !isMobile && collapsed && 'is-collapsed',
+        )}
+      >
+        <div className="conversation-sidebar__brand">
+          <button
+            type="button"
+            className="conversation-sidebar__wordmark"
+            onClick={() => go('/new')}
+          >
+            <img src={tabLogoB} alt="" />
+            <span>Pitch</span>
+          </button>
+          <button
+            type="button"
+            className="conversation-sidebar__icon"
+            onClick={isMobile ? onClose : onToggle}
+            aria-label="Collapse sidebar"
+          >
+            {isMobile ? <X size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        </div>
+
+        <nav className="conversation-sidebar__primary" aria-label="Primary">
+          <button
+            type="button"
+            className={cn(
+              'conversation-sidebar__new',
+              selectedKey.startsWith('new') && 'is-active',
+            )}
+            onClick={() => go('/new')}
+          >
+            <Plus size={17} />
+            <span>New chat</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+          <button
+            type="button"
+            className={cn('conversation-sidebar__row', selectedKey === 'templates' && 'is-active')}
+            onClick={() => go('/templates')}
+          >
+            <Shapes size={16} />
+            <span>Templates</span>
+          </button>
+          <button
+            type="button"
+            className={cn('conversation-sidebar__row', selectedKey === 'sessions' && 'is-active')}
+            onClick={() => go('/sessions')}
+          >
+            <MessageSquare size={16} />
+            <span>Browser sessions</span>
+          </button>
+          <button
+            type="button"
+            className="conversation-sidebar__row"
+            onClick={() => openSettings('mcp')}
+          >
+            <Key size={16} />
+            <span>API / MCP</span>
+          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className={cn('conversation-sidebar__row', selectedKey === 'admin' && 'is-active')}
+              onClick={() => go('/admin')}
+            >
+              <Shield size={16} />
+              <span>Admin</span>
+            </button>
+          )}
+        </nav>
+
+        <div className="conversation-sidebar__search">
+          <Search size={14} />
+          <input
+            aria-label="Search chats"
+            placeholder="Search chats…"
+            value={projectQuery}
+            onChange={event => setProjectQuery(event.target.value)}
+          />
+        </div>
+
+        <div className="conversation-sidebar__history">
+          <p className="conversation-sidebar__section-title">Recent chats</p>
+          {visibleProjects.length ? (
+            visibleProjects.map(project => (
+              <button
+                type="button"
+                key={project.id}
+                className={cn(
+                  'conversation-sidebar__chat',
+                  project.id === selectedProjectId && 'is-active',
+                )}
+                onClick={() => go(`/p/${project.id}`)}
+                title={project.title}
+              >
+                <MessageSquare size={14} />
+                <span>{project.title || 'Untitled project'}</span>
+                {project.busy && <i aria-label="Working" />}
+              </button>
+            ))
+          ) : (
+            <span className="conversation-sidebar__empty">
+              {projectQuery ? 'No matching chats' : 'Your projects will appear here'}
+            </span>
+          )}
+        </div>
+
+        <div className="conversation-sidebar__footer">
+          <a
+            className="conversation-sidebar__discord"
+            href="https://discord.gg/a4SBW36mD"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <FaDiscord size={16} />
+            <span>Discord Community</span>
+          </a>
+          <button
+            type="button"
+            className="conversation-sidebar__invite"
+            onClick={() => openSettings('rewards')}
+          >
+            <Gift size={16} />
+            <span>
+              <strong>Invite a friend</strong>
+              <small>Earn credits when they sign up</small>
+            </span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </aside>
+      {!isMobile && collapsed && (
+        <aside className="conversation-sidebar__rail" aria-label="Collapsed navigation">
+          <button type="button" onClick={onToggle} aria-label="Open sidebar" title="Open sidebar">
+            <PanelLeftOpen size={17} />
+          </button>
+          <button type="button" onClick={() => go('/new')} aria-label="New chat" title="New chat">
+            <Plus size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => openSettings('mcp')}
+            aria-label="API and MCP"
+            title="API / MCP"
+          >
+            <Plug size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => openSettings('rewards')}
+            aria-label="Affiliates"
+            title="Affiliates"
+          >
+            <Users size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => go('/sessions')}
+            aria-label="Recent chats"
+            title="Recent chats"
+          >
+            <History size={16} />
+          </button>
+          <span />
+          <button
+            type="button"
+            onClick={() => {
+              window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+            }}
+            aria-label="Discord Community"
+            title="Discord Community"
+          >
+            <FaDiscord size={16} />
+          </button>
+        </aside>
+      )}
+    </>
+  )
+}
+
 // ── Top Header ────────────────────────────────────────────────────────────────
 interface TopHeaderProps {
   isMobile: boolean
@@ -780,7 +953,7 @@ const TopHeader = ({
 // ── Studio route ──────────────────────────────────────────────────────────────
 function StudioRoute() {
   const { id } = useParams<{ id: string }>()
-  if (!id) return <Navigate to="/projects" replace />
+  if (!id) return <Navigate to="/new" replace />
   return <StudioView projectId={id} />
 }
 
@@ -793,6 +966,7 @@ function AppContent() {
   const [collapsed, setCollapsed] = useState(window.innerWidth < 1024)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null)
 
   // Track whether the user has selected a specific template (detail mode)
   const [templatesInDetail, setTemplatesInDetail] = useState(false)
@@ -899,7 +1073,7 @@ function AppContent() {
 
   // ── Route → nav key ────────────────────────────────────────────────────────
   const path = location.pathname
-  let selectedKey = 'projects'
+  let selectedKey = 'new'
   if (path.startsWith('/new')) {
     const flow = new URLSearchParams(location.search).get('flow')
     selectedKey = isFlowId(flow) ? `new-${flow}` : 'new'
@@ -935,16 +1109,17 @@ function AppContent() {
   )
 
   const shell = useMemo(
-    () => ({ isMobile, toggleSidebar: () => setCollapsed(c => !c) }),
+    () => ({
+      isMobile,
+      toggleSidebar: () => setCollapsed(c => !c),
+      openSettings: (section: SettingsSection = 'account') => setSettingsSection(section),
+    }),
     [isMobile],
   )
 
   const isStudio = selectedKey === 'studio'
   const isDetailPage =
-    isStudio ||
-    selectedKey.startsWith('new') ||
-    selectedKey === 'settings' ||
-    (selectedKey === 'templates' && templatesInDetail)
+    isStudio || selectedKey === 'settings' || (selectedKey === 'templates' && templatesInDetail)
 
   // Public share page — rendered before the Clerk-loading gate (same
   // treatment as `/` below) so it's instant for anonymous visitors clicking
@@ -1016,32 +1191,40 @@ function AppContent() {
       <Show when="signed-in">
         <AppShellContext.Provider value={shell}>
           <div
-            className="app-shell-bg flex h-screen w-screen overflow-hidden p-3 gap-3"
-            style={{ backgroundColor: '#e6e6e6' }}
+            className="app-shell-bg flex h-screen w-screen overflow-hidden"
+            style={{ backgroundColor: '#ededed' }}
           >
             <OnboardingSurvey />
-            {(!isMobile ? selectedKey !== 'settings' && !isStudio : true) && (
-              <Sidebar
-                selectedKey={selectedKey}
-                navigate={p => {
-                  navigate(p)
-                  if (isMobile) setCollapsed(true)
-                }}
-                isMobile={isMobile}
-                collapsed={collapsed}
-                onClose={() => setCollapsed(true)}
-                isAdmin={isAdmin}
+            {settingsSection && (
+              <SettingsModal
+                section={settingsSection}
+                onSectionChange={setSettingsSection}
+                onClose={() => setSettingsSection(null)}
               />
             )}
+            <Sidebar
+              selectedKey={selectedKey}
+              selectedProjectId={path.startsWith('/p/') ? path.split('/')[2] : undefined}
+              navigate={p => {
+                navigate(p)
+                if (isMobile) setCollapsed(true)
+              }}
+              isMobile={isMobile}
+              collapsed={collapsed}
+              onClose={() => setCollapsed(true)}
+              onToggle={() => setCollapsed(value => !value)}
+              isAdmin={isAdmin}
+              openSettings={section => setSettingsSection(section ?? 'account')}
+            />
 
             <div
-              className="app-shell-panel flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl shadow-sm border border-gray-200"
+              className="app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l border-gray-200"
               style={{ backgroundColor: '#ffffff' }}
             >
               {/* The studio route draws its own header (see Topbar in
                 StudioView) — rendering this one too gave every project two
                 stacked bars with two identical back buttons. */}
-              {!isStudio && (
+              {!isStudio && !selectedKey.startsWith('new') && (
                 <TopHeader
                   isMobile={isMobile}
                   isDetailPage={isDetailPage}
@@ -1050,7 +1233,7 @@ function AppContent() {
                       ? 'Back to Templates Gallery'
                       : undefined
                   }
-                  showSearch={selectedKey === 'projects'}
+                  showSearch={false}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   onToggle={() => setCollapsed(c => !c)}
@@ -1059,7 +1242,7 @@ function AppContent() {
                     if (selectedKey === 'templates' && templatesInDetail) {
                       clearTemplatesSelection?.()
                     } else {
-                      navigate('/projects')
+                      navigate('/new')
                     }
                   }}
                   title={
@@ -1079,11 +1262,12 @@ function AppContent() {
                 className={cn(
                   'app-shell-main flex-1 overflow-x-hidden bg-white rounded-b-2xl relative',
                   isStudio ? 'overflow-hidden' : 'overflow-y-auto',
+                  selectedKey.startsWith('new') && 'new-shell-main',
                 )}
               >
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    <Route path="/projects" element={<ProjectsView searchQuery={searchQuery} />} />
+                    <Route path="/projects" element={<Navigate to="/new" replace />} />
                     <Route path="/new" element={<NewProjectView />} />
                     <Route path="/p/:id" element={<StudioRoute />} />
                     <Route
@@ -1107,7 +1291,7 @@ function AppContent() {
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />
                     {/* Old app URLs → the studio. */}
-                    <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
+                    <Route path="/dashboard" element={<Navigate to="/new" replace />} />
                     <Route path="/pdf" element={<Navigate to="/new?flow=deck" replace />} />
                     <Route path="/enhance" element={<Navigate to="/new?flow=deck" replace />} />
                     <Route

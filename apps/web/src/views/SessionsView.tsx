@@ -398,183 +398,229 @@ export const SessionsView = () => {
   const returnLabel = returnPath?.includes('flow=launch-video') ? 'launch video' : 'demo'
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
-      {redirectIn !== null ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]"
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-            <IconCheck />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-emerald-900">Login saved</p>
-            <p className="text-xs text-emerald-700/80">
-              Returning to your {returnLabel} in{' '}
-              <span className="font-semibold tabular-nums">{redirectIn}s</span> — or stay to
-              re-authenticate / remove a site below.
-            </p>
+    <div className="min-h-full bg-[#f7f7f5] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <div className="mx-auto w-full max-w-[1100px]">
+        {redirectIn !== null ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-6 flex flex-col gap-3 rounded-[12px] border border-[#d9dfda] bg-white px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#eef3ef] text-[#3d6850]">
+              <IconCheck />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-[#171615]">Login saved</p>
+              <p className="text-xs text-[#706c67]">
+                Returning to your {returnLabel} in{' '}
+                <span className="font-semibold tabular-nums">{redirectIn}s</span> — or stay to
+                re-authenticate / remove a site below.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => setRedirectIn(null)}
+                className="rounded-lg border border-[#dededb] bg-white px-3 py-2 text-xs font-semibold text-[#57534e] transition-colors hover:bg-[#f3f3f1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+              >
+                Stay here
+              </button>
+              <button
+                onClick={() => returnPath && navigate(returnPath)}
+                className="rounded-lg bg-[#171615] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+              >
+                Go now
+              </button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              onClick={() => setRedirectIn(null)}
-              className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
-            >
-              Stay here
-            </button>
+        ) : saved ? (
+          <div className="mb-6 flex flex-col gap-3 rounded-[12px] border border-[#d9dfda] bg-white px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#eef3ef] text-[#3d6850]">
+              <IconCheck />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-[#171615]">Login saved</p>
+              <p className="text-xs text-[#706c67]">
+                Re-authenticate or remove a site below, or head back to your {returnLabel}.
+              </p>
+            </div>
             <button
               onClick={() => returnPath && navigate(returnPath)}
-              className="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#171615] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
             >
-              Go now
+              Return to your {returnLabel}
             </button>
           </div>
-        </div>
-      ) : saved ? (
-        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-            <IconCheck />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-emerald-900">Login saved</p>
-            <p className="text-xs text-emerald-700/80">
-              Re-authenticate or remove a site below, or head back to your {returnLabel}.
-            </p>
-          </div>
-          <button
-            onClick={() => returnPath && navigate(returnPath)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-          >
-            Return to your {returnLabel}
-          </button>
-        </div>
-      ) : returnPath ? (
-        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white">
-            <IconLock />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900">
-              Authenticating for your {returnLabel}
-            </p>
-            <p className="text-xs text-gray-500">
-              Sign in to the site below, then click{' '}
-              <strong className="font-semibold text-gray-700">Complete&nbsp;&amp;&nbsp;Save</strong>{' '}
-              — we’ll bring you back.
-            </p>
-          </div>
-          <button
-            onClick={() => navigate(returnPath)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
-          >
-            <IconArrowLeft size={13} /> Back to {returnLabel}
-          </button>
-        </div>
-      ) : null}
-
-      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 leading-tight">Browser Sessions</h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-xl">
-            Some sites sit behind a login or bot check. Authenticate one once in a stealth browser
-            and every automation job reuses it — public sites need nothing here.
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setActionError(null)
-            setUrlError(null)
-            setRedirectIn(null)
-            setAuthModalOpen(true)
-          }}
-          disabled={!!activeSession}
-          className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          id="add-login-btn"
-        >
-          <IconPlus /> Authenticate with URL
-          <CreditChip amount={2} className="bg-white text-gray-900" />
-        </button>
-      </div>
-
-      {actionError && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          {actionError}
-        </div>
-      )}
-
-      {activeSession && (
-        <ActiveSessionPanel
-          session={activeSession as BrowserSession & StartSessionResponse}
-          onClose={handleClose}
-          closing={closing}
-        />
-      )}
-
-      <div className="mt-2">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Logged-in sites</h2>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <IconSpinner /> Loading…
-          </div>
-        ) : origins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-gray-200 rounded-xl bg-gray-50">
-            <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center mb-4 shadow-sm border border-gray-200">
-              <IconShield />
+        ) : returnPath ? (
+          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white px-4 py-3 sm:flex-row sm:items-center animate-[fadeIn_240ms_ease-out]">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white">
+              <IconLock />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-gray-900">
+                Authenticating for your {returnLabel}
+              </p>
+              <p className="text-xs text-gray-500">
+                Sign in to the site below, then click{' '}
+                <strong className="font-semibold text-gray-700">
+                  Complete&nbsp;&amp;&nbsp;Save
+                </strong>{' '}
+                — we’ll bring you back.
+              </p>
             </div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-1">No sites authenticated yet</h3>
-            <p className="text-xs text-gray-400 max-w-xs">
-              Click <span className="font-medium">Authenticate with URL</span> to open a stealth
-              browser, log in, and have those credentials reused by every job you queue.
+            <button
+              onClick={() => navigate(returnPath)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+            >
+              <IconArrowLeft size={13} /> Back to {returnLabel}
+            </button>
+          </div>
+        ) : null}
+
+        <div className="mb-7 flex flex-col items-start justify-between gap-5 border-b border-[#e2e1de] pb-7 sm:flex-row sm:items-end">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#85817c]">
+              Browser access
+            </p>
+            <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.04em] text-[#171615] sm:text-[34px]">
+              Keep your signed-in sites ready.
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[#706c67]">
+              Authenticate a private site once and the Pitch agent can reuse that browser login in
+              future projects. Public sites work without setup.
             </p>
           </div>
-        ) : (
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {origins.map(origin => (
-              <li
-                key={origin}
-                className="group flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg transition-colors hover:border-gray-300"
-              >
-                <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <IconCheck />
-                </span>
-                <span className="flex-1 min-w-0 flex items-center gap-1.5 text-sm text-gray-800 truncate">
-                  <IconGlobe />
-                  {formatOrigin(origin)}
-                </span>
-                <button
-                  onClick={() => handleDeleteOrigin(origin)}
-                  disabled={deletingOrigin === origin}
-                  aria-label={`Remove saved login for ${formatOrigin(origin)}`}
-                  title="Remove saved login"
-                  className="shrink-0 rounded-md p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50"
-                >
-                  {deletingOrigin === origin ? <IconSpinner /> : <IconTrash size={15} />}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <button
+            onClick={() => {
+              setActionError(null)
+              setUrlError(null)
+              setRedirectIn(null)
+              setAuthModalOpen(true)
+            }}
+            disabled={!!activeSession}
+            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border-none bg-[#171615] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto"
+            id="add-login-btn"
+          >
+            <IconPlus /> Authenticate with URL
+            <CreditChip amount={2} className="bg-white text-[#171615]" />
+          </button>
+        </div>
+
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-[12px] border border-[#dededb] bg-white px-4 py-3.5">
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#908c87]">
+              Saved logins
+            </p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <strong className="text-[24px] font-semibold tracking-[-0.04em] text-[#171615]">
+                {loading ? '—' : origins.length}
+              </strong>
+              <span className="pb-1 text-xs text-[#77736e]">Available to every project</span>
+            </div>
+          </div>
+          <div className="rounded-[12px] border border-[#dededb] bg-white px-4 py-3.5">
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#908c87]">
+              Browser status
+            </p>
+            <div className="mt-2 flex items-center gap-2 text-sm font-medium text-[#403d39]">
+              <span
+                className={`h-2 w-2 rounded-full ${activeSession ? 'bg-[#2f7d50]' : 'bg-[#b6b3ae]'}`}
+              />
+              {activeSession ? 'Authentication in progress' : 'Ready for a new login'}
+            </div>
+          </div>
+        </div>
+
+        {actionError && (
+          <div className="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {actionError}
+          </div>
         )}
-        {profile?.lastSyncedAt && (
-          <p className="mt-3 text-xs text-gray-400">
-            Last synced {formatRelativeTime(profile.lastSyncedAt)}
-          </p>
+
+        {activeSession && (
+          <ActiveSessionPanel
+            session={activeSession as BrowserSession & StartSessionResponse}
+            onClose={handleClose}
+            closing={closing}
+          />
+        )}
+
+        <section className="mt-2 rounded-[14px] border border-[#dededb] bg-white p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[#252320]">Logged-in sites</h2>
+              <p className="mt-0.5 text-xs text-[#85817c]">
+                Private credentials available to Pitch.
+              </p>
+            </div>
+            {!loading && origins.length > 0 && (
+              <span className="rounded-full bg-[#f1f1ef] px-2.5 py-1 text-[11px] text-[#706c67]">
+                {origins.length} {origins.length === 1 ? 'site' : 'sites'}
+              </span>
+            )}
+          </div>
+          {loading ? (
+            <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-[#77736e]">
+              <IconSpinner /> Loading…
+            </div>
+          ) : origins.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-[12px] border border-dashed border-[#d7d5d1] bg-[#fafaf9] px-5 py-12 text-center sm:py-14">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[12px] border border-[#dededb] bg-white">
+                <IconShield />
+              </div>
+              <h3 className="mb-1 text-sm font-semibold text-[#403d39]">No saved logins yet</h3>
+              <p className="max-w-sm text-xs leading-5 text-[#85817c]">
+                Authenticate with a URL to open a secure browser. Once you save the session, the
+                agent can reuse it whenever a project needs that site.
+              </p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {origins.map(origin => (
+                <li
+                  key={origin}
+                  className="group flex items-center gap-3 rounded-[10px] border border-[#e4e3e0] bg-[#fafaf9] px-3 py-3 transition-colors hover:border-[#c9c7c3] hover:bg-white"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#eef3ef] text-[#3d6850]">
+                    <IconCheck />
+                  </span>
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-medium text-[#403d39]">
+                    <IconGlobe />
+                    {formatOrigin(origin)}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteOrigin(origin)}
+                    disabled={deletingOrigin === origin}
+                    aria-label={`Remove saved login for ${formatOrigin(origin)}`}
+                    title="Remove saved login"
+                    className="shrink-0 rounded-md p-1.5 text-[#aaa7a2] transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50"
+                  >
+                    {deletingOrigin === origin ? <IconSpinner /> : <IconTrash size={15} />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {profile?.lastSyncedAt && (
+            <p className="mt-3 text-xs text-[#908c87]">
+              Last synced {formatRelativeTime(profile.lastSyncedAt)}
+            </p>
+          )}
+        </section>
+
+        {authModalOpen && (
+          <AuthModal
+            url={targetUrl}
+            onUrlChange={v => {
+              setTargetUrl(v)
+              setUrlError(null)
+            }}
+            urlError={urlError}
+            starting={starting}
+            onStart={handleStart}
+            onClose={() => setAuthModalOpen(false)}
+          />
         )}
       </div>
-
-      {authModalOpen && (
-        <AuthModal
-          url={targetUrl}
-          onUrlChange={v => {
-            setTargetUrl(v)
-            setUrlError(null)
-          }}
-          urlError={urlError}
-          starting={starting}
-          onStart={handleStart}
-          onClose={() => setAuthModalOpen(false)}
-        />
-      )}
     </div>
   )
 }
@@ -590,15 +636,15 @@ const ActiveSessionPanel = ({ session, onClose, closing }: ActiveSessionPanelPro
   const managerProfileId = session.noVncUrl
 
   return (
-    <div className="mb-10 group">
-      <div className="flex items-center justify-between mb-4">
+    <div className="group mb-8 rounded-[14px] border border-[#dededb] bg-white p-4 sm:p-5">
+      <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 text-amber-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#efefed] text-[#57534e]">
             <IconSpinner />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Live Authentication Session</h3>
-            <p className="text-[11px] text-gray-500 font-medium">
+            <h3 className="text-sm font-semibold text-[#171615]">Live authentication session</h3>
+            <p className="text-[11px] font-medium text-[#77736e]">
               {startUrl ? `Authenticated to ${startUrl}` : 'Browser ready'} · Expires{' '}
               {formatRelativeTime(session.expiresAt)}
             </p>
@@ -607,14 +653,14 @@ const ActiveSessionPanel = ({ session, onClose, closing }: ActiveSessionPanelPro
         <button
           onClick={onClose}
           disabled={closing}
-          className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 text-xs font-bold rounded-lg border border-gray-200 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-[9px] border border-[#dededb] bg-white px-4 py-2 text-xs font-semibold text-[#171615] transition-colors hover:bg-[#f3f3f1] disabled:opacity-50 sm:w-auto"
         >
           {closing ? <IconSpinner /> : <IconCheck />}
           {closing ? 'Finishing...' : 'Complete & Save'}
         </button>
       </div>
 
-      <div className="relative aspect-video w-full max-w-4xl mx-auto overflow-hidden rounded-2xl border border-gray-200 bg-gray-900 shadow-2xl transition-all group-hover:border-gray-300">
+      <div className="relative mx-auto aspect-video w-full max-w-4xl overflow-hidden rounded-[12px] border border-[#d5d3cf] bg-gray-900 shadow-[0_12px_36px_rgba(0,0,0,0.14)] transition-colors group-hover:border-[#aaa7a2]">
         {managerProfileId ? (
           <BrowserViewer profileId={managerProfileId} />
         ) : (
@@ -627,9 +673,9 @@ const ActiveSessionPanel = ({ session, onClose, closing }: ActiveSessionPanelPro
         )}
       </div>
 
-      <div className="mt-4 max-w-4xl mx-auto px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
+      <div className="mx-auto mt-4 flex max-w-4xl items-start gap-3 rounded-[10px] border border-[#dededb] bg-[#fafaf9] px-4 py-3">
         <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-        <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+        <p className="text-[11px] font-medium leading-relaxed text-[#706c67]">
           The browser above is running in a secure, isolated container. Your interactions are
           encrypted and private. Complete your login flow, then click{' '}
           <strong>Complete & Save</strong> to persist the session.
@@ -693,7 +739,7 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-[fadeIn_160ms_ease-out]"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-0 backdrop-blur-[2px] animate-[fadeIn_160ms_ease-out] sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
@@ -702,22 +748,25 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
         aria-modal="true"
         aria-labelledby="auth-modal-title"
         aria-describedby="auth-modal-desc"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+        className="w-full max-w-md rounded-t-[18px] border border-[#dededb] bg-white p-5 shadow-2xl sm:rounded-[16px] sm:p-6"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2.5 mb-1.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#171615] text-white">
             <IconLock size={15} />
           </span>
-          <h2 id="auth-modal-title" className="text-lg font-semibold text-gray-900">
+          <h2
+            id="auth-modal-title"
+            className="text-lg font-semibold tracking-[-0.02em] text-[#171615]"
+          >
             Authenticate a site
           </h2>
         </div>
-        <p id="auth-modal-desc" className="text-sm text-gray-500 mb-4">
+        <p id="auth-modal-desc" className="mb-4 text-sm leading-5 text-[#706c67]">
           We&apos;ll open a stealth browser so you can log in and clear any bot check. The session
           is saved to your profile and reused by every job.
         </p>
-        <label htmlFor="auth-url-input" className="block text-xs font-medium text-gray-700 mb-1.5">
+        <label htmlFor="auth-url-input" className="mb-1.5 block text-xs font-medium text-[#57534e]">
           Site URL
         </label>
         <input
@@ -729,10 +778,10 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
           onChange={e => onUrlChange(e.target.value)}
           aria-invalid={!!urlError}
           aria-describedby={urlError ? 'auth-url-error' : undefined}
-          className={`w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors ${
+          className={`w-full rounded-[9px] border px-3 py-2.5 text-sm outline-none transition-colors ${
             urlError
               ? 'border-red-300 focus:border-red-500'
-              : 'border-gray-200 focus:border-gray-400'
+              : 'border-[#dededb] focus:border-[#aaa7a2] focus:ring-2 focus:ring-black/5'
           }`}
           onKeyDown={e => {
             if (e.key === 'Enter' && !starting) onStart()
@@ -744,7 +793,7 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
           </p>
         )}
 
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+        <div className="mt-3 rounded-[9px] border border-[#dededb] bg-[#f7f7f5] px-3 py-2 text-[11px] text-[#706c67]">
           Each authentication session costs <strong>2 credits</strong> — re-authenticating a removed
           site charges again.
         </div>
@@ -753,14 +802,14 @@ const AuthModal = ({ url, onUrlChange, urlError, starting, onStart, onClose }: A
           <button
             onClick={onClose}
             disabled={starting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+            className="cursor-pointer rounded-[9px] border border-[#dededb] bg-white px-4 py-2 text-sm font-medium text-[#57534e] transition-colors hover:bg-[#f3f3f1] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
           >
             Cancel
           </button>
           <button
             onClick={onStart}
             disabled={starting}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
+            className="flex cursor-pointer items-center gap-2 rounded-[9px] border-none bg-[#171615] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
           >
             {starting && <IconSpinner />}
             {starting ? 'Starting browser…' : host ? `Open ${host}` : 'Open browser'}

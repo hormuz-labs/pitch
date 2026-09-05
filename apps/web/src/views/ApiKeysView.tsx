@@ -216,7 +216,7 @@ const KeyRevealModal = ({
   )
 }
 
-export const ApiKeysView = () => {
+export const ApiKeysView = ({ embedded = false }: { embedded?: boolean }) => {
   const { getToken } = useAuth()
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
@@ -283,13 +283,14 @@ export const ApiKeysView = () => {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+    <div className={embedded ? 'settings-api-keys' : 'p-6 md:p-8 max-w-5xl mx-auto w-full'}>
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 leading-tight">API Keys</h1>
           <p className="text-sm text-gray-500 mt-1 max-w-xl">
-            API keys let MCP clients (Claude Desktop, Cursor, and others) talk to the Pitch MCP
-            server and create demos programmatically.
+            {embedded
+              ? 'Call the Pitch REST API directly at https://api.trypitch.co/v1, or use a key as an MCP credential when browser sign-in is unavailable.'
+              : 'API keys let MCP clients and software integrations create Pitch projects programmatically.'}
           </p>
         </div>
         <button
@@ -312,32 +313,34 @@ export const ApiKeysView = () => {
       )}
 
       {/* MCP server explainer */}
-      <div className="mb-8 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-50">
-          <h4 className="font-bold text-gray-900 text-sm">Connect your MCP client</h4>
-        </div>
-        <div className="px-6 py-4 space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-medium text-gray-500">Server endpoint:</span>
-            <code className="text-xs font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded px-2 py-1">
-              {MCP_ENDPOINT}
-            </code>
-            <CopyButton text={MCP_ENDPOINT} />
+      {!embedded && (
+        <div className="mb-8 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-50">
+            <h4 className="font-bold text-gray-900 text-sm">Connect your MCP client</h4>
           </div>
-          <div className="relative rounded-lg border border-gray-200 bg-gray-900 px-4 py-3">
-            <pre className="text-xs font-mono text-gray-100 overflow-x-auto whitespace-pre">
-              {MCP_CONFIG_SNIPPET}
-            </pre>
-            <div className="absolute top-2 right-2">
-              <CopyButton text={MCP_CONFIG_SNIPPET} label="Copy config" />
+          <div className="px-6 py-4 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-gray-500">Server endpoint:</span>
+              <code className="text-xs font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded px-2 py-1">
+                {MCP_ENDPOINT}
+              </code>
+              <CopyButton text={MCP_ENDPOINT} />
             </div>
+            <div className="relative rounded-lg border border-gray-200 bg-gray-900 px-4 py-3">
+              <pre className="text-xs font-mono text-gray-100 overflow-x-auto whitespace-pre">
+                {MCP_CONFIG_SNIPPET}
+              </pre>
+              <div className="absolute top-2 right-2">
+                <CopyButton text={MCP_CONFIG_SNIPPET} label="Copy config" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">
+              Replace <code className="font-mono">&lt;your-api-key&gt;</code> with a key created
+              below.
+            </p>
           </div>
-          <p className="text-xs text-gray-400">
-            Replace <code className="font-mono">&lt;your-api-key&gt;</code> with a key created
-            below.
-          </p>
         </div>
-      </div>
+      )}
 
       {/* Keys table */}
       <div>

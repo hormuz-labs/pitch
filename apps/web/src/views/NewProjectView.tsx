@@ -10,15 +10,31 @@
  * charged and no turn is run, because you cannot say what you want about a
  * video until you are looking at it and can select the part you mean.
  */
-import { useAuth } from '@clerk/react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { useAuth, useUser } from '@clerk/react'
+import { ArrowUp, CircleHelp, Megaphone, Menu, Plus } from 'lucide-react'
+import {
+  type CSSProperties,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useToast } from '../App'
+import { useAppShell, useToast } from '../App'
 import { CreditPopover } from '../components/CreditPopover'
+import { filmPoster } from '../components/landing/filmPoster'
+import { SLIDES } from '../components/landing/VideoCarousel'
+import { PitchWordmark } from '../components/PitchWordmark'
+import { PromptGuideModal } from '../components/PromptGuideModal'
+import { SettingsCreditButton } from '../components/SettingsModal'
+import { DECK_TEMPLATES } from '../lib/deckTemplates'
 import { createProject, type UploadRef, uploads as uploadFiles } from '../lib/studio-api'
 import { describeStudioError, isCreditsError } from '../lib/studio-errors'
 import { cn } from '../lib/utils'
 import '../studio/studio.css'
+import '../styles/new-project.css'
 
 const MAX_UPLOAD_MB = 500
 
@@ -42,7 +58,7 @@ const Glyph = ({ children }: { children: ReactNode }) => (
 )
 
 /**
- * The four things the studio is asked for most often — not a menu of what it
+ * The things the studio is asked for most often — not a menu of what it
  * can do. Each one drops a real sentence into the composer with the part you
  * have to change already selected, so the chip is a head start on typing
  * rather than a mode you enter.
@@ -57,12 +73,11 @@ const STARTERS: { label: string; glyph: ReactNode; prompt: string; select: strin
         <path d="m18.5 3.5.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" />
       </Glyph>
     ),
-    prompt:
-      'A launch video for https://yourproduct.com.',
+    prompt: 'A launch video for https://yourproduct.com.',
     select: 'https://yourproduct.com',
   },
   {
-    label: 'Product walkthrough',
+    label: 'Brand documentary',
     glyph: (
       <Glyph>
         <rect x="3" y="4.5" width="18" height="14" rx="2" />
@@ -70,12 +85,11 @@ const STARTERS: { label: string; glyph: ReactNode; prompt: string; select: strin
         <path d="m11 12 5.5 2.2-2.3.9-.9 2.3z" />
       </Glyph>
     ),
-    prompt:
-      'Walk through https://yourproduct.com: sign in, create a project, show the dashboard updating live.',
-    select: 'https://yourproduct.com',
+    prompt: 'A cinematic brand documentary about our origin, customers and point of view.',
+    select: 'brand documentary',
   },
   {
-    label: 'Slide deck',
+    label: 'Deep-dive explainer',
     glyph: (
       <Glyph>
         <rect x="3" y="4" width="18" height="11.5" rx="1.5" />
@@ -83,11 +97,11 @@ const STARTERS: { label: string; glyph: ReactNode; prompt: string; select: strin
         <path d="M8.5 20.5h7" />
       </Glyph>
     ),
-    prompt: 'A 10-slide investor deck — problem, product, traction, market, team, ask.',
-    select: 'investor',
+    prompt: 'A clear deep-dive explainer that makes this complex topic feel obvious.',
+    select: 'complex topic',
   },
   {
-    label: 'Edit a video',
+    label: 'Match a YouTube video',
     glyph: (
       <Glyph>
         <path d="M2.5 12h5" />
@@ -95,15 +109,217 @@ const STARTERS: { label: string; glyph: ReactNode; prompt: string; select: strin
         <rect x="7.5" y="7" width="9" height="10" rx="2" />
       </Glyph>
     ),
-    prompt: 'Turn the background music down and cut the dead air out of this recording.',
-    select: 'the background music down',
+    prompt: 'Match the pacing and visual language of this YouTube video: https://youtube.com/.',
+    select: 'https://youtube.com/',
+  },
+  {
+    label: 'Logo animation',
+    glyph: (
+      <Glyph>
+        <circle cx="12" cy="12" r="7" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </Glyph>
+    ),
+    prompt: 'Create a refined loading animation using this logo.',
+    select: 'this logo',
+  },
+  {
+    label: 'Talking head',
+    glyph: (
+      <Glyph>
+        <circle cx="12" cy="8" r="3" />
+        <path d="M6 20c.5-4 2.5-6 6-6s5.5 2 6 6" />
+      </Glyph>
+    ),
+    prompt: 'Turn this recording into a polished talking-head video with captions and clean cuts.',
+    select: 'this recording',
+  },
+  {
+    label: 'Article → video',
+    glyph: (
+      <Glyph>
+        <path d="M6 3h9l3 3v15H6z" />
+        <path d="M9 11h6M9 15h6" />
+      </Glyph>
+    ),
+    prompt: 'Turn this article into a concise visual story: https://example.com/article.',
+    select: 'https://example.com/article',
   },
 ]
 
+/**
+ * The decks the studio can already build, three of them, as a way in from the
+ * front door. The card is a real slide from the preset rather than a picture
+ * of one, so what you pick is what you get — but the designs behind it are a
+ * long tail of CSS, so they arrive after the page does, over the palette.
+ */
+const STRIP_TEMPLATES = DECK_TEMPLATES.slice(0, 3)
+
+/**
+ * The empty composer keeps suggesting openings, typed out and erased in place
+ * so the box is never a blank stare. It pauses the moment real text is in the
+ * field; with reduced motion the first one just sits there, static.
+ */
+const PLACEHOLDER_PROMPTS = STARTERS.map(s => s.prompt)
+
+function useTypedPlaceholder(paused: boolean) {
+  const [text, setText] = useState('')
+  useEffect(() => {
+    if (paused) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setText(PLACEHOLDER_PROMPTS[0])
+      return
+    }
+    let phrase = 0
+    let char = 0
+    let deleting = false
+    let timer = 0
+    const step = () => {
+      const current = PLACEHOLDER_PROMPTS[phrase]
+      char += deleting ? -1 : 1
+      setText(current.slice(0, char))
+      let delay = deleting ? 14 : 32
+      if (!deleting && char === current.length) {
+        deleting = true
+        delay = 2800
+      } else if (deleting && char === 0) {
+        deleting = false
+        phrase = (phrase + 1) % PLACEHOLDER_PROMPTS.length
+        delay = 500
+      }
+      timer = window.setTimeout(step, delay)
+    }
+    timer = window.setTimeout(step, 800)
+    return () => window.clearTimeout(timer)
+  }, [paused])
+  return text
+}
+
+const DeckTemplateThumb = lazy(() =>
+  import('../lib/deckTemplateDesigns').then(m => ({ default: m.DeckTemplateThumb })),
+)
+
+const playPreview = (event: { currentTarget: HTMLElement }) => {
+  const video = event.currentTarget.querySelector('video')
+  void video?.play()
+}
+
+const pausePreview = (event: { currentTarget: HTMLElement }) => {
+  const video = event.currentTarget.querySelector('video')
+  video?.pause()
+}
+
+const smoothstep = (from: number, to: number, value: number) => {
+  const t = Math.max(0, Math.min(1, (value - from) / (to - from)))
+  return t * t * (3 - 2 * t)
+}
+
+function FeaturedVideos() {
+  const section = useRef<HTMLElement | null>(null)
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    let frame = 0
+    const scrollContainer = section.current?.closest('.app-shell-main')
+    const measure = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const node = section.current
+        if (!node) return
+        const rect = node.getBoundingClientRect()
+        const viewport = window.innerHeight
+        const distance = Math.max(1, node.offsetHeight - viewport)
+        setProgress(Math.max(0, Math.min(1, (viewport - rect.top) / (viewport + distance))))
+      })
+    }
+    measure()
+    window.addEventListener('scroll', measure, { passive: true })
+    scrollContainer?.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('resize', measure)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', measure)
+      scrollContainer?.removeEventListener('scroll', measure)
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
+
+  const enter = smoothstep(0.04, 0.3, progress)
+  const exit = smoothstep(0.72, 0.98, progress)
+  const gridTravel = smoothstep(0.27, 0.78, progress)
+  const fade = smoothstep(0.92, 1, progress)
+  const frameStyle = {
+    '--featured-width': `${70 + enter * 30 - exit * 14}%`,
+    '--featured-height': `${86 + enter * 14 - exit * 20}vh`,
+    '--featured-radius': `${18 * (1 - enter) + exit * 16}px`,
+    '--featured-y': `${-10 * exit}vh`,
+    '--featured-grid-y': `${-52 * gridTravel}vh`,
+    '--featured-opacity': String(1 - fade),
+  } as CSSProperties
+
+  return (
+    <section
+      id="featured-videos"
+      ref={section}
+      className="new-featured"
+      aria-label="Featured videos"
+    >
+      <div className="new-featured__sticky">
+        <div className="new-featured__panel" style={frameStyle}>
+          <div className="new-featured__content">
+            <div className="new-featured__head">
+              <h2>Featured videos</h2>
+              <div>
+                {['All', 'Explainers', 'Launch & promo', 'Product demos', 'Typography'].map(
+                  (filter, index) => (
+                    <span className={index === 0 ? 'is-active' : ''} key={filter}>
+                      {filter}
+                    </span>
+                  ),
+                )}
+              </div>
+            </div>
+            <div className="new-featured__grid">
+              {SLIDES.map(slide => (
+                <button
+                  type="button"
+                  className="new-featured__video"
+                  key={slide.src}
+                  onMouseEnter={playPreview}
+                  onMouseLeave={pausePreview}
+                  onFocus={playPreview}
+                  onBlur={pausePreview}
+                  onClick={event => {
+                    const video = event.currentTarget.querySelector('video')
+                    void video?.requestFullscreen?.()
+                    void video?.play()
+                  }}
+                >
+                  <video
+                    src={`${slide.src}#t=0.5`}
+                    poster={filmPoster(slide.title ?? 'Made with Pitch')}
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                  />
+                  <span>{slide.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export function NewProjectView() {
   const { getToken } = useAuth()
+  const { user } = useUser()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { isMobile, toggleSidebar, openSettings } = useAppShell()
   const [params] = useSearchParams()
 
   const [prompt, setPrompt] = useState(() => params.get('prompt') ?? '')
@@ -113,11 +329,13 @@ export function NewProjectView() {
   const [error, setError] = useState<string | null>(null)
   const [creditsError, setCreditsError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [promptGuideOpen, setPromptGuideOpen] = useState(false)
   /** A new object every click, so re-picking the same starter re-selects. */
   const [starter, setStarter] = useState<{ select: string } | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
   const textarea = useRef<HTMLTextAreaElement | null>(null)
   const dragDepth = useRef(0)
+  const typedPlaceholder = useTypedPlaceholder(prompt.length > 0)
 
   useEffect(() => {
     textarea.current?.focus()
@@ -194,10 +412,19 @@ export function NewProjectView() {
   }
 
   return (
-    <div className="lv-studio">
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: a drop zone is not a control */}
+    <div className="lv-studio new-project-page">
+      {isMobile && (
+        <button
+          type="button"
+          className="new-project-menu"
+          onClick={toggleSidebar}
+          aria-label="Open navigation"
+        >
+          <Menu size={18} strokeWidth={1.75} />
+        </button>
+      )}
       <div
-        className={cn('create-view', dragging && 'dropping')}
+        className={cn('create-view new-create-view', dragging && 'dropping')}
         onDragEnter={e => {
           if (!e.dataTransfer?.types.includes('Files')) return
           dragDepth.current += 1
@@ -218,112 +445,175 @@ export function NewProjectView() {
           void pickFiles(e.dataTransfer.files)
         }}
       >
-        <div className="hero">
-          <h1 className="hero-title">What are we making?</h1>
-          <p className="hero-sub">
-            Describe it, or drop a video, deck or PDF anywhere on this page — that opens the editor,
-            where you select the part you mean and tell me what to do with it.
-          </p>
-        </div>
-
+        {promptGuideOpen && <PromptGuideModal onClose={() => setPromptGuideOpen(false)} />}
         {dragging && (
           <div className="drop-veil">
             <span>Drop it here — this opens the editor</span>
           </div>
         )}
 
-        <div className="composer-wrap">
-          <div className={cn('composer-box', error && 'invalid')}>
-            {files.length > 0 && (
-              <div className="attach-row">
-                {files.map((f, i) => (
-                  <span key={`${f.url}-${i}`} className="attach-chip" title={f.name}>
-                    <span>{f.name}</span>
-                    <button
-                      type="button"
-                      aria-label={`Remove ${f.name}`}
-                      onClick={() => setFiles(list => list.filter((_, j) => j !== i))}
-                    >
-                      ×
-                    </button>
+        <nav className="new-project-topnav" aria-label="Pitch links">
+          <div className="new-project-topnav__links">
+            <button type="button" onClick={() => openSettings('plans')}>
+              Pricing
+            </button>
+            <button type="button" onClick={() => openSettings('rewards')}>
+              Affiliates
+            </button>
+            <a href="mailto:support@trypitch.co">Need an epic launch video?</a>
+            <button type="button" onClick={() => openSettings('mcp')}>
+              API / MCP
+            </button>
+          </div>
+          <div className="new-project-topnav__actions">
+            <button
+              type="button"
+              aria-label="Support"
+              title="Support"
+              onClick={() => openSettings('support')}
+            >
+              <CircleHelp size={15} />
+            </button>
+            <button
+              type="button"
+              aria-label="Announcements"
+              title="Announcements"
+              onClick={() => toast("You're all caught up.", 'info')}
+            >
+              <Megaphone size={15} />
+            </button>
+            <div className="new-project-topnav__credits">
+              <SettingsCreditButton onClick={() => openSettings('credits')} />
+            </div>
+            <button
+              type="button"
+              className="new-project-topnav__profile"
+              onClick={() => openSettings('account')}
+              aria-label="Open account settings"
+            >
+              {user?.imageUrl ? (
+                <img src={user.imageUrl} alt="" />
+              ) : (
+                <span>
+                  {user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'P'}
+                </span>
+              )}
+            </button>
+          </div>
+        </nav>
+
+        <section className="new-create-hero">
+          <div className="new-create-hero__intro">
+            <PitchWordmark className="new-create-wordmark" />
+            <p>One agent for motion design.</p>
+            <button type="button" onClick={() => navigate('/affiliate')}>
+              Share Pitch <i /> Earn 25% per customer
+            </button>
+          </div>
+
+          <div className="composer-wrap new-composer-wrap">
+            <div className={cn('composer-box', error && 'invalid')}>
+              <button
+                type="button"
+                className="composer-prompt-guide"
+                onClick={() => setPromptGuideOpen(true)}
+                aria-label="Open prompt guide"
+                title="Prompt guide"
+              >
+                <CircleHelp size={16} />
+              </button>
+              {files.length > 0 && (
+                <div className="attach-row">
+                  {files.map((f, i) => (
+                    <span key={`${f.url}-${i}`} className="attach-chip" title={f.name}>
+                      <span>{f.name}</span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${f.name}`}
+                        onClick={() => setFiles(list => list.filter((_, j) => j !== i))}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <textarea
+                ref={textarea}
+                rows={3}
+                id="new-project-prompt"
+                placeholder={typedPlaceholder}
+                value={prompt}
+                onChange={e => {
+                  setPrompt(e.target.value)
+                  setError(null)
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    void submit()
+                  }
+                }}
+              />
+
+              <div className="composer-footer">
+                <div className="tool-row">
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    hidden
+                    multiple
+                    accept={ACCEPT}
+                    onChange={e => void pickFiles(e.target.files)}
+                  />
+                  <button
+                    type="button"
+                    className="attach-plus"
+                    disabled={uploading}
+                    onClick={() => fileInput.current?.click()}
+                    aria-label="Attach a file"
+                    title="Attach a file"
+                  >
+                    {uploading ? <span className="spinner" /> : <Plus size={18} />}
+                  </button>
+                </div>
+                <div className="tool-row">
+                  <span className="composer-credits">
+                    <CreditPopover variant="marker" />
                   </span>
-                ))}
+                  <button
+                    type="button"
+                    className="send-btn"
+                    id="create-project-btn"
+                    disabled={submitting || uploading}
+                    onClick={() => void submit()}
+                    aria-label={submitting ? 'Starting…' : 'Start project'}
+                    title="Start"
+                  >
+                    {submitting ? <span className="spinner" /> : <ArrowUp size={17} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {error && <div className="create-error">{error}</div>}
+            {creditsError && (
+              <div className="create-error">
+                {creditsError}{' '}
+                <button type="button" className="link-btn" onClick={() => navigate('/pricing')}>
+                  Top up
+                </button>
               </div>
             )}
 
-            <textarea
-              ref={textarea}
-              rows={3}
-              id="new-project-prompt"
-              placeholder="A 60-second launch video for https://yourproduct.com…"
-              value={prompt}
-              onChange={e => {
-                setPrompt(e.target.value)
-                setError(null)
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void submit()
-                }
-              }}
-            />
-
-            <div className="composer-footer">
-              <div className="tool-row">
-                <input
-                  ref={fileInput}
-                  type="file"
-                  hidden
-                  multiple
-                  accept={ACCEPT}
-                  onChange={e => void pickFiles(e.target.files)}
-                />
-                <button
-                  type="button"
-                  className="music-btn"
-                  disabled={uploading}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <span className="music-btn-icon">📎</span>
-                  {uploading ? 'Opening the editor…' : 'Attach a file'}
-                </button>
-              </div>
-              <div className="tool-row">
-                <span className="composer-credits">
-                  <CreditPopover variant="marker" />
-                </span>
-                <button
-                  type="button"
-                  className="send-btn"
-                  id="create-project-btn"
-                  disabled={submitting || uploading}
-                  onClick={() => void submit()}
-                >
-                  {submitting && <span className="spinner" />}
-                  {submitting ? 'Starting…' : 'Start'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {error && <div className="create-error">{error}</div>}
-          {creditsError && (
-            <div className="create-error">
-              {creditsError}{' '}
-              <button type="button" className="link-btn" onClick={() => navigate('/pricing')}>
-                Top up
-              </button>
-            </div>
-          )}
-
-          {!prompt.trim() && files.length === 0 && (
             <div className="starters">
               {STARTERS.map(s => (
                 <button
                   key={s.label}
                   type="button"
-                  className="starter"
+                  className={cn('starter', prompt === s.prompt && 'is-active')}
+                  aria-pressed={prompt === s.prompt}
                   title={s.prompt}
                   onClick={() => {
                     setPrompt(s.prompt)
@@ -336,13 +626,50 @@ export function NewProjectView() {
                 </button>
               ))}
             </div>
-          )}
 
-          <p className="create-note">
-            You are charged for what the work costs — the agent's thinking, and the machine time
-            spent recording and rendering. Asking for a change is nearly free.
-          </p>
-        </div>
+            <a className="new-featured-cue" href="#featured-videos">
+              See featured videos <span>↓</span>
+            </a>
+          </div>
+        </section>
+
+        <section className="new-template-strip">
+          <div className="new-template-strip__head">
+            <span>
+              Start from a template <i>Pro</i>
+            </span>
+            <button type="button" onClick={() => navigate('/templates')}>
+              View all
+            </button>
+          </div>
+          <div className="new-template-strip__cards">
+            {STRIP_TEMPLATES.map(template => (
+              <button
+                type="button"
+                key={template.id}
+                title={template.blurb}
+                onClick={() => navigate(`/templates?t=${template.id}`)}
+              >
+                <span
+                  className="new-template-strip__thumb"
+                  style={
+                    {
+                      '--swatch-bg': template.swatch[0],
+                      '--swatch-accent': template.swatch[2],
+                    } as CSSProperties
+                  }
+                >
+                  <Suspense fallback={null}>
+                    <DeckTemplateThumb templateId={template.id} />
+                  </Suspense>
+                </span>
+                <span>{template.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <FeaturedVideos />
       </div>
     </div>
   )

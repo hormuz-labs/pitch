@@ -8,7 +8,7 @@
  * read as another origin.
  */
 
-export const DEFAULT_REDIRECT = '/projects'
+export const DEFAULT_REDIRECT = '/new'
 
 export const safeRedirect = (value: string | null | undefined): string => {
   if (!value) return DEFAULT_REDIRECT

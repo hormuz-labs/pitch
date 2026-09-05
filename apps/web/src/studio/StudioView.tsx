@@ -249,8 +249,8 @@ function Topbar({ store }: { store: ProjectStore }) {
   const hasOutput = (p?.outputs.length ?? 0) > 0
   return (
     <div className="job-topbar">
-      <button className="topbar-btn topbar-back" onClick={() => navigate('/projects')}>
-        ← Projects
+      <button className="topbar-btn topbar-back" onClick={() => navigate('/new')}>
+        ← New chat
       </button>
       <div className="nav-crumb">
         <span className="editor-project" title={p?.name}>
@@ -301,7 +301,7 @@ function Topbar({ store }: { store: ProjectStore }) {
           className="topbar-btn danger"
           onClick={() => {
             if (p && confirm(`Delete "${p.title}" and everything in it?`))
-              void s.remove().then(() => navigate('/projects'))
+              void s.remove().then(() => navigate('/new'))
           }}
         >
           Delete

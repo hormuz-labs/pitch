@@ -241,11 +241,7 @@ export const LandingNav = () => {
 
             {/* Theme toggle intentionally hidden while the site is light-only. */}
 
-            <Link
-              to={isSignedIn ? '/projects' : '/sign-up'}
-              className="lb-cta"
-              onClick={closeMobile}
-            >
+            <Link to={isSignedIn ? '/new' : '/sign-up'} className="lb-cta" onClick={closeMobile}>
               {isSignedIn ? 'Dashboard' : 'Get started'}
             </Link>
 
