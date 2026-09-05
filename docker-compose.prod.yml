@@ -45,7 +45,7 @@ services:
     volumes:
       - /opt/pitch/launch-video/projects:/app/projects
       - /opt/pitch/pi:/root/.pi/agent
-      - /opt/pitch/whisper:/root/.cache/whisper-cpp
+      - /usr/local/share/whisper.cpp/models:/root/.cache/whisper-cpp
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri

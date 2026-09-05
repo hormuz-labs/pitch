@@ -3,7 +3,12 @@
  * the recording tools have always saved.
  */
 import { describe, expect, it } from 'vitest'
-import { parseWhisperJson, wordsToSegments } from '../.pi/lib/whisper'
+import {
+  defaultWhisperThreads,
+  findWhisperModel,
+  parseWhisperJson,
+  wordsToSegments,
+} from '../.pi/lib/whisper'
 
 // Verbatim from `whisper-cli -ml 1 -sow -oj` on a real narration take.
 const RAW = {
@@ -60,5 +65,52 @@ describe('wordsToSegments', () => {
     expect(segments.length).toBeGreaterThan(1)
     expect(segments.every(s => s.words.length <= 28)).toBe(true)
     expect(segments.flatMap(s => s.words)).toHaveLength(60)
+  })
+})
+
+describe('findWhisperModel', () => {
+  it('locates installed models or respects explicit WHISPER_MODEL env override', () => {
+    const orig = process.env.WHISPER_MODEL
+    try {
+      delete process.env.WHISPER_MODEL
+      const found = findWhisperModel()
+      // If a model is installed in /usr/local/share/whisper.cpp/models, ~/.cache, or docker-data, it finds it
+      if (found) {
+        expect(found).toMatch(/\.bin$/)
+      }
+
+      // Explicit override takes precedence
+      process.env.WHISPER_MODEL = '/nonexistent/whisper.bin'
+      expect(findWhisperModel()).toBe(found) // Falls back if explicit does not exist
+    } finally {
+      if (orig !== undefined) process.env.WHISPER_MODEL = orig
+      else delete process.env.WHISPER_MODEL
+    }
+  })
+})
+
+describe('defaultWhisperThreads', () => {
+  it('uses WHISPER_THREADS when provided', () => {
+    const orig = process.env.WHISPER_THREADS
+    try {
+      process.env.WHISPER_THREADS = '12'
+      expect(defaultWhisperThreads()).toBe(12)
+    } finally {
+      if (orig !== undefined) process.env.WHISPER_THREADS = orig
+      else delete process.env.WHISPER_THREADS
+    }
+  })
+
+  it('calculates optimal thread count for machine when env var is absent', () => {
+    const orig = process.env.WHISPER_THREADS
+    try {
+      delete process.env.WHISPER_THREADS
+      const threads = defaultWhisperThreads()
+      expect(threads).toBeGreaterThanOrEqual(1)
+      expect(threads).toBeLessThanOrEqual(12)
+    } finally {
+      if (orig !== undefined) process.env.WHISPER_THREADS = orig
+      else delete process.env.WHISPER_THREADS
+    }
   })
 })

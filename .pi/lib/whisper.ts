@@ -9,7 +9,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { availableParallelism, cpus, homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 
 export interface Word {
@@ -25,7 +25,11 @@ export interface Segment {
   words: Word[]
 }
 
-const CACHE = path.join(homedir(), '.cache', 'whisper-cpp')
+const CACHE_DIRS = [
+  path.join(homedir(), '.cache', 'whisper-cpp'),
+  '/usr/local/share/whisper.cpp/models',
+  path.resolve('docker-data/whisper'),
+]
 const MODELS = [
   'ggml-large-v3-turbo.bin',
   'ggml-large-v3.bin',
@@ -37,11 +41,33 @@ const MODELS = [
 /** The best model installed, or null. WHISPER_MODEL names one explicitly. */
 export function findWhisperModel(): string | null {
   const explicit = process.env.WHISPER_MODEL
-  const candidates = [
-    explicit?.replace(/^~/, homedir()),
-    ...MODELS.map(m => path.join(CACHE, m)),
-  ].filter((p): p is string => Boolean(p))
-  return candidates.find(p => existsSync(p)) ?? null
+  if (explicit && existsSync(explicit.replace(/^~/, homedir()))) {
+    return explicit.replace(/^~/, homedir())
+  }
+  for (const dir of CACHE_DIRS) {
+    for (const m of MODELS) {
+      const p = path.join(dir, m)
+      if (existsSync(p)) return p
+    }
+  }
+  return null
+}
+
+/**
+ * Detect optimal thread count for whisper computation.
+ * whisper.cpp scales best with physical cores (typically total/2 on SMT/hyperthreaded CPUs)
+ * capped around 12 to avoid cache thrashing. Can be overridden with WHISPER_THREADS.
+ */
+export function defaultWhisperThreads(): number {
+  const env = process.env.WHISPER_THREADS
+  if (env) {
+    const parsed = parseInt(env, 10)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  const total = typeof availableParallelism === 'function' ? availableParallelism() : cpus().length
+  if (total <= 4) return total
+  if (total <= 8) return Math.min(total, 6)
+  return Math.min(Math.floor(total / 2), 12)
 }
 
 /** A new segment starts after a silence this long, or at a sentence end. */
@@ -105,9 +131,10 @@ export function parseWhisperJson(raw: RawJson): Word[] {
  */
 export function transcribeWav(
   wav: string,
-  opts: { lang?: string; bin?: string } = {},
+  opts: { lang?: string; bin?: string; threads?: number } = {},
 ): { model: string; words: Word[]; segments: Segment[] } {
   const bin = opts.bin ?? process.env.WHISPER_CLI ?? 'whisper-cli'
+  const threads = opts.threads ?? defaultWhisperThreads()
   const model = findWhisperModel()
   if (!model) {
     throw new Error(
@@ -125,6 +152,8 @@ export function transcribeWav(
         model,
         '-f',
         wav,
+        '-t',
+        String(threads),
         '-l',
         opts.lang ?? 'en',
         '-ml',

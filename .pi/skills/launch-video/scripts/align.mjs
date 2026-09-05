@@ -16,7 +16,7 @@
  */
 import { execFileSync, execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { availableParallelism, cpus, homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { normWord, speechGaps, tokenize, wordsPathFor } from "./lib/vo-words.mjs";
 
@@ -27,11 +27,24 @@ const flag = (name, dflt = null) => {
   return argv.includes(`--${name}`) ? true : dflt;
 };
 
+function defaultWhisperThreads() {
+  const env = process.env.WHISPER_THREADS;
+  if (env) {
+    const parsed = parseInt(env, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  const total = typeof availableParallelism === "function" ? availableParallelism() : cpus().length;
+  if (total <= 4) return total;
+  if (total <= 8) return Math.min(total, 6);
+  return Math.min(Math.floor(total / 2), 12);
+}
+
 const VO = resolve(flag("vo", "audio/vo.wav"));
 if (!existsSync(VO)) { console.error(`❌ narration not found: ${VO} — run motion_tts first.`); process.exit(1); }
 const OUT = resolve(flag("out", wordsPathFor(VO)));
 const LANG = flag("lang", "en");
 const WHISPER = flag("whisper", process.env.WHISPER_CLI || "whisper-cli");
+const THREADS = flag("threads", defaultWhisperThreads());
 
 let scriptText = flag("text", null);
 const scriptFile = flag("script", null) || VO.replace(/\.\w+$/, ".txt");
@@ -46,14 +59,28 @@ scriptText = scriptText.replace(/\s+/g, " ").trim();
 
 function findModel() {
   const explicit = flag("model", process.env.WHISPER_MODEL || null);
-  const cands = [explicit,
-    join(homedir(), ".cache/whisper-cpp/ggml-large-v3-turbo.bin"),
-    join(homedir(), ".cache/whisper-cpp/ggml-large-v3.bin"),
-    join(homedir(), ".cache/whisper-cpp/ggml-medium.en.bin"),
-    join(homedir(), ".cache/whisper-cpp/ggml-small.en.bin"),
-    join(homedir(), ".cache/whisper-cpp/ggml-base.en.bin"),
-  ].filter(Boolean).map(p => p.replace(/^~/, homedir()));
-  return cands.find(p => existsSync(p)) || null;
+  if (explicit && existsSync(explicit.replace(/^~/, homedir()))) {
+    return explicit.replace(/^~/, homedir());
+  }
+  const dirs = [
+    join(homedir(), ".cache/whisper-cpp"),
+    "/usr/local/share/whisper.cpp/models",
+    resolve("docker-data/whisper"),
+  ];
+  const models = [
+    "ggml-large-v3-turbo.bin",
+    "ggml-large-v3.bin",
+    "ggml-medium.en.bin",
+    "ggml-small.en.bin",
+    "ggml-base.en.bin",
+  ];
+  for (const dir of dirs) {
+    for (const m of models) {
+      const p = join(dir, m);
+      if (existsSync(p)) return p;
+    }
+  }
+  return null;
 }
 const MODEL = findModel();
 if (!MODEL) {
@@ -84,7 +111,7 @@ const duration = Number(execSync(`ffprobe -v quiet -show_entries format=duration
 const jsonBase = join(tmp, "words");
 const prompt = scriptText.slice(0, 600);   // biases the recogniser toward the real copy (brand names, numbers)
 try {
-  execFileSync(WHISPER, ["-m", MODEL, "-f", wav16, "-l", LANG, "-ml", "1", "-sow", "-oj", "-of", jsonBase, "-np",
+  execFileSync(WHISPER, ["-m", MODEL, "-f", wav16, "-t", String(THREADS), "-l", LANG, "-ml", "1", "-sow", "-oj", "-of", jsonBase, "-np",
     "--prompt", prompt], { stdio: "pipe", maxBuffer: 32 * 1024 * 1024 });
 } catch (err) {
   // A broken whisper-cli (missing shared library, bad model file) is a host
