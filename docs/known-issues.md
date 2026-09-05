@@ -59,6 +59,16 @@ lost. Strike a line when it is done.
   when a regression check is needed, or promote a trimmed copy to the engine
   as a fixture.
 
+- **`motion_image` guardrails are a word list.** `lib/image-prompt.mjs`
+  refuses screens, logos, people and text by regex on the subject; a
+  paraphrase ("the control panel") gets through. The audit's rule that a
+  `ui-frame` / `device-3d` / logo `src` may not be a generated file is the
+  real backstop. `imageConfig.aspectRatio` was verified on
+  `gemini-3.1-flash-image` only; `gemini-3-pro-image` is untested.
+- **Harvest frame mining scans every clip fully** (`select=gt(scene,0.28)`
+  over the whole file): ~1–2 minutes for a page with ten long clips. Clips
+  under 200px wide or 1.5s are skipped; nothing is capped by total length.
+
 ## Agent behaviour (prompt / skill work)
 
 - **Decks invent figures.** With no search tool the deck agent wrote

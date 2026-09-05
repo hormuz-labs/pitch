@@ -31,10 +31,11 @@
  * script writes the source URL for every file).
  */
 import { openStudioBrowser } from "./lib/browser.mjs";
+import { assetGaps, gapsReport, planFrameTimes } from "./lib/harvest-plan.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -385,22 +386,94 @@ for (const [i, s] of [...logoSvgs, ...otherSvgs].entries()) {
 }
 if (svgFiles.length) console.log(`   ✓ ${svgFiles.length} svg written (${logoSvgs.length} look like logomarks)`);
 
+// ---------------------------------------------------------------------------
+// Frames from the product's own footage. A poster is the first frame — a
+// title, a black, a face — and the moment that sells the product is forty
+// seconds in. Scene changes (or an even spread) become stills the film can
+// use, and a sheet per clip so the agent can look and choose by time.
+// ---------------------------------------------------------------------------
+async function sceneTimes(file) {
+  try {
+    const { stderr } = await execFileAsync("ffmpeg", [
+      "-hide_banner", "-nostats", "-i", file, "-an", "-vf", "select='gt(scene,0.28)',showinfo", "-f", "null", "-",
+    ], { timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
+    return [...stderr.matchAll(/pts_time:\s*([\d.]+)/g)].map((m) => Number(m[1]));
+  } catch { return []; }
+}
+async function hasDrawtext() {
+  try {
+    const { stdout } = await execFileAsync("ffmpeg", ["-hide_banner", "-filters"], { timeout: 10000 });
+    return /\bdrawtext\b/.test(stdout);
+  } catch { return false; }
+}
+const sheets = [];
+const clips = saved.filter((m) => m.kind === "video" && m.duration && m.duration > 1.5 && (m.width || 0) >= 200);
+if (clips.length) {
+  const label = await hasDrawtext();
+  const framesRoot = join(outDir, "frames");
+  mkdirSync(resolve(framesRoot), { recursive: true });
+  console.log(`\n🎞  Mining ${clips.length} clip${clips.length === 1 ? "" : "s"} for frames…`);
+  for (const [ci, m] of clips.entries()) {
+    const base = basename(m.file).replace(/\.[^.]+$/, "");
+    const dir = join(framesRoot, base);
+    mkdirSync(resolve(dir), { recursive: true });
+    const times = planFrameTimes(await sceneTimes(resolve(m.file)), m.duration);
+    const frames = [];
+    for (const [i, t] of times.entries()) {
+      const out = join(dir, `t${String(t).replace(".", "_")}.jpg`);
+      const sheetFrame = join(dir, `.s${String(i).padStart(2, "0")}.jpg`);
+      try {
+        await execFileAsync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(t), "-i", resolve(m.file), "-frames:v", "1", "-q:v", "2", resolve(out)], { timeout: 30000 });
+        const vf = `scale=480:-2${label ? `,drawtext=text='${t.toFixed(1)}s':fontsize=22:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=6:x=10:y=h-th-10` : ""}`;
+        await execFileAsync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", resolve(out), "-vf", vf, "-q:v", "4", resolve(sheetFrame)], { timeout: 30000 });
+        frames.push({ file: out, t });
+      } catch (e) { console.log(`   ✗ frame at ${t}s of ${base}: ${e.message.slice(0, 60)}`); }
+    }
+    if (!frames.length) continue;
+    const cols = Math.min(4, frames.length);
+    const rows = Math.ceil(frames.length / cols);
+    const sheet = join(resolve(manifestPath, ".."), `frames-${String(ci + 1).padStart(2, "0")}.jpg`);
+    try {
+      await execFileAsync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-framerate", "1", "-i", resolve(dir, ".s%02d.jpg"), "-vf", `tile=${cols}x${rows}:padding=4:margin=4:color=0x141414`, "-frames:v", "1", "-q:v", "4", sheet], { timeout: 60000 });
+      m.sheet = sheet.replace(resolve(".") + "/", "");
+      sheets.push({ sheet: m.sheet, video: m.file, frames: frames.length });
+    } catch (e) { console.log(`   ✗ sheet for ${base}: ${e.message.slice(0, 60)}`); }
+    m.frames = frames;
+    console.log(`   ✓ ${base}: ${frames.length} frames at ${frames.map((f) => f.t).join(", ")}s → ${dir}/${m.sheet ? `  · sheet ${m.sheet}` : ""}`);
+  }
+}
+
+// What the site could not give, as the files to ask the user for.
+let reconInfo = {};
+try {
+  const bt = JSON.parse(readFileSync(resolve(manifestPath, "..", "brand-tokens.json"), "utf8"));
+  reconInfo = {
+    fontsSaved: Array.isArray(bt.fonts) ? bt.fonts.length : undefined,
+    fontFamily: bt.type?.headFamily || null,
+  };
+} catch { /* no recon yet — the font gap is recon's to report */ }
+
 const manifest = {
   harvested: new Date().toISOString(),
   url,
   note: "The product's OWN brand assets. Use them in a film about THIS product only; " +
         "never carry them into another product's video. Provenance is the `source` field.",
-  counts: { media: saved.length, svg: svgFiles.length, embeds: candidates.embeds.length },
+  counts: { media: saved.length, svg: svgFiles.length, embeds: candidates.embeds.length, frames: clips.reduce((n, m) => n + (m.frames?.length || 0), 0) },
   media: saved,
   svg: svgFiles,
+  sheets,
   thirdPartyEmbeds: candidates.embeds,
 };
+manifest.gaps = assetGaps(manifest, reconInfo);
 writeFileSync(resolve(manifestPath), JSON.stringify(manifest, null, 2));
 
 await studio.close();
 
 console.log(`\n✨ ${saved.length} media + ${svgFiles.length} svg → ${outDir}`);
 console.log(`   manifest: ${manifestPath}`);
+if (sheets.length) console.log(`   frame sheets: ${sheets.map((s) => s.sheet).join(", ")} — look at them; every frame is in assets/harvested/frames/<clip>/t<time>.jpg`);
+const gapText = gapsReport(manifest.gaps);
+if (gapText) console.log(gapText);
 if (candidates.embeds.length) {
   console.log(`\n⚠ ${candidates.embeds.length} third-party video embed(s) found and NOT downloaded:`);
   for (const e of candidates.embeds) {

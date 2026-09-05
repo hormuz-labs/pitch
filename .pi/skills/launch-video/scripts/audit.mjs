@@ -352,6 +352,29 @@ let logoWarnings = 0;
 }
 
 // ---------------------------------------------------------------------------
+// 7. A generated image standing in for the product?
+// motion_image makes plates, objects, textures, illustrations — never a
+// screen, a logo or a person. A ui-frame, device-3d or logo shot whose src
+// is a generated file shows the viewer a product that does not exist.
+// ---------------------------------------------------------------------------
+let generatedWarnings = 0;
+{
+  const ledger = resolve("recon/generated.json");
+  let generated = new Set();
+  try { if (existsSync(ledger)) generated = new Set(JSON.parse(readFileSync(ledger, "utf8")).map(r => r.file)); } catch { /* ignore */ }
+  const isGenerated = (src) => typeof src === "string" && (generated.has(src) || /(^|\/)assets\/generated\//.test(src));
+  const productTypes = new Set(["ui-frame", "device-3d", "logo-sting", "logo-cta"]);
+  for (const sh of spec?.shots || []) {
+    const srcs = [sh.src, ...(sh.layers?.items || []).map(it => it.src), ...(Array.isArray(sh.rows) ? sh.rows.flatMap(r => (r.items || []).map(it => it.src)) : [])];
+    const hit = srcs.find(isGenerated);
+    if (hit && (productTypes.has(sh.type) || sh.type === "icon-marquee")) {
+      generatedWarnings++;
+      console.error(`\n❌ #${sh.id} (${sh.type}) uses a generated image as the product: ${hit}. Generated files are plates, objects, textures and illustrations for type beats — the product is a harvested screenshot, a mined frame or a native html rebuild.`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Scorecard
 // ---------------------------------------------------------------------------
 const fails = [];
@@ -362,6 +385,7 @@ if (eps < minEps) fails.push(`Event density ${eps.toFixed(2)} ev/s is below ${mi
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
 if (logoWarnings) fails.push("Harvested brand asset unused.");
+if (generatedWarnings) fails.push(`${generatedWarnings} generated image(s) shown as the product.`);
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
 
 console.log(`\n──────── Philosophy scorecard ────────`);

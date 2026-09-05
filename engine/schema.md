@@ -98,6 +98,7 @@ and leave dead air between them.
 | `stat-counter` | `value`, `prefix?`, `suffix?`, `decimals?`, `from?`, `label` (parts or string). Numbers come from recon. |
 | `lottie` | a Lottie file driven frame by frame from the timeline — `src` (a harvested `.json`, `recon/harvested.json` kind `lottie`, or one the user supplied), `height` (720), `width` (= height), `x`/`y` (centred), `fit: contain\|cover`, `from`/`to` (frames; default the whole file at its own rate, looping if the shot is longer), `speed`, `loop: false`, `enter: rise\|scale\|none`, `caption` (parts) + `captionPos`. Mascots, product animations, icon sets — the product's own motion. |
 | `rive` | a Rive `.riv` scrubbed from the timeline — `src`, `artboard?`, `animation?` (name; default the file's default animation), `from` (s), `speed`, plus the `lottie` geometry, `enter` and `caption` fields. Needs `motion_scaffold({ rive: true })`. |
+| `device-3d` | the product's screen on a real object: `device: slab\|card\|phone\|laptop` (decide it), `src` (a harvested screenshot or a mined frame for the screen, cover-fit; `align: top\|center`), `turn: { from: [x°, y°], to: [x°, y°], ease? }` (decide it — without one the console warns and a house move plays), `color` (body; default the ink), `light`, `shadow` (0–1), `fov`, `enter: "none"` to skip the arrival from depth, `hover: false`, `caption` + `captionPos`. Real geometry — thickness, bevels, a laptop base — under a key light, a rim in the accent and a cast shadow; use a dark `bg` or the shadow vanishes. No custom factory; `ShotKit.three` is for what this does not do. |
 | `ui-frame` | the product itself — see below |
 
 ### `ui-frame` — the product demo shot
@@ -223,6 +224,11 @@ EasePack (`rough`, `slow`, `expoScale`), SplitText, TextPlugin —
 scatter, a motion-path fly-in are one line each.
 
 ### Real 3D, Lottie and Rive in a custom type
+
+The built-in `device-3d` type covers the common case (the product's screen on
+a slab, card, phone or laptop, turning). The helpers below are for what it
+does not do — a stack of the product's cards in depth, an extruded mark, a
+scene of several objects.
 
 | helper | what it gives a factory |
 |---|---|

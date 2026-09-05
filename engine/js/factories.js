@@ -746,10 +746,10 @@
     camera.position.set(0, 0, (height / 2) / Math.tan((fov * Math.PI / 180) / 2));
     camera.lookAt(0, 0, 0);
     const render = () => renderer.render(scene, camera);
-    const texture = (src) => {
+    const texture = (src, onLoad) => {
       let done;
       ready(new Promise((resolve) => { done = resolve; }));
-      const tex = new THREE.TextureLoader().load(src, () => done(), undefined, (e) => { console.warn("[three] texture failed", src, e); done(); });
+      const tex = new THREE.TextureLoader().load(src, (t) => { if (onLoad) onLoad(t); done(); }, undefined, (e) => { console.warn("[three] texture failed", src, e); done(); });
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       return tex;
@@ -879,6 +879,117 @@
     return tl;
   }
 
+  /* ---------- device-3d ---------- */
+  // The product's own screen on a real object — a slab, card, phone or
+  // laptop with thickness, a rim light in the accent and a cast shadow —
+  // turning on a three.js stage. Fields, not a custom factory: `device`,
+  // `src`, `turn: { from: [x°, y°], to: [x°, y°] }`. World units are pixels,
+  // so a 1180-wide slab is 1180px wide when it faces the camera.
+  const DEVICES = {
+    slab: { w: 1180, h: 740, t: 26, r: 22, bezel: 0 },
+    card: { w: 900, h: 560, t: 10, r: 28, bezel: 0 },
+    phone: { w: 400, h: 820, t: 22, r: 60, bezel: 16 },
+    laptop: { w: 1240, h: 800, t: 14, r: 18, bezel: 22, base: true },
+  };
+  const cssColor = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name) || "").trim() || fallback;
+  function roundedSlab(THREE, w, h, t, r, material) {
+    const shape = new THREE.Shape();
+    const x = -w / 2, y = -h / 2;
+    shape.moveTo(x + r, y);
+    shape.lineTo(x + w - r, y); shape.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
+    shape.lineTo(x + w, y + h - r); shape.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
+    shape.lineTo(x + r, y + h); shape.absarc(x + r, y + h - r, r, Math.PI / 2, Math.PI, false);
+    shape.lineTo(x, y + r); shape.absarc(x + r, y + r, r, Math.PI, Math.PI * 1.5, false);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: true, bevelThickness: 2, bevelSize: 2, bevelSegments: 3, curveSegments: 12 });
+    geo.translate(0, 0, -t / 2);
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  }
+  function device3dMount(el, shot) {
+    el.dataset.bg = shot.bg || "ink";
+    const spec = DEVICES[shot.device];
+    if (!spec) throw new Error(`device-3d: \`device\` must be one of ${Object.keys(DEVICES).join(", ")} (shot ${shot.id})`);
+    if (!shot.src) throw new Error(`device-3d: \`src\` (a harvested screenshot for the screen) is required (shot ${shot.id})`);
+    const st = three(el, { shadows: true, fov: shot.fov || 30 });
+    const { THREE, scene } = st;
+    const accent = new THREE.Color(cssColor("--accent", "#65A8EF"));
+    const body = new THREE.Color(shot.color || cssColor("--ink", "#111111"));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1a1a, 0.55));
+    const key = new THREE.DirectionalLight(0xffffff, shot.light ?? 2.2);
+    key.position.set(700, 900, 1400);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.bias = -0.0005;
+    Object.assign(key.shadow.camera, { left: -1800, right: 1800, top: 1400, bottom: -1400, near: 100, far: 6000 });
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(accent, 1.4);
+    rim.position.set(-900, 250, -700);
+    scene.add(rim);
+
+    const group = new THREE.Group();
+    const inner = new THREE.Group();
+    group.add(inner);
+    const bodyMat = new THREE.MeshPhysicalMaterial({ color: body, metalness: 0.55, roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.25 });
+    const slab = roundedSlab(THREE, spec.w, spec.h, spec.t, spec.r, bodyMat);
+    const sw = spec.w - spec.bezel * 2;
+    const sh = spec.h - spec.bezel * 2;
+    const screenMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+    const align = shot.align || "top";
+    screenMat.map = st.texture(shot.src, (tex) => {
+      // object-fit: cover on the screen plane, from the image's real size.
+      const ia = tex.image.width / tex.image.height;
+      const sa = sw / sh;
+      tex.repeat.set(1, 1); tex.offset.set(0, 0);
+      if (ia > sa) { tex.repeat.x = sa / ia; tex.offset.x = (1 - tex.repeat.x) / 2; }
+      else { tex.repeat.y = ia / sa; tex.offset.y = align === "top" ? 1 - tex.repeat.y : (1 - tex.repeat.y) / 2; }
+      tex.needsUpdate = true;
+      screenMat.needsUpdate = true;
+    });
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), screenMat);
+    screen.position.z = spec.t / 2 + 2.5;
+    const lid = new THREE.Group();
+    lid.add(slab, screen);
+    inner.add(lid);
+    let floorY = -spec.h / 2 - 70;
+    if (spec.base) {
+      // A laptop: the lid stands on a base and leans back a little.
+      const depth = spec.h * 0.72;
+      const base = roundedSlab(THREE, spec.w, depth, spec.t, spec.r, bodyMat);
+      base.rotation.x = -Math.PI / 2;
+      base.position.set(0, -spec.h / 2 - spec.t / 2, depth / 2);
+      lid.position.y = 0;
+      lid.rotation.x = -0.18;
+      inner.add(base);
+      floorY = -spec.h / 2 - spec.t - 2;
+    }
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.ShadowMaterial({ opacity: shot.shadow ?? 0.42 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = floorY;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    scene.add(group);
+    stages.set(el, { group, inner });
+    captionMount(el, shot);
+  }
+  function device3dAnimate(el, shot, D) {
+    const tl = gsap.timeline();
+    const { group, inner } = stages.get(el);
+    const rad = (d) => (d * Math.PI) / 180;
+    const turn = shot.turn || {};
+    if (!shot.turn) console.warn("[device-3d] no `turn` on", shot.id, "— decide the angles; the fallback is a house move");
+    const from = turn.from || [8, -55];
+    const to = turn.to || [2, 18];
+    tl.fromTo(group.rotation, { x: rad(from[0]), y: rad(from[1]) }, { x: rad(to[0]), y: rad(to[1]), duration: D, ease: turn.ease || "power2.inOut" }, 0);
+    if (shot.enter !== "none") {
+      tl.fromTo(group.position, { z: -1000, y: -120 }, { z: 0, y: 0, duration: Math.min(D * 0.6, 1.4), ease: "power3.out" }, 0);
+    }
+    if (shot.hover !== false) tl.fromTo(inner.position, { y: -8 }, { y: 8, duration: D, ease: "sine.inOut" }, 0);
+    captionIn(tl, el);
+    return tl;
+  }
+
   // Shared helpers for project-local factories (js/shots.custom.js).
   window.ShotKit = { h, qs, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap };
 
@@ -898,5 +1009,6 @@
     "ui-frame": { mount: uiMount, animate: uiAnimate },
     "lottie": { mount: lottieMount, animate: lottieAnimate },
     "rive": { mount: riveMount, animate: riveAnimate },
+    "device-3d": { mount: device3dMount, animate: device3dAnimate },
   };
 })();

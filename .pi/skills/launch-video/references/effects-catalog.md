@@ -854,6 +854,13 @@ invariant 3). Pair with `swoosh-soft` or `riser` resolving into the reveal.
 
 ## 26. Real 3D — a device turn on a three.js stage
 
+**First the built-in, no code:** `{ type: "device-3d", device: "laptop" | "phone" |
+"slab" | "card", src: "assets/harvested/frames/<clip>/t40.jpg", turn: { from:
+[12, -62], to: [4, 16] }, caption }` — lit, bevelled, shadowed, the rim light
+in the accent. Decide `device` and `turn` from the product (a phone app turns
+on a phone; a Mac app on a laptop; a card for a single UI surface). The
+factory below is the pattern for what the built-in does not do.
+
 `ShotKit.three` (schema "Real 3D, Lottie and Rive in a custom type") gives a
 factory a lit WebGL stage the size of the shot; world units are CSS pixels
 at z = 0. Build in `mount`, tween state in `animate`, never render yourself —
