@@ -6,7 +6,6 @@ import { FlowGlyph } from '../components/FlowGlyph'
 import { LoadingCoin } from '../components/LoadingCoin'
 import {
   deleteProject,
-  FLOW_IDS,
   FLOWS,
   type FlowId,
   listProjects,
@@ -258,10 +257,9 @@ export function ProjectsView({ searchQuery = '' }: { searchQuery?: string }) {
   const { toast } = useToast()
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [flowFilter, setFlowFilter] = useState<'all' | FlowId>('all')
+  const [flowFilter] = useState<'all' | FlowId>('all')
   const [mediaToken, setMediaToken] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Project | null>(null)
-  const imported = useRef(false)
 
   const load = useCallback(async () => {
     try {
@@ -302,12 +300,6 @@ export function ProjectsView({ searchQuery = '' }: { searchQuery?: string }) {
       )
     })
   }, [projects, flowFilter, searchQuery])
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: projects?.length ?? 0 }
-    for (const f of FLOW_IDS) c[f] = projects?.filter(p => p.flow === f).length ?? 0
-    return c
-  }, [projects])
 
   const handleShare = async (p: Project) => {
     try {

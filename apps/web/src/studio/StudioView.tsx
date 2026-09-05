@@ -4,7 +4,7 @@
  * the flow has one. Everything the model does is visible; everything the
  * agent saves shows up in the preview.
  */
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppShell } from '../App'
 import { AssetShelf } from './AssetShelf'
@@ -430,7 +430,8 @@ export function StudioView({ projectId }: { projectId: string }) {
                 Math.max(drag.current.startW + (drag.current.startX - e.clientX), 320),
                 720,
               )
-              if (sidebarEl.current) sidebarEl.current.style.width = `${drag.current.width}px`
+              if (sidebarEl.current)
+                sidebarEl.current.style.setProperty('--sidebar-w', `${drag.current.width}px`)
             }}
             onPointerUp={() => {
               drag.current.dragging = false
@@ -439,7 +440,10 @@ export function StudioView({ projectId }: { projectId: string }) {
           <aside
             className="edit-sidebar"
             ref={sidebarEl}
-            style={{ width: `${drag.current.width}px` }}
+            /* Width as a custom property, not `width` itself: the stacked
+               phone layout has to drop it, and a media query cannot outrank
+               an inline width. */
+            style={{ '--sidebar-w': `${drag.current.width}px` } as CSSProperties}
           >
             <div className="feed-header">
               <h2>Agent</h2>

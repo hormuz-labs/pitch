@@ -11,7 +11,20 @@
  * video until you are looking at it and can select the part you mean.
  */
 import { useAuth, useUser } from '@clerk/react'
-import { ArrowUp, CircleHelp, Megaphone, Menu, Plus } from 'lucide-react'
+import Lenis from 'lenis'
+import {
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  CircleHelp,
+  Clock3,
+  Film,
+  Megaphone,
+  Menu,
+  Paperclip,
+  Plus,
+  RectangleHorizontal,
+} from 'lucide-react'
 import {
   type CSSProperties,
   lazy,
@@ -29,8 +42,18 @@ import { SLIDES } from '../components/landing/VideoCarousel'
 import { PitchWordmark } from '../components/PitchWordmark'
 import { PromptGuideModal } from '../components/PromptGuideModal'
 import { SettingsCreditButton } from '../components/SettingsModal'
+import { UrlAuthPrompt } from '../components/UrlAuthPrompt'
+import { useBrowserProfile } from '../hooks/useBrowserProfile'
+import { usePromptUrl } from '../hooks/usePromptUrl'
+import { isAuthenticatedFor } from '../lib/authOrigins'
 import { DECK_TEMPLATES } from '../lib/deckTemplates'
-import { createProject, type UploadRef, uploads as uploadFiles } from '../lib/studio-api'
+import {
+  createProject,
+  listStudioModels,
+  type StudioModel,
+  type UploadRef,
+  uploads as uploadFiles,
+} from '../lib/studio-api'
 import { describeStudioError, isCreditsError } from '../lib/studio-errors'
 import { cn } from '../lib/utils'
 import '../studio/studio.css'
@@ -40,6 +63,43 @@ const MAX_UPLOAD_MB = 500
 
 const ACCEPT =
   '.pdf,.pptx,.ppt,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a'
+const REFERENCE_VIDEO_ACCEPT = '.mp4,.webm,.mov,.mkv'
+
+const ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:5'] as const
+type AspectRatio = (typeof ASPECT_RATIOS)[number]
+const DURATIONS = [6, 15, 30, 60] as const
+
+interface NewAuthResume {
+  prompt: string
+  files: UploadRef[]
+  aspectRatio: AspectRatio
+  durationSeconds: number | null
+  referenceVideoNames: string[]
+  model: string | null
+}
+
+function readNewAuthResume(): NewAuthResume | null {
+  if (typeof sessionStorage === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem('pitch:new-auth-draft')
+    if (!raw) return null
+    const saved = JSON.parse(raw) as Partial<NewAuthResume>
+    return {
+      prompt: typeof saved.prompt === 'string' ? saved.prompt : '',
+      files: Array.isArray(saved.files) ? saved.files : [],
+      aspectRatio: ASPECT_RATIOS.includes(saved.aspectRatio as AspectRatio)
+        ? (saved.aspectRatio as AspectRatio)
+        : '16:9',
+      durationSeconds: typeof saved.durationSeconds === 'number' ? saved.durationSeconds : null,
+      referenceVideoNames: Array.isArray(saved.referenceVideoNames)
+        ? saved.referenceVideoNames.filter((name): name is string => typeof name === 'string')
+        : [],
+      model: typeof saved.model === 'string' ? saved.model : null,
+    }
+  } catch {
+    return null
+  }
+}
 
 const Glyph = ({ children }: { children: ReactNode }) => (
   <svg
@@ -244,17 +304,17 @@ function FeaturedVideos() {
     }
   }, [])
 
+  // No exit pass: the page ends with the wall fully open, so the last frame
+  // of the scroll is the featured grid itself rather than it dissolving away.
   const enter = smoothstep(0.04, 0.3, progress)
-  const exit = smoothstep(0.72, 0.98, progress)
-  const gridTravel = smoothstep(0.27, 0.78, progress)
-  const fade = smoothstep(0.92, 1, progress)
+  const gridTravel = smoothstep(0.27, 0.92, progress)
   const frameStyle = {
-    '--featured-width': `${70 + enter * 30 - exit * 14}%`,
-    '--featured-height': `${86 + enter * 14 - exit * 20}vh`,
-    '--featured-radius': `${18 * (1 - enter) + exit * 16}px`,
-    '--featured-y': `${-10 * exit}vh`,
+    '--featured-width': `${70 + enter * 30}%`,
+    '--featured-height': `${86 + enter * 14}vh`,
+    '--featured-radius': `${18 * (1 - enter)}px`,
+    '--featured-y': '0vh',
     '--featured-grid-y': `${-52 * gridTravel}vh`,
-    '--featured-opacity': String(1 - fade),
+    '--featured-opacity': '1',
   } as CSSProperties
 
   return (
@@ -321,24 +381,135 @@ export function NewProjectView() {
   const { toast } = useToast()
   const { isMobile, toggleSidebar, openSettings } = useAppShell()
   const [params] = useSearchParams()
+  const [authResume] = useState(readNewAuthResume)
 
-  const [prompt, setPrompt] = useState(() => params.get('prompt') ?? '')
-  const [files, setFiles] = useState<UploadRef[]>([])
+  const [prompt, setPrompt] = useState(() => params.get('prompt') ?? authResume?.prompt ?? '')
+  const [files, setFiles] = useState<UploadRef[]>(() => authResume?.files ?? [])
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [creditsError, setCreditsError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [promptGuideOpen, setPromptGuideOpen] = useState(false)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [addMenuPanel, setAddMenuPanel] = useState<'root' | 'aspect' | 'duration'>('root')
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(
+    () => authResume?.aspectRatio ?? '16:9',
+  )
+  const [durationSeconds, setDurationSeconds] = useState<number | null>(
+    () => authResume?.durationSeconds ?? null,
+  )
+  const [referenceVideoNames, setReferenceVideoNames] = useState<string[]>(
+    () => authResume?.referenceVideoNames ?? [],
+  )
+  const [dismissedAuthUrl, setDismissedAuthUrl] = useState<string | null>(null)
   /** A new object every click, so re-picking the same starter re-selects. */
   const [starter, setStarter] = useState<{ select: string } | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
+  const referenceVideoInput = useRef<HTMLInputElement | null>(null)
+  const addMenuRef = useRef<HTMLDivElement | null>(null)
   const textarea = useRef<HTMLTextAreaElement | null>(null)
   const dragDepth = useRef(0)
+  const pageRef = useRef<HTMLDivElement | null>(null)
+
+  // Lenis on the page's own scroll container (main.app-shell-main, not the
+  // window): the long featured-videos pass should glide. Overscroll stays off
+  // so the page comes to rest exactly on the end of that section.
+  useEffect(() => {
+    const root = pageRef.current
+    const wrapper = root?.closest('.app-shell-main')
+    if (!root || !(wrapper instanceof HTMLElement)) return
+    const lenis = new Lenis({
+      wrapper,
+      content: root,
+      lerp: 0.09,
+      smoothWheel: true,
+      wheelMultiplier: 0.9,
+      anchors: true,
+      overscroll: false,
+      syncTouch: false,
+      respectReducedMotion: true,
+    })
+    let frame = 0
+    const raf = (time: number) => {
+      lenis.raf(time)
+      frame = requestAnimationFrame(raf)
+    }
+    frame = requestAnimationFrame(raf)
+    return () => {
+      cancelAnimationFrame(frame)
+      lenis.destroy()
+    }
+  }, [])
   const typedPlaceholder = useTypedPlaceholder(prompt.length > 0)
+  const [models, setModels] = useState<StudioModel[]>([])
+  const [model, setModel] = useState<string | null>(() => authResume?.model ?? null)
+  const [modelOpen, setModelOpen] = useState(false)
+  const modelRef = useRef<HTMLDivElement | null>(null)
+  const browserProfile = useBrowserProfile()
+  const promptUrl = usePromptUrl(prompt)
+  const suggestAuthentication =
+    !!promptUrl &&
+    promptUrl !== dismissedAuthUrl &&
+    !browserProfile.loading &&
+    !isAuthenticatedFor(promptUrl, browserProfile.origins)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const res = await listStudioModels(token)
+        if (cancelled) return
+        setModels(res.models)
+        setModel(current =>
+          current && res.models.some(candidate => candidate.spec === current)
+            ? current
+            : res.default,
+        )
+      } catch {
+        // Without the list there is no picker; the server default still runs.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [getToken])
+
+  useEffect(() => {
+    if (!modelOpen) return
+    const close = (e: MouseEvent) => {
+      if (!modelRef.current?.contains(e.target as Node)) setModelOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [modelOpen])
+
+  useEffect(() => {
+    if (!addMenuOpen) return
+    const close = (event: MouseEvent) => {
+      if (!addMenuRef.current?.contains(event.target as Node)) {
+        setAddMenuOpen(false)
+        setAddMenuPanel('root')
+      }
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setAddMenuOpen(false)
+      setAddMenuPanel('root')
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [addMenuOpen])
 
   useEffect(() => {
     textarea.current?.focus()
+    sessionStorage.removeItem('pitch:new-auth-draft')
   }, [])
 
   // A starter is only a head start if the bit you must replace is already
@@ -351,14 +522,22 @@ export function NewProjectView() {
     if (at >= 0) el.setSelectionRange(at, at + starter.select.length)
   }, [starter])
 
-  /**
-   * Upload, then go straight to the editor. Anything the user might have typed
-   * here rides along as the first prompt; with nothing typed the project just
-   * opens, with the file on screen and the composer waiting.
-   */
-  const pickFiles = async (list: FileList | null) => {
+  /** Upload menu choices stay in the composer; a direct drop still opens the editor. */
+  const pickFiles = async (
+    list: FileList | null,
+    options: { openAfterUpload?: boolean; referenceVideo?: boolean } = {},
+  ) => {
     if (!list?.length) return
     const picked = Array.from(list)
+    if (options.referenceVideo) {
+      const invalid = picked.find(
+        file => !file.type.startsWith('video/') && !/\.(mp4|webm|mov|mkv)$/i.test(file.name),
+      )
+      if (invalid) {
+        toast('Reference material must be a video file.', 'error')
+        return
+      }
+    }
     const tooBig = picked.find(f => f.size > MAX_UPLOAD_MB * 1024 * 1024)
     if (tooBig) {
       toast(`${tooBig.name} is over ${MAX_UPLOAD_MB} MB`, 'error')
@@ -372,8 +551,13 @@ export function NewProjectView() {
       for (const f of picked) form.append('files', f)
       const added = await uploadFiles(token, form)
       setFiles(prev => [...prev, ...added])
+      if (options.referenceVideo) {
+        setReferenceVideoNames(prev => [...new Set([...prev, ...added.map(file => file.name)])])
+      }
       setError(null)
-      await open(prompt.trim(), added, token)
+      setAddMenuOpen(false)
+      setAddMenuPanel('root')
+      if (options.openAfterUpload) await open(prompt.trim(), added, token)
     } catch (err) {
       const msg = describeStudioError(err, 'Upload failed')
       toast(msg, 'error')
@@ -381,11 +565,21 @@ export function NewProjectView() {
     } finally {
       setUploading(false)
       if (fileInput.current) fileInput.current.value = ''
+      if (referenceVideoInput.current) referenceVideoInput.current.value = ''
     }
   }
 
   const open = async (text: string, uploads: UploadRef[], token: string) => {
-    const project = await createProject(token, { prompt: text, options: {}, uploads })
+    const project = await createProject(token, {
+      prompt: text,
+      options: {
+        aspectRatio,
+        ...(durationSeconds ? { durationSeconds } : {}),
+        ...(referenceVideoNames.length > 0 ? { referenceVideoFiles: referenceVideoNames } : {}),
+      },
+      uploads,
+      ...(model ? { model } : {}),
+    })
     window.dispatchEvent(new Event('credits-changed'))
     navigate(`/p/${project.id}`)
   }
@@ -412,13 +606,13 @@ export function NewProjectView() {
   }
 
   return (
-    <div className="lv-studio new-project-page">
+    <div className="lv-studio new-project-page" ref={pageRef}>
       {isMobile && (
         <button
           type="button"
           className="new-project-menu"
           onClick={toggleSidebar}
-          aria-label="Open navigation"
+          aria-label="Open chats and navigation"
         >
           <Menu size={18} strokeWidth={1.75} />
         </button>
@@ -442,7 +636,7 @@ export function NewProjectView() {
           e.preventDefault()
           dragDepth.current = 0
           setDragging(false)
-          void pickFiles(e.dataTransfer.files)
+          void pickFiles(e.dataTransfer.files, { openAfterUpload: true })
         }}
       >
         {promptGuideOpen && <PromptGuideModal onClose={() => setPromptGuideOpen(false)} />}
@@ -463,6 +657,9 @@ export function NewProjectView() {
             <a href="mailto:support@trypitch.co">Need an epic launch video?</a>
             <button type="button" onClick={() => openSettings('mcp')}>
               API / MCP
+            </button>
+            <button type="button" onClick={() => navigate('/docs')}>
+              Docs
             </button>
           </div>
           <div className="new-project-topnav__actions">
@@ -505,13 +702,33 @@ export function NewProjectView() {
         <section className="new-create-hero">
           <div className="new-create-hero__intro">
             <PitchWordmark className="new-create-wordmark" />
-            <p>One agent for motion design.</p>
-            <button type="button" onClick={() => navigate('/affiliate')}>
-              Share Pitch <i /> Earn 25% per customer
+            <p>We do it better.</p>
+            <button type="button" onClick={() => navigate('/affiliates')}>
+              Share Pitch <i /> Earn 9 credits per customer
             </button>
           </div>
 
           <div className="composer-wrap new-composer-wrap">
+            {suggestAuthentication && promptUrl && (
+              <UrlAuthPrompt
+                url={promptUrl}
+                onContinuePublicly={() => setDismissedAuthUrl(promptUrl)}
+                onAuthenticate={() => {
+                  sessionStorage.setItem(
+                    'pitch:new-auth-draft',
+                    JSON.stringify({
+                      prompt,
+                      files,
+                      aspectRatio,
+                      durationSeconds,
+                      referenceVideoNames,
+                      model,
+                    } satisfies NewAuthResume),
+                  )
+                  navigate(`/sessions?url=${encodeURIComponent(promptUrl)}&from=new`)
+                }}
+              />
+            )}
             <div className={cn('composer-box', error && 'invalid')}>
               <button
                 type="button"
@@ -527,10 +744,14 @@ export function NewProjectView() {
                   {files.map((f, i) => (
                     <span key={`${f.url}-${i}`} className="attach-chip" title={f.name}>
                       <span>{f.name}</span>
+                      {referenceVideoNames.includes(f.name) && <em>Reference</em>}
                       <button
                         type="button"
                         aria-label={`Remove ${f.name}`}
-                        onClick={() => setFiles(list => list.filter((_, j) => j !== i))}
+                        onClick={() => {
+                          setFiles(list => list.filter((_, j) => j !== i))
+                          setReferenceVideoNames(names => names.filter(name => name !== f.name))
+                        }}
                       >
                         ×
                       </button>
@@ -538,11 +759,11 @@ export function NewProjectView() {
                   ))}
                 </div>
               )}
-
               <textarea
                 ref={textarea}
                 rows={3}
                 id="new-project-prompt"
+                data-lenis-prevent
                 placeholder={typedPlaceholder}
                 value={prompt}
                 onChange={e => {
@@ -558,7 +779,7 @@ export function NewProjectView() {
               />
 
               <div className="composer-footer">
-                <div className="tool-row">
+                <div className="tool-row composer-add" ref={addMenuRef}>
                   <input
                     ref={fileInput}
                     type="file"
@@ -567,21 +788,185 @@ export function NewProjectView() {
                     accept={ACCEPT}
                     onChange={e => void pickFiles(e.target.files)}
                   />
+                  <input
+                    ref={referenceVideoInput}
+                    type="file"
+                    hidden
+                    accept={REFERENCE_VIDEO_ACCEPT}
+                    onChange={e => void pickFiles(e.target.files, { referenceVideo: true })}
+                  />
                   <button
                     type="button"
-                    className="attach-plus"
+                    className={cn('attach-plus', addMenuOpen && 'is-open')}
                     disabled={uploading}
-                    onClick={() => fileInput.current?.click()}
-                    aria-label="Attach a file"
-                    title="Attach a file"
+                    onClick={() => {
+                      setAddMenuOpen(open => !open)
+                      setAddMenuPanel('root')
+                      setModelOpen(false)
+                    }}
+                    aria-label={addMenuOpen ? 'Close add menu' : 'Open add menu'}
+                    aria-haspopup="menu"
+                    aria-expanded={addMenuOpen}
+                    title="Add files and preferences"
                   >
                     {uploading ? <span className="spinner" /> : <Plus size={18} />}
                   </button>
+                  {addMenuOpen && (
+                    <div className="composer-add-menu" role="menu" aria-label="Add to project">
+                      {addMenuPanel === 'root' ? (
+                        <>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => fileInput.current?.click()}
+                          >
+                            <Paperclip size={15} />
+                            <span>Add photos &amp; files</span>
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => referenceVideoInput.current?.click()}
+                          >
+                            <Film size={15} />
+                            <span>Add a reference video</span>
+                          </button>
+                          <i className="composer-add-menu__divider" />
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => setAddMenuPanel('aspect')}
+                          >
+                            <RectangleHorizontal size={15} />
+                            <span>Aspect ratio</span>
+                            <small>{aspectRatio}</small>
+                            <ChevronRight size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => setAddMenuPanel('duration')}
+                          >
+                            <Clock3 size={15} />
+                            <span>Duration</span>
+                            <small>{durationSeconds ? `${durationSeconds}s` : 'Auto'}</small>
+                            <ChevronRight size={13} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="composer-add-menu__back"
+                            onClick={() => setAddMenuPanel('root')}
+                          >
+                            <ChevronRight size={13} />
+                            <span>{addMenuPanel === 'aspect' ? 'Aspect ratio' : 'Duration'}</span>
+                          </button>
+                          <i className="composer-add-menu__divider" />
+                          {addMenuPanel === 'aspect' ? (
+                            ASPECT_RATIOS.map(ratio => (
+                              <button
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={aspectRatio === ratio}
+                                className={cn(aspectRatio === ratio && 'is-selected')}
+                                key={ratio}
+                                onClick={() => {
+                                  setAspectRatio(ratio)
+                                  setAddMenuOpen(false)
+                                  setAddMenuPanel('root')
+                                }}
+                              >
+                                <RectangleHorizontal size={15} />
+                                <span>{ratio}</span>
+                                {aspectRatio === ratio && <b>Selected</b>}
+                              </button>
+                            ))
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={durationSeconds === null}
+                                className={cn(durationSeconds === null && 'is-selected')}
+                                onClick={() => {
+                                  setDurationSeconds(null)
+                                  setAddMenuOpen(false)
+                                  setAddMenuPanel('root')
+                                }}
+                              >
+                                <Clock3 size={15} />
+                                <span>Auto</span>
+                                {durationSeconds === null && <b>Selected</b>}
+                              </button>
+                              {DURATIONS.map(duration => (
+                                <button
+                                  type="button"
+                                  role="menuitemradio"
+                                  aria-checked={durationSeconds === duration}
+                                  className={cn(durationSeconds === duration && 'is-selected')}
+                                  key={duration}
+                                  onClick={() => {
+                                    setDurationSeconds(duration)
+                                    setAddMenuOpen(false)
+                                    setAddMenuPanel('root')
+                                  }}
+                                >
+                                  <Clock3 size={15} />
+                                  <span>{duration} seconds</span>
+                                  {durationSeconds === duration && <b>Selected</b>}
+                                </button>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="tool-row">
                   <span className="composer-credits">
                     <CreditPopover variant="marker" />
                   </span>
+                  {models.length > 0 && (
+                    <div className="model-select" ref={modelRef}>
+                      <button
+                        type="button"
+                        className="model-btn"
+                        onClick={() => {
+                          setModelOpen(open => !open)
+                          setAddMenuOpen(false)
+                          setAddMenuPanel('root')
+                        }}
+                        aria-haspopup="listbox"
+                        aria-expanded={modelOpen}
+                        title="Choose the model"
+                      >
+                        <span>{models.find(m => m.spec === model)?.label ?? 'Model'}</span>
+                        <ChevronDown size={12} />
+                      </button>
+                      {modelOpen && (
+                        <div className="model-menu" role="listbox" aria-label="Models">
+                          {models.map(m => (
+                            <button
+                              key={m.spec}
+                              type="button"
+                              role="option"
+                              aria-selected={m.spec === model}
+                              className={cn('model-option', m.spec === model && 'is-active')}
+                              onClick={() => {
+                                setModel(m.spec)
+                                setModelOpen(false)
+                              }}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <button
                     type="button"
                     className="send-btn"

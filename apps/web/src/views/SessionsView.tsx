@@ -233,11 +233,16 @@ export const SessionsView = () => {
     setTargetUrl(url)
     setAuthModalOpen(true)
     const from = searchParams.get('from')
-    if (from === 'new') setReturnPath('/new?flow=demo-video')
+    if (from === 'new') setReturnPath('/new')
     if (from === 'launch-video') setReturnPath('/new?flow=launch-video')
+    const projectId = searchParams.get('project')
+    if (from === 'project' && projectId && /^[a-zA-Z0-9_-]{1,128}$/.test(projectId)) {
+      setReturnPath(`/p/${projectId}`)
+    }
     const next = new URLSearchParams(searchParams)
     next.delete('url')
     next.delete('from')
+    next.delete('project')
     setSearchParams(next, { replace: true })
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -395,7 +400,11 @@ export const SessionsView = () => {
   }
 
   const origins = useMemo(() => profile?.loggedInOrigins ?? [], [profile])
-  const returnLabel = returnPath?.includes('flow=launch-video') ? 'launch video' : 'demo'
+  const returnLabel = returnPath?.startsWith('/p/')
+    ? 'project'
+    : returnPath?.includes('flow=launch-video')
+      ? 'launch video'
+      : 'new project'
 
   return (
     <div className="min-h-full bg-[#f7f7f5] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">

@@ -1,0 +1,229 @@
+/*
+ * /affiliates — the public pitch for the referral program.
+ *
+ * Same grammar as the rest of the landing: marble canvas, hairline rules,
+ * Geist Mono for anything that behaves like a label, 400 weight everywhere,
+ * no shadows and no gradients. Scoped under `.lb-root` so it inherits the
+ * theme tokens and reads in light and dark without a second palette.
+ */
+
+.lb-aff-hero { padding-top: clamp(56px, 9vh, 96px); }
+.lb-aff-title { max-width: 15ch; }
+.lb-aff-lede { max-width: 60ch; margin-top: 18px; font-size: 1.05rem; }
+.lb-aff-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+
+/* The four facts, as a row of hairline-separated columns rather than cards —
+   they are one statement read across, not four things to compare. */
+.lb-aff-stats {
+  margin: 44px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--lb-line);
+  border: 1px solid var(--lb-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lb-aff-stats > div { background: var(--lb-bg); padding: 20px 18px; }
+.lb-aff-stats dt {
+  font-family: var(--lb-sans);
+  font-size: clamp(1.5rem, 2.6vw, 1.9rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--lb-ink);
+}
+.lb-aff-stats dd {
+  margin: 8px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--lb-ink-2);
+  max-width: 20ch;
+}
+
+/* ── three steps ─────────────────────────────────────────────────── */
+.lb-aff-steps {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.lb-aff-step {
+  padding: 22px 20px 24px;
+  border: 1px solid var(--lb-line);
+  border-radius: 12px;
+  transition: border-color 0.15s var(--ease-out), background 0.15s var(--ease-out);
+}
+.lb-aff-step:hover { border-color: var(--lb-line-2); background: var(--lb-surface); }
+.lb-aff-step-n {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--lb-line-2);
+  border-radius: 999px;
+  font-family: var(--lb-mono);
+  font-size: 10.5px;
+  color: var(--lb-ink);
+}
+.lb-aff-step h3 {
+  margin: 16px 0 8px;
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: 1.05rem;
+  letter-spacing: -0.025em;
+  color: var(--lb-ink);
+}
+.lb-aff-step p { margin: 0; font-size: 0.92rem; line-height: 1.55; color: var(--lb-ink-2); }
+
+/* ── the calculator ──────────────────────────────────────────────── */
+.lb-aff-calc {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1px;
+  background: var(--lb-line);
+  border: 1px solid var(--lb-line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.lb-aff-calc-dials {
+  background: var(--lb-bg);
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  justify-content: center;
+}
+.lb-aff-dial { display: block; }
+.lb-aff-dial-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--lb-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}
+.lb-aff-dial-head b {
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+  color: var(--lb-ink);
+}
+
+/* A hairline track with a solid ink handle — the same restraint as the
+   buttons, since a range input's default chrome is the one control that
+   would drag a whole other design system onto the page. */
+.lb-aff-dial input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  margin-top: 14px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--lb-line-2);
+  cursor: pointer;
+}
+.lb-aff-dial input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--lb-btn);
+  border-radius: 999px;
+  background: var(--lb-btn);
+}
+.lb-aff-dial input[type='range']::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--lb-btn);
+  border-radius: 999px;
+  background: var(--lb-btn);
+}
+.lb-aff-dial input[type='range']:focus-visible {
+  outline: 2px solid var(--lb-accent);
+  outline-offset: 4px;
+}
+
+.lb-aff-calc-out {
+  background: var(--lb-surface);
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.lb-aff-calc-total { display: flex; align-items: baseline; gap: 8px; }
+.lb-aff-calc-num {
+  font-size: clamp(2.4rem, 5vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--lb-ink);
+  font-variant-numeric: tabular-nums;
+}
+.lb-aff-calc-unit {
+  font-family: var(--lb-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--lb-ink-dim);
+}
+.lb-aff-calc-videos {
+  margin: 12px 0 0;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  color: var(--lb-ink);
+}
+.lb-aff-calc-math {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--lb-line);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--lb-ink-2);
+}
+
+.lb-aff-audiences { margin-top: 30px; }
+
+/* ── terms ───────────────────────────────────────────────────────── */
+.lb-aff-terms {
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--lb-line);
+  border: 1px solid var(--lb-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lb-aff-terms li { background: var(--lb-bg); padding: 24px 22px; }
+.lb-aff-terms h3 {
+  margin: 0 0 8px;
+  font-family: var(--lb-sans);
+  font-weight: 400;
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+  color: var(--lb-ink);
+}
+.lb-aff-terms p { margin: 0; font-size: 0.88rem; line-height: 1.55; color: var(--lb-ink-2); }
+
+/* ── faq ─────────────────────────────────────────────────────────── */
+.lb-aff-faq { margin-top: 26px; }
+
+@media (max-width: 900px) {
+  .lb-aff-stats { grid-template-columns: 1fr 1fr; }
+  .lb-aff-steps { grid-template-columns: 1fr; }
+  .lb-aff-terms { grid-template-columns: 1fr 1fr; }
+  .lb-aff-calc { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .lb-aff-stats { grid-template-columns: 1fr; }
+  .lb-aff-terms { grid-template-columns: 1fr; }
+  .lb-aff-actions .lb-cta { flex: 1 1 auto; text-align: center; }
+}

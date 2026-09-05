@@ -1,5 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CreditPopover } from '../components/CreditPopover'
+import { UrlAuthPrompt } from '../components/UrlAuthPrompt'
+import { useBrowserProfile } from '../hooks/useBrowserProfile'
+import { usePromptUrl } from '../hooks/usePromptUrl'
+import { isAuthenticatedFor } from '../lib/authOrigins'
 import type { ProjectStore } from './useProject'
 
 const fmtTime = (t: number) =>
@@ -23,8 +28,26 @@ export function Composer({ store }: { store: ProjectStore }) {
   const s = store
   const [files, setFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
+  const [dismissedAuthUrl, setDismissedAuthUrl] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
+  const navigate = useNavigate()
+  const browserProfile = useBrowserProfile()
   const scope = fmtScope(s)
+  const promptUrl = usePromptUrl(s.draft)
+  const suggestAuthentication =
+    !!promptUrl &&
+    promptUrl !== dismissedAuthUrl &&
+    !browserProfile.loading &&
+    !isAuthenticatedFor(promptUrl, browserProfile.origins)
+
+  useEffect(() => {
+    if (!s.id) return
+    const key = `pitch:project-auth-draft:${s.id}`
+    const savedDraft = sessionStorage.getItem(key)
+    if (!savedDraft) return
+    s.setDraft(savedDraft)
+    sessionStorage.removeItem(key)
+  }, [s.id, s.setDraft])
 
   const send = async () => {
     const text = s.draft.trim()
@@ -140,6 +163,20 @@ export function Composer({ store }: { store: ProjectStore }) {
               </div>
             ))}
           </div>
+        )}
+        {suggestAuthentication && promptUrl && (
+          <UrlAuthPrompt
+            url={promptUrl}
+            onContinuePublicly={() => setDismissedAuthUrl(promptUrl)}
+            onAuthenticate={() => {
+              const projectId = s.id
+              if (!projectId) return
+              sessionStorage.setItem(`pitch:project-auth-draft:${projectId}`, s.draft)
+              navigate(
+                `/sessions?url=${encodeURIComponent(promptUrl)}&from=project&project=${encodeURIComponent(projectId)}`,
+              )
+            }}
+          />
         )}
         <textarea
           ref={s.composerRef}

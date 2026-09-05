@@ -10,7 +10,7 @@ import * as projects from '../projects/service.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
 import { onProjectEvent } from '../studio/events.js'
 import { isFlowId } from '../studio/paths.js'
-import { peekSession } from '../studio/session.js'
+import { listStudioModels, peekSession, STUDIO_DEFAULT_MODEL } from '../studio/session.js'
 
 const logger = createLogger('studio:routes')
 export const router = express.Router()
@@ -41,12 +41,23 @@ router.get('/flows', (_req, res) => {
   res.json([{ id: 'studio', title: 'Studio', basePrice: 0 }])
 })
 
+/** The composer's model picker: what this deployment can actually run. */
+router.get('/models', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    res.json({ default: STUDIO_DEFAULT_MODEL, models: await listStudioModels() })
+  } catch (err) {
+    fail(res, err, 'list models failed')
+  }
+})
+
 router.post('/', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
   try {
-    const { prompt, options, uploads, name } = req.body ?? {}
-    const project = await projects.createProject(userId, { prompt, options, uploads, name })
+    const { prompt, options, uploads, name, model } = req.body ?? {}
+    const project = await projects.createProject(userId, { prompt, options, uploads, name, model })
     res.status(201).json(project)
   } catch (err) {
     fail(res, err, 'create project failed')
@@ -168,6 +179,7 @@ router.post('/:id/prompt', async (req, res) => {
       uploads: Array.isArray(req.body?.uploads) ? req.body.uploads : undefined,
       options:
         req.body?.options && typeof req.body.options === 'object' ? req.body.options : undefined,
+      model: typeof req.body?.model === 'string' ? req.body.model : undefined,
     })
     res.status(202).json({ ok: true })
   } catch (err) {

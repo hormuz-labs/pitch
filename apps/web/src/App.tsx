@@ -1,11 +1,4 @@
-import {
-  AuthenticateWithRedirectCallback,
-  Show,
-  UserButton,
-  useAuth,
-  useClerk,
-  useUser,
-} from '@clerk/react'
+import { AuthenticateWithRedirectCallback, Show, UserButton, useAuth, useUser } from '@clerk/react'
 import {
   type ComponentType,
   createContext,
@@ -30,6 +23,7 @@ import {
 import './index.css'
 import * as ToastPrimitive from '@radix-ui/react-toast'
 import {
+  AppWindow,
   ChevronRight,
   Gift,
   History,
@@ -37,12 +31,10 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
-  Plug,
+  PlugZap,
   Plus,
   Search,
-  Shapes,
   Shield,
-  Users,
   X,
 } from 'lucide-react'
 import { BiSolidZap } from 'react-icons/bi'
@@ -57,6 +49,7 @@ import { AnimatedShareIcon } from './components/AnimatedShareIcon'
 import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
 import { LoadingCoin } from './components/LoadingCoin'
+import { PitchWordmark } from './components/PitchWordmark'
 import { OnboardingSurvey } from './components/OnboardingSurvey'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
 import { SettingsModal, type SettingsSection } from './components/SettingsModal'
@@ -90,6 +83,7 @@ const LandingView = lazyNamed(() => import('./views/LandingView'), 'LandingView'
 const NewProjectView = lazyNamed(() => import('./views/NewProjectView'), 'NewProjectView')
 const PricingView = lazyNamed(() => import('./views/PricingView'), 'PricingView')
 const ProductView = lazyNamed(() => import('./views/ProductView'), 'ProductView')
+const AffiliatesView = lazyNamed(() => import('./views/AffiliatesView'), 'AffiliatesView')
 const PublicDemoView = lazyNamed(() => import('./views/PublicDemoView'), 'PublicDemoView')
 const PublicPricingView = lazyNamed(() => import('./views/PublicPricingView'), 'PublicPricingView')
 const SessionsView = lazyNamed(() => import('./views/SessionsView'), 'SessionsView')
@@ -151,7 +145,10 @@ export const useAppShell = (): AppShellCtx =>
 const ToastContext = createContext<ToastCtx | null>(null)
 export const useToast = () => {
   const ctx = useContext(ToastContext)
-  if (!ctx) throw new Error('useToast must be used inside ToastShell')
+  // Fast Refresh swaps the App module under already-mounted views, and a view
+  // holding the old context would otherwise crash the whole tree on the next
+  // render. Degrade to a console note; a full reload restores the real one.
+  if (!ctx) return { toast: (message: string) => console.warn('[toast]', message) }
   return ctx
 }
 
@@ -263,58 +260,6 @@ function ToastShell({ children }: { children: React.ReactNode }) {
 
 // ── Icons (inline SVG micro-set) ──────────────────────────────────────────────
 
-const IconSearch = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
-)
-const IconPlus = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-)
-const IconMenu = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <rect x="2" y="5" width="20" height="3.5" rx="1" />
-    <rect x="2" y="10.5" width="20" height="3.5" rx="1" />
-    <rect x="2" y="16" width="20" height="3.5" rx="1" />
-  </svg>
-)
-const IconArrowLeft = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="19" y1="12" x2="5" y2="12" />
-    <polyline points="12 19 5 12 12 5" />
-  </svg>
-)
 // ── Nav Item ─────────────────────────────────────────────────────────────────
 interface NavItemProps {
   icon: React.ReactNode
@@ -486,7 +431,9 @@ export const LegacySidebar = ({
           {item(
             'affiliate',
             'Affiliate',
-            '/affiliate',
+            // The public pitch, the same page a signed-out visitor gets. Your
+            // own link and totals are one click on from it, at /affiliate.
+            '/affiliates',
             <AnimatedShareIcon active={selectedKey === 'affiliate' && !newOpen} />,
           )}
           {isAdmin &&
@@ -576,6 +523,8 @@ const Sidebar = ({
   const { getToken } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [projectQuery, setProjectQuery] = useState('')
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyQuery, setHistoryQuery] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -598,12 +547,52 @@ const Sidebar = ({
 
   const go = (path: string) => {
     navigate(path)
-    if (isMobile) onClose()
+    // The drawer floats over the page now; leaving it open after a navigation
+    // would keep the destination blurred behind it.
+    onClose()
   }
   const normalizedQuery = projectQuery.trim().toLowerCase()
   const visibleProjects = projects
     .filter(project => !normalizedQuery || project.title.toLowerCase().includes(normalizedQuery))
     .slice(0, 30)
+
+  // Recents grouped the way you remember them: what you touched today, this
+  // week, and everything before. While searching, one flat list reads better.
+  const chatGroups: { label: string; items: typeof visibleProjects }[] = []
+  if (!normalizedQuery) {
+    const startOfToday = new Date().setHours(0, 0, 0, 0)
+    const weekMs = 7 * 24 * 60 * 60 * 1000
+    const buckets = [
+      { label: 'Today', items: [] as typeof visibleProjects },
+      { label: 'This week', items: [] as typeof visibleProjects },
+      { label: 'Older', items: [] as typeof visibleProjects },
+    ]
+    for (const project of visibleProjects) {
+      const at = new Date(project.updatedAt).getTime()
+      buckets[at >= startOfToday ? 0 : at >= startOfToday - weekMs ? 1 : 2].items.push(project)
+    }
+    chatGroups.push(...buckets.filter(b => b.items.length))
+  }
+
+  const chatButton = (project: (typeof visibleProjects)[number]) => (
+    <button
+      type="button"
+      key={project.id}
+      className={cn('conversation-sidebar__chat', project.id === selectedProjectId && 'is-active')}
+      onClick={() => go(`/p/${project.id}`)}
+      title={project.title}
+    >
+      <MessageSquare size={13} />
+      <span>{project.title || 'Untitled project'}</span>
+      {project.busy && <i aria-label="Working" />}
+    </button>
+  )
+
+  // The collapsed rail's hover panel: the same recents, flying out.
+  const railQuery = historyQuery.trim().toLowerCase()
+  const railChats = projects
+    .filter(p => !railQuery || p.title.toLowerCase().includes(railQuery))
+    .slice(0, 8)
 
   useEffect(() => {
     const startNewChat = (event: KeyboardEvent) => {
@@ -622,7 +611,15 @@ const Sidebar = ({
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-40 border-0 bg-black/20"
+          className="fixed inset-0 z-40 border-0 bg-black/20 backdrop-blur-[6px]"
+          onClick={onClose}
+        />
+      )}
+      {!isMobile && !collapsed && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="conversation-sidebar__scrim"
           onClick={onClose}
         />
       )}
@@ -641,7 +638,7 @@ const Sidebar = ({
             onClick={() => go('/new')}
           >
             <img src={tabLogoB} alt="" />
-            <span>Pitch</span>
+            <PitchWordmark className="conversation-sidebar__wordmark-svg" />
           </button>
           <button
             type="button"
@@ -664,22 +661,13 @@ const Sidebar = ({
           >
             <Plus size={17} />
             <span>New chat</span>
-            <kbd>Ctrl K</kbd>
-          </button>
-          <button
-            type="button"
-            className={cn('conversation-sidebar__row', selectedKey === 'templates' && 'is-active')}
-            onClick={() => go('/templates')}
-          >
-            <Shapes size={16} />
-            <span>Templates</span>
           </button>
           <button
             type="button"
             className={cn('conversation-sidebar__row', selectedKey === 'sessions' && 'is-active')}
             onClick={() => go('/sessions')}
           >
-            <MessageSquare size={16} />
+            <AppWindow size={16} />
             <span>Browser sessions</span>
           </button>
           <button
@@ -687,7 +675,7 @@ const Sidebar = ({
             className="conversation-sidebar__row"
             onClick={() => openSettings('mcp')}
           >
-            <Key size={16} />
+            <PlugZap size={16} />
             <span>API / MCP</span>
           </button>
           {isAdmin && (
@@ -713,24 +701,20 @@ const Sidebar = ({
         </div>
 
         <div className="conversation-sidebar__history">
-          <p className="conversation-sidebar__section-title">Recent chats</p>
           {visibleProjects.length ? (
-            visibleProjects.map(project => (
-              <button
-                type="button"
-                key={project.id}
-                className={cn(
-                  'conversation-sidebar__chat',
-                  project.id === selectedProjectId && 'is-active',
-                )}
-                onClick={() => go(`/p/${project.id}`)}
-                title={project.title}
-              >
-                <MessageSquare size={14} />
-                <span>{project.title || 'Untitled project'}</span>
-                {project.busy && <i aria-label="Working" />}
-              </button>
-            ))
+            normalizedQuery ? (
+              <>
+                <p className="conversation-sidebar__section-title">Recent chats</p>
+                {visibleProjects.map(chatButton)}
+              </>
+            ) : (
+              chatGroups.map(group => (
+                <div key={group.label} className="conversation-sidebar__group">
+                  <p className="conversation-sidebar__section-title">{group.label}</p>
+                  {group.items.map(chatButton)}
+                </div>
+              ))
+            )
           ) : (
             <span className="conversation-sidebar__empty">
               {projectQuery ? 'No matching chats' : 'Your projects will appear here'}
@@ -762,13 +746,26 @@ const Sidebar = ({
           </button>
         </div>
       </aside>
-      {!isMobile && collapsed && (
-        <aside className="conversation-sidebar__rail" aria-label="Collapsed navigation">
-          <button type="button" onClick={onToggle} aria-label="Open sidebar" title="Open sidebar">
-            <PanelLeftOpen size={17} />
+      {!isMobile && (
+        <aside className="conversation-sidebar__rail" aria-label="Quick navigation">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+            title={collapsed ? 'Open sidebar' : 'Close sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
           </button>
           <button type="button" onClick={() => go('/new')} aria-label="New chat" title="New chat">
             <Plus size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => go('/sessions')}
+            aria-label="Browser sessions"
+            title="Browser sessions"
+          >
+            <AppWindow size={16} />
           </button>
           <button
             type="button"
@@ -776,24 +773,69 @@ const Sidebar = ({
             aria-label="API and MCP"
             title="API / MCP"
           >
-            <Plug size={16} />
+            <PlugZap size={16} />
           </button>
-          <button
-            type="button"
-            onClick={() => openSettings('rewards')}
-            aria-label="Affiliates"
-            title="Affiliates"
+          {isAdmin && (
+            <button type="button" onClick={() => go('/admin')} aria-label="Admin" title="Admin">
+              <Shield size={16} />
+            </button>
+          )}
+          <div
+            className="conversation-sidebar__rail-pop"
+            onMouseEnter={() => setHistoryOpen(true)}
+            onMouseLeave={() => {
+              setHistoryOpen(false)
+              setHistoryQuery('')
+            }}
+            onFocus={() => setHistoryOpen(true)}
+            onBlur={e => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setHistoryOpen(false)
+            }}
           >
-            <Users size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => go('/sessions')}
-            aria-label="Recent chats"
-            title="Recent chats"
-          >
-            <History size={16} />
-          </button>
+            <button
+              type="button"
+              onClick={() => go('/sessions')}
+              aria-label="Recent chats"
+              title="Recent chats"
+              aria-expanded={historyOpen}
+            >
+              <History size={16} />
+            </button>
+            {historyOpen && (
+              <div className="conversation-sidebar__rail-history">
+                <p>History</p>
+                <div className="conversation-sidebar__rail-history-list">
+                  {railChats.length ? (
+                    railChats.map(project => (
+                      <button
+                        type="button"
+                        key={project.id}
+                        onClick={() => go(`/p/${project.id}`)}
+                        title={project.title}
+                      >
+                        <MessageSquare size={13} />
+                        <span>{project.title || 'Untitled project'}</span>
+                        {project.busy && <i aria-label="Working" />}
+                      </button>
+                    ))
+                  ) : (
+                    <span className="conversation-sidebar__rail-history-empty">
+                      {historyQuery ? 'No matching chats' : 'No chats yet'}
+                    </span>
+                  )}
+                </div>
+                <div className="conversation-sidebar__rail-history-search">
+                  <Search size={12} />
+                  <input
+                    aria-label="Search all chats"
+                    placeholder="Search all chats"
+                    value={historyQuery}
+                    onChange={e => setHistoryQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           <span />
           <button
             type="button"
@@ -805,150 +847,19 @@ const Sidebar = ({
           >
             <FaDiscord size={16} />
           </button>
+          <button
+            type="button"
+            onClick={() => openSettings('rewards')}
+            aria-label="Invite a friend"
+            title="Invite a friend"
+          >
+            <Gift size={16} />
+          </button>
         </aside>
       )}
     </>
   )
 }
-
-// ── Top Header ────────────────────────────────────────────────────────────────
-interface TopHeaderProps {
-  isMobile: boolean
-  isDetailPage: boolean
-  backLabel?: string
-  showSearch: boolean
-  searchQuery: string
-  onSearchChange: (q: string) => void
-  onToggle: () => void
-  onNew: () => void
-  onBack: () => void
-  title?: string
-  isPricingPage?: boolean
-  isSettingsPage?: boolean
-  onSignOut?: () => void
-}
-const TopHeader = ({
-  isMobile,
-  isDetailPage,
-  backLabel,
-  showSearch,
-  searchQuery,
-  onSearchChange,
-  onToggle,
-  onNew,
-  onBack,
-  title,
-  isPricingPage,
-  isSettingsPage,
-  onSignOut,
-}: TopHeaderProps) => (
-  <header className="app-shell-header h-16 px-5 bg-white border-b border-gray-200 shrink-0 rounded-t-2xl relative flex items-center justify-between">
-    {/* Left: logo + search / back */}
-    <div className="flex items-center gap-3 shrink-0">
-      {isMobile && (
-        <Link
-          to="/"
-          className="w-9 h-9 flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors group"
-        >
-          <img
-            src={tabLogoB}
-            alt="Pitch"
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-          />
-        </Link>
-      )}
-      {isDetailPage ? (
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-sm sm:text-base font-medium text-gray-500 hover:text-gray-800 transition-colors bg-transparent border-none cursor-pointer p-0 shrink-0"
-          id="header-back-btn"
-        >
-          <IconArrowLeft />
-          <span className="hidden sm:inline">{backLabel ?? 'Back to Projects'}</span>
-        </button>
-      ) : title ? (
-        <h2 className="text-lg font-bold text-gray-900 ml-1">{title}</h2>
-      ) : (
-        <div className="hidden sm:flex items-center h-8 shrink-0 sm:w-48" />
-      )}
-    </div>
-
-    {showSearch ? (
-      <div className="flex-1 min-w-0 px-2 sm:px-4 md:px-0 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-[240px]">
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <IconSearch />
-          </span>
-          <input
-            type="text"
-            placeholder="Search projects…"
-            className="flex h-9 md:h-10 w-full rounded-lg border border-gray-200 bg-white pl-9 md:pl-10 pr-8 md:pr-10 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-all"
-            id="global-search-input"
-            value={searchQuery}
-            onChange={e => onSearchChange(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer text-xs"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
-    ) : isDetailPage && title ? (
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[200px] sm:max-w-sm hidden md:block">
-        <p className="text-base font-medium text-gray-900 truncate">{title}</p>
-      </div>
-    ) : null}
-
-    {/* Right: actions + credits (credits kept right-most) */}
-    <div className="flex items-center gap-2 md:gap-3 shrink-0">
-      {isSettingsPage && onSignOut ? (
-        <button
-          onClick={onSignOut}
-          className="flex items-center justify-center gap-1.5 w-9 h-9 px-0 md:w-auto md:h-auto md:px-3.5 md:py-2 bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium rounded-lg transition-colors border-none cursor-pointer"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span className="hidden sm:inline">Sign Out</span>
-        </button>
-      ) : !isMobile && !isDetailPage && !isPricingPage ? (
-        <button
-          onClick={onNew}
-          className="flex items-center gap-1.5 px-3 py-1.5 md:px-3.5 md:py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors border-none cursor-pointer"
-          id="new-project-btn"
-        >
-          <IconPlus />
-          <span className="hidden sm:inline">New project</span>
-        </button>
-      ) : null}
-
-      {isMobile && (
-        <button
-          onClick={onToggle}
-          className="text-gray-900 transition-colors w-9 h-9 flex items-center justify-center ml-1 rounded-lg border border-gray-200 hover:bg-gray-50 bg-white cursor-pointer"
-          id="sidebar-toggle-btn"
-        >
-          <IconMenu />
-        </button>
-      )}
-    </div>
-  </header>
-)
 
 // ── Studio route ──────────────────────────────────────────────────────────────
 function StudioRoute() {
@@ -960,17 +871,11 @@ function StudioRoute() {
 // ── App Content ───────────────────────────────────────────────────────────────
 function AppContent() {
   const { getToken, isLoaded, userId } = useAuth()
-  const { signOut } = useClerk()
   const { user } = useUser()
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
-  const [collapsed, setCollapsed] = useState(window.innerWidth < 1024)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [collapsed, setCollapsed] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null)
-
-  // Track whether the user has selected a specific template (detail mode)
-  const [templatesInDetail, setTemplatesInDetail] = useState(false)
-  const [clearTemplatesSelection, setClearTemplatesSelection] = useState<(() => void) | null>(null)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -1095,19 +1000,6 @@ function AppContent() {
     selectedKey = 'templates'
   }
 
-  /**
-   * Stable identity, deliberately.
-   *
-   * TemplatesView registers its clear-selection function from an effect keyed
-   * on this prop. Passed as an inline arrow it was a new function on every
-   * App render, so the effect re-fired, set state here, re-rendered App, and
-   * made another new function — "Maximum update depth exceeded" on /templates.
-   */
-  const onClearTemplatesSelectionReady = useCallback(
-    (fn: (() => void) | null) => setClearTemplatesSelection(() => fn),
-    [],
-  )
-
   const shell = useMemo(
     () => ({
       isMobile,
@@ -1118,8 +1010,6 @@ function AppContent() {
   )
 
   const isStudio = selectedKey === 'studio'
-  const isDetailPage =
-    isStudio || selectedKey === 'settings' || (selectedKey === 'templates' && templatesInDetail)
 
   // Public share page — rendered before the Clerk-loading gate (same
   // treatment as `/` below) so it's instant for anonymous visitors clicking
@@ -1175,6 +1065,16 @@ function AppContent() {
     )
   }
 
+  // The affiliate pitch (/affiliates) — public, outside the shell. The
+  // signed-in dashboard with the actual link stays at /affiliate.
+  if (path === '/affiliates') {
+    return (
+      <Suspense fallback={<PageLoader fullScreen />}>
+        <AffiliatesView />
+      </Suspense>
+    )
+  }
+
   // Product pages (/product/:slug) — standalone marketing pages, same
   // treatment as `/`: rendered outside the signed-in/out app shell.
   if (path.startsWith('/product/')) {
@@ -1221,46 +1121,9 @@ function AppContent() {
               className="app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l border-gray-200"
               style={{ backgroundColor: '#ffffff' }}
             >
-              {/* The studio route draws its own header (see Topbar in
-                StudioView) — rendering this one too gave every project two
-                stacked bars with two identical back buttons. */}
-              {!isStudio && !selectedKey.startsWith('new') && (
-                <TopHeader
-                  isMobile={isMobile}
-                  isDetailPage={isDetailPage}
-                  backLabel={
-                    selectedKey === 'templates' && templatesInDetail
-                      ? 'Back to Templates Gallery'
-                      : undefined
-                  }
-                  showSearch={false}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onToggle={() => setCollapsed(c => !c)}
-                  onNew={() => navigate('/new')}
-                  onBack={() => {
-                    if (selectedKey === 'templates' && templatesInDetail) {
-                      clearTemplatesSelection?.()
-                    } else {
-                      navigate('/new')
-                    }
-                  }}
-                  title={
-                    selectedKey === 'pricing'
-                      ? 'Pricing'
-                      : selectedKey === 'templates' && !templatesInDetail
-                        ? 'Templates'
-                        : undefined
-                  }
-                  isPricingPage={selectedKey === 'pricing'}
-                  isSettingsPage={selectedKey === 'settings'}
-                  onSignOut={() => signOut()}
-                />
-              )}
-
               <main
                 className={cn(
-                  'app-shell-main flex-1 overflow-x-hidden bg-white rounded-b-2xl relative',
+                  'app-shell-main flex-1 overflow-x-hidden bg-white relative',
                   isStudio ? 'overflow-hidden' : 'overflow-y-auto',
                   selectedKey.startsWith('new') && 'new-shell-main',
                 )}
@@ -1270,15 +1133,7 @@ function AppContent() {
                     <Route path="/projects" element={<Navigate to="/new" replace />} />
                     <Route path="/new" element={<NewProjectView />} />
                     <Route path="/p/:id" element={<StudioRoute />} />
-                    <Route
-                      path="/templates"
-                      element={
-                        <TemplatesView
-                          onDetailModeChange={setTemplatesInDetail}
-                          onClearSelectionReady={onClearTemplatesSelectionReady}
-                        />
-                      }
-                    />
+                    <Route path="/templates" element={<TemplatesView />} />
                     <Route path="/pricing" element={<PricingView />} />
                     <Route path="/settings" element={<SettingsView />} />
                     <Route path="/api-keys" element={<ApiKeysView />} />

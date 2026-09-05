@@ -16,33 +16,33 @@
 
 /* The only navigation on a phone, so it is a real 40px target rather than a
    floating pill: ink on white, a hairline, and a press state that reads. */
-.lv-studio.new-project-page .new-project-menu { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 30; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 1px solid #dcdbd8; border-radius: 12px; background: rgb(255 255 255 / 92%); color: #24221f; box-shadow: 0 6px 18px rgb(0 0 0 / 8%), 0 1px 2px rgb(0 0 0 / 4%); backdrop-filter: blur(12px); transition: background 140ms ease, border-color 140ms ease, transform 140ms ease; cursor: pointer; }
+.lv-studio.new-project-page .new-project-menu { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 43; width: 40px; height: 40px; padding: 0; display: none; place-items: center; border: 1px solid #dcdbd8; border-radius: 12px; background: rgb(255 255 255 / 92%); color: #24221f; box-shadow: 0 6px 18px rgb(0 0 0 / 8%), 0 1px 2px rgb(0 0 0 / 4%); backdrop-filter: blur(12px); transition: background 140ms ease, border-color 140ms ease, transform 140ms ease; cursor: pointer; }
 .lv-studio.new-project-page .new-project-menu:hover:not(:disabled) { border-color: #bdbab6; background: #fff; color: #111; }
 .lv-studio.new-project-page .new-project-menu:active { transform: scale(0.94); }
 .lv-studio.new-project-page .new-project-menu:focus-visible { outline: 2px solid #111; outline-offset: 2px; }
-.new-project-topnav { position: absolute; top: 0; right: 0; left: 0; z-index: 10; height: 58px; padding: 0 14px; display: flex; align-items: center; justify-content: center; }
-.new-project-topnav__links { display: flex; align-items: center; gap: 30px; }
-.lv-studio.new-project-page .new-project-topnav__links :is(a, button) { padding: 0; border: 0; background: transparent; color: #65615d; font-size: 12px; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.new-project-topnav { position: absolute; top: 0; right: 0; left: 0; z-index: 10; height: 54px; padding: 0 16px; display: flex; align-items: center; justify-content: center; }
+.new-project-topnav__links { display: flex; align-items: center; gap: 26px; }
+.lv-studio.new-project-page .new-project-topnav__links :is(a, button) { padding: 0; border: 0; background: transparent; color: #77726d; font-size: 13px; font-weight: 460; letter-spacing: -0.004em; text-decoration: none; white-space: nowrap; cursor: pointer; transition: color 140ms ease; }
 .new-project-topnav__links :is(a, button):hover { color: #111; }
 .lv-studio.new-project-page .new-project-topnav__links button:hover:not(:disabled),
 .lv-studio.new-project-page .new-template-strip__head button:hover:not(:disabled) { background: transparent; color: #111; }
-.new-project-topnav__actions { position: absolute; right: 14px; display: flex; align-items: center; gap: 8px; }
-.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button) { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid #d4d3d0; border-radius: 50%; background: #fff; color: #514d49; text-decoration: none; box-shadow: 0 1px 2px rgb(0 0 0 / 4%); cursor: pointer; }
-.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button):hover { border-color: #aaa7a3; background: #f8f8f7; color: #111; }
+.new-project-topnav__actions { position: absolute; right: 14px; display: flex; align-items: center; gap: 7px; }
+.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button) { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border: 1px solid #e0dfdc; border-radius: 50%; background: rgb(255 255 255 / 80%); color: #6e6965; text-decoration: none; cursor: pointer; transition: border-color 140ms ease, color 140ms ease, background 140ms ease; }
+.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button):hover { border-color: #c4c2be; background: #fff; color: #111; }
 /* The credits pill comes from the settings modal and styles itself with one
    class, which `.lv-studio button` outranks — that is how it ended up an
    orange lozenge in a page with no orange in it. */
-.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger { height: 34px; min-width: 58px; padding: 0 10px; border: 1px solid #d4d3d0; border-radius: 999px; background: #fff; color: #403c38; box-shadow: 0 1px 2px rgb(0 0 0 / 4%); opacity: 1; }
-.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger:hover:not(:disabled) { background: #f7f6f4; color: #221f1c; }
+.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger { height: 30px; min-width: 52px; padding: 0 10px; border: 1px solid #e0dfdc; border-radius: 999px; background: rgb(255 255 255 / 80%); color: #57524e; box-shadow: none; opacity: 1; }
+.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger:hover:not(:disabled) { border-color: #c4c2be; background: #fff; color: #221f1c; }
 .lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger span { color: inherit; opacity: 1; }
 .lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger img { opacity: 1; }
-.new-project-topnav__actions :is(.cl-rootBox, .cl-userButton-root) { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; }
+.new-project-topnav__actions :is(.cl-rootBox, .cl-userButton-root) { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; }
 .lv-studio.new-project-page .new-project-topnav__actions .cl-userButtonTrigger,
-.lv-studio.new-project-page .new-project-topnav__actions .cl-userButtonTrigger:hover:not(:disabled) { width: 32px; height: 32px; min-width: 32px; padding: 0; overflow: visible; border: 0; border-radius: 50%; background: transparent; color: inherit; box-shadow: none; }
-.new-project-topnav__actions .cl-avatarBox { width: 32px; height: 32px; border-radius: 50%; }
+.lv-studio.new-project-page .new-project-topnav__actions .cl-userButtonTrigger:hover:not(:disabled) { width: 28px; height: 28px; min-width: 28px; padding: 0; overflow: visible; border: 0; border-radius: 50%; background: transparent; color: inherit; box-shadow: none; }
+.new-project-topnav__actions .cl-avatarBox { width: 28px; height: 28px; border-radius: 50%; }
 .new-project-topnav__profile { overflow: hidden; }
 .new-project-topnav__profile img,
-.new-project-topnav__profile span { width: 100%; height: 100%; display: grid; place-items: center; object-fit: cover; background: #272421; color: #fff; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.new-project-topnav__profile span { width: 100%; height: 100%; display: grid; place-items: center; object-fit: cover; background: #272421; color: #fff; font-size: 11px; font-weight: 600; text-transform: uppercase; }
 
 .new-create-hero { min-height: 700px; padding: 106px 34px 54px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
 .new-create-hero__intro { display: flex; flex-direction: column; align-items: center; margin: 0 0 18px; text-align: center; }
@@ -60,11 +60,35 @@
 .lv-studio.new-project-page .new-composer-wrap .attach-plus { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid #dcdbd8; border-radius: 50%; background: #fff; color: #55514d; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled) { border-color: #aaa7a3; background: #fff; color: #111; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus .spinner { width: 13px; height: 13px; }
+.lv-studio.new-project-page .new-composer-wrap .attach-plus svg { transition: transform 160ms ease; }
+.lv-studio.new-project-page .new-composer-wrap .attach-plus.is-open { border-color: #b8b5b1; background: #f1f0ee; color: #222; }
+.lv-studio.new-project-page .new-composer-wrap .attach-plus.is-open svg { transform: rotate(45deg); }
+.new-composer-wrap .composer-add { position: relative; }
+.new-composer-wrap .composer-add-menu { position: absolute; bottom: calc(100% + 9px); left: 0; z-index: 30; width: 246px; padding: 5px; border: 1px solid #deddd9; border-radius: 13px; background: #fff; box-shadow: 0 18px 46px rgb(0 0 0 / 14%), 0 2px 8px rgb(0 0 0 / 5%); animation: composer-menu-in 150ms cubic-bezier(.2,.8,.2,1) both; }
+.lv-studio.new-project-page .new-composer-wrap .composer-add-menu button { width: 100%; min-height: 39px; padding: 8px 9px; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto 14px; align-items: center; gap: 7px; border: 0; border-radius: 8px; background: transparent; color: #47433f; font: 440 12px/1.25 "Geist Variable", "Geist", Arial, sans-serif; text-align: left; cursor: pointer; }
+.lv-studio.new-project-page .new-composer-wrap .composer-add-menu button:hover:not(:disabled),
+.lv-studio.new-project-page .new-composer-wrap .composer-add-menu button.is-selected { background: #f1f0ee; color: #171615; }
+.new-composer-wrap .composer-add-menu button > svg { color: #77726d; }
+.new-composer-wrap .composer-add-menu button > span { min-width: 0; }
+.new-composer-wrap .composer-add-menu button > small { color: #96918b; font-size: 10px; }
+.new-composer-wrap .composer-add-menu button > b { color: #827d77; font-size: 9px; font-weight: 520; }
+.new-composer-wrap .composer-add-menu__divider { height: 1px; margin: 4px 5px; display: block; background: #ecebe8; }
+.lv-studio.new-project-page .new-composer-wrap .composer-add-menu .composer-add-menu__back { grid-template-columns: 18px minmax(0, 1fr); color: #272421; font-weight: 560; }
+.new-composer-wrap .composer-add-menu__back svg { transform: rotate(180deg); }
+.lv-studio.new-project-page .new-composer-wrap .attach-chip em { margin-left: 2px; padding: 2px 5px; border-radius: 999px; background: #ecebe8; color: #77726d; font-size: 8px; font-style: normal; text-transform: uppercase; letter-spacing: .04em; }
 .lv-studio.new-project-page .new-composer-wrap .send-btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: #111; color: #fff; }
 .lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) { background: #2a2a28; color: #fff; }
 .lv-studio.new-project-page .new-composer-wrap .send-btn:disabled { background: #e5e4e2; color: #aba7a2; cursor: default; }
 .lv-studio.new-project-page .composer-credits button { color: #94908b; }
 .lv-studio.new-project-page .composer-credits button:hover:not(:disabled) { color: #55514d; }
+.lv-studio.new-project-page .new-composer-wrap .model-select { position: relative; }
+.lv-studio.new-project-page .new-composer-wrap .model-btn { display: inline-flex; align-items: center; gap: 5px; max-width: 190px; padding: 7px 10px; border: 0; border-radius: 999px; background: transparent; color: #76716d; font-size: 12px; cursor: pointer; }
+.lv-studio.new-project-page .new-composer-wrap .model-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-studio.new-project-page .new-composer-wrap .model-btn:hover:not(:disabled) { background: #f4f3f1; color: #111; }
+.new-composer-wrap .model-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 210px; max-height: 260px; padding: 4px; display: flex; flex-direction: column; overflow-y: auto; border: 1px solid #e2e1de; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px rgb(0 0 0 / 12%), 0 2px 6px rgb(0 0 0 / 5%); }
+.lv-studio.new-project-page .new-composer-wrap .model-option { padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: #403c38; font-size: 12px; text-align: left; white-space: nowrap; cursor: pointer; }
+.lv-studio.new-project-page .new-composer-wrap .model-option:hover:not(:disabled) { background: #f4f3f1; color: #111; }
+.lv-studio.new-project-page .new-composer-wrap .model-option.is-active { font-weight: 600; color: #111; }
 /* The gauge ring goes amber near the end of a balance; here it stays with the
    rest of the marker, because nothing on this page is coloured. */
 .lv-studio.new-project-page .composer-credits svg { color: inherit; }
@@ -112,16 +136,26 @@
 .new-featured__video span { position: absolute; right: 0; bottom: 0; left: 0; padding: 24px 10px 8px; color: #fff; background: linear-gradient(transparent, rgb(0 0 0 / 58%)); font-size: 10px; text-align: left; opacity: 0; transition: opacity 180ms ease; }
 .new-featured__video:hover span, .new-featured__video:focus-visible span { opacity: 1; }
 
+@keyframes composer-menu-in {
+  from { opacity: 0; transform: translateY(5px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (max-width: 760px) {
-  .new-project-topnav { display: none; }
+  .lv-studio.new-project-page .new-project-menu { display: grid; }
+  .new-project-topnav { height: 64px; padding: 0 12px 0 64px; justify-content: flex-end; }
+  .new-project-topnav__links { display: none; }
+  .new-project-topnav__actions { position: static; }
   .new-create-hero { min-height: 650px; padding: 76px 16px 44px; }
   .new-create-wordmark { width: 116px; }
   .new-template-strip__cards { grid-template-columns: 1fr 1fr; }
   .new-template-strip__cards button:last-child { display: none; }
   .new-featured__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .new-composer-wrap .composer-add-menu { width: min(246px, calc(100vw - 48px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .new-composer-wrap .composer-add-menu { animation: none; }
   .new-featured__panel { width: 100%; height: 100vh; border-radius: 0; transform: none; }
   .new-featured__content, .new-featured__video video { transform: none; transition: none; }
 }
