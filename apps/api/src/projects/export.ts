@@ -5,8 +5,22 @@
  */
 import * as db from '@saas/db'
 import { isLaunchVideoResolution, LAUNCH_VIDEO_RESOLUTIONS } from '@saas/shared'
+import { artifactKind } from '../agent/describe.js'
 import type { Output } from '../flows/types.js'
 import { addOutput, getProject, getRow, type ProjectRow, workspaceOf } from './service.js'
+
+/**
+ * Which exporter renders this project. Keyed by what the workspace holds,
+ * not by the flow column: new projects are all flow "studio", and one that
+ * holds shots.js + index.html is a launch film whatever its row says. Only
+ * the launch film renders on demand; everything else exports what its agent
+ * already published.
+ */
+async function exporterFor(p: ProjectRow): Promise<Exporter | undefined> {
+  const kind = await artifactKind(workspaceOf(p))
+  if (kind === 'launch') return exporters.get('launch-video')
+  return exporters.get(p.flow)
+}
 
 export interface ExportStatus {
   running: boolean
@@ -64,7 +78,7 @@ export async function exportProject(
   body: Record<string, any>,
 ): Promise<ExportStatus> {
   const p = await getRow(userId, id)
-  const exporter = exporters.get(p.flow)
+  const exporter = await exporterFor(p)
   if (!exporter) {
     // Nothing to render: the latest published output is the export.
     const latest = p.outputs.find(o => o.kind === 'video' || o.kind === 'pdf')
@@ -76,7 +90,7 @@ export async function exportProject(
     }
   }
   // Launch video: the paid tier is free; higher tiers charge the difference once.
-  if (p.flow === 'launch-video') {
+  if (exporter === exporters.get('launch-video')) {
     const wanted = String(body.res ?? '1080p')
     if (!isLaunchVideoResolution(wanted))
       throw Object.assign(new Error('unknown resolution'), { status: 400 })
@@ -100,6 +114,5 @@ export async function exportProject(
   const detail = await getProject(userId, id)
   if (!detail.description.preview)
     throw Object.assign(new Error('nothing to export yet'), { status: 409 })
-  void workspaceOf
   return exporter.start(p, body, o => addOutput(userId, id, o).then(() => undefined))
 }

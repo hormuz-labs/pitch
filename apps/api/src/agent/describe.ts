@@ -142,6 +142,18 @@ async function candidates(
 }
 
 /**
+ * What the user is working on, by the most recently touched artifact —
+ * 'launch' | 'deck' | 'video' | 'pdf' — or null for an empty workspace. The
+ * exporter is chosen by this, never by the project's flow column: every new
+ * project is flow "studio", and a studio project holding a launch film is a
+ * launch film.
+ */
+export async function artifactKind(ws: Workspace): Promise<string | null> {
+  if (!existsSync(ws.dir)) return null
+  return (await candidates(ws))[0]?.kind ?? null
+}
+
+/**
  * Does this workspace hold anything to look at?
  *
  * The projects grid asks this for every row, so it must stay cheap — a few
