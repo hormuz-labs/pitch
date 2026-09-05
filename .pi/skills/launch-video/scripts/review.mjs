@@ -15,6 +15,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { normalizeGrade, reviewFilter } from "./lib/encode.mjs";
 import { planSamples, sheetOf } from "./lib/review-plan.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -52,6 +53,13 @@ try {
     const s = window.SHOTS;
     return s && Array.isArray(s.shots) ? s.shots.map(x => ({ id: x.id, type: x.type, dur: Number(x.dur) || 0 })) : [];
   });
+  // The sheets show the film as the render will grade it, so a LUT or a
+  // vignette is judged on frames, not discovered in the MP4.
+  const { grade, warnings: gradeWarnings } = normalizeGrade(
+    await page.evaluate("(window.SHOTS && window.SHOTS.grade) || null"),
+    { lutExists: (p) => existsSync(resolve(p)) },
+  );
+  for (const w of gradeWarnings) console.warn(`⚠ ${w}`);
   if (!shots.length) {
     console.error("❌ window.SHOTS has no shots — nothing to look at yet.");
     process.exit(1);
@@ -89,12 +97,12 @@ try {
 
   execFileSync("ffmpeg", [
     "-y", "-loglevel", "error", "-framerate", "1", "-i", join(framesDir, "f_%03d.jpg"),
-    "-vf", `tile=${cols}x${rows}:padding=6:margin=6:color=0x141414`,
+    "-vf", reviewFilter({ grade, tile: `tile=${cols}x${rows}:padding=6:margin=6:color=0x141414` }),
     "-q:v", "3", join(outDir, "sheet-%02d.jpg"),
   ], { stdio: "inherit" });
 
   const sheets = readdirSync(outDir).filter(f => /^sheet-\d+\.jpg$/.test(f)).sort();
-  console.log(`🎞  Review — ${plan.length} frames from ${only.length || shots.length} shots (${duration.toFixed(2)}s) → ${sheets.length} sheet${sheets.length === 1 ? "" : "s"} in ${String(args.out ?? "review")}/, ${cols}×${rows} tiles, read left→right, top→bottom.`);
+  console.log(`🎞  Review — ${plan.length} frames from ${only.length || shots.length} shots (${duration.toFixed(2)}s) → ${sheets.length} sheet${sheets.length === 1 ? "" : "s"} in ${String(args.out ?? "review")}/, ${cols}×${rows} tiles, read left→right, top→bottom.${grade ? ` Graded (${Object.keys(grade).join(", ")}).` : ""}`);
   sheets.forEach((f, si) => {
     const here = plan.map((s, idx) => ({ s, idx })).filter(({ idx }) => sheetOf(idx, cols, rows).sheet === si);
     console.log(`   ${f}: ${here.map(({ s, idx }) => `[${idx + 1}] ${s.shot ?? "—"} ${s.t.toFixed(1)}s`).join(" · ")}`);

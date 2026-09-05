@@ -38,6 +38,27 @@ lost. Strike a line when it is done.
   its brand tokens were never applied; re-cut it or accept it as a fixture
   of the wrong colours.
 
+- **`grade.vignette` is computed in 8-bit.** ffmpeg's `vignette` filter has no
+  10-bit path, so a 10-bit render drops to 8-bit for that one step and the
+  chain restores 10-bit after it (`lib/encode.mjs` `tailFilters`). The
+  falloff is smooth enough that it does not show; a high-depth vignette
+  would need a `gradients` source blended in a `-filter_complex`.
+- **Rive draws on the next animation frame.** `Rive.scrub()` schedules its
+  draw through `requestAnimationFrame`; the capture's screenshot forces a
+  frame so the scrubbed state is what gets captured (verified against two
+  times in the fx lab), but a stalled tab could in theory capture one frame
+  late. If Rive frames ever come out stale, drive it through the low-level
+  runtime (`artboard.advance` + `renderer.draw`) in `ShotKit.rive`.
+- **Layered `ui-frame` `tilt` moves layers by `left`/`top`**, not by transform,
+  so it does not fight the focus camera's parallax tween on the same
+  element. Layout animation on four images is cheap; a factory that adds many
+  layers should use a wrapper per layer instead.
+- **The fx lab is not committed.** `projects/studio--fx-lab/` (transitions,
+  carry, lottie, rive, layers, a three.js device turn, shutter + grade) lives
+  in the ignored projects dir on the dev machine; rebuild it from the schema
+  when a regression check is needed, or promote a trimmed copy to the engine
+  as a fixture.
+
 ## Agent behaviour (prompt / skill work)
 
 - **Decks invent figures.** With no search tool the deck agent wrote

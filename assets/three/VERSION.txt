@@ -1,0 +1,1 @@
+three 0.185.1 (build/three.module.min.js + three.core.min.js, MIT) — loaded by the scaffold as a module that sets window.THREE

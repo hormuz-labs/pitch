@@ -55,7 +55,7 @@ duration; you report what it came out at. "Shorter" means cut a shot.
 References in this directory, read on demand: `creative-direction.md`
 (the brief), `pacing.md` (why the numbers), `audio.md` (bed, narration,
 SFX, mix), `attention-camera.md` (`ui-frame` focus), `effects-catalog.md`
-(31 effect recipes — 34KB, so open it only when you are writing a custom
+(29 numbered recipes — 39KB, so open it only when you are writing a custom
 factory, and `grep` its `## ` headings for the one recipe you need rather
 than reading it whole). References are pattern libraries, never templates;
 `direction.md` outranks every example in them.
@@ -64,7 +64,8 @@ than reading it whole). References are pattern libraries, never templates;
 
 **0. Recon.** `motion_recon` on the home page and one product page (different
 `out`), `motion_screenshot` for 2–3 reference frames, `motion_harvest` for
-the logo, screens and photos. Read `recon/brand-tokens.md` before a word of
+the logo, screens and photos (a Lottie or `.riv` the site plays itself is
+harvested too — it becomes a `lottie` / `rive` shot). Read `recon/brand-tokens.md` before a word of
 direction; `recon/harvested.json` says what each harvested file is — never
 read the image or SVG files themselves; write `recon/assets.md` (what is
 available, what is official).
@@ -90,8 +91,10 @@ do not wait for approval unless the user is actively replying.
 - Every shot names its second act. Every `ui-frame` names one focal target
   (measured from the screenshot); type/brand/stat/CTA shots get no camera.
 - The first 3s are a designed hook of the kind direction.md chose, not a
-  logo fading in. Mark 2–3 boundaries `punch`; everything else is a hard cut;
-  there are no crossfades.
+  logo fading in. Mark 2–3 boundaries `punch`; everything else is a hard cut.
+  A transition kind (`cut: dissolve | wipe-* | push-* | iris | zoom | flip`)
+  or a `carry` match cut only where direction.md gave it a job — one or two
+  kinds per film, never a dissolve between two type beats.
 - Rhythm is written into the `dur` column: a run of sub-second beats against
   one long product shot, not the same number down the column.
 - Copy per shot is a fact about this product in its own register (a real
@@ -104,7 +107,9 @@ do not wait for approval unless the user is actively replying.
 
 **3. Build shot by shot.** `motion_scaffold()`, then `shots.js` with `brand`
 (from brand-tokens), the `ambient` and `motion.exit` direction.md decided
-(`motion_schema({ section: "density layer" })` lists the stage kinds) and the
+(`motion_schema({ section: "density layer" })` lists the stage kinds), the
+`render` shutter and `grade` finish if direction.md chose them
+(`motion_schema({ section: "render and grade" })`), and the
 first 2–3 shots. Save — the user sees the
 hook within minutes. `motion_check`. Add 2–4 shots, save, `motion_check`,
 until the list is complete. **Every save is a complete, evaluating literal**;
@@ -117,9 +122,16 @@ a half-written array shows the user an error.
   or a `cursor.then` swap — never an unchanged screenshot for a whole shot;
   `html` only when internal parts must animate, rebuilt faithfully.
 - Numbers in `stat-counter` are recon numbers.
+- A product screen that has real planes (a modal over its page, a sidebar,
+  a sticky header) is a `ui-frame` with `layers`: `motion_screenshot({ url,
+  out: "assets/harvested/<name>.png", layers: "auto" })` cuts it and prints
+  the field; add `tilt` when direction.md is 2.5D.
 - The signature shot — and any look the engine lacks — is a project type in
   `js/shots.custom.js` (`motion_schema({ section: "custom shot types" })`,
   recipes in `effects-catalog.md`; then `motion_scaffold({ custom: true })`).
+  Real 3D (`ShotKit.three`: lit, shadowed, textured), a Lottie or a Rive file
+  (`ShotKit.lottie` / `ShotKit.rive`, or the `lottie` / `rive` types) live
+  there too; canvas stages redraw from the engine, never from your code.
   Build it early, not last: it is the shot the film is about. Seven
   invariants: everything on the returned timeline (no CSS animation, no bare
   `gsap.to`, no ticker, no `Math.random` — `rng(seed)`); selectors scoped to
@@ -161,8 +173,9 @@ what the sheets showed and what you fixed, then stop — the preview reloads
 on its own.
 
 **6. Export — only when the user asks for an MP4 in chat.** `motion_audit`,
-then `motion_render({ out: "renders/launch-<res>.mp4", out_res, fps: 60 })`,
-then `motion_verify_duration`. To look at a shot use `motion_review({ shots
+then `motion_render({ out: "renders/launch-<res>.mp4", out_res, fps: 60 })`
+— it applies the film's `render` and `grade` blocks — then
+`motion_verify_duration`. To look at a shot use `motion_review({ shots
 })`; a `from`/`to` render only when the motion itself, not a frame, is in
 doubt. Never concatenate segments, screencast, or reach for
 Remotion/React/AI video.

@@ -11,18 +11,24 @@
  * Usage:
  *   node capture.mjs page.html [--fps=60] [--scale=2] [--out-res=720p|1080p|4k] [--width=1920] [--height=1080]
  *                    [--workers=8] [--out=out/video.mp4] [--from=<sec>] [--to=<sec>]
+ *                    [--samples=4 --shutter=0.5] [--depth=8|10] [--codec=h264|hevc] [--crf=16] [--frames=jpeg|png]
  *
  * --from/--to render only a segment of the timeline (e.g. one scene, for fast
  * iteration; several segment renders can run in parallel). Segment renders
  * skip the audio mux — only full renders mux audio/mix.wav.
+ *
+ * Shutter, samples, depth and codec default to the film's own
+ * `window.SHOTS.render` block; the grade comes from `window.SHOTS.grade`
+ * (lib/encode.mjs documents both). Flags override the block for one render.
  */
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { codecArgs, describeRender, normalizeGrade, normalizeRender, renderFilter, sampleTimes } from "./lib/encode.mjs";
 
 /** This script's own directory — used to resolve the repo-root font for the watermark. */
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -61,6 +67,13 @@ const height   = Number(args.height ?? 1080);
 const defaultWorkers = Math.max(1, Math.min(6, os.cpus().length - 2));
 const workers  = Number(args.workers ?? defaultWorkers);
 const out      = String(args.out ?? "out/video.mp4");
+/**
+ * Intermediate frames. JPEG at quality 92 is visually lossless for UI and type
+ * and keeps a 60fps film's temp frames in the low gigabytes; PNG is lossless
+ * for a film that lives on soft gradients, at 2–3× the capture time and disk.
+ */
+const framesFmt = String(args.frames ?? "jpeg").toLowerCase() === "png" ? "png" : "jpeg";
+const frameExt = framesFmt === "png" ? "png" : "jpg";
 // Temp files live in the CWD (the project folder), NOT next to the output —
 // deliverables go to the shared renders/ folder. PID suffix keeps parallel
 // segment renders from clobbering each other's frames.
@@ -86,6 +99,9 @@ console.log(`   Workers:   ${workers} parallel capture tabs`);
  * pixels (raw CDP otherwise hands back CSS pixels).
  */
 const clip = { x: 0, y: 0, width, height, scale };
+const shotOpts = framesFmt === "png"
+  ? { format: "png", captureBeyondViewport: false, clip }
+  : { format: "jpeg", quality: 92, optimizeForSpeed: true, captureBeyondViewport: false, clip };
 
 const cdpArg = process.argv.slice(2).find(a => a.startsWith("--cdp="));
 const studio = await openStudioBrowser({
@@ -93,14 +109,23 @@ const studio = await openStudioBrowser({
   viewport: { width, height },
   deviceScaleFactor: scale,
 });
-console.log(`   Browser:   ${studio.mode === "cdp" ? `CloakBrowser over CDP (${studio.endpoint})` : "local Chromium"}\n`);
+console.log(`   Browser:   ${studio.mode === "cdp" ? `CloakBrowser over CDP (${studio.endpoint})` : "local Chromium"}`);
 
 const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
 const initPage = await studio.newPage();
 await initPage.goto(url, { waitUntil: "domcontentloaded" });
 await initPage.waitForFunction("window.__READY === true", null, { timeout: 30000 });
 const duration = await initPage.evaluate("window.__DURATION()");
+const film = await initPage.evaluate("({ render: (window.SHOTS && window.SHOTS.render) || null, grade: (window.SHOTS && window.SHOTS.grade) || null })");
 await initPage.close();
+
+// The film's render and grade blocks, with flags overriding for this run.
+const render = normalizeRender(film.render, {
+  samples: args.samples, shutter: args.shutter, depth: args.depth, codec: args.codec, crf: args.crf,
+});
+const { grade, warnings: gradeWarnings } = normalizeGrade(film.grade, { lutExists: (p) => existsSync(resolve(p)) });
+for (const w of gradeWarnings) console.warn(`   ⚠ ${w}`);
+console.log(`   Look:      ${describeRender(render, grade)}\n`);
 
 const from = Math.max(0, Number(args.from ?? 0));
 const to   = args.to !== undefined ? Math.min(Number(args.to), duration) : duration;
@@ -108,7 +133,8 @@ if (to <= from) { console.error(`Invalid segment: --from=${from} --to=${to}`); p
 const isSegment = from > 0 || to < duration;
 
 const total = Math.ceil((to - from) * fps);
-console.log(`Timeline duration: ${duration.toFixed(2)}s${isSegment ? ` — rendering segment ${from.toFixed(2)}s → ${to.toFixed(2)}s` : ""} (${total} frames @ ${fps}fps)`);
+const captures = total * render.samples;
+console.log(`Timeline duration: ${duration.toFixed(2)}s${isSegment ? ` — rendering segment ${from.toFixed(2)}s → ${to.toFixed(2)}s` : ""} (${total} frames @ ${fps}fps${render.samples > 1 ? `, ${captures} captures` : ""})`);
 
 const chunkSize = Math.ceil(total / workers);
 const startMs = Date.now();
@@ -126,11 +152,13 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
   await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
 
   for (let i = startFrame; i < endFrame; i++) {
-    const t = from + i / fps;
-    await page.evaluate((seekT) => { window.__SEEK(seekT); }, t);
-    const { data } = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 80, optimizeForSpeed: true, captureBeyondViewport: false, clip });
-    const n = String(i).padStart(6, "0");
-    await writeFile(`${tmp}/f_${n}.jpg`, Buffer.from(data, "base64"));
+    const times = sampleTimes(from + i / fps, fps, render);
+    for (let k = 0; k < times.length; k++) {
+      await page.evaluate((seekT) => { window.__SEEK(seekT); }, times[k]);
+      const { data } = await cdp.send("Page.captureScreenshot", shotOpts);
+      const n = String(i * render.samples + k).padStart(7, "0");
+      await writeFile(`${tmp}/f_${n}.${frameExt}`, Buffer.from(data, "base64"));
+    }
     completedFrames++;
     if (completedFrames % 100 === 0 || completedFrames === total) {
       const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
@@ -190,15 +218,13 @@ function watermarkFilter() {
 }
 
 const wm = watermarkFilter();
-const vf = [downscale, wm].filter(Boolean).join(",");
-console.log(`\n🎬 Assembling Video Track with FFmpeg...${wm ? " (+ watermark)" : ""}${downscale ? ` (→ ${outRes.height}p)` : ""}`);
+const vf = renderFilter({ fps, render, grade, downscale, watermark: wm });
+console.log(`\n🎬 Assembling Video Track with FFmpeg...${wm ? " (+ watermark)" : ""}${downscale ? ` (→ ${outRes.height}p)` : ""}${render.samples > 1 ? ` (shutter ${render.shutter}, ${render.samples} samples/frame)` : ""}${grade ? " (+ grade)" : ""}`);
 try {
-  execSync(
-    `ffmpeg -y -framerate ${fps} -i "${tmp}/f_%06d.jpg" ` +
-    (vf ? `-vf "${vf}" ` : "") +
-    `-c:v libx264 -preset fast -crf 16 -pix_fmt yuv420p -movflags +faststart "${rawVideo}"`,
-    { stdio: "inherit" }
-  );
+  execFileSync("ffmpeg", [
+    "-y", "-framerate", String(fps * render.samples), "-i", `${tmp}/f_%07d.${frameExt}`,
+    "-vf", vf, ...codecArgs(render), "-r", String(fps), rawVideo,
+  ], { stdio: "inherit" });
 } finally {
   // Never leave thousands of frames behind, even when the encode fails.
   rmSync(tmp, { recursive: true, force: true });
@@ -206,13 +232,13 @@ try {
 
 if (!isSegment && existsSync("audio/mix.wav")) {
   console.log("\n🔊 Muxing Audio Mix (Voiceovers + Music + SFX) into final deliverable...");
-  execSync(
-    `ffmpeg -y -i "${rawVideo}" -i "audio/mix.wav" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k -shortest "${out}"`,
-    { stdio: "inherit" }
-  );
+  execFileSync("ffmpeg", [
+    "-y", "-i", rawVideo, "-i", "audio/mix.wav", "-map", "0:v", "-map", "1:a",
+    "-c:v", "copy", "-c:a", "aac", "-b:a", "256k", "-shortest", resolve(out),
+  ], { stdio: "inherit" });
   rmSync(rawVideo, { force: true });
 } else {
-  execSync(`mv "${rawVideo}" "${out}"`);
+  execFileSync("mv", [rawVideo, resolve(out)]);
 }
 
 console.log(`\n✨ DONE! Deliverable Ready: ${out}\n`);

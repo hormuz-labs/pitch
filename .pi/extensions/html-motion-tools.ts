@@ -190,7 +190,10 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
             Type.Literal('Leda'),
             Type.Literal('Charon'),
           ],
-          { description: 'Choose for the brand, never by habit: Aoede bright, Kore warm, Leda sleek, Charon deep. Two films should not share a voice by default.' },
+          {
+            description:
+              'Choose for the brand, never by habit: Aoede bright, Kore warm, Leda sleek, Charon deep. Two films should not share a voice by default.',
+          },
         ),
       ),
       style: Type.Optional(
@@ -283,7 +286,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_render',
     label: 'Motion Render',
     description:
-      'Render index.html to MP4 by deterministic seek-and-capture. To LOOK at shots use motion_review (frames, not video); render a from/to segment (fps 30, no audio) only when the motion itself is in doubt. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after motion_audit and motion_review pass.',
+      'Render index.html to MP4 by deterministic seek-and-capture. To LOOK at shots use motion_review (frames, not video); render a from/to segment (fps 30, no audio) only when the motion itself is in doubt — a shutter (motion blur) is one such case. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after motion_audit and motion_review pass. Shutter, samples, depth and codec default to the film\'s `render` block in shots.js and the look to its `grade` block (motion_schema({ section: "render and grade" })); the flags here override for one render.',
     parameters: Type.Object({
       out: Type.String({
         description:
@@ -314,6 +317,40 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
       from: Type.Optional(Type.Number({ minimum: 0, description: 'Segment start (s)' })),
       to: Type.Optional(Type.Number({ minimum: 0, description: 'Segment end (s)' })),
+      samples: Type.Optional(
+        Type.Integer({
+          minimum: 1,
+          maximum: 16,
+          description:
+            'Captures averaged per frame (motion blur). 1 = none; 4 with shutter 0.5 is a 180° film shutter. Overrides render.samples.',
+        }),
+      ),
+      shutter: Type.Optional(
+        Type.Number({
+          minimum: 0,
+          maximum: 1,
+          description:
+            'Fraction of the frame interval the shutter is open (0.5 = 180°; 1 = frame blending). Overrides render.shutter.',
+        }),
+      ),
+      depth: Type.Optional(
+        Type.Union([Type.Literal(8), Type.Literal(10)], {
+          description:
+            '10-bit output stops soft gradients banding (default 8). Overrides render.depth.',
+        }),
+      ),
+      codec: Type.Optional(
+        Type.Union([Type.Literal('h264'), Type.Literal('hevc')], {
+          description:
+            'h264 plays everywhere; hevc for 10-bit deliverables on Apple devices. Overrides render.codec.',
+        }),
+      ),
+      frames: Type.Optional(
+        Type.Union([Type.Literal('jpeg'), Type.Literal('png')], {
+          description:
+            'Intermediate frame format: jpeg (default, q92) or png (lossless, slower, more disk) for a film that lives on soft gradients.',
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
@@ -322,7 +359,20 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       a.push('--out=' + relativeIn(ws, p.out, 'write'))
       if (p.out_res) a.push('--out-res=' + p.out_res)
       else if (p.scale === undefined) a.push('--scale=1')
-      for (const k of ['fps', 'scale', 'width', 'height', 'workers', 'from', 'to'] as const) {
+      for (const k of [
+        'fps',
+        'scale',
+        'width',
+        'height',
+        'workers',
+        'from',
+        'to',
+        'samples',
+        'shutter',
+        'depth',
+        'codec',
+        'frames',
+      ] as const) {
         if (p[k] !== undefined) a.push(`--${k}=` + p[k])
       }
       return text(await runScript('capture.mjs', a, ws))
@@ -333,7 +383,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_review',
     label: 'Look at the Film',
     description:
-      'Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. Look for: clipped or overflowing text, words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. Fix in shots.js, then re-run with `shots` for the ones you touched. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.',
+      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. Look for: clipped or overflowing text, words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. The frames carry the film's `grade` block, so a LUT or vignette is judged here too. Fix in shots.js, then re-run with `shots` for the ones you touched. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.",
     parameters: Type.Object({
       shots: Type.Optional(
         Type.Array(Type.String(), { description: 'Only these shot ids (default: every shot)' }),
@@ -429,7 +479,9 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     label: 'Motion Screenshot',
     description:
       'Capture a reference screenshot for Phase-0 recon: from a live URL, or a synthetic HTML ' +
-      'template. For brand recon -> recon/screenshots/. Not for video frames.',
+      'template. For brand recon -> recon/screenshots/. Not for video frames. With `layers`, cuts the screen into a ' +
+      'base plate plus each floating piece (modal, sticky header, sidebar, toast) on transparency and writes ' +
+      '<out>.layers.json with the `layers` field for a parallax ui-frame — out under assets/harvested/ in that case.',
     parameters: Type.Object({
       out: Type.String({
         description: 'Output PNG path, conventionally recon/screenshots/<name>.png',
@@ -443,6 +495,12 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ),
       fullPage: Type.Optional(Type.Boolean({ description: 'Full height scroll capture' })),
       wait: Type.Optional(Type.Integer({ description: 'Ms to wait after load' })),
+      layers: Type.Optional(
+        Type.String({
+          description:
+            '"auto" (fixed/sticky elements, dialogs, header/nav/aside) or a comma-separated list of CSS selectors to lift into layers.',
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
@@ -460,6 +518,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       if (p.selector) a.push('--selector=' + p.selector)
       if (p.fullPage) a.push('--fullPage=true')
       if (p.wait) a.push('--wait=' + p.wait)
+      if (p.layers) a.push('--layers=' + p.layers)
       return text(await runScript('screenshot.mjs', a, ws))
     },
   })
@@ -855,16 +914,22 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_scaffold',
     label: 'Scaffold the page',
     description:
-      'Write index.html — the thin shell that loads the GSAP vendor bundle, shots.js and the engine, ' +
+      'Write index.html — the thin shell that loads the GSAP vendor bundle, three.js and lottie-web, shots.js and the engine, ' +
       'in the one order that works. Call this once before your first shots.js instead of writing the ' +
       'page by hand; the script order is the whole of it. Pass custom: true when you have ' +
-      'added js/shots.custom.js.',
+      'added js/shots.custom.js, rive: true when a shot uses a .riv file.',
     parameters: Type.Object({
       title: Type.Optional(
         Type.String({ description: 'Page <title>; defaults to the project name.' }),
       ),
       custom: Type.Optional(
         Type.Boolean({ description: 'Load js/shots.custom.js as well (default false).' }),
+      ),
+      rive: Type.Optional(
+        Type.Boolean({
+          description:
+            'Load the Rive runtime (3MB) for `rive` shots or ShotKit.rive (default false).',
+        }),
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
@@ -907,6 +972,13 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         '<body>',
         '  <div id="viewport"><div id="camera"></div></div>',
         ...plugins.map(f => `  <script src="../../assets/gsap/${f}"></script>`),
+        // three.js ships as an ES module only; a module script runs before
+        // DOMContentLoaded, which is when the compiler boots, so window.THREE
+        // is there for every factory. Lottie is a classic global. Rive is
+        // 3MB and loads on request.
+        '  <script type="module">import * as THREE from "../../assets/three/three.module.min.js"; window.THREE = THREE;</script>',
+        '  <script src="../../assets/lottie/lottie.min.js"></script>',
+        ...(p.rive ? ['  <script src="../../assets/rive/rive.js"></script>'] : []),
         '  <script src="shots.js"></script>',
         '  <script src="../../engine/js/icons.js"></script>',
         '  <script src="../../engine/js/factories.js"></script>',
@@ -918,7 +990,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       writeFileSync(out, html)
       const vendor = existsSync(join(ASSETS_DIR, 'gsap', 'gsap.min.js'))
       return text(
-        `index.html written (${plugins.length} GSAP plugins${p.custom ? ' + js/shots.custom.js' : ''}).\n` +
+        `index.html written (${plugins.length} GSAP plugins, three.js, lottie-web${p.rive ? ', rive' : ''}${p.custom ? ' + js/shots.custom.js' : ''}).\n` +
           (vendor
             ? 'GSAP loads from the shared ../../assets/gsap/.'
             : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +

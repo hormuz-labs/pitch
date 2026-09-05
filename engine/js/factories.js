@@ -542,6 +542,25 @@
     phone: { w: 430, h: 880 },
     none: { w: 1600, h: 900 },
   };
+  // The visible screen inside the frame: the bar and the phone bezel are fixed
+  // chrome, so the screen rect is known without DOM measurement.
+  function screenGeom(shot, w, hgt) {
+    const barH = shot.frame === "phone" || shot.frame === "none" ? 0 : 56;
+    const pad = shot.frame === "phone" ? 14 : 0;
+    return { barH, pad, sw: w - pad * 2, sh: hgt - barH - pad * 2 };
+  }
+  // Where an image of natW×natH lands under object-fit: cover in a boxW×boxH
+  // screen with an object-position string — the same maths the browser does,
+  // so a layer cut from the screenshot sits exactly over its pixels.
+  function coverMap(natW, natH, boxW, boxH, align) {
+    const s = Math.max(boxW / natW, boxH / natH);
+    const rw = natW * s;
+    const rh = natH * s;
+    const words = String(align || "top center").toLowerCase().split(/\s+/);
+    const ax = words.includes("left") ? 0 : words.includes("right") ? 1 : 0.5;
+    const ay = words.includes("top") ? 0 : words.includes("bottom") ? 1 : 0.5;
+    return { s, ox: (boxW - rw) * ax, oy: (boxH - rh) * ay };
+  }
   function uiMount(el, shot) {
     el.dataset.bg = shot.bg || "bg";
     const kind = shot.frame || "browser";
@@ -559,6 +578,25 @@
       screen.appendChild(h(`<img class="ui-img" src="${shot.src}" alt="" draggable="false" style="object-position:${shot.align || "top center"}">`));
     } else if (shot.html) {
       screen.innerHTML = shot.html;
+    }
+    // Layers cut from the same screenshot (motion_screenshot layers → the
+    // .layers.json it prints): each sits over its own pixels and carries a
+    // depth, so the focus camera and `tilt` move it in parallax.
+    const L = shot.layers;
+    if (L && Array.isArray(L.items) && L.items.length && L.w && L.h) {
+      screen.classList.add("layered");
+      const g = screenGeom(shot, w, hgt);
+      const m = coverMap(L.w, L.h, g.sw, g.sh, shot.align);
+      L.items.forEach((it) => {
+        const img = h(`<img class="ui-layer" src="${it.src}" alt="" draggable="false">`);
+        const left = m.ox + it.x * m.s;
+        const top = m.oy + it.y * m.s;
+        img.style.cssText = `left:${left.toFixed(2)}px;top:${top.toFixed(2)}px;width:${(it.w * m.s).toFixed(2)}px;height:${(it.h * m.s).toFixed(2)}px;`;
+        img.dataset.depth = String(it.depth ?? 1);
+        img.dataset.left = left.toFixed(2);
+        img.dataset.top = top.toFixed(2);
+        screen.appendChild(img);
+      });
     }
     if (shot.cursor) {
       screen.appendChild(h(`<div class="ui-cursor"><div class="ui-ripple"></div><svg viewBox="0 0 24 24" width="48" height="48"><path d="M4 2l16 9-7 2-3 8z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`));
@@ -585,13 +623,33 @@
     // so hotspot math needs no DOM measurement and stays deterministic.
     const fl = parseFloat(frame.style.left);
     const ft = parseFloat(frame.style.top);
-    const barH = shot.frame === "phone" ? 0 : (shot.frame === "none" ? 0 : 56);
-    const pad = shot.frame === "phone" ? 14 : 0;
-    const sw = parseFloat(frame.style.width) - pad * 2;
-    const sh = parseFloat(frame.style.height) - barH - pad * 2;
+    const { barH, pad, sw, sh } = screenGeom(shot, parseFloat(frame.style.width), parseFloat(frame.style.height));
     const sx = fl + pad;
     const sy = ft + barH + pad;
     const toStage = (fx, fy) => ({ x: sx + fx * sw, y: sy + fy * sh });
+
+    // Layers: the deeper (nearer) a layer, the more it moves — on entrance,
+    // under the focus camera, and under `tilt`.
+    const layers = [...el.querySelectorAll(".ui-layer")];
+    const depthOf = (l) => Number(l.dataset.depth) || 0;
+    if (layers.length && enter !== "none") {
+      tl.from(layers, { y: (i, l) => 36 + 28 * depthOf(l), opacity: 0, duration: 0.55, ease: EASE.land, stagger: 0.05 }, 0.16);
+    }
+    const tilt = shot.tilt;
+    if (tilt && (tilt.x || tilt.y)) {
+      const tAt = tilt.at ?? 0;
+      const tDur = Math.max(0.2, tilt.dur ?? (D - tAt));
+      const rx = tilt.x ?? 0;
+      const ry = tilt.y ?? 0;
+      const ez = tilt.ease || "sine.inOut";
+      tl.fromTo(frame, { rotationX: rx, rotationY: -ry, transformPerspective: 1600 }, { rotationX: -rx, rotationY: ry, duration: tDur, ease: ez }, tAt);
+      layers.forEach((l) => {
+        const d = depthOf(l);
+        const bl = parseFloat(l.dataset.left);
+        const bt = parseFloat(l.dataset.top);
+        tl.fromTo(l, { left: bl - ry * d * 1.6, top: bt + rx * d * 1.6 }, { left: bl + ry * d * 1.6, top: bt - rx * d * 1.6, duration: tDur, ease: ez }, tAt);
+      });
+    }
 
     const caption = el.querySelector(".ui-caption");
     if (caption) {
@@ -612,11 +670,21 @@
         scale, x: landX - scale * c.x, y: landY - scale * c.y,
         duration: dur, ease: f.ease || "power4.inOut", transformOrigin: "0 0",
       }, at);
+      const relAt = Math.min(D - 0.3, at + dur + (f.hold ?? 1.2));
       if (f.release !== false) {
-        const hold = f.hold ?? 1.2;
-        const relAt = Math.min(D - 0.3, at + dur + hold);
         tl.to(cam, { scale: f.releaseScale ?? 1.06, x: 0, y: 0, duration: 0.9, ease: "power2.inOut" }, relAt);
       }
+      // Parallax: a layer slides away from the hotspot and grows a little as
+      // the camera dollies in, by its depth; the release brings it home.
+      layers.forEach((l) => {
+        const d = depthOf(l);
+        if (!d) return;
+        const lx = parseFloat(l.dataset.left) + parseFloat(l.style.width) / 2;
+        const ly = parseFloat(l.dataset.top) + parseFloat(l.style.height) / 2;
+        const k = (scale - 1) * d * 0.12;
+        tl.to(l, { x: (lx - cx * sw) * k, y: (ly - cy * sh) * k, scale: 1 + (scale - 1) * d * 0.08, duration: dur, ease: f.ease || "power4.inOut", transformOrigin: "50% 50%" }, at);
+        if (f.release !== false) tl.to(l, { x: 0, y: 0, scale: 1, duration: 0.9, ease: "power2.inOut" }, relAt);
+      });
     }
 
     const cur = shot.cursor;
@@ -642,8 +710,177 @@
     return tl;
   }
 
+  /* ---------- async assets and canvas stages ---------- */
+  // A factory that loads something — a texture, a Lottie file, a .riv — hands
+  // the promise to ready(); the compiler holds __READY until it settles, so
+  // the first captured frame already has the asset.
+  window.__PENDING = window.__PENDING || [];
+  function ready(p) { window.__PENDING.push(p); return p; }
+  // Canvas stages redraw from the compiler's frame hook after every timeline
+  // render (both seek directions), so a factory only tweens state — a mesh
+  // rotation, a Lottie frame — on its returned timeline and never draws itself.
+  window.__FRAME_HOOKS = window.__FRAME_HOOKS || [];
+  function frameHook(el, render) { window.__FRAME_HOOKS.push({ el, render }); }
+
+  // A three.js stage the size of the shot. World units are CSS pixels on the
+  // z = 0 plane (a 400-unit box is 400px wide at the screen), the camera looks
+  // down -z from the front, and the canvas keeps its buffer so the capture
+  // reads what the last render drew. `texture(src)` loads through ready().
+  function three(el, opts = {}) {
+    const THREE = window.THREE;
+    if (!THREE) throw new Error("three.js is not on the page — run motion_scaffold again (it writes the module tag)");
+    const width = opts.width || 1920;
+    const height = opts.height || 1080;
+    const fov = opts.fov || 35;
+    const canvas = document.createElement("canvas");
+    canvas.className = "gl-stage";
+    canvas.style.cssText = `position:absolute;left:${opts.x ?? 0}px;top:${opts.y ?? 0}px;width:${width}px;height:${height}px;display:block;pointer-events:none;`;
+    el.appendChild(canvas);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: opts.alpha !== false, antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(opts.pixelRatio || window.devicePixelRatio || 1);
+    renderer.setSize(width, height, false);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    if (opts.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(fov, width / height, 1, 40000);
+    camera.position.set(0, 0, (height / 2) / Math.tan((fov * Math.PI / 180) / 2));
+    camera.lookAt(0, 0, 0);
+    const render = () => renderer.render(scene, camera);
+    const texture = (src) => {
+      let done;
+      ready(new Promise((resolve) => { done = resolve; }));
+      const tex = new THREE.TextureLoader().load(src, () => done(), undefined, (e) => { console.warn("[three] texture failed", src, e); done(); });
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      return tex;
+    };
+    frameHook(el, render);
+    return { THREE, renderer, scene, camera, canvas, render, texture, width, height };
+  }
+
+  // A Lottie file on an SVG stage, driven frame by frame from the timeline.
+  // drive(tl, { at, dur, from, to, speed, loop }) plays it at its own frame
+  // rate over `dur` unless `to` names the last frame.
+  function lottieStage(el, opts = {}) {
+    const lib = window.lottie;
+    if (!lib) throw new Error("lottie-web is not on the page — run motion_scaffold again");
+    const holder = document.createElement("div");
+    holder.className = "lottie-stage";
+    holder.style.cssText = `position:absolute;left:${opts.x ?? 0}px;top:${opts.y ?? 0}px;width:${opts.width || 1920}px;height:${opts.height || 1080}px;pointer-events:none;`;
+    el.appendChild(holder);
+    const anim = lib.loadAnimation({
+      container: holder, renderer: opts.renderer || "svg", loop: false, autoplay: false,
+      path: opts.data ? undefined : opts.src, animationData: opts.data,
+      rendererSettings: { preserveAspectRatio: opts.fit === "cover" ? "xMidYMid slice" : "xMidYMid meet", progressiveLoad: false },
+    });
+    ready(new Promise((resolve) => {
+      anim.addEventListener("DOMLoaded", resolve);
+      anim.addEventListener("data_failed", () => { console.warn("[lottie] failed to load", opts.src); resolve(); });
+    }));
+    const drive = (tl, { at = 0, dur = 1, from = 0, to = null, speed = 1, loop = true, ease = "none" } = {}) => {
+      const st = { t: 0 };
+      tl.to(st, {
+        t: 1, duration: dur, ease,
+        onUpdate: () => {
+          const total = anim.totalFrames || 1;
+          const end = to ?? (from + (anim.frameRate || 30) * dur * speed);
+          let f = from + (end - from) * st.t;
+          f = loop && total > 1 ? ((f % total) + total) % total : Math.min(total - 1, Math.max(0, f));
+          anim.goToAndStop(f, true);
+        },
+      }, at);
+    };
+    return { anim, holder, drive };
+  }
+
+  // A Rive file on a canvas, scrubbed from the timeline: drive(tl, { at, dur,
+  // from, speed, animation }) sets the named animation's time as a function of
+  // the shot's time. Load with motion_scaffold({ rive: true }).
+  function riveStage(el, opts = {}) {
+    const lib = window.rive;
+    if (!lib) throw new Error("the Rive runtime is not on the page — motion_scaffold({ rive: true })");
+    const width = opts.width || 1920;
+    const height = opts.height || 1080;
+    const dpr = opts.pixelRatio || window.devicePixelRatio || 1;
+    const canvas = document.createElement("canvas");
+    canvas.className = "rive-stage";
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.cssText = `position:absolute;left:${opts.x ?? 0}px;top:${opts.y ?? 0}px;width:${width}px;height:${height}px;pointer-events:none;`;
+    el.appendChild(canvas);
+    const fits = { contain: "Contain", cover: "Cover", fill: "Fill", fitWidth: "FitWidth", fitHeight: "FitHeight", none: "None" };
+    let done;
+    ready(new Promise((resolve) => { done = resolve; }));
+    let loaded = false;
+    const r = new lib.Rive({
+      src: opts.src, canvas, autoplay: false, artboard: opts.artboard, animations: opts.animation,
+      layout: new lib.Layout({ fit: lib.Fit[fits[opts.fit || "contain"] || "Contain"], alignment: lib.Alignment.Center }),
+      onLoad: () => { loaded = true; done(); },
+      onLoadError: (e) => { console.warn("[rive] failed to load", opts.src, e); done(); },
+    });
+    const drive = (tl, { at = 0, dur = 1, from = 0, speed = 1, animation = opts.animation } = {}) => {
+      const st = { t: 0 };
+      tl.to(st, { t: 1, duration: dur, ease: "none", onUpdate: () => { if (loaded) r.scrub(animation, from + st.t * dur * speed); } }, at);
+    };
+    return { rive: r, canvas, drive };
+  }
+
+  /* ---------- lottie / rive shot types ---------- */
+  // A vector animation file — harvested from the site or supplied by the user
+  // (a mascot, a product animation, an icon set) — as a shot of its own, in
+  // the film's palette, with an optional caption.
+  const stages = new WeakMap();
+  function vectorBox(shot) {
+    const hgt = shot.height || 720;
+    const w = shot.width || hgt;
+    return { w, h: hgt, x: shot.x ?? (1920 - w) / 2, y: shot.y ?? (1080 - hgt) / 2 };
+  }
+  function captionMount(el, shot) {
+    if (!shot.caption) return;
+    const cap = h(`<div class="ui-caption ${shot.captionPos === "top" ? "top" : "bottom"} type-center"></div>`);
+    mixedLine(cap, shot.caption);
+    el.appendChild(cap);
+  }
+  function captionIn(tl, el) {
+    const cap = el.querySelector(".ui-caption");
+    if (cap) tl.from(cap.querySelectorAll(".char"), { yPercent: 110, duration: 0.45, ease: EASE.slam, stagger: 0.01 }, 0.12);
+  }
+  function vectorEnter(tl, node, shot) {
+    const enter = shot.enter || "rise";
+    if (enter === "rise") tl.from(node, { y: 60, opacity: 0, duration: 0.5, ease: EASE.land }, 0);
+    else if (enter === "scale") tl.from(node, { scale: 0.85, opacity: 0, duration: 0.5, ease: EASE.slam, transformOrigin: "50% 50%" }, 0);
+  }
+  function lottieMount(el, shot) {
+    el.dataset.bg = shot.bg || "bg";
+    const b = vectorBox(shot);
+    stages.set(el, lottieStage(el, { src: shot.src, x: b.x, y: b.y, width: b.w, height: b.h, fit: shot.fit, renderer: shot.renderer }));
+    captionMount(el, shot);
+  }
+  function lottieAnimate(el, shot, D) {
+    const tl = gsap.timeline();
+    const st = stages.get(el);
+    vectorEnter(tl, st.holder, shot);
+    st.drive(tl, { at: 0, dur: D, from: shot.from ?? 0, to: shot.to ?? null, speed: shot.speed ?? 1, loop: shot.loop !== false });
+    captionIn(tl, el);
+    return tl;
+  }
+  function riveMount(el, shot) {
+    el.dataset.bg = shot.bg || "bg";
+    const b = vectorBox(shot);
+    stages.set(el, riveStage(el, { src: shot.src, x: b.x, y: b.y, width: b.w, height: b.h, fit: shot.fit, artboard: shot.artboard, animation: shot.animation }));
+    captionMount(el, shot);
+  }
+  function riveAnimate(el, shot, D) {
+    const tl = gsap.timeline();
+    const st = stages.get(el);
+    vectorEnter(tl, st.canvas, shot);
+    st.drive(tl, { at: 0, dur: D, from: shot.from ?? 0, speed: shot.speed ?? 1, animation: shot.animation });
+    captionIn(tl, el);
+    return tl;
+  }
+
   // Shared helpers for project-local factories (js/shots.custom.js).
-  window.ShotKit = { h, qs, splitChars, mixedLine, rng, EASE, revealWords, scatterWords };
+  window.ShotKit = { h, qs, splitChars, mixedLine, rng, EASE, revealWords, scatterWords, ready, frameHook, three, lottie: lottieStage, rive: riveStage, coverMap };
 
   window.ShotFactories = {
     "word-build": { mount: wordBuildMount, animate: wordBuildAnimate },
@@ -659,5 +896,7 @@
     "logo-cta": { mount: ctaMount, animate: ctaAnimate },
     "stat-counter": { mount: statMount, animate: statAnimate },
     "ui-frame": { mount: uiMount, animate: uiAnimate },
+    "lottie": { mount: lottieMount, animate: lottieAnimate },
+    "rive": { mount: riveMount, animate: riveAnimate },
   };
 })();

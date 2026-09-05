@@ -1,0 +1,1 @@
+lottie-web 5.13.0 (build/player/lottie.min.js, MIT)

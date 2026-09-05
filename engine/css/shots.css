@@ -470,3 +470,10 @@ body.preview #preview-bar { display: block; }
 .notif .notif-ic { left: -36px; top: 26px; }
 .notif { z-index: 5; }
 .phone-ghost-ui { z-index: 1; }
+
+/* ---- Layers, canvas stages, carry ---- */
+.ui-layer { position: absolute; display: block; will-change: transform; }
+.gl-stage, .rive-stage, .lottie-stage { z-index: 2; }
+.lottie-stage svg { display: block; width: 100%; height: 100%; }
+.carry-layer { position: absolute; inset: 0; pointer-events: none; z-index: 60; }
+.carry-ghost { pointer-events: none; }

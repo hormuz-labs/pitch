@@ -67,18 +67,157 @@
     if (shot.ink) el.style.color = shot.ink;
   }
 
+  // The state a shot element is in when it is simply "on": every cut resets
+  // to it, because a transition may have left the previous incoming shot
+  // pushed, clipped or blurred.
+  const RESTING = { opacity: 1, pointerEvents: "auto", x: 0, y: 0, scale: 1, rotationX: 0, rotationY: 0, clipPath: "none", filter: "none" };
+
   function hardCut(outgoing, incoming) {
     const tl = gsap.timeline();
-    tl.set(incoming, { opacity: 1, pointerEvents: "auto", x: 0, y: 0, scale: 1, rotationY: 0 }, 0);
+    tl.set(incoming, RESTING, 0);
     tl.set(outgoing, { opacity: 0, pointerEvents: "none" }, 0);
     return tl;
   }
   function punchCut(outgoing, incoming) {
     const tl = gsap.timeline();
-    tl.set(incoming, { opacity: 1, pointerEvents: "auto", scale: 1.12 }, 0);
+    tl.set(incoming, { ...RESTING, scale: 1.12 }, 0);
     tl.set(outgoing, { opacity: 0, pointerEvents: "none" }, 0);
     tl.to(incoming, { scale: 1, duration: 0.38, ease: "expo.out" }, 0);
     return tl;
+  }
+
+  // ---- Cross-shot transitions ---------------------------------------------
+  // `shot.cut` on the incoming shot. `hard` and `punch` are one-frame cuts; the
+  // kinds below composite the two shots for `cutDur` seconds (default 0.5,
+  // capped at 45% of the incoming shot) — the one place two shots share the
+  // frame. The outgoing shot's exit motion is suppressed under a transition
+  // unless that shot sets `exit` itself, so nothing leaves twice.
+  const TRANSITIONS = new Set([
+    "dissolve", "wipe-left", "wipe-right", "wipe-up", "wipe-down",
+    "push-left", "push-right", "push-up", "push-down", "iris", "zoom", "flip",
+  ]);
+  function transitionCut(outgoing, incoming, kind, T) {
+    const tl = gsap.timeline();
+    const io = "power3.inOut";
+    tl.set(outgoing, { pointerEvents: "none" }, 0);
+    switch (kind) {
+      case "dissolve":
+        tl.set(incoming, { ...RESTING, opacity: 0 }, 0);
+        tl.to(incoming, { opacity: 1, duration: T, ease: "power2.inOut" }, 0);
+        break;
+      case "wipe-left": case "wipe-right": case "wipe-up": case "wipe-down": {
+        // The edge travels in the named direction, revealing the incoming shot.
+        // Every value carries a unit: GSAP interpolates the numbers and keeps
+        // the end string's units, and an intermediate "inset(0 0 0 85)" is
+        // invalid CSS that leaves the element fully clipped.
+        const from = { "wipe-left": "inset(0% 0% 0% 100%)", "wipe-right": "inset(0% 100% 0% 0%)", "wipe-up": "inset(100% 0% 0% 0%)", "wipe-down": "inset(0% 0% 100% 0%)" }[kind];
+        tl.set(incoming, { ...RESTING, clipPath: from }, 0);
+        tl.to(incoming, { clipPath: "inset(0% 0% 0% 0%)", duration: T, ease: io }, 0);
+        break;
+      }
+      case "push-left": case "push-right": case "push-up": case "push-down": {
+        const axis = /left|right/.test(kind) ? "x" : "y";
+        const size = axis === "x" ? 1920 : 1080;
+        const sign = /left|up/.test(kind) ? -1 : 1;
+        tl.set(incoming, { ...RESTING, [axis]: -sign * size }, 0);
+        tl.to(outgoing, { [axis]: sign * size, duration: T, ease: io }, 0);
+        tl.to(incoming, { [axis]: 0, duration: T, ease: io }, 0);
+        break;
+      }
+      case "iris":
+        tl.set(incoming, { ...RESTING, clipPath: "circle(0px at 50% 50%)" }, 0);
+        tl.to(incoming, { clipPath: "circle(1120px at 50% 50%)", duration: T, ease: "power2.inOut" }, 0);
+        break;
+      case "zoom":
+        // The outgoing shot flies past the camera; the incoming one arrives from behind it.
+        tl.set(incoming, { ...RESTING, opacity: 0, scale: 0.78 }, 0);
+        tl.to(outgoing, { scale: 2.6, opacity: 0, filter: "blur(16px)", duration: T * 0.8, ease: "power3.in", transformOrigin: "50% 50%" }, 0);
+        tl.to(incoming, { scale: 1, opacity: 1, duration: T, ease: "power3.out", transformOrigin: "50% 50%" }, 0);
+        break;
+      case "flip":
+        tl.set(incoming, { ...RESTING, opacity: 0, rotationY: 90 }, 0);
+        tl.to(outgoing, { rotationY: -90, opacity: 0, duration: T * 0.5, ease: "power2.in", transformOrigin: "50% 50%" }, 0);
+        tl.to(incoming, { rotationY: 0, opacity: 1, duration: T * 0.5, ease: "power2.out", transformOrigin: "50% 50%" }, T * 0.5);
+        break;
+    }
+    tl.set(outgoing, { opacity: 0 }, T);
+    return tl;
+  }
+  function cutTween(outgoing, incoming, shot, motion) {
+    const kind = shot.cut || "hard";
+    if (kind === "punch") return punchCut(outgoing, incoming);
+    if (TRANSITIONS.has(kind)) {
+      const T = Math.max(0.1, Math.min(shot.cutDur ?? motion.cutDur ?? 0.5, shot.dur * 0.45));
+      return transitionCut(outgoing, incoming, kind, T);
+    }
+    if (kind !== "hard") console.warn("[compiler] unknown cut kind", kind, "in", shot.id, "— hard cut used");
+    return hardCut(outgoing, incoming);
+  }
+  window.__TRANSITIONS = [...TRANSITIONS];
+
+  // ---- Carry: a match cut on one element ----------------------------------
+  // shot.carry = { from: sel, to: sel, dur?, ease? } on the incoming shot. At
+  // the cut a ghost of `from` — measured in the outgoing shot at the cut
+  // instant — travels to where `to` sits in the incoming shot `dur` later,
+  // and `to` stays hidden until the ghost lands. Measured after fonts and
+  // assets are ready by seeking the master to the two instants, so the
+  // geometry is what the frames really show. Pairs with a hard cut.
+  function measureBox(el) {
+    const r = el.getBoundingClientRect();
+    const w = el.offsetWidth || r.width;
+    const h = el.offsetHeight || r.height;
+    return { left: r.left, top: r.top, width: r.width, height: r.height, w, h, scale: w ? r.width / w : 1 };
+  }
+  function buildCarries(master, nodes, shots) {
+    const carries = [];
+    let clock = 0;
+    shots.forEach((shot, i) => {
+      const start = clock;
+      clock += shot.dur;
+      if (!shot.carry || i === 0) return;
+      const c = shot.carry;
+      const fromEl = nodes[i - 1].inner.querySelector(c.from || c.to);
+      const toEl = nodes[i].inner.querySelector(c.to || c.from);
+      if (!fromEl || !toEl) { console.warn("[compiler] carry in", shot.id, "found no element for", c.from, "→", c.to); return; }
+      carries.push({ start, dur: Math.max(0.15, Math.min(c.dur ?? 0.55, shot.dur * 0.6)), ease: c.ease || "power3.inOut", fromEl, toEl });
+    });
+    if (!carries.length) return;
+    const layer = document.createElement("div");
+    layer.className = "carry-layer";
+    document.getElementById("camera").appendChild(layer);
+    const wasAt = master.time();
+    for (const k of carries) {
+      master.seek(Math.max(0, k.start - 0.001), false);
+      const a = measureBox(k.fromEl);
+      master.seek(k.start + k.dur, false);
+      const b = measureBox(k.toEl);
+      const cs = getComputedStyle(k.fromEl);
+      const ghost = k.fromEl.cloneNode(true);
+      ghost.classList.add("carry-ghost");
+      ghost.style.cssText = `position:absolute;left:${a.left}px;top:${a.top}px;width:${a.w}px;height:${a.h}px;margin:0;transform-origin:0 0;color:${cs.color};font:${cs.font};letter-spacing:${cs.letterSpacing};visibility:hidden;opacity:0;`;
+      layer.appendChild(ghost);
+      const tl = gsap.timeline();
+      tl.set(ghost, { autoAlpha: 1, x: 0, y: 0, scale: a.scale }, 0);
+      tl.set(k.toEl, { visibility: "hidden" }, 0);
+      tl.to(ghost, { x: b.left - a.left, y: b.top - a.top, scale: a.w ? b.width / a.w : 1, duration: k.dur, ease: k.ease }, 0);
+      tl.set(ghost, { autoAlpha: 0 }, k.dur);
+      tl.set(k.toEl, { visibility: "inherit" }, k.dur);
+      master.add(tl, k.start);
+    }
+    master.seek(wasAt, false);
+  }
+
+  // Canvas stages (ShotKit.three / ShotKit.rive) redraw after every timeline
+  // render, in both seek directions, so a WebGL frame is a pure function of
+  // time and never one frame behind the DOM.
+  function runFrameHooks() {
+    const hooks = window.__FRAME_HOOKS;
+    if (!hooks || !hooks.length) return;
+    for (const hk of hooks) {
+      const shot = hk.el && hk.el.closest ? hk.el.closest(".shot") : null;
+      if (shot && shot.style.opacity === "0") continue;
+      try { hk.render(); } catch (e) { console.warn("[compiler] frame hook failed", e); }
+    }
   }
 
   // Every GSAP plugin the thin shell loads is registered here, so factories
@@ -400,8 +539,11 @@
         ft.timeScale(ftDur / D);
       }
       body.add(ft, 0);
-      // The end card never exits by default — the film ends on the mark, not on air.
-      const exitMode = shot.exit ?? (i === shots.length - 1 ? "none" : motion.exit ?? "up");
+      // The end card never exits by default — the film ends on the mark, not on
+      // air — and a shot the next cut transitions out of leaves through the
+      // transition, not before it.
+      const nextCut = i + 1 < shots.length ? shots[i + 1].cut : null;
+      const exitMode = shot.exit ?? (i === shots.length - 1 || TRANSITIONS.has(nextCut) ? "none" : motion.exit ?? "up");
       if (exitMode && exitMode !== "none") body.add(exitTween(exitWrap, inner, shot, D, exitMode), 0);
       if (Array.isArray(shot.beats) && shot.beats.length) body.add(beatTweens(el, inner, exitWrap, shot, D, shot.beats, spec), 0);
       if (ambient) body.add(ambientAnimate(ambient, clock, D), 0);
@@ -422,10 +564,7 @@
       } else {
         gsap.set(el, { opacity: 0, pointerEvents: "none" });
         const prev = nodes[i - 1].el;
-        const cut = (shot.cut || "hard") === "punch"
-          ? punchCut(prev, el)
-          : hardCut(prev, el);
-        master.add(cut, start).add(body, start).addLabel(shot.id, start);
+        master.add(cutTween(prev, el, shot, motion), start).add(body, start).addLabel(shot.id, start);
       }
     });
     // Pin the end of the film to the last shot's `dur` (a zero-length marker
@@ -459,6 +598,7 @@
 
     master.eventCallback("onUpdate", () => {
       syncShotPointerEvents();
+      runFrameHooks();
       window.dispatchEvent(new Event("studio:timeline-update"));
     });
 
@@ -516,15 +656,23 @@
       });
     }
 
-    const ready = () => { window.__READY = true; };
-    if (document.fonts && document.fonts.ready) {
-      Promise.race([
-        document.fonts.ready,
-        new Promise((resolve) => setTimeout(resolve, 800)),
-      ]).then(ready).catch(ready);
-    } else {
-      ready();
-    }
+    const ready = () => {
+      if (window.__READY) return;
+      try { buildCarries(master, nodes, shots); } catch (e) { console.warn("[compiler] carry failed", e); }
+      runFrameHooks();
+      window.__READY = true;
+    };
+    const fontsReady = document.fonts && document.fonts.ready
+      ? Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 800))])
+      : Promise.resolve();
+    // Assets a factory registered through ShotKit.ready() — a texture, a
+    // Lottie file, a .riv — hold the page's readiness, bounded, so the first
+    // captured frame already has them.
+    const pending = (window.__PENDING || []).map((p) => Promise.race([
+      Promise.resolve(p).catch((e) => console.warn("[compiler] an asset failed to load", e)),
+      new Promise((resolve) => setTimeout(() => { console.warn("[compiler] an asset took over 15s — rendering without it"); resolve(); }, 15000)),
+    ]));
+    Promise.all([fontsReady, ...pending]).then(ready, ready);
     return master;
   }
 

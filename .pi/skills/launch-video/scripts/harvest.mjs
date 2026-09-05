@@ -185,6 +185,25 @@ const candidates = await page.evaluate((minPxIn) => {
     }
   }
 
+  // Vector animation files the page plays itself — a Lottie JSON behind a
+  // <lottie-player>/<dotlottie-player> or fetched by the site's own script, a
+  // Rive .riv — are the product's own motion and drive a `lottie` / `rive`
+  // shot straight from the timeline.
+  for (const el of document.querySelectorAll("lottie-player[src], dotlottie-player[src], [data-lottie-src], [data-animation-path], [data-rive], [data-riv]")) {
+    const src = el.getAttribute("src") || el.getAttribute("data-lottie-src") || el.getAttribute("data-animation-path") || el.getAttribute("data-rive") || el.getAttribute("data-riv");
+    if (!src) continue;
+    const r = el.getBoundingClientRect();
+    push({
+      kind: /\.riv(\?|$)/i.test(src) ? "rive" : "lottie", src: new URL(src, location.href).href,
+      renderW: Math.round(r.width), renderH: Math.round(r.height), section: sectionOf(el),
+    });
+  }
+  for (const e of performance.getEntriesByType("resource")) {
+    const u = e.name || "";
+    if (/\.riv(\?|$)/i.test(u)) push({ kind: "rive", src: u, section: "network" });
+    else if (/\.lottie(\?|$)/i.test(u) || (/\.json(\?|$)/i.test(u) && /lottie|anim|motion/i.test(u))) push({ kind: "lottie", src: u, section: "network" });
+  }
+
   // Third-party players (Wistia/YouTube/Vimeo) cannot be downloaded directly —
   // record them so the agent knows video exists and can ask or screen-grab.
   const embeds = [];
@@ -259,7 +278,16 @@ const extFor = (ct, src) => {
   if (/svg/.test(ct)) return ".svg";
   if (/mp4/.test(ct)) return ".mp4";
   if (/webm/.test(ct)) return ".webm";
+  if (/json/.test(ct)) return ".json";
   return ".bin";
+};
+
+/** A Lottie file is JSON with layers and a frame rate; anything else called .json is not one. */
+const looksLikeLottie = (buf) => {
+  try {
+    const j = JSON.parse(buf.toString("utf8"));
+    return j && Array.isArray(j.layers) && typeof j.fr === "number" && typeof j.op === "number";
+  } catch { return false; }
 };
 
 async function probe(file) {
@@ -310,6 +338,10 @@ for (const c of candidates.assets) {
     const hash = createHash("sha1").update(buf).digest("hex").slice(0, 10);
     if (hashes.has(hash)) continue;                      // same bytes, different URL
     hashes.add(hash);
+    if (c.kind === "lottie" && !/\.lottie(\?|$)/i.test(c.src) && !looksLikeLottie(buf)) {
+      console.log(`   ⊘ not a Lottie file ${c.src.split("/").pop().slice(0, 60)}`);
+      continue;
+    }
 
     const ct = (res.headers()["content-type"] || "").toLowerCase();
     const base = `${String(saved.length + 1).padStart(2, "0")}-${c.kind}-${hash}`;
@@ -321,6 +353,10 @@ for (const c of candidates.assets) {
     if (meta.width && meta.height && meta.width < minPx && meta.height < minPx && c.kind !== "image") {
       continue;
     }
+    if (c.kind === "lottie" && /\.json$/i.test(file)) {
+      const j = JSON.parse(buf.toString("utf8"));
+      meta.width = j.w ?? null; meta.height = j.h ?? null; meta.duration = j.fr ? +(((j.op || 0) - (j.ip || 0)) / j.fr).toFixed(2) : null;
+    }
     saved.push({
       file, kind: c.kind, source: c.src, bytes: buf.length, contentType: ct,
       width: meta.width ?? c.natW ?? null, height: meta.height ?? c.natH ?? null,
@@ -329,7 +365,8 @@ for (const c of candidates.assets) {
       alt: c.alt || null, section: c.section || null,
     });
     console.log(`   ✓ ${file}  ${meta.width ?? "?"}x${meta.height ?? "?"}` +
-      (meta.duration ? ` ${meta.duration.toFixed(1)}s` : "") +
+      (meta.duration ? ` ${Number(meta.duration).toFixed(1)}s` : "") +
+      (c.kind === "lottie" || c.kind === "rive" ? `  → a \`${c.kind}\` shot` : "") +
       (c.section ? `  « ${c.section}` : ""));
   } catch (e) {
     console.log(`   ✗ ${c.src.slice(0, 90)} — ${e.message.slice(0, 60)}`);

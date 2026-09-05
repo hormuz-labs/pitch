@@ -1,0 +1,1 @@
+@rive-app/canvas-single 2.42.0 (rive.js with the wasm inlined, MIT)

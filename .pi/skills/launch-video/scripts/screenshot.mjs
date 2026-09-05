@@ -9,10 +9,16 @@
  *
  *   # Synthetic HTML template capture:
  *   node scripts/screenshot.mjs --html=recon/templates/dashboard.html --out=recon/screenshots/02-dashboard.png [--scale=2]
+ *
+ *   # Layers for a parallax ui-frame: a base plate plus each floating piece
+ *   # (modal, sticky header, sidebar…) on transparency, with a .layers.json
+ *   node scripts/screenshot.mjs --url=https://app.example.com --out=assets/harvested/app.png --layers=auto
+ *   node scripts/screenshot.mjs --url=… --out=… --layers=".sidebar,[role=dialog]"
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { AUTO_SELECTOR, layersSnippet, planLayers } from "./lib/layers.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
   const i = a.indexOf("=");
@@ -96,7 +102,79 @@ if (hit && url) {
   process.exit(2);
 }
 
-if (selector) {
+if (args.layers) {
+  const spec = String(args.layers);
+  const sels = spec === "auto" || spec === "true" ? null : spec.split(",").map(s => s.trim()).filter(Boolean);
+  const cands = await page.evaluate(({ sels, auto }) => {
+    const els = [];
+    const seen = new Set();
+    const add = (el) => { if (el && !seen.has(el)) { seen.add(el); els.push(el); } };
+    if (sels) for (const s of sels) { try { document.querySelectorAll(s).forEach(add); } catch (_) {} }
+    else {
+      document.querySelectorAll(auto).forEach(add);
+      for (const el of document.body.querySelectorAll("*")) {
+        const pos = getComputedStyle(el).position;
+        if (pos === "fixed" || pos === "sticky") add(el);
+      }
+    }
+    els.forEach((el, i) => el.setAttribute("data-studio-layer", String(i)));
+    return els.map((el, i) => {
+      const r = el.getBoundingClientRect();
+      const ancestors = [];
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        if (p.hasAttribute("data-studio-layer")) ancestors.push(Number(p.getAttribute("data-studio-layer")));
+      }
+      return {
+        i, rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+        tag: el.tagName.toLowerCase(), id: el.id || "", cls: String(el.className || "").slice(0, 80),
+        role: el.getAttribute("role") || "", position: getComputedStyle(el).position, ancestors,
+      };
+    });
+  }, { sels, auto: AUTO_SELECTOR });
+  const plan = planLayers(cands, { viewport: { w: width, h: height } });
+  if (!plan.length) {
+    console.warn(`⚠ --layers=${spec}: nothing worth a layer on this page (${cands.length} candidates, none big enough or all nested). Plain screenshot instead.`);
+    await page.screenshot({ path: out, fullPage });
+  } else {
+    const cdp = await page.context().newCDPSession(page);
+    const stem = out.replace(/\.png$/i, "");
+    const setStyle = (css) => page.evaluate((c) => {
+      let st = document.getElementById("__studio_layers");
+      if (!st) { st = document.createElement("style"); st.id = "__studio_layers"; document.head.appendChild(st); }
+      st.textContent = c;
+    }, css);
+    // Base plate: the page with the layers lifted off it.
+    await setStyle(plan.map(p => `[data-studio-layer="${p.i}"]{visibility:hidden !important}`).join(""));
+    await page.waitForTimeout(80);
+    await page.screenshot({ path: out, clip: { x: 0, y: 0, width, height } });
+    // Each layer alone on transparency, cut to its own rect.
+    await cdp.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } });
+    const items = [];
+    for (const [n, p] of plan.entries()) {
+      await setStyle(
+        `html,body{background:transparent !important}` +
+        `body *{visibility:hidden !important}` +
+        `[data-studio-layer="${p.i}"],[data-studio-layer="${p.i}"] *{visibility:visible !important}`,
+      );
+      await page.waitForTimeout(80);
+      const { data } = await cdp.send("Page.captureScreenshot", {
+        format: "png", captureBeyondViewport: false,
+        clip: { x: p.rect.x, y: p.rect.y, width: p.rect.w, height: p.rect.h, scale },
+      });
+      const file = `${stem}.layer-${n + 1}.png`;
+      writeFileSync(resolve(file), Buffer.from(data, "base64"));
+      const hint = [p.tag, p.id && `#${p.id}`, p.cls && `.${p.cls.split(/\s+/)[0]}`, p.position !== "static" && p.position].filter(Boolean).join(" ");
+      items.push({ src: file, x: p.rect.x, y: p.rect.y, w: p.rect.w, h: p.rect.h, depth: p.depth, hint });
+      console.log(`   layer ${n + 1}: ${hint}  ${Math.round(p.rect.w)}×${Math.round(p.rect.h)} at ${Math.round(p.rect.x)},${Math.round(p.rect.y)}  depth ${p.depth}`);
+    }
+    await cdp.send("Emulation.setDefaultBackgroundColorOverride", {});
+    await setStyle("");
+    const json = { w: width, h: height, base: out, items };
+    writeFileSync(resolve(`${stem}.layers.json`), JSON.stringify(json, null, 2));
+    console.log(`\n✨ Base plate ${out} + ${items.length} layer${items.length === 1 ? "" : "s"} → ${stem}.layers.json`);
+    console.log(`   In the ui-frame shot (depth 2 = nearest; edit depths, drop layers you do not want):\n${layersSnippet(json)}`);
+  }
+} else if (selector) {
   const element = await page.$(selector);
   if (element) {
     await element.screenshot({ path: out });

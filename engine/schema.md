@@ -24,7 +24,9 @@ window.SHOTS = {
   },
   audio: { vo: "audio/vo.wav", voStart: 0.3 },  // ONE continuous read (omit for music-only)
     ambient: { kind: "hairlines", color: "ink" }, // the living stage — kind per direction.md Axis 1 (see "Density layer")
-    motion: { exit: "scale" },  // default exit motion for every shot: up | down | scale | scatter | none
+    motion: { exit: "scale", cutDur: 0.5 },  // default exit motion for every shot: up | down | scale | scatter | none; length of transitional cuts
+  render: { shutter: 0.5, samples: 4, depth: 10 },   // optional: motion blur and bit depth of the MP4 (see "Render and grade")
+  grade: { temperature: 5600, vignette: 0.3 },       // optional: the finish applied to every frame (see "Render and grade")
   shots: [ { id, type, dur, bg, ink?, cut?, exit?, beats?, cue?, ...typeFields } ],
 };
 ```
@@ -68,7 +70,9 @@ and leave dead air between them.
 | `dur` | Seconds. Typically 0.9–3.2 for type beats, 3–6 for a `ui-frame` demo. When narrated, `motion_sync` sets it from the cue words — you author the `cue`, not the number. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). |
 | `bg` | `accent` \| `ink` \| `bg` \| a `brand.palette` name \| any CSS color. Text color is picked for contrast. |
 | `ink` | Optional explicit text color for this shot. |
-| `cut` | `hard` (default, one-frame cut) or `punch` (incoming shot lands from 1.12× in 0.38s). |
+| `cut` | `hard` (default, one-frame cut), `punch` (incoming shot lands from 1.12× in 0.38s), or a **transition** that composites both shots for `cutDur` seconds (default 0.5, capped at 45% of the shot): `dissolve`, `wipe-left` \| `wipe-right` \| `wipe-up` \| `wipe-down` (the edge travels that way), `push-left` \| `push-right` \| `push-up` \| `push-down` (both shots slide), `iris` (a circle opens), `zoom` (the outgoing shot flies past the camera, the incoming arrives from behind it), `flip` (a card turn). The outgoing shot's exit motion is suppressed under a transition. Hard cuts stay the default — a transition is a motion-language decision (creative-direction.md Axis 3), one or two kinds per film, each where it says something. |
+| `cutDur` | Length of this shot's transition in seconds (else `motion.cutDur`, else 0.5). |
+| `carry` | Match cut: `{ from: ".logo-img", to: ".logo-img", dur?: 0.55, ease? }` on the incoming shot. A ghost of the outgoing shot's `from` element travels from where it sits at the cut to where `to` sits in this shot `dur` later, and `to` stays hidden until it lands — the same asset in both shots (the mark from `logo-sting` into `logo-cta`, a card into a `ui-frame`). Pairs with a hard cut; measured after fonts and assets load, so the geometry is what the frames show. |
 | `exit` | Overrides `motion.exit` for this shot (`up` \| `down` \| `scale` \| `scatter` \| `none`). |
 | `beats` | Mid-shot events — see "Density layer". |
 | `ambient` | `false` hides the ambient stage on this shot. |
@@ -92,6 +96,8 @@ and leave dead air between them.
 | `icon-marquee` | `anchor: parts` centered headline; `rows: [{y, items}]` — item is `{src, label, tile?, bg?, round?}` (a harvested logo), `{icon, label}` (built-in channel icon), `{kind:"avatar", src, label}`, `{kind:"pill", label}`, or `{label}` |
 | `device-notif` | `notif: {app, src?, iconBg?, kicker, body, tint, ink, meta, call?, sub?}` — `app` is sms/whatsapp/telegram/viber/email/voice/flash, or give `src` for the product's own icon. `more: [notif, …]` drops further notifications in mid-shot, pushing earlier ones down (`moreAt: [s, …]` to place them; `tilt: false` to stop the phone rocking) |
 | `stat-counter` | `value`, `prefix?`, `suffix?`, `decimals?`, `from?`, `label` (parts or string). Numbers come from recon. |
+| `lottie` | a Lottie file driven frame by frame from the timeline — `src` (a harvested `.json`, `recon/harvested.json` kind `lottie`, or one the user supplied), `height` (720), `width` (= height), `x`/`y` (centred), `fit: contain\|cover`, `from`/`to` (frames; default the whole file at its own rate, looping if the shot is longer), `speed`, `loop: false`, `enter: rise\|scale\|none`, `caption` (parts) + `captionPos`. Mascots, product animations, icon sets — the product's own motion. |
+| `rive` | a Rive `.riv` scrubbed from the timeline — `src`, `artboard?`, `animation?` (name; default the file's default animation), `from` (s), `speed`, plus the `lottie` geometry, `enter` and `caption` fields. Needs `motion_scaffold({ rive: true })`. |
 | `ui-frame` | the product itself — see below |
 
 ### `ui-frame` — the product demo shot
@@ -118,13 +124,45 @@ and the render stays deterministic.
     hold: 1.2, release: true, releaseScale: 1.06, landX: 960, landY: 540,
   },
   cursor: { x: 0.73, y: 0.34, at: 1.9, then: "assets/harvested/deal-open.png", leave: true },
+  layers: {                                // parallax: pieces cut from the SAME screenshot by motion_screenshot({ layers })
+    w: 1920, h: 1080,                      //   the screenshot's CSS size (the tool prints this whole block)
+    items: [                               //   rect in screenshot px; depth 1 = page chrome, 2 = an overlay nearest the viewer
+      { src: "assets/harvested/app.layer-1.png", x: 0, y: 0, w: 1920, h: 72, depth: 1 },
+      { src: "assets/harvested/app.layer-3.png", x: 760, y: 300, w: 560, h: 380, depth: 2 },
+    ],
+  },
+  tilt: { y: 6, x: 2, at: 0, dur: 4, ease: "sine.inOut" },   // the frame turns from −y..+y / +x..−x degrees while layers shift by depth
 }
 ```
+
+`layers` and `tilt` are how a flat screenshot gains depth: the base plate is
+the screen with the layers lifted off it, each layer sits exactly over its
+own pixels, and the focus camera moves a layer away from the hotspot (and
+grows it) by its depth, the `rise` entrance staggers layers by depth, and
+`tilt` slides them as the frame turns. Cut layers where the product really
+has planes — a modal over a page, a sticky header over a scroll, a sidebar —
+not to decorate a screen that is one surface.
 
 Camera rules the type enforces: scale and pan move together in one eased
 tween; the camera settles before the cursor acts; at most one focus per shot
 (use two `ui-frame` shots for two targets, or a `cursor.then` swap for the
 consequence). Skip `focus` when the whole screen is the point.
+
+## Render and grade
+
+Two optional top-level blocks decide what the encoder adds to the frames.
+The studio's Export button and `motion_render` read both; flags on the tool
+override for one render. Both are direction.md decisions — a shutter belongs
+to a Fluid or Kinetic motion language, a grade to the palette's finish —
+never a default.
+
+| Block | Fields |
+|---|---|
+| `render` | `shutter` 0–1: fraction of each frame interval the shutter is open (0.5 = a 180° film shutter, 1 = frame blending; 0 = off, crisp). `samples` 2–16: captures averaged per frame (4 is enough at 60fps; the render takes `samples`× longer). `depth: 10` for 10-bit output so soft glows and gradients stop banding (H.264 High 10, or HEVC Main 10 with `codec: "hevc"` for Apple devices; 8-bit H.264 plays everywhere). `crf`. |
+| `grade` | Applied in RGB before the video conversion, then in YUV: `temperature` (K, 6500 neutral; 5000 warm, 8000 cool), `curves` (a preset — `vintage`, `cross_process`, `darker`, `lighter`, `increase_contrast`, `linear_contrast`, `medium_contrast`, `strong_contrast`, `negative`, `color_negative` — or `{ master, r, g, b }` point strings like `"0/0 0.5/0.58 1/1"`), `lut` (a `.cube`/`.3dl` file in the project, e.g. one the user supplied), `vibrance` −2–2, `contrast` 0–3, `brightness` −1–1, `gamma`, `saturation` 0–3, `vignette` 0–1, `grain` 0–100 (temporal film grain, added after the shutter so it is not averaged away). `motion_review` sheets show the graded frames. |
+
+Every render is converted to BT.709 limited range explicitly and tagged so,
+whatever these blocks say — players stop shifting the brand colours.
 
 ## Custom shot types
 
@@ -175,13 +213,25 @@ Declare it in the project:
 ```
 
 `window.ShotKit` also exposes `revealWords(tl, root, at, {each})` and
-`scatterWords(tl, root, at, seed)` for the word-by-word cadence, and the
+`scatterWords(tl, root, at, seed)` for the word-by-word cadence, the canvas
+and asset helpers below, and the
 compiler registers every GSAP plugin the thin shell loads: CustomEase (named
 eases `whip`, `slamHard`, `settle`), CustomWiggle (`shake`, `shakeSoft`),
 CustomBounce, ScrambleTextPlugin, Physics2DPlugin, MotionPathPlugin,
 EasePack (`rough`, `slow`, `expoScale`), SplitText, TextPlugin —
 `window.__PLUGINS` lists what loaded. Use them: a scramble decode, a physics
 scatter, a motion-path fly-in are one line each.
+
+### Real 3D, Lottie and Rive in a custom type
+
+| helper | what it gives a factory |
+|---|---|
+| `ShotKit.three(el, { fov?, shadows?, alpha?, width?, height?, x?, y? })` | a three.js stage the size of the shot: `{ THREE, scene, camera, renderer, canvas, texture(src) }`. World units are CSS pixels on the z = 0 plane (a 1200-unit box is 1200px wide), the camera looks down −z. Build meshes, lights and shadows in `mount`; tween `mesh.rotation` / `mesh.position` / material values on the returned timeline in `animate`. The stage redraws itself after every timeline render (both seek directions) — never call `render()` yourself, never use `requestAnimationFrame`. `texture(src)` loads a harvested screenshot or photo and holds the page's readiness until it is in. Lit, shadowed, textured geometry — a device turning to show its thickness, a stack of cards in real depth, an extruded mark — where CSS 3D cannot go. |
+| `ShotKit.lottie(el, { src, x, y, width, height, fit })` | `{ anim, holder, drive }`; `drive(tl, { at, dur, from, to, speed, loop })` sets the frame as a function of the shot's time. |
+| `ShotKit.rive(el, { src, x, y, width, height, fit, artboard, animation })` | `{ rive, canvas, drive }`; `drive(tl, { at, dur, from, speed, animation })` scrubs the animation's time. |
+| `ShotKit.ready(promise)` | any other async asset a factory loads: the render waits for it (15s bound) so the first frame is complete. |
+| `ShotKit.frameHook(el, render)` | a redraw callback for your own canvas (2D or WebGL) run after every timeline render while the shot is on. |
+| `ShotKit.coverMap(natW, natH, boxW, boxH, align)` | where an `object-fit: cover` image lands — for positioning over a screenshot. |
 
 `mount` builds DOM once; `animate` returns a timeline of length ≤ `D`. Rules:
 everything on the returned timeline (no CSS animations, no bare `gsap.to`, no
@@ -194,6 +244,8 @@ opacity/brightness loops, and every image from `assets/`.
   ≤ 6s, narrated shots start on their `cue` word (sync.mjs). No stretch longer than 1.5s without
   a designed event. `motion_audit` enforces all of this.
 - One idea per shot. Headlines only (≤ 8 words on screen).
-- Hard cuts by default; `punch` for a beat that lands.
+- Hard cuts by default; `punch` for a beat that lands; a transition kind or a
+  `carry` only where direction.md gave it a job — never a dissolve between
+  two type beats.
 - Brand from recon: `brand.bg/ink/accent/font` are measured values, `fonts` self-hosted.
 - Logos are the product's own files (`logo-sting.src`, marquee `src`), never retyped or redrawn.

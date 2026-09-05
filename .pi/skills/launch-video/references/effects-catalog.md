@@ -1,6 +1,6 @@
 # Effects Catalog — After Effects-Style Recipes in GSAP
 
-Twenty-seven effect recipes, kept as a PATTERN LIBRARY — lift the idea and
+Effect recipes, kept as a PATTERN LIBRARY — lift the idea and
 re-implement it as a `mount`/`animate` factory in `js/shots.custom.js`, on the
 returned timeline. Some snippets predate the engine and name the old
 `js/scenes/` pipeline; the ideas port, the plumbing does not. Colors, fonts and
@@ -849,3 +849,85 @@ invariant 3). Pair with `swoosh-soft` or `riser` resolving into the reveal.
 | Transitions | Boundary ledger marks connected bridge or chapter cut; connected transitions conserve one named property and use relative offsets |
 | Product UI | Faithful native, verified-image, or hybrid construction; one measurable focal target per interaction and no unchanged screenshot scene |
 | Quality Control | Pre-render motion audit via `node scripts/audit.mjs page.html` |
+
+---
+
+## 26. Real 3D — a device turn on a three.js stage
+
+`ShotKit.three` (schema "Real 3D, Lottie and Rive in a custom type") gives a
+factory a lit WebGL stage the size of the shot; world units are CSS pixels
+at z = 0. Build in `mount`, tween state in `animate`, never render yourself —
+the engine redraws the canvas after every timeline step. Use it where CSS 3D
+stops: thickness, cast shadows, a textured face catching a rim light.
+
+```js
+// js/shots.custom.js — the product's own screenshot on a slab that turns to face us
+const stages = new WeakMap();
+window.ProjectShotFactories = {
+  "device-turn": {
+    mount(el, shot) {
+      el.dataset.bg = shot.bg || "ink";
+      const st = window.ShotKit.three(el, { shadows: true, fov: 30 });
+      const { THREE, scene } = st;
+      scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+      const key = new THREE.DirectionalLight(0xffffff, 2.4);
+      key.position.set(700, 900, 1400); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+      Object.assign(key.shadow.camera, { left: -1600, right: 1600, top: 1200, bottom: -1200, near: 100, far: 5000 });
+      scene.add(key);
+      const rim = new THREE.DirectionalLight(0xff6b35 /* the accent, from brand-tokens */, 1.2);
+      rim.position.set(-900, 200, -600); scene.add(rim);
+      const W = 1180, H = 740, T = 26;
+      const face = new THREE.MeshStandardMaterial({ map: st.texture(shot.src), roughness: 0.28 });
+      const side = new THREE.MeshStandardMaterial({ color: 0x2a2d34, metalness: 0.7, roughness: 0.3 });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(W, H, T), [side, side, side, side, face, side]);
+      mesh.castShadow = true; scene.add(mesh);
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.ShadowMaterial({ opacity: 0.5 }));
+      floor.rotation.x = -Math.PI / 2; floor.position.y = -H / 2 - 60; floor.receiveShadow = true; scene.add(floor);
+      stages.set(el, { mesh });
+    },
+    animate(el, shot, D) {
+      const tl = gsap.timeline();
+      const { mesh } = stages.get(el);
+      tl.fromTo(mesh.rotation, { y: -1.15, x: 0.22 }, { y: 0.32, x: 0.04, duration: D, ease: "power2.inOut" }, 0);
+      tl.fromTo(mesh.position, { z: -1100, y: -140 }, { z: 0, y: 0, duration: D * 0.6, ease: "power3.out" }, 0);
+      return tl;
+    },
+  },
+};
+```
+
+Variants: a stack of the product's cards (`PlaneGeometry` per harvested
+crop) fanning apart in z; a phone (`BoxGeometry` with rounded `ExtrudeGeometry`
+edges) rotating past a light; the logo's SVG paths extruded
+(`THREE.ShapePath` from the harvested mark). Keep the camera still and move
+the object — a moving camera on a still object is the generic spectacle.
+
+## 27. Layered parallax from one screenshot
+
+No custom factory: `motion_screenshot({ url, out: "assets/harvested/app.png",
+layers: "auto" })` lifts the fixed/sticky pieces and dialogs off the page
+into transparent PNGs and prints the `layers` field; a `ui-frame` with it
+moves each piece by its depth under the focus camera, staggers them on
+entrance, and shifts them as `tilt` turns the frame. Pass selectors instead
+of `auto` to choose the planes (`layers: ".sidebar,[role=dialog]"`), edit the
+printed depths (2 = nearest), and drop a piece you do not want.
+
+## 28. Transitions and the carry match cut
+
+Fields, not code: `cut: "dissolve" | "wipe-left" | "wipe-right" | "wipe-up" |
+"wipe-down" | "push-left" | "push-right" | "push-up" | "push-down" | "iris" |
+"zoom" | "flip"` on the incoming shot, `cutDur` for its length, and `carry:
+{ from, to }` to fly one element across a hard cut (the mark from
+`logo-sting` into `logo-cta`, a stat into the `ui-frame` it came from). One
+or two kinds per film, each with a job — see creative-direction.md Axis 3.
+The engine suppresses the outgoing shot's exit under a transition.
+
+## 29. Shutter, depth and the finish
+
+`render: { shutter: 0.5, samples: 4 }` is real motion blur: four captures a
+frame across a 180° shutter, averaged. `depth: 10` (and `codec: "hevc"` for
+Apple deliverables) ends banding in glows. `grade: { temperature, curves,
+lut, vibrance, contrast, gamma, saturation, vignette, grain }` is the finish,
+applied to the render and to `motion_review`'s sheets alike. All of it is a
+direction.md decision (Axis 1 finish, Axis 3 shutter); nothing here is on by
+default.

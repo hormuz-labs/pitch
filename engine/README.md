@@ -8,9 +8,14 @@ mixer and the renderer all read the same shot list.
 - `schema.md` — every shot type and field, the **density layer** (`ambient`
   stage, `motion.exit`, per-shot `beats`, `word-build`, `pile`), plus how a
   project adds its own types in `js/shots.custom.js`.
-- `js/factories.js` — the built-in types. `window.ShotKit` exposes the helpers
-  custom factories use.
-- `js/compiler.js` — brand tokens, fonts, cuts, timeline, studio inspector.
+- `js/factories.js` — the built-in types, including `lottie`, `rive` and the
+  layered `ui-frame`. `window.ShotKit` exposes the helpers custom factories
+  use: `three` (a WebGL stage), `lottie`, `rive`, `ready`, `frameHook`.
+- `js/compiler.js` — brand tokens, fonts, cuts and transitions, the `carry`
+  match cut, timeline, canvas frame hooks, asset-ready gating, studio inspector.
+- The render side (`shutter`/`samples`, 10-bit, the `grade`) is
+  `.pi/skills/launch-video/scripts/lib/encode.mjs`, read from the same
+  shots.js by capture.mjs and review.mjs.
 - `css/shots.css` — stage and type styles. Brand colors come from `:root`.
 
 Projects are self-contained under `projects/<name>/` and load the engine via

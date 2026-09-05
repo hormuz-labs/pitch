@@ -25,6 +25,14 @@ lightness, never by importing indigo. Then choose ONE background system:
 | Deep space + glow | near-black, blurred glow shapes | **only** when the site is dark-with-glow; vary hue, count, geometry | `{ kind: "blobs" }` — vary `count`, `seed`, `size` |
 | Duotone poster | two-colour print, halftone, cut-outs | media, music, community, campaigns | `{ kind: "halftone", size: 14 }` |
 
+The palette's **finish** is the `grade` block in shots.js (schema "Render
+and grade"): temperature, a curve, a LUT the user supplied, vignette, grain.
+Derive it from the site's own photography and surfaces — warm paper wants a
+warm temperature and a touch of grain, a cold data product a neutral 6500K
+and no vignette — and write the numbers into direction.md. No grade is a
+decision too; a teal-and-orange grade on a product that has neither is
+imported taste.
+
 The stage is the first thing every frame shares, so it is the first thing
 two films share: `blobs` belongs to two systems only, and the default film
 has none of them. Deep space + glow was the old house default and is banned
@@ -57,12 +65,12 @@ becomes a custom factory (`effects-catalog.md`).
 
 | Language | Easings | Tempo | Transitions · `motion.exit` | Avoid | Fits |
 |---|---|---|---|---|---|
-| Precision | `expo.out`, `power4.inOut` | 0.4–0.6s entrances, 0.03s staggers | clip-path wipes, snap zooms · `none` (the cut is the move) | wobble, blur | dev tools, infra, perf |
-| Fluid | `power3.inOut`, long `sine` | 0.8–1.4s, overlapping | 3D fly-throughs, blur-through zooms · `scale` | snaps | premium, hardware, fintech |
-| Elastic | `back.out(1.6)`, `elastic.out` | 0.5–0.8s, bouncy | scale-pop cuts · `scatter` | solemn fades | consumer, creator, social |
-| Editorial | `power2.out`, opacity+y | calm, micro-motion holds | flat pushes, rule draws · `down` | 3D, whip pans | docs, design tools, serif brands |
-| Kinetic | `power4.in/out`, beat-synced | very fast, 0.9–1.6s shots | whip pans, punches, match cuts · `up` | holds | hype launches, montage |
-| Continuous | `expo.out` in, `power3.in` out, `back.out` pops | an element every ~1s, 1.5–3s shots | exits overlap entrances on one stage · `up`, per-shot `exit` varied | empty frames, slides | explainers, AI/builder tools |
+| Precision | `expo.out`, `power4.inOut` | 0.4–0.6s entrances, 0.03s staggers | `cut: wipe-*` along the flow axis, snap `zoom` into the product · `none` (the cut is the move); no shutter | wobble, blur, dissolves | dev tools, infra, perf |
+| Fluid | `power3.inOut`, long `sine` | 0.8–1.4s, overlapping | `zoom` and `dissolve` on 2–3 boundaries, a 3D turn (`ShotKit.three`) · `scale`; `render.shutter: 0.5` | snaps | premium, hardware, fintech |
+| Elastic | `back.out(1.6)`, `elastic.out` | 0.5–0.8s, bouncy | `punch`, one `iris` · `scatter` | solemn fades | consumer, creator, social |
+| Editorial | `power2.out`, opacity+y | calm, micro-motion holds | `push-*` flat pushes, rule draws · `down`; no shutter | 3D, whip pans | docs, design tools, serif brands |
+| Kinetic | `power4.in/out`, beat-synced | very fast, 0.9–1.6s shots | whip `push-*`, `punch`, `carry` match cuts · `up`; `render.shutter: 0.5–0.7` | holds | hype launches, montage |
+| Continuous | `expo.out` in, `power3.in` out, `back.out` pops | an element every ~1s, 1.5–3s shots | exits overlap entrances on one stage, `carry` the hero element between shots · `up`, per-shot `exit` varied | empty frames, slides | explainers, AI/builder tools |
 
 `exit: "up"` on every shot of every film was the old default; the exit is the
 language's, and two or three shots in any film override it (`shot.exit`) so
@@ -73,16 +81,29 @@ Density is not a language choice: every language keeps an event every
 Precision with wipes and cursor actions. `ambient` is on by default; off is a
 direction.md decision with a reason. Boundaries are cut-first: hard cuts,
 `punch` on 2–3 landings, the outgoing shot exiting with motion
-(`motion.exit`: `up` / `down` / `scale` / `scatter`). No crossfades. Write the
+(`motion.exit`: `up` / `down` / `scale` / `scatter`). A transition
+(`cut: dissolve | wipe-* | push-* | iris | zoom | flip`) is the language's,
+one or two kinds per film, each on a boundary where it says something — a
+wipe along the axis the value flows, a zoom into the product the words
+promised, a dissolve over a passage of time; a dissolve between two type
+beats is a slideshow. `carry` is the match cut: the mark, the card, the
+number travels from one shot into the next. Motion blur (`render.shutter`)
+belongs to Fluid and Kinetic; Precision and Editorial stay crisp. Write the
 language's parameters into direction.md and reuse them everywhere.
 
 ## Axis 4 — Dimensionality
 
 **Flat 2D** (type and composition carry it; Editorial/Precision, print) ·
-**2.5D** (`punch`, `drift`, `ui-frame` focus, layered custom factories) ·
-**3D** only via a custom factory and only when separating layers *says*
-something. A flat film with great type beats a 3D film with no idea. Camera
-focus per demo beat is decided in `attention-camera.md`, not here.
+**2.5D** (`punch`, `drift`, `ui-frame` focus; a `ui-frame` with `layers`
+cut from the product's own screen by `motion_screenshot({ layers })` — a
+modal over its page, a sidebar over a canvas — moving in parallax under the
+focus camera and a `tilt`) · **3D** (CSS 3D for a card tilt; real lit,
+shadowed, textured geometry through `ShotKit.three` in a custom factory — a
+device turning to show its thickness, the product's cards in real depth)
+only when depth *says* something: a hardware product, "one platform, many
+modules", a surface the user really looks at from an angle. A flat film with
+great type beats a 3D film with no idea. Camera focus per demo beat is
+decided in `attention-camera.md`, not here.
 
 ## Axis 5 — Composition axis
 
