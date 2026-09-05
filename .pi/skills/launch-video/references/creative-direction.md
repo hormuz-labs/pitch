@@ -91,19 +91,20 @@ number travels from one shot into the next. Motion blur (`render.shutter`)
 belongs to Fluid and Kinetic; Precision and Editorial stay crisp. Write the
 language's parameters into direction.md and reuse them everywhere.
 
-## Axis 4 — Dimensionality
+## Axis 4 — Dimensionality (pick one, name the shot that carries it)
 
-**Flat 2D** (type and composition carry it; Editorial/Precision, print) ·
-**2.5D** (`punch`, `drift`, `ui-frame` focus; a `ui-frame` with `layers`
-cut from the product's own screen by `motion_screenshot({ layers })` — a
-modal over its page, a sidebar over a canvas — moving in parallax under the
-focus camera and a `tilt`) · **3D** (CSS 3D for a card tilt; real lit,
-shadowed, textured geometry through `ShotKit.three` in a custom factory — a
-device turning to show its thickness, the product's cards in real depth)
-only when depth *says* something: a hardware product, "one platform, many
-modules", a surface the user really looks at from an angle. A flat film with
-great type beats a 3D film with no idea. Camera focus per demo beat is
-decided in `attention-camera.md`, not here.
+| Depth | The device | Fits | Evidence it needs |
+|---|---|---|---|
+| Flat 2D | type and composition; `punch`, `drift` | Editorial, Precision, print brands | the site itself is flat |
+| 2.5D | `ui-frame` with `layers` (+ `tilt`): the product's own modal, sidebar or sticky header lifted off its page by `motion_screenshot({ layers: "auto" })`, moving in parallax under the focus camera | any app whose screens have planes | the layered screenshot found ≥ 1 plane |
+| 3D object | `device-3d` — the product's screen on a slab, card, phone or laptop, turning under a key light with a cast shadow; one field set, no code | "on your Mac", "on your phone", hardware, premium, a single hero surface | the product runs on a device, or the site shows one |
+| 3D custom | `ShotKit.three` in a project factory: a stack of the product's cards in depth, an extruded mark, several objects | "one platform, many modules", a mark worth extruding | the depth *says* something about the product |
+
+Write the choice into direction.md with the shot that carries it; "flat" is
+a decision with a reason, not the absence of one. A film that could have
+shown its product on the device it runs on, and did not, left value on the
+table — and a 3D flyover with no idea behind it is the generic spectacle.
+Camera focus per demo beat is decided in `attention-camera.md`, not here.
 
 ## Axis 5 — Composition axis
 
@@ -116,8 +117,13 @@ matching how the product's value flows; vary between shots for rhythm.
 
 | The value prop is… | Show it with | Type |
 |---|---|---|
-| the app itself is great | the real product, one focus move, a click | `ui-frame` (harvested `src`, `focus`, `cursor`) — 30–50% of a UI product's runtime |
-| it's on your phone | the real mobile screen | `ui-frame` with `frame: "phone"` |
+| the app itself is great | the real product, one focus move, a click | `ui-frame` (harvested `src` or a mined frame, `focus`, `cursor`) — 30–50% of a UI product's runtime |
+| it's on your phone | the real mobile screen | `ui-frame` with `frame: "phone"`, or `device-3d` with `device: "phone"` turning |
+| it runs on your Mac / a device | the screen on the object itself | `device-3d` (laptop, slab, card) with a harvested frame as the screen |
+| the screen has planes | a modal over its page, a sidebar over a canvas | `ui-frame` with `layers` from `motion_screenshot({ layers })`, `tilt` when 2.5D |
+| the product moves | its own mascot, mark or animation | `lottie` / `rive` from a harvested `.json` / `.riv`, or the file the user sent |
+| the moment that sells it is in their video | that exact frame | a mined frame (`assets/harvested/frames/<clip>/t<time>.jpg`) in a `ui-frame` or `device-3d` |
+| the site has no imagery at all | one object, a plate, a texture — in the palette, in the film's style | `motion_image` (never a screen, a logo or a person); a custom type or a `ui-frame`-less beat carries it |
 | a message arrives | a notification landing | `device-notif` with the product's `src` icon |
 | we replace a slog | old way vs product | custom split-compare, or two `word-cut` shots cut against each other |
 | transformation | before → after | `ui-frame` with `cursor.then` |

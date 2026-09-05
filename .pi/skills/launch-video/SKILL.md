@@ -62,26 +62,58 @@ than reading it whole). References are pattern libraries, never templates;
 
 ## Workflow — the user is watching the preview grow
 
-**0. Recon.** `motion_recon` on the home page and one product page (different
-`out`), `motion_screenshot` for 2–3 reference frames, `motion_harvest` for
-the logo, screens and photos (a Lottie or `.riv` the site plays itself is
-harvested too — it becomes a `lottie` / `rive` shot). Read `recon/brand-tokens.md` before a word of
-direction; `recon/harvested.json` says what each harvested file is — never
-read the image or SVG files themselves; write `recon/assets.md` (what is
-available, what is official).
+**0. Recon — know more than the landing page.** The film has to explain
+the product better than its own site does, or nobody pays for it; that
+takes knowing more than the hero copy.
+- `motion_recon` on the home page and one product page (different `out`),
+  and on the pages that say what the site's hero hides: docs, changelog,
+  pricing, a GitHub README — whichever exist. The changelog is what they are
+  proud of; the docs hold the mechanism.
+- `motion_screenshot` for 2–3 reference frames; `motion_harvest` for the
+  logo, screens, photos, videos and any Lottie / `.riv` the site plays
+  itself (it becomes a `lottie` / `rive` shot). **The harvest hands you a
+  contact sheet per clip — look at every one.** A poster is the first
+  frame; the moment that sells the product is forty seconds in, and it is
+  now a still at `assets/harvested/frames/<clip>/t<time>.jpg` you can put
+  in a `ui-frame` or on a `device-3d`. Pick frames by their time stamp.
+- Read `recon/brand-tokens.md` before a word of direction; `recon/harvested.json`
+  says what each file is — never read the image or SVG files themselves.
+- Write `recon/assets.md`: what is available, what is official, and the
+  **product model** — the mechanism (what goes in, what happens, what comes
+  out), the before/after, the one non-obvious thing a user only learns by
+  using it, and *what the landing page fails to show*. That last line is the
+  film's job. Never invent a number, a feature or a figure to fill it; when
+  the site cannot answer, the ask below does.
+- **Ask for what the site could not give.** The harvest ends with "Ask the
+  user for": the logo as SVG, a 1080p recording, the key screenshots, the
+  mark as Lottie/Rive, font files. Put that list — short, specific, with
+  what each unlocks — in your first reply, then **keep building** with what
+  you have. A file that arrives later is a shot edit, not a restart.
+- **Generate what no one has.** When the site has no imagery and none has
+  arrived, `motion_image` makes a brand-locked still: a `plate` behind a type
+  beat, an `object` for the hook (the thing the product is about, or its
+  metaphor, in direction.md's style), a `texture` for the stage, an
+  `illustration` of the mechanism, an `icons` set for a marquee. It reads
+  the palette from recon and refuses screens, logos, people and text — the
+  product is always a harvested screenshot, a mined frame or a native
+  rebuild, and `motion_audit` fails a product shot with a generated `src`.
+  Look at what comes back; regenerate once with a sharper subject, then move
+  on. Two or three generated files per film at most — a film made of
+  generated pictures is a stock film.
 Fonts: recon self-hosts the brand's files and prints the `brand.fonts`
 snippet; if it found none, choose a self-hostable equivalent by personality
-(creative-direction.md Axis 2), never a CDN link. From the copy and the
-screenshots, note what the product *is* and its 2–3 real value propositions
-in its own words.
+(creative-direction.md Axis 2), never a CDN link.
 
 **1. Direction.** Read `creative-direction.md`; write `direction.md` deciding
 all 9 axes with one line of recon evidence each — the stage `ambient.kind`,
 the `motion.exit`, the rhythm, the hook kind, the arc, the voice and the
 copy voice are all in there — and end with the Uniqueness Test: swap test (a
 competitor's logo must not fit), evidence audit, anti-default check, the
-signature shot named and what it will do. Narration is a decision here, not
-a default.
+signature shot named and what it will do, and the **devices line**: for
+each of `device-3d`, `ui-frame` + `layers`, `lottie` / `rive`, `carry`, a
+transition kind, `render.shutter`, `grade`, `motion_image` — used (which
+shot, what evidence) or not (why). "Not, because the site is flat" is an answer; a
+line left out is not. Narration is a decision here, not a default.
 
 **2. Shot list.** Present a table — `# | id | beat | type | dur | bg | copy /
 asset | second act | focal target (ui-frame) | sound` — then keep going;
@@ -126,6 +158,13 @@ a half-written array shows the user an error.
   a sticky header) is a `ui-frame` with `layers`: `motion_screenshot({ url,
   out: "assets/harvested/<name>.png", layers: "auto" })` cuts it and prints
   the field; add `tilt` when direction.md is 2.5D.
+- The product on the thing it runs on is one shot, no code: `{ type:
+  "device-3d", device: "laptop" | "phone" | "slab" | "card", src: <a mined
+  frame or screenshot>, turn: { from: [x°, y°], to: [x°, y°] }, caption }`
+  on a dark `bg`. Decide `device` and `turn` from the product; the console
+  warns when the house move plays.
+- A harvested `.json` / `.riv` (or one the user sent) is a `lottie` / `rive`
+  shot: `{ type: "lottie", src, height, caption }` — the brand's own motion.
 - The signature shot — and any look the engine lacks — is a project type in
   `js/shots.custom.js` (`motion_schema({ section: "custom shot types" })`,
   recipes in `effects-catalog.md`; then `motion_scaffold({ custom: true })`).
@@ -210,8 +249,12 @@ when they asked for narration — the first line of your summary says so.
 
 - `direction.md` decides 9 axes citing `recon/brand-tokens.md`; swap test
   passed; the signature shot is a custom type built for this product; the
-  stage kind, exit, hook and voice were chosen, not inherited; fonts
-  self-hosted; no banned phrase on screen or in the read.
+  stage kind, exit, hook and voice were chosen, not inherited; the devices
+  line answers every device with evidence or a reason; fonts self-hosted;
+  no banned phrase on screen or in the read.
+- `recon/assets.md` has the product model and "what the landing page fails
+  to show", and the film shows it; the harvest's frame sheets were looked
+  at and the asks were relayed in the first reply.
 - Real logo via `src`; every `ui-frame` has a focus or a state change;
   stats are recon numbers; hook in the first 3s; ≤ 8 words per screen.
 - Built progressively with `motion_check` clean after each save; `ambient`

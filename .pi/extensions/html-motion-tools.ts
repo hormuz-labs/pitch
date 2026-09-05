@@ -574,12 +574,108 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
   })
 
   pi.registerTool({
+    name: 'motion_image',
+    label: 'Generate Image',
+    description:
+      'For the site that has no imagery: generate ONE brand-locked still with a Gemini image model — a background plate for a type beat, an object for the hook (the thing the product is about, or its metaphor), a texture for the stage, a flat illustration of the mechanism, or a matching icon set. The palette is read from recon/brand-tokens.json and written into the prompt; pass harvested files as refs for material and mood. It refuses screens, logos, people and text — a generated screenshot is a fabricated product (motion_audit fails a ui-frame/device-3d/logo shot whose src is generated). You receive the image: look at it; off-brand or off-subject, regenerate once with a sharper subject, then move on. Files land in assets/generated/ with a sidecar and recon/generated.json.',
+    parameters: Type.Object({
+      kind: Type.Union(
+        [
+          Type.Literal('plate'),
+          Type.Literal('object'),
+          Type.Literal('illustration'),
+          Type.Literal('texture'),
+          Type.Literal('icons'),
+        ],
+        {
+          description:
+            'plate: full-frame abstract background · object: one physical thing on a plain ground · illustration: flat shapes/arrows of the mechanism · texture: an edge-to-edge surface · icons: 6–12 matching icons',
+        },
+      ),
+      subject: Type.String({
+        description:
+          'What is in the frame and what it is made of, in direction.md\'s language (e.g. "a brass key resting on grey felt, soft top light"). No UI, logos, people or words.',
+      }),
+      out: Type.String({ description: 'Output path, e.g. assets/generated/hook-object.png' }),
+      aspect: Type.Optional(
+        Type.Union(
+          [
+            Type.Literal('16:9'),
+            Type.Literal('1:1'),
+            Type.Literal('9:16'),
+            Type.Literal('4:3'),
+            Type.Literal('3:4'),
+          ],
+          { description: 'Frame shape (default 16:9)' },
+        ),
+      ),
+      style: Type.Optional(
+        Type.String({
+          description:
+            'The rendering style from direction.md (flat vector, paper cut-out, studio photo, clay, isometric line…)',
+        }),
+      ),
+      refs: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            'Harvested images whose colour, material and mood the result should match (workspace paths, png/jpg/webp, up to 3)',
+        }),
+      ),
+      model: Type.Optional(
+        Type.String({
+          description:
+            'Gemini image model id (default gemini-3.1-flash-image; gemini-3-pro-image for a hero plate)',
+        }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      const a = [
+        `--kind=${p.kind}`,
+        `--subject=${p.subject}`,
+        `--out=${relativeIn(ws, p.out, 'write')}`,
+      ]
+      if (p.aspect) a.push(`--aspect=${p.aspect}`)
+      if (p.style) a.push(`--style=${p.style}`)
+      if (p.refs?.length)
+        a.push(
+          `--ref=${p.refs
+            .slice(0, 3)
+            .map((r: string) => relativeIn(ws, r))
+            .join(',')}`,
+        )
+      if (p.model) a.push(`--model=${p.model}`)
+      let out: string
+      try {
+        out = await runScript('image.mjs', a, ws, 180_000)
+      } catch (err: any) {
+        return text(String(err?.message || err))
+      }
+      const file = out.match(/🖼\s+(\S+)/)?.[1]
+      const abs = file ? resolveIn(ws, file) : null
+      if (!abs || !existsSync(abs)) return text(out)
+      const mimeType = /\.jpe?g$/i.test(abs) ? 'image/jpeg' : 'image/png'
+      return {
+        content: [
+          { type: 'text' as const, text: out },
+          { type: 'image' as const, data: readFileSync(abs).toString('base64'), mimeType },
+        ],
+        details: { file },
+      }
+    },
+  })
+
+  pi.registerTool({
     name: 'motion_harvest',
     label: 'Harvest Assets',
     description:
-      "Phase 0: pull the product site's OWN logo SVGs, screenshots, photos and video posters into " +
+      "Phase 0: pull the product site's OWN logo SVGs, screenshots, photos, videos, Lottie/Rive files into " +
       'assets/harvested/ with a provenance manifest at recon/harvested.json (source URL, size, the ' +
-      'section each sat under). Runs on the host with a real browser. Use these files in shots.js.',
+      'section each sat under). Every downloaded clip is mined for its moments — scene changes, spread across ' +
+      'the clip — into assets/harvested/frames/<clip>/t<time>.jpg, and you receive one contact sheet per clip: ' +
+      'LOOK at them and pick frames by their time stamp; the moment that sells the product is rarely the poster. ' +
+      'It ends with "Ask the user for": the files the site could not give (logo SVG, a 1080p recording, key ' +
+      'screenshots, the mark as Lottie/Rive) — relay that list in your reply and keep building meanwhile.',
     parameters: Type.Object({
       url: Type.String({ description: 'Page to harvest (http/https)' }),
       cdp: Type.Optional(
@@ -599,7 +695,27 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       if (p.cdp) a.push('--cdp=' + p.cdp)
       if (p.min_px) a.push('--min-px=' + p.min_px)
       if (p.max) a.push('--max=' + p.max)
-      return text(await runScript('harvest.mjs', a, ws, 300_000))
+      const out = await runScript('harvest.mjs', a, ws, 600_000)
+      // The frame sheets are the point: the agent sees the footage.
+      const MAX_SHEETS = 6
+      let sheets: string[] = []
+      try {
+        const manifest = JSON.parse(readFileSync(resolveIn(ws, 'recon/harvested.json'), 'utf8'))
+        sheets = (manifest.sheets ?? []).map((s: { sheet: string }) => s.sheet).slice(0, MAX_SHEETS)
+      } catch {
+        /* no manifest — the text says why */
+      }
+      const images = sheets
+        .filter(f => existsSync(resolveIn(ws, f)))
+        .map(f => ({
+          type: 'image' as const,
+          data: readFileSync(resolveIn(ws, f)).toString('base64'),
+          mimeType: 'image/jpeg',
+        }))
+      return {
+        content: [{ type: 'text' as const, text: out }, ...images],
+        details: { sheets },
+      }
     },
   })
 
