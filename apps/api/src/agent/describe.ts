@@ -138,7 +138,31 @@ async function candidates(
   const uploadedPdf = (await newest(ws.dir, 'uploads', PDF_RE))[0]
   if (uploadedPdf) out.push({ kind: 'pdf', rel: uploadedPdf.rel, at: uploadedPdf.mtimeMs })
 
-  return out.sort((a, b) => b.at - a.at)
+  return derivedLast(out).sort((a, b) => b.at - a.at)
+}
+
+/**
+ * An export never displaces the thing it was exported from.
+ *
+ * Rendering a launch film writes renders/launch-720p.mp4, which is then the
+ * newest file in the workspace — so the preview flipped from the shots.js
+ * editor to a plain video player the moment the user pressed Export, and the
+ * film could no longer be edited. The same for a deck: deck_publish renders a
+ * fresh build/output.pdf, newer than deck.html. Those files are OUTPUTS of the
+ * artifact (the launch describer lists them; deckDescription lists the PDF),
+ * not artifacts of their own, so while the source exists they are dropped
+ * here. A workspace with only a video or only a PDF still previews it.
+ */
+function derivedLast(
+  found: Array<{ kind: string; rel: string; at: number }>,
+): Array<{ kind: string; rel: string; at: number }> {
+  const hasLaunch = found.some(c => c.kind === 'launch')
+  const hasDeck = found.some(c => c.kind === 'deck')
+  return found.filter(c => {
+    if (hasLaunch && c.kind === 'video' && c.rel.startsWith('renders/')) return false
+    if (hasDeck && c.kind === 'pdf' && c.rel === 'build/output.pdf') return false
+    return true
+  })
 }
 
 /**

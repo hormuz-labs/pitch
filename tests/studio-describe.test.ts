@@ -7,11 +7,11 @@
  * launch film was reported as "The agent finished without producing anything"
  * while sitting complete on disk.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { hasArtifact } from '../apps/api/src/agent/describe'
+import { artifactKind, hasArtifact } from '../apps/api/src/agent/describe'
 
 const dirs: string[] = []
 
@@ -63,5 +63,46 @@ describe('a finished launch film counts as a result', () => {
 
   it('says no for an empty workspace', async () => {
     await expect(hasArtifact(workspace({ 'project.json': '{}' }))).resolves.toBe(false)
+  })
+})
+
+describe('an export never displaces the artifact it came from', () => {
+  // The exported file is the newest thing in the workspace, so sorting by
+  // mtime made the preview jump from the shots.js editor to a plain video
+  // player the moment the user pressed Export — and the film was no longer
+  // editable. utimes puts the export a minute ahead so the test cannot pass
+  // on a tie.
+  const later = (dir: string, rel: string) => {
+    const t = new Date(Date.now() + 60_000)
+    utimesSync(path.join(dir, rel), t, t)
+  }
+
+  it('keeps a launch film in the editor after renders/launch-720p.mp4 lands', async () => {
+    const ws = workspace({ ...FILM, 'renders/launch-720p.mp4': 'mp4' })
+    later((ws as any).dir, 'renders/launch-720p.mp4')
+    expect(await artifactKind(ws)).toBe('launch')
+  })
+
+  it('keeps a deck in the deck editor after deck_publish renders build/output.pdf', async () => {
+    const ws = workspace({
+      'deck.html': '<section class="slide">one</section>',
+      'build/output.pdf': '%PDF',
+    })
+    later((ws as any).dir, 'build/output.pdf')
+    expect(await artifactKind(ws)).toBe('deck')
+  })
+
+  it('still previews a plain render when there is no film to edit', async () => {
+    const ws = workspace({ 'renders/demo-1.mp4': 'mp4' })
+    expect(await artifactKind(ws)).toBe('video')
+  })
+
+  it('still previews an uploaded PDF, and an uploaded video over the film', async () => {
+    const pdf = workspace({ 'uploads/pitch.pdf': '%PDF' })
+    expect(await artifactKind(pdf)).toBe('pdf')
+    // A video the user just dropped in IS a new thing to look at.
+    const film = workspace({ ...FILM, 'uploads/clip.mp4': 'mp4' })
+    later((film as any).dir, 'uploads/clip.mp4')
+    expect(await artifactKind(film)).toBe('launch')
   })
 })
