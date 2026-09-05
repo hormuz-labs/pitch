@@ -1,7 +1,7 @@
 /**
  * Launch films — pi extension wrapping the launch-video skill's
  * executable scripts (recon, screenshot, harvest, tts, align, sync, cues/check,
- * sfx, mix, audit, capture) plus two small host helpers (find_audio,
+ * sfx, mix, audit, review, capture) plus two small host helpers (find_audio,
  * verify_duration). Every .mjs in that folder backs exactly one tool; the two
  * maintainer scripts that build the shared SFX library live in the repo's
  * scripts/ instead, since the agent never runs them.
@@ -190,7 +190,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
             Type.Literal('Leda'),
             Type.Literal('Charon'),
           ],
-          { description: 'Default Aoede (bright). Kore=warm, Leda=sleek, Charon=deep male.' },
+          { description: 'Choose for the brand, never by habit: Aoede bright, Kore warm, Leda sleek, Charon deep. Two films should not share a voice by default.' },
         ),
       ),
       style: Type.Optional(
@@ -283,7 +283,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_render',
     label: 'Motion Render',
     description:
-      'Render index.html to MP4 by deterministic seek-and-capture. With from/to (fps 30, no audio) to look closely at ONE shot while polishing. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after motion_audit passes.',
+      'Render index.html to MP4 by deterministic seek-and-capture. To LOOK at shots use motion_review (frames, not video); render a from/to segment (fps 30, no audio) only when the motion itself is in doubt. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after motion_audit and motion_review pass.',
     parameters: Type.Object({
       out: Type.String({
         description:
@@ -326,6 +326,60 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         if (p[k] !== undefined) a.push(`--${k}=` + p[k])
       }
       return text(await runScript('capture.mjs', a, ws))
+    },
+  })
+
+  pi.registerTool({
+    name: 'motion_review',
+    label: 'Look at the Film',
+    description:
+      'Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. Look for: clipped or overflowing text, words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. Fix in shots.js, then re-run with `shots` for the ones you touched. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.',
+    parameters: Type.Object({
+      shots: Type.Optional(
+        Type.Array(Type.String(), { description: 'Only these shot ids (default: every shot)' }),
+      ),
+      per_shot: Type.Optional(
+        Type.Integer({ minimum: 1, maximum: 6, description: 'Frames per shot (default 3)' }),
+      ),
+      times: Type.Optional(
+        Type.Array(Type.Number(), { description: 'Extra moments to include, in seconds' }),
+      ),
+      page: Type.Optional(Type.String({ description: 'Page to review (default index.html)' })),
+      out: Type.Optional(Type.String({ description: 'Sheet directory (default review)' })),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      const outRel = p.out || 'review'
+      const a: string[] = []
+      if (p.page) a.push(relativeIn(ws, p.page))
+      a.push(`--out=${relativeIn(ws, outRel, 'write')}`)
+      if (p.shots?.length) a.push(`--shots=${p.shots.join(',')}`)
+      if (p.per_shot) a.push(`--per-shot=${p.per_shot}`)
+      if (p.times?.length) a.push(`--times=${p.times.join(',')}`)
+      const out = await runScript('review.mjs', a, ws, 300_000)
+      const dir = resolveIn(ws, outRel)
+      const sheets = existsSync(dir)
+        ? readdirSync(dir)
+            .filter(f => /^sheet-\d+\.jpg$/.test(f))
+            .sort()
+        : []
+      const MAX_SHEETS = 8
+      const shown = sheets.slice(0, MAX_SHEETS)
+      const note =
+        sheets.length > MAX_SHEETS
+          ? `\n(${sheets.length} sheets; showing the first ${MAX_SHEETS} — review the rest with \`shots\`.)`
+          : ''
+      return {
+        content: [
+          { type: 'text' as const, text: out + note },
+          ...shown.map(f => ({
+            type: 'image' as const,
+            data: readFileSync(join(dir, f)).toString('base64'),
+            mimeType: 'image/jpeg',
+          })),
+        ],
+        details: { sheets: shown.map(f => `${outRel}/${f}`) },
+      }
     },
   })
 

@@ -23,8 +23,8 @@ window.SHOTS = {
     ],
   },
   audio: { vo: "audio/vo.wav", voStart: 0.3 },  // ONE continuous read (omit for music-only)
-    ambient: { kind: "blobs" }, // persistent stage layer (see "Density layer")
-    motion: { exit: "up" },     // default exit motion for every shot
+    ambient: { kind: "hairlines", color: "ink" }, // the living stage — kind per direction.md Axis 1 (see "Density layer")
+    motion: { exit: "scale" },  // default exit motion for every shot: up | down | scale | scatter | none
   shots: [ { id, type, dur, bg, ink?, cut?, exit?, beats?, cue?, ...typeFields } ],
 };
 ```
@@ -38,7 +38,7 @@ every shot three layers of life on top of the factory's own animation, and
 
 | Field | Where | Meaning |
 |---|---|---|
-| `ambient` | top level | `{ kind: "blobs"\|"grid"\|"none", color?: "accent"\|"ink"\|css, count?, seed?, blur?, opacity?, size? }` — soft brand-colored shapes drifting *between* every shot's background and its content, continuous across cuts (positions are a function of film time). The reference films' "warm stage". `shot.ambient = false` hides it on one shot. |
+| `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, count?, seed?, blur?, opacity?, size? }` — a living stage *between* every shot's background and its content, continuous across cuts (positions are a function of film time), position-only. `kind` is the direction.md Axis-1 choice: `blobs` (soft blurred discs — deep space + glow), `light` (one large soft light source orbiting — studio backdrop), `blueprint` (a fine line grid panning — technical grid; `size` = cell), `hairlines` (a few 1px rules drifting — editorial light, terminal noir), `halftone` (a dot screen panning — duotone poster; `size` = cell), `shapes` (flat discs, bars and slabs drifting and turning — solid brand field), `grid` (blurred rounded tiles), `none`. `shot.ambient = false` hides it on one shot. |
 | `motion.exit` / `shot.exit` | top / shot | `up` (default) \| `down` \| `scale` \| `scatter` \| `none` — the outgoing content leaves the frame in its last ~0.3s, so a cut is an arrival, not a freeze. `scatter` throws words/cards in random directions. |
 | `beats` | shot | `[{ at, kind, sel?, text?, amount?, color?, y? }]` — mid-shot events for *any* type. `swap` (replace the text of `sel`, default the headline), `pulse` (scale pop on `sel`), `shake` (camera shake, needs CustomWiggle), `kick` (whole-shot scale hit on a beat), `flash` (one-frame color flash), `hide` / `show` (`sel`), `nudge` (move `sel` by `amount`/`y`). `at` defaults to evenly spaced. |
 | `reveal: "words"` | word-cut, color-punch | Words arrive one after another (0.13s apart, `each` overrides); parts with `accent: true` pop harder and take the accent color. |

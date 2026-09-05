@@ -28,6 +28,16 @@ lost. Strike a line when it is done.
   reader in `apps/` any more; confirm the web gallery does not fetch it and
   delete it, or point the API at it.
 
+- **Low-contrast accent cards.** With the real palette applied, the trypitch
+  e2e film's `color-punch` ("Meet Pitch.") and `logo-cta` end card render
+  their text and mark faintly on the accent field — check the ink rule for
+  `.shot[data-bg="accent"]` in `engine/css/shots.css` and the SVG fill the
+  logo lockup inherits. `motion_review` shows it on sheet 1 and 3.
+- **The trypitch e2e film fails its own audit on the real palette** (a 2.0s
+  quiet stretch at the end card, 28.3→30.3s). It passed before only because
+  its brand tokens were never applied; re-cut it or accept it as a fixture
+  of the wrong colours.
+
 ## Agent behaviour (prompt / skill work)
 
 - **Decks invent figures.** With no search tool the deck agent wrote

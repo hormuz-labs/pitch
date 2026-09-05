@@ -61,7 +61,7 @@ export const buildMcpServer = (userId: string): McpServer => {
           .record(z.string(), z.any())
           .optional()
           .describe(
-            'Flow options: launch-video {resolution 720p|1080p|4k, narration, music}; demo-video {url, voice, script, background, shape, browserHeader}; deck {slideCount, template, mode recreate|preserve}; recording-edit {productName, productUrl}',
+            'Flow options: launch-video {resolution 720p|1080p|4k, narration, music}; demo-video {url, voice, script, background, shape, browserHeader, fps 30|60}; deck {slideCount, template, mode recreate|preserve}; recording-edit {productName, productUrl, fps 30|60}',
           ),
         uploads: z
           .array(uploadSchema)

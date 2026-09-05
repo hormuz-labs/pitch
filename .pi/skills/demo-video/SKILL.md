@@ -48,7 +48,7 @@ stopping the recording.
 The recording, the render and any `storyboard.json` are in the workspace;
 the context says the state. If it says the recording is LIVE, stop it first.
 - **Look changes** (background, shape, inset, browser header, title cards,
-  product name): `demo_render` with the new options — the last recording is
+  product name, `fps: 60`): `demo_render` with the new options — the last recording is
   reused, no re-record.
 - **Content changes** (narration, another feature, length): a new take —
   for asset projects edit the storyboard first — `demo_record_start` → drive

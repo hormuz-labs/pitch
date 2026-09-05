@@ -60,7 +60,8 @@ path). Do not interview the user. The studio previews the newest render in
 - remove or correct an event: `probe_video` again (it resets the list;
   transcript, key moments and vision log survive), then re-emit the full
   corrected list in time order.
-- product name / URL only touch the title cards: pass them to `edit_render`.
+- product name / URL only touch the title cards, and "60fps" is
+  `fps: 60`: pass them to `edit_render`, nothing else changes.
 
 Finish with a short summary: windows inspected, zooms and clicks recorded,
 the event list (time → type → label), what you skipped and why, the URL.

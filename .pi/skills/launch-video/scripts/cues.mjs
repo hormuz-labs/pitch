@@ -55,6 +55,7 @@ const data = await page.evaluate(() => ({
   cues: window.__CUES(),
   shots: (window.SHOTS && Array.isArray(window.SHOTS.shots)) ? window.SHOTS.shots.map((s) => ({ id: s.id, type: s.type, dur: s.dur })) : [],
   overruns: window.__OVERRUNS || [],
+  brand: window.__BRAND || {},
 }));
 await studio.close();
 
@@ -82,6 +83,10 @@ if (errors.length) {
   process.exit(1);
 }
 if (CHECK) {
+  const tokens = ["bg", "ink", "accent"];
+  const unset = tokens.filter((k) => !data.brand[k]);
+  console.log(`   brand: ${tokens.map((k) => `${k} ${data.brand[k] ?? "—"}`).join(" · ")} · font ${data.brand.font ? "set" : "—"}`);
+  if (unset.length) console.log(`⚠ brand.${unset.join(", brand.")} not set — the film is rendering the engine's DEFAULT palette, not the product's. Put the measured values in brand.bg / brand.ink / brand.accent (the audit fails on this).`);
   const missing = data.shots.filter((s) => !byLabel.has(s.id));
   if (missing.length) console.log(`⚠ shots without a timeline label: ${missing.map((s) => s.id).join(", ")}`);
   console.log(`   The studio preview already shows this cut. Keep going: next shots, then motion_audit.`);

@@ -58,7 +58,7 @@ const STARTERS: { label: string; glyph: ReactNode; prompt: string; select: strin
       </Glyph>
     ),
     prompt:
-      'A 60-second cinematic launch video for https://yourproduct.com — bold, fast, end on the pricing page.',
+      'A launch video for https://yourproduct.com.',
     select: 'https://yourproduct.com',
   },
   {

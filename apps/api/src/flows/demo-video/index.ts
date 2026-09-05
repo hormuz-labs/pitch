@@ -370,11 +370,12 @@ registerHostAction('demo_render', async (ws, params) => {
     inset: pick('inset') as number | string | undefined,
     browserHeader: (pick('browserHeader') ?? 'none') as 'light' | 'dark' | 'none',
     productName: pick('productName') != null ? String(pick('productName')) : undefined,
+    fps: pick('fps') as number | string | undefined,
     storyboard: config.storyboard,
   }
   // Remember the look the user (or the agent) settled on for the next render.
   const chosen = Object.fromEntries(
-    ['background', 'shape', 'inset', 'browserHeader', 'productName']
+    ['background', 'shape', 'inset', 'browserHeader', 'productName', 'fps']
       .filter(k => params[k] !== undefined)
       .map(k => [k, params[k]]),
   )

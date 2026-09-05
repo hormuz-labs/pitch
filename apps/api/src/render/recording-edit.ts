@@ -18,7 +18,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Logger } from '@saas/shared'
-import { execAsync, getMediaDurationSec, probeVideo } from './media.js'
+import { execAsync, getMediaDurationSec, outputFps, probeVideo } from './media.js'
 import type { Beat } from './utils/beats.js'
 import type { ClickEvent } from './utils/cursor-fx.js'
 import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
@@ -38,7 +38,7 @@ export interface RenderRecordingEditInput {
   /** The uploaded recording on disk (any container ffmpeg can read). */
   uploadPath: string
   state: RecordingEditState
-  options: { productName?: string; productUrl?: string }
+  options: { productName?: string; productUrl?: string; fps?: number | string }
   /** <workspaceDir>/renders */
   outDir: string
   /**
@@ -73,7 +73,8 @@ export async function renderRecordingEdit(
 
   // ── 4. Render: zoom/pan, source audio kept ─────────────────────────────────
   const { fps: sourceFps, width: srcW, height: srcH } = await probeVideo(uploadPath)
-  logger.info({ sourceFps, srcW, srcH }, 'Probed uploaded recording')
+  const fps = outputFps(options.fps, sourceFps)
+  logger.info({ sourceFps, fps, srcW, srcH }, 'Probed uploaded recording')
 
   const stamp = Date.now()
   const rawVideo = path.join(outDir, 'raw.mp4')
@@ -99,7 +100,7 @@ export async function renderRecordingEdit(
 
   let finalVLabel = currentVLabel
   if (zoomEvents.length > 0) {
-    filterComplex += buildContinuousZoomFilter(zoomEvents, 0, currentVLabel, sourceFps)
+    filterComplex += buildContinuousZoomFilter(zoomEvents, 0, currentVLabel, fps)
     finalVLabel = '[zoomedv]'
   }
 
@@ -151,7 +152,7 @@ export async function renderRecordingEdit(
     const cardConfig = {
       productName,
       duration: 2.5,
-      fps: sourceFps,
+      fps,
       width: 1920,
       height: 1080,
       outputPath: finalVideo,

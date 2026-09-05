@@ -1532,7 +1532,8 @@ const restApi: DocPage = {
           <C key="a">launch-video</C>,
           '6 to 13',
           <>
-            <C>resolution</C> (<C>720p</C>, <C>1080p</C> default, <C>4k</C>; sets the price),{' '}
+            <C>resolution</C> (<C>720p</C>, <C>1080p</C> default, <C>4k</C>; sets the price; every
+            export is 60 fps),{' '}
             <C>narration</C> (default true; false saves 1 credit), <C>music</C> (track filename from
             the shared library)
           </>,
@@ -1543,7 +1544,7 @@ const restApi: DocPage = {
           <>
             <C>url</C> (also read from the prompt), <C>instructions</C>, <C>script</C> (your own
             narration), <C>voice</C>, <C>background</C>, <C>shape</C>, <C>inset</C>,{' '}
-            <C>browserHeader</C>
+            <C>browserHeader</C>, <C>fps</C> (<C>30</C> or <C>60</C>; default the recording's own)
           </>,
         ],
         [
@@ -1559,7 +1560,8 @@ const restApi: DocPage = {
           <C key="d">recording-edit</C>,
           '2',
           <>
-            <C>productName</C> (intro card), <C>productUrl</C> (outro card), <C>instructions</C>
+            <C>productName</C> (intro card), <C>productUrl</C> (outro card), <C>instructions</C>,{' '}
+            <C>fps</C> (<C>30</C> or <C>60</C>; default the recording's own)
           </>,
         ],
       ],

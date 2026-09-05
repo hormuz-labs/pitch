@@ -79,7 +79,10 @@
     (shot.chrome || []).forEach((c) => {
       if (c.kind === "sms") layer.appendChild(smsCard(c));
       else if (c.kind === "bot-pill") {
-        layer.appendChild(h(`<div class="bot-pill" style="left:${c.x}px;top:${c.y}px"><span class="ghost">👻</span><span class="sms-num">${c.phone}</span></div>`));
+        // Films write `text`; the schema's older example said `phone`. Either
+        // is the label — an unset one used to print "undefined" on screen.
+        const label = c.text ?? c.label ?? c.phone ?? "";
+        layer.appendChild(h(`<div class="bot-pill" style="left:${c.x}px;top:${c.y}px">${c.text || c.label ? "" : '<span class="ghost">👻</span>'}<span class="sms-num">${label}</span></div>`));
       } else if (c.kind === "progress") {
         layer.appendChild(h(`<div class="progress-pill" style="left:${c.x}px;top:${c.y}px"><div class="fill"></div></div>`));
       }

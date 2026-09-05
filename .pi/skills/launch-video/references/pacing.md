@@ -66,3 +66,12 @@ many of them. Energy is **density and layering**, not speed.
 
 The fix for a failing shot is one of: a beat, a line, `more`, a pile item, a
 cursor — or cut the shot. Never lengthen.
+
+## Density is required; uniformity is not
+
+Dense films that all cut every 2.5s are one film. Rhythm is decided with the
+arc (creative-direction.md Axis 7): a run of three 0.8s words, then a 5s
+`ui-frame` where the cursor does three things; a 1.2s stat against a 3s
+manifesto line. `motion_audit` warns when every `dur` sits within ±0.45s of
+the average — the metronome — and the answer is never to lengthen a shot but
+to split one and merge two.

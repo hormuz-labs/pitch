@@ -72,6 +72,7 @@ const spec = await page.evaluate(() => {
   };
 });
 const plugins = await page.evaluate("window.__PLUGINS || []");
+const brandTokens = await page.evaluate("window.__BRAND || {}");
 const overruns = await page.evaluate("window.__OVERRUNS || []");
 
 console.log(`   Duration: ${duration.toFixed(2)}s   Shots: ${spec ? spec.shots.length : "?"}   Plugins: ${plugins.join(", ") || "none"}`);
@@ -166,7 +167,24 @@ if (!spec) {
   }
   const punches = shots.filter(s => s.cut === "punch").length;
   if (shots.length >= 8 && punches === 0) lint.push({ level: "warn", msg: "No `punch` cuts — mark 2–3 boundaries where a beat lands." });
-  if (!spec.ambient) lint.push({ level: "warn", msg: "No `ambient` stage layer — the film has no life between events (spec.ambient = { kind: \"blobs\" }). Deliberate for Editorial; say so in direction.md." });
+  if (!spec.ambient) lint.push({ level: "warn", msg: "No `ambient` stage layer — the film has no life between events. Pick the kind direction.md's background system calls for (motion_schema({ section: \"density layer\" })), or say in direction.md why the stage is bare." });
+
+  // ---- Brand applied? Unset tokens mean the engine's default palette --------------
+  const unsetTokens = ["bg", "ink", "accent"].filter(k => !brandTokens[k]);
+  if (unsetTokens.length) lint.push({ level: "fail", msg: `brand.${unsetTokens.join(", brand.")} not set — every shot is rendering in the engine's default palette, not the product's, and the ambient stage is invisible. Set the measured hex values on brand (top level), then re-run.` });
+
+  // ---- Template tells: what makes two films look like the same film -------------
+  // The shared engine gives every product the same ten looks; a film with no
+  // project-local shot type is assembled, not directed.
+  const BUILT_IN = new Set([...TYPE_BEATS, "ui-frame", "device-notif"]);
+  if (!shots.some(s => !BUILT_IN.has(s.type))) lint.push({ level: "warn", msg: "Every shot is a built-in type — no signature shot. Write one project-local type in js/shots.custom.js for the beat only this product could own (motion_schema({ section: \"custom shot types\" }))." });
+  // Uniform durations read as a metronome whatever the content.
+  if (shots.length >= 8) {
+    const durs = shots.map(s => s.dur);
+    const mean = durs.reduce((a, b) => a + b, 0) / durs.length;
+    const sd = Math.sqrt(durs.reduce((a, d) => a + (d - mean) ** 2, 0) / durs.length);
+    if (sd < 0.45) lint.push({ level: "warn", msg: `Metronome: every shot is ${mean.toFixed(1)}s ± ${sd.toFixed(2)}. Rhythm is a decision — a burst of three sub-second beats against one long product shot, not the same cut every ${mean.toFixed(1)}s.` });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -347,6 +365,7 @@ if (logoWarnings) fails.push("Harvested brand asset unused.");
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
 
 console.log(`\n──────── Philosophy scorecard ────────`);
+console.log(`   brand: bg ${brandTokens.bg ?? "—"} · ink ${brandTokens.ink ?? "—"} · accent ${brandTokens.accent ?? "—"}`);
 console.log(`   shots ${spec ? spec.shots.length : "?"} · avg ${spec ? (spec.shots.reduce((a, s) => a + s.dur, 0) / spec.shots.length).toFixed(2) : "?"}s · ${eps.toFixed(2)} ev/s · longest quiet ${longestQuiet.toFixed(2)}s · ambient ${spec?.ambient ? spec.ambient.kind || "on" : "off"} · beats ${spec ? spec.shots.reduce((a, s) => a + s.beats, 0) : "?"}`);
 const nline = narration.mode === "continuous"
   ? `continuous read ${narration.dur.toFixed(1)}s · ${narration.wps.toFixed(2)} words/s · ${narration.cued}/${narration.total} shots cued · max drift ${narration.maxDrift >= 0 ? "+" : ""}${narration.maxDrift.toFixed(2)}s${narration.worst ? ` (#${narration.worst})` : ""} · longest breath ${narration.breath ? narration.breath.dur + "s" : "none"} · last word ${narration.speechEnd.toFixed(1)}s`

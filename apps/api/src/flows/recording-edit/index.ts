@@ -190,6 +190,7 @@ registerHostAction('edit_render', async (ws, params) => {
     productName:
       optionStr(params, 'productName') ?? optionStr(project?.options ?? {}, 'productName'),
     productUrl: optionStr(params, 'productUrl') ?? optionStr(project?.options ?? {}, 'productUrl'),
+    fps: params.fps ?? project?.options?.fps,
   }
   const counts = eventCounts(state)
   const log = logger.child({ workspace: ws.internal })

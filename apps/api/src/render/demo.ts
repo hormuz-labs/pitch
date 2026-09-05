@@ -20,6 +20,7 @@ import {
   getMediaDurationSec,
   getSourceFps,
   getVideoBirthTimeMs,
+  outputFps,
   resolveAndCombineWebmFiles,
 } from './media.js'
 import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
@@ -70,6 +71,8 @@ export interface RenderDemoOptions {
   browserHeader?: 'light' | 'dark' | 'none'
   storyboard?: VideoStoryboard
   productName?: string
+  /** 30 or 60; default the recording's own frame rate. */
+  fps?: number | string
 }
 
 export interface RenderDemoInput {
@@ -144,7 +147,8 @@ export async function renderDemo(
   }
 
   const sourceFps = await getSourceFps(foundWebmPath, logger)
-  logger.info({ sourceFps }, 'Detected source frame rate')
+  const fps = outputFps(options.fps, sourceFps)
+  logger.info({ sourceFps, fps }, 'Detected source frame rate')
 
   const cursorPath = path.join(assetsDir, 'icons', 'cursor.png')
   const handCursorPath = path.join(assetsDir, 'icons', 'hand-pointer.png')
@@ -195,7 +199,7 @@ export async function renderDemo(
   }
 
   // Build zoom pan filter
-  filterComplex += buildContinuousZoomFilter(state.zoomEvents, trimSec, currentVLabel, sourceFps)
+  filterComplex += buildContinuousZoomFilter(state.zoomEvents, trimSec, currentVLabel, fps)
 
   // Audio narration clips
   let validClips = 0
@@ -384,7 +388,7 @@ export async function renderDemo(
       productName,
       productLogoPath: fs.existsSync(productLogoPath) ? productLogoPath : undefined,
       duration: 2.5,
-      fps: sourceFps,
+      fps,
       width: 1920,
       height: 1080,
       outputPath: finalVideo,

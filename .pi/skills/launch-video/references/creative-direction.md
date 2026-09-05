@@ -2,7 +2,7 @@
 
 Questions and option spaces, not a house style. Recon and product meaning
 outrank every menu and range here; invent outside the menus when the evidence
-supports it. Work the 8 axes in order — later ones depend on earlier ones —
+supports it. Work the 9 axes in order — later ones depend on earlier ones —
 and write one line of **recon evidence** per choice. No evidence means you
 are defaulting: go back to recon. The bar: the video looks like the product's
 own design team spent a month on it, built from their exact tokens.
@@ -14,20 +14,22 @@ from `recon/brand-tokens.md`. Light or dark is what the *product* ships — a
 light SaaS app on a black void is a template. Derive tints by shifting
 lightness, never by importing indigo. Then choose ONE background system:
 
-| System | Looks like | Fits | Living layer |
+| System | Looks like | Fits | Stage — `ambient` in shots.js |
 |---|---|---|---|
-| Editorial light | warm paper, ink type, one accent, hairlines | design tools, docs, calm/prosumer | drifting hairlines, accent-tint gradient pan |
-| Solid brand field | the saturated primary full-bleed, giant type | bold consumer, creator tools | hue drift ±8°, type parallax, flat shapes |
-| Studio backdrop | soft radial light behind the subject | hardware, mobile, premium | light source orbiting, shadow drift |
-| Technical grid | blueprint grid, ticks, mono labels | infra, data, analytics, "precision" | grid pan, tick pulses, dashed draws |
-| Terminal noir | true black, phosphor text in the brand accent | CLIs, dev tools, hacker audience | cursor blinks, low-opacity log scroll |
-| Gradient mesh | mesh/aurora in the brand's own hues | brands whose site already uses gradients | control-point drift |
-| Deep space + glow | near-black, blurred glow shapes | **only** when the site is dark-with-glow; vary hue, count, geometry | orb drift, asymmetric periods |
-| Duotone poster | two-colour print, halftone, cut-outs | media, music, community, campaigns | shape drift, plate offset |
+| Editorial light | warm paper, ink type, one accent, hairlines | design tools, docs, calm/prosumer | `{ kind: "hairlines", color: "ink" }` |
+| Solid brand field | the saturated primary full-bleed, giant type | bold consumer, creator tools | `{ kind: "shapes", color: "ink" }` flat geometry drifting |
+| Studio backdrop | soft radial light behind the subject | hardware, mobile, premium | `{ kind: "light" }` one light source orbiting |
+| Technical grid | blueprint grid, ticks, mono labels | infra, data, analytics, "precision" | `{ kind: "blueprint", size: 96 }` |
+| Terminal noir | true black, phosphor text in the brand accent | CLIs, dev tools, hacker audience | `{ kind: "hairlines", opacity: 0.1 }` or `none` |
+| Gradient mesh | mesh/aurora in the brand's own hues | brands whose site already uses gradients | `{ kind: "blobs", size: 900, blur: 160, opacity: 0.35 }` |
+| Deep space + glow | near-black, blurred glow shapes | **only** when the site is dark-with-glow; vary hue, count, geometry | `{ kind: "blobs" }` — vary `count`, `seed`, `size` |
+| Duotone poster | two-colour print, halftone, cut-outs | media, music, community, campaigns | `{ kind: "halftone", size: 14 }` |
 
-Deep space + glow was the old house default and is banned without site
-evidence. The background may evolve across shots (hue per beat) but never
-switches system mid-film.
+The stage is the first thing every frame shares, so it is the first thing
+two films share: `blobs` belongs to two systems only, and the default film
+has none of them. Deep space + glow was the old house default and is banned
+without site evidence. The background may evolve across shots (hue per beat)
+but never switches system mid-film.
 
 ## Axis 2 — Typography
 
@@ -53,14 +55,18 @@ becomes a custom factory (`effects-catalog.md`).
 
 ## Axis 3 — Motion language (pick ONE)
 
-| Language | Easings | Tempo | Transitions | Avoid | Fits |
+| Language | Easings | Tempo | Transitions · `motion.exit` | Avoid | Fits |
 |---|---|---|---|---|---|
-| Precision | `expo.out`, `power4.inOut` | 0.4–0.6s entrances, 0.03s staggers | clip-path wipes, snap zooms | wobble, blur | dev tools, infra, perf |
-| Fluid | `power3.inOut`, long `sine` | 0.8–1.4s, overlapping | 3D fly-throughs, blur-through zooms | snaps | premium, hardware, fintech |
-| Elastic | `back.out(1.6)`, `elastic.out` | 0.5–0.8s, bouncy | scale-pop cuts | solemn fades | consumer, creator, social |
-| Editorial | `power2.out`, opacity+y | calm, micro-motion holds | flat pushes, rule draws | 3D, whip pans | docs, design tools, serif brands |
-| Kinetic | `power4.in/out`, beat-synced | very fast, 0.9–1.6s shots | whip pans, punches, match cuts | holds | hype launches, montage |
-| Continuous | `expo.out` in, `power3.in` out, `back.out` pops | an element every ~1s, 1.5–3s shots | exits overlap entrances on one stage | empty frames, slides | explainers, AI/builder tools |
+| Precision | `expo.out`, `power4.inOut` | 0.4–0.6s entrances, 0.03s staggers | clip-path wipes, snap zooms · `none` (the cut is the move) | wobble, blur | dev tools, infra, perf |
+| Fluid | `power3.inOut`, long `sine` | 0.8–1.4s, overlapping | 3D fly-throughs, blur-through zooms · `scale` | snaps | premium, hardware, fintech |
+| Elastic | `back.out(1.6)`, `elastic.out` | 0.5–0.8s, bouncy | scale-pop cuts · `scatter` | solemn fades | consumer, creator, social |
+| Editorial | `power2.out`, opacity+y | calm, micro-motion holds | flat pushes, rule draws · `down` | 3D, whip pans | docs, design tools, serif brands |
+| Kinetic | `power4.in/out`, beat-synced | very fast, 0.9–1.6s shots | whip pans, punches, match cuts · `up` | holds | hype launches, montage |
+| Continuous | `expo.out` in, `power3.in` out, `back.out` pops | an element every ~1s, 1.5–3s shots | exits overlap entrances on one stage · `up`, per-shot `exit` varied | empty frames, slides | explainers, AI/builder tools |
+
+`exit: "up"` on every shot of every film was the old default; the exit is the
+language's, and two or three shots in any film override it (`shot.exit`) so
+the cuts are not a metronome either.
 
 Density is not a language choice: every language keeps an event every
 ≤ 1.5s — Editorial with rule draws and caption swaps, Fluid with layers,
@@ -111,27 +117,67 @@ hacker screen.
 
 | Arc | Beats | When |
 |---|---|---|
-| Problem → relief | hook → pain montage → reveal → 2 proofs → stats → CTA | replacing a painful workflow (default) |
+| Problem → relief | hook → pain montage → reveal → 2 proofs → stats → CTA | the product replaces a workflow the viewer already hates — and only then |
 | Demo-first | cold open inside the product → "this is X" → 2 features → CTA | products that look great immediately |
 | Manifesto | thesis beats → belief → product as answer → one proof → CTA | category creators, poster type |
 | Montage | sting → 5–7 vignettes on the beat → stats → CTA | feature-rich, Kinetic, hype |
 | Metric-led | a number → what it means → how → proof → CTA | traction, "10×" claims |
+| One idea | the film argues a single claim from five angles, no tour | a product with one sharp reason to exist |
+| Reverse | the result first, then how it got there | products whose output is the point (renders, reports, code) |
 
-8–16 shots, 20–40s, average 1.5–2.8s. Not every film needs a problem section.
+Problem → relief is the arc every template picks; argue for it from the
+product or pick another. Stats and a CTA are not owed to the ending — a film
+may end on the product doing the thing, on the claim, or on a question. 8–16
+shots, 20–40s, average 1.5–2.8s, and **not uniform**: the rhythm belongs to
+the arc (a burst of three sub-second beats against one long product shot).
+
+**The hook** (first ≤ 3s) is a kind, chosen here, never a logo fading in:
+
+| Hook | Opens on |
+|---|---|
+| Cold open | inside the product, mid-action, no title |
+| The number | one recon figure, huge, then what it means |
+| The question | one line the viewer already asks themselves |
+| The anti-statement | what the product refuses to be |
+| The object | one UI element (a button, a cursor, a cell) doing one thing |
+| The slam | word-per-beat type → colour slam on the trigger word (effects-catalog §27) |
+| Sound first | a black frame and the SFX, then the picture |
 
 ## Axis 8 — Audio persona (decide with Axis 3)
 
 - **Narration: yes or no**, decided here. Kinetic 20–30s type-led films are
   usually stronger music-only; demo-led or explanatory films earn a voice.
-  When yes: a female voice (Aoede/Kore) unless brand or user suggests
-  otherwise, and ONE delivery direction for ONE read — intimate-confident
-  (premium), bright-energetic (consumer), dry-precise (dev), warm-credible
-  (fintech). The arc lives in the copy's phrasing, never in separate clips.
+  When yes: the voice is cast for the brand — Aoede bright, Kore warm, Leda
+  sleek, Charon deep — with a reason in direction.md, and ONE delivery
+  direction for ONE read: intimate-confident (premium), bright-energetic
+  (consumer), dry-precise (dev), warm-credible (fintech). The arc lives in
+  the copy's phrasing, never in separate clips.
 - **Music** by language: minimal warm electronic (Fluid), upbeat indie
   (Elastic), sparse percussive (Precision), cinematic build (Manifesto),
   beat-driven (Kinetic — cut on the bed's beat map).
 - **SFX density**: Kinetic/Elastic up to ~6 signature cues per 30s;
   Editorial almost none.
+
+## Axis 9 — Words
+
+On-screen copy and the read are where a film sounds like every other AI film
+fastest. Rules:
+
+- **The product's own register.** Recon saved the site's copy; write in its
+  voice (terse and lowercase, or formal and precise, or playful) and lift
+  its real nouns — feature names, UI labels, the words on its buttons.
+- **One fact per shot.** Every line carries something only this product
+  could say: a recon number, a named feature, a real integration, a specific
+  moment in the UI. "Fast" is nothing; "recall in 40ms" is a shot.
+- **Banned** on screen and in the script: Introducing · Meet X · Say goodbye
+  to · Reimagined · Seamless · Effortless · Supercharge · Unlock · Elevate ·
+  Welcome to the future · The future of · Built for teams · In seconds ·
+  Game-changing · Next-generation · Powered by AI · All in one place ·
+  Your X, simplified. If a line would fit the competitor's film, cut it.
+- **Verbs over adjectives**; specific over grand; a sentence a person would
+  say out loud over a headline a landing page would print.
+- The script is written before the shot list when narrated (SKILL.md step
+  2), and it is the same voice as the on-screen copy — one author.
 
 ## Three products, nothing shared
 

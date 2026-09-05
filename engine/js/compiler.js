@@ -11,9 +11,19 @@
       font: "--font",
       mono: "--mono",
     };
-    Object.entries(brand || {}).forEach(([k, v]) => {
-      if (map[k] && typeof v === "string" && v) r.style.setProperty(map[k], v);
-    });
+    // The three colour tokens may also arrive inside brand.palette (films
+    // have shipped that way and rendered in the engine's default palette
+    // without a word). Top level wins; the palette fills what it left out.
+    const palette = (brand && brand.palette) || {};
+    const resolved = {};
+    for (const k of ["bg", "ink", "accent"]) {
+      const v = (brand && typeof brand[k] === "string" && brand[k]) || (typeof palette[k] === "string" && palette[k]) || null;
+      if (v) { r.style.setProperty(map[k], v); resolved[k] = v; }
+    }
+    const font = (brand && (brand.font || brand.headline)) || null;
+    if (typeof font === "string" && font) { r.style.setProperty("--font", font); resolved.font = font; }
+    if (brand && typeof brand.mono === "string" && brand.mono) { r.style.setProperty("--mono", brand.mono); resolved.mono = brand.mono; }
+    window.__BRAND = resolved;
     // Extra named colors from the product's own palette: brand.palette =
     // { paper: "#FAF9F6", sage: "#9CB59B" } → usable as shot.bg = "sage".
     Object.entries(brand.palette || {}).forEach(([k, v]) => {
@@ -28,7 +38,7 @@
       style.textContent = css;
       document.head.appendChild(style);
     }
-    document.body.style.background = brand.bg || "#F4F7FB";
+    document.body.style.background = resolved.bg || "#F4F7FB";
   }
 
   function luminance(hex) {
@@ -115,44 +125,110 @@
   }
 
   // ---- Ambient stage -------------------------------------------------------
-  // A persistent layer of soft brand-colored shapes that lives BETWEEN a shot's
-  // background and its content and moves continuously through the whole film
-  // (positions are a function of global time, so cuts don't reset it).
-  // spec.ambient = { kind: "blobs"|"grid"|"none", color?, count?, seed?, blur?, opacity?, size? }
+  // A persistent layer that lives BETWEEN a shot's background and its content
+  // and moves continuously through the whole film (positions are a function of
+  // global time, so cuts don't reset it). Position-only motion: nothing here
+  // ever changes opacity, so it reads as a stage, not a flicker.
+  //
+  // spec.ambient = { kind, color?, count?, seed?, blur?, opacity?, size? }
+  //   kind: blobs     soft blurred discs (deep space + glow, studio backdrop)
+  //         light     one large soft light source orbiting slowly (studio backdrop)
+  //         grid      blurred rounded tiles (the old "grid")
+  //         blueprint a fine line grid panning slowly (technical / infra)
+  //         hairlines a few 1px rules drifting on their normal (editorial light, terminal noir)
+  //         halftone  a dot screen panning slowly (duotone poster, print)
+  //         shapes    flat geometry — discs, bars, rounded slabs — drifting and turning (solid brand field)
+  //         none
   function ambientMount(spec, shot) {
     const a = spec.ambient;
     if (!a || a.kind === "none" || shot.ambient === false) return null;
+    const kind = a.kind || "blobs";
     const layer = document.createElement("div");
-    layer.className = "ambient " + (a.kind || "blobs");
+    layer.className = "ambient " + kind;
     const rand = rng(a.seed || 11);
-    const n = a.count || (a.kind === "grid" ? 9 : 5);
     const color = a.color || "accent";
     const cssColor = color === "accent" ? "var(--accent)" : color === "ink" ? "var(--ink)" : color;
     const items = [];
-    for (let i = 0; i < n; i++) {
+    const item = (w, h, o) => {
       const it = document.createElement("div");
       it.className = "ambient-item";
-      const size = (a.size || 420) * (0.6 + rand() * 0.9);
-      it.style.width = it.style.height = size + "px";
-      it.style.background = cssColor;
-      it.style.opacity = String(a.opacity ?? (a.kind === "grid" ? 0.9 : 0.5));
-      if (a.kind === "grid") {
-        it.style.borderRadius = "18px";
-        it.style.width = it.style.height = (a.size || 120) + "px";
-        it.style.filter = `blur(${a.blur ?? 14}px)`;
-      } else {
-        it.style.borderRadius = "50%";
-        it.style.filter = `blur(${a.blur ?? 90}px)`;
-      }
+      it.style.width = w + "px";
+      it.style.height = h + "px";
+      it.style.opacity = String(a.opacity ?? o);
       layer.appendChild(it);
-      items.push({
-        el: it,
-        cx: 1920 * rand(), cy: 1080 * rand(),
-        ax: 180 + rand() * 320, ay: 120 + rand() * 260,
-        fx: 0.08 + rand() * 0.12, fy: 0.07 + rand() * 0.12,
-        px: rand() * 6.28, py: rand() * 6.28,
-        rot: rand() * 40 - 20,
-      });
+      return it;
+    };
+    // Every item: rest position (cx, cy), drift amplitude (ax, ay), drift
+    // frequency (fx, fy, cycles/s), phase (px, py), rest rotation and spin (deg/s).
+    const drift = (el, over) => items.push({
+      el, cx: 1920 * rand(), cy: 1080 * rand(),
+      ax: 180 + rand() * 320, ay: 120 + rand() * 260,
+      fx: 0.08 + rand() * 0.12, fy: 0.07 + rand() * 0.12,
+      px: rand() * 6.28, py: rand() * 6.28,
+      rot: rand() * 40 - 20, spin: 4, ...over,
+    });
+
+    if (kind === "grid") {
+      const n = a.count || 9;
+      for (let i = 0; i < n; i++) {
+        const size = a.size || 120;
+        const it = item(size, size, 0.9);
+        it.style.borderRadius = "18px";
+        it.style.background = cssColor;
+        it.style.filter = `blur(${a.blur ?? 14}px)`;
+        drift(it);
+      }
+    } else if (kind === "light") {
+      const n = a.count || 1;
+      for (let i = 0; i < n; i++) {
+        const size = (a.size || 1500) * (0.85 + rand() * 0.3);
+        const it = item(size, size, 0.32);
+        it.style.borderRadius = "50%";
+        it.style.background = `radial-gradient(circle, ${cssColor} 0%, transparent 70%)`;
+        it.style.filter = `blur(${a.blur ?? 40}px)`;
+        drift(it, { cx: 960 + (rand() - 0.5) * 500, cy: 540 + (rand() - 0.5) * 300, ax: 260 + rand() * 200, ay: 160 + rand() * 140, fx: 0.03 + rand() * 0.03, fy: 0.025 + rand() * 0.03, spin: 0 });
+      }
+    } else if (kind === "blueprint" || kind === "halftone") {
+      // One oversized pattern plate; panning it is the whole motion.
+      const cell = a.size || (kind === "blueprint" ? 96 : 14);
+      const it = item(2600, 1700, kind === "blueprint" ? 0.18 : 0.26);
+      it.style.backgroundImage = kind === "blueprint"
+        ? `linear-gradient(${cssColor} 1px, transparent 1px), linear-gradient(90deg, ${cssColor} 1px, transparent 1px)`
+        : `radial-gradient(${cssColor} ${(cell * 0.16).toFixed(1)}px, transparent ${(cell * 0.19).toFixed(1)}px)`;
+      it.style.backgroundSize = `${cell}px ${cell}px`;
+      drift(it, { cx: 1300, cy: 850, ax: cell * 2.5, ay: cell * 1.5, fx: 0.012, fy: 0.009, px: 0, py: 1.2, rot: 0, spin: 0 });
+    } else if (kind === "hairlines") {
+      const n = a.count || 5;
+      for (let i = 0; i < n; i++) {
+        const horizontal = i % 2 === 0;
+        const it = item(horizontal ? 2600 : 1, horizontal ? 1 : 1700, 0.18);
+        it.style.background = cssColor;
+        drift(it, horizontal
+          ? { cx: 1300, cy: 1080 * rand(), ax: 0, ay: 40 + rand() * 90, fx: 0, fy: 0.02 + rand() * 0.03, rot: 0, spin: 0 }
+          : { cx: 1920 * rand(), cy: 850, ax: 40 + rand() * 90, ay: 0, fx: 0.02 + rand() * 0.03, fy: 0, rot: 0, spin: 0 });
+      }
+    } else if (kind === "shapes") {
+      const n = a.count || 6;
+      for (let i = 0; i < n; i++) {
+        const base = (a.size || 320) * (0.4 + rand() * 1.2);
+        const form = i % 3; // disc, bar, slab
+        const w = form === 1 ? base * 2.4 : base;
+        const h = form === 1 ? base * 0.28 : form === 2 ? base * 0.72 : base;
+        const it = item(w, h, 0.12);
+        it.style.background = cssColor;
+        it.style.borderRadius = form === 0 ? "50%" : `${Math.round(h * 0.22)}px`;
+        drift(it, { ax: 120 + rand() * 220, ay: 90 + rand() * 180, fx: 0.04 + rand() * 0.06, fy: 0.035 + rand() * 0.06, rot: rand() * 360, spin: (rand() - 0.5) * 12 });
+      }
+    } else {
+      const n = a.count || 5;
+      for (let i = 0; i < n; i++) {
+        const size = (a.size || 420) * (0.6 + rand() * 0.9);
+        const it = item(size, size, 0.5);
+        it.style.borderRadius = "50%";
+        it.style.background = cssColor;
+        it.style.filter = `blur(${a.blur ?? 90}px)`;
+        drift(it);
+      }
     }
     layer.__items = items;
     return layer;
@@ -161,7 +237,7 @@
     items.forEach((it) => {
       const x = it.cx + Math.sin(t * it.fx * 6.28 + it.px) * it.ax - 0.5 * parseFloat(it.el.style.width);
       const y = it.cy + Math.cos(t * it.fy * 6.28 + it.py) * it.ay - 0.5 * parseFloat(it.el.style.height);
-      it.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(it.rot + t * 4).toFixed(2)}deg)`;
+      it.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(it.rot + t * (it.spin ?? 4)).toFixed(2)}deg)`;
     });
   }
   function ambientAnimate(layer, start, D) {

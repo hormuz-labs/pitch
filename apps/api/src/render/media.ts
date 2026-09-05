@@ -27,6 +27,20 @@ export async function getMediaDurationSec(file: string): Promise<number> {
   }
 }
 
+/** Frame rates a render can be asked for. */
+export const RENDER_FPS = [30, 60] as const
+
+/**
+ * The frame rate a render is encoded at. The default is the recording's own;
+ * asking for 60 makes the zoom/pan camera and the title cards move at 60
+ * (the source frames are repeated), which is what "60fps" means for a screen
+ * recording that was captured at 30.
+ */
+export function outputFps(requested: unknown, source: number): number {
+  const n = Number(requested)
+  return (RENDER_FPS as readonly number[]).includes(n) ? n : source
+}
+
 export async function getSourceFps(
   webmPath: string,
   logger: Logger = moduleLogger,

@@ -83,6 +83,12 @@ export default function demoFlowTools(pi: ExtensionAPI) {
       productName: Type.Optional(
         Type.String({ description: 'Name on the intro/outro cards (defaults to the host)' }),
       ),
+      fps: Type.Optional(
+        Type.Union([Type.Literal(30), Type.Literal(60)], {
+          description:
+            "Output frame rate. Default: the recording's own (screen recordings are usually 30). 60 makes the camera moves and the cards silky; the source frames are repeated.",
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       return text(
@@ -92,6 +98,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
           inset: p.inset,
           browserHeader: p.browserHeader,
           productName: p.productName,
+          fps: p.fps,
         }),
       )
     },

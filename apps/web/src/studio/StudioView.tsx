@@ -90,9 +90,9 @@ function Preview({ store }: { store: ProjectStore }) {
 }
 
 const LAUNCH_RES = [
-  { res: '720p', label: '720p', note: '1280 × 720 · quick share' },
-  { res: '1080p', label: '1080p', note: '1920 × 1080 · standard' },
-  { res: '4k', label: '4K', note: '3840 × 2160 · slow render' },
+  { res: '720p', label: '720p', note: '1280 × 720 · 60 fps · quick share' },
+  { res: '1080p', label: '1080p', note: '1920 × 1080 · 60 fps · standard' },
+  { res: '4k', label: '4K', note: '3840 × 2160 · 60 fps · slow render' },
 ]
 
 function ExportMenu({ store }: { store: ProjectStore }) {
