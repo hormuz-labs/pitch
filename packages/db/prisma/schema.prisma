@@ -20,24 +20,25 @@ model User {
 }
 
 model UserProfile {
-  id                 String              @id()
-  email              String
-  firstName          String?
-  lastName           String?
-  imageUrl           String?
-  role               String              @default("user")
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt()
-  subscriptions      Subscription[]
-  topUpPurchases     TopUpPurchase[]
-  creditTransactions CreditTransaction[]
-  affiliate          Affiliate?
-  browserProfile     BrowserProfile?
-  browserSessions    BrowserSession[]
-  apiKeys            ApiKey[]
-  webhookEndpoints   WebhookEndpoint[]
-  webhookDeliveries  WebhookDelivery[]
-  onboardingSurvey   OnboardingSurvey?
+  id                  String              @id()
+  email               String
+  firstName           String?
+  lastName            String?
+  imageUrl            String?
+  role                String              @default("user")
+  onboardingSkippedAt DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt()
+  subscriptions       Subscription[]
+  topUpPurchases      TopUpPurchase[]
+  creditTransactions  CreditTransaction[]
+  affiliate           Affiliate?
+  browserProfile      BrowserProfile?
+  browserSessions     BrowserSession[]
+  apiKeys             ApiKey[]
+  webhookEndpoints    WebhookEndpoint[]
+  webhookDeliveries   WebhookDelivery[]
+  onboardingSurvey    OnboardingSurvey?
 }
 
 model OnboardingSurvey {

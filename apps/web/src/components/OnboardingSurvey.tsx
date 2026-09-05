@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { PitchWordmark } from './PitchWordmark'
 import '../styles/onboarding-survey.css'
@@ -96,10 +96,34 @@ const EMPTY_ANSWERS: Answers = {
   discoverySource: '',
 }
 
-export const OnboardingSurvey = ({ enabled }: { enabled: boolean }) => {
+const SKIPPED_KEY = 'pitch:onboarding-skipped'
+
+const wasSkipped = () => {
+  try {
+    return localStorage.getItem(SKIPPED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const rememberSkip = () => {
+  try {
+    localStorage.setItem(SKIPPED_KEY, '1')
+  } catch {
+    // A browser that refuses storage still has the server-side record.
+  }
+}
+
+/**
+ * The survey is a welcome, never a gate: nothing in the app waits on it. It
+ * asks once and can be skipped at any step (Esc works too). A skip is recorded
+ * on the server so we stop asking on every device, with a local flag as the
+ * immediate, offline-safe answer. If the status check fails we stay out of the
+ * way entirely.
+ */
+export const OnboardingSurvey = ({ enabled = true }: { enabled?: boolean }) => {
   const { getToken } = useAuth()
   const [status, setStatus] = useState<'checking' | 'required' | 'complete' | 'error'>('checking')
-  const [statusCheck, setStatusCheck] = useState(0)
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS)
   const [submitting, setSubmitting] = useState(false)
@@ -108,7 +132,7 @@ export const OnboardingSurvey = ({ enabled }: { enabled: boolean }) => {
   const selected = answers[question.key]
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || wasSkipped()) return
 
     let cancelled = false
     let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -118,8 +142,13 @@ export const OnboardingSurvey = ({ enabled }: { enabled: boolean }) => {
       try {
         const token = await getToken()
         if (!token) throw new Error('Authentication token is not ready')
-        const result = await api.get<{ completed: boolean }>('/users/onboarding', token)
-        if (!cancelled) setStatus(result.completed ? 'complete' : 'required')
+        const result = await api.get<{ completed: boolean; skipped: boolean }>(
+          '/users/onboarding',
+          token,
+        )
+        if (cancelled) return
+        if (result.skipped) rememberSkip()
+        setStatus(result.completed || result.skipped ? 'complete' : 'required')
       } catch {
         if (cancelled) return
         if (attempt < 3) {
@@ -136,22 +165,41 @@ export const OnboardingSurvey = ({ enabled }: { enabled: boolean }) => {
       void checkStatus()
     }
 
-    // A 428 from the API means the server has decided onboarding is required,
-    // whatever this check last concluded — re-open on the server's say-so.
-    const onRequired = () => setStatus('required')
-
     void checkStatus()
     window.addEventListener('pitch:user-synced', recheckAfterSync)
-    window.addEventListener('onboarding-required', onRequired)
     return () => {
       cancelled = true
       if (retryTimer) clearTimeout(retryTimer)
       window.removeEventListener('pitch:user-synced', recheckAfterSync)
-      window.removeEventListener('onboarding-required', onRequired)
     }
-  }, [enabled, getToken, statusCheck])
+  }, [enabled, getToken])
 
-  if (!enabled || status === 'checking' || status === 'complete') return null
+  const skipSurvey = useCallback(() => {
+    rememberSkip()
+    setStatus('complete')
+    // Best effort: the local flag already closed it, and the next status
+    // check will settle it if this call never lands.
+    void (async () => {
+      try {
+        const token = await getToken()
+        if (token) await api.post('/users/onboarding/skip', token, {})
+      } catch {
+        // Skipping is not worth an error in the user's face.
+      }
+    })()
+  }, [getToken])
+
+  useEffect(() => {
+    if (status !== 'required') return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') skipSurvey()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [status, skipSurvey])
+
+  // 'error' means we could not even read the status — never block on that.
+  if (!enabled || status !== 'required') return null
 
   const continueSurvey = async () => {
     if (!selected) return
@@ -187,75 +235,58 @@ export const OnboardingSurvey = ({ enabled }: { enabled: boolean }) => {
           <PitchWordmark />
         </div>
         <p className="onboarding-survey-kicker">Welcome to Pitch</p>
-        {status === 'error' ? (
-          <div className="onboarding-survey-status-error" role="alert">
-            <h1 id="onboarding-title">We could not load your setup</h1>
-            <p>Check your connection, then try again. Your dashboard is still safe.</p>
+        <button type="button" className="onboarding-survey-skip" onClick={skipSurvey}>
+          Skip
+        </button>
+        <div
+          className="onboarding-survey-progress"
+          aria-label={`Step ${step + 1} of ${QUESTIONS.length}`}
+        >
+          <span style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
+        </div>
+
+        <h1 id="onboarding-title">{question.title}</h1>
+        <div className="onboarding-survey-options">
+          {question.options.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              className={selected === option.value ? 'is-selected' : ''}
+              aria-pressed={selected === option.value}
+              onClick={() => setAnswers(current => ({ ...current, [question.key]: option.value }))}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <p className="onboarding-survey-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="onboarding-survey-actions">
+          {step > 0 && (
             <button
               type="button"
-              onClick={() => {
-                setStatus('checking')
-                setStatusCheck(current => current + 1)
-              }}
+              className="is-back"
+              onClick={() => setStep(current => current - 1)}
             >
-              Try again
+              Back
             </button>
-          </div>
-        ) : (
-          <>
-            <div
-              className="onboarding-survey-progress"
-              aria-label={`Step ${step + 1} of ${QUESTIONS.length}`}
-            >
-              <span style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
-            </div>
-
-            <h1 id="onboarding-title">{question.title}</h1>
-            <div className="onboarding-survey-options">
-              {question.options.map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={selected === option.value ? 'is-selected' : ''}
-                  aria-pressed={selected === option.value}
-                  onClick={() =>
-                    setAnswers(current => ({ ...current, [question.key]: option.value }))
-                  }
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            {error && (
-              <p className="onboarding-survey-error" role="alert">
-                {error}
-              </p>
-            )}
-            <div className="onboarding-survey-actions">
-              {step > 0 && (
-                <button
-                  type="button"
-                  className="is-back"
-                  onClick={() => setStep(current => current - 1)}
-                >
-                  Back
-                </button>
-              )}
-              <button
-                type="button"
-                className="is-continue"
-                disabled={!selected || submitting}
-                onClick={continueSurvey}
-              >
-                {submitting ? 'Saving…' : step === QUESTIONS.length - 1 ? 'Finish' : 'Continue'}
-              </button>
-            </div>
-            <p className="onboarding-survey-note">
-              Your answers help us improve Pitch. They are visible only to the Pitch admin team.
-            </p>
-          </>
-        )}
+          )}
+          <button
+            type="button"
+            className="is-continue"
+            disabled={!selected || submitting}
+            onClick={continueSurvey}
+          >
+            {submitting ? 'Saving…' : step === QUESTIONS.length - 1 ? 'Finish' : 'Continue'}
+          </button>
+        </div>
+        <p className="onboarding-survey-note">
+          Your answers help us improve Pitch. They are visible only to the Pitch admin team.
+        </p>
       </div>
     </div>
   )

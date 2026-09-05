@@ -52,11 +52,38 @@ router.get('/onboarding', async (req, res) => {
   if (!userId) return
 
   try {
-    const survey = await db.prisma.onboardingSurvey.findUnique({ where: { userId } })
-    res.json({ completed: !!survey, survey })
+    const [survey, profile] = await Promise.all([
+      db.prisma.onboardingSurvey.findUnique({ where: { userId } }),
+      db.prisma.userProfile.findUnique({
+        where: { id: userId },
+        select: { onboardingSkippedAt: true },
+      }),
+    ])
+    res.json({ completed: !!survey, skipped: !!profile?.onboardingSkippedAt, survey })
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to fetch onboarding status')
     res.status(500).json({ error: 'Failed to fetch onboarding status' })
+  }
+})
+
+/**
+ * Dismiss the welcome survey. Nothing in the product waits on onboarding, so
+ * this only records that we should stop asking — on every device, not just
+ * the browser the user skipped from.
+ */
+router.post('/onboarding/skip', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    await db.prisma.userProfile.update({
+      where: { id: userId },
+      data: { onboardingSkippedAt: new Date() },
+    })
+    res.json({ skipped: true })
+  } catch (error: any) {
+    logger.error({ err: error, userId }, 'Failed to record onboarding skip')
+    res.status(500).json({ error: 'Failed to record onboarding skip' })
   }
 })
 

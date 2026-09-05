@@ -48,7 +48,6 @@ const failFromError = (res: any, error: unknown, context: string) => {
   const message = error instanceof Error ? error.message : String(error)
   if (status === 404) return fail(res, 404, 'not_found', message)
   if (status === 409 || (error as any)?.code === 'BUSY') return fail(res, 409, 'busy', message)
-  if (status === 428) return fail(res, 428, 'onboarding_required', message)
   if (status === 400) return fail(res, 400, 'invalid_request', message)
   if (/too large/i.test(message)) return fail(res, 413, 'payload_too_large', message)
   if (/unsupported file type/i.test(message))

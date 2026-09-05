@@ -35,7 +35,7 @@ vi.mock('../apps/api/src/lib/clerk.js', () => ({
 
 vi.mock('@saas/db', () => ({
   prisma: {
-    userProfile: { findUnique: vi.fn() },
+    userProfile: { findUnique: vi.fn(), update: vi.fn() },
     newsletterSubscriber: {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({}),
@@ -97,6 +97,7 @@ beforeEach(() => {
   vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue(null)
   vi.mocked((db as any).prisma.newsletterSubscriber.findFirst).mockResolvedValue(null)
   vi.mocked((db as any).prisma.onboardingSurvey.findUnique).mockResolvedValue(null)
+  vi.mocked((db as any).prisma.userProfile.update).mockResolvedValue({})
   vi.mocked((db as any).upsertUser).mockImplementation(async (input: any) => input)
   app = buildApp()
 })
@@ -129,6 +130,23 @@ describe('onboarding survey', () => {
     vi.mocked((db as any).prisma.onboardingSurvey.findUnique).mockResolvedValue({ id: 'survey_1' })
     const response = await request(app).post('/users/onboarding').send(validAnswers)
     expect(response.status).toBe(409)
+  })
+
+  it('can be skipped, and a skip is remembered server-side', async () => {
+    const skipped = await request(app).post('/users/onboarding/skip')
+    expect(skipped.status).toBe(200)
+    expect(vi.mocked((db as any).prisma.userProfile.update)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'user_attacker' },
+        data: { onboardingSkippedAt: expect.any(Date) },
+      }),
+    )
+
+    vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({
+      onboardingSkippedAt: new Date(),
+    })
+    const status = await request(app).get('/users/onboarding')
+    expect(status.body).toMatchObject({ completed: false, skipped: true })
   })
 
   it('rejects values outside the server allowlists', async () => {

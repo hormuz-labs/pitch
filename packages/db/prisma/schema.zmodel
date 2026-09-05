@@ -34,6 +34,9 @@ model UserProfile {
   lastName  String?
   imageUrl  String?
   role      String   @default("user") // "user" or "admin"
+  // Set when the user dismisses the welcome survey. The survey is never a
+  // gate, so this only stops us asking again on their other devices.
+  onboardingSkippedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
