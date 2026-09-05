@@ -23,7 +23,7 @@
  *   record_click       cursor/click event (drives cursor fx downstream)
  *
  * External contracts:
- *   • TRANSCRIPTION_SERVICE_URL (default http://localhost:4000/transcribe):
+ *   • whisper-cli + a ggml model (see ../lib/whisper.ts) — transcribe_video:
  *     POST multipart form, field "file" (audio/wav) → whisper verbose_json shape:
  *     { segments: [{ start, end, text, words?: [{ word, start, end }] }] }
  *   • GEMINI_API_KEY — Gemini 3 Flash, called with code execution enabled
@@ -41,6 +41,7 @@ import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
 import { workspaceOf } from '../lib/paths.ts'
+import { transcribeWav } from '../lib/whisper.ts'
 
 const execAsync = promisify(exec)
 
@@ -49,8 +50,6 @@ const FRAME_W = 1920
 const FRAME_H = 1080
 // Agentic Vision requires a Gemini 3 Flash variant with code execution enabled.
 const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-3-flash-preview'
-const TRANSCRIPTION_URL =
-  process.env.TRANSCRIPTION_SERVICE_URL || 'http://localhost:4000/transcribe'
 const SCENE_THRESHOLD = 0.3
 const DEDUPE_WINDOW_SEC = 1.0
 const MAX_KEY_MOMENTS = 80
@@ -275,11 +274,10 @@ export default function recordingTools(pi: ExtensionAPI) {
     name: 'transcribe_video',
     label: 'Transcribe video',
     description:
-      "Transcribe the video's narration with the local Whisper service. Extracts the " +
-      'audio, posts it to TRANSCRIPTION_SERVICE_URL, saves the full transcript to ' +
-      'recording/transcript.json, and returns it with timestamps. Call once, after ' +
-      'probe_video. If the service is unreachable you can still continue with ' +
-      'detect_key_moments (visual-only candidates).',
+      "Transcribe the video's narration with whisper.cpp on the host: extracts the audio, " +
+      'saves the full transcript with word timestamps to recording/transcript.json, and returns ' +
+      'it with segment timestamps. Call once, after probe_video. If it fails (a host problem) you ' +
+      'can still continue with detect_key_moments (visual-only candidates).',
     parameters: Type.Object({
       videoPath: Type.String({ description: 'Path to the uploaded video file.' }),
     }),
@@ -293,32 +291,12 @@ export default function recordingTools(pi: ExtensionAPI) {
         await execAsync(`ffmpeg -y -i ${q(video)} -vn -ac 1 -ar 16000 ${q(wav)}`, {
           maxBuffer: BIG_BUFFER,
         })
-        const form = new FormData()
-        form.append('file', new Blob([fs.readFileSync(wav)], { type: 'audio/wav' }), 'audio.wav')
-        let res: Response
+        let segments: TranscriptSegment[]
         try {
-          res = await fetch(TRANSCRIPTION_URL, { method: 'POST', body: form })
+          segments = transcribeWav(wav).segments
         } catch (e) {
-          return text(
-            `ERROR: transcription service unreachable at ${TRANSCRIPTION_URL} — is the local ` +
-              `Whisper service running? (${e instanceof Error ? e.message : String(e)})`,
-          )
+          return text(`ERROR: ${e instanceof Error ? e.message : String(e)}`)
         }
-        if (!res.ok)
-          return text(`ERROR: transcription service returned ${res.status}: ${await res.text()}`)
-        const data = await res.json()
-        const segments: TranscriptSegment[] = (data.segments || []).map((s: any) => ({
-          start: +Number(s.start).toFixed(3),
-          end: +Number(s.end).toFixed(3),
-          text: String(s.text ?? '').trim(),
-          words: Array.isArray(s.words)
-            ? s.words.map((w: any) => ({
-                word: String(w.word ?? ''),
-                start: +Number(w.start).toFixed(3),
-                end: +Number(w.end).toFixed(3),
-              }))
-            : undefined,
-        }))
         fs.writeFileSync(transcriptPath(base), JSON.stringify({ source: video, segments }, null, 2))
         const lines = segments.map(s => `[${s.start.toFixed(1)}s → ${s.end.toFixed(1)}s] ${s.text}`)
         let body = lines.join('\n')

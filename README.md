@@ -62,7 +62,6 @@ interface, routes, events).
 |:---------------|:----------------|:----------|
 | **`apps/`**    | `studio`        | The server: auth, credits, projects, agent sessions, previews, renders, share, MCP, admin. |
 |                | `web`           | The React app: projects grid, chat-first "new project", the StudioView. |
-|                | `transcription` | Local Whisper service used by the recording-edit tools. |
 | **`.pi/`**     | `AGENT.md`, `extensions`, `skills`, `lib` | The agent: its base prompt, host tools as pi extensions, skills. |
 | **`engine/`**  |                 | The shots.js compiler and the studio inspector that previews load. |
 | **`packages/`**| `db`            | Prisma/ZenStack schema and data access. |

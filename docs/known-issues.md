@@ -61,11 +61,6 @@ lost. Strike a line when it is done.
   rebuilds `pitch-base`** (`deploy.yml` builds it only when `Dockerfile.base`
   changes — it did, so the next deploy should; verify `whisper-cli --help`
   in the deployed container).
-- **Two transcribers.** Recording edits post to the `transcription` container
-  (`TRANSCRIPTION_SERVICE_URL`, transformers.js on Bun); launch-film
-  alignment runs `whisper-cli` inside the api image. One service with a
-  word-timestamp endpoint would remove the whisper.cpp build from
-  `Dockerfile.base` and the model download from `make whisper-model`.
 - **Only `ggml-base.en.bin` is installed** (`make whisper-model`); alignment
   matched 57/57 words with it, but a noisier read may want `small.en`.
 - **`tests/studio-watch.test.ts` flakes under load** (two different cases,
