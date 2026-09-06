@@ -3611,11 +3611,13 @@ to {
   bottom: calc(100% + 6px);
   z-index: 20;
   min-width: 210px;
-  max-height: 260px;
+  max-height: min(420px, 70vh);
   padding: 4px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);

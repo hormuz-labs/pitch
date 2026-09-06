@@ -35,7 +35,13 @@ import {
 import type { getAgent } from '../flows/index.js'
 import { ASSET_PATH } from '../projects/assets.js'
 import { emitProjectEvent, type StudioEvent } from './events.js'
-import { PI_EXTENSIONS_DIR, type Workspace } from './paths.js'
+import {
+  assembleStudioPicker,
+  DEFAULT_STUDIO_MODEL,
+  parseModelSpec,
+  studioModelSpecs,
+} from './model-picker.js'
+import { PI_DIR, PI_EXTENSIONS_DIR, type Workspace } from './paths.js'
 import { unwatchWorkspace, watchWorkspace } from './watch.js'
 
 const logger = createLogger('studio:session')
@@ -84,13 +90,13 @@ const SANDBOX_EXTENSION = path.join(PI_EXTENSIONS_DIR, 'bwrap-sandbox.ts')
 // an error, and the studio silently falls back to pi's own default — which
 // carries no Gemini key here, so the first turn never runs and the project
 // sits at "working" forever. Check against the runtime before changing it.
-const MODEL_SPEC = process.env.STUDIO_MODEL || 'google/gemini-3.7-flash'
+const MODEL_SPEC = process.env.STUDIO_MODEL || DEFAULT_STUDIO_MODEL
+const ALLOWED_SPECS = studioModelSpecs()
 const THINKING_LEVEL = (process.env.STUDIO_THINKING || 'high') as any
+const STUDIO_MODELS_JSON = path.join(PI_DIR, 'models.json')
 
 function resolveModel(spec = MODEL_SPEC): { model?: any; thinkingLevel?: any } {
-  const slash = spec.indexOf('/')
-  const provider = slash > 0 ? spec.slice(0, slash) : 'google'
-  const id = slash > 0 ? spec.slice(slash + 1) : spec
+  const { provider, id } = parseModelSpec(spec)
   const model = modelRuntime.getModel(provider, id)
   if (!model) {
     logger.warn({ provider, id }, 'studio model not found in the runtime — using pi default')
@@ -99,14 +105,43 @@ function resolveModel(spec = MODEL_SPEC): { model?: any; thinkingLevel?: any } {
   return { model, thinkingLevel: THINKING_LEVEL }
 }
 
+function openRouterApiKey(): string | undefined {
+  const key = process.env.OPENROUTER_API_KEY?.trim()
+  return key || undefined
+}
+
+function providerIsRunnable(provider: string): boolean {
+  if (modelRuntime.hasConfiguredAuth(provider)) return true
+  if (provider === 'openrouter') return Boolean(openRouterApiKey())
+  if (provider === 'google') {
+    return Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY)
+  }
+  return false
+}
+
 export function initStudio(): Promise<void> {
   if (!initPromise) {
     initPromise = (async () => {
-      modelRuntime = await ModelRuntime.create()
+      modelRuntime = await ModelRuntime.create({ modelsPath: STUDIO_MODELS_JSON })
+      const orKey = openRouterApiKey()
+      if (orKey) {
+        try {
+          await modelRuntime.setRuntimeApiKey('openrouter', orKey)
+        } catch (err) {
+          logger.warn({ err }, 'could not apply OPENROUTER_API_KEY to the model runtime')
+        }
+      } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'openrouter')) {
+        logger.warn(
+          { allowed: ALLOWED_SPECS },
+          'OPENROUTER_API_KEY is not set — OpenRouter models will be hidden from the picker',
+        )
+      }
       const m = resolveModel()
       logger.info(
         {
           model: m.model ? `${m.model.provider}/${m.model.id}` : '(pi default)',
+          allowed: ALLOWED_SPECS,
+          openrouter: Boolean(orKey),
           thinking: THINKING_LEVEL,
         },
         'studio model runtime ready',
@@ -412,20 +447,28 @@ export function peekSession(projectId: string): Session | undefined {
 export const STUDIO_DEFAULT_MODEL = MODEL_SPEC
 
 /**
- * What the composer's model picker may offer: only models the runtime can
- * actually run — a provider without a configured key would fail the turn.
+ * What the composer's model picker may offer: only the allowlisted specs
+ * the runtime can actually run. A provider without a key is dropped so a
+ * turn cannot pick something that would fail.
  */
 export async function listStudioModels(): Promise<{ spec: string; label: string }[]> {
   await initStudio()
-  const seen = new Set<string>()
-  const out: { spec: string; label: string }[] = []
+  const available = new Map<string, any>()
   for (const m of await modelRuntime.getAvailable()) {
     const spec = `${m.provider}/${m.id}`
-    if (seen.has(spec)) continue
-    seen.add(spec)
-    out.push({ spec, label: m.name || m.id })
+    if (!available.has(spec)) available.set(spec, m)
   }
-  return out
+  for (const spec of ALLOWED_SPECS) {
+    if (available.has(spec)) continue
+    const { provider, id } = parseModelSpec(spec)
+    const model = modelRuntime.getModel(provider, id)
+    if (model && providerIsRunnable(provider)) available.set(spec, model)
+    else logger.warn({ spec }, 'STUDIO_MODELS entry is not runnable here — hidden from the picker')
+  }
+  return assembleStudioPicker(available.values(), {
+    defaultSpec: MODEL_SPEC,
+    specs: ALLOWED_SPECS,
+  })
 }
 
 /**
