@@ -1,0 +1,20 @@
+{
+  "move": "black bar wipes across, thins away, type rises, bar returns to wipe",
+  "how": "A warm white 1080 square with a 14px black bar across the middle, four corner labels, a kicker, two 132px lines (one italic serif word) and three sub items in masks. The bar grows scaleX 0 to 1 from the left (expo.inOut, first 16%) then collapses scaleY to 0 (expo.inOut) as the kicker and lines rise yPercent 110 to 0 with a 0.12s stagger (expo.out, 0.9s, from 19%), then the sub items and corners fade in. The whole block eases from x 24 to 0 over 2.2s and the italic skews to -6 and back (sine.inOut). At 83% the lines fly up (expo.in), the kicker and subs follow, corners fade, and the bar returns from the right at full height (expo.inOut) then snaps to scaleX 0 from the left in the last 2%.",
+  "moves": [
+    "mask-wipe",
+    "draw-line",
+    "mask-rise",
+    "stagger",
+    "skew"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the two lines (keep one italic word), kicker, sub items and corners, the bar colour and thickness; keep the bar-in/thin/bar-return structure at 0%, 17% and 89%.",
+  "port": "mount(el, shot) builds the bar, rows and labels; animate(el, shot, D) returns the timeline with the bar at 0, 0.17D and 0.89D, lines at 0.19D. Scope selectors to el.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

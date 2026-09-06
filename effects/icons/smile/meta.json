@@ -1,0 +1,26 @@
+{
+  "move": "liquid orange blob face wobbles, eyes squash-blink, mouth stretches wide, ring swells out",
+  "how": "A pure canvas drawing on a yellow field: 26 dark specks orbit the centre on seeded radii; a big orange metaball-style blob (90-point polygon whose radius wobbles with sine lobes driven by t) with a lighter inner blob, both squashing scaleX 1+.07sin(2p) and rotating +-0.08rad on a slow breath; two dark blob eyes with yellow highlights that drift and blink (scaleY collapsing to .1) around 45% of the loop; a bezier mouth whose corner width swings 150-250px and whose drop swells with a 12px wobble, a pink tongue blob clipped inside it; and a dark outline ring that expands from r 380 to 640 while its line thins and fades once per loop. Every quantity is a periodic function of p = t/5, so frame 150 equals frame 0.",
+  "moves": [
+    "blob-wobble",
+    "squash",
+    "blink",
+    "orbit",
+    "ripple",
+    "breathe"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "adapt": "Change the four colours (yellow field, orange blobs, dark ink, pink tongue), the speck count and the blob radii; the eye and mouth positions are hard offsets from centre. Keep the sine-driven wobble frequencies and the single blink at 45%.",
+  "port": "mount(el, shot) appends a canvas sized to el and stores the seeded specks; animate(el, shot, D) returns a gsap timeline holding one tween of a {p:0}->{p:1} proxy over D with onUpdate calling the draw(p) function, since this is an fx.register seek loop rather than GSAP tweens. The draw assumes a 1080x1080 canvas with centre 540,540; scale the context by el size.",
+  "caveats": [
+    "canvas seek loop: port as a proxy tween with onUpdate",
+    "draw code assumes a 1080x1080 canvas",
+    "the ring swell uses (p*1.0)%1 so it snaps at the loop point, by design",
+    "catalog says abstract expressive motion; the file is a smiley face, not a Luc Chaissac composition"
+  ],
+  "fidelity": "approximation",
+  "loop": true,
+  "size": "1080x1080"
+}

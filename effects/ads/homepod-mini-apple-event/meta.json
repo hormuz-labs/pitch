@@ -1,0 +1,25 @@
+{
+  "move": "speaker drops in, squashes, Siri glow wakes, colours cycle with swatches",
+  "how": "A CSS-built HomePod (radial-gradient sphere, dotted mesh, dark top disc) drops from y -520 / scale 0.7 with expo.out over 1s and settles with an elastic.out(1,0.45) scaleY 0.94→1 squash; a floor light blooms from scaleX 0.3. At 27% the top disc's blurred rainbow glow fades in and slowly rotates 180 while scaling to 1.15, and three rings breathe outward (opacity 0.6→0, scale 1→2.4, stagger 0.35, repeat 1). Masked headline and subline rise (expo.out), five swatch dots pop with back.out(3). The mesh's backgroundPositionX drifts 0→60px linearly so the highlight appears to turn. From 45% every 0.45s the body's radial-gradient background tweens to the next swatch colour while that swatch scales 1.4 yoyo. Exit at 87%: text up, swatches scale 0, pod flies back up to y -520 / scale 0.7, floor fades.",
+  "moves": [
+    "drop-in",
+    "squash",
+    "glow",
+    "ripple",
+    "colour-cycle",
+    "pop"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the colour list (swatches and body gradient), product name, subline and caption; keep the 1.0s drop with elastic squash and the 0.45s colour cadence.",
+  "port": "mount(el, shot) builds the pod, floor, swatches and text; animate(el, shot, D) returns the timeline with the drop at 0-0.25D, glow at 0.27D, colour cycle from 0.45D, exit at 0.87D. The body background is tweened as a full radial-gradient string; from() tweens on '.pod' and '.floor' need immediateRender:false when the timeline is built after mount. Scope all selectors to el.",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "glow uses filter: blur(8px) and the body background is a gradient string tween",
+    "ring repeat overruns the 4s duration and is clipped"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

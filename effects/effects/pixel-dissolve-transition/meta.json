@@ -1,0 +1,24 @@
+{
+  "move": "two title scenes swap through a pixel grid popping cell by cell",
+  "how": "Two offscreen canvases each draw a landscape image with a slow sine zoom, a dark wash and a centred title and subline (Before / After). The output holds scene A for 0.15 D, dissolves to B over 0.35 D, holds B, then dissolves back. Each 40px cell has a seeded threshold biased along a top-left to bottom-right diagonal; when the eased progress passes a cell threshold the incoming cell pops in from its centre with a cubic ease over a 12% window, flashed white as it lands, so the wipe travels while staying speckled.",
+  "moves": [
+    "pixelate",
+    "mask-wipe",
+    "stagger",
+    "pop",
+    "flash"
+  ],
+  "libs": [
+    "gsap",
+    "canvas"
+  ],
+  "adapt": "Replace the two images, titles and sublines, cell size CW/CH, and the diagonal bias to change the wipe direction. Keep the 12% per-cell pop window and the white flash for the pixel feel.",
+  "port": "mount(el, shot) creates the output and two scene canvases, loads images and builds the threshold table; animate(el, shot, D) returns a timeline with one linear progress tween over D whose onUpdate draws both scenes and the cell dissolve, replacing fx.register. Wait for image decode and fonts before the first frame.",
+  "caveats": [
+    "scene zoom uses raw sin(t), about 2% scale mismatch at the loop boundary",
+    "canvas text depends on the fonts being loaded; the original only relies on document.fonts.ready"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

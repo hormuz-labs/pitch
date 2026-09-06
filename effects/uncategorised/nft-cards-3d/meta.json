@@ -1,0 +1,27 @@
+{
+  "move": "three textured 3D cards orbit a ring, spinning and bobbing, camera drifts",
+  "how": "A three.js scene on a near-black stage: three box-geometry cards (2.2 x 3.1 x 0.06) with generative canvas-texture artwork (seeded shapes, baked frame and label) and metallic edges are placed on a ring of radius 3.1 inside a group. Each frame the group rotates a full turn per loop (rotation.y = p*2pi); each card counter-rotates the group and adds its own full spin plus a sine wobble of 0.55rad, bobs in y by 0.22 twice per loop and rocks in z by 0.06rad. A 300-point purple dust field rotates half a turn the other way, and the camera bobs 0.35 in y while looking at the origin, lit by a key directional light and pink and violet rim point lights. HTML title and edition labels sit static over the canvas. All motion is periodic so the loop closes except the dust (half turn), which is nearly uniform.",
+  "moves": [
+    "orbit",
+    "spin",
+    "bob",
+    "camera-drift",
+    "particles",
+    "seamless-loop"
+  ],
+  "libs": [
+    "three",
+    "canvas"
+  ],
+  "adapt": "Replace the art() generator (or map real artwork textures), the seeds/hues, card count, ring radius, light colours and the HTML title/edition strings. Keep the one-orbit-per-loop rate and the bob/wobble amplitudes.",
+  "port": "mount(el, shot) creates the renderer on a canvas inside el sized to el, builds the scene, textures and dust, and appends the HTML labels. animate(el, shot, D) returns a timeline with a proxy tween ({t:0}->{t:D}, ease none) whose onUpdate runs the per-frame scene update and renderer.render, replacing the fx.register seek loop; the module importmap for three must be available to shots.custom.js.",
+  "caveats": [
+    "WebGL renderer with preserveDrawingBuffer; needs three loaded via importmap as an ES module",
+    "seek callback renders the scene every frame",
+    "dust field rotates only half a turn per loop so it does not close exactly, but the points are uniform enough that the seam is invisible",
+    "W/H fixed at 1280x720"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

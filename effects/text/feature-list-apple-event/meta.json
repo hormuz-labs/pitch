@@ -1,0 +1,24 @@
+{
+  "move": "each feature blurs in large at hero, then recedes small into stack",
+  "how": "Black keynote frame with a violet blurred glow drifting sine.inOut across the 4s, a grey kicker, three feature lines (violet dot, white lead, grey tail), a hairline rule that draws via scaleX with expo.out and a footer. Every 1.1s from 9%, one feature resolves at the hero position: opacity 0 to 1, filter blur(18px) to 0 and x 40 to 0 with power3.out over 0.7s, no bounce. When the next arrives, the previous one recedes: y moves up to its slot in a stack and scale drops to .42 with power3.inOut over 0.75s while its lead colour dims to grey. The last feature joins the stack at 81%; at 90% every line, kicker and footer blur out (blur(10px), power2.in, 0.03s stagger) and the rule retracts from the right.",
+  "moves": [
+    "blur-in",
+    "recede",
+    "stack",
+    "sequence",
+    "draw-line",
+    "blur-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the kicker, the lead/tail pairs (three to five), the accent colour and the footer; LIST_Y slots must be regenerated for the item count and the hero y from the font size. Keep the 1.1s beat, the 0.7s power3.out blur-in and the scale .42 recede.",
+  "port": "mount(el, shot) renders glow, kicker, .item lines from shot.features, rule and foot, and applies the initial gsap.set state; animate(el, shot, D) returns a gsap.timeline with item i at (0.35+i*1.1)/4*D, recedes at at+beat-0.1, and the exit at 0.9D. Scope '#i1'-style ids to el classes.",
+  "caveats": [
+    "filter blur(40px) on the 1100px glow plus text blur is slow to render",
+    "the initial gsap.set must run in mount before the timeline is built"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

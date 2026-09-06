@@ -1,0 +1,27 @@
+{
+  "move": "tap plus on avatar, gradient story ring draws around, picture springs, sparks, toast, ring erases",
+  "how": "Three story avatars in a row (outer two dimmed), the centre one with a grey circle, a gradient arc circle, a blue plus button, a magenta glow, twelve sparks and a 'Story shared' toast. 0-15%: the stories rise 40px with a 0.08s stagger (expo.out). At 20% the plus squashes to .7, at 24% springs to 1.15 while rotating 90 (back.out(3)), at 37% shrinks to 0 (back.in(2)). At 25% the arc drawSVGs 0%->100% clockwise from the top over 0.9s (expo.inOut) as the picture dips to .9 then elastic.out(1,.4) back, and its photo slowly zooms to 1.15 over 2.5s. At 42% the glow fades in and scales 1.1, then out to 1.4; at 46% sparks fly outward from r 100 to 140-200px fading (expo.out). At 50% the toast rises in (expo.out) and at 82% lifts out. At 84% the arc erases (drawSVG '100% 100%', expo.inOut), the plus returns with back.out(2) and the photo zoom resets, so the end matches the start.",
+  "moves": [
+    "stagger",
+    "press",
+    "draw-stroke",
+    "elastic",
+    "particles",
+    "glow",
+    "slide-in"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Swap the three photos and names, the gradient stops (#feda75/#d62976/#4f5bd5) and the plus blue (#0095f6), and the toast text. Keep the 0.15s press, the 0.9s expo.inOut ring draw and the erase-and-reset tail.",
+  "port": "mount(el, shot) builds the row, the gradient defs with a unique id, and the sparks inside el; animate(el, shot, D) returns the timeline with the tap at 0.2D, ring at 0.25D, sparks at 0.46D, toast at 0.5D and reset at 0.84D. Register DrawSVGPlugin; scope '.main', '.arc', '.plus', '.toast' to el; the row entrance from() needs immediateRender:false when nested.",
+  "caveats": [
+    "the linearGradient id 'g' is global and must be made unique",
+    "story row entrance from() does not reverse, otherwise the loop closes",
+    "loads three assets/backgrounds images by relative url"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

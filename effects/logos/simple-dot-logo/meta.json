@@ -1,0 +1,24 @@
+{
+  "move": "a dot drops in and bounces to rest with squash, the letters rise out of the baseline right to left",
+  "how": "A single text row 'mono' with four letter spans (opacity 0) and a dot span sitting in a slot at the end. 0-17%: the dot falls from y -300 with power2.in, on contact squashes scaleY .6/scaleX 1.3 from its bottom (0.07s) and recovers, rebounds to y -120 (power2.out) and back (power2.in) by 38%, squashes .75/1.15 and rebounds to y -40 by 52%. At 48% the letters rise from y 40, opacity 0 with expo.out and a 0.06s stagger from the end (nearest the dot first). At 67% the dot breathes scale 1.25 in a sine yoyo. Exit at 82%: the letters sink 40px fading with a 0.04s stagger (power3.in), then at 90% the dot shoots up out to y -300 (power2.in).",
+  "moves": [
+    "drop",
+    "bounce",
+    "squash",
+    "stagger",
+    "slide-in",
+    "slide-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the word letters, the dot size and colour (#161616) and the background. Keep the three-bounce heights (-300, -120, -40), the 0.07s and 0.06s squash beats and the right-to-left 0.06s letter stagger.",
+  "port": "mount(el, shot) builds the row with letter spans from shot.word and the dot slot inside el; animate(el, shot, D) returns the timeline with the drop 0-0.17D, letters at 0.48D, breath at 0.67D, exit at 0.82D. Scope '.dot', '.ch' to el; the dot from() needs immediateRender:false when nested; the fall height assumes the dot sits near frame centre.",
+  "caveats": [
+    "from() on the dot needs immediateRender:false when nested",
+    "ends with letters hidden and the dot off-frame, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

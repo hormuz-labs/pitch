@@ -1,0 +1,21 @@
+{
+  "move": "coloured balls bounce in a travelling wave with squash and stretch",
+  "how": "Nine 84px balls in orange, yellow, mint and blue sit on a faint floor line with a blurred dark shadow ellipse under each. A seek function gives every ball a bounce phase once per second offset by 0.11 per ball, so the bounce runs down the line: 16% of each cycle is floor contact with scaleX up to 1.32 and scaleY down to 0.62, the rest is a parabola into the air with a slight stretch. Jump height swells between 100 and 280px with one sine cycle per D, and each shadow shrinks and fades as its ball rises. Four bounces per 4s loop, so the last frame equals the first.",
+  "moves": [
+    "bounce",
+    "squash",
+    "stagger",
+    "ripple"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the ball colours and count, the floor position and the bounce period; a single ball works as a loader. Keep the 0.11 phase offset per ball and an integer number of bounces per D.",
+  "port": "mount(el, shot) creates the floor, shadows and balls; animate(el, shot, D) returns a timeline with a single linear progress tween over D whose onUpdate runs the bounce maths and gsap.sets y/scaleX/scaleY per ball and scale/opacity per shadow. The x layout is centred on 640px; compute from the shot width.",
+  "caveats": [
+    "motion is a seek function with a custom bounce curve, not tweens; port as a progress tween with onUpdate"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,21 @@
+{
+  "move": "payment cards drop onto a stack, older ones push down, total counts",
+  "how": "A dark stage with a caption, a 600px stack area and a Net today counter. Five white cards start at y -90, scale .9, invisible. At 4%, 19%, 33%, 48% and 62% each one springs into the top slot with back.out(1.7) over 0.7s; every earlier card shifts down one 118px slot with power3.out, shrinking 2% and dimming 12% per depth, and anything deeper than three slots tucks under and fades. Each arrival re-counts the running total with expo.out and its amount pops from scale 1.25 with back.out(2). At 86% the cards lift 60px and fade with a 0.05s stagger, the total returns to zero with power3.inOut, and a set() at the last frame parks the cards above the frame again.",
+  "moves": [
+    "drop-in",
+    "spring",
+    "stack-push",
+    "counter",
+    "pop",
+    "fade-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the merchant names, messages, icon colours and amounts (data-v drives the total); change arrival beats via data-t and the slot gap (118px) to the card height; keep the back.out(1.7) 0.7s landing and the MAX 3 visible depth.",
+  "port": "mount(el, shot) builds the stack from shot.payments with data-t fractions and data-v values; animate returns the timeline placing each arrival at t*D and the clear at 0.86D. Direct port; scope the card and counter queries to el.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

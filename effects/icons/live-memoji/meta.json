@@ -1,0 +1,26 @@
+{
+  "move": "cartoon head tilts and nods, eyes look and blink, mouth morphs to talk then grins, audio bars pulse",
+  "how": "A CSS-built face (skin, hair, ears, eyes with pupils and lids, brows, nose, blush cheeks) over a dark bubble, an SVG mouth path, nine waveform bars and a blinking 'Recording Memoji' pill. The bars scaleY to seeded random heights every 0.5s with a per-bar 0.03s offset (sine.inOut) then settle to 1 at 96%. The head rotates -8 and shifts left over 5-22%, then rotation 6 and right at 27-47%, then springs up 12px to rotation 0 with back.out(2) at 52% and settles by 87%. Pupils drift left, right and centre; lids blink (yPercent 100 then back, 0.09/0.12s) at 22% and 65%. At 52% the brows lift 18px and angle with back.out(2), relaxing at 72%. The mouth path morphs neutral->open->neutral twice (talking) between 7% and 30%, gasps open at 52%, morphs to a wide smile with elastic.out(1,.5) at 65% as the cheeks brighten, and returns to neutral by 97%. The rec dot fades yoyo eight times.",
+  "moves": [
+    "morph",
+    "nod",
+    "blink",
+    "eye-look",
+    "audio-bars",
+    "wiggle"
+  ],
+  "libs": [
+    "gsap",
+    "MorphSVG"
+  ],
+  "adapt": "Change the skin, hair and background colours, the label text, the bar colour, and the mouth path shapes for a different expression sequence. Keep the blink 0.09/0.12 timing, the surprise beat at ~52% and the elastic smile.",
+  "port": "mount(el, shot) builds the face markup and bars inside el, seeding fx.rng for the bar heights; animate(el, shot, D) returns the timeline with all positions as fractions of D (talk 0.07-0.3D, surprise 0.52D, smile 0.65D, neutral 0.87D). Register MorphSVGPlugin; scope '#mp', '.head', '.pupil', '.lid', '.brow' to el and rename the id.",
+  "caveats": [
+    "needs MorphSVGPlugin (club plugin)",
+    "cheeks use filter: blur(4px), cheap",
+    "face returns to neutral and bars to scale 1 but pupils and head are reset via tweens, so the loop closes acceptably"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

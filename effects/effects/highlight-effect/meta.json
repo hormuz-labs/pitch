@@ -1,0 +1,23 @@
+{
+  "move": "light sweeps across headline, button and stat card; marker underline draws",
+  "how": "A dark hero layout: headline with one word wrapped in a yellow marker stroke, body copy, a white button and a stat card. A full-frame overlay gradient sweeps xPercent -110 to 110 with power2.inOut over 0.35 D, twice per loop; skewed sheen bands follow it across the headline, then the button, then the card, each 0.7-0.9s with the same ease. The marker path DrawSVGs in behind the key word at 0.175 D with power3.out and wipes away at 0.83 D with power3.in; the card ring flashes on with expo.out and the stat number pops scale 1.08 with back.out(3) twice.",
+  "moves": [
+    "sheen",
+    "draw-stroke",
+    "stagger",
+    "pop",
+    "mask-wipe"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Replace headline, highlighted word, body, button and stat text, the marker colour and stroke width; add or remove sheen targets. Keep the sweep-then-local-sheen order and the draw-then-wipe on the marker so the loop closes.",
+  "port": "mount(el, shot) injects the layout with sheen divs and the marker SVG; animate(el, shot, D) returns the same timeline with sweep times at 0.025 D and 0.575 D and sheens following, selectors scoped to el. DrawSVGPlugin must be registered.",
+  "caveats": [
+    "mix-blend-mode screen and overlay layers over text"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

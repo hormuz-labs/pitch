@@ -1,0 +1,23 @@
+{
+  "move": "two image blocks wipe down, serif titles rise, word captions cascade",
+  "how": "Two stacked blocks each hold an image and a caption. An enter() helper reveals each image with clip-path inset bottom 100%→0 (expo.inOut 0.9s) while its inner layer eases from scale 1.15 / yPercent -6 to rest (expo.out 1.6s); the index number slides from x -14, the serif heading rises masked from yPercent 110 (expo.out) and the description words (split into spans) cascade y 14→0 with opacity, stagger 0.03 (power3.out). Block one enters at 2.5%, a dividing line scales x 0→1 at 17% (expo.inOut), block two enters at 22%; header and footer fade in. From 42% both images Ken Burns to scale 1.06 linearly. exit() at 75% and 81%: headings exit upward with expo.in, words fade with a 0.01 stagger, images wipe closed to inset top 100% (expo.in 0.5s), the line shrinks from the right and header/footer fade.",
+  "moves": [
+    "mask-wipe",
+    "text-rise",
+    "word-cascade",
+    "ken-burns",
+    "draw-stroke"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace the two images, product names and descriptions, the header/footer strings and the paper colour; keep enter()'s 0.9s wipe with 1.6s settle and the 0.8s spacing between blocks.",
+  "port": "mount(el, shot) builds the two blocks, splits '.cap p' into .w spans and adds header/line/footer; animate(el, shot, D) returns the timeline with enter at 0.025D and 0.225D, hold 0.42-0.75D, exits at 0.75D/0.81D. Move enter()/exit() inside animate with el-scoped selectors; from() tweens need immediateRender:false.",
+  "caveats": [
+    "from() tweens need immediateRender:false"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

@@ -1,0 +1,24 @@
+{
+  "move": "tweet card rises, words cascade in, counters tick, heart pops with burst",
+  "how": "A white platform-styled tweet card rises from y 120 / scale 0.9 / opacity 0 with expo.out over 0.9s while a blue radial glow blooms behind it (scale 0.4→1). Avatar pops with back.out(2), name/handle slide from x -20, the verified badge pops back.out(3), and the body text (split into word spans at load) cascades in with y 18→0 and opacity, stagger 0.028 (power3.out). Timestamp, rules, stats and action row fade up at 24%. Repost/quote/like counters tween 0→312/48/4,180 over 1.4s (power3.out). At 52% the like taps: the heart scales 1.45 then settles elastic.out(1,0.4), the row turns pink via class toggle, the count flips to 4,181 and eight burst dots fly out radially 30px fading. The card floats y -8 and back while holding, then exits y -80 / scale 0.94 / opacity 0 with expo.in at 90%, glow fades.",
+  "moves": [
+    "slide-in",
+    "word-cascade",
+    "counter",
+    "pop",
+    "particle-burst",
+    "float"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the name, handle, avatar gradient, tweet body and hashtag, timestamp and the counter targets; keep the word stagger 0.028, the 1.4s counter and the like beat at 52%.",
+  "port": "mount(el, shot) builds the card, splits the body into .w spans and appends the burst dots; animate(el, shot, D) returns the timeline with entrance 0-0.3D, counters 0.28D, like at 0.52D, exit 0.9D. Replace the call() class toggles and textContent swaps with tweens or el-scoped calls; from() tweens need immediateRender:false.",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "liked state and like count are set via call(), which can go stale when scrubbing backwards"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

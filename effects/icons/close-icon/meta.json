@@ -1,0 +1,25 @@
+{
+  "move": "modal rises, X disc pops, strokes draw and rotate in, hover spin, press, dismiss",
+  "how": "A dark modal card with placeholder bars, a button, and a circular X button in its corner made of two SVG strokes. 0-23%: the modal rises 60px with scale .94->1 and fades in (expo.out); at 12% the X disc scales 0->1 with back.out(2) while its SVG rotates -90->0 (expo.out) and the two diagonal strokes drawSVG in from opposite ends (power3.out, 0.35s each, offset 0.12s). At 43% a hover state: the disc rotates 90deg, scales 1.12 and turns red (#ff4d5e) with back.out(2). At 68% a press: scale .9 then 1.1 in 0.27s; at 78% the modal drops 40px, shrinks to .94 and fades out with power3.in so the frame ends empty.",
+  "moves": [
+    "slide-in",
+    "pop",
+    "draw-stroke",
+    "spin",
+    "press",
+    "fade-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Swap the modal contents for a real screenshot or product card, the accent blue and the hover red for brand colours, and the X for any icon. Keep the 0.7s expo.out entrance, the back.out(2) pop and the 0.12/0.15 press beat.",
+  "port": "mount(el, shot) builds the modal and X markup inside el; animate(el, shot, D) returns the same timeline with positions as fractions of D (modal 0, X at 0.12D, hover at 0.43D, press at 0.68D, dismiss at 0.78D). Scope all selectors to el; register DrawSVGPlugin; from() tweens need immediateRender:false.",
+  "caveats": [
+    "from() tweens need immediateRender:false when nested",
+    "ends with the modal gone; does not return to the first frame"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

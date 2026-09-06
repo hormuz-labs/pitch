@@ -1,0 +1,27 @@
+{
+  "move": "route draws with plane, erases into last stop, stop blooms into logo",
+  "how": "A navy stage with a dense dot grid, a curved route path with a blurred glow twin, five stop circles, a plane icon and a centred logo (ring, arrow mark, name and tag in masks). Dots fade in with a tiny stagger; stops pop scale 0 with back.out(3) 0.45s apart; from 4% the path and glow draw with DrawSVG 0 to 100% over 2.2s (power2.inOut) while the plane rides the path with MotionPathPlugin. At 46% the line erases from its tail (drawSVG 100% 100%, power3.in), the plane shrinks, the other stops collapse and the last stop tweens its cx/cy/r attributes to the centre at radius 38 (expo.inOut). It fades as the logo ring draws itself (DrawSVG), the arrow spins in with back.out(2), and the name and tag rise through masks. At 92% the logo lifts y -40 and fades and the dots go out.",
+  "moves": [
+    "draw-stroke",
+    "motion-path",
+    "morph-handoff",
+    "mask-rise",
+    "pop-in"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "MotionPath",
+    "svg-filter"
+  ],
+  "adapt": "Change the path d and stop coordinates, the mark SVG, name and tag, colours; keep the 2.2s draw, the tail erase at 46% and the stop-to-ring handoff.",
+  "port": "mount(el, shot) builds the SVG, dot grid and logo and measures the mark centre from el (not the document) in stage coordinates; animate(el, shot, D) returns the timeline with draw at 0.04D, handoff 0.46D to 0.62D, exit 0.92D. The getBoundingClientRect measurement assumes the stage is unscaled at 1280x720; convert to viewBox units in mount.",
+  "caveats": [
+    "uses getBoundingClientRect of the mark at build time, so it assumes an unscaled 1280x720 stage",
+    "the plane is visible at the top-left corner until its motionPath tween starts at 0.2s",
+    "attr tween on cx/cy/r plus a blurred glow stroke"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

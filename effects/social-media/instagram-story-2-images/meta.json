@@ -1,0 +1,24 @@
+{
+  "move": "image one breathes in, image two wipes down over it, labels swap",
+  "how": "Two full-bleed images stack; the second starts clipped to inset bottom 100%. Image one's inner layer eases from scale 1.15 / yPercent 4 to 1 / 0 over 2s (power2.out) while a pill drops from y -30, the '01 / 02' small label slides from x -20 and two headline words rise masked from yPercent 110 (expo.out, stagger 0.1); the first story progress segment fills scaleX 0→1 linearly. At 40% the headline exits upward (expo.in), the second image wipes down (clip-path inset 0 0 100% 0 → 0, expo.inOut 0.9s) with its inner layer moving yPercent -10→0 from scale 1.12, while image one pushes down yPercent 10 and scales 1.1; the second label set rises and the second progress segment fills. At 86% the second headline exits, image one's inner layer is reset by a set, image two wipes back up to inset top 100% with expo.inOut, and the progress bars are zeroed on the last frame.",
+  "moves": [
+    "ken-burns",
+    "mask-wipe",
+    "push",
+    "text-rise",
+    "progress-bar"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace the two images, the two two-word headlines and their counters, and the pill text; keep the 2s breathe, the 0.9s expo.inOut wipe at 1.9s and the counter-push on the outgoing image.",
+  "port": "mount(el, shot) builds the two image layers, shade, progress bar, pill and two labels with the initial sets; animate(el, shot, D) returns the timeline with wipe at 0.475D, second label at 0.6D, exit at 0.86D. #a/#b/#l1/#l2 become el-scoped; from() tweens need immediateRender:false (the fromTo on '#b i' already sets it).",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "backdrop-filter: blur(12px) on the pill"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

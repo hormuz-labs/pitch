@@ -38,7 +38,11 @@ export const FAMILIES = {
   /** Always: the file tools' companion for "this is nearly right, but…". */
   core: [extension('media-tools.ts')],
   /** Launch films: shots.js + the GSAP engine. */
-  motion: [extension('html-motion-tools.ts'), extension('video-gen-tools.ts')],
+  motion: [
+    extension('html-motion-tools.ts'),
+    extension('effects-tools.ts'),
+    extension('video-gen-tools.ts'),
+  ],
   /** Decks: scaffold, scrape, build, render, publish. */
   deck: [extension('deck-tools.ts'), extension('pdf-tools.ts')],
   /** Demos: drive the browser, narrate, record. */

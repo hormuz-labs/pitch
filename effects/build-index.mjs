@@ -14,12 +14,13 @@ const cards = cat.map(c => {
   const has = fs.existsSync(path.join(ROOT, rel, 'index.html'));
   const mp4 = fs.existsSync(path.join(ROOT, rel, 'render.mp4'));
   let rj = null; try { rj = JSON.parse(fs.readFileSync(path.join(ROOT, rel, 'render.json'), 'utf8')); } catch {}
+  let meta = null; try { meta = JSON.parse(fs.readFileSync(path.join(ROOT, rel, 'meta.json'), 'utf8')); } catch {}
   if (has) built++; if (mp4) rendered++;
   const status = !has ? 'todo' : rj && rj.error ? 'fail' : mp4 ? 'ok' : 'unrendered';
-  return `<article class="card ${status}" data-fam="${c.familySlug}" data-status="${status}" data-name="${esc(c.name.toLowerCase())}">
+  return `<article class="card ${status}" data-fam="${c.familySlug}" data-status="${status}" data-name="${esc((c.name + ' ' + (meta && meta.move ? meta.move + ' ' + (meta.moves || []).join(' ') : '')).toLowerCase())}">
   ${mp4 ? `<video muted loop playsinline preload="none" poster="${rel}/poster.jpg" data-src="${rel}/render.mp4"></video>` : `<div class="ph">${status}</div>`}
   <div class="meta"><h3>${esc(c.name)} <span>${c.seconds}s${rj && rj.duration ? ` → ${rj.duration.toFixed(1)}s` : ''}</span></h3>
-  <p>${esc(c.description)}</p>
+  <p>${esc(c.description)}</p>${meta && meta.move ? `<p class="move"><b>${esc(meta.move)}</b>${meta.fidelity && meta.fidelity !== 'faithful' ? ` <i>${esc(meta.fidelity)}</i>` : ''}${meta.libs && meta.libs.length ? ` <small>${esc(meta.libs.join(', '))}</small>` : ''}</p>` : ''}
   <nav>${has ? `<a href="${rel}/index.html" target="_blank">play</a> <a href="${rel}/index.html?render" target="_blank">code</a>` : ''}${c.jitterUrl ? ` <a href="${c.jitterUrl}" target="_blank">jitter</a>` : ''}${rj && rj.errors && rj.errors.length ? ` <b title="${esc(rj.errors.join('\n'))}">⚠ ${rj.errors.length}</b>` : ''}${rj && rj.error ? ` <b>✗ ${esc(rj.error.slice(0, 80))}</b>` : ''}</nav></div>
 </article>`;
 }).join('\n');
@@ -34,7 +35,7 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:
 .card .ph{display:grid;place-items:center;color:#999;text-transform:uppercase;letter-spacing:.1em}
 .card.fail .ph{background:#fbe6e6;color:#a00}
 .meta{padding:10px 12px}h3{margin:0 0 4px;font-size:15px}h3 span{color:#888;font-weight:400;font-size:12px}
-p{margin:0 0 6px;color:#444}nav a{margin-right:10px}nav b{color:#a00;font-weight:500}
+p{margin:0 0 6px;color:#444}p.move{color:#222}p.move b{font-weight:600}p.move i{color:#b36b00}p.move small{color:#888}nav a{margin-right:10px}nav b{color:#a00;font-weight:500}
 .hidden{display:none}
 </style>
 <header><strong>Effects lab</strong> <span id="count">${built}/${cat.length} built · ${rendered} rendered</span>

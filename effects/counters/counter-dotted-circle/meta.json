@@ -1,0 +1,26 @@
+{
+  "move": "dotted ring lights up clockwise to 87%, number pops, confetti bursts",
+  "how": "A 520px SVG ring of 48 dots (dash pattern) with a grey track and a pink inner dotted orbit, a 200px percentage at centre. The ring scales in from 0.6, rotation -60 (expo.out) and the centre from 0.7 with back.out(2). A state value tweens 0 to 87 over 2.2s (power3.inOut) from 0.12D; each seek writes the number and sets stroke-dashoffset on a mask circle so the yellow dots reveal clockwise. The dot ring ticks in discrete steps and the inner orbit spins -360 over the loop. At 0.68D the number pops to 1.12 and settles with elastic.out(1,0.4) while 26 seeded confetti squares fly out radially (expo.out) and fall away; at 0.93D ring and centre fade to 0 and scale 0.9.",
+  "moves": [
+    "counter",
+    "ring-fill",
+    "confetti",
+    "elastic",
+    "spin",
+    "mask-wipe"
+  ],
+  "libs": [
+    "gsap",
+    "css-mask"
+  ],
+  "adapt": "Change TARGET, the label, the dot count N and colours; keep the 2.2s power3.inOut fill and the 0.68D pop-plus-confetti beat.",
+  "port": "mount(el, shot) injects the SVG (with a unique mask id) and the confetti pieces; animate(el, shot, D) returns the timeline with an onUpdate on the state tween that writes the number, the mask dashoffset and the ring rotations (the __fx.seek override). Scope every getElementById to el.",
+  "caveats": [
+    "SVG mask id is document-level; multiple instances need unique ids",
+    "from() tweens need immediateRender:false",
+    "ring rotation is quantised in the seek so the dots step rather than glide"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

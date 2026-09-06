@@ -1,0 +1,26 @@
+{
+  "move": "card rises edge-on into light, sheen sweeps, flips and returns",
+  "how": "A metal card fromTo's y:380, rotationX:70, rotationY:-90, scale 0.8, opacity 0 to rest with expo.out over 1.8s while a light beam flashes and sweeps x:500 and a halo fades up; a kicker rises from a mask, a sheen strip sweeps xPercent -80→80 with power2.inOut, the card number groups rise out of masks staggered 0.1, footer fields fade up and a headline rises. From 0.24D the card floats to rotationY -14 with sine.inOut, at 0.42D flips to rotationY 180 with expo.inOut over 1.2s, drifts, then at 0.68D flips on to 360 and the sheen sweeps again; 40 seeded dust motes drift outward and fade. At 0.9D the text shoves up, the card lifts away y:-420 rotationX:-40 with power3.in and the halo fades.",
+  "moves": [
+    "flip-3d",
+    "rise-in",
+    "sheen-sweep",
+    "mask-text",
+    "particles",
+    "float"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the card brand, number groups, holder name, expiry, back-face text, kicker and headline, and the card gradient; keep the 1.8s expo.out rise and the 1.2s expo.inOut flips.",
+  "port": "mount(el, shot) builds .halo, .beam, .kick, a .card with front and back faces (backface-visibility hidden), .dust with 40 generated bits and .h1; animate(el, shot, D) returns the timeline with a seeded rng and offsets as fractions of D (rise 0.2/10, flip 4.2/10, flip back 6.8/10, exit 9.0/10). Container needs perspective:1400px; scope selectors to el.",
+  "caveats": [
+    "catalog says 16s but the file renders 10s",
+    "dust tweens use '>-0.3' relative positions; keep tween order when porting",
+    "from() tweens need immediateRender:false when rebuilt"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

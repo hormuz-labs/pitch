@@ -1,0 +1,27 @@
+{
+  "move": "pink ball drops and bounces with squash, seams draw on, spins, bounces out",
+  "how": "A pink circle SVG with three curved seam strokes, a blurred shadow ellipse, and a caption clipped to one line. 0-27%: the ball falls from y -420 with rotation -200 under bounce.out, squashing to scaleY .82/scaleX 1.14 at 14% (0.1s yoyo from the bottom origin) as it lands; the shadow grows from scaleX .2 with the same bounce. At 18% the seams drawSVG 0->100% with a 0.12s stagger (power2.out), then the ball eases to rotation 20 over 1.2s (sine.inOut). At 33% 'New shot posted' slides up from yPercent 120 (expo.out). Exit at 78-83%: a quick anticipation squash, then the ball launches to y -500 rotating 120 (power3.in) while the shadow shrinks and the caption slides up out.",
+  "moves": [
+    "drop",
+    "bounce",
+    "squash",
+    "draw-stroke",
+    "slide-in",
+    "slide-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Swap the caption string, the Dribbble pink (#ea4c89) and the seam paths for the product's mark or any round logo; keep the bounce.out drop, the 0.1s landing squash and the 0.12s seam stagger.",
+  "port": "mount(el, shot) builds the ball SVG, shadow and caption inside el; animate(el, shot, D) returns the timeline with positions as fractions of D (drop 0-0.27D, seams at 0.18D, text at 0.33D, exit at 0.78D). Register DrawSVGPlugin; scope selectors to el; the y -420/-500 offsets assume a 720px-tall frame and should be derived from el height. from() tweens need immediateRender:false when nested.",
+  "caveats": [
+    "from() tweens need immediateRender:false when nested",
+    "drop/exit distances assume a 720px frame",
+    "ends with the ball off-frame rather than returning to frame one",
+    "shadow uses filter: blur(6px), cheap at this size"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

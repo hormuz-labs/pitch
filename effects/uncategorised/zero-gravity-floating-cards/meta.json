@@ -1,0 +1,25 @@
+{
+  "move": "glass cards bob, tilt and drift weightlessly, shadows shrink as they rise",
+  "how": "Three frosted-glass product cards (backdrop-filter blur) float over a blurred aurora background in a perspective stage. Each frame a phase w = t/D*2pi drives every card: translateY sin(w+phase)*26*amp, translateX cos*10, rotateY cos*14*amp, rotateX sin(2w)*7 and rotateZ sin*4*amp, with per-card phase offsets (0, 2.1, 4.2) and amplitudes (1, 0.8, 1.15). Each card's elliptical shadow follows x at 0.6x, scaling from 1.05 down to 0.75 and fading from 0.55 to 0.2 as the card rises. The header bobs 6px. Everything is a sine of one cycle per loop, so the final frame equals the first.",
+  "moves": [
+    "float",
+    "bob",
+    "tilt-3d",
+    "drift",
+    "shadow-track",
+    "seamless-loop"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the three product names, prices, image gradients and positions, and the header copy; amplitudes and phases are per-card parameters. Keep the one-cycle-per-loop sines so it loops.",
+  "port": "mount(el, shot) builds bg, header, shadows and cards inside el at positions relative to el. animate(el, shot, D) returns a timeline with one proxy tween ({t:0}->{t:D}, ease none) whose onUpdate writes the card and shadow transforms, replacing the fx.register seek loop; gsap is loaded but unused in the source.",
+  "caveats": [
+    "backdrop-filter blur(20px) on three cards plus blur(30px) on the background and blur(18px) shadows, render-heavy",
+    "no GSAP timeline in source; motion is a seek function writing inline transforms"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

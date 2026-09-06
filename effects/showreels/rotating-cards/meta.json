@@ -1,0 +1,26 @@
+{
+  "move": "pricing cards rise, flip one by one with overshoot, flip back, drop",
+  "how": "On a dark stage with perspective 1600px, a headline and subline fade up, then three preserve-3d card wrappers rise from y 80 with rotateX -20 and opacity 0 (expo.out 0.9s, 120ms stagger) showing their blank backs. From 17% each card flips rotationY 0 to 180 over 1.1s with back.out(1.4) at 550ms stagger while lifting 18px and settling (power2.out yoyo); the front-face contents (tier, price, list rows, button) fade up 10px at 40ms stagger. At 57% the middle card scales to 1.04 and back. At 77% the cards flip on to 360 in reverse order (power3.inOut 0.9s, 180ms stagger), then drop away (y 80, opacity 0, power3.in) and the header fades.",
+  "moves": [
+    "rise-in",
+    "flip-3d",
+    "overshoot",
+    "stagger",
+    "nudge",
+    "drop-out"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the headline, three tiers with prices, feature rows and button labels, and the front colours; card count just needs the grid. Keep the 1.1s back.out(1.4) flip with 550ms stagger and the reverse-order flip-back.",
+  "port": "mount(el, shot) builds the header and the flip cards (back and front faces) inside el with perspective on the row. animate(el, shot, D) returns the same timeline with labels at fractions of D; nth-child selectors scoped to el.",
+  "caveats": [
+    "backface-visibility and preserve-3d required on the faces",
+    "from() tweens; use immediateRender:false if built after first paint",
+    "ends on an empty stage, restarts with the rise"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

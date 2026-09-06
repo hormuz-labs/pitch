@@ -1,0 +1,25 @@
+{
+  "move": "arrow cursor glides between targets, clicks with ring bursts, comet trail of dots lags behind",
+  "how": "A dark card with a Continue button and a toggle, an SVG of 10 shrinking, fading circles as a trail, a click ring, and a white arrow cursor. The cursor tweens x/y through six waypoints (power2.inOut between targets, sine.inOut for the short click hops) over the full 2s; each trail dot runs the same path on its own sub-timeline offset by (i+1)*0.035s so they trail behind like a comet. Clicks at 37% (button) and 75% (toggle): the cursor scales .8 then back.out(3) to 1, a ring scales .3->1.6 while fading (power2.out), and the target squashes to .93 then elastic.out(1,.5) back; the toggle knob slides x:32 and its track turns green. The card fades in at 0 and fades out at 87% while the cursor leaves the top-right corner.",
+  "moves": [
+    "path-follow",
+    "trail",
+    "click",
+    "elastic",
+    "stagger",
+    "fade-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the card with a real UI screenshot and set the waypoint coordinates to its buttons; change the trail colour and the toggle green. Keep the 0.035s trail lag, the click 0.08/0.15 beat and the elastic target rebound.",
+  "port": "mount(el, shot) builds the card, the trail SVG (sized to el, not 1280x720) and the cursor inside el; animate(el, shot, D) returns the timeline with waypoint times scaled by D/2. The waypoints are absolute pixel coordinates for a 1280x720 frame and the trail svg viewBox assumes that size, so both must be derived from el's size; scope '.cur', '.trail circle', '.click' to el.",
+  "caveats": [
+    "absolute pixel waypoints assume a 1280x720 stage",
+    "cursor does not return to its start position; card fades so the loop cuts",
+    "from() tween on .card needs immediateRender:false when nested"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

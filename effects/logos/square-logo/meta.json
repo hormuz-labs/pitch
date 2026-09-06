@@ -1,0 +1,25 @@
+{
+  "move": "four quadrants fly in from the corners, lock into a square, round off, flip on Y, pull back out",
+  "how": "A 200px square built from four 100px quadrant divs (two white, two orange) each with one rounded outer corner, inside a preserve-3d wrap with 1200px perspective, and a tracked uppercase name. 0-35%: the quadrants fly in from their corners (x +-260, y +-200, rotation +-90) with expo.out, staggered 0.06s. At 35% every quadrant's borderRadius rounds to 28px (0.4s). At 42% the square flips rotationY 0->180 with power3.inOut over 0.8s while at 48% the name fades up 16px (power3.out). Exit at 78%: the quadrants pull back to their corners fading (power3.in, 0.03s stagger) and the name lifts and fades.",
+  "moves": [
+    "fly-in",
+    "stagger",
+    "assemble",
+    "flip-3d",
+    "fade-exit"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Change the two colours (white and #ff7a1a), the quadrant corner radius and the name; the quadrants could carry logo fragments. Keep the 0.7s expo.out fly-in with 0.06s stagger and the 0.8s power3.inOut flip.",
+  "port": "mount(el, shot) builds the .sq with four quadrants and the name inside el, setting perspective on el; animate(el, shot, D) returns the timeline with fly-in 0-0.35D, round at 0.35D, flip at 0.42D, exit at 0.78D. Scope '.q1-4', '.sq', '.name' to el; the from() tweens need immediateRender:false when nested.",
+  "caveats": [
+    "from() tweens need immediateRender:false when nested",
+    "perspective is set on .stage; set it on el when porting",
+    "ends faded out, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

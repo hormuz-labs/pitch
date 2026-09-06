@@ -1,7 +1,7 @@
 # Effects lab
 
-Every Jitter template (`catalog.json`, 408 entries from
-`.pi/skills/launch-video/references/jitter-catalog.md`) recreated in plain
+Every Jitter template (`catalog.json`, 408 entries scraped from
+jitter.video/templates) recreated in plain
 HTML + CSS + JS with GSAP, three.js, lottie, and rendered to video for review.
 
 ```
@@ -11,14 +11,30 @@ effects/
   _lib/base.css         reset + vendored fonts
   render.mjs            node effects/render.mjs --all | --missing | --family text | text/bold-text-snap
   build-index.mjs       node effects/build-index.mjs → index.html, the review gallery
+  build-search.mjs      node effects/build-search.mjs → search.json + embeddings.json, the index motion_effects reads
   index.html            open it in a browser; every render, filterable
+  search.json           one record per effect: catalog + meta.json + render status
+  embeddings.json       gemini-embedding-2 vectors (768 dims) over each record's text
   <family>/<slug>/
     index.html          the effect, self-contained apart from ../../_lib and ../../../assets
     render.mp4          the frame-by-frame render (30fps, h264)
     poster.jpg          one frame at 45%
     strip.jpg           8 frames across the duration
     render.json         duration, size, console errors
+    meta.json           the notes: move, how, moves[], libs[], adapt, port, caveats[], fidelity, loop, size
 ```
+
+The studio agent never browses this folder. It calls `motion_effects`
+(`.pi/extensions/effects-tools.ts`): `{ query }` is hybrid search — the
+query embedded with the same model, cosine over `embeddings.json`, blended
+with keyword scoring over name / move / moves / tags / how — and `{ slug }`
+returns one effect whole (meta, source, strip path) to port into a film's
+`js/shots.custom.js`. `effects/` is a read-only shared root in the sandbox
+(`.pi/lib/paths.ts`), so the paths the tool prints resolve for the agent.
+
+After editing an effect or its `meta.json`: `node effects/build-search.mjs`
+(needs `GEMINI_API_KEY`; only changed records are re-embedded), then
+`node effects/build-index.mjs` for the gallery.
 
 ## Writing an effect
 
@@ -70,7 +86,7 @@ Rules, because the renderer seeks rather than plays:
 ## Rendering
 
 ```bash
-node effects/render.mjs --missing && node effects/build-index.mjs
+node effects/render.mjs --missing && node effects/build-index.mjs && node effects/build-search.mjs
 ```
 
 `--jobs 4` pages in parallel; `--force` re-renders; `--fps 30` default. A

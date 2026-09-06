@@ -1,6 +1,6 @@
 ---
 name: launch-video
-description: Build a product launch film — promo, teaser, feature announcement, kinetic typography, "Apple-style" or narrated product video — as a shots.js shot list the shared GSAP engine compiles, in one of two measured grammars (the continuous chain, or prompt chapters), previewed live in the studio, cut to one continuous narration read when narrated, and gated by motion_audit. Read this before starting any launch film.
+description: Build a product launch film — promo, teaser, feature announcement, kinetic typography, "Apple-style" or narrated product video — as a shots.js shot list the shared GSAP engine compiles, in one of two measured grammars (the continuous chain, or prompt chapters), its moves found in the effects lab (motion_effects) and ported as project types, previewed live in the studio, cut to one continuous narration read when narrated, and gated by motion_audit. Read this before starting any launch film.
 ---
 
 # Launch films
@@ -9,11 +9,11 @@ A film is a **`shots.js` shot list**. The engine compiles it into DOM plus one
 paused GSAP timeline; the studio previews `index.html` live and **reloads it
 every time you save `shots.js`**; the user's Export button renders the MP4.
 You are the creative director: never ask what effects they want — measure the
-brand, choose the design, write the brief, build, and say what you made. But
-the **brief is theirs**: what the film is about, how long, narrated or not,
-what it ends on. When the request leaves one of those open and the answer
-would change the film, ask before recon (the Brief step below) — one message,
-every open question at once, a default beside each — and wait.
+brand, choose the design, find the moves in the lab, build, and say what you
+made. But the **brief is theirs**: what the film is about, how long, narrated
+or not, what it ends on. When the request leaves one of those open and the
+answer would change the film, ask before recon (the Brief step below) — one
+message, every open question at once, a default beside each — and wait.
 
 ## The two designs
 
@@ -34,14 +34,76 @@ What both share: the object persists across scale changes, blur is the
 grammar for depth and for exits, one or two things on screen, the real
 product every moment — **rebuilt, never captured** — the noun in the accent
 rather than a weight change, expo-out arrivals and nothing that bounces, a
-`breath` before every payoff, and a 180° shutter. Both are made of the
-**moves** in `references/effects-vocabulary.md` (the working vocabulary of
-motion design, from Jitter's 408 templates): a word camera, a snap, an
-inflate, a stretch cut, a card flip, a button split, a ripple on a plate, a
-countdown. Five or more distinct moves per film, each chosen for what the
-beat says. A chapters film may run a chain inside each chapter.
-Write `design: "chain" | "chapters"` at the top of `shots.js`; `motion_audit`
-judges the film by that grammar.
+`breath` before every payoff, and a 180° shutter. Both are made of
+**moves**, and the moves live in the **effects lab** (next section). Five or
+more distinct moves per film, each chosen for what the beat says. A chapters
+film may run a chain inside each chapter. Write `design: "chain" |
+"chapters"` at the top of `shots.js`; `motion_audit` judges the film by that
+grammar.
+
+## The effects lab — where every move comes from
+
+The lab is 408 motion effects, every Jitter template rebuilt in HTML/CSS/JS on
+the same GSAP the engine runs (plus three.js, lottie, SVG filters), each with
+its code, a strip of eight frames, and notes on what it does and how it
+ports. It is far too much to read, so it is a tool:
+
+- `motion_effects({ query })` — describe **what the beat needs**, in words:
+  "a card flipping to reveal a price", "lines colliding and snapping out", "a
+  counter rolling up out of a blur", "a button that splits when pressed".
+  Semantic search over the notes; 8 hits with the move, the primitives and
+  the libraries each uses. Filter with `family` (text, logos, buttons,
+  charts, counters, devices, icons, morph, backgrounds, gradients, blur,
+  before-and-after, ui-elements, websites, showreels, the-click / the-edit /
+  the-prompt / the-route / the-stack / the-track / the-vault …), `moves`
+  (`["flip-3d"]`) or `libs` (`["three"]`).
+- `motion_effects({ slug })` — one effect whole: the notes (the move, how it
+  is built, what to change to make it the product's, how it ports, caveats),
+  the source, and the path of its `strip.jpg`. **Look at the strip** before
+  you port anything: eight frames tell you in one glance whether the move
+  is the one the beat needs.
+- No arguments lists the families.
+
+How a lab effect becomes a shot:
+
+1. Query for the beat, not for a name. Read two or three candidates whole.
+   Pick by the strip and the `how`, and by what the product earns (a card
+   flip for a product with cards, a countdown for a dated launch, a route
+   for a product that moves things).
+2. Port it as a **project type** in `js/shots.custom.js`
+   (`motion_schema({ section: "custom shot types" })`): the effect's DOM
+   goes in `mount(el, shot)`, its `fx.timeline({ duration })` becomes the
+   `gsap.timeline()` that `animate(el, shot, D)` returns, every time a
+   fraction of `D`, every selector scoped to `el`, `fx.rng` →
+   `ShotKit.rng`, a `fx.register` canvas or three.js seek → a tween with
+   `onUpdate` on the returned timeline. GSAP and its plugins are already
+   registered by the scaffold; assets load from the film's own
+   `../../assets/`. The notes' `port` line says what does not port directly.
+3. **Rebuild the content.** The lab's placeholder copy, colours, images and
+   counts are never on screen: the product's own words, `brand` tokens, a
+   harvested or rebuilt screen, the real number. Keep the timing and the
+   eases — they are the move.
+4. Name it: `direction.md`'s moves line and the shot table's `move` column
+   cite the lab id (`text/bold-text-snap`), so the user can open the same
+   effect in the lab's gallery and say "that one, but slower".
+
+Never iframe or `<script>`-include an effect page in the film; never leave a
+lab effect's placeholder text or palette in a shot; never port two effects
+that do the same job. The built-in types cover the spine — `line` with the
+word camera, `word-build`, `cascade`, `stat-counter`, `icon-marquee`,
+`ui-frame`, `device-3d`, `lottie`, `rive` — and a lab effect is for the beat
+they cannot show. Which beat wants which family:
+
+| the beat | look in |
+|---|---|
+| the hook, a claim landing | text, video-titles, morph |
+| a feature list, three facts | text (cascade, list), ui-elements |
+| a number, traction, a date | counters, charts |
+| the product doing its job | ui-elements, buttons, devices, the-click / the-edit / the-prompt / the-route / the-stack / the-track / the-vault (whole rebuilt-product scenes) |
+| a picture having a moment | blur, blend-modes, gradients, backgrounds, effects |
+| a before/after, a comparison | before-and-after, websites |
+| the mark, the close | logos, brand |
+| a transition or a reveal | effects, morph, blur |
 
 ## Three rules above everything
 
@@ -64,15 +126,15 @@ judges the film by that grammar.
    the stage kind, the exit, the rhythm, the hook, the moves, the voice and
    the words are decided for *this* product in `direction.md`, and every
    film has one **signature**: the object only this product could own
-   living as an actor across the film, or a project-local type in
-   `js/shots.custom.js`. Copy every AI writes ("Introducing", "seamless",
-   "effortless", "say goodbye to", "the future of", "in seconds",
-   "supercharge", "unlock") is banned. `motion_audit` warns on the tells;
-   `motion_review` shows you the frames.
+   living as an actor across the film, or a lab effect ported and made the
+   product's in `js/shots.custom.js`. Copy every AI writes ("Introducing",
+   "seamless", "effortless", "say goodbye to", "the future of", "in
+   seconds", "supercharge", "unlock") is banned. `motion_audit` warns on the
+   tells; `motion_review` shows you the frames.
 4. **The first second is a move, and no rings.** The film never opens on a
    caret typing a query; the hook lands as a word camera, a snap, a
-   countdown, a plate rippling — a move from the vocabulary. The `ripple`
-   beat (rings expanding from a press) is banned; press feedback is the
+   countdown, a plate rippling — a move from the lab. The `ripple` beat
+   (rings expanding from a press) is banned; press feedback is the
    control's own state change or a `flood`. `halo` is the CTA's one glow
    and the flood's pre-glow, nothing else.
 
@@ -87,12 +149,16 @@ duration; you report what it came out at. "Shorter" means cut a shot.
   `motion_schema({ types })` gives the exact fields **and the DOM classes**
   each type mounts (for `beats.sel`, `anchor`, `into`); `motion_schema({
   section: "actors" })` for the object across shots, `"design"` for the two
-  grammars, `"density layer"` for the stage, exits and beats. Ask it for what
-  you are writing. Do not read `engine/js/*` — it is 80KB you would re-send
-  on every later turn — and never edit the engine.
+  grammars, `"density layer"` for the stage, exits and beats, `"custom shot
+  types"` before the first port. Ask it for what you are writing. Do not
+  read `engine/js/*` — it is 80KB you would re-send on every later turn —
+  and never edit the engine.
 - `motion_scaffold()` writes `index.html` (all GSAP plugins, three.js,
-  lottie, `shots.js`, the engine, in the one order that compiles). Never
-  write the page by hand.
+  lottie, `shots.js`, the engine, in the one order that compiles);
+  `motion_scaffold({ custom: true })` once `js/shots.custom.js` exists.
+  Never write the page by hand.
+- `motion_effects` is the lab (above). Do not `ls` or `grep` the effects
+  directory: the tool's index is the shortest path to the right one.
 - Every `motion_*` tool that needs a page drives the CloakBrowser over CDP.
   There is no Chromium anywhere and `playwright install` is never the answer.
 
@@ -100,12 +166,8 @@ References in this directory, read on demand: `designs/chain.md` and
 `designs/chapters.md` (the grammar you chose — mandatory before the shot
 list), `creative-direction.md` (the brief), `pacing.md` (why the numbers),
 `audio.md` (bed, narration, SFX, mix), `attention-camera.md` (`ui-frame`
-focus), **`effects-vocabulary.md` (the moves — mandatory before the shot
-list)**, `jitter-catalog.md` (all 408 Jitter templates with their
-descriptions, 80KB — `grep` it for the neighbours of a move),
-`effects-catalog.md` (GSAP recipes for project types — 40KB, so `grep` its
-`## ` headings for the one you need). References are pattern libraries,
-never templates; `direction.md` outranks every example in them.
+focus). References are pattern libraries, never templates; `direction.md`
+outranks every example in them.
 
 ## Workflow — the user is watching the preview grow
 
@@ -146,7 +208,7 @@ is a shot edit, not a restart.
 
 What is never a question: the design, the effects, the moves, the stage,
 the colours, the fonts, the exact second count, the music genre, whether to
-use a cursor — you decide those from recon and `direction.md` — and
+use a cursor — you decide those from recon, the lab and `direction.md` — and
 anything a page on the site already answers (the tagline, the pricing, the
 feature names). Asks for **assets** (the SVG logo, a 1080p recording, font
 files) are not brief questions: they never block; relay them after the
@@ -202,19 +264,19 @@ snippet; if it found none, choose a self-hostable equivalent by personality
   payoff, the payoffs all different.
 - The other 9 axes with one line of recon evidence each: stage kind, type,
   motion language, dimensionality, composition, shot formats, arc, audio
-  persona, words. **The moves line**: the five or more moves from
-  `effects-vocabulary.md` this film owns, each with the beat it serves and
-  why this product earns it (a card flip for a product with cards, a
-  countdown for a dated launch, a ripple on the hero plate) — and which are
-  project types you will write. The **devices line**: `device-3d` (single or `ring`),
-  `ui-frame` + `layers`, `lottie` / `rive`, actors, a transition kind,
-  `render.shutter`, `grade`, `motion_image` — used (which shot, what
-  evidence) or not (why). End with the Uniqueness Test: swap test,
-  evidence audit, anti-default check, the signature named.
+  persona, words. **The moves line**: the five or more lab effects this film
+  owns — `motion_effects` queried per beat, each cited by id, with the beat
+  it serves and why this product earns it — and which are built-in fields
+  versus ports into `js/shots.custom.js`. The **devices line**: `device-3d`
+  (single or `ring`), `ui-frame` + `layers`, `lottie` / `rive`, actors, a
+  transition kind, `render.shutter`, `grade`, `motion_image` — used (which
+  shot, what evidence) or not (why). End with the Uniqueness Test: swap
+  test, evidence audit, anti-default check, the signature named.
 
-**2. Shot list.** Present a table — `# | id | chapter/object | type | move |
-dur | copy / rebuilt from | steps · actors · beats | cut | sound` — then
-keep going; do not wait for approval unless the user is actively replying.
+**2. Shot list.** Present a table — `# | id | chapter/object | type | move
+(lab id) | dur | copy / rebuilt from | steps · actors · beats | cut |
+sound` — then keep going; do not wait for approval unless the user is
+actively replying.
 - One idea per shot, 2–4 words on a `line`, ≤ 8 anywhere. A chain film
   8–16 shots, 25–40s; a chapters film 12–40 shots, 45–90s. A `line` with
   steps or a shot posing actors is a scene and may run to 6s; a plain type
@@ -268,16 +330,15 @@ user an error.
 - Beats for what the types do not: `flood` inside a shot, `zoom` into an
   element or a word, `blurout`, `breath` before a payoff, `halo` under the
   CTA once. Never `ripple`; a press is the control changing state.
-- The signature — and every move the engine lacks (an inflate, a ripple on
-  the plate, a stretch cut, a card flip, a button split, a dither reveal —
-  `effects-vocabulary.md` marks each) — is a project type in
-  `js/shots.custom.js` (`motion_schema({ section: "custom shot types" })`,
-  recipes in `effects-catalog.md`; then `motion_scaffold({ custom: true })`).
-  Build it early. Seven invariants: everything on the returned timeline (no
-  CSS animation, no bare `gsap.to`, no ticker, no `Math.random` —
-  `rng(seed)`); selectors scoped to `el`; no infinite opacity/glow loops;
-  no `filter: blur()` on background-clipped text; guard optional targets;
-  text swaps via `tl.set`; time everything as fractions of `D`.
+- The signature and every lab move are project types in
+  `js/shots.custom.js`, ported as the lab section says, then
+  `motion_scaffold({ custom: true })`. Build them early — the first port
+  proves the pipeline. Seven invariants: everything on the returned
+  timeline (no CSS animation, no bare `gsap.to`, no ticker, no
+  `Math.random` — `rng(seed)`); selectors scoped to `el`; no infinite
+  opacity/glow loops; no `filter: blur()` on background-clipped text; guard
+  optional targets; text swaps via `tl.set`; time everything as fractions
+  of `D`.
 
 **4. Audio** (`audio.md` has the craft; the tools have the parameters).
 1. Bed: if the user picked one it is already in `audio/`; otherwise
@@ -302,11 +363,12 @@ product, a ripple). Then `motion_review({})`
 and **look at every sheet**: clipped or overflowing text, words over a busy
 image, an actor covering what it should sit beside, an empty frame, three
 identical frames, a colour or face not in `recon/brand-tokens.md`, a
-rebuilt screen that never changes, anything that looks captured. Fix in `shots.js`, `motion_review({ shots })`
-for the ones you touched, `motion_audit` again if any `dur` moved. Two
-rounds unless a defect is still visible. Quote the scorecard line and say
-what the sheets showed and what you fixed, then stop — the preview reloads
-on its own.
+rebuilt screen that never changes, a lab effect's placeholder still on
+screen, anything that looks captured. Fix in `shots.js`, `motion_review({
+shots })` for the ones you touched, `motion_audit` again if any `dur`
+moved. Two rounds unless a defect is still visible. Quote the scorecard
+line and say what the sheets showed and what you fixed, then stop — the
+preview reloads on its own.
 
 **6. Export — only when the user asks for an MP4 in chat.** `motion_audit`,
 then `motion_render({ out: "renders/launch-<res>.mp4", out_res, fps: 60 })`
@@ -318,9 +380,11 @@ for Remotion/React/AI video.
 
 Edit only that shot's entry in `shots.js` — its fields, `bg`, `cut`, `type`,
 its `steps`, its actor poses — and keep its `dur` unless asked, because
-every later shot and the mix move with it. A look with no field becomes a
-type in `js/shots.custom.js`. Verify with `motion_review({ shots: [id] })`
-and, if `dur` moved, `motion_audit`; never full-render.
+every later shot and the mix move with it. A look with no field is a lab
+query and a port in `js/shots.custom.js`; "that one, but slower" names a lab
+id — `motion_effects({ slug })` and retime the port. Verify with
+`motion_review({ shots: [id] })` and, if `dur` moved, `motion_audit`; never
+full-render.
 Element targets map to fields: `.lw`/`.line-box` → a `line` step or part;
 `.actor` → an actor pose; `.word`/`.type-line`/`.type-center` →
 `lines`/`parts`/`text`; `.cascade-item` → a `cascade` item; `.ui-frame` →
@@ -333,11 +397,13 @@ missing or provision it. **Report exactly what failed and what is undone, and
 stop.** Never reimplement the tool in the workspace and never hand-write the
 file it produces — `audio/vo-words.json`, `audio/cues.json`,
 `recon/brand-tokens.json` are measurements, and a plausible substitute is a
-fabricated result every later tool will trust. Never call the film built
-when a gate never ran: "the audio is done; `motion_check` could not run" is
-a useful report, "I built the 60-second video" is not. If you finish the
-film without a step the user asked for — a music-only cut when they asked
-for narration — the first line of your summary says so.
+fabricated result every later tool will trust. If `motion_effects` fails,
+say so and build from the engine's types; never paste an effect from memory
+and call it a lab port. Never call the film built when a gate never ran:
+"the audio is done; `motion_check` could not run" is a useful report, "I
+built the 60-second video" is not. If you finish the film without a step
+the user asked for — a music-only cut when they asked for narration — the
+first line of your summary says so.
 
 ## Before you stop
 
@@ -349,8 +415,8 @@ for narration — the first line of your summary says so.
 - `direction.md` names the design with evidence, and the chain (no gap) or
   the chapter table (6–9 rows, payoffs all different); the 9 axes cite
   `recon/brand-tokens.md`; the devices line answers every device; the moves
-  line names ≥ 5 moves with their beats; the signature is named; fonts
-  self-hosted; no banned phrase on screen or in the read.
+  line names ≥ 5 lab effects by id with their beats; the signature is
+  named; fonts self-hosted; no banned phrase on screen or in the read.
 - `recon/assets.md` has the product model and "what the landing page fails
   to show", and the film shows it; the harvest's frame sheets were looked
   at and the asks were relayed in the first reply.
@@ -359,6 +425,9 @@ for narration — the first line of your summary says so.
   a part that moves, a cursor, a focus or a dolly; the first shot is a move,
   not a caret; no `ripple` beat anywhere; `breath` beats before the
   payoffs; the mark is a harvested file and the last thing on screen.
+- Every lab port in `js/shots.custom.js` carries the product's own content
+  and the lab's timing; its id is in the shot table; the strip was looked
+  at before the port.
 - Built progressively with `motion_check` clean after each save.
 - Narration is one read in `audio.vo`, aligned, every shot cued, synced —
   no per-shot clips. Bed named; mix gate passed, ≥ 1s past `__DURATION()`;

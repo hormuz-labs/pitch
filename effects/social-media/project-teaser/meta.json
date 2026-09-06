@@ -1,0 +1,25 @@
+{
+  "move": "letterboxed image rises from black, letters blur in, light sweep, flash reveal",
+  "how": "A full-frame photo sits under a vignette and two 90px letterbox bars. For the first 61% the image barely lifts from brightness 0.05 to 0.32 while scaling 1.3 to 1.12 (power2.inOut) and the bars settle from scaleY 3 (power3.out); corner labels fade in staggered. A kicker line rises from its overflow mask at 16% (power3.out), then the nine letters of the serif wordmark drift in one by one from y 30 with blur(14px) to 0, 140ms apart from 22%; a rule scales open and the date fades in while its letter-spacing tightens from .9em (47-49%). At 62% a skewed light streak sweeps across (x 0 to 1700, power2.inOut), a white flash hits at 69%, the image jumps to full brightness and saturation 1.2 with an expo.out push to scale 1, the word scales to 1.12 and glows, the bars shrink to scaleY 0.4. From 90% everything fades to black and the bars grow back for the loop.",
+  "moves": [
+    "slow-push",
+    "blur-in",
+    "letter-stagger",
+    "light-sweep",
+    "flash",
+    "letterbox"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap the wordmark letters (one .l span each), kicker, date, corner labels and background image; the glow colour and bar height are tunable. Keep the 5.5s slow build, the 140ms letter stagger and the 0.06s flash at ~70%.",
+  "port": "mount(el, shot) builds the film image, vignette, light streak, corners, kicker, letter spans, date and bars inside el. animate(el, shot, D) returns the same timeline with all labels scaled from the 9s base to fractions of D; the light sweep distance (1700px) should be derived from el width.",
+  "caveats": [
+    "animates CSS filter (brightness/saturate/blur) on a full-frame image and on nine letters, heavy at render time",
+    "from() tweens on letters need immediateRender:false if built after first paint",
+    "final frame is black with bars at scaleY 3, not exactly the first frame's dim image"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

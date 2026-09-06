@@ -23,7 +23,7 @@ chapters.
 ## The chapter
 
 ```
-prompt   a `line` landed as a move (a snap, an inflate, a motion-blur arrival — `effects-vocabulary.md` §1), size 150–170, aurora behind it, the noun in `accent`, read by the **word camera** (`zoom` beats word by word, the noun last)   2–3s
+prompt   a `line` landed as a move (a snap, an inflate, a motion-blur arrival — a port from the lab's text family, `motion_effects`), size 150–170, aurora behind it, the noun in `accent`, read by the **word camera** (`zoom` beats word by word, the noun last)   2–3s
 product  the line shrinks to UI scale (an `element` actor, or `cut: "zoom-out"`); a `ui-frame` with `html` — the screen **rebuilt** from its reference frame, one part of it moving (the field expands, the rows land, the button splits) — with `tilt`, `aura`, `cursor: { hand: true }` acting; `ambient: false`   3–6s
 payoff   a `flood` cut, a `cascade`, an actor morph, a `ring`, a `cursor.zoom`, a card flip, a stretch cut — the noun becoming the object   1–3s
 ```

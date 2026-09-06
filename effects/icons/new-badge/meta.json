@@ -1,0 +1,26 @@
+{
+  "move": "panel rises, title letters stagger up, NEW badge wipes in with cover slide, burst lines, shine",
+  "how": "A dark panel with a per-letter headline, a paragraph, and a purple NEW badge made of a white cover, per-letter text, a shine strip and an outline ring, plus eight radial line divs. 0-17%: the panel rises 40px and fades (expo.out); at 4% the headline letters rise from yPercent 100 with a 0.025s stagger; at 12% the paragraph fades up. At 17% the badge grows scaleX 0->1 from its left edge (expo.out), at 24% the white cover slides off scaleX 1->0 from the right (expo.inOut) and at 26% the N-E-W letters bounce up with back.out(2), 0.06s stagger; at 30% the badge settles from rotation -6 with elastic.out(1,.5), the outline ring scales 1.5 fading, and eight lines shoot outward from the badge centre (scaleY 0->1 along their angle, r 130px, expo.out). At 36% the shine sweeps across. At 60% a 1.06 yoyo pulse. Exit at 85%: badge collapses scaleX->0 (expo.in), headline letters fly up out, paragraph and panel fade up.",
+  "moves": [
+    "slide-in",
+    "stagger",
+    "mask-wipe",
+    "elastic",
+    "burst-lines",
+    "shine-sweep",
+    "scale-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the headline, badge word, paragraph, purple (#6c5cff) accent and panel colours. Keep the cover-slide reveal (0.45s expo.inOut), the 0.06s letter stagger with back.out(2) and the elastic settle.",
+  "port": "mount(el, shot) builds the panel, splits the title and badge text into spans, and creates the eight lines inside el; animate(el, shot, D) returns the timeline with positions as fractions of D (badge 0.17D, cover 0.24D, burst 0.29D, exit 0.85D). The burst origin uses hard-coded 1280x720 centre offsets (bx/by) that must be computed from the badge's position within el; scope all selectors to el; the from() tweens need immediateRender:false when nested (the fromTo ones already set it).",
+  "caveats": [
+    "burst line origin is hard-coded for a 1280x720 stage",
+    "from() tweens on panel, letters and badge need immediateRender:false when nested",
+    "ends empty, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

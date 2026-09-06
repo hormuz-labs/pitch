@@ -1,0 +1,26 @@
+{
+  "move": "flat landscape illustration: morphing hills and tree, plane loops, birds flap",
+  "how": "A flat vector scene (sky gradient, sun with rays, clouds, two hills, road, tree, balloon, paper plane, two birds). Over one 4s cycle the tree crown and both hills MorphSVG to a second shape and back with sine.inOut yoyo, the sun rays rotate 45deg linearly (eightfold symmetric, so it closes), the sun scales 1.06, clouds and balloon drift and return, the plane rides a closed MotionPath loop with autoRotate over the full D while its dashed trail DrawSVGs on in the first half and off in the second, the road dashes scroll four periods, and the birds flap by morphing their wing path 16 times while bobbing.",
+  "moves": [
+    "morph",
+    "motion-path",
+    "draw-stroke",
+    "drift",
+    "flap"
+  ],
+  "libs": [
+    "gsap",
+    "MorphSVG",
+    "MotionPath",
+    "DrawSVG"
+  ],
+  "adapt": "Replace the SVG artwork with the brand illustration keeping ids for the parts you want to move, change the sky and hill colours; drop the parts you do not have. Keep whole-cycle yoyos and the full-loop motion path so it still loops.",
+  "port": "mount(el, shot) injects the SVG; animate(el, shot, D) returns the same timeline with durations expressed as D/2 and D, selectors scoped to el (ids must be unique per instance). Requires MorphSVG, MotionPath and DrawSVG plugins registered.",
+  "caveats": [
+    "bird 2 tweens start 0.12-0.3s late and run past D, a small wing mismatch at the loop point",
+    "duplicate ids if mounted twice on a page"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

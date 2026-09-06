@@ -1,0 +1,25 @@
+{
+  "move": "letters pop in, strokes inflate so glyphs balloon and fuse through goo",
+  "how": "An SVG with the word 'PUFFY' as five text elements (stroke same colour as fill, paint-order stroke) inside a group filtered by a gooey feGaussianBlur plus alpha-boost feColorMatrix, on a cream ground with a small caption. Letters pop from scale 0 with back.out(2.5) and 0.06s stagger in the first 27%. From 17% the stroke-width attribute swells 0 to 16 and the glyph scales to 1.12 / 1.06 with elastic.out(1.1, 0.5), so the letters puff up and merge where they touch. At 57% they exhale: stroke to 6 and scaleY .96 with power2.inOut staggered from the end. At 80% they over-inflate (stroke 22, scale 1.25, power3.in) and at 92% collapse to scale 0, ending on the empty ground.",
+  "moves": [
+    "inflate",
+    "elastic",
+    "pop",
+    "goo",
+    "stagger",
+    "snap-out"
+  ],
+  "libs": [
+    "gsap",
+    "svg-filter"
+  ],
+  "adapt": "Change the word (letters are laid out at 150px pitch from centre, so adjust pitch for width), the ink colour (fill and stroke must match) and the caption; the goo blur/alpha values set how much letters fuse. Keep the elastic inflate and the exhale/over-inflate rhythm.",
+  "port": "mount(el, shot) creates the SVG with a per-instance filter id and one text element per letter, setting transformOrigin; animate(el, shot, D) returns a gsap.timeline with the pop at 0.025D, inflate 0.175D, exhale 0.575D, over-inflate 0.8D and collapse 0.925D. Use el.querySelector for the group; the viewBox is 1280x720 so it scales with el.",
+  "caveats": [
+    "the goo filter (blur plus colour matrix) on large text is moderately slow",
+    "from() scale tween needs immediateRender:false if built lazily"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

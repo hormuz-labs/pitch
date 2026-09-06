@@ -1,0 +1,26 @@
+{
+  "move": "fast push-ins, whip pan with blur, hard cuts, strobe invert, red endcard",
+  "how": "Four full-frame shots are cut with autoAlpha sets plus a white flash (opacity 0.9→0, 0.25s) at each cut, and a REEL counter updates via call(). Shot 1 pushes in scale 1→1.25 (power1.in 1.3s) while 'Drop' rises masked from yPercent 120 and leaves upward; four corner brackets pop in. At 22% a whip pan: shot 1 slides xPercent -60 with filter blur 0→20px (power3.in) and shot 2 arrives from xPercent 60 blurring back to 0 (power3.out), then settles scale 1.1→1; 'It like' skews in from xPercent -80 / skewX 20 and skews out the other way. At 48% a hard cut zooms shot 3 from scale 1.4 / rotation 3 to 1.05 (expo.out) with 'It's hot' snapping from scale 2.2 and strobing with filter invert 0→1 repeat 3 yoyo. At 75% shot 4 slams up from yPercent 100, then a red endcard wipes in via clip-path inset right 100%→0 with the title rising and scaling to 1.1; at 97% everything cuts back to shot 1 reset for the loop.",
+  "moves": [
+    "push-in",
+    "whip-pan",
+    "hard-cut",
+    "blur-exit",
+    "strobe",
+    "mask-wipe"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace the four shots, the three word cards and the endcard title/credit, and the red; keep the cut points (1.3, 2.9, 4.5, 5.1 of 6s), the 0.25s flash and the 0.3s whip blur.",
+  "port": "mount(el, shot) builds the shot layers, flash, corners, counter and endcard with initial autoAlpha sets; animate(el, shot, D) returns the timeline with cuts at 0.22, 0.48, 0.75, 0.85 and reset at 0.975 of D. Move the cut()/flash() helpers inside animate with el-scoped selectors; the counter call()s become el-scoped; from() tweens need immediateRender:false.",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "filter: blur(20px) on two full-frame images during the whip pan, slow to render",
+    "counter text is set via call() and can go stale when scrubbing backwards"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

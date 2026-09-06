@@ -1,0 +1,25 @@
+{
+  "move": "avatar with spinning gradient ring, LIVE badge heartbeats, pulse rings out, viewer count ticks",
+  "how": "A dark frame with a red radial glow, a 420px avatar wrapped in a conic-gradient ring (rotating 0->360 linearly over the full 4s), three pulse ring divs, a slow Ken Burns on the avatar photo, a red LIVE pill with a white dot, a name block and a viewers pill with a rolling number. 0-20%: the avatar scales .6->1 and fades with back.out(1.5); name and viewers rise 30px with expo.out at 7% and 11%; at 12% the LIVE pill pops from 0 with back.out(3). Heartbeats at 25%, 50%, 75%: the pill scales 1.16 (power2.out, 0.14s) then settles with elastic.out(1,.4), the glow swells 1.15, and a pulse ring expands .9->1.55 fading (power2.out, 1.1s). The white dot blinks yoyo 16 times. The count rolls out (yPercent -100) and back in with back.out(1.5) at 32%, 57% and 82%, ending on its start value.",
+  "moves": [
+    "pop",
+    "heartbeat",
+    "elastic",
+    "ripple",
+    "spin",
+    "counter",
+    "ken-burns"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the name, handle, count values, the red (#ff2d55) accent and gradient stops, and the avatar photo. Keep the one-second heartbeat cadence, the 0.14s + elastic settle, and the 1.1s ring expansion.",
+  "port": "mount(el, shot) builds the avatar, ring, pulses, pill and text inside el; animate(el, shot, D) returns the timeline with heartbeats at 0.25D, 0.5D, 0.75D and count ticks at 0.32D/0.57D/0.82D. Scope '#v' and all selectors to el; the fromTo tweens already set immediateRender:false but the from() entrances need it when nested; loads assets/backgrounds/sunset.png by relative url.",
+  "caveats": [
+    "ring rotation ends at 360 (visually equal to 0) and the count returns, but the entrance from() tweens do not reverse so the loop cuts on the entrance",
+    "from() tweens need immediateRender:false when nested"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1080"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "tilted cards land, percent counts up and squashes, price strikes",
+  "how": "On a red field with diagonal stripes drifting x 0→92 linearly, three cards (black, yellow, white) start at y 900 / rotate 8 and land with expo.out over 0.9s at 0.12s offsets, the back two settling to rotate -4 and 2.5 with elastic.out(1,0.5). The big number fades/rises in and a tweened object counts 0→40 over 1.1s (power3.out) into the .n span, then the whole figure gets an elastic scaleY 1.15/scaleX 0.92→1 squash; 'off everything' rises masked; a red strike line scaleX 0→1 crosses the old price (expo.out) and the new price counts $120→$72 while its colour tweens to red. A dashed code box and button pop with back.out(2.5), a circular '48h only' tag lands from scale 0 / rotate -30 to rotate 12 with elastic.out(1,0.45), then wobbles to rotate 4 yoyo ×2 while the button pulses scale 1.06 yoyo ×3. Exit from 87%: text lines and figures leave upward, pops scale to 0, cards fly to y -1100 with expo.in.",
+  "moves": [
+    "slide-in",
+    "counter",
+    "squash",
+    "strike-through",
+    "pop",
+    "wobble"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Set the percentage target, the was/now prices, promo code, kicker and tag text, and the red/yellow palette; keep the 1.1s power3.out count with the elastic squash on landing and the 0.12s card offsets.",
+  "port": "mount(el, shot) renders the stripes, deck and tag and applies the gsap.set starts; animate(el, shot, D) returns the timeline with the counter objects created inside and onUpdate writing to el-scoped .n / .p spans. Cards land at 0-0.15D, pricing beat at 0.15-0.5D, idle 0.6-0.85D, exit from 0.87D.",
+  "caveats": [
+    "stripe drift of 92px assumes the 80px repeating-gradient period at -30deg; change the stripe size and the loop seam moves"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

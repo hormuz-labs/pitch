@@ -1,0 +1,26 @@
+{
+  "move": "three donut segments draw end to end, ring rotates, slice pops, unwinds",
+  "how": "A 380px SVG donut of three stroked circles (orange, blue, black, stroke-width 44, rotated -90deg) with a percent counter in the centre and a legend of three rows on the right. The ring scales in from 0.8/opacity:0 (power3.out) in the first 15%. Segment one draws with DrawSVG '0% 0%' to '0% 46%' at 10-30% (power3.inOut), segment two continues from 46% to 78% at 29-46%, segment three from 78% to 100% at 45-60%, each with its legend row sliding in x:20 and the centre counter and row percentages filling in lockstep via an object tween with the same ease. Hold at 60-90%: the whole SVG rotates from -90 to -80deg (power2.inOut) while the largest segment pops outward (attr r 150 to 158, strokeWidth 44 to 52, back.out(2)) then returns. From 82% all segments unwind to '0% 0%' with expo.in (stagger 0.05), the counter returns to 0, legend and centre fade, the SVG rotates back to -90.",
+  "moves": [
+    "draw-stroke",
+    "sequence",
+    "counter",
+    "pop",
+    "rotate",
+    "unwind"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Set V (three values summing to 100) and mirror them in the drawSVG ranges and data-v attributes; change stroke colours in .s1/.s2/.s3 and the legend swatches; set the heading and row labels; keep the sequential power3.inOut segment timing and the back.out(2) pop on the largest slice.",
+  "port": "mount(el, shot) builds the ring with three circles and the legend from shot.segments; animate(el, shot, D) computes cumulative drawSVG ranges from the values, returns the same timeline with segments at 0.1-0.6 of D, pop at 0.62, unwind at 0.82. Requires DrawSVGPlugin; the 'svg' selector and getElementById must be scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "drawSVG ranges are hard-coded to match V and must be regenerated if values change",
+    "rotate tween on the svg element overrides the CSS rotate(-90deg) transform, so start values must be -90"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

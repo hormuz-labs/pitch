@@ -1,0 +1,24 @@
+{
+  "move": "green-screen key: tolerance slider rises, split wipe reveals keyed composite",
+  "how": "A canvas paints a green (#00B140) screen with a subtle lighting gradient, a bobbing phone mockup and five orbiting coloured dots as the source; a per-pixel chroma key with spill suppression removes the green at the current tolerance and composites the subject over a drifting aurora image. A GSAP timeline tweens tolerance 0 to 1 with power2.inOut from 0.08 to 0.32 D, a split line wipes from left to right with expo.inOut from 0.1 to 0.38 D showing raw source on its right and keyed result on its left, then wipes back at 0.68 D and tolerance returns to 0 by 0.96 D. A panel shows the key colour and a live tolerance percentage and knob.",
+  "moves": [
+    "mask-wipe",
+    "chroma-key",
+    "counter",
+    "drift"
+  ],
+  "libs": [
+    "gsap",
+    "canvas"
+  ],
+  "adapt": "Feed the product footage or render into the source canvas (same-origin), change the key colour and the background image, the panel labels; the subject animation is only a placeholder. Keep the tolerance rise before the wipe so the key is visibly earned.",
+  "port": "mount(el, shot) creates the output, source and keyed canvases, loads the background image and builds the panel and split line; animate(el, shot, D) returns the state timeline with an onUpdate on a progress tween that draws the source, keys it, composites and positions the split and panel, replacing the window.__fx.seek patch. Loads a file image; wait for decode before the first frame.",
+  "caveats": [
+    "subject bob, orbiting dots and background drift use raw t (sin(t*1.2), t*0.9) so they are not periodic in D; the loop does not close",
+    "per-pixel key over 1280x720 every frame is slow",
+    "the source is procedural; real footage must be same-origin to avoid canvas taint"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

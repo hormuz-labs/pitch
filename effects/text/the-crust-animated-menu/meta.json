@@ -1,0 +1,23 @@
+{
+  "move": "menu board scales in, items slide in with leaders, sweep out",
+  "how": "A cream bordered board on a 1080 square with a headline and italic accent, a day pill, six menu items (name, optional tag, dotted leader, serif price), a footer and a decorative croissant shape. The board scales 0.92 to 1 with opacity (expo.out), the headline rises through its mask and the day pill slides in from xPercent 120. From 10% each item enters 0.32s apart: the name slides from xPercent -110, the dotted leader grows scaleX 0 to 1 from the left, the price rises yPercent 120 to 0 (all expo.out) and any tag pops scaleX with back.out(2). The footer rises and the croissant scales in with rotation (back.out(1.6)) then rocks slowly; at 55% the prices pulse scale 1.12 in sequence. From 87% items sweep out xPercent 110 with a 0.06 stagger (expo.in), the heading and footer fly up and the board fades.",
+  "moves": [
+    "slide-in",
+    "draw-line",
+    "mask-rise",
+    "stagger",
+    "pulse",
+    "slide-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the heading, day, item names, prices and tags (any count; entries are 0.32s apart), the palette and the decorative shape; keep the name/leader/price 0.12s and 0.3s offsets and the expo.in sweep.",
+  "port": "mount(el, shot) renders the board and items from shot data; animate(el, shot, D) returns the timeline with item i at (0.1 + i*0.04)D and the sweep at 0.875D. Scope selectors to el; direct port.",
+  "caveats": [
+    "borderBottomWidth is tweened on the header, which relayouts"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

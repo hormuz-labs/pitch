@@ -51,7 +51,7 @@ objects, each one **born from the previous one**. Write yours in
 | a **blob** trails the fly-past and becomes the bar | 13 + 13 | an actor `shape` posed wide and blurred (`blur: 20`), then `{ h: 80, r: 40, blur: 0 }` |
 | the **count** 63 → 100 | 40 | `line` at `x`/`y` with `replace` steps, or `stat-counter` |
 | bar → pill → disc → **check** → card | 5 + 3 + 1 + 5 + 2 | the same `shape` actor: `{ w: 120 }`, `{ w: 110, h: 110, r: 55 }`, `{ w: 220, h: 220, fill: pale }` with a `pulse` beat as it lands (never `ripple` rings); the check is a `DrawSVG` stroke in a project type or a Lottie the site has; then `{ w: 200, h: 140, r: 24 }` |
-| **confetti**, near pieces blurred | 39 | a project type on `Physics2DPlugin` with blur by size (`effects-catalog.md` §22) |
+| **confetti**, near pieces blurred | 39 | a project type on `Physics2DPlugin` with blur by size (the lab: `motion_effects({ query: "confetti falling, the near pieces blurred" })`) |
 | one card **duplicates into a strip** | 4 each | `cascade` with `dir: "left"`, `every: 0.13`, `scroll` |
 | the strip becomes the **grid**, the app drawn around it | 2 | a `ui-frame` `html` that rebuilds that grid, `cut: "zoom-out"` or a `cascade` → `ui-frame` boundary with the strip's last card matching the grid row |
 | **click, zoom**: the card grows, the rest blurs to white | 7 | `ui-frame` `cursor: { x, y, hand: true, zoom: { scale: 2.8 } }` |

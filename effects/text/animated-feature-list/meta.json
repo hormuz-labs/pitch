@@ -1,0 +1,26 @@
+{
+  "move": "header lines rise, feature cards slide in one by one, checks draw",
+  "how": "A two-column layout: a soft blue radial glow drifting slowly across the frame (x/y sine.inOut over the full 5s), a header with eyebrow, three-line title and subtitle, and four glassy list items each with a coloured icon tile, a checkmark path and two lines of copy. In the first 20% the eyebrow fades up, the title lines rise from yPercent 110 with expo.out and 0.08s stagger, and the subtitle fades in. From 10% the items enter one at a time every 0.38s: each slides in from x 80 with scale .96 and opacity 0 (expo.out), its icon pops from scale 0 with back.out(2.2), the check draws with DrawSVG from 0% to 100% (power2.inOut) and the text nudges in from x 14. At 87% the items sweep up and fade (y -30, power2.in, 0.06s stagger) followed by the header, so the frame ends empty.",
+  "moves": [
+    "slide-in",
+    "stagger",
+    "draw-stroke",
+    "pop",
+    "blur-exit",
+    "drift"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Replace the eyebrow, three title lines, subtitle and the four item titles/descriptions; swap the four icon tile colours and the glow colour to the brand palette; item count can change (the 0.38s per-item cadence and the 1.5s intro still work up to ~5 items). Keep the expo.out entries and the back.out icon pop.",
+  "port": "mount(el, shot) builds the .glow, .head and .list markup inside el from shot.items; animate(el, shot, D) returns a gsap.timeline with the same tweens placed at fractions of D (title 0.03D, items from 0.1D with 0.076D stagger, exit at 0.87D), all selectors scoped via el.querySelectorAll. DrawSVGPlugin must be registered; the fallback is animating stroke-dashoffset.",
+  "caveats": [
+    "from() tweens on a paused timeline need immediateRender handled if the timeline is built after mount",
+    "backdrop-filter on the items is mildly expensive",
+    "does not loop: ends on an empty frame"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

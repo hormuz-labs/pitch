@@ -77,10 +77,10 @@ Scale: **poster** (120–200px, few words, type is the visual) or **restrained**
 (64–90px, room for UI). Tight tracking on display type (−0.02 to −0.04em),
 ≤ 8 words per screen, subtitles 24–32px at ~0.75 opacity. The type is
 **travelled, not read**: the word camera pushes into one word at a time.
-Use **≥ 3 distinct type moves** across the film from
-`effects-vocabulary.md` §1 (a snap, an inflate, a motion-blur arrival, a
+Use **≥ 3 distinct type moves** across the film from the lab's text
+family (`motion_effects`: a snap, an inflate, a motion-blur arrival, a
 scramble, a countdown, a stretch-snap, a mask reveal…), each for the beat
-it means; a move the engine lacks becomes a project type. A caret typing at
+it means; a move the engine lacks is a lab port in `js/shots.custom.js`. A caret typing at
 hero scale is not a type move.
 
 ## Axis 3 — Motion language (pick ONE)
@@ -141,14 +141,14 @@ matching how the product's value flows; vary between shots for rhythm.
 |---|---|---|
 | the app itself is great | the real product **rebuilt** from its reference frame, one part moving, one focus move, a click | `ui-frame` with `html` (`tilt`, `aura`, `focus`, `cursor`; the move inside it a project type or an actor) — 30–60% of a UI product's runtime; never `src` |
 | the sentence is the scene | 2–4 words that change: a word adds, the line is replaced, one word is kept, the object sits between the words — and the camera travels it word by word | `line` with `steps`, `tone`, a `slot` for an actor, `zoom` beats on `.lw` (the word camera) |
-| the sentence lands | a snap, an inflate, a tilted snap, a motion-blur arrival, a mask reveal | `word-build`, `line` `replace` steps, or a project type from `effects-vocabulary.md` §1 |
+| the sentence lands | a snap, an inflate, a tilted snap, a motion-blur arrival, a mask reveal | `word-build`, `line` `replace` steps, or a lab port from the text family (`motion_effects`) |
 | the user types what they want | a prompt box *inside the rebuilt product*, typed at UI scale, the result arriving | `ui-frame` `html` with `cursor` and `then`; typing is never the hero-scale opener |
 | one object moves through the product | the file that is dropped in, the card that becomes the grid, the button that becomes the mark | an `actor` posed across the shots (`motion_schema({ section: "actors" })`) |
 | the clicked thing becomes the subject | the cursor presses, the camera pushes in, the rest blurs to white | `ui-frame` `cursor.zoom`, or `beats: [{ kind: "zoom", sel }]` |
 | many of one thing | cards duplicating into a strip, comments arriving, rows cascading | `cascade` (`dir: "left"` / `"up"`, `dof`) |
 | several screens at once | five mined frames on a ring, orbiting, seen from inside | `device-3d` with `ring` |
-| the payoff lands | the frame floods with the accent and retreats; the control changes state (the pill grows, the button splits, the toggle snaps); a card flips; a stretch cut | `cut: "flood"`, a project type from `effects-vocabulary.md` §3–4; never `ripple` rings |
-| the picture has a moment | a ripple across the hero plate, a dither or pixel reveal, a halftone, a split reveal | a project type from `effects-vocabulary.md` §2, on plates and photos only |
+| the payoff lands | the frame floods with the accent and retreats; the control changes state (the pill grows, the button splits, the toggle snaps); a card flips; a stretch cut | `cut: "flood"`, a lab port from buttons, ui-elements or effects (`motion_effects`); never `ripple` rings |
+| the picture has a moment | a ripple across the hero plate, a dither or pixel reveal, a halftone, a split reveal | a lab port from blur, effects or before-and-after (`motion_effects`), on plates and photos only |
 | the launch has a date, a count | a countdown at poster scale; a counter from a blur; a progress ring | `line` `replace` steps at `size: 320`; `stat-counter`; `DrawSVG` ring |
 | it's on your phone | the real mobile screen | `ui-frame` with `frame: "phone"`, or `device-3d` with `device: "phone"` turning |
 | it runs on your Mac / a device | the screen on the object itself | `device-3d` (laptop, slab, card) with a harvested frame as the screen |
@@ -199,7 +199,7 @@ the arc (a burst of three sub-second beats against one long product shot).
 | The question | one line the viewer already asks themselves |
 | The anti-statement | what the product refuses to be |
 | The object | one UI element (a button, a cursor, a cell) doing one thing |
-| The slam | word-per-beat type → colour slam on the trigger word (effects-catalog §27) |
+| The slam | word-per-beat type → colour slam on the trigger word (the lab: `motion_effects({ query: "colour slam on one word" })`) |
 | Sound first | a black frame and the SFX, then the picture |
 
 ## Axis 8 — Audio persona (decide with Axis 3)

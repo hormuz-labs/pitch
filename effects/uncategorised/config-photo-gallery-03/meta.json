@@ -1,0 +1,25 @@
+{
+  "move": "giant word settles letter by letter, polaroids drop with spin, sweep out",
+  "how": "A dark stage with a 330px CONFIG word in dim grey rising letter by letter (yPercent 40, opacity 0, expo.out 0.8s, 50ms stagger). Five white-bordered polaroid photos at fixed positions drop in every 0.5s from 8%: each comes from scale 1.6, y -80 and +25deg over its seeded rest rotation, landing with back.out(1.4) over 0.75s, then drifts slightly (y and +/-2deg, sine.inOut 1.6s) while holding. A tag line rises from a mask at 20%. At 77% the photos sweep up out of frame (y -800, -20deg, expo.in 0.55s, 120ms stagger), the tag drops out and the letters lift away.",
+  "moves": [
+    "letter-stagger",
+    "drop-in",
+    "overshoot",
+    "spin-settle",
+    "drift",
+    "sweep-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the word letters, the five photo images, captions and positions/sizes, and the rng seed for tilt. Keep the 0.75s back.out(1.4) landing, 0.5s cadence and the 120ms sweep stagger.",
+  "port": "mount(el, shot) builds the big word spans and the polaroids inside el with seeded rotations. animate(el, shot, D) returns the same timeline with drops at 0.083+i*0.083 of D and the exit at 0.77 of D.",
+  "caveats": [
+    "fixed pixel positions for 1280x720",
+    "from() tweens need immediateRender:false when built late",
+    "ends on an empty stage"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "rings expand and fade on the beat, badge hits and settles",
+  "how": "A purple gradient badge sits centre on a dark stage with a blurred halo behind it, four concentric ring outlines and twelve small white ticks orbiting at 300px radius. Each ring is born on its own beat (one per second of a 4s loop) and lives a full loop: scale runs 1 to 3.6 with an expo-out curve while opacity falls quadratically from 0.9 to 0 and borderWidth thins 4px to 1px. The badge scale takes a damped-cosine hit (exp(-9b)*cos(22b)*0.12) at every beat, an elastic snap that settles in about a third of a beat, plus a slow 2% sine breath; the halo scale and opacity spike on the beat and decay exponentially. The ticks rotate one full turn per loop and each brightens and grows (scale 0.6 to 2.2) as a lit pulse passes around the circle three per second. Everything is phase-based on t so frame 0 and frame D are identical.",
+  "moves": [
+    "ripple",
+    "pulse",
+    "elastic",
+    "orbit",
+    "stagger"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the badge text ('Live' / 'Now on air'), the purple accent, and the badge size; ring count N and tick count can grow or shrink. Keep the one-ring-per-beat cadence, the expo-out expansion and the damped-cosine badge hit — that beat feel is the effect.",
+  "port": "mount(el, shot) builds the halo, N ring divs, the badge and 12 tick divs inside el. The effect is a fx.register seek loop, so animate returns gsap.timeline().to({}, {duration: D, ease:'none', onUpdate}) where onUpdate reads tl.time() and applies the same per-ring/badge/tick gsap.set calls with BEAT = D/N. All selectors must be scoped to el; the 300px tick radius should scale with el height.",
+  "caveats": [
+    "seek-loop effect: motion is computed from t, not a GSAP tween list",
+    "tick pulse rate (t*3) is tied to absolute seconds, so it only loops cleanly when D*3 is an integer"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

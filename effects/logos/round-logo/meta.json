@@ -1,0 +1,25 @@
+{
+  "move": "disc spins in from -180 while scaling and fading up, inner ring counter-rotates and locks, name tightens in",
+  "how": "An SVG round mark (dark disc, inner ring with an orange accent arc and a centre dot) above an uppercase tracked wordmark. 0-45%: the mark rotates -180->0 while scaling .3->1 and fading .25->1 (expo.out, 0.9s); from 5% the inner group counter-rotates 200->0 with expo.out over 1.1s. At 25% the name fades up 14px as its letter-spacing tightens from .6em to .28em (power3.out). At 50% the inner group turns a further 90deg (power2.inOut) so the accent keeps moving. Exit at 78%: the mark rotates on to 120 while shrinking to .6 and fading (power3.in); at 83% the name lifts 10px and fades.",
+  "moves": [
+    "spin",
+    "zoom",
+    "fade-in",
+    "counter-rotate",
+    "tracking",
+    "fade-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the disc and inner ring SVG with the product's round mark, the orange accent (#ff6a3d), the wordmark and the cream background. Keep the 0.9s expo.out spin-in, the counter-rotation and the letter-spacing tighten.",
+  "port": "mount(el, shot) builds the mark SVG and name inside el; animate(el, shot, D) returns the timeline with the spin-in over 0-0.45D, name at 0.25D, extra turn at 0.5D, exit at 0.78D. Scope '.mark', '.inner', '.name' to el; the name from() (with letterSpacing) needs immediateRender:false when nested.",
+  "caveats": [
+    "animating letterSpacing forces layout each frame; fine for one element",
+    "from() on the name needs immediateRender:false when nested",
+    "ends faded out, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

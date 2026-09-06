@@ -1,0 +1,22 @@
+{
+  "move": "donut ring fills in two segments with counters, unwinds for the loop",
+  "how": "A white dashboard card holds a 300px SVG donut and a three-row legend. From 4% the dark blue segment grows to 58% of the ring (stroke-dasharray driven by an expo.out proxy tween over 1.6s) and from 30% a lighter segment extends behind it to 80%; the centre percentage and the three dollar values are recomputed in the same onUpdate. The donut pops from scale .96 to 1.02 with back.out(3) and settles; legend rows slide in from x 30 with a 0.12s stagger. At 80% the segments unwind (p2 then p1, power3.in / expo.inOut) and the rows slide out reversed, with a set() at the last frame restoring them so frame 0 matches.",
+  "moves": [
+    "ring-fill",
+    "counter",
+    "stagger",
+    "pop",
+    "unwind"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the two percentages, the money format and total (1.2M), the legend labels, title and the two blues; keep the expo.out 1.6s fill and the unwind timing.",
+  "port": "mount(el, shot) builds the card, SVG and legend from shot.segments; animate returns the timeline with the fills at 0.04D and 0.3D and the unwind at 0.8D. The draw() closure must query its elements inside el; the final set() at D-0.001 is what closes the loop, keep it.",
+  "caveats": [
+    "from() tweens need immediateRender:false when composed into a larger timeline"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

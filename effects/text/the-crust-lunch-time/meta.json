@@ -1,0 +1,22 @@
+{
+  "move": "giant words slam together from top and bottom, elastic punch, beat bounce",
+  "how": "An orange 1080 square with faint diagonal stripes, a top and bottom caption, a small clock and two 270px uppercase words, the second as an outlined knockout, plus an italic ribbon. The first word rises from yPercent 110 with scaleY 1.8 and the second drops from yPercent -110 (expo.out, 0.7s, at 1% and 4%); at 15% both punch to scaleX 1.08 scaleY 0.9 and rebound with elastic.out(1,0.4). The ribbon pops from scale 0 rotate 20 (back.out(2.2)), the clock scales in and its hands sweep for the rest of the clip, the stripes slide xPercent -8 to 8 linearly. From 44% the words bounce yPercent +/-4 four times and the ribbon rocks; at 88% the words slide out xPercent -120 and 120 (expo.in), the ribbon shrinks and captions fade.",
+  "moves": [
+    "collide",
+    "stretch",
+    "elastic",
+    "bounce",
+    "slide-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the two words, ribbon text, captions, brand colours and the knockout stroke; keep the 0.7s tall-stretch entries, the 0.1s punch with elastic rebound at 15% and the opposite-direction exit.",
+  "port": "mount(el, shot) builds the rows, ribbon, clock and captions; animate(el, shot, D) returns the timeline with entries at 0.01D/0.04D, punch at 0.15D, bounces at 0.44D and exit at 0.88D. Scope selectors to el.",
+  "caveats": [
+    "the stripe drift ends at xPercent 8 and jumps back to -8 on loop"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

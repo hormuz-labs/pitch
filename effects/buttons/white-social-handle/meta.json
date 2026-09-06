@@ -1,0 +1,28 @@
+{
+  "move": "white pill clip-wipes in from left, icon spins in, letters stagger up, underline draws, wipes out",
+  "how": "Over a darkened aurora image that pans linearly (scale 1.06 to 1.12, yPercent 0.6 to -0.6) across the 4s loop, a white lower-third pill at bottom-left reveals with clip-path inset(0 100% 0 0 round 38px) to inset(0 0% 0 0) plus x -40 to 0 with expo.out over 0.8s from 0.1s, while a star icon spins in from rotation -180 / scale 0.4 with back.out(1.8). The @ fades in from x -10, then SplitText characters of 'acme.motion' rise from yPercent 80 with back.out(2) staggered 0.03s from 0.5s, and a thin underline draws scaleX 0 to 1 with expo.out at 0.9s. At 2.0s the icon spins a full 360 with power3.inOut. From 3.1s (78%) the letters fall upward and fade staggered 0.02s, the underline retracts from the right, and at 3.4s the pill clip-wipes back to the left with expo.in.",
+  "moves": [
+    "mask-wipe",
+    "spin",
+    "stagger",
+    "draw-line",
+    "slide-out"
+  ],
+  "libs": [
+    "gsap",
+    "SplitText",
+    "clip-path"
+  ],
+  "adapt": "Change the handle string (SplitText re-splits whatever is there), the icon, and the white/black for brand colours; the background image is optional. Keep the 0.8s expo.out clip wipe and the 0.03s character stagger.",
+  "port": "mount(el, shot) builds bg and the lt pill (icon, handle with SplitText chars, underline) inside el; register SplitText and split after mount. animate returns the timeline with wipe-in 0.025D, icon 0.0375D, chars 0.125D, underline 0.225D, spin 0.5D, out from 0.775D to 0.96D. from() tweens need immediateRender:false; clip-path is tweened as a string with the round radius.",
+  "caveats": [
+    "needs SplitText",
+    "background pan is linear and does not return, so only the lower-third loops",
+    "clip-path tweened as a string, both endpoints must share the same shape and round radius",
+    "from() tweens need immediateRender:false",
+    "loads assets/backgrounds/aurora.png"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

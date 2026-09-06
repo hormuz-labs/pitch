@@ -1,0 +1,27 @@
+{
+  "move": "one panel splits into a 2x2 grid, quadrants populate, folds back",
+  "how": "Four dark KPI panels in a 2x2 CSS grid on a near-black stage; at start panels 2-4 are pre-set with gsap.set to x:-527/y:-307 and scaleX/scaleY 0 (transform-origin top-left) so they hide under panel 1, which is scaled 2.03x2.02 to cover the whole grid. Panel 1 fades in (power3.out) and the grid scales from 0.92 in the first 13%; at 12-35% panel 1 scales to 1 while the other three tween to x:0/y:0/scale 1 with expo.inOut so the block visibly splits along both seams. From 25% each quadrant populates: labels and values slide up (stagger 0.03), mini bars grow scaleY from 0 (expo.out, stagger 0.04), a sparkline draws with DrawSVG (power2.inOut), two progress fills scale scaleX from 0, and an object tween counts four numbers with power3.out. Exit at 82%: the three panels collapse back to their hidden positions and panel 1 re-scales to 2.03 with expo.in, then the grid fades with a 0.96 scale.",
+  "moves": [
+    "split",
+    "scale-in",
+    "grow-bar",
+    "draw-stroke",
+    "counter",
+    "stagger"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the four panel labels, values (targets in the counter tween), deltas, mini bar heights, sparkline path and progress widths; recolour the accent panel (.p:nth-child(1)) and series colours; keep the 0.7s expo.inOut split and the symmetric expo.in fold. The -527/-307 offsets equal panel width/height plus gap and must be recomputed if the grid resizes.",
+  "port": "mount(el, shot) builds the .grid with four .p panels; animate(el, shot, D) measures panel width/height and gap to compute the hide offsets, applies gsap.set, returns the same timeline with split at 0.12-0.35 of D and fold at 0.82. The counter writes to bare ids v1-v4 via window globals, which must become el.querySelector references; requires DrawSVGPlugin.",
+  "caveats": [
+    "offsets -527/-307 and scale 2.03/2.02 are hard-coded to a 1040x600 grid with 14px gap",
+    "counter onUpdate uses implicit window.v1..v4 globals from element ids",
+    "requires DrawSVGPlugin for the sparkline",
+    "3s duration, tighter than the family"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "gridlines draw, bars grow staggered, values count up, bars collapse out",
+  "how": "A white dashboard card on a grey stage with a title, a KPI counter and seven vertical bars (six indigo gradient, the last orange as highlight) built from data. The card rises from y:30/opacity:0 (power3.out) in the first 15%; four horizontal gridlines and the baseline draw with scaleX 0 to 1 from the left (expo.out, stagger 0.05) at 4-20%. Bars grow with scaleY 0 to 1 from transform-origin bottom (expo.out, 0.9s, stagger 0.09) starting at 10%, while each value label counts from 0 to its number in sync and the KPI counts to $459k (power2.out). At 50% the highlight bar breathes scaleY 1.04 yoyo. Exit from 78%: bars collapse scaleY to 0 with expo.in staggered from the end, labels fade, the card lifts out with y:-20.",
+  "moves": [
+    "draw-stroke",
+    "grow-bar",
+    "counter",
+    "stagger",
+    "slide-in"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Edit the data array (label, value, hi flag) and the card title/subtitle/KPI target; change bar gradients in .fill and .bar.hi .fill; keep the 0.9s expo.out grow with 0.09 stagger and the from-end expo.in collapse.",
+  "port": "mount(el, shot) creates the card and generates .bar elements from shot.data; animate(el, shot, D) returns the same timeline with entrances at 0-0.3 of D, breath at 0.5, exit at 0.78-0.9; counters are plain object tweens with onUpdate writing textContent, which port directly. All getElementById calls must become el.querySelector.",
+  "caveats": [
+    "from() tweens with stagger on generated elements need the DOM built before animate",
+    "uses getElementById for kpi and bars, must be scoped"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

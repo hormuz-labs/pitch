@@ -1,0 +1,12 @@
+{
+  "move": "canvas gradient blobs flow, hero type rises, glass card floats in",
+  "how": "A 640x360 canvas paints four additive radial-gradient blobs whose centres orbit on sine/cos of time (one full cycle per 5s) over a deep purple base, under an SVG-noise grain overlay. On the GSAP timeline the nav drops in (y:-30, expo.out) at 2%, the two headline lines rise through overflow masks (yPercent:110, expo.out, stagger 0.1) at 6%, paragraph and pill CTAs follow (back.out(1.6)), and a frosted stat card enters from y:120/rotate:6 (expo.out) at 10% with its bars growing scaleY from 0 (stagger 0.06) and a number counting up via textContent snap. Two glossy spheres pop in with elastic.out(1,0.5) and drift on sine.inOut while the card floats up 14px. From 87% everything exits: headline lines shoot up (yPercent:-110 expo.in), card drops y:200, spheres scale to 0.",
+  "moves": ["gradient-flow", "line-mask", "slide-in", "counter", "elastic", "float"],
+  "libs": ["gsap", "canvas"],
+  "adapt": "Change brand name, nav labels, headline words, paragraph, CTA labels, the card metric/bars and the four blob colours in paint(); keep the 5s blob orbit period, expo.out entrances and the 0.45s expo.in exit. Bar heights are inline styles.",
+  "port": "mount(el, shot) appends the canvas, grain, nav, hero, card and blobs into el; animate(el, shot, D) returns the same timeline with entrance times scaled to D and adds a dummy tween with onUpdate calling paint(tl.time()) since the original drives the canvas from the timeline's onUpdate callback. Blob phase should use t/D rather than t/5. Selectors must be scoped to el.",
+  "caveats": ["canvas painted via tl.eventCallback('onUpdate'), must become an onUpdate tween when ported", "backdrop-filter blur on the card and grain overlay with mix-blend-mode are costly per frame", "gradient orbit completes one cycle but DOM elements exit, so the loop does not close"],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

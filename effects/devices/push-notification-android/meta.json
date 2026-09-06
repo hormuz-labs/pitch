@@ -1,0 +1,25 @@
+{
+  "move": "heads-up card decelerates in, actions unfold, ripple tap, swipes away",
+  "how": "A 310x640 Android phone drifts rotateY -18 -> -10 with sine.inOut over the 4s beside a rising three-line headline (yPercent 110, expo.out) and kicker/paragraph fade-ups. At 12.5% the notification card comes from y -190, opacity 0, scaleY 0.85 to rest in 0.55s with power4.out while the lock-screen clock pushes down y 118 in step; the card's header and body fade up with 0.06s stagger. At 37.5% the action row unfolds height 0 -> 18px and opacity 1 (power3.out) and the clock drops a further 30px. At 62.5% a blue ripple expands scale 0 -> 22 and fades (power2.out); at 77.5% the card swipes off to x 320 with opacity 0 (power3.in), the clock returns and the copy slides left and fades.",
+  "moves": [
+    "slide-in",
+    "decelerate",
+    "unfold",
+    "ripple",
+    "swipe-out",
+    "word-rise"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the app name, sender, title and message, action labels, the accent blue (#3d6dff), headline words and background image. Keep the 0.55s power4.out arrival, the 0.4s unfold and the 0.45s power3.in swipe.",
+  "port": "mount(el, shot) builds the phone, lock-screen and notification card from shot strings; animate(el, shot, D) returns the timeline with arrival at 0.125D, expand at 0.375D, ripple at 0.625D and dismiss at 0.775D. The from() tweens on copy and card text should be fromTo with immediateRender:false; el needs perspective:1800px.",
+  "caveats": [
+    "full-frame background image with brightness/saturate filter",
+    "loop does not close: card swipes away, copy fades, phone angle differs from frame 0"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,26 @@
+{
+  "move": "bottle turns toward camera, sheen sweeps, dip to black, serif line rises",
+  "how": "A blurred violet video drifts behind a vignette. Cut 1 (0 to 0.6D): a CSS-built bottle fades in from scale 1.3, y:60, rotateY:-24 to scale 1.06, rotateY:8 with power1.out over 2.4s; a skewed sheen strip slides x:0→560 across the glass with power2.inOut, a glow floor swells, the name tightens from letter-spacing .6em, and 18 seeded dust motes rise slowly. A black .fade dips in with power2.in at 0.51D and out at 0.6D. Cut 2 eases from scale 1.06 while two serif lines rise out of masks (yPercent 100→0 power3.out, stagger 0.15), a hairline draws scaleY, a footer fades, then at 0.91D the frame dips to black again to close the loop.",
+  "moves": [
+    "flip-3d",
+    "sheen-sweep",
+    "tracking-in",
+    "dip-to-black",
+    "mask-text",
+    "particles"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Swap the background video, bottle label and colours (the bottle is pure CSS gradients, so replace with a product image if needed), the name, tagline lines and footer; keep the slow power1.out turn, the 1.6s sheen and the 0.35s dips for the luxurious pace.",
+  "port": "mount(el, shot) builds the video, .c1 with bottle/floor/dust (seeded rng) and .c2 type, plus .fade; animate(el, shot, D) returns the timeline with the video-scrub onUpdate tween and offsets as fractions of D (dip 2.05/4, cut 2 at 2.4/4, close 3.65/4). Scope all selectors to el.",
+  "caveats": [
+    "filter: blur(30px) on a full-frame video is slow to render",
+    "animates letterSpacing on the name",
+    "video scrub requires loaded media"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

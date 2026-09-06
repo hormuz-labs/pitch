@@ -1,0 +1,26 @@
+{
+  "move": "cursor taps a logo, six swatches burst out radially onto a ring, orbit, then collapse back",
+  "how": "A centred dark rounded logo tile with a ring-dot SVG, six colour swatch tiles labelled with hex codes stacked at the centre at scale 0, two outline rings, an arrow cursor and a title. 0-8%: the logo settles from scale .3 rotation -30 (expo.out). 6-18%: the cursor glides in from (360,240) with power3.inOut, presses at 18% (scale .8 then back.out(3)) as the logo squashes .88 and rebounds with elastic.out(1,.4) and two rings expand 2.6x and 3.4x fading (power2.out); the cursor leaves at 21%. From 19.5% each swatch flies from the centre to a point on a 250px ring (angle i/6 of a turn from the top) with back.out(1.6) over 1.1s, staggered 0.05s, rotating -30->0. 34-68%: the swatches rock rotation 8 in a sine yoyo and orbit a sixth of a turn via a proxy angle tween (power1.inOut) updating x/y; the title fades in at 32%. 74-84%: swatches collapse back to the centre at scale 0 with back.in(1.8), 0.06s stagger; the logo bumps 1.08 and elastic settles; at 95% it shrinks to .6 and fades (expo.in).",
+  "moves": [
+    "press",
+    "elastic",
+    "radial-burst",
+    "orbit",
+    "stagger",
+    "ripple",
+    "collapse"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the six swatch colours and hex labels with the brand palette, the logo tile and mark, the title string and the ring radius. Keep the 0.12s press, the back.out(1.6) 1.1s burst with 0.05s stagger and the back.in collapse.",
+  "port": "mount(el, shot) builds the centre group, swatches from shot.palette, rings and cursor inside el; animate(el, shot, D) returns the timeline with the tap at 0.18D, burst from 0.195D, orbit 0.34D-0.68D, collapse at 0.74D, exit at 0.95D. The orbit uses proxy tweens with onUpdate calling gsap.set on each swatch, which port as-is; scope '.sw', '.logo', '.cursor', '.ring', '.title' to el; the cursor from() needs immediateRender:false when nested.",
+  "caveats": [
+    "from() tweens on logo and cursor need immediateRender:false when nested",
+    "orbit is proxy tweens with onUpdate, seek-safe but not a plain property tween",
+    "ends with the logo faded out, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

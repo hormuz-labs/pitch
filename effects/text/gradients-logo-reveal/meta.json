@@ -1,0 +1,26 @@
+{
+  "move": "blurred gradient sheets sweep in, ring draws on, mark rises, name reveals",
+  "how": "Four oversized blurred gradient layers in screen blend (pink radial, blue radial, amber radial and a violet-cyan conic) plus a centred SVG mark (a gradient-stroked ring and a white triangle under a clip), a letter-spaced wordmark split into spans, a tag line and a dark veil. The veil fades out over the first 24% with power2.out while the layers sweep in from off-frame with power2.inOut over 52%: pink from lower-left rotating -20 to 10, blue from upper-right, amber rising from below scaling .7 to 1.1, the conic spinning to 140deg while fading up to .45. At 18% the ring draws with DrawSVG 0 to 100% with expo.inOut over 1.3s while the mark scales from .7 and rotate -30 with expo.out; the triangle rises from y 120 at 30%. Letters rise from yPercent 110 (expo.out, 0.07s stagger) at 38% and the tag settles its letter-spacing from .6em. The layers keep drifting through the hold, then at 86% they blow out (scale 1.3, opacity 0), the mark shrinks to 0 rotating 60deg, and name and tag lift away, ending on the dark ground.",
+  "moves": [
+    "flood",
+    "drift",
+    "draw-stroke",
+    "slide-in",
+    "stagger",
+    "spin",
+    "blur-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Replace the SVG mark (keep a stroke path for the draw-on), the wordmark letters, the tag and the four layer gradient colours; the gradient id must be unique per instance. Keep the 2.6s power2.inOut sweep and the expo.inOut ring draw.",
+  "port": "mount(el, shot) builds the four .layer divs, the .mark SVG with suffixed gradient/clip ids, .name spans, .tag and .veil; animate(el, shot, D) returns a gsap.timeline placing the sweeps at 0-0.03D, veil at 0, ring draw at 0.18D, triangle 0.3D, name 0.38D, drift 0.52D and exit at 0.86D. Register DrawSVGPlugin; the gsap.set('#ring', drawSVG 0) belongs in mount, scoped via el.querySelector.",
+  "caveats": [
+    "four 180%-size layers with filter blur(30px) in screen blend are slow to render",
+    "SVG gradient and clipPath ids collide if two instances share a document"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

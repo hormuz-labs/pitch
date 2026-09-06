@@ -4,7 +4,8 @@
  *
  * There is no guest/host translation. The agent's shell, its file tools and
  * every host tool see the SAME absolute paths: the project's workspace at its
- * real location, and the three shared references (engine, skills, assets) at
+ * real location, and the four shared references (engine, skills, assets,
+ * effects) at
  * theirs. The sandbox binds each at the path it already has, so a path in a
  * tool result, a skill listing, an error message or the agent's own `pwd`
  * means one thing everywhere.
@@ -33,13 +34,14 @@ export const SKILLS_DIR = path.join(PI_DIR, 'skills')
 export const ASSETS_DIR = path.join(REPO_ROOT, 'assets')
 export const MUSIC_DIR = path.join(ASSETS_DIR, 'music')
 export const SFX_DIR = path.join(ASSETS_DIR, 'sfx')
+export const EFFECTS_DIR = path.join(REPO_ROOT, 'effects')
 export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(REPO_ROOT, 'projects')
 
 /**
  * Readable by the agent, writable by nobody: mounted read-only in the sandbox
  * and refused for writes by every host tool.
  */
-export const SHARED_ROOTS: readonly string[] = [ENGINE_DIR, SKILLS_DIR, ASSETS_DIR]
+export const SHARED_ROOTS: readonly string[] = [ENGINE_DIR, SKILLS_DIR, ASSETS_DIR, EFFECTS_DIR]
 
 export class PathError extends Error {
   constructor(message: string) {
@@ -120,8 +122,9 @@ export function describeWorkspace(workspace: string): string {
   return (
     `Current working directory: ${workspace} — this project's workspace, and the only place ` +
     `you can write. Read-only references: the engine at ${ENGINE_DIR}, your skills at ` +
-    `${SKILLS_DIR}, the music, SFX and font libraries at ${ASSETS_DIR}. Nothing else on this ` +
-    `machine exists for you: no other project, no network, no environment.`
+    `${SKILLS_DIR}, the music, SFX and font libraries at ${ASSETS_DIR}, the motion effects ` +
+    `lab at ${EFFECTS_DIR}. Nothing else on this machine exists for you: no other project, ` +
+    `no network, no environment.`
   )
 }
 

@@ -1,0 +1,27 @@
+{
+  "move": "squares drop column by column with squash bounce, ripple, fall through",
+  "how": "Thirty-two 72px rounded squares in an 8x4 grid, randomly black, yellow, blue, red or green (seeded rng). Each drops from y -900 over 1.2s with a CustomBounce 'drop' ease (strength .5, squash 2) while a matching scaleY .6 / scaleX 1.35 squash tween runs on the 'drop-squash' ease, staggered 50ms across the grid on the x axis so columns land left to right. A title line rises from its mask at 20%. At 40% a ripple from the grid centre shrinks each square to 0.72 and rotates 90deg and back (power2.inOut yoyo, 40ms grid stagger); at 62% a second ripple from the far corner rotates 45deg and back. At 82% the squares fall through the floor (y 520, opacity 0, power3.in, 30ms stagger) and the title drops out.",
+  "moves": [
+    "drop-in",
+    "squash",
+    "bounce",
+    "grid-stagger",
+    "ripple",
+    "fall-out"
+  ],
+  "libs": [
+    "gsap",
+    "CustomEase",
+    "CustomBounce"
+  ],
+  "adapt": "Change the grid dimensions, square size and radius, palette and the title; the rng seed changes the colour scatter. Keep the CustomBounce strength/squash pairing and the 50ms x-axis stagger.",
+  "port": "mount(el, shot) creates the grid of squares inside el with seeded colours. animate(el, shot, D) returns the same timeline with grid:[rows,cols] staggers and CustomBounce.create called once (guard against re-creating the ease name).",
+  "caveats": [
+    "needs CustomEase and CustomBounce; drop-squash ease is created alongside drop",
+    "from() drop tween needs immediateRender:false if built late",
+    "ends on an empty stage, loop restarts with the drop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

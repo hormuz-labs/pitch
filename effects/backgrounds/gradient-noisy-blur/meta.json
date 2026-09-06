@@ -1,0 +1,23 @@
+{
+  "move": "warm blurred blobs breathe and swap places under live film grain",
+  "how": "Four 820px circles in orange, hot pink, gold and plum, blurred 110px, sit on deep brown; two full-frame SVG feTurbulence layers (fine grain soft-light, coarse grain overlay) and a radial vignette lie on top. Each blob slides on a short diagonal and back (b1 +220/+120, b2 -260/+140) or scales 1 to 1.25 / 1 to 0.85 with sine.inOut yoyo over one cycle per D. Every frame the fine noise seed advances (30 per second, cycling 120) and the coarse seed steps 6 per second, so the grain crawls like film; both seeds return to their start at D.",
+  "moves": [
+    "drift",
+    "blur",
+    "grain",
+    "zoom"
+  ],
+  "libs": [
+    "gsap",
+    "svg-filter"
+  ],
+  "adapt": "Change the four blob colours and the background tint, blob size and blur, and the grain strength via the two layer opacities. Keep the yoyo cycles whole per D and the seed cycle lengths so grain and blobs both loop.",
+  "port": "mount(el, shot) adds the blobs, the two filter SVGs with unique filter ids and the vignette; animate(el, shot, D) returns the blob timeline plus a linear progress tween whose onUpdate sets the two feTurbulence seed attributes from the current time, replacing the window.__fx.seek override. Filter ids must be unique per instance.",
+  "caveats": [
+    "filter: blur(110px) on four large layers plus two full-frame feTurbulence filters is slow to render",
+    "grain seeding is done by patching window.__fx.seek, not on the timeline"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

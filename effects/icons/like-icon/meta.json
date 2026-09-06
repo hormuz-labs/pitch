@@ -1,0 +1,26 @@
+{
+  "move": "like button press: thumb tips back, blue fill wipes up, label swaps, halo and bits burst",
+  "how": "A white pill button holding a thumb SVG (outline over a blue fill masked by a clipPath rect) and a clipped label swapping 'Like'/'Liked', a blue halo circle and eight square bits. At 17% the button squashes to .94 (power2.in, 0.18s) and the icon tips to rotation -28 at scale .9; at 23% both spring back, the icon overshooting to 1.18 with back.out(3) then elastic.out(1,.4) to 1, the button with elastic.out(1,.5) as its border and shadow turn blue. Simultaneously the clip rect y 24->0 wipes the blue fill up (power3.out, 0.45s), the outline turns blue, 'Like' slides up out and 'Liked' slides in from yPercent 110 (expo.out), the halo scales .4->4.5 while fading (expo.out) and the bits fly out radially from the icon (r 170-230px, rotating 180, expo.out) then fade. At 78% it releases: fill wipes down, colours revert, 'Liked' slides out, 'Like' slides back and the icon dips to .92 then back.out(2), so the end state equals the start.",
+  "moves": [
+    "press",
+    "squash",
+    "elastic",
+    "mask-wipe",
+    "text-swap",
+    "ripple",
+    "particles"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Change the two label strings, the blue (#2f6bff), the thumb path for any toggle icon, and the bit count. Keep the 0.18s press, the back.out(3)/elastic.out(1,.4) two-stage rebound and the 0.45s fill wipe.",
+  "port": "mount(el, shot) builds the button, a uniquely-id'd clipPath, the halo and bits inside el; animate(el, shot, D) returns the timeline with the press at 0.17D, react at 0.23D, release at 0.78D. Scope '#lcr', '.txt', '.halo', '.bit' to el and rename the clipPath id; bit radii assume roughly a 720px frame.",
+  "caveats": [
+    "clipPath id must be unique per instance",
+    "bits are placed at stage centre with a -110px x offset that assumes the layout"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,19 @@
+{
+  "move": "grid of dots pops in along the diagonal, then shrinks away",
+  "how": "A 10x6 CSS grid of 92px circles, mostly near-black with seeded orange, blue and yellow accents, sits on cream. Each dot scales 0 to 1 and fades in with back.out(2.2) over 0.55s, delayed by (row+col)*0.045s so the cascade sweeps from top-left to bottom-right, finishing by 0.6 D. From 0.62 D each dot shrinks to 0 with power3.in over 0.3s along the same diagonal at 60% of the in-delay, so the frame is empty at both ends of the 2s loop.",
+  "moves": [
+    "stagger",
+    "pop",
+    "elastic",
+    "scale-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the dot colours and accent ratio, grid dimensions and dot size, or start the cascade from another corner by changing the delay formula. Keep the 0.045s diagonal stagger and the back.out in / power3.in out for the same rhythm.",
+  "port": "mount(el, shot) builds the grid of cells and dots with a seeded rng for colours; animate(el, shot, D) returns the same timeline with fromTo pops at (r+c)*0.045 and the shrink-outs at 0.62 D, scaled as fractions of D. Nothing is viewport-dependent beyond the grid filling el.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

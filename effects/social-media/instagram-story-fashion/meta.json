@@ -1,0 +1,24 @@
+{
+  "move": "paper panel lifts off photo, small type then giant serif lines, closes",
+  "how": "A photo occupies the lower 1400px with a slow push scale 1→1.1 / yPercent 2→-2 across the whole duration; a paper panel over it scales y 1→0 from the top (expo.inOut 1s) like a page lifting. Hierarchy builds small-to-large: season and issue number slide in from x ∓30, a vertical rule scales y from 0 (expo.out), a side block drops from y -30, then three giant serif lines in mix-blend-mode difference rise masked from yPercent 120 (expo.out, stagger 0.14). A swatch image slides in from x 200, its veil scales y to 0 from the bottom, and its image settles from scale 1.15; a credit rule scales x from 0 with captions sliding in. At 57% the italic middle line slides x 120 (expo.inOut) as a flourish. Exit at 82%: lines exit upward with expo.in, small elements fade, the rule shrinks to the bottom and the panel scales back to 1 from the bottom (expo.inOut 0.5s).",
+  "moves": [
+    "mask-wipe",
+    "text-rise",
+    "draw-stroke",
+    "slide-in",
+    "ken-burns",
+    "offset-slide"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the main photo and swatch image, the three headline words, season/number/side/credit strings and the paper colour; keep the 1s panel lift, the 0.14s line stagger and the italic slide at 2.3s.",
+  "port": "mount(el, shot) builds the photo, panel, type blocks, swatch and credit; animate(el, shot, D) returns the timeline with panel at 0.025D, lines at 0.2D, flourish at 0.575D, exit at 0.82D. All from() tweens need immediateRender:false; selectors el-scoped; mix-blend-mode difference on the headline needs the photo in the same stacking context.",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "headline uses mix-blend-mode: difference over the photo"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

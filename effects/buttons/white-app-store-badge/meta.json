@@ -1,0 +1,28 @@
+{
+  "move": "white badge flips up from flat, logo draws, text rises, breathes, flips away over the top",
+  "how": "A white App Store badge with a stroke logo, two masked text lines and a subtle grey gloss sits over a dim aurora image that pans linearly (scale 1.1 to 1.16, xPercent 1 to -1) across the 3s loop, with a blurred white halo behind. Over the first 27% the badge rotates up from rotationX -95 at its bottom edge (y 60, opacity 0) with back.out(1.4) under a 1000px perspective while the halo fades to 0.22; the three logo strokes draw with DrawSVG staggered 0.1s from 0.35s; 'Download on the' and 'App Store' rise from yPercent 120 with expo.out. At 1.1s the gloss sweeps across; from 1.6s the badge breathes to 1.04 and back with sine.inOut as the halo brightens on a yoyo. At 2.6s (87%) the badge flips away over its top edge (rotationX 95, y -60, power3.in) and the halo fades.",
+  "moves": [
+    "flip-3d",
+    "draw-stroke",
+    "mask-rise",
+    "shine-sweep",
+    "pulse"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "css-3d"
+  ],
+  "adapt": "Swap the logo paths, the two lines and the white/grey for a brand pair (a black variant exists); the background image is optional. Keep the rotationX flip-up with back.out(1.4) and the flip-away exit.",
+  "port": "mount(el, shot) builds bg, halo and badge (logo svg, two masked lines, shine) inside el with perspective on the container; register DrawSVGPlugin. animate returns the timeline with flip-in 0 to 0.267D, draw 0.117D, text 0.167D / 0.2D, gloss 0.367D, breath 0.533D to 0.867D, exit 0.867D. from() tweens need immediateRender:false.",
+  "caveats": [
+    "needs DrawSVGPlugin",
+    "background pan is linear and does not return, so only the badge itself loops",
+    "filter: blur(60px) halo",
+    "from() tweens need immediateRender:false",
+    "loads assets/backgrounds/aurora.png"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

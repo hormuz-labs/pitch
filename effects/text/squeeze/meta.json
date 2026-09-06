@@ -1,0 +1,20 @@
+{
+  "move": "press compresses card flat and wide, elastic release, dots ripple the shock",
+  "how": "A white card with a title and orange button on a warm off-white stage, four dots beneath it and a translucent finger circle. At 5% the finger appears and the card compresses to scaleY 0.62 scaleX 1.18 (power3.in, 0.18s) from its bottom edge, the title to 0.7/1.25 and the button to 0.5/1.4 slightly later. At 25% the finger fades and grows while the card, title and button release back to 1/1 over 0.7s with elastic.out(1.2,0.35) at slightly offset starts. The dots squash to scaleY 0.4 scaleX 1.5 with a 0.04s stagger and rebound with elastic.out(1,0.35), so the stage returns to its rest pose by the end.",
+  "moves": [
+    "squash",
+    "elastic",
+    "press",
+    "stagger",
+    "ripple"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap the card content, colours, radius and button label, and the number of dots; keep the 0.18s power3.in press and the 0.7s elastic release ratios.",
+  "port": "mount(el, shot) builds the card, dots and finger; animate(el, shot, D) returns the timeline with press at 0.05D, release at 0.25D and dot ripple at 0.23D and 0.31D. Scope selectors to el; direct port.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

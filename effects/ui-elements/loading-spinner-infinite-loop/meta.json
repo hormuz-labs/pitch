@@ -1,0 +1,23 @@
+{
+  "move": "two dashes chase around an infinity path, dash length breathing",
+  "how": "A grey infinity-shaped track is overlaid by a black and a blue stroke, each given a stroke-dasharray covering 18% of the path length. Two proxy tweens drive strokeDashoffset linearly by minus four path lengths over 8s (the blue one offset half a lap), so each dash makes four laps and the end matches the start. A third tween breathes the dash fraction .18 to .32 with sine.inOut yoyo (8 half-beats of 1s); the caption fades .5 to 1 in the same rhythm and the whole SVG scales .98 to 1.02 with a 2s yoyo.",
+  "moves": [
+    "path-chase",
+    "dash-offset",
+    "breathe",
+    "loop"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Swap the track and the two dash colours, the caption and the path (any closed path works since length is measured); keep whole-number laps per D so the loop seals.",
+  "port": "mount(el, shot) inserts the SVG and measures getTotalLength after layout; animate returns the timeline with the three proxy tweens spanning D. DrawSVG is registered but not used (a lap helper is dead code), so the engine only needs core gsap; scope querySelector to el.",
+  "caveats": [
+    "DrawSVGPlugin is loaded and registered but never used; the lap() helper is dead code",
+    "getTotalLength must run after the SVG is in the DOM"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

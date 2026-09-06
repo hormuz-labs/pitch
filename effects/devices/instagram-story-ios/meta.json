@@ -1,0 +1,25 @@
+{
+  "move": "story chrome slides in, sticker pops elastic, poll fills, swipe-up exit",
+  "how": "A 1080x1920 portrait frame: the background photo scales 1.0 -> 1.12 linearly over the 5s and the current story progress bar scaleX 0 -> 1 linearly in step. The header drops in from y -30 and the footer rises from y 40 (power3.out) in the first 10%. At 10% a white sticker pops from scale 0 / rotate -12 with elastic.out(1,0.5) then wobbles rotate -4 <-> 3 with sine.inOut yoyo. At 20% a poll card rises from y 80 / scale 0.9 with back.out(1.6); at 42% one option squashes to 0.92 as a tap and both fill bars scaleX 0 -> 1 with expo.out from their outer edges, percentages fade in; a location mention slides in from x -40 at 32%. At 88% sticker, poll and mention slide up y -80 and fade with power2.in (0.06s stagger) and the chrome fades.",
+  "moves": [
+    "slide-in",
+    "elastic-pop",
+    "wobble",
+    "fill-bar",
+    "tap-squash",
+    "swipe-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the photo, account name, sticker text, poll question, options and percentages (fill widths 60%/40%), the mention text and the progress-bar segment count. Keep the elastic pop, the expo.out fills at 0.46 of the duration and the linear progress bar.",
+  "port": "mount(el, shot) builds the story UI from shot strings; animate(el, shot, D) returns the timeline with header/footer at 0.02D-0.04D, sticker pop at 0.1D, poll at 0.2D, vote at 0.42D-0.5D and exit at 0.88D. The from() tweens should become fromTo with immediateRender:false; the frame is portrait 1080x1920 so the shot must declare that size.",
+  "caveats": [
+    "portrait 1080x1920 frame, not 16:9",
+    "backdrop-filter blur on the mention chip",
+    "loop does not close: elements swipe up and out"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1920"
+}

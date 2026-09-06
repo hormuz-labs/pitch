@@ -1,0 +1,24 @@
+{
+  "move": "burger press slides rail in from edge, content shifts, items cascade, closes",
+  "how": "A desktop window mock with a Dashboard content area and a 260px white rail parked off-screen left (x -260) holding five nav rows at x -30 / opacity 0. Cursor arrives with power3.out in the first 10% of the 7s loop and presses the burger at 0.75s (scale 0.88, back.out(3) rebound). At 0.85s the rail slides to x 0 and the content shifts x 260, both expo.out over 0.7s, while the nav rows fade and slide in with power3.out staggered 0.06s. The cursor wanders to the third row (Customers): its background tints on hover, press at 3.0s turns it blue with back.out(2) as the old active row goes white and the heading crossfades to 'Customers'. At 4.2s the cursor returns to the burger, presses at 5.0s (71%): rows exit staggered from the end with power2.in, rail and content slide back with expo.inOut over 0.6s, the cursor leaves by 6.6s and the active state and heading are quietly reset in the last 8% so the loop closes.",
+  "moves": [
+    "slide-in",
+    "stagger",
+    "cursor-press",
+    "hover-tint",
+    "crossfade"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the five nav labels and icons, the heading strings, the blue accent and the rail width (update the x -260 / 260 pair). Keep the expo.out 0.7s slide with the 0.06s row cascade.",
+  "port": "mount(el, shot) builds the window chrome, content, rail with nav rows and the cursor inside el. animate returns the timeline with open press at 0.107D, slide 0.121D, row hover/press 0.357D to 0.446D, close press 0.714D, slide out 0.743D, reset 0.914D. Selectors including '.nav:nth-child(3)' and '.nav.active' scoped to el; the heading swap uses .set(textContent).",
+  "caveats": [
+    "heading text swap uses .set(textContent), fine for forward seek only",
+    "backgroundColor and color tweened as strings",
+    "active-state reset in the last 0.6s is visible as a quick fade"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

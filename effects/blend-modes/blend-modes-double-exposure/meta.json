@@ -1,0 +1,22 @@
+{
+  "move": "three lighten-blend photos drift and breathe inside a dark silhouette",
+  "how": "A black SVG head-and-shoulders silhouette on white, covered by three full-frame images with mix-blend-mode lighten and heavy contrast filters; over white lighten is white, over the dark silhouette the image shows, giving the double exposure. Each layer moves x/y 12 to 50px, scales 1.04 to 1.15 and breathes opacity on sines of the loop phase (every term a whole cycle), and the silhouette bobs 6px and scales 1%. All values are set from t in a seek function via gsap.set.",
+  "moves": [
+    "double-exposure",
+    "blend",
+    "drift",
+    "pulse"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the silhouette path and the three images (high-contrast landscapes work best), the caption and tag; keep whole-cycle sine terms so the 2s loop closes.",
+  "port": "mount(el, shot) injects the silhouette SVG and the .ex image layers; animate(el, shot, D) returns a timeline with one {t:0->D, ease:none} tween whose onUpdate runs the seek(t) gsap.set calls. Scope '.ex1..3' and '.silhouette' to el.",
+  "caveats": [
+    "three full-frame images with filter contrast/saturate and mix-blend-mode are costly to composite",
+    "needs image assets from ../../../assets/backgrounds"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

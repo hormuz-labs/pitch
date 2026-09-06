@@ -1,0 +1,28 @@
+{
+  "move": "blue bird swoops in along a drawn trail, wings flap, hovers bobbing, +1s float, darts off",
+  "how": "A pale sky with three drifting CSS clouds, an SVG trail path, a bird (body, wing, eye) in a 420px group, a white message pill and three '+1' labels. The clouds drift 40-60px linearly over the full loop. 0-37%: the bird follows the trail with MotionPathPlugin (power2.out) while scaling .5->1 and rotating 18->0; the trail drawSVGs 0->100% under it (power2.out) then erases from the tail (power2.in) from 20%. The wing flips scaleY 1->-0.6->1 every 0.24s for six beats (sine.inOut) around an svgOrigin pivot. From 37% the bird bobs y -14 and rotates -6 in yoyo pairs (sine.inOut, 0.5s), flaps once more at 63%, and the message pops in with back.out(2). +1 labels rise 120px fading in then out at 43%, 53%, 63%. Exit at 85%: the bird darts to x 700, y -260 shrinking (power3.in) and the message drops out.",
+  "moves": [
+    "path-follow",
+    "draw-stroke",
+    "flap",
+    "bob",
+    "float",
+    "parallax",
+    "slide-exit"
+  ],
+  "libs": [
+    "gsap",
+    "MotionPath",
+    "DrawSVG"
+  ],
+  "adapt": "Replace the bird paths and Twitter blue (#1d9bf0) with the product's mascot or mark, the handle string, the trail curve and the +1 positions. Keep the 1.1s power2.out swoop, the 0.24s flap cadence and the 0.5s hover bob.",
+  "port": "mount(el, shot) builds the sky, clouds, trail SVG (viewBox 1080x1080 scaled to el) and bird inside el; animate(el, shot, D) returns the timeline with the swoop over 0-0.37D, hover from 0.37D, exit at 0.85D. Register MotionPath and DrawSVG; rename '#trail' per instance and scope selectors to el; the +1 coordinates and exit vector are absolute 1080 pixels.",
+  "caveats": [
+    "motionPath align to '#trail' requires the trail SVG and the bird to share el's coordinate space",
+    "from() on .msg needs immediateRender:false when nested",
+    "ends with the bird off-frame, no return to frame one"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1080"
+}

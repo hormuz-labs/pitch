@@ -1,0 +1,24 @@
+{
+  "move": "cards drop from above in sequence, tilt back, squash on landing",
+  "how": "Five full-height colour cards sit in a flex row under a small title. Each card fromTo's y:-820 with rotateX:-35 and a slight rotateZ to rest with back.out(1.2) over 1s, starting at 0.017D and staggered 0.037D apart; at 0.72s into each fall a scaleY 1→0.94→1 yoyo (transform-origin top) gives a landing squash, then the name and hex rise in with expo.out. From 0.4D the cards breathe up 10px with sine.inOut yoyo, staggered. From 0.84D they fall off the bottom (y:900, rotateX:25, power3.in, stagger 0.1) and the title fades, so the frame is empty at both ends.",
+  "moves": [
+    "drop-in",
+    "stagger",
+    "squash",
+    "flip-3d",
+    "cascade-exit"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the five card colours, names and hex labels and the title string; card count can change (stagger 0.22s each, so more cards need a longer D). Keep the back.out fall, the 0.12s squash yoyo and the power3.in exit.",
+  "port": "mount(el, shot) builds .title and .deck with one .card per shot.colors; animate(el, shot, D) returns the same timeline with every offset expressed as a fraction of D (fall start 0.1/6, stagger 0.22/6, exit at 5.05/6). Selectors must be scoped to el; the stage needs perspective:1400px on the container for rotateX.",
+  "caveats": [
+    "from() tweens on .n/.h need immediateRender:false if the timeline is built after mount is visible",
+    "y:-820 and y:900 assume a 720px-tall stage"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

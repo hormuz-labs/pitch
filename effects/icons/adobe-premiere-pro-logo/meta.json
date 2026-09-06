@@ -1,0 +1,25 @@
+{
+  "move": "playhead scrubs across timeline, wipes tile in behind it, scrubs back",
+  "how": "A dark stage with a 300px purple 'Pr' tile above an 820px timeline track holding three coloured clips and a time ruler, plus a white glowing playhead line with a triangle head. The track scales in scaleX from the left (expo.out) over the first 17%, ruler labels fade up. From 9% to 59% the playhead moves x -410 to 410 (power2.inOut, 2s) while the tile's clip-path tweens from inset(0 100% 0 0 round 56px) to inset(0 0% 0 0 round 56px) with the same ease so its revealed edge stays locked to the playhead; the three clips slide in xPercent:-120 with expo.out staggered 0.5 as the head passes. At 57% the tile settles from scale 0.96 with elastic.out(1,0.5). Exit at 80%: playhead scrubs back to -410 with power3.in while the clip-path closes again, clips slide out, track and ruler fade.",
+  "moves": [
+    "mask-wipe",
+    "scrub",
+    "slide-in",
+    "elastic",
+    "clip-path"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Change the tile letters and colours (#2a0038, #ea77ff), the clip widths/colours and ruler labels; keep the playhead and clip-path sharing the same 2s power2.inOut so the reveal edge tracks the head. The x range of +/-410 equals half the track width.",
+  "port": "mount(el, shot) builds tile, track with clips, ruler and playhead; animate(el, shot, D) applies gsap.set(head, {x:-half}) using the measured track width, returns the same timeline with scrub at 0.09-0.59 of D and scrub-back at 0.8. Selectors scoped to el; no plugins.",
+  "caveats": [
+    "clip-path inset with 'round 56px' interpolates as a string, both ends must have identical shape",
+    "playhead x range hard-coded to a 820px track",
+    "ends with the tile hidden again so first and last frames roughly match apart from the faded track"
+  ],
+  "fidelity": "approximation",
+  "loop": false,
+  "size": "1280x720"
+}

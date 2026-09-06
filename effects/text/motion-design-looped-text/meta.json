@@ -1,0 +1,21 @@
+{
+  "move": "three type bands marquee in alternating directions, seamless one-unit seam",
+  "how": "A saturated blue frame with three 150px uppercase bands: solid white words with yellow dot separators on the top and bottom rows, outlined (text-stroke) words on the middle row. Each band's track repeats the four-word unit three times. seek(t) measures the unit width once, then sets x linearly: the outer bands move left by exactly one unit width over the 1s duration, the middle band moves right by the same amount, so frame D equals frame 0 and the marquee is seamless. No eases, no entry or exit.",
+  "moves": [
+    "marquee",
+    "loop",
+    "counter-scroll"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the word list, colours, which band is outlined, band count and font size; duration sets the speed (one unit per D). Keep the linear motion and measured unit width so the seam stays invisible.",
+  "port": "mount(el, shot) builds the bands and fills each track with the unit repeated three times, measuring unit width after layout; animate(el, shot, D) returns a gsap.timeline with three fromTo x tweens of duration D and ease 'none' (or one proxy tween with onUpdate). Scope gsap.utils.toArray('.track') to el; widths depend on el being laid out before measuring.",
+  "caveats": [
+    "unit width is measured with getBoundingClientRect, so measure after the font has loaded and el is in the document",
+    "no entry or exit; it is a pure marquee"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

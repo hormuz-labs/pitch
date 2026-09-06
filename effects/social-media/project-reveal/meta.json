@@ -1,0 +1,25 @@
+{
+  "move": "frame lines draw, counter loads, flash, work wipes down, title snaps in",
+  "how": "A dark grid stage: four thin frame lines scale in one after another (scaleX/scaleY, expo.inOut, 0-28%), four client/year/scope/studio meta lines rise out of overflow masks (yPercent 110 to 0, expo.out) at 8, 17, 26 and 35%, an italic serif centre sentence rises at 22-25%, and a big tabular percentage counter climbs 00 to 100 with a matching loading bar (scaleX, power2.inOut) from 6% to 68% while the grid background slowly pans. At 65% the meta, sentence, counter and bar pull up and fade (power2.in). At 69% a white flash hits (0.08s in, 0.6s out), the work panel clip-path insets from 100% bottom to 0 (expo.inOut 0.9s) with the photo settling from scale 1.15, a mock UI card slides up 240px (expo.out) and the title line rises from its mask; the frame lines fade. At 94% the work clips away upward (expo.in) and the title drops out so the stage is dark again.",
+  "moves": [
+    "draw-line",
+    "mask-rise",
+    "counter",
+    "flash",
+    "mask-wipe",
+    "ken-burns"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace the meta labels, the centre sentence, the project title and case-study tag, the loader caption, the work image and the mock UI; recolour the grid and flash. Keep the long 6.2s counter build, the 0.4s pull-out, the 0.08s flash and the 0.9s clip wipe.",
+  "port": "mount(el, shot) builds the grid, frame lines, meta rows, counter, loadbar, work panel and title inside el, with initial gsap.set for clipPath and yPercent. animate(el, shot, D) returns the same timeline with positions as fractions of D (build 0-0.65, reveal 0.69, exit 0.94); the counter onUpdate must query .pct .n within el.",
+  "caveats": [
+    "from() tweens for the frame lines and meta rows; if the timeline is built after the first render use immediateRender:false or fromTo",
+    "the frame lines fade at 70% and are not restored, so frame 0 shows lines that the final frame lacks"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

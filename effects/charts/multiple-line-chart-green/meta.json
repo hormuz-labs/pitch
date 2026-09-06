@@ -1,0 +1,26 @@
+{
+  "move": "three green lines draw at different speeds, end markers pop, lead pulses",
+  "how": "A dark green full-bleed stage with title, subtitle and a three-line legend above a 1120x480 SVG. Three series are generated as seeded random walks (fx.rng(7)) and turned into smooth bezier paths: a bright glowing 'Growth' line (drop-shadow filter), a darker 'Balanced' line and a pale 'Income' line, plus a circle-and-value end marker per line. Header text slides up y:16 (power3.out, stagger 0.08) from 0; six gridlines draw with DrawSVG expo.out (stagger 0.04) at 4-25%; labels fade. From 12% all three lines draw 0 to 100% with power2.inOut, durations 2.0/1.9/1.8s so the lead line finishes first. End markers pop scale 0 to 1 with back.out(2.5) (stagger 0.06) at 56%. Hold: the lead line pulses stroke-width 3.5 to 5 yoyo (sine.inOut) at 65%. Exit at 80%: markers shrink, lines retract to their end (drawSVG '100% 100%', expo.in, stagger 0.04), everything fades.",
+  "moves": [
+    "draw-stroke",
+    "multi-line",
+    "pop",
+    "pulse",
+    "stagger"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Replace the walk() calls with real series arrays (13 points) and set min/max, the month letters, title/subtitle/legend and the three greens in .ln.a/.b/.c and legend --c; keep the simultaneous power2.inOut draws with the 0.1s speed difference and the back.out end-marker pop.",
+  "port": "mount(el, shot) builds the header and SVG, computes the three paths and end markers from shot.series, generates grid/labels; animate(el, shot, D) returns the same timeline with draws at 0.12-0.62 of D and retract at 0.8. Requires DrawSVGPlugin; ids (pa, pb, pc, grid, ends) must be scoped to el or made unique; the seeded rng only matters if series are generated rather than supplied.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "series values come from fx.rng(7) random walks, not real data",
+    "SVG drop-shadow filter on the lead line, moderate cost",
+    "lines retract and stage fades, no loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}
