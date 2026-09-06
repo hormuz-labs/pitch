@@ -199,7 +199,7 @@ export const LandingNav = () => {
       >
         <div className="lb-nav-in">
           <Link to="/" aria-label="Pitch home" className="lb-brand">
-            <img src={tabLogoB} alt="" className="lb-brand-mark" width={26} height={26} />
+            <img src={tabLogoB} alt="" className="lb-brand-mark" width={32} height={32} />
             <span className="lb-brand-word">
               {/* static: the hero owns the animated wordmark, the nav is a mark */}
               <PitchLogoAnimation startAnimation={false} loop={false} color="currentColor" />
