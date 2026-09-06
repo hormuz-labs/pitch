@@ -3206,12 +3206,28 @@ to {
 
 @media (max-width: 900px) {
   .lv-studio .editor { flex-direction: column; }
-  /* Enough of the artifact to judge it, the rest of the height to the
-     conversation that changes it. */
+  /* YouTube-style: the player is sized by width at 16:9 rather than a
+     viewport-height clamp, so the artifact fills the phone's width and the
+     conversation below takes whatever height is left. */
   .lv-studio .editor-stage {
     flex: 0 0 auto;
-    height: clamp(220px, 40vh, 380px);
+    height: auto;
     min-height: 0;
+  }
+  .lv-studio .editor-stage > .player {
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 9;
+  }
+  /* The selectable video keeps its selection track below the picture instead
+     of squeezing it: the video itself gets the 16:9 ratio and the player
+     grows to fit the track underneath. */
+  .lv-studio .editor-stage > .player:has(.video-container) {
+    aspect-ratio: auto;
+  }
+  .lv-studio .editor-stage > .player .video-container > video {
+    flex: 0 0 auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
   }
   .lv-studio .player { padding: 12px; }
   .lv-studio .resize-handle { display: none; }
@@ -3226,7 +3242,6 @@ to {
 }
 
 @media (max-width: 720px) {
-  .lv-studio .editor-stage { height: clamp(200px, 36vh, 300px); }
   .lv-studio .feed { padding: 10px 12px 12px; }
   .lv-studio .feed-header { padding: 10px 12px 2px; }
   .lv-studio .composer-wrap { padding: 0 12px 12px; }
@@ -3929,7 +3944,32 @@ to {
 
   .lv-studio .editor-stage {
     order: 1;
+    height: auto;
+    flex: 0 0 auto;
+  }
+
+  /* The files tab has no intrinsic height to size itself from, so it keeps a
+     bounded share of the screen; only the preview gets the 16:9 treatment. */
+  .lv-studio .editor-stage:has(.studio-files-view) {
     height: clamp(260px, 44vh, 420px);
+  }
+
+  .lv-studio .editor-stage > .player {
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  /* The selectable video keeps its selection track below the picture instead
+     of squeezing it: the video itself gets the 16:9 ratio and the player
+     grows to fit the track underneath. */
+  .lv-studio .editor-stage > .player:has(.video-container) {
+    aspect-ratio: auto;
+  }
+
+  .lv-studio .editor-stage > .player .video-container > video {
+    flex: 0 0 auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
   }
 
   .lv-studio .resize-handle {
@@ -3946,10 +3986,6 @@ to {
 }
 
 @media (max-width: 720px) {
-  .lv-studio .editor-stage {
-    height: clamp(230px, 40vh, 340px);
-  }
-
   .lv-studio .feed-header,
   .lv-studio .preview-pane-header {
     flex-basis: 44px;
