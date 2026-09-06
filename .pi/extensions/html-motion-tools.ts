@@ -437,7 +437,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film by its `design`: the grammar's shot-list rules (chain: 6–16 shots, actors across the boundaries, blur exits; chapters: 8–40 shots, chapter labels, a typed prompt, a flood or scale cut; either: breaths, the hook, scene lengths), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism, overlap, harvested logo used, no generated image as the product. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.",
+      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film by its `design`: the grammar's shot-list rules (chain: 6–16 shots, actors across the boundaries, blur exits; chapters: 8–40 shots, chapter labels, the word camera, a flood or scale cut; either: breaths, the hook, scene lengths), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism and overlap. Warns where the harvested logomark goes unused or a generated image stands in for the product. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
@@ -577,7 +577,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_image',
     label: 'Generate Image',
     description:
-      'For the site that has no imagery: generate ONE brand-locked still with a Gemini image model — a background plate for a type beat, an object for the hook (the thing the product is about, or its metaphor), a texture for the stage, a flat illustration of the mechanism, or a matching icon set. The palette is read from recon/brand-tokens.json and written into the prompt; pass harvested files as refs for material and mood. It refuses screens, logos, people and text — a generated screenshot is a fabricated product (motion_audit fails a ui-frame/device-3d/logo shot whose src is generated). You receive the image: look at it; off-brand or off-subject, regenerate once with a sharper subject, then move on. Files land in assets/generated/ with a sidecar and recon/generated.json.',
+      'For the site that has no imagery: generate ONE brand-locked still with a Gemini image model — a background plate for a type beat, an object for the hook (the thing the product is about, or its metaphor), a texture for the stage, a flat illustration of the mechanism, or a matching icon set. The palette is read from recon/brand-tokens.json and written into the prompt; pass harvested files as refs for material and mood. It refuses screens, logos, people and text — a generated screenshot is a fabricated product (motion_audit warns when one stands in for the product). You receive the image: look at it; off-brand or off-subject, regenerate once with a sharper subject, then move on. Files land in assets/generated/ with a sidecar and recon/generated.json.',
     parameters: Type.Object({
       kind: Type.Union(
         [

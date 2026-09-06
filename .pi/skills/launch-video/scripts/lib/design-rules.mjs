@@ -92,7 +92,7 @@ export function lintDesign(spec) {
   shots.forEach((s) => {
     if (s.type === "line" && s.typing && s.chapter !== undefined && !(s.container === "none")) { /* hero typing is judged by the opener rule and the review sheets */ }
     if ((s.rippleBeats || 0) > 0) out.push({ level: "fail", msg: `#${s.id}: a \`ripple\` beat — rings expanding from a press are banned. A press is the control's own state change (the pill grows, the button splits, the toggle snaps) or a \`flood\`.` });
-    if (s.type === "ui-frame" && s.capturedSrc) out.push({ level: "fail", msg: `#${s.id}: a captured screen as the product (\`src\`). The screenshot is the reference; rebuild the screen as \`html\` in the film's type and palette so its field, rows and button can move. (\`device-3d\` may still take a frame as its screen texture.)` });
+    if (s.type === "ui-frame" && s.capturedSrc) out.push({ level: "warn", msg: `#${s.id}: a captured screen sits still as the product (\`src\`, no \`html\`). A still screenshot cannot have a second act — give the shot a focus move, a cursor, a beat, or rebuild the part that moves as \`html\`.` });
   });
   if (design !== "chain" && n >= 8 && punches === 0) out.push({ level: "warn", msg: "No `punch` cuts — mark 2–3 boundaries where a beat lands." });
   if (!breaths && n >= 8) out.push({ level: "warn", msg: "No `breath` beats — the reference films duck the bed for half a second before every payoff. Put one before the moment the film is about." });

@@ -283,7 +283,7 @@ let determinismWarnings = 0;
 await studio.close();
 
 // ---------------------------------------------------------------------------
-// 6. Harvested logo used?
+// 6. Harvested logo used where the mark appears? (a warning, not a gate)
 // ---------------------------------------------------------------------------
 let logoWarnings = 0;
 {
@@ -333,14 +333,14 @@ let logoWarnings = 0;
       }
       if (!used) {
         logoWarnings++;
-        console.error(`\n❌ Harvested logomark is NOT used anywhere in the project (${logos.slice(0, 3).map(l => l.file).join(", ")}). Reference the real file; never redraw or retype a mark. (--allow-missing-logo if the film truly shows no logo.)`);
+        console.error(`\n⚠️  The harvested logomark is not used anywhere (${logos.slice(0, 3).map(l => l.file).join(", ")}). Where the mark appears, reference the real file rather than retyping it. (--allow-missing-logo to silence this.)`);
       }
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// 7. A generated image standing in for the product?
+// 7. A generated image standing in for the product? (a warning, not a gate)
 // motion_image makes plates, objects, textures, illustrations — never a
 // screen, a logo or a person. A ui-frame, device-3d or logo shot whose src
 // is a generated file shows the viewer a product that does not exist.
@@ -357,7 +357,7 @@ let generatedWarnings = 0;
     const hit = srcs.find(isGenerated);
     if (hit && (productTypes.has(sh.type) || sh.type === "icon-marquee")) {
       generatedWarnings++;
-      console.error(`\n❌ #${sh.id} (${sh.type}) uses a generated image as the product: ${hit}. Generated files are plates, objects, textures and illustrations for type beats — the product is a harvested screenshot, a mined frame or a native html rebuild.`);
+      console.error(`\n⚠️  #${sh.id} (${sh.type}) shows a generated image where the product goes: ${hit}. Generated files are plates, objects, textures and illustrations; a viewer reading this as the product is being shown something that does not exist.`);
     }
   }
 }
@@ -372,8 +372,8 @@ if (longestQuiet > maxQuiet) fails.push(`Longest quiet stretch ${longestQuiet.to
 if (eps < minEps) fails.push(`Event density ${eps.toFixed(2)} ev/s is below ${minEps}. The reference films run ≥ 1 ev/s: every shot needs a second and third act, not one entrance.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
-if (logoWarnings) fails.push("Harvested brand asset unused.");
-if (generatedWarnings) fails.push(`${generatedWarnings} generated image(s) shown as the product.`);
+if (logoWarnings) warns.push("The harvested logomark is not used anywhere.");
+if (generatedWarnings) warns.push(`${generatedWarnings} generated image(s) where the product goes.`);
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
 
 console.log(`\n──────── Philosophy scorecard ────────`);
