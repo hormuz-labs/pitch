@@ -4358,100 +4358,136 @@ to {
   background-clip: padding-box;
 }
 
-.lv-studio .track-headers {
+.lv-studio .pro-timeline-canvas {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding: 4px 14px 20px 8px;
+  min-width: calc(104px + var(--timeline-content-w, 760px));
+  width: max-content;
+  gap: 0;
+}
+
+.lv-studio .modular-track-row {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  width: 100%;
+}
+
+.lv-studio .modular-track-cover {
   position: sticky;
   left: 0;
-  z-index: 30;
+  z-index: 50;
   width: 104px;
   min-width: 104px;
-  border-right: 1px solid #e4e3e0;
   background: #fafaf9;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0 8px 26px;
-  flex-shrink: 0;
-}
-
-.lv-studio .track-ruler-corner {
-  position: sticky;
-  top: 0;
-  height: 28px;
-  border-bottom: 1px solid #ebeae7;
-  background: #fafaf9;
-  z-index: 35;
-  flex-shrink: 0;
-}
-
-.lv-studio .track-header-cell {
-  display: flex;
-  align-items: center;
-  padding: 0 9px;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.035em;
-  color: #68645f;
-  background: transparent;
-  border: 0;
+  border: 1px solid #e4e3e0;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.035);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #524e49;
   flex-shrink: 0;
 }
-.lv-studio .track-header-cell + .track-header-cell { margin-top: 8px; }
-.lv-studio .track-header-cell.header-video { height: 86px; }
-.lv-studio .track-header-cell.header-vo { height: 38px; }
-.lv-studio .track-header-cell.header-sfx { height: 38px; }
-.lv-studio .track-header-cell.header-music { height: 36px; }
 
-.lv-studio .track-tag {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: inherit;
-  white-space: nowrap;
+.lv-studio .modular-track-cover.ruler-corner {
+  height: 24px;
+  border-bottom: 1px solid #e4e3e0;
+  border-radius: 6px 0 0 0;
+  background: #f4f4f2;
+  z-index: 55;
 }
 
-.lv-studio .track-tag::before {
+.lv-studio .cover-video { height: 86px; }
+.lv-studio .cover-vo { height: 38px; }
+.lv-studio .cover-sfx { height: 38px; }
+.lv-studio .cover-music { height: 36px; }
+
+.lv-studio .modular-track-lane {
+  flex: 1;
+  min-width: var(--timeline-content-w, 760px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e4e3e0;
+  border-left: 0;
+  border-radius: 0;
+  padding: 0 8px;
+}
+
+.lv-studio .modular-track-row + .modular-track-row .modular-track-cover,
+.lv-studio .modular-track-row + .modular-track-row .modular-track-lane {
+  border-top: 0;
+}
+
+.lv-studio .modular-track-row:last-child .modular-track-cover {
+  border-radius: 0 0 0 8px;
+}
+
+.lv-studio .modular-track-row:last-child .modular-track-lane {
+  border-radius: 0 0 8px 0;
+}
+
+/* Draw the playhead inside each lane instead of as one canvas-height line.
+   The sticky label column can then never expose it through the row gaps, and
+   the percentage remains relative to the timed lane rather than the canvas. */
+.lv-studio .modular-track-lane::after {
   content: "";
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
-  border-radius: 2px;
-  background: #aaa7a2;
+  position: absolute;
+  z-index: 40;
+  top: -1px;
+  bottom: -1px;
+  left: var(--playhead-pct, 0%);
+  width: 2px;
+  background: #ef4444;
+  pointer-events: none;
+  will-change: left;
+  transition: left 80ms linear;
 }
 
-.lv-studio .header-vo .track-tag::before { background: #b28acb; }
-.lv-studio .header-sfx .track-tag::before { background: #e8a43c; }
-.lv-studio .header-music .track-tag::before { background: #5fae78; }
-
-.lv-studio .track-sub {
-  display: none;
-}
-
-.lv-studio .track-lanes-area {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 max(calc(100% - 104px), var(--timeline-content-w, 760px));
-  width: max(calc(100% - 104px), var(--timeline-content-w, 760px));
-  min-width: 0;
-  padding: 0 16px 26px 10px;
-}
-
-.lv-studio .time-ruler {
-  position: sticky;
+.lv-studio .time-ruler::before {
+  content: "";
+  position: absolute;
+  z-index: 41;
   top: 0;
-  z-index: 25;
-  height: 28px;
-  flex: 0 0 28px;
-  border-bottom: 1px solid #ebeae7;
-  background: #fafaf9;
-  display: flex;
-  align-items: center;
-  padding: 0 4px;
+  left: var(--playhead-pct, 0%);
+  width: 10px;
+  height: 9px;
+  background: #ef4444;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform: translateX(-4px);
+  pointer-events: none;
+  will-change: left;
+  transition: left 80ms linear;
+}
+
+.lv-studio .playhead-anchor {
+  position: absolute;
+  top: 0;
+  left: var(--playhead-pct, 0%);
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lv-studio .modular-track-lane.time-ruler {
+  height: 24px;
+  background: #f4f4f2;
+  border-radius: 0 6px 0 0;
+  cursor: pointer;
   font-family: var(--mono);
   font-size: 9.5px;
-  color: #9ca3af;
-  cursor: pointer;
+  color: #8b8782;
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  padding: 0 4px;
 }
 
 .lv-studio .ruler-mark {
@@ -4468,50 +4504,11 @@ to {
   transform: translateX(-100%);
 }
 
-.lv-studio .track-lanes-inner {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  position: relative;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-}
-
-.lv-studio .playhead-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: #ef4444;
-  z-index: 40;
-  pointer-events: none;
-  will-change: left;
-}
-.lv-studio .playhead-line::before {
-  content: "";
-  position: absolute;
-  top: -18px;
-  left: -5px;
-  width: 12px;
-  height: 12px;
-  background: #ef4444;
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-}
-
-.lv-studio .track-lane {
-  position: relative;
-  display: flex;
-  align-items: center;
-  border-radius: 6px;
-  border: 1px solid #ebeae7;
-  box-shadow: none;
-}
-.lv-studio .track-lane.lane-video {
+.lv-studio .lane-video {
   height: 86px;
+  background: #ffffff;
   padding: 4px 6px;
   gap: 6px;
-  background: #f7f7f6;
   overflow-x: visible;
 }
 .lv-studio .lane-video .scene-card {
@@ -4535,22 +4532,25 @@ to {
 .lv-studio .lane-video .scene-card-label {
   padding: 3px 3px 1px;
 }
-.lv-studio .track-lane.lane-vo {
+
+.lv-studio .lane-vo {
   height: 38px;
-  background: #fbf9fc;
-  border-color: #eee8f1;
+  background: #faf5ff;
+  border-color: #f3e8ff;
   padding: 0 6px;
 }
-.lv-studio .track-lane.lane-sfx {
+
+.lv-studio .lane-sfx {
   height: 38px;
-  background: #fdfaf4;
-  border-color: #f2e8d3;
+  background: #fffbeb;
+  border-color: #fef3c7;
   padding: 0 6px;
 }
-.lv-studio .track-lane.lane-music {
+
+.lv-studio .lane-music {
   height: 36px;
-  background: #f5faf6;
-  border-color: #dcecdf;
+  background: #f0fdf4;
+  border-color: #dcfce7;
   padding: 0 6px;
 }
 

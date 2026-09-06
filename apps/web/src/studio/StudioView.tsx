@@ -39,15 +39,6 @@ function BuildProcess({ store }: { store: ProjectStore }) {
   const s = store
   const shots = s.assets.filter(a => a.kind === 'image' && a.origin !== 'upload')
   const [latest, ...rest] = shots
-  const steps = s.entries.filter(e => e.role === 'tool')
-  const thought = [...s.entries]
-    .reverse()
-    .find(e => (e.role === 'assistant' || e.role === 'thinking') && e.text.trim())
-    ?.text.trim()
-  const stepsRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    stepsRef.current?.scrollTo({ top: stepsRef.current.scrollHeight })
-  }, [steps.length])
 
   return (
     <div className="build-process">
@@ -77,25 +68,6 @@ function BuildProcess({ store }: { store: ProjectStore }) {
               alt={shot.name}
               title={shot.name}
             />
-          ))}
-        </div>
-      )}
-      {thought && <p className="build-process__thought">∴ {thought}</p>}
-      {steps.length > 0 && (
-        <div className="build-process__steps" ref={stepsRef}>
-          {steps.slice(-8).map(e => (
-            <div className={`build-process__step is-${e.tool?.status ?? 'done'}`} key={e.id}>
-              <span className="build-process__step-icon">
-                {e.tool?.status === 'running' ? (
-                  <span className="spinner" />
-                ) : e.tool?.status === 'error' ? (
-                  '✕'
-                ) : (
-                  '✓'
-                )}
-              </span>
-              <span className="build-process__step-text">{e.text}</span>
-            </div>
           ))}
         </div>
       )}
@@ -362,7 +334,6 @@ function TopbarSplit({
           <span className={`project-state ${state.toLowerCase()}`}>
             <i /> {state}
           </span>
-          {s.busy && s.status && <span className="topbar-live-status">{s.status}</span>}
         </div>
       </div>
       <div className="topbar-split-right">

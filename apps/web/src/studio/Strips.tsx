@@ -216,7 +216,12 @@ export function SceneStrip({ store }: { store: ProjectStore }) {
     <div
       className="timeline pro-multi-track-timeline"
       data-playing={s.playing ? 'true' : 'false'}
-      style={{ '--timeline-content-w': `${timelineWidth}px` } as CSSProperties}
+      style={
+        {
+          '--timeline-content-w': `${timelineWidth}px`,
+          '--playhead-pct': `${playheadPct}%`,
+        } as CSSProperties
+      }
     >
       <div className="pro-timeline-toolbar">
         <div className="pro-toolbar-left">
@@ -242,50 +247,37 @@ export function SceneStrip({ store }: { store: ProjectStore }) {
       </div>
 
       <div className="pro-timeline-grid" ref={scrollViewportRef}>
-        {/* Left Track Headers (Clean titles: Video, Voiceover, SFX 1/2, Music Bed) */}
-        <div className="track-headers">
-          <div className="track-ruler-corner" />
-          <div className="track-header-cell header-video">
-            <span className="track-tag">Video</span>
-          </div>
-          <div className="track-header-cell header-vo">
-            <span className="track-tag">Voiceover</span>
-          </div>
-          {sfxTracks.map((_, idx) => (
-            <div key={`sfx-h-${idx}`} className="track-header-cell header-sfx">
-              <span className="track-tag">{sfxTracks.length > 1 ? `SFX ${idx + 1}` : 'SFX'}</span>
+        <div
+          className="pro-timeline-canvas"
+          style={{ '--timeline-content-w': `${timelineWidth}px` } as CSSProperties}
+        >
+          {/* Section 0: Sticky Time Ruler Row */}
+          <div className="modular-track-row ruler-row">
+            <div className="modular-track-cover ruler-corner" />
+            <div
+              className="modular-track-lane time-ruler"
+              onClick={e => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const clickX = e.clientX - rect.left
+                const nextT = Math.max(0, Math.min(duration, (clickX / rect.width) * duration))
+                s.seekPlayer(nextT)
+              }}
+            >
+              <span className="playhead-anchor" ref={playheadRef} aria-hidden="true" />
+              {[0, 0.25, 0.5, 0.75, 1].map(frac => (
+                <span key={frac} className="ruler-mark" style={{ left: `${frac * 100}%` }}>
+                  {fmt(frac * duration)}
+                </span>
+              ))}
             </div>
-          ))}
-          <div className="track-header-cell header-music">
-            <span className="track-tag">Music Bed</span>
-          </div>
-        </div>
-
-        {/* Scrollable Track Lanes Area */}
-        <div className="track-lanes-area">
-          {/* Time Ruler */}
-          <div
-            className="time-ruler"
-            onClick={e => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              const clickX = e.clientX - rect.left
-              const nextT = Math.max(0, Math.min(duration, (clickX / rect.width) * duration))
-              s.seekPlayer(nextT)
-            }}
-          >
-            {[0, 0.25, 0.5, 0.75, 1].map(frac => (
-              <span key={frac} className="ruler-mark" style={{ left: `${frac * 100}%` }}>
-                {fmt(frac * duration)}
-              </span>
-            ))}
           </div>
 
-          <div className="track-lanes-inner">
-            {/* Playhead Indicator */}
-            <div className="playhead-line" ref={playheadRef} style={{ left: `${playheadPct}%` }} />
-
-            {/* Track 1: Original Pitch Scene Cards */}
-            <div className="track-lane lane-video">
+          {/* Section 1: Video Scenes Track */}
+          <div className="modular-track-row row-video">
+            <div className="modular-track-cover cover-video">
+              <span className="track-tag">Video</span>
+            </div>
+            <div className="modular-track-lane lane-video">
               {scenes.map(scene => (
                 <button
                   type="button"
@@ -303,9 +295,14 @@ export function SceneStrip({ store }: { store: ProjectStore }) {
                 </button>
               ))}
             </div>
+          </div>
 
-            {/* Track 2: Voiceover Clips */}
-            <div className="track-lane lane-vo">
+          {/* Section 2: Voiceover Track */}
+          <div className="modular-track-row row-vo">
+            <div className="modular-track-cover cover-vo">
+              <span className="track-tag">Voiceover</span>
+            </div>
+            <div className="modular-track-lane lane-vo">
               {scenes
                 .filter(sc => sc.label)
                 .map(scene => {
@@ -326,10 +323,17 @@ export function SceneStrip({ store }: { store: ProjectStore }) {
                   )
                 })}
             </div>
+          </div>
 
-            {/* Track 3+: SFX Tracks (Separated into non-overlapping sub-tracks) */}
-            {sfxTracks.map((trackCues, trackIdx) => (
-              <div key={`sfx-lane-${trackIdx}`} className="track-lane lane-sfx">
+          {/* Section 3+: SFX Sub-Tracks */}
+          {sfxTracks.map((trackCues, trackIdx) => (
+            <div key={`row-sfx-${trackIdx}`} className="modular-track-row row-sfx">
+              <div className="modular-track-cover cover-sfx">
+                <span className="track-tag">
+                  {sfxTracks.length > 1 ? `SFX ${trackIdx + 1}` : 'SFX'}
+                </span>
+              </div>
+              <div className="modular-track-lane lane-sfx">
                 {trackCues.map(cue => {
                   const leftPct = (cue.time / duration) * 100
                   return (
@@ -348,10 +352,15 @@ export function SceneStrip({ store }: { store: ProjectStore }) {
                   )
                 })}
               </div>
-            ))}
+            </div>
+          ))}
 
-            {/* Track 4: Background Music (BGM Bed) */}
-            <div className="track-lane lane-music">
+          {/* Section 4: Music Bed Track */}
+          <div className="modular-track-row row-music">
+            <div className="modular-track-cover cover-music">
+              <span className="track-tag">Music Bed</span>
+            </div>
+            <div className="modular-track-lane lane-music">
               <button
                 type="button"
                 className="timeline-item item-music"
