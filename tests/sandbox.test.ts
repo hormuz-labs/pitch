@@ -16,6 +16,8 @@ import {
   explainBwrapFailure,
   runInSandbox,
   sandboxEnv,
+  sandboxMode,
+  unconfinedCommand,
 } from '../.pi/lib/sandbox'
 
 const WS = '/app/projects/studio--user_1--acme'
@@ -153,6 +155,7 @@ describe('running a command in the sandbox', () => {
     await expect(
       runInSandbox('true', {
         workspace: '/ws',
+        mode: 'bwrap',
         onData: () => {},
         spawnFn: fakeSpawn(child => {
           child.stderr.emit('data', Buffer.from('bwrap: No permissions to create a new namespace'))
@@ -166,6 +169,7 @@ describe('running a command in the sandbox', () => {
     await expect(
       runInSandbox('true', {
         workspace: '/ws',
+        mode: 'bwrap',
         onData: () => {},
         spawnFn: fakeSpawn(child => {
           const err: NodeJS.ErrnoException = new Error('spawn bwrap ENOENT')
@@ -174,6 +178,32 @@ describe('running a command in the sandbox', () => {
         }),
       }),
     ).rejects.toThrow(/sandbox could not start.*bubblewrap/s)
+  })
+
+  it('runs the shell directly, in the workspace, when the mode is unconfined', async () => {
+    const calls: Array<[string, string[], any]> = []
+    const r = await runInSandbox('echo hi', {
+      workspace: '/ws',
+      cwd: '/ws/sub',
+      mode: 'unconfined',
+      onData: () => {},
+      spawnFn: ((cmd: string, argv: string[], opts: any) => {
+        calls.push([cmd, argv, opts])
+        const child: any = new EventEmitter()
+        child.stdout = new EventEmitter()
+        child.stderr = new EventEmitter()
+        child.kill = () => {}
+        queueMicrotask(() => child.emit('close', 0))
+        return child
+      }) as never,
+    })
+    expect(r.exitCode).toBe(0)
+    const [cmd, argv, opts] = calls[0]!
+    expect(cmd).toBe('/bin/bash')
+    expect(argv).toEqual(['-lc', 'echo hi'])
+    expect(opts.cwd).toBe('/ws/sub')
+    expect(opts.env.STUDIO_SANDBOX).toBe('none')
+    expect(Object.keys(opts.env)).not.toContain('GEMINI_API_KEY')
   })
 
   it('does not mistake a failed command for a broken sandbox', async () => {
@@ -186,5 +216,32 @@ describe('running a command in the sandbox', () => {
       }),
     })
     expect(r.exitCode).toBe(127)
+  })
+})
+
+describe('which sandbox a host gets', () => {
+  it('is bubblewrap on Linux and nothing on macOS, where bwrap does not exist', () => {
+    expect(sandboxMode('linux', {})).toBe('bwrap')
+    expect(sandboxMode('darwin', {})).toBe('unconfined')
+  })
+
+  it('lets STUDIO_SANDBOX force either', () => {
+    expect(sandboxMode('linux', { STUDIO_SANDBOX: 'none' })).toBe('unconfined')
+    expect(sandboxMode('darwin', { STUDIO_SANDBOX: 'bwrap' })).toBe('bwrap')
+  })
+
+  it('still builds the guest environment from scratch when unconfined — PATH and HOME from the host, no secrets', () => {
+    const c = unconfinedCommand(
+      'node -v',
+      { workspace: WS },
+      { PATH: '/opt/homebrew/bin:/usr/bin', HOME: '/Users/me', GEMINI_API_KEY: 'x' },
+    )
+    expect(c.file).toBe('/bin/bash')
+    expect(c.args).toEqual(['-lc', 'node -v'])
+    expect(c.cwd).toBe(WS)
+    expect(c.env.PATH).toBe('/opt/homebrew/bin:/usr/bin')
+    expect(c.env.HOME).toBe('/Users/me')
+    expect(c.env.STUDIO_SANDBOX).toBe('none')
+    expect(c.env).not.toHaveProperty('GEMINI_API_KEY')
   })
 })

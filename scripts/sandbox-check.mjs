@@ -40,6 +40,11 @@ const { bwrapCommand, explainBwrapFailure, sandboxEnv } = await import(
   };
 });
 
+if (process.platform === "darwin" && (process.env.STUDIO_SANDBOX || "").toLowerCase() !== "bwrap") {
+  console.log("\n  macOS: there is no bubblewrap here, so the agent's shell runs unconfined (STUDIO_SANDBOX=none).\n  The file tools' path guard still applies. Run this check inside the api container on Linux.\n");
+  process.exit(0);
+}
+
 const ws = mkdtempSync(join(tmpdir(), "sandbox-check-"));
 writeFileSync(join(ws, "hello.txt"), "workspace is writable\n");
 

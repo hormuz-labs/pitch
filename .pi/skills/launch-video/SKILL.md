@@ -9,7 +9,11 @@ A film is a **`shots.js` shot list**. The engine compiles it into DOM plus one
 paused GSAP timeline; the studio previews `index.html` live and **reloads it
 every time you save `shots.js`**; the user's Export button renders the MP4.
 You are the creative director: never ask what effects they want — measure the
-brand, choose the design, write the brief, build, and say what you made.
+brand, choose the design, write the brief, build, and say what you made. But
+the **brief is theirs**: what the film is about, how long, narrated or not,
+what it ends on. When the request leaves one of those open and the answer
+would change the film, ask before recon (the Brief step below) — one message,
+every open question at once, a default beside each — and wait.
 
 ## The two designs
 
@@ -18,28 +22,38 @@ Every launch film is one of them, decided from the product in step 1:
 
 | | **chain** — `references/designs/chain.md` | **chapters** — `references/designs/chapters.md` |
 |---|---|---|
-| the film is | one continuous take: an object born from the words, dropped into the product, becoming the next object, until the mark | prompt → product → payoff, repeated: a sentence typed at hero scale, the real UI tilted with a cursor acting, a payoff that floods or morphs |
+| the film is | one continuous take: an object born from the words, dropped into the product, becoming the next object, until the mark | prompt → product → payoff, repeated: a sentence landed at hero scale and travelled word by word, the product rebuilt and tilted with a cursor acting, a payoff that floods or morphs |
 | fits | a product with one object and one job story; few screens; 25–40s; music-only | a suite or an editor with many screens and jobs; 45–90s; voice optional |
 | the unit | an `actor` crossing shots | a `chapter` of shots |
 | the cuts | none that show: an actor, a `carry`, a `flood` or `exit: "blur"` on every boundary | on a `flood` or on the beat; `zoom` / `zoom-out` between hero and UI scale |
-| the type | a `line` of 2–4 words, the noun in `accent`, the object in a `slot` | a `line` with `typing` in a `glass` container; rotators |
+| the type | a `line` of 2–4 words seen by the **word camera**, the noun in `accent`, the object in a `slot` | a `line` landed as a **snap** and read by the word camera; rotators; typing only inside the rebuilt prompt box |
 | the stage | bare (`ambient none`), off-white, `motion.exit: "blur"` | white, `aurora` under type, `ambient: false` under product |
+| the product | rebuilt screens as `cascade` cards and `ui-frame` `html`; a `device-3d` for the turn | rebuilt screens in tilted `ui-frame` `html`, the field / rows / button each moving |
 
 What both share: the object persists across scale changes, blur is the
 grammar for depth and for exits, one or two things on screen, the real
-product every moment, the noun in the accent rather than a weight change,
-expo-out arrivals and nothing that bounces, a `breath` before every payoff,
-and a 180° shutter. A chapters film may run a chain inside each chapter.
+product every moment — **rebuilt, never captured** — the noun in the accent
+rather than a weight change, expo-out arrivals and nothing that bounces, a
+`breath` before every payoff, and a 180° shutter. Both are made of the
+**moves** in `references/effects-vocabulary.md` (the working vocabulary of
+motion design, from Jitter's 408 templates): a word camera, a snap, an
+inflate, a stretch cut, a card flip, a button split, a ripple on a plate, a
+countdown. Five or more distinct moves per film, each chosen for what the
+beat says. A chapters film may run a chain inside each chapter.
 Write `design: "chain" | "chapters"` at the top of `shots.js`; `motion_audit`
 judges the film by that grammar.
 
 ## Three rules above everything
 
-1. **Brand from evidence.** Every hex and font comes from `motion_recon`;
-   every logo and screen is a harvested file or a mined frame. Two products
-   must give two unmistakable films. Near-black + glow orbs + glass + Inter
-   is banned without evidence from the product's own site; so is retyping a
-   wordmark.
+1. **Brand from evidence, product rebuilt.** Every hex and font comes from
+   `motion_recon`; every logo is a harvested file; every screen is
+   **rebuilt in DOM** from a harvested screenshot or a mined frame — the
+   capture is the reference you study, never the thing on screen. A
+   screenshot in a frame is the tell of a template; a rebuilt screen whose
+   field expands, whose rows land and whose button splits is a film. Two
+   products must give two unmistakable films. Near-black + glow orbs +
+   glass + Inter is banned without evidence from the product's own site; so
+   is retyping a wordmark.
 2. **Never a lazy frame.** Something new happens on screen at least every
    ~1.2s. A `line` changes in steps, an actor is always mid-move, a product
    shot has a dolly and a cursor. `motion_audit` is the judge — no quiet
@@ -47,13 +61,20 @@ judges the film by that grammar.
    and its per-shot table tells you which shot is lazy. Fix it (a step, a
    pose, a beat, a cursor — or cut the shot). Never lengthen. Never argue.
 3. **Not the same film twice.** The design, the chain or the chapter table,
-   the stage kind, the exit, the rhythm, the hook, the voice and the words
-   are decided for *this* product in `direction.md`, and every film has one
-   **signature**: the object only this product could own living as an actor
-   across the film, or a project-local type in `js/shots.custom.js`. Copy
-   every AI writes ("Introducing", "seamless", "effortless", "say goodbye
-   to", "the future of", "in seconds", "supercharge", "unlock") is banned.
-   `motion_audit` warns on the tells; `motion_review` shows you the frames.
+   the stage kind, the exit, the rhythm, the hook, the moves, the voice and
+   the words are decided for *this* product in `direction.md`, and every
+   film has one **signature**: the object only this product could own
+   living as an actor across the film, or a project-local type in
+   `js/shots.custom.js`. Copy every AI writes ("Introducing", "seamless",
+   "effortless", "say goodbye to", "the future of", "in seconds",
+   "supercharge", "unlock") is banned. `motion_audit` warns on the tells;
+   `motion_review` shows you the frames.
+4. **The first second is a move, and no rings.** The film never opens on a
+   caret typing a query; the hook lands as a word camera, a snap, a
+   countdown, a plate rippling — a move from the vocabulary. The `ripple`
+   beat (rings expanding from a press) is banned; press feedback is the
+   control's own state change or a `flood`. `halo` is the CTA's one glow
+   and the flood's pre-glow, nothing else.
 
 **Length is approximate.** "A 60-second video" means about a minute; 54s and
 67s are the same film. Never stretch a shot, pad the tail, rush the read or
@@ -79,11 +100,57 @@ References in this directory, read on demand: `designs/chain.md` and
 `designs/chapters.md` (the grammar you chose — mandatory before the shot
 list), `creative-direction.md` (the brief), `pacing.md` (why the numbers),
 `audio.md` (bed, narration, SFX, mix), `attention-camera.md` (`ui-frame`
-focus), `effects-catalog.md` (recipes for project types — 40KB, so `grep`
-its `## ` headings for the one you need). References are pattern libraries,
+focus), **`effects-vocabulary.md` (the moves — mandatory before the shot
+list)**, `jitter-catalog.md` (all 408 Jitter templates with their
+descriptions, 80KB — `grep` it for the neighbours of a move),
+`effects-catalog.md` (GSAP recipes for project types — 40KB, so `grep` its
+`## ` headings for the one you need). References are pattern libraries,
 never templates; `direction.md` outranks every example in them.
 
 ## Workflow — the user is watching the preview grow
+
+**Brief — settle what only the user can decide, before a single tool runs.**
+Read the request, the earlier turns and whatever is already in the
+workspace (a dropped recording, a `direction.md` from a previous session).
+For each item below: if it is stated, or safely inferable from the request,
+write it down; if it is genuinely open **and the choice would change the
+film**, it goes in the question. Never guess silently at these — a 30s
+music-only teaser and a 75s narrated feature walkthrough are two different
+films, and rebuilding is more expensive than asking.
+
+| item | ask when | otherwise |
+|---|---|---|
+| **the product** — URL, or files if there is no site | no URL, no files, and the name is ambiguous or unknown to you | use what was given |
+| **the length** — ~30s teaser, ~60s launch, ~90s walkthrough | not stated and no length-defining phrase ("teaser", "hero video", "full walkthrough") | the phrase decides; name the seconds you took from it |
+| **what it covers** — the whole product, one feature, one release | the site or the request shows more than one product, feature or plan and the request does not name which; or "the launch" with no release named and the changelog has several | the request names it; a single-product site with one job is the whole product |
+| **narration or music-only** | not stated and the length is ≥ 45s, or the request mentions a script, a voice, or "explain" | a teaser under 40s is music-only; "narrated"/"voiceover"/"script" means a voice |
+| **where it ends** — the CTA: the URL, "available now", a waitlist, a date, a price | nothing on the site says what happens next, or the site offers several (free tier vs enterprise, waitlist vs GA) | the site's primary CTA, quoted |
+| **the audience** — customers, developers, investors, a keynote crowd | the site sells to two audiences and the copy would differ (a devtool with a marketing page and API docs) | the site's own register |
+| **language** of on-screen copy and read | the site is not in English, or the user writes in one language and the site in another | the site's language |
+
+Ask in one message, each question on its own line with the default you
+would take in parentheses — "How long? (I'd make it ~60s, the site has
+four screens worth showing.)" — then **stop and wait**. Do not run
+`motion_recon`, `motion_scaffold`, or write `shots.js` before the answer:
+the length picks the design, the scope picks the recon pages, the voice
+picks the script. Two to four questions is normal; more than five means you
+are asking what recon would tell you.
+
+When they answer, or when they said "you decide", "just make it", or gave
+answers once already: take the defaults, and the **first line of your next
+reply lists every assumption you took** ("~60s, whole product, music-only,
+ends on 'Start free'"). A brief that arrived complete needs no question and
+no pause — go straight to recon. Never re-ask a settled item later in the
+session; a mid-build change of length or scope is the user's to make, and
+is a shot edit, not a restart.
+
+What is never a question: the design, the effects, the moves, the stage,
+the colours, the fonts, the exact second count, the music genre, whether to
+use a cursor — you decide those from recon and `direction.md` — and
+anything a page on the site already answers (the tagline, the pricing, the
+feature names). Asks for **assets** (the SVG logo, a 1080p recording, font
+files) are not brief questions: they never block; relay them after the
+harvest and keep building.
 
 **0. Recon — know more than the landing page.** The film has to explain the
 product better than its own site does, or nobody pays for it.
@@ -95,8 +162,10 @@ product better than its own site does, or nobody pays for it.
   logo, screens, photos, videos and any Lottie / `.riv` the site plays. **The
   harvest hands you a contact sheet per clip — look at every one.** The
   moment that sells the product is forty seconds into their demo, and it is
-  now a still at `assets/harvested/frames/<clip>/t<time>.jpg` for a
-  `ui-frame`, a `device-3d` screen, a `ring`, a `cascade` card or an actor.
+  now a still at `assets/harvested/frames/<clip>/t<time>.jpg` — the
+  **reference** you rebuild that screen from (its layout, labels, the
+  result it shows), and the texture of a `device-3d` screen. It is never
+  the `src` of a `ui-frame`.
 - Read `recon/brand-tokens.md` before a word of direction; `recon/harvested.json`
   says what each file is — never read the image or SVG files themselves.
 - Write `recon/assets.md`: what is available, what is official, and the
@@ -120,6 +189,10 @@ snippet; if it found none, choose a self-hostable equivalent by personality
 (creative-direction.md Axis 2), never a CDN link.
 
 **1. Direction.** Read `creative-direction.md`; write `direction.md`:
+- **The brief, first**: the answers from the Brief step — product, length,
+  scope, voice, CTA, audience, language — each marked *stated*, *inferred
+  from …* or *asked*. Every axis below has to agree with it; the length
+  band and the scope are the first evidence for the design.
 - **Axis 0, the design**: `chain` or `chapters`, with the evidence (one
   object and one job story, or many screens and many jobs). Then read
   `designs/<design>.md` end to end.
@@ -129,15 +202,19 @@ snippet; if it found none, choose a self-hostable equivalent by personality
   payoff, the payoffs all different.
 - The other 9 axes with one line of recon evidence each: stage kind, type,
   motion language, dimensionality, composition, shot formats, arc, audio
-  persona, words. The **devices line**: `device-3d` (single or `ring`),
+  persona, words. **The moves line**: the five or more moves from
+  `effects-vocabulary.md` this film owns, each with the beat it serves and
+  why this product earns it (a card flip for a product with cards, a
+  countdown for a dated launch, a ripple on the hero plate) — and which are
+  project types you will write. The **devices line**: `device-3d` (single or `ring`),
   `ui-frame` + `layers`, `lottie` / `rive`, actors, a transition kind,
   `render.shutter`, `grade`, `motion_image` — used (which shot, what
   evidence) or not (why). End with the Uniqueness Test: swap test,
   evidence audit, anti-default check, the signature named.
 
-**2. Shot list.** Present a table — `# | id | chapter/object | type | dur |
-copy / asset | steps · actors · beats | cut | sound` — then keep going; do
-not wait for approval unless the user is actively replying.
+**2. Shot list.** Present a table — `# | id | chapter/object | type | move |
+dur | copy / rebuilt from | steps · actors · beats | cut | sound` — then
+keep going; do not wait for approval unless the user is actively replying.
 - One idea per shot, 2–4 words on a `line`, ≤ 8 anywhere. A chain film
   8–16 shots, 25–40s; a chapters film 12–40 shots, 45–90s. A `line` with
   steps or a shot posing actors is a scene and may run to 6s; a plain type
@@ -146,8 +223,11 @@ not wait for approval unless the user is actively replying.
   `carry`, `cut: "flood"`, `zoom` / `zoom-out`, a blur exit — or, in a
   chapters film, a hard cut on the beat. Never a dissolve between two type
   beats.
-- Every product shot names its screen (a harvested file or a mined frame by
-  time stamp), its `tilt`/`aura`, and what the cursor does.
+- Every product shot names the reference it is rebuilt from (a harvested
+  file or a mined frame by time stamp), what the rebuild keeps (the field,
+  the rows, the button, the result), which part moves and how (the move),
+  its `tilt`/`aura`, and what the cursor does.
+- The hook is a move: the first shot's `move` column is never "typing".
 - Rhythm is written into the `dur` column: bursts of 0.2–0.5s beats against
   one long product shot, not the same number down the column.
 - Copy per shot is a fact about this product in its own register (a real
@@ -164,24 +244,33 @@ Add 2–4 shots, save, `motion_check`, until the list is complete. **Every
 save is a complete, evaluating literal**; a half-written array shows the
 user an error.
 - A `line` is the type beat: `steps` of `add` / `replace` / `keep` / `out`,
-  parts with `tone`, `rotate` for alternatives, `typing` with `container:
-  "glass"` for a prompt, a `slot` where an actor sits.
+  parts with `tone`, `rotate` for alternatives, a `slot` where an actor
+  sits — and the **word camera**: `zoom` beats on `.lw:nth-child(n)`, one
+  per word, the noun last, so the line is travelled rather than read. Never
+  `typing` at hero scale; a typed prompt is a prompt box inside a rebuilt
+  `ui-frame`, mid-film.
 - An **actor** is any object that lives through a boundary: declare it once
   (`image`, `text`, `shape`, or `element` born from a shot's element) and
   pose it in every shot it passes — `anchor` on a slot or a mark, `into`
   when it lands as an element, `w`/`h`/`r`/`path` poses for a morph chain,
   `blur` for depth, `out` when it leaves.
-- The product: `ui-frame` with `tilt`, `aura`, a `focus` or a `cursor`
-  (`hand: true` at hero scale, `zoom` when the clicked thing becomes the
-  subject, `cursors` for collaborators), `layers` when the screen has real
-  planes (`motion_screenshot({ layers: "auto" })` prints the field);
-  `device-3d` with a decided `device` and `turn`, or `ring` with five mined
-  frames; `cascade` for cards and rows; `lottie` / `rive` for the brand's own
-  motion.
-- Beats for what the types do not: `halo` and `ripple` on a press, `flood`
-  inside a shot, `zoom` into an element, `blurout`, `breath` before a payoff.
-- The signature — and any look the engine lacks (confetti, an extruded
-  glyph, a card that flips into eight) — is a project type in
+- The product: `ui-frame` with **`html`** — the screen rebuilt from its
+  reference in the film's type and palette, the product's real labels and
+  content, its moving part (the field expanding, the rows landing, the
+  button splitting, the toggle snapping, the result arriving) animated in
+  a project type or by an actor landing `into` it — with `tilt`, `aura`, a
+  `focus` or a `cursor` (`hand: true` at hero scale, `zoom` when the
+  clicked thing becomes the subject, `cursors` for collaborators). Never
+  `src` on a `ui-frame`; `motion_audit` flags it. `device-3d` with a
+  decided `device` and `turn` (the one place a mined frame is still the
+  screen texture), or `ring` with five frames; `cascade` for cards and
+  rows; `lottie` / `rive` for the brand's own motion.
+- Beats for what the types do not: `flood` inside a shot, `zoom` into an
+  element or a word, `blurout`, `breath` before a payoff, `halo` under the
+  CTA once. Never `ripple`; a press is the control changing state.
+- The signature — and every move the engine lacks (an inflate, a ripple on
+  the plate, a stretch cut, a card flip, a button split, a dither reveal —
+  `effects-vocabulary.md` marks each) — is a project type in
   `js/shots.custom.js` (`motion_schema({ section: "custom shot types" })`,
   recipes in `effects-catalog.md`; then `motion_scaffold({ custom: true })`).
   Build it early. Seven invariants: everything on the returned timeline (no
@@ -208,11 +297,12 @@ user an error.
 
 **5. Gate, then look.** `motion_audit({})`: zero ❌, and read every ⚠️ —
 they name the design's tells (a chain whose cuts show, a chapters film with
-no typed prompt or no flood, no breaths, no actors). Then `motion_review({})`
+no word camera or no flood, no breaths, no actors, a screenshot as the
+product, a ripple). Then `motion_review({})`
 and **look at every sheet**: clipped or overflowing text, words over a busy
 image, an actor covering what it should sit beside, an empty frame, three
-identical frames, a colour or face not in `recon/brand-tokens.md`, a UI
-screenshot that never changes. Fix in `shots.js`, `motion_review({ shots })`
+identical frames, a colour or face not in `recon/brand-tokens.md`, a
+rebuilt screen that never changes, anything that looks captured. Fix in `shots.js`, `motion_review({ shots })`
 for the ones you touched, `motion_audit` again if any `dur` moved. Two
 rounds unless a defect is still visible. Quote the scorecard line and say
 what the sheets showed and what you fixed, then stop — the preview reloads
@@ -251,18 +341,24 @@ for narration — the first line of your summary says so.
 
 ## Before you stop
 
+- The brief was settled before recon: every open item that would change the
+  film was asked in one message, or the assumption taken is in the first
+  line of the reply; the film is the length band, scope, voice and CTA the
+  user chose, and `direction.md` records which were stated, inferred or
+  asked.
 - `direction.md` names the design with evidence, and the chain (no gap) or
   the chapter table (6–9 rows, payoffs all different); the 9 axes cite
-  `recon/brand-tokens.md`; the devices line answers every device; the
-  signature is named; fonts self-hosted; no banned phrase on screen or in
-  the read.
+  `recon/brand-tokens.md`; the devices line answers every device; the moves
+  line names ≥ 5 moves with their beats; the signature is named; fonts
+  self-hosted; no banned phrase on screen or in the read.
 - `recon/assets.md` has the product model and "what the landing page fails
   to show", and the film shows it; the harvest's frame sheets were looked
   at and the asks were relayed in the first reply.
 - `shots.js` carries `design`; every object that crosses a boundary is an
-  actor; every product shot is a real screen with a cursor, a focus or a
-  dolly; `breath` beats before the payoffs; the mark is a harvested file
-  and the last thing on screen.
+  actor; every product shot is a rebuilt screen (`html`, never `src`) with
+  a part that moves, a cursor, a focus or a dolly; the first shot is a move,
+  not a caret; no `ripple` beat anywhere; `breath` beats before the
+  payoffs; the mark is a harvested file and the last thing on screen.
 - Built progressively with `motion_check` clean after each save.
 - Narration is one read in `audio.vo`, aligned, every shot cued, synced —
   no per-shot clips. Bed named; mix gate passed, ≥ 1s past `__DURATION()`;

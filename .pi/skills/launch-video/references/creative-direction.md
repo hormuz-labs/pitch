@@ -75,10 +75,13 @@ the personality with a self-hostable equivalent:
 
 Scale: **poster** (120–200px, few words, type is the visual) or **restrained**
 (64–90px, room for UI). Tight tracking on display type (−0.02 to −0.04em),
-≤ 8 words per screen, subtitles 24–32px at ~0.75 opacity. Use **≥ 3 distinct
-type treatments** across the film (`type-field`, `word-cut`, `type-wipe`,
-`overlay-type`, `color-punch`, `word-build`); a treatment the engine lacks
-becomes a custom factory (`effects-catalog.md`).
+≤ 8 words per screen, subtitles 24–32px at ~0.75 opacity. The type is
+**travelled, not read**: the word camera pushes into one word at a time.
+Use **≥ 3 distinct type moves** across the film from
+`effects-vocabulary.md` §1 (a snap, an inflate, a motion-blur arrival, a
+scramble, a countdown, a stretch-snap, a mask reveal…), each for the beat
+it means; a move the engine lacks becomes a project type. A caret typing at
+hero scale is not a type move.
 
 ## Axis 3 — Motion language (pick ONE)
 
@@ -136,19 +139,22 @@ matching how the product's value flows; vary between shots for rhythm.
 
 | The value prop is… | Show it with | Type |
 |---|---|---|
-| the app itself is great | the real product, one focus move, a click | `ui-frame` (harvested `src` or a mined frame, `tilt`, `aura`, `focus`, `cursor`) — 30–60% of a UI product's runtime |
-| the sentence is the scene | 2–4 words that change: a word adds, the line is replaced, one word is kept, the object sits between the words | `line` with `steps`, `tone`, a `slot` for an actor |
-| the user types what they want | a prompt at hero scale, typed live, the noun turning to the accent | `line` with `typing` and `container: "glass"` (the chapters opener) |
+| the app itself is great | the real product **rebuilt** from its reference frame, one part moving, one focus move, a click | `ui-frame` with `html` (`tilt`, `aura`, `focus`, `cursor`; the move inside it a project type or an actor) — 30–60% of a UI product's runtime; never `src` |
+| the sentence is the scene | 2–4 words that change: a word adds, the line is replaced, one word is kept, the object sits between the words — and the camera travels it word by word | `line` with `steps`, `tone`, a `slot` for an actor, `zoom` beats on `.lw` (the word camera) |
+| the sentence lands | a snap, an inflate, a tilted snap, a motion-blur arrival, a mask reveal | `word-build`, `line` `replace` steps, or a project type from `effects-vocabulary.md` §1 |
+| the user types what they want | a prompt box *inside the rebuilt product*, typed at UI scale, the result arriving | `ui-frame` `html` with `cursor` and `then`; typing is never the hero-scale opener |
 | one object moves through the product | the file that is dropped in, the card that becomes the grid, the button that becomes the mark | an `actor` posed across the shots (`motion_schema({ section: "actors" })`) |
 | the clicked thing becomes the subject | the cursor presses, the camera pushes in, the rest blurs to white | `ui-frame` `cursor.zoom`, or `beats: [{ kind: "zoom", sel }]` |
 | many of one thing | cards duplicating into a strip, comments arriving, rows cascading | `cascade` (`dir: "left"` / `"up"`, `dof`) |
 | several screens at once | five mined frames on a ring, orbiting, seen from inside | `device-3d` with `ring` |
-| the payoff lands | the frame floods with the accent and retreats; rings ripple from a press; a halo blooms | `cut: "flood"`, `beats: [{ kind: "ripple" }]`, `{ kind: "halo" }` |
+| the payoff lands | the frame floods with the accent and retreats; the control changes state (the pill grows, the button splits, the toggle snaps); a card flips; a stretch cut | `cut: "flood"`, a project type from `effects-vocabulary.md` §3–4; never `ripple` rings |
+| the picture has a moment | a ripple across the hero plate, a dither or pixel reveal, a halftone, a split reveal | a project type from `effects-vocabulary.md` §2, on plates and photos only |
+| the launch has a date, a count | a countdown at poster scale; a counter from a blur; a progress ring | `line` `replace` steps at `size: 320`; `stat-counter`; `DrawSVG` ring |
 | it's on your phone | the real mobile screen | `ui-frame` with `frame: "phone"`, or `device-3d` with `device: "phone"` turning |
 | it runs on your Mac / a device | the screen on the object itself | `device-3d` (laptop, slab, card) with a harvested frame as the screen |
-| the screen has planes | a modal over its page, a sidebar over a canvas | `ui-frame` with `layers` from `motion_screenshot({ layers })`, `tilt` when 2.5D |
+| the screen has planes | a modal over its page, a sidebar over a canvas | the rebuilt `html` with the modal and the sidebar as their own elements, moved by depth in a project type; `tilt` when 2.5D |
 | the product moves | its own mascot, mark or animation | `lottie` / `rive` from a harvested `.json` / `.riv`, or the file the user sent |
-| the moment that sells it is in their video | that exact frame | a mined frame (`assets/harvested/frames/<clip>/t<time>.jpg`) in a `ui-frame` or `device-3d` |
+| the moment that sells it is in their video | that exact frame, rebuilt | a mined frame (`assets/harvested/frames/<clip>/t<time>.jpg`) studied and rebuilt as `ui-frame` `html`; as the texture of a `device-3d` only |
 | the site has no imagery at all | one object, a plate, a texture — in the palette, in the film's style | `motion_image` (never a screen, a logo or a person); a custom type or a `ui-frame`-less beat carries it |
 | a message arrives | a notification landing | `device-notif` with the product's `src` icon |
 | we replace a slog | old way vs product | custom split-compare, or two `word-cut` shots cut against each other |

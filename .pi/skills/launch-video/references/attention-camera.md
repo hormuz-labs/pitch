@@ -34,7 +34,8 @@ Scale and pan travel together in one S-curve tween (`power4.inOut`;
 ## Hotspot and scale
 
 Coordinates are fractions of the visible screen, **measured from the
-harvested screenshot** (`x = px / width`), never guessed.
+rebuilt screen's layout** (`x = px / width`, from the `html` you wrote),
+never guessed.
 
 | Purpose | `w` | Scale |
 |---|---:|---:|
@@ -47,8 +48,10 @@ The control's label should render ≥ 28px tall at delivery size. `landX` /
 
 ## What goes inside the frame
 
-1. The user's own product assets. 2. Screens harvested from the site.
-3. A native `html` rebuild only when internal parts must animate — faithful
-nav items and labels, never invented metrics. 4. A screenshot plus a
-`cursor.then` swap for the consequence. Never an unchanged screenshot for a
-whole shot.
+A native `html` rebuild of the screen, always — faithful nav items,
+labels and content from the harvested screenshot or mined frame it is
+rebuilt from, in the film's own type and palette, never invented metrics —
+with one part that moves (the field, the rows, the button, the result) and
+a `cursor.then` swap for the consequence. The user's own photos and the
+harvested logo go inside it as real assets. Never a captured screen as the
+`src`; never a rebuilt screen that stays still for a whole shot.

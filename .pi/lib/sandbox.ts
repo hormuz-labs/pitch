@@ -19,9 +19,29 @@
  * ONE tool ever needed the isolation.
  *
  * Everything here is pure — argv construction — so it can be tested anywhere.
- * `bwrap` itself only exists on Linux.
+ * `bwrap` itself only exists on Linux: on macOS (a developer's laptop, no
+ * container, no secrets worth a namespace) the shell runs unconfined, with the
+ * same built-from-scratch environment, and `STUDIO_SANDBOX=none|bwrap` overrides
+ * the platform's default either way. The file tools' path guard applies in
+ * both modes; only the mount namespace is missing.
  */
 import { SHARED_ROOTS } from './paths.ts'
+
+export type SandboxMode = 'bwrap' | 'unconfined'
+
+/**
+ * Which sandbox this host gets. Linux: bubblewrap. macOS: none — bwrap does
+ * not exist there. `STUDIO_SANDBOX` forces either.
+ */
+export function sandboxMode(
+  platform: string = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): SandboxMode {
+  const forced = (env.STUDIO_SANDBOX || '').toLowerCase()
+  if (forced === 'none' || forced === 'unconfined' || forced === 'off') return 'unconfined'
+  if (forced === 'bwrap') return 'bwrap'
+  return platform === 'darwin' ? 'unconfined' : 'bwrap'
+}
 
 /**
  * The guest's whole environment. Never the host's: that is where the API keys
@@ -134,6 +154,30 @@ export function bwrapCommand(command: string, options: BwrapOptions): string[] {
 }
 
 /**
+ * The same command with no namespace around it — macOS. The environment is
+ * still built from scratch (no API keys), but PATH and HOME come from the host
+ * so node, python and Homebrew's tools resolve.
+ */
+export function unconfinedCommand(
+  command: string,
+  options: BwrapOptions,
+  hostEnv: NodeJS.ProcessEnv = process.env,
+): { file: string; args: string[]; cwd: string; env: Record<string, string> } {
+  const { workspace, cwd = workspace, env = sandboxEnv(workspace), shell = '/bin/bash' } = options
+  return {
+    file: shell,
+    args: ['-lc', command],
+    cwd,
+    env: {
+      ...env,
+      ...(hostEnv.PATH ? { PATH: hostEnv.PATH } : {}),
+      ...(hostEnv.HOME ? { HOME: hostEnv.HOME } : {}),
+      STUDIO_SANDBOX: 'none',
+    },
+  }
+}
+
+/**
  * What a failed `bwrap` is trying to tell you.
  *
  * Every one of these is the container's own confinement, not the sandbox's
@@ -185,6 +229,8 @@ export interface SandboxExecOptions {
   timeout?: number
   spawnFn?: typeof import('node:child_process').spawn
   bwrap?: string
+  /** Defaults to `sandboxMode()` — bwrap on Linux, unconfined on macOS. */
+  mode?: SandboxMode
 }
 
 /**
@@ -197,19 +243,39 @@ export interface SandboxExecOptions {
  * killed the API this way.
  *
  * A sandbox that will not start is a hard failure, never a fall back to
- * running unconfined: this process holds every API key the product has.
+ * running unconfined: this process holds every API key the product has. The
+ * unconfined mode is decided up front by the platform (macOS has no bwrap),
+ * never by a failure.
  */
 export async function runInSandbox(
   command: string,
   options: BwrapOptions & SandboxExecOptions,
 ): Promise<{ exitCode: number }> {
-  const { onData, signal, timeout, spawnFn, bwrap = 'bwrap', ...bwrapOptions } = options
+  const {
+    onData,
+    signal,
+    timeout,
+    spawnFn,
+    bwrap = 'bwrap',
+    mode = sandboxMode(),
+    ...bwrapOptions
+  } = options
   if (signal?.aborted) throw new Error('aborted')
   const spawn = spawnFn ?? (await import('node:child_process')).spawn
-  const argv = bwrapCommand(command, bwrapOptions)
+  const confined = mode === 'bwrap'
+  const plain = confined ? null : unconfinedCommand(command, bwrapOptions)
+  const argv = confined
+    ? bwrapCommand(command, bwrapOptions)
+    : (plain as NonNullable<typeof plain>).args
 
   return await new Promise<{ exitCode: number }>((resolve, reject) => {
-    const child = spawn(bwrap, argv, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = confined
+      ? spawn(bwrap, argv, { stdio: ['ignore', 'pipe', 'pipe'] })
+      : spawn(plain!.file, argv, {
+          cwd: plain!.cwd,
+          env: plain!.env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
     let stderrHead = ''
     let settled = false
     let timer: NodeJS.Timeout | undefined
@@ -239,12 +305,14 @@ export async function runInSandbox(
       onData(chunk)
     })
     child.on('error', (err: NodeJS.ErrnoException) => {
+      if (!confined)
+        return finish(() => reject(new Error(`the shell could not start: ${String(err)}`)))
       const why = explainBwrapFailure(String(err.code ?? err))
       finish(() => reject(new Error(`the sandbox could not start: ${why ?? String(err)}`)))
     })
     child.on('close', (code: number | null) => {
       // bwrap prints its own diagnosis and exits before the command ever runs.
-      const why = code !== 0 ? explainBwrapFailure(stderrHead) : null
+      const why = confined && code !== 0 ? explainBwrapFailure(stderrHead) : null
       if (why) finish(() => reject(new Error(`the sandbox could not start: ${why}`)))
       else finish(() => resolve({ exitCode: code ?? 0 }))
     })

@@ -80,12 +80,20 @@ export function lintDesign(spec) {
   if (design === "chapters") {
     const chapters = new Set(shots.map((s) => s.chapter).filter(Boolean));
     if (chapters.size < 2) out.push({ level: "warn", msg: "A chapters film with fewer than two `chapter` labels — mark the prompt → product → payoff groups so the rhythm reads at the minute scale." });
-    const typing = shots.filter((s) => s.type === "line" && s.typing).length;
-    if (!typing) out.push({ level: "warn", msg: "No typed prompt (`line` with `typing`) — the chapters grammar opens every chapter on a sentence the viewer reads as their own, typed at hero scale." });
+    const wordCam = shots.filter((s) => s.type === "line" && (s.zoomBeats || 0) > 0).length;
+    if (!wordCam) out.push({ level: "warn", msg: "No word camera — no `line` with `zoom` beats on its words. The chapters grammar opens every chapter on a sentence the camera travels one word at a time (the noun last); a line handed over whole is read like a slide." });
     const floods = shots.filter((s) => s.cut === "flood" || (s.floodBeats || 0) > 0).length;
     const zooms = shots.filter((s) => s.cut === "zoom" || s.cut === "zoom-out" || (s.zoomBeats || 0) > 0).length;
     if (!floods && !zooms) out.push({ level: "warn", msg: "No flood and no scale cut — chapters land their payoffs on a full-bleed flood or a push-in; hard cuts between prompt and product read as slides." });
   }
+  // The tells the last films had, whatever the design.
+  const first = shots[0];
+  if (first && first.type === "line" && first.typing) out.push({ level: "fail", msg: `#${first.id}: the film opens on a caret typing at hero scale. The first second is a move (a snap, the word camera, a countdown, a ripple on the plate); \`typing\` belongs only to a prompt box inside a rebuilt \`ui-frame\`, mid-film.` });
+  shots.forEach((s) => {
+    if (s.type === "line" && s.typing && s.chapter !== undefined && !(s.container === "none")) { /* hero typing is judged by the opener rule and the review sheets */ }
+    if ((s.rippleBeats || 0) > 0) out.push({ level: "fail", msg: `#${s.id}: a \`ripple\` beat — rings expanding from a press are banned. A press is the control's own state change (the pill grows, the button splits, the toggle snaps) or a \`flood\`.` });
+    if (s.type === "ui-frame" && s.capturedSrc) out.push({ level: "fail", msg: `#${s.id}: a captured screen as the product (\`src\`). The screenshot is the reference; rebuild the screen as \`html\` in the film's type and palette so its field, rows and button can move. (\`device-3d\` may still take a frame as its screen texture.)` });
+  });
   if (design !== "chain" && n >= 8 && punches === 0) out.push({ level: "warn", msg: "No `punch` cuts — mark 2–3 boundaries where a beat lands." });
   if (!breaths && n >= 8) out.push({ level: "warn", msg: "No `breath` beats — the reference films duck the bed for half a second before every payoff. Put one before the moment the film is about." });
   const bare = !spec.ambient || spec.ambient.kind === "none";

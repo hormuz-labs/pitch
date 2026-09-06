@@ -76,7 +76,8 @@ const spec = await page.evaluate(() => {
     shots: s.shots.map(x => ({ id: x.id, type: x.type, dur: Number(x.dur) || 0, vo: x.vo || null, voDur: x.voDur || 0, cue: x.cue || null,
       beats: Array.isArray(x.beats) ? x.beats.length : 0, exit: x.exit ?? null, cut: x.cut || "hard",
       steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: x.actors ? Object.keys(x.actors).length : 0, carry: !!x.carry,
-      chapter: x.chapter || null, typing: !!x.typing, breaths: beatsOf(x, "breath"), floodBeats: beatsOf(x, "flood"), zoomBeats: beatsOf(x, "zoom"),
+      chapter: x.chapter || null, typing: !!x.typing, container: x.container || null, breaths: beatsOf(x, "breath"), floodBeats: beatsOf(x, "flood"), zoomBeats: beatsOf(x, "zoom"), rippleBeats: beatsOf(x, "ripple"),
+      capturedSrc: x.type === "ui-frame" && typeof x.src === "string" && !x.html && /^assets\/(harvested|generated)\//.test(x.src),
       src: x.src, layers: x.layers, rows: x.rows })),
   };
 });

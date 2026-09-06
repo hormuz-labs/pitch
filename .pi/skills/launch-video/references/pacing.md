@@ -4,52 +4,27 @@
 ever just sits there.** A shot is an entrance, a second act and an exit —
 never an entrance followed by a hold. `motion_audit` measures this.
 
-## The reference: a 37.5s product explainer (Replit)
+## The reference
 
-Measured with ffmpeg (scene detection, per-second frame difference):
-
-| | Reference | Our first launch film |
-|---|---|---|
-| Hard cuts | **1** | 5 |
-| Distinct on-screen events | ~34 (one every ~1.1s) | 6 (one every ~5.7s) |
-| Longest stretch with nothing new | ~1.5s | 4.75s |
-| Shots that are entrance-then-hold | 0 | 6 of 6 |
-| Persistent stage layer | warm blur blobs, always drifting | none |
-| Text arrival | word by word, accent word last and biggest | whole line, once |
-| Layering | 3–6 overlapping elements per beat | 1 element per shot |
-
-What it does: a browser window slides in, code types, five error toasts land
-in ~2s, rotated and overlapping, and the headline assembles word by word on
-top. The pile blows away; "From now it **WON'T!**" lands with a scale kick.
-Three lines replace each other every ~1s. The real UI enters tilted, a prompt
-is typed live, panels slide in, captions swap over UI that keeps changing.
-Confetti, a word-by-word payoff, then the logo — and the stage keeps drifting
-even under the end card. Nothing is cut: elements *exit* while the next ones
-*enter*. Individual moves are 0.3–0.6s with expo/back eases; there are simply
+A 37.5s product explainer measured with ffmpeg (scene detection, per-second
+frame difference): one hard cut, ~34 distinct on-screen events (one every
+~1.1s), no stretch longer than ~1.5s with nothing new, no shot that is an
+entrance followed by a hold, a stage layer always drifting, text arriving
+word by word with the accent word last and biggest, 3–6 overlapping
+elements per beat. A browser window slides in, code types, five error
+toasts land in ~2s, the headline assembles word by word on top, the pile
+blows away, three lines replace each other every ~1s, the real UI enters
+tilted, panels slide in, captions swap over UI that keeps changing,
+confetti, a word-by-word payoff, the logo — and the stage keeps drifting
+under the end card. Nothing is cut: elements *exit* while the next ones
+*enter*. Individual moves are 0.3–0.6s with expo eases; there are simply
 many of them. Energy is **density and layering**, not speed.
 
-## Why our film was lazy
-
-- **Narration set the durations, one clip per shot** — six VO lines, six 5–6s
-  shots, each TTS clip restarting its intonation with ~1s of dead air after.
-  Re-cut as one 31s read with `cue` + `motion_sync`: 15 shots averaging 2.1s,
-  every shot landing 0.1–0.2s before its word, no silence over a breath.
-- **Every factory was entrance-then-hold**: motion done in 0.5s, then drift.
-- **No stage**: one element centred in 1920×1080 of empty space.
-
-## The engine's answer
-
-| Trope | Field |
-|---|---|
-| Warm drifting stage | `ambient: { kind: "blobs", color: "accent" }` |
-| Word-by-word type, accent word last | `word-build`, or `reveal: "words"` + `accent: true` |
-| Lines replacing each other | `word-build.lines`, `overlay-type.lines` |
-| Pile of toasts blown away | `pile` |
-| Notifications stacking | `device-notif.more` |
-| Elements leaving as the next arrive | `motion.exit` / `shot.exit` |
-| Kick, flash, shake, caption swap | `beats: [{ kind }]` |
-| Live UI with a target and a click | `ui-frame` + `focus` + `cursor` |
-| Scramble, physics scatter, path fly-in | a custom factory with the registered plugins |
+The failure mode is the opposite film: narration setting the durations
+(six lines, six 5-second shots, dead air after each clip), every shot an
+entrance then a hold, one element centred in an empty frame. The fix is
+one read cut to words (`cue` + `motion_sync`), a second act in every shot,
+and a stage.
 
 ## What the gate enforces
 
