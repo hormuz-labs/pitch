@@ -33,7 +33,13 @@ function CopyValue({ value, label = 'Copy value' }: { value: string; label?: str
   )
 }
 
-export function McpSettingsPanel({ openApi }: { openApi: () => void }) {
+export function McpSettingsPanel({
+  openApi,
+  showHeading = true,
+}: {
+  openApi: () => void
+  showHeading?: boolean
+}) {
   const [client, setClient] = useState<(typeof clients)[number]['id']>('claude')
   const [view, setView] = useState<'connect' | 'autonomous'>('connect')
   const clientName = clients.find(item => item.id === client)?.label ?? 'your agent'
@@ -67,10 +73,12 @@ The account owner can revoke the key at any time from Pitch Settings → API.`,
 
   return (
     <div className="mcp-settings">
-      <div className="mcp-settings__heading">
-        <h4>Set up your AI agent</h4>
-        <p>Connect an AI agent to Pitch over the Model Context Protocol (MCP).</p>
-      </div>
+      {showHeading && (
+        <div className="mcp-settings__heading">
+          <h4>Set up your AI agent</h4>
+          <p>Connect an AI agent to Pitch over the Model Context Protocol (MCP).</p>
+        </div>
+      )}
 
       {view === 'connect' ? (
         <>

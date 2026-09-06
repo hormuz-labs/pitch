@@ -148,6 +148,22 @@ export async function describeLaunch(
     }
   }
 
+  const sfxPath = path.join(dir, 'audio', 'sfx-cues.json')
+  let sfxCues: Array<{ id: string; label: string; time: number; event?: string }> = []
+  if (existsSync(sfxPath)) {
+    try {
+      const raw = JSON.parse(await readFile(sfxPath, 'utf8'))
+      if (Array.isArray(raw.cues)) {
+        sfxCues = raw.cues.map((c: any, i: number) => ({
+          id: c.id ?? `sfx-${i}`,
+          label: c.label ?? c.event ?? 'cue',
+          time: Number(c.t ?? c.time ?? 0),
+          event: c.event,
+        }))
+      }
+    } catch {}
+  }
+
   const { timing, ordered } = await readSceneTiming(dir)
   const ids = ordered ? Object.keys(timing) : Object.keys(timing).sort(naturalOrder)
   const scenes: Scene[] = []
@@ -173,6 +189,6 @@ export async function describeLaunch(
     outputs,
     error: probe.error,
     renders,
-    extra: { renders },
+    extra: { renders, sfxCues },
   }
 }

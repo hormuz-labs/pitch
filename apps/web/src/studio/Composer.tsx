@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronDown, Plus, Square } from 'lucide-react'
+import { ArrowUp, ChevronDown, Paperclip, Plus, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CreditPopover } from '../components/CreditPopover'
@@ -7,10 +7,55 @@ import { useBrowserProfile } from '../hooks/useBrowserProfile'
 import { usePromptUrl } from '../hooks/usePromptUrl'
 import { isAuthenticatedFor } from '../lib/authOrigins'
 import { type StudioModel, studio } from './client'
-import type { ProjectStore } from './useProject'
+import type { ProjectStore, Target } from './useProject'
 
 const fmtTime = (t: number) =>
   `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
+
+function getTargetSuggestions(targets: Target[], scope: string | null): string[] {
+  const t = targets[0]
+  const tag = (t?.tagName ?? '').toLowerCase()
+  const txt = (t?.text ?? scope ?? '').toLowerCase()
+
+  if (tag === 'sfx' || txt.includes('sfx') || txt.includes('whoosh') || txt.includes('chime')) {
+    return [
+      'Make this SFX louder (+3dB)',
+      'Shift 0.2s earlier',
+      'Replace sound effect',
+      'Remove this SFX',
+    ]
+  }
+  if (tag === 'music' || txt.includes('music') || txt.includes('bgm')) {
+    return [
+      'Lower music volume to 50%',
+      'Duck music more under voice',
+      'Fade out music at the end',
+      'Change background music',
+    ]
+  }
+  if (
+    tag === 'voiceover' ||
+    tag === 'voice' ||
+    txt.includes('voice') ||
+    txt.includes('voiceover')
+  ) {
+    return [
+      'Regenerate voice with more energy',
+      'Speed up voice narration by 1.1x',
+      'Shorten this sentence for faster pacing',
+      'Change narrator tone',
+    ]
+  }
+  if (tag === 'scene' || t?.sceneId || scope) {
+    return [
+      'Add a subtle camera zoom-in',
+      'Shorten scene by 1s',
+      'Speed up cut transition',
+      'Change background theme',
+    ]
+  }
+  return []
+}
 
 /**
  * What the prompt is currently scoped to. Launch shots carry their own name
@@ -132,6 +177,8 @@ export function Composer({ store }: { store: ProjectStore }) {
             ? `Update ${scope}`
             : 'Send'
 
+  const suggestions = getTargetSuggestions(s.targets, scope)
+
   return (
     <div className="job-composer">
       <div className="job-composer-box">
@@ -197,7 +244,14 @@ export function Composer({ store }: { store: ProjectStore }) {
           <div className="target-row">
             {files.map((f, i) => (
               <div key={`${f.name}-${i}`} className="element-chip" title={f.name}>
-                <span className="element-chip-text">📎 {f.name}</span>
+                <span className="element-chip-text">
+                  <Paperclip
+                    size={11}
+                    strokeWidth={2}
+                    style={{ display: 'inline', verticalAlign: '-1px', marginRight: 4 }}
+                  />
+                  {f.name}
+                </span>
                 <button
                   className="scene-chip-clear"
                   onClick={() => setFiles(list => list.filter((_, j) => j !== i))}
@@ -221,6 +275,23 @@ export function Composer({ store }: { store: ProjectStore }) {
               )
             }}
           />
+        )}
+        {suggestions.length > 0 && (
+          <div className="composer-suggestions">
+            {suggestions.map(sugg => (
+              <button
+                key={sugg}
+                type="button"
+                className="suggestion-pill"
+                onClick={() => {
+                  s.setDraft(sugg)
+                  s.composerRef?.current?.focus()
+                }}
+              >
+                {sugg}
+              </button>
+            ))}
+          </div>
         )}
         <textarea
           ref={s.composerRef}
