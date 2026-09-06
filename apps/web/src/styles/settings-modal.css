@@ -157,7 +157,7 @@
 .mcp-step p b, .mcp-autonomous-step p b { color: #3c3834; font-weight: 600; }
 .mcp-inline-action { margin-top: 8px; padding: 0; display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: #3d3935; font: inherit; font-size: 10.5px; font-weight: 600; cursor: pointer; }
 .mcp-inline-action:hover { color: #111; }
-.mcp-code { min-height: 37px; margin-top: 8px; padding: 0 7px 0 11px; display: flex; align-items: center; gap: 8px; border: 1px solid #e3e0dc; border-radius: 9px; background: #f5f4f2; }
+.mcp-code { min-height: 37px; margin-top: 8px; padding: 0 7px 0 11px; display: flex; align-items: center; gap: 8px; border: 1px solid #dcd9d5; border-radius: 9px; background: #efeeeb; box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%); }
 .mcp-code code, .mcp-code pre { min-width: 0; flex: 1; overflow-x: auto; color: #3b3834; font: 10.5px/1.55 "Geist Mono", monospace; white-space: pre; }
 .mcp-code--block { position: relative; padding: 10px 38px 10px 11px; }
 .mcp-code--block .mcp-copy, .mcp-code--prompt .mcp-copy { position: absolute; top: 7px; right: 7px; }

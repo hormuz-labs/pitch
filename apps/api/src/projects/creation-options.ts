@@ -2,6 +2,16 @@ import path from 'node:path'
 
 const STUDIO_ASPECT_RATIOS = new Set(['16:9', '9:16', '1:1', '4:5'])
 
+/** The skill pills on /new — a hint for the agent, matching `.pi/skills/*`. */
+const STUDIO_SKILLS = new Set([
+  'launch-video',
+  'demo-video',
+  'slide-deck',
+  'recording-edit',
+  'generated-video',
+  'docs-to-video',
+])
+
 /** Keep composer preferences predictable before they reach project.json and agent context. */
 export function normalizeCreationOptions(value: unknown): Record<string, any> {
   const options =
@@ -11,6 +21,10 @@ export function normalizeCreationOptions(value: unknown): Record<string, any> {
 
   if ('aspectRatio' in options && !STUDIO_ASPECT_RATIOS.has(options.aspectRatio)) {
     delete options.aspectRatio
+  }
+
+  if ('skill' in options && !STUDIO_SKILLS.has(options.skill)) {
+    delete options.skill
   }
 
   if ('durationSeconds' in options) {

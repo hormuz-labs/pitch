@@ -9,6 +9,11 @@
  * Dropping a file does not fill in a form — it opens the editor. Nothing is
  * charged and no turn is run, because you cannot say what you want about a
  * video until you are looking at it and can select the part you mean.
+ *
+ * The skill pills under the composer are a hint, not a mode. Picking one
+ * primes the placeholder and swaps the cards below for templates that skill
+ * can start from; it reaches the agent as one more creation option, and the
+ * chip clears the moment the user would rather just say what they want.
  */
 import { Menu as BaseMenu } from '@base-ui/react/menu'
 import { useAuth, useClerk, useUser } from '@clerk/react'
@@ -28,15 +33,7 @@ import {
   RectangleHorizontal,
   Settings,
 } from 'lucide-react'
-import {
-  type CSSProperties,
-  lazy,
-  type ReactNode,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { type CSSProperties, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { FaDiscord } from 'react-icons/fa6'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppShell, useToast } from '../App'
@@ -50,7 +47,7 @@ import { UrlAuthPrompt } from '../components/UrlAuthPrompt'
 import { useBrowserProfile } from '../hooks/useBrowserProfile'
 import { usePromptUrl } from '../hooks/usePromptUrl'
 import { isAuthenticatedFor } from '../lib/authOrigins'
-import { DECK_TEMPLATES } from '../lib/deckTemplates'
+import { FLOW_TO_SKILL, SKILLS, type SkillId } from '../lib/skillPresets'
 import {
   createProject,
   listStudioModels,
@@ -80,6 +77,7 @@ interface NewAuthResume {
   durationSeconds: number | null
   referenceVideoNames: string[]
   model: string | null
+  skill: SkillId | null
 }
 
 function readNewAuthResume(): NewAuthResume | null {
@@ -99,132 +97,27 @@ function readNewAuthResume(): NewAuthResume | null {
         ? saved.referenceVideoNames.filter((name): name is string => typeof name === 'string')
         : [],
       model: typeof saved.model === 'string' ? saved.model : null,
+      skill: SKILLS.some(s => s.id === saved.skill) ? (saved.skill as SkillId) : null,
     }
   } catch {
     return null
   }
 }
 
-const Glyph = ({ children }: { children: ReactNode }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width="15"
-    height="15"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    {children}
-  </svg>
-)
-
-/**
- * The things the studio is asked for most often — not a menu of what it
- * can do. Each one drops a real sentence into the composer with the part you
- * have to change already selected, so the chip is a head start on typing
- * rather than a mode you enter.
- */
-const STARTERS: { label: string; glyph: ReactNode; prompt: string; select: string }[] = [
-  {
-    label: 'Launch video',
-    glyph: (
-      <Glyph>
-        <rect x="2.5" y="5" width="13" height="13" rx="3" />
-        <path d="m8 9.5 4 2.2-4 2.3z" />
-        <path d="m18.5 3.5.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" />
-      </Glyph>
-    ),
-    prompt: 'A launch video for https://yourproduct.com.',
-    select: 'https://yourproduct.com',
-  },
-  {
-    label: 'Brand documentary',
-    glyph: (
-      <Glyph>
-        <rect x="3" y="4.5" width="18" height="14" rx="2" />
-        <path d="M3 8.5h18" />
-        <path d="m11 12 5.5 2.2-2.3.9-.9 2.3z" />
-      </Glyph>
-    ),
-    prompt: 'A cinematic brand documentary about our origin, customers and point of view.',
-    select: 'brand documentary',
-  },
-  {
-    label: 'Deep-dive explainer',
-    glyph: (
-      <Glyph>
-        <rect x="3" y="4" width="18" height="11.5" rx="1.5" />
-        <path d="M12 15.5v3" />
-        <path d="M8.5 20.5h7" />
-      </Glyph>
-    ),
-    prompt: 'A clear deep-dive explainer that makes this complex topic feel obvious.',
-    select: 'complex topic',
-  },
-  {
-    label: 'Match a YouTube video',
-    glyph: (
-      <Glyph>
-        <path d="M2.5 12h5" />
-        <path d="M16.5 12h5" />
-        <rect x="7.5" y="7" width="9" height="10" rx="2" />
-      </Glyph>
-    ),
-    prompt: 'Match the pacing and visual language of this YouTube video: https://youtube.com/.',
-    select: 'https://youtube.com/',
-  },
-  {
-    label: 'Logo animation',
-    glyph: (
-      <Glyph>
-        <circle cx="12" cy="12" r="7" />
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-      </Glyph>
-    ),
-    prompt: 'Create a refined loading animation using this logo.',
-    select: 'this logo',
-  },
-  {
-    label: 'Talking head',
-    glyph: (
-      <Glyph>
-        <circle cx="12" cy="8" r="3" />
-        <path d="M6 20c.5-4 2.5-6 6-6s5.5 2 6 6" />
-      </Glyph>
-    ),
-    prompt: 'Turn this recording into a polished talking-head video with captions and clean cuts.',
-    select: 'this recording',
-  },
-  {
-    label: 'Article → video',
-    glyph: (
-      <Glyph>
-        <path d="M6 3h9l3 3v15H6z" />
-        <path d="M9 11h6M9 15h6" />
-      </Glyph>
-    ),
-    prompt: 'Turn this article into a concise visual story: https://example.com/article.',
-    select: 'https://example.com/article',
-  },
-]
-
-/**
- * The decks the studio can already build, three of them, as a way in from the
- * front door. The card is a real slide from the preset rather than a picture
- * of one, so what you pick is what you get — but the designs behind it are a
- * long tail of CSS, so they arrive after the page does, over the palette.
- */
-const STRIP_TEMPLATES = DECK_TEMPLATES.slice(0, 3)
-
 /**
  * The empty composer keeps suggesting openings, typed out and erased in place
  * so the box is never a blank stare. It pauses the moment real text is in the
  * field; with reduced motion the first one just sits there, static.
  */
-const PLACEHOLDER_PROMPTS = STARTERS.map(s => s.prompt)
+const PLACEHOLDER_PROMPTS = [
+  'A launch video for https://yourproduct.com.',
+  'A cinematic brand documentary about our origin, customers and point of view.',
+  'A clear deep-dive explainer that makes this complex topic feel obvious.',
+  'Match the pacing and visual language of this YouTube video: https://youtube.com/.',
+  'Create a refined loading animation using this logo.',
+  'Turn this recording into a polished talking-head video with captions and clean cuts.',
+  'Turn this article into a concise visual story: https://example.com/article.',
+]
 
 function useTypedPlaceholder(paused: boolean) {
   const [text, setText] = useState('')
@@ -408,7 +301,11 @@ export function NewProjectView() {
     () => authResume?.referenceVideoNames ?? [],
   )
   const [dismissedAuthUrl, setDismissedAuthUrl] = useState<string | null>(null)
-  /** A new object every click, so re-picking the same starter re-selects. */
+  const [skill, setSkill] = useState<SkillId | null>(() => {
+    const flow = params.get('flow')
+    return (flow && FLOW_TO_SKILL[flow]) || authResume?.skill || null
+  })
+  /** A new object every click, so re-picking the same template re-selects. */
   const [starter, setStarter] = useState<{ select: string } | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
   const referenceVideoInput = useRef<HTMLInputElement | null>(null)
@@ -458,6 +355,7 @@ export function NewProjectView() {
     promptUrl !== dismissedAuthUrl &&
     !browserProfile.loading &&
     !isAuthenticatedFor(promptUrl, browserProfile.origins)
+  const activeSkill = SKILLS.find(s => s.id === skill) ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -517,7 +415,7 @@ export function NewProjectView() {
     sessionStorage.removeItem('pitch:new-auth-draft')
   }, [])
 
-  // A starter is only a head start if the bit you must replace is already
+  // A template is only a head start if the bit you must replace is already
   // selected — otherwise you are hunting for a URL inside a sentence.
   useEffect(() => {
     const el = textarea.current
@@ -579,6 +477,7 @@ export function NewProjectView() {
       prompt: text,
       options: {
         aspectRatio,
+        ...(skill ? { skill } : {}),
         ...(durationSeconds ? { durationSeconds } : {}),
         ...(referenceVideoNames.length > 0 ? { referenceVideoFiles: referenceVideoNames } : {}),
       },
@@ -740,10 +639,6 @@ export function NewProjectView() {
         <section className="new-create-hero">
           <div className="new-create-hero__intro">
             <PitchWordmark className="new-create-wordmark" />
-            <p>We do it better.</p>
-            <button type="button" onClick={() => navigate('/affiliates')}>
-              Share Pitch <i /> Earn 9 credits per customer
-            </button>
           </div>
 
           <div className="composer-wrap new-composer-wrap">
@@ -761,6 +656,7 @@ export function NewProjectView() {
                       durationSeconds,
                       referenceVideoNames,
                       model,
+                      skill,
                     } satisfies NewAuthResume),
                   )
                   navigate(`/sessions?url=${encodeURIComponent(promptUrl)}&from=new`)
@@ -802,7 +698,7 @@ export function NewProjectView() {
                 rows={3}
                 id="new-project-prompt"
                 data-lenis-prevent
-                placeholder={typedPlaceholder}
+                placeholder={activeSkill ? activeSkill.tagline : typedPlaceholder}
                 value={prompt}
                 onChange={e => {
                   setPrompt(e.target.value)
@@ -962,6 +858,20 @@ export function NewProjectView() {
                       )}
                     </div>
                   )}
+                  {activeSkill && (
+                    <span className="new-skill-chip">
+                      <activeSkill.icon size={13} strokeWidth={1.75} />
+                      {activeSkill.label}
+                      <button
+                        type="button"
+                        aria-label={`Clear ${activeSkill.label}`}
+                        title="Clear — back to freestyle"
+                        onClick={() => setSkill(null)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
                 </div>
                 <div className="tool-row">
                   <span className="composer-credits">
@@ -1036,65 +946,82 @@ export function NewProjectView() {
               </div>
             )}
 
-            <div className="starters">
-              {STARTERS.map(s => (
+            <div className="new-skills" role="group" aria-label="What are you making?">
+              {SKILLS.map(s => (
                 <button
-                  key={s.label}
+                  key={s.id}
                   type="button"
-                  className={cn('starter', prompt === s.prompt && 'is-active')}
-                  aria-pressed={prompt === s.prompt}
-                  title={s.prompt}
-                  onClick={() => {
-                    setPrompt(s.prompt)
-                    setError(null)
-                    setStarter({ select: s.select })
-                  }}
+                  className={cn('new-skill-pill', skill === s.id && 'is-active')}
+                  aria-pressed={skill === s.id}
+                  onClick={() => setSkill(current => (current === s.id ? null : s.id))}
                 >
-                  {s.glyph}
+                  <s.icon size={13} strokeWidth={1.75} />
                   {s.label}
                 </button>
               ))}
             </div>
 
+            {activeSkill && (
+              <section
+                className="new-template-strip new-skill-gallery"
+                aria-label={`${activeSkill.label} templates`}
+              >
+                <div className="new-template-strip__head">
+                  <span>Start from a {activeSkill.label.toLowerCase()} template</span>
+                  {activeSkill.id === 'slide-deck' && (
+                    <button type="button" onClick={() => navigate('/templates')}>
+                      View all
+                    </button>
+                  )}
+                </div>
+                <div className="new-template-strip__cards">
+                  {activeSkill.templates.map(template => (
+                    <button
+                      type="button"
+                      key={template.id}
+                      title={template.blurb}
+                      onClick={() => {
+                        if (template.deckTemplateId) {
+                          navigate(`/templates?t=${template.deckTemplateId}`)
+                          return
+                        }
+                        if (template.prompt) {
+                          setPrompt(template.prompt)
+                          setError(null)
+                          setStarter({ select: template.select ?? template.prompt })
+                        }
+                      }}
+                    >
+                      <span
+                        className={cn(
+                          'new-template-strip__thumb',
+                          !template.deckTemplateId && 'new-template-strip__thumb--preset',
+                        )}
+                        style={
+                          {
+                            '--swatch-bg': template.swatch[0],
+                            '--swatch-accent': template.swatch[1],
+                          } as CSSProperties
+                        }
+                      >
+                        {template.deckTemplateId ? (
+                          <Suspense fallback={null}>
+                            <DeckTemplateThumb templateId={template.deckTemplateId} />
+                          </Suspense>
+                        ) : (
+                          <activeSkill.icon size={22} strokeWidth={1.25} />
+                        )}
+                      </span>
+                      <span>{template.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <a className="new-featured-cue" href="#featured-videos">
               See featured videos <span>↓</span>
             </a>
-          </div>
-        </section>
-
-        <section className="new-template-strip">
-          <div className="new-template-strip__head">
-            <span>
-              Start from a template <i>Pro</i>
-            </span>
-            <button type="button" onClick={() => navigate('/templates')}>
-              View all
-            </button>
-          </div>
-          <div className="new-template-strip__cards">
-            {STRIP_TEMPLATES.map(template => (
-              <button
-                type="button"
-                key={template.id}
-                title={template.blurb}
-                onClick={() => navigate(`/templates?t=${template.id}`)}
-              >
-                <span
-                  className="new-template-strip__thumb"
-                  style={
-                    {
-                      '--swatch-bg': template.swatch[0],
-                      '--swatch-accent': template.swatch[2],
-                    } as CSSProperties
-                  }
-                >
-                  <Suspense fallback={null}>
-                    <DeckTemplateThumb templateId={template.id} />
-                  </Suspense>
-                </span>
-                <span>{template.name}</span>
-              </button>
-            ))}
           </div>
         </section>
 
