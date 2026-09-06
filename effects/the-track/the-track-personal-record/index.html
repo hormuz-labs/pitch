@@ -1,0 +1,83 @@
+<!doctype html><meta charset="utf-8">
+<title>The Track: Personal Record</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0b0b0d;color:#fff;font-family:"Atlas Grotesk",sans-serif}
+  .glow{position:absolute;left:50%;top:50%;width:1400px;height:1400px;border-radius:50%;background:radial-gradient(circle,rgba(217,255,61,.28),rgba(217,255,61,0) 60%);transform:translate(-50%,-50%);opacity:0}
+  .card{position:absolute;left:90px;right:90px;top:50%;height:1040px;margin-top:-520px;border-radius:48px;background:#151517;border:2px solid #232327;padding:64px;will-change:transform;overflow:hidden}
+  .k{font-size:24px;letter-spacing:.24em;text-transform:uppercase;color:#8a8a94}
+  .time{font-family:"Sharp Grotesk",sans-serif;font-size:190px;font-weight:500;letter-spacing:-.06em;line-height:1;margin-top:16px;font-variant-numeric:tabular-nums;display:flex}
+  .time span{display:inline-block;overflow:hidden;height:190px}
+  .time i{display:block;font-style:normal;will-change:transform}
+  .prev{font-size:30px;color:#8a8a94;margin-top:16px}
+  .prev s{color:#5a5a64}
+  .delta{display:inline-block;margin-left:14px;padding:6px 14px;border-radius:999px;background:#1f2a08;color:#d9ff3d;font-weight:500}
+  .prog{margin-top:60px;height:22px;border-radius:11px;background:#232327;overflow:hidden}
+  .prog i{display:block;height:100%;width:100%;background:#d9ff3d;transform-origin:left;transform:scaleX(0)}
+  .marks{display:flex;justify-content:space-between;font-size:20px;color:#8a8a94;margin-top:14px;letter-spacing:.1em}
+  .badge{position:absolute;left:50%;top:50%;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;background:#d9ff3d;color:#0b0b0d;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"Sharp Grotesk",sans-serif;font-size:150px;font-weight:500;letter-spacing:-.06em;line-height:.9;will-change:transform;transform:scale(0)}
+  .badge small{font-family:"Atlas Grotesk",sans-serif;font-size:26px;letter-spacing:.3em;text-transform:uppercase;font-weight:400;margin-top:14px}
+  .burst{position:absolute;left:50%;top:50%;width:0;height:0}
+  .burst i{position:absolute;width:18px;height:48px;border-radius:9px;background:#d9ff3d;opacity:0;margin:-24px 0 0 -9px}
+  .burst i:nth-child(3n){background:#fff}.burst i:nth-child(3n+1){background:#ff5d3d;width:14px;height:14px;border-radius:50%}
+  .ring{position:absolute;left:50%;top:50%;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;border:8px solid #d9ff3d;opacity:0}
+  .h{position:absolute;left:0;right:0;text-align:center;font-family:"Sharp Grotesk",sans-serif;font-size:120px;font-weight:500;letter-spacing:-.05em;text-transform:uppercase;line-height:.9;overflow:hidden}
+  .h span{display:block}
+  .foot{position:absolute;left:0;right:0;bottom:130px;text-align:center;font-size:26px;letter-spacing:.24em;text-transform:uppercase;color:#8a8a94;overflow:hidden}
+  .foot span{display:block}
+</style>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="h" style="top:150px"><span>Personal</span><span>Record</span></div>
+  <div class="card">
+    <div class="k">5K · Finish time</div>
+    <div class="time"><span><i class="d1">2</i></span><span><i class="d2">2</i></span><span>:</span><span><i class="d3">4</i></span><span><i class="d4">1</i></span></div>
+    <div class="prev">Previous best <s>23:08</s><span class="delta">−0:27</span></div>
+    <div class="prog"><i></i></div>
+    <div class="marks"><span>0K</span><span>1K</span><span>2K</span><span>3K</span><span>4K</span><span>5K</span></div>
+  </div>
+  <div class="ring"></div><div class="burst"></div>
+  <div class="badge">PR<small>New record</small></div>
+  <div class="foot"><span>Northwind Run · Share your PR</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const rng = fx.rng(31);
+  const burst = document.querySelector('.burst'); const bits = [];
+  for (let i = 0; i < 36; i++) { const b = document.createElement('i'); burst.appendChild(b); bits.push(b); }
+  const tl = fx.timeline({ duration: 9 });
+  tl.from('.h span', { yPercent: 120, duration: 0.6, stagger: 0.1, ease: 'expo.out' }, 0.1)
+    .from('.card', { y: 900, rotation: 4, duration: 0.9, ease: 'expo.out' }, 0.2)
+    .from('.foot span', { yPercent: 120, duration: 0.5, ease: 'expo.out' }, 0.8)
+    // the run finishes: progress fills to 5K, digits roll into the final time
+    .to('.prog i', { scaleX: 1, duration: 2.0, ease: 'power2.inOut' }, 1.0)
+    .from('.time i', { yPercent: 110, duration: 0.5, stagger: 0.1, ease: 'expo.out' }, 1.2);
+  // digits tick a few times before settling
+  const sets = [['.d1', ['2', '2', '2']], ['.d2', ['4', '3', '2']], ['.d3', ['1', '5', '4']], ['.d4', ['8', '3', '1']]];
+  sets.forEach(([sel, vals], i) => {
+    vals.forEach((v, j) => {
+      const at = 1.8 + j * 0.35 + i * 0.05;
+      tl.set(sel, { textContent: v }, at).fromTo(sel, { yPercent: 110 }, { yPercent: 0, duration: 0.3, ease: 'expo.out' }, at);
+    });
+  });
+  tl.from('.prev', { opacity: 0, y: 20, duration: 0.5, ease: 'power3.out' }, 3.0)
+    .from('.delta', { scale: 0, duration: 0.5, ease: 'back.out(3)' }, 3.2)
+    // the reward: card recedes, PR badge slams in with a burst
+    .to('.card', { scale: 0.92, y: 40, filter: 'brightness(.5)', duration: 0.6, ease: 'expo.out' }, 3.8)
+    .to('.glow', { opacity: 1, duration: 0.4 }, 3.9)
+    .fromTo('.badge', { scale: 0, rotation: -30, autoAlpha: 0 }, { scale: 1, rotation: 0, autoAlpha: 1, duration: 0.7, ease: 'elastic.out(1,0.45)' }, 3.9)
+    .fromTo('.ring', { scale: 0.8, opacity: 1 }, { scale: 1.9, opacity: 0, duration: 0.9, ease: 'power2.out', immediateRender: false }, 3.95)
+    .to('.badge', { rotation: 3, duration: 1.2, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 4.6)
+    .to('.glow', { scale: 1.15, duration: 1.5, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 4.4);
+  bits.forEach((b) => {
+    const a = rng() * Math.PI * 2, d = 320 + rng() * 420;
+    tl.fromTo(b, { x: 0, y: 0, opacity: 1, rotation: a * 57.3, scale: 0.5 }, { x: Math.cos(a) * d, y: Math.sin(a) * d + 120, opacity: 0, scale: 1.2, rotation: a * 57.3 + 180, duration: 1.1 + rng() * 0.6, ease: 'power3.out', immediateRender: false }, 3.95 + rng() * 0.1);
+  });
+  tl.to('.badge', { scale: 0, rotation: 20, duration: 0.4, ease: 'back.in(2)' }, 7.9)
+    .to('.glow', { opacity: 0, duration: 0.4 }, 8.0)
+    .to('.card', { y: 900, rotation: -4, duration: 0.6, ease: 'expo.in' }, 8.2)
+    .to('.h span', { yPercent: -120, duration: 0.35, stagger: 0.06, ease: 'expo.in' }, 8.4)
+    .to('.foot span', { yPercent: -120, duration: 0.3, ease: 'expo.in' }, 8.5);
+</script>

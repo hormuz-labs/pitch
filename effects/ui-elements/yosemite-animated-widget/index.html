@@ -1,0 +1,89 @@
+<!doctype html><meta charset="utf-8">
+<title>Yosemite: Animated Widget</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000;display:flex;align-items:center;justify-content:center}
+  .wall{position:absolute;inset:0;background:url("../../../assets/backgrounds/sunset.png") center/cover;transform:scale(1.06)}
+  .bar{position:absolute;top:0;left:0;right:0;height:34px;background:rgba(0,0,0,.25);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:space-between;padding:0 18px;color:#fff;font-size:13px;font-weight:500}
+  .bar span{display:inline-flex;gap:14px}
+  .w{position:relative;width:560px;height:270px;border-radius:32px;background:rgba(255,255,255,.72);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);box-shadow:0 30px 80px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.6);display:flex;padding:26px 30px;gap:30px;color:#111}
+  .ringwrap{width:218px;height:218px;position:relative;flex:none}
+  .ringwrap svg{position:absolute;inset:0;overflow:visible}
+  .tr{fill:none;stroke:rgba(0,0,0,.08);stroke-width:18}
+  .pr{fill:none;stroke:#ff7a3d;stroke-width:18;stroke-linecap:round}
+  .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .c b{font-size:56px;font-weight:500;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+  .c span{font-size:13px;color:#6b6f7c;text-transform:uppercase;letter-spacing:.12em;margin-top:6px}
+  .side{flex:1;display:flex;flex-direction:column}
+  .side h3{font-size:22px;font-weight:500;letter-spacing:-.02em}
+  .side p{font-size:14px;color:#6b6f7c;margin-top:2px}
+  .items{margin-top:18px;display:flex;flex-direction:column;gap:12px}
+  .it{display:flex;align-items:center;gap:12px;font-size:16px}
+  .it i{width:22px;height:22px;border-radius:50%;border:2px solid #ff7a3d;display:grid;place-items:center;flex:none;position:relative}
+  .it i::after{content:"";position:absolute;inset:2px;border-radius:50%;background:#ff7a3d;transform:scale(0)}
+  .it svg{position:absolute;width:12px;height:12px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+  .it span{position:relative}
+  .it span::after{content:"";position:absolute;left:0;top:52%;height:2px;width:100%;background:#111;transform:scaleX(0);transform-origin:left}
+  .dock{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);height:74px;padding:0 12px;border-radius:24px;background:rgba(255,255,255,.35);backdrop-filter:blur(20px);display:flex;gap:10px;align-items:center;border:1px solid rgba(255,255,255,.4)}
+  .dock i{width:54px;height:54px;border-radius:14px;display:block}
+</style>
+<div class="stage">
+  <div class="wall"></div>
+  <div class="bar"><span><b></b> Finder &nbsp; File &nbsp; Edit &nbsp; View</span><span>Tue 9:41</span></div>
+  <div class="w">
+    <div class="ringwrap">
+      <svg viewBox="0 0 218 218"><circle class="tr" cx="109" cy="109" r="94"/><g style="transform-origin:109px 109px;transform:rotate(-90deg)"><circle class="pr" cx="109" cy="109" r="94"/></g></svg>
+      <div class="c"><b class="n">0</b><span>of 4 done</span></div>
+    </div>
+    <div class="side">
+      <h3>Today</h3><p>Tuesday · Focus mode on</p>
+      <div class="items">
+        <div class="it"><i><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i><span>Review launch deck</span></div>
+        <div class="it"><i><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i><span>Reply to Maya</span></div>
+        <div class="it"><i><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i><span>Ship widget update</span></div>
+        <div class="it"><i><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i><span>Book Yosemite trip</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="dock"><i style="background:#3b82f6"></i><i style="background:#f59e0b"></i><i style="background:#ef4444"></i><i style="background:#22c55e"></i><i style="background:#8b5cf6"></i><i style="background:#64748b"></i></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 5, C = 2 * Math.PI * 94;
+  const tl = fx.timeline({ duration: D });
+  const pr = document.querySelector('.pr'), n = document.querySelector('.n'), st = { p: 0 };
+  const draw = () => { pr.setAttribute('stroke-dasharray', `${st.p * C} ${C}`); n.textContent = Math.round(st.p * 4); };
+  draw();
+  const items = document.querySelectorAll('.it');
+  tl.from('.w', { y: 30, scale: .96, opacity: 0, duration: .7, ease: 'power3.out' }, 0)
+    .from('.dock i', { y: 20, opacity: 0, duration: .5, stagger: .05, ease: 'back.out(2)' }, 0.2)
+    .from('.it', { x: 16, opacity: 0, duration: .5, stagger: .08, ease: 'power3.out' }, 0.3);
+  // tasks tick off one by one; the ring fills a quarter each
+  items.forEach((it, i) => {
+    const t = 0.9 + i * 0.7;
+    tl.to(it.querySelector('i'), { '--f': 1, duration: .01 }, t)
+      .fromTo(it.querySelector('i'), { scale: 1 }, { scale: 1.25, duration: .18, yoyo: true, repeat: 1, ease: 'power2.inOut' }, t)
+      .to(it.querySelector('i'), { backgroundColor: '#ff7a3d', duration: .2 }, t)
+      .to(it.querySelector('svg'), { opacity: 1, duration: .2 }, t + .1)
+      .to(it.querySelector('span'), { opacity: .45, duration: .3 }, t + .1)
+      .to(st, { p: (i + 1) / 4, duration: .6, ease: 'expo.out', onUpdate: draw }, t);
+    tl.to(it.querySelector('span'), { '--s': 1, duration: .01 }, t);
+  });
+  // strike-throughs via a pseudo-element proxy: animate a real width on a clone
+  items.forEach((it, i) => {
+    const s = it.querySelector('span');
+    const line = document.createElement('em'); line.style.cssText = 'position:absolute;left:0;top:52%;height:2px;width:100%;background:#111;transform:scaleX(0);transform-origin:left;display:block';
+    s.appendChild(line);
+    tl.to(line, { scaleX: 1, duration: .35, ease: 'power3.out' }, 0.95 + i * 0.7);
+  });
+  tl.to('.ringwrap', { scale: 1.06, duration: .2, yoyo: true, repeat: 1, ease: 'power2.inOut' }, 3.0)
+    .to('.wall', { scale: 1.1, duration: D, ease: 'none' }, 0)
+    // reset for the loop
+    .to('.it svg', { opacity: 0, duration: .25 }, 4.3)
+    .to('.it i', { backgroundColor: 'rgba(255,122,61,0)', duration: .25 }, 4.3)
+    .to('.it span', { opacity: 1, duration: .3 }, 4.3)
+    .to('.it em', { scaleX: 0, duration: .3, ease: 'power3.in' }, 4.3)
+    .to(st, { p: 0, duration: .5, ease: 'expo.inOut', onUpdate: draw }, 4.4);
+</script>

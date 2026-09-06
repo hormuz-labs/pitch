@@ -1,0 +1,60 @@
+<!doctype html><meta charset="utf-8">
+<title>Pixel Dissolve Transition</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0d0d10;font-family:"Atlas Grotesk",sans-serif}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .a,.b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;color:#fff;text-align:center}
+  .a h1,.b h1{font-family:"Sharp Grotesk",sans-serif;font-size:110px;font-weight:500;letter-spacing:-.04em;line-height:1}
+  .a p,.b p{font-size:20px;letter-spacing:.2em;text-transform:uppercase;opacity:.8}
+  .b .pill{margin-top:12px;background:#fff;color:#111;border-radius:999px;padding:14px 28px;font-weight:500;font-size:18px}
+</style>
+<div class="stage">
+  <canvas id="c" width="1280" height="720"></canvas>
+</div>
+<!-- the two scenes are DOM but are painted into offscreen canvases through the same layout maths, so text stays crisp -->
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const W = 1280, H = 720, CW = 40, CH = 40, NX = W / CW, NY = H / CH;
+  const aurora = new Image(); aurora.src = '../../../assets/backgrounds/aurora.png'; fx.wait(aurora.decode());
+  const sunset = new Image(); sunset.src = '../../../assets/backgrounds/sunset.png'; fx.wait(sunset.decode());
+  const ctx = document.getElementById('c').getContext('2d');
+  const A = document.createElement('canvas'), B = document.createElement('canvas'); A.width = B.width = W; A.height = B.height = H;
+  const ac = A.getContext('2d'), bc = B.getContext('2d');
+  function scene(c, img, title, sub, dark, t) {
+    const z = 1.05 + 0.03 * Math.sin(t);
+    c.drawImage(img, (W - W * z) / 2, (H - H * z) / 2, W * z, H * z);
+    c.fillStyle = dark ? 'rgba(0,0,0,.35)' : 'rgba(0,0,0,.2)'; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '500 110px "Sharp Grotesk", sans-serif'; c.fillText(title, W / 2, 330);
+    c.font = '400 20px "Atlas Grotesk", sans-serif'; c.letterSpacing = '0.2em'; c.fillText(sub, W / 2, 420); c.letterSpacing = '0';
+  }
+  // per-cell threshold: seeded noise plus a diagonal bias, so the dissolve travels while staying speckled
+  const rnd = fx.rng(7);
+  const th = [];
+  for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) th.push(rnd() * 0.55 + 0.45 * ((x / NX) * 0.7 + (y / NY) * 0.3));
+  const D = 4;
+  const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+  fx.register({ duration: D, seek(t) {
+    scene(ac, aurora, 'Before', 'The classic edition', true, t);
+    scene(bc, sunset, 'After', 'Now in colour · Acme 2.0', false, t);
+    // 0-0.6 hold A, 0.6-2.0 dissolve to B, 2.0-2.6 hold B, 2.6-4.0 dissolve back
+    let p, from, to;
+    if (t < 0.6) { p = 0; from = A; to = B; }
+    else if (t < 2.0) { p = ease((t - 0.6) / 1.4); from = A; to = B; }
+    else if (t < 2.6) { p = 0; from = B; to = A; }
+    else { p = ease((t - 2.6) / 1.4); from = B; to = A; }
+    ctx.drawImage(from, 0, 0);
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+      const v = th[y * NX + x];
+      const local = (p - v + 0.12) / 0.12;             // each cell flips over a short window: pops in from the centre
+      if (local <= 0) continue;
+      const s = Math.min(1, local); const e = 1 - Math.pow(1 - s, 3);
+      const cw = CW * e, ch = CH * e;
+      ctx.drawImage(to, x * CW, y * CH, CW, CH, x * CW + (CW - cw) / 2, y * CH + (CH - ch) / 2, cw, ch);
+      if (s < 1) { ctx.fillStyle = `rgba(255,255,255,${(1 - s) * 0.6})`; ctx.fillRect(x * CW + (CW - cw) / 2, y * CH + (CH - ch) / 2, cw, ch); }
+    }
+  } });
+</script>

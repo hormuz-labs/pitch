@@ -1,0 +1,5 @@
+{
+ "error": "page.screenshot: Timeout 15000ms exceeded.\nCall log:\n  - taking page screenshot\n  - waiting for fonts to load...\n  - fonts loaded\n",
+ "errors": [],
+ "renderedAt": "2026-09-06T16:38:33.913Z"
+}

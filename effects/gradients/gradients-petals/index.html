@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8">
+<title>Gradients: Petals</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#fff3ea}
+  .field{position:absolute;inset:0;filter:blur(22px)}
+  .p{position:absolute;left:50%;top:50%;width:520px;height:360px;margin:-180px 0 0 -260px;border-radius:52% 48% 60% 40% / 55% 45% 55% 45%;mix-blend-mode:multiply;opacity:.85;will-change:transform}
+  .p1{background:linear-gradient(120deg,#ffb4a2,#ff6f91)}
+  .p2{background:linear-gradient(60deg,#ffd6a5,#ff9f43)}
+  .p3{background:linear-gradient(200deg,#f7c6ff,#c084fc)}
+  .p4{background:linear-gradient(150deg,#ffe8b3,#ffc857)}
+  .p5{background:linear-gradient(30deg,#ffc6d9,#ff85a1)}
+  .p6{background:linear-gradient(240deg,#c4f1e6,#7bd3c2)}
+  .cap{position:absolute;left:0;right:0;bottom:44px;text-align:center;font-family:"Sorts Mill Goudy",serif;font-size:30px;font-style:italic;color:#4a2a2a}
+  .mark{position:absolute;left:50%;top:44px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#4a2a2a;opacity:.7}
+</style>
+<div class="stage">
+  <div class="field">
+    <div class="p p1"></div><div class="p p2"></div><div class="p p3"></div><div class="p p4"></div><div class="p p5"></div><div class="p p6"></div>
+  </div>
+  <div class="mark"></div>
+  <div class="cap">Acme — a softer season</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 5;
+  const petals = [...document.querySelectorAll('.p')].map((el, i) => ({
+    el, ph: (i / 6) * Math.PI * 2, rx: 260 + 40 * (i % 3), ry: 130 + 30 * (i % 2), rot0: i * 60, dir: i % 2 ? 1 : -1,
+  }));
+  function seek(t) {
+    const w = (t / D) * Math.PI * 2;
+    for (const p of petals) {
+      // petals drift on an ellipse, each rotating a full turn so their overlaps keep blending into new colours
+      gsap.set(p.el, {
+        x: Math.cos(w + p.ph) * p.rx, y: Math.sin(w + p.ph) * p.ry,
+        rotation: p.rot0 + p.dir * (t / D) * 360,
+        scaleX: 1 + 0.15 * Math.sin(2 * w + p.ph), scaleY: 1 - 0.1 * Math.sin(2 * w + p.ph),
+      });
+    }
+  }
+  fx.register({ duration: D, seek });
+</script>

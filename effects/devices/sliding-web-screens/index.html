@@ -1,0 +1,83 @@
+<!doctype html><meta charset="utf-8">
+<title>Sliding Web Screens</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#dfe3ea;color:#141428;perspective:2000px}
+  .stack{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:0;height:0;transform-style:preserve-3d}
+  .win{position:absolute;left:-380px;top:-240px;width:760px;height:480px;border-radius:14px;background:#fff;box-shadow:0 40px 80px rgba(20,20,40,.22),0 0 0 1px rgba(0,0,0,.06);overflow:hidden;will-change:transform,opacity;transform-style:preserve-3d}
+  .chrome{height:40px;background:#f6f7fa;border-bottom:1px solid #e5e7ee;display:flex;align-items:center;padding:0 14px;gap:8px}
+  .chrome i{width:11px;height:11px;border-radius:50%;background:#e2e5ec}.chrome i:nth-child(1){background:#ff5f57}.chrome i:nth-child(2){background:#febc2e}.chrome i:nth-child(3){background:#28c840}
+  .chrome .url{margin-left:14px;flex:1;height:24px;border-radius:7px;background:#fff;border:1px solid #e5e7ee;font-size:11px;color:#8a8f9a;display:flex;align-items:center;padding:0 10px}
+  .page{padding:18px 26px;font-size:12px;height:440px;position:relative}
+  .nav{display:flex;align-items:center;gap:18px;margin-bottom:22px}
+  .nav b{font-size:15px;font-weight:500;margin-right:auto}
+  .nav span{opacity:.6}
+  .nav .cta{padding:7px 14px;border-radius:8px;background:var(--c);color:#fff;font-weight:500;opacity:1}
+  .hero{display:grid;grid-template-columns:1.1fr 1fr;gap:26px;align-items:center}
+  .hero h2{font-family:"Sharp Grotesk",sans-serif;font-size:40px;font-weight:500;letter-spacing:-.03em;line-height:1}
+  .hero p{margin-top:12px;opacity:.65;line-height:1.5;width:85%}
+  .hero .btns{display:flex;gap:10px;margin-top:18px}
+  .hero .btns span{padding:9px 16px;border-radius:9px;background:#141428;color:#fff;font-weight:500}
+  .hero .btns span+span{background:#eef0f4;color:#141428}
+  .art{height:210px;border-radius:16px;position:relative;overflow:hidden}
+  .art i{position:absolute;border-radius:12px;background:rgba(255,255,255,.85)}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+  .grid3 div{height:100px;border-radius:12px;background:#f4f5f8;padding:12px}
+  .grid3 div i{display:block;width:26px;height:26px;border-radius:8px;background:var(--c);margin-bottom:10px}
+  .grid3 div em{display:block;height:7px;border-radius:4px;background:#cfd3dc;font-style:normal;width:70%;margin-bottom:6px}.grid3 div em+em{width:45%;background:#e2e5ec}
+  .dash{display:grid;grid-template-columns:200px 1fr;gap:18px;height:100%}
+  .dash .side{background:#f4f5f8;border-radius:12px;padding:14px}
+  .dash .side em{display:block;height:8px;border-radius:4px;background:#cfd3dc;margin-bottom:12px;font-style:normal}
+  .dash .side em:first-child{background:var(--c);width:60%}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+  .kpi div{border-radius:12px;background:#f4f5f8;padding:12px;font-size:22px;font-weight:500;letter-spacing:-.02em}
+  .kpi div small{display:block;font-size:10px;color:#8a8f9a;font-weight:400;margin-bottom:4px}
+  .chart{height:190px;border-radius:12px;background:#f4f5f8;padding:14px;display:flex;align-items:flex-end;gap:8px}
+  .chart i{flex:1;border-radius:5px 5px 2px 2px;background:var(--c)}
+  .pricing{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:6px}
+  .pricing div{border-radius:14px;border:1px solid #e5e7ee;padding:18px;height:300px}
+  .pricing div.hi{background:#141428;color:#fff;border-color:#141428}
+  .pricing b{display:block;font-size:34px;font-weight:500;letter-spacing:-.03em;margin:8px 0 14px}
+  .pricing em{display:block;height:7px;border-radius:4px;background:rgba(128,128,150,.3);margin-bottom:9px;font-style:normal}
+  .pricing span{display:block;margin-top:16px;padding:9px;text-align:center;border-radius:8px;background:var(--c);color:#fff;font-weight:500}
+  .cap{position:absolute;left:60px;bottom:50px}
+  .cap h1{font-family:"Sharp Grotesk",sans-serif;font-size:36px;font-weight:500;letter-spacing:-.03em;line-height:1}
+  .cap p{margin-top:8px;font-size:14px;opacity:.6}
+</style>
+<div class="stage">
+  <div class="stack" id="stack"></div>
+  <div class="cap"><h1>Northwind, in context.</h1><p>Landing · Dashboard · Pricing · Docs</p></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const rng = fx.rng(9);
+  const C = ['#5c7cff', '#22c58b', '#ff5c7a', '#a45cff'];
+  const chrome = u => `<div class="chrome"><i></i><i></i><i></i><div class="url">northwind.app${u}</div></div>`;
+  const nav = `<div class="nav"><b>Northwind</b><span>Product</span><span>Pricing</span><span>Docs</span><span class="cta">Get started</span></div>`;
+  const pages = [
+    `${chrome('')}<div class="page" style="--c:${C[0]}">${nav}<div class="hero"><div><h2>Ship faster with one workspace.</h2><p>Plan, build and launch from a single place your whole team understands.</p><div class="btns"><span>Start free</span><span>Book a demo</span></div></div><div class="art" style="background:linear-gradient(135deg,#5c7cff,#7ee0ff)"><i style="left:20px;top:20px;width:60%;height:40px"></i><i style="left:20px;top:74px;width:40%;height:40px"></i><i style="left:20px;top:128px;width:75%;height:60px"></i></div></div><div class="grid3"><div><i></i><em></em><em></em></div><div><i></i><em></em><em></em></div><div><i></i><em></em><em></em></div></div></div>`,
+    `${chrome('/dashboard')}<div class="page" style="--c:${C[1]}"><div class="dash"><div class="side"><em></em><em></em><em></em><em></em><em></em><em></em></div><div><div class="kpi"><div><small>Revenue</small>$48.2k</div><div><small>Active</small>12,904</div><div><small>Churn</small>1.2%</div></div><div class="chart">${Array.from({ length: 14 }, () => `<i style="height:${20 + Math.floor(rng() * 80)}%"></i>`).join('')}</div></div></div></div>`,
+    `${chrome('/pricing')}<div class="page" style="--c:${C[2]}">${nav}<div class="pricing"><div><small>Starter</small><b>$0</b><em></em><em></em><em></em><span>Choose</span></div><div class="hi"><small>Team</small><b>$24</b><em></em><em></em><em></em><em></em><span>Choose</span></div><div><small>Enterprise</small><b>Custom</b><em></em><em></em><em></em><span>Contact</span></div></div></div>`,
+    `${chrome('/docs')}<div class="page" style="--c:${C[3]}"><div class="dash"><div class="side"><em></em><em></em><em></em><em></em><em></em><em></em><em></em></div><div><h2 style="font-family:'Sharp Grotesk';font-size:30px;font-weight:500;letter-spacing:-.03em">Quickstart</h2><p style="opacity:.65;margin:10px 0 16px;line-height:1.5">Install the SDK, add your key and make your first call in under a minute.</p><div class="chart" style="height:180px;background:#141428;display:block;color:#a3f2c8;font-family:monospace;font-size:12px;line-height:1.7">$ npm i @northwind/sdk<br>import { Client } from '@northwind/sdk'<br>const nw = new Client({ key })<br>await nw.projects.create({ name: 'Acme' })</div></div></div></div>`,
+  ];
+  const stack = document.getElementById('stack');
+  const wins = pages.map(h => { const w = document.createElement('div'); w.className = 'win'; w.innerHTML = h; stack.appendChild(w); return w; });
+  const tl = fx.timeline({ duration: 7 });
+  // the stack sits at a slight 3D angle
+  tl.fromTo('.stack', { rotateY: -12, rotateX: 6, x: 60 }, { rotateY: -6, rotateX: 4, x: 90, duration: 7, ease: 'sine.inOut' }, 0)
+    .from('.cap > *', { y: 20, opacity: 0, stagger: 0.1, duration: 0.6, ease: 'power3.out' }, 0.4)
+    .to('.cap', { opacity: 0, duration: 0.3 }, 6.5);
+  // each window slides in from the right, lands, and gets pushed back and down as the next one arrives
+  wins.forEach((w, i) => {
+    const t0 = 0.2 + i * 1.5;
+    tl.from(w, { x: 1100, rotateY: -20, duration: 0.9, ease: 'expo.out' }, t0);
+    for (let k = i + 1; k < wins.length; k++) {
+      const tk = 0.2 + k * 1.5;
+      tl.to(w, { y: -(k - i) * 34, z: -(k - i) * 140, x: -(k - i) * 40, opacity: 1 - (k - i) * 0.12, duration: 0.9, ease: 'expo.out' }, tk);
+    }
+    tl.from(w.querySelectorAll('.page > *'), { y: 18, opacity: 0, stagger: 0.05, duration: 0.4, ease: 'power3.out' }, t0 + 0.15);
+  });
+  tl.to('.win', { x: -1300, rotateY: 15, opacity: 0, duration: 0.55, ease: 'expo.in', stagger: 0.07 }, 6.3);
+</script>

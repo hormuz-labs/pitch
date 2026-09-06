@@ -1,0 +1,65 @@
+<!doctype html><meta charset="utf-8">
+<title>YouTube Logo</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0f0f0f}
+  .glow{position:absolute;left:50%;top:46%;width:1000px;height:600px;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(ellipse,rgba(255,0,0,.28),rgba(255,0,0,0) 65%);will-change:transform}
+  .tv{position:absolute;left:50%;top:46%;width:420px;height:296px;margin:-148px 0 0 -210px;border-radius:70px;background:#ff0000;box-shadow:0 30px 100px rgba(255,0,0,.35);display:flex;align-items:center;justify-content:center;will-change:transform;transform-origin:50% 50%}
+  .tv svg{width:150px;height:150px;overflow:visible}
+  .tri{fill:#fff;transform-origin:45% 50%;will-change:transform}
+  .tri-ol{fill:none;stroke:#fff;stroke-width:8;stroke-linejoin:round}
+  .ring{position:absolute;left:50%;top:46%;width:420px;height:296px;margin:-148px 0 0 -210px;border-radius:70px;border:5px solid #ff4d4d;opacity:0;will-change:transform,opacity}
+  .bar{position:absolute;left:50%;top:600px;width:640px;height:8px;margin-left:-320px;background:rgba(255,255,255,.18);border-radius:4px}
+  .bar div{height:100%;background:#ff0000;border-radius:4px;transform-origin:0 50%;will-change:transform}
+  .bar i{position:absolute;top:50%;left:0;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#ff0000;will-change:transform}
+  .time{position:absolute;left:50%;top:626px;width:640px;margin-left:-320px;display:flex;justify-content:space-between;font-family:"Atlas Grotesk",sans-serif;font-size:22px;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}
+  .title{position:absolute;left:50%;top:60px;transform:translateX(-50%);font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:44px;color:#fff;letter-spacing:-.02em;white-space:nowrap;overflow:hidden}
+  .title span{display:inline-block;will-change:transform}
+</style>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="ring r1"></div><div class="ring r2"></div>
+  <div class="tv">
+    <svg viewBox="0 0 100 100"><path class="tri-ol" d="M34 24 L78 50 L34 76 Z"/><path class="tri" d="M34 24 L78 50 L34 76 Z"/></svg>
+  </div>
+  <div class="title" id="tt"></div>
+  <div class="bar"><div></div><i></i></div>
+  <div class="time"><span id="t0">0:00</span><span>3:00</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const tt = document.getElementById('tt');
+  'Northwind Channel'.split('').forEach(c => { const s = document.createElement('span'); s.innerHTML = c === ' ' ? '&nbsp;' : c; tt.appendChild(s); });
+  const t0 = document.getElementById('t0');
+  const tl = fx.timeline({ duration: 3 });
+  // the red tile stretches in like a TV turning on: a line, then it opens vertically, then bounces
+  tl.fromTo('.tv', { scaleY: .02, scaleX: .6, opacity: 1 }, { scaleX: 1.05, duration: .3, ease: 'expo.out', immediateRender: true }, 0)
+    .to('.tv', { scaleY: 1, scaleX: 1, duration: .6, ease: 'elastic.out(1,.5)' }, .25)
+    .fromTo('.glow', { scale: .3, opacity: 0 }, { scale: 1, opacity: 1, duration: .8, ease: 'expo.out', immediateRender: true }, .2)
+    // play triangle outlines itself then fills with a pop
+    .fromTo('.tri-ol', { drawSVG: '0%' }, { drawSVG: '100%', duration: .5, ease: 'power3.inOut', immediateRender: true }, .5)
+    .fromTo('.tri', { scale: 0 }, { scale: 1, duration: .5, ease: 'back.out(3)', immediateRender: true }, .85)
+    // press play: squash, ripples, the bar starts running
+    .to('.tv', { scale: .92, duration: .12, ease: 'power2.in' }, 1.4)
+    .to('.tv', { scale: 1, duration: .6, ease: 'elastic.out(1,.4)' }, 1.52)
+    .to('.tri', { scale: .8, duration: .12, ease: 'power2.in' }, 1.4)
+    .to('.tri', { scale: 1, duration: .6, ease: 'elastic.out(1,.4)' }, 1.52)
+    .fromTo('.r1', { scale: 1, opacity: .9 }, { scale: 1.4, opacity: 0, duration: .8, ease: 'expo.out', immediateRender: false }, 1.45)
+    .fromTo('.r2', { scale: 1, opacity: .6 }, { scale: 1.7, opacity: 0, duration: 1, ease: 'expo.out', immediateRender: false }, 1.55)
+    .from('#tt span', { yPercent: 110, duration: .5, stagger: .025, ease: 'expo.out' }, .6)
+    .fromTo('.bar div', { scaleX: 0 }, { scaleX: .42, duration: 1.4, ease: 'none', immediateRender: true }, 1.5)
+    .fromTo('.bar i', { x: 0 }, { x: 640 * .42, duration: 1.4, ease: 'none', immediateRender: true }, 1.5)
+    .fromTo('.bar i', { scale: 0 }, { scale: 1, duration: .3, ease: 'back.out(3)', immediateRender: true }, 1.45);
+  for (let s = 1; s <= 75; s++) tl.set(t0, { textContent: '0:' + String(Math.round(s)).padStart(2, '0') }, 1.5 + s * (1.4 / 75));
+  // exit: TV switches off to a line
+  tl.to('.tv', { scaleY: .02, scaleX: 1.05, duration: .25, ease: 'expo.in' }, 2.75)
+    .to('.tv', { scaleX: 0, opacity: 0, duration: .15, ease: 'power3.in' }, 2.95)
+    .to('.glow', { opacity: 0, duration: .3 }, 2.75)
+    .to('#tt span', { yPercent: -110, duration: .3, stagger: .015, ease: 'power3.in' }, 2.6)
+    .to('.bar div, .bar i', { opacity: 0, duration: .2 }, 2.85);
+  tl.set(t0, { textContent: '0:00' }, 2.95);
+</script>

@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated Stripes</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0e0e11}
+  .rot{position:absolute;left:50%;top:50%;width:2400px;height:2400px;margin:-1200px 0 0 -1200px;transform:rotate(-24deg);will-change:transform}
+  .layer{position:absolute;inset:0}
+  .band{position:absolute;left:0;right:0;height:64px;will-change:transform}
+  .l1 .band{background:#ff4d1c}
+  .l1 .band:nth-child(3n+2){background:#f4f1ea}
+  .l1 .band:nth-child(3n){background:#ffd23f}
+  .l2 .band{height:10px;background:rgba(14,14,17,.9)}
+  .vig{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%)}
+</style>
+<div class="stage">
+  <div class="rot">
+    <div class="layer l1" id="l1"></div>
+    <div class="layer l2" id="l2"></div>
+  </div>
+  <div class="vig"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 5;
+  const P1 = 96;   // pitch of the wide bands (64px band + 32px gap)
+  const P2 = 48;   // pitch of the thin counter-stripes
+  const l1 = document.getElementById('l1'), l2 = document.getElementById('l2');
+  for (let i = 0; i < 2400 / P1 + 8; i++) { const b = document.createElement('div'); b.className = 'band'; b.style.top = (i - 4) * P1 + 'px'; l1.appendChild(b); }
+  for (let i = 0; i < 2400 / P2 + 8; i++) { const b = document.createElement('div'); b.style.top = (i - 4) * P2 + 8 + 'px'; b.className = 'band'; l2.appendChild(b); }
+
+  const tl = fx.timeline({ duration: D });
+  // the wide bands flow one way, the thin dark stripes race the other way: integer pitches per loop
+  tl.fromTo('#l1', { y: 0 }, { y: -P1 * 8, duration: D, ease: 'none' }, 0);
+  tl.fromTo('#l2', { y: 0 }, { y: P2 * 20, duration: D, ease: 'none' }, 0);
+  // the whole sheet breathes and leans, sporty, one full cycle per loop
+  tl.fromTo('.rot', { rotation: -24, scale: 1 }, { rotation: -18, scale: 1.08, duration: D / 2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+  // bands pulse in thickness in a wave down the sheet
+  tl.fromTo('.l1 .band', { scaleY: 1 }, { scaleY: 0.72, duration: D / 2, ease: 'sine.inOut', yoyo: true, repeat: 1, stagger: { each: 0.035, from: 'start' } }, 0);
+</script>

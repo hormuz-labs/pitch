@@ -1,0 +1,70 @@
+<!doctype html><meta charset="utf-8">
+<title>Profile: New Story</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#fafafa}
+  .row{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:44px;align-items:flex-start}
+  .story{width:200px;display:flex;flex-direction:column;align-items:center;gap:16px;font-family:"Atlas Grotesk",sans-serif;font-size:26px;color:#262626}
+  .story.dim .name{opacity:.5}
+  .av{position:relative;width:200px;height:200px}
+  .av svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .av .pic{position:absolute;inset:14px;border-radius:50%;background:#ddd;overflow:hidden;will-change:transform}
+  .av .pic div{position:absolute;inset:0;background:center/cover}
+  .grey{fill:none;stroke:#dbdbdb;stroke-width:4}
+  .arc{fill:none;stroke:url(#g);stroke-width:8;stroke-linecap:round;will-change:stroke-dasharray}
+  .plus{position:absolute;right:6px;bottom:6px;width:54px;height:54px;border-radius:50%;background:#0095f6;border:5px solid #fafafa;display:flex;align-items:center;justify-content:center;transform-origin:50% 50%;will-change:transform}
+  .plus::before,.plus::after{content:"";position:absolute;background:#fff;border-radius:2px}
+  .plus::before{width:22px;height:4px}.plus::after{width:4px;height:22px}
+  .glow{position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(circle,rgba(214,41,118,.35),rgba(214,41,118,0) 65%);opacity:0;will-change:transform,opacity}
+  .spark{position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#d62976;opacity:0;will-change:transform,opacity}
+  .toast{position:absolute;left:50%;top:790px;transform:translateX(-50%);padding:16px 32px;border-radius:40px;background:#262626;color:#fff;font-family:"Atlas Grotesk",sans-serif;font-size:28px;white-space:nowrap;will-change:transform,opacity}
+</style>
+<div class="stage">
+  <svg width="0" height="0" style="position:absolute"><defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#feda75"/><stop offset=".4" stop-color="#d62976"/><stop offset="1" stop-color="#4f5bd5"/></linearGradient></defs></svg>
+  <div class="row">
+    <div class="story dim"><div class="av"><svg viewBox="0 0 200 200"><circle class="grey" cx="100" cy="100" r="96"/></svg><div class="pic"><div style="background-image:url('../../../assets/backgrounds/ocean.png')"></div></div></div><div class="name">jules</div></div>
+    <div class="story main"><div class="av">
+      <div class="glow"></div>
+      <div id="sp"></div>
+      <svg viewBox="0 0 200 200"><circle class="grey" cx="100" cy="100" r="96"/><circle class="arc" cx="100" cy="100" r="96" transform="rotate(-90 100 100)"/></svg>
+      <div class="pic"><div style="background-image:url('../../../assets/backgrounds/sunset.png')"></div></div>
+      <div class="plus"></div>
+    </div><div class="name">Your story</div></div>
+    <div class="story dim"><div class="av"><svg viewBox="0 0 200 200"><circle class="grey" cx="100" cy="100" r="96"/></svg><div class="pic"><div style="background-image:url('../../../assets/backgrounds/aurora.png')"></div></div></div><div class="name">north.wind</div></div>
+  </div>
+  <div class="toast">Story shared</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const sp = document.getElementById('sp'), S = [];
+  for (let i = 0; i < 12; i++) { const s = document.createElement('div'); s.className = 'spark'; sp.appendChild(s); S.push(s); }
+  const rng = fx.rng(5);
+  const tl = fx.timeline({ duration: 4 });
+  tl.from('.story', { y: 40, opacity: 0, duration: .6, stagger: .08, ease: 'expo.out' }, 0)
+    // tap the plus
+    .to('.plus', { scale: .7, duration: .15, ease: 'power2.in' }, .8)
+    .to('.plus', { scale: 1.15, rotation: 90, duration: .35, ease: 'back.out(3)' }, .95)
+    .to('.plus', { scale: 0, duration: .3, ease: 'back.in(2)' }, 1.5)
+    // the ring draws around the picture
+    .fromTo('.arc', { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: .9, ease: 'expo.inOut', immediateRender: true }, 1.0)
+    .to('.main .pic', { scale: .9, duration: .2, ease: 'power2.in' }, 1.0)
+    .to('.main .pic', { scale: 1, duration: .7, ease: 'elastic.out(1,.4)' }, 1.2)
+    .to('.main .pic div', { scale: 1.15, duration: 2.5, ease: 'none' }, 1.0)
+    .fromTo('.glow', { opacity: 0, scale: .8 }, { opacity: 1, scale: 1.1, duration: .5, ease: 'power2.out', immediateRender: false }, 1.7)
+    .to('.glow', { opacity: 0, scale: 1.4, duration: .6, ease: 'power2.out' }, 2.2)
+    .to('.main .name', { textContent: 'Your story', duration: 0 }, 1.9)
+    .from('.toast', { y: 30, opacity: 0, duration: .5, ease: 'expo.out', immediateRender: true }, 2.0)
+    .to('.toast', { y: -20, opacity: 0, duration: .35, ease: 'power3.in' }, 3.3);
+  S.forEach((s, i) => {
+    const a = (i / S.length) * Math.PI * 2 + rng() * .4, r = 140 + rng() * 60;
+    tl.fromTo(s, { x: Math.cos(a) * 100 - 6, y: Math.sin(a) * 100 - 6, opacity: 1, scale: .4 }, { x: Math.cos(a) * r - 6, y: Math.sin(a) * r - 6, opacity: 0, scale: 1, duration: .8, ease: 'expo.out', immediateRender: false }, 1.85);
+  });
+  // ring erases and plus returns for the loop
+  tl.to('.arc', { drawSVG: '100% 100%', duration: .5, ease: 'expo.inOut' }, 3.35)
+    .to('.plus', { scale: 1, rotation: 0, duration: .4, ease: 'back.out(2)' }, 3.55)
+    .to('.main .pic div', { scale: 1, duration: .4, ease: 'power2.inOut' }, 3.5);
+</script>

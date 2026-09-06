@@ -1,0 +1,71 @@
+<!doctype html><meta charset="utf-8">
+<title>The Edit: Instagram Story</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#111;color:#fff}
+  .frame{position:absolute;inset:0;overflow:hidden}
+  .img{position:absolute;inset:-8%;background-size:cover;background-position:center;will-change:transform}
+  .f1 .img{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .f2 .img{background-image:url("../../../assets/backgrounds/ocean.png")}
+  .f3 .img{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .f2{clip-path:inset(0 0 0 0)}
+  .bars{position:absolute;top:36px;left:36px;right:36px;display:flex;gap:8px}
+  .bars i{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.35);overflow:hidden;display:block}
+  .bars i b{display:block;height:100%;background:#fff;transform-origin:left;transform:scaleX(0)}
+  .head{position:absolute;top:66px;left:36px;display:flex;align-items:center;gap:16px;font-size:26px;font-weight:500}
+  .head .av{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7);padding:3px}
+  .head .av i{display:block;width:100%;height:100%;border-radius:50%;background:#222}
+  .txt{position:absolute;left:72px;right:72px;overflow:hidden}
+  .txt .w{display:block;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:150px;letter-spacing:-.05em;line-height:.9;text-transform:uppercase}
+  .t1{top:640px}.t2{top:790px}
+  .t3{top:1180px}
+  .t3 .w{font-family:"Sorts Mill Goudy",serif;font-style:italic;text-transform:none;font-size:80px;letter-spacing:0;background:#fff;color:#111;display:inline-block;padding:10px 32px;border-radius:12px}
+  .sticker{position:absolute;right:80px;top:960px;width:220px;height:220px;border-radius:50%;background:#e8ff47;color:#111;display:flex;align-items:center;justify-content:center;text-align:center;font-size:24px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;line-height:1.3;transform-origin:center}
+  .cta{position:absolute;bottom:120px;left:0;right:0;text-align:center;font-size:26px;letter-spacing:.24em;text-transform:uppercase}
+  .cta::before{content:"";display:block;width:0;height:0;margin:0 auto 18px;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:16px solid #fff}
+  .cutbar{position:absolute;inset:0;background:#fff;transform:scaleX(0);transform-origin:left}
+</style>
+<div class="stage">
+  <div class="frame f1"><div class="img"></div></div>
+  <div class="frame f2"><div class="img"></div></div>
+  <div class="frame f3"><div class="img"></div></div>
+  <div class="cutbar"></div>
+  <div class="bars"><i><b></b></i><i><b></b></i><i><b></b></i></div>
+  <div class="head"><div class="av"><i></i></div><span>northwind.studio</span><span style="opacity:.6;font-weight:400">2h</span></div>
+  <div class="txt t1"><span class="w">The</span></div>
+  <div class="txt t2"><span class="w">Edit</span></div>
+  <div class="txt t3"><span class="w">new drop, this Friday</span></div>
+  <div class="sticker">Swipe<br>up</div>
+  <div class="cta">See more</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  // three cuts, each 4/3s; progress bars tick with them
+  tl.fromTo('.f1 .img', { scale: 1.15, yPercent: 3 }, { scale: 1.0, yPercent: -3, duration: 1.5, ease: 'none' }, 0)
+    .from('.f2', { clipPath: 'inset(0 0 0 100%)', duration: 0.45, ease: 'expo.inOut' }, 1.2)
+    .fromTo('.f2 .img', { scale: 1.2, xPercent: -4 }, { scale: 1.0, xPercent: 3, duration: 1.6, ease: 'none' }, 1.2)
+    .from('.f3', { clipPath: 'inset(100% 0 0 0)', duration: 0.45, ease: 'expo.inOut' }, 2.6)
+    .fromTo('.f3 .img', { scale: 1.0 }, { scale: 1.12, duration: 1.4, ease: 'none' }, 2.6)
+    .to('.bars i:nth-child(1) b', { scaleX: 1, duration: 1.33, ease: 'none' }, 0)
+    .to('.bars i:nth-child(2) b', { scaleX: 1, duration: 1.33, ease: 'none' }, 1.33)
+    .to('.bars i:nth-child(3) b', { scaleX: 1, duration: 1.33, ease: 'none' }, 2.66)
+    .from('.head', { y: -30, opacity: 0, duration: 0.6, ease: 'expo.out' }, 0.1)
+    .from('.t1 .w', { yPercent: 110, duration: 0.7, ease: 'expo.out' }, 0.2)
+    .from('.t2 .w', { yPercent: 110, duration: 0.7, ease: 'expo.out' }, 0.32)
+    // cut 2: title slides off, italic pill in
+    .to('.t1 .w, .t2 .w', { xPercent: -110, duration: 0.4, ease: 'expo.in', stagger: 0.05 }, 1.15)
+    .from('.t3 .w', { yPercent: 120, rotate: 4, duration: 0.7, ease: 'expo.out' }, 1.45)
+    .from('.sticker', { scale: 0, rotate: -40, duration: 0.7, ease: 'back.out(2)' }, 1.6)
+    .to('.sticker', { rotate: 12, duration: 1.2, yoyo: true, repeat: 1, ease: 'sine.inOut' }, 2.2)
+    // cut 3: CTA
+    .from('.cta', { y: 40, opacity: 0, duration: 0.6, ease: 'expo.out' }, 2.8)
+    .to('.cta', { y: -12, duration: 0.4, yoyo: true, repeat: 2, ease: 'sine.inOut' }, 3.2)
+    // white flash-cut closes the loop
+    .to('.cutbar', { scaleX: 1, duration: 0.25, ease: 'expo.in' }, 3.72)
+    .set('.cutbar', { transformOrigin: 'right' }, 3.97)
+    .to('.cutbar', { scaleX: 0, duration: 0.03 }, 3.97)
+    .to('.t3 .w, .sticker, .cta', { opacity: 0, duration: 0.01 }, 3.98);
+</script>

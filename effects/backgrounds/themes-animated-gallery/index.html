@@ -1,0 +1,98 @@
+<!doctype html><meta charset="utf-8">
+<title>Themes: Animated Gallery</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{--bg:#eef0f4;--bg2:#dfe4ec;--panel:#ffffff;--text:#15171c;--muted:#7c8391;--accent:#3b6cff;--accent2:#9fd0ff;--line:#e6e9ef;
+    background:linear-gradient(135deg,var(--bg),var(--bg2));font-family:"Atlas Grotesk",sans-serif;color:var(--text)}
+  .app{position:absolute;left:120px;top:90px;width:1040px;height:540px;border-radius:24px;background:var(--panel);box-shadow:0 30px 80px rgba(0,0,0,.18);display:flex;overflow:hidden}
+  .side{width:260px;border-right:1px solid var(--line);padding:32px 26px;display:flex;flex-direction:column;gap:14px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:18px;margin-bottom:18px}
+  .brand i{width:22px;height:22px;border-radius:7px;background:var(--accent)}
+  .label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+  .themes{position:relative;display:flex;flex-direction:column;gap:8px}
+  .theme{position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;font-size:15px;z-index:1}
+  .theme i{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.7);box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  .pick{position:absolute;left:0;top:0;width:100%;height:46px;border-radius:12px;background:var(--accent);opacity:.14;z-index:0}
+  .main{flex:1;padding:32px 36px;display:flex;flex-direction:column;gap:22px}
+  .top{display:flex;justify-content:space-between;align-items:flex-end}
+  .title{font-family:"Sharp Grotesk",sans-serif;font-size:34px;font-weight:500;letter-spacing:-.02em;line-height:1}
+  .sub{color:var(--muted);font-size:14px;margin-top:8px}
+  .btn{background:var(--accent);color:#fff;border-radius:10px;padding:12px 20px;font-size:14px;font-weight:500}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .tile{border:1px solid var(--line);border-radius:14px;padding:18px}
+  .tile b{display:block;font-size:28px;font-weight:500;letter-spacing:-.02em}
+  .tile span{font-size:12px;color:var(--muted)}
+  .chart{flex:1;border:1px solid var(--line);border-radius:14px;padding:18px 22px;display:flex;align-items:flex-end;gap:14px;position:relative}
+  .bar{flex:1;height:100%;position:relative}
+  .bar i{position:absolute;left:0;right:0;bottom:0;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--accent),var(--accent2));transform-origin:bottom}
+  .name{position:absolute;left:120px;top:40px;font-size:14px;color:var(--text);letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+  .ring{position:absolute;width:40px;height:40px;border-radius:50%;border:3px solid var(--accent);left:0;top:0;opacity:0;pointer-events:none}
+</style>
+<div class="stage">
+  <div class="name" id="name">Theme · Daylight</div>
+  <div class="app">
+    <div class="side">
+      <div class="brand"><i></i>Northwind</div>
+      <div class="label">Themes</div>
+      <div class="themes">
+        <div class="pick" id="pick"></div>
+        <div class="theme" data-i="0"><i style="background:#eef0f4"></i>Daylight</div>
+        <div class="theme" data-i="1"><i style="background:#12141a"></i>Midnight</div>
+        <div class="theme" data-i="2"><i style="background:#0b5c68"></i>Lagoon</div>
+        <div class="theme" data-i="3"><i style="background:#ff7a3d"></i>Ember</div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="top"><div><div class="title">Overview</div><div class="sub">Thursday, week 36</div></div><div class="btn">New report</div></div>
+      <div class="tiles">
+        <div class="tile"><b>48.2k</b><span>Sessions</span></div>
+        <div class="tile"><b>3.9%</b><span>Conversion</span></div>
+        <div class="tile"><b>$12.4k</b><span>Revenue</span></div>
+      </div>
+      <div class="chart">
+        <div class="bar"><i style="height:40%"></i></div><div class="bar"><i style="height:62%"></i></div><div class="bar"><i style="height:48%"></i></div>
+        <div class="bar"><i style="height:80%"></i></div><div class="bar"><i style="height:56%"></i></div><div class="bar"><i style="height:92%"></i></div>
+        <div class="bar"><i style="height:70%"></i></div><div class="bar"><i style="height:64%"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="ring" id="ring"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const themes = [
+    { name: 'Daylight', bg: '#eef0f4', bg2: '#dfe4ec', panel: '#ffffff', text: '#15171c', muted: '#7c8391', accent: '#3b6cff', accent2: '#9fd0ff', line: '#e6e9ef' },
+    { name: 'Midnight', bg: '#0c0d12', bg2: '#1c1f2b', panel: '#15171f', text: '#f2f3f7', muted: '#8a90a3', accent: '#8b7bff', accent2: '#c9c0ff', line: '#262a38' },
+    { name: 'Lagoon', bg: '#063c45', bg2: '#0e7a86', panel: '#0b5c68', text: '#ecfbfd', muted: '#9fd3da', accent: '#3ee6c8', accent2: '#bffff0', line: '#1a7482' },
+    { name: 'Ember', bg: '#ffb08a', bg2: '#ff7a3d', panel: '#fff4ec', text: '#2a1a12', muted: '#a06a4f', accent: '#ff5a2b', accent2: '#ffc39b', line: '#f3dccb' },
+  ];
+  const stage = document.querySelector('.stage');
+  const vars = t => ({ '--bg': t.bg, '--bg2': t.bg2, '--panel': t.panel, '--text': t.text, '--muted': t.muted, '--accent': t.accent, '--accent2': t.accent2, '--line': t.line });
+  const tl = fx.timeline({ duration: 6 });
+  const rows = document.querySelectorAll('.theme');
+  const pick = document.getElementById('pick'), ring = document.getElementById('ring'), name = document.getElementById('name');
+  // continuous: bars breathe the whole loop so nothing is ever still
+  document.querySelectorAll('.bar i').forEach((b, i) => {
+    tl.fromTo(b, { scaleY: 0.85 }, { scaleY: 1, duration: 3, ease: 'sine.inOut', repeat: 1, yoyo: true, delay: i * 0.07 }, 0);
+  });
+  // theme switches at 0.9, 2.4, 3.9, 5.4 → theme 1,2,3,0 so the state at 6s equals 0s
+  const order = [1, 2, 3, 0];
+  order.forEach((k, j) => {
+    const at = 0.9 + j * 1.5;
+    const row = rows[k];
+    const r = row.getBoundingClientRect(), s = stage.getBoundingClientRect();
+    tl.to(pick, { y: k * 54, duration: 0.45, ease: 'expo.out' }, at)
+      .to(stage, { ...vars(themes[k]), duration: 0.6, ease: 'power2.inOut' }, at + 0.05)
+      .fromTo(ring, { x: r.left - s.left + 25 - 20, y: r.top - s.top + 23 - 20, scale: 0.3, opacity: 1 }, { scale: 2.2, opacity: 0, duration: 0.7, ease: 'expo.out' }, at)
+      .to(name, { y: -10, opacity: 0, duration: 0.2, ease: 'power2.in' }, at)
+      .add(() => { name.textContent = 'Theme · ' + themes[k].name; }, at + 0.2)
+      .fromTo(name, { y: 10, opacity: 0 }, { y: 0, opacity: 0.7, duration: 0.35, ease: 'expo.out' }, at + 0.22)
+      .fromTo('.bar i', { scaleY: 0.4 }, { scaleY: 1, stagger: 0.04, duration: 0.6, ease: 'expo.out', overwrite: 'auto' }, at + 0.15)
+      .from('.tile b', { yPercent: 40, opacity: 0, stagger: 0.06, duration: 0.5, ease: 'expo.out' }, at + 0.2);
+  });
+  // the theme-name callback is direction-agnostic: when seeked backwards the label must show the previous theme
+  const base = window.__fx.seek;
+  window.__fx.seek = t => { base(t); let k = 0; for (let j = 0; j < 4; j++) if (t >= 0.9 + j * 1.5 + 0.2) k = order[j]; name.textContent = 'Theme · ' + themes[k].name; };
+</script>

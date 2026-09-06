@@ -1,0 +1,72 @@
+<!doctype html><meta charset="utf-8">
+<title>The Vault: Payment Notification</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#f1f2f6;display:flex;align-items:center;justify-content:center}
+  .bgc{position:absolute;inset:0;background:radial-gradient(circle at 20% 20%,#dfe3ff,transparent 45%),radial-gradient(circle at 85% 80%,#d6f5ea,transparent 40%)}
+  .note{position:relative;width:560px;border-radius:30px;background:#fff;box-shadow:0 30px 80px rgba(20,30,60,.16);overflow:hidden;transform-origin:top center}
+  .row{display:flex;align-items:center;gap:18px;padding:22px 26px}
+  .ic{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#22c55e,#0d9488);display:grid;place-items:center;flex:none}
+  .ic svg{width:32px;height:32px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  .t{flex:1;min-width:0}
+  .t .h{display:flex;justify-content:space-between;align-items:baseline;font-size:17px}
+  .t .h b{font-weight:500;color:#111}.t .h span{color:#8a8f9e;font-size:15px}
+  .t .m{font-size:19px;color:#1a1d26;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .detail{height:0;overflow:hidden;border-top:1px solid #eef0f4}
+  .dwrap{padding:22px 26px 26px}
+  .amt{font-size:64px;font-weight:500;letter-spacing:-.04em;color:#111;font-variant-numeric:tabular-nums;line-height:1}
+  .amt small{font-size:22px;color:#8a8f9e;letter-spacing:0;margin-left:8px}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;margin-top:22px}
+  .meta div{font-size:15px;color:#8a8f9e}.meta div b{display:block;color:#1a1d26;font-weight:500;font-size:17px;margin-top:3px}
+  .btns{display:flex;gap:12px;margin-top:24px}
+  .btns div{flex:1;height:48px;border-radius:14px;display:grid;place-items:center;font-size:16px;font-weight:500;background:#f1f2f6;color:#1a1d26}
+  .btns div.p{background:#111;color:#fff}
+  .badge{position:absolute;right:26px;top:26px;width:34px;height:34px;border-radius:50%;background:#22c55e;display:grid;place-items:center;opacity:0}
+  .badge svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+</style>
+<div class="stage">
+  <div class="bgc"></div>
+  <div class="note">
+    <div class="row">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></div>
+      <div class="t"><div class="h"><b>Northwind Pay</b><span>now</span></div><div class="m">Payment received from Acme Corp</div></div>
+    </div>
+    <div class="detail"><div class="dwrap">
+      <div class="amt"><span class="n">$0.00</span><small>USD</small></div>
+      <div class="meta">
+        <div>From<b>Acme Corp</b></div><div>Reference<b>INV-2210</b></div>
+        <div>Account<b>Business · 4821</b></div><div>Status<b style="color:#16a34a">Completed</b></div>
+      </div>
+      <div class="btns"><div>View receipt</div><div class="p">Done</div></div>
+    </div></div>
+    <div class="badge"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 9;
+  const tl = fx.timeline({ duration: D });
+  const n = document.querySelector('.n'), st = { v: 0 };
+  const draw = () => n.textContent = '$' + st.v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  draw();
+  const H = document.querySelector('.dwrap').offsetHeight;
+  gsap.set('.note', { y: -220, opacity: 0, scale: .94 });
+  tl.to('.note', { y: 0, opacity: 1, scale: 1, duration: .9, ease: 'elastic.out(1,.65)' }, 0.3)
+    .fromTo('.ic', { scale: .6, rotation: -30 }, { scale: 1, rotation: 0, duration: .6, ease: 'back.out(2.5)' }, 0.5)
+    .to('.badge', { opacity: 1, scale: 1.15, duration: .3, ease: 'back.out(3)' }, 1.1).to('.badge', { scale: 1, duration: .3 }, 1.4)
+    // a beat, then it expands into the full confirmation
+    .to('.note', { scale: .98, duration: .15, ease: 'power2.inOut' }, 2.4).to('.note', { scale: 1, duration: .3, ease: 'power2.out' }, 2.55)
+    .to('.detail', { height: H, duration: .8, ease: 'expo.out' }, 2.5)
+    .to(st, { v: 4200, duration: 1.3, ease: 'expo.out', onUpdate: draw }, 2.6)
+    .from('.meta div', { y: 12, opacity: 0, duration: .5, stagger: .08, ease: 'power3.out' }, 2.8)
+    .from('.btns div', { y: 12, opacity: 0, duration: .5, stagger: .08, ease: 'power3.out' }, 3.1)
+    .to('.btns .p', { scale: .94, duration: .12, yoyo: true, repeat: 1, ease: 'power2.inOut' }, 6.4)
+    // collapse and slide away
+    .to('.detail', { height: 0, duration: .55, ease: 'expo.inOut' }, 7.0)
+    .to('.badge', { opacity: 0, scale: .6, duration: .3 }, 7.4)
+    .to('.note', { y: -220, opacity: 0, scale: .94, duration: .55, ease: 'power3.in' }, 7.7)
+    .set(st, { v: 0, onUpdate: draw }, 8.99)
+    .set('.meta div, .btns div', { y: 0, opacity: 1 }, 8.99);
+</script>

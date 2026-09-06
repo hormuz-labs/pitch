@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8">
+<title>Instagram Story: 3 Horizontal Images</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#fff;color:#161616}
+  .strip{position:absolute;left:60px;width:960px;height:480px;overflow:hidden;border-radius:6px}
+  .strip i{position:absolute;inset:0 -12%;background:center/cover}
+  .s1{top:190px}.s1 i{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .s2{top:720px}.s2 i{background-image:url("../../../assets/backgrounds/ocean.png")}
+  .s3{top:1250px}.s3 i{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .tag{position:absolute;left:24px;bottom:22px;background:#fff;color:#161616;height:40px;padding:0 16px;border-radius:4px;font:500 18px/40px "Atlas Grotesk",sans-serif;letter-spacing:.15em;text-transform:uppercase}
+  .hd{position:absolute;left:60px;top:90px;font:500 22px "Atlas Grotesk",sans-serif;letter-spacing:.3em;text-transform:uppercase}
+  .hd b{float:right;font-weight:400;color:#999}
+  .ft{position:absolute;left:60px;right:60px;bottom:90px;font:400 22px "Atlas Grotesk",sans-serif;letter-spacing:.25em;text-transform:uppercase;color:#999;display:flex;justify-content:space-between}
+  .ft .l{overflow:hidden}.ft .w{display:inline-block}
+  .lines{position:absolute;left:60px;right:60px;top:0;bottom:0;pointer-events:none}
+  .ln{position:absolute;left:0;right:0;height:1px;background:#e2e0da;transform-origin:0 50%}
+</style>
+<div class="stage">
+  <div class="hd">Weekend dump <b>3 / 3</b></div>
+  <div class="lines"><div class="ln" style="top:680px"></div><div class="ln" style="top:1210px"></div></div>
+  <div class="strip s1"><i></i><span class="tag">Fri · 18:40</span></div>
+  <div class="strip s2"><i></i><span class="tag">Sat · 07:15</span></div>
+  <div class="strip s3"><i></i><span class="tag">Sun · 23:02</span></div>
+  <div class="ft"><span class="l"><span class="w">Acme Camera Club</span></span><span class="l"><span class="w">Roll 12</span></span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  // three horizontal strips reveal one after another: alternate wipe directions, the image inside slides against the wipe
+  const dirs = ['inset(0 100% 0 0)', 'inset(0 0 0 100%)', 'inset(0 100% 0 0)'];
+  ['.s1', '.s2', '.s3'].forEach((s, i) => {
+    const at = .1 + i * .3;
+    tl.fromTo(s, { clipPath: dirs[i] }, { clipPath: 'inset(0 0% 0 0%)', duration: .9, ease: 'expo.inOut' }, at)
+      .fromTo(s + ' i', { xPercent: i % 2 ? 8 : -8, scale: 1.1 }, { xPercent: 0, scale: 1, duration: 1.5, ease: 'expo.out' }, at)
+      .from(s + ' .tag', { y: 30, opacity: 0, duration: .5, ease: 'back.out(2)' }, at + .6)
+      // hold: slow pan across, alternating direction
+      .to(s + ' i', { xPercent: i % 2 ? -4 : 4, duration: 2.2, ease: 'none' }, at + 1.2)
+      // exit: wipe the opposite way
+      .to(s, { clipPath: i % 2 ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)', duration: .5, ease: 'expo.in' }, 3.25 + i * .12)
+      .to(s + ' .tag', { opacity: 0, duration: .2 }, 3.25 + i * .12);
+  });
+  tl.from('.hd', { opacity: 0, y: -10, duration: .5 }, 0)
+    .from('.ln', { scaleX: 0, stagger: .15, duration: .8, ease: 'expo.inOut' }, .3)
+    .from('.ft .w', { yPercent: 110, stagger: .1, duration: .6, ease: 'expo.out' }, .9)
+    .to('.ft .w', { yPercent: -110, stagger: .05, duration: .35, ease: 'expo.in' }, 3.5)
+    .to('.ln', { scaleX: 0, transformOrigin: '100% 50%', stagger: .05, duration: .4, ease: 'expo.in' }, 3.5)
+    .to('.hd', { opacity: 0, duration: .3 }, 3.6);
+</script>

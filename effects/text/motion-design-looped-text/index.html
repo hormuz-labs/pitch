@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8">
+<title>Motion Design: Looped Text</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#1a1aff;overflow:hidden}
+  .band{position:absolute;left:0;right:0;height:170px;display:flex;align-items:center;white-space:nowrap;will-change:transform}
+  .track{display:inline-flex;will-change:transform}
+  .unit{display:inline-block;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:150px;line-height:1;letter-spacing:-.03em;text-transform:uppercase;color:#fff;padding-right:60px}
+  .unit i{font-style:normal;color:#ffe600;padding-left:60px}
+  .band.o .unit{color:transparent;-webkit-text-stroke:2px #fff}
+  .band.o .unit i{color:transparent;-webkit-text-stroke:2px #ffe600}
+  .b1{top:60px}.b2{top:275px}.b3{top:490px}
+</style>
+<div class="stage">
+  <div class="band b1"><div class="track"></div></div>
+  <div class="band o b2"><div class="track"></div></div>
+  <div class="band b3"><div class="track"></div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 1;
+  const words = ['Motion', 'Design', 'Loop', 'Repeat'];
+  const unit = words.map((w, i) => `<span class="unit">${w}<i>·</i></span>`).join('');
+  // each track: the unit repeated enough to always cover the frame; the seam is exactly one unit width
+  const tracks = gsap.utils.toArray('.track');
+  tracks.forEach(t => { t.innerHTML = unit.repeat(3); });
+  let widths = null;
+  fx.register({
+    duration: D,
+    seek(t) {
+      if (!widths) widths = tracks.map(tr => { const u = tr.querySelectorAll('.unit'); let w = 0; for (let i = 0; i < words.length; i++) w += u[i].getBoundingClientRect().width; return w; });
+      const p = t / D;   // one full unit passes per loop: frame D == frame 0
+      // rows alternate direction; the middle row runs at the same speed for a clean seam
+      gsap.set(tracks[0], { x: -p * widths[0] });
+      gsap.set(tracks[1], { x: -widths[1] + p * widths[1] });
+      gsap.set(tracks[2], { x: -p * widths[2] });
+    }
+  });
+</script>

@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+/* Build effects/index.html — the review gallery: every effect's render,
+   its catalog description, a link to its code and to the Jitter original. */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'catalog.json'), 'utf8'));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fams = [...new Set(cat.map(c => c.familySlug))];
+let built = 0, rendered = 0;
+const cards = cat.map(c => {
+  const rel = `${c.familySlug}/${c.slug}`;
+  const has = fs.existsSync(path.join(ROOT, rel, 'index.html'));
+  const mp4 = fs.existsSync(path.join(ROOT, rel, 'render.mp4'));
+  let rj = null; try { rj = JSON.parse(fs.readFileSync(path.join(ROOT, rel, 'render.json'), 'utf8')); } catch {}
+  if (has) built++; if (mp4) rendered++;
+  const status = !has ? 'todo' : rj && rj.error ? 'fail' : mp4 ? 'ok' : 'unrendered';
+  return `<article class="card ${status}" data-fam="${c.familySlug}" data-status="${status}" data-name="${esc(c.name.toLowerCase())}">
+  ${mp4 ? `<video muted loop playsinline preload="none" poster="${rel}/poster.jpg" data-src="${rel}/render.mp4"></video>` : `<div class="ph">${status}</div>`}
+  <div class="meta"><h3>${esc(c.name)} <span>${c.seconds}s${rj && rj.duration ? ` → ${rj.duration.toFixed(1)}s` : ''}</span></h3>
+  <p>${esc(c.description)}</p>
+  <nav>${has ? `<a href="${rel}/index.html" target="_blank">play</a> <a href="${rel}/index.html?render" target="_blank">code</a>` : ''}${c.jitterUrl ? ` <a href="${c.jitterUrl}" target="_blank">jitter</a>` : ''}${rj && rj.errors && rj.errors.length ? ` <b title="${esc(rj.errors.join('\n'))}">⚠ ${rj.errors.length}</b>` : ''}${rj && rj.error ? ` <b>✗ ${esc(rj.error.slice(0, 80))}</b>` : ''}</nav></div>
+</article>`;
+}).join('\n');
+const html = `<!doctype html><meta charset="utf-8"><title>Effects lab</title>
+<style>
+body{margin:0;font:14px/1.4 -apple-system,Helvetica,Arial,sans-serif;background:#f4f4f2;color:#111}
+header{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;z-index:2}
+header input,header select{font:inherit;padding:6px 8px}
+main{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;padding:16px}
+.card{background:#fff;border:1px solid #e2e2e0;border-radius:10px;overflow:hidden}
+.card video,.card .ph{width:100%;aspect-ratio:16/9;background:#eee;display:block;object-fit:contain}
+.card .ph{display:grid;place-items:center;color:#999;text-transform:uppercase;letter-spacing:.1em}
+.card.fail .ph{background:#fbe6e6;color:#a00}
+.meta{padding:10px 12px}h3{margin:0 0 4px;font-size:15px}h3 span{color:#888;font-weight:400;font-size:12px}
+p{margin:0 0 6px;color:#444}nav a{margin-right:10px}nav b{color:#a00;font-weight:500}
+.hidden{display:none}
+</style>
+<header><strong>Effects lab</strong> <span id="count">${built}/${cat.length} built · ${rendered} rendered</span>
+<input id="q" placeholder="search"> <select id="fam"><option value="">all families</option>${fams.map(f => `<option>${f}</option>`).join('')}</select>
+<select id="st"><option value="">any status</option><option>ok</option><option>fail</option><option>unrendered</option><option>todo</option></select></header>
+<main>${cards}</main>
+<script>
+const q=document.getElementById('q'),fam=document.getElementById('fam'),st=document.getElementById('st');
+function filt(){const s=q.value.toLowerCase();for(const c of document.querySelectorAll('.card')){c.classList.toggle('hidden',(s&&!c.dataset.name.includes(s))||(fam.value&&c.dataset.fam!==fam.value)||(st.value&&c.dataset.status!==st.value))}}
+q.oninput=fam.onchange=st.onchange=filt;
+const io=new IntersectionObserver(es=>{for(const e of es){const v=e.target;if(e.isIntersecting){if(!v.src)v.src=v.dataset.src;v.play().catch(()=>{})}else v.pause()}},{rootMargin:'200px'});
+document.querySelectorAll('video').forEach(v=>io.observe(v));
+</script>`;
+fs.writeFileSync(path.join(ROOT, 'index.html'), html);
+console.log(`index.html: ${built}/${cat.length} built, ${rendered} rendered`);

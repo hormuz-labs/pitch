@@ -1,0 +1,55 @@
+<!doctype html><meta charset="utf-8">
+<title>Image Mask: Parallax Effect</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#111;font-family:"Atlas Grotesk",sans-serif;color:#fff}
+  .layer{position:absolute;inset:-12%;background-size:cover;background-position:center;will-change:transform}
+  .far{background-image:url("../../../assets/backgrounds/aurora.png");filter:brightness(.55) saturate(.8)}
+  .maskwrap{position:absolute;inset:0;will-change:transform}
+  .maskwrap svg{position:absolute;inset:0;width:100%;height:100%}
+  .near{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .clip{position:absolute;inset:0;clip-path:url(#m)}
+  .txt{position:absolute;left:80px;bottom:90px}
+  .kick{font-size:12px;letter-spacing:.26em;text-transform:uppercase;opacity:.8;margin-bottom:14px}
+  .h1{font-family:"Sorts Mill Goudy",serif;font-size:92px;line-height:.95;letter-spacing:-.01em}
+  .h1 span{display:block;overflow:hidden;padding-bottom:6px}.h1 u{display:block;text-decoration:none}
+  .num{position:absolute;right:80px;bottom:90px;font-size:13px;letter-spacing:.2em;opacity:.7;text-align:right;line-height:1.8}
+  .ring{position:absolute;left:50%;top:50%;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;border:1px solid rgba(255,255,255,.45);will-change:transform}
+  .frame{position:absolute;inset:34px;border:1px solid rgba(255,255,255,.25);pointer-events:none}
+  .nav{position:absolute;left:80px;right:80px;top:40px;display:flex;justify-content:space-between;font-size:13px;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs><clipPath id="m" clipPathUnits="objectBoundingBox"><ellipse id="ell" cx=".5" cy=".5" rx=".2" ry=".36"/></clipPath></defs></svg>
+<div class="stage">
+  <div class="layer far"></div>
+  <div class="frame"></div>
+  <div class="maskwrap"><div class="clip"><div class="layer near"></div></div></div>
+  <div class="ring"></div>
+  <div class="nav"><span>Atlas — Journal</span><span>Issue 04 · Light</span></div>
+  <div class="txt"><div class="kick">Editorial · Chapter one</div><div class="h1"><span><u>Where the</u></span><span><u>light lands</u></span></div></div>
+  <div class="num">01 / 06<br>Scroll ↓</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  ['sunset','aurora'].forEach(n => { const im = new Image(); im.src = `../../../assets/backgrounds/${n}.png`; fx.wait(im.decode().catch(()=>{})); });
+  const tl = fx.timeline({ duration: 4 });
+  const ell = document.getElementById('ell');
+  // the mask opens from a slit into a tall oval, then widens to a full frame; near and far layers move at different rates
+  tl.fromTo(ell, { attr: { rx: 0.0, ry: 0.36 } }, { attr: { rx: 0.2, ry: 0.36 }, duration: 1.0, ease: 'expo.out' }, 0.1)
+    .to(ell, { attr: { rx: 0.62, ry: 0.72 }, duration: 1.2, ease: 'expo.inOut' }, 2.3)
+    .to(ell, { attr: { rx: 0.0, ry: 0.72 }, duration: 0.45, ease: 'expo.in' }, 3.55);
+  // parallax: the far layer drifts left slowly, the near layer inside the mask moves the other way and faster, the mask itself slides
+  tl.fromTo('.far', { xPercent: 2, scale: 1.05 }, { xPercent: -3, scale: 1.12, duration: 4, ease: 'none' }, 0)
+    .fromTo('.near', { xPercent: -6, yPercent: 2, scale: 1.15 }, { xPercent: 4, yPercent: -2, scale: 1.0, duration: 4, ease: 'none' }, 0)
+    .fromTo('.maskwrap', { x: -40 }, { x: 40, duration: 4, ease: 'sine.inOut' }, 0)
+    .fromTo('.ring', { scale: 0.5, opacity: 0, rotate: -20 }, { scale: 1, opacity: 1, rotate: 0, duration: 1.2, ease: 'expo.out' }, 0.2)
+    .to('.ring', { scale: 1.9, opacity: 0, duration: 1.2, ease: 'expo.inOut' }, 2.3);
+  tl.from('.nav', { opacity: 0, y: -10, duration: 0.6 }, 0.3)
+    .from('.kick', { opacity: 0, x: -20, duration: 0.6 }, 0.5)
+    .from('.h1 u', { yPercent: 110, duration: 0.9, ease: 'expo.out', stagger: 0.12 }, 0.6)
+    .from('.num', { opacity: 0, y: 10, duration: 0.6 }, 0.9)
+    .to('.txt', { y: -40, duration: 1.2, ease: 'expo.inOut' }, 2.3)
+    .to('.h1 u', { yPercent: -110, duration: 0.4, ease: 'expo.in', stagger: 0.06 }, 3.5)
+    .to('.kick, .num, .nav', { opacity: 0, duration: 0.3 }, 3.6);
+</script>

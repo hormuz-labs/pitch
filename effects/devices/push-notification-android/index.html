@@ -1,0 +1,71 @@
+<!doctype html><meta charset="utf-8">
+<title>Push Notification [Android]</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0f1117;font-family:Roboto,"Atlas Grotesk",sans-serif;perspective:1800px}
+  .bg{position:absolute;inset:-10%;background:url("../../../assets/backgrounds/ocean.png") center/cover;filter:brightness(.4) saturate(1.1)}
+  .copy{position:absolute;left:100px;top:50%;transform:translateY(-50%);color:#fff;width:440px}
+  .copy .k{font-size:13px;letter-spacing:.2em;text-transform:uppercase;opacity:.55;margin-bottom:16px}
+  .copy h1{font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:58px;line-height:1;letter-spacing:-.03em}
+  .copy h1 span{display:block;overflow:hidden}.copy h1 b{display:block;font-weight:500}
+  .copy p{margin-top:18px;font-size:17px;line-height:1.5;opacity:.75}
+  .wrap{position:absolute;right:190px;top:50%;transform:translateY(-50%);transform-style:preserve-3d}
+  .phone{width:310px;height:640px;border-radius:38px;background:#1c1d24;padding:10px;box-shadow:0 60px 100px rgba(0,0,0,.6),inset 0 0 0 2px #3f4049;will-change:transform}
+  .scr{height:100%;border-radius:30px;overflow:hidden;position:relative;background:linear-gradient(180deg,#1b2b4b,#0e1a33 60%,#0a1224);color:#fff}
+  .cam{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:16px;height:16px;border-radius:50%;background:#000;z-index:5}
+  .sb{position:absolute;top:12px;left:18px;right:18px;display:flex;justify-content:space-between;font-size:12px;font-weight:500;opacity:.9}
+  .clock{position:absolute;top:110px;left:0;right:0;text-align:center;font-size:76px;font-weight:400;letter-spacing:-.03em;line-height:1;will-change:transform}
+  .clock small{display:block;font-size:14px;opacity:.7;margin-top:8px;letter-spacing:0}
+  .dock{position:absolute;bottom:26px;left:22px;right:22px;display:flex;justify-content:space-between}
+  .dock i{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.14)}
+  .pill{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:100px;height:4px;border-radius:2px;background:rgba(255,255,255,.8)}
+  .note{position:absolute;left:12px;right:12px;top:46px;border-radius:24px;background:#eef1f8;color:#1d1d24;padding:14px 16px;box-shadow:0 20px 40px rgba(0,0,0,.4);will-change:transform,opacity;overflow:hidden}
+  .note .top{display:flex;align-items:center;gap:8px;font-size:11px;color:#5a5f6c}
+  .note .top i{width:16px;height:16px;border-radius:50%;background:#3d6dff}
+  .note .top small{margin-left:auto}
+  .note .body{display:flex;gap:12px;margin-top:8px;align-items:center}
+  .note .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff8a5c,#ff3d81);flex:none}
+  .note b{display:block;font-size:14px;font-weight:500}
+  .note p{font-size:12px;line-height:1.35;color:#3a3d47;margin-top:2px}
+  .note .acts{display:flex;gap:18px;margin-top:12px;font-size:12px;font-weight:500;color:#3d6dff;height:0;opacity:0;overflow:hidden}
+  .ripple{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px;border-radius:50%;background:rgba(61,109,255,.25);transform:scale(0);opacity:0}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="copy"><div class="k">Android · Heads-up</div><h1><span><b>Say it</b></span><span><b>the moment</b></span><span><b>it happens.</b></span></h1><p>Northwind delivers rich notifications with actions, right on the lock screen.</p></div>
+  <div class="wrap"><div class="phone"><div class="scr">
+    <div class="cam"></div>
+    <div class="sb"><span>9:41</span><span>▲ ▮ 100%</span></div>
+    <div class="clock">9:41<small>Tue, Sep 6</small></div>
+    <div class="note">
+      <div class="top"><i></i>Northwind<small>now</small></div>
+      <div class="body"><div class="av"></div><div><b>Order shipped</b><p>Your Acme desk lamp is on its way — arriving tomorrow by 2 PM.</p></div></div>
+      <div class="acts"><span>Track</span><span>Mark as read</span></div>
+      <div class="ripple"></div>
+    </div>
+    <div class="dock"><i></i><i></i><i></i><i></i></div>
+    <div class="pill"></div>
+  </div></div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  tl.fromTo('.bg', { scale: 1.05, xPercent: 1 }, { scale: 1.12, xPercent: -1, duration: 4, ease: 'none' }, 0)
+    .fromTo('.phone', { rotateY: -18, rotateX: 4 }, { rotateY: -10, rotateX: 2, duration: 4, ease: 'sine.inOut' }, 0)
+    .from('.copy h1 b', { yPercent: 110, stagger: 0.08, duration: 0.7, ease: 'expo.out' }, 0.1)
+    .from('.copy .k, .copy p', { y: 14, opacity: 0, stagger: 0.1, duration: 0.5, ease: 'power3.out' }, 0.3)
+    // Material: the heads-up card decelerates in from the top edge
+    .fromTo('.note', { y: -190, opacity: 0, scaleY: 0.85 }, { y: 0, opacity: 1, scaleY: 1, duration: 0.55, ease: 'power4.out' }, 0.5)
+    .fromTo('.clock', { y: 0 }, { y: 118, duration: 0.55, ease: 'power4.out' }, 0.5)
+    .from('.note .top, .note .body', { y: 8, opacity: 0, stagger: 0.06, duration: 0.35, ease: 'power2.out' }, 0.62)
+    // expand: actions unfold
+    .to('.note .acts', { height: 18, opacity: 1, marginTop: 12, duration: 0.4, ease: 'power3.out' }, 1.5)
+    .to('.clock', { y: 148, duration: 0.4, ease: 'power3.out' }, 1.5)
+    // tap ripple on "Track", then the card swipes away
+    .fromTo('.ripple', { scale: 0, opacity: 1 }, { scale: 22, opacity: 0, duration: 0.6, ease: 'power2.out' }, 2.5)
+    .to('.note', { x: 320, opacity: 0, duration: 0.45, ease: 'power3.in' }, 3.1)
+    .to('.clock', { y: 0, duration: 0.55, ease: 'power3.inOut' }, 3.35)
+    .to('.copy', { opacity: 0, x: -24, duration: 0.35, ease: 'power2.in' }, 3.65);
+</script>

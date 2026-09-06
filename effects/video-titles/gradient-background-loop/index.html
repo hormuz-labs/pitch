@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8">
+<title>Gradient Background Loop</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#120c2a}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .grain{position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay}
+  .lockup{position:absolute;left:64px;bottom:56px;color:#fff;display:flex;align-items:center;gap:16px;font-size:18px;letter-spacing:.28em;text-transform:uppercase}
+  .lockup span{width:26px;height:26px;border-radius:50%;border:3px solid #fff}
+</style>
+<div class="stage">
+  <canvas id="c" width="1280" height="720"></canvas>
+  <canvas id="g" class="grain" width="1280" height="720"></canvas>
+  <div class="lockup"><span></span>Northwind</div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 4, W = 1280, H = 720;
+  const ctx = document.getElementById('c').getContext('2d');
+  // static film grain, seeded, laid over the gradient
+  const gc = document.getElementById('g').getContext('2d');
+  const img = gc.createImageData(W, H), rnd = fx.rng(11);
+  for (let i = 0; i < img.data.length; i += 4) { const v = rnd() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  gc.putImageData(img, 0, 0);
+
+  // five color sources on closed Lissajous paths; hue turns once per loop so
+  // t=D lands exactly on t=0
+  const blobs = [
+    { fx: 1, fy: 1, ax: 0.30, ay: 0.32, cx: 0.50, cy: 0.50, ph: 0.0, hue: 0,   r: 640 },
+    { fx: 1, fy: 2, ax: 0.28, ay: 0.20, cx: 0.30, cy: 0.40, ph: 1.4, hue: 70,  r: 520 },
+    { fx: 2, fy: 1, ax: 0.22, ay: 0.30, cx: 0.70, cy: 0.60, ph: 2.6, hue: 150, r: 560 },
+    { fx: 1, fy: 1, ax: 0.35, ay: 0.18, cx: 0.55, cy: 0.30, ph: 4.0, hue: 220, r: 480 },
+    { fx: 2, fy: 2, ax: 0.18, ay: 0.26, cx: 0.40, cy: 0.70, ph: 5.2, hue: 300, r: 500 },
+  ];
+  fx.register({ duration: D, seek(t) {
+    const p = (t / D) * Math.PI * 2;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.filter = 'none';
+    ctx.fillStyle = '#120c2a';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.filter = 'blur(40px)';
+    for (const b of blobs) {
+      const x = (b.cx + b.ax * Math.sin(b.fx * p + b.ph)) * W;
+      const y = (b.cy + b.ay * Math.cos(b.fy * p + b.ph)) * H;
+      const hue = (b.hue + (t / D) * 360) % 360;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, b.r);
+      g.addColorStop(0, `hsla(${hue},85%,58%,0.55)`);
+      g.addColorStop(0.5, `hsla(${hue},85%,50%,0.22)`);
+      g.addColorStop(1, `hsla(${hue},85%,50%,0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(x - b.r, y - b.r, b.r * 2, b.r * 2);
+    }
+    // a soft vignette keeps the corners deep
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.filter = 'none';
+    const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.75);
+    v.addColorStop(0, 'rgba(255,255,255,1)');
+    v.addColorStop(1, 'rgba(120,110,160,1)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
+  } });
+</script>

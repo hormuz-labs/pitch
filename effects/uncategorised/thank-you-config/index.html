@@ -1,0 +1,80 @@
+<!doctype html><meta charset="utf-8">
+<title>Thank You Config</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#f5f2ec;color:#171717}
+  .bg{position:absolute;inset:-10%;background:url("../../../assets/backgrounds/sunset.png") center/cover;opacity:0;filter:saturate(1.1)}
+  .wash{position:absolute;inset:0;background:#f5f2ec}
+  .scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .row{overflow:hidden}
+  .big{display:inline-block;font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:170px;letter-spacing:-.05em;line-height:.95;text-transform:uppercase}
+  .k{font-size:18px;letter-spacing:.32em;text-transform:uppercase;opacity:.7}
+  .heart{width:120px;height:120px;margin:34px auto 0;border-radius:50%;background:#f24e1e;transform:scale(0)}
+  .stats{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:40px;padding:0 100px;opacity:0}
+  .stat{flex:1;background:#fff;border-radius:28px;padding:44px 28px;text-align:center;box-shadow:0 30px 60px -30px rgba(0,0,0,.2)}
+  .stat .n{font-family:"Sharp Grotesk",sans-serif;font-size:96px;font-weight:500;letter-spacing:-.05em;line-height:1}
+  .stat .l{font-size:15px;letter-spacing:.24em;text-transform:uppercase;opacity:.6;margin-top:14px}
+  .stat:nth-child(1) .n{color:#f24e1e}.stat:nth-child(2) .n{color:#a259ff}.stat:nth-child(3) .n{color:#1abcfe}
+  .final{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff}
+  .final .big{font-size:120px}
+  .final .k{opacity:.9}
+  .wipe{position:absolute;inset:0;background:#171717;transform:scaleY(0);transform-origin:50% 100%}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="scene" id="s1">
+    <div class="row"><div class="k">Config 2026 · That's a wrap</div></div>
+    <div class="row"><span class="big">Thank</span></div>
+    <div class="row"><span class="big">You</span></div>
+    <div class="heart"></div>
+  </div>
+  <div class="stats" id="s2">
+    <div class="stat"><div class="n" data-to="3">0</div><div class="l">Days</div></div>
+    <div class="stat"><div class="n" data-to="86">0</div><div class="l">Talks</div></div>
+    <div class="stat"><div class="n" data-to="12" data-suffix="k">0</div><div class="l">Of you</div></div>
+  </div>
+  <div class="wipe" id="wipe"></div>
+  <div class="final" id="s3">
+    <div class="row"><div class="k">Until next year</div></div>
+    <div class="row"><span class="big">See you</span></div>
+    <div class="row"><span class="big">soon</span></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 10;
+  const tl = fx.timeline({ duration: D });
+  gsap.set('#s3', { opacity: 0 });
+  // scene 1: the thank-you pushes in, the dot pops with a heartbeat
+  tl.from('#s1 .k', { yPercent: 120, duration: 0.7, ease: 'expo.out' }, 0.2)
+    .from('#s1 .big', { yPercent: 115, duration: 0.9, ease: 'expo.out', stagger: 0.12 }, 0.35)
+    .to('.heart', { scale: 1, duration: 0.6, ease: 'back.out(2.5)' }, 1.0)
+    .to('.heart', { scale: 1.18, duration: 0.18, ease: 'power2.out', yoyo: true, repeat: 3 }, 1.7)
+    .to('#s1 .big', { yPercent: -115, duration: 0.5, ease: 'expo.in', stagger: 0.08 }, 3.1)
+    .to('#s1 .k', { yPercent: -120, duration: 0.45, ease: 'expo.in' }, 3.25)
+    .to('.heart', { scale: 0, duration: 0.35, ease: 'back.in(2)' }, 3.2);
+  // scene 2: three stat cards drop in and count up
+  const stats = gsap.utils.toArray('.stat');
+  tl.set('#s2', { opacity: 1 }, 3.6)
+    .from(stats, { y: 120, opacity: 0, rotation: i => (i - 1) * 4, duration: 0.8, ease: 'back.out(1.4)', stagger: 0.1 }, 3.6);
+  const counters = stats.map(s => s.querySelector('.n'));
+  const state = counters.map(() => ({ v: 0 }));
+  counters.forEach((c, i) => tl.to(state[i], { v: +c.dataset.to, duration: 1.2, ease: 'power3.out', onUpdate() { c.textContent = Math.round(state[i].v) + (c.dataset.suffix || ''); } }, 4.0 + i * 0.12));
+  tl.to(stats, { y: -80, opacity: 0, duration: 0.45, ease: 'expo.in', stagger: 0.06 }, 6.4);
+  // scene 3: a dark wipe rises, sunset imagery fades in behind, the sign-off pushes in, and everything wipes out for the loop
+  tl.to('#wipe', { scaleY: 1, duration: 0.6, ease: 'expo.inOut' }, 6.7)
+    .set('#s3', { opacity: 1 }, 7.1)
+    .to('.bg', { opacity: 0.85, duration: 0.8 }, 7.2)
+    .set('#wipe', { transformOrigin: '50% 0%' }, 7.3)
+    .to('#wipe', { scaleY: 0, duration: 0.6, ease: 'expo.inOut' }, 7.3)
+    .fromTo('.bg', { scale: 1.1, xPercent: -2 }, { scale: 1, xPercent: 2, duration: 2.8, ease: 'none' }, 7.2)
+    .from('#s3 .k', { yPercent: 120, duration: 0.7, ease: 'expo.out' }, 7.5)
+    .from('#s3 .big', { yPercent: 115, duration: 0.9, ease: 'expo.out', stagger: 0.12 }, 7.6)
+    .to('#s3 .big', { yPercent: -115, duration: 0.45, ease: 'expo.in', stagger: 0.08 }, D - 0.75)
+    .to('#s3 .k', { yPercent: -120, duration: 0.4, ease: 'expo.in' }, D - 0.6)
+    .to('.bg', { opacity: 0, duration: 0.4 }, D - 0.4);
+  // the wipe layer sits above the stats but must not cover scene 1 or 3 while they play
+  gsap.set('#wipe', { zIndex: 5 }); gsap.set('#s3', { zIndex: 6 }); gsap.set('.bg', { zIndex: 4 });
+</script>

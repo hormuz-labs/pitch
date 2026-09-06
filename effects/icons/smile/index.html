@@ -1,0 +1,88 @@
+<!doctype html><meta charset="utf-8">
+<title>Smile</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#ffe14d}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+</style>
+<div class="stage"><canvas id="c" width="1080" height="1080"></canvas></div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  // A fluid abstract smile: blobs made of many metaball-like arcs, a mouth that
+  // stretches and wobbles like liquid, eyes that squash. Everything drawn from t.
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const W = 1080, H = 1080, D = 5;
+  const TAU = Math.PI * 2;
+  const rng = fx.rng(42);
+  const specks = Array.from({ length: 26 }, () => ({ a: rng() * TAU, r: 300 + rng() * 220, s: 6 + rng() * 10, ph: rng() * TAU, sp: .6 + rng() * .8 }));
+  function blob(cx, cy, r, t, wob, lobes, phase) {
+    ctx.beginPath();
+    for (let i = 0; i <= 90; i++) {
+      const a = (i / 90) * TAU;
+      const rr = r * (1 + wob * Math.sin(lobes * a + t * TAU * .8 + phase) + wob * .5 * Math.sin((lobes + 2) * a - t * TAU * 1.2));
+      const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.closePath();
+  }
+  function seek(t) {
+    const p = t / D; // 0..1 loop
+    const beat = Math.sin(p * TAU); // slow breath
+    const beat2 = Math.sin(p * TAU * 2);
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#ffe14d'; ctx.fillRect(0, 0, W, H);
+    // background specks orbiting
+    ctx.fillStyle = '#1a1a1a';
+    specks.forEach(s => {
+      const a = s.a + p * TAU * s.sp * .3, r = s.r + Math.sin(p * TAU * s.sp + s.ph) * 30;
+      ctx.beginPath(); ctx.arc(540 + Math.cos(a) * r, 540 + Math.sin(a) * r, s.s * (0.7 + 0.3 * Math.sin(p * TAU * 2 + s.ph)), 0, TAU); ctx.fill();
+    });
+    // head: big wobbling blob, squashes on the beat
+    const sq = 1 + .07 * beat2;
+    ctx.save(); ctx.translate(540, 540); ctx.scale(sq, 1 / sq); ctx.rotate(Math.sin(p * TAU) * .08);
+    ctx.fillStyle = '#ff5a36';
+    blob(0, 0, 330, p, .06, 3, 0); ctx.fill();
+    ctx.fillStyle = '#ff7a4d';
+    blob(-40, -50, 240, p, .1, 4, 2); ctx.fill();
+    // eyes: two blobs that blink (squash) around p=.45
+    const bl = Math.max(0, 1 - Math.abs((p - .45) / .06));
+    const eh = 1 - bl * .9;
+    ctx.fillStyle = '#1a1a1a';
+    [-110, 110].forEach((ex, i) => {
+      ctx.save(); ctx.translate(ex + Math.sin(p * TAU * 2 + i) * 12, -80 + Math.cos(p * TAU * 2) * 8); ctx.scale(1, eh);
+      blob(0, 0, 44 + 6 * Math.sin(p * TAU * 3 + i * 2), p, .12, 3, i * 1.7); ctx.fill();
+      ctx.restore();
+      // highlight
+      ctx.fillStyle = '#ffe14d';
+      ctx.beginPath(); ctx.arc(ex + 14 + Math.sin(p * TAU * 2 + i) * 12, -96 + Math.cos(p * TAU * 2) * 8, 12 * eh, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#1a1a1a';
+    });
+    // mouth: a liquid smile whose corners stretch wide then narrow, tongue wobbles
+    const wide = 150 + 70 * Math.sin(p * TAU - Math.PI / 2) ** 2 * 1.4;
+    const drop = 120 + 60 * (0.5 + 0.5 * Math.sin(p * TAU * 2 - 1));
+    const wob = Math.sin(p * TAU * 3) * 12;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.moveTo(-wide, 40 + wob);
+    ctx.bezierCurveTo(-wide * .5, 40 + drop * 1.6, wide * .5, 40 + drop * 1.6, wide, 40 - wob);
+    ctx.bezierCurveTo(wide * .5, 80 + wob * .5, -wide * .5, 80 - wob * .5, -wide, 40 + wob);
+    ctx.closePath(); ctx.fill();
+    // tongue
+    ctx.save(); ctx.beginPath();
+    ctx.moveTo(-wide, 40 + wob);
+    ctx.bezierCurveTo(-wide * .5, 40 + drop * 1.6, wide * .5, 40 + drop * 1.6, wide, 40 - wob);
+    ctx.lineTo(wide, 300); ctx.lineTo(-wide, 300); ctx.closePath(); ctx.clip();
+    ctx.fillStyle = '#ff8fb1';
+    blob(Math.sin(p * TAU * 2) * 30, 60 + drop * 1.1, 60 + 12 * Math.sin(p * TAU * 4), p, .15, 3, 1); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+    // liquid ring that swells outward once per loop
+    const rp = (p * 1.0) % 1;
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 10 * (1 - rp); ctx.globalAlpha = 1 - rp;
+    blob(540, 540, 380 + rp * 260, p, .05, 5, 3); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  fx.register({ duration: D, seek });
+</script>

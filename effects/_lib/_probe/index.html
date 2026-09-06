@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><meta name="fx" content="w=640 h=360">
+<link rel="stylesheet" href="../../_lib/base.css"><style>.stage{background:#111}canvas{display:block}</style>
+<div class="stage"><canvas id="c" width="640" height="360"></canvas></div>
+<script type="importmap">{"imports":{"three":"../../../assets/three/three.module.min.js"}}</script>
+<script src="../../_lib/fx.js"></script>
+<script type="module">
+import * as THREE from 'three';
+const r=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true,preserveDrawingBuffer:true});
+const s=new THREE.Scene(),cam=new THREE.PerspectiveCamera(50,640/360,.1,100);cam.position.z=4;
+const m=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.5,1.5),new THREE.MeshNormalMaterial());s.add(m);
+fx.register({duration:2,seek(t){m.rotation.y=t*Math.PI;m.rotation.x=t;r.render(s,cam)}});
+</script>

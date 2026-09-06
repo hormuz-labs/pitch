@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8">
+<title>Twitter Logo</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#e8f4fd}
+  .sky{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#fff,#e8f4fd 60%)}
+  .cloud{position:absolute;width:260px;height:90px;border-radius:60px;background:#fff;opacity:.9;will-change:transform}
+  .cloud::before{content:"";position:absolute;left:50px;top:-40px;width:110px;height:110px;border-radius:50%;background:#fff}
+  .cloud::after{content:"";position:absolute;left:130px;top:-24px;width:80px;height:80px;border-radius:50%;background:#fff}
+  .bird{position:absolute;left:50%;top:44%;width:420px;height:420px;margin:-210px 0 0 -210px;transform-origin:50% 50%;will-change:transform}
+  .bird svg{width:100%;height:100%;overflow:visible}
+  .body{fill:#1d9bf0}
+  .wing{fill:#1d9bf0;transform-origin:52% 48%;will-change:transform}
+  .eye{fill:#0d1b2a}
+  .beak{fill:#f6b73c}
+  .trail{fill:none;stroke:#1d9bf0;stroke-width:6;stroke-linecap:round;opacity:.5}
+  .msg{position:absolute;left:50%;top:740px;transform:translateX(-50%);padding:22px 36px;border-radius:30px;background:#fff;box-shadow:0 20px 60px rgba(29,155,240,.18);font-family:"Atlas Grotesk",sans-serif;font-size:32px;color:#0d1b2a;white-space:nowrap;will-change:transform,opacity}
+  .msg b{color:#1d9bf0;font-weight:500}
+  .plus{position:absolute;font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:36px;color:#1d9bf0;opacity:0;will-change:transform,opacity}
+</style>
+<div class="stage">
+  <div class="sky"></div>
+  <div class="cloud c1" style="left:-80px;top:220px"></div>
+  <div class="cloud c2" style="left:760px;top:120px;transform:scale(.7)"></div>
+  <div class="cloud c3" style="left:180px;top:880px;transform:scale(.8)"></div>
+  <svg class="route" style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 1080 1080"><path id="trail" class="trail" d="M-100 700 C 150 720 250 380 540 476"/></svg>
+  <div class="bird">
+    <svg viewBox="0 0 100 100">
+      <path class="body" d="M14 62 C30 70 56 68 70 52 C78 43 80 34 80 28 L88 24 L80 22 L86 16 L77 19 C74 15 68 14 62 18 C56 22 54 28 55 34 C44 34 30 28 20 18 C16 28 20 38 28 42 C24 42 20 41 18 40 C18 48 24 54 30 56 C26 58 22 58 18 57 C20 62 26 66 32 66 C24 70 18 70 14 62 Z"/>
+      <path class="wing" d="M40 48 C48 40 62 36 74 40 C64 46 56 56 52 62 C46 60 42 54 40 48 Z" fill="#177fc6"/>
+      <circle class="eye" cx="68" cy="24" r="2.6"/>
+    </svg>
+  </div>
+  <div class="msg"><b>@northwind</b> just posted</div>
+  <div class="plus p1">+1</div><div class="plus p2">+1</div><div class="plus p3">+1</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/MotionPathPlugin.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin);
+  gsap.set('.wing', { svgOrigin: '58 42' });
+  const tl = fx.timeline({ duration: 3 });
+  // clouds drift the whole loop
+  tl.to('.c1', { x: 60, duration: 3, ease: 'none' }, 0).to('.c2', { x: -50, duration: 3, ease: 'none' }, 0).to('.c3', { x: 40, duration: 3, ease: 'none' }, 0);
+  // bird swoops in along the trail, flapping, then hovers with a bob
+  tl.fromTo('.bird', { scale: .5, rotation: 18 }, { scale: 1, rotation: 0, duration: 1.1, ease: 'power2.out', immediateRender: true }, 0)
+    .to('.bird', { motionPath: { path: '#trail', align: '#trail', alignOrigin: [.5, .5] }, duration: 1.1, ease: 'power2.out' }, 0)
+    .fromTo('#trail', { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: 1.0, ease: 'power2.out', immediateRender: true }, 0)
+    .to('#trail', { drawSVG: '100% 100%', duration: .6, ease: 'power2.in' }, .6);
+  for (let i = 0; i < 6; i++) tl.to('.wing', { scaleY: -0.6, duration: .12, ease: 'sine.inOut' }, i * .24).to('.wing', { scaleY: 1, duration: .12, ease: 'sine.inOut' }, i * .24 + .12);
+  tl.to('.bird', { y: -14, duration: .5, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 1.1)
+    .to('.bird', { rotation: -6, duration: .5, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 1.1)
+    // occasional flaps while hovering
+    .to('.wing', { scaleY: -0.4, duration: .1 }, 1.9).to('.wing', { scaleY: 1, duration: .15 }, 2.0)
+    .from('.msg', { y: 30, opacity: 0, scale: .9, duration: .5, ease: 'back.out(2)' }, 1.1);
+  [['.p1', 380, 700, 1.3], ['.p2', 660, 690, 1.6], ['.p3', 520, 720, 1.9]].forEach(([s, x, y, t]) =>
+    tl.fromTo(s, { x, y, opacity: 0, scale: .6 }, { y: y - 120, opacity: 1, scale: 1.1, duration: .6, ease: 'power2.out', immediateRender: false }, t).to(s, { opacity: 0, duration: .2 }, t + .5));
+  // exit: bird darts off to the right
+  tl.to('.bird', { x: 700, y: -260, rotation: -20, scale: .6, duration: .45, ease: 'power3.in' }, 2.55)
+    .to('.msg', { y: 30, opacity: 0, duration: .3, ease: 'power3.in' }, 2.65);
+</script>

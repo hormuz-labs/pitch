@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8">
+<title>Holo</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#050507;color:#fff;perspective:1600px}
+  .halo{position:absolute;left:50%;top:50%;width:700px;height:700px;margin:-350px 0 0 -350px;border-radius:50%;background:conic-gradient(from 0deg,#ff3cac,#784ba0,#2b86c5,#3af0a8,#ffd23f,#ff3cac);filter:blur(90px);opacity:.28}
+  .card{position:absolute;left:50%;top:50%;width:380px;height:540px;margin:-270px 0 0 -190px;border-radius:26px;overflow:hidden;transform-style:preserve-3d;background:#121218;box-shadow:0 60px 120px -40px rgba(0,0,0,.9);border:1px solid rgba(255,255,255,.15);will-change:transform}
+  /* holographic foil: a rainbow sheet whose position rides the tilt, textured by a fine diagonal grating */
+  .foil{position:absolute;inset:-60%;background:linear-gradient(115deg,#ff3cac 0%,#ff9a3c 12%,#ffe83c 24%,#3af0a8 38%,#2b86c5 52%,#784ba0 66%,#ff3cac 80%,#ffe83c 100%);background-size:60% 60%;mix-blend-mode:screen;opacity:.85;will-change:transform}
+  .grate{position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.14) 0 2px,transparent 2px 7px);mix-blend-mode:overlay}
+  .sheen{position:absolute;inset:-40%;background:linear-gradient(110deg,transparent 40%,rgba(255,255,255,.55) 50%,transparent 60%);mix-blend-mode:screen;will-change:transform}
+  .noise{position:absolute;inset:0;opacity:.35;mix-blend-mode:soft-light}
+  .ink{position:absolute;inset:0;padding:30px;display:flex;flex-direction:column;justify-content:space-between}
+  .logo{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.9);position:relative}
+  .logo::after{content:"";position:absolute;left:12px;top:12px;width:20px;height:20px;border-radius:50%;background:#121218}
+  .ttl{font-family:"Sharp Grotesk",sans-serif;font-size:56px;font-weight:500;letter-spacing:-.04em;line-height:.95}
+  .sub{font-size:13px;letter-spacing:.3em;text-transform:uppercase;opacity:.8;margin-top:10px}
+  .chip{position:absolute;right:30px;top:36px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;padding:8px 12px;border:1px solid rgba(255,255,255,.5);border-radius:999px;background:rgba(0,0,0,.25)}
+  .caption{position:absolute;left:0;right:0;bottom:56px;text-align:center;font-size:14px;letter-spacing:.32em;text-transform:uppercase;opacity:.6}
+  .refl{position:absolute;left:50%;top:50%;width:380px;height:540px;margin:270px 0 0 -190px;border-radius:26px;transform:scaleY(-1);transform-origin:50% 0;background:linear-gradient(180deg,rgba(255,255,255,.14),transparent 60%);filter:blur(4px);opacity:.5}
+</style>
+<svg width="0" height="0" style="position:absolute"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 0"/></filter></svg>
+<div class="stage">
+  <div class="halo"></div>
+  <div class="card" id="card">
+    <div class="foil" id="foil"></div>
+    <div class="grate"></div>
+    <div class="sheen" id="sheen"></div>
+    <div class="noise" style="filter:url(#grain)"></div>
+    <div class="ink"><div class="logo"></div><div class="chip">Limited · 001</div><div><div class="ttl">Prism<br>Edition</div><div class="sub">Acme premium series</div></div></div>
+  </div>
+  <div class="caption">Holographic finish</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 4;
+  const card = document.getElementById('card'), foil = document.getElementById('foil'), sheen = document.getElementById('sheen'), halo = document.querySelector('.halo');
+  fx.register({ duration: D, seek(t) {
+    const p = t / D * Math.PI * 2;
+    // the card turns on a slow figure-eight; the foil slides against the tilt like real light on foil
+    const ry = Math.sin(p) * 22, rx = Math.cos(p) * 10 - 2;
+    card.style.transform = `rotateY(${ry}deg) rotateX(${rx}deg)`;
+    foil.style.transform = `translate(${-ry * 6}px, ${rx * 8}px) rotate(${ry * 0.6}deg)`;
+    foil.style.filter = `hue-rotate(${t / D * 360}deg) saturate(1.4)`;
+    // a hard sheen wipes across once per loop
+    sheen.style.transform = `translateX(${(-60 + 120 * ((t / D + 0.25) % 1))}%)`;
+    halo.style.transform = `rotate(${t / D * 360}deg) scale(${1 + 0.08 * Math.sin(p * 2)})`;
+  }});
+</script>

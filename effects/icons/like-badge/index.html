@@ -1,0 +1,81 @@
+<!doctype html><meta charset="utf-8">
+<title>Like Badge</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#101318}
+  .card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:960px;height:480px;border-radius:40px;background:#181c24;border:1px solid rgba(255,255,255,.08);box-shadow:0 40px 100px rgba(0,0,0,.5);overflow:hidden}
+  .card .img{position:absolute;inset:0;background:url("../../../assets/backgrounds/aurora.png") center/cover;opacity:.7;will-change:transform}
+  .card .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.7))}
+  .meta{position:absolute;left:36px;bottom:32px;color:#fff;font-family:"Atlas Grotesk",sans-serif}
+  .meta b{display:block;font-weight:500;font-size:34px;letter-spacing:-.01em}
+  .meta span{display:block;font-size:22px;opacity:.7;margin-top:6px}
+  .badge{position:absolute;right:32px;bottom:28px;height:100px;padding:0 36px 0 26px;border-radius:50px;background:#fff;display:flex;align-items:center;gap:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);transform-origin:50% 50%;will-change:transform}
+  .thumb{width:52px;height:52px;transform-origin:30% 80%;will-change:transform}
+  .thumb svg{width:100%;height:100%}
+  .thumb path{fill:#ff3b6b}
+  .num{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:48px;color:#101318;letter-spacing:-.02em;display:flex;height:56px;line-height:56px;overflow:hidden}
+  .num .d{position:relative;width:31px;height:56px;overflow:hidden}
+  .num .d .col{position:absolute;left:0;top:0;will-change:transform}
+  .num .d .col span{display:block;height:56px;text-align:center}
+  .num .sep{width:12px;text-align:center}
+  .ring{position:absolute;right:32px;bottom:28px;width:100px;height:100px;border-radius:50%;border:4px solid #ff3b6b;opacity:0;transform-origin:50% 50%;will-change:transform,opacity}
+  .spark{position:absolute;width:10px;height:10px;border-radius:50%;background:#ff3b6b;opacity:0;will-change:transform,opacity}
+  .fly{position:absolute;right:70px;bottom:110px;font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:34px;color:#ff3b6b;opacity:0;will-change:transform,opacity}
+</style>
+<div class="stage">
+  <div class="card">
+    <div class="img"></div><div class="shade"></div>
+    <div class="meta"><b>Northwind launch teaser</b><span>@northwind · 2h</span></div>
+    <div class="ring"></div>
+    <div id="sparks"></div>
+    <div class="fly f1">+1</div><div class="fly f2">+1</div><div class="fly f3">+1</div>
+    <div class="badge">
+      <div class="thumb"><svg viewBox="0 0 24 24"><path d="M2 10h4v11H2zM7 10.5l4.2-7.4A2 2 0 0 1 14.9 4.6L14 9h5.2a2.5 2.5 0 0 1 2.4 3.1l-1.8 7.2A2.5 2.5 0 0 1 17.4 21H7z"/></svg></div>
+      <div class="num" id="num"></div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  // build a rolling odometer for "12,846" -> up to "12,849"
+  const num = document.getElementById('num');
+  const start = '12,846';
+  const cols = [];
+  for (const ch of start) {
+    if (ch === ',') { const s = document.createElement('div'); s.className = 'sep'; s.textContent = ','; num.appendChild(s); continue; }
+    const d = document.createElement('div'); d.className = 'd';
+    const col = document.createElement('div'); col.className = 'col';
+    for (let i = 0; i < 20; i++) { const s = document.createElement('span'); s.textContent = (i % 10); col.appendChild(s); }
+    d.appendChild(col); num.appendChild(d); cols.push({ col, v: +ch });
+  }
+  cols.forEach(c => gsap.set(c.col, { y: -c.v * 56 }));
+  const last = cols[cols.length - 1];
+  const sp = document.getElementById('sparks'), sparks = [];
+  for (let i = 0; i < 10; i++) { const s = document.createElement('div'); s.className = 'spark'; s.style.right = '72px'; s.style.bottom = '68px'; sp.appendChild(s); sparks.push(s); }
+  const rng = fx.rng(21);
+
+  const tl = fx.timeline({ duration: 4 });
+  tl.fromTo('.card .img', { scale: 1.05, xPercent: -1 }, { scale: 1.12, xPercent: 1, duration: 4, ease: 'none' }, 0);
+  tl.from('.card', { y: 60, opacity: 0, duration: .7, ease: 'expo.out' }, 0)
+    .from('.badge', { scale: 0, duration: .6, ease: 'back.out(2)' }, .3);
+  // three pops, each bumps the odometer
+  [0.9, 1.9, 2.9].forEach((t, i) => {
+    tl.to('.badge', { scale: .88, duration: .1, ease: 'power2.in' }, t)
+      .to('.badge', { scale: 1.12, duration: .22, ease: 'back.out(3)' }, t + .1)
+      .to('.badge', { scale: 1, duration: .4, ease: 'elastic.out(1,.45)' }, t + .32)
+      .to('.thumb', { rotation: -22, y: -6, duration: .12, ease: 'power2.out' }, t + .1)
+      .to('.thumb', { rotation: 0, y: 0, duration: .45, ease: 'elastic.out(1,.4)' }, t + .22)
+      .to(last.col, { y: -(last.v + i + 1) * 56, duration: .35, ease: 'back.out(1.4)' }, t + .1)
+      .fromTo('.ring', { scale: .6, opacity: .9 }, { scale: 2.2, opacity: 0, duration: .6, ease: 'expo.out' }, t + .1)
+      .fromTo('.fly.f' + (i + 1), { y: 0, opacity: 0, scale: .6 }, { opacity: 1, scale: 1, duration: .15, ease: 'power2.out' }, t + .1)
+      .to('.fly.f' + (i + 1), { y: -90, opacity: 0, duration: .6, ease: 'power2.out' }, t + .25);
+    sparks.forEach((s, k) => {
+      const a = -Math.PI * (0.15 + 0.7 * (k / sparks.length)) + (rng() - .5) * .3, r = 60 + rng() * 60;
+      tl.fromTo(s, { x: 0, y: 0, opacity: 1, scale: 1 }, { x: Math.cos(a) * r, y: Math.sin(a) * r, opacity: 0, scale: .3, duration: .55, ease: 'expo.out' }, t + .12);
+    });
+  });
+  // reset the odometer so the loop is clean
+  tl.to(last.col, { y: -last.v * 56, duration: .35, ease: 'power3.inOut' }, 3.6);
+</script>

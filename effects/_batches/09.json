@@ -1,0 +1,24 @@
+[
+ {
+  "name": "Themes: Animated Gallery",
+  "family": "Backgrounds",
+  "familySlug": "backgrounds",
+  "slug": "themes-animated-gallery",
+  "seconds": 6,
+  "tags": [
+   "showreels"
+  ],
+  "description": "An animated gallery template that moves through multiple visual themes in sequence. Good for design system presentations and theme picker UI demos.",
+  "jitterUrl": "https://jitter.video/template/themes-animated-gallery/"
+ },
+ {
+  "name": "Vector Animation",
+  "family": "Backgrounds",
+  "familySlug": "backgrounds",
+  "slug": "vector-animation",
+  "seconds": 4,
+  "tags": [],
+  "description": "A template with an animated vector illustration with moving paths and shapes. Good for illustrated explainer content and brand character animations.",
+  "jitterUrl": "https://jitter.video/template/vector-animation/"
+ }
+]

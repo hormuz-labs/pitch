@@ -1,0 +1,71 @@
+<!doctype html><meta charset="utf-8">
+<title>The Track: Tagline</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../../assets/gsap/CustomBounce.min.js"></script>
+<style>
+  .stage{background:#0a0a0b;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;color:#fff;overflow:hidden}
+  .floor{position:absolute;left:-20%;right:-20%;bottom:0;height:200px;background:linear-gradient(180deg,#0a0a0b,#161618);transform:perspective(600px) rotateX(55deg);transform-origin:top}
+  .spot{position:absolute;left:50%;top:-20%;width:1100px;height:1100px;border-radius:50%;background:radial-gradient(circle,rgba(217,255,61,.22),rgba(217,255,61,0) 60%);transform:translate(-50%,-30%);opacity:0}
+  .lines{position:absolute;left:80px;top:96px;display:flex;flex-direction:column;gap:0}
+  .row{overflow:hidden;line-height:.86;padding-right:.08em}
+  .w{display:block;font-size:176px;font-weight:500;letter-spacing:-.06em;text-transform:uppercase;will-change:transform}
+  .w.acc{color:#d9ff3d}
+  .sub{position:absolute;left:84px;bottom:74px;font-family:"Atlas Grotesk",sans-serif;font-size:22px;letter-spacing:.28em;text-transform:uppercase;opacity:.7;overflow:hidden}
+  .sub span{display:block}
+  .prod{position:absolute;right:120px;bottom:120px;width:420px;will-change:transform;transform-origin:50% 100%}
+  .prod svg{width:100%;height:auto;display:block}
+  .shadow{position:absolute;right:120px;bottom:104px;width:420px;height:36px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.8),rgba(0,0,0,0) 70%);transform-origin:center}
+  .dust{position:absolute;right:330px;bottom:118px;width:0;height:0}
+  .dust i{position:absolute;width:10px;height:10px;border-radius:50%;background:#d9ff3d;opacity:0}
+  .stamp{position:absolute;right:120px;top:96px;padding:10px 18px;border:2px solid #d9ff3d;color:#d9ff3d;font-size:20px;letter-spacing:.2em;text-transform:uppercase;transform-origin:center;opacity:0}
+</style>
+<div class="stage">
+  <div class="spot"></div><div class="floor"></div>
+  <div class="lines">
+    <div class="row"><span class="w">Built</span></div>
+    <div class="row"><span class="w">For The</span></div>
+    <div class="row"><span class="w acc">Finish</span></div>
+  </div>
+  <div class="sub"><span>Northwind Velocity 4 — Available now</span></div>
+  <div class="stamp">New drop</div>
+  <div class="shadow"></div>
+  <div class="prod"><svg viewBox="0 0 200 110"><path d="M12 74c0-10 22-16 40-22l30-22c9-7 20-4 28 5l40 22c22 7 40 10 40 22v9H12z" fill="#e9e9ea"/><path d="M12 83h178v6H12z" fill="#d9ff3d"/><path d="M60 55l30 15" stroke="#0a0a0b" stroke-width="6" stroke-linecap="round"/><path d="M110 40l50 26" stroke="#0a0a0b" stroke-width="4" stroke-linecap="round" opacity=".35"/></svg></div>
+  <div class="dust"></div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const rng = fx.rng(11);
+  const dust = document.querySelector('.dust');
+  const bits = [];
+  for (let i = 0; i < 16; i++) { const b = document.createElement('i'); dust.appendChild(b); bits.push(b); }
+  CustomBounce.create('drop', { strength: 0.5, squash: 3 });
+  const tl = fx.timeline({ duration: 4 });
+  // words snap in, alternating sides
+  tl.from('.w', { yPercent: 115, duration: 0.6, stagger: 0.09, ease: 'expo.out' }, 0.05)
+    .from('.row', { xPercent: (i) => (i % 2 ? 6 : -6), duration: 0.6, stagger: 0.09, ease: 'expo.out' }, 0.05)
+    .to('.spot', { opacity: 1, duration: 0.6, ease: 'power2.out' }, 0.2)
+    // the product drops onto the stage
+    .fromTo('.prod', { y: -720, rotation: -14 }, { y: 0, rotation: 0, duration: 1.0, ease: 'drop' }, 0.55)
+    .fromTo('.prod', { scaleX: 1, scaleY: 1 }, { scaleX: 1, scaleY: 1, duration: 1.0, ease: 'drop-squash' }, 0.55)
+    .fromTo('.shadow', { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.9, ease: 'power3.in' }, 0.6)
+    .to('.spot', { scale: 1.2, opacity: 1.4, duration: 0.15, ease: 'power2.out' }, 1.28)
+    .to('.spot', { scale: 1, opacity: 1, duration: 0.6, ease: 'power2.out' }, 1.43)
+    .fromTo('.stamp', { scale: 2.4, opacity: 0, rotation: 8 }, { scale: 1, opacity: 1, rotation: -6, duration: 0.35, ease: 'expo.out' }, 1.3)
+    .from('.sub span', { yPercent: 120, duration: 0.5, ease: 'expo.out' }, 1.45);
+  // impact dust
+  bits.forEach((b) => {
+    const a = Math.PI + rng() * Math.PI, d = 90 + rng() * 220;
+    tl.fromTo(b, { x: 0, y: 0, opacity: 1, scale: 0.4 + rng() }, { x: Math.cos(a) * d * 1.4, y: Math.sin(a) * d * 0.5, opacity: 0, scale: 0, duration: 0.5 + rng() * 0.4, ease: 'power3.out', immediateRender: false }, 1.28 + rng() * 0.05);
+  });
+  // hold with a slow breathe, then out
+  tl.to('.prod', { y: -6, duration: 1.2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 1.6)
+    .to('.w', { yPercent: -115, duration: 0.35, stagger: 0.06, ease: 'expo.in' }, 3.45)
+    .to('.sub span', { yPercent: -120, duration: 0.3, ease: 'expo.in' }, 3.5)
+    .to('.stamp', { scale: 0, opacity: 0, duration: 0.25, ease: 'back.in(2)' }, 3.5)
+    .to('.prod', { y: -760, rotation: 10, duration: 0.4, ease: 'power3.in' }, 3.55)
+    .to('.shadow', { scale: 0.3, opacity: 0, duration: 0.35, ease: 'power2.in' }, 3.55)
+    .to('.spot', { opacity: 0, duration: 0.3 }, 3.65);
+</script>

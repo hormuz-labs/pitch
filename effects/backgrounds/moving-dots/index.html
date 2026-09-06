@@ -1,0 +1,33 @@
+<!doctype html><meta charset="utf-8">
+<title>Moving Dots</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#f6f4ef}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .fade{position:absolute;inset:0;background:radial-gradient(90% 70% at 50% 50%,transparent 40%,#f6f4ef 100%)}
+</style>
+<div class="stage"><canvas id="c" width="1280" height="720"></canvas><div class="fade"></div></div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 2, W = 1280, H = 720, P = 56;
+  const ctx = document.getElementById('c').getContext('2d');
+  // two dot layers: a slow far one and a nearer, larger one drifting a touch faster, both by whole pitches per loop
+  const layers = [{ p: 56, r: 3, vx: 1, vy: 1, col: 'rgba(30,30,40,.35)', ox: 0 }, { p: 112, r: 6, vx: 1, vy: 1, col: 'rgba(30,30,40,.7)', ox: 28 }];
+  fx.register({ duration: D, seek(t) {
+    ctx.clearRect(0, 0, W, H);
+    const p = t / D;
+    for (const L of layers) {
+      const sx = (p * L.vx * L.p) % L.p, sy = (p * L.vy * L.p) % L.p;
+      ctx.fillStyle = L.col;
+      for (let y = -L.p; y < H + L.p; y += L.p) for (let x = -L.p; x < W + L.p; x += L.p) {
+        const cx = x + sx + L.ox, cy = y + sy + L.ox;
+        // a slow breathing wave across the field, one cycle per loop, so it never reads as a flat scroll
+        const w = 0.5 + 0.5 * Math.sin(2 * Math.PI * (p + (cx + cy) / 1400));
+        const r = L.r * (0.65 + 0.7 * w);
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }});
+</script>

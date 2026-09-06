@@ -1,0 +1,94 @@
+<!doctype html><meta charset="utf-8">
+<title>Product Of The Week</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#fff5f1;color:#1f1f1f;overflow:hidden}
+  .wrap{position:absolute;left:0;top:0;width:1080px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px}
+  .badge{position:relative;display:flex;align-items:center;gap:26px;padding:34px 54px;border-radius:999px;background:#fff;border:3px solid #ff6154;box-shadow:0 24px 60px rgba(255,97,84,.22)}
+  .badge .cat{width:92px;height:92px;border-radius:50%;background:#ff6154;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:48px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif}
+  .badge .txt{display:flex;flex-direction:column;line-height:1}
+  .badge .txt small{font-size:22px;letter-spacing:.22em;text-transform:uppercase;color:#ff6154;font-weight:500;margin-bottom:10px}
+  .badge .txt b{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:64px;letter-spacing:-.03em}
+  .badge .txt b i{font-style:normal;color:#ff6154}
+  .laurel{position:absolute;left:0;top:0;width:1080px;height:1080px;pointer-events:none}
+  .laurel path{fill:none;stroke:#ff6154;stroke-width:6;stroke-linecap:round}
+  .votes{display:flex;align-items:center;gap:16px;padding:20px 34px;border-radius:20px;background:#1f1f1f;color:#fff;font-size:38px;font-weight:500;font-variant-numeric:tabular-nums}
+  .votes .tri{width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-bottom:20px solid #ff6154}
+  .name{font-size:34px;letter-spacing:.02em;color:#555}
+  .name b{font-weight:500;color:#1f1f1f}
+  .conf{position:absolute;left:540px;top:540px;width:16px;height:24px;border-radius:4px;will-change:transform}
+</style>
+<div class="stage">
+  <svg class="laurel" viewBox="0 0 1080 1080">
+    <g id="lL"></g><g id="lR"></g>
+  </svg>
+  <div class="wrap">
+    <div class="badge"><div class="cat">P</div><div class="txt"><small>Product Hunt</small><b><i>#1</i> Product of the Week</b></div></div>
+    <div class="votes"><span class="tri"></span><span class="num">0</span></div>
+    <div class="name"><b>Northwind</b> — the calm inbox for teams</div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  // laurel branches: an arc with leaves, left and mirrored right
+  function branch(g, mirror) {
+    const cx = 540, cy = 540;
+    let d = '';
+    const pts = [];
+    for (let k = 0; k <= 12; k++) {
+      const a = Math.PI * (0.62 + k / 12 * 0.86); // from lower-left up over the top
+      pts.push([cx + Math.cos(a) * 430 * (mirror ? -1 : 1), cy + Math.sin(a) * 390]);
+    }
+    d = 'M' + pts.map(p => p.join(' ')).join(' L');
+    const stem = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    stem.setAttribute('d', d); stem.setAttribute('class', 'stem'); g.appendChild(stem);
+    pts.forEach((p, k) => {
+      if (k === 0 || k === 12) return;
+      const nx = (p[0] - cx), ny = (p[1] - cy), L = Math.hypot(nx, ny);
+      const ux = nx / L, uy = ny / L; // outward normal
+      const px = -uy, py = ux;
+      const leaf = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const l = 34, w = 14;
+      leaf.setAttribute('d', `M${p[0]} ${p[1]} Q${p[0] + ux * l - px * w} ${p[1] + uy * l - py * w} ${p[0] + ux * l * 1.6} ${p[1] + uy * l * 1.6} Q${p[0] + ux * l + px * w} ${p[1] + uy * l + py * w} ${p[0]} ${p[1]}`);
+      leaf.setAttribute('class', 'leaf'); g.appendChild(leaf);
+    });
+  }
+  branch(document.getElementById('lL'), false);
+  branch(document.getElementById('lR'), true);
+  // confetti
+  const rng = fx.rng(7);
+  const colors = ['#ff6154', '#ffd23f', '#1f1f1f', '#4fc3f7', '#ff9c8a'];
+  const conf = [];
+  for (let i = 0; i < 46; i++) {
+    const el = document.createElement('div'); el.className = 'conf';
+    el.style.background = colors[i % colors.length];
+    document.querySelector('.stage').appendChild(el);
+    const ang = -Math.PI / 2 + (rng() - 0.5) * 2.4, sp = 900 + rng() * 900;
+    conf.push({ el, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, rot: rng() * 720 - 360, r0: rng() * 360 });
+  }
+  const tl = fx.timeline({ duration: 3 });
+  tl.from('.badge', { scale: 0.2, rotation: -12, duration: 0.7, ease: 'back.out(2.2)' }, 0.1)
+    .from('.badge .cat', { rotation: -180, scale: 0, duration: 0.6, ease: 'back.out(2)' }, 0.35)
+    .from('.laurel .stem', { drawSVG: '0%', duration: 0.9, ease: 'power3.out' }, 0.2)
+    .from('.laurel .leaf', { scale: 0, transformOrigin: 'left center', duration: 0.35, ease: 'back.out(3)', stagger: 0.035 }, 0.4)
+    .from('.votes', { y: 40, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0.6)
+    .from('.name', { y: 30, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0.75);
+  // the upvote count runs up
+  const counter = { v: 0 };
+  tl.to(counter, { v: 1284, duration: 1.4, ease: 'power3.out', onUpdate() { document.querySelector('.num').textContent = Math.round(counter.v).toLocaleString('en-US'); } }, 0.6)
+    .to('.votes .tri', { y: -8, duration: 0.18, ease: 'power2.out', yoyo: true, repeat: 5 }, 0.6);
+  // confetti burst: ballistic, as a function of time
+  const burst = { t: 0 };
+  tl.to(burst, { t: 1.6, duration: 1.6, ease: 'none', onUpdate() {
+    const t = burst.t, g = 1800;
+    conf.forEach(c => { gsap.set(c.el, { x: c.vx * t, y: c.vy * t + 0.5 * g * t * t, rotation: c.r0 + c.rot * t, opacity: t < 1.3 ? 1 : Math.max(0, 1 - (t - 1.3) / 0.3) }); });
+  } }, 0.3);
+  // wiggle badge at the end and out
+  tl.to('.badge', { rotation: 2, duration: 0.25, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 1.9)
+    .to('.wrap', { scale: 0.85, opacity: 0, duration: 0.35, ease: 'expo.in' }, 2.65)
+    .to('.laurel', { scale: 0.85, opacity: 0, transformOrigin: 'center', duration: 0.35, ease: 'expo.in' }, 2.65);
+</script>

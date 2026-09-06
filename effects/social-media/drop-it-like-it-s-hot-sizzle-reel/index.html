@@ -1,0 +1,85 @@
+<!doctype html><meta charset="utf-8">
+<title>Drop It Like It's Hot: Sizzle Reel</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif}
+  .shot{position:absolute;inset:0;background:center/cover;will-change:transform,filter}
+  .s1{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .s2{background-image:url("../../../assets/backgrounds/ocean.png")}
+  .s3{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .flash{position:absolute;inset:0;background:#fff;opacity:0}
+  .t{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:#fff;font-weight:500;font-size:210px;letter-spacing:-.06em;line-height:.85;text-transform:uppercase;text-shadow:0 6px 30px rgba(0,0,0,.35)}
+  .t .row{overflow:hidden;display:block}
+  .t .w{display:inline-block}
+  .cnt{position:absolute;left:50px;top:40px;color:#fff;font:400 20px "Atlas Grotesk",monospace;letter-spacing:.1em}
+  .cnt b{font-weight:500}
+  .frame{position:absolute;inset:34px;border:2px solid rgba(255,255,255,.7);pointer-events:none}
+  .corner{position:absolute;width:26px;height:26px;border:3px solid #fff}
+  .c1{left:22px;top:22px;border-right:0;border-bottom:0}.c2{right:22px;top:22px;border-left:0;border-bottom:0}
+  .c3{left:22px;bottom:22px;border-right:0;border-top:0}.c4{right:22px;bottom:22px;border-left:0;border-top:0}
+  .red{position:absolute;inset:0;background:#ff3b1f}
+  .end{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#111}
+  .end h1{font-size:150px;letter-spacing:-.06em;line-height:.9;font-weight:500}
+  .end p{font:400 26px "Atlas Grotesk",sans-serif;letter-spacing:.2em;text-transform:uppercase}
+</style>
+<div class="stage">
+  <div class="shot s1" id="s1"></div>
+  <div class="shot s2" id="s2"></div>
+  <div class="shot s3" id="s3"></div>
+  <div class="shot s1" id="s4"></div>
+  <div class="red" id="red"></div>
+  <div class="end" id="end"><h1>Drop it.</h1><p>Savee · Reel 26</p></div>
+  <div class="t" id="t1"><span class="row"><span class="w">Drop</span></span></div>
+  <div class="t" id="t2"><span class="row"><span class="w">It like</span></span></div>
+  <div class="t" id="t3"><span class="row"><span class="w">It's hot</span></span></div>
+  <div class="flash" id="flash"></div>
+  <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
+  <div class="cnt">REEL <b id="num">01</b> / 04</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 6 });
+  gsap.set('#s2,#s3,#s4,#red,#end', { autoAlpha: 0 });
+  gsap.set('#t2,#t3', { autoAlpha: 0 });
+  const num = document.getElementById('num');
+  const cut = (id, at, n) => tl.set(id, { autoAlpha: 1 }, at).call(() => num.textContent = n, null, at);
+  const flash = at => tl.fromTo('#flash', { opacity: .9 }, { opacity: 0, duration: .25, ease: 'power2.out', immediateRender: false }, at);
+  // shot 1: fast push-in
+  tl.fromTo('#s1', { scale: 1, x: 0 }, { scale: 1.25, duration: 1.3, ease: 'power1.in' }, 0)
+    .from('#t1 .w', { yPercent: 120, duration: .45, ease: 'expo.out' }, .15)
+    .to('#t1 .w', { yPercent: -120, duration: .3, ease: 'expo.in' }, 1.0).set('#t1', { autoAlpha: 0 }, 1.3)
+    .from('.corner', { scale: 0, stagger: .05, duration: .3, ease: 'back.out(2)' }, 0);
+  // whip pan to shot 2
+  cut('#s2', 1.3, '02'); flash(1.3);
+  tl.fromTo('#s1', { filter: 'blur(0px)' }, { xPercent: -60, filter: 'blur(20px)', duration: .3, ease: 'power3.in' }, 1.05)
+    .fromTo('#s2', { xPercent: 60, filter: 'blur(20px)', scale: 1.1 }, { xPercent: 0, filter: 'blur(0px)', scale: 1.1, duration: .35, ease: 'power3.out' }, 1.3)
+    .to('#s2', { scale: 1, yPercent: -3, duration: 1.2, ease: 'none' }, 1.65)
+    .set('#t2', { autoAlpha: 1 }, 1.5)
+    .from('#t2 .w', { xPercent: -80, skewX: 20, duration: .4, ease: 'expo.out' }, 1.5)
+    .to('#t2 .w', { xPercent: 80, skewX: -20, duration: .3, ease: 'expo.in' }, 2.55).set('#t2', { autoAlpha: 0 }, 2.85);
+  // hard cut w/ zoom to shot 3, split-strobe
+  cut('#s3', 2.9, '03'); flash(2.9);
+  tl.set('#s1,#s2', { autoAlpha: 0 }, 2.9)
+    .fromTo('#s3', { scale: 1.4, rotation: 3 }, { scale: 1.05, rotation: 0, duration: .5, ease: 'expo.out' }, 2.9)
+    .to('#s3', { scale: 1.12, duration: 1.2, ease: 'none' }, 3.4)
+    .set('#t3', { autoAlpha: 1 }, 3.05)
+    .from('#t3 .w', { scale: 2.2, opacity: 0, duration: .35, ease: 'expo.out' }, 3.05)
+    .fromTo('#t3', { filter: 'invert(0)' }, { filter: 'invert(1)', duration: .08, repeat: 3, yoyo: true }, 3.5)
+    .to('#t3 .w', { yPercent: 140, duration: .3, ease: 'expo.in' }, 4.2).set('#t3', { autoAlpha: 0 }, 4.5);
+  // shot 4 slam then red endcard
+  cut('#s4', 4.5, '04'); flash(4.5);
+  tl.set('#s3', { autoAlpha: 0 }, 4.5)
+    .fromTo('#s4', { yPercent: 100 }, { yPercent: 0, duration: .3, ease: 'expo.out' }, 4.5)
+    .to('#s4', { scale: 1.15, duration: .8, ease: 'none' }, 4.8)
+    .set('#red,#end', { autoAlpha: 1 }, 5.1)
+    .fromTo('#red', { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: .3, ease: 'expo.inOut' }, 5.1)
+    .from('#end h1', { yPercent: 60, opacity: 0, duration: .4, ease: 'expo.out' }, 5.3)
+    .from('#end p', { opacity: 0, duration: .3 }, 5.5)
+    .to('#end', { scale: 1.1, duration: .5, ease: 'none' }, 5.5)
+    .to('#red,#end', { autoAlpha: 0, duration: .15 }, 5.85)
+    .set('#s4', { autoAlpha: 0 }, 5.85)
+    .set('#s1', { autoAlpha: 1, scale: 1, xPercent: 0, filter: 'blur(0px)' }, 5.85)
+    .call(() => num.textContent = '01', null, 5.85).set('#t1', { autoAlpha: 1 }, 5.99);
+</script>

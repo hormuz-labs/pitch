@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8">
+<title>Big Waves</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:linear-gradient(180deg,#0c1a3a 0%,#123a6b 100%)}
+  svg{position:absolute;inset:0;width:100%;height:100%}
+  .w{will-change:transform}
+</style>
+<div class="stage">
+  <svg viewBox="0 0 1280 720" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d7ff9"/><stop offset="1" stop-color="#1b4fb8"/></linearGradient>
+      <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fd1ff"/><stop offset="1" stop-color="#2a8bd8"/></linearGradient>
+      <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bff6ff"/><stop offset="1" stop-color="#5fd0f3"/></linearGradient>
+    </defs>
+    <g id="waves"></g>
+  </svg>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 6, W = 1280, H = 720;
+  // each layer: wavelength, amplitude, baseline, fill, cycles per loop (integer => seamless)
+  const layers = [
+    { wl: 1280, amp: 110, base: 300, fill: 'url(#g1)', cyc: 1, op: .9 },
+    { wl: 860,  amp: 90,  base: 420, fill: 'url(#g2)', cyc: 2, op: .9 },
+    { wl: 640,  amp: 70,  base: 540, fill: 'url(#g3)', cyc: 3, op: .95 },
+  ];
+  function wavePath(wl, amp, base) {
+    // three wavelengths wide so we can slide one wavelength and still cover the frame
+    const n = Math.ceil(W / wl) + 2, k = wl / 4, q = 0.5523 * k; // cubic approximations of a sine
+    let d = `M ${-wl} ${base}`;
+    for (let i = 0; i < n; i++) {
+      const x = -wl + i * wl;
+      d += ` C ${x + q} ${base - amp}, ${x + k * 2 - q} ${base - amp}, ${x + k * 2} ${base}`;
+      d += ` C ${x + k * 2 + q} ${base + amp}, ${x + wl - q} ${base + amp}, ${x + wl} ${base}`;
+    }
+    d += ` L ${W + wl * 2} ${H + 50} L ${-wl} ${H + 50} Z`;
+    return d;
+  }
+  const g = document.getElementById('waves');
+  layers.forEach((L, i) => {
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', wavePath(L.wl, L.amp, L.base));
+    p.setAttribute('fill', L.fill); p.setAttribute('opacity', L.op);
+    p.setAttribute('class', 'w'); p.id = 'w' + i;
+    g.appendChild(p);
+  });
+  const tl = fx.timeline({ duration: D });
+  layers.forEach((L, i) => {
+    // sweep: integer wavelengths per loop, back layers slow, front fast; front layer runs the other way
+    const dir = i === 2 ? 1 : -1;
+    tl.fromTo('#w' + i, { x: 0 }, { x: dir * L.wl * L.cyc, duration: D, ease: 'none' }, 0);
+    // heave: the whole sheet rises and falls, one or two cycles per loop
+    tl.fromTo('#w' + i, { y: 0 }, { y: -30 - i * 12, duration: D / (2 * (i + 1)), ease: 'sine.inOut', yoyo: true, repeat: 2 * (i + 1) - 1 }, 0);
+  });
+</script>

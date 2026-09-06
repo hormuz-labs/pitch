@@ -1,0 +1,100 @@
+<!doctype html><meta charset="utf-8">
+<title>The Route: Destinations Map</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0f1a24;color:#fff}
+  .map{position:absolute;inset:0;will-change:transform}
+  svg{position:absolute;inset:0;width:100%;height:100%}
+  .land{fill:#1a2a38;stroke:#2c4256;stroke-width:1.5}
+  .grid{stroke:rgba(255,255,255,.05);stroke-width:1}
+  .route{fill:none;stroke:#ffd23f;stroke-width:3;stroke-linecap:round}
+  .routeg{fill:none;stroke:rgba(255,210,63,.35);stroke-width:10;stroke-linecap:round;filter:url(#blur)}
+  .pin{transform-box:fill-box;transform-origin:50% 100%}
+  .pin circle.o{fill:none;stroke:#ffd23f;stroke-width:2}
+  .lbl{position:absolute;padding:8px 12px;border-radius:10px;background:#fff;color:#111;font-size:14px;font-weight:500;letter-spacing:-.01em;white-space:nowrap;box-shadow:0 10px 24px rgba(0,0,0,.35);transform-origin:left bottom;will-change:transform}
+  .lbl small{display:block;font-size:11px;color:#777;font-weight:400}
+  .hud{position:absolute;left:60px;bottom:52px;font-family:"Sharp Grotesk",sans-serif;font-size:14px;letter-spacing:.25em;text-transform:uppercase;opacity:.7}
+  .hud b{display:block;font-size:34px;letter-spacing:-.02em;text-transform:none;font-weight:500;opacity:1;margin-top:6px;height:42px;overflow:hidden;position:relative;width:520px}
+  .hud b span{position:absolute;left:0;top:0}
+  .dist{position:absolute;right:60px;bottom:52px;text-align:right;font-family:"Sharp Grotesk",sans-serif}
+  .dist small{font-size:12px;letter-spacing:.25em;text-transform:uppercase;opacity:.6}
+  .dist b{display:block;font-size:34px;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .brand{position:absolute;left:60px;top:48px;font-family:"Sharp Grotesk",sans-serif;font-size:14px;letter-spacing:.3em;text-transform:uppercase;opacity:.7}
+</style>
+<div class="stage">
+  <div class="map">
+    <svg viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice">
+      <defs><filter id="blur"><feGaussianBlur stdDeviation="4"/></filter></defs>
+      <g id="grid"></g>
+      <path class="land" d="M-40 120 C 120 60, 260 140, 340 90 S 520 40, 600 120 S 700 260, 620 320 S 470 380, 400 330 S 220 300, 160 360 S 40 420, -40 380 Z"/>
+      <path class="land" d="M700 -20 C 820 40, 980 20, 1100 80 S 1340 160, 1320 260 S 1180 340, 1060 300 S 900 260, 820 320 S 720 400, 660 340 S 640 160, 700 -20 Z"/>
+      <path class="land" d="M300 480 C 420 430, 560 470, 640 540 S 760 700, 640 760 S 400 780, 320 700 S 240 540, 300 480 Z"/>
+      <path class="land" d="M900 440 C 1000 400, 1160 420, 1240 500 S 1300 700, 1160 740 S 920 720, 880 620 S 840 470, 900 440 Z"/>
+      <path id="r1" class="routeg" d="M240 300 C 330 210, 430 210, 520 260"/>
+      <path id="r2" class="routeg" d="M520 260 C 640 330, 720 180, 840 200"/>
+      <path id="r3" class="routeg" d="M840 200 C 930 220, 960 360, 1040 420"/>
+      <path id="r4" class="routeg" d="M1040 420 C 1000 520, 820 520, 700 600"/>
+      <path class="route" d="M240 300 C 330 210, 430 210, 520 260"/>
+      <path class="route" d="M520 260 C 640 330, 720 180, 840 200"/>
+      <path class="route" d="M840 200 C 930 220, 960 360, 1040 420"/>
+      <path class="route" d="M1040 420 C 1000 520, 820 520, 700 600"/>
+      <g class="pin p0" transform="translate(240 300)"><circle class="o" r="14"/><circle r="6" fill="#ffd23f"/></g>
+      <g class="pin p1" transform="translate(520 260)"><circle class="o" r="14"/><circle r="6" fill="#ffd23f"/></g>
+      <g class="pin p2" transform="translate(840 200)"><circle class="o" r="14"/><circle r="6" fill="#ffd23f"/></g>
+      <g class="pin p3" transform="translate(1040 420)"><circle class="o" r="14"/><circle r="6" fill="#ffd23f"/></g>
+      <g class="pin p4" transform="translate(700 600)"><circle class="o" r="14"/><circle r="6" fill="#ffd23f"/></g>
+    </svg>
+    <div class="lbl l0" style="left:256px;top:236px">Porto<small>Departure</small></div>
+    <div class="lbl l1" style="left:536px;top:196px">Geneva<small>Stop 1 · 1,240 km</small></div>
+    <div class="lbl l2" style="left:856px;top:136px">Vienna<small>Stop 2 · 810 km</small></div>
+    <div class="lbl l3" style="left:1056px;top:356px">Athens<small>Stop 3 · 1,280 km</small></div>
+    <div class="lbl l4" style="left:716px;top:536px">Valletta<small>Arrival · 940 km</small></div>
+  </div>
+  <div class="brand">Northwind · Route planner</div>
+  <div class="hud">Now routing<b><span class="h0">Porto → Geneva</span><span class="h1">Geneva → Vienna</span><span class="h2">Vienna → Athens</span><span class="h3">Athens → Valletta</span></b></div>
+  <div class="dist"><small>Total distance</small><b><span class="n">0</span> km</b></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  // dot grid
+  const g = document.getElementById('grid'); let s = '';
+  for (let x = 0; x <= 1280; x += 40) s += `<line class="grid" x1="${x}" y1="0" x2="${x}" y2="720"/>`;
+  for (let y = 0; y <= 720; y += 40) s += `<line class="grid" x1="0" y1="${y}" x2="1280" y2="${y}"/>`;
+  g.innerHTML = s;
+
+  const tl = fx.timeline({ duration: 10 });
+  const dists = [0, 1240, 2050, 3330, 4270];
+  const num = { v: 0 }, el = document.querySelector('.dist .n');
+  gsap.set('.route, .routeg', { drawSVG: '0%' });
+  gsap.set('.pin', { scale: 0 });
+  gsap.set('.lbl', { scale: 0, opacity: 0 });
+  gsap.set('.hud b span', { yPercent: 110 });
+  // slow camera drift across the map the whole loop
+  tl.fromTo('.map', { scale: 1.06, x: 20, y: 10 }, { scale: 1.12, x: -30, y: -20, duration: 10, ease: 'none' }, 0);
+  // first pin
+  tl.to('.pin.p0', { scale: 1, duration: 0.5, ease: 'back.out(3)' }, 0.2)
+    .to('.lbl.l0', { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' }, 0.35);
+  for (let i = 0; i < 4; i++) {
+    const t = 0.7 + i * 1.9;
+    tl.to(`.hud b span`, { yPercent: -110, duration: 0.3, ease: 'expo.in', overwrite: false }, t - 0.05);
+    tl.to(`.hud .h${i}`, { yPercent: 0, duration: 0.5, ease: 'expo.out' }, t + 0.25);
+    // the route draws itself, glow first
+    tl.to(`#r${i + 1}`, { drawSVG: '0% 100%', duration: 1.2, ease: 'power2.inOut' }, t);
+    tl.to(`.route:nth-of-type(${i + 1})`, { drawSVG: '0% 100%', duration: 1.2, ease: 'power2.inOut' }, t + 0.05);
+    tl.to(`.pin.p${i + 1}`, { scale: 1, duration: 0.5, ease: 'back.out(3)' }, t + 1.05)
+      .to(`.lbl.l${i + 1}`, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' }, t + 1.2);
+    tl.to(num, { v: dists[i + 1], duration: 1.2, ease: 'power2.out', onUpdate: () => { el.textContent = Math.round(num.v).toLocaleString('en-US'); } }, t + 0.1);
+  }
+  // pins keep pulsing after they land
+  tl.fromTo('.pin circle.o', { attr: { r: 14 }, opacity: 1 }, { attr: { r: 26 }, opacity: 0, duration: 1.2, ease: 'power1.out', repeat: 6, stagger: 0.1 }, 2.2);
+  // reset for the loop: everything drains out
+  tl.to('.route, .routeg', { drawSVG: '100% 100%', duration: 0.7, ease: 'expo.in' }, 9.0);
+  tl.to('.lbl', { scale: 0, opacity: 0, duration: 0.35, ease: 'expo.in', stagger: 0.05 }, 9.0);
+  tl.to('.pin', { scale: 0, duration: 0.3, ease: 'expo.in', stagger: 0.05 }, 9.2);
+  tl.to('.hud .h3', { yPercent: -110, duration: 0.3, ease: 'expo.in' }, 9.4);
+  tl.to(num, { v: 0, duration: 0.5, ease: 'power2.in', onUpdate: () => { el.textContent = Math.round(num.v).toLocaleString('en-US'); } }, 9.3);
+</script>

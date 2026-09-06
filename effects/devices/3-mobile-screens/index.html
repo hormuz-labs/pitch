@@ -1,0 +1,99 @@
+<!doctype html><meta charset="utf-8">
+<title>3 Mobile Screens</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0f1117;perspective:1600px}
+  .bg{position:absolute;inset:-10%;background:url("../../../assets/backgrounds/aurora.png") center/cover;filter:saturate(1.1) brightness(.55)}
+  .row{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;gap:56px;padding-top:30px;transform-style:preserve-3d}
+  .phone{position:relative;width:250px;height:540px;border-radius:44px;background:#15161a;padding:11px;box-shadow:0 40px 80px rgba(0,0,0,.55),inset 0 0 0 2px #3a3b40;transform-style:preserve-3d;will-change:transform}
+  .phone.mid{margin-bottom:70px}
+  .scr{position:relative;height:100%;border-radius:34px;overflow:hidden;background:#fff;font-family:"Atlas Grotesk",sans-serif}
+  .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:84px;height:24px;border-radius:14px;background:#15161a;z-index:5}
+  .content{position:absolute;left:0;right:0;top:0;padding:52px 18px 18px;will-change:transform}
+  .hd{font-size:22px;font-weight:500;letter-spacing:-.02em;color:#111;margin-bottom:14px}
+  .hd small{display:block;font-size:12px;color:#8a8f9a;font-weight:400;margin-bottom:2px}
+  .card{border-radius:16px;padding:14px;margin-bottom:12px;background:#f2f3f6}
+  .card.hero{height:150px;background:linear-gradient(135deg,#5b6cff,#c46bff);color:#fff;display:flex;flex-direction:column;justify-direction:column;justify-content:flex-end}
+  .card.hero b{font-size:26px;font-weight:500;letter-spacing:-.02em}
+  .card.hero span{font-size:12px;opacity:.85}
+  .rowi{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #e7e8ec}
+  .rowi:last-child{border-bottom:0}
+  .dot{width:32px;height:32px;border-radius:10px;background:#dfe2ea;flex:none}
+  .dot.a{background:#ffb84d}.dot.b{background:#4dd6a8}.dot.c{background:#6b8bff}
+  .txt{flex:1}
+  .txt i{display:block;height:9px;border-radius:5px;background:#c9ccd6;margin-bottom:6px;width:70%;font-style:normal}
+  .txt i+i{width:45%;background:#e1e3ea;margin-bottom:0}
+  .pill{font-size:11px;color:#111;padding:4px 8px;border-radius:99px;background:#fff;border:1px solid #e0e2e8}
+  .stat{display:flex;gap:10px}
+  .stat .card{flex:1;margin:0}
+  .stat b{font-size:22px;display:block;font-weight:500;color:#111}
+  .stat span{font-size:11px;color:#8a8f9a}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:90px;margin-top:8px}
+  .bars i{flex:1;background:#5b6cff;border-radius:4px 4px 0 0;transform-origin:bottom}
+  .btn{margin-top:6px;height:46px;border-radius:14px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500}
+  .tab{position:absolute;left:0;right:0;bottom:0;height:56px;background:#fff;border-top:1px solid #eceef2;display:flex;justify-content:space-around;align-items:center}
+  .tab i{width:20px;height:20px;border-radius:6px;background:#d3d6de}
+  .tab i.on{background:#111}
+  .cap{position:absolute;left:0;right:0;top:34px;text-align:center;color:#fff;font-family:"Sharp Grotesk",sans-serif;font-size:14px;letter-spacing:.2em;text-transform:uppercase;opacity:.7}
+</style>
+<div class="stage">
+  <div class="bg"></div>
+  <div class="row">
+    <div class="phone l"><div class="scr"><div class="notch"></div>
+      <div class="content">
+        <div class="hd"><small>Overview</small>Dashboard</div>
+        <div class="stat"><div class="card"><b>$12.4k</b><span>Revenue</span></div><div class="card"><b>+18%</b><span>Growth</span></div></div>
+        <div class="card"><span class="pill">This week</span><div class="bars"><i style="height:40%"></i><i style="height:65%"></i><i style="height:50%"></i><i style="height:85%"></i><i style="height:60%"></i><i style="height:95%"></i><i style="height:70%"></i></div></div>
+        <div class="card"><div class="rowi"><div class="dot a"></div><div class="txt"><i></i><i></i></div></div><div class="rowi"><div class="dot b"></div><div class="txt"><i></i><i></i></div></div><div class="rowi"><div class="dot c"></div><div class="txt"><i></i><i></i></div></div></div>
+      </div>
+      <div class="tab"><i class="on"></i><i></i><i></i><i></i></div>
+    </div></div>
+    <div class="phone mid"><div class="scr"><div class="notch"></div>
+      <div class="content">
+        <div class="hd"><small>Good morning</small>Your plan</div>
+        <div class="card hero"><span>Today · 3 sessions</span><b>Focus mode</b></div>
+        <div class="card"><div class="rowi"><div class="dot c"></div><div class="txt"><i></i><i></i></div><span class="pill">9:00</span></div><div class="rowi"><div class="dot a"></div><div class="txt"><i></i><i></i></div><span class="pill">11:30</span></div><div class="rowi"><div class="dot b"></div><div class="txt"><i></i><i></i></div><span class="pill">14:00</span></div></div>
+        <div class="btn">Start session</div>
+      </div>
+      <div class="tab"><i></i><i class="on"></i><i></i><i></i></div>
+    </div></div>
+    <div class="phone r"><div class="scr"><div class="notch"></div>
+      <div class="content">
+        <div class="hd"><small>Inbox</small>Messages</div>
+        <div class="card"><div class="rowi"><div class="dot b"></div><div class="txt"><i></i><i></i></div></div><div class="rowi"><div class="dot a"></div><div class="txt"><i></i><i></i></div></div><div class="rowi"><div class="dot c"></div><div class="txt"><i></i><i></i></div></div><div class="rowi"><div class="dot"></div><div class="txt"><i></i><i></i></div></div><div class="rowi"><div class="dot b"></div><div class="txt"><i></i><i></i></div></div></div>
+        <div class="stat"><div class="card"><b>24</b><span>Unread</span></div><div class="card"><b>3</b><span>Pinned</span></div></div>
+      </div>
+      <div class="tab"><i></i><i></i><i class="on"></i><i></i></div>
+    </div></div>
+  </div>
+  <div class="cap">Acme · one app, three views</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  gsap.set('.row', { y: 30 });
+  gsap.set('.phone.l', { rotateY: 18, x: 30 });
+  gsap.set('.phone.r', { rotateY: -18, x: -30 });
+  tl.fromTo('.bg', { scale: 1.05, yPercent: 1 }, { scale: 1.12, yPercent: -1, duration: 4, ease: 'none' }, 0)
+    // three phones rise together with a stagger, side ones angled in
+    .from('.phone.mid', { y: 640, duration: 0.9, ease: 'expo.out' }, 0)
+    .from('.phone.l', { y: 640, duration: 0.9, ease: 'expo.out' }, 0.1)
+    .from('.phone.r', { y: 640, duration: 0.9, ease: 'expo.out' }, 0.18)
+    .from('.cap', { opacity: 0, y: 12, duration: 0.5, ease: 'power2.out' }, 0.6)
+    // group settles: the side phones straighten as the whole row floats up
+    .to('.phone.l', { rotateY: 8, x: 0, duration: 1.2, ease: 'power2.inOut' }, 0.9)
+    .to('.phone.r', { rotateY: -8, x: 0, duration: 1.2, ease: 'power2.inOut' }, 0.9)
+    .to('.row', { y: 0, duration: 2.2, ease: 'power1.inOut' }, 0.9)
+    // each screen scrolls its content, staggered
+    .to('.phone.l .content', { y: -110, duration: 1.4, ease: 'power3.inOut' }, 1.0)
+    .to('.phone.mid .content', { y: -90, duration: 1.4, ease: 'power3.inOut' }, 1.15)
+    .to('.phone.r .content', { y: -120, duration: 1.4, ease: 'power3.inOut' }, 1.3)
+    .from('.phone.l .bars i', { scaleY: 0, stagger: 0.05, duration: 0.5, ease: 'back.out(1.6)' }, 1.0)
+    // exit: drop out, reverse stagger
+    .to('.phone.r', { y: 700, duration: 0.5, ease: 'expo.in' }, 3.3)
+    .to('.phone.mid', { y: 700, duration: 0.5, ease: 'expo.in' }, 3.38)
+    .to('.phone.l', { y: 700, duration: 0.5, ease: 'expo.in' }, 3.46)
+    .to('.cap', { opacity: 0, duration: 0.3 }, 3.5);
+</script>

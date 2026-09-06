@@ -1,0 +1,162 @@
+[
+ {
+  "name": "Animated Bar Chart",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "animated-bar-chart",
+  "seconds": 4,
+  "tags": [],
+  "description": "An animated bar chart template where bars grow from the baseline with clean purposeful timing. Perfect for performance data presentations and metric showcases.",
+  "jitterUrl": "https://jitter.video/template/animated-bar-chart/"
+ },
+ {
+  "name": "Animated Donut Chart",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "animated-donut-chart",
+  "seconds": 4,
+  "tags": [],
+  "description": "A standard animated donut chart template that fills its ring with smooth motion. Good for progress indicators and data visualization UI.",
+  "jitterUrl": "https://jitter.video/template/animated-donut-chart/"
+ },
+ {
+  "name": "Animated Donut Chart: Black",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "animated-donut-chart-black",
+  "seconds": 4,
+  "tags": [],
+  "description": "A black-themed animated donut chart template. Ideal for dark mode dashboards and analytics UI where aesthetic restraint is important.",
+  "jitterUrl": "https://jitter.video/template/animated-donut-chart-black/"
+ },
+ {
+  "name": "Animated Line Chart: Blue",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "animated-line-chart-blue",
+  "seconds": 4,
+  "tags": [],
+  "description": "A blue-themed animated line chart template that draws itself across the frame. Good for growth metric presentations and analytics dashboards.",
+  "jitterUrl": "https://jitter.video/template/animated-line-chart-blue/"
+ },
+ {
+  "name": "Animated Line Chart: Purple",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "animated-line-chart-purple",
+  "seconds": 4,
+  "tags": [],
+  "description": "A purple-themed animated line chart template. Good for analytics presentations and data visualization content where the standard blue feels too expected.",
+  "jitterUrl": "https://jitter.video/template/animated-line-chart-purple/"
+ },
+ {
+  "name": "Bar Chart: Skyline",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "bar-chart-skyline",
+  "seconds": 4,
+  "tags": [],
+  "description": "A chart with bars that rise and settle. Great for animated data stories, dashboards, and stat reveals.",
+  "jitterUrl": "https://jitter.video/template/bar-chart-skyline/"
+ },
+ {
+  "name": "Bar Chart: Sleep Tracker",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "bar-chart-sleep-tracker",
+  "seconds": 5,
+  "tags": [],
+  "description": "An animated bar chart template built around sleep tracking data. Good for health app UI demos and wellness product showcases.",
+  "jitterUrl": "https://jitter.video/template/bar-chart-sleep-tracker/"
+ },
+ {
+  "name": "Donut Chart: 3 Parts",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "donut-chart-3-parts",
+  "seconds": 4,
+  "tags": [],
+  "description": "An animated donut chart template with three segments that fill in sequence. Good for percentage breakdowns and category comparisons.",
+  "jitterUrl": "https://jitter.video/template/donut-chart-3-parts/"
+ },
+ {
+  "name": "Grid Chart: Split",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "grid-chart-split",
+  "seconds": 3,
+  "tags": [],
+  "description": "A multi-panel layout that splits and populates with content. Great for comparisons, category breakdowns, and before/after quadrant views.",
+  "jitterUrl": "https://jitter.video/template/grid-chart-split/"
+ },
+ {
+  "name": "Horizontal Bar Chart: Metrics",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "horizontal-bar-chart-metrics",
+  "seconds": 4,
+  "tags": [],
+  "description": "Horizontal bars that slide in and expand to show off your metrics. A great animated chart for leaderboards, rankings, and side-by-side stat comparisons.",
+  "jitterUrl": "https://jitter.video/template/horizontal-bar-chart-metrics/"
+ },
+ {
+  "name": "Line Chart: User Acquisition",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "line-chart-user-acquisition",
+  "seconds": 5,
+  "tags": [],
+  "description": "An animated line chart template showing user acquisition growth over time. Good for growth metric showcases and investor pitch content.",
+  "jitterUrl": "https://jitter.video/template/line-chart-user-acquisition/"
+ },
+ {
+  "name": "Multiple Bar Chart",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "multiple-bar-chart",
+  "seconds": 4,
+  "tags": [],
+  "description": "A template with multiple animated bar chart series building simultaneously. Good for comparative data presentations and dashboard UI demos.",
+  "jitterUrl": "https://jitter.video/template/multiple-bar-chart/"
+ },
+ {
+  "name": "Multiple Line Chart: Green",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "multiple-line-chart-green",
+  "seconds": 4,
+  "tags": [],
+  "description": "A template with multiple green line chart series drawn simultaneously. Works great for comparative data trends and financial performance showcases.",
+  "jitterUrl": "https://jitter.video/template/multiple-line-chart-green/"
+ },
+ {
+  "name": "Stacked Bar Chart",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "stacked-bar-chart",
+  "seconds": 4,
+  "tags": [],
+  "description": "An animated stacked bar chart template showing multiple data series building together. Good for comparative analytics and business intelligence presentations.",
+  "jitterUrl": "https://jitter.video/template/stacked-bar-chart/"
+ },
+ {
+  "name": "Stacked Chart: Cascade",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "stacked-chart-cascade",
+  "seconds": 4,
+  "tags": [],
+  "description": "Chart layers that cascade into place one after another. Great for building anticipation around data reveals and layered metrics.",
+  "jitterUrl": "https://jitter.video/template/stacked-chart-cascade/"
+ },
+ {
+  "name": "Stacked Donut Chart",
+  "family": "Charts",
+  "familySlug": "charts",
+  "slug": "stacked-donut-chart",
+  "seconds": 4,
+  "tags": [],
+  "description": "A template with multiple donut chart rings stacked and animated in sequence. Good for multi-category data visualization and analytics UI presentations.",
+  "jitterUrl": "https://jitter.video/template/stacked-donut-chart/"
+ }
+]

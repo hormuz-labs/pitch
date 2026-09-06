@@ -1,0 +1,66 @@
+<!doctype html><meta charset="utf-8">
+<title>HomePod mini [Apple Event]</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000;color:#fff}
+  .floor{position:absolute;left:50%;top:560px;width:900px;height:200px;margin-left:-450px;background:radial-gradient(ellipse at center,rgba(255,255,255,.12),transparent 60%);will-change:transform,opacity}
+  .pod{position:absolute;left:50%;top:250px;width:300px;height:300px;margin-left:-150px;will-change:transform}
+  .body{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 38% 30%,#6e7480 0,#3b3f47 45%,#17181b 100%);box-shadow:0 40px 80px rgba(0,0,0,.8),inset -20px -30px 60px rgba(0,0,0,.6)}
+  .mesh{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 1px,transparent 1.6px) 0 0/7px 7px;mask:radial-gradient(circle at 40% 35%,#000 40%,transparent 72%);-webkit-mask:radial-gradient(circle at 40% 35%,#000 40%,transparent 72%);opacity:.7}
+  .top{position:absolute;left:50%;top:22px;width:150px;height:74px;margin-left:-75px;border-radius:50%;background:#0b0b0d;box-shadow:inset 0 2px 6px rgba(255,255,255,.15);overflow:hidden}
+  .glow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 50%,#b57bff 0,#5b6cff 35%,#4dd6a8 60%,transparent 75%);filter:blur(8px);opacity:0;will-change:transform,opacity}
+  .ring{position:absolute;left:50%;top:22px;width:150px;height:74px;margin-left:-75px;border-radius:50%;border:2px solid rgba(255,255,255,.35);opacity:0;will-change:transform,opacity}
+  .txt{position:absolute;left:0;right:0;top:600px;text-align:center}
+  .row{overflow:hidden}.row span{display:block;will-change:transform}
+  .h1{font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:56px;letter-spacing:-.03em}
+  .h1 em{font-style:normal;font-weight:400;opacity:.9}
+  .sub{font-size:20px;color:#a1a1a6;margin-top:6px}
+  .swatches{position:absolute;left:50%;top:170px;margin-left:-110px;display:flex;gap:16px}
+  .swatches i{width:28px;height:28px;border-radius:50%;display:block;box-shadow:inset 0 0 0 2px rgba(255,255,255,.1);will-change:transform}
+  .cap{position:absolute;left:60px;top:48px;font-size:14px;letter-spacing:.25em;text-transform:uppercase;color:#a1a1a6}
+</style>
+<div class="stage">
+  <div class="cap">Acme Home · Keynote</div>
+  <div class="swatches"><i style="background:#2b2d33"></i><i style="background:#f2f2f0"></i><i style="background:#3a63d2"></i><i style="background:#e0b43a"></i><i style="background:#d9622b"></i></div>
+  <div class="floor"></div>
+  <div class="pod">
+    <div class="body"></div><div class="mesh"></div>
+    <div class="top"><div class="glow"></div></div>
+    <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+  </div>
+  <div class="txt"><div class="h1 row"><span>HomePod <em>mini</em></span></div><div class="sub row"><span>Big sound. Small footprint. Five colors.</span></div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  const colors = ['#2b2d33', '#f2f2f0', '#3a63d2', '#e0b43a', '#d9622b'];
+  gsap.set('.row span', { yPercent: 110 });
+  gsap.set('.swatches i', { scale: 0 });
+  // the pod drops in from above the frame, settles with a soft bounce, floor light blooms
+  tl.from('.pod', { y: -520, scale: 0.7, duration: 1.0, ease: 'expo.out' }, 0)
+    .fromTo('.pod', { scaleY: 0.94, scaleX: 1.04 }, { scaleY: 1, scaleX: 1, duration: 0.6, ease: 'elastic.out(1,0.45)' }, 0.9)
+    .from('.floor', { scaleX: 0.3, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0.7)
+    // Siri light wakes: the top disc glows and rings breathe outward
+    .to('.glow', { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.1)
+    .fromTo('.glow', { rotate: 0, scale: 0.9 }, { rotate: 180, scale: 1.15, duration: 2.9, ease: 'sine.inOut' }, 1.1)
+    .fromTo('.ring', { opacity: 0.6, scale: 1 }, { opacity: 0, scale: 2.4, y: -30, duration: 1.2, stagger: 0.35, ease: 'power2.out', repeat: 1 }, 1.2)
+    .to('.h1 span', { yPercent: 0, duration: 0.7, ease: 'expo.out' }, 1.2)
+    .to('.sub span', { yPercent: 0, duration: 0.7, ease: 'expo.out' }, 1.35)
+    .to('.swatches i', { scale: 1, stagger: 0.06, duration: 0.5, ease: 'back.out(3)' }, 1.5);
+  // the pod slowly turns (mesh highlight drifts) and cycles color with each swatch
+  tl.fromTo('.mesh', { backgroundPositionX: '0px' }, { backgroundPositionX: '60px', duration: 4, ease: 'none' }, 0);
+  colors.forEach((c, i) => {
+    if (i === 0) return;
+    const t = 1.8 + (i - 1) * 0.45;
+    tl.to('.body', { background: `radial-gradient(circle at 38% 30%, ${c} 0, ${c} 40%, #17181b 100%)`, duration: 0.35, ease: 'power2.out' }, t)
+      .to(`.swatches i:nth-child(${i + 1})`, { scale: 1.4, duration: 0.2, yoyo: true, repeat: 1, ease: 'power2.out' }, t)
+      .to(`.swatches i:nth-child(${i})`, { scale: 1, duration: 0.2 }, t);
+  });
+  // exit
+  tl.to('.row span', { yPercent: -110, duration: 0.3, ease: 'expo.in', stagger: 0.05 }, 3.5)
+    .to('.swatches i', { scale: 0, duration: 0.25, ease: 'expo.in', stagger: 0.03 }, 3.5)
+    .to('.pod', { y: -520, scale: 0.7, duration: 0.45, ease: 'expo.in' }, 3.55)
+    .to('.floor', { opacity: 0, duration: 0.3 }, 3.6);
+</script>

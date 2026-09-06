@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8">
+<title>Photo Gallery</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a0a0a;color:#fff}
+  .frame{position:absolute;left:120px;top:60px;right:120px;bottom:100px;overflow:hidden;border-radius:6px}
+  .ph{position:absolute;inset:0;background-size:cover;background-position:center;will-change:transform,opacity}
+  .p1{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .p2{background-image:url("../../../assets/backgrounds/ocean.png")}
+  .p3{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .veil{position:absolute;inset:0;background:#0a0a0a;transform-origin:100% 50%}
+  .meta{position:absolute;left:120px;bottom:44px;right:120px;display:flex;justify-content:space-between;align-items:flex-end}
+  .meta .t{position:relative;min-width:520px;font-family:"Sorts Mill Goudy",serif;font-size:30px;font-style:italic;overflow:hidden}
+  .meta .t span{display:block;white-space:nowrap}
+  .meta .n{font-size:13px;letter-spacing:.2em;opacity:.6}
+  .dots{position:absolute;left:0;right:0;top:34px;display:flex;justify-content:center;gap:8px}
+  .dots i{width:44px;height:2px;background:rgba(255,255,255,.2);position:relative;overflow:hidden}
+  .dots i b{position:absolute;inset:0;background:#fff;transform-origin:0 50%;transform:scaleX(0)}
+</style>
+<div class="stage">
+  <div class="dots"><i><b></b></i><i><b></b></i><i><b></b></i></div>
+  <div class="frame">
+    <div class="ph p3"></div><div class="ph p2"></div><div class="ph p1"></div>
+    <div class="veil"></div>
+  </div>
+  <div class="meta">
+    <div class="t"><span class="c0">Late light, Sardinia</span><span class="c1" style="position:absolute;left:0;top:0">Salt water, Faroe</span><span class="c2" style="position:absolute;left:0;top:0">Northern sky, Tromsø</span></div>
+    <div class="n"><span class="num">01</span> / 03</div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 10 });
+  const phs = ['.p1', '.p2', '.p3'], caps = ['.c0', '.c1', '.c2'], num = document.querySelector('.num');
+  const slot = 10 / 3;
+  tl.fromTo('.veil', { scaleX: 1, transformOrigin: '100% 50%' }, { scaleX: 0, duration: 1.1, ease: 'expo.inOut' }, 0);
+  gsap.set(['.c1', '.c2'], { yPercent: 120 });
+  phs.forEach((p, i) => {
+    const at = i * slot;
+    // Ken Burns on the current photo the whole slot
+    tl.fromTo(p, { scale: 1.12, xPercent: i % 2 ? 2 : -2 }, { scale: 1.0, xPercent: i % 2 ? -2 : 2, duration: slot + .6, ease: 'none' }, at);
+    tl.fromTo(`.dots i:nth-child(${i + 1}) b`, { scaleX: 0, transformOrigin: '0 50%' }, { scaleX: 1, duration: slot, ease: 'none' }, at);
+    if (i > 0) {
+      // the transition: the previous photo fades and drifts left while the next one is revealed under it
+      tl.to(phs[i - 1], { opacity: 0, xPercent: -6, scale: 1.04, duration: 1.0, ease: 'power2.inOut' }, at)
+        .to(caps[i - 1], { yPercent: -120, duration: .5, ease: 'power3.in' }, at - .1)
+        .to(caps[i], { yPercent: 0, duration: .7, ease: 'expo.out' }, at + .3)
+        .add(() => {}, at);
+    }
+    tl.call(() => { num.textContent = '0' + (i + 1); }, null, at + .2);
+  });
+  // close the loop: last photo leaves, first returns
+  tl.to('.p3', { opacity: 0, xPercent: -6, duration: .8, ease: 'power2.inOut' }, 9.2)
+    .set('.p1, .p2', { opacity: 1, xPercent: 0 }, 9.2)
+    .to('.c2', { yPercent: -120, duration: .5, ease: 'power3.in' }, 9.1)
+    .fromTo('.c0', { yPercent: 120 }, { yPercent: 0, duration: .7, ease: 'expo.out', immediateRender: false }, 9.4)
+    .fromTo('.veil', { scaleX: 0, transformOrigin: '0 50%' }, { scaleX: 1, duration: .8, ease: 'expo.inOut', immediateRender: false }, 9.2);
+  tl.from('.c0', { yPercent: 120, duration: .7, ease: 'expo.out' }, .6);
+  tl.call(() => { num.textContent = '01'; }, null, 9.5);
+</script>

@@ -1,0 +1,57 @@
+<!doctype html><meta charset="utf-8">
+<title>Counter: Pixel</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#101014}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .cap{position:absolute;left:64px;bottom:56px;color:#fff;font-family:ui-monospace,Menlo,monospace;font-size:20px;letter-spacing:.24em;text-transform:uppercase;opacity:.7}
+  .cap2{position:absolute;right:64px;bottom:56px;color:#ffd23f;font-family:ui-monospace,Menlo,monospace;font-size:20px;letter-spacing:.24em;text-transform:uppercase}
+</style>
+<div class="stage">
+  <canvas id="c"></canvas>
+  <div class="cap">Acme Arcade · High score</div><div class="cap2" id="hud">000</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 4, TARGET = 256, W = 1280, H = 720, CELL = 20, COLS = W / CELL, ROWS = H / CELL;
+  const c = document.getElementById('c'); c.width = W; c.height = H; const ctx = c.getContext('2d');
+  const off = document.createElement('canvas'); off.width = COLS; off.height = ROWS; const octx = off.getContext('2d', { willReadFrequently: true });
+  const hud = document.getElementById('hud');
+  const state = { v: 0, amp: 1, pop: 0 };
+  const tl = fx.timeline({ duration: D });
+  tl.to(state, { v: TARGET, duration: 2.6, ease: 'power3.out' }, 0.3);
+  tl.fromTo(state, { amp: 1 }, { amp: 0.25, duration: 2.8, ease: 'power2.out' }, 0.3);   // the grid calms as the number lands
+  tl.fromTo(state, { pop: 0 }, { pop: 1, duration: .15, ease: 'power3.out' }, 2.9).to(state, { pop: 0, duration: .6, ease: 'elastic.out(1,.4)' }, 3.05);
+  tl.to(state, { amp: 1, duration: .35, ease: 'power2.in' }, 3.65);
+  const seek = window.__fx.seek;
+  window.__fx.seek = t => {
+    seek(t);
+    const v = Math.round(state.v);
+    hud.textContent = String(v).padStart(3, '0');
+    // render the number at grid resolution so it pixelates honestly
+    octx.fillStyle = '#000'; octx.fillRect(0, 0, COLS, ROWS);
+    octx.fillStyle = '#fff'; octx.font = `500 ${Math.round(ROWS * 0.78 * (1 + state.pop * .08))}px "Sharp Grotesk", sans-serif`;
+    octx.textAlign = 'center'; octx.textBaseline = 'middle';
+    octx.fillText(String(v).padStart(3, '0'), COLS / 2, ROWS / 2 + 1);
+    const img = octx.getImageData(0, 0, COLS, ROWS).data;
+    ctx.fillStyle = '#101014'; ctx.fillRect(0, 0, W, H);
+    const u = t / D * Math.PI * 2;
+    for (let gy = 0; gy < ROWS; gy++) for (let gx = 0; gx < COLS; gx++) {
+      const on = img[(gy * COLS + gx) * 4] > 128;
+      const cx = gx * CELL + CELL / 2, cy = gy * CELL + CELL / 2;
+      // the background dot grid: a wave rolls across, integer cycles so the loop closes
+      const wave = 0.5 + 0.5 * Math.sin(u * 2 + gx * 0.35 + gy * 0.22) * Math.sin(u + gy * 0.3);
+      if (on) {
+        ctx.fillStyle = '#ffd23f';
+        const r = CELL * 0.48 * (0.92 + 0.08 * wave);
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      } else {
+        const r = CELL * (0.1 + 0.28 * wave * state.amp);
+        ctx.fillStyle = `rgba(255,255,255,${0.12 + 0.35 * wave * state.amp})`;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  };
+</script>

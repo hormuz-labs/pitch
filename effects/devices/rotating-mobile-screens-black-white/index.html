@@ -1,0 +1,65 @@
+<!doctype html><meta charset="utf-8">
+<title>Rotating Mobile Screens: Black & White</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a0a0a;perspective:1600px;color:#fff}
+  .grain{position:absolute;inset:0;opacity:.18;mix-blend-mode:screen;pointer-events:none}
+  .row{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:70px;transform-style:preserve-3d}
+  .flip{width:250px;height:520px;position:relative;transform-style:preserve-3d;will-change:transform}
+  .face{position:absolute;inset:0;border-radius:40px;background:#fff;color:#0a0a0a;overflow:hidden;backface-visibility:hidden;box-shadow:0 0 0 8px #141414,0 0 0 10px #2a2a2a,0 50px 80px rgba(0,0,0,.6)}
+  .face.back{transform:rotateY(180deg);background:#0a0a0a;color:#fff;box-shadow:0 0 0 8px #eee,0 0 0 10px #bbb,0 50px 80px rgba(0,0,0,.6)}
+  .isl{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:80px;height:24px;border-radius:14px;background:currentColor;z-index:3;opacity:.9}
+  .in{padding:56px 18px 0;font-size:12px}
+  .h{font-family:"Sharp Grotesk",sans-serif;font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1;margin-bottom:14px}
+  .h small{display:block;font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.5;margin-bottom:8px;font-family:"Atlas Grotesk",sans-serif}
+  .blk{border:1.5px solid currentColor;border-radius:16px;padding:12px;margin-bottom:10px}
+  .blk.fill{background:currentColor}
+  .blk.fill *{color:#fff}.back .blk.fill *{color:#0a0a0a}
+  .big{font-family:"Sharp Grotesk",sans-serif;font-size:44px;font-weight:500;letter-spacing:-.04em;line-height:1}
+  .line{height:7px;border-radius:4px;background:currentColor;opacity:.25;margin:7px 0}
+  .line.s{width:55%}
+  .r{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(128,128,128,.3)}
+  .r:last-child{border:0}
+  .r i{width:30px;height:30px;border-radius:50%;background:currentColor;flex:none;opacity:.9}
+  .r .t{flex:1}.r .t .line{margin:4px 0}
+  .btn{height:44px;border-radius:12px;background:currentColor;display:flex;align-items:center;justify-content:center;margin-top:4px}
+  .btn span{color:#fff;font-weight:500;font-size:13px}.back .btn span{color:#0a0a0a}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:90px}
+  .bars i{flex:1;background:currentColor;border-radius:4px 4px 0 0}
+  .cap{position:absolute;left:70px;bottom:60px;font-family:"Sharp Grotesk",sans-serif;font-size:40px;letter-spacing:-.03em;line-height:1;opacity:.9}
+  .cap small{display:block;font-family:"Atlas Grotesk",sans-serif;font-size:12px;letter-spacing:.22em;text-transform:uppercase;opacity:.5;margin-bottom:12px}
+  .idx{position:absolute;right:70px;bottom:60px;font-family:"Sharp Grotesk",sans-serif;font-size:40px;letter-spacing:-.03em;opacity:.35}
+</style>
+<div class="stage">
+  <div class="row" id="row"></div>
+  <div class="cap"><small>Mono · Editorial</small>Six screens, two faces.</div>
+  <div class="idx">B/W</div>
+  <svg class="grain" width="100%" height="100%"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0"/></filter><rect width="100%" height="100%" filter="url(#g)"/></svg>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const rows = n => Array.from({ length: n }, () => `<div class="r"><i></i><div class="t"><div class="line"></div><div class="line s"></div></div></div>`).join('');
+  const screens = [
+    `<div class="in"><div class="h"><small>Balance</small>$12,480</div><div class="blk fill"><div class="big">+18%</div><div class="line" style="width:70%;opacity:.5"></div></div><div class="blk">${rows(2)}</div></div>`,
+    `<div class="in"><div class="h"><small>Today</small>Overview</div><div class="blk"><div class="bars">${[40, 70, 55, 95, 65, 80, 100].map(h => `<i style="height:${h}%"></i>`).join('')}</div></div><div class="blk">${rows(2)}</div></div>`,
+    `<div class="in"><div class="h"><small>Library</small>Collections</div><div class="blk">${rows(4)}</div><div class="btn"><span>Add new</span></div></div>`,
+    `<div class="in"><div class="h"><small>Checkout</small>2 items</div><div class="blk">${rows(2)}</div><div class="blk fill"><div class="big">$96</div></div><div class="btn"><span>Pay now</span></div></div>`,
+    `<div class="in"><div class="h"><small>Profile</small>Ada Acme</div><div class="blk"><div class="line" style="width:90%"></div><div class="line" style="width:60%"></div><div class="line" style="width:75%"></div></div><div class="blk">${rows(3)}</div></div>`,
+    `<div class="in"><div class="h"><small>Stats</small>This week</div><div class="blk fill"><div class="big">4.9</div><div class="line" style="width:50%;opacity:.5"></div></div><div class="blk"><div class="bars">${[80, 50, 90, 60, 100, 45, 70].map(h => `<i style="height:${h}%"></i>`).join('')}</div></div></div>`,
+  ];
+  const row = document.getElementById('row');
+  for (let i = 0; i < 3; i++) {
+    const f = document.createElement('div'); f.className = 'flip';
+    f.innerHTML = `<div class="face front"><div class="isl"></div>${screens[i]}</div><div class="face back"><div class="isl"></div>${screens[i + 3]}</div>`;
+    row.appendChild(f);
+  }
+  const tl = fx.timeline({ duration: 5 });
+  // each screen makes two half-turns per loop, offset so the row ripples
+  tl.fromTo('.flip', { rotateY: 0 }, { rotateY: 180, duration: 1.1, ease: 'expo.inOut', stagger: 0.18 }, 0.3)
+    .fromTo('.flip', { rotateY: 180 }, { rotateY: 360, duration: 1.1, ease: 'expo.inOut', stagger: 0.18, immediateRender: false }, 2.8)
+    // a slow lean on the whole row, mirrored in the second half so it loops
+    .fromTo('.row', { rotateX: 6, rotateY: -8 }, { rotateX: -4, rotateY: 8, duration: 2.5, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+    .fromTo('.flip', { y: 0 }, { y: -14, duration: 2.5, ease: 'sine.inOut', yoyo: true, repeat: 1, stagger: { each: 0.2, repeat: 1, yoyo: true } }, 0);
+</script>

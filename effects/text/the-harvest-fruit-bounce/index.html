@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8">
+<title>The Harvest: Fruit Bounce</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#1f3d2b}
+  .mark{position:absolute;left:0;right:0;bottom:215px;display:flex;align-items:flex-end;justify-content:center;gap:0;font-family:"Sorts Mill Goudy",serif;font-size:220px;line-height:1;color:#f6efdc;letter-spacing:-.01em}
+  .ch{display:inline-block;will-change:transform;transform-origin:50% 100%}
+  .fruit{position:absolute;width:150px;height:150px;will-change:transform}
+  .fruit svg{width:100%;height:100%;overflow:visible}
+  .f1{left:90px;top:0}.f2{left:250px;top:0}.f3{right:110px;top:0}.f4{right:270px;top:0}
+  .floor{position:absolute;left:0;right:0;bottom:250px;height:2px;background:rgba(246,239,220,.25)}
+  .sub{position:absolute;left:0;right:0;bottom:180px;text-align:center;font-family:"Atlas Grotesk",sans-serif;font-size:22px;letter-spacing:.32em;text-transform:uppercase;color:#cfe3b8;overflow:hidden;height:30px}
+  .sub span{display:block}
+  .shadow{position:absolute;left:50%;bottom:-8px;width:120px;height:18px;margin-left:-60px;border-radius:50%;background:rgba(0,0,0,.35);filter:blur(4px)}
+</style>
+<div class="stage">
+  <div class="floor"></div>
+  <div class="mark"><span class="ch">O</span><span class="ch">r</span><span class="ch">c</span><span class="ch">h</span><span class="ch">a</span><span class="ch">r</span><span class="ch">d</span></div>
+  <div class="fruit f1"><svg viewBox="0 0 100 100"><circle cx="50" cy="55" r="42" fill="#ff8a3d"/><circle cx="36" cy="40" r="10" fill="#ffb37a" opacity=".6"/><path d="M50 14 c 8 -10 22 -10 26 -2 c -10 6 -18 4 -26 2z" fill="#7bbf4a"/></svg></div>
+  <div class="fruit f2"><svg viewBox="0 0 100 100"><circle cx="50" cy="56" r="40" fill="#d63a3a"/><circle cx="36" cy="42" r="9" fill="#f07a7a" opacity=".6"/><path d="M50 18 v -12" stroke="#5a3a1e" stroke-width="5" stroke-linecap="round"/><path d="M52 12 c 6 -10 18 -10 22 -4 c -8 6 -16 6 -22 4z" fill="#7bbf4a"/></svg></div>
+  <div class="fruit f3"><svg viewBox="0 0 100 100"><ellipse cx="50" cy="56" rx="34" ry="42" fill="#c9d64a"/><ellipse cx="38" cy="40" rx="8" ry="11" fill="#e6ee8a" opacity=".6"/><path d="M50 12 v -8" stroke="#5a3a1e" stroke-width="5" stroke-linecap="round"/></svg></div>
+  <div class="fruit f4"><svg viewBox="0 0 100 100"><circle cx="50" cy="56" r="40" fill="#f2a33a"/><circle cx="36" cy="42" r="9" fill="#ffd08a" opacity=".6"/><path d="M50 16 c -2 -12 10 -16 16 -12 c -2 8 -8 12 -16 12z" fill="#5fae3f"/></svg></div>
+  <div class="sub"><span>Pressed daily since 1998</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../../assets/gsap/CustomBounce.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase, CustomBounce);
+  CustomBounce.create('fb', { strength: .6, squash: 3, squashID: 'fb-squash' });
+  const tl = fx.timeline({ duration: 4 });
+  // wordmark sits at a floor; fruit drops from above and bounces on the baseline
+  tl.from('.floor', { scaleX: 0, duration: .8, ease: 'expo.out' }, 0);
+  const fruits = ['.f1', '.f2', '.f4', '.f3'];
+  const landY = 470 - 150; // bottom of fruit at floor (y from top of stage)
+  fruits.forEach((s, i) => {
+    const t0 = .1 + i * .18;
+    tl.fromTo(s, { y: -220 }, { y: landY, duration: 1.3, ease: 'fb' }, t0)
+      .fromTo(s, { scaleX: 1, scaleY: 1 }, { scaleX: 1.35, scaleY: .65, transformOrigin: '50% 100%', duration: 1.3, ease: 'fb-squash' }, t0);
+  });
+  // letters flinch up as the fruit lands beside them, each impact ripples the mark
+  tl.from('.ch', { yPercent: 120, duration: .9, ease: 'expo.out', stagger: .05 }, .25)
+    .to('.ch', { yPercent: -10, scaleY: .92, duration: .12, ease: 'power2.out', stagger: { each: .03, from: 'edges' } }, .85)
+    .to('.ch', { yPercent: 0, scaleY: 1, duration: .6, ease: 'elastic.out(1,.4)', stagger: { each: .03, from: 'edges' } }, .97)
+    .from('.sub span', { yPercent: 110, duration: .6, ease: 'expo.out' }, 1.4);
+  // fruit settles with a lazy roll in place, then everything bounces out
+  tl.to('.f1 svg, .f2 svg, .f3 svg, .f4 svg', { rotation: (i) => (i % 2 ? 8 : -8), duration: 1.2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 1.5);
+  tl.to('.fruit', { y: -300, duration: .5, ease: 'back.in(2)', stagger: .06 }, 3.3)
+    .to('.ch', { yPercent: 120, duration: .4, ease: 'power3.in', stagger: .03 }, 3.45)
+    .to('.sub span', { yPercent: -110, duration: .3, ease: 'expo.in' }, 3.55)
+    .to('.floor', { scaleX: 0, duration: .35, ease: 'expo.in' }, 3.6);
+</script>
