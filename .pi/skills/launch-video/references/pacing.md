@@ -53,19 +53,27 @@ many of them. Energy is **density and layering**, not speed.
 
 ## What the gate enforces
 
-| Rule | Limit |
-|---|---|
-| Shots | 8–16 |
-| Average shot length | ≤ 3.4s (aim 1.5–2.8) |
-| Type / brand beat | ≤ 3.2s |
-| `ui-frame` | ≤ 6s, with a `focus` or `cursor` |
-| Narration | one read, every shot cued, drift −0.35…+0.15s |
-| Longest quiet stretch (drift and ambient off) | ≤ 1.5s |
-| Events per second | ≥ 0.7 (good films run 2–4) |
-| Hook | first shot ≤ 3s |
+The limits follow the film's `design` (`designs/chain.md`,
+`designs/chapters.md`); a film that names none gets the strict column.
 
-The fix for a failing shot is one of: a beat, a line, `more`, a pile item, a
-cursor — or cut the shot. Never lengthen.
+| Rule | chain | chapters | none |
+|---|---|---|---|
+| Shots | 6–16 | 8–40 | 8–16 |
+| Average shot length | ≤ 3.6s | ≤ 3.4s | ≤ 3.4s |
+| Plain type beat | ≤ 3.2s | ≤ 4.0s | ≤ 3.2s |
+| A `line` with ≥ 3 steps, or a shot posing actors | ≤ 6s | ≤ 6s | ≤ 6s |
+| `ui-frame` / demo shot | ≤ 6s | ≤ 6s | ≤ 6s |
+| Hook | first shot ≤ 3s | ≤ 3.5s | ≤ 3s |
+| Narration | one read, every shot cued, drift −0.35…+0.15s | same | same |
+| Longest quiet stretch (drift and ambient off) | ≤ 1.5s | ≤ 1.5s | ≤ 1.5s |
+| Events per second | ≥ 0.7 (the references run 2–3) | same | same |
+| The design's tells (warnings) | no actors; a third of the boundaries plain cuts; no blur exits | fewer than two chapters; no typed prompt; no flood or scale cut | no design named |
+| Both | no `breath` beats; a bare stage outside a chain | | |
+
+Both reference films measured: 33s / 87s, 0 / 22 cuts, 2.3 / 2.5 events per
+second, longest still 0.83s, and between the first object and the last never
+a frame with nothing moving. The fix for a failing shot is one of: a `line`
+step, an actor pose, a beat, a cursor — or cut the shot. Never lengthen.
 
 ## Density is required; uniformity is not
 

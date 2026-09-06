@@ -105,7 +105,7 @@
 .lv-studio.new-project-page .new-composer-wrap .model-btn { display: inline-flex; align-items: center; gap: 5px; max-width: 190px; padding: 7px 10px; border: 0; border-radius: 999px; background: transparent; color: #76716d; font-size: 12px; cursor: pointer; }
 .lv-studio.new-project-page .new-composer-wrap .model-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lv-studio.new-project-page .new-composer-wrap .model-btn:hover:not(:disabled) { background: #f4f3f1; color: #111; }
-.new-composer-wrap .model-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 210px; max-height: 260px; padding: 4px; display: flex; flex-direction: column; overflow-y: auto; border: 1px solid #e2e1de; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px rgb(0 0 0 / 12%), 0 2px 6px rgb(0 0 0 / 5%); }
+.new-composer-wrap .model-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 210px; max-height: min(420px, 70vh); padding: 4px; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; border: 1px solid #e2e1de; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px rgb(0 0 0 / 12%), 0 2px 6px rgb(0 0 0 / 5%); }
 .lv-studio.new-project-page .new-composer-wrap .model-option { padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: #403c38; font-size: 12px; text-align: left; white-space: nowrap; cursor: pointer; }
 .lv-studio.new-project-page .new-composer-wrap .model-option:hover:not(:disabled) { background: #f4f3f1; color: #111; }
 .lv-studio.new-project-page .new-composer-wrap .model-option.is-active { font-weight: 600; color: #111; }

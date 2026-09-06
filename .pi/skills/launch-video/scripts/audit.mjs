@@ -7,7 +7,8 @@
  * philosophy: "something new happens on screen at least every ~1.2s".
  *
  * Checks (all must pass):
- *   1. Shot-list lint (window.SHOTS): shot count, durations, hook, and the
+ *   1. Shot-list lint (window.SHOTS): the design's rules (lib/design-rules.mjs —
+ *      shot count, durations, hook, actors, chapters, breaths), and the
  *      narration contract — ONE continuous read (audio.vo) with the picture cut
  *      to its words (shot `cue`s vs audio/vo-words.json); per-shot clips fail.
  *   2. Event density: consecutive samples (every 0.25s) that differ by more than
@@ -23,6 +24,7 @@
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
+import { TYPE_BEATS, designSummary, lintDesign } from "./lib/design-rules.mjs";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -63,12 +65,19 @@ const cues = (Array.isArray(rawCues) ? rawCues : Object.entries(rawCues).map(([l
 const spec = await page.evaluate(() => {
   const s = window.SHOTS;
   if (!s || !Array.isArray(s.shots)) return null;
+  const beatsOf = (x, kind) => (Array.isArray(x.beats) ? x.beats.filter(b => b && b.kind === kind).length : 0);
   return {
     ambient: s.ambient || null,
     motion: s.motion || null,
+    motionExit: s.motion && s.motion.exit ? s.motion.exit : null,
     audio: s.audio || null,
+    design: s.design || null,
+    actors: s.actors ? Object.keys(s.actors).length : 0,
     shots: s.shots.map(x => ({ id: x.id, type: x.type, dur: Number(x.dur) || 0, vo: x.vo || null, voDur: x.voDur || 0, cue: x.cue || null,
-      beats: Array.isArray(x.beats) ? x.beats.length : 0, exit: x.exit ?? null, cut: x.cut || "hard" })),
+      beats: Array.isArray(x.beats) ? x.beats.length : 0, exit: x.exit ?? null, cut: x.cut || "hard",
+      steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: x.actors ? Object.keys(x.actors).length : 0, carry: !!x.carry,
+      chapter: x.chapter || null, typing: !!x.typing, breaths: beatsOf(x, "breath"), floodBeats: beatsOf(x, "flood"), zoomBeats: beatsOf(x, "zoom"),
+      src: x.src, layers: x.layers, rows: x.rows })),
   };
 });
 const plugins = await page.evaluate("window.__PLUGINS || []");
@@ -87,27 +96,9 @@ if (!spec) {
   lint.push({ level: "warn", msg: "window.SHOTS not found — shot-list lint skipped (engine project expected)." });
 } else {
   const shots = spec.shots;
-  const TYPE_BEAT_MAX = 3.2;      // schema: type beats 0.9–3.2s
-  const DEMO_MAX = 6.0;           // ui-frame demos 3–6s
-  // Type beats are the engine's built-in copy shots; anything else (ui-frame,
-  // device-notif, project-local custom types) is a demo-class shot.
-  const TYPE_BEATS = new Set(["word-build", "pile", "type-field", "overlay-type", "logo-sting", "type-wipe", "icon-marquee", "word-cut", "color-punch", "logo-cta", "stat-counter"]);
-  if (shots.length < 8) lint.push({ level: "fail", msg: `Only ${shots.length} shots — the skill asks for 8–16. Cut ideas into more, shorter beats.` });
-  if (shots.length > 20) lint.push({ level: "warn", msg: `${shots.length} shots — over 16; make sure each is one idea.` });
-  const avg = shots.reduce((a, s) => a + s.dur, 0) / Math.max(1, shots.length);
-  if (avg > 3.4) lint.push({ level: "fail", msg: `Average shot length ${avg.toFixed(2)}s — over 3.4s the film reads as slides. Aim 1.5–2.8s.` });
-  shots.forEach((s, i) => {
-    const demo = !TYPE_BEATS.has(s.type);
-    // The end card holds the mark and the CTA through the read's last word plus a
-    // beat of air, so it may run to 4s — its ev/s is still measured like any shot.
-    const typeMax = i === shots.length - 1 ? 4.0 : TYPE_BEAT_MAX;
-    if (!demo && s.dur > typeMax) {
-      lint.push({ level: "fail", msg: `#${s.id} (${s.type}): ${s.dur}s — type/brand beats are ≤ ${typeMax}s, narrated or not. Split it or add a second act (beats, lines, more).` });
-    } else if (demo && s.dur > DEMO_MAX) {
-      lint.push({ level: "fail", msg: `#${s.id} (${s.type}): ${s.dur}s — demo-class shots are ≤ ${DEMO_MAX}s; use two shots for two targets.` });
-    }
-    if (i === 0 && s.dur > 3.0) lint.push({ level: "warn", msg: `#${s.id}: the hook is ${s.dur}s — the first 3 seconds should be a designed hook, not a hold.` });
-  });
+  // The design's own rules — shot count, lengths, the hook, and the tells of
+  // a chain or a chapters film that is not one (lib/design-rules.mjs).
+  lint.push(...lintDesign(spec));
 
   // ---- Narration: one continuous read, picture cut to the words ----------------
   const legacyClips = shots.filter(s => typeof s.vo === "string").length;
@@ -165,10 +156,6 @@ if (!spec) {
   for (const o of overruns) {
     lint.push({ level: o.speed > 1.6 ? "fail" : "warn", msg: `#${o.id} (${o.type}): its factory timeline runs ${o.ran}s but the shot is ${o.dur}s — compressed ${o.speed}× to fit. Time the factory as fractions of D, or give the beat more words in the script so the cue interval matches.` });
   }
-  const punches = shots.filter(s => s.cut === "punch").length;
-  if (shots.length >= 8 && punches === 0) lint.push({ level: "warn", msg: "No `punch` cuts — mark 2–3 boundaries where a beat lands." });
-  if (!spec.ambient) lint.push({ level: "warn", msg: "No `ambient` stage layer — the film has no life between events. Pick the kind direction.md's background system calls for (motion_schema({ section: \"density layer\" })), or say in direction.md why the stage is bare." });
-
   // ---- Brand applied? Unset tokens mean the engine's default palette --------------
   const unsetTokens = ["bg", "ink", "accent"].filter(k => !brandTokens[k]);
   if (unsetTokens.length) lint.push({ level: "fail", msg: `brand.${unsetTokens.join(", brand.")} not set — every shot is rendering in the engine's default palette, not the product's, and the ambient stage is invisible. Set the measured hex values on brand (top level), then re-run.` });
@@ -176,8 +163,8 @@ if (!spec) {
   // ---- Template tells: what makes two films look like the same film -------------
   // The shared engine gives every product the same ten looks; a film with no
   // project-local shot type is assembled, not directed.
-  const BUILT_IN = new Set([...TYPE_BEATS, "ui-frame", "device-notif"]);
-  if (!shots.some(s => !BUILT_IN.has(s.type))) lint.push({ level: "warn", msg: "Every shot is a built-in type — no signature shot. Write one project-local type in js/shots.custom.js for the beat only this product could own (motion_schema({ section: \"custom shot types\" }))." });
+  const BUILT_IN = new Set([...TYPE_BEATS, "ui-frame", "device-notif", "device-3d", "lottie", "rive", "cascade"]);
+  if (!shots.some(s => !BUILT_IN.has(s.type)) && !spec.actors) lint.push({ level: "warn", msg: "Every shot is a built-in type and nothing crosses the cuts — no signature. Either declare `actors` (the product's own object living across the scenes) or write one project-local type in js/shots.custom.js for the beat only this product could own (motion_schema({ section: \"custom shot types\" }))." });
   // Uniform durations read as a metronome whatever the content.
   if (shots.length >= 8) {
     const durs = shots.map(s => s.dur);
@@ -390,6 +377,7 @@ if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s
 
 console.log(`\n──────── Philosophy scorecard ────────`);
 console.log(`   brand: bg ${brandTokens.bg ?? "—"} · ink ${brandTokens.ink ?? "—"} · accent ${brandTokens.accent ?? "—"}`);
+if (spec) console.log(`   ${designSummary(spec)}`);
 console.log(`   shots ${spec ? spec.shots.length : "?"} · avg ${spec ? (spec.shots.reduce((a, s) => a + s.dur, 0) / spec.shots.length).toFixed(2) : "?"}s · ${eps.toFixed(2)} ev/s · longest quiet ${longestQuiet.toFixed(2)}s · ambient ${spec?.ambient ? spec.ambient.kind || "on" : "off"} · beats ${spec ? spec.shots.reduce((a, s) => a + s.beats, 0) : "?"}`);
 const nline = narration.mode === "continuous"
   ? `continuous read ${narration.dur.toFixed(1)}s · ${narration.wps.toFixed(2)} words/s · ${narration.cued}/${narration.total} shots cued · max drift ${narration.maxDrift >= 0 ? "+" : ""}${narration.maxDrift.toFixed(2)}s${narration.worst ? ` (#${narration.worst})` : ""} · longest breath ${narration.breath ? narration.breath.dur + "s" : "none"} · last word ${narration.speechEnd.toFixed(1)}s`

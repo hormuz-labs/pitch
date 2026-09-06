@@ -985,7 +985,13 @@ export function NewProjectView() {
                         <ChevronDown size={12} />
                       </button>
                       {modelOpen && (
-                        <div className="model-menu" role="listbox" aria-label="Models">
+                        <div
+                          className="model-menu"
+                          role="listbox"
+                          aria-label="Models"
+                          data-lenis-prevent
+                          onWheel={e => e.stopPropagation()}
+                        >
                           {models.map(m => (
                             <button
                               key={m.spec}

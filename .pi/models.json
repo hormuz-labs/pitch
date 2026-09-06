@@ -1,0 +1,24 @@
+{
+  "providers": {
+    "google": {
+      "models": [
+        {
+          "id": "gemini-3.8-flash",
+          "name": "Gemini 3.8 Flash",
+          "api": "google-generative-ai",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": { "input": 0.75, "output": 3.75, "cacheRead": 0.075, "cacheWrite": 0 },
+          "contextWindow": 1048576,
+          "maxTokens": 65536,
+          "thinkingLevelMap": {
+            "off": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high"
+          }
+        }
+      ]
+    }
+  }
+}

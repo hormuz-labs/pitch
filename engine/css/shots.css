@@ -407,6 +407,7 @@ body.preview #preview-bar { display: block; }
 }
 .ui-caption.top { top: 56px; }
 .ui-caption.bottom { bottom: 56px; }
+.ui-caption.center { top: 50%; transform: translateY(-50%); }
 
 /* ---- Density layer: exit wrapper, ambient stage, beats ---- */
 .shot-exit { position: absolute; inset: 0; will-change: transform, opacity; }
@@ -477,3 +478,69 @@ body.preview #preview-bar { display: block; }
 .lottie-stage svg { display: block; width: 100%; height: 100%; }
 .carry-layer { position: absolute; inset: 0; pointer-events: none; z-index: 60; }
 .carry-ghost { pointer-events: none; }
+
+/* ---- Cuts and beats that paint over a shot ---- */
+#cut-layer { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
+.flood-plate { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+.flood-halo, .beat-halo { position: absolute; width: 1400px; height: 1400px; border-radius: 50%; opacity: 0; visibility: hidden; pointer-events: none; filter: blur(30px); z-index: 1; }
+.beat-flood { position: absolute; inset: 0; opacity: 0; visibility: hidden; pointer-events: none; z-index: 8; }
+.beat-ring { position: absolute; border: 3px solid var(--accent); opacity: 0; pointer-events: none; z-index: 7; box-sizing: border-box; }
+
+/* ---- Actors: one object across many shots ---- */
+#actors { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+.actor { position: absolute; left: 0; top: 0; will-change: transform, filter; }
+.actor img, img.actor { display: block; }
+img.actor.mat-glass, img.actor.mat-neumorph { padding: 14px 18px; border-radius: 999px; box-sizing: content-box; }
+.actor-text { white-space: nowrap; letter-spacing: -0.03em; line-height: 1; font-family: var(--font); }
+.actor-shape { display: block; }
+.actor-svg path { transition: none; }
+
+/* ---- Materials ---- */
+.mat-glass {
+  background: color-mix(in srgb, #fff 62%, transparent);
+  -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, #fff);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 1px 0 #fff;
+}
+.mat-pill {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--accent) 88%, #4040ff) 0%, var(--accent) 55%, color-mix(in srgb, var(--accent) 60%, #7ff) 100%);
+  color: #fff;
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.mat-neumorph {
+  background: radial-gradient(circle at 35% 30%, #fff 0%, color-mix(in srgb, var(--accent) 22%, #fff) 100%);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, #fff);
+  box-shadow: 0 30px 70px color-mix(in srgb, var(--accent) 25%, transparent), inset 0 2px 6px #fff;
+}
+.aura, .ui-frame.aura { box-shadow: 0 40px 100px rgba(0, 0, 0, 0.14), 0 0 0 2px color-mix(in srgb, var(--accent) 60%, #fff), 0 60px 160px color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* ---- line: the sentence as protagonist ---- */
+.line-box {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: baseline; white-space: nowrap;
+  font-size: 96px; letter-spacing: -0.03em; line-height: 1.1; z-index: 5;
+}
+.line-box.left { left: 140px; transform: translate(0, -50%); }
+.line-box.glass { padding: 0.28em 0.6em; border-radius: 999px; }
+.line-box.pill { padding: 0.28em 0.6em; border-radius: 999px; }
+.lw { display: inline-block; white-space: pre; will-change: transform, filter, opacity; }
+.lw[data-tone="accent"] { color: var(--accent); }
+.lw[data-tone="muted"] { color: color-mix(in srgb, currentColor 42%, transparent); }
+.lw[data-tone="gradient"] { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #fff)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lw.slot { display: inline-block; vertical-align: middle; }
+.line-caret { display: inline-block; width: 0.06em; height: 0.95em; background: currentColor; margin-left: 0.04em; vertical-align: -0.12em; opacity: 0.85; }
+.lw .ch { display: inline; }
+.lw .ch.pending { display: none; }
+
+/* ---- cascade ---- */
+.cascade { position: absolute; inset: 0; z-index: 3; }
+.cascade-item { position: absolute; will-change: transform, filter, opacity; background: #fff; border-radius: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05); overflow: hidden; color: #111; }
+.cascade-item img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cascade-item .ci-html { padding: 28px 32px; font-size: 26px; line-height: 1.35; }
+
+/* ---- ui-frame extras ---- */
+.ui-veil { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 4; }
+.ui-cursor.hand svg { width: 64px; height: 64px; }
+.ui-cursor-named { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; display: flex; align-items: flex-start; gap: 6px; }
+.ui-cursor-named svg { width: 26px; height: 26px; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+.ui-cursor-named .tag { font-size: 15px; font-weight: 600; color: #fff; padding: 3px 9px; border-radius: 8px; margin-top: 14px; white-space: nowrap; }

@@ -2,10 +2,27 @@
 
 Questions and option spaces, not a house style. Recon and product meaning
 outrank every menu and range here; invent outside the menus when the evidence
-supports it. Work the 9 axes in order — later ones depend on earlier ones —
+supports it. Work the axes in order — later ones depend on earlier ones —
 and write one line of **recon evidence** per choice. No evidence means you
 are defaulting: go back to recon. The bar: the video looks like the product's
 own design team spent a month on it, built from their exact tokens.
+
+## Axis 0 — Design (the grammar)
+
+Decided first, from the product model in `recon/assets.md`, and it shapes
+every later axis. Two grammars were measured frame by frame from reference
+films (`designs/chain.md`, `designs/chapters.md`):
+
+| Design | The product | Evidence that picks it | What you must then write |
+|---|---|---|---|
+| **chain** — one continuous take | has one object the viewer already knows (a file, a message, a photo, a card, a cursor) and one job story: drop it in → it is processed → the result → what you do with it. Few screens, a mark worth landing on. 25–40s, music-only. | the hero copy names one thing and one verb; the demo footage follows one item through the product; the mark is simple enough to be born from a shape | **the chain**: 8–16 objects in order, each born from the previous, each a harvested file, a mined frame or a shape |
+| **chapters** — prompt → product → payoff, repeated | is a suite or an editor: many screens, many jobs, features that are each a sentence a user would type. The real UI can carry 60% of the runtime. 45–90s, voice optional. | the site lists features as verbs ("choose a style", "add a voice"); the harvest found five or more distinct screens; the product has a prompt box, a search field, a menu | **the chapter table**: 6–9 rows of prompt · screen · cursor action · payoff, payoffs all different |
+
+A product that fits both takes the chain when it has one object and
+chapters when it has one product with many doors. A chapters film may run a
+chain inside a chapter (the prompt pill becoming the UI's prompt box is an
+actor). The design is written as `design` at the top of `shots.js`; the
+audit judges the film by it.
 
 ## Axis 1 — Palette and background system
 
@@ -24,6 +41,8 @@ lightness, never by importing indigo. Then choose ONE background system:
 | Gradient mesh | mesh/aurora in the brand's own hues | brands whose site already uses gradients | `{ kind: "blobs", size: 900, blur: 160, opacity: 0.35 }` |
 | Deep space + glow | near-black, blurred glow shapes | **only** when the site is dark-with-glow; vary hue, count, geometry | `{ kind: "blobs" }` — vary `count`, `seed`, `size` |
 | Duotone poster | two-colour print, halftone, cut-outs | media, music, community, campaigns | `{ kind: "halftone", size: 14 }` |
+| Bare stage | an off-white tinted toward the accent, nothing else; whitespace does the work | the continuous chain; light products with one object | `{ kind: "none" }` — the chain's stage; the actors are the life |
+| Aurora | very soft discs in the brand's hues under hero type, bare under the product | prompt chapters; suites with a prompt box | `{ kind: "aurora", colors?: [...] }` with `ambient: false` on product shots |
 
 The palette's **finish** is the `grade` block in shots.js (schema "Render
 and grade"): temperature, a curve, a LUT the user supplied, vignette, grain.
@@ -70,7 +89,7 @@ becomes a custom factory (`effects-catalog.md`).
 | Elastic | `back.out(1.6)`, `elastic.out` | 0.5–0.8s, bouncy | `punch`, one `iris` · `scatter` | solemn fades | consumer, creator, social |
 | Editorial | `power2.out`, opacity+y | calm, micro-motion holds | `push-*` flat pushes, rule draws · `down`; no shutter | 3D, whip pans | docs, design tools, serif brands |
 | Kinetic | `power4.in/out`, beat-synced | very fast, 0.9–1.6s shots | whip `push-*`, `punch`, `carry` match cuts · `up`; `render.shutter: 0.5–0.7` | holds | hype launches, montage |
-| Continuous | `expo.out` in, `power3.in` out, `back.out` pops | an element every ~1s, 1.5–3s shots | exits overlap entrances on one stage, `carry` the hero element between shots · `up`, per-shot `exit` varied | empty frames, slides | explainers, AI/builder tools |
+| Continuous | `expo.out` in, `power3.in` out, geometric shrinks, no bounce | an element every ~1s, holds 0.3–0.8s, never a still frame under a hold | actors across every boundary, `flood`, `zoom` / `zoom-out` between scales · `blur`; `render.shutter: 0.5` | empty frames, slides, dissolves, bounces | the chain and the chapters designs — explainers, AI/builder tools, suites |
 
 `exit: "up"` on every shot of every film was the old default; the exit is the
 language's, and two or three shots in any film override it (`shot.exit`) so
@@ -117,7 +136,14 @@ matching how the product's value flows; vary between shots for rhythm.
 
 | The value prop is… | Show it with | Type |
 |---|---|---|
-| the app itself is great | the real product, one focus move, a click | `ui-frame` (harvested `src` or a mined frame, `focus`, `cursor`) — 30–50% of a UI product's runtime |
+| the app itself is great | the real product, one focus move, a click | `ui-frame` (harvested `src` or a mined frame, `tilt`, `aura`, `focus`, `cursor`) — 30–60% of a UI product's runtime |
+| the sentence is the scene | 2–4 words that change: a word adds, the line is replaced, one word is kept, the object sits between the words | `line` with `steps`, `tone`, a `slot` for an actor |
+| the user types what they want | a prompt at hero scale, typed live, the noun turning to the accent | `line` with `typing` and `container: "glass"` (the chapters opener) |
+| one object moves through the product | the file that is dropped in, the card that becomes the grid, the button that becomes the mark | an `actor` posed across the shots (`motion_schema({ section: "actors" })`) |
+| the clicked thing becomes the subject | the cursor presses, the camera pushes in, the rest blurs to white | `ui-frame` `cursor.zoom`, or `beats: [{ kind: "zoom", sel }]` |
+| many of one thing | cards duplicating into a strip, comments arriving, rows cascading | `cascade` (`dir: "left"` / `"up"`, `dof`) |
+| several screens at once | five mined frames on a ring, orbiting, seen from inside | `device-3d` with `ring` |
+| the payoff lands | the frame floods with the accent and retreats; rings ripple from a press; a halo blooms | `cut: "flood"`, `beats: [{ kind: "ripple" }]`, `{ kind: "halo" }` |
 | it's on your phone | the real mobile screen | `ui-frame` with `frame: "phone"`, or `device-3d` with `device: "phone"` turning |
 | it runs on your Mac / a device | the screen on the object itself | `device-3d` (laptop, slab, card) with a harvested frame as the screen |
 | the screen has planes | a modal over its page, a sidebar over a canvas | `ui-frame` with `layers` from `motion_screenshot({ layers })`, `tilt` when 2.5D |

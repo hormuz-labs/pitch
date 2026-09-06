@@ -46,6 +46,7 @@ router.get('/models', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
   try {
+    res.set('Cache-Control', 'no-store')
     res.json({ default: STUDIO_DEFAULT_MODEL, models: await listStudioModels() })
   } catch (err) {
     fail(res, err, 'list models failed')
