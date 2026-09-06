@@ -7,6 +7,7 @@ import { renderNewsletterEmail, sendNewsletterEmail } from '@saas/email'
 import { createLogger } from '@saas/shared'
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { normalizePublishedOutputs, normalizePublishedUrl } from '../projects/output-urls.js'
 import { deleteProject, failProject, getRow } from '../projects/service.js'
 import { listBusy } from '../studio/session.js'
 
@@ -121,11 +122,12 @@ async function decorate(rows: any[]) {
   const busy = listBusy()
   return rows.map(r => {
     const user = profiles.find(p => p.id === r.userId)
-    const outputs = parse(r.outputs, [])
+    const outputs = normalizePublishedOutputs(parse(r.outputs, []))
     return {
       ...r,
       options: parse(r.options, {}),
       outputs,
+      thumbnailUrl: r.thumbnailUrl ? normalizePublishedUrl(r.thumbnailUrl) : null,
       status: busy.has(r.id)
         ? 'working'
         : r.lastError

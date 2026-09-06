@@ -49,9 +49,9 @@ import { AnimatedShareIcon } from './components/AnimatedShareIcon'
 import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
 import { LoadingCoin } from './components/LoadingCoin'
-import { PitchWordmark } from './components/PitchWordmark'
 import { OnboardingSurvey } from './components/OnboardingSurvey'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
+import { PitchWordmark } from './components/PitchWordmark'
 import { SettingsModal, type SettingsSection } from './components/SettingsModal'
 import { API_URL } from './config'
 import { api, isApiError } from './lib/api'
@@ -794,7 +794,11 @@ const Sidebar = ({
           >
             <button
               type="button"
-              onClick={() => go('/sessions')}
+              onClick={() => {
+                setHistoryOpen(false)
+                setHistoryQuery('')
+                onToggle()
+              }}
               aria-label="Recent chats"
               title="Recent chats"
               aria-expanded={historyOpen}

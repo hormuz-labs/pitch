@@ -30,6 +30,7 @@ import {
   takeModelCost,
 } from '../studio/session.js'
 import { normalizeCreationOptions } from './creation-options.js'
+import { normalizePublishedOutputs, normalizePublishedUrl } from './output-urls.js'
 import { chargeTurn, MIN_BALANCE } from './usage.js'
 
 const logger = createLogger('studio:projects')
@@ -76,10 +77,12 @@ export interface ProjectDetail extends ProjectInfo {
 }
 
 function parseRow(r: any): ProjectRow {
+  const outputs = safeJson<Output[]>(r.outputs, [])
   return {
     ...r,
     options: safeJson(r.options, {}),
-    outputs: safeJson(r.outputs, []),
+    outputs: normalizePublishedOutputs(outputs),
+    thumbnailUrl: r.thumbnailUrl ? normalizePublishedUrl(r.thumbnailUrl) : null,
     createdAt: new Date(r.createdAt).toISOString(),
     updatedAt: new Date(r.updatedAt).toISOString(),
   }

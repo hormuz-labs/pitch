@@ -1,11 +1,11 @@
 /**
- * The studio: preview on the left (the flow decides the renderer), the
- * agent's thread and the composer on the right, a scene/slide strip when
+ * The studio: conversation on the left, the larger preview on the right
+ * (the artifact decides the renderer), and a scene/slide strip when
  * the flow has one. Everything the model does is visible; everything the
  * agent saves shows up in the preview.
  */
+import { Files, MonitorPlay } from 'lucide-react'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAppShell } from '../App'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
@@ -30,7 +30,7 @@ const ARTIFACT_TITLES: Record<string, string> = {
 
 function BuildingStage({ busy, status, empty }: { busy: boolean; status: string; empty: string }) {
   return (
-    <div className="building-stage">
+    <div className={`building-stage${busy ? ' is-busy' : ''}`}>
       <div className="building-orbs">
         <span className="orb o1" />
         <span className="orb o2" />
@@ -44,6 +44,9 @@ function BuildingStage({ busy, status, empty }: { busy: boolean; status: string;
         <span className="bframe" />
       </div>
       <div className="building-copy">
+        <span className="building-icon" aria-hidden="true">
+          <MonitorPlay size={20} strokeWidth={1.6} />
+        </span>
         {busy ? (
           <>
             <div className="building-title">
@@ -67,7 +70,7 @@ function Preview({ store }: { store: ProjectStore }) {
   const preview = s.project?.description.preview ?? null
   const empty = s.project?.lastError
     ? `Last attempt failed: ${s.project.lastError}. Ask the agent to try again.`
-    : 'Describe what you want below — the first result appears here as soon as it exists.'
+    : 'Describe what you want in chat — the first result appears here as soon as it exists.'
   if (!preview) return <BuildingStage busy={s.busy} status={s.status} empty={empty} />
   if (preview.kind === 'html') {
     const src = s.mediaUrl(preview.url, s.videoVersion)
@@ -87,6 +90,63 @@ function Preview({ store }: { store: ProjectStore }) {
   }
   if (preview.kind === 'browser') return <BrowserPreview store={s} profileId={preview.profileId} />
   return null
+}
+
+function PreviewHeader({
+  store,
+  view,
+  onViewChange,
+}: {
+  store: ProjectStore
+  view: 'preview' | 'files'
+  onViewChange: (view: 'preview' | 'files') => void
+}) {
+  const previewKind = store.project?.description.preview?.kind ?? ''
+  return (
+    <div className="preview-pane-header">
+      <button
+        type="button"
+        className={`preview-pane-tab${view === 'preview' ? ' is-active' : ''}`}
+        aria-pressed={view === 'preview'}
+        onClick={() => onViewChange('preview')}
+      >
+        <MonitorPlay size={15} strokeWidth={1.8} />
+        <span>Preview</span>
+        <small>{ARTIFACT_TITLES[previewKind] ?? 'Project'}</small>
+      </button>
+      <button
+        type="button"
+        className={`preview-pane-tab${view === 'files' ? ' is-active' : ''}`}
+        aria-pressed={view === 'files'}
+        onClick={() => onViewChange('files')}
+      >
+        <Files size={15} strokeWidth={1.8} />
+        <span>Files</span>
+        {store.assets.length > 0 && <small>{store.assets.length}</small>}
+      </button>
+      <span className="preview-pane-spacer" />
+    </div>
+  )
+}
+
+function EmptyTimeline({ busy }: { busy: boolean }) {
+  return (
+    <div className="timeline studio-empty-timeline">
+      <div className="timeline-header">
+        <h2>Timeline</h2>
+        <span className="timeline-meta">
+          {busy ? 'Scenes will appear as they are created' : 'Scenes and slides appear here'}
+        </span>
+      </div>
+      <div className={`timeline-empty-strip${busy ? ' is-busy' : ''}`} aria-hidden="true">
+        {[1, 2, 3, 4].map(slot => (
+          <span key={slot} className="timeline-slot" style={{ '--i': slot } as CSSProperties}>
+            {slot}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const LAUNCH_RES = [
@@ -235,44 +295,27 @@ function ExportMenu({ store }: { store: ProjectStore }) {
 
 function Topbar({ store }: { store: ProjectStore }) {
   const s = store
-  const navigate = useNavigate()
   const { isMobile, toggleSidebar } = useAppShell()
   const p = s.project
-  const [shareUrl, setShareUrl] = useState<string | null>(
-    p?.shareSlug && p.isPublic ? `${window.location.origin}/d/${p.shareSlug}` : null,
-  )
-  useEffect(
-    () =>
-      setShareUrl(p?.shareSlug && p.isPublic ? `${window.location.origin}/d/${p.shareSlug}` : null),
-    [p?.shareSlug, p?.isPublic],
-  )
   const hasOutput = (p?.outputs.length ?? 0) > 0
+  const state = s.busy
+    ? 'Working'
+    : p?.description.preview || hasOutput
+      ? 'Ready'
+      : p?.lastError
+        ? 'Failed'
+        : 'Empty'
   return (
     <div className="job-topbar">
-      <button className="topbar-btn topbar-back" onClick={() => navigate('/new')}>
-        ← New chat
-      </button>
       <div className="nav-crumb">
         <span className="editor-project" title={p?.name}>
           {p?.title ?? '…'}
         </span>
-        <span className="status-pill" style={{ textTransform: 'none', letterSpacing: 0 }}>
+        <span className="project-kind">
           {ARTIFACT_TITLES[p?.description.preview?.kind ?? ''] ?? 'Project'}
         </span>
-        <span
-          className={`status-pill ${s.busy ? 'busy' : ''} ${!s.busy && (p?.description.preview || hasOutput) ? 'ready' : ''}`}
-        >
-          {s.busy ? (
-            <>
-              <span className="spinner" /> working
-            </>
-          ) : p?.description.preview || hasOutput ? (
-            'ready'
-          ) : p?.lastError ? (
-            'failed'
-          ) : (
-            'empty'
-          )}
+        <span className={`project-state ${state.toLowerCase()}`}>
+          <i /> {state}
         </span>
       </div>
       <span className="topbar-actions">
@@ -282,30 +325,6 @@ function Topbar({ store }: { store: ProjectStore }) {
           </button>
         )}
         <ExportMenu store={s} />
-        {hasOutput && (
-          <button
-            className="topbar-btn"
-            title={shareUrl ? 'Copy the public link' : 'Create a public link'}
-            onClick={async () => {
-              const url = shareUrl ?? (await s.share().catch(() => null))
-              if (!url) return
-              setShareUrl(url)
-              await navigator.clipboard.writeText(url).catch(() => {})
-              alert(`Public link copied:\n${url}`)
-            }}
-          >
-            {shareUrl ? 'Copy link' : 'Share'}
-          </button>
-        )}
-        <button
-          className="topbar-btn danger"
-          onClick={() => {
-            if (p && confirm(`Delete "${p.title}" and everything in it?`))
-              void s.remove().then(() => navigate('/new'))
-          }}
-        >
-          Delete
-        </button>
         {/* The one thing the shell header carried that this bar still needs.
             The credit balance is NOT here: it lives by the send button, where
             you are about to spend it. */}
@@ -326,54 +345,18 @@ function Topbar({ store }: { store: ProjectStore }) {
   )
 }
 
-/**
- * One tray under the stage, two things in it.
- *
- * The strip picks a part of the ARTIFACT; the shelf picks a file to work
- * WITH. Both answer "which one do you mean", and stacking them would spend
- * twice the height on the same question — so they share the space and the
- * user says which they are looking for. With nothing to strip through (a
- * plain uploaded video, a fresh project) the shelf is simply the tray.
- */
-function Tray({
-  strip,
-  stripLabel,
-  store,
-}: {
-  strip: React.ReactNode
-  stripLabel: string
-  store: ProjectStore
-}) {
-  const [tab, setTab] = useState<'strip' | 'assets'>('strip')
-  if (!strip) return <AssetShelf store={store} />
-  return (
-    <div className="tray">
-      <div className="tray-tabs">
-        <button
-          type="button"
-          className={`tray-tab${tab === 'strip' ? ' on' : ''}`}
-          onClick={() => setTab('strip')}
-        >
-          {stripLabel}
-        </button>
-        <button
-          type="button"
-          className={`tray-tab${tab === 'assets' ? ' on' : ''}`}
-          onClick={() => setTab('assets')}
-        >
-          Assets{store.assets.length > 0 ? ` (${store.assets.length})` : ''}
-        </button>
-      </div>
-      {tab === 'strip' ? strip : <AssetShelf store={store} />}
-    </div>
-  )
-}
-
+/** Preview and files share the artifact pane; scenes stay attached to Preview. */
 export function StudioView({ projectId }: { projectId: string }) {
   const s = useProject(projectId)
+  const [workspaceView, setWorkspaceView] = useState<'preview' | 'files'>('preview')
   const feedEl = useRef<HTMLDivElement | null>(null)
   const sidebarEl = useRef<HTMLElement | null>(null)
-  const drag = useRef({ dragging: false, startX: 0, startW: 0, width: 420 })
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    typeof window === 'undefined'
+      ? 520
+      : Math.min(620, Math.max(360, Math.round(window.innerWidth * 0.36))),
+  )
+  const drag = useRef({ dragging: false, startX: 0, startW: 0, width: sidebarWidth })
   const streamLength = s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
   useEffect(() => {
     queueMicrotask(() => {
@@ -398,55 +381,21 @@ export function StudioView({ projectId }: { projectId: string }) {
   ) : (desc?.scenes?.length ?? 0) > 0 || desc?.preview?.kind === 'html' ? (
     <SceneStrip store={s} />
   ) : null
-  const stripLabel = desc?.slides ? 'Slides' : 'Scenes'
-
   return (
     <div className="lv-studio">
       <div className="editor-wrap">
         <Topbar store={s} />
         <div className="editor">
-          <div className="editor-stage">
-            <div className="player">
-              <div className="player-stage">
-                <Preview store={s} />
-              </div>
-            </div>
-            <Tray strip={strip} stripLabel={stripLabel} store={s} />
-          </div>
-          <div
-            className="resize-handle"
-            onPointerDown={e => {
-              drag.current = {
-                ...drag.current,
-                dragging: true,
-                startX: e.clientX,
-                startW: drag.current.width,
-              }
-              ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-            }}
-            onPointerMove={e => {
-              if (!drag.current.dragging) return
-              drag.current.width = Math.min(
-                Math.max(drag.current.startW + (drag.current.startX - e.clientX), 320),
-                720,
-              )
-              if (sidebarEl.current)
-                sidebarEl.current.style.setProperty('--sidebar-w', `${drag.current.width}px`)
-            }}
-            onPointerUp={() => {
-              drag.current.dragging = false
-            }}
-          />
           <aside
             className="edit-sidebar"
             ref={sidebarEl}
             /* Width as a custom property, not `width` itself: the stacked
                phone layout has to drop it, and a media query cannot outrank
                an inline width. */
-            style={{ '--sidebar-w': `${drag.current.width}px` } as CSSProperties}
+            style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
           >
             <div className="feed-header">
-              <h2>Agent</h2>
+              <h2>Chat</h2>
               {s.busy && (
                 <span className="timeline-live" style={{ marginLeft: 'auto', fontSize: 11 }}>
                   {s.status}
@@ -465,6 +414,68 @@ export function StudioView({ projectId }: { projectId: string }) {
             </div>
             <Composer store={s} />
           </aside>
+          <div
+            className="resize-handle"
+            role="separator"
+            aria-label="Resize chat and preview"
+            aria-orientation="vertical"
+            aria-valuemin={340}
+            aria-valuemax={640}
+            aria-valuenow={sidebarWidth}
+            tabIndex={0}
+            onPointerDown={e => {
+              drag.current = {
+                ...drag.current,
+                dragging: true,
+                startX: e.clientX,
+                startW: sidebarWidth,
+              }
+              ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+            }}
+            onPointerMove={e => {
+              if (!drag.current.dragging) return
+              drag.current.width = Math.min(
+                Math.max(drag.current.startW + (e.clientX - drag.current.startX), 340),
+                640,
+              )
+              sidebarEl.current?.style.setProperty('--sidebar-w', `${drag.current.width}px`)
+            }}
+            onPointerUp={() => {
+              drag.current.dragging = false
+              setSidebarWidth(drag.current.width)
+            }}
+            onPointerCancel={() => {
+              drag.current.dragging = false
+              setSidebarWidth(drag.current.width)
+            }}
+            onKeyDown={e => {
+              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+              e.preventDefault()
+              const width = Math.min(
+                Math.max(sidebarWidth + (e.key === 'ArrowRight' ? 20 : -20), 340),
+                640,
+              )
+              drag.current.width = width
+              setSidebarWidth(width)
+            }}
+          />
+          <div className="editor-stage">
+            <PreviewHeader store={s} view={workspaceView} onViewChange={setWorkspaceView} />
+            {workspaceView === 'preview' ? (
+              <>
+                <div className="player">
+                  <div className="player-stage">
+                    <Preview store={s} />
+                  </div>
+                </div>
+                <div className="tray">{strip ?? <EmptyTimeline busy={s.busy} />}</div>
+              </>
+            ) : (
+              <div className="studio-files-view">
+                <AssetShelf store={s} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

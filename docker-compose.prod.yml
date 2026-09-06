@@ -26,6 +26,10 @@ services:
       - "8080:8080"
 
   api:
+    environment:
+      # Never persist the host-only MinIO address in production project rows.
+      # Cloudflare routes this public hostname to MinIO's host port 9002.
+      MINIO_PUBLIC_URL: https://s3.trypitch.co
     # Ship logs to Loki. This needs a Docker plugin on the HOST:
     #   docker plugin install grafana/loki-docker-driver:latest \
     #     --alias loki --grant-all-permissions
