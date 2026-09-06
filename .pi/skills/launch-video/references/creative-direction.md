@@ -157,6 +157,8 @@ matching how the product's value flows; vary between shots for rhythm.
 | the moment that sells it is in their video | that exact frame, rebuilt | a mined frame (`assets/harvested/frames/<clip>/t<time>.jpg`) studied and rebuilt as `ui-frame` `html`; as the texture of a `device-3d` only |
 | the site has no imagery at all | one object, a plate, a texture — in the palette, in the film's style | `motion_image` (never a screen, a logo or a person); a custom type or a `ui-frame`-less beat carries it |
 | a message arrives | a notification landing | `device-notif` with the product's `src` icon |
+| the old way is chaos | windows, toasts and pills piling up over the headline, then blown away | `pile` with `items` (`window` / `toast` / `pill`, `tone: "error"`), `anchor: parts`, `blowAt` |
+| one line slides in and wipes on | a single centred line arriving from the right, character by character | `type-wipe` with `parts` |
 | we replace a slog | old way vs product | custom split-compare, or two `word-cut` shots cut against each other |
 | transformation | before → after | `ui-frame` with `cursor.then` |
 | developers love it | typed command, real output | `ui-frame` with native `html` in `brand.mono` |

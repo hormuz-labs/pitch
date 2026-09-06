@@ -71,8 +71,8 @@ apart, varied clips (a repeated identical pop sounds like a stuck button) —
 up to ~10–14 per 30s. A staggered group is 3–4 pops at falling gain, never
 one per item. One shot is deliberately silent.
 
-**Sync law.** Library clips carry silence before the sound (218 of 323, up
-to 2.2s); the manifest measures each onset and the build subtracts it —
+**Sync law.** Library clips carry silence before the sound (206 of 308, up
+to 2.25s); the manifest measures each onset and the build subtracts it —
 which is why cues go through the tool, never a hand-written `adelay`.
 Transients (`pop`, `click`, `impact`) land on the beat; whooshes peak on it
 (lead 0.12s / 0.22s); `reverse` starts 0.30s before; a `riser` ends on it.

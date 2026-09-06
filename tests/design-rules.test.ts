@@ -52,7 +52,7 @@ describe('lintDesign', () => {
     expect(msgs).toMatch(/plain cuts with nothing crossing/)
     expect(msgs).toMatch(/No `blur` exits/)
   })
-  it('asks a chapters film for chapters, a typed prompt and a flood or scale cut', () => {
+  it('asks a chapters film for chapters, a word camera and a flood or scale cut', () => {
     const out = lintDesign({
       design: 'chapters',
       ambient: { kind: 'aurora' },
@@ -60,16 +60,20 @@ describe('lintDesign', () => {
     })
     const msgs = out.map(l => l.msg).join('\n')
     expect(msgs).toMatch(/fewer than two `chapter`/)
-    expect(msgs).toMatch(/No typed prompt/)
+    expect(msgs).toMatch(/No word camera/)
     expect(msgs).toMatch(/No flood and no scale cut/)
   })
   it('is quiet for a well-formed chapters film', () => {
+    // The hero sentence is landed as a move and travelled by the word camera —
+    // a caret typing at hero scale is the opener the gate now fails.
     const shots = many(12, { dur: 3, chapter: 'a', cut: 'punch' })
-    shots[0] = shot({ id: 'p', dur: 3, typing: true, chapter: 'a', breaths: 1 })
+    shots[0] = shot({ id: 'p', dur: 3, type: 'line', zoomBeats: 3, chapter: 'a', breaths: 1 })
     shots[4] = shot({ id: 'f', dur: 3, cut: 'flood', chapter: 'b' })
     const out = lintDesign({ design: 'chapters', ambient: { kind: 'aurora' }, shots })
     expect(out.filter(l => l.level === 'fail')).toEqual([])
-    expect(out.map(l => l.msg).join('\n')).not.toMatch(/chapter|typed prompt|flood|breath|ambient/)
+    expect(out.map(l => l.msg).join('\n')).not.toMatch(
+      /chapter|word camera|flood|breath|ambient/,
+    )
   })
   it('allows a bare stage for a chain and asks for one otherwise', () => {
     const chain = lintDesign({

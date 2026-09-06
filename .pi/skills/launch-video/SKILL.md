@@ -278,9 +278,10 @@ snippet; if it found none, choose a self-hostable equivalent by personality
 sound` — then keep going; do not wait for approval unless the user is
 actively replying.
 - One idea per shot, 2–4 words on a `line`, ≤ 8 anywhere. A chain film
-  8–16 shots, 25–40s; a chapters film 12–40 shots, 45–90s. A `line` with
+  6–16 shots, 25–40s; a chapters film 8–40 shots, 45–90s. A `line` with
   steps or a shot posing actors is a scene and may run to 6s; a plain type
-  beat ≤ 3.2s; a `ui-frame` ≤ 6s.
+  beat ≤ 4s in a chapters film (≤ 6s in a chain, where a line is a
+  scene); a `ui-frame` ≤ 6s.
 - Every boundary is decided by the design: an actor pose across it, a
   `carry`, `cut: "flood"`, `zoom` / `zoom-out`, a blur exit — or, in a
   chapters film, a hard cut on the beat. Never a dissolve between two type
