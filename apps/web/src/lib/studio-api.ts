@@ -8,8 +8,8 @@ import { api } from './api'
 
 // ── Flows ─────────────────────────────────────────────────────────────────────
 
-export type FlowId = 'launch-video' | 'demo-video' | 'deck' | 'recording-edit'
-export const FLOW_IDS: FlowId[] = ['launch-video', 'demo-video', 'deck', 'recording-edit']
+export type FlowId = 'studio' | 'launch-video' | 'demo-video' | 'deck' | 'recording-edit'
+export const FLOW_IDS: FlowId[] = ['studio', 'launch-video', 'demo-video', 'deck', 'recording-edit']
 export const isFlowId = (v: unknown): v is FlowId =>
   typeof v === 'string' && (FLOW_IDS as string[]).includes(v)
 
@@ -140,6 +140,8 @@ export interface CreateProjectInput {
   options?: Record<string, any>
   uploads?: UploadRef[]
   name?: string
+  /** A `provider/id` model spec from the composer picker. */
+  model?: string
 }
 
 export interface PromptInput {
@@ -149,6 +151,13 @@ export interface PromptInput {
   slide?: number | null
   uploads?: UploadRef[]
   options?: Record<string, any>
+  model?: string
+}
+
+export interface StudioModel {
+  /** `provider/id`, e.g. `google/gemini-3.7-flash`. */
+  spec: string
+  label: string
 }
 
 // ── Thread / events ───────────────────────────────────────────────────────────
@@ -243,6 +252,9 @@ export const listProjects = (token: string, flow?: FlowId) =>
 
 export const getFlows = (token: string) => api.get<FlowInfo[]>('/projects/flows', token)
 
+export const listStudioModels = (token: string) =>
+  api.get<{ default: string; models: StudioModel[] }>('/projects/models', token)
+
 export const createProject = (token: string, input: CreateProjectInput) =>
   api.post<ProjectDetail>('/projects', token, input)
 
@@ -305,6 +317,7 @@ export const shareUrl = (slug: string) => `${window.location.origin}/d/${slug}`
 export const studioApi = {
   listProjects,
   getFlows,
+  listStudioModels,
   createProject,
   getProject,
   patchProject,

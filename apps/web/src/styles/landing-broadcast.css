@@ -475,8 +475,10 @@
      Portalled onto <body>, outside :is(.lb-root, .lb-chrome) — hence the literal fallbacks. */
   z-index: 40;
   background: color-mix(in srgb, var(--lb-bg, #ededed) 34%, transparent);
-  backdrop-filter: blur(7px) saturate(1.08);
   -webkit-backdrop-filter: blur(7px) saturate(1.08);
+  backdrop-filter: blur(7px) saturate(1.08);
+  transform: translateZ(0);
+  will-change: opacity, backdrop-filter;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.22s var(--ease-out, ease);
@@ -2027,8 +2029,10 @@
   padding: 0;
   cursor: pointer;
   background: color-mix(in srgb, var(--lb-bg, #ededed) 42%, transparent);
-  backdrop-filter: blur(8px) saturate(1.08);
   -webkit-backdrop-filter: blur(8px) saturate(1.08);
+  backdrop-filter: blur(8px) saturate(1.08);
+  transform: translateZ(0);
+  will-change: backdrop-filter;
   animation: mcp-modal-fade 0.18s var(--ease-out);
 }
 :root:not([data-theme='light']) .mcp-modal-scrim {

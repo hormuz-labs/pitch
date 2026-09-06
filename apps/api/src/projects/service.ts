@@ -14,7 +14,6 @@ import type { Description, Output, UploadRef } from '../flows/types.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import {
   type FlowId,
-  isFlowId,
   isValidProjectName,
   PROJECTS_DIR,
   slugify,
@@ -30,6 +29,7 @@ import {
   stopSession,
   takeModelCost,
 } from '../studio/session.js'
+import { normalizeCreationOptions } from './creation-options.js'
 import { chargeTurn, MIN_BALANCE } from './usage.js'
 
 const logger = createLogger('studio:projects')
@@ -181,6 +181,8 @@ export interface CreateProjectInput {
   options?: Record<string, any>
   uploads?: UploadRef[]
   name?: string
+  /** A `provider/id` model spec from the composer picker; kept in options. */
+  model?: string
 }
 
 /**
@@ -200,8 +202,24 @@ export async function createProject(
   const prompt = String(input.prompt ?? '').trim()
   if (!prompt && !input.uploads?.length)
     throw Object.assign(new Error('prompt is required'), { status: 400 })
-  const options = input.options ?? {}
+  const options = normalizeCreationOptions(input.options)
+  const model =
+    typeof input.model === 'string' && input.model.includes('/') ? input.model : undefined
+  if (model) options.model = model
   const uploads = input.uploads ?? []
+  if (Array.isArray(options.referenceVideoFiles)) {
+    const uploadedPaths = new Map(
+      uploads.map(upload => {
+        const originalName = path.basename(upload.name)
+        const workspaceName = originalName.replace(/[^\w.-]+/g, '_') || 'upload'
+        return [originalName, `uploads/${workspaceName}`]
+      }),
+    )
+    options.referenceVideoFiles = options.referenceVideoFiles.flatMap(name => {
+      const workspacePath = uploadedPaths.get(name)
+      return workspacePath ? [workspacePath] : []
+    })
+  }
 
   // Nothing is charged for opening a project: the studio bills what the work
   // actually costs, turn by turn (projects/usage.ts). The balance check is
@@ -257,6 +275,8 @@ interface PromptOptions {
   uploads?: UploadRef[]
   /** Extra per-turn option overrides (e.g. a newly picked music bed). */
   options?: Record<string, any>
+  /** This turn's model pick; overrides the one stored in the project's options. */
+  model?: string
 }
 
 export async function promptProject(
@@ -276,6 +296,20 @@ export async function promptProject(
     scene: opts.scene ?? null,
     slide: opts.slide ?? null,
   })
+  // This turn's pick wins; otherwise the project keeps running on the model
+  // it was created (or last prompted) with.
+  const model =
+    typeof opts.model === 'string' && opts.model.includes('/')
+      ? opts.model
+      : typeof p.options?.model === 'string'
+        ? p.options.model
+        : undefined
+  if (opts.model && model && p.options?.model !== model) {
+    p.options = { ...p.options, model }
+    void db.prisma.project
+      .update({ where: { id: p.id }, data: { options: JSON.stringify(p.options) } })
+      .catch(() => {})
+  }
   const s = await promptSession(
     {
       projectId: p.id,
@@ -287,6 +321,7 @@ export async function promptProject(
       // the deck session was never given.
       prompt: `${p.prompt ?? ''}\n${text}`,
       uploads: opts.uploads?.map(u => u.name),
+      model,
     },
     text,
     context,

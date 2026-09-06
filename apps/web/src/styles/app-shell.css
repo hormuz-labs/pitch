@@ -23,11 +23,6 @@
   border-color: var(--border-subtle) !important;
 }
 
-[data-theme="dark"] .app-shell-header {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-subtle) !important;
-}
-
 [data-theme="dark"] .app-shell-main {
   background-color: var(--bg-page) !important;
 }
@@ -53,27 +48,575 @@
   color: var(--text-primary) !important;
 }
 
-/* Top header text + inputs */
-[data-theme="dark"] .app-shell-header .text-gray-900 {
-  color: var(--text-primary) !important;
-}
-[data-theme="dark"] .app-shell-header .text-gray-500,
-[data-theme="dark"] .app-shell-header .text-gray-400 {
-  color: var(--text-muted) !important;
-}
-[data-theme="dark"] .app-shell-header .border-gray-200 {
-  border-color: var(--border-subtle) !important;
-}
-[data-theme="dark"] .app-shell-header input {
-  background-color: var(--bg-raised) !important;
-  border-color: var(--border-subtle) !important;
-  color: var(--text-primary) !important;
-}
-[data-theme="dark"] .app-shell-header input::placeholder {
-  color: var(--text-faint) !important;
+/* Conversation-first internal navigation. The project directory is the chat
+   history itself, so there is no separate dashboard destination.
+
+   On desktop the sidebar is a DRAWER: the 48px rail stays in the layout and
+   the panel floats over the page on top of it, so opening it never pushes or
+   rescales the workspace (a resizing layout blurred the preview's scaled
+   iframe every frame). The page underneath is dimmed by a blur scrim. */
+.conversation-sidebar {
+  width: 244px;
+  height: 100%;
+  border-right: 1px solid #ebeae8;
+  background: #f8f8f7;
+  color: #171615;
+  font-family: "Geist Variable", "Geist", Arial, sans-serif;
+  overflow: hidden;
 }
 
-/* Mobile hamburger button */
-[data-theme="dark"] .app-shell-header .bg-white {
-  background-color: var(--bg-raised) !important;
+@media (min-width: 1024px) {
+  .conversation-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    /* Covers the rail: open shows the drawer alone, closed the rail alone. */
+    left: 0;
+    z-index: 70;
+    transform: translateX(0);
+    box-shadow: 24px 0 48px rgb(0 0 0 / 7%);
+    transition: transform 200ms ease, visibility 0s;
+  }
+
+  .conversation-sidebar.is-collapsed {
+    transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 200ms ease, visibility 0s 200ms;
+  }
+}
+
+/* The blur veil over the page while the drawer is open. Clicking it closes. */
+.conversation-sidebar__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  padding: 0;
+  border: 0;
+  background: rgb(255 255 255 / 32%);
+  -webkit-backdrop-filter: blur(8px) saturate(1.04);
+  backdrop-filter: blur(8px) saturate(1.04);
+  cursor: default;
+  animation: scrim-in 160ms ease;
+}
+
+@keyframes scrim-in {
+  from { opacity: 0; }
+}
+
+.conversation-sidebar__rail {
+  position: relative;
+  z-index: 66;
+  width: 48px;
+  height: 100%;
+  padding: 8px 5px;
+  display: flex;
+  flex: 0 0 48px;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border-right: 1px solid #e2e1df;
+  background: #f7f7f6;
+}
+
+.conversation-sidebar__rail button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #6f6a66;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.conversation-sidebar__rail button:hover {
+  background: #e9e9e7;
+  color: #111;
+}
+
+/* One notch bigger than the drawer's glyphs, so the rail reads at a glance.
+   Scoped to the rail's own buttons — the history fly-out keeps its 13px ones. */
+.conversation-sidebar__rail > button svg,
+.conversation-sidebar__rail-pop > button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.conversation-sidebar__rail button:nth-of-type(2) {
+  margin: 7px 0 3px;
+  background: #e9e9e7;
+  color: #292725;
+}
+
+.conversation-sidebar__rail > span {
+  flex: 1;
+}
+
+/* The collapsed rail's fly-out history: recents and a search, on hover. */
+.conversation-sidebar__rail-pop {
+  position: relative;
+}
+
+.conversation-sidebar__rail .conversation-sidebar__rail-history {
+  position: absolute;
+  top: -6px;
+  left: calc(100% + 10px);
+  z-index: 60;
+  width: 248px;
+  padding: 10px 6px 6px;
+  border: 1px solid #e6e5e2;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 12%), 0 2px 8px rgb(0 0 0 / 6%);
+  font-family: "Geist Variable", "Geist", Arial, sans-serif;
+  animation: rail-history-in 140ms ease;
+}
+
+@keyframes rail-history-in {
+  from { opacity: 0; transform: translateX(-4px); }
+}
+
+.conversation-sidebar__rail-history > p {
+  margin: 0 8px 5px;
+  color: #a09b95;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.conversation-sidebar__rail-history-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.conversation-sidebar__rail .conversation-sidebar__rail-history-list button {
+  width: 100%;
+  min-height: 30px;
+  height: auto;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #514d49;
+  font-size: 11.5px;
+  letter-spacing: -0.006em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conversation-sidebar__rail .conversation-sidebar__rail-history-list button:hover {
+  background: #f4f3f1;
+  color: #111;
+}
+
+.conversation-sidebar__rail-history-list button svg {
+  flex: none;
+  color: #97928d;
+}
+
+.conversation-sidebar__rail-history-list button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-sidebar__rail-history-list button i {
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  flex: none;
+  border-radius: 50%;
+  background: #1385d6;
+  box-shadow: 0 0 0 3px rgb(19 133 214 / 10%);
+}
+
+.conversation-sidebar__rail-history-empty {
+  display: block;
+  padding: 6px 8px;
+  color: #999590;
+  font-size: 10.5px;
+}
+
+.conversation-sidebar__rail-history-search {
+  margin-top: 5px;
+  padding: 7px 8px 3px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #efeeec;
+  color: #8b8783;
+}
+
+.conversation-sidebar__rail-history-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #222;
+  font-size: 11.5px;
+  letter-spacing: -0.006em;
+}
+
+.conversation-sidebar button,
+.conversation-sidebar input {
+  font: inherit;
+}
+
+.conversation-sidebar__brand {
+  height: 52px;
+  padding: 10px 12px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.conversation-sidebar__wordmark,
+.conversation-sidebar__icon {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.conversation-sidebar__wordmark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.conversation-sidebar__wordmark img {
+  width: 22px;
+  height: 22px;
+}
+
+.conversation-sidebar__wordmark-svg {
+  width: 54px;
+  height: auto;
+  color: #171615;
+}
+
+.conversation-sidebar__icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #8b8681;
+}
+
+.conversation-sidebar__icon:hover {
+  background: #ececea;
+  color: #171615;
+}
+
+.conversation-sidebar__primary,
+.conversation-sidebar__footer {
+  padding: 4px 8px;
+}
+
+.conversation-sidebar__new,
+.conversation-sidebar__row,
+.conversation-sidebar__chat {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #5b5651;
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: -0.008em;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.conversation-sidebar__new {
+  margin-bottom: 10px;
+  min-height: 36px;
+  border: 1px solid #e5e3df;
+  border-radius: 8px;
+  background: #eceae6;
+  color: #1c1b1a;
+  font-size: 12px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  box-shadow: none;
+}
+
+.conversation-sidebar__new:hover {
+  border-color: #dcdad5;
+  background: #e3e1dc;
+  color: #000;
+}
+
+.conversation-sidebar__row svg,
+.conversation-sidebar__new svg {
+  flex: none;
+}
+
+/* Primary nav rows sit a notch above the chat list: slightly bigger, firmer. */
+.conversation-sidebar__row {
+  min-height: 32px;
+  color: #6f6a66;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.conversation-sidebar__row svg {
+  color: #9a958f;
+}
+
+.conversation-sidebar :is(button, a):focus-visible {
+  outline: 2px solid #171615;
+  outline-offset: 1px;
+}
+
+.conversation-sidebar__row:hover,
+.conversation-sidebar__chat:hover {
+  background: #efeeec;
+  color: #151413;
+}
+
+.conversation-sidebar__row.is-active,
+.conversation-sidebar__chat.is-active {
+  background: #e9e8e5;
+  color: #111;
+  font-weight: 540;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 3%);
+}
+
+.conversation-sidebar__row.is-active svg,
+.conversation-sidebar__chat.is-active svg {
+  color: #167fc3;
+}
+
+.conversation-sidebar__section-title {
+  margin: 6px 9px 4px;
+  color: #a09b95;
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+}
+
+.conversation-sidebar__group + .conversation-sidebar__group {
+  margin-top: 11px;
+}
+
+.conversation-sidebar__search {
+  height: 30px;
+  margin: 6px 8px 8px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: #f0f0ee;
+  color: #8b8783;
+}
+
+.conversation-sidebar__search:focus-within {
+  border-color: #d6d5d2;
+  background: #fff;
+}
+
+.conversation-sidebar__search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #222;
+  font-size: 11.5px;
+  letter-spacing: -0.006em;
+}
+
+.conversation-sidebar__history {
+  min-height: 90px;
+  flex: 1;
+  padding: 6px 8px;
+  overflow-y: auto;
+}
+
+.conversation-sidebar__history > .conversation-sidebar__section-title {
+  margin-top: 0;
+}
+
+.conversation-sidebar__group > .conversation-sidebar__section-title {
+  margin-top: 0;
+}
+
+.conversation-sidebar__chats-head {
+  margin-top: 15px;
+}
+
+.conversation-sidebar__chat {
+  min-height: 28px;
+  color: #514d49;
+  font-size: 11.5px;
+}
+
+.conversation-sidebar__chat svg {
+  flex: none;
+  color: #97928d;
+}
+
+.conversation-sidebar__chat span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-sidebar__chat i {
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  flex: none;
+  border-radius: 50%;
+  background: #1385d6;
+  box-shadow: 0 0 0 3px rgb(19 133 214 / 10%);
+}
+
+.conversation-sidebar__empty {
+  display: block;
+  padding: 8px 9px;
+  color: #999590;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.conversation-sidebar__footer {
+  padding: 8px;
+  border-top: 0;
+}
+
+.conversation-sidebar__discord {
+  min-height: 32px;
+  padding: 6px 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 7px;
+  color: #5b5651;
+  font-size: 11.5px;
+  text-decoration: none;
+}
+
+.conversation-sidebar__discord svg {
+  color: #5865f2;
+}
+
+.conversation-sidebar__discord:hover {
+  background: #efeeec;
+  color: #171615;
+}
+
+.conversation-sidebar__invite {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #e6e5e2;
+  border-radius: 10px;
+  background: #fff;
+  color: #4d4945;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.conversation-sidebar__invite:hover {
+  border-color: #d5d4d0;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 5%);
+}
+
+.conversation-sidebar__invite > span {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.conversation-sidebar__invite strong {
+  color: #242220;
+  font-size: 11px;
+  font-weight: 580;
+}
+
+.conversation-sidebar__invite small {
+  overflow: hidden;
+  color: #98938e;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-sidebar__invite > svg:last-child {
+  color: #9c9792;
+}
+
+.conversation-sidebar__account {
+  margin-top: 7px;
+  padding: 8px 7px 2px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-top: 1px solid #e6e5e3;
+}
+
+.conversation-sidebar__account > button {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  background: transparent;
+  color: #494542;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conversation-sidebar__account strong {
+  font-size: 11px;
+  font-weight: 580;
+}
+
+.conversation-sidebar__account span {
+  color: #96918d;
+  font-size: 9px;
+}
+
+@media (max-width: 1023px) {
+  .conversation-sidebar {
+    width: min(300px, calc(100vw - 44px));
+    box-shadow: 14px 0 45px rgb(0 0 0 / 16%);
+  }
+
+  .app-shell-panel {
+    border-left: 0;
+  }
 }

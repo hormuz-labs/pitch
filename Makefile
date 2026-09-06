@@ -8,83 +8,81 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev prod down logs ps test test-watch unittest integration sandbox-check whisper-model
+.PHONY: help dev start dev-docker prod down logs ps test test-watch unittest integration sandbox-check whisper-model
 
 help:
 	@echo ""
 	@echo "  $(BOLD)$(CYAN)Pitch — available targets$(RESET)"
 	@echo ""
-	@echo "  $(GREEN)make dev$(RESET)        — start in development mode (interactive)"
+	@echo "  $(GREEN)make dev$(RESET)        — start everything at once (backing services in Docker + API and web via Bun)"
+	@echo "  $(GREEN)make start$(RESET)      — alias for make dev"
+	@echo "  $(GREEN)make dev-docker$(RESET) — run the full stack inside Docker Compose"
 	@echo "  $(GREEN)make prod$(RESET)       — start all containers in production mode"
-	@echo "  $(GREEN)make down$(RESET)       — stop and remove all containers"
-	@echo "  $(GREEN)make logs$(RESET)       — tail logs for all running containers"
+	@echo "  $(GREEN)make down$(RESET)       — stop all containers and free dev ports"
+	@echo "  $(GREEN)make logs$(RESET)       — tail logs for the API container"
 	@echo "  $(GREEN)make ps$(RESET)         — list container status"
-	@echo "  $(GREEN)make unittest$(RESET)    — run fast pure unit tests (no browser)"
-	@echo "  $(GREEN)make integration$(RESET) — run browser-driven integration tests (playwright-cli)"
-	@echo "  $(GREEN)make test$(RESET)        — alias for unittest"
-	@echo "  $(GREEN)make test-watch$(RESET)  — run unit tests in watch mode (vitest)"
-	@echo "  $(GREEN)make sandbox-check$(RESET) — verify the agent's shell is confined on this host"
-	@echo "  $(GREEN)make whisper-model$(RESET) — fetch the model motion_align needs"
+	@echo "  $(GREEN)make unittest$(RESET)   — run fast pure unit tests (no browser)"
+	@echo "  $(GREEN)make integration$(RESET)— run browser-driven integration tests (playwright-cli)"
+	@echo "  $(GREEN)make test$(RESET)       — alias for unittest"
+	@echo "  $(GREEN)make test-watch$(RESET) — run unit tests in watch mode (vitest)"
+	@echo "  $(GREEN)make sandbox-check$(RESET)— verify the agent's shell is confined on this host"
+	@echo "  $(GREEN)make whisper-model$(RESET)— fetch the model motion_align needs"
+	@echo ""
+	@echo "  $(YELLOW)Architecture note:$(RESET) There is no standalone worker or queue service."
+	@echo "  The agent sessions, FFmpeg rendering, and studio previews run unified inside the API."
 	@echo ""
 
 # ─── Development ──────────────────────────────────────────────────────────────
+# Starts everything at once:
+# 1. Frees ports 3000, 5173, 5174 from any stale processes
+# 2. Ensures Postgres, MinIO, and CloakBrowser are running in Docker
+# 3. Ensures dependencies are installed and runs database migrations
+# 4. Boots both backend (API/agent on :3000) and frontend (Vite on :5173) with Bun
 dev:
 	@echo ""
-	@echo "  $(BOLD)Development mode$(RESET)"
+	@echo "  $(BOLD)$(CYAN)Starting Pitch development stack...$(RESET)"
 	@echo ""
-	@if command -v fzf > /dev/null 2>&1; then \
-		choice=$$(printf "essential — postgres & minio in Docker; run studio + web with bun\nall       — full stack in Docker" \
-			| fzf --ansi --no-info --height=4 --prompt="  How do you want to run? " \
-			| awk '{print $$1}'); \
-	else \
-		echo "  $(YELLOW)tip: install fzf for a nicer dropdown (brew install fzf)$(RESET)"; \
+	@echo "  $(YELLOW)Freeing ports 3000, 5173, 5174...$(RESET)"
+	@for p in 3000 5173 5174; do \
+		pid=$$(lsof -ti :$$p 2>/dev/null) && kill -9 $$pid 2>/dev/null && echo "  killed process on port $$p" || true; \
+	done
+	@echo ""
+	@echo "  $(GREEN)Starting Docker dependencies (postgres, minio, cloakbrowser)...$(RESET)"
+	@docker compose -p pitch up -d --wait postgres minio
+	@docker compose -p pitch up -d cloakbrowser-manager
+	@echo ""
+	@if [ ! -d node_modules ] || [ bun.lock -nt node_modules ]; then \
+		echo "  $(GREEN)Installing dependencies...$(RESET)"; \
+		bun install; \
 		echo ""; \
-		printf "  [1] essential — postgres & minio in Docker; run studio + web with bun\n"; \
-		printf "  [2] all       — full stack in Docker\n"; \
-		echo ""; \
-		printf "  Choice [1/2]: "; \
-		read raw; \
-		case "$$raw" in 2) choice="all" ;; *) choice="essential" ;; esac; \
-	fi; \
-	echo ""; \
-		case "$$choice" in \
-		essential) \
-			echo "  $(YELLOW)Cleaning up previous containers and processes...$(RESET)"; \
-			docker compose -p pitch down --remove-orphans 2>/dev/null; \
-			for p in 3000 5174; do \
-				pid=$$(lsof -ti :$$p 2>/dev/null) && kill $$pid 2>/dev/null && echo "  killed process on port $$p" || true; \
-			done; \
-			echo ""; \
-			echo "  $(GREEN)Starting essential containers (postgres, minio)...$(RESET)"; \
-			docker compose -p pitch up -d --wait postgres minio; \
-			echo ""; \
-			if [ ! -d node_modules ] || [ bun.lock -nt node_modules ]; then \
-				echo "  $(GREEN)Installing dependencies...$(RESET)"; \
-				bun install; \
-				echo ""; \
-			fi; \
-			echo "  $(GREEN)Applying database migrations...$(RESET)"; \
-			bun run db:deploy; \
-			echo ""; \
-			echo "  $(GREEN)Starting bun dev servers (Ctrl+C to stop all)...$(RESET)"; \
-			echo ""; \
-			bun run dev ;; \
-		all) \
-			echo "  $(GREEN)Starting full stack in Docker...$(RESET)"; \
-			docker compose -p pitch up -d; \
-			echo ""; \
-			echo "  $(GREEN)All containers started. Run 'make logs' to tail output.$(RESET)"; \
-			echo "" ;; \
-	esac
+	fi
+	@echo "  $(GREEN)Applying database migrations...$(RESET)"
+	@bun run db:deploy
+	@echo ""
+	@echo "  $(GREEN)Starting studio server (API :3000) and frontend (:5173)...$(RESET)"
+	@echo "  $(YELLOW)(Press Ctrl+C to stop)$(RESET)"
+	@echo ""
+	@bun run dev
+
+start: dev
+
+# Full stack in Docker (when containerized API is preferred)
+dev-docker:
+	@echo ""
+	@echo "  $(GREEN)Starting full stack in Docker Compose...$(RESET)"
+	@docker compose -p pitch up -d
+	@echo ""
+	@echo "  $(GREEN)All containers started. Run 'make logs' to tail output.$(RESET)"
+	@echo ""
 
 # ─── Production ───────────────────────────────────────────────────────────────
 prod:
 	@echo ""
 	@echo "  $(BOLD)$(CYAN)Starting production stack...$(RESET)"
 	@echo ""
-	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml stop studio
-	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml rm -f studio
-	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml build --no-cache studio
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml stop api
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml rm -f api
+	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml build --no-cache api
 	docker compose -p pitch -f docker-compose.yml -f docker-compose.prod.yml up -d
 	@echo ""
 	@echo "  $(GREEN)Production stack is up. Run 'make logs' to tail output.$(RESET)"
@@ -95,10 +93,15 @@ down:
 	@echo ""
 	@echo "  Stopping all containers..."
 	docker compose -p pitch down
+	@echo "  Cleaning up local dev server processes on ports 3000, 5173, 5174..."
+	@for p in 3000 5173 5174; do \
+		pid=$$(lsof -ti :$$p 2>/dev/null) && kill -9 $$pid 2>/dev/null || true; \
+	done
+	@echo "  $(GREEN)Done.$(RESET)"
 	@echo ""
 
 logs:
-	docker compose -p pitch logs -f studio
+	docker compose -p pitch logs -f api
 
 ps:
 	docker compose -p pitch ps

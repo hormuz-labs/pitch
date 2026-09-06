@@ -1,0 +1,43 @@
+.lv-studio .url-auth-suggestion-slot { width: 100%; container-type: inline-size; }
+.lv-studio .url-auth-suggestion { position: relative; width: 100%; padding: 10px 34px 10px 10px; display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid #deddd9; border-radius: 12px; background: #f8f8f7; color: #171615; box-shadow: 0 8px 24px rgb(0 0 0 / 5%); animation: url-auth-in 180ms cubic-bezier(.2,.8,.2,1) both; }
+.lv-studio .new-composer-wrap > .url-auth-suggestion-slot { margin-bottom: 10px; }
+.lv-studio .url-auth-suggestion__icon { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid #deddd9; border-radius: 9px; background: #fff; color: #55514d; }
+.lv-studio .url-auth-suggestion__copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lv-studio .url-auth-suggestion__copy strong { overflow: hidden; color: #272421; font-size: 11.5px; font-weight: 600; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.lv-studio .url-auth-suggestion__copy span { color: #817c77; font-size: 10.5px; line-height: 1.4; }
+.lv-studio .url-auth-suggestion__actions { display: flex; align-items: center; gap: 6px; }
+.lv-studio .url-auth-suggestion__actions button { min-height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #d9d7d3; border-radius: 8px; font: 550 10.5px/1 "Geist Variable", "Geist", Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, transform 90ms ease; }
+.lv-studio .url-auth-suggestion__actions button:active { transform: scale(.98); }
+.lv-studio button.url-auth-suggestion__public { background: #fff; color: #5e5954; }
+.lv-studio button.url-auth-suggestion__public:hover:not(:disabled) { border-color: #bbb8b4; background: #fff; color: #171615; }
+.lv-studio button.url-auth-suggestion__authenticate { border-color: #171615; background: #171615; color: #fff; }
+.lv-studio button.url-auth-suggestion__authenticate:hover:not(:disabled) { border-color: #2b2926; background: #2b2926; color: #fff; }
+.lv-studio.new-project-page button.url-auth-suggestion__public { background: #fff; color: #5e5954; }
+.lv-studio.new-project-page button.url-auth-suggestion__authenticate,
+.lv-studio.new-project-page button.url-auth-suggestion__authenticate:hover:not(:disabled) { border-color: #171615; background: #171615; color: #fff; }
+.lv-studio button.url-auth-suggestion__close { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #9a9691; cursor: pointer; }
+.lv-studio button.url-auth-suggestion__close:hover:not(:disabled) { background: #ecebe8; color: #393632; }
+.lv-studio .url-auth-suggestion button:focus-visible { outline: 2px solid #171615; outline-offset: 2px; }
+
+@keyframes url-auth-in {
+  from { opacity: 0; transform: translateY(4px) scale(.99); }
+  to { opacity: 1; transform: none; }
+}
+
+@container (max-width: 540px) {
+  .lv-studio .url-auth-suggestion { grid-template-columns: 30px minmax(0, 1fr); }
+  .lv-studio .url-auth-suggestion__actions { grid-column: 1 / -1; }
+  .lv-studio .url-auth-suggestion__actions button { flex: 1; }
+}
+
+@container (max-width: 340px) {
+  .lv-studio .url-auth-suggestion { padding: 9px 32px 9px 9px; grid-template-columns: 26px minmax(0, 1fr); gap: 7px; }
+  .lv-studio .url-auth-suggestion__icon { width: 26px; height: 26px; }
+  .lv-studio .url-auth-suggestion__copy span { font-size: 10px; }
+  .lv-studio .url-auth-suggestion__actions { gap: 5px; }
+  .lv-studio .url-auth-suggestion__actions button { min-width: 0; padding-inline: 7px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-studio .url-auth-suggestion { animation: none; }
+}
