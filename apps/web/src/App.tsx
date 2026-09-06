@@ -34,11 +34,11 @@ import {
   PlugZap,
   Plus,
   Search,
+  Share2,
   Shield,
   X,
 } from 'lucide-react'
 import { BiSolidZap } from 'react-icons/bi'
-import { FaDiscord } from 'react-icons/fa6'
 import tabLogoB from './assets/tabLogoB.svg'
 import { AnimatedAdminIcon } from './components/AnimatedAdminIcon'
 import { AnimatedDashboardIcon } from './components/AnimatedDashboardIcon'
@@ -48,10 +48,11 @@ import { AnimatedSettingsIcon } from './components/AnimatedSettingsIcon'
 import { AnimatedShareIcon } from './components/AnimatedShareIcon'
 import { AnimatedSupportIcon } from './components/AnimatedSupportIcon'
 import { AnimatedVideoIcon } from './components/AnimatedVideoIcon'
+import { SOCIALS } from './components/LandingFooter'
 import { LoadingCoin } from './components/LoadingCoin'
-import { PitchWordmark } from './components/PitchWordmark'
 import { OnboardingSurvey } from './components/OnboardingSurvey'
 import { PitchLogoAnimation } from './components/PitchLogoAnimation'
+import { PitchWordmark } from './components/PitchWordmark'
 import { SettingsModal, type SettingsSection } from './components/SettingsModal'
 import { API_URL } from './config'
 import { api, isApiError } from './lib/api'
@@ -723,15 +724,25 @@ const Sidebar = ({
         </div>
 
         <div className="conversation-sidebar__footer">
-          <a
-            className="conversation-sidebar__discord"
-            href="https://discord.gg/a4SBW36mD"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <FaDiscord size={16} />
-            <span>Discord Community</span>
-          </a>
+          {/* Community social links matching landing footer */}
+          <div className="conversation-sidebar__socials">
+            {SOCIALS.map(s => {
+              const Icon = s.icon
+              return (
+                <a
+                  key={s.label}
+                  className={`conversation-sidebar__social conversation-sidebar__social--${s.label.toLowerCase()}`}
+                  href={s.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={s.label}
+                  title={s.label}
+                >
+                  {Icon ? <Icon size={17} /> : s.label}
+                </a>
+              )
+            })}
+          </div>
           <button
             type="button"
             className="conversation-sidebar__invite"
@@ -794,7 +805,11 @@ const Sidebar = ({
           >
             <button
               type="button"
-              onClick={() => go('/sessions')}
+              onClick={() => {
+                setHistoryOpen(false)
+                setHistoryQuery('')
+                onToggle()
+              }}
               aria-label="Recent chats"
               title="Recent chats"
               aria-expanded={historyOpen}
@@ -837,15 +852,16 @@ const Sidebar = ({
             )}
           </div>
           <span />
+          {/* Expand sidebar to access community social links */}
           <button
             type="button"
             onClick={() => {
-              window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+              if (collapsed) onToggle()
             }}
-            aria-label="Discord Community"
-            title="Discord Community"
+            aria-label="Open social links"
+            title="Open social links"
           >
-            <FaDiscord size={16} />
+            <Share2 size={16} />
           </button>
           <button
             type="button"

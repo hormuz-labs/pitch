@@ -31,9 +31,11 @@
 [data-theme="dark"] .app-shell-sidebar .text-gray-500 {
   color: var(--text-muted) !important;
 }
+
 [data-theme="dark"] .app-shell-sidebar .text-gray-400 {
   color: var(--text-faint) !important;
 }
+
 [data-theme="dark"] .app-shell-sidebar .text-gray-800 {
   color: var(--text-primary) !important;
 }
@@ -101,7 +103,9 @@
 }
 
 @keyframes scrim-in {
-  from { opacity: 0; }
+  from {
+    opacity: 0;
+  }
 }
 
 .conversation-sidebar__rail {
@@ -139,8 +143,8 @@
 
 /* One notch bigger than the drawer's glyphs, so the rail reads at a glance.
    Scoped to the rail's own buttons — the history fly-out keeps its 13px ones. */
-.conversation-sidebar__rail > button svg,
-.conversation-sidebar__rail-pop > button svg {
+.conversation-sidebar__rail>button svg,
+.conversation-sidebar__rail-pop>button svg {
   width: 19px;
   height: 19px;
 }
@@ -151,7 +155,7 @@
   color: #292725;
 }
 
-.conversation-sidebar__rail > span {
+.conversation-sidebar__rail>span {
   flex: 1;
 }
 
@@ -175,11 +179,26 @@
   animation: rail-history-in 140ms ease;
 }
 
-@keyframes rail-history-in {
-  from { opacity: 0; transform: translateX(-4px); }
+/* Keep the fly-out hovered while the pointer crosses its visual gutter from
+   the rail icon. The bridge is deliberately transparent: spacing stays airy,
+   but there is no dead zone that dismisses the history before it can be used. */
+.conversation-sidebar__rail .conversation-sidebar__rail-history::before {
+  position: absolute;
+  top: -8px;
+  right: 100%;
+  bottom: -8px;
+  width: 12px;
+  content: "";
 }
 
-.conversation-sidebar__rail-history > p {
+@keyframes rail-history-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+.conversation-sidebar__rail-history>p {
   margin: 0 8px 5px;
   color: #a09b95;
   font-size: 9px;
@@ -298,13 +317,14 @@
 }
 
 .conversation-sidebar__wordmark img {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
 }
 
 .conversation-sidebar__wordmark-svg {
-  width: 54px;
-  height: auto;
+  width: auto;
+  height: 32px;
+  padding-bottom: 4px;
   color: #171615;
 }
 
@@ -417,7 +437,7 @@
   letter-spacing: 0.01em;
 }
 
-.conversation-sidebar__group + .conversation-sidebar__group {
+.conversation-sidebar__group+.conversation-sidebar__group {
   margin-top: 11px;
 }
 
@@ -458,11 +478,11 @@
   overflow-y: auto;
 }
 
-.conversation-sidebar__history > .conversation-sidebar__section-title {
+.conversation-sidebar__history>.conversation-sidebar__section-title {
   margin-top: 0;
 }
 
-.conversation-sidebar__group > .conversation-sidebar__section-title {
+.conversation-sidebar__group>.conversation-sidebar__section-title {
   margin-top: 0;
 }
 
@@ -510,26 +530,43 @@
   border-top: 0;
 }
 
-.conversation-sidebar__discord {
-  min-height: 32px;
-  padding: 6px 9px;
+.conversation-sidebar__socials {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  padding: 0 2px 8px;
+}
+
+.conversation-sidebar__social {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 7px;
-  color: #5b5651;
-  font-size: 11.5px;
+  color: #6f6a66;
   text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.conversation-sidebar__discord svg {
-  color: #5865f2;
-}
-
-.conversation-sidebar__discord:hover {
+.conversation-sidebar__social:hover {
   background: #efeeec;
-  color: #171615;
 }
+
+.conversation-sidebar__social--twitter { color: #000; }
+.conversation-sidebar__social--twitter:hover { color: #000; }
+
+.conversation-sidebar__social--instagram { color: #e4405f; }
+.conversation-sidebar__social--instagram:hover { color: #d62d4d; }
+
+.conversation-sidebar__social--linkedin { color: #0a66c2; }
+.conversation-sidebar__social--linkedin:hover { color: #084d92; }
+
+.conversation-sidebar__social--discord { color: #5865f2; }
+.conversation-sidebar__social--discord:hover { color: #5865f2; }
+
+.conversation-sidebar__social--youtube { color: #ff0000; }
+.conversation-sidebar__social--youtube:hover { color: #cc0000; }
 
 .conversation-sidebar__invite {
   width: 100%;
@@ -554,7 +591,7 @@
   box-shadow: 0 4px 14px rgb(0 0 0 / 5%);
 }
 
-.conversation-sidebar__invite > span {
+.conversation-sidebar__invite>span {
   min-width: 0;
   display: flex;
   flex: 1;
@@ -575,7 +612,7 @@
   white-space: nowrap;
 }
 
-.conversation-sidebar__invite > svg:last-child {
+.conversation-sidebar__invite>svg:last-child {
   color: #9c9792;
 }
 
@@ -588,7 +625,7 @@
   border-top: 1px solid #e6e5e3;
 }
 
-.conversation-sidebar__account > button {
+.conversation-sidebar__account>button {
   padding: 0;
   display: flex;
   flex-direction: column;

@@ -1,7 +1,7 @@
 /*
  * Launch-video studio styles — ported from the standalone studio and scoped
  * under .lv-studio so nothing leaks into the app shell. Colour tokens map onto
- * the app's palette; the stage stays dark on purpose (it is a video monitor).
+ * the app's palette. The editor chrome is light; media keeps its own colours.
  */
 .lv-studio {
   --paper: var(--bg-page, #fdfdfd);
@@ -905,7 +905,7 @@ to {
 .lv-studio .building-copy {
   position: relative;
   text-align: center;
-  max-width: 60ch;
+  max-width: 44ch;
   padding: 0 24px;
 }
 .lv-studio .building-title {
@@ -3206,12 +3206,28 @@ to {
 
 @media (max-width: 900px) {
   .lv-studio .editor { flex-direction: column; }
-  /* Enough of the artifact to judge it, the rest of the height to the
-     conversation that changes it. */
+  /* YouTube-style: the player is sized by width at 16:9 rather than a
+     viewport-height clamp, so the artifact fills the phone's width and the
+     conversation below takes whatever height is left. */
   .lv-studio .editor-stage {
     flex: 0 0 auto;
-    height: clamp(220px, 40vh, 380px);
+    height: auto;
     min-height: 0;
+  }
+  .lv-studio .editor-stage > .player {
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 9;
+  }
+  /* The selectable video keeps its selection track below the picture instead
+     of squeezing it: the video itself gets the 16:9 ratio and the player
+     grows to fit the track underneath. */
+  .lv-studio .editor-stage > .player:has(.video-container) {
+    aspect-ratio: auto;
+  }
+  .lv-studio .editor-stage > .player .video-container > video {
+    flex: 0 0 auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
   }
   .lv-studio .player { padding: 12px; }
   .lv-studio .resize-handle { display: none; }
@@ -3226,7 +3242,6 @@ to {
 }
 
 @media (max-width: 720px) {
-  .lv-studio .editor-stage { height: clamp(200px, 36vh, 300px); }
   .lv-studio .feed { padding: 10px 12px 12px; }
   .lv-studio .feed-header { padding: 10px 12px 2px; }
   .lv-studio .composer-wrap { padding: 0 12px 12px; }
@@ -3305,4 +3320,691 @@ to {
    stage behind it is already showing what it is rendering. */
 @media (max-width: 480px) {
   .lv-studio .topbar-btn.export { max-width: 132px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Light split editor
+   ──────────────────────────────────────────────────────────────────────────
+   Conversation follows reading order on the left; the artifact keeps the
+   larger pane on the right. Both panes use the same quiet, light chrome while
+   the media itself remains colour-accurate.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.lv-studio {
+  --paper: #f8f8f9;
+  --panel: #ffffff;
+  --panel-2: #f3f4f6;
+  --ink: #18181b;
+  --muted: #52525b;
+  --faint: #8b8b93;
+  --border: #e2e3e6;
+  --stage: #f4f5f7;
+  background: var(--panel);
+}
+
+.lv-studio .job-topbar {
+  height: 52px;
+  padding: 0 18px;
+  background: #ffffff;
+  border-bottom-color: var(--border);
+}
+
+.lv-studio .job-topbar .nav-crumb {
+  gap: 9px;
+}
+
+.lv-studio .job-topbar .editor-project {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.lv-studio .project-kind {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.lv-studio .project-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.lv-studio .project-state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a1a1aa;
+}
+
+.lv-studio .project-state.ready i { background: #22a06b; }
+.lv-studio .project-state.working i {
+  background: var(--accent);
+  animation: lv-pulse 1.4s ease-in-out infinite;
+}
+.lv-studio .project-state.failed { color: #b42318; }
+.lv-studio .project-state.failed i { background: #d92d20; }
+
+.lv-studio .editor {
+  min-width: 0;
+  background: #ffffff;
+}
+
+.lv-studio .edit-sidebar {
+  width: var(--sidebar-w, 520px);
+  max-width: 44%;
+  border: 0;
+  background: #ffffff;
+}
+
+.lv-studio .feed-header,
+.lv-studio .preview-pane-header {
+  flex: 0 0 46px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.lv-studio .feed-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  text-transform: none;
+}
+
+.lv-studio .preview-pane-header {
+  gap: 3px;
+  padding: 0 12px;
+}
+
+.lv-studio .preview-pane-tab {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.lv-studio .preview-pane-tab:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--panel-2);
+}
+
+.lv-studio .preview-pane-tab.is-active,
+.lv-studio .preview-pane-tab.is-active:hover:not(:disabled) {
+  color: var(--ink);
+  background: #ebedf0;
+}
+
+.lv-studio .preview-pane-tab small {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 450;
+}
+
+.lv-studio .preview-pane-spacer {
+  flex: 1;
+}
+
+.lv-studio .feed {
+  padding: 18px 20px 14px;
+  gap: 12px;
+  scrollbar-color: #c7c5c1 transparent;
+}
+
+.lv-studio .feed-empty {
+  max-width: 42ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.lv-studio .thread {
+  gap: 16px;
+}
+
+.lv-studio .msg {
+  max-width: 92%;
+  font-size: 13.5px;
+  line-height: 1.58;
+}
+
+.lv-studio .msg.user {
+  padding: 9px 13px;
+  background: #f1f1ef;
+  color: var(--ink);
+  border: 1px solid #ecebe8;
+}
+
+.lv-studio .msg.assistant {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.lv-studio .log-line {
+  padding: 0;
+  color: #817e79;
+}
+
+.lv-studio .job-composer {
+  padding: 10px 14px 14px;
+  border-top: 0;
+  background: #ffffff;
+}
+
+.lv-studio .job-composer-box {
+  min-height: 132px;
+  padding: 16px 16px 12px;
+  border-color: #d8d7d4;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 16px 42px rgb(0 0 0 / 6%), 0 2px 7px rgb(0 0 0 / 3%);
+}
+
+.lv-studio .job-composer-box:focus-within {
+  border-color: #aaa8a4;
+  box-shadow: 0 20px 48px rgb(0 0 0 / 8%), 0 0 0 3px rgb(0 0 0 / 3%);
+}
+
+.lv-studio .job-composer-box textarea {
+  min-height: 60px;
+  padding: 6px 7px;
+  color: #171615;
+  font-size: 14px;
+}
+
+.lv-studio .job-composer-box textarea::placeholder {
+  color: #aaa6a2;
+}
+
+.lv-studio .job-composer-tools,
+.lv-studio .job-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.lv-studio .job-attach-plus,
+.lv-studio .job-send-round {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.lv-studio .job-attach-plus {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  border: 1px solid #dcdbd8;
+  background: #ffffff;
+  color: #55514d;
+}
+
+.lv-studio .job-attach-plus:hover:not(:disabled) {
+  border-color: #aaa7a3;
+  background: #ffffff;
+  color: #111111;
+}
+
+.lv-studio .job-attach-plus .spinner {
+  width: 13px;
+  height: 13px;
+}
+
+/* Model picker — same pattern as the /new composer, re-grounded on studio
+   tokens: quiet pill button, menu floats above the composer. */
+.lv-studio .job-composer .model-select {
+  position: relative;
+}
+
+.lv-studio .job-composer .model-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 140px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lv-studio .job-composer .model-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-studio .job-composer .model-btn:hover:not(:disabled),
+.lv-studio .job-composer .model-btn[aria-expanded='true'] {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.lv-studio .job-composer .model-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  min-width: 210px;
+  max-height: 260px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow:
+    0 12px 32px rgb(0 0 0 / 12%),
+    0 2px 6px rgb(0 0 0 / 5%);
+}
+
+.lv-studio .job-composer .model-option {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lv-studio .job-composer .model-option:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.lv-studio .job-composer .model-option.is-active {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.lv-studio .job-send-round {
+  background: #111111;
+  color: #ffffff;
+}
+
+.lv-studio .job-send-round:hover:not(:disabled) {
+  background: #2a2a28;
+}
+
+.lv-studio .job-send-round:disabled {
+  background: #e5e4e2;
+  color: #aba7a2;
+}
+
+.lv-studio .job-send-round.stop,
+.lv-studio .job-send-round.stop:hover:not(:disabled) {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.lv-studio .resize-handle {
+  width: 9px;
+  margin-left: 0;
+  background: #f7f7f8;
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  outline: none;
+}
+
+.lv-studio .resize-handle::after {
+  width: 3px;
+  height: 34px;
+  background: #c9c7c3;
+}
+
+.lv-studio .resize-handle:hover::after,
+.lv-studio .resize-handle:focus-visible::after {
+  height: 48px;
+  background: var(--accent);
+}
+
+.lv-studio .resize-handle:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-soft);
+}
+
+.lv-studio .editor-stage {
+  min-width: 0;
+  background: var(--stage);
+  --paper: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f3f4f6;
+  --ink: #18181b;
+  --muted: #52525b;
+  --faint: #8b8b93;
+  --border: #e2e3e6;
+}
+
+.lv-studio .player {
+  padding: 12px;
+  background: var(--stage);
+}
+
+.lv-studio .player-stage {
+  min-width: 0;
+}
+
+.lv-studio .building-stage {
+  border-color: var(--border);
+  border-radius: 10px;
+  background-color: #ffffff;
+  background-image: radial-gradient(circle, rgb(24 24 27 / 6%) 1px, transparent 1px);
+  background-size: 22px 22px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
+}
+
+.lv-studio .building-orbs .orb {
+  display: none;
+}
+
+.lv-studio .building-orbs .o1 { background: #a9d7f7; }
+.lv-studio .building-orbs .o2 { background: #d8cff8; }
+.lv-studio .building-orbs .o3 { background: #bfe8df; }
+
+.lv-studio .building-frames .bframe {
+  display: none;
+}
+
+.lv-studio .building-frames .bframe:first-child {
+  border-color: #b7b4af;
+  background: #ecebe8;
+}
+
+.lv-studio .building-title {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.lv-studio .building-icon {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.lv-studio .building-stage.is-busy .building-icon {
+  animation: buildingIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes buildingIconPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgb(19 133 214 / 26%);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgb(19 133 214 / 0%);
+  }
+}
+
+.lv-studio .building-status {
+  color: var(--muted);
+}
+
+.lv-studio .live-preview,
+.lv-studio .deck-preview,
+.lv-studio .pdf-preview,
+.lv-studio .browser-preview {
+  box-shadow: 0 8px 30px rgb(0 0 0 / 12%);
+}
+
+.lv-studio .video-select {
+  color: var(--muted);
+}
+
+.lv-studio .video-select-actions .target-clear {
+  color: var(--muted);
+}
+
+.lv-studio .video-track {
+  background: #e7e6e3;
+  border: 1px solid #d9d8d5;
+}
+
+.lv-studio .video-track-beat {
+  background: rgb(255 255 255 / 42%);
+  border-right-color: #cfcdc9;
+}
+
+.lv-studio .video-track-playhead {
+  background: #343331;
+}
+
+.lv-studio .video-track-times {
+  color: var(--faint);
+}
+
+.lv-studio .tray,
+.lv-studio .timeline {
+  background: #ffffff;
+  border-top-color: var(--border);
+}
+
+.lv-studio .tray > .timeline {
+  padding: 10px 16px 22px;
+}
+
+.lv-studio .tray > .timeline .timeline-header {
+  margin-bottom: 8px;
+}
+
+.lv-studio .timeline-empty-strip {
+  display: flex;
+  gap: 8px;
+}
+
+.lv-studio .timeline-slot {
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  border: 1.5px dashed #c8c7c4;
+  border-radius: 8px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.lv-studio .timeline-empty-strip.is-busy .timeline-slot {
+  animation: slotPulse 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.18s);
+}
+
+@keyframes slotPulse {
+  0%, 100% {
+    border-color: #c8c7c4;
+    color: var(--faint);
+  }
+  50% {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.lv-studio .studio-empty-timeline .timeline-meta {
+  color: var(--muted);
+}
+
+.lv-studio .tray-tabs {
+  padding-top: 7px;
+  background: #ffffff;
+}
+
+.lv-studio .tray-tab.on {
+  background: #f1f1ef;
+}
+
+.lv-studio .asset-card .asset-ref {
+  background: rgb(255 255 255 / 94%);
+  color: var(--ink);
+  box-shadow: 0 1px 5px rgb(0 0 0 / 16%);
+}
+
+.lv-studio .asset-card .asset-ref:hover:not(:disabled) {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.lv-studio .studio-files-view {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.lv-studio .studio-files-view .asset-shelf {
+  height: 100%;
+  padding: 20px;
+  overflow-y: auto;
+  border-top: 0;
+}
+
+.lv-studio .studio-files-view .timeline-header {
+  margin-bottom: 16px;
+}
+
+.lv-studio .studio-files-view .timeline-header h2 {
+  color: var(--ink);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.lv-studio .studio-files-view .strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  overflow: visible;
+}
+
+.lv-studio .studio-files-view .asset-card {
+  width: auto;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .lv-studio .edit-sidebar {
+    width: clamp(340px, 36vw, 460px);
+    max-width: 44%;
+  }
+}
+
+@media (max-width: 900px) {
+  .lv-studio .job-topbar {
+    height: 52px;
+    min-height: 52px;
+    flex-wrap: nowrap;
+  }
+
+  .lv-studio .job-topbar .nav-crumb {
+    flex: 1 1 auto;
+  }
+
+  .lv-studio .job-topbar .topbar-actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+    flex-wrap: nowrap;
+  }
+
+  .lv-studio .editor-stage {
+    order: 1;
+    height: auto;
+    flex: 0 0 auto;
+  }
+
+  /* The files tab has no intrinsic height to size itself from, so it keeps a
+     bounded share of the screen; only the preview gets the 16:9 treatment. */
+  .lv-studio .editor-stage:has(.studio-files-view) {
+    height: clamp(260px, 44vh, 420px);
+  }
+
+  .lv-studio .editor-stage > .player {
+    flex: 0 0 auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  /* The selectable video keeps its selection track below the picture instead
+     of squeezing it: the video itself gets the 16:9 ratio and the player
+     grows to fit the track underneath. */
+  .lv-studio .editor-stage > .player:has(.video-container) {
+    aspect-ratio: auto;
+  }
+
+  .lv-studio .editor-stage > .player .video-container > video {
+    flex: 0 0 auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .lv-studio .resize-handle {
+    order: 2;
+  }
+
+  .lv-studio .edit-sidebar {
+    order: 3;
+    width: auto;
+    max-width: none;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 720px) {
+  .lv-studio .feed-header,
+  .lv-studio .preview-pane-header {
+    flex-basis: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .lv-studio .feed {
+    padding: 16px 12px 12px;
+  }
+
+  .lv-studio .job-composer {
+    padding: 8px 12px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lv-studio .project-kind,
+  .lv-studio .project-state {
+    display: none;
+  }
 }

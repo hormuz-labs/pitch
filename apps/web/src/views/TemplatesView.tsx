@@ -96,6 +96,9 @@ export const TemplatesView = ({
   const [previewScale, setPreviewScale] = useState(0.36)
   const previewCarouselRef = useRef<HTMLDivElement>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [fullViewOpen, setFullViewOpen] = useState(false)
+  const fullViewRef = useRef<HTMLDivElement>(null)
+  const [fullViewScale, setFullViewScale] = useState(1)
 
   // Measure carousel viewport → compute exact scale for 1280×720 virtual slide
   useEffect(() => {
@@ -107,6 +110,29 @@ export const TemplatesView = ({
     ro.observe(el)
     return () => ro.disconnect()
   }, [selectedTemplate])
+
+  // Measure full-view viewport → scale slide to fit without upscaling beyond 1:1
+  useEffect(() => {
+    if (!fullViewOpen) return
+    const el = fullViewRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setFullViewScale(Math.min(width / 1280, height / 720, 1))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fullViewOpen])
+
+  // Close full-view on Escape
+  useEffect(() => {
+    if (!fullViewOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullViewOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [fullViewOpen])
 
   // Keep parent header in sync whenever detail mode changes
   const clearSelection = () => {
@@ -209,7 +235,7 @@ export const TemplatesView = ({
 
   // ── Iframe-based pixel-perfect preview ───────────────────────────────────────
   // Renders the exact same HTML+CSS used in the real PDF, scaled to fit the card.
-  const renderMiniPreviewSlide = (template: Template, idx: number) => {
+  const renderPreviewSlide = (template: Template, idx: number, scale: number) => {
     const slide = template.previewSlides[idx]
     if (!slide) return null
 
@@ -246,8 +272,7 @@ ${css}
             height: VIRTUAL_H,
             border: 'none',
             transformOrigin: '0 0',
-            // previewScale = containerWidth / 1280 (measured by ResizeObserver)
-            transform: `scale(${previewScale})`,
+            transform: `scale(${scale})`,
             display: 'block',
           }}
           sandbox="allow-scripts"
@@ -297,8 +322,34 @@ ${css}
                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
                   Live Design Preview
                 </div>
-                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
-                  {previewSlideIdx + 1} / {selectedTemplate.previewSlides.length} layouts
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFullViewOpen(true)}
+                    className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wide hover:text-gray-800 transition-colors cursor-pointer border-none bg-transparent p-0"
+                    aria-label="Open full view preview"
+                    title="Open full view preview"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M15 3h6v6" />
+                      <path d="M9 21H3v-6" />
+                      <path d="M21 3l-7 7" />
+                      <path d="M3 21l7-7" />
+                    </svg>
+                    Full view
+                  </button>
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                    {previewSlideIdx + 1} / {selectedTemplate.previewSlides.length} layouts
+                  </div>
                 </div>
               </div>
 
@@ -333,7 +384,7 @@ ${css}
                       className="relative shrink-0"
                       style={{ width: `${100 / selectedTemplate.previewSlides.length}%` }}
                     >
-                      {renderMiniPreviewSlide(selectedTemplate, idx)}
+                      {renderPreviewSlide(selectedTemplate, idx, previewScale)}
                     </div>
                   ))}
                 </div>
@@ -574,6 +625,111 @@ ${css}
             </div>
           </div>
         </div>
+
+        {/* Full-view preview modal */}
+        {fullViewOpen && (
+          <div
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 sm:p-8"
+            onClick={e => {
+              if (e.target === e.currentTarget) setFullViewOpen(false)
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setFullViewOpen(false)}
+              className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border-none bg-white/10 text-white transition-colors hover:bg-white/20 cursor-pointer"
+              aria-label="Close full view"
+              title="Close full view"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div
+              ref={fullViewRef}
+              className="relative w-full max-w-[1280px] aspect-[16/9] max-h-[80vh]"
+            >
+              {renderPreviewSlide(selectedTemplate, previewSlideIdx, fullViewScale)}
+
+              {/* Full-view prev arrow */}
+              {previewSlideIdx > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewSlideIdx(i => i - 1)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full flex items-center justify-center border-none outline-none cursor-pointer transition-all duration-200 hover:scale-110"
+                  style={{
+                    background: 'rgba(0,0,0,0.45)',
+                    color: '#fff',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                  aria-label="Previous layout"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Full-view next arrow */}
+              {previewSlideIdx < selectedTemplate.previewSlides.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewSlideIdx(i => i + 1)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full flex items-center justify-center border-none outline-none cursor-pointer transition-all duration-200 hover:scale-110"
+                  style={{
+                    background: 'rgba(0,0,0,0.45)',
+                    color: '#fff',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                  aria-label="Next layout"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center gap-3 text-white/80">
+              <span className="text-xs font-medium">
+                {previewSlideIdx + 1} / {selectedTemplate.previewSlides.length} layouts
+              </span>
+              <span className="text-xs text-white/50">·</span>
+              <span className="text-xs text-white/70">
+                {selectedTemplate.previewSlides[previewSlideIdx]?.layout}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

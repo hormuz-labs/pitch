@@ -1,22 +1,27 @@
-import { Bot, Check, Copy, KeyRound, Plus, Settings2 } from 'lucide-react'
+import { ArrowLeft, Bot, Check, Copy, KeyRound, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import chatgptIcon from '../assets/chatgpt.png'
+import claudeIcon from '../assets/claude.svg'
+import cursorIcon from '../assets/cursor.png'
+import perplexityIcon from '../assets/perplexity.png'
 
 const ENDPOINT = 'https://api.trypitch.co/mcp'
 const clients = [
-  { id: 'claude', label: 'Claude' },
-  { id: 'cursor', label: 'Cursor' },
-  { id: 'chatgpt', label: 'ChatGPT' },
-  { id: 'perplexity', label: 'Perplexity' },
-  { id: 'other', label: 'Any agent' },
+  { id: 'claude', label: 'Claude', icon: claudeIcon },
+  { id: 'cursor', label: 'Cursor', icon: cursorIcon },
+  { id: 'chatgpt', label: 'ChatGPT', icon: chatgptIcon },
+  { id: 'perplexity', label: 'Perplexity', icon: perplexityIcon },
+  { id: 'other', label: 'Any agent', icon: null },
 ] as const
 
-function CopyValue({ value }: { value: string }) {
+function CopyValue({ value, label = 'Copy value' }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <button
       type="button"
       className="mcp-copy"
-      aria-label="Copy value"
+      aria-label={label}
+      title={copied ? 'Copied' : label}
       onClick={async () => {
         await navigator.clipboard.writeText(value)
         setCopied(true)
@@ -30,7 +35,7 @@ function CopyValue({ value }: { value: string }) {
 
 export function McpSettingsPanel({ openApi }: { openApi: () => void }) {
   const [client, setClient] = useState<(typeof clients)[number]['id']>('claude')
-  const [autonomousOpen, setAutonomousOpen] = useState(false)
+  const [view, setView] = useState<'connect' | 'autonomous'>('connect')
   const clientName = clients.find(item => item.id === client)?.label ?? 'your agent'
   const config = useMemo(
     () => `{
@@ -45,6 +50,20 @@ export function McpSettingsPanel({ openApi }: { openApi: () => void }) {
 }`,
     [],
   )
+  const autonomousPrompt = useMemo(
+    () => `Set yourself up to use Pitch over MCP. Complete the setup yourself after I provide a dedicated API key.
+
+1. Ask me for a dedicated Pitch API key. Never print it or write it into project files.
+2. Store the key in your secret manager as PITCH_API_KEY.
+3. Connect to ${ENDPOINT} using this header:
+   Authorization: Bearer <PITCH_API_KEY>
+4. Call get_credits to confirm the connection and available balance.
+5. Use create_project for the first request, poll get_project until it is ready or failed, and use prompt_project for revisions.
+6. Tell me when setup is complete and include no secret values in your response.
+
+The account owner can revoke the key at any time from Pitch Settings → API.`,
+    [],
+  )
 
   return (
     <div className="mcp-settings">
@@ -52,141 +71,148 @@ export function McpSettingsPanel({ openApi }: { openApi: () => void }) {
         <h4>Set up your AI agent</h4>
         <p>Connect an AI agent to Pitch over the Model Context Protocol (MCP).</p>
       </div>
-      <div className="mcp-clients" role="tablist" aria-label="MCP client">
-        {clients.map(item => (
+
+      {view === 'connect' ? (
+        <>
+          <div className="mcp-clients" role="tablist" aria-label="MCP client">
+            {clients.map(item => {
+              return (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={client === item.id}
+                  className={client === item.id ? 'is-active' : ''}
+                  onClick={() => setClient(item.id)}
+                  key={item.id}
+                >
+                  {item.icon ? (
+                    <img src={item.icon} alt="" width={15} height={15} />
+                  ) : (
+                    <Bot size={14} aria-hidden="true" />
+                  )}
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mcp-steps">
+            <div className="mcp-step">
+              <span>1</span>
+              <div>
+                <strong>Create a dedicated Pitch API key</strong>
+                <p>
+                  Open <b>API keys</b>, choose <b>New key</b>, and name it for {clientName}. The
+                  secret is shown only once.
+                </p>
+                <button type="button" className="mcp-inline-action" onClick={openApi}>
+                  <Plus size={13} /> Open API keys
+                </button>
+              </div>
+            </div>
+
+            <div className="mcp-step">
+              <span>2</span>
+              <div>
+                <strong>Add Pitch as a custom connector</strong>
+                <p>
+                  In {clientName}, open its MCP or connector settings, add a custom server named{' '}
+                  <b>Pitch</b>, and paste this URL:
+                </p>
+                <div className="mcp-code">
+                  <code>{ENDPOINT}</code>
+                  <CopyValue value={ENDPOINT} label="Copy MCP URL" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mcp-step">
+              <span>3</span>
+              <div>
+                <strong>Connect with your key</strong>
+                <p>
+                  Use the key as a Bearer token. Pitch scopes projects and credit usage to its
+                  owner.
+                </p>
+                <div className="mcp-code">
+                  <code>Authorization: Bearer pk_…</code>
+                  <CopyValue
+                    value="Authorization: Bearer pk_your_key_here"
+                    label="Copy authorization header"
+                  />
+                </div>
+                {(client === 'cursor' || client === 'other') && (
+                  <details className="mcp-config-details">
+                    <summary>Show complete configuration</summary>
+                    <div className="mcp-code mcp-code--block">
+                      <pre>{config}</pre>
+                      <CopyValue value={config} label="Copy complete configuration" />
+                    </div>
+                  </details>
+                )}
+              </div>
+            </div>
+          </div>
+
           <button
             type="button"
-            role="tab"
-            aria-selected={client === item.id}
-            className={client === item.id ? 'is-active' : ''}
-            onClick={() => setClient(item.id)}
-            key={item.id}
+            className="mcp-autonomous-trigger"
+            onClick={() => setView('autonomous')}
           >
-            <Bot size={13} /> {item.label}
+            <Bot size={15} aria-hidden="true" /> Let your agent sign itself up
           </button>
-        ))}
-      </div>
-      <div className="mcp-steps">
-        <div className="mcp-step">
-          <span>1</span>
-          <div>
-            <strong>Create a Pitch API key</strong>
-            <p>
-              Open the API tab, choose <b>New key</b>, and name it for {clientName}. The secret is
-              shown only once.
-            </p>
-            <button type="button" className="mcp-inline-action" onClick={openApi}>
-              <Plus size={13} /> Open API keys
-            </button>
-          </div>
-        </div>
-        <div className="mcp-step">
-          <span>2</span>
-          <div>
-            <strong>Add a custom MCP server</strong>
-            <p>
-              In {clientName}, open its MCP or connector settings and add a custom server named{' '}
-              <b>Pitch</b>.
-            </p>
-            <div className="mcp-code">
-              <code>{ENDPOINT}</code>
-              <CopyValue value={ENDPOINT} />
-            </div>
-          </div>
-        </div>
-        <div className="mcp-step">
-          <span>3</span>
-          <div>
-            <strong>Authenticate and connect</strong>
-            <p>
-              Add the API key as a Bearer token. Pitch scopes every project and credit charge to the
-              key owner.
-            </p>
-            <div className="mcp-code">
-              <code>Authorization: Bearer pk_…</code>
-              <CopyValue value="Authorization: Bearer pk_your_key_here" />
-            </div>
-          </div>
-        </div>
-        <div className="mcp-step mcp-step--config">
-          <span>4</span>
-          <div>
-            <strong>Or paste the complete configuration</strong>
-            <div className="mcp-code mcp-code--block">
-              <pre>{config}</pre>
-              <CopyValue value={config} />
-            </div>
-          </div>
-        </div>
-      </div>
-      <button
-        type="button"
-        className="mcp-autonomous-trigger"
-        aria-expanded={autonomousOpen}
-        onClick={() => setAutonomousOpen(value => !value)}
-      >
-        <KeyRound size={15} /> Run your agent autonomously <span>{autonomousOpen ? '−' : '+'}</span>
-      </button>
-      {autonomousOpen && (
-        <div className="mcp-autonomous">
-          <div className="mcp-autonomous__intro">
-            <Settings2 size={17} />
-            <p>
-              Run an agent against Pitch without browser sign-in or a device code. Pitch currently
-              uses an operator-issued API key instead of OAuth client-credentials registration.
-            </p>
-          </div>
-          <ol>
-            <li>
-              <span>1</span>
-              <p>
-                Have the account owner create a dedicated key in{' '}
-                <button type="button" onClick={openApi}>
-                  API keys
-                </button>
-                . This is the only interactive setup step.
-              </p>
-            </li>
-            <li>
-              <span>2</span>
-              <p>
-                Store the <code>pk_…</code> secret in the agent’s secret manager. It is shown once;
-                Pitch stores only its SHA-256 hash.
-              </p>
-            </li>
-            <li>
-              <span>3</span>
-              <p>
-                Fund the owning Pitch account from <b>Credits</b> or <b>Plans & billing</b>. MCP
-                usage draws from the same ledger as the web app.
-              </p>
-            </li>
-            <li>
-              <span>4</span>
-              <p>
-                Connect to <code>{ENDPOINT}</code> with <code>Authorization: Bearer pk_…</code>. No
-                user session or device code is required after this.
-              </p>
-            </li>
-            <li>
-              <span>5</span>
-              <p>
-                Call <code>create_project</code>, then poll <code>get_project</code> until its
-                status is <code>ready</code> or <code>failed</code>.
-              </p>
-            </li>
-            <li>
-              <span>6</span>
-              <p>
-                Use <code>prompt_project</code> for revisions and <code>get_credits</code> to
-                monitor balance. Revoke the key from the API tab at any time.
-              </p>
-            </li>
-          </ol>
-          <p className="mcp-autonomous__note">
-            Credit purchases and auto-top-ups are not currently exposed as MCP tools; they remain
-            protected account actions in Pitch settings.
+        </>
+      ) : (
+        <div className="mcp-autonomous-view">
+          <button type="button" className="mcp-back" onClick={() => setView('connect')}>
+            <ArrowLeft size={15} aria-hidden="true" /> Back
+          </button>
+
+          <p className="mcp-autonomous-view__intro">
+            Give your agent this prompt and it can configure Pitch with{' '}
+            <b>its own dedicated credentials</b>. Pitch currently requires the account owner to
+            create and fund the key; everything after that can run without browser sign-in or a
+            device code.
           </p>
+
+          <div className="mcp-autonomous-card">
+            <div className="mcp-autonomous-step">
+              <span>1</span>
+              <div>
+                <strong>Send this prompt</strong>
+                <p>Paste it into your agent’s chat—it will handle the setup from there.</p>
+                <div className="mcp-code mcp-code--prompt">
+                  <pre>{autonomousPrompt}</pre>
+                  <CopyValue value={autonomousPrompt} label="Copy agent setup prompt" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mcp-autonomous-step">
+              <span>2</span>
+              <div>
+                <strong>It runs independently</strong>
+                <p>
+                  The agent connects with its dedicated key, creates projects, follows their
+                  progress, requests revisions, and checks credits without using your browser
+                  session.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="mcp-copy-prompt"
+            onClick={() => void navigator.clipboard.writeText(autonomousPrompt)}
+          >
+            <Copy size={14} aria-hidden="true" /> Copy prompt
+          </button>
+
+          <div className="mcp-autonomous-security">
+            <KeyRound size={14} aria-hidden="true" /> Never paste a personal session token. Use a
+            revocable, dedicated Pitch API key.
+          </div>
         </div>
       )}
     </div>
