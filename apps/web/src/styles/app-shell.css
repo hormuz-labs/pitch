@@ -179,6 +179,18 @@
   animation: rail-history-in 140ms ease;
 }
 
+/* Keep the fly-out hovered while the pointer crosses its visual gutter from
+   the rail icon. The bridge is deliberately transparent: spacing stays airy,
+   but there is no dead zone that dismisses the history before it can be used. */
+.conversation-sidebar__rail .conversation-sidebar__rail-history::before {
+  position: absolute;
+  top: -8px;
+  right: 100%;
+  bottom: -8px;
+  width: 12px;
+  content: "";
+}
+
 @keyframes rail-history-in {
   from {
     opacity: 0;

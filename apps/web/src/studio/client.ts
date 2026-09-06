@@ -76,6 +76,12 @@ export interface ProjectDetail extends Project {
   description: Description
 }
 
+export interface StudioModel {
+  /** `provider/id`, e.g. `google/gemini-3.7-flash`. */
+  spec: string
+  label: string
+}
+
 export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool'
 export interface Entry {
   id: string
@@ -175,6 +181,9 @@ const p = (id: string) => `/projects/${encodeURIComponent(id)}`
 export const studio = {
   list: (token: string, flow?: FlowId) =>
     api.get<Project[]>(`/projects${flow ? `?flow=${encodeURIComponent(flow)}` : ''}`, token),
+  /** The composer's model picker: what this deployment can actually run. */
+  models: (token: string) =>
+    api.get<{ default: string; models: StudioModel[] }>('/projects/models', token),
   create: (
     token: string,
     body: {
@@ -199,6 +208,8 @@ export const studio = {
       slide?: number | null
       uploads?: UploadRef[]
       options?: Record<string, any>
+      /** This turn's model pick (`provider/id`); overrides the project's stored model. */
+      model?: string
     },
   ) => api.post<{ ok: boolean }>(`${p(id)}/prompt`, token, body),
   stop: (token: string, id: string) => api.post<{ stopped: boolean }>(`${p(id)}/stop`, token),

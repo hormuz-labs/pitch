@@ -44,6 +44,26 @@
 .new-project-topnav__profile img,
 .new-project-topnav__profile span { width: 100%; height: 100%; display: grid; place-items: center; object-fit: cover; background: #272421; color: #fff; font-size: 11px; font-weight: 600; text-transform: uppercase; }
 
+.new-project-profile-menu-positioner { z-index: 90; outline: none; }
+.new-project-profile-menu { width: 210px; padding: 6px; border: 1px solid #deddd9; border-radius: 13px; outline: none; background: #fff; color: #22201e; box-shadow: 0 18px 46px rgb(0 0 0 / 14%), 0 2px 8px rgb(0 0 0 / 5%); font: 450 13px/1 "Geist Variable", "Geist", Arial, sans-serif; animation: new-project-profile-menu-in 150ms cubic-bezier(.2,.8,.2,1) both; }
+.new-project-profile-menu :is([role="menuitem"], a) { min-height: 38px; padding: 0 10px; display: flex; align-items: center; gap: 10px; border-radius: 8px; outline: none; color: #37332f; text-decoration: none; cursor: pointer; user-select: none; }
+.new-project-profile-menu :is([role="menuitem"], a):is(:hover, [data-highlighted]) { background: #f1f0ee; color: #171513; }
+.new-project-profile-menu :is([role="menuitem"], a):focus-visible { box-shadow: inset 0 0 0 2px #c9c6c2; }
+.new-project-profile-menu :is([role="menuitem"], a) svg { width: 16px; height: 16px; flex: none; color: #77726d; }
+.new-project-profile-menu a svg { color: #5865f2; }
+.new-project-profile-menu .new-project-profile-menu__danger { color: #b4232d; }
+.new-project-profile-menu .new-project-profile-menu__danger:is(:hover, [data-highlighted]) { background: #fff1f1; color: #991b1b; }
+.new-project-profile-menu .new-project-profile-menu__danger svg { color: #c43d45; }
+.new-project-profile-menu__separator { height: 1px; margin: 5px 4px; background: #ebe9e6; }
+
+@keyframes new-project-profile-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(.985); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-project-profile-menu { animation: none; }
+}
+
 .new-create-hero { min-height: 700px; padding: 106px 34px 54px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
 .new-create-hero__intro { display: flex; flex-direction: column; align-items: center; margin: 0 0 18px; text-align: center; }
 .new-create-wordmark { width: 150px; height: auto; margin: 8px 0 7px; color: #111; }

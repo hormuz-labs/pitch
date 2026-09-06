@@ -805,7 +805,11 @@ const Sidebar = ({
           >
             <button
               type="button"
-              onClick={() => go('/sessions')}
+              onClick={() => {
+                setHistoryOpen(false)
+                setHistoryQuery('')
+                onToggle()
+              }}
               aria-label="Recent chats"
               title="Recent chats"
               aria-expanded={historyOpen}

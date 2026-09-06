@@ -194,6 +194,9 @@ export function useProject(id: string | undefined) {
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null)
   const [mediaToken, setMediaToken] = useState<string | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
+  // The composer's model pick this session wins; otherwise the project keeps
+  // running on the model stored in its options (the server persists picks).
+  const [modelPick, setModelPick] = useState<string | null>(null)
 
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const player = useRef<PlayerCtrl | null>(null)
@@ -539,6 +542,10 @@ export function useProject(id: string | undefined) {
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 
+  const projectModel =
+    typeof project?.options?.model === 'string' ? (project.options.model as string) : null
+  const model = modelPick ?? projectModel
+
   const send = useCallback(
     async (text: string, opts: { uploads?: UploadRef[]; options?: Record<string, any> } = {}) => {
       const pid = idRef.current
@@ -563,6 +570,7 @@ export function useProject(id: string | undefined) {
           slide,
           uploads: opts.uploads,
           options: opts.options,
+          model: model ?? undefined,
         })
       } catch (err: any) {
         setBusy(false)
@@ -573,7 +581,7 @@ export function useProject(id: string | undefined) {
         setEntries(e => [...e, { id: `err-${Date.now()}`, role: 'assistant', text: `⚠ ${msg}` }])
       }
     },
-    [clearTargets, getToken, selectedScene, selectedSlide, targets],
+    [clearTargets, getToken, model, selectedScene, selectedSlide, targets],
   )
 
   const stop = useCallback(async () => {
@@ -723,6 +731,8 @@ export function useProject(id: string | undefined) {
     draft,
     setDraft,
     composerRef,
+    model,
+    setModel: setModelPick,
     playhead,
     setPlayhead,
     player,

@@ -112,9 +112,8 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
       MINIO_ENDPOINT: http://minio:9000
-      # .env carries the production public URL. Uploads go to the MinIO above,
-      # so links must point at it too — its host-published port — or every
-      # published file is a NoSuchKey on the production bucket.
+      # Local browser-facing URL. docker-compose.prod.yml replaces this with
+      # the public S3 hostname while uploads still use the internal endpoint.
       MINIO_PUBLIC_URL: http://localhost:9002
       CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
       # The CloakBrowser renders deck previews and project thumbnails, and it

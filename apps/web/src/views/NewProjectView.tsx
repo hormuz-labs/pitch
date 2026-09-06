@@ -10,7 +10,8 @@
  * charged and no turn is run, because you cannot say what you want about a
  * video until you are looking at it and can select the part you mean.
  */
-import { useAuth, useUser } from '@clerk/react'
+import { Menu as BaseMenu } from '@base-ui/react/menu'
+import { useAuth, useClerk, useUser } from '@clerk/react'
 import Lenis from 'lenis'
 import {
   ArrowUp,
@@ -19,11 +20,13 @@ import {
   CircleHelp,
   Clock3,
   Film,
+  LogOut,
   Megaphone,
   Menu,
   Paperclip,
   Plus,
   RectangleHorizontal,
+  Settings,
 } from 'lucide-react'
 import {
   type CSSProperties,
@@ -34,6 +37,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { FaDiscord } from 'react-icons/fa6'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppShell, useToast } from '../App'
 import { CreditPopover } from '../components/CreditPopover'
@@ -375,6 +379,7 @@ function FeaturedVideos() {
 }
 
 export function NewProjectView() {
+  const clerk = useClerk()
   const { getToken } = useAuth()
   const { user } = useUser()
   const navigate = useNavigate()
@@ -682,20 +687,53 @@ export function NewProjectView() {
             <div className="new-project-topnav__credits">
               <SettingsCreditButton onClick={() => openSettings('credits')} />
             </div>
-            <button
-              type="button"
-              className="new-project-topnav__profile"
-              onClick={() => openSettings('account')}
-              aria-label="Open account settings"
-            >
-              {user?.imageUrl ? (
-                <img src={user.imageUrl} alt="" />
-              ) : (
-                <span>
-                  {user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'P'}
-                </span>
-              )}
-            </button>
+            <BaseMenu.Root>
+              <BaseMenu.Trigger
+                className="new-project-topnav__profile"
+                aria-label="Open account menu"
+              >
+                {user?.imageUrl ? (
+                  <img src={user.imageUrl} alt="" width={30} height={30} />
+                ) : (
+                  <span>
+                    {user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'P'}
+                  </span>
+                )}
+              </BaseMenu.Trigger>
+              <BaseMenu.Portal>
+                <BaseMenu.Positioner
+                  className="new-project-profile-menu-positioner"
+                  side="bottom"
+                  align="end"
+                  sideOffset={9}
+                  collisionPadding={12}
+                >
+                  <BaseMenu.Popup className="new-project-profile-menu">
+                    <BaseMenu.Item onClick={() => openSettings('account')}>
+                      <Settings size={16} />
+                      <span>Settings</span>
+                    </BaseMenu.Item>
+                    <BaseMenu.LinkItem
+                      href="https://discord.gg/a4SBW36mD"
+                      target="_blank"
+                      rel="noreferrer"
+                      closeOnClick
+                    >
+                      <FaDiscord size={16} />
+                      <span>Join Discord</span>
+                    </BaseMenu.LinkItem>
+                    <BaseMenu.Separator className="new-project-profile-menu__separator" />
+                    <BaseMenu.Item
+                      className="new-project-profile-menu__danger"
+                      onClick={() => void clerk.signOut({ redirectUrl: '/' })}
+                    >
+                      <LogOut size={16} />
+                      <span>Sign out</span>
+                    </BaseMenu.Item>
+                  </BaseMenu.Popup>
+                </BaseMenu.Positioner>
+              </BaseMenu.Portal>
+            </BaseMenu.Root>
           </div>
         </nav>
 

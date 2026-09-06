@@ -1,3 +1,4 @@
+import { ArrowUp, ChevronDown, Plus, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CreditPopover } from '../components/CreditPopover'
@@ -5,6 +6,7 @@ import { UrlAuthPrompt } from '../components/UrlAuthPrompt'
 import { useBrowserProfile } from '../hooks/useBrowserProfile'
 import { usePromptUrl } from '../hooks/usePromptUrl'
 import { isAuthenticatedFor } from '../lib/authOrigins'
+import { type StudioModel, studio } from './client'
 import type { ProjectStore } from './useProject'
 
 const fmtTime = (t: number) =>
@@ -29,6 +31,10 @@ export function Composer({ store }: { store: ProjectStore }) {
   const [files, setFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [dismissedAuthUrl, setDismissedAuthUrl] = useState<string | null>(null)
+  const [models, setModels] = useState<StudioModel[]>([])
+  const [defaultModel, setDefaultModel] = useState<string | null>(null)
+  const [modelOpen, setModelOpen] = useState(false)
+  const modelRef = useRef<HTMLDivElement | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
   const navigate = useNavigate()
   const browserProfile = useBrowserProfile()
@@ -48,6 +54,44 @@ export function Composer({ store }: { store: ProjectStore }) {
     s.setDraft(savedDraft)
     sessionStorage.removeItem(key)
   }, [s.id, s.setDraft])
+
+  // The picker's job is to show and override; until the user picks, the turn
+  // runs on the project's stored model or the server default (s.model stays
+  // null and nothing is sent).
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await studio.models(await s.getToken())
+        if (cancelled) return
+        setModels(res.models)
+        setDefaultModel(res.default)
+      } catch {
+        // Without the list there is no picker; the server default still runs.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [s.getToken])
+
+  useEffect(() => {
+    if (!modelOpen) return
+    const close = (e: MouseEvent) => {
+      if (!modelRef.current?.contains(e.target as Node)) setModelOpen(false)
+    }
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setModelOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [modelOpen])
+
+  const activeModel = s.model ?? defaultModel
 
   const send = async () => {
     const text = s.draft.trim()
@@ -192,14 +236,16 @@ export function Composer({ store }: { store: ProjectStore }) {
           }}
         />
         <div className="job-composer-footer">
-          <span className="job-composer-hint">
+          <div className="job-composer-tools">
             <button
-              className="target-clear"
+              type="button"
+              className="job-attach-plus"
+              disabled={uploading}
+              aria-label="Attach files"
               title="Attach files (PDF, images, video)"
               onClick={() => fileInput.current?.click()}
             >
-              <span className="attach-glyph">📎</span>
-              attach
+              {uploading ? <span className="spinner" /> : <Plus size={18} />}
             </button>
             <input
               ref={fileInput}
@@ -210,36 +256,71 @@ export function Composer({ store }: { store: ProjectStore }) {
                 setFiles(list => [...list, ...Array.from(e.currentTarget.files ?? [])])
               }
             />
-            {s.targets.length
-              ? ' · Refer to elements as [1], [2]…'
-              : ' · Enter to send · Shift+Enter for a new line'}
-          </span>
-          {/* The balance belongs next to the thing that spends it. */}
-          <span className="composer-credits">
-            <CreditPopover variant="marker" />
-          </span>
-          {/* While the agent is working, the button that sends is the button
-              that stops. A disabled "Working…" told the user what was
-              happening and gave them no way out of it — and the only Stop was
-              in the header, away from where they are looking. */}
-          {s.busy ? (
-            <button
-              className="inspector-send stop"
-              title="Stop the agent"
-              onClick={() => void s.stop()}
-            >
-              <span className="stop-glyph" aria-hidden="true" />
-              Stop
-            </button>
-          ) : (
-            <button
-              className="inspector-send"
-              disabled={uploading || !s.draft.trim()}
-              onClick={() => void send()}
-            >
-              {sendLabel}
-            </button>
-          )}
+          </div>
+          <div className="job-composer-actions">
+            {/* The balance belongs next to the thing that spends it. */}
+            <span className="composer-credits">
+              <CreditPopover variant="marker" />
+            </span>
+            {models.length > 0 && (
+              <div className="model-select" ref={modelRef}>
+                <button
+                  type="button"
+                  className="model-btn"
+                  onClick={() => setModelOpen(open => !open)}
+                  aria-haspopup="listbox"
+                  aria-expanded={modelOpen}
+                  title="Choose the model"
+                >
+                  <span>{models.find(m => m.spec === activeModel)?.label ?? 'Model'}</span>
+                  <ChevronDown size={12} />
+                </button>
+                {modelOpen && (
+                  <div className="model-menu" role="listbox" aria-label="Models">
+                    {models.map(m => (
+                      <button
+                        key={m.spec}
+                        type="button"
+                        role="option"
+                        aria-selected={m.spec === activeModel}
+                        className={`model-option${m.spec === activeModel ? ' is-active' : ''}`}
+                        onClick={() => {
+                          s.setModel(m.spec)
+                          setModelOpen(false)
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* While the agent is working, the button that sends is the button
+                that stops. Keep both actions in the same stable position. */}
+            {s.busy ? (
+              <button
+                type="button"
+                className="job-send-round stop"
+                aria-label="Stop the agent"
+                title="Stop the agent"
+                onClick={() => void s.stop()}
+              >
+                <Square size={12} fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="job-send-round"
+                disabled={uploading || !s.draft.trim()}
+                aria-label={sendLabel}
+                title={sendLabel}
+                onClick={() => void send()}
+              >
+                <ArrowUp size={17} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
