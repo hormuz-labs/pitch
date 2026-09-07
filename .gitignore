@@ -33,6 +33,9 @@ Thumbs.db
 .env.test.local
 .env.production.local
 .env*.local
+.github_token
+.gh_token
+
 
 npm-debug.log*
 yarn-debug.log*
