@@ -135,10 +135,25 @@ const isSegment = from > 0 || to < duration;
 const total = Math.ceil((to - from) * fps);
 const captures = total * render.samples;
 console.log(`Timeline duration: ${duration.toFixed(2)}s${isSegment ? ` — rendering segment ${from.toFixed(2)}s → ${to.toFixed(2)}s` : ""} (${total} frames @ ${fps}fps${render.samples > 1 ? `, ${captures} captures` : ""})`);
+if (render.samples > 1) console.log(`   ⚠ shutter: ${render.samples} captures per frame — the capture pass takes ${render.samples}× as long as a crisp render (shots.js \`render\` block).`);
+if (scale >= 2) console.log(`   ⚠ 4K: each capture is four times the pixels of 1080p — expect about three times the time.`);
 
 const chunkSize = Math.ceil(total / workers);
 const startMs = Date.now();
 let completedFrames = 0;
+let lastReport = startMs;
+// Progress on the clock, not every hundred frames: at 4K with a shutter a
+// hundred frames is half a minute of silence, and the studio's bar reads it as stuck.
+const report = (force = false) => {
+  const now = Date.now();
+  if (!force && now - lastReport < 2000) return;
+  lastReport = now;
+  const elapsed = (now - startMs) / 1000;
+  const pct = ((completedFrames / total) * 100).toFixed(0);
+  const rate = completedFrames / Math.max(0.001, elapsed);
+  const eta = rate > 0 ? Math.max(0, (total - completedFrames) / rate) : 0;
+  console.log(`  [${pct}%] Rendered ${completedFrames}/${total} frames - Elapsed: ${elapsed.toFixed(1)}s${completedFrames < total ? ` - ETA ${eta.toFixed(0)}s` : ""}`);
+};
 
 // One tab per worker, each seeking its own slice of the timeline.
 const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
@@ -160,11 +175,7 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
       await writeFile(`${tmp}/f_${n}.${frameExt}`, Buffer.from(data, "base64"));
     }
     completedFrames++;
-    if (completedFrames % 100 === 0 || completedFrames === total) {
-      const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
-      const pct = ((completedFrames / total) * 100).toFixed(0);
-      console.log(`  [${pct}%] Rendered ${completedFrames}/${total} frames - Elapsed: ${elapsed}s`);
-    }
+    report(completedFrames === total);
   }
   await page.close();
 });

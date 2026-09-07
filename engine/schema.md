@@ -26,8 +26,8 @@ window.SHOTS = {
   ambient: { kind: "none" },                     // the stage — kind per direction.md Axis 1 (see "Density layer")
   motion: { exit: "blur", cutDur: 0.5 },         // default exit motion: up | down | scale | scatter | blur | left | right | none; length of transitional cuts
   actors: { folder: { src: "assets/harvested/folder.png", w: 320 } },   // objects that live across shots (see "Actors")
-  render: { shutter: 0.5, samples: 4, depth: 10 },   // optional: motion blur and bit depth of the MP4 (see "Render and grade")
-  grade: { temperature: 5600, vignette: 0.3 },       // optional: the finish applied to every frame (see "Render and grade")
+  // render: { shutter: 0.5, samples: 4 },          // only when direction.md asks for motion blur: `samples` captures per frame = samples× the export time (see "Render and grade")
+  // grade: { temperature: 5600, vignette: 0.3 },    // only when direction.md names a finish (see "Render and grade")
   shots: [ { id, type, dur, bg, ink?, cut?, exit?, beats?, actors?, chapter?, cue?, ...typeFields } ],
 };
 ```
@@ -222,7 +222,12 @@ Two optional top-level blocks decide what the encoder adds to the frames.
 The studio's Export button and `motion_render` read both; flags on the tool
 override for one render. Both are direction.md decisions — a shutter belongs
 to a Fluid or Kinetic motion language, a grade to the palette's finish —
-never a default.
+never a default, and never copied in "to be safe". **A shutter is the cost
+of the export**: every output frame is captured `samples` times, so
+`samples: 4` makes the user's Export four times longer (a 30s film at 1080p
+exports crisp in about a minute; with a 4-sample shutter in three to four;
+4K is three times either). Leave `render` out unless the film's motion
+language needs blur, and then say so in direction.md.
 
 | Block | Fields |
 |---|---|
