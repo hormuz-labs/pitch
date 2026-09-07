@@ -1,5 +1,6 @@
 ---
 name: launch-video
+tools: motion
 description: Build a product launch film — promo, teaser, feature announcement, kinetic typography, narrated product video — as a shots.js shot list the shared GSAP engine compiles, its moves drawn from the effects lab (motion_effects), previewed live in the studio and gated by motion_audit. Read this before starting any launch film.
 ---
 

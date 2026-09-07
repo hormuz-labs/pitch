@@ -1,6 +1,7 @@
 ---
 name: demo-video
-description: Record a cinematic, narrated product demo — of a live web app, or of uploaded PDFs/images as a slideshow, or both — in the user's own browser: prepare assets, start recording, drive the page with playwright-cli, narrate with Gemini TTS, zoom like a camera, stop, render and publish, then iterate by chat. Read this before any demo recording.
+tools: demo
+description: "Record a cinematic, narrated product demo — of a live web app, or of uploaded PDFs/images as a slideshow, or both — in the user's own browser: prepare assets, start recording, drive the page with playwright-cli, narrate with Gemini TTS, zoom like a camera, stop, render and publish, then iterate by chat. Read this before any demo recording."
 ---
 
 # Demo videos

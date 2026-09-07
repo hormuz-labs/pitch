@@ -1,5 +1,6 @@
 ---
 name: recording-edit
+tools: recording
 description: Edit an uploaded, narrated screen recording into a cinematic demo — reconstruct recording/demo-state.json (the zoom and click events that drive the camera) from the narration and the footage with probe_video, transcribe_video, detect_key_moments and inspect_frames, emit events with the record_* tools, render with edit_render, and iterate by chat. Read this before editing a recording.
 ---
 

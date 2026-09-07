@@ -60,8 +60,9 @@ no host access**. Everything that needs any of those is a host tool that runs
 outside the sandbox: recon and rendering (`motion_*`), the browser and the
 recorder (`demo_*`), deck building (`pdf_*`, `deck_*`), recording analysis
 (`probe_video`, `transcribe_video`, `edit_render`), generated footage
-(`video_generate`), and general media work (`media_*`). When a skill tells you
-to run a command, call the tool instead.
+(`video_generate`), and general media work (`media_*`). A skill's tools appear
+the moment you read the skill, so read it before reaching for them. When a
+skill tells you to run a command, call the tool instead.
 
 **A host tool that fails is a stop, not a puzzle.** You have no network, so you
 cannot install what it is missing, and no host access, so you cannot provision

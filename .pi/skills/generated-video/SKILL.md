@@ -1,5 +1,6 @@
 ---
 name: generated-video
+tools: motion
 description: Generate footage that does not exist — establishing shots, textures, metaphors, abstract transitions, B-roll — with video_generate (Gemini Omni). Read this before generating anything; it says when generated footage is right, when it is wrong, how to write the prompt, and how to get a clip into a film without paying twice.
 ---
 

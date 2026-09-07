@@ -64,28 +64,19 @@ export const EXTENSIONS: string[] = [...new Set(Object.values(FAMILIES).flat() a
 export interface ProjectEvidence {
   /** Workspace-relative paths that exist (a shallow listing is enough). */
   files?: string[]
-  /** The user's words this turn, and the ones that opened the project. */
-  prompt?: string
   /** Names of anything they attached. */
   uploads?: string[]
-  /** The skill pill the user picked on /new (project.json options.skill). */
-  skill?: string
+  /**
+   * Skills in play: the pill the user picked on /new (project.json
+   * options.skill) and every SKILL.md the agent has read this session.
+   */
+  skills?: string[]
+  /** What each skill declares it needs (`tools:` in its frontmatter). */
+  declared?: SkillFamilies
 }
 
-/**
- * The composer's skill pill, when there is one, is the strongest evidence
- * there is: a "cinematic brand documentary" with `skill: launch-video` used
- * to land in a session with no motion tools, and the agent spent the turn
- * reading the extensions' source to find out how recon worked.
- */
-export const SKILL_FAMILIES: Record<string, readonly Family[]> = {
-  'launch-video': ['motion'],
-  'generated-video': ['motion'],
-  'demo-video': ['demo'],
-  'docs-to-video': ['demo'],
-  'slide-deck': ['deck'],
-  'recording-edit': ['recording'],
-}
+/** Skill name → the families its frontmatter declares. */
+export type SkillFamilies = ReadonlyMap<string, readonly Family[]>
 
 const VIDEO_FILE = /\.(mp4|webm|mov|mkv|avi)$/i
 const DECK_FILE = /\.(pdf|pptx?|key)$/i
@@ -93,19 +84,21 @@ const DECK_FILE = /\.(pdf|pptx?|key)$/i
 /**
  * Which families this project needs.
  *
- * Deliberately generous — a family costs a few KB, a missing tool costs the
- * agent a turn and the user a wrong answer. When the request says nothing and
- * the workspace is empty, everything loads: a bare "help me" must not land in
- * a project that cannot do anything.
+ * Nothing here guesses from the user's words. There used to be a keyword
+ * list — launch, promo, teaser, deck, demo — and every phrasing it had not
+ * met ("a cinematic brand documentary") landed in a session without the
+ * tools its skill named; the agent then read the extensions' source to find
+ * out where recon lived. The evidence now is what is on disk, what was
+ * uploaded, and the skills: the skill is the agent's own semantic decision,
+ * and its frontmatter says which tools it needs. When there is nothing to go
+ * on, everything loads — a bare "help me" must not land in a project that
+ * cannot do anything.
  */
 export function familiesFor(evidence: ProjectEvidence): Set<Family> {
   const need = new Set<Family>(['core'])
   const files = evidence.files ?? []
   const uploads = evidence.uploads ?? []
-  const words = (evidence.prompt ?? '').toLowerCase()
   const has = (re: RegExp) => files.some(f => re.test(f))
-
-  for (const f of SKILL_FAMILIES[evidence.skill ?? ''] ?? []) need.add(f)
 
   // Evidence on disk: whatever is already here, the agent must be able to edit.
   if (has(/^(shots\.js|index\.html|direction\.md)$/)) need.add('motion')
@@ -115,29 +108,66 @@ export function familiesFor(evidence: ProjectEvidence): Set<Family> {
   if (uploads.some(u => VIDEO_FILE.test(u))) need.add('recording')
   if (uploads.some(u => DECK_FILE.test(u))) need.add('deck')
 
-  // What they asked for.
-  if (
-    /\b(launch|promo|teaser|trailer|kinetic|motion graphic|announce|film|documentary|cinematic|commercial|advert|explainer|sizzle|showreel)\b/.test(
-      words,
-    )
-  )
-    need.add('motion')
-  if (/\b(deck|slide|slides|presentation|powerpoint|pitch deck|keynote)\b/.test(words))
-    need.add('deck')
-  if (/\b(demo|walkthrough|walk through|tutorial|screencast)\w*\b/.test(words)) need.add('demo')
-  if (/\b(recording|screen record|footage|my video|this video|the video i)\b/.test(words))
-    need.add('recording')
-  // "video" alone is ambiguous: a launch film and a demo are both videos.
-  if (/\bvideo\b/.test(words) && need.size === 1) {
-    need.add('motion')
-    need.add('demo')
+  // The skills: picked on /new, or read by the agent.
+  for (const skill of evidence.skills ?? []) {
+    for (const f of evidence.declared?.get(skill) ?? []) need.add(f)
   }
 
   // Nothing to go on — hand over everything rather than guess wrong.
-  if (need.size === 1 && !files.length && !uploads.length) {
+  if (need.size === 1 && !(evidence.skills ?? []).length && !uploads.length) {
     for (const f of Object.keys(FAMILIES) as Family[]) need.add(f)
   }
   return need
+}
+
+/**
+ * The `tools:` line of a SKILL.md's frontmatter — `tools: motion`,
+ * `tools: motion, demo` or `tools: [motion, demo]` — as families. pi reads
+ * only name and description from the frontmatter and ignores the rest, so
+ * the line costs the skill nothing.
+ */
+export function parseSkillTools(md: string): Family[] {
+  const fm = md.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+  if (!fm) return []
+  const line = fm[1].split(/\r?\n/).find(l => /^tools\s*:/.test(l))
+  if (!line) return []
+  return line
+    .replace(/^tools\s*:/, '')
+    .replace(/[[\]"']/g, '')
+    .split(/[,\s]+/)
+    .map(t => t.trim())
+    .filter((t): t is Family => t in FAMILIES)
+}
+
+/** Every skill's declared families, read from .pi/skills/<name>/SKILL.md. */
+export async function skillFamilies(): Promise<SkillFamilies> {
+  const out = new Map<string, Family[]>()
+  for (const dir of await skills()) {
+    const md = await readFile(path.join(dir, 'SKILL.md'), 'utf8').catch(() => '')
+    const name = md.match(/^---[\s\S]*?^name:\s*(\S+)/m)?.[1] ?? path.basename(dir)
+    out.set(name, parseSkillTools(md))
+  }
+  return out
+}
+
+/**
+ * The skill a tool call is reading, if it is one: `read` with the SKILL.md's
+ * path, or a shell command that names it. The agent reading a skill is the
+ * moment it has decided what this project is.
+ */
+export function skillNamed(args: unknown): string | null {
+  const text = typeof args === 'string' ? args : JSON.stringify(args ?? '')
+  return text.match(/\.pi\/skills\/([A-Za-z0-9._-]+)\/SKILL\.md/)?.[1] ?? null
+}
+
+/** The family that owns a tool name, for a call to a tool the model was not shown. */
+export function familyOfTool(name: string, toolsByExtension: ToolsByExtension): Family | null {
+  for (const family of Object.keys(FAMILIES) as Family[]) {
+    for (const file of FAMILIES[family]) {
+      if (toolsByExtension.get(path.resolve(file))?.includes(name)) return family
+    }
+  }
+  return null
 }
 
 /** Tool names by the extension file that registered them, as pi loaded them. */
