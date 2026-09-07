@@ -28,7 +28,12 @@ then wait. Never ask about the look, the moves, colours, fonts or music.
 `recon/brand-tokens.md`. Take from it the real palette and type (self-host
 the font via `brand.fonts`), the real facts (feature names, numbers, the words
 on its buttons, its register) and the mechanism: what goes in, what happens,
-what comes out. Use the saved logo (`assets/logo/`) wherever the mark appears. Everything
+what comes out. (`recon/brand-tokens.json` is the same measurement for the
+tools — nothing to read there.) Look once at the saved logo (`assets/logo/`)
+and use it wherever the mark appears; if what recon saved is not the mark, say
+so and set the wordmark in the brand's type. Recon also self-hosts the
+product's font files into your `assets/fonts/`; when it saved none, the
+brand font is a system stack — the shared assets are not the brand. Everything
 else is designed motion in the brand's voice, not a collage of its
 screenshots; `motion_image` makes an image nobody has. Never stall for an
 asset — say once what would help and keep building.
@@ -47,12 +52,15 @@ shot to shot, chapters cut on the beat, a manifesto, a demo with a cursor,
 something you invent for this product — pick what the product asks for and
 say why.
 
-Plan to the gate, not after it. `motion_audit` fails a film whose picture is
-still for 1.5s or averages under 0.7 changes a second, and a shot list that
-only enters gets rebuilt at the end instead of built once. So every shot in
-the table has **three acts** — it arrives, something changes, it leaves — and
-the `move` column names all three. Anything over 1.5s carries a second act
-(`beats`, `steps`, an actor, a `focus`, a `cursor`) or is cut at 1.5s.
+Plan to the gate, not after it. `motion_audit` notes a picture that sits
+still past 1.5s or averages under 0.7 changes a second. Those are the
+reference films' numbers and a suggestion, not a rule: answer a note with a
+beat or a cut, or keep the hold and say why in direction.md — a lab effect
+ported whole keeps its own timing, and a counter never gets a film rebuilt.
+What does get rebuilt at the end is a shot list that only enters, so every
+shot in the table has **three acts** — it arrives, something changes, it
+leaves — and the `move` column names all three. Anything over 1.5s carries a
+second act (`beats`, `steps`, an actor, a `focus`, a `cursor`) or is cut.
 
 **One subject, centred, big.** The reference films keep one thing in the
 middle of the frame and let it fill it: a word, a card, a control, a number.
@@ -106,26 +114,36 @@ and reference everything else through the tools.
 
 ## Build
 
-1. `motion_scaffold()` (`{ custom: true }` once `js/shots.custom.js` exists),
-   then `shots.js` with `brand`, the stage and the first two or three shots.
-   Save early so the user sees the hook within minutes. `motion_check` —
-   it prints the shot-list warnings the audit will raise; fix them now.
+1. `motion_scaffold()` writes index.html and a starter `shots.js` — the
+   brand recon measured, `shots: []` — so the first thing you write is a
+   shot. `{ custom: true }` once `js/shots.custom.js` exists; it links
+   `css/custom.css` for those types' styles. Put the stage and the first two
+   or three shots in and save early so the user sees the hook within
+   minutes. `motion_check` — it prints the shot-list warnings the audit will
+   raise; fix them now.
 2. Add a few shots, save, check, repeat. Every save is a complete evaluating
    literal. Port the lab effects early; the first port proves the pipeline.
    Everything lives on the returned timeline — no CSS animation, no bare
    `gsap.to`, no ticker, no `Math.random` — selectors scoped to `el`, optional
-   targets guarded, text swaps via `tl.set`.
+   targets guarded, text swaps via `tl.set`. Edit files in place; never
+   rewrite a file you have not just read — a 30KB rewrite from memory is
+   where the edits that could not find their text came from.
 3. Audio — `references/audio.md`. Bed via `motion_find_audio`. Narration is
-   one read: script (1.9–2.4 words/s) → `motion_tts` once → `audio.vo` →
-   `motion_align` → `cue` on every shot → `motion_sync({ write: true })`.
-   Then `motion_cues`, `motion_sfx({ mode: "build" })`, `motion_mix`.
-4. `motion_audit({})`: zero ❌, read every ⚠️ (`references/pacing.md` has
-   the numbers; the fix is a beat or a cut, never a longer shot). Then
-   `motion_review({})`: fix every line of its clipped-type report, and
-   **look at every sheet** — an empty frame, a colour that is not the
-   brand's, a lab placeholder still on screen, an edge touched. Fix in
-   `shots.js`, re-review what you touched. Quote the scorecard, say what the
-   sheets showed, stop.
+   one read: script (1.9–2.4 words/s) → `motion_tts` once (it re-records by
+   itself if a take comes back rushed) → `audio.vo` → `motion_align` →
+   `cue` on every shot → `motion_sync({ write: true })`. Then `motion_cues`,
+   `motion_sfx({ mode: "build" })` (★ marks the signature cues the budget
+   counts), `motion_mix`.
+4. `motion_audit({})`: zero ❌. A ⚠️ is a note: pacing notes name the still
+   stretch — answer with a beat or a cut, or keep it and say why in
+   direction.md; never a longer shot (`references/pacing.md` has the
+   numbers). Then `motion_review({})`: fix every line of its clipped-type and
+   subject reports, and **look at every sheet** — an empty frame, a colour
+   that is not the brand's, a lab placeholder still on screen, an edge
+   touched. Fix in `shots.js`, then `motion_review({ shots: [...] })` for what
+   you touched — not another audit unless a `dur`, a cue or a beat changed.
+   Audio-only changes (a breath, a level) need `motion_cues` and `motion_mix`,
+   never a re-audit. Quote the scorecard, say what the sheets showed, stop.
 5. Export only when the user asks for an MP4: `motion_audit`,
    `motion_render({ out, out_res, fps: 60 })`, `motion_verify_duration`.
 

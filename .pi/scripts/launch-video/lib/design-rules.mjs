@@ -88,7 +88,7 @@ export function lintDesign(spec) {
     if ((s.rippleBeats || 0) > 0) out.push({ level: "fail", code: "ripple", msg: `#${s.id}: a \`ripple\` beat — rings expanding from a press are banned. A press is the control's own state change (the pill grows, the button splits, the toggle snaps) or a \`flood\`.` });
     if (s.type === "ui-frame" && s.capturedSrc && !secondAct(s)) out.push({ level: "warn", code: "still", msg: `#${s.id}: a captured screen sits still as the product (\`src\`, no \`html\`). A still screenshot cannot have a second act — give the shot a focus move, a cursor, a beat, or rebuild the part that moves as \`html\`.` });
     // A shot that enters and then holds is the quiet stretch the audit fails.
-    if (s.dur > R.hold && !secondAct(s)) out.push({ level: "warn", code: "hold", msg: `#${s.id} (${s.type}): ${s.dur}s with nothing after the entrance — the audit fails a quiet stretch over ${R.hold}s. Give it a second act now (\`beats\`, \`steps\`, an actor, a \`focus\` or \`cursor\`) or cut it at ${R.hold}s; do not wait for the gate to say so.` });
+    if (s.dur > R.hold && !secondAct(s)) out.push({ level: "warn", code: "hold", msg: `#${s.id} (${s.type}): ${s.dur}s with nothing after the entrance — the audit flags a quiet stretch over ${R.hold}s. Give it a second act now (\`beats\`, \`steps\`, an actor, a \`focus\` or \`cursor\`) or cut it at ${R.hold}s; do not wait for the gate to say so.` });
     // Text that only slides in: the lab's text family exists for exactly this beat.
     if (PLAIN_TYPE.has(s.type) && !s.lab) out.push({ level: "warn", code: "plain-type", msg: `#${s.id}: \`${s.type}\` is text that only enters. The lab has 69 text effects — motion_effects({ query: "<what this line should do>", family: "text" }) — port one as a custom type, or put the copy in a \`line\` with steps.` });
     // A whole desktop at 1560px is wallpaper; the reference films keep one thing big and centred.
@@ -114,7 +114,9 @@ export function designSummary(spec) {
   if (spec.actors) parts.push(`actors ${spec.actors}`);
   const chapters = new Set(shots.map((s) => s.chapter).filter(Boolean));
   if (chapters.size) parts.push(`chapters ${chapters.size}`);
-  const lab = shots.filter((s) => s.lab || !TYPE_BEATS.has(s.type) && !["ui-frame", "device-notif", "device-3d", "lottie", "rive", "cascade"].includes(s.type)).length;
+  // Only a shot that names its lab id is a lab move; a custom type invented on
+  // the spot is not one, and counting it as one flattered every film.
+  const lab = shots.filter((s) => s.lab).length;
   parts.push(`lab moves ${lab}`);
   const breaths = shots.reduce((a, s) => a + (s.breaths || 0), 0);
   parts.push(`breaths ${breaths}`);

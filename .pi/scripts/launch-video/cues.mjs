@@ -82,6 +82,7 @@ for (const c of data.cues) {
 for (const o of data.overruns) {
   // compiler.js records { id, type, dur, ran, speed }
   const speed = Number(o.speed) || (o.ran && o.dur ? o.ran / o.dur : 0);
+  if (speed < 1.1) continue; // a 2% squeeze is invisible; retiming it cost a run thirteen turns
   console.log(`⚠ overrun: ${o.id ?? "?"} (${o.type ?? "?"}) factory timeline ${Number(o.ran ?? 0).toFixed(2)}s in a ${Number(o.dur ?? 0).toFixed(2)}s shot — compressed ${speed.toFixed(2)}×${speed > 1.6 ? " (audit FAILS above 1.6×)" : ""}; time the factory as fractions of D`);
 }
 if (CHECK) {

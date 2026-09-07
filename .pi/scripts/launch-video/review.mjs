@@ -9,11 +9,22 @@
  * the page, captures it small, and tiles the frames into sheets with ffmpeg.
  * Forty frames become three or four images the agent can read at once, which
  * is how it sees an overlap, an empty frame or a colour that is not the
- * brand's. Clipped type it does not have to see: at each shot's settled frame
- * the page measures every visible run of text against the mask that holds it
- * (an `overflow: hidden` ancestor, or the stage), using the font's real
- * ascent and descent — a line-height under 1 makes the line box smaller than
- * the glyphs, and that is where descenders and accents go missing.
+ * brand's. Two things it does not have to see:
+ *
+ *   • Clipped type. At every frame the page measures each visible run of text
+ *     against the mask that holds it (an `overflow: hidden` ancestor, or the
+ *     stage), using the font's real ascent and descent — a line-height under
+ *     1 makes the line box smaller than the glyphs, and that is where
+ *     descenders and accents go missing. Every frame, not only the settled
+ *     one: a headline scaled up on its entrance ran past both stage edges at
+ *     20% and 90% and fitted at 55%, and the settled-only check saw nothing.
+ *
+ *   • The subject. At the settled frame: the largest type on screen and the
+ *     largest block that paints (an image, a frame, a card), as a fraction of
+ *     the stage. A film frame is one thing in the middle at 100–300px, or a
+ *     control filling a third of the picture; a web section is a 40px
+ *     headline over 18px cards with half the stage empty. The agent kept
+ *     building the second and calling it the first.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -27,10 +38,20 @@ import { planSamples, sheetOf } from "./lib/review-plan.mjs";
  * element that directly holds visible hero-size text: the ink box of that
  * string, from the font's own metrics (a Range rect is the font's content
  * area; canvas measureText says where the ink of THESE glyphs sits inside
- * it), against the nearest clipping ancestor or the 1920×1080 stage. A
- * deliberate bleed is hundreds of px; a cut descender or accent is 2–60.
+ * it), against the nearest clipping ancestor and the 1920×1080 stage.
+ *
+ * `settled` is whether this is the shot's settled frame. Mid-move, a run of
+ * type is cut by its mask on purpose all the time — that is what a mask
+ * reveal is — so between frames only type that does not FIT its mask is
+ * reported: a headline scaled past its own row on the snap, a line-height
+ * mask shorter than its glyphs. At the settled frame every cut counts, and a
+ * deliberate bleed there is hundreds of px where a lost descender is 2–60.
+ *
+ * The metrics are in CSS px and the rects in rendered px: with a transform on
+ * the way in (a snap from 1.15×) the two differ, and the ink box is scaled by
+ * the rendered width over the measured advance so the edges line up.
  */
-function measureClippedText() {
+function measureClippedText(settled) {
   const out = [];
   const ctx = document.createElement("canvas").getContext("2d");
   const clips = (cs) => /hidden|clip/.test(cs.overflow) || /hidden|clip/.test(cs.overflowX) || /hidden|clip/.test(cs.overflowY);
@@ -61,28 +82,112 @@ function measureClippedText() {
     const m = ctx.measureText(text);
     const first = rects[0], last = rects[rects.length - 1];
     const fontAsc = m.fontBoundingBoxAscent ?? size * 0.95;
+    // rendered px per CSS px — 1 unless a transform is on the text right now
+    const k0 = rects.length === 1 && m.width > 0 ? first.width / m.width : 1;
+    const k = k0 > 0.5 && k0 < 3 ? k0 : 1;
     const ink = {
-      top: first.top + fontAsc - (m.actualBoundingBoxAscent ?? size * 0.75),
-      bottom: last.top + fontAsc + (m.actualBoundingBoxDescent ?? size * 0.25),
-      left: rects.length === 1 ? first.left - Math.max(0, m.actualBoundingBoxLeft ?? 0) : Math.min(...rects.map(r => r.left)),
-      right: rects.length === 1 ? first.left + (m.actualBoundingBoxRight ?? first.width) : Math.max(...rects.map(r => r.right)),
+      top: first.top + (fontAsc - (m.actualBoundingBoxAscent ?? size * 0.75)) * k,
+      bottom: last.top + (fontAsc + (m.actualBoundingBoxDescent ?? size * 0.25)) * k,
+      left: rects.length === 1 ? first.left - Math.max(0, m.actualBoundingBoxLeft ?? 0) * k : Math.min(...rects.map(r => r.left)),
+      right: rects.length === 1 ? first.left + (m.actualBoundingBoxRight ?? first.width / k) * k : Math.max(...rects.map(r => r.right)),
     };
     let mask = null, maskName = "the stage";
     for (let n = el; n && n !== document.body; n = n.parentElement) {
       if (isStage(n)) break;
       if (clips(getComputedStyle(n))) { mask = n.getBoundingClientRect(); maskName = n.classList.length ? "." + [...n.classList].slice(0, 2).join(".") : n.tagName.toLowerCase(); break; }
     }
-    if (!mask) mask = { left: 0, top: 0, right: 1920, bottom: 1080 };
+    // The stage clips too, whatever mask sits inside it: a headline scaled up
+    // on its entrance runs past both edges while its own mask runs with it.
+    const stage = { left: 0, top: 0, right: 1920, bottom: 1080 };
+    if (!mask) mask = stage;
+    else {
+      const m = { left: Math.max(mask.left, stage.left), top: Math.max(mask.top, stage.top), right: Math.min(mask.right, stage.right), bottom: Math.min(mask.bottom, stage.bottom) };
+      if (m.left !== mask.left || m.top !== mask.top || m.right !== mask.right || m.bottom !== mask.bottom) maskName = maskName === "the stage" ? maskName : `${maskName} at the stage edge`;
+      mask = m;
+    }
     const lhRaw = parseFloat(cs.lineHeight);
     const lineHeight = Number.isFinite(lhRaw) ? (lhRaw / size).toFixed(2) : "normal";
+    const fits = ink.right - ink.left <= mask.right - mask.left + 2 && ink.bottom - ink.top <= mask.bottom - mask.top + 2;
+    if (!settled && fits) continue; // mid-move and it fits: a reveal in progress, not a fault
+    const cap = settled ? 60 : 200;
     const cuts = [["below", ink.bottom - mask.bottom], ["above", mask.top - ink.top], ["on the left", mask.left - ink.left], ["on the right", ink.right - mask.right]];
     for (const [side, px] of cuts) {
-      if (px >= 2 && px <= 60) {
-        const fix = maskName === "the stage" ? "Pull it inside 80px of the edge, or size it so the longest line fits 1760px."
+      if (px >= 2 && px <= cap) {
+        const fix = /the stage/.test(maskName) ? "Pull it inside 80px of the edge, or size it so the longest line fits 1760px — at every frame, an entrance scale included."
           : `Give the mask room — padding .16em .08em .24em with the same negative margin — or line-height ≥ 1.1 (it is ${lineHeight}).`;
-        out.push({ text: text.slice(0, 40), side, px: Math.round(px), mask: maskName, font: `${Math.round(size)}px, line-height ${lineHeight}`, fix });
+        out.push({ text: text.slice(0, 40), side, px: Math.round(px), mask: maskName, font: `${Math.round(size)}px, line-height ${lineHeight}${k > 1.02 || k < 0.98 ? `, at ${k.toFixed(2)}×` : ""}`, fix: fits ? fix : (/the stage/.test(maskName) ? `It is wider than the picture here — keep the largest scale of the move inside 1760px.` : `It is bigger than its mask ${maskName} here — the move scales past the row; grow the mask with it (padding, or overflow visible on the row) or cap the scale.`) });
       }
     }
+  }
+  return out;
+}
+
+/**
+ * Runs inside the page at a settled frame. What the frame is about, by size.
+ * Text under 22px is counted too: at 1080p it is the copy nobody can read.
+ */
+function measureSubject() {
+  const W = 1920, H = 1080;
+  const shown = (el) => {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) < 0.5) return false;
+    }
+    return true;
+  };
+  const skip = (el) => el.id === "__review_label" || !!el.closest("#__review_label, script, style");
+  const onStage = (r) => r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0 && r.left < W && r.top < H;
+  let maxFont = 0, maxFontText = "", tiny = 0;
+  const tinyEx = [];
+  const seen = new Set();
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = (node.nodeValue || "").replace(/\s+/g, " ").trim();
+    const el = node.parentElement;
+    if (!text || !el || seen.has(el) || skip(el)) continue;
+    seen.add(el);
+    if (!shown(el) || !onStage(el.getBoundingClientRect())) continue;
+    const size = parseFloat(getComputedStyle(el).fontSize);
+    if (size > maxFont) { maxFont = size; maxFontText = text.slice(0, 40); }
+    if (size < 22) { tiny++; if (tinyEx.length < 3) tinyEx.push(text.slice(0, 28)); }
+  }
+  let block = 0, blockName = "";
+  for (const el of document.body.querySelectorAll("*")) {
+    if (skip(el) || !shown(el)) continue;
+    const tag = el.tagName.toLowerCase();
+    const cs = getComputedStyle(el);
+    const paints = ["img", "video", "canvas", "svg", "iframe"].includes(tag)
+      || (cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent")
+      || cs.backgroundImage !== "none"
+      || (parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== "none")
+      || cs.boxShadow !== "none";
+    if (!paints) continue;
+    const r = el.getBoundingClientRect();
+    const x0 = Math.max(0, r.left), y0 = Math.max(0, r.top), x1 = Math.min(W, r.right), y1 = Math.min(H, r.bottom);
+    if (x1 <= x0 || y1 <= y0) continue;
+    const frac = ((x1 - x0) * (y1 - y0)) / (W * H);
+    if (frac >= 0.95) continue; // the stage, an ambient layer, a background wash — not a subject
+    if (frac > block) {
+      block = frac;
+      const cls = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(".") : "";
+      blockName = tag + (cls ? "." + cls : "");
+    }
+  }
+  return { maxFont: Math.round(maxFont), maxFontText, tiny, tinyEx, block: +block.toFixed(3), blockName };
+}
+
+/** The subject rules — hero type under this, and no block filling this much of the stage, is a web section. */
+const SUBJECT = { minFont: 64, minBlock: 0.2, tinyRuns: 4 };
+
+/** The lines the sheets cannot show, from one settled frame's measurement. */
+export function subjectNotes(m, shot) {
+  const out = [];
+  if (!m) return out;
+  if (m.maxFont < SUBJECT.minFont && m.block < SUBJECT.minBlock) {
+    out.push(`#${shot}: largest type ${m.maxFont}px${m.maxFontText ? ` ("${m.maxFontText}")` : ""}, largest block ${Math.round(m.block * 100)}% of the stage${m.blockName ? ` (${m.blockName})` : ""} — a web section, not a frame. One thing, centred, big: the headline at 120px+ with the rest as its second act, or one card/control at 3× filling a third of the picture.`);
+  }
+  if (m.tiny >= SUBJECT.tinyRuns) {
+    out.push(`#${shot}: ${m.tiny} runs of copy under 22px${m.tinyEx.length ? ` ("${m.tinyEx.join('", "')}")` : ""} — unreadable at 1080p. Cut them, or make one of them the subject.`);
   }
   return out;
 }
@@ -151,11 +256,19 @@ try {
   });
 
   const clipped = [];
+  const subject = [];
+  const subjectSeen = new Set();
   let i = 0;
   for (const s of plan) {
     await page.evaluate(t => { window.__SEEK(t); }, s.t);
-    if (s.pct !== null && s.pct >= 35 && s.pct <= 80) {
-      for (const c of await page.evaluate(measureClippedText)) clipped.push({ ...c, shot: s.shot, t: s.t });
+    if (s.pct !== null) {
+      const settled = s.pct >= 35 && s.pct <= 80;
+      for (const c of await page.evaluate(measureClippedText, settled)) clipped.push({ ...c, shot: s.shot, t: s.t });
+      if (settled && !subjectSeen.has(s.shot)) {
+        subjectSeen.add(s.shot);
+        const m = await page.evaluate(measureSubject);
+        for (const note of subjectNotes(m, s.shot)) subject.push({ shot: s.shot, t: s.t, note, ...m });
+      }
     }
     await page.evaluate(text => { document.getElementById("__review_label").textContent = text; },
       `${i + 1}  ${s.shot ?? "—"} · ${s.type ?? ""} · ${s.t.toFixed(2)}s${s.pct === null ? "" : ` · ${s.pct}%`}`);
@@ -180,14 +293,26 @@ try {
     const here = plan.map((s, idx) => ({ s, idx })).filter(({ idx }) => sheetOf(idx, cols, rows).sheet === si);
     console.log(`   ${f}: ${here.map(({ s, idx }) => `[${idx + 1}] ${s.shot ?? "—"} ${s.t.toFixed(1)}s`).join(" · ")}`);
   });
-  const seen = new Set();
-  const unique = clipped.filter(c => { const k = `${c.shot}|${c.text}|${c.side}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  // One line per run of type, every cut side on it: three lines for one headline is noise.
+  const merged = new Map();
+  for (const c of clipped) {
+    const k = `${c.shot}|${c.text}`;
+    const m = merged.get(k);
+    if (!m) merged.set(k, { ...c, sides: [{ side: c.side, px: c.px }] });
+    else if (!m.sides.some(s => s.side === c.side)) m.sides.push({ side: c.side, px: c.px });
+  }
+  const unique = [...merged.values()].map(({ side, px, ...c }) => c);
   if (unique.length) {
     console.log(`\n⚠ clipped type (${unique.length}) — the glyphs run past the mask that holds them:`);
-    for (const c of unique.slice(0, 14)) console.log(`   #${c.shot} ${c.t.toFixed(1)}s "${c.text}" — ${c.px}px cut ${c.side} by ${c.mask} (${c.font}). ${c.fix}`);
+    for (const c of unique.slice(0, 14)) console.log(`   #${c.shot} ${c.t.toFixed(1)}s "${c.text}" — cut ${c.sides.map(s => `${s.px}px ${s.side}`).join(", ")} by ${c.mask} (${c.font}). ${c.fix}`);
     if (unique.length > 14) console.log(`   … and ${unique.length - 14} more.`);
   }
-  writeFileSync(join(outDir, "plan.json"), JSON.stringify({ cols, rows, tile, plan, sheets, clipped: unique }, null, 2));
+  if (subject.length) {
+    console.log(`\n⚠ subject (${subject.length}) — a film frame is one thing, centred, big; these are web sections:`);
+    for (const s of subject.slice(0, 12)) console.log(`   ${s.note}`);
+    if (subject.length > 12) console.log(`   … and ${subject.length - 12} more.`);
+  }
+  writeFileSync(join(outDir, "plan.json"), JSON.stringify({ cols, rows, tile, plan, sheets, clipped: unique, subject: subject.map(({ note, shot, t }) => ({ shot, t, note })) }, null, 2));
 } finally {
   rmSync(framesDir, { recursive: true, force: true });
   await studio.close();
