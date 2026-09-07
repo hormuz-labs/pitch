@@ -33,7 +33,7 @@ import os from "node:os";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
-import { TYPE_BEATS, designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
+import { BUILT_IN, TYPE_BEATS, designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -170,7 +170,6 @@ if (!spec) {
   // ---- Template tells: what makes two films look like the same film -------------
   // The shared engine gives every product the same ten looks; a film with no
   // project-local shot type is assembled, not directed.
-  const BUILT_IN = new Set([...TYPE_BEATS, "ui-frame", "device-notif", "device-3d", "lottie", "rive", "cascade"]);
   if (!shots.some(s => !BUILT_IN.has(s.type)) && !spec.actors) lint.push({ level: "warn", msg: "Every shot is a built-in type and nothing crosses the cuts — no signature. Either declare `actors` (the product's own object living across the scenes) or write one project-local type in js/shots.custom.js for the beat only this product could own (motion_schema({ section: \"custom shot types\" }))." });
   // Uniform durations read as a metronome whatever the content.
   if (shots.length >= 8) {

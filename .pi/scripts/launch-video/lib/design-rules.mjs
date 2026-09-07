@@ -20,6 +20,8 @@ export const LIMITS = {
 export const TYPE_BEATS = new Set(["word-build", "pile", "type-field", "overlay-type", "logo-sting", "type-wipe", "icon-marquee", "word-cut", "color-punch", "logo-cta", "stat-counter", "line"]);
 /** Built-in type beats whose whole move is an entrance — the lab's text family does the same job with a real move. */
 export const PLAIN_TYPE = new Set(["word-cut", "type-wipe", "color-punch", "type-field", "overlay-type"]);
+/** The engine's own types. A project type (js/shots/<type>.js) is a lab port whose factory timeline carries its own acts — the check does not second-guess it; the audit measures it. */
+export const BUILT_IN = new Set([...TYPE_BEATS, "ui-frame", "device-notif", "device-3d", "lottie", "rive", "cascade"]);
 export const TRANSITION_CUTS = new Set(["dissolve", "wipe-left", "wipe-right", "wipe-up", "wipe-down", "push-left", "push-right", "push-up", "push-down", "iris", "zoom", "zoom-out", "flip", "flood"]);
 
 /**
@@ -90,12 +92,14 @@ export function lintDesign(spec) {
   shots.forEach((s) => {
     if ((s.rippleBeats || 0) > 0) out.push({ level: "fail", code: "ripple", msg: `#${s.id}: a \`ripple\` beat — rings expanding from a press are banned. A press is the control's own state change (the pill grows, the button splits, the toggle snaps) or a \`flood\`.` });
     if (s.type === "ui-frame" && s.capturedSrc && !secondAct(s)) out.push({ level: "warn", code: "still", msg: `#${s.id}: a captured screen sits still as the product (\`src\`, no \`html\`). A still screenshot cannot have a second act — give the shot a focus move, a cursor, a beat, or rebuild the part that moves as \`html\`.` });
-    // A shot that enters and then holds is the quiet stretch the audit fails.
-    if (s.dur > R.hold && !secondAct(s)) out.push({ level: "warn", code: "hold", msg: `#${s.id} (${s.type}): ${s.dur}s with nothing after the entrance — the audit flags a quiet stretch over ${R.hold}s. Give it a second act now (\`beats\`, \`steps\`, an actor, a \`focus\` or \`cursor\`) or cut it at ${R.hold}s; do not wait for the gate to say so.` });
+    // A built-in type that enters and then holds is the quiet stretch the audit notes. A project type is not
+    // judged here: its factory timeline is the acts, and adding `beats` on top of a lab port is what made
+    // the bouncy films — the audit measures what actually moves.
+    if (BUILT_IN.has(s.type) && s.dur > R.hold && !secondAct(s)) out.push({ level: "warn", code: "hold", msg: `#${s.id} (${s.type}): ${s.dur}s of a built-in type with nothing after its entrance — the audit will note the quiet stretch over ${R.hold}s. A \`steps\` sequence, a \`swap\`, a \`focus\` or \`cursor\` changes what the frame says; or cut it at ${R.hold}s. A pulse on a word is not a second act.` });
     // Text that only slides in: the lab's text family exists for exactly this beat.
     if (PLAIN_TYPE.has(s.type) && !s.lab) out.push({ level: "warn", code: "plain-type", msg: `#${s.id}: \`${s.type}\` is text that only enters. The lab has 69 text effects — motion_effects({ query: "<what this line should do>", family: "text" }) — port one as a custom type, or put the copy in a \`line\` with steps.` });
-    // A whole desktop at 1560px is wallpaper; the reference films keep one thing big and centred.
-    if (s.type === "ui-frame" && s.frame !== "phone" && !s.focus && !s.clickZoom && !s.layers && !s.html) out.push({ level: "warn", code: "desktop", msg: `#${s.id}: a whole screen in a ${s.frame || "browser"} frame with no \`focus\`, no \`cursor.zoom\` and no layers — a full desktop is never the subject. Crop to the one control the copy is about (motion_screenshot({ selector }) at 2×), or push in with \`focus\` so it fills the frame.` });
+    // A whole desktop at 1560px is wallpaper at 1080p: nothing on it can be read.
+    if (s.type === "ui-frame" && s.frame !== "phone" && !s.focus && !s.clickZoom && !s.layers && !s.html) out.push({ level: "warn", code: "desktop", msg: `#${s.id}: a whole screen in a ${s.frame || "browser"} frame with no \`focus\`, no \`cursor.zoom\` and no layers — at 1080p none of it can be read. Push in with \`focus\` or \`cursor.zoom\` to the part the copy is about, or rebuild that part as \`html\`.` });
   });
   if (n >= 8 && punches === 0) out.push({ level: "warn", code: "punch", msg: "No `punch` cuts — mark 2–3 boundaries where a beat lands." });
   if (!breaths && n >= 8) out.push({ level: "warn", code: "breath", msg: "No `breath` beats — the reference films duck the bed for half a second before every payoff. Put one before the moment the film is about." });

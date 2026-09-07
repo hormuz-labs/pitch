@@ -224,7 +224,7 @@ function whole(r: Record_): string {
     'The page loads GSAP from ../../../assets/gsap/ and its own ../../_lib/fx.js; in the film the same plugins are already registered by the scaffold, fx.timeline({duration}) becomes the gsap.timeline() your factory returns, and every time is a fraction of D. Rebuild the placeholder content with the product\'s own — and put `lab: "' +
       r.id +
       '"` on the shot that uses it.',
-    "Masks: any `overflow: hidden` reveal here sits at line-height ≤ 1 and cuts descenders and accents at hero size. In the port give the mask `padding: .16em .08em .24em; margin: -.16em -.08em -.24em` and start the hidden text at yPercent 140, not 110. Keep the whole thing one subject, centred, filling the frame — the lab's 1280×720 stage scales to 1920×1080 by 1.5.",
+    "Masks: any `overflow: hidden` reveal here sits at line-height ≤ 1 and cuts descenders and accents at hero size. In the port give the mask `padding: .16em .08em .24em; margin: -.16em -.08em -.24em` and start the hidden text at yPercent 140, not 110. Keep the lab's composition: its count of elements, their sizes and their arrangement are the effect — three forms stay three forms. The lab's 1280×720 stage scales to 1920×1080 by 1.5.",
   ]
   return lines.filter(l => l !== '').join('\n')
 }

@@ -47,9 +47,10 @@ every shot three layers of life on top of the factory's own animation, and
 | `reveal: "words"` | word-cut, color-punch | Words arrive one after another (0.13s apart, `each` overrides); parts with `accent: true` pop harder and take the accent color. |
 | `parts[].accent` | any `parts` | The keyword. Colored `--accent` (ink on accent backgrounds). One per line. |
 
-Rule of thumb per shot: **entrance (0–0.6s) → second act (a beat, a line
-swap, a second notification, a cursor) → exit (last 0.3s).** Shots shorter
-than 1.6s need no second act.
+Rule of thumb for a built-in shot: **entrance (0–0.6s) → second act (a
+line swap, a second notification, a cursor) → exit (last 0.3s).** Shots
+shorter than 1.6s need no second act. A custom type's factory timeline is
+its own three acts — `beats` are not added on top of a lab port.
 
 ## Actors
 

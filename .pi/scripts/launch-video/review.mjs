@@ -19,15 +19,11 @@
  *     one: a headline scaled up on its entrance ran past both stage edges at
  *     20% and 90% and fitted at 55%, and the settled-only check saw nothing.
  *
- *   • The subject. At the settled frame: the largest type on screen and the
- *     largest block that paints (an image, a frame, a card), as a fraction of
- *     the stage. A film frame is one thing in the middle at 100–300px, or a
- *     control filling a third of the picture; a web section is a 40px
- *     headline over 18px cards with half the stage empty. The agent kept
- *     building the second and calling it the first. The ground too: a shot
- *     sitting on a colour the brand never uses (a navy nobody measured) is
- *     named, while `bg: "ink"` — an inverted shot on the brand's own ink —
- *     is a choice and passes.
+ *   • The ground. At the settled frame: the colour the shot sits on. A shot on
+ *     a colour the brand never uses (a navy nobody measured) is named, while
+ *     `bg: "ink"` — an inverted shot on the brand's own ink — is a choice and
+ *     passes. What is on the stage — one thing or three forms — is the lab
+ *     effect's composition and the director's; the review does not count it.
  *
  * Screenshots over CDP to the CloakBrowser cost ~1.3s each, so like the audit
  * the frames are captured by several tabs at once, each with its own label.
@@ -217,21 +213,6 @@ export function groundNote(ground, brand, shot) {
   return `#${shot} sits on ${hexOf(g)} — not a brand colour (${named.map(([k, v]) => `${k} ${v}`).join(", ")}). A ground the product never uses is the invented look: \`bg: "ink"\` for an inverted shot, or put the colour in brand.palette with its evidence in direction.md.`;
 }
 
-/** The subject rules — hero type under this, and no block filling this much of the stage, is a web section. */
-const SUBJECT = { minFont: 64, minBlock: 0.2, tinyRuns: 4 };
-
-/** The lines the sheets cannot show, from one settled frame's measurement. */
-export function subjectNotes(m, shot) {
-  const out = [];
-  if (!m) return out;
-  if (m.maxFont < SUBJECT.minFont && m.block < SUBJECT.minBlock) {
-    out.push(`#${shot}: largest type ${m.maxFont}px${m.maxFontText ? ` ("${m.maxFontText}")` : ""}, largest block ${Math.round(m.block * 100)}% of the stage${m.blockName ? ` (${m.blockName})` : ""} — a web section, not a frame. One thing, centred, big: the headline at 120px+ with the rest as its second act, or one card/control at 3× filling a third of the picture.`);
-  }
-  if (m.tiny >= SUBJECT.tinyRuns) {
-    out.push(`#${shot}: ${m.tiny} runs of copy under 22px${m.tinyEx.length ? ` ("${m.tinyEx.join('", "')}")` : ""} — unreadable at 1080p. Cut them, or make one of them the subject.`);
-  }
-  return out;
-}
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
   const [k, v] = a.replace(/^--/, "").split("=");
@@ -303,18 +284,16 @@ try {
   await addLabel(page);
 
   const clipped = [];
-  const subject = [];
   const grounds = [];
-  const subjectSeen = new Set();
+  const groundSeen = new Set();
   const captureAt = async (pg, sess, s, i) => {
     await pg.evaluate(t => { window.__SEEK(t); }, s.t);
     if (s.pct !== null) {
       const settled = s.pct >= 35 && s.pct <= 80;
       for (const c of await pg.evaluate(measureClippedText, settled)) clipped.push({ ...c, shot: s.shot, t: s.t });
-      if (settled && !subjectSeen.has(s.shot)) {
-        subjectSeen.add(s.shot);
+      if (settled && !groundSeen.has(s.shot)) {
+        groundSeen.add(s.shot);
         const m = await pg.evaluate(measureSubject);
-        for (const note of subjectNotes(m, s.shot)) subject.push({ shot: s.shot, t: s.t, note, ...m });
         const g = groundNote(m.ground, brand, s.shot);
         if (g) grounds.push({ shot: s.shot, t: s.t, note: g, ground: m.ground });
       }
@@ -378,16 +357,11 @@ try {
     for (const c of unique.slice(0, 14)) console.log(`   #${c.shot} ${c.t.toFixed(1)}s "${c.text}" — cut ${c.sides.map(s => `${s.px}px ${s.side}`).join(", ")} by ${c.mask} (${c.font}). ${c.fix}`);
     if (unique.length > 14) console.log(`   … and ${unique.length - 14} more.`);
   }
-  if (subject.length) {
-    console.log(`\n⚠ subject (${subject.length}) — a film frame is one thing, centred, big; these are web sections:`);
-    for (const s of subject.slice(0, 12)) console.log(`   ${s.note}`);
-    if (subject.length > 12) console.log(`   … and ${subject.length - 12} more.`);
-  }
   if (grounds.length) {
     console.log(`\n⚠ off-brand ground (${grounds.length}):`);
     for (const g of grounds.slice(0, 8)) console.log(`   ${g.note}`);
   }
-  writeFileSync(join(outDir, "plan.json"), JSON.stringify({ cols, rows, tile, plan, sheets, clipped: unique, subject: subject.map(({ note, shot, t }) => ({ shot, t, note })), grounds: grounds.map(({ shot, t, note }) => ({ shot, t, note })) }, null, 2));
+  writeFileSync(join(outDir, "plan.json"), JSON.stringify({ cols, rows, tile, plan, sheets, clipped: unique, grounds: grounds.map(({ shot, t, note }) => ({ shot, t, note })) }, null, 2));
 } finally {
   rmSync(framesDir, { recursive: true, force: true });
   await studio.close();
