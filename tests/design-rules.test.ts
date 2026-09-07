@@ -1,6 +1,6 @@
 /**
  * The gate's design-aware rules: a chain film and a chapters film are judged
- * by their own grammar, and a film that named none by the old numbers.
+ * by their own grammar, and a film that named none by the general limits.
  */
 import { describe, expect, it } from 'vitest'
 import {
@@ -33,10 +33,12 @@ describe('designOf', () => {
 })
 
 describe('lintDesign', () => {
-  it('warns when no design is named and applies the strict type-beat limit', () => {
+  it('judges an unnamed design by the general limits without nagging', () => {
     const out = lintDesign({ shots: many(8, { dur: 3.3 }) })
-    expect(out.some(l => /No `design`/.test(l.msg))).toBe(true)
-    expect(out.some(l => l.level === 'fail' && /≤ 3.2s/.test(l.msg))).toBe(true)
+    expect(out.some(l => /No `design`/.test(l.msg))).toBe(false)
+    expect(out.some(l => l.level === 'fail')).toBe(false)
+    const long = lintDesign({ shots: many(8, { dur: 6.5 }) })
+    expect(long.some(l => l.level === 'fail' && /≤ 6s/.test(l.msg))).toBe(true)
   })
   it('lets a chain scene run long when it has steps or actors', () => {
     const shots = many(8, { dur: 2 })

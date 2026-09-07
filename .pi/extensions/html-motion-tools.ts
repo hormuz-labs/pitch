@@ -437,7 +437,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film by its `design`: the grammar's shot-list rules (chain: 6–16 shots, actors across the boundaries, blur exits; chapters: 8–40 shots, chapter labels, the word camera, a flood or scale cut; either: breaths, the hook, scene lengths), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism and overlap. Warns where the harvested logomark goes unused or a generated image stands in for the product. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.",
+      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the general shot-list rules (shot count, scene lengths, the hook, breaths) plus, if `design` names `chain` or `chapters`, that grammar's tells, the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism and overlap. Warns where the harvested logomark goes unused or a generated image stands in for the product. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
@@ -943,7 +943,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_schema',
     label: 'Shot schema',
     description:
-      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one of: design (the two grammars), density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
+      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one of: design (the optional grammar field), density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
       types: Type.Optional(
         Type.Array(Type.String(), {

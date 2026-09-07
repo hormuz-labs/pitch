@@ -35,13 +35,15 @@ window.SHOTS = {
 
 ## Design
 
-Two grammars were measured frame by frame from reference films
-(`references/designs/` in the skill). `design` names the one direction.md
-chose; `motion_audit` judges the film by that grammar's rules.
+`design` is optional. Two grammars were measured frame by frame from
+reference films; name one and `motion_audit` holds the film to that
+grammar's tells, leave it out and the film is judged by the general rules
+only. Any other structure is fine — the field only tells the gate what you
+meant.
 
 | `design` | The film is | Its unit | Cuts | Type | Runs |
 |---|---|---|---|---|---|
-| `chain` | one continuous take: one object born from the words, dropped into the product, becoming the next object, until the mark | an **actor** crossing shots | none that show: an actor, a `carry`, a `flood`, or `exit: "blur"` into an arrival on every boundary | a `line` of 2–4 words, the noun in `accent`, the object in a `slot` | 25–40s, 8–16 shots |
+| `chain` | one continuous take: one object born from the words, dropped into the product, becoming the next object, until the mark | an **actor** crossing shots | none that show: an actor, a `carry`, a `flood`, or `exit: "blur"` into an arrival on every boundary | a `line` of 2–4 words, the noun in `accent`, the object in a `slot` | 25–40s, 6–16 shots |
 | `chapters` | prompt → product → payoff, repeated: a sentence landed at hero scale and travelled word by word (`zoom` beats on `.lw`), the product rebuilt as `ui-frame` `html` and tilted with a cursor acting, a payoff that floods or morphs | a **chapter** (`shot.chapter`) | allowed on a `flood` or on the beat; `zoom` / `zoom-out` between hero and UI scale | a `line` landed as a move; rotators; the noun in `accent`; `typing` only in a prompt box inside the rebuilt UI | 45–90s, 12–40 shots |
 
 A film may be a chain inside its chapters. What both share: an object
@@ -128,7 +130,7 @@ and leave dead air between them.
 |---|---|
 | `id` | Stable label (`shot1`, `hook`, …). The studio's scene strip and the element inspector use it. |
 | `type` | One of the types below, or a project-local type from `js/shots.custom.js`. |
-| `dur` | Seconds. A `line` with steps or a shot posing actors is a scene and may run to 6s; a plain type beat 0.9–3.2s; a `ui-frame` demo 3–6s. When narrated, `motion_sync` sets it from the cue words — you author the `cue`, not the number. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). |
+| `dur` | Seconds. A `line` with steps or a shot posing actors is a scene and may run to 6s; a plain type beat 0.9–6s; a `ui-frame` demo 3–6s. When narrated, `motion_sync` sets it from the cue words — you author the `cue`, not the number. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). |
 | `bg` | `accent` \| `ink` \| `bg` \| a `brand.palette` name \| any CSS color. Text color is picked for contrast. |
 | `ink` | Optional explicit text color for this shot. |
 | `chapter` | The prompt → product → payoff group this shot belongs to (`"create"`, `"style"`). The studio and the audit read the groups; the first shot of a group opens it. |
@@ -330,11 +332,11 @@ opacity/brightness loops, and every image from `assets/`.
 
 ## Rules
 
-- **Density.** A chain film 8–16 shots, a chapters film 12–40; average
-  ≤ 3.4–3.6s; plain type beats ≤ 3.2s, a `line` with steps or a shot posing
-  actors ≤ 6s, `ui-frame` ≤ 6s; narrated shots start on their `cue` word
-  (sync.mjs). No stretch longer than 1.5s without a designed event.
-  `motion_audit` enforces all of this by the film's `design`.
+- **Density.** 4–40 shots, average ≤ 3.6s; a plain type beat, a `line` with
+  steps, a shot posing actors or a `ui-frame` each ≤ 6s (a named `chain` or
+  `chapters` tightens some of these); narrated shots start on their `cue`
+  word (sync.mjs). No stretch longer than 1.5s without a designed event.
+  `motion_audit` enforces all of this.
 - One idea per shot. Headlines only (≤ 8 words on screen; 2–4 on a `line`).
 - Cuts by the design: a chain hides every boundary behind an actor, a carry,
   a flood or a blur exit; a chapters film cuts on a flood or the beat and

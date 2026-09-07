@@ -509,7 +509,7 @@ if (fontFiles.length) {
   lines.push(`] }`);
   lines.push("```");
 } else if (fontsDir) {
-  lines.push(`(no downloadable @font-face for \`${headFamily}\` / \`${bodyFamily}\` — a system font, or the files are inlined. Pick the closest self-hostable equivalent per creative-direction.md Axis 2.)`);
+  lines.push(`(no downloadable @font-face for \`${headFamily}\` / \`${bodyFamily}\` — a system font, or the files are inlined. Pick the closest self-hostable equivalent by personality.)`);
 } else {
   lines.push(`(font download skipped: --no-fonts)`);
 }

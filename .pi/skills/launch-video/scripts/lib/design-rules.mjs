@@ -1,11 +1,10 @@
 /**
  * design-rules.mjs — what the gate expects of a film, by the design it chose.
  *
- * Two grammars were measured frame by frame (docs/studies/): the continuous
- * chain (one object across every scene, no cuts) and the prompt chapters
- * (prompt → product → payoff, repeated, cuts on floods and beats). They ask
- * different things of a shot list, so the limits and the tells are decided
- * here, as pure functions of the shot list, and audit.mjs only reports them.
+ * Naming a design is optional. Two grammars were measured frame by frame
+ * (docs/studies/) — the continuous chain and the prompt chapters — and a film
+ * that names one is held to its tells; a film that names none gets the
+ * general limits only. Pure functions of the shot list; audit.mjs reports.
  */
 
 export const DESIGNS = {
@@ -25,8 +24,9 @@ export const DESIGNS = {
     hook: 3.5,
     label: "prompt chapters",
   },
-  // A film that named no design is judged by the older, stricter numbers.
-  none: { shots: [8, 16], avg: 3.4, typeMax: 3.2, demoMax: 6.0, hook: 3.0, label: "no design named" },
+  // A film that names no design — the usual case — is judged by the general
+  // limits alone: nothing tighter than either grammar asks.
+  none: { shots: [4, 40], avg: 3.6, typeMax: 6.0, demoMax: 6.0, hook: 3.5, label: "launch" },
 };
 
 export const TYPE_BEATS = new Set(["word-build", "pile", "type-field", "overlay-type", "logo-sting", "type-wipe", "icon-marquee", "word-cut", "color-punch", "logo-cta", "stat-counter", "line"]);
@@ -50,7 +50,6 @@ export function lintDesign(spec) {
   const design = designOf(spec);
   const R = DESIGNS[design];
   const n = shots.length;
-  if (design === "none") out.push({ level: "warn", msg: "No `design` on the film. Name the grammar direction.md chose — `design: \"chain\"` (one object across every scene, no cuts) or `design: \"chapters\"` (prompt → product → payoff, repeated) — so the gate judges the film by its own rules." });
   if (n < R.shots[0]) out.push({ level: "fail", msg: `Only ${n} shots — a ${R.label} film runs ${R.shots[0]}–${R.shots[1]}. Cut ideas into more beats.` });
   if (n > R.shots[1]) out.push({ level: "warn", msg: `${n} shots — over ${R.shots[1]} for a ${R.label} film; make sure each is one idea.` });
   const avg = shots.reduce((a, s) => a + (Number(s.dur) || 0), 0) / Math.max(1, n);
