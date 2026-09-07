@@ -1,0 +1,25 @@
+{
+  "move": "frosted glass countdown, seconds digits flip up with a blur each tick",
+  "how": "A backdrop-filter glass panel (blur 34px) over an aurora image and two blur(40px) orbs shows HH:MM:SS at 150px. Each digit cell holds two stacked spans; in the last 28% of every second the changing digit translates up 100% with a quartic ease while blurring 6px and the next digit rises from below. The colons blink with steps(1) every 0.5s, a diagonal sheen sweeps xPercent -120 to 120 over 1.6s (power2.inOut) at 0.24D, the background image drifts xPercent -2 to 2 and scales 1.05 to 1.1, the orbs bob 50px on sine yoyo and the panel floats 6px.",
+  "moves": [
+    "flip-digit",
+    "counter",
+    "blur",
+    "sheen",
+    "float",
+    "blink"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the START time array, the kicker and column labels, the orb colours and the background image; keep the 0.72 flip threshold and the 0.28s quartic flip.",
+  "port": "mount(el, shot) builds the glass panel and digit cells; animate(el, shot, D) returns the timeline plus a {t:0->D, ease:none} tween whose onUpdate computes the remaining seconds and sets each digit's transforms (the __fx.seek override). Scope '.bg', '.orb', '.shine', '.colon', '.glass' to el.",
+  "caveats": [
+    "the clock keeps counting, so the last frame (14:54) does not match the first (14:59); it is a clip, not a loop",
+    "the background drift does not yoyo and jumps at the loop point",
+    "backdrop-filter plus two blur(40px) orbs and a full-frame image is heavy to render"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

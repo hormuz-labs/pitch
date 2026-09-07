@@ -1,0 +1,24 @@
+{
+  "move": "four colour scenes, wipes from alternating sides, type snaps up, shapes bounce",
+  "how": "Four solid-colour scenes each last 0.25D, switched by opacity sets. Between them a full-frame wipe panel scales in from bottom/left/top/right (scaleY or scaleX 0→1, power3.in 0.22s), flips its origin, and scales out the opposite way with expo.out 0.3s. In each scene the two uppercase words snap up out of line masks (yPercent 110→0 expo.out, stagger 0.07), blobs, squares and a star pop in from scale 0 rotate -40 with back.out(2) staggered 0.08, then drift (blob y:-30 x:20, square rotate 18, star rotate 120 with sine/power1 eases) while the headline eases to scale 1.06; a pill badge pops in with back.out(2.5). A difference-blend logo slides in at the start.",
+  "moves": [
+    "color-wipe",
+    "hard-cut",
+    "mask-text",
+    "pop-in",
+    "drift",
+    "stagger"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap the four scene colours, word pairs, shape colours/positions and pill text; the scenes/wipes arrays let you change count (each scene is 1s). Keep the 0.22s in / 0.3s out wipe and the back.out(2) shape pops.",
+  "port": "mount(el, shot) builds .scene blocks with shapes and words, four .wipe panels and .logo from shot.scenes; animate(el, shot, D) returns the timeline with scene windows a = i*D/4 and the wipe at b-0.055D. Scope selectors to el (the effect uses document.querySelector for the pill).",
+  "caveats": [
+    "loop closes only via the last wipe covering the frame into scene 1; scene 1 is fully visible at t=0 without a wipe-in",
+    "mix-blend-mode difference on the logo"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

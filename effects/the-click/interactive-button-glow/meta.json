@@ -1,0 +1,23 @@
+{
+  "move": "orange glow breathes, hover blooms, press ripples and elastic rebounds",
+  "how": "An orange gradient pill 'Claim offer' with an arrow sits on a light stage over two blurred glow layers (blur 34px and 18px). Idle, both glows yoyo scale 0.92 to 1.08 and opacity 0.25 to 0.55 on 0.75s sine.inOut breaths. At 1.0s (17% of 6s) the cursor arrives with power3.out; hover at 1.7s scales the wrap 1.06, lifts 4px, blooms the glows to 0.95 opacity / 1.35 scale and nudges the arrow 8px with back.out(3). Press at 2.5s (42%) squashes to 0.95 with power2.in; a white ripple circle inside the button scales 0.2 to 14 fading out over 0.9s, the wrap springs to 1.08 with elastic.out(1,0.45) and the glow flares to 1.6 scale then settles. Cursor leaves at 3.8s, wrap and arrow return, glows ease to their idle amplitude by 4.8s and take one final small breath so the last frame meets the first.",
+  "moves": [
+    "pulse",
+    "cursor-press",
+    "ripple",
+    "elastic",
+    "hover-lift"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the label, the orange/amber pair, and the pill size; the idle breath period 0.75s is the personality. Keep press at ~42% and the ripple scale 14 so it fills the pill.",
+  "port": "mount(el, shot) creates wrap (glow, glow2, btn with ripple, label, arrow), hint and cursor inside el. animate returns the same timeline with times as fractions of D (arrive 0.167D, hover 0.283D, press 0.417D, leave 0.633D, settle 0.667D, final breath 0.8D). Scope selectors to el; the idle tweens use overwrite:'auto' on hover so keep that.",
+  "caveats": [
+    "two filter: blur layers (34px, 18px) constantly animating",
+    "idle yoyo breath is interrupted by overwrite:'auto', so the settle tail is hand-built rather than a clean phase loop"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

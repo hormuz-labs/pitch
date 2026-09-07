@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8">
+<title>Bar Chart: Skyline</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:linear-gradient(180deg,#0b1020 0%,#1a1f3a 100%)}
+  .sun{position:absolute;left:50%;top:38%;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,#ffb46b,#ff6a3d 60%,transparent 62%);transform:translate(-50%,-50%);filter:blur(1px);opacity:.9}
+  .title{position:absolute;left:80px;top:64px;color:#fff}
+  .title h1{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-size:44px;font-weight:400;letter-spacing:-.02em}
+  .title p{font-size:15px;color:#9aa3c7;margin-top:8px}
+  .stat{position:absolute;right:80px;top:64px;text-align:right;color:#fff}
+  .stat .v{font-size:44px;font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:13px;color:#9aa3c7;letter-spacing:.12em;text-transform:uppercase}
+  .ground{position:absolute;left:0;right:0;bottom:120px;height:2px;background:rgba(255,255,255,.25);transform-origin:50% 50%}
+  .bars{position:absolute;left:80px;right:80px;bottom:122px;height:420px;display:flex;align-items:flex-end;justify-content:space-between}
+  .bar{position:relative;width:72px;height:100%;display:flex;align-items:flex-end}
+  .b{width:100%;background:linear-gradient(180deg,#8ea2ff,#4b5cf0);border-radius:6px 6px 0 0;transform-origin:50% 100%;position:relative}
+  .b::after{content:"";position:absolute;inset:8px 10px;background-image:radial-gradient(rgba(255,255,255,.5) 1.2px,transparent 1.4px);background-size:12px 14px;opacity:.5}
+  .bar:nth-child(odd) .b{background:linear-gradient(180deg,#b3c0ff,#5f6df5)}
+  .bv{position:absolute;left:0;right:0;top:-30px;text-align:center;color:#fff;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+  .bl{position:absolute;left:0;right:0;top:100%;margin-top:10px;text-align:center;color:#9aa3c7;font-size:13px}
+</style>
+<div class="stage">
+  <div class="sun"></div>
+  <div class="title"><h1>Cities by growth</h1><p>New signups per city · this quarter</p></div>
+  <div class="stat"><div class="v" id="tot">0</div><div class="l">Total signups</div></div>
+  <div class="ground"></div>
+  <div class="bars" id="bars"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const data=[['SFO',62],['NYC',88],['LDN',54],['BER',71],['TYO',96],['SYD',40],['SAO',66],['PAR',58],['TOR',79],['SIN',84]];
+  const bars=document.getElementById('bars');
+  data.forEach(([l,v])=>{const d=document.createElement('div');d.className='bar';d.innerHTML=`<div class="b" style="height:${v}%"><div class="bv">0</div></div><div class="bl">${l}</div>`;bars.appendChild(d)});
+  const tl=fx.timeline({duration:4});
+  tl.from('.title h1,.title p,.stat',{y:20,opacity:0,duration:.6,stagger:.1,ease:'power3.out'},0)
+    .from('.sun',{y:180,opacity:0,duration:1.4,ease:'power2.out'},0)
+    .from('.ground',{scaleX:0,duration:.8,ease:'expo.out'},.1)
+    // rise fast, overshoot, settle
+    .from('.b',{scaleY:0,duration:1.1,ease:'back.out(1.6)',stagger:{each:.07,from:'center'}},.35)
+    .from('.bl',{opacity:0,y:6,duration:.4,stagger:{each:.07,from:'center'}},.5)
+    .from('.bv',{opacity:0,duration:.3,stagger:{each:.07,from:'center'}},.9);
+  document.querySelectorAll('.b').forEach((el,i)=>{const o={n:0};const t=data[i][1]*10;const d=Math.abs(i-4.5);tl.to(o,{n:t,duration:1,ease:'power3.out',onUpdate(){el.firstElementChild.textContent=Math.round(o.n)}},.5+d*.07)});
+  const T={n:0};tl.to(T,{n:6980,duration:1.6,ease:'power2.out',onUpdate(){document.getElementById('tot').textContent=Math.round(T.n).toLocaleString('en-US')}},.5);
+  // hold: sun keeps drifting up; skyline settles; then drop away
+  tl.to('.sun',{y:-30,duration:1.6,ease:'sine.inOut'},1.8)
+    .to('.b',{scaleY:0,duration:.45,ease:'expo.in',stagger:{each:.03,from:'edges'}},3.15)
+    .to('.bv,.bl',{opacity:0,duration:.25},3.2)
+    .to('.title,.stat,.ground,.sun',{opacity:0,duration:.3},3.6);
+</script>

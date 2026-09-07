@@ -1,0 +1,112 @@
+[
+ {
+  "name": "Stacked Cards",
+  "family": "Showreels",
+  "familySlug": "showreels",
+  "slug": "stacked-cards",
+  "seconds": 4,
+  "tags": [],
+  "description": "A card animation template from Anagram where cards fan out and reveal in sequence. Works great for testimonials and any content that benefits from a one-at-a-time reveal format.",
+  "jitterUrl": "https://jitter.video/template/stacked-cards/"
+ },
+ {
+  "name": "Config: Photo Gallery 01",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "config-photo-gallery-01",
+  "seconds": 8,
+  "tags": [],
+  "description": "The first animated photo gallery template from the Config series. Good for design conference content and visual work presentations.",
+  "jitterUrl": "https://jitter.video/template/config-photo-gallery-01/"
+ },
+ {
+  "name": "Config: Photo Gallery 02",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "config-photo-gallery-02",
+  "seconds": 6,
+  "tags": [],
+  "description": "A second animated photo gallery template from the Config series. Perfect for design conference content and visual work presentations.",
+  "jitterUrl": "https://jitter.video/template/config-photo-gallery-02/"
+ },
+ {
+  "name": "Config: Photo Gallery 03",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "config-photo-gallery-03",
+  "seconds": 6,
+  "tags": [],
+  "description": "A third animated photo gallery template from the Config series with a different compositional feel. Good for design community content and visual storytelling.",
+  "jitterUrl": "https://jitter.video/template/config-photo-gallery-03/"
+ },
+ {
+  "name": "Feature Sneak Peek",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "feature-sneak-peek",
+  "seconds": 11,
+  "tags": [],
+  "description": "A teaser template from Vendredi Society that partially reveals an upcoming feature. Good for pre-launch social content where you want to build anticipation without giving everything away.",
+  "jitterUrl": "https://jitter.video/template/feature-sneak-peek/"
+ },
+ {
+  "name": "Holo",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "holo",
+  "seconds": 4,
+  "tags": [],
+  "description": "A holographic shimmer animation template from Luc Chaissac with iridescent color shifts. Good for premium product showcases and brand content that wants a distinctive futuristic quality.",
+  "jitterUrl": "https://jitter.video/template/holo/"
+ },
+ {
+  "name": "Instruction Card",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "instruction-card",
+  "seconds": 7,
+  "tags": [],
+  "description": "An animated instruction card template that presents steps one at a time in a clear layout. Great for onboarding flows and how-to content.",
+  "jitterUrl": "https://jitter.video/template/instruction-card/"
+ },
+ {
+  "name": "NFT Cards: 3D",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "nft-cards-3d",
+  "seconds": 7,
+  "tags": [],
+  "description": "A 3D animated card template from Rico showing digital artwork rotating in space. Perfect for digital collectibles showcases and product presentations.",
+  "jitterUrl": "https://jitter.video/template/nft-cards-3d/"
+ },
+ {
+  "name": "Ready For Config",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "ready-for-config",
+  "seconds": 9,
+  "tags": [],
+  "description": "An animated template celebrating Figma Config. Good for Figma community posts and design conference content.",
+  "jitterUrl": "https://jitter.video/template/ready-for-config/"
+ },
+ {
+  "name": "Thank You Config",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "thank-you-config",
+  "seconds": 14,
+  "tags": [],
+  "description": "An animated thank you card template for Figma Config. Good for post-conference community posts and event recap content.",
+  "jitterUrl": "https://jitter.video/template/thank-you-config/"
+ },
+ {
+  "name": "Zero Gravity: Floating Cards",
+  "family": "Uncategorised",
+  "familySlug": "uncategorised",
+  "slug": "zero-gravity-floating-cards",
+  "seconds": 4,
+  "tags": [],
+  "description": "Cards drift weightlessly in space, slowly rotating and bobbing as if in zero gravity. Good for product card showcases and floating UI hero shots.",
+  "jitterUrl": "https://jitter.video/template/zero-gravity-floating-cards/"
+ }
+]

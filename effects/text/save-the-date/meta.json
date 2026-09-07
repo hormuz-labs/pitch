@@ -1,0 +1,24 @@
+{
+  "move": "frame draws edge by edge, words rise under masks, rings breathe",
+  "how": "A square cream card: a hairline frame inset 64px whose four edges are each hidden by a cover strip, two concentric ornament rings, a red centre dot, and a centred column of eyebrow, vertical rule, a three-word serif title (middle word italic) in clipped spans, a spaced date and an italic venue line. Over the first 34% the four covers scale to 0 with expo.inOut in sequence (top, right, bottom, left, 0.4s apart) so the frame appears to draw itself. The rings scale up from .6/.5 and fade in with expo.out, then breathe 5% on a sine yoyo through the hold. From 9% the eyebrow tightens its letter-spacing from .9em to .48em with power3.out, the rule grows scaleY 0 to 1 with expo.inOut at 16%, the title words rise from yPercent 110 with expo.out and 0.16s stagger at 21%, the date characters fade up with 0.09s stagger at 34% and the venue at 41%; the column drifts y 6 to -6 during the hold. From 84% the words lift out (expo.in), copy fades, the rule retracts, the rings blow out, and the covers scale back so the frame is hidden again for the loop.",
+  "moves": [
+    "draw-line",
+    "mask-rise",
+    "stagger",
+    "tracking",
+    "breath",
+    "fade-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the eyebrow, three title words, date parts, venue and the ink/paper/accent colours and typefaces. Keep the sequential expo.inOut frame draw (1.1s per edge, 0.4s apart) and the 0.16s word stagger; it is meant to feel unhurried.",
+  "port": "mount(el, shot) builds the .frame with its four cover strips (applying the gsap.set positions), the rings, the dot and the .col from shot fields; animate(el, shot, D) returns a gsap.timeline with the covers at 0.014D to 0.19D, copy from 0.086D to 0.41D, drift 0.36D, exit 0.84D. Replace '#fa'-style ids with classes scoped to el.",
+  "caveats": [
+    "square 1080x1080",
+    "from() on letterSpacing and yPercent needs immediateRender:false if built lazily"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1080"
+}

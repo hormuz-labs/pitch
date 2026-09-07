@@ -1,0 +1,23 @@
+{
+  "move": "three gradient blobs morph through four forms, drift, rotate, multiply-blend",
+  "how": "Three SVG paths filled with linear gradients (orange-pink, violet-cyan, green-yellow) sit on cream with mix-blend-mode multiply so overlaps go dark and rich. Each path is a seeded 8-spoke blob; MorphSVG tweens it through four seeded forms and back to the first, one form per D/4 with sine.inOut, so the silhouettes swell and dent continuously. On top, each blob turns a full 360 (alternating direction) linearly over D, sways x by ±40px over one sine yoyo cycle and bobs y ±25px over two, so the last frame equals the first. A serif italic word sits top-right and a caption bottom-left, static.",
+  "moves": [
+    "morph",
+    "orbit",
+    "blend",
+    "drift"
+  ],
+  "libs": [
+    "gsap",
+    "MorphSVG"
+  ],
+  "adapt": "Swap the three gradient stop colours and the background, the wordmark and caption text; change blob count, base radius and seeds for a different silhouette. Keep the four-form morph at D/4 each and the whole-cycle drift/rotation so the loop still closes.",
+  "port": "mount(el, shot) injects the SVG with gradient defs and three paths, builds the blob path strings with a seeded rng and gsap.set positions; animate(el, shot, D) returns the same timeline with morph steps at k*D/4, rotation over D and yoyo drifts, selecting paths via el.querySelector. Needs MorphSVGPlugin registered; blob centres are absolute 1280x720 coordinates, so scale them to the shot size.",
+  "caveats": [
+    "mix-blend-mode multiply on three gradient paths is fill-rate heavy at full frame",
+    "blob positions are hard-coded for a 1280x720 viewBox"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

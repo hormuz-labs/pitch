@@ -1,0 +1,26 @@
+{
+  "move": "squares clip-wipe open in a diagonal wave with push-in, wipe closed",
+  "how": "Eight square cells in a 4x2 grid start clipped to nothing with clip-path inset(100% 0 0 0 round 14px) and y 40; each wipes open to inset(0) and y 0 with 0.8s expo.out in a start-to-end grid stagger (0.07s) from 1.7% of the 3s, while the image inside settles scale 1.3 -> 1 and yPercent 8 -> 0 with 1.1s expo.out on the same stagger; small captions fade up after and a serif title rises from yPercent 110 (expo.out) with a footer fade. From 40% the images drift yPercent -4 with 1.4s sine.inOut. At 75% the cells wipe closed from the top to inset(0 0 100% 0) with y -30 and 0.5s expo.in in the opposite diagonal (0.05s stagger from end); the title exits upward and the footer fades, leaving the empty frame it started with.",
+  "moves": [
+    "mask-wipe",
+    "grid-stagger",
+    "ken-burns",
+    "word-rise",
+    "drift",
+    "wipe-close"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace the eight images and their background-position crops, the captions, title and footer; change the grid columns and the grid:[2,4] stagger shape together. Keep the 0.8s expo.out open with 0.07s diagonal stagger and the 0.5s expo.in close.",
+  "port": "mount(el, shot) builds the grid of cells from shot.images and preloads them (the source awaits Image.decode via fx.wait); animate(el, shot, D) returns the timeline with opens at 0.017D, captions at 0.17D, drift at 0.4D and closes at 0.75D. The clip-path inset strings must keep the 'round 14px' suffix on both ends so GSAP interpolates; from() tweens on captions, title and footer should be fromTo with immediateRender:false.",
+  "caveats": [
+    "clip-path animates on eight cover-image cells at once, moderately heavy",
+    "from() tweens on captions, title and footer have default immediateRender",
+    "loop closes visually: all cells are fully clipped and text hidden at both ends"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

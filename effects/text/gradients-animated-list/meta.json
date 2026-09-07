@@ -1,0 +1,25 @@
+{
+  "move": "gradient rows scale in from left, gradients drift, sheens cross, reverse exit",
+  "how": "A dark frame with a small uppercase header and four full-width rounded rows, each filled with its own four-stop diagonal gradient at 300% background-size, containing an index number, a title and a description, plus a skewed white sheen strip. Every row's gradient drifts backgroundPosition 0% to 100% linearly on a repeat -1 loop with a different period (6s divided by 1, 1.25, 1.5, 1.75). Rows enter from xPercent -8, scaleX .6 and opacity 0 with expo.out over 0.9s, one every 0.16s from 4%, and their text rises from y 24 with power3.out and 0.06s stagger. From 27% a sheen crosses each row (x -260 to 1300, power2.inOut, 1.1s) at 0.35s intervals, while the list breathes y -6 with sine.inOut yoyo. From 89% the rows collapse back (xPercent 6, scaleX .7, power3.in) in reverse order and the header fades, ending on the dark frame.",
+  "moves": [
+    "slide-in",
+    "stagger",
+    "gradient-drift",
+    "sheen",
+    "breath",
+    "snap-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the header, the row count and their number/title/description strings, and each row's gradient stops. Keep the expo.out entry with scaleX from .6, the 0.16s cadence and the sheen sweep; each row's gradient period should still differ so they never sync.",
+  "port": "mount(el, shot) builds the .head and .list of .row elements (with .g gradient and .sheen children) from shot.items; animate(el, shot, D) returns a gsap.timeline with the per-row gradient drifts (repeat -1 for D/(1+i*0.25)), entries at (0.25+i*0.16)/6*D, sheens at (1.6+i*0.35)/6*D and the exit at 0.89D. Scope gsap.utils.toArray('.row') to el.",
+  "caveats": [
+    "animating background-position on four 300%-size gradients is fine but not free",
+    "repeat:-1 gradient tweens make tl.duration() infinite: use a finite repeat count in the port",
+    "from() text tweens need immediateRender:false if built lazily"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

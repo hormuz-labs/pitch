@@ -1,0 +1,24 @@
+{
+  "move": "split-flap cells cycle characters row by row, clock ticks, top row departs",
+  "how": "A dark board with a header and clock, column labels and five rows of flap cells (time, destination, flight, gate) plus a status pill. The board rises in (expo.out), the header text and rows fade in. From 8% each flap runs a proxy tween of 6 to 13 steps at 0.07s per step whose onUpdate writes the next character from a seeded alphabet, landing on its target, while a paired scaleY 0.6 to 1 pulse repeats per step; rows start 0.28s apart and columns cascade 0.03s per flap. Status labels rise through masks 0.28s apart. A proxy tween drives the clock seconds for the whole clip; at 58% one status slides up, swaps to BOARDING with a colour change and slides back. At 81% the top row slides out x -60 fading (power3.in), the others shuffle up y -72 (expo.inOut) and the board fades.",
+  "moves": [
+    "flip-flap",
+    "scramble",
+    "stagger",
+    "counter",
+    "mask-rise",
+    "shuffle"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change DATA rows (widths per column are fixed in cell()), the alphabet, colours and brand footer; keep the 0.07s step cadence and the 0.28s row cascade.",
+  "port": "mount(el, shot) builds the rows and flap cells and returns the flap list; animate(el, shot, D) returns the timeline; the character cycling already runs from onUpdate proxy tweens so it ports directly. Scope selectors to el.",
+  "caveats": [
+    "around 130 flaps each with two tweens; heavy timeline",
+    "not a true 3D flap flip: the .n/.t/.b markup is unused and the flip is a scaleY pulse"
+  ],
+  "fidelity": "approximation",
+  "loop": true,
+  "size": "1280x720"
+}

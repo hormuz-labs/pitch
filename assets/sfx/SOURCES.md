@@ -38,7 +38,7 @@ The usable subset is curated automatically:
   pack and `assets/sfx/`, measures every file (duration, **transient onset**,
   integrated loudness), classifies it into a motion-event class, and drops
   everything on the ban list.
-- Output: `.pi/skills/launch-video/data/sfx-index.json`
+- Output: `.pi/scripts/launch-video/data/sfx-index.json`
   — currently **310 clips across 17 event classes** out of 938 files.
 - Query and mix through `scripts/sfx.mjs`; design rules in
   `references/sfx-design.md`.

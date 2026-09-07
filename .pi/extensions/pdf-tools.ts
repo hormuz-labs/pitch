@@ -33,7 +33,7 @@ import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
-import { REPO_ROOT, SKILLS_DIR, workspaceOf } from '../lib/paths.ts'
+import { REPO_ROOT, SCRIPTS_DIR, SKILLS_DIR, workspaceOf } from '../lib/paths.ts'
 import { hostAction } from '../lib/studio-host.ts'
 
 const execFileAsync = promisify(execFile)
@@ -93,9 +93,7 @@ function npmGlobalRoot(): string | null {
  * mechanism and these are ESM imports. So the tool that runs them says where it
  * is.
  */
-const BROWSER_LIB = pathToFileURL(
-  path.join(SKILLS_DIR, 'launch-video', 'scripts', 'lib', 'browser.mjs'),
-).href
+const BROWSER_LIB = pathToFileURL(path.join(SCRIPTS_DIR, 'launch-video', 'lib', 'browser.mjs')).href
 
 function nodeEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const env = { ...process.env, ...extra, STUDIO_BROWSER_LIB: BROWSER_LIB }

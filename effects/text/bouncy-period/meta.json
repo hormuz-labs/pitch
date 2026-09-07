@@ -1,0 +1,12 @@
+{
+  "move": "period drops from above, bounces with squash, hops twice, springs away",
+  "how": "The word 'Loading' in large type with an orange circular period and a soft elliptical shadow beneath it, on a cream ground. The word rises in from yPercent 40 / opacity 0 with expo.out in the first 17%. From 5% the period falls from y -420 over 1.4s on a CustomBounce ease ('drop', strength .62, squash 3) while a paired 'drop-squash' ease drives scaleX 1.5 / scaleY .55 on each impact and the shadow scales from .3 and fades in on the same bounce ease. At 47% and 69% it hops: y -150 with power2.out over 0.32s, then back down on the bounce ease, with a stretch (scaleX .82 / scaleY 1.18) on the way up and a squash on landing while the shadow shrinks and returns. At 91% the word lifts out and the period shoots back up off-frame.",
+  "moves": ["bounce", "squash", "stretch", "drop-in", "shadow"],
+  "libs": ["gsap", "CustomEase", "CustomBounce"],
+  "adapt": "Change the word, the period colour and size (scale the -420 drop and -150 hop with the font size), and the caption. Keep the CustomBounce strength .62 with squash 3; it is the character of the bounce.",
+  "port": "mount(el, shot) renders the .line with word, .dot and .shadow and the caption; animate(el, shot, D) registers CustomEase/CustomBounce once (create the 'drop' eases at module load), then returns a gsap.timeline with the drop at 0.05D, hops at 0.475D and 0.69D, exit at 0.91D. Selectors scoped to el.",
+  "caveats": ["needs the CustomBounce and CustomEase plugins loaded before animate runs", "the two eases must be created only once or CustomBounce will warn on redefinition"],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "three strips wipe in alternating directions, images slide against the wipe",
+  "how": "Three landscape strips stacked vertically reveal with clip-path insets in alternating directions (right, left, right) using expo.inOut over 0.9s at 0.3s offsets; inside each, the image (124% wide) counter-slides xPercent ∓8→0 from scale 1.1 (expo.out 1.5s) and a time-stamp tag rises with back.out(2). A header fades down, two hairlines scale x 0→1 (expo.inOut, stagger 0.15) and two footer words rise masked from yPercent 110. During the hold each image pans slowly xPercent ±4 linearly (alternating). Exit at 81%: each strip wipes closed in the opposite direction (expo.in 0.5s, 0.12s offsets), tags fade, footer words exit upward, hairlines shrink from the right and the header fades.",
+  "moves": [
+    "mask-wipe",
+    "parallax",
+    "stagger",
+    "pan",
+    "draw-stroke"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace the three images, the tag timestamps, header and footer strings; keep the alternating dirs[] and the 0.3s cadence with the 8% counter-slide.",
+  "port": "mount(el, shot) builds N strips with tags, the hairlines, header and footer; animate(el, shot, D) returns the timeline with strips at 0.025D + i*0.075D, pan from 0.3D, exit at 0.81D. The forEach over strip selectors must use el.querySelectorAll; from() tweens need immediateRender:false.",
+  "caveats": [
+    "from() tweens need immediateRender:false"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

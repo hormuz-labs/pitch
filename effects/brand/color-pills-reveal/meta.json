@@ -1,0 +1,24 @@
+{
+  "move": "pills pop from dots with a twist, bounce wave, pop out",
+  "how": "A four-word headline (each word masked, yPercent 110→0 expo.out, stagger 0.06) sits above a wrapped row of nine colour pills. Each pill from() scale:0 with alternating ±18 rotate and back.out(2.2) over 0.7s, 0.16s apart, and its round swatch pops in after with back.out(3). At 0.48D a bounce wave runs through the row (y:-16 power2.out then bounce.out back, stagger 0.07), then at 0.65D the swatch dots swell to 1.25 and settle with elastic.out. From 0.83D the pills pop out in reverse order with back.in(2) and rotate 12, and the headline words exit upward with power3.in.",
+  "moves": [
+    "pop-in",
+    "stagger",
+    "bounce-wave",
+    "elastic",
+    "mask-text",
+    "pop-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap headline words (one span per word), pill colours, names and hex; pill count drives 0.35 + i*0.16 s so scale D with it. Keep back.out(2.2) pops, the bounce wave and reverse-order exit.",
+  "port": "mount(el, shot) builds .cap spans and a .wrap of .pill elements from shot.colors; animate(el, shot, D) returns the timeline with per-pill t = (0.35 + i*0.16)/6*D, wave at 2.9/6*D, exit at 5.0/6*D, all selectors scoped to el.",
+  "caveats": [
+    "from() tweens need immediateRender:false when rebuilt",
+    "flex-wrap layout means pill positions depend on stage width"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "six tiles pop in, shapes orbit inside each with different blend modes",
+  "how": "A 3x2 grid of rounded tiles, alternating dark and light, each holding a pink disc, a cyan disc and a yellow rounded square; the cyan and yellow shapes use the tile's own mix-blend-mode (screen, multiply, difference, overlay, exclusion, hard-light) and a label pill names it. Tiles scale from .85 / y 30 / opacity 0 with expo.out and a grid stagger of 0.08s in the first 20%, labels rise in just after. A proxy tween (ease none, full 4s) drives an onUpdate that sets x/y on every shape: the pink and cyan discs orbit an ellipse (55 by 32px) on opposite sides with a per-tile phase offset, the yellow square weaves on a figure-eight and rotates 360deg. One full revolution per loop so the orbit seams, but at 86% the tiles shrink and fade out (power2.in), so the frame ends empty.",
+  "moves": [
+    "pop",
+    "stagger",
+    "orbit",
+    "blend-mode",
+    "fade-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the three shape colours, the tile backgrounds, which six blend modes are shown and their labels; the grid can be 2x2 or 4x2. Keep the elliptical orbit radii and the per-tile phase offset of pi/3 so tiles read as related but not identical.",
+  "port": "mount(el, shot) renders .grid with tiles from shot.modes and sets --m per tile; animate(el, shot, D) returns a gsap.timeline containing the entrance/exit tweens and one proxy tween {p:1, duration:D, ease:'none'} whose onUpdate applies the orbit math with gsap.set. Replace document.querySelectorAll('.tile') with el.querySelectorAll.",
+  "caveats": [
+    "18 gsap.set calls per frame from onUpdate",
+    "orbit is seamless but the tile exit means the loop does not close visually"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,60 @@
+<!doctype html><meta charset="utf-8">
+<title>Color Cards: Stack</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#ecebe6;font-family:"Atlas Grotesk",sans-serif}
+  .cap{position:absolute;left:80px;top:52px;font-family:"Sharp Grotesk",sans-serif;font-size:20px;letter-spacing:.12em;text-transform:uppercase;color:#111}
+  .card{position:absolute;width:270px;height:200px;border-radius:22px;left:0;top:0;box-shadow:0 24px 48px -16px rgba(0,0,0,.35);will-change:transform}
+  .card .n{position:absolute;left:22px;bottom:44px;font-family:"Sharp Grotesk",sans-serif;font-size:28px;font-weight:500;letter-spacing:-.02em;color:#fff;line-height:1}
+  .card .h{position:absolute;left:22px;bottom:20px;font-size:13px;letter-spacing:.1em;color:rgba(255,255,255,.8)}
+  .card.light .n{color:#111}.card.light .h{color:rgba(0,0,0,.6)}
+  .card .k{position:absolute;right:20px;top:18px;font-family:"Sharp Grotesk",sans-serif;font-size:14px;letter-spacing:.1em;color:rgba(255,255,255,.7)}
+  .card.light .k{color:rgba(0,0,0,.5)}
+</style>
+<div class="stage">
+  <div class="cap">Northwind — Swatch Library</div>
+  <div class="card" style="background:#1d1d1f"><span class="k">01</span><div class="n">Ink</div><div class="h">#1D1D1F</div></div>
+  <div class="card" style="background:#d62828"><span class="k">02</span><div class="n">Poppy</div><div class="h">#D62828</div></div>
+  <div class="card" style="background:#f77f00"><span class="k">03</span><div class="n">Marigold</div><div class="h">#F77F00</div></div>
+  <div class="card light" style="background:#fcbf49"><span class="k">04</span><div class="n">Honey</div><div class="h">#FCBF49</div></div>
+  <div class="card light" style="background:#eae2b7"><span class="k">05</span><div class="n">Sand</div><div class="h">#EAE2B7</div></div>
+  <div class="card" style="background:#003049"><span class="k">06</span><div class="n">Navy</div><div class="h">#003049</div></div>
+  <div class="card" style="background:#588157"><span class="k">07</span><div class="n">Moss</div><div class="h">#588157</div></div>
+  <div class="card light" style="background:#a3b18a"><span class="k">08</span><div class="n">Sage</div><div class="h">#A3B18A</div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 10 });
+  const cards = gsap.utils.toArray('.card');
+  const rnd = fx.rng(7);
+  const cx = 640 - 135, cy = 360 - 100;
+  const CW = 270, CH = 200, GAP = 18;
+  const gridX = (i) => 80 + (i % 4) * (CW + GAP), gridY = (i) => 130 + Math.floor(i / 4) * (CH + GAP);
+  // start: everything piled at centre (later cards on top)
+  cards.forEach((c, i) => gsap.set(c, { x: cx, y: cy, rotate: (rnd() - 0.5) * 14, zIndex: i }));
+  tl.from('.cap', { y: -14, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0);
+  // stacking: cards fly in one by one from off-frame and pile up, each landing with a small thud
+  cards.forEach((c, i) => {
+    const t = 0.1 + i * 0.28;
+    const fromX = i % 2 ? 1500 : -400, fromY = -300 + rnd() * 900;
+    tl.from(c, { x: fromX, y: fromY, rotate: (rnd() - 0.5) * 60, scale: 1.15, duration: 0.7, ease: 'expo.out' }, t);
+    tl.fromTo(c, { scale: 1.03 }, { scale: 1, duration: 0.3, ease: 'power3.out' }, t + 0.45);
+  });
+  // the pile settles: a small compress on the whole stack
+  tl.to(cards, { y: cy + 6, duration: 0.15, ease: 'power2.out' }, 2.5).to(cards, { y: cy, duration: 0.4, ease: 'elastic.out(1,0.5)' }, 2.65);
+  // spread: the stack deals out into a clean 4x2 grid, top card first
+  cards.slice().reverse().forEach((c, k) => {
+    const i = cards.indexOf(c);
+    tl.to(c, { x: gridX(i), y: gridY(i), rotate: 0, duration: 0.9, ease: 'expo.inOut' }, 3.3 + k * 0.1);
+  });
+  // a slow hover wave over the grid
+  tl.to(cards, { y: '-=10', duration: 0.6, ease: 'sine.inOut', stagger: { each: 0.08, grid: [2, 4], from: 'start' }, yoyo: true, repeat: 1 }, 5.4);
+  // gather back into the pile so the loop closes, then it leaves downward
+  cards.forEach((c, i) => {
+    tl.to(c, { x: cx, y: cy, rotate: (rnd() - 0.5) * 14, duration: 0.8, ease: 'expo.inOut' }, 7.4 + i * 0.07);
+  });
+  tl.to(cards, { y: 900, rotate: (i) => (i % 2 ? 10 : -10), duration: 0.6, ease: 'power3.in', stagger: 0.04 }, 9.1);
+  tl.to('.cap', { y: -14, opacity: 0, duration: 0.3 }, 9.5);
+</script>

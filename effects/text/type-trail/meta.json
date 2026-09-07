@@ -1,0 +1,24 @@
+{
+  "move": "words rush in skewed, six lagging ghost copies smear a motion trail",
+  "how": "A dark stage with a drifting grid and three words, each built from a lead span plus six ghost spans that carry a directional feGaussianBlur (22 1) and decreasing opacity. Every move is applied to the lead and then to each ghost 0.035s later, which draws the smear. KINETIC rushes from xPercent -170 to 0 (expo.out, 0.75s, at 1%) with skewX -28 easing to 0; at 29% it shoots up yPercent -320 (expo.in) and TYPE drops in from yPercent 320 with a scaleY 1.25 settle; at 56% TYPE exits left and TRAIL enters from the right with skewX 26; at 85% TRAIL leaves to the right with skewX 18. The grid translates -80px on both axes over the clip, matching its 80px period, so the loop is seamless.",
+  "moves": [
+    "slide-in",
+    "echo-trail",
+    "skew",
+    "blur",
+    "whip"
+  ],
+  "libs": [
+    "gsap",
+    "svg-filter"
+  ],
+  "adapt": "Change the three words and their colours, GHOSTS count and lag, blur strength in the filter; keep the 0.035s ghost lag, the expo.out in / expo.in out pairing and the skew as velocity.",
+  "port": "mount(el, shot) builds the layer spans per word and the SVG filter def; animate(el, shot, D) returns the timeline with moves at 0.01D, 0.29D, 0.56D, 0.85D. The fromTo tweens need immediateRender:false plus the gsap.set start positions in mount; scope selectors to el.",
+  "caveats": [
+    "fromTo tweens rely on immediateRender:false and initial gsap.set positions",
+    "six SVG-blurred 230px text copies per word is heavy to composite"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

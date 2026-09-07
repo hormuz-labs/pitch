@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8">
+<title>Gradients: Bento</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0e0e12}
+  .grid{position:absolute;left:60px;top:60px;width:1160px;height:600px;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);gap:20px}
+  .cell{position:relative;border-radius:22px;overflow:hidden;background:#1a1a22;will-change:transform}
+  .cell.wide{grid-column:span 2}
+  .cell.tall{grid-row:span 2}
+  .g{position:absolute;left:50%;top:50%;width:1400px;height:1400px;margin:-700px 0 0 -700px;will-change:transform}
+  .g.conic{background:conic-gradient(from 0deg,#ff2d95,#ff8a3d,#ffd23f,#19c37d,#38bdf8,#7c3aed,#ff2d95)}
+  .g.linear{background:linear-gradient(90deg,#0ea5e9,#7c3aed,#ff2d95,#0ea5e9);background-size:50% 100%}
+  .g.radial{background:radial-gradient(circle at 50% 50%,#ffe66a 0%,#ff8a3d 30%,#ff2d95 60%,#3b0764 100%)}
+  .g.linear2{background:linear-gradient(0deg,#19c37d,#38bdf8,#a3ff6a,#19c37d);background-size:100% 50%}
+  .g.conic2{background:conic-gradient(from 0deg,#111827,#38bdf8,#111827,#f472b6,#111827)}
+  .g.radial2{background:radial-gradient(circle at 50% 50%,#fff 0%,#c084fc 25%,#3b3bff 55%,#0b1020 100%)}
+  .txt{position:absolute;left:24px;bottom:22px;font-family:"Atlas Grotesk",sans-serif;font-weight:500;font-size:22px;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.3);letter-spacing:-.01em}
+  .txt small{display:block;font-weight:400;font-size:13px;opacity:.8;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px}
+  .stat{position:absolute;left:24px;top:22px;font-family:"Sharp Grotesk",sans-serif;font-weight:500;font-size:56px;color:#fff;letter-spacing:-.03em;line-height:1}
+</style>
+<div class="stage">
+  <div class="grid">
+    <div class="cell wide"><div class="g conic"></div><div class="stat">4.8k</div><div class="txt"><small>Acme Cloud</small>Weekly signups</div></div>
+    <div class="cell"><div class="g linear"></div><div class="txt"><small>Plan</small>Pro</div></div>
+    <div class="cell tall"><div class="g radial"></div><div class="stat">98%</div><div class="txt"><small>Uptime</small>Last 30 days</div></div>
+    <div class="cell"><div class="g linear2"></div><div class="txt"><small>Region</small>EU-West</div></div>
+    <div class="cell"><div class="g conic2"></div><div class="txt"><small>Storage</small>2.1 TB</div></div>
+    <div class="cell"><div class="g radial2"></div><div class="txt"><small>Team</small>12 seats</div></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 5;
+  const tl = fx.timeline({ duration: D });
+  // each cell's gradient runs its own loop: conics spin a full turn, linears scroll one tile, radials breathe
+  tl.to('.g.conic', { rotation: 360, duration: D, ease: 'none' }, 0)
+    .to('.g.conic2', { rotation: -360, duration: D, ease: 'none' }, 0)
+    .to('.g.linear', { backgroundPositionX: '700px', duration: D, ease: 'none' }, 0)
+    .to('.g.linear2', { backgroundPositionY: '-700px', duration: D, ease: 'none' }, 0)
+    .fromTo('.g.radial', { scale: 0.55, x: -120 }, { scale: 0.8, x: 120, duration: D / 2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+    .fromTo('.g.radial2', { scale: 0.45, y: 80 }, { scale: 0.7, y: -80, duration: D / 2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+  // the cells themselves breathe on a staggered sine, one pulse per loop, so the grid never sits still
+  document.querySelectorAll('.cell').forEach((c, i) => {
+    tl.fromTo(c, { scale: 1 }, { scale: 0.97, duration: D / 2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+  });
+</script>

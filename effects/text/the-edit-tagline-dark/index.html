@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8">
+<title>The Edit: Tagline [Dark]</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a0a0b;color:#f2f2ef}
+  .grain{position:absolute;inset:0;opacity:.12;mix-blend-mode:screen;pointer-events:none}
+  .wrap{position:absolute;inset:0;padding:96px;display:flex;flex-direction:column;justify-content:space-between}
+  .top{display:flex;justify-content:space-between;font-family:"Atlas Grotesk",sans-serif;font-size:22px;letter-spacing:.18em;text-transform:uppercase;color:#8a8a86}
+  .top span{display:inline-block}
+  .lines{display:flex;flex-direction:column;gap:6px}
+  .row{overflow:hidden;line-height:.92;height:1.0em;font-size:150px}
+  .l{display:block;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;letter-spacing:-.045em;text-transform:uppercase;will-change:transform}
+  .l.em{color:#c9ff3d}
+  .rule{height:2px;background:#f2f2ef;transform-origin:left center;margin:34px 0 26px}
+  .foot{display:flex;justify-content:space-between;align-items:flex-end;font-family:"Atlas Grotesk",sans-serif;font-size:26px;color:#bdbdb8}
+  .foot .mask{overflow:hidden}.foot .in{display:block}
+  .dot{position:absolute;left:50%;top:50%;width:14px;height:14px;border-radius:50%;background:#c9ff3d;transform:translate(-50%,-50%)}
+</style>
+<div class="stage">
+  <svg class="grain" width="100%" height="100%"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+  <div class="dot"></div>
+  <div class="wrap">
+    <div class="top"><span class="t1">Acme Studio</span><span class="t2">FW / 26</span></div>
+    <div>
+      <div class="lines">
+        <div class="row"><span class="l">Made for</span></div>
+        <div class="row"><span class="l em">the ones</span></div>
+        <div class="row"><span class="l">who move.</span></div>
+      </div>
+      <div class="rule"></div>
+      <div class="foot"><div class="mask"><span class="in">New collection — arriving Friday</span></div><div class="mask"><span class="in">acme.co</span></div></div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 3 });
+  // a lone dot punches in, stretches into the rule, then the type reveals
+  tl.from('.dot', { scale: 0, duration: .35, ease: 'expo.out' }, 0)
+    .to('.dot', { opacity: 0, duration: .15 }, .55)
+    .from('.rule', { scaleX: 0, duration: .7, ease: 'expo.out' }, .5)
+    .from('.l', { yPercent: 110, duration: .8, ease: 'expo.out', stagger: .09 }, .55)
+    .from('.foot .in', { yPercent: 110, duration: .6, ease: 'expo.out', stagger: .08 }, .95)
+    .from('.top span', { opacity: 0, y: 8, duration: .5, ease: 'power2.out', stagger: .1 }, .9)
+    // subtle breathing while it holds: kerning tightens a hair
+    .fromTo('.l', { letterSpacing: '-.045em' }, { letterSpacing: '-.06em', duration: 1.2, ease: 'sine.inOut' }, 1.3)
+    // exit
+    .to('.l', { yPercent: -110, duration: .45, ease: 'expo.in', stagger: .06 }, 2.35)
+    .to('.foot .in', { yPercent: -110, duration: .35, ease: 'expo.in', stagger: .05 }, 2.5)
+    .to('.rule', { scaleX: 0, transformOrigin: 'right center', duration: .4, ease: 'expo.in' }, 2.55)
+    .to('.top span', { opacity: 0, duration: .25 }, 2.7);
+</script>

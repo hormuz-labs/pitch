@@ -1,0 +1,28 @@
+{
+  "move": "routes draw leg by leg between pins, distance counts, drains out",
+  "how": "A stylised SVG map with a generated grid and land shapes drifts from scale 1.06 to 1.12 with a slow x/y pan across D. The first pin pops with back.out(3) and its label with back.out(2). Every 1.9s from 0.07D a leg draws: a blurred glow path and the sharp route path DrawSVG 0→100% with power2.inOut over 1.2s, the HUD text swaps (old up with expo.in, new up from yPercent 110 with expo.out), the destination pin pops at leg end and its label follows, while a distance counter tweens to the cumulative total with power2.out. From 0.22D the pin outer rings pulse (r 14→26, opacity 1→0, repeat 6, stagger 0.1). At 0.9D the routes drain out (drawSVG '100% 100%', expo.in), labels and pins shrink with stagger, the HUD exits and the counter runs back to 0 to close the loop.",
+  "moves": [
+    "draw-stroke",
+    "pin-pop",
+    "counter",
+    "mask-text",
+    "ripple",
+    "slow-zoom"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "svg-filter"
+  ],
+  "adapt": "Replace the land shapes, route path d's (glow and sharp paths must match), pin positions, label names/distances, HUD leg strings and the dists array; leg count sets the 0.7 + i*1.9 cadence. Keep the 1.2s power2.inOut draw and the back.out pin pops.",
+  "port": "mount(el, shot) builds the map SVG (grid generated in code, land, paired route paths, pins), labels, brand, HUD and distance readout; animate(el, shot, D) returns the timeline with DrawSVGPlugin registered, leg t = (0.7 + i*1.9)/10 * D, the counter proxy tween with onUpdate, and the drain at 9.0/10 * D. Path ids and the blur filter id must be unique per instance; scope selectors to el.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "feGaussianBlur filter on the glow paths",
+    "uses id selectors (#r1..#r4, #grid, #blur) that collide if instanced twice",
+    "pin pulse uses attr r tweens with repeat"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

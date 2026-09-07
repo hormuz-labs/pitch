@@ -1,0 +1,20 @@
+{
+  "move": "horizontal carousel of phone screens steps one card per beat, focus scales",
+  "how": "Fifteen 260x560 rounded phone screenshots (five designs repeated three times) sit in a flex track; all start at scale 0.86 / opacity 0.55 except the centred one at scale 1 / opacity 1. Every 0.76s (19% of the 4s duration) the track tweens x by one 300px step with expo.inOut over 0.65s while the outgoing card shrinks to 0.86/0.55 (power2.inOut) and the incoming card grows to 1/1 starting 0.12s later; a pagination dot widens 8->24px in step. Five steps move exactly one full copy, so the final frame matches the first and the loop closes.",
+  "moves": [
+    "carousel",
+    "slide",
+    "scale-focus",
+    "stagger",
+    "dots"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the five screen designs (titles, hero copy, colours) and the card count N; keep three copies so the seam still lands, and keep the 0.65s expo.inOut step and the 0.12s focus lag.",
+  "port": "mount(el, shot) creates the track with N*3 cards from shot.screens and sets initial scale/opacity and track x; animate(el, shot, D) returns the timeline with beat k at (0.05 + k*0.19)*D and a 0.16D step duration. Track x depends on STEP=300 and card width 260 so the layout constants must scale with the container, and the dots selector must be scoped to el.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

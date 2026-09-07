@@ -1,0 +1,65 @@
+<!doctype html><meta charset="utf-8">
+<title>Sliding Smartphones: Stories</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0b0b0f;color:#fff}
+  .bgv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35;filter:blur(30px) saturate(1.4)}
+  .ph{position:absolute;left:50%;top:50%;width:420px;height:860px;margin:-430px 0 0 -210px;border-radius:64px;background:#141418;padding:14px;box-shadow:0 60px 120px rgba(0,0,0,.6),inset 0 0 0 2px #3a3b44;will-change:transform,opacity}
+  .scr{height:100%;border-radius:50px;overflow:hidden;position:relative;background:#000}
+  .scr video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .isl{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:120px;height:34px;border-radius:20px;background:#000;z-index:5}
+  .prog{position:absolute;top:66px;left:14px;right:14px;display:flex;gap:6px;z-index:4}
+  .prog i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.35);overflow:hidden;position:relative}
+  .prog i b{position:absolute;left:0;top:0;bottom:0;width:100%;background:#fff;transform-origin:left;transform:scaleX(0)}
+  .who{position:absolute;top:84px;left:20px;display:flex;align-items:center;gap:12px;z-index:4;font-size:17px;font-weight:500}
+  .who i{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#ff6fb5,#ffb020);box-shadow:0 0 0 3px #fff}
+  .who small{font-weight:400;opacity:.7;margin-left:6px}
+  .txt{position:absolute;left:24px;right:24px;bottom:120px;z-index:4;font-family:"Sharp Grotesk",sans-serif;font-size:44px;font-weight:500;letter-spacing:-.03em;line-height:1.05;text-shadow:0 4px 30px rgba(0,0,0,.5)}
+  .txt span{display:block;overflow:hidden}.txt b{display:block;font-weight:500}
+  .reply{position:absolute;left:20px;right:20px;bottom:30px;height:56px;border-radius:28px;border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;padding:0 20px;font-size:15px;opacity:.9;z-index:4}
+  .reply::after{content:"";margin-left:auto;width:22px;height:22px;border-radius:50%;background:#fff}
+  .sticker{position:absolute;right:30px;top:40%;width:150px;height:150px;border-radius:32px;background:#ffe14d;color:#141414;display:flex;align-items:center;justify-content:center;font-family:"Sharp Grotesk",sans-serif;font-size:30px;font-weight:500;letter-spacing:-.02em;transform:rotate(-8deg);z-index:4;text-align:center;line-height:1}
+  .side{width:300px;height:620px;margin:-370px 0 0 -150px;transform:scale(.9);border-radius:48px;padding:10px;opacity:.85}
+  .side .scr{border-radius:38px}
+  .sl{margin-left:-450px}.sr{margin-left:150px}
+  .side .isl{width:86px;height:26px}
+  .side .prog{top:50px}
+  .side .who{top:64px;font-size:13px}.side .who i{width:32px;height:32px}
+  .side .txt{font-size:30px;bottom:80px}
+  .side .reply{height:42px;font-size:12px}
+  .cap{position:absolute;left:0;right:0;top:150px;text-align:center;font-family:"Sharp Grotesk",sans-serif;font-size:60px;font-weight:500;letter-spacing:-.03em;line-height:1}
+  .cap small{display:block;font-family:"Atlas Grotesk",sans-serif;font-size:18px;letter-spacing:.24em;text-transform:uppercase;opacity:.55;margin-bottom:16px}
+</style>
+<div class="stage">
+  <video class="bgv" src="../../../assets/backgrounds/drift-violet.mp4" muted playsinline preload="auto"></video>
+  <div class="cap"><small>Acme Stories</small>Now playing.</div>
+  <div class="ph side sl"><div class="scr"><video src="../../../assets/backgrounds/drift-mint.mp4" muted playsinline preload="auto"></video><div class="isl"></div><div class="prog"><i><b class="pb"></b></i><i><b></b></i><i><b></b></i></div><div class="who"><i></i>northwind<small>2h</small></div><div class="txt"><span><b>Fresh</b></span><span><b>drops.</b></span></div><div class="reply">Send message</div></div></div>
+  <div class="ph side sr"><div class="scr"><video src="../../../assets/backgrounds/drift-ember.mp4" muted playsinline preload="auto"></video><div class="isl"></div><div class="prog"><i><b class="pb"></b></i><i><b></b></i></div><div class="who"><i></i>acme.studio<small>5h</small></div><div class="txt"><span><b>Behind</b></span><span><b>the scenes.</b></span></div><div class="reply">Send message</div></div></div>
+  <div class="ph main"><div class="scr"><video src="../../../assets/backgrounds/drift-violet.mp4" muted playsinline preload="auto"></video><div class="isl"></div><div class="prog"><i><b class="pb"></b></i><i><b></b></i><i><b></b></i><i><b></b></i></div><div class="who"><i></i>acme<small>1h</small></div><div class="sticker">NEW<br>IN</div><div class="txt"><span><b>Summer</b></span><span><b>collection</b></span><span><b>is live.</b></span></div><div class="reply">Send message</div></div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const vids = [...document.querySelectorAll('video')];
+  vids.forEach(v => fx.wait(new Promise(r => { if (v.readyState >= 2) r(); else v.addEventListener('loadeddata', r, { once: true }); })));
+  const tl = fx.timeline({ duration: 3 });
+  const seekV = { t: 0 };
+  tl.to(seekV, { t: 3, duration: 3, ease: 'none', onUpdate() { vids.forEach((v, i) => { const d = v.duration || 5; v.currentTime = (seekV.t + i * 1.3) % d; }); } }, 0)
+    // three phones slide in: sides from left/right, the hero from below
+    .fromTo('.sl', { x: -700, rotate: -12, scale: .9 }, { x: 0, rotate: 0, scale: .9, duration: 0.9, ease: 'expo.out' }, 0.1)
+    .fromTo('.sr', { x: 700, rotate: 12, scale: .9 }, { x: 0, rotate: 0, scale: .9, duration: 0.9, ease: 'expo.out' }, 0.2)
+    .from('.main', { y: 1200, rotate: 4, duration: 1.0, ease: 'expo.out' }, 0.25)
+    .from('.cap', { y: -30, opacity: 0, duration: 0.7, ease: 'power3.out' }, 0.3)
+    // stories already playing: progress bars fill across the loop, text and sticker pop
+    .fromTo('.pb', { scaleX: 0 }, { scaleX: 1, duration: 2.9, ease: 'none' }, 0.1)
+    .from('.main .txt b', { yPercent: 110, stagger: 0.08, duration: 0.6, ease: 'expo.out' }, 0.9)
+    .from('.sticker', { scale: 0, rotate: 30, duration: 0.6, ease: 'back.out(2)' }, 1.2)
+    .to('.sticker', { rotate: -14, duration: 0.8, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 1.6)
+    .from('.side .txt b', { yPercent: 110, stagger: 0.08, duration: 0.6, ease: 'expo.out' }, 0.8)
+    // out
+    .to('.sl', { x: -700, duration: 0.4, ease: 'expo.in' }, 2.55)
+    .to('.sr', { x: 700, duration: 0.4, ease: 'expo.in' }, 2.6)
+    .to('.main', { y: 1200, duration: 0.45, ease: 'expo.in' }, 2.55)
+    .to('.cap', { opacity: 0, y: -20, duration: 0.3 }, 2.6);
+</script>

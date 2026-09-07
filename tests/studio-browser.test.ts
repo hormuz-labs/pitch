@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process'
 import { deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 
-const SCRIPTS = new URL('../.pi/skills/launch-video/scripts/', import.meta.url)
+const SCRIPTS = new URL('../.pi/scripts/launch-video/', import.meta.url)
 const browser = await import(new URL('lib/browser.mjs', SCRIPTS).href)
 const png = await import(new URL('lib/png.mjs', SCRIPTS).href)
 
@@ -200,7 +200,7 @@ describe('nothing in the studio reaches for a local Chromium', () => {
   // connect over CDP rather than launching, and sandbox.ts names the install
   // command only to say the sandbox is what stops it.
   const ALLOWED = [
-    '/scripts/lib/browser.mjs:',
+    '/scripts/launch-video/lib/browser.mjs:',
     '/render/utils/manager-browser.ts:',
     '/.pi/lib/sandbox.ts:',
   ]

@@ -1,0 +1,84 @@
+<!doctype html><meta charset="utf-8">
+<title>Happy Faces: Landing Page</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#fff7e6;font-family:"Atlas Grotesk",sans-serif;color:#1d1a2b}
+  .nav{position:absolute;left:64px;right:64px;top:32px;display:flex;justify-content:space-between;align-items:center;font-size:14px}
+  .nav .logo{display:flex;align-items:center;gap:10px;font-weight:500;font-size:18px}
+  .nav em{display:flex;gap:26px;font-style:normal;align-items:center;color:#4b4760}
+  .nav em b{padding:10px 18px;border-radius:999px;background:#1d1a2b;color:#fff;font-weight:500}
+  .hero{position:absolute;left:64px;top:150px;width:620px}
+  .h1{font-family:"Sharp Grotesk",sans-serif;font-size:76px;line-height:1;letter-spacing:-.035em;font-weight:500}
+  .h1 span{display:block;overflow:hidden;padding-bottom:4px}.h1 u{display:block;text-decoration:none}
+  .h1 em{font-style:normal;color:#ff5c8a}
+  .p{margin-top:22px;font-size:18px;line-height:1.5;max-width:460px;color:#4b4760}
+  .cta{margin-top:28px;display:flex;gap:12px;align-items:center}
+  .cta b{padding:15px 26px;border-radius:999px;font-weight:500;font-size:15px;background:#ff5c8a;color:#fff}
+  .cta span{font-size:14px;color:#4b4760}
+  .faces{position:absolute;right:70px;top:120px;width:480px;height:480px}
+  .face{position:absolute;width:150px;height:150px;border-radius:50%;will-change:transform;transform-origin:50% 100%}
+  .face svg{width:100%;height:100%;overflow:visible}
+  .f1{left:150px;top:0;background:#ffd23f}
+  .f2{left:0;top:130px;background:#7ad7f0}
+  .f3{left:300px;top:150px;background:#ff8f6b}
+  .f4{left:100px;top:290px;background:#b8f08a}
+  .f5{left:260px;top:320px;background:#d7b2ff}
+  .eye{fill:#1d1a2b}
+  .mouth{fill:none;stroke:#1d1a2b;stroke-width:6;stroke-linecap:round}
+  .brow{fill:none;stroke:#1d1a2b;stroke-width:5;stroke-linecap:round}
+  .cheek{fill:#ff5c8a;opacity:.5}
+  .pill{position:absolute;padding:9px 14px;border-radius:999px;background:#fff;box-shadow:0 8px 24px rgba(40,30,80,.14);font-size:13px;font-weight:500;will-change:transform}
+  .p1{right:40px;top:90px}.p2{right:520px;top:430px}
+  .logos{position:absolute;left:64px;bottom:40px;display:flex;gap:34px;align-items:center;font-size:13px;color:#8b879c}
+  .logos i{width:70px;height:16px;border-radius:4px;background:#e9e2d2;display:block}
+</style>
+<div class="stage">
+  <div class="nav"><div class="logo"><svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="#ffd23f"/><circle cx="9" cy="11" r="2" fill="#1d1a2b"/><circle cx="17" cy="11" r="2" fill="#1d1a2b"/><path d="M8 16q5 5 10 0" stroke="#1d1a2b" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Chirp</div><em><span>Features</span><span>Pricing</span><span>Stories</span><b>Try it free</b></em></div>
+  <div class="hero">
+    <div class="h1"><span><u>Team chat that</u></span><span><u>makes people</u></span><span><u><em>smile.</em></u></u></span></div>
+    <div class="p">Chirp keeps the whole team in one happy thread. Fewer meetings, more moments that actually feel good.</div>
+    <div class="cta"><b>Get started</b><span>Free for teams up to 10</span></div>
+  </div>
+  <div class="faces">
+    <div class="face f1"><svg viewBox="0 0 100 100"><path class="brow" d="M28 34q7-6 14 0"/><path class="brow" d="M58 34q7-6 14 0"/><circle class="eye" cx="35" cy="45" r="5"/><circle class="eye" cx="65" cy="45" r="5"/><path class="mouth" d="M32 62q18 18 36 0"/><circle class="cheek" cx="22" cy="58" r="6"/><circle class="cheek" cx="78" cy="58" r="6"/></svg></div>
+    <div class="face f2"><svg viewBox="0 0 100 100"><circle class="eye" cx="35" cy="45" r="5"/><circle class="eye" cx="65" cy="45" r="5"/><path class="mouth" d="M36 64q14 10 28 0"/></svg></div>
+    <div class="face f3"><svg viewBox="0 0 100 100"><path class="brow" d="M28 30l14 4"/><path class="brow" d="M72 30l-14 4"/><circle class="eye" cx="35" cy="45" r="5"/><circle class="eye" cx="65" cy="45" r="5"/><path class="mouth" d="M34 60q16 22 32 0z" fill="#1d1a2b"/></svg></div>
+    <div class="face f4"><svg viewBox="0 0 100 100"><path class="brow" d="M30 44q5-6 10 0" /><path class="brow" d="M60 44q5-6 10 0"/><path class="mouth" d="M32 62q18 16 36 0"/><circle class="cheek" cx="22" cy="58" r="6"/><circle class="cheek" cx="78" cy="58" r="6"/></svg></div>
+    <div class="face f5"><svg viewBox="0 0 100 100"><circle class="eye" cx="35" cy="45" r="5"/><circle class="eye" cx="65" cy="45" r="5"/><path class="mouth" d="M36 60q14 16 28 0" fill="#1d1a2b"/></svg></div>
+    <div class="pill p1">😊 “Best Monday ever”</div>
+    <div class="pill p2">🎉 12,000 teams joined</div>
+  </div>
+  <div class="logos"><span>Trusted by</span><i></i><i></i><i></i><i></i></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 6 });
+  tl.from('.nav', { y: -30, opacity: 0, duration: 0.8, ease: 'expo.out' }, 0.05)
+    .from('.h1 u', { yPercent: 110, duration: 0.8, ease: 'expo.out', stagger: 0.1 }, 0.2)
+    .from('.p', { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out' }, 0.65)
+    .from('.cta > *', { y: 20, opacity: 0, duration: 0.6, ease: 'back.out(1.6)', stagger: 0.08 }, 0.85)
+    .from('.logos', { opacity: 0, y: 10, duration: 0.5 }, 1.1);
+  // the faces bounce in with a squash, each with its own personality
+  tl.from('.face', { scale: 0, y: 80, duration: 0.9, ease: 'elastic.out(1,0.55)', stagger: 0.12 }, 0.4)
+    .from('.pill', { scale: 0.6, opacity: 0, duration: 0.6, ease: 'back.out(2)', stagger: 0.15 }, 1.2);
+  // faces come alive: blinks, bobs, a wink, cheeks, the mouth widens
+  const eyes = gsap.utils.toArray('.eye');
+  [1.9, 3.4, 4.6].forEach((t, k) => tl.to(eyes, { scaleY: 0.1, transformOrigin: '50% 50%', duration: 0.08, yoyo: true, repeat: 1, stagger: 0.01 }, t + k * 0.05));
+  gsap.utils.toArray('.face').forEach((f, i) => {
+    tl.to(f, { y: -14 - i * 2, rotate: i % 2 ? -5 : 5, duration: 0.9 + i * 0.1, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 1.5 + i * 0.15);
+  });
+  tl.to('.f3 .mouth', { attr: { d: 'M30 58q20 30 40 0z' }, duration: 0.5, ease: 'back.out(2)', yoyo: true, repeat: 1 }, 2.4);
+  tl.to('.f1 .mouth', { attr: { d: 'M30 60q20 24 40 0' }, duration: 0.6, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 3.0);
+  tl.to('.f2 .eye', { scaleY: 0.1, transformOrigin: '50% 50%', duration: 0.12, yoyo: true, repeat: 1 }, 2.9);
+  tl.to('.f5', { rotate: 12, duration: 0.3, ease: 'back.out(3)', yoyo: true, repeat: 1 }, 3.6);
+  tl.to('.pill', { y: -8, duration: 1.4, ease: 'sine.inOut', yoyo: true, repeat: 1, stagger: 0.3 }, 1.9);
+  tl.to('.cta b', { scale: 1.06, duration: 0.25, ease: 'power2.inOut', yoyo: true, repeat: 1 }, 4.0);
+  // exit
+  tl.to('.face', { scale: 0, y: 60, duration: 0.45, ease: 'back.in(1.8)', stagger: 0.06 }, 5.2)
+    .to('.pill', { scale: 0.6, opacity: 0, duration: 0.3, ease: 'power2.in' }, 5.2)
+    .to('.h1 u', { yPercent: -110, duration: 0.4, ease: 'expo.in', stagger: 0.06 }, 5.3)
+    .to('.p, .cta, .logos', { opacity: 0, y: -16, duration: 0.35, ease: 'power2.in' }, 5.4)
+    .to('.nav', { y: -30, opacity: 0, duration: 0.35, ease: 'power2.in' }, 5.55);
+</script>

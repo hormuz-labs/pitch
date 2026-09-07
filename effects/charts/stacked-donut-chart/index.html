@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8">
+<title>Stacked Donut Chart</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#111;display:flex;align-items:center;justify-content:center}
+  .wrap{display:flex;align-items:center;gap:90px}
+  .ring{position:relative;width:420px;height:420px}
+  svg{width:100%;height:100%;transform:rotate(-90deg)}
+  circle{fill:none;stroke-width:26;stroke-linecap:round}
+  .tr{stroke:rgba(255,255,255,.07)}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+  .center .n{font-size:52px;font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .center .l{font-size:12px;color:#888;letter-spacing:.2em;text-transform:uppercase;margin-top:4px}
+  .side{width:340px;color:#fff}
+  .side h2{font-size:32px;font-weight:500;letter-spacing:-.02em;margin-bottom:26px}
+  .it{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid #2a2a2a;font-size:16px;color:#ddd}
+  .it i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+  .it b{margin-left:auto;font-weight:500;font-variant-numeric:tabular-nums}
+  .it .tr2{position:absolute}
+</style>
+<div class="stage">
+  <div class="wrap">
+    <div class="ring">
+      <svg viewBox="0 0 420 420">
+        <circle class="tr" cx="210" cy="210" r="190"/><circle class="tr" cx="210" cy="210" r="152"/><circle class="tr" cx="210" cy="210" r="114"/>
+        <circle class="arc a1" cx="210" cy="210" r="190" stroke="#ff4d6d"/><circle class="arc a2" cx="210" cy="210" r="152" stroke="#ffb703"/><circle class="arc a3" cx="210" cy="210" r="114" stroke="#3a86ff"/>
+      </svg>
+      <div class="center"><div class="n" id="n">0%</div><div class="l">avg. completion</div></div>
+    </div>
+    <div class="side">
+      <h2>Team goals</h2>
+      <div class="it" style="--c:#ff4d6d" data-v="88"><i></i>Design<b>0%</b></div>
+      <div class="it" style="--c:#ffb703" data-v="64"><i></i>Engineering<b>0%</b></div>
+      <div class="it" style="--c:#3a86ff" data-v="42"><i></i>Marketing<b>0%</b></div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const V=[88,64,42];
+  const its=[...document.querySelectorAll('.it')];
+  const o={a:0,b:0,c:0};
+  const upd=()=>{its[0].querySelector('b').textContent=Math.round(o.a)+'%';its[1].querySelector('b').textContent=Math.round(o.b)+'%';its[2].querySelector('b').textContent=Math.round(o.c)+'%';document.getElementById('n').textContent=Math.round((o.a+o.b+o.c)/3)+'%'};
+  const tl=fx.timeline({duration:4});
+  tl.from('.ring',{scale:.85,opacity:0,duration:.6,ease:'power3.out'},0)
+    .from('.tr',{drawSVG:'0%',duration:.8,ease:'expo.out',stagger:.1},.1)
+    .from('.side h2',{y:14,opacity:0,duration:.5,ease:'power3.out'},.1)
+    // rings fill in sequence, outer → inner
+    .fromTo('.a1',{drawSVG:'0%'},{drawSVG:V[0]+'%',duration:1.1,ease:'power3.inOut'},.5)
+    .to(o,{a:V[0],duration:1.1,ease:'power3.inOut',onUpdate:upd},.5)
+    .from(its[0],{x:20,opacity:0,duration:.5,ease:'power3.out'},.5)
+    .fromTo('.a2',{drawSVG:'0%'},{drawSVG:V[1]+'%',duration:1.0,ease:'power3.inOut'},.95)
+    .to(o,{b:V[1],duration:1.0,ease:'power3.inOut',onUpdate:upd},.95)
+    .from(its[1],{x:20,opacity:0,duration:.5,ease:'power3.out'},.95)
+    .fromTo('.a3',{drawSVG:'0%'},{drawSVG:V[2]+'%',duration:.9,ease:'power3.inOut'},1.4)
+    .to(o,{c:V[2],duration:.9,ease:'power3.inOut',onUpdate:upd},1.4)
+    .from(its[2],{x:20,opacity:0,duration:.5,ease:'power3.out'},1.4)
+    // hold: the whole ring set slowly rotates
+    .to('svg',{rotate:-70,duration:1.3,ease:'sine.inOut'},2.3)
+    .to('.a1,.a2,.a3',{drawSVG:'0%',duration:.5,ease:'expo.in',stagger:.06},3.2)
+    .to(o,{a:0,b:0,c:0,duration:.6,ease:'expo.in',onUpdate:upd},3.2)
+    .to('.side,.center',{opacity:0,duration:.3},3.5)
+    .to('svg',{rotate:-90,duration:.3},3.65)
+    .to('.tr',{opacity:0,duration:.25},3.75);
+</script>

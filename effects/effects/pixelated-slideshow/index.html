@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8">
+<title>Pixelated Slideshow</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000}
+  canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+  .ui{position:absolute;left:0;right:0;bottom:0;padding:0 70px 54px;display:flex;justify-content:space-between;align-items:flex-end;color:#fff;font-family:"Atlas Grotesk",sans-serif}
+  .t{font-family:"Sharp Grotesk",sans-serif;font-size:56px;font-weight:500;letter-spacing:-.03em;line-height:1}
+  .t small{display:block;font-family:"Atlas Grotesk",sans-serif;font-size:15px;letter-spacing:.24em;text-transform:uppercase;opacity:.7;margin-bottom:12px}
+  .dots{display:flex;gap:10px}
+  .dots i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.35)}
+  .dots i.on{background:#fff}
+  .bar{position:absolute;left:70px;right:70px;bottom:36px;height:2px;background:rgba(255,255,255,.2)}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:#fff;width:0}
+</style>
+<div class="stage">
+  <canvas id="c" width="1280" height="720"></canvas>
+  <div class="ui"><div class="t" id="t"><small>Collection</small>Aurora</div><div class="dots" id="dots"><i></i><i></i><i></i></div></div>
+  <div class="bar"><i id="prog"></i></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const W = 1280, H = 720;
+  const names = ['Aurora', 'Ocean', 'Sunset'];
+  const imgs = ['aurora', 'ocean', 'sunset'].map(n => { const i = new Image(); i.src = `../../../assets/backgrounds/${n}.png`; fx.wait(i.decode()); return i; });
+  const ctx = document.getElementById('c').getContext('2d');
+  const tiny = document.createElement('canvas'); const tc = tiny.getContext('2d');
+  const D = 8, SLOT = D / 3, TR = 1.0;
+  const smooth = x => x * x * (3 - 2 * x);
+  function draw(img, drift, block) {
+    const z = 1.06 + 0.04 * drift;
+    if (block <= 1) { ctx.imageSmoothingEnabled = true; ctx.drawImage(img, (W - W * z) / 2 - 20 * drift, (H - H * z) / 2, W * z, H * z); return; }
+    const tw = Math.max(2, Math.round(W / block)), th = Math.max(2, Math.round(H / block));
+    tiny.width = tw; tiny.height = th; tc.imageSmoothingEnabled = true;
+    tc.drawImage(img, (tw - tw * z) / 2 - 20 * drift / block, (th - th * z) / 2, tw * z, th * z);
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(tiny, 0, 0, tw, th, 0, 0, W, H);
+  }
+  const tEl = document.getElementById('t'), dots = document.getElementById('dots').children, prog = document.getElementById('prog');
+  fx.register({ duration: D, seek(t) {
+    const k = Math.floor(t / SLOT) % 3, local = t - Math.floor(t / SLOT) * SLOT;
+    // transition sits at the end of each slot: the image pixelates up to 64px blocks, swaps at the peak, resolves back
+    const trStart = SLOT - TR;
+    let block = 1, img = imgs[k], shown = k;
+    if (local >= trStart) {
+      const p = (local - trStart) / TR;                 // 0..1
+      const m = Math.sin(p * Math.PI);                  // 0→1→0
+      block = 1 + Math.pow(m, 1.6) * 63;
+      if (p >= 0.5) { img = imgs[(k + 1) % 3]; shown = (k + 1) % 3; }
+      // quantise the block size to whole steps so it reads as a stepped pixel effect, not a blur
+      block = Math.max(1, Math.round(block / 4) * 4 || 1);
+    }
+    draw(img, local / SLOT, block);
+    tEl.innerHTML = `<small>Collection</small>${names[shown]}`;
+    for (let i = 0; i < 3; i++) dots[i].classList.toggle('on', i === shown);
+    prog.style.width = (t / D * 100) + '%';
+    // the caption pops with the swap
+    const since = local >= trStart + TR / 2 ? local - (trStart + TR / 2) : local + TR / 2;
+    gsap.set(tEl, { y: 12 * Math.exp(-since * 6), opacity: 1 - 0.6 * Math.exp(-since * 8) });
+  } });
+</script>

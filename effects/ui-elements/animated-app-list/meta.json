@@ -1,0 +1,22 @@
+{
+  "move": "phone list rows slide up in stagger, icons pop, then lift out",
+  "how": "A white phone mockup beside a headline sits on a soft radial blob that drifts (scale .9 to 1.05, x -20 to 20, sine.inOut over the full 3s). Headline and copy rise with expo.out in the first 25%; six app rows slide up 40px from transparent with a 0.14s stagger (expo.out) from 8%, each icon following with scale .4 back.out(2.5) and the Get pill scaling in with back.out(2). From 82% the rows lift 24px and fade in order (power2.in), then header and side copy exit, so the frame is empty for the loop.",
+  "moves": [
+    "slide-in",
+    "stagger",
+    "pop-in",
+    "lift-exit",
+    "drift"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap app names, categories, icon colours and the headline; change the row count (stagger is per row so timing stretches naturally); keep the expo.out 0.6s entry and 0.14s stagger.",
+  "port": "mount(el, shot) renders the phone and rows from shot.items; animate returns the timeline with entries at 0.08D and exits at 0.82D. Ports directly; only scope the .app/.ic/.get selectors to el.",
+  "caveats": [
+    "from() tweens need immediateRender:false when the timeline is built after other tweens target the same elements"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

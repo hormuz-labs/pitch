@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated Web Gallery</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#e8e8ec;font-family:"Atlas Grotesk",sans-serif;perspective:2000px}
+  .grid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(3,360px);gap:28px;transform-style:preserve-3d}
+  .win{width:360px;height:250px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 20px 50px rgba(20,20,40,.18),0 0 0 1px rgba(0,0,0,.05);will-change:transform,opacity;transform-style:preserve-3d}
+  .chrome{height:30px;background:#f4f4f7;border-bottom:1px solid #e3e4ea;display:flex;align-items:center;padding:0 12px;gap:6px}
+  .chrome i{width:9px;height:9px;border-radius:50%;background:#dcdde3}
+  .chrome i:nth-child(1){background:#ff5f57}.chrome i:nth-child(2){background:#febc2e}.chrome i:nth-child(3){background:#28c840}
+  .chrome b{margin-left:14px;flex:1;height:16px;border-radius:5px;background:#e9eaef}
+  .site{padding:14px 16px;position:relative;height:220px;overflow:hidden}
+  .nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .nav i{width:20px;height:20px;border-radius:6px}
+  .nav em{display:flex;gap:8px}
+  .nav em b{width:30px;height:6px;border-radius:3px;background:rgba(0,0,0,.15)}
+  .hero{border-radius:8px;height:90px;display:flex;flex-direction:column;justify-content:center;padding:0 16px;color:#fff;margin-bottom:12px}
+  .hero b{font-size:18px;font-weight:500;letter-spacing:-.02em;line-height:1.05}
+  .hero span{font-size:9px;opacity:.85;margin-top:5px}
+  .cols{display:flex;gap:10px}
+  .cols i{flex:1;height:60px;border-radius:6px;background:rgba(0,0,0,.06)}
+  .dark{background:#16171c}.dark .chrome{background:#202127;border-color:#2c2d34}.dark .chrome b{background:#2c2d34}.dark .nav em b{background:rgba(255,255,255,.25)}.dark .cols i{background:rgba(255,255,255,.08)}
+  .lbl{position:absolute;left:0;right:0;bottom:36px;text-align:center;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:#55586a}
+</style>
+<div class="stage">
+  <div class="grid"></div>
+  <div class="lbl">Selected work — 2024</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const sites = [
+    { g: 'linear-gradient(135deg,#ff7a59,#ff3d81)', t: 'Ship faster.', d: 0, ic: '#ff3d81' },
+    { g: 'linear-gradient(135deg,#3d5aff,#00d4ff)', t: 'Design at scale', d: 1, ic: '#3d5aff' },
+    { g: 'linear-gradient(135deg,#1fa86c,#c7f464)', t: 'Grow greener', d: 0, ic: '#1fa86c' },
+    { g: 'linear-gradient(135deg,#ffd166,#ff7a59)', t: 'Sunday roast', d: 0, ic: '#ff9f1c' },
+    { g: 'linear-gradient(135deg,#9d3dff,#ff5c6e)', t: 'Sound studio', d: 1, ic: '#9d3dff' },
+    { g: 'linear-gradient(135deg,#111,#444)', t: 'Type foundry', d: 0, ic: '#111' },
+  ];
+  const grid = document.querySelector('.grid');
+  sites.forEach((s, i) => {
+    const w = document.createElement('div');
+    w.className = 'win w' + i + (s.d ? ' dark' : '');
+    w.innerHTML = `<div class="chrome"><i></i><i></i><i></i><b></b></div><div class="site"><div class="nav"><i style="background:${s.ic}"></i><em><b></b><b></b><b></b></em></div><div class="hero" style="background:${s.g}"><b>${s.t}</b><span>Acme Studio · case study</span></div><div class="cols"><i></i><i></i><i></i></div></div>`;
+    grid.appendChild(w);
+  });
+  const tl = fx.timeline({ duration: 4 });
+  const wins = gsap.utils.toArray('.win');
+  // each window arrives in sequence: rises from below with a 3D tilt, lands flat
+  wins.forEach((w, i) => {
+    tl.fromTo(w, { y: 260, z: -300, rotateX: -35, opacity: 0, scale: 0.9 }, { y: 0, z: 0, rotateX: 0, opacity: 1, scale: 1, duration: 0.9, ease: 'expo.out' }, 0.1 + i * 0.16);
+    // the site inside scrolls a beat after landing
+    tl.to(w.querySelector('.site'), { y: -40, duration: 0.8, ease: 'power3.inOut' }, 1.6 + i * 0.1)
+      .to(w.querySelector('.site'), { y: 0, duration: 0.8, ease: 'power3.inOut' }, 2.5 + i * 0.1);
+  });
+  tl.from('.lbl', { opacity: 0, y: 10, duration: 0.5 }, 0.8);
+  // group breathes: a slow 3D tilt on the whole gallery
+  tl.fromTo('.grid', { rotateX: 4, rotateY: -4 }, { rotateX: -3, rotateY: 4, duration: 3.6, ease: 'sine.inOut' }, 0.2);
+  // exit, same order
+  wins.forEach((w, i) => tl.to(w, { y: -200, opacity: 0, rotateX: 25, duration: 0.45, ease: 'expo.in' }, 3.35 + i * 0.07));
+  tl.to('.lbl', { opacity: 0, duration: 0.3 }, 3.6);
+</script>

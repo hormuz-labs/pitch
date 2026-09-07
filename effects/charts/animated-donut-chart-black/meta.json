@@ -1,0 +1,25 @@
+{
+  "move": "ticks flicker in, white arc draws on black, ticks rotate, arc unwinds",
+  "how": "On a pure black stage a 360px SVG ring: 60 thin tick marks (every fifth longer) generated in a circle, a dark grey track and a flat-capped white arc, rotated -90deg, with an 84pt percentage in the centre and a side panel of label, heading, a rule and three metric rows. Ticks flicker in one by one (opacity from 0, stagger 0.012) over the first 18%; the track draws with DrawSVG expo.out at 2-25%; the arc fills drawSVG 0% to 84% over 10-50% with expo.inOut while a counter drives the percent and the 'x / 128 services' rows. Side text rises y:16 (power3.out, stagger 0.1), the rule scales scaleX from 0, rows slide in. Hold at 50-85%: the tick group rotates 6deg on sine.inOut. From 78% the arc unwinds to 0% and the counter returns to 0 with expo.in, side text fades up, track and ticks fade.",
+  "moves": [
+    "draw-stroke",
+    "counter",
+    "stagger",
+    "rotate",
+    "unwind"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Set T (percent) and the 128-item total in upd(), the label/heading/rows; recolour the arc and track for a non-black theme; change the 60 tick count or lengths in the generator loop; keep the 1.6s expo.inOut fill and the slow 6deg tick rotation.",
+  "port": "mount(el, shot) builds the SVG, generates the 60 tick lines into the ticks group and the side panel; animate(el, shot, D) returns the same timeline with fill at 0.1-0.5 of D, rotation at 0.5-0.85, unwind at 0.78. Requires DrawSVGPlugin; the #ticks id and getElementById calls must be scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "60 individual tick from() tweens with tiny stagger",
+    "everything fades to black at the end, which is close to but not identical to the first frame"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

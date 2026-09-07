@@ -1,0 +1,24 @@
+{
+  "move": "six tiles pop in, reflow through three bento layouts, return to start",
+  "how": "Six tiles (three photos, a yellow word tile, a blue gradient tile, a striped studio tile) live in a 6x4 grid. At load the script measures each tile's rect under three CSS layouts (L0, L1, L2), then takes the tiles absolute. Tiles pop in from scale 0.6, y 80 and opacity 0 (expo.out 0.9s, 80ms stagger) with captions lifting after; photo images settle from scale 1.2 to 1 linearly over the loop. At 27%, 57% and 82% every tile tweens left/top/width/height to the next layout's rect over 1.1s with expo.inOut at a 40ms per-tile stagger, while all tiles dip to scale 0.96 and back (power2.inOut yoyo). The third reflow returns to L0 so the final frame matches the settled first layout.",
+  "moves": [
+    "pop-in",
+    "layout-morph",
+    "reflow",
+    "stagger",
+    "squeeze",
+    "ken-burns"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the tile images, captions, word tiles and colours, and define the layouts as grid-area rules (any number of layouts). Keep the 1.1s expo.inOut reflow with 40ms stagger and the 0.96 dip.",
+  "port": "mount(el, shot) must build the grid inside el, measure the layouts relative to the grid rect (requires el to be attached and sized), then switch to absolute positioning. animate(el, shot, D) returns the same timeline with swaps at 0.275, 0.575 and 0.825 of D; measurement is a layout read, so run it in mount before animate.",
+  "caveats": [
+    "FLIP-style measurement of grid rects at mount; el must be laid out at its final size before measuring",
+    "loop frame 0 has tiles at scale 0.6 (from tween), so it only closes after the intro"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

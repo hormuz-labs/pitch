@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8">
+<title>Stacked Chart: Cascade</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0f0e17;padding:64px 80px;color:#fff}
+  h1{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-size:40px;font-weight:400;letter-spacing:-.02em}
+  .sub{font-size:14px;color:#8b87a8;margin-top:8px}
+  .legend{position:absolute;right:80px;top:70px;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#c9c6dd;text-align:right}
+  .legend div{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+  .legend i{width:14px;height:14px;border-radius:4px;background:var(--c)}
+  .legend b{font-weight:500;min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+  .plot{position:absolute;left:80px;right:80px;top:180px;bottom:64px}
+  svg{width:100%;height:100%;overflow:visible}
+  .lab{font-size:12px;fill:#8b87a8;font-family:inherit}
+  .grid{stroke:rgba(255,255,255,.07)}
+  .layer{stroke:#0f0e17;stroke-width:2}
+</style>
+<div class="stage">
+  <h1>Traffic by source</h1><div class="sub">Weekly sessions · layered</div>
+  <div class="legend" id="legend"></div>
+  <div class="plot"><svg viewBox="0 0 1120 440" preserveAspectRatio="none"><g id="grid"></g><g id="layers"></g></svg></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const W=1120,H=440,pad=44,base=H-30,span=H-60;
+  const rng=fx.rng(11);
+  const series=[['Organic','#ff8906',[30,32,35,34,38,42,41,45,48,52,55,60]],['Paid','#e53170',[10,12,11,14,16,15,18,20,22,21,24,26]],['Referral','#7f5af0',[6,7,9,8,10,12,11,13,15,16,17,19]],['Direct','#2cb67d',[4,5,5,6,7,7,8,9,9,10,11,12]]];
+  const n=12,max=125;
+  const X=i=>pad+i*(W-pad)/(n-1);
+  const Y=v=>base-(v/max)*span;
+  const curve=pts=>{let d='M'+pts[0].join(' ');for(let i=0;i<pts.length-1;i++){const p0=pts[Math.max(i-1,0)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(i+2,pts.length-1)];d+=` C${p1[0]+(p2[0]-p0[0])/6} ${p1[1]+(p2[1]-p0[1])/6} ${p2[0]-(p3[0]-p1[0])/6} ${p2[1]-(p3[1]-p1[1])/6} ${p2[0]} ${p2[1]}`}return d};
+  const ns='http://www.w3.org/2000/svg',layers=document.getElementById('layers'),grid=document.getElementById('grid'),legend=document.getElementById('legend');
+  let lower=Array(n).fill(0);
+  series.forEach(([name,c,v],k)=>{const upper=v.map((x,i)=>x+lower[i]);const top=upper.map((y,i)=>[X(i),Y(y)]);const bot=lower.map((y,i)=>[X(i),Y(y)]).reverse();
+    const d=curve(top)+' L'+curve(bot).slice(1)+' Z';
+    const p=document.createElementNS(ns,'path');p.setAttribute('class','layer');p.setAttribute('fill',c);p.setAttribute('d',d);p.style.transformOrigin=`50% ${base}px`;layers.appendChild(p);lower=upper;
+    const l=document.createElement('div');l.style.setProperty('--c',c);l.innerHTML=`<span>${name}</span><i></i><b>${v[n-1]}k</b>`;legend.appendChild(l)});
+  for(let i=0;i<=5;i++){const y=Y(max*i/5);const l=document.createElementNS(ns,'line');l.setAttribute('class','grid');l.setAttribute('x1',pad);l.setAttribute('x2',W);l.setAttribute('y1',y);l.setAttribute('y2',y);grid.appendChild(l);const t=document.createElementNS(ns,'text');t.setAttribute('class','lab');t.setAttribute('x',0);t.setAttribute('y',y+4);t.textContent=Math.round(max*i/5)+'k';grid.appendChild(t)}
+  for(let i=0;i<n;i++){const t=document.createElementNS(ns,'text');t.setAttribute('class','lab');t.setAttribute('x',X(i)-8);t.setAttribute('y',H);t.textContent='W'+(i+1);grid.appendChild(t)}
+  const tl=fx.timeline({duration:4});
+  tl.from('h1,.sub',{y:20,opacity:0,duration:.6,stagger:.1,ease:'power3.out'},0)
+    .from('.grid',{scaleX:0,transformOrigin:'0 50%',duration:.8,ease:'expo.out',stagger:.04},.15)
+    .from('.lab',{opacity:0,duration:.4,stagger:.015},.3)
+    // layers cascade: each one rises from the baseline after the previous, with a slight overshoot
+    .from('.layer',{scaleY:0,duration:.9,ease:'back.out(1.2)',stagger:.28},.5)
+    .from('.legend div',{x:24,opacity:0,duration:.5,ease:'power3.out',stagger:.28},.7)
+    // hold: the stack breathes as one
+    .to('.layer',{scaleY:1.02,duration:.7,yoyo:true,repeat:1,ease:'sine.inOut',stagger:.05},2.2)
+    .to('.layer',{scaleY:0,duration:.4,ease:'expo.in',stagger:{each:.08,from:'end'}},3.2)
+    .to('.legend div',{opacity:0,x:16,duration:.3,stagger:.05},3.3)
+    .to('.stage > *',{opacity:0,duration:.3},3.7);
+</script>

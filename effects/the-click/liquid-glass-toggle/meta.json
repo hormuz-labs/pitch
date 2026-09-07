@@ -1,0 +1,26 @@
+{
+  "move": "gooey knob stretches across toggle, tail lags and merges, elastic settle",
+  "how": "A frosted glass row 'Focus mode' with a 180x96 glass toggle floats over an aurora image and two drifting blurred orbs (4s yoyo sine over the 8s loop). Inside the toggle a knob and a duplicate 'tail' circle sit under an SVG goo filter (blur 8 plus contrast colour matrix) so they merge like liquid. Cursor arrives at 0.3s; flip on at 1.3s (16%): the toggle dips scale 0.95 then elastic.out(1,0.45) back; the knob travels 84px with expo.out over 0.42s while stretched to scaleX 1.35 / scaleY 0.8 and released with elastic.out(1,0.4); the tail follows with power3.inOut over 0.6s shrinking to 0.55 and regrowing, so a goo bridge forms and snaps; a green gradient fill fades in with power2.inOut and the Off/On label rolls vertically (yPercent ±110, back.out(2)). The cursor exits and re-enters at 4.6s, flips off at 5.5s (69%) with mirrored motion, and leaves by 7.5s.",
+  "moves": [
+    "liquid-morph",
+    "gooey",
+    "squash",
+    "elastic",
+    "cursor-press",
+    "label-roll"
+  ],
+  "libs": [
+    "gsap",
+    "svg-filter"
+  ],
+  "adapt": "Change the label and sub-label, the green on-fill, the toggle size (knob travel D = width - knob - 12) and the background/orbs. Keep the 0.42s expo.out knob travel and the slower 0.6s tail — the lag is what makes it gooey.",
+  "port": "mount(el, shot) creates the goo filter def (unique id), bg, orbs, the row with toggle (fillg, goo wrapper with tail and knob, knobHi, state labels) and cursor inside el. animate returns the timeline with flips at 0.1625D and 0.6875D, cursor legs at fractions, orb drift D/2 yoyo. The fromTo tweens on .tail and labels use immediateRender:false and must keep it; kx/ky are computed from row padding and should come from the toggle offset.",
+  "caveats": [
+    "SVG goo filter (feGaussianBlur + feColorMatrix) on the knob layer plus backdrop-filter and blur(40px) orbs, heavy",
+    "fromTo tweens rely on immediateRender:false",
+    "loads assets/backgrounds/aurora.png"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

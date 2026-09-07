@@ -1,0 +1,26 @@
+{
+  "move": "ellipse mask opens from a slit, layers parallax, widens to full frame",
+  "how": "Two full-bleed image layers: a dimmed aurora far layer and a sunset near layer that is clipped by an SVG clipPath ellipse (objectBoundingBox units). The ellipse rx tweens from 0 to 0.2 over 2.5%-27% (expo.out) so a slit opens into a tall oval, then rx/ry widen to 0.62/0.72 at 57%-87% (expo.inOut) filling the frame, and collapse rx to 0 with expo.in in the last 11%. Across the full duration the far layer drifts xPercent 2 to -3 and scales 1.05 to 1.12 (linear) while the near layer moves the opposite way xPercent -6 to 4 and scales 1.15 to 1, and the mask wrapper itself slides x -40 to 40 (sine.inOut), giving depth. A thin ring scales in with expo.out then blows out to 1.9 and fades; serif headline lines rise through line masks at 15% and shoot up at 87%.",
+  "moves": [
+    "mask-wipe",
+    "parallax",
+    "zoom",
+    "line-mask",
+    "ring-burst",
+    "clip-path"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace the two background images, the masthead/issue labels, headline lines and the page counter; keep the three-phase ellipse rx/ry keyframes and the opposing linear drift rates, which are what sell the parallax. The ellipse can be swapped for a rect or path in the same clipPath.",
+  "port": "mount(el, shot) inserts the hidden svg defs (with a unique clipPath id per instance) plus far/mask/near layers and text into el; animate(el, shot, D) returns the same timeline with attr tweens on the ellipse and the fromTo drifts spread over D. The clipPath id must be unique per shot to avoid collisions across mounted shots; images need a decode wait like fx.wait.",
+  "caveats": [
+    "clip-path: url(#id) referencing a document-level SVG, id must be scoped per instance",
+    "two full-frame cover images continuously scaled, heavy on paint",
+    "starts with slit closed and ends closed but layer positions differ, so loop is not seamless"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

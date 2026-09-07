@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated Progress Bar</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0f1117;display:grid;place-items:center}
+  .panel{width:760px;padding:44px 48px;border-radius:24px;background:#171a23;border:1px solid rgba(255,255,255,.07);color:#fff}
+  .hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px}
+  .hd b{font-size:26px;font-weight:500;letter-spacing:-.02em}
+  .hd span{font-size:15px;color:#8b90a3}
+  .track{position:relative;height:18px;border-radius:9px;background:#252938;overflow:hidden}
+  .bar{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:9px;background:linear-gradient(90deg,#5b6bff,#8b93ff);transform-origin:0 50%}
+  .sheen{position:absolute;top:0;bottom:0;width:120px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.45),rgba(255,255,255,0))}
+  .meta{display:flex;justify-content:space-between;margin-top:18px;font-size:15px;color:#8b90a3}
+  .pct{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:96px;line-height:1;letter-spacing:-.04em;color:#fff;margin-top:34px;font-variant-numeric:tabular-nums}
+  .steps{display:flex;gap:10px;margin-top:26px}
+  .st{display:flex;align-items:center;gap:8px;font-size:14px;color:#8b90a3}
+  .st i{width:10px;height:10px;border-radius:50%;background:#2c3145;display:block}
+  .st.on{color:#fff}.st.on i{background:#2fd3a5}
+  .done{position:absolute;right:48px;top:44px;font-size:14px;font-weight:500;color:#0f1117;background:#2fd3a5;padding:8px 14px;border-radius:999px}
+</style>
+<div class="stage">
+  <div class="panel">
+    <div class="hd"><b>Setting up your workspace</b><span>Step 3 of 4</span></div>
+    <div class="track"><div class="bar"></div><div class="sheen"></div></div>
+    <div class="meta"><span class="lbl">Importing contacts…</span><span class="eta">about 20s left</span></div>
+    <div class="pct">0%</div>
+    <div class="steps"><div class="st"><i></i>Account</div><div class="st"><i></i>Team</div><div class="st"><i></i>Import</div><div class="st"><i></i>Done</div></div>
+    <div class="done">Complete</div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  const state = { v: 0 };
+  const pct = document.querySelector('.pct');
+  const lbl = document.querySelector('.lbl'), eta = document.querySelector('.eta');
+  tl.from('.panel', { y: 40, opacity: 0, duration: .7, ease: 'expo.out' }, 0)
+    .from('.hd > *, .meta > *', { y: 12, opacity: 0, duration: .5, stagger: .06, ease: 'power3.out' }, .15);
+  gsap.set('.done', { opacity: 0, scale: .6 });
+  // fill in three pushes, like real progress: fast, pause, fast, then the last stretch
+  tl.fromTo('.bar', { scaleX: 0 }, { scaleX: .42, duration: .8, ease: 'expo.out' }, .4)
+    .to('.bar', { scaleX: .68, duration: .7, ease: 'expo.out' }, 1.45)
+    .to('.bar', { scaleX: 1, duration: .9, ease: 'expo.inOut' }, 2.35);
+  tl.to(state, { v: 42, duration: .8, ease: 'expo.out', onUpdate: () => pct.textContent = Math.round(state.v) + '%' }, .4)
+    .to(state, { v: 68, duration: .7, ease: 'expo.out', onUpdate: () => pct.textContent = Math.round(state.v) + '%' }, 1.45)
+    .to(state, { v: 100, duration: .9, ease: 'expo.inOut', onUpdate: () => pct.textContent = Math.round(state.v) + '%' }, 2.35);
+  tl.fromTo('.sheen', { x: -140 }, { x: 800, duration: 1.1, ease: 'power1.inOut', repeat: 2, repeatDelay: .1 }, .5);
+  tl.to('.st:nth-child(1)', { className: 'st on', duration: 0 }, .5)
+    .to('.st:nth-child(2)', { className: 'st on', duration: 0 }, 1.2)
+    .to('.st:nth-child(3)', { className: 'st on', duration: 0 }, 2.1)
+    .to('.st:nth-child(4)', { className: 'st on', duration: 0 }, 3.2);
+  tl.to(lbl, { text: 'Almost there…', duration: 0 }, 1.5).to(eta, { text: 'about 5s left', duration: 0 }, 1.5);
+  tl.to(lbl, { text: 'All set.', duration: 0 }, 3.2).to(eta, { text: 'done', duration: 0 }, 3.2);
+  tl.to('.bar', { background: 'linear-gradient(90deg,#2fd3a5,#5ff0c4)', duration: .3 }, 3.15)
+    .to('.done', { opacity: 1, scale: 1, duration: .5, ease: 'back.out(2.5)' }, 3.2)
+    .to('.pct', { scale: 1.06, duration: .18, ease: 'power2.out', transformOrigin: '0 50%' }, 3.2)
+    .to('.pct', { scale: 1, duration: .4, ease: 'elastic.out(1,.5)' }, 3.38);
+  tl.to('.panel', { y: -30, opacity: 0, duration: .3, ease: 'power2.in' }, 3.7);
+</script>

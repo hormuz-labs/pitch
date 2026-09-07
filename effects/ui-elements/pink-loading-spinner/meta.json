@@ -1,0 +1,23 @@
+{
+  "move": "pink arc breathes while spinning, two satellites orbit, pulse rings, dots bounce",
+  "how": "A white rounded card on a pink stage with two blurred blobs. An SVG arc grows from 8% to 72% of the circumference and back (stroke-dasharray via a proxy tween, power2.inOut, yoyo four half-beats of 0.75s) while its group rotates 720deg linearly over 3s; two small satellite dots orbit at 360deg and -720deg. Two rings scale .85 to 1.3 and fade with power2.out, offset by half a period, and the three ellipsis dots bounce y -7 in sequence. The card floats y -6 and back with sine.inOut.",
+  "moves": [
+    "spin",
+    "breathe",
+    "orbit",
+    "ripple",
+    "dots-bounce",
+    "float"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap the pink palette and the label; change arc thickness and satellite sizes; keep whole-turn rotations per D and the 0.75s breath.",
+  "port": "mount(el, shot) builds the card and SVG; animate returns the timeline with the dasharray proxy tween, rotations spanning D and pulses at 0 and 0.25D. Direct port; scope the .arc and .label i queries to el.",
+  "caveats": [
+    "two full-stage blobs with filter: blur(60px), slower to render"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

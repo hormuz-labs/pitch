@@ -1,0 +1,24 @@
+{
+  "move": "browser mockup rises with overshoot, captions rise from masks, quick lift out",
+  "how": "A square cream stage with a browser-window mockup holding a photo hero. In one second the mockup rises 120px from scale 0.94 and opacity 0 (expo.out 0.55s) while its page body slides up within it (yPercent 20, expo.out 0.8s) for a parallax feel; a small label and the two-part caption rise out of overflow masks (yPercent 120 to 0, expo.out, 60ms stagger) between 5% and 18%. At 78% the mockup lifts 40px and fades (power3.in 0.25s) and the text lines drop up out of their masks (yPercent -120, 30ms stagger).",
+  "moves": [
+    "rise-in",
+    "parallax",
+    "mask-rise",
+    "stagger",
+    "lift-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the URL, hero text, screenshot image, label and caption strings; the mockup size and radius are CSS. Keep the 0.55s expo.out rise and the 0.25s exit, scaled with D.",
+  "port": "mount(el, shot) builds the label, mockup and caption inside el. animate(el, shot, D) returns the same timeline with entry at 0-0.2 of D and exit at 0.78 of D; the 1s base is very short, so D should stay near 1-1.5s.",
+  "caveats": [
+    "very short 1s loop",
+    "from() tweens; use immediateRender:false if built after first paint",
+    "ends on an empty stage"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1080"
+}

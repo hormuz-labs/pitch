@@ -1,0 +1,12 @@
+{
+  "move": "three blend-mode type rows glide opposite ways over slow-zooming imagery",
+  "how": "An aurora photo zooms slightly (scale 1.06 to 1.12, x 20 to -20, linear across 4s) under three rows of huge uppercase type, each row doubled so it can drift: row one white in difference, row two yellow in overlay, row three white in exclusion, plus a red screen-blended bar behind the middle row. The rows glide horizontally at constant speed in alternating directions for the full loop (x 0 to -820, -900 to -100, -120 to -760). In the first 20% the rows rise from yPercent 60 and opacity 0 with expo.out and 0.12s stagger, the bar scales open from the left (expo.out) and two small tags fade in. From 82% the rows lift out to yPercent -60 (expo.in, 0.08s stagger), the bar collapses to the right and the tags fade, ending on the plain photo.",
+  "moves": ["marquee", "slide-in", "stagger", "blend-mode", "ken-burns", "mask-wipe"],
+  "libs": ["gsap"],
+  "adapt": "Change the background image, the three row strings (keep each row duplicated so the drift never shows an edge), the accent colours of row two and the bar, and the two tag strings. Keep the alternating drift directions and the expo.out entry.",
+  "port": "mount(el, shot) creates .img, .bar, three .row elements with duplicated spans and the tags from shot; animate(el, shot, D) returns a gsap.timeline with three full-D linear drift tweens plus the entry at 0-0.2D and the exit at 0.82D. Drift distances depend on the rendered text width, so measure row width in mount and drift by half of it. Scope selectors to el.",
+  "caveats": ["difference/exclusion/overlay over a full-frame photo costs per frame", "drift distances are hardcoded for these strings"],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

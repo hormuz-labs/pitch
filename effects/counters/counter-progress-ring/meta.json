@@ -1,0 +1,24 @@
+{
+  "move": "ring arc fills to 100 with a hesitation at 70, turns green",
+  "how": "Light stage with a 420px SVG ring (grey track, blurred glow arc, blue arc via stroke-dashoffset, white tip dot) and a white sync card with three thin bars. Ring scales in from 0.85 (expo.out), card slides from x 60 (expo.out). Progress tweens 0 to 68 over 1.3s (power2.out) from 0.1D, creeps to 74 (power1.inOut) then runs to 100 (power3.inOut, 0.8s); each seek sets both arcs' dashoffset, moves the tip along the circle, writes the number, swaps the subtitle (Uploading / Almost there / Complete) and scales the card bars. At 0.75D the number pops 1.1 and settles with elastic.out(1,0.45) while arc, glow and bars recolour to green over 0.4s; at 0.93D ring and card fade and lift 20px.",
+  "moves": [
+    "counter",
+    "ring-fill",
+    "draw-stroke",
+    "elastic",
+    "colour-shift",
+    "slide-in"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the card title, folder names and bar ratios, the accent and completion colours, and the three-stage progress values; keep the hesitation beat and the 0.8s power3.inOut run to 100.",
+  "port": "mount(el, shot) injects the ring SVG and card; animate(el, shot, D) returns the timeline with an onUpdate on the state tweens that sets dashoffsets, tip position, number, subtitle and bar widths (the __fx.seek override). Scope '#arc', '#glowarc', '#tip', '#v', '#sub', '.f' to el.",
+  "caveats": [
+    "from() tweens need immediateRender:false",
+    "the glow arc uses an inline style filter: blur(10px) on an SVG stroke"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

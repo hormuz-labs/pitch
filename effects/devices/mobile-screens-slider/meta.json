@@ -1,0 +1,25 @@
+{
+  "move": "endless coverflow phone carousel: hold, expo swipe one step, focus scales",
+  "how": "Five 260x540 phones sit on a horizontal track 320px apart with wraparound distance d per slot. A fx.register seek loop of N*SEG = 10s splits each 2s segment into a 1.05s hold and a 0.95s move eased with expo.inOut; each frame sets x = d*320, y = 22*|d|, scale 1.12 - 0.28*|d|, opacity 1 - 0.55*min(1,|d|/2), zIndex by distance and filter blur growing 2px per step beyond the neighbour, while the active screen's content settles y 14 -> 0. Pagination dots swap opacity 0.2 -> 1 and scale 1.35 on the rounded position. After five steps the positions repeat exactly, so the loop closes.",
+  "moves": [
+    "carousel",
+    "coverflow",
+    "swipe",
+    "scale-focus",
+    "depth-blur",
+    "hold-and-move"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the five theme pairs and screen names (or real screenshots), N, STEP spacing and the HOLD/SEG ratio; the title text. Keep the expo.inOut move and the scale/opacity falloff by distance.",
+  "port": "mount(el, shot) builds the track slots and dots from shot.screens; animate(el, shot, D) returns a timeline with a single tween of duration D and onUpdate that runs the seek(t) function (t = progress*D) applying gsap.set to each slot, since the source is a fx.register seek loop rather than a timeline. SEG becomes D/N; the +-STEP positions assume a 1280-wide frame.",
+  "caveats": [
+    "catalog lists 13s but the file renders 10s",
+    "per-frame filter blur on off-centre phones",
+    "uses fx.register seek loop, not a GSAP timeline"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

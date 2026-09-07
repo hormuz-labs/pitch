@@ -1,0 +1,22 @@
+{
+  "move": "polaroid tiles thrown in from all sides, wobble, float, scatter out",
+  "how": "Five white-bordered photo tiles with tape strips sit on a dotted paper ground at fixed rotations (-6, 5, -3, 7, -9). The top serif word drops in from y -160, then each tile flies in from off-frame (x ±900 and/or y ±300..1200, rotation ±25..40) with expo.out over 0.7s at 0.15s offsets; a round red sticker spins in from scale 0 / rotation 180 with back.out(2.5) and the bottom word rises from y 160; tape strips scale x from 0 with stagger 0.1. On landing each tile over-rotates ±2 then settles with elastic.out(1,0.5); from 42% they float y ±12-14 with sine.inOut and back, while the sticker rocks -12→-2→-12. Exit at 86%: tiles scatter to x ±1100 with ±40 rotation and expo.in (stagger 0.05), sticker shrinks with back.in(2), words leave the way they came.",
+  "moves": [
+    "throw-in",
+    "wobble",
+    "float",
+    "pop",
+    "scatter"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the five images and their tile boxes, the two serif words and the sticker text/colour; keep the rot[] array, the 0.15s throw cadence and the elastic settle.",
+  "port": "mount(el, shot) builds the paper, tiles with tape and the words; animate(el, shot, D) returns the timeline with throws at 0.02-0.18D, settles 0.15-0.4D, float 0.42-0.72D, scatter at 0.86D. Use el.querySelectorAll('.tile'); from() tweens need immediateRender:false.",
+  "caveats": [
+    "from() tweens need immediateRender:false"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

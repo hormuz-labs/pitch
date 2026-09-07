@@ -1,0 +1,24 @@
+{
+  "move": "quote cards stack in, words rise per card, front card flicks away",
+  "how": "Three quote cards (white, yellow, orange) share a position with a pose(depth) of y -26*depth, scale 1-0.06*depth and alternating ±2.5 rotate. They arrive from 800px below back-first (expo.out, 0.9s, 0.1s offsets) while a masked header rises. Every 1.55s the front card's SplitText words rise yPercent 60→0 with opacity (expo.out, stagger 0.035) and five clip-path stars pop with back.out(3) stagger 0.05; then that card flicks off to x 120 / y -80 / rotate -8 / opacity 0 with power3.in over 0.45s and the cards behind step forward with back.out(1.5) over 0.7s. The ocean background scales 1.05→1.12 with a 2% x drift for the whole duration. At D-0.45 the last card flicks off and the header exits.",
+  "moves": [
+    "stack",
+    "word-rise",
+    "stagger",
+    "peel-off",
+    "pop"
+  ],
+  "libs": [
+    "gsap",
+    "SplitText"
+  ],
+  "adapt": "Change the three quotes, names, roles and avatar gradients, the card colours and the background image; keep STEP 1.55s and the word stagger 0.035 with the flick-off at STEP-0.35.",
+  "port": "mount(el, shot) builds the deck, runs SplitText on each el-scoped '.card p' and applies the pose sets; animate(el, shot, D) returns the timeline with STEP = 0.31D and the flick/step-forward pairs. Scope '.t1'/'.t2'/'.t3' and '.hd span' to el.",
+  "caveats": [
+    "background scale 1.05→1.12 never returns, so the loop jumps on the bg",
+    "SplitText must run after fonts load or word widths shift"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1080"
+}

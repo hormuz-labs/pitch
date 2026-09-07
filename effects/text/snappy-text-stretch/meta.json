@@ -1,0 +1,22 @@
+{
+  "move": "lines shoot up stretched tall, snap, punch wide, squash flat on exit",
+  "how": "Two huge uppercase lines (the second an outlined knockout) on an acid-yellow stage, a circular badge top-right and a small tag bottom-left. Each line starts yPercent 110 with scaleY 3.2 and scaleX 0.7 and snaps to 0/1/1 in 0.55s (expo.out) starting at 2.5% and 10% of the duration. At 40% both lines punch to scaleX 1.25 scaleY 0.85 (power2.in, 0.12s) and rebound with elastic.out(1,0.5) over 0.45s, staggered 0.06s; the badge scales from 0 with rotate -90 (back.out(2)) then rotates linearly to 30deg; the tag rises through its mask. At 80% the lines squash to scaleY 0.05 and drop yPercent 60 (expo.in), the badge scales to 0 and the tag flies up, so the stage is empty at both ends.",
+  "moves": [
+    "stretch",
+    "snap",
+    "squash",
+    "elastic",
+    "mask-rise"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the two words, the badge text, the tag, the stage colour and the text colours; keep the 3.2 tall-stretch entry, the 0.12s wide punch with its elastic rebound at 40%, and the squash-drop exit at 80%.",
+  "port": "mount(el, shot) creates the two overflow-hidden rows, badge and tag; animate(el, shot, D) returns the timeline with positions at 0.025D, 0.1D, 0.4D, 0.46D and 0.8D. Selectors must be scoped to el; otherwise a direct port.",
+  "caveats": [
+    "the squashed lines (scaleY 0.05, yPercent 60) may leave a hairline visible at the row edge on the last frame"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

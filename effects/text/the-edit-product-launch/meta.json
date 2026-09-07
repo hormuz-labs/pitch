@@ -1,0 +1,23 @@
+{
+  "move": "accelerating single-word hard cuts, white flash, product spins in, copy staggers",
+  "how": "Four full-frame colour cuts each holding one 190px word, then a light reveal panel with a product tile and a copy stack, a flash layer and a corner date. Cuts run 1.0s, 0.7s, 0.5s and 0.35s (17%, 12%, 8%, 6% of the duration), toggled with autoAlpha sets; each word enters yPercent 110 or xPercent -110 to 0 (expo.out) and creeps to scale 1.06 for the length of the cut. At 42% the reveal appears under a white flash fading over 0.5s: the product scales 0.3 to 1 un-rotating from -25 (expo.out, 0.9s) then rocks, the copy lines rise yPercent 130 with opacity, 0.09s apart (expo.out). At 92% the product shrinks away rotating +25 and the copy flies up (expo.in), the panel fades to the dark base.",
+  "moves": [
+    "hard-cut",
+    "accelerando",
+    "flash",
+    "pop-in",
+    "stagger",
+    "mask-rise"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the four cut words and colours, the product tile art, the kicker/headline/sub/button strings; keep the shrinking cut lengths, the 0.5s flash and the 0.09s copy stagger.",
+  "port": "mount(el, shot) builds the cuts and reveal; animate(el, shot, D) returns the timeline with cut lengths scaled by D/6. The autoAlpha sets use immediateRender:false and must keep it; scope selectors to el.",
+  "caveats": [
+    "relies on immediateRender:false on set() calls to avoid hiding cuts at build time"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

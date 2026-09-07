@@ -1,0 +1,27 @@
+{
+  "move": "digits punch in from blur, ring draws each beat, GO pops",
+  "how": "A dark radial-gradient ground, a 560px SVG circle ring at centre, four stacked numerals (3, 2, 1 and a yellow GO) and a small caption. Each second for the first 75%, one digit lands: from scale 2.6, opacity 0 and filter blur(30px) to sharp at 1 with expo.out over 0.45s, a slow settle to scale .92 over 0.35s, then a collapse to scale .6 with blur(14px) and expo.in over 0.22s; simultaneously the ring draws 0% to 100% with DrawSVG (power1.inOut, 0.95s) and the background pulses scale 1.03. At 75% GO pops from scale .3 / rotation -8 with back.out(2.5) while a full-frame white flash decays from opacity .9 (power2.out) and the ring turns yellow and redraws with expo.out; at 94% GO blows out to scale 1.6 with blur and the ring and caption fade, ending on the empty ground.",
+  "moves": [
+    "counter",
+    "punch-in",
+    "blur-in",
+    "draw-stroke",
+    "flash",
+    "pop",
+    "blur-exit"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Change the count (any digits; one beat per second), the GO word and its accent colour, the caption and ring stroke. Keep the 0.45s expo.out landing from blur, the 0.35s settle and the flash on the last beat; a longer count means a longer D.",
+  "port": "mount(el, shot) builds .bg, the ring SVG (unique id), one .n per step from shot.steps and the .sub; animate(el, shot, D) returns a gsap.timeline placing beat i at i/steps*D with the same relative durations, the GO/flash at (steps-1)/steps*D. DrawSVGPlugin must be registered; scope '#ring' etc. to el via querySelector.",
+  "caveats": [
+    "filter: blur on 520px text costs per frame",
+    "the flash tween uses immediateRender:false and must keep it",
+    "duration is tied to step count"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

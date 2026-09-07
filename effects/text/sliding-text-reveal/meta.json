@@ -1,0 +1,12 @@
+{
+  "move": "colour bar wipes across each row, retracts, words slide in behind it",
+  "how": "A cream frame with a greyscale photo at 35% in multiply drifting xPercent -2 to 2 linearly, a left-aligned stack of three rows (two uppercase grotesk headlines and a smaller italic serif row in rust), a short rule and a meta line. Each row is clipped and holds a solid mask block: from 3% and every 0.22s, the mask scales open from the left (scaleX 0 to 1, expo.inOut, 0.45s), flips its origin to the right and retracts (scaleX to 0, expo.inOut, 0.5s) while the row's words slide in from fully left of their slot (x -(offsetLeft+width+40), expo.out, 0.07s stagger) so they appear to be dragged in behind the retreating bar. The rule grows from scaleX 0 at 30% and the meta line rises from yPercent 120. From 78% the words slide out to the right under the mask edge (expo.in, 0.08s per row), the rule retracts to the right and the meta lifts out, ending on the paper and photo.",
+  "moves": ["mask-wipe", "slide-in", "stagger", "draw-line", "snap-out"],
+  "libs": ["gsap"],
+  "adapt": "Change the row strings (each word is a .w span), the mask colours (ink and accent), the typefaces and the photo; row count can grow with the 0.22s cadence. Keep the wipe-open then retract-with-origin-flip pattern and the expo eases.",
+  "port": "mount(el, shot) renders .grain, the .stack rows with .words and .mask, the rule and meta; animate(el, shot, D) returns a gsap.timeline with each row at (0.1+i*0.22)/3*D, the rule at 0.3D and exit at 0.78D. The from() x values are computed from offsetLeft/offsetWidth, so el must be laid out before animate runs; scope gsap.utils.toArray('.row') to el.",
+  "caveats": ["slide distances read offsetLeft/offsetWidth at build time, so the timeline must be built after layout and fonts", "from() tweens need immediateRender:false if built lazily", "multiply-blended photo with grayscale/contrast filter over the full frame adds cost"],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

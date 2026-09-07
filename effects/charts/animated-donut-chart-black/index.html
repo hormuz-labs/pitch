@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8">
+<title>Animated Donut Chart: Black</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000;display:flex;align-items:center;justify-content:center}
+  .wrap{display:flex;align-items:center;gap:80px}
+  .ring{position:relative;width:360px;height:360px}
+  svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .track{fill:none;stroke:#1a1a1a;stroke-width:18}
+  .arc{fill:none;stroke:#fff;stroke-width:18;stroke-linecap:butt}
+  .tick{fill:none;stroke:#2a2a2a;stroke-width:1}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .pct{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-size:84px;font-weight:400;color:#fff;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1}
+  .cap{font-size:12px;color:#777;letter-spacing:.22em;text-transform:uppercase;margin-top:12px}
+  .side{color:#fff;width:300px}
+  .side .l{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#777}
+  .side h2{font-size:34px;font-weight:400;letter-spacing:-.02em;margin-top:10px;line-height:1.1}
+  .side .line{height:1px;background:#222;margin:26px 0;transform-origin:0 50%}
+  .side .m{display:flex;justify-content:space-between;font-size:15px;color:#aaa;padding:8px 0;font-variant-numeric:tabular-nums}
+  .side .m b{color:#fff;font-weight:400}
+</style>
+<div class="stage">
+  <div class="wrap">
+    <div class="ring">
+      <svg viewBox="0 0 360 360"><g id="ticks"></g><circle class="track" cx="180" cy="180" r="150"/><circle class="arc" cx="180" cy="180" r="150"/></svg>
+      <div class="center"><div class="pct" id="n">0</div><div class="cap">complete</div></div>
+    </div>
+    <div class="side">
+      <div class="l">Q3 · Rollout</div>
+      <h2>Migration progress</h2>
+      <div class="line"></div>
+      <div class="m"><span>Services moved</span><b id="a">0 / 128</b></div>
+      <div class="m"><span>Remaining</span><b id="b">128</b></div>
+      <div class="m"><span>ETA</span><b>4 days</b></div>
+    </div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(DrawSVGPlugin);
+  const g=document.getElementById('ticks');
+  for(let i=0;i<60;i++){const a=i/60*Math.PI*2,r1=125,r2=i%5?120:114;const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('class','tick');l.setAttribute('x1',180+Math.cos(a)*r1);l.setAttribute('y1',180+Math.sin(a)*r1);l.setAttribute('x2',180+Math.cos(a)*r2);l.setAttribute('y2',180+Math.sin(a)*r2);g.appendChild(l)}
+  const T=84;
+  const tl=fx.timeline({duration:4});
+  const o={n:0};
+  const upd=()=>{const n=Math.round(o.n);document.getElementById('n').textContent=n;const s=Math.round(n/100*128);document.getElementById('a').textContent=s+' / 128';document.getElementById('b').textContent=128-s};
+  tl.from('.tick',{opacity:0,duration:.02,stagger:{each:.012,from:0}},0)
+    .from('.track',{drawSVG:'0%',duration:.9,ease:'expo.out'},.1)
+    .fromTo('.arc',{drawSVG:'0%'},{drawSVG:T+'%',duration:1.6,ease:'expo.inOut'},.4)
+    .to(o,{n:T,duration:1.6,ease:'expo.inOut',onUpdate:upd},.4)
+    .from('.side .l,.side h2',{y:16,opacity:0,duration:.6,stagger:.1,ease:'power3.out'},.3)
+    .from('.side .line',{scaleX:0,duration:.7,ease:'expo.out'},.55)
+    .from('.side .m',{y:10,opacity:0,duration:.5,stagger:.08,ease:'power3.out'},.7)
+    // hold: a slow rotation of the tick ring
+    .to('#ticks',{rotate:6,transformOrigin:'50% 50%',duration:1.4,ease:'sine.inOut'},2.0)
+    .to('.arc',{drawSVG:'0%',duration:.6,ease:'expo.in'},3.1)
+    .to(o,{n:0,duration:.6,ease:'expo.in',onUpdate:upd},3.1)
+    .to('.side > *',{opacity:0,y:-8,duration:.3,stagger:.03},3.3)
+    .to('.track,.tick',{opacity:0,duration:.3},3.6);
+</script>

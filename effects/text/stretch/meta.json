@@ -1,0 +1,22 @@
+{
+  "move": "pills stretch in anticipation, fly across track, elastic snap-back at stop",
+  "how": "Three coloured pills on a dark stage sit at the left end of a thin track with three stop dots. For each hop the pill first stretches away from its travel direction to scaleX 1.6 scaleY 0.8 with transformOrigin on the trailing edge (power2.in, 0.25s), then translates x across the track over 0.5s (expo.out) while its origin flips to the leading edge, and finally settles to scale 1/1 over 0.9s with elastic.out(1.1,0.35). Hops go right at 3%, 12% and 20% of the duration and back left at 53%, 62% and 70%, so the pills end near their starting positions.",
+  "moves": [
+    "stretch",
+    "anticipation",
+    "slide",
+    "elastic",
+    "stagger"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the pill labels and colours, the count of pills and the track width (dist is derived from the stage width); keep the 0.25s anticipation, 0.5s expo.out flight and 0.9s elastic settle.",
+  "port": "mount(el, shot) builds the track, stops and pills and computes dist from el.clientWidth; animate(el, shot, D) returns the timeline with hop() positions as fractions of D. The transformOrigin sets are already on the timeline; scope selectors to el.",
+  "caveats": [
+    "the last two return hops finish their elastic settle after the timeline ends (~0.3s over), so the final frame is slightly mid-wobble"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

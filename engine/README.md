@@ -14,7 +14,7 @@ mixer and the renderer all read the same shot list.
 - `js/compiler.js` — brand tokens, fonts, cuts and transitions, the `carry`
   match cut, timeline, canvas frame hooks, asset-ready gating, studio inspector.
 - The render side (`shutter`/`samples`, 10-bit, the `grade`) is
-  `.pi/skills/launch-video/scripts/lib/encode.mjs`, read from the same
+  `.pi/scripts/launch-video/lib/encode.mjs`, read from the same
   shots.js by capture.mjs and review.mjs.
 - `css/shots.css` — stage and type styles. Brand colors come from `:root`.
 
@@ -31,5 +31,5 @@ gate and exercises every density feature.
 Render (from the project folder — the studio's Export button does the same):
 
 ```
-node ../../.pi/skills/launch-video/scripts/capture.mjs index.html --fps=60 --out-res=1080p --out=renders/launch-1080p.mp4
+node ../../.pi/scripts/launch-video/capture.mjs index.html --fps=60 --out-res=1080p --out=renders/launch-1080p.mp4
 ```

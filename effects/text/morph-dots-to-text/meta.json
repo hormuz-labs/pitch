@@ -1,0 +1,26 @@
+{
+  "move": "dots drift on arcs into a word, rearrange into second word, scatter",
+  "how": "A canvas with 900 small dots. In mount, two words ('ACME', 'STUDIO') are rasterised at 300px and each sampled into 900 points by seeded rejection sampling. seek(t) interpolates every dot between states with power3.inOut, each dot delayed by its own random fraction of a spread window, and adds a sideways sine arc so dots swing rather than fly straight: from 2% to 36% a random cloud gathers into the first word (1.2s spread), holds until 47%, rearranges into the second word by 76%, holds, then disperses back toward the cloud from 87% to 100%. Settled dots grow slightly and shift hue from blue toward pink (hsl 200 to 360) while every dot breathes 1.6px on sines so the word never freezes. The end cloud is the same seeded start cloud, so the loop closes.",
+  "moves": [
+    "morph",
+    "particles",
+    "gather",
+    "scatter",
+    "stagger",
+    "colour-shift"
+  ],
+  "libs": [
+    "gsap",
+    "canvas"
+  ],
+  "adapt": "Change the two words (or use one), the font, dot count N, dot colour range and the background; the segment boundaries (3.2, 4.2, 6.8, 7.8) scale with D. Keep the per-dot delay spread and the arc so the transition reads as rearranging.",
+  "port": "mount(el, shot) creates the canvas, waits for the font, samples the words once with a seeded rng and stores cloud/A/B/delay/size arrays; animate(el, shot, D) returns a gsap.timeline with one proxy tween {t: 0 to D, ease 'none'} whose onUpdate runs the mix-and-draw code. Sampling in the first seek must move to mount; W/H come from the canvas.",
+  "caveats": [
+    "fx.register canvas seek loop must become an onUpdate tween on the returned timeline",
+    "sampling uses getImageData on a 1280x720 canvas: do it once in mount, not per frame",
+    "900 arc fills per frame is fine, but a fixed 1280x720 backing store is assumed"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

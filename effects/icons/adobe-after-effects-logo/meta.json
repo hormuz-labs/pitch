@@ -1,0 +1,26 @@
+{
+  "move": "tile outline draws and fills, letters slide in, keyframe rides ease curve",
+  "how": "A dark stage with three faint horizontal grid lines and a 820x380 SVG bezier ease curve behind a 300px rounded tile in After Effects navy with lavender 'Ae' letters. Grid lines scale in scaleX from centre (expo.out, stagger 0.08) from frame 0; the tile's rounded-rect outline draws itself with DrawSVG 0 to 100% over 2-27% (power2.inOut), then the tile background and box-shadow fade in from transparent at 22%. The 'A' drops in from yPercent:-230 and the 'e' rises from yPercent:230 (expo.out) at 27% and 30%, then the pair settles from scaleY 0.8/scaleX 1.1 with elastic.out(1,0.5). From 32% to 72% the ease curve draws with DrawSVG (power1.inOut) while a white diamond keyframe rides it via MotionPath with the same ease, scaling in at the start and out at the end. Exit at 82%: letters shoot up, the tile shrinks to 0.6 and fades, curve and grid fade.",
+  "moves": [
+    "draw-stroke",
+    "slide-in",
+    "elastic",
+    "motion-path",
+    "scale-out"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "MotionPath"
+  ],
+  "adapt": "Change the two letters, the tile background (#00005b), accent colour (#9999ff) and the ease-curve path; keep the outline-draw-then-fill sequence and the synced curve draw and keyframe ride with matching power1.inOut eases.",
+  "port": "mount(el, shot) inserts the curve SVG and the tile with frame SVG and letter spans; animate(el, shot, D) returns the same timeline with the draw at 0.02-0.27 of D, letters at 0.27, curve ride at 0.32-0.72, exit at 0.82. Requires DrawSVGPlugin and MotionPathPlugin; the motionPath path selector '.ease' must be an element reference scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin and MotionPathPlugin",
+    "stylised Ae tile in Atlas Grotesk, not the official Adobe mark",
+    "from() tweens on backgroundColor and boxShadow interpolate rgba strings"
+  ],
+  "fidelity": "approximation",
+  "loop": false,
+  "size": "1280x720"
+}

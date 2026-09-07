@@ -1,0 +1,50 @@
+<!doctype html><meta charset="utf-8">
+<title>Rotating Cards</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#12131a;color:#fff;perspective:1600px}
+  .head{position:absolute;left:0;right:0;top:64px;text-align:center}
+  .head h1{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:40px;letter-spacing:-.03em}
+  .head p{color:#9a9db0;margin-top:8px;font-size:17px}
+  .row{position:absolute;left:120px;right:120px;top:200px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px;perspective:1600px}
+  .flip{position:relative;height:400px;transform-style:preserve-3d;will-change:transform}
+  .face{position:absolute;inset:0;border-radius:22px;backface-visibility:hidden;padding:32px;display:flex;flex-direction:column}
+  .back{background:#1c1e2a;border:1px solid rgba(255,255,255,.06);align-items:center;justify-content:center}
+  .back i{width:54px;height:54px;border-radius:16px;background:#2a2d3d}
+  .front{transform:rotateY(180deg);background:#fff;color:#12131a}
+  .front.pro{background:#2d5cff;color:#fff}.front.ent{background:#ffd23f;color:#12131a}
+  .tier{font-size:13px;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+  .price{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:64px;letter-spacing:-.04em;margin-top:18px;line-height:1}
+  .price small{font-size:18px;letter-spacing:0;opacity:.6}
+  .li{margin-top:22px;display:flex;flex-direction:column;gap:10px;font-size:15px}
+  .li div{display:flex;gap:10px;align-items:center}.li div:before{content:"";width:16px;height:16px;border-radius:50%;background:currentColor;opacity:.25}
+  .btn{margin-top:auto;height:46px;border-radius:12px;background:#12131a;color:#fff;display:grid;place-items:center;font-size:15px}
+  .pro .btn{background:#fff;color:#2d5cff}.ent .btn{background:#12131a;color:#fff}
+</style>
+<div class="stage">
+  <div class="head"><h1>Simple, honest pricing</h1><p>Three plans. Flip one over to see what it holds.</p></div>
+  <div class="row">
+    <div class="flip"><div class="face back"><i></i></div><div class="face front"><div class="tier">Starter</div><div class="price">$0<small>/mo</small></div><div class="li"><div>3 projects</div><div>Community support</div><div>1 GB storage</div></div><div class="btn">Get started</div></div></div>
+    <div class="flip"><div class="face back"><i></i></div><div class="face front pro"><div class="tier">Pro</div><div class="price">$24<small>/mo</small></div><div class="li"><div>Unlimited projects</div><div>Priority support</div><div>100 GB storage</div></div><div class="btn">Start trial</div></div></div>
+    <div class="flip"><div class="face back"><i></i></div><div class="face front ent"><div class="tier">Enterprise</div><div class="price">Custom</div><div class="li"><div>SSO & audit logs</div><div>Dedicated manager</div><div>Unlimited storage</div></div><div class="btn">Talk to sales</div></div></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 8 });
+  tl.from('.head h1', { y: 20, opacity: 0, duration: .8, ease: 'power3.out' }, 0)
+    .from('.head p', { y: 14, opacity: 0, duration: .7, ease: 'power3.out' }, .15)
+    .from('.flip', { y: 80, opacity: 0, rotateX: -20, duration: .9, ease: 'expo.out', stagger: .12 }, .2)
+    // cards flip one by one with a lift, overshoot on the settle
+    .to('.flip', { rotateY: 180, duration: 1.1, ease: 'back.out(1.4)', stagger: .55 }, 1.4)
+    .to('.flip', { y: -18, duration: .5, ease: 'power2.out', stagger: .55, yoyo: true, repeat: 1 }, 1.4)
+    .from('.front .tier, .front .price, .front .li div, .front .btn', { opacity: 0, y: 10, duration: .4, stagger: .04 }, 2.0)
+    // the middle card gets a nudge of attention
+    .to('.flip:nth-child(2)', { scale: 1.04, duration: .5, ease: 'power2.inOut', yoyo: true, repeat: 1 }, 4.6)
+    // flip back in reverse order to close the loop
+    .to('.flip', { rotateY: 360, duration: .9, ease: 'power3.inOut', stagger: { each: .18, from: 'end' } }, 6.2)
+    .to('.flip', { y: 80, opacity: 0, duration: .5, ease: 'power3.in', stagger: .08 }, 7.3)
+    .to('.head', { opacity: 0, y: -12, duration: .4, ease: 'power2.in' }, 7.5);
+</script>

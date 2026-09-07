@@ -1,0 +1,25 @@
+{
+  "move": "rule draws, type rises line by line, image curtain unveils, reverses out",
+  "how": "On an off-white stage a 1px horizontal rule scales scaleX 0 to 1 (expo.inOut, transform-origin left) over the first 22%. Nav items, three oversized headline lines (one word in italic serif), a three-line meta paragraph and an underlined link all rise through overflow masks with yPercent:110 expo.out and small staggers between 6% and 30%. A portrait image on the right unveils from clip-path inset(0 0 100% 0) to inset(0 0 0% 0) over 10%-36% (expo.inOut) while the image inside settles from scale 1.25/yPercent:-6 to 1/0 (expo.out); during the hold it breathes yPercent:4 on sine.inOut and a small dot nudges x:6 yoyo. From 84% the image curtain closes upward (expo.in), every text line shoots up yPercent:-110 with expo.in, and the rule collapses to the right (transformOrigin 100% 50%).",
+  "moves": [
+    "draw-stroke",
+    "line-mask",
+    "mask-wipe",
+    "zoom",
+    "stagger",
+    "clip-path"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Replace studio name, nav words, the three headline lines (keep one italic em), meta lines, link label, caption, index and the image; keep the 1.1s expo.inOut rule draw, the 1.3s clip-path unveil and the symmetric expo.in exit that make it feel restrained.",
+  "port": "mount(el, shot) writes the nav/rule/h1/meta/img/idx/cap markup into el using shot strings; animate(el, shot, D) returns the same timeline with entrances at 0-0.36 of D, hold to 0.84, exit after. clipPath tweens and yPercent line masks port directly; scope selectors to el and preload the image.",
+  "caveats": [
+    "clip-path inset tween on an element whose child is also scaled, two composited layers",
+    "borderColor from() tween relies on rgba string interpolation"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,24 @@
+{
+  "move": "dashboard cycles four colour themes via CSS variables, bars re-pop each switch",
+  "how": "A mock analytics app (sidebar with four theme rows, stat tiles, a bar chart) is styled entirely from CSS custom properties on the stage. At 0.15, 0.4, 0.65 and 0.9 D a selection pill slides to the next theme row with expo.out, all eight custom properties tween to the new palette over 0.6s with power2.inOut (Daylight, Midnight, Lagoon, Ember, back to Daylight), a ring pulses out from the swatch, the theme label swaps with a small y fade and the bars and tile numbers re-enter with staggered expo.out. Between switches the bars breathe scaleY 0.85 to 1 with a slow sine yoyo so nothing is still.",
+  "moves": [
+    "colour-shift",
+    "slide-in",
+    "stagger",
+    "ripple",
+    "pop"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the four theme palettes and names, the brand name, tile numbers and bar heights with the product; the switch cadence of 1.5s per theme can stretch with D. Keep the 0.6s variable tween and the bar re-pop so each switch has a beat.",
+  "port": "mount(el, shot) injects the app markup and sets the initial custom properties on el; animate(el, shot, D) returns the same timeline with switches at 0.15 D + j*0.25 D, tweening the custom properties on el rather than .stage, and the label text set via a direction-safe onUpdate rather than the window.__fx.seek patch. Ring positions come from getBoundingClientRect so measure after mount.",
+  "caveats": [
+    ".from(\".tile b\") lacks immediateRender:false, so the tile numbers most likely sit hidden until the first switch at 1.1s and the loop start does not match its end",
+    "the last switch bar and tile tweens run about 0.4s past D; boundary state is close but not identical",
+    "theme label text is corrected by patching window.__fx.seek"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

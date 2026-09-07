@@ -1,0 +1,22 @@
+{
+  "move": "checkerboard ticks on from edges, panel opens, berries drift, board inverts",
+  "how": "A 12x12 grid of white cells on a blue 1080 square with alternating opacity forms a checkerboard border around an inner blue panel holding two italic serif rows, seven seeded SVG raspberries and two captions. The cells scale from 0 with back.out(2) in a grid stagger from the edges (first 8%), the panel scales 0 to 1 (expo.out) and the rows and captions rise through masks. Berries pop in from scale 0 with back.out(1.7) 0.09s apart and each glides along its own x/y/rotation path over 70% of the clip (sine.inOut). At 50% the cells invert their opacity from the centre outward. From 87% berries shrink with back.in(2), rows fly up, the panel scales to 0 and the cells scale out from the centre.",
+  "moves": [
+    "grid-stagger",
+    "pop-in",
+    "drift",
+    "mask-rise",
+    "invert"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the two words, captions, berry SVG, the blue and the grid size; keep the from-edges grid stagger and the sine.inOut drift.",
+  "port": "mount(el, shot) builds the 144 cells and seeded berries; animate(el, shot, D) returns the timeline with the panel at 0.06D, inversion at 0.5D, exit at 0.87D. Grid stagger options carry over; scope selectors to el.",
+  "caveats": [
+    "144 grid cells with two staggered tweens each is a large tween count"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

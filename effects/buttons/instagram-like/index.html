@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8">
+<title>Instagram Like</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column}
+  .wrap{position:relative;width:360px;height:360px;display:flex;align-items:center;justify-content:center}
+  .heart{width:220px;height:220px;will-change:transform}
+  .heart path{fill:transparent;stroke:#111;stroke-width:1.4;stroke-linejoin:round}
+  .ring{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;border:16px solid #ff2d55;transform:scale(0);opacity:0}
+  .p{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;opacity:0}
+  .cnt{margin-top:10px;font-size:40px;font-weight:500;color:#111;height:48px;overflow:hidden;display:flex;gap:12px}
+  .cnt .lbl{color:#8a8f9c;font-weight:400}
+  .cnt .col{display:flex;flex-direction:column;will-change:transform}
+  .cnt .col span{height:48px;line-height:48px;display:block;text-align:right}
+  .tap{position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:rgba(0,0,0,.08);transform:scale(0)}
+</style>
+<div class="stage">
+  <div class="wrap">
+    <div class="ring"></div>
+    <div class="parts"></div>
+    <svg class="heart" viewBox="0 0 24 24"><path d="M12 21s-8-5.3-8-11.3A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.7C20 15.7 12 21 12 21z"/></svg>
+    <div class="tap"></div>
+  </div>
+  <div class="cnt"><div class="col"><span>1,204</span><span>1,205</span></div><span class="lbl">likes</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 3 });
+  const rng = fx.rng(7);
+  const cols = ['#ff2d55', '#ff8a3d', '#ffd23f', '#8a3cff', '#3ddcff'];
+  const parts = document.querySelector('.parts');
+  const N = 14;
+  for (let i = 0; i < N; i++) { const d = document.createElement('div'); d.className = 'p'; d.style.background = cols[i % cols.length]; parts.appendChild(d); }
+  tl.from('.heart', { scale: 0.7, opacity: 0, duration: 0.5, ease: 'back.out(2)' }, 0)
+    .from('.cnt', { y: 16, opacity: 0, duration: 0.5, ease: 'expo.out' }, 0.1)
+    // the tap
+    .fromTo('.tap', { scale: 0, opacity: 1 }, { scale: 1.6, opacity: 0, duration: 0.45, ease: 'power2.out' }, 0.75)
+    .to('.heart', { scale: 0.7, duration: 0.14, ease: 'power2.in' }, 0.75)
+    // the burst: heart fills red and springs up, ring blooms and thins, particles scatter
+    .to('.heart path', { fill: '#ff2d55', stroke: '#ff2d55', duration: 0.12 }, 0.89)
+    .to('.heart', { scale: 1.25, duration: 0.5, ease: 'elastic.out(1.2,0.45)' }, 0.89)
+    .to('.heart', { scale: 1, duration: 0.4, ease: 'power2.inOut' }, 1.5)
+    .fromTo('.ring', { scale: 0, opacity: 1, borderWidth: 40 }, { scale: 1.9, opacity: 0, borderWidth: 2, duration: 0.7, ease: 'power3.out' }, 0.9);
+  document.querySelectorAll('.p').forEach((p, i) => {
+    const a = (i / N) * Math.PI * 2 + rng() * 0.4;
+    const r = 150 + rng() * 80;
+    tl.fromTo(p, { x: 0, y: 0, scale: 0.6, opacity: 1 }, { x: Math.cos(a) * r, y: Math.sin(a) * r, scale: 1.2, duration: 0.55 + rng() * 0.25, ease: 'power3.out' }, 0.9 + rng() * 0.05)
+      .to(p, { opacity: 0, scale: 0, duration: 0.3, ease: 'power2.in' }, 1.35 + rng() * 0.2);
+  });
+  tl.to('.cnt .col', { y: -48, duration: 0.4, ease: 'back.out(1.6)' }, 1.0)
+    // unlike so the loop returns cleanly
+    .fromTo('.tap', { scale: 0, opacity: 1 }, { scale: 1.6, opacity: 0, duration: 0.45, ease: 'power2.out' }, 2.35)
+    .to('.heart', { scale: 0.85, duration: 0.12, ease: 'power2.in' }, 2.35)
+    .to('.heart path', { fill: 'rgba(255,45,85,0)', stroke: '#111', duration: 0.2 }, 2.47)
+    .to('.heart', { scale: 1, duration: 0.4, ease: 'back.out(2)' }, 2.47)
+    .to('.cnt .col', { y: 0, duration: 0.35, ease: 'back.out(1.6)' }, 2.5);
+</script>

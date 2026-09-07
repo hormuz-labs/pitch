@@ -1,0 +1,26 @@
+{
+  "move": "finger lands and swipes across, after glides in behind it, swipes back",
+  "how": "A card rises in from y:60 with expo.out; the after layer is clipped with clip-path inset(0 (100-p)% 0 0) and an edge line follows p across the card width via onUpdate apply(). A hint drops in and a Before label slides in. At 0.18D a hand cursor lands from below with power3.out, then at 0.3D swipes x:-320→420 with expo.inOut over 1.3s while p goes 0→100, and the hand lifts away; the After label slides in and a caption rises from a mask. The photo breathes from scale 1.08 to 1.0. At 0.86D p glides back to 0 with expo.inOut, caption and After label exit and the Before label returns.",
+  "moves": [
+    "swipe",
+    "clip-path",
+    "cursor",
+    "slide-in",
+    "slow-zoom",
+    "mask-text"
+  ],
+  "libs": [
+    "gsap",
+    "clip-path"
+  ],
+  "adapt": "Swap the image (both layers use it with different filters; the CSS face/hair overlays can go), the labels, hint and caption; keep the 1.3s expo.inOut swipe and the 0.6s swipe-back.",
+  "port": "mount(el, shot) builds .hint and .card with .before, .after, .edge, labels, .cap and .hand, defining apply() against el's .after and card.clientWidth; animate(el, shot, D) returns the timeline with the s proxy tweens (onUpdate apply) at 1.5/5 and 4.3/5 of D. Scope the document.querySelector calls to el.",
+  "caveats": [
+    "uses document.querySelector for .after and .card; must be scoped",
+    "clip-path written via style in onUpdate",
+    "hand x values assume a 1080-wide card"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

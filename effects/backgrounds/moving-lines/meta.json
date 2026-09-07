@@ -1,0 +1,20 @@
+{
+  "move": "tilted parallel lines march sideways while a compression wave bunches them",
+  "how": "A canvas on navy draws a fan of vertical lines tilted -0.35 rad about the centre, spaced 36px. Each frame the lines scroll six pitches across D so the march is seamless, while a sine compression wave (two cycles across the span, travelling the opposite way once per D) displaces each line by up to a third of the pitch, thickens it from 2 to 7px and brightens it from dim blue to near-white cyan where the wave crests. The result reads as light pulsing through a striped field.",
+  "moves": [
+    "slide-in",
+    "ripple",
+    "stagger"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "adapt": "Change the background and line colour ramp, the pitch, the tilt, and the wave count; a vertical tilt of 0 gives a pure barcode. Keep the integer-pitch scroll and one wave cycle per D.",
+  "port": "mount(el, shot) creates the canvas; animate(el, shot, D) returns a timeline with one linear progress tween over D whose onUpdate redraws the line fan, replacing fx.register. The span is computed from the canvas diagonal so it works at any size. gsap.min.js is loaded but unused.",
+  "caveats": [
+    "loads gsap but does not use it"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

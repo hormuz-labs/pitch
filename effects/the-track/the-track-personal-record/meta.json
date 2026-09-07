@@ -1,0 +1,26 @@
+{
+  "move": "digits tick into time, card recedes, PR badge slams with burst",
+  "how": "Headline words rise from masks and a card slides up from y:900 rotation 4 with expo.out. From 0.11D a progress bar scaleX 0→1 with power2.inOut over 2s while four time digits rise from masks; each digit then ticks through three values (textContent set + yPercent 110→0 expo.out, 0.35s apart) before settling on 22:41. A previous-best line fades up and a delta chip pops with back.out(3). At 0.42D the card recedes to scale 0.92 with brightness(.5), a glow fades in, the PR badge lands from scale 0 rotation -30 with elastic.out(1,0.45), a ring expands from 0.8 to 1.9 and fades, and 36 seeded confetti bits burst outward with rotation. The badge wobbles ±3° with sine yoyo, then at 0.88D shrinks out with back.in(2), the card drops and the text shoves up.",
+  "moves": [
+    "counter",
+    "digit-roll",
+    "progress-bar",
+    "stamp",
+    "elastic",
+    "burst",
+    "mask-text"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the headline, the finish-time digit sequences in sets, previous best and delta strings, distance marks, badge text and footer; keep the 0.35s digit tick cadence and the 0.7s elastic badge landing.",
+  "port": "mount(el, shot) builds .glow, .h, .card with .time digit spans, .prog, .marks, .ring, .burst with 36 generated bits, .badge and .foot; animate(el, shot, D) returns the timeline with a seeded rng and offsets as fractions of D (progress 1.0/9, ticks 1.8/9, badge 3.9/9, exit 7.9/9). Scope selectors to el.",
+  "caveats": [
+    "animates filter: brightness on the card",
+    "confetti and ring tweens need immediateRender:false as written",
+    "y:900 card entry assumes a 1920px-tall stage"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

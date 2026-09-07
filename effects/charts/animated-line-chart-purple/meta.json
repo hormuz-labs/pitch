@@ -1,0 +1,28 @@
+{
+  "move": "two lines draw on dark glass, scan line follows, markers pop, retract",
+  "how": "A dark purple stage with a huge blurred radial glow behind a frosted glass card (backdrop-filter, 1px border). Inside a 904x374 SVG: dashed gridlines, week labels, a dashed muted 'last year' line, a glowing lavender 'this year' line (drop-shadow filter) with a gradient area under it and 12 circle markers. Card and glow enter in the first 15% (card y:30 power3.out, glow scale 0.6 to 1 power2.out); gridlines draw with DrawSVG expo.out (stagger 0.05) at 4-25%; labels fade in. The dashed line draws 0 to 100% from 12% (power2.inOut, 1.6s) and the glowing line from 15% over 1.8s, with a synced object tween that widens a clipPath rect to reveal the area and drags a vertical scan line along line.getPointAtLength; markers pop scale 0 to 1 with back.out(3) staggered 0.14 as the line passes. During the hold the glow drifts x:60 yoyo on sine.inOut and the scan line fades. Exit at 80%: markers shrink from the end, both lines retract to '100% 100%' (expo.in), the clip rect closes, the card lifts out.",
+  "moves": [
+    "draw-stroke",
+    "path-follow",
+    "mask-wipe",
+    "scale-in",
+    "stagger",
+    "glow"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "clip-path"
+  ],
+  "adapt": "Replace arrays a and b, max, week labels, title/subtitle/legend text; change #c084fc and #5b3a86 in .l1/.l2/.mk/.legend and the gradient; keep the two staggered draw starts (dashed line 0.1s ahead) and the synced scan tween with the same power2.inOut ease as the line.",
+  "port": "mount(el, shot) builds the glow, card and SVG, computes both bezier paths and the area from shot.series, generates grid/labels/markers; animate(el, shot, D) returns the same timeline with draws at 0.12-0.6 of D and retract at 0.8. Requires DrawSVGPlugin; SVG ids (gp, clip, cr, scan, l1, l2) must be unique per instance; getElementById scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin",
+    "900px filter: blur(40px) glow plus backdrop-filter and an SVG drop-shadow filter on the line, expensive per frame",
+    "SVG ids collide if two instances mount",
+    "lines retract and card fades, no seamless loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

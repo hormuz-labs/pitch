@@ -1,0 +1,26 @@
+{
+  "move": "six component cards stagger in; toggle, button, slider, checks, pill all cycle",
+  "how": "A 3x2 grid of white cards enters with a grid stagger (y 40, scale .96, expo.out). Each card then loops its own component over 7s: the toggle knob slides x 0/56 with back.out(1.8) and tints blue at 11%, 43%, 71%; the button presses to scale .94 and recovers elastic with a ripple twice; the slider thumb and fill (left %, scaleX) sweep to 72, 30 then 100 with power3.inOut and a counter tooltip; three checkboxes fill with back.out(2.5) and DrawSVG ticks, untick and re-tick; a segmented pill hops xPercent 0/100/200 with back.out; avatars pop and a toast slides in and out twice. At 93% the cards lift out from the end of the grid.",
+  "moves": [
+    "stagger",
+    "toggle",
+    "press",
+    "ripple",
+    "slider",
+    "draw-stroke",
+    "segmented-hop",
+    "toast"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG"
+  ],
+  "adapt": "Rename labels and the button/toast copy, swap the four accent colours, and drop cards you do not need; keep the back.out toggle and elastic press timings, they are the tactile feel.",
+  "port": "mount(el, shot) builds the six cards; animate returns one timeline with the per-component helper calls placed at fractions of D (tog at 0.11D, 0.43D, 0.71D etc.). Direct port apart from scoping the .val querySelector and registering DrawSVG.",
+  "caveats": [
+    "many simultaneous tweens; fine for render, dense for editing"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

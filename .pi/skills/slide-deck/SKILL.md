@@ -1,5 +1,6 @@
 ---
 name: slide-deck
+tools: deck
 description: Make and maintain a 1280×720 slide deck — generate one from a topic (optionally inside a named template), enhance an uploaded PDF/PPTX (recreate or preserve), or edit the finished deck by chat. The deck is deck.html in the workspace, built from build/deck-config.js by pdf_build, previewed live and published with deck_publish. Read this before any deck work.
 ---
 

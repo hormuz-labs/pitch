@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8">
+<title>Spiral: Social Media Showcase</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#f4f1ec;color:#141414}
+  .card{position:absolute;left:540px;top:540px;width:420px;height:560px;margin:-280px 0 0 -210px;border-radius:26px;overflow:hidden;background:#222;box-shadow:0 30px 70px rgba(0,0,0,.28);will-change:transform}
+  .card .img{position:absolute;inset:-6%;background-size:cover;background-position:center}
+  .k1 .img{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .k2 .img{background-image:url("../../../assets/backgrounds/ocean.png")}
+  .k3 .img{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .k4 .img{background-image:url("../../../assets/backgrounds/sunset.png");filter:hue-rotate(120deg)}
+  .card .cap{position:absolute;left:24px;bottom:22px;color:#fff;font-size:28px;font-weight:500;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+  .trail{position:absolute;left:0;top:0;width:1080px;height:1080px;pointer-events:none}
+  .trail path{fill:none;stroke:#141414;stroke-width:2;stroke-dasharray:6 10;opacity:.35}
+  .ttl{position:absolute;left:70px;top:70px;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:72px;letter-spacing:-.04em;line-height:.95;overflow:hidden}
+  .ttl span{display:block}
+  .sub{position:absolute;right:70px;top:84px;font-size:20px;letter-spacing:.3em;text-transform:uppercase;opacity:.65}
+  .ft{position:absolute;left:70px;right:70px;bottom:60px;display:flex;justify-content:space-between;font-size:20px;letter-spacing:.06em;opacity:.65}
+</style>
+<div class="stage">
+  <svg class="trail" viewBox="0 0 1080 1080"><path id="sp" d=""/></svg>
+  <div class="ttl"><span>Spiral</span></div>
+  <div class="sub">Showcase · 2026</div>
+  <div class="card k4"><div class="img"></div><div class="cap">Dune</div></div>
+  <div class="card k3"><div class="img"></div><div class="cap">Aurora</div></div>
+  <div class="card k2"><div class="img"></div><div class="cap">Tide</div></div>
+  <div class="card k1"><div class="img"></div><div class="cap">Ember</div></div>
+  <div class="ft"><span>Acme Studio — Selected work</span><span>04 pieces</span></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/MotionPathPlugin.min.js"></script>
+<script src="../../../assets/gsap/DrawSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin);
+  // a spiral path from far outside the frame into the centre
+  const pts = [];
+  for (let k = 0; k <= 120; k++) {
+    const u = k / 120, a = u * Math.PI * 2 * 2.25, r = 1100 * (1 - u) + 0;
+    pts.push([540 + Math.cos(a) * r, 540 + Math.sin(a) * r]);
+  }
+  const d = 'M' + pts.map(p => p.map(v => v.toFixed(1)).join(' ')).join(' L');
+  document.getElementById('sp').setAttribute('d', d);
+  const tl = fx.timeline({ duration: 6 });
+  tl.from('.ttl span', { yPercent: 110, duration: 0.7, ease: 'expo.out' }, 0)
+    .from('.sub, .ft', { opacity: 0, duration: 0.6 }, 0.3)
+    .fromTo('#sp', { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: 1.2, ease: 'power2.out' }, 0.1);
+  // each card spirals in along the path, spinning as it goes, and settles at the centre;
+  // the one before it steps back into a fanned stack
+  const cards = ['.k1', '.k2', '.k3', '.k4'];
+  const settled = [{ x: 0, y: 0, r: 0 }, { x: -40, y: 8, r: -7 }, { x: 40, y: 12, r: 7 }, { x: 0, y: -14, r: 0 }];
+  cards.forEach((c, i) => {
+    const at = 0.2 + i * 1.25;
+    tl.fromTo(c, { motionPath: { path: '#sp', align: '#sp', alignOrigin: [0.5, 0.5], start: 0, end: 0 }, rotation: -540, scale: 0.4, opacity: 0 },
+      { motionPath: { path: '#sp', align: '#sp', alignOrigin: [0.5, 0.5], start: 0, end: 1 }, rotation: 0, scale: 1, opacity: 1, duration: 1.2, ease: 'power3.out', immediateRender: false }, at);
+    // previous cards fan out behind
+    cards.slice(0, i).forEach((p, j) => {
+      const k = i - j; const s = settled[Math.min(k, 3)];
+      tl.to(p, { x: `+=${s.x}`, y: `+=${s.y}`, rotation: s.r, scale: 1 - k * 0.04, duration: 0.7, ease: 'expo.out' }, at + 0.5);
+    });
+  });
+  // the finished stack breathes, then unwinds out the way it came
+  tl.to('.card', { y: '-=10', duration: 0.5, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 5.0)
+    .to('.card', { rotation: 540, scale: 0.2, opacity: 0, x: 900, y: -600, duration: 0.6, ease: 'power3.in', stagger: 0.04 }, 5.35)
+    .to('#sp', { drawSVG: '100% 100%', duration: 0.5, ease: 'power2.in' }, 5.4)
+    .to('.ttl span', { yPercent: -110, duration: 0.35, ease: 'expo.in' }, 5.6)
+    .to('.sub, .ft', { opacity: 0, duration: 0.3 }, 5.6);
+</script>

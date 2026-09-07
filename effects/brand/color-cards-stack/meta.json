@@ -1,0 +1,25 @@
+{
+  "move": "cards fly in and pile up, deal to a grid, gather back",
+  "how": "Eight 270x200 swatch cards start piled at centre with seeded random tilt and stacked z-index. From 0.01D each flies in from alternating off-frame sides (x ±, random y, random rotate, scale 1.15) with expo.out 0.7s, 0.28s apart, then a scale 1.03→1 settle; at 0.25D the whole pile compresses 6px and springs back with elastic.out. At 0.33D the top card first, the pile deals out into a 4x2 grid (expo.inOut 0.9s, 0.1s apart) and a sine hover wave passes over the grid. At 0.74D the cards gather back into the tilted pile, then at 0.91D drop off the bottom with power3.in, and the caption lifts out.",
+  "moves": [
+    "fly-in",
+    "stack",
+    "deal-out",
+    "grid",
+    "hover-wave",
+    "drop-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Swap colours, names, hex and number labels and the caption; card count and grid size are set by gridX/gridY (4 columns) and CW/CH/GAP. Keep the 0.28s fly-in cadence, the elastic settle and the expo.inOut deal.",
+  "port": "mount(el, shot) creates absolutely-positioned .card elements and computes cx/cy from el's size; animate(el, shot, D) returns the timeline with fx.rng replaced by a seeded rng, offsets scaled from the 10s original (fly-in 0.1+i*0.28, deal 3.3, gather 7.4, exit 9.1) as fractions of D.",
+  "caveats": [
+    "grid coordinates and off-frame x values assume a 1280x720 stage",
+    "uses fx.rng(7); keep a seeded rng for determinism",
+    "from() tweens need immediateRender:false when rebuilt"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

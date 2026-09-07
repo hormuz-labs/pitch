@@ -1,0 +1,26 @@
+{
+  "move": "pen tool traces letter outlines dropping anchors, fill floods in",
+  "how": "A 300px dark-red rounded tile scales in from 0.7 (expo.out) in the first 17%. Two stacked SVGs hold an orange 'Ai' as fills (hidden) and as strokes. From 7% to 40% the 'A' outer outline draws with DrawSVG (power1.inOut, 1.3s) while a small white pen-tool cursor follows the same path via MotionPath; six white anchor circles pop in scale 0 with back.out(3) staggered 0.14 as the pen passes, and two bezier handles draw outward from their midpoints ('50% 50%' to full). The inner triangle then draws at 40-51%, the 'i' stem at 51-64% (pen following each), the pen hides and the dot draws at 60%. At 69% the fills fade in and settle from scale 0.94 with elastic.out(1,0.5) while anchors and strokes fade out, reading as a flood fill. Exit at 89%: the tile shrinks to 0.7 and fades.",
+  "moves": [
+    "draw-stroke",
+    "motion-path",
+    "pop",
+    "flood",
+    "elastic"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "MotionPath"
+  ],
+  "adapt": "Replace the letter paths (fills and strokes must be the same geometry) and anchor/handle coordinates, the tile background (#330000) and accent (#ff9a00); keep the pen-follows-stroke pairing with identical durations and eases and the flood at the end.",
+  "port": "mount(el, shot) builds the tile with fills, strokes, anchors and pen SVGs; animate(el, shot, D) applies gsap.set for hidden fills/pen and returns the same timeline with traces at 0.07-0.64 of D, flood at 0.69, exit at 0.89. Requires DrawSVGPlugin and MotionPathPlugin; motionPath path selectors ('.pA', '.pA2', '.pI') must be element references scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin and MotionPathPlugin",
+    "stylised Ai letterforms drawn as paths, not the official Adobe mark",
+    "anchor stagger timing is hand-matched to the pen speed and drifts if the path changes"
+  ],
+  "fidelity": "approximation",
+  "loop": false,
+  "size": "1280x720"
+}

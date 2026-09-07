@@ -1,0 +1,82 @@
+<!doctype html><meta charset="utf-8">
+<title>Feature Sneak Peek</title>
+<meta name="fx" content="w=1080 h=1080">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#0a0a0c;color:#fff}
+  .glow{position:absolute;left:50%;top:50%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;background:radial-gradient(circle,rgba(120,80,255,.45),transparent 60%);filter:blur(30px)}
+  .ui{position:absolute;left:190px;top:250px;width:700px;height:560px;border-radius:28px;background:#15161c;border:1px solid rgba(255,255,255,.08);padding:28px;box-shadow:0 60px 100px -30px rgba(0,0,0,.8)}
+  .ui .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+  .ui .ttl{font-size:22px;font-weight:500}
+  .pill{font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#7c5cff,#ff5ca8);font-weight:500}
+  .row{display:flex;align-items:center;gap:16px;padding:18px 16px;border-radius:16px;background:#1d1f27;margin-bottom:12px}
+  .ico{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#7c5cff,#3dd6ff)}
+  .row:nth-child(3) .ico{background:linear-gradient(135deg,#ffb84d,#ff5ca8)}
+  .row:nth-child(4) .ico{background:linear-gradient(135deg,#3af0a8,#3dd6ff)}
+  .row:nth-child(5) .ico{background:linear-gradient(135deg,#ff5ca8,#7c5cff)}
+  .txt{flex:1}.txt b{display:block;font-size:17px;font-weight:500}.txt span{font-size:13px;color:#8b8fa3}
+  .sw{width:46px;height:26px;border-radius:13px;background:#2b2e3a;position:relative}
+  .sw i{position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+  .sw.on{background:#7c5cff}.sw.on i{left:23px}
+  /* the blurred, hidden copy and the sharp copy revealed by a moving window */
+  .layer{position:absolute;inset:0}
+  .blurred{filter:blur(18px) saturate(1.2);opacity:.9}
+  .sharp{clip-path:circle(0px at 540px 540px)}
+  .frost{position:absolute;left:190px;top:250px;width:700px;height:560px;border-radius:28px;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.14)}
+  .lens{position:absolute;left:0;top:0;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;border:2px solid rgba(255,255,255,.7);box-shadow:0 0 0 12px rgba(255,255,255,.05),0 30px 80px rgba(0,0,0,.6)}
+  .hdr{position:absolute;left:0;right:0;top:110px;text-align:center}
+  .hdr .k{font-size:14px;letter-spacing:.34em;text-transform:uppercase;color:#b9a8ff}
+  .hdr .h{font-family:"Sharp Grotesk",sans-serif;font-size:72px;font-weight:500;letter-spacing:-.04em;line-height:1;margin-top:10px}
+  .hdr .h span{display:inline-block}
+  .ftr{position:absolute;left:0;right:0;bottom:120px;text-align:center;font-size:20px;color:#8b8fa3}
+  .ftr b{color:#fff;font-weight:500}
+  .rowmask{overflow:hidden}
+</style>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="hdr"><div class="rowmask"><div class="k">Sneak peek</div></div><div class="rowmask"><div class="h"><span>Something</span> <span>new</span></div></div></div>
+  <div class="layer blurred"><div class="ui" id="uiA"></div></div>
+  <div class="frost"></div>
+  <div class="layer sharp"><div class="ui" id="uiB"></div></div>
+  <div class="lens" id="lens"></div>
+  <div class="ftr"><div class="rowmask"><div>Launching <b>next Tuesday</b></div></div></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const ui = `<div class="top"><div class="ttl">Automations</div><div class="pill">Beta</div></div>
+    <div class="row"><div class="ico"></div><div class="txt"><b>Smart routing</b><span>Send requests to the right owner</span></div><div class="sw on"><i></i></div></div>
+    <div class="row"><div class="ico"></div><div class="txt"><b>Auto summaries</b><span>Every thread, condensed nightly</span></div><div class="sw on"><i></i></div></div>
+    <div class="row"><div class="ico"></div><div class="txt"><b>Scheduled digests</b><span>Weekly recap to your inbox</span></div><div class="sw"><i></i></div></div>
+    <div class="row"><div class="ico"></div><div class="txt"><b>Approval flows</b><span>Two-step sign off on changes</span></div><div class="sw"><i></i></div></div>`;
+  document.getElementById('uiA').innerHTML = ui; document.getElementById('uiB').innerHTML = ui;
+  const D = 10;
+  const tl = fx.timeline({ duration: D });
+  // the lens wanders the blurred UI, opening on points of interest and closing between them
+  const stops = [[400, 330, 150], [700, 450, 130], [380, 560, 140], [720, 690, 130], [540, 540, 210]];
+  const lens = { x: 540, y: 540, r: 0 };
+  const sharp = document.querySelector('.sharp'), lensEl = document.getElementById('lens');
+  const apply = () => { sharp.style.clipPath = `circle(${lens.r}px at ${lens.x}px ${lens.y}px)`; lensEl.style.transform = `translate(${lens.x}px,${lens.y}px) scale(${lens.r / 130})`; lensEl.style.opacity = Math.min(1, lens.r / 40); };
+  apply();
+  tl.from('.k', { yPercent: 120, duration: 0.7, ease: 'expo.out' }, 0.2)
+    .from('.h span', { yPercent: 120, duration: 0.9, ease: 'expo.out', stagger: 0.1 }, 0.35)
+    .from('.ftr div', { yPercent: 120, duration: 0.7, ease: 'expo.out' }, 0.6)
+    .from('.blurred, .frost', { opacity: 0, y: 60, duration: 1, ease: 'expo.out' }, 0.3);
+  let t = 1.4;
+  stops.forEach(([x, y, r], i) => {
+    tl.to(lens, { x, y, duration: 0.9, ease: 'expo.inOut', onUpdate: apply }, t)
+      .to(lens, { r, duration: 0.6, ease: 'back.out(1.6)', onUpdate: apply }, t + 0.5);
+    // hold, then close before moving on (the last stop stays open a moment longer)
+    const hold = i === stops.length - 1 ? 0.9 : 0.5;
+    tl.to(lens, { r: 0, duration: 0.45, ease: 'expo.in', onUpdate: apply }, t + 1.1 + hold);
+    t += 1.6 + hold;
+  });
+  // the blurred UI drifts and the switches flip inside both copies so the whole thing breathes
+  tl.fromTo('.ui', { y: 0 }, { y: -14, duration: D / 2, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+  const sw = gsap.utils.toArray('.sw:not(.on)');
+  tl.to(sw, { background: '#7c5cff', duration: 0.3 }, 5.2).to('.sw:not(.on) i', { left: 23, duration: 0.3, ease: 'back.out(2)' }, 5.2);
+  // outro so the loop is clean
+  tl.to('.hdr .k, .hdr .h', { yPercent: -120, duration: 0.5, ease: 'expo.in', stagger: 0.06 }, D - 0.75)
+    .to('.ftr div', { yPercent: -120, duration: 0.45, ease: 'expo.in' }, D - 0.6)
+    .to('.blurred, .frost', { opacity: 0, y: -40, duration: 0.5, ease: 'expo.in' }, D - 0.55);
+</script>

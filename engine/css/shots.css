@@ -44,7 +44,12 @@ html, body {
 /* Any other shot.bg is a brand.palette name or a CSS color, applied inline. */
 
 /* Mixed-weight type */
-.char-wrap { display: inline-block; overflow: hidden; vertical-align: bottom; }
+/* The per-char mask. Hero type runs at line-height 0.92, so the line box is
+   smaller than the glyphs: without padding the mask cut every descender and
+   the overhang of a tight letter-spacing. The negative margin gives the
+   padding back, so layout is unchanged; reveals start at yPercent 140+ so a
+   char begins fully below the taller mask. */
+.char-wrap { display: inline-block; overflow: hidden; vertical-align: bottom; padding: 0.16em 0.08em 0.24em; margin: -0.16em -0.08em -0.24em; }
 .char { display: inline-block; will-change: transform; }
 .word { display: inline-block; white-space: nowrap; }
 .type-stack { display: flex; flex-direction: column; z-index: 4; }

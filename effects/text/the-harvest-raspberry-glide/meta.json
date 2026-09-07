@@ -1,0 +1,24 @@
+{
+  "move": "four layered word copies glide in from four sides, parallax over video",
+  "how": "A dark 1080 square with a muted background video scrubbed at quarter speed, a vignette, four overlaid copies of the word (outline, screen-blend red, italic cream, faint outline), a berry SVG and small captions. The copies slide in from x -700, x 700, y 300 and y -300 with opacity 0 (expo.out, 1.4s) at 0%, 2%, 5% and 7% of the clip and land slightly offset from one another; from 28% they glide a few px in opposing directions over 3s (sine.inOut) for a parallax feel, while the berry crosses behind the italic layer from x -700 to 700 turning 70deg. Captions rise through masks. At 86% each copy leaves the way it came (expo.in, 0.06s apart) and the captions fly up.",
+  "moves": [
+    "slide-in",
+    "parallax",
+    "glide",
+    "layered-type",
+    "video-scrub"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the word, the four layer treatments (stroke, blend, italic), the video and captions; keep the 1.4s expo.out entries with 0.12s offsets and the 3s sine.inOut glide.",
+  "port": "mount(el, shot) builds the layers, berry and video, waiting for loadeddata; animate(el, shot, D) returns the timeline; the video-scrub tween is already an onUpdate tween setting currentTime and ports directly. Scope selectors to el.",
+  "caveats": [
+    "background video currentTime is set from a tween and needs the video decoded before the first frame (fx.wait)",
+    "the video scrub and its scale 1.06 zoom do not return to frame 0 on loop",
+    "mix-blend-mode screen on a 190px text layer over video"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

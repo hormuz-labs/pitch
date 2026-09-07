@@ -16,13 +16,18 @@ import {
   explainBwrapFailure,
   runInSandbox,
   sandboxEnv,
+  sandboxMode,
+  seatbeltCommand,
+  seatbeltProfile,
+  unconfinedCommand,
 } from '../.pi/lib/sandbox'
 
 const WS = '/app/projects/studio--user_1--acme'
-const SHARED = ['/app/engine', '/app/.pi/skills', '/app/assets']
+const SHARED = ['/app/.pi/skills', '/app/assets', '/app/effects']
+const HIDDEN = ['/app/assets/gsap', '/app/assets/three']
 
 describe('the bwrap recipe', () => {
-  const args = bwrapArgs({ workspace: WS, shared: SHARED })
+  const args = bwrapArgs({ workspace: WS, shared: SHARED, hidden: HIDDEN })
   const pairs = (flag: string) => {
     const out: string[][] = []
     args.forEach((a, i) => {
@@ -61,6 +66,13 @@ describe('the bwrap recipe', () => {
     // Each reference at the path it already has — the agent, the shell and
     // the host tools name one set of paths.
     expect(pairs('--ro-bind-try')).toEqual(expect.arrayContaining(SHARED.map(root => [root, root])))
+  })
+
+  it('hides the vendor libraries under an empty tmpfs, after the bind they sit in', () => {
+    const tmpfs = args.map((a, i) => (a === '--tmpfs' ? args[i + 1] : null)).filter(Boolean)
+    expect(tmpfs).toEqual(expect.arrayContaining(HIDDEN))
+    const lastBind = args.lastIndexOf('--ro-bind-try')
+    for (const dir of HIDDEN) expect(args.indexOf(dir)).toBeGreaterThan(lastBind)
   })
 
   it('binds nothing else of the host — no /app, no /etc wholesale, no /root', () => {
@@ -153,6 +165,7 @@ describe('running a command in the sandbox', () => {
     await expect(
       runInSandbox('true', {
         workspace: '/ws',
+        mode: 'bwrap',
         onData: () => {},
         spawnFn: fakeSpawn(child => {
           child.stderr.emit('data', Buffer.from('bwrap: No permissions to create a new namespace'))
@@ -166,6 +179,7 @@ describe('running a command in the sandbox', () => {
     await expect(
       runInSandbox('true', {
         workspace: '/ws',
+        mode: 'bwrap',
         onData: () => {},
         spawnFn: fakeSpawn(child => {
           const err: NodeJS.ErrnoException = new Error('spawn bwrap ENOENT')
@@ -174,6 +188,32 @@ describe('running a command in the sandbox', () => {
         }),
       }),
     ).rejects.toThrow(/sandbox could not start.*bubblewrap/s)
+  })
+
+  it('runs the shell directly, in the workspace, when the mode is unconfined', async () => {
+    const calls: Array<[string, string[], any]> = []
+    const r = await runInSandbox('echo hi', {
+      workspace: '/ws',
+      cwd: '/ws/sub',
+      mode: 'unconfined',
+      onData: () => {},
+      spawnFn: ((cmd: string, argv: string[], opts: any) => {
+        calls.push([cmd, argv, opts])
+        const child: any = new EventEmitter()
+        child.stdout = new EventEmitter()
+        child.stderr = new EventEmitter()
+        child.kill = () => {}
+        queueMicrotask(() => child.emit('close', 0))
+        return child
+      }) as never,
+    })
+    expect(r.exitCode).toBe(0)
+    const [cmd, argv, opts] = calls[0]!
+    expect(cmd).toBe('/bin/bash')
+    expect(argv).toEqual(['-lc', 'echo hi'])
+    expect(opts.cwd).toBe('/ws/sub')
+    expect(opts.env.STUDIO_SANDBOX).toBe('none')
+    expect(Object.keys(opts.env)).not.toContain('GEMINI_API_KEY')
   })
 
   it('does not mistake a failed command for a broken sandbox', async () => {
@@ -186,5 +226,101 @@ describe('running a command in the sandbox', () => {
       }),
     })
     expect(r.exitCode).toBe(127)
+  })
+})
+
+describe('which sandbox a host gets', () => {
+  it('is bubblewrap on Linux and the seatbelt on macOS, where bwrap does not exist', () => {
+    expect(sandboxMode('linux', {})).toBe('bwrap')
+    expect(sandboxMode('darwin', {})).toBe('seatbelt')
+  })
+
+  it('lets STUDIO_SANDBOX force any of them', () => {
+    expect(sandboxMode('linux', { STUDIO_SANDBOX: 'none' })).toBe('unconfined')
+    expect(sandboxMode('darwin', { STUDIO_SANDBOX: 'none' })).toBe('unconfined')
+    expect(sandboxMode('darwin', { STUDIO_SANDBOX: 'bwrap' })).toBe('bwrap')
+    expect(sandboxMode('linux', { STUDIO_SANDBOX: 'seatbelt' })).toBe('seatbelt')
+  })
+
+  it('still builds the guest environment from scratch when unconfined — PATH and HOME from the host, no secrets', () => {
+    const c = unconfinedCommand(
+      'node -v',
+      { workspace: WS },
+      { PATH: '/opt/homebrew/bin:/usr/bin', HOME: '/Users/me', GEMINI_API_KEY: 'x' },
+    )
+    expect(c.file).toBe('/bin/bash')
+    expect(c.args).toEqual(['-lc', 'node -v'])
+    expect(c.cwd).toBe(WS)
+    expect(c.env.PATH).toBe('/opt/homebrew/bin:/usr/bin')
+    expect(c.env.HOME).toBe('/Users/me')
+    expect(c.env.STUDIO_SANDBOX).toBe('none')
+    expect(c.env).not.toHaveProperty('GEMINI_API_KEY')
+  })
+})
+
+describe('the seatbelt recipe (macOS)', () => {
+  // The developer's laptop used to run the shell unconfined: the agent, told
+  // it had no network and no engine, fetched the site with node, read the
+  // extensions' source and ran the host scripts by hand.
+  const opts = {
+    workspace: '/Users/dev/code/pitch/projects/studio--user_1--acme',
+    shared: ['/Users/dev/code/pitch/.pi/skills', '/Users/dev/code/pitch/assets'],
+    hidden: ['/Users/dev/code/pitch/assets/gsap'],
+    home: '/Users/dev',
+    repo: '/Users/dev/code/pitch',
+    projects: '/Users/dev/code/pitch/projects',
+  }
+  const profile = seatbeltProfile(opts)
+  const rules = profile.trim().split('\n')
+  const at = (needle: string) => rules.findIndex(r => r.includes(needle))
+
+  it('denies the network', () => {
+    expect(rules).toContain('(deny network*)')
+  })
+
+  it('reads as a narrowing: home, checkout and projects out, then the workspace back', () => {
+    expect(at('(deny file* (subpath "/Users/dev"))')).toBeGreaterThan(at('(allow default)'))
+    expect(at('(deny file* (subpath "/Users/dev/code/pitch"))')).toBeGreaterThan(-1)
+    expect(
+      at('(allow file* (subpath "/Users/dev/code/pitch/projects/studio--user_1--acme"))'),
+    ).toBeGreaterThan(at('(deny file* (subpath "/Users/dev/code/pitch/projects"))'))
+  })
+
+  it('allows the shared references read-only and hides the vendor libraries after them', () => {
+    for (const root of opts.shared) {
+      expect(at(`(allow file-read* (subpath "${root}"))`)).toBeGreaterThan(
+        at('(deny file* (subpath "/Users/dev"))'),
+      )
+    }
+    expect(at('(deny file-read* (subpath "/Users/dev/code/pitch/assets/gsap"))')).toBeGreaterThan(
+      at('(allow file-read* (subpath "/Users/dev/code/pitch/assets"))'),
+    )
+  })
+
+  it('lets the toolchains through, and stat everywhere', () => {
+    expect(profile).toContain('(allow file-read* (subpath "/Users/dev/.nvm"))')
+    expect(profile).toContain('(allow file-read* (subpath "/Users/dev/.cargo"))')
+    expect(rules[rules.length - 1]).toBe('(allow file-read-metadata)')
+  })
+
+  it('escapes a quote in a path rather than ending the rule', () => {
+    expect(seatbeltProfile({ ...opts, workspace: '/Users/dev/a"b' })).toContain(
+      '(subpath "/Users/dev/a\\"b")',
+    )
+  })
+
+  it('runs the command through sandbox-exec with the guest environment', () => {
+    const c = seatbeltCommand('node -v', opts, {
+      PATH: '/opt/homebrew/bin',
+      HOME: '/Users/dev',
+      GEMINI_API_KEY: 'x',
+    })
+    expect(c.file).toBe('/usr/bin/sandbox-exec')
+    expect(c.args.slice(0, 1)).toEqual(['-p'])
+    expect(c.args[1]).toBe(profile)
+    expect(c.args.slice(2)).toEqual(['/bin/bash', '-c', 'node -v'])
+    expect(c.cwd).toBe(opts.workspace)
+    expect(c.env.STUDIO_SANDBOX).toBe('seatbelt')
+    expect(c.env).not.toHaveProperty('GEMINI_API_KEY')
   })
 })

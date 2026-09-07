@@ -1,0 +1,29 @@
+{
+  "move": "orange rider rides a dotted route, icon morphs at each stop, ink line draws behind, stops light",
+  "how": "A cream frame with a dotted SVG track path, an ink path drawn over it, five stop circles placed at 0/25/50/75/100% of the path length, an orange rider disc carrying a white icon path, uppercase labels near each stop and a per-letter title. 0-6%: the title letters rise (0.02s stagger, expo.out) and the labels fade up (0.1s stagger); at 3% the rider pops in with back.out(2). From 6% to 88% the rider follows the path with MotionPathPlugin (linear, auto-rotate off) while the ink drawSVGs 0->100% in lockstep. 0.35s before each stop the icon morphs (home -> search -> heart -> bell -> gear, power2.inOut, 0.6s), the disc swells r 44->54 then elastic.out(1,.45) back, and the stop fills black. At 90% the rider shrinks with back.in(2), the ink erases to '100% 100%' (power3.inOut), stops reset to cream with a 0.05s stagger, and the icon is set back to home, so the route is ready to loop except for the title and labels which stay.",
+  "moves": [
+    "path-follow",
+    "morph",
+    "draw-stroke",
+    "elastic",
+    "stagger",
+    "slide-in"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "MorphSVG",
+    "MotionPath"
+  ],
+  "adapt": "Replace the five icon paths and labels with the product's nav items, the route path shape, the orange (#ff5a36) and cream palette, and the title. Keep the linear ride, the 0.6s morph timed 0.35s before each stop, and the disc swell.",
+  "port": "mount(el, shot) builds the route SVG (viewBox 1280x720 scaled to el), computes stop positions with getPointAtLength, and places labels; animate(el, shot, D) returns the timeline with the ride spanning 0.06D-0.88D, morphs at 0.06D + 0.82D*stopFraction - 0.035D, and the reset at 0.9D. Register DrawSVG, MorphSVG and MotionPath; rename '#pth', '#ink', '#rider', '#ico' per instance and scope to el; label positions are absolute pixels for a 1280x720 stage.",
+  "caveats": [
+    "needs MorphSVG and MotionPath club plugins",
+    "catalog lists 13s but the file renders 10s",
+    "label positions hard-coded for 1280x720",
+    "title and labels do not exit, so the loop closes only for the route"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

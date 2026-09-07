@@ -1,0 +1,98 @@
+<!doctype html><meta charset="utf-8">
+<title>The Route: Departures Board</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#121214;color:#f4f1e8;font-family:"Atlas Grotesk",sans-serif}
+  .board{position:absolute;left:60px;right:60px;top:60px;bottom:60px;background:#1c1c20;border-radius:16px;padding:28px 36px;display:flex;flex-direction:column;border:1px solid #2c2c33}
+  .hdr{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:18px;border-bottom:1px solid #2c2c33}
+  .hdr h1{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:40px;letter-spacing:-.02em;overflow:hidden;height:46px}
+  .hdr h1 span{display:block}
+  .hdr .clock{font-variant-numeric:tabular-nums;font-size:26px;color:#f5c542;letter-spacing:.06em}
+  .cols{display:grid;grid-template-columns:150px 1fr 170px 150px 170px;gap:16px;padding:14px 0 8px;font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:#7c7c86}
+  .rows{display:flex;flex-direction:column;gap:8px;flex:1}
+  .row{display:grid;grid-template-columns:150px 1fr 170px 150px 170px;gap:16px;align-items:center;height:64px}
+  .cell{display:flex;gap:4px}
+  .flap{position:relative;width:30px;height:46px;background:#2a2a30;border-radius:4px;overflow:hidden;font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:30px;line-height:46px;text-align:center;color:#f4f1e8;text-transform:uppercase}
+  .flap.w{width:22px;font-size:22px}
+  .flap::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#121214;opacity:.9}
+  .flap .t,.flap .b{position:absolute;inset:0;display:block;backface-visibility:hidden}
+  .flap .n{position:absolute;inset:0;display:block;background:#2a2a30;transform-origin:50% 50%}
+  .status{padding:0 12px;height:34px;border-radius:6px;font-size:14px;letter-spacing:.14em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;background:#2a2a30;color:#f5c542;overflow:hidden;position:relative}
+  .status.on{background:#1f3b2a;color:#7fe0a0}
+  .status.bd{background:#3b2a1f;color:#ffb070}
+  .status span{display:block}
+  .foot{display:flex;justify-content:space-between;padding-top:14px;border-top:1px solid #2c2c33;font-size:14px;color:#7c7c86;letter-spacing:.1em}
+</style>
+<div class="stage">
+  <div class="board">
+    <div class="hdr"><h1><span>Departures</span></h1><div class="clock" id="clock">17:42:00</div></div>
+    <div class="cols"><span>Time</span><span>Destination</span><span>Flight</span><span>Gate</span><span>Status</span></div>
+    <div class="rows" id="rows"></div>
+    <div class="foot"><span>NORTHWIND AIR · TERMINAL 2</span><span>ALL TIMES LOCAL</span></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const DATA = [
+    ['18:05', 'LISBON', 'NW 214', 'B12', 'BOARDING', 'bd'],
+    ['18:20', 'MARSEILLE', 'NW 307', 'A04', 'ON TIME', 'on'],
+    ['18:35', 'ZURICH', 'NW 118', 'C22', 'ON TIME', 'on'],
+    ['18:50', 'REYKJAVIK', 'NW 442', 'B07', 'DELAYED', ''],
+    ['19:10', 'BERLIN', 'NW 093', 'A16', 'ON TIME', 'on'],
+  ];
+  const CH = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:';
+  const rng = fx.rng(5);
+  const rows = document.getElementById('rows');
+  const flaps = [];
+  function cell(text, width, narrow) {
+    const c = document.createElement('div'); c.className = 'cell';
+    const s = text.padEnd(width, ' ');
+    for (const ch of s) {
+      const f = document.createElement('div'); f.className = 'flap' + (narrow ? ' w' : '');
+      f.innerHTML = `<span class="t">${ch === ' ' ? '&nbsp;' : ch}</span>`;
+      c.appendChild(f); flaps.push({ el: f, target: ch, span: f.firstChild });
+    }
+    return c;
+  }
+  DATA.forEach((d) => {
+    const r = document.createElement('div'); r.className = 'row';
+    r.appendChild(cell(d[0], 5, true)); r.appendChild(cell(d[1], 12)); r.appendChild(cell(d[2], 6, true)); r.appendChild(cell(d[3], 3));
+    const st = document.createElement('div'); st.innerHTML = `<div class="status ${d[5]}"><span>${d[4]}</span></div>`; r.appendChild(st);
+    rows.appendChild(r);
+  });
+  const tl = fx.timeline({ duration: 9 });
+  tl.from('.board', { y: 30, opacity: 0, duration: .7, ease: 'expo.out' }, 0)
+    .from('.hdr h1 span', { yPercent: 110, duration: .6, ease: 'expo.out' }, .2)
+    .from('.cols span', { opacity: 0, y: 6, duration: .4, stagger: .05 }, .4)
+    .from('.row', { opacity: 0, y: 10, duration: .4, stagger: .07 }, .5);
+  // split-flap: each flap cycles through characters (a discrete tween), rows cascading top-down, columns left-right
+  flaps.forEach((f, i) => {
+    const row = Math.floor(i / (5 + 12 + 6 + 3));
+    const start = .7 + row * .28 + (i % 26) * .03;
+    const steps = 6 + Math.floor(rng() * 8);
+    const startIdx = Math.floor(rng() * CH.length);
+    const tgt = CH.indexOf(f.target) < 0 ? 0 : CH.indexOf(f.target);
+    const o = { k: 0 };
+    tl.to(o, { k: steps, duration: steps * .07, ease: 'none', onUpdate() {
+      const k = Math.floor(o.k);
+      const ch = k >= steps ? f.target : CH[(startIdx + k) % CH.length];
+      f.span.textContent = ch === ' ' ? ' ' : ch;
+    } }, start)
+    // a quick flip on each step: squash the top half
+    .fromTo(f.el, { scaleY: .6 }, { scaleY: 1, duration: .07, ease: 'power2.out', repeat: steps - 1 }, start);
+  });
+  tl.from('.status span', { yPercent: 110, duration: .5, ease: 'expo.out', stagger: .28 }, 1.9);
+  // the clock ticks the whole loop; one status flips mid-hold (ON TIME -> BOARDING) with a flap ripple
+  tl.to({ s: 0 }, { s: 9, duration: 9, ease: 'none', onUpdate() { const s = Math.floor(this.targets()[0].s); document.getElementById('clock').textContent = '17:42:' + String(s).padStart(2, '0'); } }, 0);
+  const st2 = document.querySelectorAll('.status')[1];
+  tl.to(st2.firstChild, { yPercent: -110, duration: .25, ease: 'expo.in' }, 5.2)
+    .set(st2.firstChild, { textContent: 'BOARDING', yPercent: 110 }, 5.45)
+    .to(st2, { backgroundColor: '#3b2a1f', color: '#ffb070', duration: .2 }, 5.45)
+    .to(st2.firstChild, { yPercent: 0, duration: .35, ease: 'expo.out' }, 5.45);
+  // the top row departs: it scrolls off and the others shuffle up
+  tl.to('.row:nth-child(1)', { x: -60, opacity: 0, duration: .5, ease: 'power3.in' }, 7.3)
+    .to('.row:nth-child(n+2)', { y: -72, duration: .6, ease: 'expo.inOut' }, 7.7)
+    .to('.board', { y: -30, opacity: 0, duration: .5, ease: 'power3.in' }, 8.5);
+</script>

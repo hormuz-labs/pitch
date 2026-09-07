@@ -1,0 +1,207 @@
+[
+ {
+  "name": "Animated Emoji Button",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "animated-emoji-button",
+  "seconds": 4,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A button animation template where an emoji reacts and pops on press. Adds a bit of personality to app UI demos and social media content.",
+  "jitterUrl": "https://jitter.video/template/animated-emoji-button/"
+ },
+ {
+  "name": "Animated Slider",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "animated-slider",
+  "seconds": 4,
+  "tags": [
+   "ui-elements"
+  ],
+  "description": "An animated slider template with an interactive feel. Good for survey UI demos and feedback collection feature presentations.",
+  "jitterUrl": "https://jitter.video/template/opinion-slider/"
+ },
+ {
+  "name": "Back / Next Buttons",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "back-next-buttons",
+  "seconds": 4,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "An animated back and next button template with clear interaction states. Good for UI demos and prototype walkthroughs where navigation is part of what you're showing.",
+  "jitterUrl": "https://jitter.video/template/back-next-buttons/"
+ },
+ {
+  "name": "Floating Action Menu",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "floating-action-menu",
+  "seconds": 4,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "An animated floating action button template that expands to reveal a menu of options. Good for mobile UI demos and app navigation presentations.",
+  "jitterUrl": "https://jitter.video/template/floating-action-menu/"
+ },
+ {
+  "name": "Glass Button",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "glass-button",
+  "seconds": 6,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A button animation template with a frosted glass texture and a subtle shimmer. Good for glassmorphism-style UI demos and modern design presentations.",
+  "jitterUrl": "https://jitter.video/template/glass-button/"
+ },
+ {
+  "name": "Glow Button",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "glow-button",
+  "seconds": 8,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A button animation template with a soft ambient glow that pulses around it. Great for CTA highlights in product videos and UI demos.",
+  "jitterUrl": "https://jitter.video/template/glow-button/"
+ },
+ {
+  "name": "Interactive Button: Glow",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "interactive-button-glow",
+  "seconds": 6,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A button animation template with a soft glowing pulse around it. Perfect for UI demos and product videos where you want to draw attention to a call to action.",
+  "jitterUrl": "https://jitter.video/template/interactive-button-glow/"
+ },
+ {
+  "name": "Interactive Button: Trace",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "interactive-button-trace",
+  "seconds": 6,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A button template with an outline that draws itself around the edges on press. Good for UI demos and CTA animations that want a hand-drawn quality.",
+  "jitterUrl": "https://jitter.video/template/interactive-button-trace/"
+ },
+ {
+  "name": "Liquid Glass Menu: Horizontal",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "liquid-glass-menu-horizontal",
+  "seconds": 6,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A horizontal navigation menu template with a liquid glass aesthetic. Perfect for iOS 26-inspired UI demos and modern horizontal navigation showcases.",
+  "jitterUrl": "https://jitter.video/template/liquid-glass-menu-horizontal/"
+ },
+ {
+  "name": "Liquid Glass Menu: Vertical",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "liquid-glass-menu-vertical",
+  "seconds": 6,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A vertical navigation menu template with a liquid glass aesthetic and smooth open and close animation. Good for iOS-inspired UI concepts and modern app navigation demos.",
+  "jitterUrl": "https://jitter.video/template/liquid-glass-menu-vertical/"
+ },
+ {
+  "name": "Liquid Glass Toggle",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "liquid-glass-toggle",
+  "seconds": 8,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A toggle template with a liquid glass aesthetic and a fluid state change animation. Good for iOS 26-inspired UI demos and modern interface presentations.",
+  "jitterUrl": "https://jitter.video/template/liquid-glass-toggle/"
+ },
+ {
+  "name": "Navigation Bar",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "navigation-bar",
+  "seconds": 5,
+  "tags": [
+   "ui-elements"
+  ],
+  "description": "An animated navigation bar template with clean transitions between active states. Good for mobile UI demos and navigation pattern showcases.",
+  "jitterUrl": "https://jitter.video/template/navigation-bar/"
+ },
+ {
+  "name": "On / Off Toggle",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "on-off-toggle",
+  "seconds": 4,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "An animated toggle template with a clean satisfying snap between states. Works for settings screen demos and permission flow presentations.",
+  "jitterUrl": "https://jitter.video/template/on-off-toggle/"
+ },
+ {
+  "name": "Purple Toggle",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "purple-toggle",
+  "seconds": 4,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "A purple-themed toggle template with a smooth state change animation. Good for UI kit showcases and settings interface demos.",
+  "jitterUrl": "https://jitter.video/template/purple-toggle/"
+ },
+ {
+  "name": "Search Bar Reveal",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "search-bar-reveal",
+  "seconds": 6,
+  "tags": [
+   "ui-elements"
+  ],
+  "description": "A template where a search bar expands into frame with a clean reveal. Ideal for app UI demos and search feature presentations.",
+  "jitterUrl": "https://jitter.video/template/search-bar-reveal/"
+ },
+ {
+  "name": "Side Rail Menu",
+  "family": "The Click — button and control interactions",
+  "familySlug": "the-click",
+  "slug": "side-rail-menu",
+  "seconds": 7,
+  "tags": [
+   "ui-elements",
+   "buttons"
+  ],
+  "description": "An animated side rail navigation template that slides in from the edge. Good for web and desktop app UI demos and navigation pattern showcases.",
+  "jitterUrl": "https://jitter.video/template/side-rail-menu/"
+ }
+]

@@ -1,0 +1,203 @@
+[
+ {
+  "name": "Animated Feature List",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "animated-feature-list",
+  "seconds": 5,
+  "tags": [
+   "video-titles"
+  ],
+  "description": "A feature list template where items animate into view one at a time. Perfect for product pages and pitch content with multiple points to cover clearly.",
+  "jitterUrl": "https://jitter.video/template/animated-feature-list/"
+ },
+ {
+  "name": "Animated Repeater",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "animated-repeater",
+  "seconds": 5,
+  "tags": [
+   "jitter-ai",
+   "backgrounds"
+  ],
+  "description": "An animated repeater that multiplies and sequences elements into a rhythmic motion pattern. Great for abstract backgrounds and branded motion graphics.",
+  "jitterUrl": "https://jitter.video/template/animated-repeater/"
+ },
+ {
+  "name": "Animated Text Messages",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "animated-text-messages",
+  "seconds": 14,
+  "tags": [
+   "devices",
+   "social-media"
+  ],
+  "description": "An animated chat template where text message bubbles appear in a conversation sequence. Great for messaging app UI mockups and social content that tells a story through dialogue.",
+  "jitterUrl": "https://jitter.video/template/animated-text-messages/"
+ },
+ {
+  "name": "Appear",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "appear",
+  "seconds": 2,
+  "tags": [],
+  "description": "A minimal reveal animation template from Antinomy where elements appear with a quiet clean entrance. Works for subtle UI transitions and text reveals where you don't want the animation to steal focus.",
+  "jitterUrl": "https://jitter.video/template/appear/"
+ },
+ {
+  "name": "Blend Modes: Color And Text",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "blend-modes-color-and-text",
+  "seconds": 3,
+  "tags": [
+   "blend-modes",
+   "brand"
+  ],
+  "description": "A template where text interacts with colored layers through blend modes creating a printed quality. Good for editorial motion design with a graphic tactile aesthetic.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-color-and-text/"
+ },
+ {
+  "name": "Blend Modes: Mode Showcase",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "blend-modes-mode-showcase",
+  "seconds": 4,
+  "tags": [
+   "blend-modes",
+   "brand"
+  ],
+  "description": "A template showing multiple blend modes applied to overlapping elements.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-mode-showcase/"
+ },
+ {
+  "name": "Blend Modes: Overlay Poster",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "blend-modes-overlay-poster",
+  "seconds": 4,
+  "tags": [
+   "blend-modes",
+   "social-media",
+   "ads",
+   "brand"
+  ],
+  "description": "A poster template using overlay blend mode effects to layer color and content. Good for editorial motion graphics and promotional content with a graphic quality.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-overlay-poster/"
+ },
+ {
+  "name": "Blend Modes: Type Blend",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "blend-modes-type-blend",
+  "seconds": 4,
+  "tags": [
+   "blend-modes",
+   "social-media",
+   "ads",
+   "brand"
+  ],
+  "description": "A typography template that uses blend modes to layer text over imagery in an interesting way. Good for editorial motion design and brand films where type and visuals need to work together.",
+  "jitterUrl": "https://jitter.video/template/blend-modes-type-blend/"
+ },
+ {
+  "name": "Blur: Text Scroller",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "blur-text-scroller",
+  "seconds": 9,
+  "tags": [
+   "blur",
+   "ui-elements"
+  ],
+  "description": "A text animation template where words scroll past with a blur effect, giving a sense of speed and momentum. Good for editorial intros and title sequences.",
+  "jitterUrl": "https://jitter.video/template/blur-text-scroller/"
+ },
+ {
+  "name": "Blurry Text Spin",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "blurry-text-spin",
+  "seconds": 2,
+  "tags": [
+   "custom-text",
+   "video-titles",
+   "ads",
+   "brand"
+  ],
+  "description": "A blurred, rotating text reveal template inspired by spatial audio and music app promos. Great for feature announcements and any brand introducing something new.",
+  "jitterUrl": "https://jitter.video/template/blurry-text-spin/"
+ },
+ {
+  "name": "Bouncy Period",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "bouncy-period",
+  "seconds": 4,
+  "tags": [
+   "video-titles"
+  ],
+  "description": "An animated period character that bounces with a springy motion. A small typographic detail that works well as a loading indicator or punctuation accent.",
+  "jitterUrl": "https://jitter.video/template/bouncy-period/"
+ },
+ {
+  "name": "Cascading Text",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "cascading-text",
+  "seconds": 5,
+  "tags": [
+   "video-titles"
+  ],
+  "description": "A text animation template where lines of text fall into place in a staggered sequence. Good for feature highlights and announcement content where you want each line to land separately.",
+  "jitterUrl": "https://jitter.video/template/cascading-text/"
+ },
+ {
+  "name": "Countdown: Bold",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "countdown-bold",
+  "seconds": 4,
+  "tags": [],
+  "description": "A countdown template with large animated numbers. Perfect for event announcements and social teasers where building anticipation is the point.",
+  "jitterUrl": "https://jitter.video/template/countdown-bold/"
+ },
+ {
+  "name": "Counter: 1,000 Figma Plugin Installs",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "counter-1-000-figma-plugin-installs",
+  "seconds": 3,
+  "tags": [],
+  "description": "An animated counter template celebrating a milestone number. Good for product growth announcements and community milestone posts.",
+  "jitterUrl": "https://jitter.video/template/counter-1-000-figma-plugin-installs/"
+ },
+ {
+  "name": "CRT Effect",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "crt-effect",
+  "seconds": 4,
+  "tags": [
+   "jitter-ai",
+   "video-titles"
+  ],
+  "description": "A CRT screen effect that adds scanlines, noise, and a retro monitor look to your animations. Perfect for vintage-inspired motion graphics and title sequences.",
+  "jitterUrl": "https://jitter.video/template/crt-effect/"
+ },
+ {
+  "name": "Design: Negative Mask Effect",
+  "family": "Text",
+  "familySlug": "text",
+  "slug": "design-negative-mask-effect",
+  "seconds": 4,
+  "tags": [
+   "video-titles"
+  ],
+  "description": "A mask template that reveals content through inverted shapes. Works for editorial motion work and creative reveal sequences.",
+  "jitterUrl": "https://jitter.video/template/design-negative-mask-effect/"
+ }
+]

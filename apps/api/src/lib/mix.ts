@@ -15,11 +15,11 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
-import { MOTION_SKILL_DIR } from '../studio/paths.js'
+import { MOTION_SCRIPTS_DIR } from '../studio/paths.js'
 import { nodeBinary } from './node.js'
 
 const logger = createLogger('launch-video')
-const MIX_SCRIPT = path.join(MOTION_SKILL_DIR, 'scripts', 'mix.mjs')
+const MIX_SCRIPT = path.join(MOTION_SCRIPTS_DIR, 'mix.mjs')
 const MUSIC_RE = /\.(mp3|m4a|aac|ogg|flac|wav)$/i
 /** Files in audio/ that are never a music bed. */
 const NOT_A_BED = /^(mix|vo|vo[_-].*|vo-alt.*|sfx_bus|.*_bus|voice_sfx|cues|sfx-cues)\.\w+$/i

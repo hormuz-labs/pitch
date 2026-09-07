@@ -1,0 +1,23 @@
+{
+  "move": "three cards land stacked, two logos collide with sparks, deck floats",
+  "how": "Three cards (black, yellow, white) start at y 760 / rotateX 22 / scale 0.85 and land back-to-front with expo.out over 1s at 0.14s offsets, each settling a step higher (y -44/-22/0, scale 0.9/0.95/1) so they read as a stack. On the front card two rounded logo tiles fly in from x ±320 with ±25 rotation (expo.out, 0.7s) and collide at the centre; on impact they get an elastic.out(1,0.4) squash from scaleX 1.1/scaleY 0.9, the × pops with back.out(3), and six spark dots burst outward (power3.out, seeded by fx.rng) to radius 120-200. Headline, subline and pill then rise (masked yPercent 110→0, expo.out). From 34% to 91% the whole deck idles on rotateY ±6 / rotateX ±4 with sine.inOut. Exit at 87%: text drops, logos scale 0, cards fly to y -1000 front-to-back with expo.in.",
+  "moves": [
+    "slide-in",
+    "flip-3d",
+    "collide",
+    "squash",
+    "particle-burst",
+    "float"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the two logo SVGs and their tile colours, the headline 'Acme × Northwind', subline and CTA pill text, and the card colours; keep the back-to-front landing offsets and the 1.0s collision beat.",
+  "port": "mount(el, shot) builds the deck DOM and applies the gsap.set start states; animate(el, shot, D) returns the timeline with cards landing at 0-0.18D, collision at 0.14-0.3D, float 0.34-0.91D, exit from 0.87D. Scope '.card', '.logo', '.spark' to el; the spark loop must query el.querySelectorAll('.spark') and use a seeded rng.",
+  "caveats": [
+    "perspective is set on .stage, so the container the factory mounts into needs perspective for the rotateX/rotateY to read"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1080"
+}

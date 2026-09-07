@@ -1,5 +1,6 @@
 ---
 name: generated-video
+tools: motion
 description: Generate footage that does not exist — establishing shots, textures, metaphors, abstract transitions, B-roll — with video_generate (Gemini Omni). Read this before generating anything; it says when generated footage is right, when it is wrong, how to write the prompt, and how to get a clip into a film without paying twice.
 ---
 
@@ -21,8 +22,8 @@ out"), an abstract transition, B-roll the user cannot film.
 **Never generate the product.** The model invents plausible UI — buttons that
 do not exist, copy nobody wrote, a nearly-right logo — and a film showing
 fictional software is worse than none. The product's UI, pages and dashboards
-come from `motion_*` or a real recording; its logo and screenshots from
-`motion_harvest`; charts and numbers from the deck builder with figures you
+come from `motion_*` or a real recording; its logo from `motion_recon` and its
+screens from `motion_screenshot`; charts and numbers from the deck builder with figures you
 can source; anything uploaded from the upload. Never generate a person who is
 meant to be real. If your prompt describes a screen, stop.
 

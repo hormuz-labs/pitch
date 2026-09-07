@@ -1,0 +1,24 @@
+{
+  "move": "coloured squares slide in from alternating sides, shuffle columns, slide out",
+  "how": "Eighteen 150px squares in a 6x3 grid on a warm stage, coloured from a six-colour palette. Rows slide in from alternating sides (x +/-1400, expo.out 1.1s) staggered 60ms along the x axis; a large ACME word pops in at 17% with back.out(1.8) blended multiply over the squares. At 32% every square slides one column right (x step 160, expo.inOut 0.7s, 30ms grid stagger) while the last column wraps to the front. At 50% columns alternately shift up and down half a step (stagger from edges) and at 65% return to y 0 (stagger from centre). At 81% the word shrinks away and the squares slide out the opposite way they came (expo.in 0.8s, stagger from end).",
+  "moves": [
+    "slide-in",
+    "grid-stagger",
+    "shuffle",
+    "column-shift",
+    "slide-out"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the palette, cols/rows/step, square radius and the centre word; the alternating row directions derive from row index. Keep the expo.out 1.1s entry, the 0.7s expo.inOut shuffles and the mirrored expo.in exit.",
+  "port": "mount(el, shot) builds the grid of squares and the word inside el. animate(el, shot, D) returns the same timeline with labels at fractions of D; the 1400px slide distance should come from el width.",
+  "caveats": [
+    "mix-blend-mode multiply on the word",
+    "from() slide-in needs immediateRender:false if built late",
+    "ends on an empty stage"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

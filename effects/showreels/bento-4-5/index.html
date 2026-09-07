@@ -1,0 +1,60 @@
+<!doctype html><meta charset="utf-8">
+<title>Bento bento-4-5</title>
+<meta name="fx" content="w=1080 h=1350">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#efeae2}
+  .grid{position:absolute;inset:48px;display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(4,1fr);gap:16px}
+  .cell{position:relative;border-radius:24px;overflow:hidden;background:#fff;will-change:transform;box-shadow:0 1px 0 rgba(0,0,0,.05)}
+  .cell .in{position:absolute;inset:0;padding:28px;display:flex;flex-direction:column;justify-content:flex-end}
+  .k{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;letter-spacing:-.04em;line-height:.95}
+  .img{position:absolute;inset:0;background-size:cover;background-position:center;transform:scale(1.15)}
+  .i1{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .i2{background-image:url("../../../assets/backgrounds/ocean.png")}
+  .i3{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .dark{background:#141414;color:#fff}
+  .yel{background:#ffd23f;color:#141414}
+  .blu{background:#2d5cff;color:#fff}
+  .chip{position:absolute;left:24px;top:24px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.85);color:#141414}
+  .wipe{position:absolute;inset:0;background:#efeae2;transform-origin:0 50%}
+  .logo{width:56px;height:56px;border-radius:16px;background:#141414;position:absolute;left:28px;top:28px}
+  .logo:after{content:"";position:absolute;inset:16px;border-radius:50%;background:#ffd23f}
+  .dots{display:flex;gap:8px;margin-top:14px}.dots i{width:10px;height:10px;border-radius:50%;background:currentColor;opacity:.35}
+  .stat{font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;letter-spacing:-.04em;line-height:1}
+  .lab{font-size:14px;opacity:.6;margin-top:6px}
+  .c7 .in{padding-bottom:72px}.ticker{position:absolute;bottom:0;left:0;right:0;height:56px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;border-top:1px solid rgba(0,0,0,.08)}
+  .ticker span{font-size:16px;padding:0 20px;letter-spacing:.06em;text-transform:uppercase}
+  .c1{grid-column:1/3;grid-row:1}.c2{grid-column:1;grid-row:2}.c3{grid-column:2;grid-row:2}.c4{grid-column:1/3;grid-row:3}.c5{grid-column:1;grid-row:4}.c6{display:none}.c7{grid-column:2;grid-row:4} .t1{font-size:56px}.t2{font-size:36px}.s1{font-size:110px}.s2{font-size:64px}
+</style>
+<div class="stage">
+  <div class="grid">
+    <div class="cell c1 dark"><div class="logo"></div><div class="in"><div class="k t1">Studio<br>Northwind</div><div class="lab">Design & motion, 2026</div></div></div>
+    <div class="cell c2"><div class="img i1"></div><div class="chip">Campaign</div><div class="wipe"></div></div>
+    <div class="cell c3 yel"><div class="in"><div class="stat s1"><span class="n" data-to="48">0</span></div><div class="lab">Projects shipped this year</div></div></div>
+    <div class="cell c4"><div class="img i2"></div><div class="chip">Product film</div><div class="wipe"></div></div>
+    <div class="cell c5 blu"><div class="in"><div class="k t2">Motion that<br>sells the idea.</div><div class="dots"><i></i><i></i><i></i></div></div></div>
+    <div class="cell c6"><div class="img i3"></div><div class="chip">Identity</div><div class="wipe"></div></div>
+    <div class="cell c7"><div class="in"><div class="stat s2"><span class="n" data-to="12">0</span> yrs</div><div class="lab">Working with founders and teams</div></div><div class="ticker"><span>Brand</span><span>·</span><span>Product</span><span>·</span><span>Film</span><span>·</span><span>Brand</span><span>·</span><span>Product</span><span>·</span><span>Film</span><span>·</span><span>Brand</span><span>·</span><span>Product</span><span>·</span><span>Film</span><span>·</span></div></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 10 });
+  tl.from('.cell', { scale: .85, opacity: 0, duration: .9, ease: 'expo.out', stagger: .1 }, 0)
+    .to('.wipe', { scaleX: 0, duration: .9, ease: 'expo.inOut', stagger: .15 }, .5)
+    .fromTo('.img', { scale: 1.25 }, { scale: 1.05, duration: 9, ease: 'none', stagger: 0 }, .3)
+    .from('.chip', { y: -30, opacity: 0, duration: .5, ease: 'back.out(2)', stagger: .15 }, 1.2)
+    .from('.k, .lab, .logo, .dots i', { y: 26, opacity: 0, duration: .7, ease: 'power3.out', stagger: .06 }, .5)
+    .fromTo('.ticker', { x: 0 }, { x: -520, duration: 10, ease: 'none' }, 0)
+    .to('.dots i', { opacity: 1, duration: .3, stagger: { each: .3, repeat: 5, yoyo: true } }, 1.5);
+  document.querySelectorAll('.n').forEach(el => { const o={v:0}; tl.to(o,{v:+el.dataset.to,duration:1.6,ease:'expo.out',onUpdate(){el.textContent=Math.round(o.v)}},1); });
+  // mid-loop: the image cells swap places with a lift, so the grid keeps changing
+  tl.to('.c2, .c4, .c6', { y: -12, scale: 1.02, duration: .5, ease: 'power2.out', stagger: .1, yoyo: true, repeat: 1 }, 4.5)
+    .to('.c2 .img', { xPercent: -6, duration: 4, ease: 'sine.inOut' }, 3)
+    .to('.c4 .img', { yPercent: 5, duration: 4, ease: 'sine.inOut' }, 3)
+    .to('.c3', { rotate: -2, duration: .6, ease: 'power2.inOut', yoyo: true, repeat: 1 }, 5)
+    // exit: wipes close back over the images, cells collapse
+    .to('.wipe', { scaleX: 1, transformOrigin: '100% 50%', duration: .6, ease: 'expo.inOut', stagger: .1 }, 8.1)
+    .to('.cell', { scale: .85, opacity: 0, duration: .5, ease: 'power3.in', stagger: { each: .06, from: 'end' } }, 8.9);
+</script>

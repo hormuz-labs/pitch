@@ -1,0 +1,170 @@
+[
+ {
+  "name": "Animated Tweet",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "animated-tweet",
+  "seconds": 5,
+  "tags": [],
+  "description": "A tweet card template that animates into view with realistic platform-accurate styling. Great for sharing social proof and user feedback in a more polished format.",
+  "jitterUrl": "https://jitter.video/template/animated-tweet/"
+ },
+ {
+  "name": "Blast: Social Media Showcase",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "blast-social-media-showcase",
+  "seconds": 8,
+  "tags": [],
+  "description": "A high-energy social media showcase template with fast motion and strong pacing. Good for bold creative portfolios and brand content that needs to make a quick impression.",
+  "jitterUrl": "https://jitter.video/template/blast-social-media-showcase/"
+ },
+ {
+  "name": "Design Preview",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "design-preview",
+  "seconds": 11,
+  "tags": [
+   "showreels"
+  ],
+  "description": "A design preview template from Vendredi Society that presents work inside an animated frame. Good for design handoff presentations and client-facing showcases.",
+  "jitterUrl": "https://jitter.video/template/design-preview/"
+ },
+ {
+  "name": "Drop It Like It's Hot: Mask",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "drop-it-like-it-s-hot-mask",
+  "seconds": 16,
+  "tags": [
+   "showreels"
+  ],
+  "description": "A mask-based animation template from Savee with bold kinetic motion. Perfect for creative agency showreels and high-impact brand content.",
+  "jitterUrl": null
+ },
+ {
+  "name": "Drop It Like It's Hot: Sizzle Reel",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "drop-it-like-it-s-hot-sizzle-reel",
+  "seconds": 6,
+  "tags": [
+   "showreels"
+  ],
+  "description": "A fast-paced sizzle reel template made by Savee with energetic cuts and strong transitions. Great for agency showreels and creative portfolio content.",
+  "jitterUrl": null
+ },
+ {
+  "name": "Folio: Social Media Showcase",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "folio-social-media-showcase",
+  "seconds": 4,
+  "tags": [],
+  "description": "A portfolio-format social media showcase template with elegant animated transitions. Good for creative professionals who want their social content to feel as considered as their work.",
+  "jitterUrl": "https://jitter.video/template/folio-social-media-showcase/"
+ },
+ {
+  "name": "Frames: Mobile Showreel",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "frames-mobile-showreel",
+  "seconds": 9,
+  "tags": [
+   "showreels"
+  ],
+  "description": "A mobile showreel template that presents app screens inside device frames with animated transitions. Great for portfolio presentations and app store assets.",
+  "jitterUrl": "https://jitter.video/template/frames-mobile-showreel/"
+ },
+ {
+  "name": "Image Carousel: Parallax",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "image-carousel-parallax",
+  "seconds": 8,
+  "tags": [],
+  "description": "A carousel template where images move at slightly different speeds to create a parallax depth effect. Good for editorial slideshows and photo presentations that would feel flat with a standard transition.",
+  "jitterUrl": "https://jitter.video/template/image-carousel-parallax/"
+ },
+ {
+  "name": "Instagram Stories: Collage",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-stories-collage",
+  "seconds": 4,
+  "tags": [],
+  "description": "A collage story template with multiple images animated in an overlapping layout. Works for mood boards and creative posts that want to feel assembled rather than designed.",
+  "jitterUrl": "https://jitter.video/template/instagram-stories-collage/"
+ },
+ {
+  "name": "Instagram Story: 2 Images",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-story-2-images",
+  "seconds": 4,
+  "tags": [],
+  "description": "A story template with two images and clean animated transitions between them. Good for before/after content and dual product showcases.",
+  "jitterUrl": "https://jitter.video/template/instagram-story-2-images/"
+ },
+ {
+  "name": "Instagram Story: 2 Images With Captions",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-story-2-images-with-captions",
+  "seconds": 4,
+  "tags": [],
+  "description": "A story template with two images and animated text captions for each. Good for product descriptions and storytelling posts where the image and the words need to work together.",
+  "jitterUrl": "https://jitter.video/template/instagram-story-2-images-with-captions/"
+ },
+ {
+  "name": "Instagram Story: 2 Square Images",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-story-2-square-images",
+  "seconds": 4,
+  "tags": [],
+  "description": "A story template with two square images side by side and animated transitions. Good for comparison posts and paired product showcases.",
+  "jitterUrl": "https://jitter.video/template/instagram-story-2-square-images/"
+ },
+ {
+  "name": "Instagram Story: 2 Vertical Images",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-story-2-vertical-images",
+  "seconds": 4,
+  "tags": [],
+  "description": "A story template with two vertical images and smooth animated transitions. Perfect for portrait photography and fashion editorial posts.",
+  "jitterUrl": "https://jitter.video/template/instagram-story-2-vertical-images/"
+ },
+ {
+  "name": "Instagram Story: 3 Horizontal Images",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-story-3-horizontal-images",
+  "seconds": 4,
+  "tags": [],
+  "description": "A story template with three horizontal images and animated reveals. Good for photo dumps and lifestyle content that wants a bit of structure.",
+  "jitterUrl": "https://jitter.video/template/instagram-story-3-horizontal-images/"
+ },
+ {
+  "name": "Instagram Story: 3 Square Images",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-story-3-square-images",
+  "seconds": 4,
+  "tags": [],
+  "description": "A story template with three square images in an animated layout. Good for product showcases and photo collages.",
+  "jitterUrl": "https://jitter.video/template/instagram-story-3-square-images/"
+ },
+ {
+  "name": "Instagram Story: 3D Hand",
+  "family": "Social media",
+  "familySlug": "social-media",
+  "slug": "instagram-story-3d-hand",
+  "seconds": 6,
+  "tags": [],
+  "description": "A story template featuring an animated 3D hand element. Good for product interaction demos and social content that wants a tactile feel.",
+  "jitterUrl": "https://jitter.video/template/instagram-story-3d-hand/"
+ }
+]

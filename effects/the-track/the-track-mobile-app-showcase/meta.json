@@ -1,0 +1,29 @@
+{
+  "move": "stripes slash, words snap, phone slams up, screens slide left",
+  "how": "Two stripes slash in from opposite sides (xPercent ∓120, expo.out) then drift slowly across the whole loop; 'Run' snaps up and 'Faster' snaps down out of masks; a phone from() y:1400 rotation -8 with expo.out and tilts rotationY -6→6 with sine.inOut for 8s. Screen A (0.09-0.37D): distance counts to 6.42 with power2.out while a route path draws with DrawSVG and a marker dot follows it with MotionPath over 2.2s. Screens cut by sliding xPercent -100 out / 100 in with expo.inOut 0.45s at 0.37D and 0.64D: screen B fills a ring via strokeDashoffset and pops seven bars with back.out(2), screen C cascades leaderboard rows from x:120 and highlights the user's row. At 0.92D the phone drops back down, words and tag shove out, stripes exit.",
+  "moves": [
+    "slide-in",
+    "mask-text",
+    "counter",
+    "draw-stroke",
+    "motion-path",
+    "screen-swipe",
+    "cascade"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "MotionPath"
+  ],
+  "adapt": "Change the two hero words, tag, screen titles, list items, count targets, route path and accent colour; keep the 0.45s expo.inOut screen swipe cadence and the 0.9s phone slam.",
+  "port": "mount(el, shot) builds stripes, hero words, a .phone with three .scr screens (route SVG, ring SVG, generated bars, lists) and .tag; animate(el, shot, D) returns the timeline with DrawSVG and MotionPath registered, the proxy count tweens (onUpdate paint) and offsets as fractions of D (screen A 0.9/10, B 3.7/10, C 6.4/10, exit 9.2/10). paint() and the motionPath path reference must be scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin and MotionPathPlugin",
+    "paint() uses document.querySelector and must be scoped",
+    "catalog says 11s but the file renders 10s",
+    "y:1400 slam assumes a 1920px-tall stage"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

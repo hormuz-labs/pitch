@@ -1,0 +1,23 @@
+{
+  "move": "repeated rows rise from centre line, stretch-waves ripple down, collapse flat",
+  "how": "Nine rows of alternating red and white uppercase words are built into a centred column on a near-black stage. Phase 1 (0 to 15%): each row scales from scaleY 0.05 scaleX 2.2 and opacity 0 to 1/1/1 (expo.out, 0.9s), ordered by distance from the middle row. Phase 2 (20% to 75%): three beats 1.5s apart run a wave down the stack, each row stretching to scaleY 3.4 scaleX 0.72 (power3.in, 0.22s) then rebounding with elastic.out(1,0.45) over 0.7s with 0.09s per-row lag, while the rows drift alternately xPercent +/-6 per beat (expo.inOut). Phase 3 (from 89%): rows flatten to scaleY 0.04 scaleX 3 and fade from the outside in (expo.in) as the drift returns to 0, leaving the stage empty.",
+  "moves": [
+    "stretch",
+    "elastic",
+    "stagger",
+    "repeater",
+    "wave",
+    "drift"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the words array (odd count keeps a middle row), the two text colours and the corner labels; keep the 0.22s stretch / 0.7s elastic wave timing and the three-beat rhythm.",
+  "port": "mount(el, shot) builds the rows from shot words; animate(el, shot, D) returns the timeline with beats at 0.2D + k*0.1875D and the collapse at 0.89D. Scope gsap.utils.toArray to el.",
+  "caveats": [
+    "nine rows each with three stretch/rebound pairs plus drifts is a dense timeline; keep row count modest"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

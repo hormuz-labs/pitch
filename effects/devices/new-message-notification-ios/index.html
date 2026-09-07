@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8">
+<title>New Message Notification [iOS]</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#000;font-family:-apple-system,"Helvetica Neue","Atlas Grotesk",sans-serif;color:#fff}
+  .wall{position:absolute;inset:-6%;background:url("../../../assets/backgrounds/aurora.png") center/cover;will-change:transform}
+  .status{position:absolute;top:36px;left:0;right:0;display:flex;justify-content:space-between;padding:0 90px;font-size:34px;font-weight:600}
+  .status .r{display:flex;gap:14px;align-items:center}
+  .status .r i{display:inline-block;height:26px;border-radius:5px;background:#fff}
+  .status .r i.s{width:40px;clip-path:polygon(0 100%,100% 0,100% 100%)}
+  .status .r i.w{width:30px;border-radius:50% 50% 0 0}
+  .status .r i.b{width:56px;border-radius:8px;box-shadow:inset 0 0 0 4px #fff,inset 0 0 0 6px #000}
+  .lock{position:absolute;top:160px;left:0;right:0;text-align:center}
+  .lock .d{font-size:44px;font-weight:600;letter-spacing:-.01em}
+  .lock .t{font-size:190px;font-weight:600;letter-spacing:-.04em;line-height:1;margin-top:4px}
+  .banner{position:absolute;left:36px;right:36px;top:390px;height:190px;border-radius:44px;background:rgba(40,40,48,.42);backdrop-filter:blur(40px) saturate(1.6);-webkit-backdrop-filter:blur(40px) saturate(1.6);box-shadow:0 20px 60px rgba(0,0,0,.35),inset 0 0 0 1.5px rgba(255,255,255,.12);display:flex;align-items:center;gap:26px;padding:0 40px;will-change:transform,opacity;transform-origin:50% 0}
+  .app{width:112px;height:112px;border-radius:26px;background:linear-gradient(180deg,#6cf25e,#22c53c);flex:none;display:flex;align-items:center;justify-content:center;position:relative}
+  .app::after{content:"";width:64px;height:52px;border-radius:26px;background:#fff}
+  .app::before{content:"";position:absolute;left:34px;bottom:22px;width:16px;height:16px;background:#fff;clip-path:polygon(0 0,100% 0,0 100%)}
+  .txt{flex:1;min-width:0}
+  .txt .n{display:flex;justify-content:space-between;align-items:baseline;font-size:36px;font-weight:600;letter-spacing:-.01em}
+  .txt .n small{font-size:28px;font-weight:400;opacity:.6}
+  .txt .m{font-size:34px;line-height:1.25;margin-top:4px;opacity:.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bottom{position:absolute;bottom:80px;left:0;right:0;display:flex;justify-content:space-between;padding:0 90px}
+  .bottom i{width:110px;height:110px;border-radius:50%;background:rgba(40,40,48,.5);backdrop-filter:blur(30px);display:flex;align-items:center;justify-content:center}
+  .bottom i::after{content:"";width:34px;height:44px;border-radius:8px;background:#fff}
+  .home{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);width:290px;height:12px;border-radius:6px;background:#fff}
+  .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25),transparent 30%,transparent 75%,rgba(0,0,0,.35))}
+</style>
+<div class="stage">
+  <div class="wall"></div><div class="shade"></div>
+  <div class="status"><span>9:41</span><div class="r"><i class="s"></i><i class="w"></i><i class="b"></i></div></div>
+  <div class="lock"><div class="d">Tuesday, September 6</div><div class="t">9:41</div></div>
+  <div class="banner">
+    <div class="app"></div>
+    <div class="txt"><div class="n">Mia Northwind <small>now</small></div><div class="m">Just landed! Are we still on for 7? 🍜</div></div>
+  </div>
+  <div class="bottom"><i></i><i></i></div>
+  <div class="home"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/CustomEase.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(CustomEase);
+  // iOS spring: fast out, one soft overshoot, settle
+  CustomEase.create('spring', 'M0,0 C0.12,0.72 0.24,1.06 0.44,1.05 0.6,1.04 0.7,1 1,1');
+  const tl = fx.timeline({ duration: 3 });
+  tl.fromTo('.wall', { scale: 1.04, yPercent: -0.6 }, { scale: 1.1, yPercent: 0.6, duration: 3, ease: 'none' }, 0)
+    // banner drops from above the status bar with the system spring
+    .fromTo('.banner', { y: -300, scale: 0.9, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.85, ease: 'spring' }, 0.25)
+    // the clock nudges down slightly to make room, as iOS does
+    .fromTo('.lock', { y: 0 }, { y: 28, duration: 0.7, ease: 'spring' }, 0.25)
+    .from('.txt > *', { y: 10, opacity: 0, stagger: 0.06, duration: 0.4, ease: 'power2.out' }, 0.45)
+    // dismiss: slides back up, clock returns
+    .to('.banner', { y: -300, scale: 0.92, opacity: 0, duration: 0.42, ease: 'power3.in' }, 2.45)
+    .to('.lock', { y: 0, duration: 0.5, ease: 'power3.inOut' }, 2.5);
+</script>

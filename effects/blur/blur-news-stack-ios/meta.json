@@ -1,0 +1,21 @@
+{
+  "move": "top news card swipes off up-left blurring, stack springs forward one step",
+  "how": "A phone mock-up over a blurred ocean wall shows four frosted news cards stacked with depth: each deeper card is translated 22px down, scaled 0.07 smaller, blurred 4px more and darkened. Every D/4 the top card flies translate(-340,-180), rotates -14 degrees, shrinks 0.9 and blurs 18px over the first 32% of the segment (quartic ease-out) while fading, then re-enters at the back rising with opacity; the remaining cards move up one depth with a damped-cosine spring over 45% of the segment. The phone wallpaper and the wall drift on one full circle per loop. All state is computed from t in a seek function.",
+  "moves": [
+    "swipe",
+    "stack",
+    "blur-exit",
+    "spring",
+    "parallax"
+  ],
+  "libs": [],
+  "adapt": "Replace the stories array (source, tag, headline, blurb, three blob colours), the header and side copy; keep SEG = D / cards, the 0.32 swipe fraction and the spring constants.",
+  "port": "mount(el, shot) builds the wall, phone and .stack cards; animate(el, shot, D) returns a gsap timeline with one {t:0->D, ease:none} tween whose onUpdate runs the seek(t) placement. Replace document.querySelector('.wallpaper'/'.wall') with el.querySelector.",
+  "caveats": [
+    "per-frame filter: blur() on four cards plus backdrop-filter glass and two full-frame blurred images is heavy",
+    "no GSAP in the original; the port must wrap the seek function in a tween"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

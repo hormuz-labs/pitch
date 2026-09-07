@@ -1,0 +1,25 @@
+{
+  "move": "browser windows slide in from the right, each pushes the stack back",
+  "how": "Four 760x480 browser mockups (landing, dashboard, pricing, docs) share one centre position inside a stack tilted rotateY -12 -> -6, rotateX 6 -> 4 and x 60 -> 90 with sine.inOut over the whole 7s. Every 1.5s (3%, 24%, 46%, 67%) the next window from()s x 1100 with rotateY -20 over 0.9s expo.out, and every window already in place is pushed y -34, z -140, x -40 and opacity -0.12 per step behind (also 0.9s expo.out) so the earlier pages recede as a fanned stack; each page's children fade up y 18 with 0.05s stagger 0.15s after arrival. A caption fades up at 6%. At 90% all windows fly to x -1300 with rotateY 15 and opacity 0 (expo.in, 0.07s stagger) and the caption fades.",
+  "moves": [
+    "slide-in",
+    "push-back",
+    "depth-stack",
+    "stagger",
+    "tilt",
+    "fly-out"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the four page templates (colours from the C array, URLs, copy) and the caption; add pages by extending the array, keeping the 1.5s cadence. Keep the 0.9s expo.out arrival and the per-step push-back of 34/140/40px.",
+  "port": "mount(el, shot) builds the stack with N windows from shot.pages; animate(el, shot, D) returns the timeline with arrivals at (0.03 + i*0.214)*D, push-backs at the same instants and the exit at 0.9D. from() tweens on windows and page children should be fromTo with immediateRender:false; el needs perspective:2000px.",
+  "caveats": [
+    "from() tweens on windows and page children have default immediateRender",
+    "loop does not close: windows fly out left"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

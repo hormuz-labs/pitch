@@ -1,0 +1,23 @@
+{
+  "move": "pool rises, poster type lands, peach plunges with elastic splash",
+  "how": "A 1080x1920 poster: kicker row, three 250px serif lines (one italic) in masked rows, body copy, two stacked orange pools with a scrolling SVG wave, a peach SVG, six splash droplets and a ripple ring. The pools rise yPercent 100 to 0 (expo.out, first 15%), the wave scrolls x -300 linearly for the whole clip, and kicker, lines (0.14 stagger) and body rise through masks (expo.out). At 24% the peach falls from y -400 accelerating (power3.in, 1.1s) and continues to y 2200 while fading; at 37% the water bulges scaleY 1.06 and the wave scaleY 2.2 then both settle with elastic.out, the ring expands scale 0.2 to 1.8 and fades, six droplets fly out on seeded arcs (power2.out) then fall (power2.in), and the headline shudders y 14 with an elastic settle. From 89% the lines fly up, the pools sink yPercent 110 and the footer fades.",
+  "moves": [
+    "mask-rise",
+    "drop",
+    "splash",
+    "elastic",
+    "ripple",
+    "wave"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change the three lines, kicker, body, fruit SVG and pool colours; keep the 1.1s power3.in plunge, the elastic water rebound and the seeded droplet arcs.",
+  "port": "mount(el, shot) builds the poster, pools, wave, fruit and droplets with a seeded rng; animate(el, shot, D) returns the timeline with plunge at 0.24D, impact 0.37D, exit 0.89D. The 1920 fall distances should scale with el height; scope selectors to el.",
+  "caveats": [
+    "fall distances (y 1150, 2200) assume a 1920px-tall stage"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1080x1920"
+}

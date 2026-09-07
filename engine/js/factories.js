@@ -94,7 +94,7 @@
     const chars = el.querySelectorAll(".char");
     const chrome = el.querySelectorAll(".sms-card, .bot-pill, .progress-pill");
     tl.from(chars, {
-      yPercent: 130, duration: 0.55, ease: EASE.slam, stagger: 0.012,
+      yPercent: 150, duration: 0.55, ease: EASE.slam, stagger: 0.012,
     }, 0.04);
     tl.from(chrome, {
       x: 520, opacity: 0, duration: 0.7, ease: EASE.land, stagger: 0.07,
@@ -138,7 +138,7 @@
       const chars = line.querySelectorAll(".char");
       const t0 = i * slot;
       tl.set(line, { opacity: 1 }, t0);
-      tl.from(chars, { yPercent: 110, duration: 0.38, ease: EASE.slam, stagger: 0.01 }, t0);
+      tl.from(chars, { yPercent: 140, duration: 0.38, ease: EASE.slam, stagger: 0.01 }, t0);
       if (i < lines.length - 1) {
         tl.to(line, { opacity: 0, y: -20, duration: 0.18, ease: EASE.crash }, t0 + slot - 0.18);
       }
@@ -528,7 +528,7 @@
     }, 0.1);
     const label = el.querySelector(".stat-label");
     if (label) {
-      tl.from(label.querySelectorAll(".char"), { yPercent: 110, duration: 0.4, ease: EASE.land, stagger: 0.008 }, 0.35);
+      tl.from(label.querySelectorAll(".char"), { yPercent: 140, duration: 0.4, ease: EASE.land, stagger: 0.008 }, 0.35);
     }
     return tl;
   }
@@ -668,7 +668,7 @@
 
     const caption = el.querySelector(".ui-caption");
     if (caption) {
-      tl.from(caption.querySelectorAll(".char"), { yPercent: 110, duration: 0.45, ease: EASE.slam, stagger: 0.01 }, 0.12);
+      tl.from(caption.querySelectorAll(".char"), { yPercent: 140, duration: 0.45, ease: EASE.slam, stagger: 0.01 }, 0.12);
     }
 
     const f = shot.focus;
@@ -888,7 +888,7 @@
   }
   function captionIn(tl, el) {
     const cap = el.querySelector(".ui-caption");
-    if (cap) tl.from(cap.querySelectorAll(".char"), { yPercent: 110, duration: 0.45, ease: EASE.slam, stagger: 0.01 }, 0.12);
+    if (cap) tl.from(cap.querySelectorAll(".char"), { yPercent: 140, duration: 0.45, ease: EASE.slam, stagger: 0.01 }, 0.12);
   }
   function vectorEnter(tl, node, shot) {
     const enter = shot.enter || "rise";

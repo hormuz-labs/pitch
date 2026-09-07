@@ -1,0 +1,66 @@
+<!doctype html><meta charset="utf-8">
+<title>Instagram Story: 2 Square Images</title>
+<meta name="fx" content="w=1080 h=1920">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#111;color:#fff}
+  .glow{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#3a2a4a,#111 60%)}
+  .pair{position:absolute;left:60px;top:700px;width:960px;height:470px;display:flex;gap:20px}
+  .sq{width:470px;height:470px;border-radius:24px;overflow:hidden;position:relative;flex:none}
+  .sq i{position:absolute;inset:-10%;background:center/cover}
+  .sa i{background-image:url("../../../assets/backgrounds/sunset.png")}
+  .sb i{background-image:url("../../../assets/backgrounds/aurora.png")}
+  .sq .lb{position:absolute;left:22px;top:22px;height:38px;padding:0 16px;border-radius:19px;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);font:500 18px/38px "Atlas Grotesk",sans-serif;letter-spacing:.1em;text-transform:uppercase}
+  .vs{position:absolute;left:50%;top:50%;width:90px;height:90px;margin:-45px 0 0 -45px;border-radius:50%;background:#fff;color:#111;font:500 28px/90px "Sharp Grotesk","Atlas Grotesk",sans-serif;text-align:center;letter-spacing:.05em;z-index:3}
+  .ttl{position:absolute;left:0;right:0;top:420px;text-align:center;font:500 110px/1 "Sharp Grotesk","Atlas Grotesk",sans-serif;letter-spacing:-.04em;text-transform:uppercase}
+  .ttl .l{display:block;overflow:hidden}.ttl .w{display:inline-block}
+  .sub{position:absolute;left:0;right:0;top:1250px;text-align:center;font:400 26px "Atlas Grotesk",sans-serif;letter-spacing:.3em;color:#aaa;text-transform:uppercase}
+  .bars{position:absolute;left:80px;right:80px;top:1360px;display:flex;flex-direction:column;gap:18px}
+  .bar{height:64px;border-radius:14px;background:rgba(255,255,255,.08);position:relative;overflow:hidden;font:500 22px/64px "Atlas Grotesk",sans-serif;padding-left:22px}
+  .bar b{position:absolute;left:0;top:0;bottom:0;width:100%;background:#ff7a59;transform-origin:0 50%;z-index:-1}
+  .bar:nth-child(2) b{background:#7c5cff}
+  .bar span{position:absolute;right:22px}
+</style>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="ttl"><span class="l"><span class="w">Which</span></span><span class="l"><span class="w">one?</span></span></div>
+  <div class="pair">
+    <div class="sq sa"><i></i><span class="lb">A · Warm</span></div>
+    <div class="sq sb"><i></i><span class="lb">B · Cool</span></div>
+    <div class="vs">VS</div>
+  </div>
+  <div class="sub">Tap to vote</div>
+  <div class="bars">
+    <div class="bar"><b id="ba"></b>Warm<span id="pa">0%</span></div>
+    <div class="bar"><b id="bb"></b>Cool<span id="pb">0%</span></div>
+  </div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const tl = fx.timeline({ duration: 4 });
+  const v = { a: 0, b: 0 }, pa = document.getElementById('pa'), pb = document.getElementById('pb');
+  gsap.set('#ba,#bb', { scaleX: 0 });
+  tl.from('.ttl .w', { yPercent: 110, stagger: .1, duration: .7, ease: 'expo.out' }, 0)
+    // squares slide in from opposite sides and meet in the middle; VS badge pops
+    .from('.sa', { x: -700, rotation: -8, duration: .8, ease: 'expo.out' }, .15)
+    .from('.sb', { x: 700, rotation: 8, duration: .8, ease: 'expo.out' }, .15)
+    .fromTo('.sq i', { scale: 1.2 }, { scale: 1, duration: 1.6, ease: 'expo.out' }, .15)
+    .from('.vs', { scale: 0, rotation: -120, duration: .6, ease: 'back.out(2.5)' }, .8)
+    .from('.lb', { y: -20, opacity: 0, stagger: .1, duration: .4 }, .9)
+    .from('.sub', { opacity: 0, y: 10, duration: .5 }, 1.0)
+    .from('.bar', { y: 30, opacity: 0, stagger: .1, duration: .5, ease: 'power3.out' }, 1.1)
+    // the vote lands: bars fill, the winner square lifts, the loser dims
+    .to('#ba', { scaleX: .62, duration: 1, ease: 'expo.out' }, 1.7)
+    .to('#bb', { scaleX: .38, duration: 1, ease: 'expo.out' }, 1.7)
+    .to(v, { a: 62, b: 38, duration: 1, ease: 'expo.out', onUpdate() { pa.textContent = Math.round(v.a) + '%'; pb.textContent = Math.round(v.b) + '%'; } }, 1.7)
+    .to('.sa', { y: -20, scale: 1.04, duration: .6, ease: 'back.out(2)' }, 1.9)
+    .fromTo('.sb', { filter: 'brightness(1)' }, { scale: .96, filter: 'brightness(.6)', duration: .6, immediateRender: false }, 1.9)
+    .to('.sq i', { scale: 1.06, duration: 1.5, ease: 'none' }, 2.2)
+    // exit: squares part again, everything clears
+    .to('.sa', { x: -700, rotation: -8, duration: .45, ease: 'expo.in' }, 3.4)
+    .to('.sb', { x: 700, rotation: 8, duration: .45, ease: 'expo.in' }, 3.4)
+    .to('.vs', { scale: 0, duration: .3, ease: 'back.in(2)' }, 3.35)
+    .to('.ttl .w', { yPercent: -110, stagger: .06, duration: .35, ease: 'expo.in' }, 3.5)
+    .to('.bar,.sub', { opacity: 0, y: 20, stagger: .05, duration: .3 }, 3.5);
+</script>

@@ -1,0 +1,29 @@
+{
+  "move": "plane rides route, carousel snaps stop to stop, headline swaps",
+  "how": "A dim background drifts xPercent -2→2 across D. A plane icon follows a dashed route path with MotionPath (autoRotate) linearly for the full loop while a yellow path draws under it with DrawSVG 0→100%. Every D/4 the card track snaps x by one card width with expo.inOut 0.9s; the previous card dims to scale 0.92 opacity 0.55 and the next pops to full with back.out(1.6), the matching stop marker toggles an 'on' class, and the big headline swaps (old word up with expo.in, new word up from yPercent 110 with expo.out). The active card breathes y:-10 with sine.inOut between snaps. At D-0.95 the track slides to a duplicate fifth card (a copy of the first), so the hard cut back to t=0 reads as continuous.",
+  "moves": [
+    "carousel",
+    "snap",
+    "motion-path",
+    "draw-stroke",
+    "mask-text",
+    "breathe"
+  ],
+  "libs": [
+    "gsap",
+    "DrawSVG",
+    "MotionPath"
+  ],
+  "adapt": "Replace the destination cards (photo, tag, name, meta), the headline words, stop codes and route path; N cards sets STEP = D/N and CW must match card width plus gap. Keep the 0.9s expo.inOut snap and the back.out card pop.",
+  "port": "mount(el, shot) builds .bg, .hd, .big spans, a .track of cards with a duplicated first card at the end, the route SVG with two path ids, stops and the plane; animate(el, shot, D) returns the timeline with DrawSVG and MotionPath registered, t = i*D/N snaps and the wrap snap at D-0.95/10*D. Path ids must be unique per instance and nth-child selectors scoped to el.",
+  "caveats": [
+    "requires DrawSVGPlugin and MotionPathPlugin",
+    "loop relies on a duplicate first card and a hard cut; the drawn route and dimmed stops do not reset",
+    "uses className sets on the timeline",
+    "backdrop-filter blur on card tags",
+    "catalog says 12s but the file renders 10s"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

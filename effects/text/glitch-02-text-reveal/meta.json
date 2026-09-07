@@ -1,0 +1,26 @@
+{
+  "move": "type warps in through displacement, RGB ghosts lock, twitches, warps out",
+  "how": "A dark frame with a hairline border, a grain SVG layer, the headline 'Break Through' inside a wrap filtered by an feTurbulence-driven feDisplacementMap, red and cyan screen-blended ghost copies of the headline behind it, a red monospace subline and two thin white difference-blend tear bars. A state object tweens the displacement scale from 260 to 0 with expo.out over the first 27% (seed and frequency also sliding) while the headline flickers in with steps(6) and the ghosts slide in from x -70 / 70 to 0 fading out with expo.out; the subline resolves via ScrambleTextPlugin over 1.2s from 7%. At 47% and 67% short hits: displacement spikes to 90 / 60 for 0.08s, the ghosts flash apart yoyo, the wrap jolts x 24 / -16, and a tear bar sweeps vertically. At 86% the displacement ramps to 320 with expo.in, ghosts fly apart to x -90 / 90, and the text cuts out in steps(5), ending on the empty frame.",
+  "moves": [
+    "glitch-warp",
+    "rgb-split",
+    "scramble",
+    "flicker",
+    "tear-bar",
+    "jolt"
+  ],
+  "libs": [
+    "gsap",
+    "ScrambleText",
+    "svg-filter"
+  ],
+  "adapt": "Change the headline (two lines), the subline string, the tag, the ghost colours and the accent red; keep the displacement envelope (260 in, spikes, 320 out) and the stepped opacity eases, which are what makes it read as signal loss rather than a fade.",
+  "port": "mount(el, shot) builds the two inline SVG filters with per-instance ids, the grain, frame, tag, both ghosts, .wrap and the bars; animate(el, shot, D) returns a gsap.timeline containing the state-object tweens (onUpdate writing the filter attributes) at 0, 0.475D, 0.675D and 0.86D plus the DOM tweens at the same fractions. Register ScrambleTextPlugin; replace getElementById with el.querySelector.",
+  "caveats": [
+    "feDisplacementMap over the whole wrap plus the grain filter is slow to render",
+    "the stray .to('.wrap', {x:0, duration:0.01}) is a no-op"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,19 @@
+{
+  "move": "seven bars pulse tall then short in a left-to-right wave, twice",
+  "how": "Seven rounded gradient bars sit at scaleY .25 and 55% opacity. Two waves per 3s loop (at 0 and 50%): each bar grows to scaleY 1 and full opacity with power2.out over 0.4s, 0.1s after its neighbour, then falls back over 0.5s with power2.inOut, so a bump travels left to right. The whole set drifts y 4 to -4 and back with sine.inOut and the caption breathes between 60% and 100% opacity four times.",
+  "moves": [
+    "pulse",
+    "stagger",
+    "wave",
+    "breathe"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Change bar count, gap, width and the three gradient colours, and the caption; keep the 0.1s per-bar offset and the 0.4/0.5 grow-fall so the wave reads.",
+  "port": "mount(el, shot) creates N bars and the caption; animate returns the timeline with wave(0) and wave(0.5D). Ports directly; scope the bar query to el.",
+  "caveats": [],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

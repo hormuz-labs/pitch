@@ -1,0 +1,23 @@
+{
+  "move": "three balls bounce around the frame, squash on walls, stretch with speed",
+  "how": "A canvas on a sand background: three coloured balls are simulated once at 240Hz with wall bounces and a seeded speed drift on each hit, then every frame is looked up by time. Each ball squashes on impact (a decaying sine, 0.3s) along the hit axis, stretches along its velocity (1 + speed/4000), and leaves four ghost copies fading behind it. It does not return to the start pose, so the loop cuts.",
+  "moves": [
+    "bounce",
+    "squash",
+    "stretch",
+    "motion-trail",
+    "physics"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "adapt": "Change ball colours, radii, count and initial velocities; the seed (fx.rng(7)) controls the drift; keep the squash envelope and trail depth.",
+  "port": "mount(el, shot) creates the canvas and precomputes frames for D; animate returns a timeline with a single tween of duration D whose onUpdate draws the frame for tl.time(), replacing the fx.register seek loop. The canvas is 1280x720 fixed so scale it to el.",
+  "caveats": [
+    "loop does not close cleanly; the balls end wherever the sim leaves them",
+    "canvas seek loop, becomes an onUpdate tween on the timeline"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

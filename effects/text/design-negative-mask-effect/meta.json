@@ -1,0 +1,12 @@
+{
+  "move": "white difference-blend shapes sweep across type, inverting whatever they cover",
+  "how": "On a white ground the words 'Negative' (grotesk caps) and 'space' (italic serif) sit centred in black, with two small footer captions. Four white shapes in mix-blend-mode difference (a 520px circle, a 360px circle, a tilted 260x900 bar and a 300px rounded square) start off-frame and traverse the stage: the big circle crosses left to right growing from scale .6 to 1.1 with power2.inOut over 80% of the duration, the small circle drops 800px with power1.inOut, the bar whips across with expo.inOut, and the square travels diagonally up-left rotating 90deg. Where a shape overlaps the black type it renders white on black, so the letters appear cut out of the shapes. The type rises in from yPercent 40 (expo.out, 0.12s stagger) in the first 20% and lifts out at 87% (expo.in), ending on white.",
+  "moves": ["mask-wipe", "invert", "sweep", "slide-in", "blend-mode"],
+  "libs": ["gsap"],
+  "adapt": "Change the two words and their typefaces, the caption strings and the shape sizes/paths; on a coloured ground difference yields colour inversions instead of black/white. Keep the long overlapping inOut sweeps so shapes cross the type at different moments.",
+  "port": "mount(el, shot) renders the .type stack, footers and the four .neg shapes with isolation on el; animate(el, shot, D) returns a gsap.timeline with the type entry at 0, the sweeps starting at 0.05D, 0.15D, 0.25D and 0.275D with durations of 0.8D, 0.75D, 0.55D and 0.65D, and the exit at 0.875D. Scope selectors to el.",
+  "caveats": ["mix-blend-mode difference over large shapes is moderately expensive", "requires isolation:isolate on the container so the blend does not leak into the page"],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

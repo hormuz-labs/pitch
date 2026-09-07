@@ -1,0 +1,65 @@
+<!doctype html><meta charset="utf-8">
+<title>Gradients: Kaleidoscope</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#08060f}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .cap{position:absolute;left:48px;bottom:40px;font-family:"Atlas Grotesk",sans-serif;font-size:15px;letter-spacing:.25em;text-transform:uppercase;color:#fff;opacity:.75}
+</style>
+<div class="stage">
+  <canvas id="c" width="1280" height="720"></canvas>
+  <div class="cap">Acme — Kaleidoscope</div>
+</div>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const D = 4, W = 1280, H = 720, N = 12;
+  const c = document.getElementById('c'), ctx = c.getContext('2d');
+  // the source: a small canvas of gradient discs that drift and spin; the kaleidoscope mirrors one wedge of it N times
+  const S = 520, src = document.createElement('canvas'); src.width = src.height = S;
+  const sctx = src.getContext('2d');
+  const discs = [
+    { col: ['#ff2d95', '#ff8a3d'], r: 170, rx: 120, ry: 80, ph: 0 },
+    { col: ['#38bdf8', '#7c3aed'], r: 140, rx: 90, ry: 130, ph: 2.1 },
+    { col: ['#ffe66a', '#19c37d'], r: 120, rx: 140, ry: 60, ph: 4.2 },
+    { col: ['#ffffff', '#ff2d95'], r: 70, rx: 60, ry: 100, ph: 1.0 },
+  ];
+  function drawSource(w) {
+    sctx.fillStyle = '#12082a'; sctx.fillRect(0, 0, S, S);
+    sctx.globalCompositeOperation = 'lighter';
+    for (const d of discs) {
+      const x = S / 2 + Math.cos(w + d.ph) * d.rx, y = S / 2 + Math.sin(2 * w + d.ph) * d.ry;
+      const g = sctx.createRadialGradient(x, y, 0, x, y, d.r);
+      g.addColorStop(0, d.col[0]); g.addColorStop(0.55, d.col[1]); g.addColorStop(1, 'rgba(0,0,0,0)');
+      sctx.fillStyle = g; sctx.beginPath(); sctx.arc(x, y, d.r, 0, Math.PI * 2); sctx.fill();
+    }
+    sctx.globalCompositeOperation = 'source-over';
+  }
+  function seek(t) {
+    const w = (t / D) * Math.PI * 2;
+    drawSource(w);
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#08060f'; ctx.fillRect(0, 0, W, H);
+    const R = Math.hypot(W, H) / 2 + 20, a = (Math.PI * 2) / N;
+    const spin = w / N * 2;           // the whole pattern turns exactly two wedges per loop: seamless
+    const pat = ctx.createPattern(src, 'repeat');
+    for (let i = 0; i < N; i++) {
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.rotate(i * a + spin);
+      if (i % 2) ctx.scale(1, -1);       // mirror every other wedge
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, -a / 2 - 0.01, a / 2 + 0.01); ctx.closePath();
+      ctx.clip();
+      // the source slides across the wedge one full tile per loop, and rotates against the spin
+      ctx.rotate(-w);
+      ctx.translate(-S / 2 + (S * t / D), -S / 2);
+      ctx.fillStyle = pat; ctx.fillRect(-S * 3, -S * 3, S * 7, S * 7);
+      ctx.restore();
+    }
+    // a soft vignette so the centre reads as the focal point
+    const v = ctx.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, 760);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  }
+  fx.register({ duration: D, seek });
+</script>

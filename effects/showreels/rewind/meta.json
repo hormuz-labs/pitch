@@ -1,0 +1,27 @@
+{
+  "move": "VHS rewind: footage scrubs backwards with tears and flicker, snaps to PLAY",
+  "how": "A full-frame video is seeked backwards at 3x (currentTime set per frame from a seek callback) for the first 80% of the 7s loop, with two horizontal tear strips (clipped duplicate videos offset 24px) sliding down and up on linear repeats, a blurred tracking band sweeping bottom to top four times, an RGB-split gradient flickering (opacity 0.6 to 0.2, 0.12s yoyo x40), scanlines, a seeded canvas noise field cycling six frames, a 2px horizontal stage jitter, and a monospace REW OSD blinking while the timecode counts down. At 80% the tears, band and RGB overlay cut out, the OSD switches to PLAY, which blinks five times, the video plays forward and the timecode counts up.",
+  "moves": [
+    "scrub-reverse",
+    "glitch",
+    "tear",
+    "flicker",
+    "noise",
+    "snap"
+  ],
+  "libs": [
+    "gsap",
+    "canvas"
+  ],
+  "adapt": "Replace the video source, the OSD strings, timecode start value and rewind speed; the noise seed and overlay colours are tunable. Keep the 80% snap point, the 3x reverse rate and the 0.12s RGB flicker.",
+  "port": "mount(el, shot) builds the three video elements, overlays, noise canvas and OSD inside el and waits for loadeddata. animate(el, shot, D) returns the GSAP timeline plus a proxy tween (0 to D, ease none) whose onUpdate sets video currentTime, timecode text, noise frame and stage jitter, replacing the fx.register seek loop; the stage transform jitter must target el, and the tl.seek inside the seek callback is unnecessary once everything is on one timeline.",
+  "caveats": [
+    "drives three video elements by currentTime every frame; needs loadeddata before first frame and is slow to seek",
+    "uses fx.register seek loop plus a separate paused GSAP timeline, not fx.timeline",
+    "canvas putImageData per frame",
+    "does not return to the first frame; the loop restarts at full-speed rewind"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -8,7 +8,7 @@ import {
   checkImageRequest,
   IMAGE_KINDS,
   paletteLine,
-} from '../.pi/skills/launch-video/scripts/lib/image-prompt.mjs'
+} from '../.pi/scripts/launch-video/lib/image-prompt.mjs'
 
 describe('checkImageRequest', () => {
   it('accepts the allowed kinds with a real subject', () => {

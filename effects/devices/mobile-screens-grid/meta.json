@@ -1,0 +1,26 @@
+{
+  "move": "isometric wall of phone screens pops in, lists scroll, camera pans, folds",
+  "how": "A 5x3 grid of 190x400 screens (random rows, themes and dark flags from a seeded rng) is pre-rotated rotateX 32 / rotateZ -16 inside a camera wrapper. The camera pans x 260 -> 60, y -150 -> -10 and scales 1.02 -> 1.14 linearly across the full 7s. Screens pop from scale 0.6, opacity 0, z -300 with 0.9s expo.out using a grid stagger from the centre (0.06s each) starting at 1.5%; every .list scrolls y to -(120 + (i%4)*60) with power1.inOut over 6.4s. A two-line headline rises from yPercent 110 (expo.out) at 7% with a subline; at 89% the headline lifts and fades and screens fold away scale 0.6 / z -300 with expo.in staggered from the grid edges (0.04s).",
+  "moves": [
+    "grid-stagger",
+    "pop-in",
+    "isometric",
+    "scroll",
+    "camera-pan",
+    "collapse"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Change COLS/ROWS, the theme colour pairs, screen titles, headline copy and the glow colour; seed the rng differently for other layouts. Keep the linear camera pan across the whole duration and the centre-out / edges-in grid staggers.",
+  "port": "mount(el, shot) builds .cam > .grid with COLS*ROWS screens from a seeded rng; animate(el, shot, D) returns the timeline with the pan over D, pops at 0.015D, list scrolls from 0.07D for 0.91D and exit at 0.886D. The grid stagger needs grid:[ROWS,COLS]; from() tweens should be fromTo with immediateRender:false; el must supply perspective:2200px.",
+  "caveats": [
+    "a 1200x900 glow with filter blur(30px) sits behind the wall",
+    "15 screens with triple box-shadows animate in 3D at once, heavy per frame",
+    "loop does not close: camera pan does not return"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "rainbow band gradient and wordmark twist in a pixel swirl that breathes",
+  "how": "A 480x270 offscreen canvas draws a rotating five-colour band gradient (one full turn per loop) with the word SWIRL punched in dark; every frame a per-pixel loop remaps that buffer through a swirl whose angle grows toward a centre that drifts on a small Lissajous, with strength 4.5*sin(2*pi*t/D) so it twists one way, unwinds, twists the other way and is zero at both ends. The result is upscaled to 1280x720 through ctx.filter blur that breathes 6 to 16px with the swirl, then saturate/contrast via CSS. A small caption sits at the bottom.",
+  "moves": [
+    "swirl",
+    "distort",
+    "blur",
+    "spin"
+  ],
+  "libs": [
+    "canvas"
+  ],
+  "adapt": "Change the gradient stops, the word drawn in drawContent, the swirl radius R and strength; keep strength on sin(2*pi*u) and the full gradient turn so the loop closes.",
+  "port": "mount(el, shot) creates the output canvas and caption in el; animate(el, shot, D) returns a timeline with one {u:0->1, duration:D, ease:none} tween whose onUpdate runs the seek paint. Canvas sizes are fixed constants; the source font must be loaded before drawing text.",
+  "caveats": [
+    "a JavaScript per-pixel loop over 129,600 pixels plus getImageData every frame is CPU heavy",
+    "catalog lists 22s but the file renders D=10",
+    "canvas text uses the Sharp Grotesk font, which must be loaded"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

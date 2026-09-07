@@ -1,0 +1,12 @@
+{
+  "move": "chat bubbles pop in sequentially with typing dots between replies",
+  "how": "A portrait phone mockup on a diagonal gradient with a status bar, contact header, message list and compose bar. Seven rows carry data-t timestamps: at each one the row expands from height 0 (power3.out, 0.45s) while its bubble scales from .5 and opacity 0 with back.out(1.8), anchored at the bubble's bottom corner (left for 'them', right for 'me'). Two typing-indicator rows show three grey dots bobbing y -10 in a yoyo sine loop, then shrink out (scale .6, power2.in) and collapse their row just before the next real message lands. The phone drifts y 8 / rotation -0.6deg in a sine yoyo across the 10s; at 93% all rows fade out with a 0.05s stagger so the loop restarts on an empty thread.",
+  "moves": ["pop", "height-reveal", "sequence", "typing-dots", "fade-exit"],
+  "libs": ["gsap"],
+  "adapt": "Edit the row texts, the data-t / data-end timings, who is 'me' vs 'them', the header name/avatar, bubble colours and the background gradient; add or remove rows freely. Keep the 0.45s height reveal plus back.out bubble pop and the typing-dot cadence (0.3s, 0.1s stagger).",
+  "port": "mount(el, shot) builds the phone and rows from shot.messages (text, side, t, typingUntil); animate(el, shot, D) loops rows and returns one gsap.timeline placing each row's from() at t/10*D. Timestamps become fractions of D; the typing repeat count is derived from the gap. Selectors must use el.querySelectorAll('.row'), not document.",
+  "caveats": ["portrait 1080x1920, not 16:9", "the .stage backgroundPosition tween is a no-op", "from() height tweens rely on layout; set immediateRender:false if built after first paint"],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1080x1920"
+}

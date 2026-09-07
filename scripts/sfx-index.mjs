@@ -24,7 +24,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..");
-const SKILL = resolve(REPO_ROOT, ".pi", "skills", "launch-video");
+const SKILL = resolve(REPO_ROOT, ".pi", "scripts", "launch-video");
 const REPO = REPO_ROOT;
 
 const args = process.argv.slice(2);

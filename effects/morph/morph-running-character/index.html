@@ -1,0 +1,67 @@
+<!doctype html><meta charset="utf-8">
+<title>Morph: Running Character</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#ff7a45;display:grid;place-items:center}
+  svg{width:1280px;height:720px}
+  .lines line{stroke:rgba(255,255,255,.35);stroke-width:6;stroke-linecap:round}
+  .tag{position:absolute;right:64px;bottom:52px;color:#fff;font-size:18px;letter-spacing:.3em;text-transform:uppercase}
+</style>
+<div class="stage">
+  <svg viewBox="0 0 1280 720">
+    <g class="lines" id="speed">
+      <line x1="120" y1="300" x2="260" y2="300"/><line x1="60" y1="360" x2="240" y2="360"/><line x1="160" y1="420" x2="300" y2="420"/>
+    </g>
+    <line x1="0" y1="560" x2="1280" y2="560" stroke="rgba(0,0,0,.18)" stroke-width="4"/>
+    <ellipse id="shadow" cx="640" cy="560" rx="120" ry="14" fill="rgba(0,0,0,.18)"/>
+    <g id="char" transform="translate(640 420)">
+      <g id="lean">
+        <path id="armB" class="limb" fill="none" stroke="#1b1b1b" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="legB" class="limb" fill="none" stroke="#1b1b1b" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="body" fill="#1b1b1b" d="M -34 -70 C -34 -100 34 -100 34 -70 L 30 10 C 30 26 -30 26 -30 10 Z"/>
+        <circle id="head" cx="14" cy="-112" r="34" fill="#1b1b1b"/>
+        <circle cx="30" cy="-118" r="5" fill="#fff"/>
+        <path id="legF" class="limb" fill="none" stroke="#1b1b1b" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="armF" class="limb" fill="none" stroke="#1b1b1b" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+  </svg>
+  <div class="tag">Acme Run Club</div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../../assets/gsap/MorphSVGPlugin.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  gsap.registerPlugin(MorphSVGPlugin);
+  const P = pts => 'M ' + pts.map(p => p.join(' ')).join(' L ');
+  // one stride as four poses, hip at the origin: contact, drive, swing-back, recover
+  const LEG = [
+    [[0, 10], [26, 54], [44, 108]],
+    [[0, 10], [-12, 56], [-30, 112]],
+    [[0, 10], [-34, 44], [-52, 96]],
+    [[0, 10], [30, 30], [10, 70]],
+  ].map(P);
+  const ARM = [
+    [[0, -66], [-34, -40], [-24, -6]],
+    [[0, -66], [-10, -30], [14, -34]],
+    [[0, -66], [30, -44], [48, -72]],
+    [[0, -66], [16, -34], [8, -14]],
+  ].map(P);
+  const D = 1, STEP = D / 4;
+  const tl = fx.timeline({ duration: D });
+  // front and back limbs run the same cycle half a stride apart; arms counter the legs
+  function cycle(id, poses, offset) {
+    gsap.set(id, { attr: { d: poses[offset % 4] } });
+    for (let k = 1; k <= 4; k++) tl.to(id, { morphSVG: poses[(offset + k) % 4], duration: STEP, ease: 'power1.inOut' }, (k - 1) * STEP);
+  }
+  cycle('#legF', LEG, 0); cycle('#legB', LEG, 2);
+  cycle('#armF', ARM, 2); cycle('#armB', ARM, 0);
+  // the body rides up on each push-off: two bobs per stride
+  tl.fromTo('#char', { x: 640, y: 384, scale: 1.5 }, { x: 640, y: 358, scale: 1.5, duration: STEP, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 0)
+    .fromTo('#lean', { rotation: 10 }, { rotation: 14, transformOrigin: '0 0', duration: STEP, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 0)
+    .fromTo('#shadow', { scaleX: 1 }, { scaleX: 0.8, transformOrigin: '50% 50%', duration: STEP, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 0)
+    .fromTo('#head', { y: 0 }, { y: 4, duration: STEP, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 0.04)
+    // the speed lines stream past, one period per half stride
+    .fromTo('#speed', { x: 0 }, { x: -300, duration: D / 2, ease: 'none', repeat: 1 }, 0);
+</script>

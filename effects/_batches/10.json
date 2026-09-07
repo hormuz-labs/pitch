@@ -1,0 +1,179 @@
+[
+ {
+  "name": "3D Rotation",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "3d-rotation",
+  "seconds": 6,
+  "tags": [],
+  "description": "A 3D rotation effect that spins and tilts your visuals. Ideal for product showcases, logo reveals, and dynamic motion graphics.",
+  "jitterUrl": "https://jitter.video/template/3d-rotation/"
+ },
+ {
+  "name": "Card Flip",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "card-flip",
+  "seconds": 4,
+  "tags": [],
+  "description": "A smooth card flip animation that reveals content with a 3D rotation effect. Perfect for product showcases, app UI animations, and interactive mockups.",
+  "jitterUrl": "https://jitter.video/template/card-flip/"
+ },
+ {
+  "name": "Color Keying Effect",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "color-keying-effect",
+  "seconds": 5,
+  "tags": [
+   "ads"
+  ],
+  "description": "A color keying effect that isolates and replaces a specific color in your footage. Ideal for compositing and green screen-style animations.",
+  "jitterUrl": "https://jitter.video/template/color-keying-effect/"
+ },
+ {
+  "name": "Dithering Effect",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "dithering-effect",
+  "seconds": 4,
+  "tags": [],
+  "description": "A dithering effect that renders your visuals with an animated noise pattern. Great for retro-style motion graphics and textured video content.",
+  "jitterUrl": "https://jitter.video/template/dithering-effect/"
+ },
+ {
+  "name": "Gooey Effect",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "gooey-effect",
+  "seconds": 8,
+  "tags": [],
+  "description": "A fluid gooey effect that blends and morphs shapes with a liquid-like animation. Perfect for playful transitions and organic motion graphics.",
+  "jitterUrl": "https://jitter.video/template/gooey-effect/"
+ },
+ {
+  "name": "Grainy Color Clamp",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "grainy-color-clamp",
+  "seconds": 4,
+  "tags": [
+   "ads"
+  ],
+  "description": "A grainy color clamp effect that maps your footage to a limited color palette. Perfect for editorial and retro-style motion graphics.",
+  "jitterUrl": "https://jitter.video/template/grainy-color-clamp/"
+ },
+ {
+  "name": "Highlight Effect",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "highlight-effect",
+  "seconds": 4,
+  "tags": [
+   "ads"
+  ],
+  "description": "An animated highlight effect that draws attention with a sweeping light motion. Perfect for social media and ads..",
+  "jitterUrl": "https://jitter.video/template/highlight-effect/"
+ },
+ {
+  "name": "Holographic Logo",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "holographic-logo",
+  "seconds": 3,
+  "tags": [
+   "logos",
+   "brand"
+  ],
+  "description": "A holographic logo animation that renders your brand mark with a shimmering, iridescent foil effect. Perfect for premium product reveals and high-end brand animations.",
+  "jitterUrl": "https://jitter.video/template/holographic-logo/"
+ },
+ {
+  "name": "Image Stretch Transition",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "image-stretch-transition",
+  "seconds": 8,
+  "tags": [],
+  "description": "An image stretch transition that warps and pulls your visuals into the next scene. Great for dynamic video editing and social media reels.",
+  "jitterUrl": "https://jitter.video/template/image-stretch-transition/"
+ },
+ {
+  "name": "Inward Echo Loop",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "inward-echo-loop",
+  "seconds": 6,
+  "tags": [],
+  "description": "An inward echo animation that layers repeating shapes into a hypnotic looping effect. Perfect for abstract motion graphics and animated backgrounds.",
+  "jitterUrl": "https://jitter.video/template/inward-echo-loop/"
+ },
+ {
+  "name": "Pixel Dissolve Transition",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "pixel-dissolve-transition",
+  "seconds": 4,
+  "tags": [
+   "ads"
+  ],
+  "description": "A pixel dissolve transition that fragments your visuals into an animated pixel grid. Ideal for product reveals, stylized transitions, and social media content.",
+  "jitterUrl": "https://jitter.video/template/pixel-dissolve-transition/"
+ },
+ {
+  "name": "Pixelated Mask",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "pixelated-mask",
+  "seconds": 6,
+  "tags": [],
+  "description": "A pixelated mask effect that reveals or hides your content through an animated pixel grid. Great for stylized transitions and retro motion graphics.",
+  "jitterUrl": "https://jitter.video/template/pixelated-mask/"
+ },
+ {
+  "name": "Pixelated Slideshow",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "pixelated-slideshow",
+  "seconds": 8,
+  "tags": [
+   "showreels"
+  ],
+  "description": "A pixelated slideshow transition that dissolves between images through an animated pixel effect. Great for presentations and social media content.",
+  "jitterUrl": "https://jitter.video/template/pixelated-slideshow/"
+ },
+ {
+  "name": "Ring Scale: Animated Loop",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "ring-scale-animated-loop",
+  "seconds": 4,
+  "tags": [
+   "ads"
+  ],
+  "description": "A looping ring scale animation that pulses and scales in perfect rhythm. Great for intros, badges, and attention-grabbing motion graphics.",
+  "jitterUrl": "https://jitter.video/template/ring-scale/"
+ },
+ {
+  "name": "Ripple Effect",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "ripple-effect",
+  "seconds": 6,
+  "tags": [
+   "brand"
+  ],
+  "description": "A ripple effect that sends animated waves across your visuals. Great for fluid transitions, water simulations, and dynamic motion graphics.",
+  "jitterUrl": "https://jitter.video/template/ripple-effect/"
+ },
+ {
+  "name": "Threshold Effect",
+  "family": "Effects (Jitter AI)",
+  "familySlug": "effects",
+  "slug": "threshold-effect",
+  "seconds": 4,
+  "tags": [],
+  "description": "A high-contrast threshold effect that converts your visuals into monochrome. Ideal for bold, graphic animations.",
+  "jitterUrl": "https://jitter.video/template/threshold-effect/"
+ }
+]

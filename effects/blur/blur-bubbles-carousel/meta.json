@@ -1,0 +1,24 @@
+{
+  "move": "product cards slide left five times over drifting blurred bubbles",
+  "how": "Cream stage with six blurred (46px) pastel discs orbiting on integer-cycle ellipses, driven directly from t. A track of five glass cards (backdrop-filter blur 20px) is duplicated so five steps of 428px land on an identical frame. Every 0.18D from 0.09D the track slides -428px more (expo.inOut, 0.9s); the passing card shrinks to 0.9, blurs 10px and dims to 0.6 (power2.in, 0.45s), the arriving card lifts y -18 (expo.out) and settles (power2.inOut), and the pager pill moves. Brand and title text are static.",
+  "moves": [
+    "carousel",
+    "slide-in",
+    "blur-exit",
+    "orbit",
+    "float"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the items array (name, note, price, gradient pair), the brand and title, and the bubble colours; keep STEP = card width + gap, N steps at D/N spacing and the 0.9s expo.inOut slide.",
+  "port": "mount(el, shot) builds the field bubbles, the doubled track and pager; animate(el, shot, D) returns the timeline with steps at 0.09D + i*0.18D plus a {u:0->1, ease:none} tween whose onUpdate moves the bubbles (the __fx.seek override). Scope '.track', '.card', '.pager i' to el.",
+  "caveats": [
+    "the track ends at -5*STEP, not 0; the loop only closes because the card set is duplicated",
+    "animated filter blur on cards plus backdrop-filter and a blur(46px) field is heavy",
+    "catalog lists 14s but the file renders D=10"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

@@ -1,0 +1,23 @@
+{
+  "move": "title rises, icon discs pop in spinning, ring ripple, bounce wave, exit",
+  "how": "A cream stage. The title rises from an overflow mask (yPercent 110 to 0, expo.out). From 6% five coloured discs scale from 0 with rotation -60 and a 0.1s back.out(2) stagger, their glyphs following with back.out(3) and the handles rising from masks. At 32% a coloured ring on each disc scales 1 to 1.55 and fades in the same stagger; at 55% the discs lift y -12 and drop with bounce.out in a wave. From 84% handles and discs exit reversed (scale 0, rotation 60, back.in) and the title drops out of its mask.",
+  "moves": [
+    "mask-rise",
+    "pop-in",
+    "stagger",
+    "ripple",
+    "bounce",
+    "spin-exit"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Replace the five brand colours, glyph SVGs and handles, and the title; add or remove discs; keep the back.out(2) 0.7s pop and the 0.1s stagger.",
+  "port": "mount(el, shot) builds the title and N discs from shot.accounts; animate returns the timeline with pop at 0.06D, ripple at 0.32D, wave at 0.55D and exit at 0.84D. Direct port; scope selectors to el and use immediateRender:false on the from() tweens if composed.",
+  "caveats": [
+    "from() tweens need immediateRender:false when composed"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

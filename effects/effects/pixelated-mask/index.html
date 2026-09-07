@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8">
+<title>Pixelated Mask</title>
+<meta name="fx" content="w=1280 h=720">
+<link rel="stylesheet" href="../../_lib/base.css">
+<style>
+  .stage{background:#f2efe9;font-family:"Atlas Grotesk",sans-serif;color:#15171c}
+  .card{position:absolute;left:190px;top:120px;width:900px;height:480px;border-radius:24px;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.12);display:flex;overflow:hidden}
+  .pic{width:400px;background:url("../../../assets/backgrounds/ocean.png") center/cover}
+  .body{flex:1;padding:48px;display:flex;flex-direction:column;gap:16px}
+  .eyebrow{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#7c8391}
+  h1{font-family:"Sharp Grotesk",sans-serif;font-size:52px;font-weight:500;letter-spacing:-.03em;line-height:1.02}
+  p{font-size:17px;color:#5b6170;line-height:1.5}
+  .row{margin-top:auto;display:flex;gap:12px;align-items:center}
+  .btn{background:#15171c;color:#fff;border-radius:12px;padding:14px 22px;font-weight:500}
+  .ghost{color:#15171c;padding:14px 8px}
+  .grid{position:absolute;left:0;top:0;width:1280px;height:720px;display:grid;grid-template-columns:repeat(32,40px);grid-template-rows:repeat(18,40px);pointer-events:none}
+  .cell{background:#f2efe9;transform-origin:center}
+  .cell:nth-child(odd){background:#ebe6dd}
+  .cell.k{background:#e4ded3}
+</style>
+<div class="stage">
+  <div class="card">
+    <div class="pic" id="pic"></div>
+    <div class="body">
+      <div class="eyebrow">Northwind · Journal</div>
+      <h1>Designing for the long coast</h1>
+      <p>Notes from a season of building tools for people who work outdoors, offline, and far from a charger.</p>
+      <div class="row"><div class="btn">Read the story</div><div class="ghost">Share →</div></div>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+<script src="../../../assets/gsap/gsap.min.js"></script>
+<script src="../../_lib/fx.js"></script>
+<script>
+  const NX = 32, NY = 18, grid = document.getElementById('grid');
+  const cells = [];
+  for (let i = 0; i < NX * NY; i++) { const d = document.createElement('div'); d.className = 'cell' + ((((i / NX) | 0) + i) % 2 ? ' k' : ''); grid.appendChild(d); cells.push(d); }
+  const rnd = fx.rng(21);
+  // reveal order: distance from a point plus jitter; hide order: from the opposite corner
+  const ordR = [], ordH = [];
+  for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+    ordR.push(Math.hypot(x - 8, (y - 9) * 1.6) / 30 * 0.7 + rnd() * 0.3);
+    ordH.push(Math.hypot(x - 26, (y - 4) * 1.6) / 30 * 0.7 + rnd() * 0.3);
+  }
+  const tl = fx.timeline({ duration: 6 });
+  // the whole loop: 0.3-1.9 reveal, hold, 3.6-5.2 hide, hold (masked) to 6
+  cells.forEach((c, i) => {
+    tl.fromTo(c, { scale: 1, opacity: 1 }, { scale: 0, opacity: 1, duration: 0.42, ease: 'expo.in' }, 0.15 + ordR[i] * 1.5)
+      .to(c, { scale: 1, duration: 0.42, ease: 'expo.out' }, 3.9 + ordH[i] * 1.5)
+      // while closed the grid itself breathes so the masked state is never a still frame
+      .to(c, { scale: 0.92, duration: 0.3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 5.45 + ordH[i] * 0.2);
+  });
+  // content inside keeps living so it's clearly a mask over motion, not a still
+  tl.fromTo('#pic', { backgroundPositionX: '40%' }, { backgroundPositionX: '60%', duration: 6, ease: 'none' }, 0)
+    .from('h1', { y: 30, duration: 1.2, ease: 'expo.out', immediateRender: false }, 0.6)
+    .from('p', { y: 24, duration: 1.2, ease: 'expo.out', immediateRender: false }, 0.8)
+    .from('.row', { y: 20, duration: 1.2, ease: 'expo.out', immediateRender: false }, 1.0)
+    .to('.card', { y: -20, duration: 1.6, ease: 'power2.in' }, 3.8)
+    .set('.card', { y: 0 }, 5.9);
+</script>

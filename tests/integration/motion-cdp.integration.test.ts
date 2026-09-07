@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-const SCRIPTS = new URL('../../.pi/skills/launch-video/scripts/', import.meta.url)
+const SCRIPTS = new URL('../../.pi/scripts/launch-video/', import.meta.url)
 const browserLib = await import(new URL('lib/browser.mjs', SCRIPTS).href)
 const { pixelDiffRatio } = await import(new URL('lib/png.mjs', SCRIPTS).href)
 

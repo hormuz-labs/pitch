@@ -1,0 +1,25 @@
+{
+  "move": "phone screen cuts vertically through pages, captions and counter roll each cut",
+  "how": "A 300x620 phone hangs rotateY -14 / rotateX 5 and breathes to -8 / 3 and back with sine.inOut yoyo across the 4s; the aurora background slowly scales. A vertical strip of four full-height pages plus a copy of the first sits in the screen; at cuts 0.65, 1.65, 2.65, 3.55s (16%, 41%, 66%, 89%) the strip moves y by -596px with 0.45s expo.inOut while the phone dips scale 0.965 and back (power2.inOut yoyo). On each cut the caption line rolls yPercent 0 -> -100 out and the next rolls in from 100 inside an overflow-hidden box, as does a large faint 01-04 counter on the left. Each page's children stagger up from y 24 / opacity 0 (power3.out, 0.06s) 0.25s after its cut; the fifth page is the first again so the strip seam is invisible.",
+  "moves": [
+    "vertical-cut",
+    "roll-text",
+    "counter",
+    "stagger",
+    "breathe",
+    "punch"
+  ],
+  "libs": [
+    "gsap",
+    "css-3d"
+  ],
+  "adapt": "Replace the four page templates, caption names and the 'Acme \u00b7 Showreel' kicker; the cuts array sets when each page arrives and page height (596) must match the strip. Keep the 0.45s expo.inOut cut and the 0.22s scale dip.",
+  "port": "mount(el, shot) builds the phone, the strip with pages.concat(pages[0]), the caption and counter spans and applies the initial yPercent gsap.set; animate(el, shot, D) returns the timeline with cuts at 0.1625D, 0.4125D, 0.6625D and 0.8875D. The page from() staggers should become fromTo with immediateRender:false and the nth-child selectors must be scoped to el.",
+  "caveats": [
+    "near-loop: strip, captions and counter return to page 1 but the background scale and the page-1 stagger-in state differ from frame 0",
+    "full-frame background image with brightness/saturate filter"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}

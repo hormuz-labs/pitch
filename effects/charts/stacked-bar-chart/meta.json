@@ -1,0 +1,24 @@
+{
+  "move": "stacked bars build segment on segment, totals count, stacks collapse",
+  "how": "A white card with title, subtitle, three-swatch legend, four gridlines, baseline and eight monthly stacks of three segments (dark subscriptions at the bottom, light orange services, orange hardware on top) with a total label above each. The card rises y:30 (power3.out); header slides up; gridlines and baseline scale scaleX from the left (expo.out, stagger 0.05) at 5-22%; month labels fade. From 12% each bar builds in turn (stagger 0.09): the bottom segment grows scaleY 0 to 1 with expo.out over 0.8s, the middle segment 0.12s later starting translated down by the bottom's offsetHeight, the top segment 0.24s later offset by both, so the stack visibly extrudes upward; the total fades up y:10 and counts to its sum with expo.out. Hold at 57%: the middle segments dim to opacity 0.7 yoyo (sine.inOut, stagger 0.05). Exit at 79%: all segments collapse scaleY to 0 with expo.in staggered 0.015 from the end, labels fade, card lifts.",
+  "moves": [
+    "grow-bar",
+    "stack-build",
+    "stagger",
+    "counter",
+    "slide-in"
+  ],
+  "libs": [
+    "gsap"
+  ],
+  "adapt": "Edit the data array of [label, [bottom, middle, top]] and the C colour array mirrored in the legend --c values, plus the gridline labels (heights are value/2 percent, so max is 200); keep the 0.12s segment cascade and 0.09 bar stagger.",
+  "port": "mount(el, shot) builds the card and generates .bar stacks from shot.data; animate(el, shot, D) returns the same timeline with builds at 0.12-0.5 of D, dim at 0.57, collapse at 0.79. The function-based y offsets read offsetHeight at tween creation, so the timeline must be built after layout; getElementById scoped to el.",
+  "caveats": [
+    "segment offsets are function-based values read from offsetHeight at build time, so fonts and layout must be settled",
+    "heights assume a max of 200 (value/2 percent)",
+    "card exits upward, no loop"
+  ],
+  "fidelity": "faithful",
+  "loop": false,
+  "size": "1280x720"
+}
