@@ -191,6 +191,7 @@ export function useProject(id: string | undefined) {
   const [inspectMode, setInspectMode] = useState(false)
   const [draft, setDraftState] = useState('')
   const [playhead, setPlayhead] = useState(0)
+  const [playing, setPlaying] = useState(false)
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null)
   const [mediaToken, setMediaToken] = useState<string | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
@@ -704,6 +705,7 @@ export function useProject(id: string | undefined) {
   }, [])
   const notePlayerState = useCallback((playing: boolean) => {
     playingRef.current = playing
+    setPlaying(playing)
   }, [])
 
   const status = useMemo(() => buildStatus(entries, previewNote), [entries, previewNote])
@@ -735,6 +737,7 @@ export function useProject(id: string | undefined) {
     setModel: setModelPick,
     playhead,
     setPlayhead,
+    playing,
     player,
     seekPlayer,
     consumeAutoSeek,

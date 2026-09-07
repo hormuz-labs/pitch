@@ -64,13 +64,9 @@
   .new-project-profile-menu { animation: none; }
 }
 
-.new-create-hero { min-height: 700px; padding: 106px 34px 54px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-.new-create-hero__intro { display: flex; flex-direction: column; align-items: center; margin: 0 0 18px; text-align: center; }
-.new-create-wordmark { width: 150px; height: auto; margin: 8px 0 7px; color: #111; }
-.new-create-hero__intro p { margin: 0; color: #79746f; font-size: 13px; line-height: 1.5; }
-.lv-studio.new-project-page .new-create-hero__intro > button { margin-top: 20px; padding: 6px 11px; border: 1px solid #d8d7d4; border-radius: 999px; background: rgb(255 255 255 / 42%); color: #8b8681; font-size: 10px; cursor: pointer; }
-.new-create-hero__intro > button i { display: inline-block; width: 3px; height: 3px; margin: 0 6px 2px; border-radius: 50%; background: #aaa6a1; }
-.lv-studio.new-project-page .new-create-hero__intro > button:hover:not(:disabled) { border-color: #bbb8b4; background: #fff; color: #4d4945; }
+.new-create-hero { min-height: 100vh; padding: 106px 34px 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.new-create-hero__intro { display: flex; flex-direction: column; align-items: center; margin: 0 0 30px; text-align: center; }
+.new-create-wordmark { width: 196px; height: auto; margin: 8px 0 0; color: #111; }
 
 .lv-studio .new-composer-wrap { width: min(720px, 100%); max-width: none; }
 .lv-studio .new-composer-wrap .composer-box { min-height: 132px; padding: 16px 16px 12px; border: 1px solid #d6d5d2; border-radius: 24px; background: #fff; box-shadow: 0 16px 42px rgb(0 0 0 / 6%), 0 2px 7px rgb(0 0 0 / 3%); }
@@ -114,14 +110,35 @@
 .lv-studio.new-project-page .composer-credits svg { color: inherit; }
 .lv-studio.new-project-page .link-btn { color: #111; }
 .lv-studio.new-project-page .link-btn:hover:not(:disabled) { color: #56514d; }
-.lv-studio .new-composer-wrap .starters { max-width: 720px; margin: 28px auto 0; gap: 8px; }
-.lv-studio.new-project-page .new-composer-wrap .starter { padding: 8px 15px; border-color: #d4d3d0; background: transparent; color: #56514d; font-size: 12px; }
-.lv-studio.new-project-page .new-composer-wrap .starter svg { color: #9c9791; }
-.lv-studio.new-project-page .new-composer-wrap .starter:hover:not(:disabled) { border-color: #aaa7a3; background: #fff; color: #111; }
-.lv-studio.new-project-page .new-composer-wrap .starter:hover:not(:disabled) svg { color: #56514d; }
-.lv-studio.new-project-page .new-composer-wrap .starter.is-active { border-color: #111; background: #fff; color: #111; }
-.lv-studio.new-project-page .new-composer-wrap .starter.is-active svg { color: #111; }
 .new-featured-cue { display: flex; align-items: center; justify-content: center; gap: 8px; width: max-content; margin: 64px auto 0; color: #77726e; font-size: 10px; text-decoration: none; }
+
+/* The skill pills sit under the composer: a hint row, not a mode switch.
+   Grey at rest — the blue stroke only appears on the selected skill. */
+.lv-studio .new-skills { max-width: 720px; margin: 16px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.lv-studio.new-project-page .new-skill-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid #d4d3d0; border-radius: 999px; background: transparent; color: #56514d; font-size: 12px; cursor: pointer; transition: border-color 140ms ease, background 140ms ease, color 140ms ease; }
+.new-skill-pill svg { color: #9c9791; }
+.lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) { border-color: #aaa7a3; background: #fff; color: #111; }
+.lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) svg { color: #56514d; }
+.lv-studio.new-project-page .new-skill-pill.is-active,
+.lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled) { border-color: #2563eb; background: #fff; color: #2563eb; }
+.lv-studio.new-project-page .new-skill-pill.is-active svg,
+.lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled) svg { color: #2563eb; }
+
+/* The selected skill rides inside the composer as a small blue-stroked chip
+   glued to the plus button, and clears back to freestyle with its ×. */
+.lv-studio.new-project-page .new-skill-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 4px 5px 4px 10px; border: 1px solid color-mix(in srgb, #2563eb 38%, #fff); border-radius: 999px; background: #fff; color: #2563eb; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.new-skill-chip > svg { flex: none; color: #2563eb; }
+.lv-studio.new-project-page .new-skill-chip button { flex: none; width: 16px; height: 16px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #96918b; font-size: 12px; line-height: 1; cursor: pointer; }
+.lv-studio.new-project-page .new-skill-chip button:hover:not(:disabled) { background: #f1f0ee; color: #171513; }
+
+/* The gallery borrows the deck strip's card chrome; it lives inside the
+   composer column now, so it takes the column's width and wraps four-up. */
+.lv-studio .new-skill-gallery { width: 100%; margin: 26px auto 0; }
+.new-skill-gallery .new-template-strip__cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+/* Prompt-preset cards have no live slide to show: a quiet two-stop gradient
+   with the skill's glyph stands in, so the grid still reads as thumbnails. */
+.new-template-strip__thumb--preset { display: grid; place-items: center; background: linear-gradient(135deg, var(--swatch-bg, #f5f4f1), var(--swatch-accent, #e8e7e4)); color: rgb(0 0 0 / 38%); }
+.new-template-strip__thumb--preset::before { content: none; }
 
 .new-template-strip { width: min(720px, calc(100% - 40px)); margin: 0 auto; }
 .new-template-strip__head { margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; color: #6e6965; font-size: 10px; }
@@ -166,10 +183,12 @@
   .new-project-topnav { height: 64px; padding: 0 12px 0 64px; justify-content: flex-end; }
   .new-project-topnav__links { display: none; }
   .new-project-topnav__actions { position: static; }
-  .new-create-hero { min-height: 650px; padding: 76px 16px 44px; }
-  .new-create-wordmark { width: 116px; }
+  .new-create-hero { min-height: 100svh; padding: 76px 16px 44px; }
+  .new-create-wordmark { width: 148px; }
   .new-template-strip__cards { grid-template-columns: 1fr 1fr; }
   .new-template-strip__cards button:last-child { display: none; }
+  .new-skill-gallery .new-template-strip__cards { grid-template-columns: 1fr 1fr; }
+  .new-skill-gallery .new-template-strip__cards button:last-child { display: block; }
   .new-featured__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .new-composer-wrap .composer-add-menu { width: min(246px, calc(100vw - 48px)); }
 }

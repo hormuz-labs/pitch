@@ -28,9 +28,56 @@ const ARTIFACT_TITLES: Record<string, string> = {
   browser: 'Recording',
 }
 
-function BuildingStage({ busy, status, empty }: { busy: boolean; status: string; empty: string }) {
+/**
+ * While the agent works and there is no artifact to preview yet, the stage
+ * shows the build itself: what the agent is looking at right now — the
+ * snapshots and contact sheets it keeps saving to the workspace land on the
+ * asset shelf the moment they exist — plus the steps it has taken and its
+ * latest thought. Watching the build beats watching a spinner.
+ */
+function BuildProcess({ store }: { store: ProjectStore }) {
+  const s = store
+  const shots = s.assets.filter(a => a.kind === 'image' && a.origin !== 'upload')
+  const [latest, ...rest] = shots
+
   return (
-    <div className={`building-stage${busy ? ' is-busy' : ''}`}>
+    <div className="build-process">
+      <div className="build-process__stage">
+        {latest ? (
+          <img
+            key={`${latest.path}:${latest.mtime}`}
+            src={s.mediaUrl(latest.url, Date.parse(latest.mtime)) ?? undefined}
+            alt={latest.name}
+          />
+        ) : (
+          <span className="building-icon" aria-hidden="true">
+            <MonitorPlay size={20} strokeWidth={1.6} />
+          </span>
+        )}
+        <div className="build-process__status">
+          <span className="spinner" />
+          <span>{s.status || 'Working'}</span>
+        </div>
+      </div>
+      {rest.length > 0 && (
+        <div className="build-process__shots">
+          {rest.slice(0, 12).map(shot => (
+            <img
+              key={`${shot.path}:${shot.mtime}`}
+              src={s.mediaUrl(shot.thumbUrl ?? shot.url, Date.parse(shot.mtime)) ?? undefined}
+              alt={shot.name}
+              title={shot.name}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BuildingStage({ empty }: { empty: string }) {
+  return (
+    <div className="building-stage">
       <div className="building-orbs">
         <span className="orb o1" />
         <span className="orb o2" />
@@ -47,19 +94,8 @@ function BuildingStage({ busy, status, empty }: { busy: boolean; status: string;
         <span className="building-icon" aria-hidden="true">
           <MonitorPlay size={20} strokeWidth={1.6} />
         </span>
-        {busy ? (
-          <>
-            <div className="building-title">
-              <span className="spinner" /> Working
-            </div>
-            <div className="building-status">{status}</div>
-          </>
-        ) : (
-          <>
-            <div className="building-title">Nothing to preview yet</div>
-            <div className="building-status">{empty}</div>
-          </>
-        )}
+        <div className="building-title">Nothing to preview yet</div>
+        <div className="building-status">{empty}</div>
       </div>
     </div>
   )
@@ -71,7 +107,9 @@ function Preview({ store }: { store: ProjectStore }) {
   const empty = s.project?.lastError
     ? `Last attempt failed: ${s.project.lastError}. Ask the agent to try again.`
     : 'Describe what you want in chat — the first result appears here as soon as it exists.'
-  if (!preview) return <BuildingStage busy={s.busy} status={s.status} empty={empty} />
+  if (!preview) {
+    return s.busy ? <BuildProcess store={s} /> : <BuildingStage empty={empty} />
+  }
   if (preview.kind === 'html') {
     const src = s.mediaUrl(preview.url, s.videoVersion)
     return src ? <HtmlPreview store={s} src={src} /> : null
@@ -90,43 +128,6 @@ function Preview({ store }: { store: ProjectStore }) {
   }
   if (preview.kind === 'browser') return <BrowserPreview store={s} profileId={preview.profileId} />
   return null
-}
-
-function PreviewHeader({
-  store,
-  view,
-  onViewChange,
-}: {
-  store: ProjectStore
-  view: 'preview' | 'files'
-  onViewChange: (view: 'preview' | 'files') => void
-}) {
-  const previewKind = store.project?.description.preview?.kind ?? ''
-  return (
-    <div className="preview-pane-header">
-      <button
-        type="button"
-        className={`preview-pane-tab${view === 'preview' ? ' is-active' : ''}`}
-        aria-pressed={view === 'preview'}
-        onClick={() => onViewChange('preview')}
-      >
-        <MonitorPlay size={15} strokeWidth={1.8} />
-        <span>Preview</span>
-        <small>{ARTIFACT_TITLES[previewKind] ?? 'Project'}</small>
-      </button>
-      <button
-        type="button"
-        className={`preview-pane-tab${view === 'files' ? ' is-active' : ''}`}
-        aria-pressed={view === 'files'}
-        onClick={() => onViewChange('files')}
-      >
-        <Files size={15} strokeWidth={1.8} />
-        <span>Files</span>
-        {store.assets.length > 0 && <small>{store.assets.length}</small>}
-      </button>
-      <span className="preview-pane-spacer" />
-    </div>
-  )
 }
 
 function EmptyTimeline({ busy }: { busy: boolean }) {
@@ -293,7 +294,17 @@ function ExportMenu({ store }: { store: ProjectStore }) {
   )
 }
 
-function Topbar({ store }: { store: ProjectStore }) {
+function TopbarSplit({
+  store,
+  view,
+  onViewChange,
+  sidebarWidth,
+}: {
+  store: ProjectStore
+  view: 'preview' | 'files'
+  onViewChange: (view: 'preview' | 'files') => void
+  sidebarWidth: number
+}) {
   const s = store
   const { isMobile, toggleSidebar } = useAppShell()
   const p = s.project
@@ -305,43 +316,71 @@ function Topbar({ store }: { store: ProjectStore }) {
       : p?.lastError
         ? 'Failed'
         : 'Empty'
+  const previewKind = s.project?.description.preview?.kind ?? ''
+
   return (
-    <div className="job-topbar">
-      <div className="nav-crumb">
-        <span className="editor-project" title={p?.name}>
-          {p?.title ?? '…'}
-        </span>
-        <span className="project-kind">
-          {ARTIFACT_TITLES[p?.description.preview?.kind ?? ''] ?? 'Project'}
-        </span>
-        <span className={`project-state ${state.toLowerCase()}`}>
-          <i /> {state}
+    <header className="job-topbar job-topbar-split">
+      <div
+        className="topbar-split-left"
+        style={!isMobile ? { width: `${sidebarWidth}px` } : undefined}
+      >
+        <div className="nav-crumb">
+          <span className="editor-project" title={p?.name}>
+            {p?.title ?? '…'}
+          </span>
+          <span className="project-kind">
+            {ARTIFACT_TITLES[p?.description.preview?.kind ?? ''] ?? 'Project'}
+          </span>
+          <span className={`project-state ${state.toLowerCase()}`}>
+            <i /> {state}
+          </span>
+        </div>
+      </div>
+      <div className="topbar-split-right">
+        <div className="topbar-split-tabs">
+          <button
+            type="button"
+            className={`preview-pane-tab${view === 'preview' ? ' is-active' : ''}`}
+            aria-pressed={view === 'preview'}
+            onClick={() => onViewChange('preview')}
+          >
+            <MonitorPlay size={15} strokeWidth={1.8} />
+            <span>Preview</span>
+            <small>{ARTIFACT_TITLES[previewKind] ?? 'Project'}</small>
+          </button>
+          <button
+            type="button"
+            className={`preview-pane-tab${view === 'files' ? ' is-active' : ''}`}
+            aria-pressed={view === 'files'}
+            onClick={() => onViewChange('files')}
+          >
+            <Files size={15} strokeWidth={1.8} />
+            <span>Files</span>
+            {s.assets.length > 0 && <small>{s.assets.length}</small>}
+          </button>
+        </div>
+        <span className="topbar-actions">
+          {s.busy && (
+            <button className="topbar-btn primary" onClick={() => void s.stop()}>
+              Stop
+            </button>
+          )}
+          <ExportMenu store={s} />
+          {isMobile && (
+            <span className="topbar-shell">
+              <button
+                type="button"
+                className="topbar-btn"
+                aria-label="Open the menu"
+                onClick={toggleSidebar}
+              >
+                ☰
+              </button>
+            </span>
+          )}
         </span>
       </div>
-      <span className="topbar-actions">
-        {s.busy && (
-          <button className="topbar-btn primary" onClick={() => void s.stop()}>
-            Stop
-          </button>
-        )}
-        <ExportMenu store={s} />
-        {/* The one thing the shell header carried that this bar still needs.
-            The credit balance is NOT here: it lives by the send button, where
-            you are about to spend it. */}
-        {isMobile && (
-          <span className="topbar-shell">
-            <button
-              type="button"
-              className="topbar-btn"
-              aria-label="Open the menu"
-              onClick={toggleSidebar}
-            >
-              ☰
-            </button>
-          </span>
-        )}
-      </span>
-    </div>
+    </header>
   )
 }
 
@@ -351,12 +390,19 @@ export function StudioView({ projectId }: { projectId: string }) {
   const [workspaceView, setWorkspaceView] = useState<'preview' | 'files'>('preview')
   const feedEl = useRef<HTMLDivElement | null>(null)
   const sidebarEl = useRef<HTMLElement | null>(null)
+  const editorWrapEl = useRef<HTMLDivElement | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(() =>
     typeof window === 'undefined'
       ? 520
       : Math.min(620, Math.max(360, Math.round(window.innerWidth * 0.36))),
   )
   const drag = useRef({ dragging: false, startX: 0, startW: 0, width: sidebarWidth })
+  const [trayHeight, setTrayHeight] = useState(() =>
+    typeof window === 'undefined'
+      ? 340
+      : Math.round(Math.min(380, Math.max(300, window.innerHeight * 0.36))),
+  )
+  const dragTray = useRef({ dragging: false, startY: 0, startH: trayHeight })
   const streamLength = s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
   useEffect(() => {
     queueMicrotask(() => {
@@ -383,25 +429,23 @@ export function StudioView({ projectId }: { projectId: string }) {
   ) : null
   return (
     <div className="lv-studio">
-      <div className="editor-wrap">
-        <Topbar store={s} />
+      <div
+        className="editor-wrap"
+        ref={editorWrapEl}
+        style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
+      >
+        <TopbarSplit
+          store={s}
+          view={workspaceView}
+          onViewChange={setWorkspaceView}
+          sidebarWidth={sidebarWidth}
+        />
         <div className="editor">
           <aside
             className="edit-sidebar"
             ref={sidebarEl}
-            /* Width as a custom property, not `width` itself: the stacked
-               phone layout has to drop it, and a media query cannot outrank
-               an inline width. */
             style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
           >
-            <div className="feed-header">
-              <h2>Chat</h2>
-              {s.busy && (
-                <span className="timeline-live" style={{ marginLeft: 'auto', fontSize: 11 }}>
-                  {s.status}
-                </span>
-              )}
-            </div>
             <div className="feed" ref={feedEl}>
               {s.entries.length > 0 ? (
                 <Thread entries={s.entries} busy={s.busy} />
@@ -434,11 +478,13 @@ export function StudioView({ projectId }: { projectId: string }) {
             }}
             onPointerMove={e => {
               if (!drag.current.dragging) return
-              drag.current.width = Math.min(
+              const width = Math.min(
                 Math.max(drag.current.startW + (e.clientX - drag.current.startX), 340),
                 640,
               )
-              sidebarEl.current?.style.setProperty('--sidebar-w', `${drag.current.width}px`)
+              drag.current.width = width
+              sidebarEl.current?.style.setProperty('--sidebar-w', `${width}px`)
+              editorWrapEl.current?.style.setProperty('--sidebar-w', `${width}px`)
             }}
             onPointerUp={() => {
               drag.current.dragging = false
@@ -460,7 +506,6 @@ export function StudioView({ projectId }: { projectId: string }) {
             }}
           />
           <div className="editor-stage">
-            <PreviewHeader store={s} view={workspaceView} onViewChange={setWorkspaceView} />
             {workspaceView === 'preview' ? (
               <>
                 <div className="player">
@@ -468,7 +513,56 @@ export function StudioView({ projectId }: { projectId: string }) {
                     <Preview store={s} />
                   </div>
                 </div>
-                <div className="tray">{strip ?? <EmptyTimeline busy={s.busy} />}</div>
+                {strip && (
+                  <div
+                    className="resize-handle-h"
+                    role="separator"
+                    aria-label="Resize player and timeline"
+                    aria-orientation="horizontal"
+                    aria-valuemin={220}
+                    aria-valuemax={560}
+                    aria-valuenow={trayHeight}
+                    tabIndex={0}
+                    onPointerDown={e => {
+                      dragTray.current = {
+                        dragging: true,
+                        startY: e.clientY,
+                        startH: trayHeight,
+                      }
+                      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+                    }}
+                    onPointerMove={e => {
+                      if (!dragTray.current.dragging) return
+                      const nextH = Math.min(
+                        Math.max(
+                          dragTray.current.startH - (e.clientY - dragTray.current.startY),
+                          220,
+                        ),
+                        560,
+                      )
+                      setTrayHeight(nextH)
+                    }}
+                    onPointerUp={() => {
+                      dragTray.current.dragging = false
+                    }}
+                    onPointerCancel={() => {
+                      dragTray.current.dragging = false
+                    }}
+                    onKeyDown={e => {
+                      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+                      e.preventDefault()
+                      setTrayHeight(height =>
+                        Math.min(560, Math.max(220, height + (e.key === 'ArrowUp' ? 24 : -24))),
+                      )
+                    }}
+                  />
+                )}
+                <div
+                  className="tray"
+                  style={strip ? ({ height: `${trayHeight}px` } as CSSProperties) : undefined}
+                >
+                  {strip ?? <EmptyTimeline busy={s.busy} />}
+                </div>
               </>
             ) : (
               <div className="studio-files-view">

@@ -3760,21 +3760,146 @@ to {
   color: var(--muted);
 }
 
-.lv-studio .building-stage.is-busy .building-icon {
-  animation: buildingIconPulse 2s ease-in-out infinite;
-}
-
-@keyframes buildingIconPulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgb(19 133 214 / 26%);
-  }
-  50% {
-    box-shadow: 0 0 0 7px rgb(19 133 214 / 0%);
-  }
-}
-
 .lv-studio .building-status {
   color: var(--muted);
+}
+
+/* The build, live: while there is no artifact to preview, the stage shows
+   what the agent is looking at (the snapshots it keeps saving), the steps it
+   has taken, and its latest thought — instead of a bare spinner. */
+.lv-studio .build-process {
+  height: 100%;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.build-process__stage {
+  position: relative;
+  flex: none;
+  aspect-ratio: 16 / 9;
+  max-height: 48%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--stage);
+}
+
+.build-process__stage > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: buildProcessIn 360ms ease both;
+}
+
+.build-process__stage .building-icon {
+  margin: 0;
+  border-color: rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 8%);
+  color: #d8d5d0;
+}
+
+.build-process__status {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 12px 10px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 55%));
+  color: #fff;
+  font-size: 12px;
+}
+
+.build-process__status .spinner {
+  width: 12px;
+  height: 12px;
+}
+
+.build-process__shots {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.build-process__shots img {
+  width: 86px;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.build-process__thought {
+  flex: none;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.build-process__steps {
+  flex: none;
+  max-height: 168px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.build-process__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.build-process__step.is-running {
+  color: var(--ink);
+}
+
+.build-process__step.is-error {
+  color: var(--danger);
+}
+
+.build-process__step-icon {
+  flex: none;
+  width: 14px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.build-process__step-icon .spinner {
+  width: 10px;
+  height: 10px;
+}
+
+.build-process__step-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes buildProcessIn {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
 }
 
 .lv-studio .live-preview,
@@ -4008,5 +4133,592 @@ to {
   .lv-studio .project-kind,
   .lv-studio .project-state {
     display: none;
+  }
+}
+
+/* ── Aligned Split Header (Consolidated Single Topbar) ── */
+.lv-studio .job-topbar.job-topbar-split {
+  height: 48px;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.lv-studio .topbar-split-left {
+  width: var(--sidebar-w, 520px);
+  max-width: 44%;
+  padding: 0 18px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.lv-studio .topbar-split-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  min-width: 0;
+  gap: 8px;
+}
+
+.lv-studio .topbar-split-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lv-studio .topbar-live-status {
+  font-size: 11px;
+  color: var(--accent);
+  margin-left: auto;
+}
+
+/* ── Contextual Quick-Prompt Suggestions ── */
+.lv-studio .composer-suggestions {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-width: none;
+}
+.lv-studio .composer-suggestions::-webkit-scrollbar {
+  display: none;
+}
+
+.lv-studio .suggestion-pill {
+  background: #ffffff;
+  border: 1px solid #dcdfe4;
+  color: #374151;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.lv-studio .suggestion-pill:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #111827;
+}
+
+/* ── Pro Multi-Track Timeline ── */
+.lv-studio .timeline.pro-multi-track-timeline {
+  background: #ffffff;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  user-select: none;
+  padding: 0;
+}
+
+.lv-studio .tray:has(.pro-multi-track-timeline) {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.lv-studio .pro-timeline-toolbar {
+  min-height: 42px;
+  border-bottom: 1px solid #e8e9ec;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.lv-studio .pro-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lv-studio .transport-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid #e1e3e7;
+  background: #ffffff;
+  color: #374151;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.lv-studio .transport-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+.lv-studio .transport-btn:focus-visible,
+.lv-studio .timeline-item:focus-visible,
+.lv-studio .lane-video .scene-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lv-studio .pro-timecode-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #4b5563;
+  padding: 2px 6px;
+  background: #f4f5f7;
+  border-radius: 5px;
+}
+
+.lv-studio .pro-track-stats {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+.lv-studio .pro-toolbar-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Horizontal Resize Handle for Timeline Tray ── */
+.lv-studio .resize-handle-h {
+  height: 9px;
+  width: 100%;
+  flex: 0 0 9px;
+  background: #f7f7f8;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 20;
+}
+
+.lv-studio .resize-handle-h::after {
+  content: "";
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: #c9c7c3;
+  transition: width 120ms ease, background-color 120ms ease;
+}
+
+.lv-studio .resize-handle-h:hover::after,
+.lv-studio .resize-handle-h:focus-visible::after {
+  width: 52px;
+  background: var(--accent);
+}
+
+.lv-studio .resize-handle-h:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-soft);
+}
+
+.lv-studio .pro-timeline-grid {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  background: #fafafb;
+  overflow-x: auto;
+  overflow-y: auto;
+  position: relative;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #aaa8a4 transparent;
+}
+
+.lv-studio .pro-timeline-grid::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.lv-studio .pro-timeline-grid::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #aaa8a4;
+  background-clip: padding-box;
+}
+
+.lv-studio .pro-timeline-canvas {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding: 4px 14px 20px 8px;
+  min-width: calc(104px + var(--timeline-content-w, 760px));
+  width: max-content;
+  gap: 0;
+}
+
+.lv-studio .modular-track-row {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  width: 100%;
+}
+
+.lv-studio .modular-track-cover {
+  position: sticky;
+  left: 0;
+  z-index: 50;
+  width: 104px;
+  min-width: 104px;
+  background: #fafaf9;
+  border: 1px solid #e4e3e0;
+  border-radius: 0;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.035);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #524e49;
+  flex-shrink: 0;
+}
+
+.lv-studio .modular-track-cover.ruler-corner {
+  height: 24px;
+  border-bottom: 1px solid #e4e3e0;
+  border-radius: 6px 0 0 0;
+  background: #f4f4f2;
+  z-index: 55;
+}
+
+.lv-studio .cover-video { height: 86px; }
+.lv-studio .cover-vo { height: 38px; }
+.lv-studio .cover-sfx { height: 38px; }
+.lv-studio .cover-music { height: 36px; }
+
+.lv-studio .modular-track-lane {
+  flex: 1;
+  min-width: var(--timeline-content-w, 760px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e4e3e0;
+  border-left: 0;
+  border-radius: 0;
+  padding: 0 8px;
+}
+
+.lv-studio .modular-track-row + .modular-track-row .modular-track-cover,
+.lv-studio .modular-track-row + .modular-track-row .modular-track-lane {
+  border-top: 0;
+}
+
+.lv-studio .modular-track-row:last-child .modular-track-cover {
+  border-radius: 0 0 0 8px;
+}
+
+.lv-studio .modular-track-row:last-child .modular-track-lane {
+  border-radius: 0 0 8px 0;
+}
+
+/* Draw the playhead inside each lane instead of as one canvas-height line.
+   The sticky label column can then never expose it through the row gaps, and
+   the percentage remains relative to the timed lane rather than the canvas. */
+.lv-studio .modular-track-lane::after {
+  content: "";
+  position: absolute;
+  z-index: 40;
+  top: -1px;
+  bottom: -1px;
+  left: var(--playhead-pct, 0%);
+  width: 2px;
+  background: #ef4444;
+  pointer-events: none;
+  will-change: left;
+  transition: left 80ms linear;
+}
+
+.lv-studio .time-ruler::before {
+  content: "";
+  position: absolute;
+  z-index: 41;
+  top: 0;
+  left: var(--playhead-pct, 0%);
+  width: 10px;
+  height: 9px;
+  background: #ef4444;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform: translateX(-4px);
+  pointer-events: none;
+  will-change: left;
+  transition: left 80ms linear;
+}
+
+.lv-studio .playhead-anchor {
+  position: absolute;
+  top: 0;
+  left: var(--playhead-pct, 0%);
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lv-studio .modular-track-lane.time-ruler {
+  height: 24px;
+  background: #f4f4f2;
+  border-radius: 0 6px 0 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #8b8782;
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  padding: 0 4px;
+}
+
+.lv-studio .ruler-mark {
+  position: absolute;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.lv-studio .ruler-mark:first-child {
+  transform: none;
+}
+
+.lv-studio .ruler-mark:last-child {
+  transform: translateX(-100%);
+}
+
+.lv-studio .lane-video {
+  height: 86px;
+  background: #ffffff;
+  padding: 4px 6px;
+  gap: 6px;
+  overflow-x: visible;
+}
+.lv-studio .lane-video .scene-card {
+  width: auto;
+  min-width: 88px;
+  height: 100%;
+  padding: 3px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #18181b;
+  font: inherit;
+  text-align: left;
+}
+
+.lv-studio .lane-video .scene-thumb {
+  aspect-ratio: auto;
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.lv-studio .lane-video .scene-card-label {
+  padding: 3px 3px 1px;
+}
+
+.lv-studio .lane-vo {
+  height: 38px;
+  background: #faf5ff;
+  border-color: #f3e8ff;
+  padding: 0 6px;
+}
+
+.lv-studio .lane-sfx {
+  height: 38px;
+  background: #fffbeb;
+  border-color: #fef3c7;
+  padding: 0 6px;
+}
+
+.lv-studio .lane-music {
+  height: 36px;
+  background: #f0fdf4;
+  border-color: #dcfce7;
+  padding: 0 6px;
+}
+
+.lv-studio .timeline-item {
+  position: absolute;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 10.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 120ms ease, border-color 120ms ease;
+  font-family: inherit;
+}
+.lv-studio .timeline-item:hover {
+  filter: brightness(0.985);
+}
+
+/* Voiceover Track */
+.lv-studio .item-vo {
+  background: #ffffff;
+  border-color: #e9d5ff;
+  color: #7e22ce;
+  font-weight: 500;
+  gap: 5px;
+  box-shadow: none;
+}
+.lv-studio .item-vo:hover {
+  background: #fae8ff;
+  border-color: #c084fc;
+}
+
+/* SFX Track */
+.lv-studio .item-sfx {
+  background: #ffffff;
+  border-color: #fde68a;
+  color: #b45309;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0 8px;
+  gap: 5px;
+  box-shadow: none;
+}
+.lv-studio .item-sfx:hover {
+  background: #fef9c3;
+  border-color: #f59e0b;
+}
+.lv-studio .sfx-indicator-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #d97706;
+  flex-shrink: 0;
+}
+.lv-studio .sfx-time-tag {
+  font-size: 9px;
+  color: #b45309;
+  font-family: var(--mono);
+  margin-left: 2px;
+}
+
+/* Music Track */
+.lv-studio .item-music {
+  background: #ffffff;
+  border-color: #bbf7d0;
+  color: #15803d;
+  font-weight: 500;
+  gap: 6px;
+  box-shadow: none;
+}
+.lv-studio .item-music:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.lv-studio .item-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The editor remains a viewport-owned workspace: the page never becomes the
+   timeline's scrollbar. On compact screens the tray takes a bounded share of
+   the viewport and keeps both axes independently scrollable. */
+@media (max-width: 1080px) {
+  .lv-studio .pro-toolbar-hint {
+    display: none;
+  }
+
+  .lv-studio .track-headers {
+    width: 92px;
+    min-width: 92px;
+  }
+
+  .lv-studio .track-lanes-area {
+    flex-basis: max(calc(100% - 92px), var(--timeline-content-w, 760px));
+    width: max(calc(100% - 92px), var(--timeline-content-w, 760px));
+  }
+}
+
+@media (max-width: 900px) {
+  .lv-studio .editor-stage:has(.pro-multi-track-timeline) {
+    width: 100%;
+    height: min(70dvh, 640px);
+    max-height: calc(100dvh - 104px);
+    flex: 0 0 auto;
+  }
+
+  .lv-studio .editor-stage:has(.pro-multi-track-timeline) > .player {
+    min-height: 150px;
+  }
+
+  .lv-studio .editor-stage:has(.pro-multi-track-timeline) > .tray {
+    height: clamp(220px, 38dvh, 320px) !important;
+    flex: 0 0 auto;
+    overflow: hidden;
+  }
+
+  .lv-studio .resize-handle-h {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .lv-studio .pro-timeline-toolbar {
+    min-height: 40px;
+    padding: 0 10px;
+  }
+
+  .lv-studio .pro-track-stats {
+    display: none;
+  }
+
+  .lv-studio .track-headers {
+    width: 78px;
+    min-width: 78px;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .lv-studio .track-header-cell {
+    padding: 0 7px;
+    font-size: 10.5px;
+  }
+
+  .lv-studio .track-lanes-area {
+    flex-basis: max(calc(100% - 78px), var(--timeline-content-w, 760px));
+    width: max(calc(100% - 78px), var(--timeline-content-w, 760px));
+    padding-right: 10px;
+  }
+
+  .lv-studio .editor-stage:has(.pro-multi-track-timeline) {
+    height: min(76dvh, 600px);
+  }
+
+  .lv-studio .editor-stage:has(.pro-multi-track-timeline) > .tray {
+    height: clamp(210px, 42dvh, 300px) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-studio .pro-multi-track-timeline,
+  .lv-studio .pro-multi-track-timeline * {
+    scroll-behavior: auto !important;
   }
 }
