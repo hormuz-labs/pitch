@@ -255,13 +255,17 @@ if (!/^https?:/.test(pageArg) && !existsSync(pageArg)) {
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(framesDir, { recursive: true });
 
+const T = { start: Date.now(), marks: {} };
+const mark = (k) => { T.marks[k] = Date.now(); };
 const studio = await openStudioBrowser({ log: () => {} });
+mark("connect");
 const page = await studio.newPage();
 const cdp = await page.context().newCDPSession(page);
 try {
   const url = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+  mark("load");
   const duration = await page.evaluate("window.__DURATION()");
   const cues = await page.evaluate("window.__CUES ? window.__CUES() : []");
   const shots = await page.evaluate(() => {
@@ -341,6 +345,7 @@ try {
     for (let i = from; i < to; i++) await captureAt(pg, sess, plan[i], i);
     if (w > 0) await pg.close();
   }));
+  mark("capture");
 
   execFileSync("ffmpeg", [
     "-y", "-loglevel", "error", "-framerate", "1", "-i", join(framesDir, "f_%03d.jpg"),
@@ -348,7 +353,12 @@ try {
     "-q:v", "3", join(outDir, "sheet-%02d.jpg"),
   ], { stdio: "inherit" });
 
+  mark("sheets");
   const sheets = readdirSync(outDir).filter(f => /^sheet-\d+\.jpg$/.test(f)).sort();
+  {
+    const s = (a, b) => ((T.marks[b] - (a ? T.marks[a] : T.start)) / 1000).toFixed(1);
+    console.log(`⏱ ${studio.mode === "cdp" ? "CloakBrowser" : "local Chromium"} · connect ${s(null, "connect")}s · load ${s("connect", "load")}s · ${plan.length} captures on ${workers} tab${workers === 1 ? "" : "s"} ${s("load", "capture")}s · sheets ${s("capture", "sheets")}s`);
+  }
   console.log(`🎞  Review — ${plan.length} frames from ${only.length || shots.length} shots (${duration.toFixed(2)}s) → ${sheets.length} sheet${sheets.length === 1 ? "" : "s"} in ${String(args.out ?? "review")}/, ${cols}×${rows} tiles, read left→right, top→bottom.${grade ? ` Graded (${Object.keys(grade).join(", ")}).` : ""}`);
   sheets.forEach((f, si) => {
     const here = plan.map((s, idx) => ({ s, idx })).filter(({ idx }) => sheetOf(idx, cols, rows).sheet === si);
