@@ -68,6 +68,23 @@ export interface ProjectEvidence {
   prompt?: string
   /** Names of anything they attached. */
   uploads?: string[]
+  /** The skill pill the user picked on /new (project.json options.skill). */
+  skill?: string
+}
+
+/**
+ * The composer's skill pill, when there is one, is the strongest evidence
+ * there is: a "cinematic brand documentary" with `skill: launch-video` used
+ * to land in a session with no motion tools, and the agent spent the turn
+ * reading the extensions' source to find out how recon worked.
+ */
+export const SKILL_FAMILIES: Record<string, readonly Family[]> = {
+  'launch-video': ['motion'],
+  'generated-video': ['motion'],
+  'demo-video': ['demo'],
+  'docs-to-video': ['demo'],
+  'slide-deck': ['deck'],
+  'recording-edit': ['recording'],
 }
 
 const VIDEO_FILE = /\.(mp4|webm|mov|mkv|avi)$/i
@@ -88,6 +105,8 @@ export function familiesFor(evidence: ProjectEvidence): Set<Family> {
   const words = (evidence.prompt ?? '').toLowerCase()
   const has = (re: RegExp) => files.some(f => re.test(f))
 
+  for (const f of SKILL_FAMILIES[evidence.skill ?? ''] ?? []) need.add(f)
+
   // Evidence on disk: whatever is already here, the agent must be able to edit.
   if (has(/^(shots\.js|index\.html|direction\.md)$/)) need.add('motion')
   if (has(/^(deck\.html|build\/pdf-builder\.js)$/)) need.add('deck')
@@ -97,12 +116,15 @@ export function familiesFor(evidence: ProjectEvidence): Set<Family> {
   if (uploads.some(u => DECK_FILE.test(u))) need.add('deck')
 
   // What they asked for.
-  if (/\b(launch|promo|teaser|trailer|kinetic|motion graphic|announce)\b/.test(words))
+  if (
+    /\b(launch|promo|teaser|trailer|kinetic|motion graphic|announce|film|documentary|cinematic|commercial|advert|explainer|sizzle|showreel)\b/.test(
+      words,
+    )
+  )
     need.add('motion')
   if (/\b(deck|slide|slides|presentation|powerpoint|pitch deck|keynote)\b/.test(words))
     need.add('deck')
-  if (/\b(demo|walkthrough|walk through|tutorial|screencast)\w*\b/.test(words))
-    need.add('demo')
+  if (/\b(demo|walkthrough|walk through|tutorial|screencast)\w*\b/.test(words)) need.add('demo')
   if (/\b(recording|screen record|footage|my video|this video|the video i)\b/.test(words))
     need.add('recording')
   // "video" alone is ambiguous: a launch film and a demo are both videos.

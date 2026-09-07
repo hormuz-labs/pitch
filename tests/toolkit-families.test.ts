@@ -31,6 +31,37 @@ describe('what the request asks for', () => {
     ).toEqual(['core', 'motion'])
   })
 
+  it('takes the skill pill the user picked as evidence, whatever the words say', () => {
+    // "A cinematic brand documentary" with skill: launch-video landed in a
+    // session with no motion tools; the agent read the extensions' source to
+    // find out how recon worked.
+    expect(
+      families({
+        prompt: 'A cinematic brand documentary about our origin for https://box.ascii.dev',
+        files: ['project.json', 'assets', 'audio', 'recon', 'renders', 'uploads'],
+        skill: 'launch-video',
+      }),
+    ).toEqual(['core', 'motion'])
+    expect(families({ prompt: 'go', files: ['project.json'], skill: 'slide-deck' })).toEqual([
+      'core',
+      'deck',
+    ])
+    expect(families({ prompt: 'go', files: ['project.json'], skill: 'recording-edit' })).toEqual([
+      'core',
+      'recording',
+    ])
+  })
+
+  it('knows a film by its other names', () => {
+    for (const p of [
+      'a brand film',
+      'a documentary about us',
+      'a 30s commercial',
+      'an explainer for the API',
+    ])
+      expect(families({ prompt: p, files: ['project.json'] })).toContain('motion')
+  })
+
   it('gives a deck the deck tools', () => {
     expect(
       families({ prompt: 'build me a pitch deck about our Q3 numbers', files: ['project.json'] }),

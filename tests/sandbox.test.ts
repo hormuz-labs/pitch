@@ -17,6 +17,8 @@ import {
   runInSandbox,
   sandboxEnv,
   sandboxMode,
+  seatbeltCommand,
+  seatbeltProfile,
   unconfinedCommand,
 } from '../.pi/lib/sandbox'
 
@@ -228,14 +230,16 @@ describe('running a command in the sandbox', () => {
 })
 
 describe('which sandbox a host gets', () => {
-  it('is bubblewrap on Linux and nothing on macOS, where bwrap does not exist', () => {
+  it('is bubblewrap on Linux and the seatbelt on macOS, where bwrap does not exist', () => {
     expect(sandboxMode('linux', {})).toBe('bwrap')
-    expect(sandboxMode('darwin', {})).toBe('unconfined')
+    expect(sandboxMode('darwin', {})).toBe('seatbelt')
   })
 
-  it('lets STUDIO_SANDBOX force either', () => {
+  it('lets STUDIO_SANDBOX force any of them', () => {
     expect(sandboxMode('linux', { STUDIO_SANDBOX: 'none' })).toBe('unconfined')
+    expect(sandboxMode('darwin', { STUDIO_SANDBOX: 'none' })).toBe('unconfined')
     expect(sandboxMode('darwin', { STUDIO_SANDBOX: 'bwrap' })).toBe('bwrap')
+    expect(sandboxMode('linux', { STUDIO_SANDBOX: 'seatbelt' })).toBe('seatbelt')
   })
 
   it('still builds the guest environment from scratch when unconfined — PATH and HOME from the host, no secrets', () => {
@@ -250,6 +254,73 @@ describe('which sandbox a host gets', () => {
     expect(c.env.PATH).toBe('/opt/homebrew/bin:/usr/bin')
     expect(c.env.HOME).toBe('/Users/me')
     expect(c.env.STUDIO_SANDBOX).toBe('none')
+    expect(c.env).not.toHaveProperty('GEMINI_API_KEY')
+  })
+})
+
+describe('the seatbelt recipe (macOS)', () => {
+  // The developer's laptop used to run the shell unconfined: the agent, told
+  // it had no network and no engine, fetched the site with node, read the
+  // extensions' source and ran the host scripts by hand.
+  const opts = {
+    workspace: '/Users/dev/code/pitch/projects/studio--user_1--acme',
+    shared: ['/Users/dev/code/pitch/.pi/skills', '/Users/dev/code/pitch/assets'],
+    hidden: ['/Users/dev/code/pitch/assets/gsap'],
+    home: '/Users/dev',
+    repo: '/Users/dev/code/pitch',
+    projects: '/Users/dev/code/pitch/projects',
+  }
+  const profile = seatbeltProfile(opts)
+  const rules = profile.trim().split('\n')
+  const at = (needle: string) => rules.findIndex(r => r.includes(needle))
+
+  it('denies the network', () => {
+    expect(rules).toContain('(deny network*)')
+  })
+
+  it('reads as a narrowing: home, checkout and projects out, then the workspace back', () => {
+    expect(at('(deny file* (subpath "/Users/dev"))')).toBeGreaterThan(at('(allow default)'))
+    expect(at('(deny file* (subpath "/Users/dev/code/pitch"))')).toBeGreaterThan(-1)
+    expect(
+      at('(allow file* (subpath "/Users/dev/code/pitch/projects/studio--user_1--acme"))'),
+    ).toBeGreaterThan(at('(deny file* (subpath "/Users/dev/code/pitch/projects"))'))
+  })
+
+  it('allows the shared references read-only and hides the vendor libraries after them', () => {
+    for (const root of opts.shared) {
+      expect(at(`(allow file-read* (subpath "${root}"))`)).toBeGreaterThan(
+        at('(deny file* (subpath "/Users/dev"))'),
+      )
+    }
+    expect(at('(deny file-read* (subpath "/Users/dev/code/pitch/assets/gsap"))')).toBeGreaterThan(
+      at('(allow file-read* (subpath "/Users/dev/code/pitch/assets"))'),
+    )
+  })
+
+  it('lets the toolchains through, and stat everywhere', () => {
+    expect(profile).toContain('(allow file-read* (subpath "/Users/dev/.nvm"))')
+    expect(profile).toContain('(allow file-read* (subpath "/Users/dev/.cargo"))')
+    expect(rules[rules.length - 1]).toBe('(allow file-read-metadata)')
+  })
+
+  it('escapes a quote in a path rather than ending the rule', () => {
+    expect(seatbeltProfile({ ...opts, workspace: '/Users/dev/a"b' })).toContain(
+      '(subpath "/Users/dev/a\\"b")',
+    )
+  })
+
+  it('runs the command through sandbox-exec with the guest environment', () => {
+    const c = seatbeltCommand('node -v', opts, {
+      PATH: '/opt/homebrew/bin',
+      HOME: '/Users/dev',
+      GEMINI_API_KEY: 'x',
+    })
+    expect(c.file).toBe('/usr/bin/sandbox-exec')
+    expect(c.args.slice(0, 1)).toEqual(['-p'])
+    expect(c.args[1]).toBe(profile)
+    expect(c.args.slice(2)).toEqual(['/bin/bash', '-c', 'node -v'])
+    expect(c.cwd).toBe(opts.workspace)
+    expect(c.env.STUDIO_SANDBOX).toBe('seatbelt')
     expect(c.env).not.toHaveProperty('GEMINI_API_KEY')
   })
 })

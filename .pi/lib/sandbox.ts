@@ -19,19 +19,25 @@
  * ONE tool ever needed the isolation.
  *
  * Everything here is pure — argv construction — so it can be tested anywhere.
- * `bwrap` itself only exists on Linux: on macOS (a developer's laptop, no
- * container, no secrets worth a namespace) the shell runs unconfined, with the
- * same built-from-scratch environment, and `STUDIO_SANDBOX=none|bwrap` overrides
- * the platform's default either way. The file tools' path guard applies in
- * both modes; only the mount namespace is missing.
+ * `bwrap` itself only exists on Linux. On macOS (a developer's laptop) the
+ * shell runs under the system's own seatbelt, `sandbox-exec`, with a profile
+ * that says the same thing the bwrap recipe says: the workspace read-write,
+ * the shared references read-only, the vendor libraries hidden, no network,
+ * and nothing of the developer's home or of this checkout. It used to run
+ * unconfined there, and the agent — told it had no network and could not see
+ * the engine — fetched the product's site with node, read the extensions'
+ * TypeScript and ran the host scripts by hand, which is what a developer then
+ * pays for in tokens. `STUDIO_SANDBOX=none|bwrap|seatbelt` overrides the
+ * platform's default. The file tools' path guard applies in every mode.
  */
-import { LIBRARY_DIRS, SHARED_ROOTS } from './paths.ts'
+import { homedir } from 'node:os'
+import { LIBRARY_DIRS, PROJECTS_DIR, REPO_ROOT, SHARED_ROOTS } from './paths.ts'
 
-export type SandboxMode = 'bwrap' | 'unconfined'
+export type SandboxMode = 'bwrap' | 'seatbelt' | 'unconfined'
 
 /**
- * Which sandbox this host gets. Linux: bubblewrap. macOS: none — bwrap does
- * not exist there. `STUDIO_SANDBOX` forces either.
+ * Which sandbox this host gets. Linux: bubblewrap. macOS: the seatbelt.
+ * `STUDIO_SANDBOX` forces any of them.
  */
 export function sandboxMode(
   platform: string = process.platform,
@@ -40,7 +46,8 @@ export function sandboxMode(
   const forced = (env.STUDIO_SANDBOX || '').toLowerCase()
   if (forced === 'none' || forced === 'unconfined' || forced === 'off') return 'unconfined'
   if (forced === 'bwrap') return 'bwrap'
-  return platform === 'darwin' ? 'unconfined' : 'bwrap'
+  if (forced === 'seatbelt') return 'seatbelt'
+  return platform === 'darwin' ? 'seatbelt' : 'bwrap'
 }
 
 /**
@@ -158,10 +165,94 @@ export function bwrapCommand(command: string, options: BwrapOptions): string[] {
   return [...bwrapArgs(options), '-lc', command]
 }
 
+export interface SeatbeltOptions {
+  /** The developer's home: denied wholesale, then the toolchains under it allowed back. */
+  home?: string
+  /** This checkout: denied, so the extensions, the API and .env are out of reach. */
+  repo?: string
+  /** Every user's workspaces: denied, then this project's allowed back. */
+  projects?: string
+}
+
+const TOOLCHAIN_DIRS = [
+  '.bun',
+  '.nvm',
+  '.volta',
+  '.npm',
+  '.yarn',
+  '.pnpm',
+  '.cache',
+  '.local',
+  '.cargo',
+  '.pyenv',
+  '.deno',
+  'go',
+]
+
+const quote = (p: string) => `"${p.replace(/[\\"]/g, m => `\\${m}`)}"`
+
 /**
- * The same command with no namespace around it — macOS. The environment is
- * still built from scratch (no API keys), but PATH and HOME come from the host
- * so node, python and Homebrew's tools resolve.
+ * The seatbelt profile for one command — macOS's `sandbox-exec`.
+ *
+ * Later rules win, so it reads top to bottom as a narrowing: everything, then
+ * no network; then none of the home directory, the checkout or the projects;
+ * then this workspace back (read-write), the shared references (read-only),
+ * the vendor libraries out again, and the toolchains the command needs.
+ * Metadata (stat) stays allowed everywhere so `getcwd` and path resolution
+ * through denied ancestors keep working.
+ */
+export function seatbeltProfile(options: BwrapOptions & SeatbeltOptions): string {
+  const {
+    workspace,
+    shared = SHARED_ROOTS,
+    hidden = LIBRARY_DIRS,
+    home = homedir(),
+    repo = REPO_ROOT,
+    projects = PROJECTS_DIR,
+  } = options
+  const lines = [
+    '(version 1)',
+    '(allow default)',
+    '(deny network*)',
+    `(deny file* (subpath ${quote(home)}))`,
+    `(deny file* (subpath ${quote(repo)}))`,
+    `(deny file* (subpath ${quote(projects)}))`,
+    `(allow file* (subpath ${quote(workspace)}))`,
+    ...shared.map(root => `(allow file-read* (subpath ${quote(root)}))`),
+    ...hidden.map(dir => `(deny file-read* (subpath ${quote(dir)}))`),
+    // Toolchains: node under nvm/volta, bun, npx's cache, pip's, cargo, go.
+    ...TOOLCHAIN_DIRS.map(d => `(allow file-read* (subpath ${quote(`${home}/${d}`)}))`),
+    '(allow file-read-metadata)',
+  ]
+  return `${lines.join('\n')}\n`
+}
+
+/**
+ * The command under the seatbelt — macOS. The environment is built from
+ * scratch like the guest's (no API keys); PATH and HOME come from the host so
+ * node, python and Homebrew's tools resolve.
+ */
+export function seatbeltCommand(
+  command: string,
+  options: BwrapOptions & SeatbeltOptions,
+  hostEnv: NodeJS.ProcessEnv = process.env,
+): { file: string; args: string[]; cwd: string; env: Record<string, string> } {
+  const plain = unconfinedCommand(command, options, hostEnv)
+  // `-c`, not `-lc`: a login shell sources ~/.profile, which reaches for
+  // things the seatbelt denies and complains on every command. The guest
+  // environment is built from scratch anyway, with the host's PATH.
+  return {
+    file: '/usr/bin/sandbox-exec',
+    args: ['-p', seatbeltProfile(options), plain.file, '-c', command],
+    cwd: plain.cwd,
+    env: { ...plain.env, STUDIO_SANDBOX: 'seatbelt' },
+  }
+}
+
+/**
+ * The same command with no namespace around it — `STUDIO_SANDBOX=none`. The
+ * environment is still built from scratch (no API keys), but PATH and HOME
+ * come from the host so node, python and Homebrew's tools resolve.
  */
 export function unconfinedCommand(
   command: string,
@@ -268,7 +359,11 @@ export async function runInSandbox(
   if (signal?.aborted) throw new Error('aborted')
   const spawn = spawnFn ?? (await import('node:child_process')).spawn
   const confined = mode === 'bwrap'
-  const plain = confined ? null : unconfinedCommand(command, bwrapOptions)
+  const plain = confined
+    ? null
+    : mode === 'seatbelt'
+      ? seatbeltCommand(command, bwrapOptions)
+      : unconfinedCommand(command, bwrapOptions)
   const argv = confined
     ? bwrapCommand(command, bwrapOptions)
     : (plain as NonNullable<typeof plain>).args
@@ -310,6 +405,10 @@ export async function runInSandbox(
       onData(chunk)
     })
     child.on('error', (err: NodeJS.ErrnoException) => {
+      if (mode === 'seatbelt')
+        return finish(() =>
+          reject(new Error(`the sandbox could not start: sandbox-exec failed — ${String(err)}`)),
+        )
       if (!confined)
         return finish(() => reject(new Error(`the shell could not start: ${String(err)}`)))
       const why = explainBwrapFailure(String(err.code ?? err))

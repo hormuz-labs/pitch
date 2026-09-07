@@ -13,7 +13,7 @@
  * across restarts.
  */
 import { existsSync, mkdirSync } from 'node:fs'
-import { readdir, rm } from 'node:fs/promises'
+import { readdir, readFile, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import {
@@ -318,7 +318,14 @@ async function evidenceFor(ws: Workspace, opts: OpenSessionOptions): Promise<Pro
         files.push(`${name}/${inner}`)
     }
   }
-  return { files, prompt: opts.prompt, uploads: opts.uploads }
+  let skill: string | undefined
+  try {
+    const project = JSON.parse(await readFile(path.join(ws.dir, 'project.json'), 'utf8'))
+    if (typeof project?.options?.skill === 'string') skill = project.options.skill
+  } catch {
+    // no project.json yet — the words and the files decide
+  }
+  return { files, prompt: opts.prompt, uploads: opts.uploads, skill }
 }
 
 /**
