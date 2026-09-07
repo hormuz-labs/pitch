@@ -87,7 +87,7 @@ port — the product's own go in, and the timing stays.
 Five or more distinct moves per film, each cited by lab id in `direction.md`
 and in the shot table, so the user can open the same effect in the gallery
 and say "that one, but slower". The built-in types carry the spine — `line`,
-`word-build`, `cascade`, `stat-counter`, `icon-marquee`, `ui-frame`,
+`word-build`, `stat-counter`, `icon-marquee`, `ui-frame`,
 `device-3d`, `pile`, `lottie`, `rive` — and a lab port is for what they
 cannot show.
 

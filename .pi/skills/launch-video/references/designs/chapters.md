@@ -20,7 +20,7 @@ sentence   a `line` at hero scale (size 150–170) landed as a move, aurora behi
 product    the sentence shrinks to UI scale (an `element` actor, or `cut: "zoom-out"`);
            the product doing the thing, tilted, with a cursor acting;
            `ambient: false` under it                                       3–6s
-payoff     a `flood`, a `cascade`, an actor morph, a `cursor.zoom`, a card flip —
+payoff     a `flood`, an actor morph, a `cursor.zoom`, a card flip —
            the noun becoming the object                                    1–3s
 ```
 
