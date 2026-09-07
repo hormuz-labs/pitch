@@ -262,24 +262,27 @@ index.html:
 run on the returned timeline — see Rules; a plugin does not excuse a bare
 `gsap.to`.
 
-Declare it in the project:
-
-```html
-<script src="js/shots.custom.js"></script>   <!-- after factories.js, before compiler.js -->
-```
+Declare it in the project — **one type per file**, `js/shots/<type>.js`, with
+its styles in `css/shots/<type>.css` when it needs any. `motion_check` and
+`motion_scaffold` link every file in those two folders into index.html (after
+factories.js, before compiler.js), so a change to one type is a small edit
+and never a rewrite of every type:
 
 ```js
-// js/shots.custom.js
+// js/shots/split-compare.js
 (function () {
   const { h, qs, splitChars, mixedLine, rng, EASE } = window.ShotKit;
-  window.ProjectShotFactories = {
+  window.ProjectShotFactories = Object.assign(window.ProjectShotFactories || {}, {
     "split-compare": {
       mount(el, shot, spec) { el.dataset.bg = shot.bg || "bg"; el.appendChild(h(`…`)); },
       animate(el, shot, D, spec) { const tl = gsap.timeline(); /* tweens on the timeline only */ return tl; },
     },
-  };
+  });
 })();
 ```
+
+(A single `js/shots.custom.js` + `css/custom.css` from an older project still
+loads.)
 
 `window.ShotKit` also exposes `revealWords(tl, root, at, {each})` and
 `scatterWords(tl, root, at, seed)` for the word-by-word cadence, the canvas

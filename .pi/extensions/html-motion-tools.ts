@@ -33,6 +33,7 @@ import {
   SCRIPTS_DIR,
   workspaceOf,
 } from '../lib/paths.ts'
+import { GSAP_PLUGINS, refreshShell, rewriteBlock, writeShell } from '../lib/shell.ts'
 import { type ReconTokens, starterShots } from '../lib/starter-shots.ts'
 
 const execFileAsync = promisify(execFile)
@@ -437,17 +438,21 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      'The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films\' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs motion_cues and motion_mix, not the gate.',
+      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs motion_cues and motion_mix, not the gate.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
       max_quiet: Type.Optional(
         Type.Number({
-          description: 'The stretch without an on-screen event the pacing note starts at, seconds (default 1.5; a note, not a failure)',
+          description:
+            'The stretch without an on-screen event the pacing note starts at, seconds (default 1.5; a note, not a failure)',
         }),
       ),
       min_eps: Type.Optional(
-        Type.Number({ description: 'Events per second over the film the pacing note starts under (default 0.7; a note, not a failure)' }),
+        Type.Number({
+          description:
+            'Events per second over the film the pacing note starts under (default 0.7; a note, not a failure)',
+        }),
       ),
       out: Type.Optional(Type.String({ description: 'Output frame dir (default audit)' })),
     }),
@@ -665,7 +670,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_check',
     label: 'Check Cut',
     description:
-      "Fast compile check (seconds, not the audit): loads index.html and reports page errors, shot count, real duration, every shot's start time, any factory overrun worth a fix (over 1.1×; over 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject. Run after every batch of shots you save and act on the warnings then.",
+      "Fast compile check (seconds, not the audit): links any new js/shots/*.js and css/shots/*.css into index.html, then loads it and reports page errors, shot count, real duration, every shot's start time, any factory overrun worth a fix (over 1.1×; over 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject. Run after every batch of shots you save and act on the warnings then.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),
@@ -673,11 +678,13 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       const ws = workspaceOf(ctx)
       const a: string[] = ['--check']
       if (p.page) a.push(relativeIn(ws, p.page))
+      const linked = p.page ? [] : refreshShell(ws)
+      const head = linked.length ? `${linked.join('\n')}\n` : ''
       try {
-        return text(await runScript('cues.mjs', a, ws, 120_000))
+        return text(head + (await runScript('cues.mjs', a, ws, 120_000)))
       } catch (err: any) {
         const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
-        if (out) return text(out)
+        if (out) return text(head + out)
         throw err
       }
     },
@@ -972,18 +979,20 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_scaffold',
     label: 'Scaffold the page',
     description:
-      'Write index.html — the thin shell that loads the GSAP vendor bundle, three.js and lottie-web, shots.js and the engine, ' +
-      'in the one order that works — and, when there is none yet, a starter shots.js with the brand from recon ' +
-      '(bg, ink, accent, the font and its self-hosted files) and an empty shot list: open it and add shots. ' +
-      'Call this once instead of writing the page by hand; the script order is the whole of it. Pass custom: true ' +
-      'when you are adding js/shots.custom.js — it links css/custom.css too (created if missing) for those types\' styles — ' +
-      'and rive: true when a shot uses a .riv file.',
+      'Write index.html — the thin shell that loads the GSAP vendor bundle, three.js and lottie-web, shots.js, the engine and ' +
+      'every project shot type in js/shots/*.js and css/shots/*.css, in the one order that works — and, when there is none yet, ' +
+      'a starter shots.js with the brand from recon (bg, ink, accent, the font and its self-hosted files) and an empty shot ' +
+      'list: open it and add shots. Call this once instead of writing the page by hand. New type files after that need no ' +
+      'scaffold call: motion_check links them. Pass rive: true when a shot uses a .riv file.',
     parameters: Type.Object({
       title: Type.Optional(
         Type.String({ description: 'Page <title>; defaults to the project name.' }),
       ),
       custom: Type.Optional(
-        Type.Boolean({ description: 'Load js/shots.custom.js as well (default false).' }),
+        Type.Boolean({
+          description:
+            'No longer needed: every js/shots/*.js and css/shots/*.css is linked, and js/shots.custom.js when it exists.',
+        }),
       ),
       rive: Type.Optional(
         Type.Boolean({
@@ -994,73 +1003,9 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
-      const out = resolveIn(ws, 'index.html', 'write')
-      const title = String(p.title ?? basename(ws)).replace(/[<>]/g, '')
-      // The whole licensed GSAP set, from the shared assets mount. The
-      // compiler registers whatever it finds on window, so loading all of
-      // them is what makes them real for a custom shot type — they were
-      // vendored into every project and then never loaded.
-      const plugins = [
-        'gsap.min.js',
-        'CustomEase.min.js',
-        'CustomWiggle.min.js',
-        'CustomBounce.min.js',
-        'SplitText.min.js',
-        'TextPlugin.min.js',
-        'ScrambleTextPlugin.min.js',
-        'Physics2DPlugin.min.js',
-        'PhysicsPropsPlugin.min.js',
-        'MotionPathPlugin.min.js',
-        'MorphSVGPlugin.min.js',
-        'DrawSVGPlugin.min.js',
-        'Flip.min.js',
-        'EasePack.min.js',
-        'Draggable.min.js',
-        'InertiaPlugin.min.js',
-        'Observer.min.js',
-        'CSSRulePlugin.min.js',
-        'EaselPlugin.min.js',
-        'PixiPlugin.min.js',
-        'ScrollTrigger.min.js',
-        'ScrollSmoother.min.js',
-        'ScrollToPlugin.min.js',
-      ]
-      // The styles for project-local types live next to their factories; the
-      // agent's alternative was three turns finding where CSS goes.
-      const cssPath = resolveIn(ws, 'css/custom.css', 'write')
-      if (p.custom && !existsSync(cssPath)) {
-        mkdirSync(dirname(cssPath), { recursive: true })
-        writeFileSync(
-          cssPath,
-          '/* css/custom.css — styles for the project-local shot types in js/shots.custom.js.\n' +
-            '   Loaded after the engine\'s shots.css; brand tokens are var(--bg), var(--ink), var(--accent), var(--font). */\n',
-        )
-      }
-      const html = [
-        '<!DOCTYPE html>',
-        '<html lang="en"><head><meta charset="UTF-8"><title>' + title + '</title>',
-        '<link rel="stylesheet" href="../../engine/css/shots.css">' +
-          (p.custom ? '\n<link rel="stylesheet" href="css/custom.css">' : '') +
-          '</head>',
-        '<body>',
-        '  <div id="viewport"><div id="camera"></div></div>',
-        ...plugins.map(f => `  <script src="../../assets/gsap/${f}"></script>`),
-        // three.js ships as an ES module only; a module script runs before
-        // DOMContentLoaded, which is when the compiler boots, so window.THREE
-        // is there for every factory. Lottie is a classic global. Rive is
-        // 3MB and loads on request.
-        '  <script type="module">import * as THREE from "../../assets/three/three.module.min.js"; window.THREE = THREE;</script>',
-        '  <script src="../../assets/lottie/lottie.min.js"></script>',
-        ...(p.rive ? ['  <script src="../../assets/rive/rive.js"></script>'] : []),
-        '  <script src="shots.js"></script>',
-        '  <script src="../../engine/js/icons.js"></script>',
-        '  <script src="../../engine/js/factories.js"></script>',
-        ...(p.custom ? ['  <script src="js/shots.custom.js"></script>'] : []),
-        '  <script src="../../engine/js/compiler.js"></script>',
-        '</body></html>',
-        '',
-      ].join('\n')
-      writeFileSync(out, html)
+      resolveIn(ws, 'index.html', 'write')
+      const title = String(p.title ?? basename(ws))
+      const files = writeShell(ws, { title, rive: Boolean(p.rive) })
       const vendor = existsSync(join(ASSETS_DIR, 'gsap', 'gsap.min.js'))
 
       // The starter shots.js: the file's shape plus the measured brand, never
@@ -1079,14 +1024,32 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
           ? '\nshots.js written with the brand recon measured and `shots: []` — add shots to it.'
           : '\nshots.js written with a PLACEHOLDER brand (no recon/brand-tokens.json yet): run motion_recon, then put the measured values in brand.'
       }
+      const linked = [...files.styles, ...files.scripts]
       return text(
-        `index.html written (${plugins.length} GSAP plugins, three.js, lottie-web${p.rive ? ', rive' : ''}${p.custom ? ' + js/shots.custom.js + css/custom.css' : ''}).\n` +
+        `index.html written (${GSAP_PLUGINS.length} GSAP plugins, three.js, lottie-web${p.rive ? ', rive' : ''}${linked.length ? ` + ${linked.join(', ')}` : ''}).\n` +
           (vendor
             ? 'GSAP loads from the shared ../../assets/gsap/.'
             : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
           starter +
+          '\nCustom shot types: one per file, js/shots/<type>.js (+ css/shots/<type>.css); motion_check links each new one.' +
           '\nNext: the first shots in shots.js, then motion_check.',
       )
     },
+  })
+
+  // A rewrite of a big file is the expensive shape — a minute of output and
+  // a file the agent then cannot edit, because it no longer knows its text.
+  pi.on('tool_call', async (event: any, ctx: any) => {
+    if (event.toolName !== 'write') return undefined
+    const rel = String(event.input?.path ?? event.input?.file_path ?? '')
+    if (!rel) return undefined
+    const ws = workspaceOf(ctx)
+    try {
+      resolveIn(ws, rel, 'write')
+    } catch {
+      return undefined // the write tool refuses it with its own reason
+    }
+    const reason = rewriteBlock(ws, rel)
+    return reason ? { block: true, reason } : undefined
   })
 }

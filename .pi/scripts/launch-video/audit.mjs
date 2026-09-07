@@ -61,7 +61,12 @@ console.log(`\n🔍 Motion Audit — ${pageArg}`);
 
 // The CloakBrowser is not on this machine; the page is served into it from
 // disk over the studio.local origin (see lib/browser.mjs).
+// Where the seconds go, printed at the end: the studio measured this at 55s
+// where the same call from a shell takes 20s, and nothing outside it says why.
+const T = { start: Date.now(), marks: {} };
+const mark = (k) => { T.marks[k] = Date.now(); };
 const studio = await openStudioBrowser({ cdp: args.cdp === true ? null : args.cdp, deviceScaleFactor: SCALE });
+mark("connect");
 const page = await studio.newPage();
 const cdp = await page.context().newCDPSession(page);
 /** Seek a tab and capture it at SCALE (physical pixels — see capture.mjs on clip.scale). */
@@ -75,6 +80,7 @@ const base = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
 const url = base + (base.includes("?") ? "&" : "?") + "audit";
 await page.goto(url, { waitUntil: "domcontentloaded" });
 await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+mark("load");
 
 const duration = await page.evaluate("window.__DURATION()");
 const rawCues = await page.evaluate("window.__CUES ? window.__CUES() : []");
@@ -195,6 +201,7 @@ await Promise.all(Array.from({ length: workers }, async (_, w) => {
   for (let i = from; i < to; i++) samples[i] = { t: times[i], buf: await grabAt(pg, sess, times[i]) };
   if (w > 0) await pg.close();
 }));
+mark("capture");
 // keep one frame per second on disk for the agent to look at
 samples.forEach((s, i) => {
   if (Math.abs(s.t - Math.round(s.t)) < 1e-6) {
@@ -291,7 +298,12 @@ let determinismWarnings = 0;
     console.error(`\n❌ NON-DETERMINISTIC at ${probe.toFixed(1)}s (${(drift * 100).toFixed(1)}% of pixels moved) — something animates on the global ticker (bare gsap.to / CSS animation). Put it on the returned timeline.`);
   }
 }
+mark("checks");
 await studio.close();
+{
+  const s = (a, b) => ((T.marks[b] - (a ? T.marks[a] : T.start)) / 1000).toFixed(1);
+  console.log(`⏱ ${studio.mode === "cdp" ? "CloakBrowser" : "local Chromium"} · connect ${s(null, "connect")}s · load ${s("connect", "load")}s · ${times.length} captures on ${workers} tab${workers === 1 ? "" : "s"} ${s("load", "capture")}s · checks ${s("capture", "checks")}s`);
+}
 
 // ---------------------------------------------------------------------------
 // Scorecard

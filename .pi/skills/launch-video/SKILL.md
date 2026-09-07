@@ -108,26 +108,29 @@ own words, colours and counts go in; the lab's timing stays. Put
 "that one, but slower".
 
 `motion_schema()` lists the built-in types, `motion_schema({ types })` gives
-their fields. The engine and the vendor libraries are not on disk for you;
-read only what you edit (`shots.js`, `js/shots.custom.js`, `direction.md`)
-and reference everything else through the tools.
+their fields. A custom type is **one file**: `js/shots/<type>.js` (its styles
+in `css/shots/<type>.css`), registered with
+`Object.assign(window.ProjectShotFactories ||= {}, { "<type>": … })`;
+`motion_check` links each new file into index.html. The engine and the vendor
+libraries are not on disk for you; read only what you edit (`shots.js`,
+`js/shots/*.js`, `direction.md`) and reference everything else through the
+tools.
 
 ## Build
 
 1. `motion_scaffold()` writes index.html and a starter `shots.js` — the
    brand recon measured, `shots: []` — so the first thing you write is a
-   shot. `{ custom: true }` once `js/shots.custom.js` exists; it links
-   `css/custom.css` for those types' styles. Put the stage and the first two
-   or three shots in and save early so the user sees the hook within
-   minutes. `motion_check` — it prints the shot-list warnings the audit will
-   raise; fix them now.
+   shot. Put the stage and the first two or three shots in and save early so
+   the user sees the hook within minutes. `motion_check` — it prints the
+   shot-list warnings the audit will raise; fix them now.
 2. Add a few shots, save, check, repeat. Every save is a complete evaluating
    literal. Port the lab effects early; the first port proves the pipeline.
    Everything lives on the returned timeline — no CSS animation, no bare
    `gsap.to`, no ticker, no `Math.random` — selectors scoped to `el`, optional
-   targets guarded, text swaps via `tl.set`. Edit files in place; never
-   rewrite a file you have not just read — a 30KB rewrite from memory is
-   where the edits that could not find their text came from.
+   targets guarded, text swaps via `tl.set`. One type per file
+   (`js/shots/<type>.js`, `css/shots/<type>.css`): a change to one type is a
+   small edit, and a `write` over an existing file past 12KB is refused —
+   read the lines you change and `edit` them.
 3. Audio — `references/audio.md`. Bed via `motion_find_audio`. Narration is
    one read: script (1.9–2.4 words/s) → `motion_tts` once (it re-records by
    itself if a take comes back rushed) → `audio.vo` → `motion_align` →
@@ -137,8 +140,8 @@ and reference everything else through the tools.
 4. `motion_audit({})`: zero ❌. A ⚠️ is a note: pacing notes name the still
    stretch — answer with a beat or a cut, or keep it and say why in
    direction.md; never a longer shot (`references/pacing.md` has the
-   numbers). Then `motion_review({})`: fix every line of its clipped-type and
-   subject reports, and **look at every sheet** — an empty frame, a colour
+   numbers). Then `motion_review({})`: fix every line of its clipped-type,
+   subject and off-brand-ground reports, and **look at every sheet** — an empty frame, a colour
    that is not the brand's, a lab placeholder still on screen, an edge
    touched. Fix in `shots.js`, then `motion_review({ shots: [...] })` for what
    you touched — not another audit unless a `dur`, a cue or a beat changed.

@@ -73,9 +73,12 @@ export function lintDesign(spec) {
   if (n < R.shots[0]) out.push({ level: "fail", code: "count", msg: `Only ${n} shots — a launch film runs ${R.shots[0]}–${R.shots[1]}. Cut ideas into more beats.` });
   if (n > R.shots[1]) out.push({ level: "warn", code: "count", msg: `${n} shots — over ${R.shots[1]}; make sure each is one idea.` });
   const avg = shots.reduce((a, s) => a + (Number(s.dur) || 0), 0) / Math.max(1, n);
-  if (avg > R.avg) out.push({ level: "fail", code: "avg", msg: `Average shot length ${avg.toFixed(2)}s — over ${R.avg}s the film reads as slides.` });
+  // Length is a note, not a gate: the numbers are the reference films', and a
+  // 6.4s signature shot split in two to satisfy a limit became one shot and
+  // one static pair of cards.
+  if (avg > R.avg) out.push({ level: "warn", code: "avg", msg: `Average shot length ${avg.toFixed(2)}s — over ${R.avg}s a film tends to read as slides. A second act in the long ones, or a cut; not a rule to split a shot that works.` });
   shots.forEach((s, i) => {
-    if (s.dur > R.shotMax) out.push({ level: "fail", code: "long", msg: `#${s.id} (${s.type}): ${s.dur}s — a shot is ≤ ${R.shotMax}s. Split it, or give it steps, actors or beats.` });
+    if (s.dur > R.shotMax) out.push({ level: "warn", code: "long", msg: `#${s.id} (${s.type}): ${s.dur}s — the reference films keep a shot under ${R.shotMax}s. Fine for a signature shot with steps, actors or beats all the way through; otherwise split it.` });
     if (i === 0 && s.dur > R.hook) out.push({ level: "warn", code: "hook", msg: `#${s.id}: the hook is ${s.dur}s — the first ${R.hook} seconds should be a designed hook, not a hold.` });
   });
 
