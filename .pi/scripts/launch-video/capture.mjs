@@ -196,7 +196,7 @@ function ffmpegHasDrawtext() {
 
 function watermarkFilter() {
   if (args["no-watermark"]) return null;
-  const fontFile = resolve(HERE, "..", "..", "..", "..", "assets", "fonts", "SortsMillGoudy-Regular.ttf");
+  const fontFile = resolve(HERE, "..", "..", "..", "assets", "fonts", "SortsMillGoudy-Regular.ttf");
   if (!existsSync(fontFile)) {
     console.warn(`⚠ watermark font missing (${fontFile}) — rendering without it`);
     return null;

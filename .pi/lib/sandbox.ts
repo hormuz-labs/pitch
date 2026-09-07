@@ -25,7 +25,7 @@
  * the platform's default either way. The file tools' path guard applies in
  * both modes; only the mount namespace is missing.
  */
-import { SHARED_ROOTS } from './paths.ts'
+import { LIBRARY_DIRS, SHARED_ROOTS } from './paths.ts'
 
 export type SandboxMode = 'bwrap' | 'unconfined'
 
@@ -63,6 +63,8 @@ export interface BwrapOptions {
   workspace: string
   /** Bound read-only, each at its own path. Defaults to the shared references. */
   shared?: readonly string[]
+  /** Inside a shared root, hidden under an empty tmpfs. Defaults to the vendor libraries. */
+  hidden?: readonly string[]
   /** Guest cwd; must be inside a bound directory. Defaults to the workspace. */
   cwd?: string
   env?: Record<string, string>
@@ -90,6 +92,7 @@ export function bwrapArgs(options: BwrapOptions): string[] {
   const {
     workspace,
     shared = SHARED_ROOTS,
+    hidden = LIBRARY_DIRS,
     cwd = workspace,
     env = sandboxEnv(workspace),
     shell = '/bin/bash',
@@ -143,6 +146,8 @@ export function bwrapArgs(options: BwrapOptions): string[] {
     workspace,
   ]
   for (const root of shared) args.push('--ro-bind-try', root, root)
+  // After the binds, so the tmpfs shadows the library inside its root.
+  for (const dir of hidden) args.push('--tmpfs', dir)
   for (const [key, value] of Object.entries(env)) args.push('--setenv', key, value)
   args.push('--chdir', cwd, shell)
   return args

@@ -4,11 +4,7 @@
  * decision.
  */
 import { describe, expect, it } from 'vitest'
-import {
-  guessDepth,
-  layersSnippet,
-  planLayers,
-} from '../.pi/skills/launch-video/scripts/lib/layers.mjs'
+import { guessDepth, layersSnippet, planLayers } from '../.pi/scripts/launch-video/lib/layers.mjs'
 
 const vp = { viewport: { w: 1920, h: 1080 } }
 

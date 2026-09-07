@@ -46,6 +46,19 @@ shot to shot, chapters cut on the beat, a manifesto, a demo with a cursor,
 something you invent for this product — pick what the product asks for and
 say why.
 
+Plan to the gate, not after it. `motion_audit` fails a film whose picture is
+still for 1.5s or averages under 0.7 changes a second, and a shot list that
+only enters gets rebuilt at the end instead of built once. So every shot in
+the table has **three acts** — it arrives, something changes, it leaves — and
+the `move` column names all three. Anything over 1.5s carries a second act
+(`beats`, `steps`, an actor, a `focus`, a `cursor`) or is cut at 1.5s.
+
+**One subject, centred, big.** The reference films keep one thing in the
+middle of the frame and let it fill it: a word, a card, a control, a number.
+A whole desktop is never the subject — crop to the control the copy is about
+(`motion_screenshot({ selector })`, at 2×), rebuild that one piece as `html`,
+or push into it with `focus` until it fills the frame.
+
 What reliably makes films worse, so don't: opening on a logo fade or a caret
 typing; every shot the same length; a shot that enters and then holds;
 near-black + glow orbs + glass + Inter as "the look"; `ripple` beats; copy
@@ -57,7 +70,14 @@ Game-changing, Powered by AI, All in one place.
 
 408 effects — every Jitter template rebuilt in the engine's own GSAP, plus
 three.js, lottie and SVG filters — each with its code, eight frames and notes
-on how it works and how it ports.
+on how it works and how it ports. Look there for **everything** — how the
+headline lands, how the number counts, how the card turns, how the logo
+resolves — before you reach for a built-in. Type never just slides in: the
+`text` family alone has 69 moves, and `word-cut`, `type-wipe`,
+`color-punch`, `type-field` and `overlay-type` are placeholders the check
+flags. The built-ins that carry the product itself — `ui-frame`,
+`device-3d`, `logo-sting`, `logo-cta`, `stat-counter`, `line` with steps —
+stay.
 
 - `motion_effects({ query })` — describe the beat in plain words. Ask for
   `limit: 10`, read past the first hit, and search a beat that matters more
@@ -68,20 +88,27 @@ on how it works and how it ports.
 Porting: its DOM goes in `mount(el, shot)`; `fx.timeline({ duration })`
 becomes the `gsap.timeline()` that `animate(el, shot, D)` returns; times are
 fractions of `D`; selectors scoped to `el`; `fx.rng` → `ShotKit.rng`; a
-canvas or three.js `seek` → a tween with `onUpdate`.
+canvas or three.js `seek` → a tween with `onUpdate`; the lab's 1280×720
+stage is the film's 1920×1080 at 1.5×. **Masks clip.** A reveal that hides
+overflow at line-height ≤ 1 cuts every descender and accent at hero size:
+give the mask `padding: .16em .08em .24em` with the same negative margin,
+start hidden text at yPercent 140, keep the longest line inside 1760px.
 `motion_schema({ section: "custom shot types" })` has the shape. The product's
-own words, colours and counts go in; the lab's timing stays. Cite lab ids in
-the shot table so the user can say "that one, but slower".
+own words, colours and counts go in; the lab's timing stays. Put
+`lab: "<id>"` on the shot and cite it in the table so the user can say
+"that one, but slower".
 
-The engine's built-in types carry the spine — `motion_schema()` lists them,
-`motion_schema({ types })` gives their fields — and a lab port is for what
-they cannot show. Never read or edit `engine/js/*`.
+`motion_schema()` lists the built-in types, `motion_schema({ types })` gives
+their fields. The engine and the vendor libraries are not on disk for you;
+read only what you edit (`shots.js`, `js/shots.custom.js`, `direction.md`)
+and reference everything else through the tools.
 
 ## Build
 
 1. `motion_scaffold()` (`{ custom: true }` once `js/shots.custom.js` exists),
    then `shots.js` with `brand`, the stage and the first two or three shots.
-   Save early so the user sees the hook within minutes. `motion_check`.
+   Save early so the user sees the hook within minutes. `motion_check` —
+   it prints the shot-list warnings the audit will raise; fix them now.
 2. Add a few shots, save, check, repeat. Every save is a complete evaluating
    literal. Port the lab effects early; the first port proves the pipeline.
    Everything lives on the returned timeline — no CSS animation, no bare
@@ -91,13 +118,13 @@ they cannot show. Never read or edit `engine/js/*`.
    one read: script (1.9–2.4 words/s) → `motion_tts` once → `audio.vo` →
    `motion_align` → `cue` on every shot → `motion_sync({ write: true })`.
    Then `motion_cues`, `motion_sfx({ mode: "build" })`, `motion_mix`.
-4. `motion_audit({})`: zero ❌, read every ⚠️ (`references/pacing.md` says
-   where its numbers come from: something new every ~1.2s, no quiet stretch
-   over 1.5s, the fix is a beat or a cut, never a longer shot). Then
-   `motion_review({})` and **look at every sheet** — clipped text, an empty
-   frame, a colour that is not the brand's, a lab placeholder still on
-   screen. Fix in `shots.js`, re-review what you touched. Quote the
-   scorecard, say what the sheets showed, stop.
+4. `motion_audit({})`: zero ❌, read every ⚠️ (`references/pacing.md` has
+   the numbers; the fix is a beat or a cut, never a longer shot). Then
+   `motion_review({})`: fix every line of its clipped-type report, and
+   **look at every sheet** — an empty frame, a colour that is not the
+   brand's, a lab placeholder still on screen, an edge touched. Fix in
+   `shots.js`, re-review what you touched. Quote the scorecard, say what the
+   sheets showed, stop.
 5. Export only when the user asks for an MP4: `motion_audit`,
    `motion_render({ out, out_res, fps: 60 })`, `motion_verify_duration`.
 

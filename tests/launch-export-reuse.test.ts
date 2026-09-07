@@ -21,7 +21,7 @@ vi.mock('../apps/api/src/projects/service.js', () => ({
   workspaceOf: () => ({ dir, internal: 'user_1--film' }),
 }))
 vi.mock('../apps/api/src/studio/paths.js', () => ({
-  MOTION_SKILL_DIR: '/nowhere',
+  MOTION_SCRIPTS_DIR: '/nowhere',
   fileUrl: (internal: string, rel: string) => `/files/projects/${internal}/${rel}`,
 }))
 

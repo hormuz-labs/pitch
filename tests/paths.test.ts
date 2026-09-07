@@ -16,7 +16,9 @@ import {
   ASSETS_DIR,
   contains,
   describeWorkspace,
+  EFFECTS_DIR,
   ENGINE_DIR,
+  LIBRARY_DIRS,
   PathError,
   relativeIn,
   resolveIn,
@@ -27,7 +29,7 @@ import {
 } from '../.pi/lib/paths'
 
 // A workspace where the projects really are, so the shared references are
-// the real engine/, .pi/skills/ and assets/ and nothing has to be faked.
+// the real .pi/skills/, assets/ and effects/ and nothing has to be faked.
 const WS = path.join(path.dirname(ENGINE_DIR), 'projects', 'studio--user_1--acme')
 
 describe('what the agent can reach', () => {
@@ -44,20 +46,41 @@ describe('what the agent can reach', () => {
   })
 
   it('reads the shared references at their absolute paths, and by ../../', () => {
-    expect(resolveIn(WS, path.join(ENGINE_DIR, 'schema.md'))).toBe(
-      path.join(ENGINE_DIR, 'schema.md'),
-    )
     expect(resolveIn(WS, path.join(SKILLS_DIR, 'launch-video/SKILL.md'))).toBe(
       path.join(SKILLS_DIR, 'launch-video/SKILL.md'),
     )
     expect(resolveIn(WS, path.join(ASSETS_DIR, 'music'))).toBe(path.join(ASSETS_DIR, 'music'))
-    // The relative spelling the older skills used still lands on the engine.
-    expect(resolveIn(WS, '../../engine/schema.md')).toBe(path.join(ENGINE_DIR, 'schema.md'))
+    expect(resolveIn(WS, path.join(EFFECTS_DIR, 'text/bold-text-snap/index.html'))).toBe(
+      path.join(EFFECTS_DIR, 'text/bold-text-snap/index.html'),
+    )
+    // The relative spelling the older skills used still lands on the reference.
+    expect(resolveIn(WS, '../../assets/music')).toBe(path.join(ASSETS_DIR, 'music'))
   })
 
   it('never writes to a shared reference', () => {
-    expect(() => resolveIn(WS, path.join(ENGINE_DIR, 'schema.md'), 'write')).toThrow(/read-only/)
+    expect(() => resolveIn(WS, path.join(ASSETS_DIR, 'music/x.mp3'), 'write')).toThrow(/read-only/)
     expect(() => resolveIn(WS, '../../assets/music/x.mp3', 'write')).toThrow(PathError)
+  })
+
+  it('does not read the engine or the vendor libraries — library code it only names', () => {
+    // The agent used to read compiler.js and factories.js (135KB) several
+    // times per film to find a class name motion_schema already lists.
+    expect(() => resolveIn(WS, path.join(ENGINE_DIR, 'js/compiler.js'))).toThrow(PathError)
+    expect(() => resolveIn(WS, '../../engine/schema.md')).toThrow(PathError)
+    for (const dir of LIBRARY_DIRS) {
+      expect(() => resolveIn(WS, path.join(dir, 'x.min.js'))).toThrow(/library code/)
+    }
+    expect(() => resolveIn(WS, '../../assets/gsap/gsap.min.js')).toThrow(/motion_schema/)
+    // The rest of assets/ stays readable.
+    expect(resolveIn(WS, path.join(ASSETS_DIR, 'fonts'))).toBe(path.join(ASSETS_DIR, 'fonts'))
+  })
+
+  it('shares the skills, but not the host scripts behind the tools', () => {
+    expect(SHARED_ROOTS).toContain(SKILLS_DIR)
+    expect(SHARED_ROOTS).not.toContain(ENGINE_DIR)
+    expect(() => resolveIn(WS, path.join(SKILLS_DIR, '../scripts/launch-video/audit.mjs'))).toThrow(
+      PathError,
+    )
   })
 })
 
@@ -152,7 +175,7 @@ describe('a symlink is not a way out', () => {
     symlinkSync(path.join(root, '.env'), path.join(ws, 'notes.md'))
     symlinkSync(root, path.join(ws, 'up'))
     symlinkSync(path.join(root, 'projects', 'other'), path.join(ws, 'theirs'))
-    symlinkSync(ENGINE_DIR, path.join(ws, 'engine'))
+    symlinkSync(SKILLS_DIR, path.join(ws, 'skills'))
   })
   afterAll(() => rmSync(root, { recursive: true, force: true }))
 
@@ -178,7 +201,7 @@ describe('a symlink is not a way out', () => {
   it('refuses writing through a link, too', () => {
     expect(() => resolveIn(ws, 'notes.md', 'write')).toThrow(PathError)
     expect(() => resolveIn(ws, 'up/planted.js', 'write')).toThrow(PathError)
-    expect(() => resolveIn(ws, 'engine/schema.md', 'write')).toThrow(/read-only/)
+    expect(() => resolveIn(ws, 'skills/launch-video/SKILL.md', 'write')).toThrow(/read-only/)
   })
 
   it('still allows ordinary files, files that do not exist yet, and a link INTO a shared reference', () => {
@@ -187,6 +210,8 @@ describe('a symlink is not a way out', () => {
     expect(resolveIn(ws, 'deep/not/made/yet.json', 'write')).toBe(
       path.join(ws, 'deep/not/made/yet.json'),
     )
-    expect(resolveIn(ws, 'engine/schema.md')).toBe(path.join(ws, 'engine/schema.md'))
+    expect(resolveIn(ws, 'skills/launch-video/SKILL.md')).toBe(
+      path.join(ws, 'skills/launch-video/SKILL.md'),
+    )
   })
 })

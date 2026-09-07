@@ -23,13 +23,16 @@ export {
   PI_DIR,
   PROJECTS_DIR,
   REPO_ROOT as ROOT_DIR,
+  SCRIPTS_DIR,
   SFX_DIR,
   SKILLS_DIR,
 } from '../../../../.pi/lib/paths.ts'
 
-import { PROJECTS_DIR, SKILLS_DIR } from '../../../../.pi/lib/paths.ts'
+import { PROJECTS_DIR, SCRIPTS_DIR, SKILLS_DIR } from '../../../../.pi/lib/paths.ts'
 
 export const MOTION_SKILL_DIR = path.join(SKILLS_DIR, 'launch-video')
+/** The launch-video host scripts (mix, capture) the API runs directly. */
+export const MOTION_SCRIPTS_DIR = path.join(SCRIPTS_DIR, 'launch-video')
 
 /**
  * Only a directory-naming key now. New projects are all 'studio'; the four old

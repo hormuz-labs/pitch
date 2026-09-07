@@ -31,6 +31,8 @@ export const ENGINE_DIR = path.join(REPO_ROOT, 'engine')
 export const PI_DIR = path.join(REPO_ROOT, '.pi')
 export const EXTENSIONS_DIR = path.join(PI_DIR, 'extensions')
 export const SKILLS_DIR = path.join(PI_DIR, 'skills')
+/** The Node programs behind the motion_* tools. Host-side only: never on the agent's side of the boundary. */
+export const SCRIPTS_DIR = path.join(PI_DIR, 'scripts')
 export const ASSETS_DIR = path.join(REPO_ROOT, 'assets')
 export const MUSIC_DIR = path.join(ASSETS_DIR, 'music')
 export const SFX_DIR = path.join(ASSETS_DIR, 'sfx')
@@ -40,8 +42,24 @@ export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(REPO_ROOT, 'pr
 /**
  * Readable by the agent, writable by nobody: mounted read-only in the sandbox
  * and refused for writes by every host tool.
+ *
+ * The engine is not among them. The agent edits shots.js and reads the
+ * engine's contract through `motion_schema`; the compiler and the factories
+ * (135KB) are library code it once read four times in one film. The same
+ * goes for the vendor libraries under assets/ — see LIBRARY_DIRS.
  */
-export const SHARED_ROOTS: readonly string[] = [ENGINE_DIR, SKILLS_DIR, ASSETS_DIR, EFFECTS_DIR]
+export const SHARED_ROOTS: readonly string[] = [SKILLS_DIR, ASSETS_DIR, EFFECTS_DIR]
+
+/**
+ * Library code inside a shared root that the agent never needs to read:
+ * hidden under an empty tmpfs in the sandbox and refused by the file tools.
+ * The page loads them; the agent only names them.
+ */
+export const LIBRARY_DIRS: readonly string[] = [
+  path.join(ASSETS_DIR, 'gsap'),
+  path.join(ASSETS_DIR, 'three'),
+  path.join(ASSETS_DIR, 'rive'),
+]
 
 export class PathError extends Error {
   constructor(message: string) {
@@ -100,6 +118,12 @@ export function resolveIn(
   if (mode === 'write') {
     throw new PathError(`${input} is a shared, read-only reference — write inside ${workspace}.`)
   }
+  if (LIBRARY_DIRS.some(dir => contains(resolveSymlinks(dir), real))) {
+    throw new PathError(
+      `${input} is library code the page loads for you — there is nothing in it to read. ` +
+        'The engine is described by motion_schema, the effects by motion_effects.',
+    )
+  }
   return abs
 }
 
@@ -121,9 +145,10 @@ export function relativeIn(
 export function describeWorkspace(workspace: string): string {
   return (
     `Current working directory: ${workspace} — this project's workspace, and the only place ` +
-    `you can write. Read-only references: the engine at ${ENGINE_DIR}, your skills at ` +
-    `${SKILLS_DIR}, the music, SFX and font libraries at ${ASSETS_DIR}, the motion effects ` +
-    `lab at ${EFFECTS_DIR}. Nothing else on this machine exists for you: no other project, ` +
+    `you can write. Read-only references: your skills at ${SKILLS_DIR}, the music, SFX and ` +
+    `font libraries at ${ASSETS_DIR}, the motion effects lab at ${EFFECTS_DIR}. The engine ` +
+    `and the vendor libraries are not on disk for you: motion_schema and motion_effects are ` +
+    `their reference. Nothing else on this machine exists for you: no other project, ` +
     `no network, no environment.`
   )
 }

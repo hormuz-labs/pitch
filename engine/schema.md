@@ -122,6 +122,7 @@ and leave dead air between them.
 | `beats` | Mid-shot events — see "Density layer". |
 | `actors` | `{ name: pose \| [pose, …] }` — see "Actors". |
 | `ambient` | `false` hides the ambient stage on this shot. |
+| `lab` | The effects-lab id this shot's move was ported from (`"text/bold-text-snap"`). Annotation only — the audit counts it and the user can say "that one, but slower". |
 | `cue` | The script phrase this shot lands on (`"step two"`). `motion_sync` starts the shot ~0.12s before that word. Beats, `word-build` lines and `device-notif` `more` items take `cue` too (→ `at`, `lineAt`, `moreAt`). |
 | `vo`, `voDur` | **Legacy per-shot clip — do not use.** More than one fails `motion_audit` (fragmented narration). |
 | `drift` | `false` disables the slow rest travel (scale 1.045, x +10, y −8 over the shot). `driftScale` / `driftX` / `driftY` override it. |

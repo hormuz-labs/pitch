@@ -4,7 +4,7 @@
  * named shot can be re-checked alone after a fix.
  */
 import { describe, expect, it } from 'vitest'
-import { fractionsFor, planSamples, sheetOf } from '../.pi/skills/launch-video/scripts/lib/review-plan.mjs'
+import { fractionsFor, planSamples, sheetOf } from '../.pi/scripts/launch-video/lib/review-plan.mjs'
 
 const shots = [
   { id: 'hook', type: 'word-cut', dur: 2 },

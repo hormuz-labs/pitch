@@ -46,9 +46,12 @@ Your shell runs in a mount namespace of its own, and your file tools obey the
 same boundary. Your working directory is this project's folder: the only
 writable place, where everything you make lives. Three shared references are
 readable, at the absolute paths your system prompt and skills listing give:
-the GSAP engine (`schema.md` there defines every shot type), your skills, and
-the curated music, SFX and font libraries. Nothing else on this machine is
-reachable — no environment, no other projects, no network. Paths in a tool
+your skills, the effects lab, and the curated music, SFX and font libraries.
+The engine and the vendor libraries (GSAP, three.js, Rive) are not on disk
+for you and there is nothing in them to read: `motion_schema` is the engine's
+contract, `motion_effects` returns an effect whole. Read only what you will
+edit — `shots.js`, `js/shots.custom.js`, `direction.md` — and reference the
+rest through the tools. Nothing else on this machine is reachable — no environment, no other projects, no network. Paths in a tool
 argument are relative to your workspace unless you make them absolute; there
 is no other naming scheme, so never guess a second one.
 

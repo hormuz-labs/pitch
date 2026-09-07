@@ -13,7 +13,7 @@ import {
   renderFilter,
   reviewFilter,
   sampleTimes,
-} from '../.pi/skills/launch-video/scripts/lib/encode.mjs'
+} from '../.pi/scripts/launch-video/lib/encode.mjs'
 
 describe('normalizeRender', () => {
   it('is a plain 8-bit H.264 capture when the film says nothing', () => {

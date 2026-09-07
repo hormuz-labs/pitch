@@ -1,10 +1,10 @@
 /**
- * Launch films — pi extension wrapping the launch-video skill's
- * executable scripts (recon, screenshot, tts, align, sync, cues/check,
+ * Launch films — pi extension wrapping the Node programs in
+ * .pi/scripts/launch-video (recon, screenshot, tts, align, sync, cues/check,
  * sfx, mix, audit, review, capture) plus two small host helpers (find_audio,
- * verify_duration). Every .mjs in that folder backs exactly one tool; the two
- * maintainer scripts that build the shared SFX library live in the repo's
- * scripts/ instead, since the agent never runs them.
+ * verify_duration). Every .mjs in that folder backs exactly one tool. They
+ * live outside .pi/skills on purpose: the skills directory is readable by the
+ * agent, and 200KB of host-side code is nothing it should ever read.
  *
  * Every tool runs with the session's cwd — the job's sandboxed workspace — so
  * relative paths (audio/, renders/, audit/) resolve inside it.
@@ -21,7 +21,6 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
@@ -31,6 +30,7 @@ import {
   MUSIC_DIR,
   relativeIn,
   resolveIn,
+  SCRIPTS_DIR,
   workspaceOf,
 } from '../lib/paths.ts'
 
@@ -51,8 +51,7 @@ function nodeBinary(): string {
 }
 const NODE = nodeBinary()
 
-const HERE = dirname(fileURLToPath(import.meta.url))
-const SCRIPTS = join(HERE, '..', 'skills', 'launch-video', 'scripts')
+const SCRIPTS = join(SCRIPTS_DIR, 'launch-video')
 const MAX_BUFFER = 16 * 1024 * 1024
 const AUDIO_RE = /\.(mp3|wav|m4a|aac|flac|ogg)$/i
 
@@ -383,7 +382,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_review',
     label: 'Look at the Film',
     description:
-      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. Look for: clipped or overflowing text, words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. The frames carry the film's `grade` block, so a LUT or vignette is judged here too. Fix in shots.js, then re-run with `shots` for the ones you touched. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.",
+      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. It also measures every run of hero type at the settled frame against the mask holding it and lists what is clipped, in px, with the fix. Look for: words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. The frames carry the film's `grade` block. Fix in shots.js, then re-run with `shots` for the ones you touched. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.",
     parameters: Type.Object({
       shots: Type.Optional(
         Type.Array(Type.String(), { description: 'Only these shot ids (default: every shot)' }),
@@ -474,8 +473,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_screenshot',
     label: 'Motion Screenshot',
     description:
-      'Capture a reference screenshot for Phase-0 recon: from a live URL, or a synthetic HTML ' +
-      'template. For brand recon -> recon/screenshots/. Not for video frames. With `layers`, cuts the screen into a ' +
+      'Capture the product: from a live URL, or a synthetic HTML template. For brand recon -> recon/screenshots/; ' +
+      'for a shot, `selector` crops to the one control the copy is about, at 2× — a whole desktop is never the subject of a shot. With `layers`, cuts the screen into a ' +
       'base plate plus each floating piece (modal, sticky header, sidebar, toast) on transparency and writes ' +
       '<out>.layers.json with the `layers` field for a parallax ui-frame — out under assets/harvested/ in that case.',
     parameters: Type.Object({
@@ -665,7 +664,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_check',
     label: 'Check Cut',
     description:
-      "Fast compile check (seconds, not the audit): loads index.html and reports page errors, shot count, real duration, every shot's start time and any factory overrun (> 1.6× fails the audit). Run after every batch of shots you save.",
+      "Fast compile check (seconds, not the audit): loads index.html and reports page errors, shot count, real duration, every shot's start time, any factory overrun (> 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject. Run after every batch of shots you save and act on the warnings then.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),

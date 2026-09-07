@@ -3,11 +3,7 @@
  * hands ffmpeg for it.
  */
 import { describe, expect, it } from 'vitest'
-import {
-  breathExpr,
-  breathFilter,
-  breathsOf,
-} from '../.pi/skills/launch-video/scripts/lib/breaths.mjs'
+import { breathExpr, breathFilter, breathsOf } from '../.pi/scripts/launch-video/lib/breaths.mjs'
 
 describe('breathsOf', () => {
   it('cleans, defaults and orders the cues file entries', () => {

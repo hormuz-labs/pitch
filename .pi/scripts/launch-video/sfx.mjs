@@ -30,9 +30,8 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SKILL = resolve(HERE, "..");
-const REPO = resolve(SKILL, "..", "..", "..");
-const MANIFEST = join(SKILL, "data", "sfx-index.json");
+const REPO = resolve(HERE, "..", "..", "..");
+const MANIFEST = join(HERE, "data", "sfx-index.json");
 
 // ---------------------------------------------------------------------------
 // Per-class mix targets. These are the levels the SFX bus is built AT, before

@@ -24,7 +24,7 @@
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
-import { TYPE_BEATS, designSummary, lintDesign } from "./lib/design-rules.mjs";
+import { TYPE_BEATS, designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -61,24 +61,7 @@ const rawCues = await page.evaluate("window.__CUES ? window.__CUES() : []");
 const cues = (Array.isArray(rawCues) ? rawCues : Object.entries(rawCues).map(([label, time]) => ({ label, time })))
   .filter(c => typeof c.time === "number" && Number.isFinite(c.time))
   .sort((a, b) => a.time - b.time);
-const spec = await page.evaluate(() => {
-  const s = window.SHOTS;
-  if (!s || !Array.isArray(s.shots)) return null;
-  const beatsOf = (x, kind) => (Array.isArray(x.beats) ? x.beats.filter(b => b && b.kind === kind).length : 0);
-  return {
-    ambient: s.ambient || null,
-    motion: s.motion || null,
-    motionExit: s.motion && s.motion.exit ? s.motion.exit : null,
-    audio: s.audio || null,
-    actors: s.actors ? Object.keys(s.actors).length : 0,
-    shots: s.shots.map(x => ({ id: x.id, type: x.type, dur: Number(x.dur) || 0, vo: x.vo || null, voDur: x.voDur || 0, cue: x.cue || null,
-      beats: Array.isArray(x.beats) ? x.beats.length : 0, exit: x.exit ?? null, cut: x.cut || "hard",
-      steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: x.actors ? Object.keys(x.actors).length : 0, carry: !!x.carry,
-      chapter: x.chapter || null, typing: !!x.typing, container: x.container || null, breaths: beatsOf(x, "breath"), floodBeats: beatsOf(x, "flood"), zoomBeats: beatsOf(x, "zoom"), rippleBeats: beatsOf(x, "ripple"),
-      capturedSrc: x.type === "ui-frame" && typeof x.src === "string" && !x.html && /^assets\//.test(x.src),
-      src: x.src, layers: x.layers, rows: x.rows })),
-  };
-});
+const spec = await page.evaluate(extractSpec);
 const plugins = await page.evaluate("window.__PLUGINS || []");
 const brandTokens = await page.evaluate("window.__BRAND || {}");
 const overruns = await page.evaluate("window.__OVERRUNS || []");

@@ -21,10 +21,11 @@ import {
 } from '../.pi/lib/sandbox'
 
 const WS = '/app/projects/studio--user_1--acme'
-const SHARED = ['/app/engine', '/app/.pi/skills', '/app/assets']
+const SHARED = ['/app/.pi/skills', '/app/assets', '/app/effects']
+const HIDDEN = ['/app/assets/gsap', '/app/assets/three']
 
 describe('the bwrap recipe', () => {
-  const args = bwrapArgs({ workspace: WS, shared: SHARED })
+  const args = bwrapArgs({ workspace: WS, shared: SHARED, hidden: HIDDEN })
   const pairs = (flag: string) => {
     const out: string[][] = []
     args.forEach((a, i) => {
@@ -63,6 +64,13 @@ describe('the bwrap recipe', () => {
     // Each reference at the path it already has — the agent, the shell and
     // the host tools name one set of paths.
     expect(pairs('--ro-bind-try')).toEqual(expect.arrayContaining(SHARED.map(root => [root, root])))
+  })
+
+  it('hides the vendor libraries under an empty tmpfs, after the bind they sit in', () => {
+    const tmpfs = args.map((a, i) => (a === '--tmpfs' ? args[i + 1] : null)).filter(Boolean)
+    expect(tmpfs).toEqual(expect.arrayContaining(HIDDEN))
+    const lastBind = args.lastIndexOf('--ro-bind-try')
+    for (const dir of HIDDEN) expect(args.indexOf(dir)).toBeGreaterThan(lastBind)
   })
 
   it('binds nothing else of the host — no /app, no /etc wholesale, no /root', () => {

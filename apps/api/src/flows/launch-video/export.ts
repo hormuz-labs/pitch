@@ -19,11 +19,11 @@ import { ensureMix } from '../../lib/mix.js'
 import { nodeBinary } from '../../lib/node.js'
 import type { Exporter, ExportStatus } from '../../projects/export.js'
 import { type ProjectRow, workspaceOf } from '../../projects/service.js'
-import { fileUrl, MOTION_SKILL_DIR } from '../../studio/paths.js'
+import { fileUrl, MOTION_SCRIPTS_DIR } from '../../studio/paths.js'
 import { newestMtime, RENDER_RESES, type RenderRes, renderFile, sourceTargets } from './describe.js'
 
 const logger = createLogger('studio:launch-export')
-const CAPTURE = path.join(MOTION_SKILL_DIR, 'scripts', 'capture.mjs')
+const CAPTURE = path.join(MOTION_SCRIPTS_DIR, 'capture.mjs')
 
 interface Job extends ExportStatus {
   proc: ChildProcess | null

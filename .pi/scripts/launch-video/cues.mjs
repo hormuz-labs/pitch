@@ -18,13 +18,16 @@
  *
  * `--check` is the fast loop while building shot by shot: it loads the page
  * in a headless browser and reports page errors, the shot count, the real
- * duration, every shot's start time and any factory overruns (a factory
- * timeline longer than its shot's `dur`, which the compiler compresses).
+ * duration, every shot's start time, any factory overruns (a factory
+ * timeline longer than its shot's `dur`, which the compiler compresses) and
+ * the shot-list lint (lib/design-rules.mjs) — so a shot that holds, text that
+ * only enters or a whole desktop is heard while the film is being built.
  * Exit 1 on a page error or a page that never becomes ready.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { extractSpec, lintWhileBuilding } from "./lib/design-rules.mjs";
 
 const args = process.argv.slice(2);
 const page_ = args.find(a => !a.startsWith("--")) || "index.html";
@@ -58,8 +61,8 @@ const data = await page.evaluate(() => ({
   brand: window.__BRAND || {},
   // `breath` beats: the bed ducks here (mix.mjs reads them from cues.json).
   breaths: window.__BREATHS || [],
-  design: window.__DESIGN || null,
 }));
+const spec = CHECK ? await page.evaluate(extractSpec) : null;
 await studio.close();
 
 if (!CHECK) {
@@ -68,7 +71,7 @@ if (!CHECK) {
 }
 
 const head = CHECK
-  ? `${errors.length ? "❌" : "✅"} ${page_} compiles — ${data.shots.length} shots · ${data.duration.toFixed(2)}s · ${data.overruns.length} overrun${data.overruns.length === 1 ? "" : "s"}${data.design ? ` · design ${data.design}` : ""}`
+  ? `${errors.length ? "❌" : "✅"} ${page_} compiles — ${data.shots.length} shots · ${data.duration.toFixed(2)}s · ${data.overruns.length} overrun${data.overruns.length === 1 ? "" : "s"}`
   : `✨ ${out} — duration ${data.duration.toFixed(2)}s, ${data.cues.length} labels${data.breaths.length ? `, ${data.breaths.length} breath${data.breaths.length === 1 ? "" : "s"}` : ""}`;
 console.log(head);
 const byLabel = new Map(data.cues.map((c) => [c.label, c.time]));
@@ -80,6 +83,11 @@ for (const o of data.overruns) {
   // compiler.js records { id, type, dur, ran, speed }
   const speed = Number(o.speed) || (o.ran && o.dur ? o.ran / o.dur : 0);
   console.log(`⚠ overrun: ${o.id ?? "?"} (${o.type ?? "?"}) factory timeline ${Number(o.ran ?? 0).toFixed(2)}s in a ${Number(o.dur ?? 0).toFixed(2)}s shot — compressed ${speed.toFixed(2)}×${speed > 1.6 ? " (audit FAILS above 1.6×)" : ""}; time the factory as fractions of D`);
+}
+if (CHECK) {
+  // The shot-list rules, now — the audit says the same things after a render,
+  // and a film that hears them there gets rebuilt instead of built.
+  for (const l of spec ? lintWhileBuilding(spec) : []) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
 }
 if (errors.length) {
   console.log(`\n❌ page errors:\n   - ${errors.join("\n   - ")}`);

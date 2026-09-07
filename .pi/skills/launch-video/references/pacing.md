@@ -14,8 +14,10 @@ Individual moves are 0.3–0.6s with expo eases; there are simply many of them.
 Energy is **density and layering**, not speed.
 
 The failure mode is the opposite film: narration setting the durations, every
-shot an entrance then a hold, one element centred in an empty frame. The fix
-is one read cut to words, a second act in every shot, and a stage.
+shot an entrance then a hold, a whole desktop where one control should be.
+The fix is one read cut to words, a second act in every shot, one subject
+big in the middle, and a stage — planned in the shot table, not discovered by
+the gate.
 
 ## What the gate enforces
 
@@ -29,7 +31,9 @@ is one read cut to words, a second act in every shot, and a stage.
 | Longest quiet stretch | ≤ 1.5s |
 | Events per second | ≥ 0.7 (the references run 2–3) |
 | Fails | a caret typing as the opener; a `ripple` beat |
-| Warnings | no `breath` beats; no `punch` cuts; a bare stage with no actors; a still screenshot as the product |
+| Warnings, while building (`motion_check`) | a shot over 1.5s with nothing after its entrance; `word-cut` / `type-wipe` / `color-punch` / `type-field` / `overlay-type` with no `lab` port behind it; a whole screen in a browser frame with no `focus`, `cursor.zoom` or layers; a still screenshot as the product |
+| Warnings, at the gate | no `breath` beats; no `punch` cuts; a bare stage with no actors |
+| Clipped type (`motion_review`) | hero type measured against its mask: any run cut by 2–60px is listed with the fix |
 
 Both reference films measured 2.3 and 2.5 events per second, longest still
 frame 0.83s, and never a frame with nothing moving. The fix for a failing
