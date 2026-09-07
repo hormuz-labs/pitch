@@ -6,21 +6,30 @@
  * samples the master timeline densely, and scores the film against the studio
  * philosophy: "something new happens on screen at least every ~1.2s".
  *
- * Checks (all must pass):
+ * Checks:
  *   1. Shot-list lint (window.SHOTS): the shot-list rules (lib/design-rules.mjs —
  *      shot count, durations, hook, breaths, the stage), and the
  *      narration contract — ONE continuous read (audio.vo) with the picture cut
  *      to its words (shot `cue`s vs audio/vo-words.json); per-shot clips fail.
  *   2. Event density: consecutive samples (every 0.25s) that differ by more than
- *      --event are "events". Longest quiet gap must be ≤ --max-quiet, and the
- *      film must average ≥ --min-eps events per second.
- *   3. Static holds: two samples 1s apart that look identical.
- *   4. Scene overlap at every scene midpoint; seek determinism.
+ *      --event are "events". A quiet gap over --max-quiet or a film under
+ *      --min-eps events per second is a ⚠️ pacing note, not a failure: the
+ *      numbers come from the reference films, but a held frame can be the
+ *      design, and an effect ported whole should not be rebuilt to satisfy a
+ *      counter. The agent answers the note or says in direction.md why not.
+ *   3. Scene overlap at every scene midpoint; seek determinism (❌).
+ *
+ * Screenshots are what costs time on the CloakBrowser (~1.5s each over CDP,
+ * 150 of them for a 37s film), so the samples are taken by several tabs at
+ * once, each seeking its own slice of the timeline — capture.mjs's pattern —
+ * and at half scale: 960×540 keeps a 0.6% event at ~3,100px, far above the
+ * browser's raster noise, and a frame on disk still readable.
  *
  * Usage:
  *   node scripts/audit.mjs page.html [--step=0.25] [--event=0.006] [--max-quiet=1.5]
- *                          [--min-eps=0.7] [--threshold=0.003] [--out=audit]
+ *                          [--min-eps=0.7] [--threshold=0.003] [--out=audit] [--workers=6]
  */
+import os from "node:os";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
@@ -40,6 +49,10 @@ const maxQuiet = Number(args["max-quiet"] ?? 1.5);            // longest allowed
 const minEps = Number(args["min-eps"] ?? 0.7);                // events per second, whole film
 const threshold = Number(args.threshold ?? 0.003);            // static-hold: 1s apart, < 0.3% change
 const outDir = resolve(String(args.out ?? "audit"));
+// Tabs sampling in parallel (capture.mjs uses the same bound).
+const workers = Math.max(1, Math.min(8, Number(args.workers ?? Math.max(1, Math.min(6, os.cpus().length - 2)))));
+const SCALE = 0.5;
+const shotOpts = { format: "png", captureBeyondViewport: false, clip: { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE } };
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -48,8 +61,15 @@ console.log(`\n🔍 Motion Audit — ${pageArg}`);
 
 // The CloakBrowser is not on this machine; the page is served into it from
 // disk over the studio.local origin (see lib/browser.mjs).
-const studio = await openStudioBrowser({ cdp: args.cdp === true ? null : args.cdp });
+const studio = await openStudioBrowser({ cdp: args.cdp === true ? null : args.cdp, deviceScaleFactor: SCALE });
 const page = await studio.newPage();
+const cdp = await page.context().newCDPSession(page);
+/** Seek a tab and capture it at SCALE (physical pixels — see capture.mjs on clip.scale). */
+const grabAt = async (pg, sess, t) => {
+  await pg.evaluate((seekT) => { window.__SEEK(seekT); }, t);
+  const { data } = await sess.send("Page.captureScreenshot", shotOpts);
+  return Buffer.from(data, "base64");
+};
 
 const base = /^https?:/.test(pageArg) ? pageArg : localPageUrl(pageArg);
 const url = base + (base.includes("?") ? "&" : "?") + "audit";
@@ -62,11 +82,10 @@ const cues = (Array.isArray(rawCues) ? rawCues : Object.entries(rawCues).map(([l
   .filter(c => typeof c.time === "number" && Number.isFinite(c.time))
   .sort((a, b) => a.time - b.time);
 const spec = await page.evaluate(extractSpec);
-const plugins = await page.evaluate("window.__PLUGINS || []");
 const brandTokens = await page.evaluate("window.__BRAND || {}");
 const overruns = await page.evaluate("window.__OVERRUNS || []");
 
-console.log(`   Duration: ${duration.toFixed(2)}s   Shots: ${spec ? spec.shots.length : "?"}   Plugins: ${plugins.join(", ") || "none"}`);
+console.log(`   Duration: ${duration.toFixed(2)}s   Shots: ${spec ? spec.shots.length : "?"}   Sampling: every ${step}s on ${workers} tab${workers === 1 ? "" : "s"}`);
 console.log(`   Cues: ${cues.map(c => `${c.label}@${c.time.toFixed(1)}s`).join(", ")}\n`);
 
 // ---------------------------------------------------------------------------
@@ -135,6 +154,7 @@ if (!spec) {
 
   // ---- Factories that ignore their shot's dur -----------------------------------
   for (const o of overruns) {
+    if (o.speed < 1.1) continue; // a 2% squeeze is invisible; only a real mistiming is worth a turn
     lint.push({ level: o.speed > 1.6 ? "fail" : "warn", msg: `#${o.id} (${o.type}): its factory timeline runs ${o.ran}s but the shot is ${o.dur}s — compressed ${o.speed}× to fit. Time the factory as fractions of D, or give the beat more words in the script so the cue interval matches.` });
   }
   // ---- Brand applied? Unset tokens mean the engine's default palette --------------
@@ -158,14 +178,23 @@ if (!spec) {
 // ---------------------------------------------------------------------------
 // 2. Dense sampling → event density.
 // ---------------------------------------------------------------------------
-const samples = [];
 const n = Math.floor(duration / step);
-for (let i = 0; i <= n; i++) {
-  const t = Math.min(i * step, duration);
-  await page.evaluate((seekT) => { window.__SEEK(seekT); }, t);
-  const buf = await page.screenshot({ type: "png" });
-  samples.push({ t, buf });
-}
+const times = Array.from({ length: n + 1 }, (_, i) => Math.min(i * step, duration));
+const samples = new Array(times.length);
+const chunk = Math.ceil(times.length / workers);
+await Promise.all(Array.from({ length: workers }, async (_, w) => {
+  const from = w * chunk, to = Math.min(from + chunk, times.length);
+  if (from >= to) return;
+  let pg = page, sess = cdp;
+  if (w > 0) {
+    pg = await studio.newPage();
+    sess = await pg.context().newCDPSession(pg);
+    await pg.goto(url, { waitUntil: "domcontentloaded" });
+    await pg.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+  }
+  for (let i = from; i < to; i++) samples[i] = { t: times[i], buf: await grabAt(pg, sess, times[i]) };
+  if (w > 0) await pg.close();
+}));
 // keep one frame per second on disk for the agent to look at
 samples.forEach((s, i) => {
   if (Math.abs(s.t - Math.round(s.t)) < 1e-6) {
@@ -200,7 +229,9 @@ if (cues.length) {
   });
 }
 
-console.log(`📊 Event density (step ${step}s, event ≥ ${(eventThreshold * 100).toFixed(1)}% pixels changed)`);
+// The threshold in pixels, so a beat that cannot register is not tried twice.
+const eventPx = Math.round(eventThreshold * 1920 * 1080);
+console.log(`📊 Event density (step ${step}s; an event is ≥ ${(eventThreshold * 100).toFixed(1)}% of the frame changing ≈ ${eventPx.toLocaleString("en-US")}px at 1080p — a pulse on a 200px button does not count, a word-sized move does)`);
 console.log(`   ${"shot".padEnd(12)} ${"type".padEnd(14)} ${"dur".padStart(5)} ${"events".padStart(7)} ${"ev/s".padStart(6)}   bar`);
 for (const r of shotRows) {
   const bar = "█".repeat(Math.min(24, Math.round(r.eps * 6))) + (r.eps < 0.5 ? "  ← lazy" : "");
@@ -250,7 +281,7 @@ let determinismWarnings = 0;
 {
   const probe = Math.min(duration * 0.4, Math.max(1, duration - 1));
   const away = Math.min(duration * 0.8, Math.max(2, duration - 0.5));
-  const grab = async (t) => { await page.evaluate((tt) => window.__SEEK(tt), t); await page.waitForTimeout(140); return page.screenshot(); };
+  const grab = async (t) => { await page.evaluate((tt) => window.__SEEK(tt), t); await page.waitForTimeout(140); return grabAt(page, cdp, t); };
   const first = await grab(probe); await grab(away); const second = await grab(probe);
   // Pixels, not bytes: see getBufferDiffRatio. 0.1% of pixels is far below any
   // designed motion and far above the browser's own rasterization noise.
@@ -268,8 +299,10 @@ await studio.close();
 const fails = [];
 const warns = [];
 for (const l of lint) (l.level === "fail" ? fails : warns).push(l.msg);
-if (longestQuiet > maxQuiet) fails.push(`Longest quiet stretch ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s (limit ${maxQuiet}s)${quietGaps.length > 1 ? ` — ${quietGaps.length} such gaps: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")}` : ""}. Add a beat (swap/kick/flash/pulse), a second line, 'more' notifications, a pile item, a cursor/focus — or cut the shot.`);
-if (eps < minEps) fails.push(`Event density ${eps.toFixed(2)} ev/s is below ${minEps}. The reference films run ≥ 1 ev/s: every shot needs a second and third act, not one entrance.`);
+// Pacing is a note, not a gate: the numbers are the reference films', and a
+// held frame or a lab effect kept whole can be the right call — said out loud.
+if (longestQuiet > maxQuiet) warns.push(`Pacing: the picture sits still for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}; the reference films never hold past ${maxQuiet}s. A beat (swap/kick/flash/pulse), a second line, 'more' notifications, a cursor/focus — or a cut — answers it. If the hold is the design, keep it and say why in direction.md.`);
+if (eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} events/s over the film; the reference films run ≥ ${minEps}. Second and third acts, not more entrances — or say in direction.md why this film breathes slower.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
@@ -288,7 +321,8 @@ if (fails.length) {
   console.error(`\n❌ AUDIT FAILED (${fails.length}) — fix every ❌ above, then re-run. Frames in '${outDir}/'.`);
   process.exit(1);
 } else {
-  console.log(`\n✅ AUDIT PASSED — dense, continuous, deterministic. Frames in '${outDir}/'.\n`);
+  const pacing = warns.filter(w => w.startsWith("Pacing:")).length;
+  console.log(`\n✅ AUDIT PASSED — ${pacing ? `deterministic; ${pacing} pacing note${pacing === 1 ? "" : "s"} above to answer or to justify in direction.md` : "dense, continuous, deterministic"}. Frames in '${outDir}/'.\n`);
 }
 
 /**

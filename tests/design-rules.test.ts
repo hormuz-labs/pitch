@@ -105,7 +105,7 @@ describe('lintWhileBuilding', () => {
 })
 
 describe('designSummary', () => {
-  it('names actors, chapters, lab moves and breaths', () => {
+  it('names actors, chapters, lab moves and breaths — a custom type without a lab id is not a lab move', () => {
     const spec = film(
       [
         { chapter: 'a', breaths: 1, lab: 'text/bold-text-snap' },
@@ -115,7 +115,7 @@ describe('designSummary', () => {
       ],
       { actors: 2 },
     )
-    expect(designSummary(spec)).toBe('actors 2 · chapters 1 · lab moves 2 · breaths 1')
+    expect(designSummary(spec)).toBe('actors 2 · chapters 1 · lab moves 1 · breaths 1')
     expect(designSummary({ shots: [] })).toBe('lab moves 0 · breaths 0')
   })
 })

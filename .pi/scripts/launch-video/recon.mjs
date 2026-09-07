@@ -273,10 +273,17 @@ const data = await page.evaluate(() => {
   try {
     document.fonts.forEach((f) => { if (f.status === "loaded") loadedFonts.push(`${f.family.replace(/["']/g, "")} ${f.weight} ${f.style}`); });
   } catch (_) {}
+  // A header also carries icons that are not the mark — an OS badge, a GitHub
+  // link, a hamburger. Their name gives them away (an <svg><title>, an alt, an
+  // aria-label), and the mark is the one inside the link home when there is one.
+  const ICON_NAME = /^(windows|apple|mac(os)?|linux|ubuntu|android|ios|github|gitlab|x|twitter|discord|slack|linkedin|youtube|facebook|instagram|reddit|mastodon|bluesky|rss|menu|hamburger|search|close|sun|moon|dark|light|theme|arrow|chevron|external)( (icon|logo|mark))?$/i;
+  const nameOf = (el) => (el.tagName.toLowerCase() === "svg" ? (el.querySelector("title")?.textContent || "") : el.getAttribute("alt") || "").trim() || (el.getAttribute("aria-label") || el.closest("a")?.getAttribute("aria-label") || el.closest("a")?.getAttribute("title") || "").trim();
   const logoCandidates = Array.from(document.querySelectorAll('header img, header svg, nav img, nav svg, a[href="/"] img, a[href="/"] svg, img[alt*="logo" i], img[src*="logo" i]'))
     .filter(visible)
+    .filter((el) => !ICON_NAME.test(nameOf(el)))
+    .sort((a, b) => Number(!!b.closest('a[href="/"]')) - Number(!!a.closest('a[href="/"]')))
     .slice(0, 6)
-    .map((el) => ({ tag: el.tagName.toLowerCase(), alt: el.getAttribute("alt") || "", src: el.tagName.toLowerCase() === "img" ? (el.currentSrc || el.src || "").slice(0, 600) : "", svg: el.tagName.toLowerCase() === "svg" ? el.outerHTML.slice(0, 400000) : null, w: Math.round(el.getBoundingClientRect().width), h: Math.round(el.getBoundingClientRect().height) }));
+    .map((el) => ({ tag: el.tagName.toLowerCase(), alt: el.getAttribute("alt") || "", name: nameOf(el), home: !!el.closest('a[href="/"]'), src: el.tagName.toLowerCase() === "img" ? (el.currentSrc || el.src || "").slice(0, 600) : "", svg: el.tagName.toLowerCase() === "svg" ? el.outerHTML.slice(0, 400000) : null, w: Math.round(el.getBoundingClientRect().width), h: Math.round(el.getBoundingClientRect().height) }));
 
   return {
     title: document.title,
@@ -427,7 +434,8 @@ if (fontsDir) {
 // is fetched at its resolved URL. At most three files, largest on screen first.
 const logoFiles = [];
 if (logoDir) {
-  const cands = [...data.logoCandidates].sort((a, b) => b.w * b.h - a.w * a.h);
+  // The mark inside the link home first, then by size on screen.
+  const cands = [...data.logoCandidates].sort((a, b) => Number(!!b.home) - Number(!!a.home) || b.w * b.h - a.w * a.h);
   for (const l of cands) {
     if (logoFiles.length >= 3 || l.w * l.h < 400 || l.h < 12) continue;  // a 16×16 header icon is not the mark
     let body = null, ext = null;
@@ -574,3 +582,4 @@ if (data.cta) console.log(`   CTA "${data.cta.text}": ${toHex(data.cta.bg) || da
 console.log(`   ${varEntries.length} :root custom properties · ${accents.length} saturated colors · ${fontFiles.length} font file(s) saved${fontsDir ? ` to ${fontsDir}/` : ""}`);
 if (data.opaqueSheets.length) console.log(`   note: ${data.opaqueSheets.length} cross-origin stylesheet(s) read by fetch (variables inside them are not visible)`);
 console.log(`   Next: read ${out}, then direction.md — every hex there must be one of these values or a tint/shade of one.`);
+console.log(`   ${jsonOut} is the same measurement for the tools (motion_scaffold seeds shots.js from it) — nothing to read there.`);

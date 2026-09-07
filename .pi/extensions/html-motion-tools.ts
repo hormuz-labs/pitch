@@ -33,6 +33,7 @@ import {
   SCRIPTS_DIR,
   workspaceOf,
 } from '../lib/paths.ts'
+import { type ReconTokens, starterShots } from '../lib/starter-shots.ts'
 
 const execFileAsync = promisify(execFile)
 
@@ -204,7 +205,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       model: Type.Optional(
         Type.String({
           description:
-            'Gemini TTS model id. Default gemini-2.5-flash-preview-tts (most continuous); gemini-3.1-flash-tts-preview is more expressive with longer sentence breaks.',
+            'Gemini TTS model id. Default gemini-2.5-flash-preview-tts (most continuous); gemini-3.1-flash-tts-preview is more expressive with longer sentence breaks. A take that comes back rushed or truncated is re-recorded once with the other model before you see it — one call is the whole job.',
         }),
       ),
     }),
@@ -382,7 +383,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_review',
     label: 'Look at the Film',
     description:
-      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. It also measures every run of hero type at the settled frame against the mask holding it and lists what is clipped, in px, with the fix. Look for: words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. The frames carry the film's `grade` block. Fix in shots.js, then re-run with `shots` for the ones you touched. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.",
+      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. It also measures, at every frame, each run of hero type against the mask holding it (or the stage edge) and lists what is clipped, in px, with the fix; and, at the settled frame, the subject — the largest type and the largest block on screen: a 40px headline over 18px cards with nothing filling a fifth of the stage is a web section, not a frame, and it says which shot and what to enlarge. Look for: words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. The frames carry the film's `grade` block. Fix in shots.js, then re-run with `shots` for the ones you touched — not another motion_audit, unless a dur, a cue or a beat changed. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.",
     parameters: Type.Object({
       shots: Type.Optional(
         Type.Array(Type.String(), { description: 'Only these shot ids (default: every shot)' }),
@@ -436,17 +437,17 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      'The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism and overlap. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.',
+      'The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films\' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs motion_cues and motion_mix, not the gate.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
       max_quiet: Type.Optional(
         Type.Number({
-          description: 'Longest allowed stretch without an on-screen event, seconds (default 1.5)',
+          description: 'The stretch without an on-screen event the pacing note starts at, seconds (default 1.5; a note, not a failure)',
         }),
       ),
       min_eps: Type.Optional(
-        Type.Number({ description: 'Minimum events per second over the film (default 0.7)' }),
+        Type.Number({ description: 'Events per second over the film the pacing note starts under (default 0.7; a note, not a failure)' }),
       ),
       out: Type.Optional(Type.String({ description: 'Output frame dir (default audit)' })),
     }),
@@ -664,7 +665,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_check',
     label: 'Check Cut',
     description:
-      "Fast compile check (seconds, not the audit): loads index.html and reports page errors, shot count, real duration, every shot's start time, any factory overrun (> 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject. Run after every batch of shots you save and act on the warnings then.",
+      "Fast compile check (seconds, not the audit): loads index.html and reports page errors, shot count, real duration, every shot's start time, any factory overrun worth a fix (over 1.1×; over 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject. Run after every batch of shots you save and act on the warnings then.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),
@@ -972,9 +973,11 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     label: 'Scaffold the page',
     description:
       'Write index.html — the thin shell that loads the GSAP vendor bundle, three.js and lottie-web, shots.js and the engine, ' +
-      'in the one order that works. Call this once before your first shots.js instead of writing the ' +
-      'page by hand; the script order is the whole of it. Pass custom: true when you have ' +
-      'added js/shots.custom.js, rive: true when a shot uses a .riv file.',
+      'in the one order that works — and, when there is none yet, a starter shots.js with the brand from recon ' +
+      '(bg, ink, accent, the font and its self-hosted files) and an empty shot list: open it and add shots. ' +
+      'Call this once instead of writing the page by hand; the script order is the whole of it. Pass custom: true ' +
+      'when you are adding js/shots.custom.js — it links css/custom.css too (created if missing) for those types\' styles — ' +
+      'and rive: true when a shot uses a .riv file.',
     parameters: Type.Object({
       title: Type.Optional(
         Type.String({ description: 'Page <title>; defaults to the project name.' }),
@@ -1022,10 +1025,23 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         'ScrollSmoother.min.js',
         'ScrollToPlugin.min.js',
       ]
+      // The styles for project-local types live next to their factories; the
+      // agent's alternative was three turns finding where CSS goes.
+      const cssPath = resolveIn(ws, 'css/custom.css', 'write')
+      if (p.custom && !existsSync(cssPath)) {
+        mkdirSync(dirname(cssPath), { recursive: true })
+        writeFileSync(
+          cssPath,
+          '/* css/custom.css — styles for the project-local shot types in js/shots.custom.js.\n' +
+            '   Loaded after the engine\'s shots.css; brand tokens are var(--bg), var(--ink), var(--accent), var(--font). */\n',
+        )
+      }
       const html = [
         '<!DOCTYPE html>',
         '<html lang="en"><head><meta charset="UTF-8"><title>' + title + '</title>',
-        '<link rel="stylesheet" href="../../engine/css/shots.css"></head>',
+        '<link rel="stylesheet" href="../../engine/css/shots.css">' +
+          (p.custom ? '\n<link rel="stylesheet" href="css/custom.css">' : '') +
+          '</head>',
         '<body>',
         '  <div id="viewport"><div id="camera"></div></div>',
         ...plugins.map(f => `  <script src="../../assets/gsap/${f}"></script>`),
@@ -1046,12 +1062,30 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       ].join('\n')
       writeFileSync(out, html)
       const vendor = existsSync(join(ASSETS_DIR, 'gsap', 'gsap.min.js'))
+
+      // The starter shots.js: the file's shape plus the measured brand, never
+      // over a shots.js the agent has already written.
+      const shotsPath = resolveIn(ws, 'shots.js', 'write')
+      let starter = ''
+      if (!existsSync(shotsPath)) {
+        let tokens: ReconTokens | null = null
+        try {
+          tokens = JSON.parse(readFileSync(resolveIn(ws, 'recon/brand-tokens.json'), 'utf8'))
+        } catch {
+          tokens = null
+        }
+        writeFileSync(shotsPath, starterShots(tokens))
+        starter = tokens
+          ? '\nshots.js written with the brand recon measured and `shots: []` — add shots to it.'
+          : '\nshots.js written with a PLACEHOLDER brand (no recon/brand-tokens.json yet): run motion_recon, then put the measured values in brand.'
+      }
       return text(
-        `index.html written (${plugins.length} GSAP plugins, three.js, lottie-web${p.rive ? ', rive' : ''}${p.custom ? ' + js/shots.custom.js' : ''}).\n` +
+        `index.html written (${plugins.length} GSAP plugins, three.js, lottie-web${p.rive ? ', rive' : ''}${p.custom ? ' + js/shots.custom.js + css/custom.css' : ''}).\n` +
           (vendor
             ? 'GSAP loads from the shared ../../assets/gsap/.'
             : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
-          '\nNext: write shots.js, then motion_check.',
+          starter +
+          '\nNext: the first shots in shots.js, then motion_check.',
       )
     },
   })

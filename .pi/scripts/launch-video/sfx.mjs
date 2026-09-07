@@ -315,8 +315,10 @@ for (const p of plan) {
 }
 const dense = [];
 for (const [bucket, b] of Object.entries(per30)) {
-  if (b.t1 > 6) dense.push([bucket, `${b.t1} signature cues (budget ~6)`]);
-  if (b.t2 > 14) dense.push([bucket, `${b.t2} micro-texture cues (budget ~14)`]);
+  // Name the offenders: "9 signature cues" alone sent the agent hunting for the definition.
+  const inBucket = (tier1) => plan.filter(p => Math.floor(p.t / 30) === +bucket && TIER2.has(p.event) !== tier1).map(p => `${p.label} (${p.event} @${p.t.toFixed(1)}s)`).join(", ");
+  if (b.t1 > 6) dense.push([bucket, `${b.t1} signature cues (budget ~6, ★ below): ${inBucket(true)} — demote some to a pop/tick, or drop them`]);
+  if (b.t2 > 14) dense.push([bucket, `${b.t2} micro-texture cues (budget ~14): ${inBucket(false)}`]);
 }
 
 // Cues closer than 120ms smear into one mushy noise instead of reading as
@@ -332,11 +334,12 @@ for (let i = 0; i < bySeq.length - 1; i++) {
   }
 }
 
-console.log(`SFX bus plan — ${plan.length} cues over ${duration}s\n`);
-console.log("   T      START   GAIN    EVENT         CLIP");
+console.log(`SFX bus plan — ${plan.length} cues over ${duration}s`);
+console.log(`★ signature (every event except ${[...TIER2].join("/")}) — ~6 per 30s, one per shot; unmarked rows are micro-texture, up to ~14 per 30s\n`);
+console.log("     T      START   GAIN    EVENT         CLIP");
 for (const p of plan) {
   console.log(
-    `  ${p.t.toFixed(2).padStart(6)} ${p.startAt.toFixed(2).padStart(6)} ` +
+    `${TIER2.has(p.event) ? " " : "★"} ${p.t.toFixed(2).padStart(6)} ${p.startAt.toFixed(2).padStart(6)} ` +
     `${(p.gainDb >= 0 ? "+" : "") + p.gainDb.toFixed(1)}dB`.padStart(8) +
     `  ${p.event.padEnd(13)} ${(p.dur ? `[${p.dur}s] ` : "")}${p.clip.path.split("/").pop()}` +
     (p.borrowedFrom ? `  [borrowed: ${p.borrowedFrom}]` : "")

@@ -19,7 +19,11 @@ The fix is one read cut to words, a second act in every shot, one subject
 big in the middle, and a stage — planned in the shot table, not discovered by
 the gate.
 
-## What the gate enforces
+## What the gate says
+
+The rows marked *note* are the reference films' numbers, said as a ⚠️: answer
+them with a beat or a cut, or keep the hold and say why in direction.md. A lab
+effect ported whole keeps its timing. Everything else is a ❌.
 
 | Rule | Limit |
 |---|---|
@@ -28,16 +32,17 @@ the gate.
 | Any one shot | ≤ 6s |
 | Hook | first shot ≤ 3.5s |
 | Narration | one read, every shot cued, drift −0.35…+0.15s |
-| Longest quiet stretch | ≤ 1.5s |
-| Events per second | ≥ 0.7 (the references run 2–3) |
+| Longest quiet stretch | ≤ 1.5s — *note* |
+| Events per second | ≥ 0.7 (the references run 2–3) — *note* |
 | Fails | a caret typing as the opener; a `ripple` beat |
 | Warnings, while building (`motion_check`) | a shot over 1.5s with nothing after its entrance; `word-cut` / `type-wipe` / `color-punch` / `type-field` / `overlay-type` with no `lab` port behind it; a whole screen in a browser frame with no `focus`, `cursor.zoom` or layers; a still screenshot as the product |
 | Warnings, at the gate | no `breath` beats; no `punch` cuts; a bare stage with no actors |
-| Clipped type (`motion_review`) | hero type measured against its mask: any run cut by 2–60px is listed with the fix |
+| Clipped type (`motion_review`) | hero type measured against its mask and the stage edge at every frame: a run cut at the settled frame, or bigger than its mask mid-move (a snap scaled past its row), is listed with the fix |
+| The subject (`motion_review`) | at the settled frame: largest type under 64px with no block filling a fifth of the stage is a web section, not a frame; four or more runs of copy under 22px are unreadable |
 
 Both reference films measured 2.3 and 2.5 events per second, longest still
-frame 0.83s, and never a frame with nothing moving. The fix for a failing
-shot is a `line` step, an actor pose, a beat or a cursor — or cutting the
+frame 0.83s, and never a frame with nothing moving. The answer to a pacing
+note is a `line` step, an actor pose, a beat or a cursor — or cutting the
 shot. Never lengthening it.
 
 ## Density is required; uniformity is not
