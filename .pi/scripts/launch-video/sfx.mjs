@@ -227,7 +227,10 @@ if (!duration) {
   console.error("--duration=<seconds> required (timeline length from __DURATION()).");
   process.exit(1);
 }
-if (!cues.length) { console.error("Cue sheet has no cues."); process.exit(1); }
+if (!cues.length) {
+  console.error(`Cue sheet has no cues. ${cuesPath} is { "cues": [ { "t": 1.4, "event": "impact", "label": "hook lands" }, { "t": 6.3, "event": "riser", "dur": 1.1 }, … ] } — t in seconds from audio/cues.json, event from motion_sfx({ mode: "list" }) (or "clip" naming one), optional label, dur (audible seconds), gainDb, max.`);
+  process.exit(1);
+}
 
 // --- resolve every cue to a concrete clip + placement ----------------------
 const used = new Set();

@@ -510,8 +510,12 @@ if (data.gradients.length) {
 lines.push(``);
 lines.push(`## Custom properties on :root (${varEntries.length}${data.opaqueSheets.length ? `; ${data.opaqueSheets.length} cross-origin sheet(s) not readable` : ""})`);
 if (varEntries.length === 0) lines.push(`(none — the site does not expose its palette as CSS variables)`);
-for (const [k, v] of colorVars.slice(0, 80)) lines.push(`- \`${k}\`: ${v}`);
-for (const [k, v] of otherVars.slice(0, 40)) lines.push(`- \`${k}\`: ${v.length > 80 ? v.slice(0, 77) + "…" : v}`);
+// A design system exposes hundreds of these; the film needs the palette and
+// the type, and every line here is re-read on every model call for the rest
+// of the run. The rest sit in the JSON.
+for (const [k, v] of colorVars.slice(0, 24)) lines.push(`- \`${k}\`: ${v}`);
+for (const [k, v] of otherVars.slice(0, 12)) lines.push(`- \`${k}\`: ${v.length > 80 ? v.slice(0, 77) + "…" : v}`);
+if (colorVars.length > 24 || otherVars.length > 12) lines.push(`- … ${Math.max(0, colorVars.length - 24) + Math.max(0, otherVars.length - 12)} more in ${jsonOut} (vars) — the measured palette above is what the film uses`);
 lines.push(``);
 lines.push(`## Typography`);
 lines.push(`- **Headline family**: \`${headFamily}\` · **body family**: \`${bodyFamily}\``);

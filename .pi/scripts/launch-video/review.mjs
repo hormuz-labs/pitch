@@ -2,7 +2,7 @@
  * review.mjs — look at the film: contact sheets of the compiled page.
  *
  *   node review.mjs [index.html] [--shots=hook,s3] [--per-shot=3] [--times=1.2,8]
- *                   [--out=review] [--cols=4] [--rows=3] [--tile=480]
+ *                   [--out=review] [--cols=4] [--rows=3] [--tile=480] [--workers=6]
  *
  * Seeks the page (the real look: ambient and drift on, unlike the audit) at a
  * few moments per shot, stamps each frame with its shot, type and time inside
@@ -24,9 +24,16 @@
  *     the stage. A film frame is one thing in the middle at 100–300px, or a
  *     control filling a third of the picture; a web section is a 40px
  *     headline over 18px cards with half the stage empty. The agent kept
- *     building the second and calling it the first.
+ *     building the second and calling it the first. The ground too: a shot
+ *     sitting on a colour the brand never uses (a navy nobody measured) is
+ *     named, while `bg: "ink"` — an inverted shot on the brand's own ink —
+ *     is a choice and passes.
+ *
+ * Screenshots over CDP to the CloakBrowser cost ~1.3s each, so like the audit
+ * the frames are captured by several tabs at once, each with its own label.
  */
 import { execFileSync } from "node:child_process";
+import os from "node:os";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
@@ -152,12 +159,16 @@ function measureSubject() {
     if (size < 22) { tiny++; if (tinyEx.length < 3) tinyEx.push(text.slice(0, 28)); }
   }
   let block = 0, blockName = "";
+  // The ground: the last painted box covering the stage — a shot's own bg —
+  // or the body's when nothing does.
+  let ground = getComputedStyle(document.body).backgroundColor;
   for (const el of document.body.querySelectorAll("*")) {
     if (skip(el) || !shown(el)) continue;
     const tag = el.tagName.toLowerCase();
     const cs = getComputedStyle(el);
+    const solid = cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent";
     const paints = ["img", "video", "canvas", "svg", "iframe"].includes(tag)
-      || (cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent")
+      || solid
       || cs.backgroundImage !== "none"
       || (parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== "none")
       || cs.boxShadow !== "none";
@@ -166,14 +177,44 @@ function measureSubject() {
     const x0 = Math.max(0, r.left), y0 = Math.max(0, r.top), x1 = Math.min(W, r.right), y1 = Math.min(H, r.bottom);
     if (x1 <= x0 || y1 <= y0) continue;
     const frac = ((x1 - x0) * (y1 - y0)) / (W * H);
-    if (frac >= 0.95) continue; // the stage, an ambient layer, a background wash — not a subject
+    if (frac >= 0.95) { if (solid && !/rgba\(.*, 0(\.\d+)?\)$/.test(cs.backgroundColor)) ground = cs.backgroundColor; continue; } // the stage, an ambient layer, a background wash — not a subject
     if (frac > block) {
       block = frac;
       const cls = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(".") : "";
       blockName = tag + (cls ? "." + cls : "");
     }
   }
-  return { maxFont: Math.round(maxFont), maxFontText, tiny, tinyEx, block: +block.toFixed(3), blockName };
+  return { maxFont: Math.round(maxFont), maxFontText, tiny, tinyEx, block: +block.toFixed(3), blockName, ground };
+}
+
+/** "#rgb", "#rrggbb", "rgb(a)(…)" → [r, g, b], or null. */
+export function rgbOf(c) {
+  if (typeof c !== "string") return null;
+  const s = c.trim();
+  let m = s.match(/^#([0-9a-f]{3})$/i);
+  if (m) return [...m[1]].map(x => parseInt(x + x, 16));
+  m = s.match(/^#([0-9a-f]{6})([0-9a-f]{2})?$/i);
+  if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
+  m = s.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+  if (m) return [m[1], m[2], m[3]].map(Number);
+  return null;
+}
+
+const hexOf = (rgb) => "#" + rgb.map(v => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase();
+
+/**
+ * The ground against the brand: a note when the shot sits on a colour that is
+ * none of bg, ink, accent or the palette (within 40 per channel — a tint is
+ * a choice, a different hue is an invention).
+ */
+export function groundNote(ground, brand, shot) {
+  const g = rgbOf(ground);
+  if (!g || !brand) return null;
+  const named = [["bg", brand.bg], ["ink", brand.ink], ["accent", brand.accent], ...Object.entries(brand.palette || {})].filter(([, v]) => rgbOf(v));
+  if (!named.length) return null;
+  const near = named.find(([, v]) => { const b = rgbOf(v); return Math.max(...g.map((x, i) => Math.abs(x - b[i]))) <= 40; });
+  if (near) return null;
+  return `#${shot} sits on ${hexOf(g)} — not a brand colour (${named.map(([k, v]) => `${k} ${v}`).join(", ")}). A ground the product never uses is the invented look: \`bg: "ink"\` for an inverted shot, or put the colour in brand.palette with its evidence in direction.md.`;
 }
 
 /** The subject rules — hero type under this, and no block filling this much of the stage, is a web section. */
@@ -245,41 +286,61 @@ try {
   }
 
   const plan = planSamples({ shots, cues, duration, perShot, only, times });
+  const brand = await page.evaluate("Object.assign({}, window.__BRAND || {}, { palette: (window.SHOTS && window.SHOTS.brand && window.SHOTS.brand.palette) || {} })");
 
   // The label is drawn by the page itself, so no font or filter is needed
-  // on the host: one fixed strip, rewritten before every capture.
-  await page.evaluate(() => {
+  // on the host: one fixed strip per tab, rewritten before every capture.
+  const addLabel = (pg) => pg.evaluate(() => {
     const el = document.createElement("div");
     el.id = "__review_label";
     el.style.cssText = "position:fixed;left:0;bottom:0;z-index:2147483647;padding:16px 26px;font:700 54px/1 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,.78);letter-spacing:.01em;pointer-events:none;border-radius:0 14px 0 0";
     document.body.appendChild(el);
   });
+  await addLabel(page);
 
   const clipped = [];
   const subject = [];
+  const grounds = [];
   const subjectSeen = new Set();
-  let i = 0;
-  for (const s of plan) {
-    await page.evaluate(t => { window.__SEEK(t); }, s.t);
+  const captureAt = async (pg, sess, s, i) => {
+    await pg.evaluate(t => { window.__SEEK(t); }, s.t);
     if (s.pct !== null) {
       const settled = s.pct >= 35 && s.pct <= 80;
-      for (const c of await page.evaluate(measureClippedText, settled)) clipped.push({ ...c, shot: s.shot, t: s.t });
+      for (const c of await pg.evaluate(measureClippedText, settled)) clipped.push({ ...c, shot: s.shot, t: s.t });
       if (settled && !subjectSeen.has(s.shot)) {
         subjectSeen.add(s.shot);
-        const m = await page.evaluate(measureSubject);
+        const m = await pg.evaluate(measureSubject);
         for (const note of subjectNotes(m, s.shot)) subject.push({ shot: s.shot, t: s.t, note, ...m });
+        const g = groundNote(m.ground, brand, s.shot);
+        if (g) grounds.push({ shot: s.shot, t: s.t, note: g, ground: m.ground });
       }
     }
-    await page.evaluate(text => { document.getElementById("__review_label").textContent = text; },
+    await pg.evaluate(text => { document.getElementById("__review_label").textContent = text; },
       `${i + 1}  ${s.shot ?? "—"} · ${s.type ?? ""} · ${s.t.toFixed(2)}s${s.pct === null ? "" : ` · ${s.pct}%`}`);
-    await page.waitForTimeout(60);
-    const { data } = await cdp.send("Page.captureScreenshot", {
+    await pg.waitForTimeout(60);
+    const { data } = await sess.send("Page.captureScreenshot", {
       format: "jpeg", quality: 86, captureBeyondViewport: false,
       clip: { x: 0, y: 0, width: 1920, height: 1080, scale: tile / 1920 },
     });
     writeFileSync(join(framesDir, `f_${String(i).padStart(3, "0")}.jpg`), Buffer.from(data, "base64"));
-    i++;
-  }
+  };
+  // Several tabs, each its own slice of the plan (audit.mjs does the same).
+  const workers = Math.max(1, Math.min(Number(args.workers ?? Math.max(1, Math.min(6, os.cpus().length - 2))), plan.length));
+  const chunk = Math.ceil(plan.length / workers);
+  await Promise.all(Array.from({ length: workers }, async (_, w) => {
+    const from = w * chunk, to = Math.min(from + chunk, plan.length);
+    if (from >= to) return;
+    let pg = page, sess = cdp;
+    if (w > 0) {
+      pg = await studio.newPage();
+      sess = await pg.context().newCDPSession(pg);
+      await pg.goto(url, { waitUntil: "domcontentloaded" });
+      await pg.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+      await addLabel(pg);
+    }
+    for (let i = from; i < to; i++) await captureAt(pg, sess, plan[i], i);
+    if (w > 0) await pg.close();
+  }));
 
   execFileSync("ffmpeg", [
     "-y", "-loglevel", "error", "-framerate", "1", "-i", join(framesDir, "f_%03d.jpg"),
@@ -312,7 +373,11 @@ try {
     for (const s of subject.slice(0, 12)) console.log(`   ${s.note}`);
     if (subject.length > 12) console.log(`   … and ${subject.length - 12} more.`);
   }
-  writeFileSync(join(outDir, "plan.json"), JSON.stringify({ cols, rows, tile, plan, sheets, clipped: unique, subject: subject.map(({ note, shot, t }) => ({ shot, t, note })) }, null, 2));
+  if (grounds.length) {
+    console.log(`\n⚠ off-brand ground (${grounds.length}):`);
+    for (const g of grounds.slice(0, 8)) console.log(`   ${g.note}`);
+  }
+  writeFileSync(join(outDir, "plan.json"), JSON.stringify({ cols, rows, tile, plan, sheets, clipped: unique, subject: subject.map(({ note, shot, t }) => ({ shot, t, note })), grounds: grounds.map(({ shot, t, note }) => ({ shot, t, note })) }, null, 2));
 } finally {
   rmSync(framesDir, { recursive: true, force: true });
   await studio.close();
