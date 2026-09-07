@@ -1,6 +1,6 @@
 /**
  * Launch films — pi extension wrapping the launch-video skill's
- * executable scripts (recon, screenshot, harvest, tts, align, sync, cues/check,
+ * executable scripts (recon, screenshot, tts, align, sync, cues/check,
  * sfx, mix, audit, review, capture) plus two small host helpers (find_audio,
  * verify_duration). Every .mjs in that folder backs exactly one tool; the two
  * maintainer scripts that build the shared SFX library live in the repo's
@@ -437,7 +437,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the general shot-list rules (shot count, scene lengths, the hook, breaths) plus, if `design` names `chain` or `chapters`, that grammar's tells, the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism and overlap. Warns where the harvested logomark goes unused or a generated image stands in for the product. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.",
+      'The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, event density (≥ 0.7/s, no quiet stretch > 1.5s), seek determinism and overlap. Prints a per-shot ev/s table; any ❌ fails — fix and re-run. Writes one frame per second to audit/.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
@@ -450,9 +450,6 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         Type.Number({ description: 'Minimum events per second over the film (default 0.7)' }),
       ),
       out: Type.Optional(Type.String({ description: 'Output frame dir (default audit)' })),
-      allow_missing_logo: Type.Optional(
-        Type.Boolean({ description: 'Only when the film genuinely shows no logo' }),
-      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
@@ -462,7 +459,6 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       if (p.max_quiet) a.push('--max-quiet=' + p.max_quiet)
       if (p.min_eps) a.push('--min-eps=' + p.min_eps)
       if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
-      if (p.allow_missing_logo) a.push('--allow-missing-logo')
       try {
         return text(await runScript('audit.mjs', a, ws))
       } catch (err: any) {
@@ -527,7 +523,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_recon',
     label: 'Measure Brand',
     description:
-      "Measure the product's brand from the live page in a real browser: body bg/ink/font, :root custom properties, headline and body type, the primary CTA's computed styles, surfaces, saturated colours, theme-color and the page copy → recon/brand-tokens.md + .json; self-hosts the brand's web fonts into assets/fonts/ with a ready brand.fonts snippet. Run on the home page and 1–2 product pages (different out paths).",
+      "Measure the product's brand from the live page in a real browser: body bg/ink/font, :root custom properties, headline and body type, the primary CTA's computed styles, surfaces, saturated colours, theme-color and the page copy → recon/brand-tokens.md + .json; saves the logo from the header verbatim into assets/logo/ (inline SVG as-is) and self-hosts the brand's web fonts into assets/fonts/ with a ready brand.fonts snippet. Run on the home page and 1–2 product pages (different out paths).",
     parameters: Type.Object({
       url: Type.String({ description: 'Page to measure (http/https)' }),
       out: Type.Optional(
@@ -577,7 +573,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_image',
     label: 'Generate Image',
     description:
-      'For the site that has no imagery: generate ONE brand-locked still with a Gemini image model — a background plate for a type beat, an object for the hook (the thing the product is about, or its metaphor), a texture for the stage, a flat illustration of the mechanism, or a matching icon set. The palette is read from recon/brand-tokens.json and written into the prompt; pass harvested files as refs for material and mood. It refuses screens, logos, people and text — a generated screenshot is a fabricated product (motion_audit warns when one stands in for the product). You receive the image: look at it; off-brand or off-subject, regenerate once with a sharper subject, then move on. Files land in assets/generated/ with a sidecar and recon/generated.json.',
+      'For the site that has no imagery: generate ONE brand-locked still with a Gemini image model — a background plate for a type beat, an object for the hook (the thing the product is about, or its metaphor), a texture for the stage, a flat illustration of the mechanism, or a matching icon set. The palette is read from recon/brand-tokens.json and written into the prompt; pass files from assets/ as refs for material and mood. It refuses screens, logos, people and text — a generated screenshot is a fabricated product. You receive the image: look at it; off-brand or off-subject, regenerate once with a sharper subject, then move on. Files land in assets/generated/ with a sidecar and recon/generated.json.',
     parameters: Type.Object({
       kind: Type.Union(
         [
@@ -661,60 +657,6 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
           { type: 'image' as const, data: readFileSync(abs).toString('base64'), mimeType },
         ],
         details: { file },
-      }
-    },
-  })
-
-  pi.registerTool({
-    name: 'motion_harvest',
-    label: 'Harvest Assets',
-    description:
-      "Phase 0: pull the product site's OWN logo SVGs, screenshots, photos, videos, Lottie/Rive files into " +
-      'assets/harvested/ with a provenance manifest at recon/harvested.json (source URL, size, the ' +
-      'section each sat under). Every downloaded clip is mined for its moments — scene changes, spread across ' +
-      'the clip — into assets/harvested/frames/<clip>/t<time>.jpg, and you receive one contact sheet per clip: ' +
-      'LOOK at them and pick frames by their time stamp; the moment that sells the product is rarely the poster. ' +
-      'It ends with "Ask the user for": the files the site could not give (logo SVG, a 1080p recording, key ' +
-      'screenshots, the mark as Lottie/Rive) — relay that list in your reply and keep building meanwhile.',
-    parameters: Type.Object({
-      url: Type.String({ description: 'Page to harvest (http/https)' }),
-      cdp: Type.Optional(
-        Type.String({ description: 'CDP URL of an existing browser, for bot-walled sites' }),
-      ),
-      min_px: Type.Optional(
-        Type.Integer({ description: 'Ignore images smaller than this on both axes (default 240)' }),
-      ),
-      max: Type.Optional(
-        Type.Integer({ minimum: 1, description: 'Max assets to download (default 48)' }),
-      ),
-    }),
-    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      const ws = workspaceOf(ctx)
-      if (!/^https?:\/\//i.test(p.url)) throw new Error('url must be an http(s) URL.')
-      const a = ['--url=' + p.url]
-      if (p.cdp) a.push('--cdp=' + p.cdp)
-      if (p.min_px) a.push('--min-px=' + p.min_px)
-      if (p.max) a.push('--max=' + p.max)
-      const out = await runScript('harvest.mjs', a, ws, 600_000)
-      // The frame sheets are the point: the agent sees the footage.
-      const MAX_SHEETS = 6
-      let sheets: string[] = []
-      try {
-        const manifest = JSON.parse(readFileSync(resolveIn(ws, 'recon/harvested.json'), 'utf8'))
-        sheets = (manifest.sheets ?? []).map((s: { sheet: string }) => s.sheet).slice(0, MAX_SHEETS)
-      } catch {
-        /* no manifest — the text says why */
-      }
-      const images = sheets
-        .filter(f => existsSync(resolveIn(ws, f)))
-        .map(f => ({
-          type: 'image' as const,
-          data: readFileSync(resolveIn(ws, f)).toString('base64'),
-          mimeType: 'image/jpeg',
-        }))
-      return {
-        content: [{ type: 'text' as const, text: out }, ...images],
-        details: { sheets },
       }
     },
   })
@@ -943,7 +885,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_schema',
     label: 'Shot schema',
     description:
-      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one of: design (the optional grammar field), density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
+      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one of: density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
       types: Type.Optional(
         Type.Array(Type.String(), {

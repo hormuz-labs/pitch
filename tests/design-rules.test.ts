@@ -1,11 +1,11 @@
 /**
- * The gate's design-aware rules: a chain film and a chapters film are judged
- * by their own grammar, and a film that named none by the general limits.
+ * The gate's shot-list rules: the limits every launch film shares, and the
+ * tells (a fade-in opener, a ripple, a still screenshot, no stage).
  */
 import { describe, expect, it } from 'vitest'
 import {
-  designOf,
   designSummary,
+  LIMITS,
   lintDesign,
 } from '../.pi/skills/launch-video/scripts/lib/design-rules.mjs'
 
@@ -23,78 +23,51 @@ const shot = (o: Record<string, unknown>) => ({
 const many = (n: number, o: Record<string, unknown> = {}) =>
   Array.from({ length: n }, (_, i) => shot({ id: `s${i}`, ...o }))
 
-describe('designOf', () => {
-  it('normalises the declared design and falls back to none', () => {
-    expect(designOf({ design: 'Chain' })).toBe('chain')
-    expect(designOf({ design: 'chapters' })).toBe('chapters')
-    expect(designOf({ design: 'montage' })).toBe('none')
-    expect(designOf({})).toBe('none')
-  })
-})
-
 describe('lintDesign', () => {
-  it('judges an unnamed design by the general limits without nagging', () => {
-    const out = lintDesign({ shots: many(8, { dur: 3.3 }) })
-    expect(out.some(l => /No `design`/.test(l.msg))).toBe(false)
-    expect(out.some(l => l.level === 'fail')).toBe(false)
-    const long = lintDesign({ shots: many(8, { dur: 6.5 }) })
+  it('passes an ordinary film and fails a shot over the limit', () => {
+    const out = lintDesign({
+      ambient: { kind: 'aurora' },
+      shots: many(8, { dur: 3.3, breaths: 1, cut: 'punch' }),
+    })
+    expect(out.filter(l => l.level === 'fail')).toEqual([])
+    const long = lintDesign({ shots: many(8, { dur: LIMITS.shotMax + 0.5 }) })
     expect(long.some(l => l.level === 'fail' && /≤ 6s/.test(l.msg))).toBe(true)
   })
-  it('lets a chain scene run long when it has steps or actors', () => {
-    const shots = many(8, { dur: 2 })
-    shots[2] = shot({ id: 'words', dur: 5.2, steps: 6, actors: 1, cut: 'hard' })
-    const out = lintDesign({ design: 'chain', actors: 1, motionExit: 'blur', shots })
-    expect(out.some(l => l.level === 'fail')).toBe(false)
-  })
-  it('tells a chain film its cuts are showing', () => {
-    const shots = many(10, { dur: 2, cut: 'hard' })
-    const out = lintDesign({ design: 'chain', actors: 0, shots })
-    const msgs = out.map(l => l.msg).join('\n')
-    expect(msgs).toMatch(/no `actors`/)
-    expect(msgs).toMatch(/plain cuts with nothing crossing/)
-    expect(msgs).toMatch(/No `blur` exits/)
-  })
-  it('asks a chapters film for chapters, a word camera and a flood or scale cut', () => {
-    const out = lintDesign({
-      design: 'chapters',
-      ambient: { kind: 'aurora' },
-      shots: many(12, { dur: 3 }),
-    })
-    const msgs = out.map(l => l.msg).join('\n')
-    expect(msgs).toMatch(/fewer than two `chapter`/)
-    expect(msgs).toMatch(/No word camera/)
-    expect(msgs).toMatch(/No flood and no scale cut/)
-  })
-  it('is quiet for a well-formed chapters film', () => {
-    // The hero sentence is landed as a move and travelled by the word camera —
-    // a caret typing at hero scale is the opener the gate now fails.
-    const shots = many(12, { dur: 3, chapter: 'a', cut: 'punch' })
-    shots[0] = shot({ id: 'p', dur: 3, type: 'line', zoomBeats: 3, chapter: 'a', breaths: 1 })
-    shots[4] = shot({ id: 'f', dur: 3, cut: 'flood', chapter: 'b' })
-    const out = lintDesign({ design: 'chapters', ambient: { kind: 'aurora' }, shots })
-    expect(out.filter(l => l.level === 'fail')).toEqual([])
-    expect(out.map(l => l.msg).join('\n')).not.toMatch(
-      /chapter|word camera|flood|breath|ambient/,
+  it('fails too few shots and a slideshow average', () => {
+    expect(lintDesign({ shots: many(3, { dur: 2 }) }).some(l => /Only 3 shots/.test(l.msg))).toBe(
+      true,
     )
+    expect(
+      lintDesign({ shots: many(8, { dur: 4 }) }).some(l => /reads as slides/.test(l.msg)),
+    ).toBe(true)
   })
-  it('allows a bare stage for a chain and asks for one otherwise', () => {
-    const chain = lintDesign({
-      design: 'chain',
-      actors: 1,
-      motionExit: 'blur',
-      shots: many(8, { dur: 2, actors: 1, breaths: 1 }),
-    })
-    expect(chain.map(l => l.msg).join('\n')).not.toMatch(/ambient/)
+  it('fails a typing opener and a ripple beat', () => {
+    const shots = many(8, { dur: 2 })
+    shots[0] = shot({ id: 'p', typing: true })
+    shots[3] = shot({ id: 'r', rippleBeats: 1 })
+    const msgs = lintDesign({ shots })
+      .filter(l => l.level === 'fail')
+      .map(l => l.msg)
+      .join('\n')
+    expect(msgs).toMatch(/caret typing/)
+    expect(msgs).toMatch(/ripple/)
+  })
+  it('asks for a stage unless actors carry the film', () => {
     const none = lintDesign({ shots: many(8, { dur: 2, breaths: 1, cut: 'punch' }) })
     expect(none.map(l => l.msg).join('\n')).toMatch(/No `ambient`/)
+    const actors = lintDesign({
+      actors: 1,
+      shots: many(8, { dur: 2, actors: 1, breaths: 1, cut: 'punch' }),
+    })
+    expect(actors.map(l => l.msg).join('\n')).not.toMatch(/ambient/)
   })
 })
 
 describe('designSummary', () => {
-  it('names the design, actors, chapters and breaths', () => {
-    expect(
-      designSummary({ design: 'chain', actors: 2, shots: [shot({ chapter: 'x', breaths: 1 })] }),
-    ).toBe('design chain · actors 2 · chapters 1 · breaths 1')
-    expect(designSummary({ shots: [] })).toBe('design — · breaths 0')
+  it('names actors, chapters and breaths', () => {
+    expect(designSummary({ actors: 2, shots: [shot({ chapter: 'x', breaths: 1 })] })).toBe(
+      'actors 2 · chapters 1 · breaths 1',
+    )
+    expect(designSummary({ shots: [] })).toBe('breaths 0')
   })
 })

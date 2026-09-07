@@ -35,12 +35,13 @@ const args = Object.fromEntries(process.argv.slice(2).map((a) => {
 
 const url = args.url;
 if (!url || !/^https?:\/\//i.test(String(url))) {
-  console.error("Usage: recon.mjs --url=https://... [--out=recon/brand-tokens.md] [--fonts=assets/fonts|--no-fonts] [--cdp=...]");
+  console.error("Usage: recon.mjs --url=https://... [--out=recon/brand-tokens.md] [--fonts=assets/fonts|--no-fonts] [--logo=assets/logo|--no-logo] [--cdp=...]");
   process.exit(1);
 }
 const out = String(args.out ?? "recon/brand-tokens.md");
 const jsonOut = out.replace(/\.md$/, "") + ".json";
 const fontsDir = args["no-fonts"] ? null : String(args.fonts ?? "assets/fonts");
+const logoDir = args["no-logo"] ? null : String(args.logo ?? "assets/logo");
 const width = Number(args.width ?? 1440);
 const height = Number(args.height ?? 900);
 const waitMs = Number(args.wait ?? 1500);
@@ -275,7 +276,7 @@ const data = await page.evaluate(() => {
   const logoCandidates = Array.from(document.querySelectorAll('header img, header svg, nav img, nav svg, a[href="/"] img, a[href="/"] svg, img[alt*="logo" i], img[src*="logo" i]'))
     .filter(visible)
     .slice(0, 6)
-    .map((el) => ({ tag: el.tagName.toLowerCase(), alt: el.getAttribute("alt") || "", src: (el.getAttribute("src") || "").slice(0, 200), w: Math.round(el.getBoundingClientRect().width), h: Math.round(el.getBoundingClientRect().height) }));
+    .map((el) => ({ tag: el.tagName.toLowerCase(), alt: el.getAttribute("alt") || "", src: el.tagName.toLowerCase() === "img" ? (el.currentSrc || el.src || "").slice(0, 600) : "", svg: el.tagName.toLowerCase() === "svg" ? el.outerHTML.slice(0, 400000) : null, w: Math.round(el.getBoundingClientRect().width), h: Math.round(el.getBoundingClientRect().height) }));
 
   return {
     title: document.title,
@@ -421,6 +422,35 @@ if (fontsDir) {
   }
 }
 
+// ---- logo: the product's own mark, saved verbatim (never redrawn) ------------------
+// Inline <svg> is how a logomark usually ships: it is written as-is. An <img>
+// is fetched at its resolved URL. At most three files, largest on screen first.
+const logoFiles = [];
+if (logoDir) {
+  const cands = [...data.logoCandidates].sort((a, b) => b.w * b.h - a.w * a.h);
+  for (const l of cands) {
+    if (logoFiles.length >= 3 || l.w * l.h < 400 || l.h < 12) continue;  // a 16×16 header icon is not the mark
+    let body = null, ext = null;
+    if (l.svg) { body = Buffer.from(l.svg, "utf8"); ext = "svg"; }
+    else if (l.src && !/^data:/.test(l.src)) {
+      try {
+        const res = await context.request.get(l.src, { timeout: 20000, headers: { Referer: String(url) } });
+        if (res.ok()) {
+          body = Buffer.from(await res.body());
+          const ct = (res.headers()["content-type"] || "").toLowerCase();
+          ext = /svg/.test(ct) || /\.svg(\?|$)/i.test(l.src) ? "svg" : /png/.test(ct) ? "png" : /webp/.test(ct) ? "webp" : /jpe?g/.test(ct) ? "jpg" : (extname(l.src.split("?")[0]).slice(1) || "png");
+        }
+      } catch (_) {}
+    }
+    if (!body || body.length < 80 || body.length > 2.5e6) continue;
+    if (logoFiles.some((f) => f.bytes === body.length)) continue;
+    const file = join(logoDir, `logo-${logoFiles.length + 1}.${ext}`);
+    mkdirSync(resolve(logoDir), { recursive: true });
+    writeFileSync(file, body);
+    logoFiles.push({ file: file.replace(/\\/g, "/"), tag: l.tag, alt: l.alt, w: l.w, h: l.h, from: l.src || "inline svg", bytes: body.length, currentColor: ext === "svg" && /currentColor/.test(body.toString("utf8")) });
+  }
+}
+
 await studio.close();
 
 // ---- write -----------------------------------------------------------------------
@@ -432,7 +462,7 @@ const tokens = {
   type: { headFamily, bodyFamily, h1: data.type.h1, h2: data.type.h2, h3: data.type.h3, body: data.type.body, nav: data.type.nav, bodyDefault: data.body, loaded: data.loadedFonts },
   cta: data.cta, ctaLabels: data.ctaLabels,
   fonts: fontFiles, otherFontUrls: otherFontUrls.slice(0, 12), faces: data.faces.map(({ family, weight, style }) => ({ family, weight, style })),
-  copy: data.copy, logoCandidates: data.logoCandidates, ogImage: data.ogImage,
+  copy: data.copy, logo: logoFiles, logoCandidates: data.logoCandidates.map(({ svg, ...l }) => l), ogImage: data.ogImage,
 };
 mkdirSync(dirname(resolve(out)), { recursive: true });
 writeFileSync(jsonOut, JSON.stringify(tokens, null, 2));
@@ -516,10 +546,15 @@ if (fontFiles.length) {
 if (otherFontUrls.length) {
   lines.push(`- other font files the page loaded: ${otherFontUrls.slice(0, 8).map((f) => f.url.split("/").pop()?.split("?")[0]).join(", ")}`);
 }
-if (data.logoCandidates.length) {
-  lines.push(``);
-  lines.push(`## Logo candidates in the header (harvest with motion_harvest)`);
-  for (const l of data.logoCandidates) lines.push(`- <${l.tag}> ${l.w}×${l.h}${l.alt ? ` alt "${l.alt}"` : ""}${l.src ? ` src ${l.src}` : ""}`);
+lines.push(``);
+lines.push(`## Logo (the product's own mark, saved verbatim)`);
+if (logoFiles.length) {
+  for (const l of logoFiles) lines.push(`- \`${l.file}\` — <${l.tag}> ${l.w}×${l.h} on the page${l.alt ? `, alt "${l.alt}"` : ""} (${l.bytes} bytes)${l.currentColor ? " — uses `currentColor`: inline it and set `color`, or it renders black as an <img>" : ""}`);
+  lines.push(`Use the file where the mark appears (\`logo-sting\`, \`logo-cta\`, an \`icon-marquee\` tile); never retype or redraw it.`);
+} else if (data.logoCandidates.length) {
+  lines.push(`(found in the header but could not be saved: ${data.logoCandidates.map((l) => `<${l.tag}> ${l.w}×${l.h}${l.src ? ` ${l.src}` : ""}`).join("; ")}) — ask the user for the SVG.`);
+} else {
+  lines.push(`(no logo found in the header — ask the user for the SVG, and keep building meanwhile)`);
 }
 lines.push(``);
 lines.push(`## Copy (the product's own words)`);

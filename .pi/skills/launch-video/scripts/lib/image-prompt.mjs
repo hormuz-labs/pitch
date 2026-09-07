@@ -19,8 +19,8 @@ export const IMAGE_KINDS = {
 };
 
 const FORBIDDEN = [
-  { re: /\b(ui|user interface|screenshot|dashboard|app screen|mockup|mock-up|interface|web ?page|landing page|browser window)\b/i, why: "a generated screen is a fabricated product — use a harvested screenshot or a mined frame, or a native html rebuild" },
-  { re: /\b(logo|wordmark|logotype|brand mark|icon of the brand)\b/i, why: "the logo is the product's own file (harvest it, or ask the user); a generated one is a redrawn mark" },
+  { re: /\b(ui|user interface|screenshot|dashboard|app screen|mockup|mock-up|interface|web ?page|landing page|browser window)\b/i, why: "a generated screen is a fabricated product — use a motion_screenshot of the real product, or a native html rebuild" },
+  { re: /\b(logo|wordmark|logotype|brand mark|icon of the brand)\b/i, why: "the logo is the product's own file (motion_recon saves it to assets/logo/, or ask the user); a generated one is a redrawn mark" },
   { re: /\b(person|people|man|woman|face|portrait|customer|user smiling|testimonial|founder|team)\b/i, why: "a generated person is a testimonial nobody gave — use the site's own footage or none" },
   { re: /\b(text|headline|caption|words|typography|lettering|slogan)\b/i, why: "type belongs to the engine (the brand's real font); image models misspell — leave text out of the picture" },
 ];

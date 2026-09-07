@@ -11,7 +11,6 @@ it. There is no separate timing file.
 
 ```js
 window.SHOTS = {
-  design: "chain",            // the film's grammar: "chain" | "chapters" (see "Design")
   brand: {
     bg: "#FAF9F6",            // stage/paper color (measured from the product's site)
     ink: "#141413",           // text color
@@ -33,24 +32,6 @@ window.SHOTS = {
 };
 ```
 
-## Design
-
-`design` is optional. Two grammars were measured frame by frame from
-reference films; name one and `motion_audit` holds the film to that
-grammar's tells, leave it out and the film is judged by the general rules
-only. Any other structure is fine — the field only tells the gate what you
-meant.
-
-| `design` | The film is | Its unit | Cuts | Type | Runs |
-|---|---|---|---|---|---|
-| `chain` | one continuous take: one object born from the words, dropped into the product, becoming the next object, until the mark | an **actor** crossing shots | none that show: an actor, a `carry`, a `flood`, or `exit: "blur"` into an arrival on every boundary | a `line` of 2–4 words, the noun in `accent`, the object in a `slot` | 25–40s, 6–16 shots |
-| `chapters` | prompt → product → payoff, repeated: a sentence landed at hero scale and travelled word by word (`zoom` beats on `.lw`), the product rebuilt as `ui-frame` `html` and tilted with a cursor acting, a payoff that floods or morphs | a **chapter** (`shot.chapter`) | allowed on a `flood` or on the beat; `zoom` / `zoom-out` between hero and UI scale | a `line` landed as a move; rotators; the noun in `accent`; `typing` only in a prompt box inside the rebuilt UI | 45–90s, 12–40 shots |
-
-A film may be a chain inside its chapters. What both share: an object
-persists across scale changes, blur is the grammar for depth and exit, one
-or two things on screen, the real product every moment, expo-out arrivals
-and nothing that bounces, and a `breath` before every payoff.
-
 ## Density layer (what keeps a film alive)
 
 The studio's philosophy: **something new happens on screen at least every
@@ -60,7 +41,7 @@ every shot three layers of life on top of the factory's own animation, and
 
 | Field | Where | Meaning |
 |---|---|---|
-| `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — a living stage *between* every shot's background and its content, continuous across cuts (positions are a function of film time), position-only. `kind` is the direction.md Axis-1 choice: `blobs` (soft blurred discs — deep space + glow), `light` (one large soft light source orbiting — studio backdrop), `blueprint` (a fine line grid panning — technical grid; `size` = cell), `hairlines` (a few 1px rules drifting — editorial light, terminal noir), `halftone` (a dot screen panning — duotone poster; `size` = cell), `shapes` (flat discs, bars and slabs drifting and turning — solid brand field), `grid` (blurred rounded tiles), `aurora` (three or four very soft discs in the brand's own hues — `colors: [...]`, else the accent and two tints of it — the stage under hero type; `opacity` 0.22), `none` (the bare stage of the continuous chain: whitespace does the work). `shot.ambient = false` hides it on one shot — the product shots of a chapters film sit on the bare stage while the type beats get the aurora. |
+| `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — a living stage *between* every shot's background and its content, continuous across cuts (positions are a function of film time), position-only. `kind` is the direction.md Axis-1 choice: `blobs` (soft blurred discs — deep space + glow), `light` (one large soft light source orbiting — studio backdrop), `blueprint` (a fine line grid panning — technical grid; `size` = cell), `hairlines` (a few 1px rules drifting — editorial light, terminal noir), `halftone` (a dot screen panning — duotone poster; `size` = cell), `shapes` (flat discs, bars and slabs drifting and turning — solid brand field), `grid` (blurred rounded tiles), `aurora` (three or four very soft discs in the brand's own hues — `colors: [...]`, else the accent and two tints of it — the stage under hero type; `opacity` 0.22), `none` (a bare stage: whitespace does the work). `shot.ambient = false` hides it on one shot — product shots often sit on the bare stage while the type beats get the aurora. |
 | `motion.exit` / `shot.exit` | top / shot | `up` (default) \| `down` \| `scale` \| `scatter` \| `blur` \| `left` \| `right` \| `none` — the outgoing content leaves the frame in its last ~0.3s, so a cut is an arrival, not a freeze. `blur` rises 70px and blurs to nothing over 9 frames: the continuous take's one exit, the next thing already there on the following frame. `left` / `right` accelerate the whole line off that side (ease-in). `scatter` throws words/cards in random directions. |
 | `beats` | shot | `[{ at, kind, sel?, … }]` — mid-shot events for *any* type. `swap` (replace the text of `sel`, default the headline), `pulse` (scale pop on `sel`), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame color flash), `hide` / `show` (`sel`), `nudge` (move `sel` by `amount`/`y`), **`halo`** (a blurred disc of `color` blooms behind `sel`, `size` 900, `hold`, `fade: false` keeps it — the pre-flood glow, the press glow), `ripple` (**do not use** — rings from a press are the tell of a template and `motion_audit` fails it; a press is the control's own state change or a `flood`), **`blurout`** (`sel` blurs and fades in place over 0.3s), **`flood`** (the frame floods with `color` from `sel` — halo for `pre` 0.2s, solid for `hold` 0.08s, retreats to that point over `dur` 0.9s; `stay: true` leaves the frame that colour), **`zoom`** (the camera pushes into `sel` so it fills `fill` 0.6 of the width over `dur` 0.25s, everything else blurs (`dof: false` to keep it sharp); `release` seconds later it pulls back), **`breath`** (no picture: the music bed dips for `dur` 0.45s by `depth` 0.75 — the pause before a payoff; `motion_mix` reads them from `audio/cues.json`). `at` defaults to evenly spaced. |
 | `reveal: "words"` | word-cut, color-punch | Words arrive one after another (0.13s apart, `each` overrides); parts with `accent: true` pop harder and take the accent color. |
@@ -78,7 +59,7 @@ to the new pose at that shot's start. Cuts stop mattering to it. The folder
 that sat between two words is the same folder that drops into the laptop in
 the next shot; the bar that counted to 100 is the pill that becomes the disc
 the check draws in; the star that was a button lands as the full stop of the
-last line and then becomes the mark. This is the chain.
+last line and then becomes the mark. One object, carried through the film.
 
 ```js
 actors: {
@@ -149,7 +130,7 @@ and leave dead air between them.
 
 | type | Fields |
 |---|---|
-| `line` | **The sentence as protagonist** — one line of 2–4 words that changes in `steps` over the shot. `size` (px; 84–110 for a chain line, 150–170 for a hero prompt), `align: "center"\|"left"`, `x`/`y` (the line's centre), `weight`, `container: "glass"\|"pill"` (a frosted or gradient pill that grows with the text), `typing: { cps: 22, caret: true, shrink?: 0.45, fit?: 1560 }` (chars appear one per 1/cps s behind a bar caret; a line that would outgrow `fit` px scales to `shrink` while typing goes on). `steps: [ { at, add: parts } \| { at, replace: parts } \| { at, keep: "style" \| index } \| { at, out: "blur"\|"left"\|"right"\|"fade"\|"shrink" } ]` — **add**: the new words are there in one frame and the line settles onto its new centre (0.4s expo-out, 8% oversize); **replace**: the old words shrink and blur out (5 frames), the new ones land from 1.5× and a 20px blur (8 frames); **keep**: every other word blurs out in place and the kept one slides to the centre — the word is now a button; **out**: the line leaves. `part: { text, tone: "ink"\|"accent"\|"muted"\|"gradient", weight?, rotate?: ["writer", "producer"], every?: 0.5 \| [0.67, 0.3, 0.33], slot?: "folder", w?: 320 }` — `tone` carries the hierarchy (never a weight change); `rotate` swaps the word through alternatives in one frame each, `every` the holds (shrinking toward the exit); a `slot` part reserves `w` px between the words for an actor (`anchor: ".slot-folder"`). Steps are the shot's second and third acts; a `line` with three or more steps may run to 6s. DOM: `.line-box` (the line), `.lw` (a word), `.slot-<name>`. |
+| `line` | **The sentence as protagonist** — one line of 2–4 words that changes in `steps` over the shot. `size` (px; 84–110 for a line among objects, 150–170 for a hero sentence), `align: "center"\|"left"`, `x`/`y` (the line's centre), `weight`, `container: "glass"\|"pill"` (a frosted or gradient pill that grows with the text), `typing: { cps: 22, caret: true, shrink?: 0.45, fit?: 1560 }` (chars appear one per 1/cps s behind a bar caret; a line that would outgrow `fit` px scales to `shrink` while typing goes on). `steps: [ { at, add: parts } \| { at, replace: parts } \| { at, keep: "style" \| index } \| { at, out: "blur"\|"left"\|"right"\|"fade"\|"shrink" } ]` — **add**: the new words are there in one frame and the line settles onto its new centre (0.4s expo-out, 8% oversize); **replace**: the old words shrink and blur out (5 frames), the new ones land from 1.5× and a 20px blur (8 frames); **keep**: every other word blurs out in place and the kept one slides to the centre — the word is now a button; **out**: the line leaves. `part: { text, tone: "ink"\|"accent"\|"muted"\|"gradient", weight?, rotate?: ["writer", "producer"], every?: 0.5 \| [0.67, 0.3, 0.33], slot?: "folder", w?: 320 }` — `tone` carries the hierarchy (never a weight change); `rotate` swaps the word through alternatives in one frame each, `every` the holds (shrinking toward the exit); a `slot` part reserves `w` px between the words for an actor (`anchor: ".slot-folder"`). Steps are the shot's second and third acts; a `line` with three or more steps may run to 6s. DOM: `.line-box` (the line), `.lw` (a word), `.slot-<name>`. |
 | `cascade` | Items land one after another at one anchor and push the earlier ones away while those fall out of focus: `items: [{ src \| html, w?, h?, r? }]`, `every` (0.25), `dir: "up"` (comments, rows — each new one pushes the stack up) \| `"left"` (a strip of cards growing to the right, sliding left), `gap` (24), `x`/`y` (the anchor), `start`, `dof: false` to keep earlier items sharp, `enter: "fade"`, `scroll: px` (after the last item the set keeps travelling), `caption` + `captionPos`. The card duplicating into a strip; the comments arriving. |
 | `word-build` | `lines: [{parts: [{text, weight, accent?}]}]` — a sentence assembles word by word in the centre; each further line replaces the last (previous words scatter). `each` (gap between words, 0.13), `align: "left"`, `seed`. |
 | `pile` | Chaos beat: `items: [{kind: "window"\|"toast"\|"pill", title?, body?, x, y, rot?, w?, tone?: "error"\|"warn"\|"ok"\|"plain"}]` land one after another (`every`, default fits 55% of the shot), `anchor: parts` headline appears over them, then everything blows away at `blowAt` (default D−0.55; `blow: false` keeps it). 5–8 items. |
@@ -203,7 +184,7 @@ and the render stays deterministic.
       { src: "assets/harvested/app.layer-3.png", x: 760, y: 300, w: 560, h: 380, depth: 2 },
     ],
   },
-  tilt: { y: 6, x: 2, at: 0, dur: 4, ease: "sine.inOut" },   // the frame turns from −y..+y / +x..−x degrees while layers shift by depth — the tilted card every product shot of the chapters grammar sits in
+  tilt: { y: 6, x: 2, at: 0, dur: 4, ease: "sine.inOut" },   // the frame turns from −y..+y / +x..−x degrees while layers shift by depth — the tilted card a product shot sits in
 }
 ```
 
@@ -332,16 +313,13 @@ opacity/brightness loops, and every image from `assets/`.
 
 ## Rules
 
-- **Density.** 4–40 shots, average ≤ 3.6s; a plain type beat, a `line` with
-  steps, a shot posing actors or a `ui-frame` each ≤ 6s (a named `chain` or
-  `chapters` tightens some of these); narrated shots start on their `cue`
-  word (sync.mjs). No stretch longer than 1.5s without a designed event.
+- **Density.** 4–40 shots, average ≤ 3.6s, any one shot ≤ 6s; narrated
+  shots start on their `cue` word (sync.mjs). No stretch longer than 1.5s without a designed event.
   `motion_audit` enforces all of this.
 - One idea per shot. Headlines only (≤ 8 words on screen; 2–4 on a `line`).
-- Cuts by the design: a chain hides every boundary behind an actor, a carry,
-  a flood or a blur exit; a chapters film cuts on a flood or the beat and
-  zooms between hero and UI scale. A transition kind is a motion-language
-  decision, one or two kinds per film — never a dissolve between two type
-  beats.
+- A cut is a decision: an actor, a carry, a flood or a blur exit hides the
+  boundary; a punch lands on the beat; a zoom moves between hero and UI
+  scale. One or two transition kinds per film — never a dissolve between two
+  type beats.
 - Brand from recon: `brand.bg/ink/accent/font` are measured values, `fonts` self-hosted.
 - Logos are the product's own files (`logo-sting.src`, marquee `src`), never retyped or redrawn.

@@ -27,7 +27,7 @@ then wait. Never ask about the look, the moves, colours, fonts or music.
 `recon/brand-tokens.md`. Take from it the real palette and type (self-host
 the font via `brand.fonts`), the real facts (feature names, numbers, the words
 on its buttons, its register) and the mechanism: what goes in, what happens,
-what comes out. Use the harvested logo wherever the mark appears. Everything
+what comes out. Use the saved logo (`assets/logo/`) wherever the mark appears. Everything
 else is designed motion in the brand's voice, not a collage of its
 screenshots; `motion_image` makes an image nobody has. Never stall for an
 asset — say once what would help and keep building.
@@ -44,9 +44,7 @@ keep building; do not wait for approval.
 The structure is open. One continuous take where an object is passed from
 shot to shot, chapters cut on the beat, a manifesto, a demo with a cursor,
 something you invent for this product — pick what the product asks for and
-say why. (`design: "chain"` or `"chapters"` in `shots.js` makes the audit
-hold you to that grammar's tells; leave it out and it judges by the general
-rules.)
+say why.
 
 What reliably makes films worse, so don't: opening on a logo fade or a caret
 typing; every shot the same length; a shot that enters and then holds;

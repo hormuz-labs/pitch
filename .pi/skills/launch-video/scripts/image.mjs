@@ -8,11 +8,10 @@
  *
  * For the site that has no imagery. The kind and the subject are checked
  * (lib/image-prompt.mjs): no UI, no logos, no people, no text. The palette is
- * read from recon/brand-tokens.json and written into the prompt; harvested
- * files can ride along as style references. Every output gets a sidecar
- * (<out>.json: model, prompt, refs) and a line in recon/generated.json, so a
- * generated file is never mistaken for a harvested one — the audit fails a
- * ui-frame, device-3d or logo shot whose src is a generated image.
+ * read from recon/brand-tokens.json and written into the prompt; files from
+ * assets/ can be passed as refs for material and mood. Every image gets a
+ * sidecar (<out>.json: model, prompt, refs) and a line in recon/generated.json,
+ * so a generated file is never mistaken for the product's own.
  *
  * Requires GEMINI_API_KEY (env, or the repo .env — same lookup as tts.mjs).
  */

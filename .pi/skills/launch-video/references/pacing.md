@@ -19,22 +19,17 @@ is one read cut to words, a second act in every shot, and a stage.
 
 ## What the gate enforces
 
-Naming a `design` is optional. A film that names none is judged by the
-general column; `chain` and `chapters` add their own tells.
-
-| Rule | chain | chapters | general |
-|---|---|---|---|
-| Shots | 6–16 | 8–40 | 4–40 |
-| Average shot length | ≤ 3.6s | ≤ 3.4s | ≤ 3.6s |
-| Plain type beat | ≤ 6.0s | ≤ 4.0s | ≤ 6.0s |
-| A `line` with ≥ 3 steps, or a shot posing actors | ≤ 6s | ≤ 6s | ≤ 6s |
-| `ui-frame` / product shot | ≤ 6s | ≤ 6s | ≤ 6s |
-| Hook | first shot ≤ 3s | ≤ 3.5s | ≤ 3.5s |
-| Narration | one read, every shot cued, drift −0.35…+0.15s | same | same |
-| Longest quiet stretch | ≤ 1.5s | ≤ 1.5s | ≤ 1.5s |
-| Events per second | ≥ 0.7 (the references run 2–3) | same | same |
-| The design's tells (warnings) | no actors; a third of the boundaries plain cuts; no blur exits | fewer than two chapters; no word camera; no flood or scale cut | — |
-| All | no `breath` beats; a bare stage outside a chain | | |
+| Rule | Limit |
+|---|---|
+| Shots | 4–40 |
+| Average shot length | ≤ 3.6s |
+| Any one shot | ≤ 6s |
+| Hook | first shot ≤ 3.5s |
+| Narration | one read, every shot cued, drift −0.35…+0.15s |
+| Longest quiet stretch | ≤ 1.5s |
+| Events per second | ≥ 0.7 (the references run 2–3) |
+| Fails | a caret typing as the opener; a `ripple` beat |
+| Warnings | no `breath` beats; no `punch` cuts; a bare stage with no actors; a still screenshot as the product |
 
 Both reference films measured 2.3 and 2.5 events per second, longest still
 frame 0.83s, and never a frame with nothing moving. The fix for a failing

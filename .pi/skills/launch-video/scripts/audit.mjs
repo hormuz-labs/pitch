@@ -7,27 +7,26 @@
  * philosophy: "something new happens on screen at least every ~1.2s".
  *
  * Checks (all must pass):
- *   1. Shot-list lint (window.SHOTS): the design's rules (lib/design-rules.mjs —
- *      shot count, durations, hook, actors, chapters, breaths), and the
+ *   1. Shot-list lint (window.SHOTS): the shot-list rules (lib/design-rules.mjs —
+ *      shot count, durations, hook, breaths, the stage), and the
  *      narration contract — ONE continuous read (audio.vo) with the picture cut
  *      to its words (shot `cue`s vs audio/vo-words.json); per-shot clips fail.
  *   2. Event density: consecutive samples (every 0.25s) that differ by more than
  *      --event are "events". Longest quiet gap must be ≤ --max-quiet, and the
  *      film must average ≥ --min-eps events per second.
  *   3. Static holds: two samples 1s apart that look identical.
- *   4. Scene overlap at every scene midpoint; seek determinism; harvested logo used.
+ *   4. Scene overlap at every scene midpoint; seek determinism.
  *
  * Usage:
  *   node scripts/audit.mjs page.html [--step=0.25] [--event=0.006] [--max-quiet=1.5]
- *                          [--min-eps=0.7] [--threshold=0.003] [--out=audit] [--allow-missing-logo]
+ *                          [--min-eps=0.7] [--threshold=0.003] [--out=audit]
  */
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { TYPE_BEATS, designSummary, lintDesign } from "./lib/design-rules.mjs";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
-import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
   const [k, v] = a.replace(/^--/, "").split("=");
@@ -71,13 +70,12 @@ const spec = await page.evaluate(() => {
     motion: s.motion || null,
     motionExit: s.motion && s.motion.exit ? s.motion.exit : null,
     audio: s.audio || null,
-    design: s.design || null,
     actors: s.actors ? Object.keys(s.actors).length : 0,
     shots: s.shots.map(x => ({ id: x.id, type: x.type, dur: Number(x.dur) || 0, vo: x.vo || null, voDur: x.voDur || 0, cue: x.cue || null,
       beats: Array.isArray(x.beats) ? x.beats.length : 0, exit: x.exit ?? null, cut: x.cut || "hard",
       steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: x.actors ? Object.keys(x.actors).length : 0, carry: !!x.carry,
       chapter: x.chapter || null, typing: !!x.typing, container: x.container || null, breaths: beatsOf(x, "breath"), floodBeats: beatsOf(x, "flood"), zoomBeats: beatsOf(x, "zoom"), rippleBeats: beatsOf(x, "ripple"),
-      capturedSrc: x.type === "ui-frame" && typeof x.src === "string" && !x.html && /^assets\/(harvested|generated)\//.test(x.src),
+      capturedSrc: x.type === "ui-frame" && typeof x.src === "string" && !x.html && /^assets\//.test(x.src),
       src: x.src, layers: x.layers, rows: x.rows })),
   };
 });
@@ -97,8 +95,7 @@ if (!spec) {
   lint.push({ level: "warn", msg: "window.SHOTS not found — shot-list lint skipped (engine project expected)." });
 } else {
   const shots = spec.shots;
-  // The design's own rules — shot count, lengths, the hook, and the tells of
-  // a chain or a chapters film that is not one (lib/design-rules.mjs).
+  // The shot-list rules — count, lengths, the hook, the tells (lib/design-rules.mjs).
   lint.push(...lintDesign(spec));
 
   // ---- Narration: one continuous read, picture cut to the words ----------------
@@ -283,86 +280,6 @@ let determinismWarnings = 0;
 await studio.close();
 
 // ---------------------------------------------------------------------------
-// 6. Harvested logo used where the mark appears? (a warning, not a gate)
-// ---------------------------------------------------------------------------
-let logoWarnings = 0;
-{
-  const manifestPath = resolve("recon/harvested.json");
-  if (existsSync(manifestPath) && !args["allow-missing-logo"]) {
-    let manifest = null;
-    try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); } catch { /* ignore */ }
-    const logos = (manifest?.svg || []).filter(s => s.logoish);
-    if (logos.length) {
-      const textFiles = [];
-      const collect = (dir) => {
-        let entries; try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
-        for (const e of entries) {
-          if (e.name.startsWith(".") || e.name === "node_modules" || e.name === "vendor") continue;
-          const full = join(dir, e.name);
-          if (e.isDirectory()) collect(full);
-          else if (/\.(html|css|js|mjs)$/i.test(e.name)) textFiles.push(full);
-        }
-      };
-      collect(resolve("."));
-      const haystack = textFiles.map(f => { try { return readFileSync(f, "utf8"); } catch { return ""; } }).join("\n");
-      const sha = (f) => { try { return createHash("sha1").update(readFileSync(f)).digest("hex"); } catch { return null; } };
-      const logoHashes = new Set(logos.map(l => sha(resolve(l.file))).filter(Boolean));
-      const copies = [];
-      const scanCopies = (dir) => {
-        let entries; try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
-        for (const e of entries) {
-          if (e.name.startsWith(".") || e.name === "node_modules") continue;
-          const full = join(dir, e.name);
-          if (e.isDirectory()) scanCopies(full);
-          else if (/\.svg$/i.test(e.name) && logoHashes.has(sha(full))) copies.push(full);
-        }
-      };
-      scanCopies(resolve("assets"));
-      const candidates = [...logos.map(l => l.file), ...copies];
-      let used = candidates.some(f => haystack.includes(basename(f)));
-      if (!used) {
-        for (const l of logos) {
-          let markup = ""; try { markup = readFileSync(resolve(l.file), "utf8"); } catch { continue; }
-          const shapes = markup.match(/<(rect|path|circle|polygon)[^>]*>/g) || [];
-          const probes = shapes.slice(0, 14)
-            .map(sh => sh.replace(/<\w+\s*/, "").replace(/\s*\/?>$/, "").replace(/fill="[^"]*"\s*/g, "").replace(/\s+/g, " ").trim())
-            .filter(sig => sig.length >= 18);
-          const hits = probes.filter(pr => haystack.includes(pr)).length;
-          if (probes.length && hits >= Math.min(3, probes.length)) { used = true; break; }
-        }
-      }
-      if (!used) {
-        logoWarnings++;
-        console.error(`\n⚠️  The harvested logomark is not used anywhere (${logos.slice(0, 3).map(l => l.file).join(", ")}). Where the mark appears, reference the real file rather than retyping it. (--allow-missing-logo to silence this.)`);
-      }
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 7. A generated image standing in for the product? (a warning, not a gate)
-// motion_image makes plates, objects, textures, illustrations — never a
-// screen, a logo or a person. A ui-frame, device-3d or logo shot whose src
-// is a generated file shows the viewer a product that does not exist.
-// ---------------------------------------------------------------------------
-let generatedWarnings = 0;
-{
-  const ledger = resolve("recon/generated.json");
-  let generated = new Set();
-  try { if (existsSync(ledger)) generated = new Set(JSON.parse(readFileSync(ledger, "utf8")).map(r => r.file)); } catch { /* ignore */ }
-  const isGenerated = (src) => typeof src === "string" && (generated.has(src) || /(^|\/)assets\/generated\//.test(src));
-  const productTypes = new Set(["ui-frame", "device-3d", "logo-sting", "logo-cta"]);
-  for (const sh of spec?.shots || []) {
-    const srcs = [sh.src, ...(sh.layers?.items || []).map(it => it.src), ...(Array.isArray(sh.rows) ? sh.rows.flatMap(r => (r.items || []).map(it => it.src)) : [])];
-    const hit = srcs.find(isGenerated);
-    if (hit && (productTypes.has(sh.type) || sh.type === "icon-marquee")) {
-      generatedWarnings++;
-      console.error(`\n⚠️  #${sh.id} (${sh.type}) shows a generated image where the product goes: ${hit}. Generated files are plates, objects, textures and illustrations; a viewer reading this as the product is being shown something that does not exist.`);
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Scorecard
 // ---------------------------------------------------------------------------
 const fails = [];
@@ -372,8 +289,6 @@ if (longestQuiet > maxQuiet) fails.push(`Longest quiet stretch ${longestQuiet.to
 if (eps < minEps) fails.push(`Event density ${eps.toFixed(2)} ev/s is below ${minEps}. The reference films run ≥ 1 ev/s: every shot needs a second and third act, not one entrance.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
-if (logoWarnings) warns.push("The harvested logomark is not used anywhere.");
-if (generatedWarnings) warns.push(`${generatedWarnings} generated image(s) where the product goes.`);
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
 
 console.log(`\n──────── Philosophy scorecard ────────`);
