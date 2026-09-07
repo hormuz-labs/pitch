@@ -6,6 +6,7 @@
  *
  *   query — find clips for a motion event, ranked, with real measurements
  *     node scripts/sfx.mjs query --event=pop
+ *     node scripts/sfx.mjs query --event=impact,whoosh_deep,chime   # several events, one call
  *     node scripts/sfx.mjs query --event=whoosh_deep --max=2.5 --limit=8
  *     node scripts/sfx.mjs query --list                       # event vocabulary
  *
@@ -152,15 +153,21 @@ if (MODE === "query" || MODE === undefined) {
     for (const [ev, meta] of Object.entries(manifest.events)) {
       console.log(`${ev.padEnd(14)} ${String(meta.count).padStart(3)}   ${meta.use}`);
     }
-    console.log(`\nQuery one: node scripts/sfx.mjs query --event=<name> [--max=<sec>] [--limit=<n>]`);
+    console.log(`\nBudget per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture — the build warns past either.`);
+    console.log(`Query: node scripts/sfx.mjs query --event=<name>[,<name>…] [--max=<sec>] [--limit=<n>] — every event you need in one call.`);
     process.exit(0);
   }
 
-  const event = flag("event");
-  if (!event) { console.error("--event=<name> required (or --list)"); process.exit(1); }
+  const eventArg = flag("event");
+  if (!eventArg) { console.error("--event=<name>[,<name>…] required (or --list)"); process.exit(1); }
   const max = flag("max") ? Number(flag("max")) : null;
   const limit = Number(flag("limit", 12));
+  const events = String(eventArg).split(",").map(e => e.trim()).filter(Boolean);
 
+  // One call answers every event the film needs; the agent used to spend a
+  // turn per event, six in a row.
+  for (const [ei, event] of events.entries()) {
+  if (ei > 0) console.log("");
   const target0 = TARGET_LUFS[event] ?? -28;
   // Mirror auto-pick: a clip needing >14dB of correction is broken for this
   // class and must not be presented as a normal option.
@@ -184,7 +191,7 @@ if (MODE === "query" || MODE === undefined) {
     }
   }
   const rejected = all.length - usable.length;
-  if (!hits.length) { console.log(`No clips for '${event}'.`); process.exit(0); }
+  if (!hits.length) { console.log(`No clips for '${event}'.`); continue; }
 
   console.log(`${event}${note}   target ${TARGET_LUFS[event] ?? -28} LUFS, default lead ${DEFAULT_LEAD[event] ?? 0}s\n`);
   console.log("  EFF    ONSET  LUFS    ID");
@@ -198,6 +205,7 @@ if (MODE === "query" || MODE === undefined) {
   if (hits.length > limit) console.log(`  … ${hits.length - limit} more`);
   if (rejected > 0) {
     console.log(`\n  (${rejected} '${event}' clip(s) hidden: more than 14dB from the ${target0} LUFS target — too quiet or too hot to use straight)`);
+  }
   }
   process.exit(0);
 }

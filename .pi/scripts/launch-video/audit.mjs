@@ -28,13 +28,21 @@
  * Usage:
  *   node scripts/audit.mjs page.html [--step=0.25] [--event=0.006] [--max-quiet=1.5]
  *                          [--min-eps=0.7] [--threshold=0.003] [--out=audit] [--workers=6]
+ *                          [--shots=cta,tools]
+ *
+ * --shots samples only the named shots (lib/audit-span.mjs): the shot-list
+ * lint and the narration contract still cover the film — they cost no
+ * captures — but the density table, the still stretches, the overlap and the
+ * determinism probe are measured inside those shots alone, on the same step
+ * grid, and their frames replace the matching ones in audit/.
  */
 import os from "node:os";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
 import { BUILT_IN, TYPE_BEATS, designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -49,12 +57,13 @@ const maxQuiet = Number(args["max-quiet"] ?? 1.5);            // longest allowed
 const minEps = Number(args["min-eps"] ?? 0.7);                // events per second, whole film
 const threshold = Number(args.threshold ?? 0.003);            // static-hold: 1s apart, < 0.3% change
 const outDir = resolve(String(args.out ?? "audit"));
+const only = args.shots ? String(args.shots).split(",").map(x => x.trim()).filter(Boolean) : [];
 // Tabs sampling in parallel (capture.mjs uses the same bound).
 const workers = Math.max(1, Math.min(8, Number(args.workers ?? Math.max(1, Math.min(6, os.cpus().length - 2)))));
 const SCALE = 0.5;
 const shotOpts = { format: "png", captureBeyondViewport: false, clip: { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE } };
 
-rmSync(outDir, { recursive: true, force: true });
+if (!only.length) rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
 console.log(`\n🔍 Motion Audit — ${pageArg}`);
@@ -91,7 +100,16 @@ const spec = await page.evaluate(extractSpec);
 const brandTokens = await page.evaluate("window.__BRAND || {}");
 const overruns = await page.evaluate("window.__OVERRUNS || []");
 
-console.log(`   Duration: ${duration.toFixed(2)}s   Shots: ${spec ? spec.shots.length : "?"}   Sampling: every ${step}s on ${workers} tab${workers === 1 ? "" : "s"}`);
+const unknown = only.filter(id => !cues.some(c => c.label === id));
+if (unknown.length) {
+  console.error(`❌ No shot named ${unknown.join(", ")}. Shots: ${cues.map(c => c.label).join(", ")}`);
+  await studio.close();
+  process.exit(1);
+}
+const spans = spansFor({ cues, duration, only });
+const scoped = only.length > 0;
+const spanLabel = scoped ? spans.map(sp => `${sp.ids.join("+")} ${sp.start.toFixed(1)}→${sp.end.toFixed(1)}s`).join(", ") : "";
+console.log(`   Duration: ${duration.toFixed(2)}s   Shots: ${spec ? spec.shots.length : "?"}   Sampling: every ${step}s on ${workers} tab${workers === 1 ? "" : "s"}${scoped ? `   Only: ${spanLabel}` : ""}`);
 console.log(`   Cues: ${cues.map(c => `${c.label}@${c.time.toFixed(1)}s`).join(", ")}\n`);
 
 // ---------------------------------------------------------------------------
@@ -183,8 +201,9 @@ if (!spec) {
 // ---------------------------------------------------------------------------
 // 2. Dense sampling → event density.
 // ---------------------------------------------------------------------------
-const n = Math.floor(duration / step);
-const times = Array.from({ length: n + 1 }, (_, i) => Math.min(i * step, duration));
+const groups = sampleTimes(spans, step, duration);
+const times = groups.flat();
+const spanOf = groups.flatMap((g, gi) => g.map(() => gi));
 const samples = new Array(times.length);
 const chunk = Math.ceil(times.length / workers);
 await Promise.all(Array.from({ length: workers }, async (_, w) => {
@@ -201,33 +220,38 @@ await Promise.all(Array.from({ length: workers }, async (_, w) => {
   if (w > 0) await pg.close();
 }));
 mark("capture");
-// keep one frame per second on disk for the agent to look at
-samples.forEach((s, i) => {
-  if (Math.abs(s.t - Math.round(s.t)) < 1e-6) {
-    writeFileSync(`${outDir}/frame_${String(Math.round(s.t)).padStart(3, "0")}_${s.t.toFixed(1)}s.png`, s.buf);
+// keep one frame per second on disk for the agent to look at; a scoped run
+// replaces the frames of its stretch and leaves the rest of the film's
+const frameName = t => `frame_${String(Math.round(t)).padStart(3, "0")}_${t.toFixed(1)}s.png`;
+if (scoped) {
+  for (const f of readdirSync(outDir)) {
+    const t = Number(/^frame_\d+_([\d.]+)s\.png$/.exec(f)?.[1]);
+    if (Number.isFinite(t) && spans.some(sp => t >= sp.start - 1e-6 && t <= sp.end + 1e-6)) unlinkSync(join(outDir, f));
   }
+}
+samples.forEach((s) => {
+  if (Math.abs(s.t - Math.round(s.t)) < 1e-6) writeFileSync(join(outDir, frameName(s.t)), s.buf);
 });
 
-const diffs = [];  // diff between sample i-1 and i, attributed to time samples[i].t
-for (let i = 1; i < samples.length; i++) diffs.push({ t: samples[i].t, d: getBufferDiffRatio(samples[i - 1].buf, samples[i].buf) });
-const events = diffs.filter(x => x.d >= eventThreshold);
-const eps = events.length / Math.max(1e-6, duration);
-
-// longest quiet stretch (between events, or from start / to end)
-let longestQuiet = 0, quietFrom = 0, quietTo = 0, last = 0;
-const eventTimes = events.map(e => e.t);
-for (const t of [...eventTimes, duration]) {
-  if (t - last > longestQuiet) { longestQuiet = t - last; quietFrom = last; quietTo = t; }
-  last = t;
+const diffs = [];  // diff between sample i-1 and i, attributed to time samples[i].t — never across two spans
+for (let i = 1; i < samples.length; i++) {
+  if (spanOf[i] !== spanOf[i - 1]) continue;
+  diffs.push({ t: samples[i].t, d: getBufferDiffRatio(samples[i - 1].buf, samples[i].buf) });
 }
-const quietGaps = [];
-last = 0;
-for (const t of [...eventTimes, duration]) { if (t - last > maxQuiet) quietGaps.push([last, t]); last = t; }
+const events = diffs.filter(x => x.d >= eventThreshold);
+const sampledDur = spans.reduce((a, sp) => a + (sp.end - sp.start), 0);
+const eps = events.length / Math.max(1e-6, sampledDur);
+
+// the still stretches, inside each span
+const eventTimes = events.map(e => e.t);
+const { longest, gaps: quietGaps } = quietStretches(eventTimes, spans, maxQuiet);
+const longestQuiet = longest.dur, quietFrom = longest.from, quietTo = longest.to;
 
 // per-shot table
 const shotRows = [];
 if (cues.length) {
   cues.forEach((c, i) => {
+    if (scoped && !only.includes(c.label)) return;
     const start = c.time, end = i + 1 < cues.length ? cues[i + 1].time : duration;
     const inShot = events.filter(e => e.t > start + 1e-6 && e.t <= end + 1e-6);
     const meta = spec?.shots.find(s => s.id === c.label);
@@ -243,7 +267,7 @@ for (const r of shotRows) {
   const bar = "█".repeat(Math.min(24, Math.round(r.eps * 6))) + (r.eps < 0.5 ? "  ← lazy" : "");
   console.log(`   ${r.id.padEnd(12)} ${r.type.padEnd(14)} ${r.dur.toFixed(1).padStart(5)} ${String(r.events).padStart(7)} ${r.eps.toFixed(2).padStart(6)}   ${bar}`);
 }
-console.log(`   film: ${events.length} events in ${duration.toFixed(1)}s = ${eps.toFixed(2)} ev/s   longest quiet ${longestQuiet.toFixed(2)}s (${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s)\n`);
+console.log(`   ${scoped ? "span" : "film"}: ${events.length} events in ${sampledDur.toFixed(1)}s = ${eps.toFixed(2)} ev/s   longest quiet ${longestQuiet.toFixed(2)}s (${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s)\n`);
 
 // (The old 1s static-hold check is subsumed by the quiet-gap rule above: a
 // hold is simply a quiet stretch, and the dense sampling can't be fooled by a
@@ -259,13 +283,16 @@ if (cues.length > 1) {
   for (let i = 0; i < cues.length; i++) {
     const start = cues[i].time;
     const end = i + 1 < cues.length ? cues[i + 1].time : duration;
+    if (scoped && !only.includes(cues[i].label)) continue;
     const mid = start + (end - start) / 2;
-    await page.evaluate((seekT) => { window.__SEEK(seekT); }, mid);
-    const vis = await page.evaluate(() => {
+    // One CDP round trip per midpoint: the seek applies its styles synchronously,
+    // so the read follows it in the same evaluate (two trips × 10 shots was 6s).
+    const vis = await page.evaluate((seekT) => {
+      window.__SEEK(seekT);
       let scenes = [...document.querySelectorAll(".shot[id], .scene[id]")];
       if (!scenes.length) scenes = [...document.querySelectorAll("#camera > div[id]")];
       return scenes.map(el => { const cs = getComputedStyle(el); return { id: el.id, opacity: parseFloat(cs.opacity), visibility: cs.visibility }; });
-    });
+    }, mid);
     if (!vis.length) break;
     let activeIdx = vis.findIndex(s => s.id === cues[i].label);
     if (activeIdx === -1) activeIdx = Math.min(i, vis.length - 1);
@@ -285,8 +312,9 @@ if (cues.length > 1) {
 // ---------------------------------------------------------------------------
 let determinismWarnings = 0;
 {
-  const probe = Math.min(duration * 0.4, Math.max(1, duration - 1));
-  const away = Math.min(duration * 0.8, Math.max(2, duration - 0.5));
+  const sp = spans[0], len = sp.end - sp.start;
+  const probe = sp.start + Math.min(len * 0.4, Math.max(Math.min(1, len * 0.3), len - 1));
+  const away = sp.start + Math.min(len * 0.8, Math.max(Math.min(2, len * 0.6), len - 0.5));
   const grab = async (t) => { await page.evaluate((tt) => window.__SEEK(tt), t); await page.waitForTimeout(140); return grabAt(page, cdp, t); };
   const first = await grab(probe); await grab(away); const second = await grab(probe);
   // Pixels, not bytes: see getBufferDiffRatio. 0.1% of pixels is far below any
@@ -312,7 +340,7 @@ const warns = [];
 for (const l of lint) (l.level === "fail" ? fails : warns).push(l.msg);
 // Pacing is a note, not a gate: the numbers are the reference films', and a
 // held frame or a lab effect kept whole can be the right call — said out loud.
-if (longestQuiet > maxQuiet) warns.push(`Pacing: the picture sits still for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}; the reference films never hold past ${maxQuiet}s. A beat (swap/kick/flash/pulse), a second line, 'more' notifications, a cursor/focus — or a cut — answers it. If the hold is the design, keep it and say why in direction.md.`);
+if (longestQuiet > maxQuiet) warns.push(`Pacing: the picture sits still for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}; the reference films never hold past ${maxQuiet}s. A beat (swap/kick/flash/pulse), a second line, 'more' notifications, a cursor/focus — or a cut — answers it. If the hold is the design, keep it and say why in direction.md — that closes this note; do not re-run the audit for it.`);
 if (eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} events/s over the film; the reference films run ≥ ${minEps}. Second and third acts, not more entrances — or say in direction.md why this film breathes slower.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
@@ -321,7 +349,7 @@ if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s
 console.log(`\n──────── Philosophy scorecard ────────`);
 console.log(`   brand: bg ${brandTokens.bg ?? "—"} · ink ${brandTokens.ink ?? "—"} · accent ${brandTokens.accent ?? "—"}`);
 if (spec) console.log(`   ${designSummary(spec)}`);
-console.log(`   shots ${spec ? spec.shots.length : "?"} · avg ${spec ? (spec.shots.reduce((a, s) => a + s.dur, 0) / spec.shots.length).toFixed(2) : "?"}s · ${eps.toFixed(2)} ev/s · longest quiet ${longestQuiet.toFixed(2)}s · ambient ${spec?.ambient ? spec.ambient.kind || "on" : "off"} · beats ${spec ? spec.shots.reduce((a, s) => a + s.beats, 0) : "?"}`);
+console.log(`   shots ${spec ? spec.shots.length : "?"} · avg ${spec ? (spec.shots.reduce((a, s) => a + s.dur, 0) / spec.shots.length).toFixed(2) : "?"}s · ${eps.toFixed(2)} ev/s${scoped ? ` (${spanLabel})` : ""} · longest quiet ${longestQuiet.toFixed(2)}s · ambient ${spec?.ambient ? spec.ambient.kind || "on" : "off"} · beats ${spec ? spec.shots.reduce((a, s) => a + s.beats, 0) : "?"}`);
 const nline = narration.mode === "continuous"
   ? `continuous read ${narration.dur.toFixed(1)}s · ${narration.wps.toFixed(2)} words/s · ${narration.cued}/${narration.total} shots cued · max drift ${narration.maxDrift >= 0 ? "+" : ""}${narration.maxDrift.toFixed(2)}s${narration.worst ? ` (#${narration.worst})` : ""} · longest breath ${narration.breath ? narration.breath.dur + "s" : "none"} · last word ${narration.speechEnd.toFixed(1)}s`
   : narration.mode === "fragmented" ? `FRAGMENTED — ${narration.clips} per-shot clips` : "none (music-only)";
@@ -333,7 +361,7 @@ if (fails.length) {
   process.exit(1);
 } else {
   const pacing = warns.filter(w => w.startsWith("Pacing:")).length;
-  console.log(`\n✅ AUDIT PASSED — ${pacing ? `deterministic; ${pacing} pacing note${pacing === 1 ? "" : "s"} above to answer or to justify in direction.md` : "dense, continuous, deterministic"}. Frames in '${outDir}/'.\n`);
+  console.log(`\n✅ AUDIT PASSED — ${pacing ? `deterministic; ${pacing} pacing note${pacing === 1 ? "" : "s"} above to answer or to justify in direction.md` : "dense, continuous, deterministic"}. Frames in '${outDir}/'.${pacing ? ` A note answered in direction.md is closed. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
 }
 
 /**

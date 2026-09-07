@@ -141,18 +141,22 @@ tools.
    one read: script (1.9–2.4 words/s) → `motion_tts` once (it re-records by
    itself if a take comes back rushed) → `audio.vo` → `motion_align` →
    `cue` on every shot → `motion_sync({ write: true })`. Then `motion_cues`,
-   `motion_sfx({ mode: "build" })` (★ marks the signature cues the budget
-   counts), `motion_mix`.
+   one `motion_sfx({ mode: "query", event: "impact,whoosh_deep,…" })` for every
+   event the film needs, a cue sheet written to the budget (~6 signature
+   cues per 30s, one per shot), `motion_sfx({ mode: "build" })` (★ marks the
+   signature cues the budget counts), `motion_mix`.
 4. `motion_audit({})`: zero ❌. A ⚠️ is a note: pacing notes name the still
    stretch — answer with a beat or a cut, or keep it and say why in
-   direction.md; never a longer shot (`references/pacing.md` has the
-   numbers). Then `motion_review({})`: fix every line of its clipped-type
+   direction.md — that closes the note; never a longer shot
+   (`references/pacing.md` has the numbers). Then `motion_review({})`: fix every line of its clipped-type
    and off-brand-ground reports, and **look at every sheet** — an empty frame, a colour
    that is not the brand's, a lab placeholder still on screen, an edge
    touched. Fix in `shots.js`, then `motion_review({ shots: [...] })` for what
-   you touched — not another audit unless a `dur`, a cue or a beat changed.
-   Audio-only changes (a breath, a level) need `motion_cues` and `motion_mix`,
-   never a re-audit. Quote the scorecard, say what the sheets showed, stop.
+   you touched — not another audit unless a `dur`, a cue or a beat changed,
+   and then `motion_audit({ shots: [...] })` for those shots only: it samples
+   their stretch on the same grid, in a quarter of the time.
+   Audio-only changes (a breath, a level) and a `direction.md` edit need no
+   audit at all. Quote the scorecard, say what the sheets showed, stop.
 5. Export only when the user asks for an MP4: `motion_audit`,
    `motion_render({ out, out_res, fps: 60 })`, `motion_verify_duration`.
 

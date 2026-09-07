@@ -438,9 +438,14 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs motion_cues and motion_mix, not the gate.",
+      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run, and a pacing note answered in direction.md is closed. After a fix that changes a dur, a cue or a beat, re-run with `shots` for the shots you touched: it samples only their stretch on the same grid (a 5s shot is ~8s, the film ~30s) and replaces their frames in audit/. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs motion_cues and motion_mix, not the gate.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
+      shots: Type.Optional(
+        Type.Array(Type.String(), {
+          description: 'Only these shot ids — the re-check after a fix (default: the whole film)',
+        }),
+      ),
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
       max_quiet: Type.Optional(
         Type.Number({
@@ -460,6 +465,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       const ws = workspaceOf(ctx)
       const a: string[] = []
       if (p.page) a.push(relativeIn(ws, p.page))
+      if (p.shots?.length) a.push(`--shots=${p.shots.join(',')}`)
       if (p.step) a.push('--step=' + p.step)
       if (p.max_quiet) a.push('--max-quiet=' + p.max_quiet)
       if (p.min_eps) a.push('--min-eps=' + p.min_eps)
@@ -714,13 +720,16 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     label: 'Sound Effects',
     description:
       'Query the curated SFX manifest or build the SFX bus. mode=list: the event vocabulary. ' +
-      'mode=query: ranked, measured clips for an event. mode=build: render audio/sfx_bus.wav from ' +
-      'audio/sfx-cues.json, placing every cue by its measured onset. The build must finish with no ' +
-      'placement warnings.',
+      'mode=query: ranked, measured clips — pass every event the film needs in one call (event: "impact,whoosh_deep,chime"), not one call per event. ' +
+      'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json, placing every cue by its measured onset. ' +
+      'Budget per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture; write the sheet to that budget so the build passes first time. The build must finish with no placement warnings.',
     parameters: Type.Object({
       mode: Type.Union([Type.Literal('list'), Type.Literal('query'), Type.Literal('build')]),
       event: Type.Optional(
-        Type.String({ description: 'query: event name (pop, whoosh_deep, impact, …)' }),
+        Type.String({
+          description:
+            "query: event name(s), comma-separated (pop, whoosh_deep, impact, …) — all the film's events in one call",
+        }),
       ),
       max: Type.Optional(Type.Number({ description: 'query: cap clip length in seconds' })),
       limit: Type.Optional(
