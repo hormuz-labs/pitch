@@ -118,11 +118,16 @@ function openRouterApiKey(): string | undefined {
   return key || undefined
 }
 
+function googleApiKey(): string | undefined {
+  const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY)?.trim()
+  return key || undefined
+}
+
 function providerIsRunnable(provider: string): boolean {
   if (modelRuntime.hasConfiguredAuth(provider)) return true
   if (provider === 'openrouter') return Boolean(openRouterApiKey())
   if (provider === 'google') {
-    return Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY)
+    return Boolean(googleApiKey())
   }
   return false
 }
@@ -131,6 +136,19 @@ export function initStudio(): Promise<void> {
   if (!initPromise) {
     initPromise = (async () => {
       modelRuntime = await ModelRuntime.create({ modelsPath: STUDIO_MODELS_JSON })
+      const gKey = googleApiKey()
+      if (gKey) {
+        try {
+          await modelRuntime.setRuntimeApiKey('google', gKey)
+        } catch (err) {
+          logger.warn({ err }, 'could not apply GEMINI_API_KEY to the model runtime')
+        }
+      } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'google')) {
+        logger.warn(
+          { allowed: ALLOWED_SPECS },
+          'GEMINI_API_KEY is not set — Google models will be hidden from the picker',
+        )
+      }
       const orKey = openRouterApiKey()
       if (orKey) {
         try {
@@ -149,6 +167,7 @@ export function initStudio(): Promise<void> {
         {
           model: m.model ? `${m.model.provider}/${m.model.id}` : '(pi default)',
           allowed: ALLOWED_SPECS,
+          google: Boolean(gKey),
           openrouter: Boolean(orKey),
           thinking: THINKING_LEVEL,
         },
