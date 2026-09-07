@@ -54,7 +54,7 @@ const pageArg = process.argv.slice(2).find(a => !a.startsWith("--")) ?? "index.h
 const step = Number(args.step ?? args.interval ?? 0.25);     // dense sampling step
 const eventThreshold = Number(args.event ?? 0.006);           // ≥ 0.6% sampled pixels changed = an event
 const maxQuiet = Number(args["max-quiet"] ?? 1.5);            // longest allowed stretch without an event
-const minEps = Number(args["min-eps"] ?? 0.7);                // events per second, whole film
+const minEps = Number(args["min-eps"] ?? 0.7);                // events per second, whole film (a scoped run does not judge it)
 const threshold = Number(args.threshold ?? 0.003);            // static-hold: 1s apart, < 0.3% change
 const outDir = resolve(String(args.out ?? "audit"));
 const only = args.shots ? String(args.shots).split(",").map(x => x.trim()).filter(Boolean) : [];
@@ -341,7 +341,9 @@ for (const l of lint) (l.level === "fail" ? fails : warns).push(l.msg);
 // Pacing is a note, not a gate: the numbers are the reference films', and a
 // held frame or a lab effect kept whole can be the right call — said out loud.
 if (longestQuiet > maxQuiet) warns.push(`Pacing: the picture sits still for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}; the reference films never hold past ${maxQuiet}s. A beat (swap/kick/flash/pulse), a second line, 'more' notifications, a cursor/focus — or a cut — answers it. If the hold is the design, keep it and say why in direction.md — that closes this note; do not re-run the audit for it.`);
-if (eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} events/s over the film; the reference films run ≥ ${minEps}. Second and third acts, not more entrances — or say in direction.md why this film breathes slower.`);
+// A film-level number, so only a film-level run may raise it: one shot sampled
+// alone is a different measurement, and "over the film" would be a lie about it.
+if (!scoped && eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} events/s over the film; the reference films run ≥ ${minEps}. Second and third acts, not more entrances — or say in direction.md why this film breathes slower.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
