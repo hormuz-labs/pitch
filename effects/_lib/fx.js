@@ -17,7 +17,7 @@
 (function () {
   const params = new URLSearchParams(location.search);
   const RENDER = params.has('render');
-  const fx = (window.fx = {});
+  const fx = (window.fx = Object.assign(window.fx || {}, window.anim || {}));
   const readyPromises = [];
 
   fx.rng = function (seed) {

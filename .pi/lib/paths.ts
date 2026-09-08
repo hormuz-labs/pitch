@@ -65,6 +65,7 @@ export const LIBRARY_DIRS: readonly string[] = [
   path.join(ASSETS_DIR, 'gsap'),
   path.join(ASSETS_DIR, 'three'),
   path.join(ASSETS_DIR, 'rive'),
+  path.join(ASSETS_DIR, 'p5'),
 ]
 
 export class PathError extends Error {

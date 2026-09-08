@@ -71,11 +71,13 @@ export function projectFiles(ws: string): ProjectFiles {
 export interface ShellOptions {
   title: string
   rive?: boolean
+  /** p5.js (1MB) for a generative canvas ported from the lab's launch family. */
+  p5?: boolean
   files: ProjectFiles
 }
 
 /** index.html: the vendor bundle, the engine and the project's files, in the one order that works. */
-export function shellHtml({ title, rive = false, files }: ShellOptions): string {
+export function shellHtml({ title, rive = false, p5 = false, files }: ShellOptions): string {
   const safeTitle = String(title).replace(/[<>]/g, '')
   return [
     '<!DOCTYPE html>',
@@ -94,6 +96,7 @@ export function shellHtml({ title, rive = false, files }: ShellOptions): string 
     '  <script type="module">import * as THREE from "../../assets/three/three.module.min.js"; window.THREE = THREE;</script>',
     '  <script src="../../assets/lottie/lottie.min.js"></script>',
     ...(rive ? ['  <script src="../../assets/rive/rive.js"></script>'] : []),
+    ...(p5 ? ['  <script src="../../assets/p5/p5.min.js"></script>'] : []),
     '  <script src="shots.js"></script>',
     '  <script src="../../engine/js/icons.js"></script>',
     '  <script src="../../engine/js/factories.js"></script>',
@@ -109,6 +112,7 @@ export function shellState(html: string): {
   ours: boolean
   title: string
   rive: boolean
+  p5: boolean
   styles: string[]
   scripts: string[]
 } {
@@ -121,17 +125,24 @@ export function shellState(html: string): {
     ours: html.includes(SHELL_MARK),
     title,
     rive: /assets\/rive\/rive\.js/.test(html),
+    p5: /assets\/p5\/p5\.min\.js/.test(html),
     styles,
     scripts,
   }
 }
 
 /** Write the shell; the per-type folders are created so the layout is visible. */
-export function writeShell(ws: string, opts: { title: string; rive?: boolean }): ProjectFiles {
+export function writeShell(
+  ws: string,
+  opts: { title: string; rive?: boolean; p5?: boolean },
+): ProjectFiles {
   mkdirSync(join(ws, 'js', 'shots'), { recursive: true })
   mkdirSync(join(ws, 'css', 'shots'), { recursive: true })
   const files = projectFiles(ws)
-  writeFileSync(join(ws, 'index.html'), shellHtml({ title: opts.title, rive: opts.rive, files }))
+  writeFileSync(
+    join(ws, 'index.html'),
+    shellHtml({ title: opts.title, rive: opts.rive, p5: opts.p5, files }),
+  )
   return files
 }
 
@@ -148,7 +159,10 @@ export function refreshShell(ws: string): string[] {
   const files = projectFiles(ws)
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
   if (same(state.styles, files.styles) && same(state.scripts, files.scripts)) return []
-  writeFileSync(path, shellHtml({ title: state.title || basename(ws), rive: state.rive, files }))
+  writeFileSync(
+    path,
+    shellHtml({ title: state.title || basename(ws), rive: state.rive, p5: state.p5, files }),
+  )
   const added = [...files.styles, ...files.scripts].filter(
     f => ![...state.styles, ...state.scripts].includes(f),
   )

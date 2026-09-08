@@ -27,6 +27,7 @@ const logger = createLogger('studio')
 // fails to load costs the studio that capability, not the whole app.
 await import('./pipelines/media.js')
 await import('./pipelines/video-gen.js')
+await import('./pipelines/elevenlabs.js')
 await import('./flows/launch-video/index.js')
 await import('./flows/deck/index.js').catch(err =>
   logger.warn({ err }, 'deck pipeline unavailable'),

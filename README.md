@@ -93,7 +93,9 @@ Duplicate the configuration template and provide your active credentials.
 ```bash
 cp .env.example .env
 ```
-*Required: Ensure `GEMINI_API_KEY` is populated for the neural TTS engine.*
+*Required: Ensure `GEMINI_API_KEY` is populated for the neural TTS engine. Set
+`ELEVENLABS_API_KEY` for generated music and sound effects; `.pi/audio.json`
+picks which of the two records the narration.*
 
 #### 02. Dependency Resolution
 Utilize Bun for rapid dependency tree resolution across all workspaces.

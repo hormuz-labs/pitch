@@ -52,6 +52,10 @@ describe('shellHtml', () => {
     expect(shellHtml({ title: 't', rive: true, files: { styles: [], scripts: [] } })).toContain(
       'assets/rive/rive.js',
     )
+    expect(html).not.toContain('p5.min.js')
+    expect(shellHtml({ title: 't', p5: true, files: { styles: [], scripts: [] } })).toContain(
+      'assets/p5/p5.min.js',
+    )
     expect(GSAP_PLUGINS.length).toBe(23)
   })
 
@@ -65,6 +69,7 @@ describe('shellHtml', () => {
       ours: true,
       title: 'Film',
       rive: true,
+      p5: false,
       styles: ['css/custom.css'],
       scripts: ['js/shots/x.js', 'js/shots.custom.js'],
     })

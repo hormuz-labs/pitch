@@ -1,0 +1,13 @@
+{
+  "tts": {
+    "provider": "gemini",
+    "gemini": {
+      "voice": "Aoede",
+      "model": "gemini-2.5-flash-preview-tts"
+    },
+    "elevenlabs": {
+      "voice": "",
+      "model": "eleven_v3"
+    }
+  }
+}

@@ -93,8 +93,51 @@ const flag = (name, dflt = null) => {
 };
 
 const abs = p => (isAbsolute(p) ? p : resolve(process.cwd(), p));
-/** Manifest paths are repo-relative. */
-const clipPath = c => join(REPO, c.path);
+/** Manifest paths are repo-relative; generated files are already workspace-absolute. */
+const clipPath = c => c.workspace ? c.path : join(REPO, c.path);
+
+async function inspectWorkspaceClip(rel, event) {
+  if (isAbsolute(rel)) throw new Error(`generated SFX path must be workspace-relative: ${rel}`);
+  const root = resolve(process.cwd());
+  const file = resolve(root, rel);
+  if (file !== root && !file.startsWith(root + "/")) {
+    throw new Error(`generated SFX path escapes the workspace: ${rel}`);
+  }
+  if (!existsSync(file)) throw new Error(`generated SFX file not found: ${rel}`);
+
+  const { stdout } = await execFileAsync("ffprobe", [
+    "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", file,
+  ]);
+  const fileDur = Number(stdout.trim());
+  if (!Number.isFinite(fileDur) || fileDur <= 0) throw new Error(`could not measure ${rel}`);
+
+  let onset = 0;
+  let lufs = null;
+  try {
+    const { stderr } = await execFileAsync("ffmpeg", [
+      "-hide_banner", "-nostats", "-i", file,
+      "-af", "silencedetect=noise=-50dB:d=0.015,ebur128=peak=true", "-f", "null", "-",
+    ], { maxBuffer: 8 * 1024 * 1024 });
+    if (/silence_start:\s*0(?:\.0+)?\b/.test(stderr)) {
+      onset = Number(stderr.match(/silence_end:\s*([\d.]+)/)?.[1] ?? 0);
+    }
+    const integrated = [...stderr.matchAll(/\bI:\s*(-?[\d.]+) LUFS/g)];
+    if (integrated.length) lufs = Number(integrated.at(-1)[1]);
+  } catch {
+    // Duration is enough to place the clip; missing level data leaves gain manual.
+  }
+
+  return {
+    id: `workspace/${rel}`,
+    path: file,
+    event,
+    onset,
+    effDur: Math.max(0, fileDur - onset),
+    lufs: Number.isFinite(lufs) ? lufs : null,
+    trust: 1,
+    workspace: true,
+  };
+}
 
 /**
  * Rank candidates by how little we have to do to them. A clip that already
@@ -250,7 +293,18 @@ for (const [i, cue] of cues.entries()) {
   if (typeof cue.t !== "number") { problems.push(`${label}: missing numeric 't'`); continue; }
 
   let clip = null, borrowedFrom = null;
-  if (cue.clip) {
+  if (cue.file) {
+    if (!cue.event) {
+      problems.push(`${label}: a generated 'file' cue also needs its event class`);
+      continue;
+    }
+    try {
+      clip = await inspectWorkspaceClip(String(cue.file), cue.event);
+    } catch (error) {
+      problems.push(`${label}: ${error.message || error}`);
+      continue;
+    }
+  } else if (cue.clip) {
     // Match on the current id/path, and also on the clip's pre-vendor identity
     // (`sourceId`/`origin`) so a cue sheet written before vendoring keeps
     // pointing at the same sound afterwards.
@@ -261,7 +315,7 @@ for (const [i, cue] of cues.entries()) {
       (c.origin && c.origin.endsWith(cue.clip)));
     if (!clip) { problems.push(`${label}: clip not in manifest: ${cue.clip}`); continue; }
   } else {
-    if (!cue.event) { problems.push(`${label}: needs 'event' or 'clip'`); continue; }
+    if (!cue.event) { problems.push(`${label}: needs 'event', 'clip' or 'file'`); continue; }
     // varied=true avoids reusing the same clip for repeated events
     const res = pickFor(manifest, cue.event, {
       max: cue.max ?? null,

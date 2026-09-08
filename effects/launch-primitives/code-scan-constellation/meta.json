@@ -1,0 +1,21 @@
+{
+  "name": "Code Scan Constellation",
+  "seconds": 5,
+  "move": "risk-highlighted code panel multiplies into a red and green constellation while camera pulls back and pans",
+  "how": "Seven code cards spring from depth; red risk cards dominate before green resolution cards enter. Camera travels from close inspection to system overview.",
+  "moves": [
+    "code-highlight",
+    "panel-constellation",
+    "camera-pullback",
+    "risk-resolve"
+  ],
+  "libs": [
+    "motion"
+  ],
+  "adapt": "Change code and risk tokens.",
+  "port": "Generate cards once and animate camera plus per-card depth.",
+  "caveats": [],
+  "fidelity": "extracted",
+  "loop": false,
+  "size": "1280x720"
+}

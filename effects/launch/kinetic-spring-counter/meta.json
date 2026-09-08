@@ -1,0 +1,16 @@
+{
+  "name": "Spring-Driven Kinetic Metric Counter",
+  "family": "Launch",
+  "familySlug": "launch",
+  "slug": "kinetic-spring-counter",
+  "seconds": 4.5,
+  "description": "High-velocity metric milestone reveal driven by spring harmonic physics, dynamically formatting numerical values with commas, decimal rates, and elastic settling.",
+  "move": "spring-driven rapid metric count-up with elastic scale bounce",
+  "moves": ["metric-counter", "spring-physics", "number-tick", "currency-format", "telemetry"],
+  "libs": ["anim"],
+  "adapt": "Customize currency prefixes, target milestone figures, and sub-metric labels for growth and performance proof points.",
+  "port": "Maps anim.spring progress directly to formatted numeric output strings.",
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

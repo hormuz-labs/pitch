@@ -1,0 +1,16 @@
+{
+  "name": "Spring Physics Feature Grid Reveal",
+  "family": "Launch",
+  "familySlug": "launch",
+  "slug": "spring-feature-pop",
+  "seconds": 4.5,
+  "description": "Physics-driven spring animation showcasing staggered feature product cards popping onto screen with natural mass, damping, overshoot, and elastic settling.",
+  "move": "staggered spring pop on feature cards with physics bounce",
+  "moves": ["spring", "overshoot", "stagger", "elastic-settle", "card-pop"],
+  "libs": ["anim"],
+  "adapt": "Customize the feature card icons, copy, tags, and colors. The spring simulation parameters provide organic physical weight and crisp responsiveness.",
+  "port": "Uses anim.spring with stiffness 150, damping 13, mass 0.9 and staggered frame delays.",
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1280x720"
+}

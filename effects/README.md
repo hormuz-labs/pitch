@@ -9,6 +9,9 @@ effects/
   catalog.json          the 408 templates: name, family, seconds, tags, description, jitterUrl
   _lib/fx.js            the render contract (window.__fx) + preview loop
   _lib/base.css         reset + vendored fonts
+  _lib/anim.js          interpolation, springs, colour and bezier helpers, merged into window.fx
+  _lib/motion.js        phase/envelope/spring helpers and a world camera (window.Motion), for the launch families
+  _lib/launch-primitives.js  the presets behind launch-primitives/*, one wrapper page each
   render.mjs            node effects/render.mjs --all | --missing | --family text | text/bold-text-snap
   build-index.mjs       node effects/build-index.mjs → index.html, the review gallery
   index.html            open it in a browser; every render, filterable
@@ -73,7 +76,10 @@ Rules, because the renderer seeks rather than plays:
   three.js: `../../../assets/three/three.module.min.js` (ES module; use an
   `importmap` — the renderer launches Chromium with file access for modules
   and SwiftShader GL; `_lib/_probe/index.html` is a working three.js example,
-  use `preserveDrawingBuffer: true` and render inside `seek(t)`). lottie: `../../../assets/lottie/lottie.min.js`. Fonts in
+  use `preserveDrawingBuffer: true` and render inside `seek(t)`). lottie: `../../../assets/lottie/lottie.min.js`.
+  p5: `../../../assets/p5/p5.min.js` in instance mode with `noLoop()`, drawing
+  inside `seek(t)` (`launch/p5-generative-wave`); a film that ports one is
+  scaffolded with `--p5`. Fonts in
   `base.css`. Backgrounds in `../../../assets/backgrounds/`. No CDN, no
   network: the render runs offline.
 - **Anything async is awaited** with `fx.wait(promise)` before `__fx.ready`

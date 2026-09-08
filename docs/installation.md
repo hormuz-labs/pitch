@@ -58,6 +58,7 @@ Set the required variables in `.env`:
 | `MINIO_ROOT_USER` | MinIO admin username |
 | `MINIO_ROOT_PASSWORD` | MinIO admin password |
 | `GEMINI_API_KEY` | Google Gemini API key for TTS |
+| `ELEVENLABS_API_KEY` | ElevenLabs key for generated music and sound effects, and for narration when `.pi/audio.json` selects it |
 | `GRAFANA_USER` | Grafana admin username (optional, default: `admin`) |
 | `GRAFANA_PASSWORD` | Grafana admin password (optional, default: `admin123`) |
 

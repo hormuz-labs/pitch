@@ -23,6 +23,7 @@ import {
 import { basename, dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { Type } from '@sinclair/typebox'
+import { audioConfig, TTS_PROVIDERS, type TtsProvider } from '../lib/audio-config.ts'
 import {
   ASSETS_DIR,
   ENGINE_DIR,
@@ -34,6 +35,7 @@ import {
 } from '../lib/paths.ts'
 import { GSAP_PLUGINS, refreshShell, writeShell } from '../lib/shell.ts'
 import { type ReconTokens, starterShots } from '../lib/starter-shots.ts'
+import { hostAction } from '../lib/studio-host.ts'
 import type { CommandSpec } from './registry.ts'
 
 const execFileAsync = promisify(execFile)
@@ -169,7 +171,10 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'tts',
     description:
-      'Record the narration: ONE continuous Gemini TTS read of the whole script → audio/vo.wav (the text saved beside it as audio/vo.txt). One call per film, never one per shot. Then set audio.vo in shots.js, pitch motion align, cue every shot, pitch motion sync.',
+      'Record the narration: ONE continuous read of the whole script, saved with its text beside it (audio/vo.txt). ' +
+      'One call per film, never one per shot. Which service reads it — Gemini TTS (→ audio/vo.wav) or ElevenLabs (→ audio/vo.mp3) — ' +
+      "is set in the studio's audio config, not by you; --provider overrides it for one read. " +
+      'Then set audio.vo in shots.js to the file this prints, pitch motion align, cue every shot, pitch motion sync.',
     parameters: Type.Object({
       text: Type.Optional(
         Type.String({
@@ -182,31 +187,51 @@ export default function motionCommands(): CommandSpec[] {
           description: 'Path to a text file holding the whole script (alternative to text).',
         }),
       ),
-      out: Type.Optional(Type.String({ description: 'Output WAV path (default audio/vo.wav)' })),
+      out: Type.Optional(
+        Type.String({
+          description: 'Output path (default audio/vo.wav for Gemini, audio/vo.mp3 for ElevenLabs)',
+        }),
+      ),
+      provider: Type.Optional(
+        Type.Union([Type.Literal('gemini'), Type.Literal('elevenlabs')], {
+          description: 'Override the configured service for this read.',
+        }),
+      ),
       voice: Type.Optional(
-        Type.Union(
-          [
-            Type.Literal('Aoede'),
-            Type.Literal('Kore'),
-            Type.Literal('Leda'),
-            Type.Literal('Charon'),
-          ],
-          {
-            description:
-              'Choose for the brand, never by habit: Aoede bright, Kore warm, Leda sleek, Charon deep. Two films should not share a voice by default.',
-          },
-        ),
+        Type.String({
+          description:
+            'Gemini: Aoede bright, Kore warm, Leda sleek, Charon deep — choose for the brand, never by habit. ' +
+            'ElevenLabs: a voice id from pitch motion voices. Default: the configured voice.',
+        }),
       ),
       style: Type.Optional(
         Type.String({
           description:
-            'One delivery direction for the whole read (emotion, register, pace). Never ask for fast or brisk.',
+            'Gemini only: one delivery direction for the whole read (emotion, register, pace). Never ask for fast or brisk. ' +
+            'On ElevenLabs v3 write delivery as audio tags in the script itself, e.g. [warmly].',
         }),
       ),
       model: Type.Optional(
         Type.String({
           description:
-            'Gemini TTS model id. Default gemini-2.5-flash-preview-tts (most continuous); gemini-3.1-flash-tts-preview is more expressive with longer sentence breaks. A take that comes back rushed or truncated is re-recorded once with the other model before you see it — one call is the whole job.',
+            'Gemini: gemini-2.5-flash-preview-tts (default, most continuous) or gemini-3.1-flash-tts-preview (more expressive); a rushed take is re-recorded once with the other. ' +
+            'ElevenLabs: eleven_v3 (default), eleven_multilingual_v2, eleven_flash_v2_5.',
+        }),
+      ),
+      stability: Type.Optional(
+        Type.Number({ minimum: 0, maximum: 1, description: 'ElevenLabs: 0 varied … 1 steady' }),
+      ),
+      similarity: Type.Optional(
+        Type.Number({ minimum: 0, maximum: 1, description: 'ElevenLabs: adherence to the voice' }),
+      ),
+      expressiveness: Type.Optional(
+        Type.Number({ minimum: 0, maximum: 1, description: 'ElevenLabs: style exaggeration' }),
+      ),
+      speed: Type.Optional(
+        Type.Number({
+          minimum: 0.7,
+          maximum: 1.2,
+          description: 'ElevenLabs: never use speed to rescue an overlong script',
         }),
       ),
     }),
@@ -214,13 +239,117 @@ export default function motionCommands(): CommandSpec[] {
       const ws = workspaceOf(ctx)
       if (!p.text && !p.script)
         return text('pitch motion tts needs `text` (the whole script) or `script` (a file path).')
+      const config = audioConfig().tts
+      const provider: TtsProvider = TTS_PROVIDERS.includes(p.provider)
+        ? p.provider
+        : config.provider
+
+      if (provider === 'elevenlabs') {
+        const defaults = config.elevenlabs
+        const out = relativeIn(ws, p.out || 'audio/vo.mp3', 'write')
+        const result = await hostAction(ws, 'elevenlabs_voiceover', {
+          script: p.script ? relativeIn(ws, p.script) : undefined,
+          text: p.text,
+          voiceId: p.voice || defaults.voice || '',
+          model: p.model || defaults.model,
+          stability: p.stability,
+          similarity: p.similarity,
+          style: p.expressiveness,
+          speed: p.speed,
+          out,
+        })
+        return text(result)
+      }
+
+      const defaults = config.gemini
       const a = ['--out=' + relativeIn(ws, p.out || 'audio/vo.wav', 'write')]
       if (p.script) a.push('--script=' + relativeIn(ws, p.script))
       else a.push('--text=' + p.text)
-      if (p.voice) a.push('--voice=' + p.voice)
+      const voice = p.voice || defaults.voice
+      const model = p.model || defaults.model
+      if (voice) a.push('--voice=' + voice)
       if (p.style) a.push('--style=' + p.style)
-      if (p.model) a.push('--model=' + p.model)
+      if (model) a.push('--model=' + model)
       return text(await runScript('tts.mjs', a, ws))
+    },
+  })
+
+  commands.push({
+    verb: 'voices',
+    description:
+      "The ElevenLabs voices the studio's account can use, one line each: name, id, labels. Search by accent, tone, language or use case, choose the one direction.md calls for, and pass its id as --voice to pitch motion tts. Only meaningful when narration is on ElevenLabs.",
+    parameters: Type.Object({
+      search: Type.Optional(
+        Type.String({ description: 'Filter, e.g. "british calm" or "narration"' }),
+      ),
+      limit: Type.Optional(
+        Type.Integer({ minimum: 1, maximum: 100, description: 'Max voices (default 30)' }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      return text(
+        await hostAction(workspaceOf(ctx), 'elevenlabs_voices', {
+          search: p.search,
+          limit: p.limit,
+        }),
+      )
+    },
+  })
+
+  commands.push({
+    verb: 'music',
+    description:
+      'Generate a bespoke instrumental bed with ElevenLabs Music, when nothing in the curated library (pitch motion find-audio) fits. ' +
+      'Describe genre, mood, instrumentation, BPM, production character and the timed arrangement (where it builds, where it drops, how it ends); never name an artist or a song. ' +
+      "Ask for the film's exact length. Billed; one call per film.",
+    parameters: Type.Object({
+      prompt: Type.String({
+        description: 'The brief: BPM, palette, instruments and the timed arrangement',
+      }),
+      duration: Type.Number({ minimum: 3, maximum: 600, description: 'Exact length in seconds' }),
+      out: Type.Optional(Type.String({ description: 'Output .mp3 (default audio/music.mp3)' })),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      return text(
+        await hostAction(ws, 'elevenlabs_music', {
+          prompt: p.prompt,
+          duration: p.duration,
+          out: relativeIn(ws, p.out || 'audio/music.mp3', 'write'),
+        }),
+      )
+    },
+  })
+
+  commands.push({
+    verb: 'sound',
+    description:
+      'Generate ONE isolated, product-specific sound with ElevenLabs Sound Effects, when the curated manifest (pitch motion sfx --mode query) has nothing that fits the event. ' +
+      'One concise sound per call — the transient, its material, its length — never a soundscape. Reference the file in audio/sfx-cues.json with its event class; the build measures its onset and places it.',
+    parameters: Type.Object({
+      prompt: Type.String({ description: 'One sound event, at most 450 characters' }),
+      out: Type.String({
+        description: 'A unique workspace-relative .mp3, e.g. audio/generated-sfx/latch-click.mp3',
+      }),
+      duration: Type.Optional(Type.Number({ minimum: 0.5, maximum: 30, description: 'Seconds' })),
+      influence: Type.Optional(
+        Type.Number({ minimum: 0, maximum: 1, description: 'Prompt adherence (default 0.3)' }),
+      ),
+      loop: Type.Optional(
+        Type.Boolean({ description: 'Seamless loop, for an ambient texture only' }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
+      const ws = workspaceOf(ctx)
+      return text(
+        await hostAction(ws, 'elevenlabs_sound', {
+          prompt: p.prompt,
+          duration: p.duration,
+          influence: p.influence,
+          loop: p.loop,
+          out: relativeIn(ws, p.out, 'write'),
+        }),
+      )
     },
   })
 
@@ -988,7 +1117,7 @@ export default function motionCommands(): CommandSpec[] {
       'a starter shots.js with the brand from recon (bg, ink, accent, the font and its self-hosted files) and a PLACEHOLDER ' +
       "opening shot built from the site's own h1, so the preview is never blank: replace it with your hook and keep adding " +
       'one shot at a time. Call this once instead of writing the page by hand. New type files after that need no ' +
-      'scaffold call: pitch motion check links them. Pass rive: true when a shot uses a .riv file.',
+      'scaffold call: pitch motion check links them. Pass --rive when a shot uses a .riv file, --p5 when a shot ports a p5.js canvas from the lab.',
     parameters: Type.Object({
       title: Type.Optional(
         Type.String({ description: 'Page <title>; defaults to the project name.' }),
@@ -1005,12 +1134,18 @@ export default function motionCommands(): CommandSpec[] {
             'Load the Rive runtime (3MB) for `rive` shots or ShotKit.rive (default false).',
         }),
       ),
+      p5: Type.Optional(
+        Type.Boolean({
+          description:
+            'Load p5.js (1MB) for a generative canvas shot ported from the lab (default false).',
+        }),
+      ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
       resolveIn(ws, 'index.html', 'write')
       const title = String(p.title ?? basename(ws))
-      const files = writeShell(ws, { title, rive: Boolean(p.rive) })
+      const files = writeShell(ws, { title, rive: Boolean(p.rive), p5: Boolean(p.p5) })
       const vendor = existsSync(join(ASSETS_DIR, 'gsap', 'gsap.min.js'))
 
       // The starter shots.js: the file's shape plus the measured brand, never
@@ -1031,7 +1166,7 @@ export default function motionCommands(): CommandSpec[] {
       }
       const linked = [...files.styles, ...files.scripts]
       return text(
-        `index.html written (${GSAP_PLUGINS.length} GSAP plugins, three.js, lottie-web${p.rive ? ', rive' : ''}${linked.length ? ` + ${linked.join(', ')}` : ''}).\n` +
+        `index.html written (${GSAP_PLUGINS.length} GSAP plugins, three.js, lottie-web${p.rive ? ', rive' : ''}${p.p5 ? ', p5' : ''}${linked.length ? ` + ${linked.join(', ')}` : ''}).\n` +
           (vendor
             ? 'GSAP loads from the shared ../../assets/gsap/.'
             : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +

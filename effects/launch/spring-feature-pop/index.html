@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Spring Physics Feature Grid Reveal</title>
+  <meta name="fx" content="w=1280 h=720">
+  <link rel="stylesheet" href="../../_lib/base.css">
+  <style>
+    .stage {
+      background: #090a0f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: "Atlas Grotesk", -apple-system, sans-serif;
+      color: #fff;
+      overflow: hidden;
+    }
+    .header-group {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .tagline {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #798399;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-family: "Sharp Grotesk", sans-serif;
+      font-size: 56px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      margin: 0;
+      color: #f1f5f9;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 340px);
+      gap: 24px;
+    }
+    .card {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 16px;
+      padding: 32px 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      position: relative;
+      overflow: hidden;
+      transform-origin: center bottom;
+      will-change: transform, opacity;
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    }
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    }
+    .card-1 .card-icon { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .card-2 .card-icon { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .card-3 .card-icon { background: linear-gradient(135deg, #10b981, #047857); }
+    .card-title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+      color: #f8fafc;
+    }
+    .card-desc {
+      font-size: 14px;
+      line-height: 1.55;
+      color: #94a3b8;
+      margin-bottom: 20px;
+    }
+    .card-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="header-group" id="headerGroup">
+      <div class="tagline">Next-Gen Architecture</div>
+      <h2 class="title">Built to outperform at every layer</h2>
+    </div>
+
+    <div class="grid">
+      <div class="card card-1" id="card1">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">Sub-Millisecond Engine</div>
+        <div class="card-desc">Deterministic execution pipeline compiled directly to native microcode.</div>
+        <div class="card-pill"><span>▲ 10x Performance</span></div>
+      </div>
+
+      <div class="card card-2" id="card2">
+        <div class="card-icon">🛡️</div>
+        <div class="card-title">End-to-End Cryptography</div>
+        <div class="card-desc">Zero-knowledge proof validation securing every transaction and state change.</div>
+        <div class="card-pill"><span>🔒 Enterprise Ready</span></div>
+      </div>
+
+      <div class="card card-3" id="card3">
+        <div class="card-icon">🌐</div>
+        <div class="card-title">Global Mesh Network</div>
+        <div class="card-desc">Autonomous multi-region synchronization delivering instantaneous consensus.</div>
+        <div class="card-pill"><span>● 320 Edge PoPs</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../_lib/anim.js"></script>
+  <script src="../../_lib/fx.js"></script>
+  <script>
+    const D = 4.5;
+    const FPS = 60;
+    const headerGroup = document.getElementById('headerGroup');
+    const card1 = document.getElementById('card1');
+    const card2 = document.getElementById('card2');
+    const card3 = document.getElementById('card3');
+
+    fx.register({
+      duration: D,
+      fps: FPS,
+      seek(t) {
+        const frame = t * FPS;
+
+        // Header Spring Entry
+        const headerScale = anim.spring({
+          frame,
+          fps: FPS,
+          from: 0.85,
+          to: 1.0,
+          config: { stiffness: 120, damping: 14, mass: 1 },
+        });
+        const headerOpacity = anim.interpolate(t, [0, 0.4, 3.8, 4.3], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        headerGroup.style.transform = `scale(${headerScale})`;
+        headerGroup.style.opacity = headerOpacity;
+
+        // Cards Staggered Spring Pop (delays: 12 frames, 22 frames, 32 frames)
+        const cards = [
+          { el: card1, delay: 12 },
+          { el: card2, delay: 22 },
+          { el: card3, delay: 32 }
+        ];
+
+        cards.forEach(({ el, delay }) => {
+          const cardSpring = anim.spring({
+            frame,
+            fps: FPS,
+            from: 0,
+            to: 1,
+            delay,
+            config: { stiffness: 150, damping: 13, mass: 0.9 },
+          });
+
+          // Scale with bounce, translateY with smooth settle
+          const scale = 0.5 + 0.5 * cardSpring;
+          const y = 80 * (1 - cardSpring);
+          const opacity = anim.interpolate(frame - delay, [0, 12], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+
+          // Exit transition towards end of loop
+          const exitY = anim.interpolate(t, [3.8, 4.4], [0, 40], {
+            easing: anim.Easing.in(anim.Easing.cubic),
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp'
+          });
+          const exitOpacity = anim.interpolate(t, [3.8, 4.3], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+
+          el.style.transform = `translateY(${y + exitY}px) scale(${scale})`;
+          el.style.opacity = opacity * exitOpacity;
+        });
+      }
+    });
+  </script>
+</body>
+</html>

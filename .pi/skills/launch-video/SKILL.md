@@ -230,9 +230,10 @@ is a film that plays end to end — shorter than the last one, never broken.
 3. Audio, once the **picture is settled** — every shot in, every `dur` you
    intend. Narration and the mix are measured against the cut, so a shot
    retimed afterwards costs the whole pass again (that same run paid for two
-   full audio passes, ~2 minutes each). `references/audio.md`. Bed via `pitch motion find-audio`. Narration is
-   one read: script (1.9–2.4 words/s) → `pitch motion tts` once (it re-records by
-   itself if a take comes back rushed) → `audio.vo` → `pitch motion align` →
+   full audio passes, ~2 minutes each). `references/audio.md`. Bed via `pitch motion find-audio`, or `pitch motion music`
+   when the library has nothing that fits. Narration is one read: script
+   (1.9–2.4 words/s) → `pitch motion tts` once (it prints the file it wrote)
+   → `audio.vo` → `pitch motion align` →
    `cue` on every shot → `pitch motion sync --write`. Then `pitch motion cues`,
    one `pitch motion sfx --mode query --event impact,whoosh_deep,…` for every
    event the film needs, a cue sheet written to the budget (~6 signature

@@ -1,7 +1,7 @@
 # Audio — bed, narration, SFX, mix
 
 The tools carry their own parameters; this is the craft. Files live in
-`audio/`: `music.mp3` (bed), `vo.txt` + `vo.wav` (the one read),
+`audio/`: `music.mp3` (bed), `vo.txt` + `vo.wav` or `vo.mp3` (the one read),
 `vo-words.json` (its word timeline), `sfx-cues.json` + `sfx_bus.wav`,
 `mix.wav` (what the renderer muxes).
 
@@ -12,7 +12,9 @@ library; a bed the user picked is already in `audio/`. Pick by the audio
 persona (direction.md Axis 8) and name the file in your summary. The beat map
 beside the beds (`musicTimestamp.json`) lists beat times and strengths —
 nudge shot `dur`s so hard cuts land on strong beats. Never scan personal
-directories; if nothing fits, ask the user to drop a bed into the picker.
+directories. If nothing in the library fits, `pitch motion music` generates
+an instrumental bed to a brief — BPM, palette, instruments, the timed
+arrangement, the film's exact length — never an artist or a song by name.
 
 ## 2. Narration — one read, cut to words
 
@@ -30,7 +32,12 @@ picture is cut to its words.**
 - **One call.** `pitch motion tts --script audio/vo.txt --voice <v> --style <s>` with
   one delivery direction for the whole read; the arc (drawing-in → proud →
   inviting) lives in phrasing and punctuation. Over 2.45 words/s is rushed
-  (the audit fails at 2.7) — re-record unhurried; under 1.6 drags.
+  (the audit fails at 2.7) — re-record unhurried; under 1.6 drags. Which
+  service reads it is the studio's setting, not yours: on Gemini `--voice`
+  is a name (Aoede, Kore, Leda, Charon) and `--style` the direction; on
+  ElevenLabs `--voice` is an id from `pitch motion voices` and delivery goes
+  into the script as tags. The command prints the file it wrote; that path
+  is what `audio.vo` and `pitch motion align --vo` take.
 - **Time it.** `pitch motion align` transcribes the read locally and aligns the
   known script to it, so every word has an onset even where a brand name was
   misheard; under 60% matched means the wrong file or text.
@@ -82,8 +89,11 @@ front-loaded clip with a `power4.out` move; a slow-swelling whoosh under a
 snappy tween is the classic "sounds off" failure.
 
 **Cue sheet** `audio/sfx-cues.json`: `{ "duration", "defaults": { "gainDb" },
-"cues": [{ "label", "t", "event" | "clip", "dur"?, "fadeOut"?, "gainDb"?,
-"lead"?, "max"?, "varied"? }] }`. `t` is the moment the visual event happens:
+"cues": [{ "label", "t", "event" | "clip" | "file", "dur"?, "fadeOut"?, "gainDb"?,
+"lead"?, "max"?, "varied"? }] }`. A `file` is a sound the manifest lacks and
+`pitch motion sound` generated into `audio/generated-sfx/` — one event per
+call, named by its transient and material; it still needs its `event` class
+so the build knows its tier. `t` is the moment the visual event happens:
 the real shot start (`pitch motion cues`) plus the factory's in-shot offset (a
 `stat-counter` lands at ~`0.1 + min(2.2, D*0.55)`; a `ui-frame` cursor
 presses at `cursor.at + 0.82`) — never eyeballed from a draft.
