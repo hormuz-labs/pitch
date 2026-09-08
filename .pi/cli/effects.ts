@@ -301,7 +301,6 @@ export function effectsCommands(): Command[] {
 
   return [
     {
-      id: 'effects list',
       namespace: 'effects',
       verb: 'list',
       origin: null,
@@ -329,7 +328,6 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      id: 'effects search',
       namespace: 'effects',
       verb: 'search',
       origin: null,
@@ -363,7 +361,6 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      id: 'effects show',
       namespace: 'effects',
       verb: 'show',
       origin: null,
@@ -398,7 +395,6 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      id: 'effects families',
       namespace: 'effects',
       verb: 'families',
       origin: null,

@@ -25,8 +25,6 @@ import { EXTENSIONS_DIR } from '../lib/paths.ts'
 
 /** One subcommand: `pitch <namespace> <verb>`. */
 export interface Command {
-  /** `<namespace> <verb>` — how it is written and how it is logged. */
-  id: string
   namespace: string
   verb: string
   /**
@@ -93,7 +91,6 @@ export async function loadExtension(file: string): Promise<Command[]> {
       if (!tool?.name || NOT_COMMANDS.has(tool.name)) return
       const verb = verbOf(tool.name, namespace)
       out.push({
-        id: `${namespace} ${verb}`,
         namespace,
         verb,
         origin: tool.name,
