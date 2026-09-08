@@ -37,6 +37,7 @@ effect ported whole keeps its timing. Everything else is a ❌.
 | Fails | a caret typing as the opener; a `ripple` beat |
 | Warnings, while building (`motion_check`) | a built-in type over 1.5s with nothing after its entrance (a project type is its own acts and is not judged); `word-cut` / `type-wipe` / `color-punch` / `type-field` / `overlay-type` with no `lab` port behind it; a whole screen in a browser frame with no `focus`, `cursor.zoom` or layers; a still screenshot as the product |
 | Warnings, at the gate | no `breath` beats; no `punch` cuts; a bare stage with no actors |
+| Boundaries (`motion_check` and the gate) | over a third of the cuts with nothing crossing them — no actor on both sides, no `carry`, no `flood` or `zoom`. Density is not continuity: a reference measured at 3.4 events/s reads as one piece because the wipe *is* the next subject (`continuity.md`) |
 | Clipped type (`motion_review`) | hero type measured against its mask and the stage edge at every frame: a run cut at the settled frame, or bigger than its mask mid-move (a snap scaled past its row), is listed with the fix |
 
 Both reference films measured 2.3 and 2.5 events per second, longest still

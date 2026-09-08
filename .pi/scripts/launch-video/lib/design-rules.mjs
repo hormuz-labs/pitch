@@ -4,7 +4,7 @@
  * Limits measured from reference launch films (docs/studies/), loose enough
  * that any structure fits: the tells here are the ones every film shares —
  * shots that hold, a slideshow's rhythm, text that only enters, a whole
- * desktop where one control should be. Pure functions of the shot list;
+ * desktop where one control should be, boundaries nothing crosses. Pure functions of the shot list;
  * cues.mjs --check prints them while the film is being built, audit.mjs
  * reports them at the gate.
  */
@@ -39,10 +39,18 @@ export function extractSpec() {
     motionExit: s.motion && s.motion.exit ? s.motion.exit : null,
     audio: s.audio || null,
     actors: s.actors ? Object.keys(s.actors).length : 0,
-    shots: s.shots.map((x) => ({
+    shots: s.shots.map((x) => {
+      // which actors this shot poses, and which of them leave or land here —
+      // what joinsOf needs to see an object cross the boundary
+      const names = x.actors ? Object.keys(x.actors) : [];
+      const posesOf = (n) => (Array.isArray(x.actors[n]) ? x.actors[n] : [x.actors[n]]).filter(Boolean);
+      return {
       id: x.id, type: x.type, dur: Number(x.dur) || 0, vo: x.vo || null, voDur: x.voDur || 0, cue: x.cue || null,
       beats: Array.isArray(x.beats) ? x.beats.length : 0, exit: x.exit ?? null, cut: x.cut || "hard",
-      steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: x.actors ? Object.keys(x.actors).length : 0, carry: !!x.carry,
+      steps: Array.isArray(x.steps) ? x.steps.length : 0, actors: names.length, carry: !!x.carry,
+      actorNames: names,
+      actorOut: names.filter((n) => posesOf(n).some((p) => p.out)),
+      actorHold: names.filter((n) => posesOf(n).some((p) => p.hold === true)),
       chapter: x.chapter || null, typing: !!x.typing, container: x.container || null,
       breaths: beatsOf(x, "breath"), floodBeats: beatsOf(x, "flood"), zoomBeats: beatsOf(x, "zoom"), rippleBeats: beatsOf(x, "ripple"),
       capturedSrc: x.type === "ui-frame" && typeof x.src === "string" && !x.html && /^assets\//.test(x.src),
@@ -51,8 +59,48 @@ export function extractSpec() {
       focus: !!x.focus, cursor: !!x.cursor, clickZoom: !!(x.cursor && x.cursor.zoom), cursors: Array.isArray(x.cursors) ? x.cursors.length : 0,
       frame: x.frame || null, tilt: !!x.tilt, layers: !!x.layers, html: !!x.html, lab: x.lab || null,
       src: x.src, rows: x.rows,
-    })),
+      };
+    }),
   };
+}
+
+/** The cuts that carry the picture across: the frame fills, or the camera moves into part of what is there. */
+const JOIN_CUTS = new Set(["flood", "zoom", "zoom-out"]);
+
+/**
+ * What crosses each boundary. The reference films read as one piece because
+ * almost nothing arrives new: the bar that wipes a line away turns into the
+ * phone the next shot is about. In the engine that is an actor posed on both
+ * sides of a cut (or held across it), a `carry`, an actor landing `into` the
+ * next shot's element, or a flood / zoom cut. A `punch` is a cut kept on
+ * purpose. Returns one entry per boundary: { from, to, kind | null }.
+ */
+export function joinsOf(spec) {
+  const shots = spec.shots || [];
+  // Each actor's runs on screen: from a pose to its `out` (or its last pose);
+  // a pose after an `out` starts a new run.
+  const runs = [];
+  const open = {};
+  shots.forEach((s, i) => {
+    for (const n of s.actorNames || []) {
+      if (!open[n]) { open[n] = { name: n, first: i, last: i }; runs.push(open[n]); }
+      open[n].last = i;
+      if ((s.actorOut || []).includes(n)) delete open[n];
+    }
+  });
+  const joins = [];
+  for (let i = 0; i + 1 < shots.length; i++) {
+    const a = shots[i], b = shots[i + 1];
+    let kind = null;
+    const crossing = runs.find((r) => r.first <= i && r.last > i)?.name;
+    const held = (a.actorHold || []).find((n) => !(a.actorOut || []).includes(n));
+    if (crossing) kind = `actor ${crossing}`;
+    else if (held) kind = `actor ${held} held`;
+    else if (b.carry) kind = "carry";
+    else if (JOIN_CUTS.has(b.cut)) kind = b.cut;
+    joins.push({ from: a.id, to: b.id, kind });
+  }
+  return joins;
 }
 
 /** Whether a shot changes after its entrance without a `beats` entry. */
@@ -105,6 +153,18 @@ export function lintDesign(spec) {
   if (!breaths && n >= 8) out.push({ level: "warn", code: "breath", msg: "No `breath` beats — the reference films duck the bed for half a second before every payoff. Put one before the moment the film is about." });
   const bare = !spec.ambient || spec.ambient.kind === "none";
   if (bare && !(spec.actors > 0)) out.push({ level: "warn", code: "stage", msg: "No `ambient` stage layer and no actors — the film has no life between events. Pick a stage kind, or say in direction.md why the stage is bare." });
+  // Boundaries nothing crosses. The audit measures how much changes between two
+  // samples and never whether what arrived came from what was there; this is
+  // the one place that asks. Over a third plain and the film reads as slides
+  // however dense it is.
+  if (n >= R.shots[0]) {
+    const joins = joinsOf(spec);
+    const plain = joins.filter((j) => !j.kind);
+    if (plain.length * 3 > joins.length) {
+      const named = plain.slice(0, 4).map((j) => `${j.from}→${j.to}`).join(", ") + (plain.length > 4 ? ", …" : "");
+      out.push({ level: "warn", code: "join", msg: `${plain.length} of ${joins.length} boundaries carry nothing across (${named}). The reference films pass one object from shot to shot — the bar that wipes the line away turns into the phone. An actor posed on both sides of the cut (or \`hold: true\`), a \`carry\`, a \`flood\` or a \`zoom\` joins two shots; name the film's object in direction.md and let it cross. A \`punch\` is the cut you keep — on a beat, and few.` });
+    }
+  }
   return out;
 }
 
@@ -119,6 +179,8 @@ export function designSummary(spec) {
   const shots = spec.shots || [];
   const parts = [];
   if (spec.actors) parts.push(`actors ${spec.actors}`);
+  const joins = joinsOf(spec);
+  if (joins.length) parts.push(`joins ${joins.filter((j) => j.kind).length}/${joins.length}`);
   const chapters = new Set(shots.map((s) => s.chapter).filter(Boolean));
   if (chapters.size) parts.push(`chapters ${chapters.size}`);
   // Only a shot that names its lab id is a lab move; a custom type invented on

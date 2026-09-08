@@ -676,7 +676,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_check',
     label: 'Check Cut',
     description:
-      "Fast compile check (seconds, not the audit): links any new js/shots/*.js and css/shots/*.css into index.html, then loads it and reports page errors, shot count, real duration, every shot's start time, any factory overrun worth a fix (over 1.1×; over 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject. Run after every batch of shots you save and act on the warnings then.",
+      "Fast compile check (seconds, not the audit): links any new js/shots/*.js and css/shots/*.css into index.html, then loads it and reports page errors, shot count, real duration, every shot's start time, any factory overrun worth a fix (over 1.1×; over 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject, boundaries nothing crosses (no actor posed on both sides, no carry, no flood or zoom — over a third and the film reads as slides). Run after every batch of shots you save and act on the warnings then.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),

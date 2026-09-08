@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   designSummary,
+  joinsOf,
   LIMITS,
   lintDesign,
   lintWhileBuilding,
@@ -18,15 +19,20 @@ const shot = (o: Record<string, unknown>) => ({
   beats: 1,
   steps: 0,
   actors: 0,
+  actorNames: [],
+  actorOut: [],
+  actorHold: [],
   cut: 'hard',
   breaths: 0,
   rippleBeats: 0,
   ...o,
 })
+// Every boundary joined: the shape of a film that reads as one piece.
+const joined = { cut: 'flood' }
 const film = (shots: Record<string, unknown>[], extra: Record<string, unknown> = {}) => ({
   ambient: { kind: 'aurora' },
   actors: 1,
-  shots: shots.map((s, i) => shot({ id: `s${i + 1}`, ...s })),
+  shots: shots.map((s, i) => shot({ id: `s${i + 1}`, ...(i ? joined : {}), ...s })),
   ...extra,
 })
 const codes = (spec: ReturnType<typeof film>) => lintDesign(spec).map(l => l.code)
@@ -35,6 +41,47 @@ describe('lintDesign', () => {
   it('passes an ordinary film and fails a shot over the limit', () => {
     expect(codes(film([{ dur: 2 }, { dur: 3 }, { dur: 1 }, { dur: 2, breaths: 1 }]))).toEqual([])
     expect(codes(film([{ dur: 7 }, { dur: 3 }, { dur: 1 }, { dur: 2 }]))).toContain('long')
+  })
+
+  it('warns when over a third of the boundaries carry nothing across', () => {
+    const plain = { cut: 'hard' }
+    const four = film([{}, plain, plain, plain])
+    const l = lintDesign(four).find(x => x.code === 'join')
+    expect(l?.level).toBe('warn')
+    expect(l?.msg).toMatch(/3 of 3 boundaries/)
+    expect(l?.msg).toMatch(/s1→s2, s2→s3, s3→s4/)
+    // One plain cut in three is the punch you keep.
+    expect(codes(film([{}, plain, {}, {}]))).not.toContain('join')
+    expect(codes(film([{}, { cut: 'punch' }, {}, {}]))).not.toContain('join')
+    // Under four shots nothing is judged yet.
+    expect(codes(film([{}, plain, plain]))).not.toContain('join')
+  })
+
+  it('counts what actually crosses a boundary', () => {
+    const kinds = (shots: Record<string, unknown>[]) =>
+      joinsOf(film(shots.map(s => ({ cut: 'hard', ...s })))).map(j => j.kind)
+    // an actor posed in s1 and s3 is on screen through s2 and crosses both cuts
+    expect(kinds([{ actorNames: ['mark'] }, {}, { actorNames: ['mark'] }, {}])).toEqual([
+      'actor mark',
+      'actor mark',
+      null,
+    ])
+    // one that leaves with s1 (`out`) does not
+    expect(
+      kinds([{ actorNames: ['mark'], actorOut: ['mark'] }, {}, { actorNames: ['mark'] }, {}]),
+    ).toEqual([null, null, null])
+    // a held actor stays on after its last pose
+    expect(kinds([{ actorNames: ['mark'], actorHold: ['mark'] }, {}, {}, {}])).toEqual([
+      'actor mark held',
+      null,
+      null,
+    ])
+    // carry and the joining cuts, on the incoming shot
+    expect(kinds([{}, { carry: true }, { cut: 'zoom' }, { cut: 'dissolve' }])).toEqual([
+      'carry',
+      'zoom',
+      null,
+    ])
   })
 
   it('fails too few shots and a slideshow average', () => {
@@ -128,7 +175,7 @@ describe('designSummary', () => {
       ],
       { actors: 2 },
     )
-    expect(designSummary(spec)).toBe('actors 2 · chapters 1 · lab moves 1 · breaths 1')
+    expect(designSummary(spec)).toBe('actors 2 · joins 3/3 · chapters 1 · lab moves 1 · breaths 1')
     expect(designSummary({ shots: [] })).toBe('lab moves 0 · breaths 0')
   })
 })

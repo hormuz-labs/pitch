@@ -42,15 +42,36 @@ asset — say once what would help and keep building.
 
 Write `direction.md`, a few lines each: what the film is about in one
 sentence; the look (palette, type, stage, finish, each with its evidence from
-recon); the arc and the hook; the rhythm; and the **signature** — the one
-thing only this product could own. Then the shot table:
-`# | id | type | move (lab id) | dur | copy | cut | sound`. Present it and
-keep building; do not wait for approval.
+recon); the arc and the hook; the rhythm; **the object** (below); and the
+**signature** — the one thing only this product could own. Then the shot
+table: `# | id | type | move (lab id) | dur | copy | cut | joins | sound`.
+Present it and keep building; do not wait for approval.
 
-The structure is open. One continuous take where an object is passed from
-shot to shot, chapters cut on the beat, a manifesto, a demo with a cursor,
-something you invent for this product — pick what the product asks for and
-say why.
+The structure is open — chapters cut on the beat, a manifesto, a demo with a
+cursor, something you invent for this product — but the joins are not.
+
+## One object, and the transition is the next subject
+
+What keeps a viewer on a launch film is that almost nothing arrives new
+(`references/continuity.md`, measured). The bar that wipes a line away
+turns edge-on and is the phone the next shot is about; the square becomes
+the diamond becomes the mesh. One object, restated, and the viewer never
+re-orients. Name it in `direction.md` — this product's: its file, its
+message, its card, its cursor, its mark; never a reference's shapes — and
+write its chain as one line. Then let it cross: an **actor** posed on both
+sides of every cut (`motion_schema({ section: "actors" })` — `anchor`,
+`into`, `hold`, `w/h/r` and `path` poses that morph), a `carry` for a match
+cut on one element, a `flood` or a `zoom` where the frame itself is the
+join. `motion_check` counts the boundaries nothing crosses; over a third and
+the film reads as slides however dense it is. A `punch` is the cut you keep,
+on a beat, two or three in a film.
+
+The same is true inside a shot. A line arrives **one word at a time**, each
+fully formed in a single frame, 0.6–0.8s apart: `line` with `steps`, one
+`add` per word, the noun last in `accent`, `replace` for the next thought.
+A 2.2s shot then holds three events and never reads as a hold — that is
+the answer to "enough time to read, not enough to get bored", not a longer
+`dur`.
 
 Plan to the gate, not after it. `motion_audit` notes a picture that sits
 still past 1.5s or averages under 0.7 changes a second. Those are the
@@ -126,9 +147,11 @@ tools.
 
 1. `motion_scaffold()` writes index.html and a starter `shots.js` — the
    brand recon measured, `shots: []` — so the first thing you write is a
-   shot. Put the stage and the first two or three shots in and save early so
-   the user sees the hook within minutes. `motion_check` — it prints the
-   shot-list warnings the audit will raise; fix them now.
+   shot. Put the stage, the `actors` block and the first two or three shots
+   in — the object crossing its first cut — and save early so the user sees
+   the hook within minutes. `motion_check` — it prints the shot-list
+   warnings the audit will raise, the plain boundaries among them; fix them
+   now.
 2. Add a few shots, save, check, repeat. Every save is a complete evaluating
    literal. Port the lab effects early; the first port proves the pipeline.
    Everything lives on the returned timeline — no CSS animation, no bare
