@@ -163,7 +163,7 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
 
   parts.push(
     turn.first
-      ? `New project "${ws.name}". ${await inventory(ws)}\nOptions the user chose: ${optionSummary(options)}.\n\nDecide what they are asking for, read the matching skill, and build it. Do not ask questions first — make the creative decisions yourself and report what you made.`
+      ? `New project "${ws.name}". ${await inventory(ws)}\nOptions the user chose: ${optionSummary(options)}.\n\nDecide what they are asking for and read the matching skill. If they named an outcome but not which KIND of it — a launch video is a cinematic film, a product walkthrough, a 3D render or a teaser — ask that with one \`ask_user\` call and end your turn; their answer arrives as the next message. Everything else is yours: make the creative decisions yourself and report what you made.`
       : `You are iterating on "${ws.name}". ${await inventory(ws)}\nOptions: ${optionSummary(options)}.\n\nApply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the media_* tools before regenerating anything.`,
   )
 

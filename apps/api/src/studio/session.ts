@@ -50,13 +50,28 @@ import { unwatchWorkspace, watchWorkspace } from './watch.js'
 
 const logger = createLogger('studio:session')
 
-export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool'
+export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool' | 'question'
+
+/** One question the studio draws as clickable options (see .pi/extensions/ask-tools.ts). */
+export interface AskQuestion {
+  id: string
+  question: string
+  options: { label: string; hint?: string }[]
+  multi?: boolean
+}
+
+export interface Ask {
+  intro?: string
+  questions: AskQuestion[]
+}
 
 export interface Entry {
   id: string
   role: EntryRole
   text: string
   tool?: { name: string; status: 'running' | 'done' | 'error' }
+  /** Present on `question` entries only: what the buttons say. */
+  ask?: Ask
   at: number
 }
 
@@ -185,13 +200,20 @@ function emit(s: Session, ev: StudioEvent): void {
   emitProjectEvent(s.projectId, ev)
 }
 
-function addEntry(s: Session, role: EntryRole, text: string, tool?: Entry['tool']): Entry {
+function addEntry(
+  s: Session,
+  role: EntryRole,
+  text: string,
+  tool?: Entry['tool'],
+  ask?: Ask,
+): Entry {
   const entry: Entry = {
     id: `e${++s.counter}`,
     role,
     text,
     at: Date.now(),
     ...(tool ? { tool } : {}),
+    ...(ask ? { ask } : {}),
   }
   s.entries.push(entry)
   emit(s, { type: 'entry', entry })
@@ -226,6 +248,37 @@ function toolLabel(name: string, args: any): string {
   return h ? `${name} · ${h.length > 80 ? `${h.slice(0, 77)}…` : h}` : name
 }
 
+/**
+ * The `ask_user` arguments, trusted only as far as their shape. A model that
+ * sends a question with no options, or twenty of them, gets what fits: a
+ * malformed call must never put an unanswerable card in the thread, so
+ * anything that survives here is renderable.
+ */
+export function parseAsk(args: any): Ask | null {
+  const raw = Array.isArray(args?.questions) ? args.questions : []
+  const questions: AskQuestion[] = []
+  for (const q of raw.slice(0, 3)) {
+    const options = (Array.isArray(q?.options) ? q.options : [])
+      .map((o: any) => ({
+        label: String(o?.label ?? '').trim(),
+        ...(o?.hint ? { hint: String(o.hint).trim() } : {}),
+      }))
+      .filter((o: { label: string }) => o.label)
+      .slice(0, 6)
+    const question = String(q?.question ?? '').trim()
+    if (!question || options.length < 2) continue
+    questions.push({
+      id: String(q?.id ?? `q${questions.length + 1}`),
+      question,
+      options,
+      ...(q?.multi ? { multi: true } : {}),
+    })
+  }
+  if (!questions.length) return null
+  const intro = typeof args?.intro === 'string' ? args.intro.trim() : ''
+  return { ...(intro ? { intro } : {}), questions }
+}
+
 function onPiEvent(s: Session, ev: any): void {
   switch (ev?.type) {
     case 'agent_start':
@@ -256,6 +309,15 @@ function onPiEvent(s: Session, ev: any): void {
       break
     }
     case 'tool_execution_start':
+      // ask_user is not a step the user watches — it IS the message. Draw it
+      // as the question card instead of a "running" log line.
+      if (ev.toolName === 'ask_user') {
+        const ask = parseAsk(ev.args)
+        if (ask) {
+          addEntry(s, 'question', ask.intro ?? '', undefined, ask)
+          break
+        }
+      }
       addEntry(s, 'tool', toolLabel(ev.toolName, ev.args), { name: ev.toolName, status: 'running' })
       emit(s, { type: 'tool', name: ev.toolName, args: ev.args ?? {} })
       if (ev.toolName === 'read' || ev.toolName === 'bash') onSkillRead(s, ev.args)

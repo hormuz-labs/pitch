@@ -448,7 +448,7 @@ export function StudioView({ projectId }: { projectId: string }) {
           >
             <div className="feed" ref={feedEl}>
               {s.entries.length > 0 ? (
-                <Thread entries={s.entries} busy={s.busy} />
+                <Thread entries={s.entries} busy={s.busy} onAnswer={s.send} />
               ) : (
                 <div className="feed-empty">
                   Describe what you want, or ask for a change. Pick a scene or slide below, or press{' '}

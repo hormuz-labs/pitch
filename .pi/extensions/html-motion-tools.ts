@@ -901,7 +901,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_schema',
     label: 'Shot schema',
     description:
-      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one of: density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
+      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one section, or SEVERAL AT ONCE as an array — ask for everything you need in one call, not six — from: density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
       types: Type.Optional(
         Type.Array(Type.String(), {
@@ -910,8 +910,9 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         }),
       ),
       section: Type.Optional(
-        Type.String({
-          description: 'One section by heading, e.g. "custom shot types" or "rules".',
+        Type.Union([Type.String(), Type.Array(Type.String())], {
+          description:
+            'A section by heading, e.g. "custom shot types", or several: ["rules", "actors"].',
         }),
       ),
     }),
@@ -925,17 +926,29 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       const types = schemaTypes(md)
       const sections = schemaSections(md)
 
-      if (p.section) {
-        const key = String(p.section)
-          .toLowerCase()
-          .replace(/[^a-z ]/g, '')
-          .trim()
-        const hit =
-          sections.get(key) ??
-          [...sections.entries()].find(([k]) => k.includes(key) || key.includes(k))?.[1]
-        if (!hit)
-          return text(`No section "${p.section}". Sections: ${[...sections.keys()].join(', ')}`)
-        return text(hit)
+      // One section or several: a film needs the stage, the actors and the
+      // rules before it can write a shot, and asking for them one at a time
+      // is three round trips carrying the whole conversation each.
+      const wanted: string[] = Array.isArray(p.section)
+        ? p.section.map(String)
+        : p.section
+          ? [String(p.section)]
+          : []
+      if (wanted.length) {
+        const out: string[] = []
+        for (const want of wanted) {
+          const key = want
+            .toLowerCase()
+            .replace(/[^a-z ]/g, '')
+            .trim()
+          const hit =
+            sections.get(key) ??
+            [...sections.entries()].find(([k]) => k.includes(key) || key.includes(k))?.[1]
+          out.push(
+            hit ?? `No section "${want}". Sections: ${[...sections.keys()].join(', ')}`,
+          )
+        }
+        return text(out.join('\n\n'))
       }
 
       if (p.types?.length) {
@@ -990,8 +1003,9 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     description:
       'Write index.html — the thin shell that loads the GSAP vendor bundle, three.js and lottie-web, shots.js, the engine and ' +
       'every project shot type in js/shots/*.js and css/shots/*.css, in the one order that works — and, when there is none yet, ' +
-      'a starter shots.js with the brand from recon (bg, ink, accent, the font and its self-hosted files) and an empty shot ' +
-      'list: open it and add shots. Call this once instead of writing the page by hand. New type files after that need no ' +
+      'a starter shots.js with the brand from recon (bg, ink, accent, the font and its self-hosted files) and a PLACEHOLDER ' +
+      'opening shot built from the site\'s own h1, so the preview is never blank: replace it with your hook and keep adding ' +
+      'one shot at a time. Call this once instead of writing the page by hand. New type files after that need no ' +
       'scaffold call: motion_check links them. Pass rive: true when a shot uses a .riv file.',
     parameters: Type.Object({
       title: Type.Optional(
@@ -1030,7 +1044,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         }
         writeFileSync(shotsPath, starterShots(tokens))
         starter = tokens
-          ? '\nshots.js written with the brand recon measured and `shots: []` — add shots to it.'
+          ? '\nshots.js written with the brand recon measured and a placeholder opener from the site\'s h1 — it is playing now; replace it with your hook.'
           : '\nshots.js written with a PLACEHOLDER brand (no recon/brand-tokens.json yet): run motion_recon, then put the measured values in brand.'
       }
       const linked = [...files.styles, ...files.scripts]
@@ -1041,7 +1055,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
             : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
           starter +
           '\nCustom shot types: one per file, js/shots/<type>.js (+ css/shots/<type>.css); motion_check links each new one.' +
-          '\nNext: the first shots in shots.js, then motion_check.',
+          '\nNext: replace the placeholder opener and add ONE shot at a time — save and motion_check after each, so the user is watching a film that runs.',
       )
     },
   })

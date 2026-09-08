@@ -22,6 +22,8 @@ export interface ReconTokens {
   colors?: { bg?: string | null; ink?: string | null; accent?: string | null }
   type?: { headFamily?: string | null; bodyFamily?: string | null }
   fonts?: ReconFont[]
+  title?: string | null
+  copy?: { h1?: string[]; h2?: string[] }
 }
 
 const GENERIC =
@@ -56,6 +58,54 @@ export function fontEntries(fonts: ReconFont[] | undefined): string[] {
   return out
 }
 
+/** A word a truncated heading must not end on — "The first AI founder Backed" reads as a typo. */
+const DANGLING = /^(a|an|and|as|at|but|by|for|from|in|of|on|or|the|to|with|that|your|our)$/i
+
+/** The first few words of a heading, so an opener is a line and not a paragraph. */
+function firstWords(text: string | null | undefined, max: number): string[] {
+  const words = (text ?? '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean).slice(0, max)
+  while (words.length > 1 && DANGLING.test(words[words.length - 1])) words.pop()
+  return words
+}
+
+/**
+ * The opening shot, from the product's own words.
+ *
+ * An empty `shots: []` means the preview shows a blank stage until the agent
+ * has finished thinking — measured at nine minutes on a real run, six of them
+ * after the scaffold. The film's actual hook is the agent's to write, but a
+ * first frame is not: the h1 the site already leads with, one word at a time,
+ * is on brand by construction and is on screen the second this file lands.
+ * It is labelled a placeholder because that is what it is — the agent
+ * replaces it, and the check and the review judge it like any other shot.
+ */
+function openingShot(tokens: ReconTokens | null): string[] {
+  const head = firstWords(tokens?.copy?.h1?.[0] ?? tokens?.title, 3)
+  if (!head.length) {
+    return ['    // { id: "hook", type: "line", dur: 1.4, cue: "first words", steps: [...] },']
+  }
+  // The second line arrives whole, not split down the middle: half of a
+  // heading is a phrase nobody wrote.
+  const rest = firstWords(tokens?.copy?.h2?.[0], 4)
+  const steps = [`        { at: 0, add: [{ text: ${quote(head.join(' '))} }] },`]
+  if (rest.length)
+    steps.push(`        { at: 1.0, add: [{ text: ${quote(rest.join(' '))}, tone: "accent" }] },`)
+  return [
+    "    // PLACEHOLDER OPENER — the site's own words, so the preview is never",
+    '    // blank. Replace it with your hook; keep saving after every shot.',
+    '    {',
+    '      id: "open",',
+    '      type: "line",',
+    `      dur: ${rest.length ? '2.2' : '1.4'},`,
+    '      size: 150,',
+    '      align: "center",',
+    '      steps: [',
+    ...steps,
+    '      ],',
+    '    },',
+  ]
+}
+
 /** shots.js with the brand filled in and the shot list open. */
 export function starterShots(tokens: ReconTokens | null): string {
   const c = tokens?.colors ?? {}
@@ -88,7 +138,7 @@ export function starterShots(tokens: ReconTokens | null): string {
     '  ambient: { kind: "none" },          // the stage: motion_schema({ section: "density layer" })',
     '  motion: { exit: "up", cutDur: 0.5 },',
     '  shots: [',
-    '    // { id: "hook", type: "...", dur: 1.4, cue: "first words", beats: [...] },',
+    ...openingShot(tokens),
     '  ],',
     '};',
     '',

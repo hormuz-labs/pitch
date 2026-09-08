@@ -82,12 +82,28 @@ export interface StudioModel {
   label: string
 }
 
-export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool'
+export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool' | 'question'
+
+/** One question the agent asked, drawn as clickable options in the thread. */
+export interface AskQuestion {
+  id: string
+  question: string
+  options: { label: string; hint?: string }[]
+  multi?: boolean
+}
+
+export interface Ask {
+  intro?: string
+  questions: AskQuestion[]
+}
+
 export interface Entry {
   id: string
   role: EntryRole
   text: string
   tool?: { name: string; status: 'running' | 'done' | 'error' }
+  /** Present on `question` entries only: what the buttons say. */
+  ask?: Ask
   at?: number
 }
 

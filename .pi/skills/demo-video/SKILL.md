@@ -18,6 +18,15 @@ The video records in **real time** from `demo_record_start` until
 `demo_record_stop`, including while you think. The user wants a video, not
 questions: decide everything yourself and narrate your choices briefly.
 
+One exception, and only on the first turn of a new project: **which demo**.
+A product has more flows than one recording can cover, and "a demo of X" does
+not say whether it is the full tour, one workflow end to end, the setup, or a
+90-second highlight. Ask that once with `ask_user` — it draws the options as
+buttons — alongside the depth (Quick tour · One workflow in full · Setup and
+first run) and, when there is any doubt, which flow, offered in the product's
+own words. Then end the turn and wait. Never ask about the voice, the pacing,
+the zooms or the look, and never ask once recording has started.
+
 ## The production run (first turn)
 
 1. **Assets** — if the project has uploads: `demo_prepare_assets`.

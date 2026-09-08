@@ -1,12 +1,13 @@
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { AskStepper } from './Ask'
 import type { Entry } from './client'
 
 function lastIsQuiet(list: Entry[]): boolean {
   const last = list[list.length - 1]
   if (!last) return true
   if (last.role === 'tool' && last.tool?.status === 'running') return false
-  return last.role === 'user' || last.role === 'tool'
+  return last.role === 'user' || last.role === 'tool' || last.role === 'question'
 }
 
 /**
@@ -47,10 +48,34 @@ function AgentMarkdown({ text }: { text: string }) {
 }
 
 /** The full agent log: chat bubbles plus thinking / tool-run lines — everything the model does. */
-export function Thread({ entries, busy }: { entries: Entry[]; busy: boolean }) {
+export function Thread({
+  entries,
+  busy,
+  onAnswer,
+}: {
+  entries: Entry[]
+  busy: boolean
+  onAnswer?: (text: string) => void
+}) {
+  // A question stays live until it is answered. The agent usually writes a
+  // line after asking, so "is it the last entry" is the wrong test: what ends
+  // a question is the USER speaking after it, or a newer question replacing it.
+  const openQuestion = [...entries].reverse().find(e => e.role === 'question' || e.role === 'user')
+  const live = (e: Entry) => e.id === openQuestion?.id && e.role === 'question'
   return (
     <div className="thread">
       {entries.map(e => {
+        if (e.role === 'question') {
+          if (!e.ask) return null
+          return (
+            <AskStepper
+              key={e.id}
+              ask={e.ask}
+              disabled={!onAnswer || busy || !live(e)}
+              onSend={t => onAnswer?.(t)}
+            />
+          )
+        }
         if (e.role === 'tool') {
           return (
             <div

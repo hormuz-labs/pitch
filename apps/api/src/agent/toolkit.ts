@@ -35,8 +35,11 @@ const extension = (file: string) => path.join(PI_EXTENSIONS_DIR, file)
  * still become anything. It is what the model is shown, not what exists.
  */
 export const FAMILIES = {
-  /** Always: the file tools' companion for "this is nearly right, but…". */
-  core: [extension('media-tools.ts')],
+  /**
+   * Always: the file tools' companion for "this is nearly right, but…", and
+   * the one way to ask the user something they can answer with a click.
+   */
+  core: [extension('media-tools.ts'), extension('ask-tools.ts')],
   /** Launch films: shots.js + the GSAP engine. */
   motion: [
     extension('html-motion-tools.ts'),

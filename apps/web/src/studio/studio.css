@@ -1432,6 +1432,159 @@ to {
 .lv-studio .log-line.working {
   color: var(--muted);
 }
+
+/* The agent's question, as a stepper (see Ask.tsx) */
+
+.lv-studio .ask {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 4px 10px;
+  border-left: 2px solid var(--ink);
+  padding-left: 10px;
+  outline: none;
+}
+.lv-studio .ask.locked {
+  border-left-color: var(--border);
+  opacity: 0.55;
+}
+.lv-studio .ask-steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--faint);
+}
+.lv-studio .ask-step {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--faint);
+  font: inherit;
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+.lv-studio .ask-step.done {
+  color: var(--muted);
+  border-color: var(--muted);
+}
+.lv-studio .ask-step.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.lv-studio .ask-step:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.lv-studio .ask-intro {
+  margin-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lv-studio .ask-q {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.lv-studio .ask-any {
+  font-weight: 400;
+  color: var(--faint);
+}
+.lv-studio .ask-list,
+.lv-studio .ask-summary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lv-studio .ask-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-align: left;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.lv-studio .ask-row:hover:not(:disabled),
+.lv-studio .ask-row.on {
+  background: var(--panel);
+}
+.lv-studio .ask-row.on .ask-key {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.lv-studio .ask-row:disabled {
+  cursor: default;
+}
+.lv-studio .ask-key {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 4px;
+  color: var(--faint);
+}
+.lv-studio .ask-text {
+  flex: 0 0 auto;
+}
+.lv-studio .ask-hint {
+  color: var(--faint);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lv-studio .ask-summary li {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.lv-studio .ask-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 6px;
+}
+.lv-studio .ask-send,
+.lv-studio .ask-flat {
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+.lv-studio .ask-flat {
+  background: transparent;
+  border-color: transparent;
+  color: var(--faint);
+}
+.lv-studio .ask-flat:hover {
+  color: var(--muted);
+}
+.lv-studio .ask-send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Composer */
 
 .lv-studio .job-composer {

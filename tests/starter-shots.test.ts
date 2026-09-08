@@ -73,3 +73,33 @@ describe('starterShots', () => {
     )
   })
 })
+
+/**
+ * The scaffold's shots.js used to land with `shots: []`, so the preview stayed
+ * blank until the agent had written a shot — nine minutes into a measured run.
+ * The opener is the site's own words, so there is something on the stage the
+ * instant the file is written.
+ */
+describe('the placeholder opener', () => {
+  const tokens = {
+    colors: { bg: '#fff', ink: '#111', accent: '#9147FF' },
+    copy: { h1: ['Thomas'], h2: ['The first AI founder Backed by'] },
+  }
+
+  it('opens on the h1 and lands the h2 whole, in the accent', () => {
+    const out = starterShots(tokens)
+    expect(out).toContain('type: "line"')
+    expect(out).toContain('{ at: 0, add: [{ text: "Thomas" }] }')
+    // Four words, and never ending on the dangling "Backed by".
+    expect(out).toContain('{ text: "The first AI founder", tone: "accent" }')
+    expect(out).not.toContain('shots: [\n  ]')
+  })
+
+  it('falls back to the page title, then to a comment', () => {
+    expect(starterShots({ ...tokens, copy: {}, title: 'Acme — ship faster' })).toContain(
+      'add: [{ text: "Acme — ship" }]',
+    )
+    // Nothing measured yet: an empty list the agent fills, as before.
+    expect(starterShots(null)).toContain('// { id: "hook"')
+  })
+})

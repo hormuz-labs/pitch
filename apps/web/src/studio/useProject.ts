@@ -152,6 +152,7 @@ export function buildStatus(entries: Entry[], previewNote: string | null): strin
   if (previewNote) return `preview is not loading yet — ${previewNote}`
   for (let i = entries.length - 1; i >= 0; i--) {
     const e = entries[i]
+    if (e.role === 'question') return 'waiting for your answer…'
     if (e.role === 'tool' && e.tool?.status === 'running') return toolPhase(e.tool.name)
     if ((e.role === 'assistant' || e.role === 'thinking') && e.text.trim()) {
       const lines = e.text
