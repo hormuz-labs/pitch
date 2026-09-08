@@ -89,6 +89,11 @@ Rules:
   macOS there is no bwrap, so `sandboxMode()` runs the shell unconfined with
   the same scratch environment (`STUDIO_SANDBOX=none|bwrap` overrides).
 
+## GitHub & Tooling
+
+- When running GitHub CLI (`gh`) operations on `hormuz-labs/pitch` (creating issues, PRs, reviews, releases), authenticate using `.github_token` in the repo root: `GH_TOKEN=$(cat .github_token | tr -d '\r\n') gh ...`.
+- The token authenticates as `hormuz-labs` (`Hormuz`, alias `agent-hormuz`). When assigning issues or PRs to `agent-hormuz`, use `--assignee hormuz-labs`.
+
 ## Checks before committing
 
 `bunx biome check <changed files>` and `bunx vitest run tests/`; `bunx tsc
