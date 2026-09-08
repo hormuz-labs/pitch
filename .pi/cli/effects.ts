@@ -1,5 +1,8 @@
 /**
- * The effects lab as commands — `pitch effects list|search|show|families`.
+ * The effects lab as commands — `pitch effects list|search|show|families`,
+ * and every family as a subcommand of its own: `pitch effects text list`,
+ * `pitch effects logos show <slug>`. The families are the directories, so a
+ * new one is a new subcommand the moment it exists (see registry.ts Groups).
  *
  * What changed, and why. The lab used to be searched by Gemini embeddings
  * over a prebuilt index: `effects/build-search.mjs` wrote search.json and
@@ -73,8 +76,8 @@ const titleize = (slug: string) =>
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
 
-/** Family directories: everything but `_lib`, `_batches` and the build scripts. */
-function familyDirs(): string[] {
+/** The families — the directories: everything but `_lib`, `_batches` and the build scripts. */
+export function families(): string[] {
   if (!existsSync(EFFECTS_DIR)) return []
   return readdirSync(EFFECTS_DIR, { withFileTypes: true })
     .filter(e => e.isDirectory() && !e.name.startsWith('_') && !e.name.startsWith('.'))
@@ -92,7 +95,7 @@ function familyDirs(): string[] {
  */
 function signature(): number {
   let sig = mtime(EFFECTS_DIR)
-  for (const family of familyDirs()) {
+  for (const family of families()) {
     const famDir = join(EFFECTS_DIR, family)
     sig += mtime(famDir)
     let slugs: string[] = []
@@ -125,7 +128,7 @@ export function loadEffects(): Effect[] {
   }
 
   const effects: Effect[] = []
-  for (const family of familyDirs()) {
+  for (const family of families()) {
     const famDir = join(EFFECTS_DIR, family)
     let slugs: string[] = []
     try {
@@ -378,15 +381,19 @@ export default function effectsCommands(): CommandSpec[] {
         properties: {
           id: {
             type: 'string',
-            description: 'An effect id, e.g. text/bold-text-snap. Positional.',
+            description:
+              'An effect id, e.g. text/bold-text-snap — or just the slug after `pitch effects <family>`. Positional.',
           },
+          family: { type: 'string', description: 'The family a bare slug belongs to.' },
         },
         required: ['id'],
       },
       async execute(_id, p: any) {
-        const want = String(p.id ?? '')
+        let want = String(p.id ?? '')
           .trim()
           .replace(/^\/+|\/+$/g, '')
+        if (p.family && !want.includes('/'))
+          want = `${String(p.family).toLowerCase().trim()}/${want}`
         const effects = loadEffects()
         const hit =
           effects.find(e => e.id === want) ??

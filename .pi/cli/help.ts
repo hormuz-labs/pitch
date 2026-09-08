@@ -1,18 +1,18 @@
 /**
- * `pitch help` — the only documentation the model pays for up front.
+ * `pitch --help` — the documentation the agent reads when it needs it.
  *
- * Three levels, each one a deliberate step down in cost. The top level is
- * eight lines and is embedded in the `pitch` tool's own description, so the
- * agent starts every session knowing what exists without a call. A namespace
- * listing is a line per command. A command's own page is its full description
- * and its options, and is read only by an agent about to run it.
+ * Three levels, each a deliberate step down in cost. The top level is a line
+ * per namespace. A namespace's page is a line per command. A command's own
+ * page is its full description and every option, read only by an agent
+ * about to run it. The skills say which commands a job needs and in what
+ * order; this is what the commands themselves say.
  *
  * This replaces shipping all 55 schemas on all 116 requests of a run.
  */
-import { commands, findCommand, namespaces } from './registry.ts'
+import { commands, findCommand, groupsOf, namespaces } from './registry.ts'
 
 /**
- * What each namespace is for. The extensions describe individual tools well
+ * What each namespace is for. The modules describe individual commands well
  * and themselves not at all, and the one line that tells an agent whether to
  * look inside is worth writing by hand.
  */
@@ -36,7 +36,7 @@ export function summarize(description: string, max = 96): string {
 }
 
 /** Level 1: the namespaces. */
-export async function topHelp(): Promise<string> {
+export function topHelp(): string {
   const all = commands()
   const lines = namespaces().map(ns => {
     const n = all.filter(c => c.namespace === ns).length
@@ -49,16 +49,16 @@ export async function topHelp(): Promise<string> {
     '',
     ...lines,
     '',
-    'pitch help <namespace>        the commands in it, one line each',
-    'pitch <namespace> <cmd> --help   what it does and every option',
+    'pitch <namespace> --help             its commands, one line each',
+    'pitch <namespace> <command> --help   what it does and every option',
     '',
-    'Several commands in one call: put each on its own line. They run in order',
-    'and stop at the first failure.',
+    'Several commands in one shell call are one round trip; join them with &&',
+    'so the first failure stops the rest.',
   ].join('\n')
 }
 
 /** Level 2: one namespace. */
-export async function namespaceHelp(ns: string): Promise<string> {
+export function namespaceHelp(ns: string): string {
   const all = commands()
   const mine = all.filter(c => c.namespace === ns)
   if (!mine.length) {
@@ -67,8 +67,37 @@ export async function namespaceHelp(ns: string): Promise<string> {
   }
   const width = Math.max(...mine.map(c => c.verb.length))
   const rows = mine.map(c => `  pitch ${ns} ${c.verb.padEnd(width)}  ${summarize(c.description)}`)
+  const groups = groupsOf(ns)
+  const narrowing = groups
+    ? [
+        '',
+        `A ${groups.noun} is a subcommand too — pitch ${ns} <${groups.noun}> <command> runs it on that ${groups.noun} only:`,
+        `  ${groups.list().join(', ')}`,
+      ]
+    : []
   return [
     `pitch ${ns} — ${BLURBS[ns] ?? ''}`,
+    '',
+    ...rows,
+    ...narrowing,
+    '',
+    `pitch ${ns} <command> --help for the whole description and its options.`,
+  ].join('\n')
+}
+
+/** Level 2, narrowed: `pitch effects text` — the commands that take a family. */
+export function groupHelp(ns: string, group: string): string {
+  const groups = groupsOf(ns)
+  if (!groups) return namespaceHelp(ns)
+  const mine = commands().filter(
+    c => c.namespace === ns && groups.param in (c.parameters?.properties ?? {}),
+  )
+  const width = Math.max(...mine.map(c => c.verb.length))
+  const rows = mine.map(
+    c => `  pitch ${ns} ${group} ${c.verb.padEnd(width)}  ${summarize(c.description)}`,
+  )
+  return [
+    `pitch ${ns} ${group} — the ${groups.noun} "${group}" only.`,
     '',
     ...rows,
     '',
@@ -93,7 +122,7 @@ function optionLine(name: string, spec: any, required: boolean): string {
 }
 
 /** Level 3: one command. */
-export async function commandHelp(ns: string, verb: string): Promise<string> {
+export function commandHelp(ns: string, verb: string): string {
   const cmd = findCommand(ns, verb)
   if (!cmd) return namespaceHelp(ns)
   const schema = cmd.parameters ?? {}

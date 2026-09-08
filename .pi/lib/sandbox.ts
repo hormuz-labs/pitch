@@ -31,6 +31,7 @@
  * platform's default. The file tools' path guard applies in every mode.
  */
 import { homedir } from 'node:os'
+import { basename, dirname } from 'node:path'
 import { LIBRARY_DIRS, PROJECTS_DIR, REPO_ROOT, SHARED_ROOTS } from './paths.ts'
 
 export type SandboxMode = 'bwrap' | 'seatbelt' | 'unconfined'
@@ -65,9 +66,37 @@ export function sandboxEnv(workspace: string, term = 'xterm'): Record<string, st
   }
 }
 
+/**
+ * How the shell reaches `pitch`. The program is a client (.pi/guest/pitch)
+ * and the socket is the studio's own command line listening for this
+ * workspace (../cli/serve.ts); the shell gets the program on its PATH and
+ * the socket's path in PITCH_SOCKET, and nothing else of the host.
+ */
+export interface PitchBridge {
+  /** The unix socket, at its real path. */
+  socket: string
+  /** The directory holding the guest's `pitch` program. */
+  bin: string
+}
+
+/** Where the bridge lands inside the bwrap namespace. */
+export const GUEST_PITCH_BIN = '/opt/pitch'
+export const GUEST_PITCH_RUN = '/run/pitch'
+
+/** The environment with `pitch` on the PATH and its socket named. */
+function pitchEnv(
+  env: Record<string, string>,
+  bin: string,
+  socket: string,
+): Record<string, string> {
+  return { ...env, PATH: env.PATH ? `${bin}:${env.PATH}` : bin, PITCH_SOCKET: socket }
+}
+
 export interface BwrapOptions {
   /** Bound read-write, at its own path. */
   workspace: string
+  /** The line to `pitch`; without it the shell has no such command. */
+  pitch?: PitchBridge
   /** Bound read-only, each at its own path. Defaults to the shared references. */
   shared?: readonly string[]
   /** Inside a shared root, hidden under an empty tmpfs. Defaults to the vendor libraries. */
@@ -101,9 +130,13 @@ export function bwrapArgs(options: BwrapOptions): string[] {
     shared = SHARED_ROOTS,
     hidden = LIBRARY_DIRS,
     cwd = workspace,
-    env = sandboxEnv(workspace),
+    env: envIn = sandboxEnv(workspace),
     shell = '/bin/bash',
+    pitch,
   } = options
+  const env = pitch
+    ? pitchEnv(envIn, GUEST_PITCH_BIN, `${GUEST_PITCH_RUN}/${basename(pitch.socket)}`)
+    : envIn
   const args = [
     '--unshare-user',
     '--unshare-net',
@@ -155,6 +188,12 @@ export function bwrapArgs(options: BwrapOptions): string[] {
   for (const root of shared) args.push('--ro-bind-try', root, root)
   // After the binds, so the tmpfs shadows the library inside its root.
   for (const dir of hidden) args.push('--tmpfs', dir)
+  // The `pitch` program, and the directory its socket lives in: the guest's
+  // /tmp is a fresh tmpfs, so the socket is bound where the program looks.
+  if (pitch) {
+    args.push('--ro-bind', pitch.bin, GUEST_PITCH_BIN)
+    args.push('--bind', dirname(pitch.socket), GUEST_PITCH_RUN)
+  }
   for (const [key, value] of Object.entries(env)) args.push('--setenv', key, value)
   args.push('--chdir', cwd, shell)
   return args
@@ -209,6 +248,7 @@ export function seatbeltProfile(options: BwrapOptions & SeatbeltOptions): string
     home = homedir(),
     repo = REPO_ROOT,
     projects = PROJECTS_DIR,
+    pitch,
   } = options
   const lines = [
     '(version 1)',
@@ -222,6 +262,14 @@ export function seatbeltProfile(options: BwrapOptions & SeatbeltOptions): string
     ...hidden.map(dir => `(deny file-read* (subpath ${quote(dir)}))`),
     // Toolchains: node under nvm/volta, bun, npx's cache, pip's, cargo, go.
     ...TOOLCHAIN_DIRS.map(d => `(allow file-read* (subpath ${quote(`${home}/${d}`)}))`),
+    // `pitch`: its program (inside the denied checkout) and the one socket
+    // it may connect to — the only network-shaped thing the shell can do.
+    ...(pitch
+      ? [
+          `(allow file-read* (subpath ${quote(pitch.bin)}))`,
+          `(allow network-outbound (literal ${quote(pitch.socket)}))`,
+        ]
+      : []),
     '(allow file-read-metadata)',
   ]
   return `${lines.join('\n')}\n`
@@ -259,17 +307,23 @@ export function unconfinedCommand(
   options: BwrapOptions,
   hostEnv: NodeJS.ProcessEnv = process.env,
 ): { file: string; args: string[]; cwd: string; env: Record<string, string> } {
-  const { workspace, cwd = workspace, env = sandboxEnv(workspace), shell = '/bin/bash' } = options
+  const {
+    workspace,
+    cwd = workspace,
+    env = sandboxEnv(workspace),
+    shell = '/bin/bash',
+    pitch,
+  } = options
+  const base = {
+    ...env,
+    ...(hostEnv.PATH ? { PATH: hostEnv.PATH } : {}),
+    ...(hostEnv.HOME ? { HOME: hostEnv.HOME } : {}),
+  }
   return {
     file: shell,
     args: ['-lc', command],
     cwd,
-    env: {
-      ...env,
-      ...(hostEnv.PATH ? { PATH: hostEnv.PATH } : {}),
-      ...(hostEnv.HOME ? { HOME: hostEnv.HOME } : {}),
-      STUDIO_SANDBOX: 'none',
-    },
+    env: { ...(pitch ? pitchEnv(base, pitch.bin, pitch.socket) : base), STUDIO_SANDBOX: 'none' },
   }
 }
 

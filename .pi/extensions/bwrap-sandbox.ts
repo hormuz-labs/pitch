@@ -3,7 +3,10 @@
  *
  * `bash` runs under bubblewrap: a mount namespace holding this project's
  * folder read-write, the shared references read-only, and nothing else; no
- * network, and an environment built from scratch rather than inherited.
+ * network, and an environment built from scratch rather than inherited. The
+ * one thing it is handed is `pitch`: a program on its PATH that talks to the
+ * studio's command line over a unix socket (../cli/serve.ts), so every host
+ * capability is a command the shell can run, chain and pipe like any other.
  *
  * The file tools (read, write, edit, ls, find, grep) run in this process
  * against the real filesystem, with every path they are given passed through
@@ -23,7 +26,14 @@ import {
   createReadTool,
   createWriteTool,
 } from '@earendil-works/pi-coding-agent'
-import { describeWorkspace, PathError, resolveIn, workspaceOf } from '../lib/paths.ts'
+import { closePitchSocket, pitchSocket } from '../cli/serve.ts'
+import {
+  describeWorkspace,
+  GUEST_BIN_DIR,
+  PathError,
+  resolveIn,
+  workspaceOf,
+} from '../lib/paths.ts'
 import { runInSandbox, sandboxEnv } from '../lib/sandbox.ts'
 import { rewriteBlock } from '../lib/shell.ts'
 
@@ -32,12 +42,13 @@ const SHELL = process.env.STUDIO_SANDBOX_SHELL || '/bin/bash'
 
 const BASH_DESCRIPTION =
   "Run a shell command in this project's workspace (your cwd, and the only writable place; the " +
-  'engine, skills and asset libraries are readable). You have bash, node and python, but NO ' +
-  'ffmpeg, browser or network — recon, screenshots, audio, audit and rendering are `pitch` ' +
-  'commands that run outside the sandbox. When one of them fails you cannot install what it is missing and ' +
-  'cannot reach the network: say what failed and stop. Never hand-write a file a tool produces ' +
-  '(vo-words.json, cues.json, brand-tokens.json) — those are measurements, and a plausible ' +
-  'substitute is a fabricated result nothing downstream can detect.'
+  'skills and asset libraries are readable). You have bash, node, python and `pitch` — the ' +
+  "studio's command line, which runs outside this shell with a real browser, ffmpeg and " +
+  'network: recon, screenshots, audio, the lab, review and rendering are all `pitch` commands ' +
+  '(`pitch --help`). Your shell itself has NO ffmpeg, browser or network. When a `pitch` command ' +
+  'fails you cannot install what it is missing: say what failed and stop. Never hand-write a ' +
+  'file a command produces (vo-words.json, cues.json, brand-tokens.json) — those are ' +
+  'measurements, and a plausible substitute is a fabricated result nothing downstream can detect.'
 
 function bwrapBashOps(workspace: () => string): BashOperations {
   return {
@@ -50,10 +61,13 @@ function bwrapBashOps(workspace: () => string): BashOperations {
       } catch {
         guestCwd = ws
       }
+      // `pitch` in the shell is a client; this is its other end, per workspace.
+      const bridge = await pitchSocket(ws)
       return runInSandbox(command, {
         workspace: ws,
         cwd: guestCwd,
         env: sandboxEnv(ws, env?.TERM),
+        pitch: { socket: bridge.path, bin: GUEST_BIN_DIR },
         shell: SHELL,
         bwrap: BWRAP,
         onData: onData as (chunk: Buffer) => void,
@@ -163,6 +177,11 @@ export default function bwrapSandbox(pi: ExtensionAPI) {
 
   pi.on('session_start', async (_event, ctx) => {
     localCwd = ctx.cwd
+  })
+
+  // The socket lives as long as the session whose shell reaches it.
+  pi.on('session_shutdown', async (_event, ctx) => {
+    await closePitchSocket(workspaceFor(ctx))
   })
 
   // A rewrite of a big file is the expensive shape — a minute of output and

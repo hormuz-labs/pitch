@@ -382,9 +382,10 @@ export interface OpenSessionOptions {
 /**
  * Get (or lazily create) the pi session bound to a project.
  *
- * One toolkit, fixed for the life of the session: the sandboxed file tools,
- * the question card and `pitch`. A deck that turns into a film needs no
- * rebuild and no widening — every capability was already one command away.
+ * One toolkit, fixed for the life of the session: the sandboxed file tools
+ * and the question card, with `pitch` on the shell's PATH. A deck that turns
+ * into a film needs no rebuild and no widening — every capability was already
+ * one command away.
  */
 export async function getSession(opts: OpenSessionOptions): Promise<Session> {
   const existing = sessions.get(opts.projectId)

@@ -33,6 +33,12 @@ export const EXTENSIONS_DIR = path.join(PI_DIR, 'extensions')
 export const SKILLS_DIR = path.join(PI_DIR, 'skills')
 /** The Node programs behind the `pitch motion` commands. Host-side only: never on the agent's side of the boundary. */
 export const SCRIPTS_DIR = path.join(PI_DIR, 'scripts')
+/**
+ * The one program the sandbox is handed: `pitch`, a client for the socket the
+ * host's command line listens on (../cli/serve.ts). Bound read-only into the
+ * shell's PATH; nothing else of .pi crosses the boundary.
+ */
+export const GUEST_BIN_DIR = path.join(PI_DIR, 'guest')
 export const ASSETS_DIR = path.join(REPO_ROOT, 'assets')
 export const MUSIC_DIR = path.join(ASSETS_DIR, 'music')
 export const SFX_DIR = path.join(ASSETS_DIR, 'sfx')

@@ -162,7 +162,8 @@ stay.
 - `pitch effects list` — the whole shelf, one line each: id, length, the
   libraries and the move it makes. **Read it once, early**, and you have seen
   every option instead of guessing at eight at a time. Narrow it with
-  `--family text`, `--moves flip-3d`, `--libs three`.
+  `--moves flip-3d`, `--libs three`, or by family: `pitch effects text list`
+  (a family is a subcommand; `pitch effects --help` lists them).
 - `pitch effects search a card flipping to reveal a price` — the same shelf
   scored against words, when you know the move but not where it lives.
 - `pitch effects show text/bold-text-snap` — the effect whole. **Look at the
@@ -195,11 +196,11 @@ tools.
 
 ## Build
 
-**One `pitch` call, several commands.** Everything below that is two decided
-steps in a row goes in one call, on separate lines — reading the schema for
-three sections, checking after a save, listing the lab and reading one effect.
-The last run spent six turns on six schema lookups before it had written a
-line. Turns are the cost; a batch is free.
+**One `bash` call, several `pitch` commands.** Everything below that is two
+decided steps in a row goes in one call, joined with `&&` — reading the schema
+for three sections, checking after a save, listing the lab and reading one
+effect. The last run spent six turns on six schema lookups before it had
+written a line. Turns are the cost; a batch is free.
 
 **One shot at a time, and the film runs after every one.** The user is
 watching the preview; a film that appears all at once at minute nine is a

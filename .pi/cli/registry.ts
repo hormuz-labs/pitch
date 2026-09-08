@@ -9,20 +9,20 @@
  * whole context, and the tool RESULTS were only 37k tokens all together. What
  * costs money is round trips.
  *
- * So the capabilities are subcommands of one tool. The model is shown `pitch`
- * and a one-line summary of the namespaces; it asks for detail when it needs
- * detail (`pitch help motion`, `pitch motion check --help`), and it can run
- * several commands in one call instead of one per turn.
+ * So the capabilities are subcommands of one program, `pitch`, which the
+ * agent runs from its shell like any other. The skills say when to reach for
+ * which command; `pitch --help` says what exists; and several commands in one
+ * `bash` call are one round trip.
  *
  * Each namespace is a module in this directory that returns its commands. A
  * command added to a module is a subcommand with no edit here, and its own
- * description is its help. A new namespace is one line in MODULES and one in
- * help.ts's BLURBS.
+ * description is its help. A new namespace is one line in NAMESPACES and one
+ * in help.ts's BLURBS.
  */
 import deck from './deck.ts'
 import demo from './demo.ts'
 import demoFlow from './demo-flow.ts'
-import effects from './effects.ts'
+import effects, { families } from './effects.ts'
 import media from './media.ts'
 import motion from './motion.ts'
 import pdf from './pdf.ts'
@@ -51,19 +51,43 @@ export interface Command extends CommandSpec {
 }
 
 /**
- * Namespace → the modules that fill it, in the order help prints them. Two
- * of them come from more than one module: the demo and recording pipelines
- * each keep their browser-driving commands apart from their flow commands.
+ * A namespace whose commands can be narrowed by a name that is itself a
+ * subcommand: `pitch effects text list` is `pitch effects list --family
+ * text`. The names come off disk, so a new family is a new subcommand with
+ * no edit anywhere.
  */
-const MODULES: Record<string, (() => CommandSpec[])[]> = {
-  effects: [effects],
-  motion: [motion],
-  media: [media],
-  video: [video],
-  deck: [deck],
-  pdf: [pdf],
-  demo: [demo, demoFlow],
-  recording: [recording, recordingFlow],
+export interface Groups {
+  /** What one of them is called in help: "family". */
+  noun: string
+  /** The parameter the group's name fills on the command it precedes. */
+  param: string
+  /** The names, as they exist right now. */
+  list: () => string[]
+}
+
+interface Namespace {
+  /** The modules that fill it, in the order help prints them. */
+  modules: (() => CommandSpec[])[]
+  groups?: Groups
+}
+
+/**
+ * Two namespaces come from more than one module: the demo and recording
+ * pipelines each keep their browser-driving commands apart from their flow
+ * commands.
+ */
+const NAMESPACES: Record<string, Namespace> = {
+  effects: {
+    modules: [effects],
+    groups: { noun: 'family', param: 'family', list: families },
+  },
+  motion: { modules: [motion] },
+  media: { modules: [media] },
+  video: { modules: [video] },
+  deck: { modules: [deck] },
+  pdf: { modules: [pdf] },
+  demo: { modules: [demo, demoFlow] },
+  recording: { modules: [recording, recordingFlow] },
 }
 
 let cache: Command[] | null = null
@@ -71,7 +95,7 @@ let cache: Command[] | null = null
 /** Every subcommand the host offers, built once per process. */
 export function commands(): Command[] {
   if (!cache) {
-    cache = Object.entries(MODULES).flatMap(([namespace, modules]) =>
+    cache = Object.entries(NAMESPACES).flatMap(([namespace, { modules }]) =>
       modules.flatMap(m => m().map(spec => ({ ...spec, namespace }))),
     )
   }
@@ -85,5 +109,10 @@ export function findCommand(namespace: string, verb: string): Command | null {
 
 /** Every namespace, in the order help should print them. */
 export function namespaces(): string[] {
-  return Object.keys(MODULES)
+  return Object.keys(NAMESPACES)
+}
+
+/** The groups a namespace can be narrowed by, or null. */
+export function groupsOf(namespace: string): Groups | null {
+  return NAMESPACES[namespace]?.groups ?? null
 }

@@ -130,10 +130,11 @@ describe('search', () => {
 
 describe('the commands', () => {
   const ctx = { cwd: process.cwd() }
+  const run = async (line: string, c = ctx) =>
+    (await import('../.pi/cli/run.ts')).run(line, c).then(r => r.text)
 
   it('lists every effect with its move', async () => {
     addEffect('text', 'bold-snap', { move: 'a word snaps in', libs: ['gsap'] })
-    const { run } = await import('../.pi/cli/run.ts')
     const out = await run('effects list', ctx)
     expect(out).toContain('text/bold-snap')
     expect(out).toContain('a word snaps in')
@@ -144,7 +145,6 @@ describe('the commands', () => {
     addEffect('text', 'a', { moves: ['flip-3d'], libs: ['three'] })
     addEffect('text', 'b', { moves: ['stagger'] })
     addEffect('logos', 'c', {})
-    const { run } = await import('../.pi/cli/run.ts')
     expect(await run('effects list --family logos', ctx)).toContain('logos/c')
     expect(await run('effects list --family logos', ctx)).not.toContain('text/a')
     expect(await run('effects list --moves flip-3d', ctx)).toContain('text/a')
@@ -153,7 +153,6 @@ describe('the commands', () => {
 
   it('returns one effect whole, with its source and the path to its frames', async () => {
     addEffect('text', 'bold-snap', { move: 'a word snaps in', port: 'mount() then animate()' })
-    const { run } = await import('../.pi/cli/run.ts')
     const out = await run('effects show text/bold-snap', ctx)
     expect(out).toContain('<body>hi</body>')
     expect(out).toContain('mount() then animate()')
@@ -161,15 +160,23 @@ describe('the commands', () => {
     expect(out).toContain('lab: "text/bold-snap"')
   })
 
+  it('makes every family a subcommand, with a bare slug inside it', async () => {
+    addEffect('text', 'a', {})
+    addEffect('logos', 'c', {})
+    expect(await run('effects logos list')).toContain('logos/c')
+    expect(await run('effects logos list')).not.toContain('text/a')
+    expect(await run('effects text show a')).toContain('lab: "text/a"')
+    expect(await run('effects logos')).toContain('pitch effects logos list')
+    expect(await run('effects --help')).toContain('logos, text')
+  })
+
   it('takes a bare slug as well as a full id', async () => {
     addEffect('text', 'bold-snap', {})
-    const { run } = await import('../.pi/cli/run.ts')
     expect(await run('effects show bold-snap', ctx)).toContain('text/bold-snap')
   })
 
   it('says how to find ids when given one that does not exist', async () => {
     addEffect('text', 'bold-snap', {})
-    const { run } = await import('../.pi/cli/run.ts')
     expect(await run('effects show nope', ctx)).toContain('pitch effects list')
   })
 
@@ -177,7 +184,6 @@ describe('the commands', () => {
     addEffect('text', 'a', {})
     addEffect('text', 'b', {})
     addEffect('logos', 'c', {})
-    const { run } = await import('../.pi/cli/run.ts')
     const out = await run('effects families', ctx)
     expect(out).toContain('3 effects')
     expect(out).toContain('text (2)')

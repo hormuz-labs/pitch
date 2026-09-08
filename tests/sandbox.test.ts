@@ -101,6 +101,45 @@ describe('the bwrap recipe', () => {
   })
 })
 
+describe('the line to `pitch`', () => {
+  const pitch = { socket: '/tmp/pitch-abc/sock', bin: '/app/.pi/guest' }
+
+  it('binds the program read-only and the socket directory where the program looks', () => {
+    const args = bwrapArgs({ workspace: WS, shared: SHARED, pitch })
+    const after = (from: string) => args[args.indexOf(from) + 1]
+    expect(
+      args.slice(args.indexOf('/app/.pi/guest') - 1, args.indexOf('/app/.pi/guest') + 2),
+    ).toEqual(['--ro-bind', '/app/.pi/guest', '/opt/pitch'])
+    expect(after('/tmp/pitch-abc')).toBe('/run/pitch')
+    const env = Object.fromEntries(
+      args.flatMap((a, i) => (a === '--setenv' ? [[args[i + 1], args[i + 2]]] : [])),
+    )
+    expect(env.PATH.startsWith('/opt/pitch:')).toBe(true)
+    expect(env.PITCH_SOCKET).toBe('/run/pitch/sock')
+  })
+
+  it('is absent from the shell when no bridge is given', () => {
+    const args = bwrapArgs({ workspace: WS, shared: SHARED })
+    expect(args).not.toContain('/opt/pitch')
+    expect(args.join(' ')).not.toContain('PITCH_SOCKET')
+  })
+
+  it('opens exactly one hole in the seatbelt: the program, and that socket', () => {
+    const profile = seatbeltProfile({ workspace: WS, shared: SHARED, pitch })
+    expect(profile).toContain('(deny network*)')
+    expect(profile).toContain('(allow network-outbound (literal "/tmp/pitch-abc/sock"))')
+    expect(profile).toContain('(allow file-read* (subpath "/app/.pi/guest"))')
+    expect(profile.indexOf('(deny network*)')).toBeLessThan(profile.indexOf('network-outbound'))
+    const cmd = seatbeltCommand(
+      'pitch help',
+      { workspace: WS, shared: SHARED, pitch },
+      { PATH: '/usr/bin' },
+    )
+    expect(cmd.env.PATH).toBe('/app/.pi/guest:/usr/bin')
+    expect(cmd.env.PITCH_SOCKET).toBe('/tmp/pitch-abc/sock')
+  })
+})
+
 describe('a sandbox that will not start explains itself', () => {
   it.each([
     ['bwrap: No permissions to create a new namespace', /seccomp/],

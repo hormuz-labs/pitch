@@ -11,15 +11,15 @@
  * recording, deck, recording edit); the agent reads the one it needs instead
  * of being born knowing exactly one of them.
  *
- * There is nothing to choose between any more. Every host capability is one
- * tool now — `pitch`, a command line whose subcommands are the pipelines
- * (.pi/cli/) — so the model is shown eight tools in total: the sandboxed file
- * tools, the question card, and `pitch`. The apparatus that used to hide 55
- * tool schemas behind families, workspace evidence, `tools:` frontmatter and
- * mid-turn widening is gone with them: it existed to save ~8k tokens a
- * request, and it cost a whole class of failure where a project landed
- * without the tools its skill named and the agent went reading extension
- * source to find out why.
+ * There is nothing to choose between any more. Every host capability is a
+ * subcommand of `pitch`, a program the sandboxed shell runs like any other
+ * (.pi/cli/, reached through .pi/guest/pitch and its socket) — so the model
+ * is shown the sandboxed file tools and the question card, and nothing else.
+ * The apparatus that used to hide 55 tool schemas behind families, workspace
+ * evidence, `tools:` frontmatter and mid-turn widening is gone with them: it
+ * existed to save ~8k tokens a request, and it cost a whole class of failure
+ * where a project landed without the tools its skill named and the agent
+ * went reading extension source to find out why.
  */
 import { existsSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
@@ -29,14 +29,11 @@ import { PI_DIR, PI_EXTENSIONS_DIR, SKILLS_DIR } from '../studio/paths.js'
 const extension = (file: string) => path.join(PI_EXTENSIONS_DIR, file)
 
 /**
- * What a session loads.
- *
- * `pitch-cli.ts` registers the one tool and, through ../../../.pi/cli, reaches
- * every other extension's tools as subcommands — so the others are NOT loaded
- * into pi. `ask-tools.ts` stays a tool because the studio's front end renders
- * its arguments as the question card; it is UI, not an operation.
+ * What a session loads besides the sandbox. `ask-tools.ts` is a tool because
+ * the studio's front end renders its arguments as the question card; it is
+ * UI, not an operation. Operations are `pitch` commands and register nothing.
  */
-export const EXTENSIONS: string[] = [extension('pitch-cli.ts'), extension('ask-tools.ts')]
+export const EXTENSIONS: string[] = [extension('ask-tools.ts')]
 
 /** Every skill directory under .pi/skills. */
 export async function skills(): Promise<string[]> {

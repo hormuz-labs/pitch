@@ -1,20 +1,32 @@
 /**
- * The dispatcher: one command line in, the tool's own output back.
+ * The dispatcher: argv in, the command's own output and an exit status back.
  *
- * Several commands may arrive at once, one per line. They run in order and
- * stop at the first failure, which is the point of the whole exercise: the
- * six `motion_schema` calls that opened the last run, or a search followed by
- * a read followed by a check, are one turn here instead of three to six.
+ * Three programs share it. `bin/pitch` on a developer's terminal, the
+ * studio's socket (serve.ts) that the sandboxed shell's `pitch` talks to,
+ * and the tests. Whatever the front, this is the one place a command line
+ * is read: strip a leading `pitch`, find the namespace, let a group name
+ * narrow it (`pitch effects text list`), parse the rest by the command's own
+ * schema, run it.
+ *
+ * It runs ONE command. Several are the shell's business — `a && b` stops at
+ * the first failure, a newline does not — and that is why a failed command
+ * says so in its exit status, not only in its text.
  */
 import { ArgvError, parseArgs, tokenize } from './argv.ts'
-import { commandHelp, namespaceHelp, topHelp } from './help.ts'
-import { findCommand, namespaces } from './registry.ts'
+import { commandHelp, groupHelp, namespaceHelp, topHelp } from './help.ts'
+import { findCommand, groupsOf, namespaces } from './registry.ts'
 
 export interface RunContext {
   /** The project workspace — every command runs against it. */
   cwd: string
   signal?: AbortSignal
   onUpdate?: unknown
+}
+
+export interface RunResult {
+  text: string
+  /** False when the command could not run, was not found, or failed. */
+  ok: boolean
 }
 
 /** Whatever a command returned, as the text the agent reads. */
@@ -27,80 +39,70 @@ function resultText(result: any): string {
     .join('\n')
 }
 
-/** Run one command line (no newlines). */
-export async function runOne(line: string, ctx: RunContext): Promise<string> {
-  const words = tokenize(line.replace(/^\s*(\$\s*)?pitch\b/, '').trim())
-  const wantsHelp = words.some(w => w === '--help' || w === '-h')
-  const rest = words.filter(w => w !== '--help' && w !== '-h')
+const done = (text: string): RunResult => ({ text, ok: true })
+const failed = (text: string): RunResult => ({ text, ok: false })
 
-  const [first, second, ...tail] = rest
+/** Run one command line: argv, or a string to split as a shell would. */
+export async function run(input: string | string[], ctx: RunContext): Promise<RunResult> {
+  let words = Array.isArray(input) ? [...input] : tokenize(input)
+  if (words[0] === '$') words.shift()
+  if (words[0] === 'pitch') words.shift()
+  const wantsHelp = words.some(w => w === '--help' || w === '-h')
+  words = words.filter(w => w !== '--help' && w !== '-h')
+
+  const [first, ...afterFirst] = words
   if (!first || first === 'help') {
-    if (!second) return topHelp()
-    return findCommand(second, tail[0] ?? '') ? commandHelp(second, tail[0]) : namespaceHelp(second)
+    const [ns, verb] = afterFirst
+    if (!ns) return done(topHelp())
+    return done(verb && findCommand(ns, verb) ? commandHelp(ns, verb) : namespaceHelp(ns))
   }
 
   const known = namespaces()
   if (!known.includes(first)) {
-    return `No "${first}". Namespaces: ${known.join(', ')}\n\n${await topHelp()}`
+    return failed(`No "${first}". Namespaces: ${known.join(', ')}\n\n${topHelp()}`)
   }
-  if (!second) return namespaceHelp(first)
-  if (wantsHelp) return commandHelp(first, second)
+  if (!afterFirst.length) return done(namespaceHelp(first))
 
-  const cmd = findCommand(first, second)
-  if (!cmd) return namespaceHelp(first)
+  // `pitch effects text list`: a group name before the verb narrows it.
+  const groups = groupsOf(first)
+  const preset: Record<string, unknown> = {}
+  let group: string | null = null
+  if (groups?.list().includes(afterFirst[0])) {
+    group = afterFirst.shift() as string
+    preset[groups.param] = group
+    if (!afterFirst.length) return done(groupHelp(first, group))
+  }
+  const [verb, ...tail] = afterFirst
+  if (wantsHelp) return done(group ? groupHelp(first, group) : commandHelp(first, verb))
+
+  const cmd = findCommand(first, verb)
+  if (!cmd) {
+    const where = group ? groupHelp(first, group) : namespaceHelp(first)
+    return failed(`No "pitch ${first} ${verb}".\n\n${where}`)
+  }
+  if (group && !(groups!.param in (cmd.parameters?.properties ?? {}))) {
+    return failed(`pitch ${first} ${verb} takes no ${groups!.noun}.\n\n${groupHelp(first, group)}`)
+  }
 
   let params: Record<string, unknown>
   try {
-    params = parseArgs(tail, cmd.parameters ?? {})
+    params = { ...preset, ...parseArgs(tail, cmd.parameters ?? {}) }
   } catch (err) {
-    if (err instanceof ArgvError) {
-      return `pitch ${first} ${second}: ${err.message}\n\n${await commandHelp(first, second)}`
-    }
-    throw err
+    if (!(err instanceof ArgvError)) throw err
+    return failed(`pitch ${first} ${verb}: ${err.message}\n\n${commandHelp(first, verb)}`)
   }
 
-  const result = await cmd.execute(
-    `pitch:${cmd.namespace}:${cmd.verb}`,
-    params,
-    ctx.signal ?? new AbortController().signal,
-    ctx.onUpdate,
-    { cwd: ctx.cwd },
-  )
-  return resultText(result) || '(no output)'
-}
-
-/**
- * Run a whole invocation: one command, or several on separate lines.
- *
- * A failing command stops the rest and says which ones did not run, so the
- * agent never has to guess how far a batch got.
- */
-export async function run(input: string, ctx: RunContext): Promise<string> {
-  const lines = input
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l && !l.startsWith('#'))
-  if (!lines.length) return topHelp()
-  if (lines.length === 1) {
-    try {
-      return await runOne(lines[0], ctx)
-    } catch (err) {
-      return `pitch: ${err instanceof Error ? err.message : String(err)}`
-    }
+  try {
+    const result: any = await cmd.execute(
+      `pitch:${cmd.namespace}:${cmd.verb}`,
+      params,
+      ctx.signal ?? new AbortController().signal,
+      ctx.onUpdate,
+      { cwd: ctx.cwd },
+    )
+    const text = resultText(result) || '(no output)'
+    return result?.isError ? failed(text) : done(text)
+  } catch (err) {
+    return failed(`pitch ${first} ${verb}: ${err instanceof Error ? err.message : String(err)}`)
   }
-
-  const out: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    out.push(`$ pitch ${lines[i].replace(/^\s*(\$\s*)?pitch\b\s*/, '')}`)
-    try {
-      out.push(await runOne(lines[i], ctx))
-    } catch (err) {
-      out.push(`failed: ${err instanceof Error ? err.message : String(err)}`)
-      const left = lines.length - i - 1
-      if (left) out.push(`\n${left} command${left > 1 ? 's' : ''} after this one did not run.`)
-      break
-    }
-    out.push('')
-  }
-  return out.join('\n').trimEnd()
 }

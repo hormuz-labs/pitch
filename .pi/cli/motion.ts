@@ -32,7 +32,7 @@ import {
   SCRIPTS_DIR,
   workspaceOf,
 } from '../lib/paths.ts'
-import { GSAP_PLUGINS, refreshShell, rewriteBlock, writeShell } from '../lib/shell.ts'
+import { GSAP_PLUGINS, refreshShell, writeShell } from '../lib/shell.ts'
 import { type ReconTokens, starterShots } from '../lib/starter-shots.ts'
 import type { CommandSpec } from './registry.ts'
 

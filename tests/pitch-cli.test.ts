@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { spawn } from 'node:child_process'
+import { join } from 'node:path'
+import { afterAll, describe, expect, it } from 'vitest'
 import { ArgvError, parseArgs, tokenize } from '../.pi/cli/argv.ts'
 import { summarize } from '../.pi/cli/help.ts'
 import { commands, findCommand, namespaces } from '../.pi/cli/registry.ts'
-import { run } from '../.pi/cli/run.ts'
+import { run as dispatch } from '../.pi/cli/run.ts'
+import { closePitchSocket, pitchSocket, socketPathFor } from '../.pi/cli/serve.ts'
+import { GUEST_BIN_DIR } from '../.pi/lib/paths.ts'
 
 const ctx = { cwd: process.cwd() }
+const run = async (line: string | string[], c = ctx) => (await dispatch(line, c)).text
 
 describe('tokenize', () => {
   it('splits on whitespace and keeps quoted phrases whole', () => {
@@ -159,17 +164,71 @@ describe('help', () => {
   })
 })
 
-describe('running several commands in one call', () => {
-  it('runs them in order and labels each', async () => {
-    const out = await run('effects families\nhelp motion', ctx)
-    expect(out).toContain('$ pitch effects families')
-    expect(out).toContain('$ pitch help motion')
-    expect(out.indexOf('$ pitch effects families')).toBeLessThan(out.indexOf('$ pitch help motion'))
+describe('exit status', () => {
+  it('is success for help and for a command that ran', async () => {
+    expect((await dispatch('help', ctx)).ok).toBe(true)
+    expect((await dispatch('effects families', ctx)).ok).toBe(true)
   })
 
-  it('ignores blank lines and comments', async () => {
-    const out = await run('\n# pick a family\neffects families\n', ctx)
-    expect(out).toContain('effects.')
-    expect(out).not.toContain('$ pitch')
+  it('is failure for an unknown namespace, an unknown command and bad arguments', async () => {
+    // `a && b` in the shell only stops at `a` if `a` says so.
+    expect((await dispatch('sparkle go', ctx)).ok).toBe(false)
+    expect((await dispatch('motion sparkle', ctx)).ok).toBe(false)
+    expect((await dispatch('motion check --bogus 1', ctx)).ok).toBe(false)
+  })
+
+  it('takes argv already split, quotes and all', async () => {
+    const out = await run(['effects', 'search', 'a card flipping'], ctx)
+    expect(out).toContain('"a card flipping"')
+  })
+})
+
+describe('the socket the sandboxed `pitch` talks to', () => {
+  const ws = process.cwd()
+  afterAll(() => closePitchSocket(ws))
+
+  it('keeps the socket path short enough for a unix socket', () => {
+    const p = socketPathFor('/app/projects/studio--user_2abc--a-rather-long-project-name', '/tmp')
+    expect(p.length).toBeLessThan(80)
+    expect(p).toMatch(/^\/tmp\/pitch-[0-9a-f]{16}\/sock$/)
+  })
+
+  it('runs the guest program end to end: output, and the exit status', async () => {
+    const { path: socket } = await pitchSocket(ws)
+    const guest = (...argv: string[]) =>
+      new Promise<{ out: string; code: number | null }>(resolve => {
+        const child = spawn('node', [join(GUEST_BIN_DIR, 'pitch'), ...argv], {
+          env: { ...process.env, PITCH_SOCKET: socket },
+        })
+        let out = ''
+        child.stdout.on('data', c => {
+          out += c
+        })
+        child.stderr.on('data', c => {
+          out += c
+        })
+        child.on('close', code => resolve({ out, code }))
+      })
+    const ok = await guest('effects', 'families')
+    expect(ok.code).toBe(0)
+    expect(ok.out).toContain('effects.')
+    const bad = await guest('sparkle', 'go')
+    expect(bad.code).toBe(1)
+    expect(bad.out).toContain('Namespaces:')
+    const quoted = await guest('effects', 'search', 'a card flipping')
+    expect(quoted.out).toContain('"a card flipping"')
+  })
+
+  it('says so when it has no socket, rather than hanging', async () => {
+    const child = spawn('node', [join(GUEST_BIN_DIR, 'pitch'), 'help'], {
+      env: { ...process.env, PITCH_SOCKET: '' },
+    })
+    let err = ''
+    child.stderr.on('data', c => {
+      err += c
+    })
+    const code = await new Promise<number | null>(r => child.on('close', r))
+    expect(code).toBe(2)
+    expect(err).toContain('PITCH_SOCKET')
   })
 })

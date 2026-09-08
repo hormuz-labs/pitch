@@ -1,0 +1,54 @@
+#!/usr/bin/env node
+/*
+ * `pitch`, as the sandboxed shell sees it.
+ *
+ * The shell has no ffmpeg, no browser and no network; the commands need all
+ * three. So this is a client: it hands its arguments to the studio over the
+ * unix socket the sandbox was started with (PITCH_SOCKET), prints what comes
+ * back, and exits with the command's status. Every decision — what the
+ * command is, what it may touch — is made on the other side (.pi/cli/), which
+ * is the same code `bin/pitch` runs on a developer's terminal.
+ *
+ * Plain Node, no dependencies: it runs in a namespace that holds /usr and
+ * the project and nothing else.
+ */
+'use strict'
+const net = require('node:net')
+
+const socket = process.env.PITCH_SOCKET
+if (!socket) {
+  process.stderr.write('pitch: PITCH_SOCKET is not set — this shell has no line to the studio.\n')
+  process.exit(2)
+}
+
+const conn = net.connect(socket)
+let buffer = ''
+let exit = null
+
+conn.on('connect', () => {
+  conn.write(`${JSON.stringify({ argv: process.argv.slice(2) })}\n`)
+})
+conn.on('data', chunk => {
+  buffer += chunk.toString('utf8')
+  let nl = buffer.indexOf('\n')
+  while (nl !== -1) {
+    const line = buffer.slice(0, nl)
+    buffer = buffer.slice(nl + 1)
+    nl = buffer.indexOf('\n')
+    if (!line) continue
+    let frame
+    try {
+      frame = JSON.parse(line)
+    } catch {
+      continue
+    }
+    if (typeof frame.out === 'string') process.stdout.write(frame.out)
+    if (typeof frame.err === 'string') process.stderr.write(frame.err)
+    if (typeof frame.exit === 'number') exit = frame.exit
+  }
+})
+conn.on('error', err => {
+  process.stderr.write(`pitch: cannot reach the studio (${err.code || err.message}).\n`)
+  process.exit(2)
+})
+conn.on('close', () => process.exit(exit ?? 1))

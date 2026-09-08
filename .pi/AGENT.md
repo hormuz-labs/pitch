@@ -56,26 +56,28 @@ argument are relative to your workspace unless you make them absolute; there
 is no other naming scheme, so never guess a second one.
 
 You have bash, node and python but **no ffmpeg, no browser, no network and
-no host access**. Everything that needs any of those runs outside the sandbox,
-through one tool: `pitch`.
+no host access**. Everything that needs any of those is a `pitch` command:
+a program on your PATH that runs outside the sandbox, with a real browser
+and a real network, and prints its result back to your shell.
 
 ## `pitch` — the command line
 
-Every host capability is a subcommand of `pitch`, and its own description
-lists the namespaces. Three levels of help, so you never read more than you
-need:
+Every host capability is a subcommand of `pitch`. The skills say which
+commands a job needs and in what order; `--help` says what a command does,
+in three levels, so you never read more than you need:
 
 ```
-pitch help motion               its commands, one line each
+pitch --help                    the namespaces
+pitch motion --help             its commands, one line each
 pitch motion check --help       one command's description and every option
-pitch effects list --family text
+pitch effects text list         a family is a subcommand: the text effects only
 ```
 
-**Put several commands on separate lines to run them in one call.** They run
-in order and stop at the first failure. Three schema sections, or a lab
-listing and the one effect you already know you want, are one call rather
-than three turns — and turns are what a film costs. Batch whenever the next
-two steps are already decided.
+**Several commands in one `bash` call.** Join them with `&&` so the first
+failure stops the rest. Three schema sections, or a lab listing and the one
+effect you already know you want, are one call rather than three turns — and
+turns are what a film costs. Batch whenever the next two steps are already
+decided. A failing command exits non-zero, like any program.
 
 Values that are objects, or arrays of objects, go in as JSON in one argument;
 everything else is a plain flag. Required values may be given without their
