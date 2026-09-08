@@ -62,7 +62,7 @@ export async function runOne(line: string, ctx: RunContext): Promise<string> {
   }
 
   const result = await cmd.execute(
-    `cli:${cmd.tool}`,
+    `pitch:${cmd.id}`,
     params,
     ctx.signal ?? new AbortController().signal,
     ctx.onUpdate,

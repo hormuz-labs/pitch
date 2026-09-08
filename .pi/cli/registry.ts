@@ -25,10 +25,16 @@ import { EXTENSIONS_DIR } from '../lib/paths.ts'
 
 /** One subcommand: `pitch <namespace> <verb>`. */
 export interface Command {
-  /** The pi tool name it came from, e.g. `motion_check`. */
-  tool: string
+  /** `<namespace> <verb>` — how it is written and how it is logged. */
+  id: string
   namespace: string
   verb: string
+  /**
+   * The pi tool this wraps, e.g. `motion_check`, or null for a command
+   * written as a command. It is here for a person reading a log, never for
+   * the agent: nothing addresses a subcommand by a tool name.
+   */
+  origin: string | null
   description: string
   /** A TypeBox `Type.Object` — the argv parser reads it to coerce values. */
   parameters: any
@@ -85,10 +91,12 @@ export async function loadExtension(file: string): Promise<Command[]> {
   const pi = {
     registerTool(tool: any) {
       if (!tool?.name || NOT_COMMANDS.has(tool.name)) return
+      const verb = verbOf(tool.name, namespace)
       out.push({
-        tool: tool.name,
+        id: `${namespace} ${verb}`,
         namespace,
-        verb: verbOf(tool.name, namespace),
+        verb,
+        origin: tool.name,
         description: String(tool.description ?? ''),
         parameters: tool.parameters,
         execute: tool.execute,

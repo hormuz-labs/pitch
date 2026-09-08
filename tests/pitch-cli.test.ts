@@ -115,7 +115,7 @@ describe('the registry', () => {
 
   it('keeps ask_user out — it is the question card, not an operation', async () => {
     const all = await commands()
-    expect(all.some(c => c.tool === 'ask_user')).toBe(false)
+    expect(all.some(c => c.origin === 'ask_user')).toBe(false)
   })
 
   it('gives every namespace a blurb, so `pitch help` has no blank line', async () => {

@@ -275,9 +275,10 @@ function filtered(p: Record<string, any>): Effect[] {
 }
 
 /**
- * The lab's commands. They are Commands, not pi tools: the CLI is the only
- * thing that calls them, so their descriptions are help text rather than
- * schema shipped on every request.
+ * The lab's commands. Unlike the rest of the tree these wrap nothing — there
+ * is no `motion_effects` behind them any more — so their `origin` is null and
+ * their descriptions are help text a reader asks for, not schema shipped on
+ * every request.
  */
 export function effectsCommands(): Command[] {
   const parameters = {
@@ -300,9 +301,10 @@ export function effectsCommands(): Command[] {
 
   return [
     {
-      tool: 'effects_list',
+      id: 'effects list',
       namespace: 'effects',
       verb: 'list',
+      origin: null,
       description:
         'Every effect in the lab, one line each: id, length, libraries and the move it makes. ' +
         'The whole shelf is a few thousand tokens and you only read it once — prefer it to ' +
@@ -327,9 +329,10 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      tool: 'effects_search',
+      id: 'effects search',
       namespace: 'effects',
       verb: 'search',
+      origin: null,
       description:
         'Effects matching words, best first. Describe the MOVE a beat needs — "a card flipping ' +
         'to reveal a price", "lines colliding then snapping out" — not a template name. ' +
@@ -360,9 +363,10 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      tool: 'effects_show',
+      id: 'effects show',
       namespace: 'effects',
       verb: 'show',
+      origin: null,
       description:
         'One effect whole: its notes, how it is built, how to adapt it, its full source and the ' +
         'path to its frame strip. Look at the strip before you port it.',
@@ -394,9 +398,10 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      tool: 'effects_families',
+      id: 'effects families',
       namespace: 'effects',
       verb: 'families',
+      origin: null,
       description: 'The families and how many effects are in each.',
       parameters: { type: 'object', properties: {} },
       async execute() {
