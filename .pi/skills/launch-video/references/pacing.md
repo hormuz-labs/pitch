@@ -15,9 +15,9 @@ Energy is **density and layering**, not speed.
 
 The failure mode is the opposite film: narration setting the durations, every
 shot an entrance then a hold, a whole desktop where one control should be.
-The fix is one read cut to words, a second act in every shot, one subject
-big in the middle, and a stage — planned in the shot table, not discovered by
-the gate.
+The fix is one read cut to words, a second act in every shot, and a stage —
+planned in the shot table, not discovered by the gate. A lab effect ported
+whole brings its own acts and its own composition; nothing is added to it.
 
 ## What the gate says
 
@@ -35,10 +35,9 @@ effect ported whole keeps its timing. Everything else is a ❌.
 | Longest quiet stretch | ≤ 1.5s — *note* |
 | Events per second | ≥ 0.7 (the references run 2–3) — *note* |
 | Fails | a caret typing as the opener; a `ripple` beat |
-| Warnings, while building (`motion_check`) | a shot over 1.5s with nothing after its entrance; `word-cut` / `type-wipe` / `color-punch` / `type-field` / `overlay-type` with no `lab` port behind it; a whole screen in a browser frame with no `focus`, `cursor.zoom` or layers; a still screenshot as the product |
+| Warnings, while building (`motion_check`) | a built-in type over 1.5s with nothing after its entrance (a project type is its own acts and is not judged); `word-cut` / `type-wipe` / `color-punch` / `type-field` / `overlay-type` with no `lab` port behind it; a whole screen in a browser frame with no `focus`, `cursor.zoom` or layers; a still screenshot as the product |
 | Warnings, at the gate | no `breath` beats; no `punch` cuts; a bare stage with no actors |
 | Clipped type (`motion_review`) | hero type measured against its mask and the stage edge at every frame: a run cut at the settled frame, or bigger than its mask mid-move (a snap scaled past its row), is listed with the fix |
-| The subject (`motion_review`) | at the settled frame: largest type under 64px with no block filling a fifth of the stage is a web section, not a frame; four or more runs of copy under 22px are unreadable |
 
 Both reference films measured 2.3 and 2.5 events per second, longest still
 frame 0.83s, and never a frame with nothing moving. The answer to a pacing

@@ -17,6 +17,40 @@
             "medium": "medium",
             "high": "high"
           }
+        },
+        {
+          "id": "gemma-4-31b-it",
+          "name": "Gemma 4 31B IT",
+          "api": "google-generative-ai",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "contextWindow": 262144,
+          "maxTokens": 32768,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": "MINIMAL",
+            "low": null,
+            "medium": null,
+            "high": "HIGH"
+          }
+        },
+        {
+          "id": "gemma-4-26b-a4b-it",
+          "name": "Gemma 4 26B A4B IT",
+          "api": "google-generative-ai",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "contextWindow": 262144,
+          "maxTokens": 32768,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": "MINIMAL",
+            "low": null,
+            "medium": null,
+            "high": "HIGH"
+          }
         }
       ]
     }

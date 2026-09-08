@@ -47,7 +47,20 @@ describe('lintDesign', () => {
     expect(codes(film([{}, { rippleBeats: 1 }, {}, {}]))).toContain('ripple')
   })
 
-  it('warns about a shot that enters and then holds — before the audit measures it', () => {
+  it('leaves a project type alone: its factory timeline is its own acts', () => {
+    // A lab port with no `beats` is not a hold — the audit measures what moves. Telling it to add
+    // beats is what put a pulse on every headline.
+    expect(codes(film([{}, { dur: 3, beats: 0, type: 'problem-pile' }, {}, {}]))).not.toContain(
+      'hold',
+    )
+    expect(
+      codes(
+        film([{}, { dur: 5, beats: 0, type: 'hook-snap', lab: 'text/bold-text-snap' }, {}, {}]),
+      ),
+    ).not.toContain('hold')
+  })
+
+  it('warns about a built-in shot that enters and then holds — before the audit measures it', () => {
     const hold = film([{}, { dur: 3, beats: 0 }, {}, {}])
     const l = lintDesign(hold).find(x => x.code === 'hold')
     expect(l?.level).toBe('warn')

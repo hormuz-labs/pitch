@@ -59,14 +59,20 @@ beat or a cut, or keep the hold and say why in direction.md — a lab effect
 ported whole keeps its own timing, and a counter never gets a film rebuilt.
 What does get rebuilt at the end is a shot list that only enters, so every
 shot in the table has **three acts** — it arrives, something changes, it
-leaves — and the `move` column names all three. Anything over 1.5s carries a
-second act (`beats`, `steps`, an actor, a `focus`, a `cursor`) or is cut.
+leaves — and the `move` column names all three. A lab effect ported whole
+already has them: its timeline is the acts, and `motion_check` does not
+judge a project type. `beats` exist for the built-in types that only enter
+(`line`, `logo-cta`, `stat-counter`…) — a `swap`, a `flood`, a `breath`.
+**Never add a `pulse`, `kick`, `shake` or `halo` to a ported effect to
+answer a note** — that is copy jiggling, and it is what the user cuts.
 
-**One subject, centred, big.** The reference films keep one thing in the
-middle of the frame and let it fill it: a word, a card, a control, a number.
-A whole desktop is never the subject — crop to the control the copy is about
-(`motion_screenshot({ selector })`, at 2×), rebuild that one piece as `html`,
-or push into it with `focus` until it fills the frame.
+**An effect is used in the form it was defined.** Its composition — how
+many things are on the stage, their sizes, their arrangement — is the
+effect as much as its timing: three forms piling up stay three forms;
+a grid of cards stays a grid. Put the product's words, colours and counts
+in; do not reduce it to one big thing, and do not add a kicker above it.
+A whole desktop screenshot is the one thing that never reads at 1080p —
+push into the part the copy is about, or rebuild that part as `html`.
 
 What reliably makes films worse, so don't: opening on a logo fade or a caret
 typing; every shot the same length; a shot that enters and then holds;
@@ -103,7 +109,7 @@ overflow at line-height ≤ 1 cuts every descender and accent at hero size:
 give the mask `padding: .16em .08em .24em` with the same negative margin,
 start hidden text at yPercent 140, keep the longest line inside 1760px.
 `motion_schema({ section: "custom shot types" })` has the shape. The product's
-own words, colours and counts go in; the lab's timing stays. Put
+own words, colours and counts go in; the lab's timing and composition stay. Put
 `lab: "<id>"` on the shot and cite it in the table so the user can say
 "that one, but slower".
 
@@ -135,18 +141,22 @@ tools.
    one read: script (1.9–2.4 words/s) → `motion_tts` once (it re-records by
    itself if a take comes back rushed) → `audio.vo` → `motion_align` →
    `cue` on every shot → `motion_sync({ write: true })`. Then `motion_cues`,
-   `motion_sfx({ mode: "build" })` (★ marks the signature cues the budget
-   counts), `motion_mix`.
+   one `motion_sfx({ mode: "query", event: "impact,whoosh_deep,…" })` for every
+   event the film needs, a cue sheet written to the budget (~6 signature
+   cues per 30s, one per shot), `motion_sfx({ mode: "build" })` (★ marks the
+   signature cues the budget counts), `motion_mix`.
 4. `motion_audit({})`: zero ❌. A ⚠️ is a note: pacing notes name the still
    stretch — answer with a beat or a cut, or keep it and say why in
-   direction.md; never a longer shot (`references/pacing.md` has the
-   numbers). Then `motion_review({})`: fix every line of its clipped-type,
-   subject and off-brand-ground reports, and **look at every sheet** — an empty frame, a colour
+   direction.md — that closes the note; never a longer shot
+   (`references/pacing.md` has the numbers). Then `motion_review({})`: fix every line of its clipped-type
+   and off-brand-ground reports, and **look at every sheet** — an empty frame, a colour
    that is not the brand's, a lab placeholder still on screen, an edge
    touched. Fix in `shots.js`, then `motion_review({ shots: [...] })` for what
-   you touched — not another audit unless a `dur`, a cue or a beat changed.
-   Audio-only changes (a breath, a level) need `motion_cues` and `motion_mix`,
-   never a re-audit. Quote the scorecard, say what the sheets showed, stop.
+   you touched — not another audit unless a `dur`, a cue or a beat changed,
+   and then `motion_audit({ shots: [...] })` for those shots only: it samples
+   their stretch on the same grid, in a quarter of the time.
+   Audio-only changes (a breath, a level) and a `direction.md` edit need no
+   audit at all. Quote the scorecard, say what the sheets showed, stop.
 5. Export only when the user asks for an MP4: `motion_audit`,
    `motion_render({ out, out_res, fps: 60 })`, `motion_verify_duration`.
 
