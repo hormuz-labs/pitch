@@ -1,5 +1,5 @@
 {
- "builtAt": "2026-09-06T17:36:05.755Z",
+ "builtAt": "2026-09-08T13:23:53.076Z",
  "records": [
   {
    "id": "text/animated-feature-list",
@@ -2735,6 +2735,53 @@
    "rendered": true,
    "duration": 5,
    "hash": "c213579460c8"
+  },
+  {
+   "id": "video-titles/collage-art-promo",
+   "name": "Collage Art Promo",
+   "family": "video-titles",
+   "seconds": 4,
+   "tags": [
+    "collage",
+    "paper",
+    "torn",
+    "newsprint",
+    "stop-motion",
+    "promo",
+    "opener"
+   ],
+   "description": "A cut-paper collage opener: one shot is torn away to a newsprint wall and paper cutouts, hands and labels pop in one by one with stop-motion jitter. After NixMotion's Collage Art Promo for After Effects (Motion Array).",
+   "jitterUrl": null,
+   "move": "a torn-paper hole rips one collage shot away to a newsprint wall, then cutouts pop in one by one with 12fps stop-motion jitter",
+   "how": "Two full-frame layers: shot A (teal paper, a gilded frame, torn text strips) underneath, shot B (a canvas-painted newsprint wall with mirrored headlines, body columns and white-out washes, plus an feTurbulence grain) on top, hidden by a CSS clip-path polygon. A 28-point jagged polygon grows from r=0 at 0.45s to past the frame by 1.45s on steps() eases, biased toward the bottom-left so it reads as paper peeled from a corner; a second white layer with the same polygon at 1.08x gives the torn white edge. Every cutout (sofa, statue-head figure with popcorn and ticket, cactus with sunflowers, two grey hands, phone, teacup, five paper labels) is an SVG or a text block wrapped in a filter that dilates its alpha by 7px, roughens it with feDisplacementMap and fills it white, so anything dropped in gets the cut-paper rim. Each cutout pops from scale 0 with a rotation and offset on steps(6) at its own time between 0.75s and 2.7s; the hands then pull back out. A jitter function, seeded per 12fps frame index and per element with fx.rng, offsets every cutout plus or minus 3px and 0.8deg, which is the stop-motion feel. Authored at 1920x1080 and scaled to the 1280x720 stage. Reference: NixMotion's Collage Art Promo (Motion Array), one 3.9s shot.",
+   "moves": [
+    "tear-reveal",
+    "pop-in",
+    "stagger",
+    "stop-motion",
+    "jitter",
+    "stepped"
+   ],
+   "libs": [
+    "gsap",
+    "canvas",
+    "svg-filter",
+    "clip-path"
+   ],
+   "adapt": "Swap any .cut's inner SVG for an <img> of a real cutout (transparent PNG); the #cutout filter draws the white torn rim around whatever is inside, so photographic cutouts are the intended content. Change the label copy, colours and the newsprint headline list; reorder the pop schedule in the pop() calls. Keep the steps() eases and the frame-indexed jitter, or it stops being stop-motion. Drop shot A and start with the hole already open for a mid-film shot.",
+   "port": "mount(el, shot) injects the two layers and the cutouts into el (unique the filter ids) and paints the newsprint canvas with ShotKit.rng; animate(el, shot, D) returns the gsap.timeline built here, with jitter(t) run from a single linear {u:0->1} tween's onUpdate over D instead of the seek hook. Scale the 1920x1080 root to the film stage (1x at 1920x1080).",
+   "caveats": [
+    "feMorphology plus feDisplacementMap on every cutout is expensive; twelve cutouts at 1080p renders slowly and can stutter in live preview",
+    "clip-path polygons in percent are per layer; the torn edge is the white layer, not a stroke",
+    "the cutouts are vector stand-ins for the photographic collage elements of the reference"
+   ],
+   "fidelity": "structure",
+   "loop": false,
+   "size": "1280x720",
+   "built": true,
+   "rendered": true,
+   "duration": 4,
+   "hash": "66e78679971c"
   },
   {
    "id": "morph/morph-animated-face",

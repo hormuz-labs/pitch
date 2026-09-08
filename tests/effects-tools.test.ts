@@ -30,7 +30,7 @@ const built = existsSync(path.join(EFFECTS_DIR, 'search.json'))
 describe.skipIf(!built)('motion_effects', () => {
   it('lists the families with no arguments', async () => {
     const out = await call({})
-    expect(out).toContain('408 effects')
+    expect(out).toContain('409 effects')
     expect(out).toMatch(/text \(\d+\)/)
   })
 

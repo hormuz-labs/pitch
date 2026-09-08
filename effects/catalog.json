@@ -1006,6 +1006,23 @@
   "jitterUrl": "https://jitter.video/template/kaleidoscope-intro-slide/"
  },
  {
+  "name": "Collage Art Promo",
+  "family": "Video titles",
+  "familySlug": "video-titles",
+  "slug": "collage-art-promo",
+  "seconds": 4,
+  "tags": [
+   "collage",
+   "paper",
+   "torn",
+   "newsprint",
+   "stop-motion",
+   "promo",
+   "opener"
+  ],
+  "description": "A cut-paper collage opener: one shot is torn away to a newsprint wall and paper cutouts, hands and labels pop in one by one with stop-motion jitter. After NixMotion's Collage Art Promo for After Effects (Motion Array)."
+ },
+ {
   "name": "Morph: Animated Face",
   "family": "Morph",
   "familySlug": "morph",
