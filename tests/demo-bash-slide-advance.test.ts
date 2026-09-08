@@ -2,10 +2,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import demoTools from '../.pi/extensions/demo-tools.ts'
-import { collectTools } from '../.pi/lib/testing.ts'
+import demoCommands from '../.pi/cli/demo.ts'
+import { collectCommands } from '../.pi/lib/testing.ts'
 
-const { demo_bash } = collectTools(demoTools)
+const { bash: demo_bash } = collectCommands(demoCommands)
 
 const originalPath = process.env.PATH
 

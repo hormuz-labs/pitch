@@ -10,15 +10,16 @@
  * network. Read `.pi/skills/generated-video/SKILL.md` before using it: the
  * prompt is the whole craft, and a bad one costs the user real money.
  */
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+
 import { Type } from '@sinclair/typebox'
 import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
+import type { CommandSpec } from './registry.ts'
 
-export default function videoGenTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'video_generate',
-    label: 'Generate video',
+export default function videoCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'generate',
     description:
       'Generate a NEW ~10s clip (with its own audio) from a text prompt, optionally animating a workspace image, with Gemini Omni, into the workspace. For footage nobody has — establishing shots, textures, metaphors, B-roll — never for the product itself, whose UI it invents. Slow and billed: read the generated-video skill, draft at 360p, refine with `continues`, then 1080p.',
     parameters: Type.Object({
@@ -86,4 +87,5 @@ export default function videoGenTools(pi: ExtensionAPI) {
       )
     },
   })
+  return commands
 }

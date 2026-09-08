@@ -2,10 +2,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import demoTools from '../.pi/extensions/demo-tools.ts'
-import { collectTools } from '../.pi/lib/testing.ts'
+import demoCommands from '../.pi/cli/demo.ts'
+import { collectCommands } from '../.pi/lib/testing.ts'
 
-const { demo_analyze_slide, demo_narrate } = collectTools(demoTools)
+const { 'analyze-slide': demo_analyze_slide, narrate: demo_narrate } = collectCommands(demoCommands)
 
 const originalPath = process.env.PATH
 const originalApiKey = process.env.GEMINI_API_KEY

@@ -1,5 +1,5 @@
 /**
- * Launch films — pi extension wrapping the Node programs in
+ * Launch films — `pitch motion` commands wrapping the Node programs in
  * .pi/scripts/launch-video (recon, screenshot, tts, align, sync, cues/check,
  * sfx, mix, audit, review, capture) plus two small host helpers (find_audio,
  * verify_duration). Every .mjs in that folder backs exactly one tool. They
@@ -22,7 +22,6 @@ import {
 } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { promisify } from 'node:util'
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
 import {
   ASSETS_DIR,
@@ -35,6 +34,7 @@ import {
 } from '../lib/paths.ts'
 import { GSAP_PLUGINS, refreshShell, rewriteBlock, writeShell } from '../lib/shell.ts'
 import { type ReconTokens, starterShots } from '../lib/starter-shots.ts'
+import type { CommandSpec } from './registry.ts'
 
 const execFileAsync = promisify(execFile)
 
@@ -164,10 +164,10 @@ function schemaSections(md: string): Map<string, string> {
   return out
 }
 
-export default function htmlMotionTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'motion_tts',
-    label: 'Motion TTS',
+export default function motionCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'tts',
     description:
       'Record the narration: ONE continuous Gemini TTS read of the whole script → audio/vo.wav (the text saved beside it as audio/vo.txt). One call per film, never one per shot. Then set audio.vo in shots.js, pitch motion align, cue every shot, pitch motion sync.',
     parameters: Type.Object({
@@ -224,9 +224,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_align',
-    label: 'Align Narration',
+  commands.push({
+    verb: 'align',
     description:
       'Word-level timestamps for the continuous narration read (local whisper.cpp) → audio/vo-words.json. ' +
       'Aligns the known script (audio/vo.txt) to the recording so every word has an onset. Required before ' +
@@ -251,9 +250,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_sync',
-    label: 'Sync Picture to Narration',
+  commands.push({
+    verb: 'sync',
     description:
       'Cut the picture to the words: reads shot/beat/line/more `cue` phrases against audio/vo-words.json and retimes shots.js so each lands ~0.12s before its word. write=true edits shots.js (backup shots.js.bak) and re-times audio/sfx-cues.json; otherwise it prints the plan. Run after every script or cue change.',
     parameters: Type.Object({
@@ -283,9 +281,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_render',
-    label: 'Motion Render',
+  commands.push({
+    verb: 'render',
     description:
       'Render index.html to MP4 by deterministic seek-and-capture. To LOOK at shots use pitch motion review (frames, not video); render a from/to segment (fps 30, no audio) only when the motion itself is in doubt — a shutter (motion blur) is one such case. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after pitch motion audit and pitch motion review pass. Shutter, samples, depth and codec default to the film\'s `render` block in shots.js and the look to its `grade` block (pitch motion schema --section "render and grade"); the flags here override for one render.',
     parameters: Type.Object({
@@ -380,9 +377,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_review',
-    label: 'Look at the Film',
+  commands.push({
+    verb: 'review',
     description:
       "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. It also measures, at every frame, each run of hero type against the mask holding it (or the stage edge) and lists what is clipped, in px, with the fix; and, at the settled frame, the ground — a shot sitting on a colour that is none of the brand's is named (`bg: \"ink\"` passes). Look for: words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. What is on the stage — one thing or three forms — is the lab effect's composition and yours; the review does not count it. The frames carry the film's `grade` block. Fix in shots.js, then re-run with `shots` for the ones you touched — not another pitch motion audit, unless a dur, a cue or a beat changed. Run after pitch motion audit passes and after every shot edit; frames in review/ are for you, not the user.",
     parameters: Type.Object({
@@ -434,9 +430,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_audit',
-    label: 'Motion Audit',
+  commands.push({
+    verb: 'audit',
     description:
       "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run, and a pacing note answered in direction.md is closed. After a fix that changes a dur, a cue or a beat, re-run with `shots` for the shots you touched: it samples only their stretch on the same grid (a 5s shot is ~8s, the film ~30s) and replaces their frames in audit/. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs pitch motion cues and pitch motion mix, not the gate.",
     parameters: Type.Object({
@@ -481,9 +476,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_screenshot',
-    label: 'Motion Screenshot',
+  commands.push({
+    verb: 'screenshot',
     description:
       'Capture the product: from a live URL, or a synthetic HTML template. For brand recon -> recon/screenshots/; ' +
       'for a shot, `selector` crops to the one control the copy is about, at 2× — a whole desktop is never the subject of a shot. With `layers`, cuts the screen into a ' +
@@ -530,9 +524,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_recon',
-    label: 'Measure Brand',
+  commands.push({
+    verb: 'recon',
     description:
       "Measure the product's brand from the live page in a real browser: body bg/ink/font, :root custom properties, headline and body type, the primary CTA's computed styles, surfaces, saturated colours, theme-color and the page copy → recon/brand-tokens.md + .json; saves the logo from the header verbatim into assets/logo/ (inline SVG as-is) and self-hosts the brand's web fonts into assets/fonts/ with a ready brand.fonts snippet. Run on the home page and 1–2 product pages (different out paths).",
     parameters: Type.Object({
@@ -580,9 +573,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_image',
-    label: 'Generate Image',
+  commands.push({
+    verb: 'image',
     description:
       'For the site that has no imagery: generate ONE brand-locked still with a Gemini image model — a background plate for a type beat, an object for the hook (the thing the product is about, or its metaphor), a texture for the stage, a flat illustration of the mechanism, or a matching icon set. The palette is read from recon/brand-tokens.json and written into the prompt; pass files from assets/ as refs for material and mood. It refuses screens, logos, people and text — a generated screenshot is a fabricated product. You receive the image: look at it; off-brand or off-subject, regenerate once with a sharper subject, then move on. Files land in assets/generated/ with a sidecar and recon/generated.json.',
     parameters: Type.Object({
@@ -672,9 +664,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_check',
-    label: 'Check Cut',
+  commands.push({
+    verb: 'check',
     description:
       "Fast compile check (seconds, not the audit): links any new js/shots/*.js and css/shots/*.css into index.html, then loads it and reports page errors, shot count, real duration, every shot's start time, any factory overrun worth a fix (over 1.1×; over 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject, boundaries nothing crosses (no actor posed on both sides, no carry, no flood or zoom — over a third and the film reads as slides). Run after every batch of shots you save and act on the warnings then.",
     parameters: Type.Object({
@@ -696,9 +687,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_cues',
-    label: 'Timeline Cues',
+  commands.push({
+    verb: 'cues',
     description:
       "Export the compiled timeline's real shot start times to audio/cues.json by loading index.html " +
       'in a browser. Use before writing the SFX cue sheet or mixing narration.',
@@ -715,9 +705,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_sfx',
-    label: 'Sound Effects',
+  commands.push({
+    verb: 'sfx',
     description:
       'Query the curated SFX manifest or build the SFX bus. mode=list: the event vocabulary. ' +
       'mode=query: ranked, measured clips — pass every event the film needs in one call (event: "impact,whoosh_deep,chime"), not one call per event. ' +
@@ -768,9 +757,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_mix',
-    label: 'Mix Audio',
+  commands.push({
+    verb: 'mix',
     description:
       'Final mixdown to audio/mix.wav: the continuous narration read (shots.js audio.vo, placed at audio.voStart) over the music bed ' +
       'with ducking and a frequency carve, plus the SFX bus, then verified by extraction — fails if ' +
@@ -805,9 +793,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_find_audio',
-    label: 'Find Audio',
+  commands.push({
+    verb: 'find-audio',
     description:
       "List the curated music library (the one the studio's Music picker shows), newest first, or another directory. A bed the user picked is already in audio/. Pass src + copy_to (workspace-relative) to import a listed file.",
     parameters: Type.Object({
@@ -875,9 +862,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_verify_duration',
-    label: 'Verify Duration',
+  commands.push({
+    verb: 'verify-duration',
     description:
       'ffprobe the duration of a rendered MP4 to confirm it matches the timeline length, not the ' +
       'audio length. Use after any final render.',
@@ -897,9 +883,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_schema',
-    label: 'Shot schema',
+  commands.push({
+    verb: 'schema',
     description:
       "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one section, or SEVERAL AT ONCE as an array — ask for everything you need in one call, not six — from: density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
@@ -944,9 +929,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
           const hit =
             sections.get(key) ??
             [...sections.entries()].find(([k]) => k.includes(key) || key.includes(k))?.[1]
-          out.push(
-            hit ?? `No section "${want}". Sections: ${[...sections.keys()].join(', ')}`,
-          )
+          out.push(hit ?? `No section "${want}". Sections: ${[...sections.keys()].join(', ')}`)
         }
         return text(out.join('\n\n'))
       }
@@ -997,14 +980,13 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'motion_scaffold',
-    label: 'Scaffold the page',
+  commands.push({
+    verb: 'scaffold',
     description:
       'Write index.html — the thin shell that loads the GSAP vendor bundle, three.js and lottie-web, shots.js, the engine and ' +
       'every project shot type in js/shots/*.js and css/shots/*.css, in the one order that works — and, when there is none yet, ' +
       'a starter shots.js with the brand from recon (bg, ink, accent, the font and its self-hosted files) and a PLACEHOLDER ' +
-      'opening shot built from the site\'s own h1, so the preview is never blank: replace it with your hook and keep adding ' +
+      "opening shot built from the site's own h1, so the preview is never blank: replace it with your hook and keep adding " +
       'one shot at a time. Call this once instead of writing the page by hand. New type files after that need no ' +
       'scaffold call: pitch motion check links them. Pass rive: true when a shot uses a .riv file.',
     parameters: Type.Object({
@@ -1044,7 +1026,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         }
         writeFileSync(shotsPath, starterShots(tokens))
         starter = tokens
-          ? '\nshots.js written with the brand recon measured and a placeholder opener from the site\'s h1 — it is playing now; replace it with your hook.'
+          ? "\nshots.js written with the brand recon measured and a placeholder opener from the site's h1 — it is playing now; replace it with your hook."
           : '\nshots.js written with a PLACEHOLDER brand (no recon/brand-tokens.json yet): run pitch motion recon, then put the measured values in brand.'
       }
       const linked = [...files.styles, ...files.scripts]
@@ -1059,20 +1041,5 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       )
     },
   })
-
-  // A rewrite of a big file is the expensive shape — a minute of output and
-  // a file the agent then cannot edit, because it no longer knows its text.
-  pi.on('tool_call', async (event: any, ctx: any) => {
-    if (event.toolName !== 'write') return undefined
-    const rel = String(event.input?.path ?? event.input?.file_path ?? '')
-    if (!rel) return undefined
-    const ws = workspaceOf(ctx)
-    try {
-      resolveIn(ws, rel, 'write')
-    } catch {
-      return undefined // the write tool refuses it with its own reason
-    }
-    const reason = rewriteBlock(ws, rel)
-    return reason ? { block: true, reason } : undefined
-  })
+  return commands
 }

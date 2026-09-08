@@ -25,6 +25,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { describeWorkspace, PathError, resolveIn, workspaceOf } from '../lib/paths.ts'
 import { runInSandbox, sandboxEnv } from '../lib/sandbox.ts'
+import { rewriteBlock } from '../lib/shell.ts'
 
 const BWRAP = process.env.STUDIO_BWRAP || 'bwrap'
 const SHELL = process.env.STUDIO_SANDBOX_SHELL || '/bin/bash'
@@ -162,6 +163,24 @@ export default function bwrapSandbox(pi: ExtensionAPI) {
 
   pi.on('session_start', async (_event, ctx) => {
     localCwd = ctx.cwd
+  })
+
+  // A rewrite of a big file is the expensive shape — a minute of output and
+  // a file the agent then cannot edit, because it no longer knows its text.
+  // This guard used to live in the motion extension; it is about `write`,
+  // whatever the project, so it lives with the tool it guards.
+  pi.on('tool_call', async (event: any, ctx: any) => {
+    if (event.toolName !== 'write') return undefined
+    const rel = String(event.input?.path ?? event.input?.file_path ?? '')
+    if (!rel) return undefined
+    const ws = workspaceFor(ctx)
+    try {
+      resolveIn(ws, rel, 'write')
+    } catch {
+      return undefined // the write tool refuses it with its own reason
+    }
+    const reason = rewriteBlock(ws, rel)
+    return reason ? { block: true, reason } : undefined
   })
 
   pi.on('before_agent_start', async (event, ctx) => {

@@ -12,15 +12,16 @@
  * the media files live. `pitch media probe` first, always: it is how you learn what
  * streams a file actually has before you touch it.
  */
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+
 import { Type } from '@sinclair/typebox'
 import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
+import type { CommandSpec } from './registry.ts'
 
-export default function mediaTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'media_probe',
-    label: 'Probe media',
+export default function mediaCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'probe',
     description:
       "Inspect a workspace media file with ffprobe: duration, container, and every stream's codec, resolution, channels and volume. Call before editing a file — it says which stream is the narration and which the bed.",
     parameters: Type.Object({
@@ -33,9 +34,8 @@ export default function mediaTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'media_ffmpeg',
-    label: 'Edit media',
+  commands.push({
+    verb: 'ffmpeg',
     description:
       'Run one ffmpeg command over workspace files for an edit the pipelines do not cover — levels, trim, crop, concat, replace or mix audio, speed, a frame or a clip. `args` are the arguments after `ffmpeg -y`, every path workspace-relative, the output inside the workspace and a NEW file. Probe first; prefer -c copy when only the container changes.',
     parameters: Type.Object({
@@ -60,9 +60,8 @@ export default function mediaTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'media_publish',
-    label: 'Publish result',
+  commands.push({
+    verb: 'publish',
     description:
       "Record a finished file in the workspace as one of the project's outputs, so it appears under the " +
       "user's Download button and becomes the preview. Use it after an edit the named pipelines did not " +
@@ -77,4 +76,5 @@ export default function mediaTools(pi: ExtensionAPI) {
       )
     },
   })
+  return commands
 }

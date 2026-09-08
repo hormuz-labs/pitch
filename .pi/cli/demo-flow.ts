@@ -1,22 +1,23 @@
 /**
- * Demo-video flow tools — pi extension.
+ * Demo-video flow — `pitch demo` commands.
  *
  * The orchestration the old worker did around the demo-generator agent
  * (prepare assets → open the user's browser and start recording → let the
  * agent drive → stop → ffmpeg render → publish) is now a set of host actions
  * the agent calls itself, in order, from the chat. Each tool forwards to the
  * studio (apps/api/src/flows/demo-video/index.ts) with the session's
- * workspace as authority; the browser-driving tools live in demo-tools.ts.
+ * workspace as authority; the browser-driving commands live in demo.ts.
  */
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+
 import { Type } from '@sinclair/typebox'
 import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
+import type { CommandSpec } from './registry.ts'
 
-export default function demoFlowTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'demo_prepare_assets',
-    label: 'Prepare uploaded assets',
+export default function demoFlowCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'prepare-assets',
     description:
       "Turn the project's uploaded PDFs/images into the slideshow manifest (page images, text, OCR " +
       'regions) under recording/assets/. Call once, before pitch demo record-start, whenever the project ' +
@@ -27,9 +28,8 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_record_start',
-    label: 'Start recording',
+  commands.push({
+    verb: 'record-start',
     description:
       "Open the user's browser profile, attach playwright-cli and start the screen recording. " +
       'Optionally navigates to `url` first. Returns the session name, the start time and, when a ' +
@@ -43,9 +43,8 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_record_stop',
-    label: 'Stop recording',
+  commands.push({
+    verb: 'record-stop',
     description:
       'Stop the screen recording and close the browser. Call as soon as the walkthrough (and the ' +
       'logo capture) is done — before pitch demo render, and always before you finish a turn.',
@@ -55,9 +54,8 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_render',
-    label: 'Render demo video',
+  commands.push({
+    verb: 'render',
     description:
       'Render the recording with the narration/zoom/click events (cursor, zoom, mix, smart trim, ' +
       'title cards, background, browser header) into renders/ and publish it. Returns the video URL. ' +
@@ -104,9 +102,8 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'storyboard_plan',
-    label: 'Plan storyboard',
+  commands.push({
+    verb: 'storyboard-plan',
     description:
       'Build a storyboard draft (storyboard.json) from the prepared PDF/image pages: Gemini reads ' +
       'every page and proposes narration + emphasis rectangles; a voiceover script, when given, is ' +
@@ -118,9 +115,8 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'storyboard_save',
-    label: 'Save storyboard',
+  commands.push({
+    verb: 'storyboard-save',
     description:
       'Write (optional `json`) and validate storyboard.json, saving it as the next revision. Reports the exact ' +
       "problem when a phrase is not in its scene's narration, a rect is out of bounds, or a scene has " +
@@ -141,4 +137,5 @@ export default function demoFlowTools(pi: ExtensionAPI) {
       )
     },
   })
+  return commands
 }

@@ -17,7 +17,7 @@ export interface RunContext {
   onUpdate?: unknown
 }
 
-/** Whatever a tool returned, as the text the agent reads. */
+/** Whatever a command returned, as the text the agent reads. */
 function resultText(result: any): string {
   const content = result?.content
   if (!Array.isArray(content)) return typeof result === 'string' ? result : ''
@@ -36,19 +36,17 @@ export async function runOne(line: string, ctx: RunContext): Promise<string> {
   const [first, second, ...tail] = rest
   if (!first || first === 'help') {
     if (!second) return topHelp()
-    return (await findCommand(second, tail[0] ?? ''))
-      ? commandHelp(second, tail[0])
-      : namespaceHelp(second)
+    return findCommand(second, tail[0] ?? '') ? commandHelp(second, tail[0]) : namespaceHelp(second)
   }
 
-  const known = await namespaces()
+  const known = namespaces()
   if (!known.includes(first)) {
     return `No "${first}". Namespaces: ${known.join(', ')}\n\n${await topHelp()}`
   }
   if (!second) return namespaceHelp(first)
   if (wantsHelp) return commandHelp(first, second)
 
-  const cmd = await findCommand(first, second)
+  const cmd = findCommand(first, second)
   if (!cmd) return namespaceHelp(first)
 
   let params: Record<string, unknown>

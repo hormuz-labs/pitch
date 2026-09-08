@@ -5,15 +5,16 @@
  * tools render pages for inspection and publish the result — HTML plus a
  * freshly rendered PDF — as the project's outputs.
  */
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+
 import { Type } from '@sinclair/typebox'
 import { workspaceOf } from '../lib/paths.ts'
 import { hostAction, text } from '../lib/studio-host.ts'
+import type { CommandSpec } from './registry.ts'
 
-export default function deckTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'deck_render',
-    label: 'Render slides',
+export default function deckCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'render',
     description:
       'Render deck.html to JPEGs (one per .slide, 1280×720) under renders/slide-NN.jpg in your workspace so ' +
       'you can LOOK at the result with the read tool before publishing; each line also flags elements ' +
@@ -30,9 +31,8 @@ export default function deckTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'deck_publish',
-    label: 'Publish deck',
+  commands.push({
+    verb: 'publish',
     description:
       "Publish deck.html as the project's deck: renders a fresh PDF (one 1280×720 page per .slide), uploads the HTML and the PDF and records them as the project's outputs. Once per turn, after the QA renders are clean; never with placeholder text or broken images.",
     parameters: Type.Object({
@@ -42,4 +42,5 @@ export default function deckTools(pi: ExtensionAPI) {
       return text(await hostAction(workspaceOf(ctx), 'deck_publish', { summary: p.summary }))
     },
   })
+  return commands
 }

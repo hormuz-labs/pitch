@@ -1,5 +1,5 @@
 /**
- * Deck build tools — pi extension for the studio's deck flow. These tools run
+ * Deck build — `pitch pdf` commands for the studio's deck flow. They run
  * on the HOST because the agent's own bash lives in a Gondolin VM with no
  * browser and no network (it does have node), and every step below needs one
  * or both. They wrap the executable steps of the slide-deck
@@ -31,10 +31,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
 import { REPO_ROOT, SCRIPTS_DIR, SKILLS_DIR, workspaceOf } from '../lib/paths.ts'
 import { hostAction } from '../lib/studio-host.ts'
+import type { CommandSpec } from './registry.ts'
 
 const execFileAsync = promisify(execFile)
 const BIG_BUFFER = 64 * 1024 * 1024
@@ -139,10 +139,10 @@ function listFiles(dir: string): string[] {
     : []
 }
 
-export default function pdfTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'pdf_scaffold',
-    label: 'Scaffold deck build',
+export default function pdfCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'scaffold',
     description:
       "Set up build/ in the workspace: writes build/deck-config.js (the theme + slides file YOU author; jobId and template pre-filled), build/pdf-builder.js (the renderer — with a template's layouts and CSS injected when one is given — which you never edit) and the DOM-QA script. Call once, before scraping images or authoring the config. Refuses to overwrite an existing deck-config.js unless force is true.",
     parameters: Type.Object({
@@ -229,9 +229,8 @@ export default function pdfTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'pdf_scrape_images',
-    label: 'Scrape deck images',
+  commands.push({
+    verb: 'scrape-images',
     description:
       'Fetch images for the deck — the only way; your shell has no network. Runs the Pinterest → Unsplash → Gemini scraper per keyword and writes build/images/<keyword-slug>/ in the workspace; the result lists exactly what landed. Reference those files from the config relative to build/.',
     parameters: Type.Object({
@@ -322,9 +321,8 @@ export default function pdfTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'pdf_parse',
-    label: 'Parse a presentation',
+  commands.push({
+    verb: 'parse',
     description:
       'Parse an uploaded PDF or PPTX into build/parsed-slides.json (and, for a PPTX in preserve mode, its embedded images into build/input-images/). An attached deck is parsed before your first turn: call this only when that file is missing or the mode changed. It rewrites the file.',
     parameters: Type.Object({
@@ -345,9 +343,8 @@ export default function pdfTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'pdf_build',
-    label: 'Build deck',
+  commands.push({
+    verb: 'build',
     description:
       'Build the deck from build/deck-config.js via build/pdf-builder.js in a real browser (the only way to run it): writes build/output.html + output.pdf, runs the DOM QA (build/qa-report.json), screenshots every slide into build/qa-renders/, and on success copies output.html to deck.html — the deck the studio previews. Re-run after each config fix. Rebuilding overwrites deck.html, so hand edits made there are lost.',
     parameters: Type.Object({}),
@@ -415,4 +412,5 @@ export default function pdfTools(pi: ExtensionAPI) {
       }
     },
   })
+  return commands
 }

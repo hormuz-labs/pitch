@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ArgvError, parseArgs, tokenize } from '../.pi/cli/argv.ts'
 import { summarize } from '../.pi/cli/help.ts'
-import { commands, findCommand, namespaces, verbOf } from '../.pi/cli/registry.ts'
+import { commands, findCommand, namespaces } from '../.pi/cli/registry.ts'
 import { run } from '../.pi/cli/run.ts'
 
 const ctx = { cwd: process.cwd() }
@@ -99,23 +99,23 @@ describe('parseArgs', () => {
 })
 
 describe('the registry', () => {
-  it('names a subcommand after its tool, minus the namespace it repeats', () => {
-    expect(verbOf('motion_check', 'motion')).toBe('check')
-    expect(verbOf('grab_frames', 'recording')).toBe('grab-frames')
-  })
-
-  it('finds every extension tool without any of them being listed here', async () => {
-    const all = await commands()
-    // The point of the registry: the count follows the extensions.
+  it("has every module's commands, each tagged with its namespace", () => {
+    const all = commands()
+    // The count follows the modules, not a list kept here.
     expect(all.length).toBeGreaterThan(50)
-    expect(await findCommand('motion', 'check')).toBeTruthy()
-    expect(await findCommand('recording', 'grab-frames')).toBeTruthy()
-    expect(await findCommand('effects', 'list')).toBeTruthy()
+    expect(findCommand('motion', 'check')).toBeTruthy()
+    expect(findCommand('recording', 'grab-frames')).toBeTruthy()
+    expect(findCommand('effects', 'list')).toBeTruthy()
+    expect(findCommand('demo', 'record-start')?.namespace).toBe('demo')
   })
 
-  it('keeps ask_user out — it is the question card, not an operation', async () => {
-    const all = await commands()
-    expect(all.some(c => c.origin === 'ask_user')).toBe(false)
+  it('never has two commands with the same name in one namespace', () => {
+    const seen = new Set<string>()
+    for (const c of commands()) {
+      const key = `${c.namespace} ${c.verb}`
+      expect(seen.has(key), key).toBe(false)
+      seen.add(key)
+    }
   })
 
   it('gives every namespace a blurb, so `pitch help` has no blank line', async () => {

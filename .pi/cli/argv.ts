@@ -1,7 +1,7 @@
 /**
  * argv → the parameters a tool's `execute` expects.
  *
- * A subcommand's schema is the TypeBox object the extension already declares,
+ * A subcommand's schema is the TypeBox object its module already declares,
  * so this reads that schema to decide what each flag means: `--limit 8` is a
  * number because the schema says integer, `--loop` is true because the schema
  * says boolean, `--moves flip-3d --moves stagger` collects because the schema

@@ -31,7 +31,7 @@ export const ENGINE_DIR = path.join(REPO_ROOT, 'engine')
 export const PI_DIR = path.join(REPO_ROOT, '.pi')
 export const EXTENSIONS_DIR = path.join(PI_DIR, 'extensions')
 export const SKILLS_DIR = path.join(PI_DIR, 'skills')
-/** The Node programs behind the motion_* tools. Host-side only: never on the agent's side of the boundary. */
+/** The Node programs behind the `pitch motion` commands. Host-side only: never on the agent's side of the boundary. */
 export const SCRIPTS_DIR = path.join(PI_DIR, 'scripts')
 export const ASSETS_DIR = path.join(REPO_ROOT, 'assets')
 export const MUSIC_DIR = path.join(ASSETS_DIR, 'music')

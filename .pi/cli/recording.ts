@@ -1,5 +1,5 @@
 /**
- * recording-editor tools — pi extension for the recording-editor agent.
+ * recording-editor — `pitch recording` commands.
  *
  * Runs on the worker host (cwd = repo root). Given an UPLOADED narrated screen
  * recording, these tools reconstruct the same recording/demo-state.json that
@@ -38,10 +38,10 @@ import { exec } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
 import { workspaceOf } from '../lib/paths.ts'
 import { transcribeWav } from '../lib/whisper.ts'
+import type { CommandSpec } from './registry.ts'
 
 const execAsync = promisify(exec)
 
@@ -216,7 +216,8 @@ function readTranscript(base: string): TranscriptSegment[] {
 // vision model sees what came just before/after the window (referent context).
 function transcriptExcerpt(base: string, start: number, end: number): string {
   const segs = readTranscript(base)
-  if (!segs.length) return '(no transcript available — pitch recording transcribe-video has not run)'
+  if (!segs.length)
+    return '(no transcript available — pitch recording transcribe-video has not run)'
   const hits = segs.map((s, i) => (s.end >= start && s.start <= end ? i : -1)).filter(i => i >= 0)
   if (!hits.length) return '(no narration inside this window)'
   const lo = Math.max(0, hits[0]! - 1)
@@ -229,10 +230,10 @@ function transcriptExcerpt(base: string, start: number, end: number): string {
 
 // ── tools ────────────────────────────────────────────────────────────────────
 
-export default function recordingTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'probe_video',
-    label: 'Probe video',
+export default function recordingCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'probe-video',
     description:
       'Probe an uploaded video: duration, resolution, frame rate, and whether it has an ' +
       'audio track. ALWAYS call this first — it also resets the edit session for a new ' +
@@ -270,9 +271,8 @@ export default function recordingTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'transcribe_video',
-    label: 'Transcribe video',
+  commands.push({
+    verb: 'transcribe-video',
     description:
       "Transcribe the video's narration with whisper.cpp on the host: extracts the audio, " +
       'saves the full transcript with word timestamps to recording/transcript.json, and returns ' +
@@ -315,9 +315,8 @@ export default function recordingTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'detect_key_moments',
-    label: 'Detect key moments',
+  commands.push({
+    verb: 'detect-key-moments',
     description:
       'Find visual key moments — hard scene cuts — via ffmpeg scene detection. These are ' +
       'the VISUAL prior: moments where something changed on screen, independent of the ' +
@@ -389,14 +388,13 @@ export default function recordingTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'grab_frames',
-    label: 'Grab frames',
+  commands.push({
+    verb: 'grab-frames',
     description:
       'Extract frames around a timestamp (default: one before, one at, one after — a ' +
       'click is a temporal event, so a single frame cannot show it). Returns the frame ' +
       'file paths. Use pitch recording inspect-frames instead when you want Gemini to analyse them; ' +
-      'this tool is for grabbing frames without a vision call.',
+      'this command is for grabbing frames without a vision call.',
     parameters: Type.Object({
       videoPath: Type.String({ description: 'Path to the uploaded video file.' }),
       timeSec: Type.Number({ description: 'Centre timestamp, in video seconds.' }),
@@ -427,9 +425,8 @@ export default function recordingTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'inspect_frames',
-    label: 'Inspect frames',
+  commands.push({
+    verb: 'inspect-frames',
     description:
       'Verify a candidate action window with Gemini vision: samples frames across it, attaches the matching transcript excerpt, and returns { actionFound, actionTimeSec, eventType, bbox, confidence, label } — where on screen the action or its result happens (not the cursor) and when. bbox is full-frame 1920×1080 pixels, ready for pitch recording record-zoom-in. If actionFound is false, skip or widen once.',
     parameters: Type.Object({
@@ -583,14 +580,14 @@ export default function recordingTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'record_zoom_in',
-    label: 'Record zoom in',
+  commands.push({
+    verb: 'record-zoom-in',
     description:
       'Record a camera zoom-in at a verified action. Pass the bbox from pitch recording inspect-frames (the zoom auto-fits, 1.3–2.2, clamped to the frame) or explicit x/y with an optional zoom. Once per verified action.',
     parameters: Type.Object({
       videoTimeSec: Type.Number({
-        description: 'When the zoom lands, in video seconds — use pitch recording inspect-frames actionTimeSec.',
+        description:
+          'When the zoom lands, in video seconds — use pitch recording inspect-frames actionTimeSec.',
       }),
       bbox: Type.Optional(
         Type.Object(
@@ -600,7 +597,10 @@ export default function recordingTools(pi: ExtensionAPI) {
             w: Type.Number(),
             h: Type.Number(),
           },
-          { description: 'Element bounding box from pitch recording inspect-frames (full-frame pixels).' },
+          {
+            description:
+              'Element bounding box from pitch recording inspect-frames (full-frame pixels).',
+          },
         ),
       ),
       x: Type.Optional(
@@ -672,9 +672,8 @@ export default function recordingTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'record_zoom_out',
-    label: 'Record zoom out',
+  commands.push({
+    verb: 'record-zoom-out',
     description:
       'Record a camera zoom-out back to the full view. Call when the recording moves to a ' +
       'new page/section, or when a highlight is done — never leave the camera parked on a ' +
@@ -701,9 +700,8 @@ export default function recordingTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'record_click',
-    label: 'Record click',
+  commands.push({
+    verb: 'record-click',
     description:
       'Record a click at a verified action point (drives the cursor overlay and click emphasis). Only when pitch recording inspect-frames confirmed a click or fill with decent confidence.',
     parameters: Type.Object({
@@ -738,4 +736,5 @@ export default function recordingTools(pi: ExtensionAPI) {
       })
     },
   })
+  return commands
 }

@@ -25,7 +25,7 @@ import { type ManagerBrowserHandle, startManagerBrowser } from './utils/manager-
 
 const moduleLogger = createLogger('studio:render:recording')
 
-/** playwright-cli session names: what demo-tools.ts accepts in PLAYWRIGHT_CLI_SESSION. */
+/** playwright-cli session names: what .pi/cli/demo.ts accepts in PLAYWRIGHT_CLI_SESSION. */
 const SESSION_NAME_RE = /^[a-zA-Z0-9_-]+$/
 
 export interface StartRecordingInput {

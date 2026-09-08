@@ -28,7 +28,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { EFFECTS_DIR } from '../lib/paths.ts'
-import type { Command } from './registry.ts'
+import type { CommandSpec } from './registry.ts'
 
 export interface Effect {
   /** `family/slug`, e.g. `text/bold-text-snap`. */
@@ -83,12 +83,29 @@ function familyDirs(): string[] {
 }
 
 /**
- * A number that changes when an effect is added, removed or re-saved: the
- * lab root's mtime plus every family's. A new slug directory bumps its
- * family; a new family bumps the root. Thirty-one stats, once per call.
+ * A number that changes when an effect is added, removed or edited. A new
+ * family bumps the lab root; a new slug bumps its family; but editing an
+ * effect's meta.json or page bumps neither, so those two files are stat'd
+ * too. About a thousand stats, a few milliseconds, once per call — and the
+ * alternative was a note telling people to restart the API after editing a
+ * note.
  */
 function signature(): number {
-  return familyDirs().reduce((sum, f) => sum + mtime(join(EFFECTS_DIR, f)), mtime(EFFECTS_DIR))
+  let sig = mtime(EFFECTS_DIR)
+  for (const family of familyDirs()) {
+    const famDir = join(EFFECTS_DIR, family)
+    sig += mtime(famDir)
+    let slugs: string[] = []
+    try {
+      slugs = readdirSync(famDir)
+    } catch {
+      continue
+    }
+    for (const slug of slugs) {
+      sig += mtime(join(famDir, slug, 'meta.json')) + mtime(join(famDir, slug, 'index.html'))
+    }
+  }
+  return sig
 }
 
 let cached: { sig: number; effects: Effect[] } | null = null
@@ -274,13 +291,8 @@ function filtered(p: Record<string, any>): Effect[] {
   return effects
 }
 
-/**
- * The lab's commands. Unlike the rest of the tree these wrap nothing — there
- * is no `motion_effects` behind them any more — so their `origin` is null and
- * their descriptions are help text a reader asks for, not schema shipped on
- * every request.
- */
-export function effectsCommands(): Command[] {
+/** The lab's commands. Their descriptions are help text a reader asks for, not schema shipped on every request. */
+export default function effectsCommands(): CommandSpec[] {
   const parameters = {
     type: 'object',
     properties: {
@@ -301,9 +313,7 @@ export function effectsCommands(): Command[] {
 
   return [
     {
-      namespace: 'effects',
       verb: 'list',
-      origin: null,
       description:
         'Every effect in the lab, one line each: id, length, libraries and the move it makes. ' +
         'The whole shelf is a few thousand tokens and you only read it once — prefer it to ' +
@@ -328,9 +338,7 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      namespace: 'effects',
       verb: 'search',
-      origin: null,
       description:
         'Effects matching words, best first. Describe the MOVE a beat needs — "a card flipping ' +
         'to reveal a price", "lines colliding then snapping out" — not a template name. ' +
@@ -361,9 +369,7 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      namespace: 'effects',
       verb: 'show',
-      origin: null,
       description:
         'One effect whole: its notes, how it is built, how to adapt it, its full source and the ' +
         'path to its frame strip. Look at the strip before you port it.',
@@ -395,9 +401,7 @@ export function effectsCommands(): Command[] {
       },
     },
     {
-      namespace: 'effects',
       verb: 'families',
-      origin: null,
       description: 'The families and how many effects are in each.',
       parameters: { type: 'object', properties: {} },
       async execute() {

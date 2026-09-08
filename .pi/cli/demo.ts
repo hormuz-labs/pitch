@@ -1,5 +1,5 @@
 /**
- * demo-generator tools — pi extension
+ * demo-generator — `pitch demo` commands
  *
  * Toolset for the product-demo agent (.pi/agents/demo-video). The agent
  * drives an ALREADY-OPEN browser (pitch demo record-start attaches playwright-cli and
@@ -28,7 +28,6 @@
  * has no built-in read tool either, which is why pitch demo read-file exists.
  */
 
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { Type } from '@sinclair/typebox'
 import fs from 'fs'
 import path from 'path'
@@ -85,6 +84,7 @@ import {
   type SlideAnalysis,
   type ViewportRect,
 } from '../lib/visual-grounding.ts'
+import type { CommandSpec } from './registry.ts'
 
 // Page-evaluated function that smoothly scrolls a target element to the vertical
 // center of its scroll container (or the window), animating with requestAnimationFrame
@@ -514,7 +514,7 @@ async function speak(base: string, text: string, state: DemoState): Promise<Spea
 }
 
 // ── pi tool plumbing ───────────────────────────────────────────────────────
-/** Wrap a tool's string output in pi's AgentToolResult shape. */
+/** Wrap a command's string output in the result shape the CLI reads. */
 function toolResult(out: unknown) {
   const value = typeof out === 'string' ? out : JSON.stringify(out)
   return { content: [{ type: 'text' as const, text: value }], details: {} }
@@ -523,10 +523,10 @@ function toolResult(out: unknown) {
 const AnnotationStyleSchema = Type.Union(ANNOTATION_STYLES.map(style => Type.Literal(style)))
 
 // ── tools ──────────────────────────────────────────────────────────────────
-export default function demoTools(pi: ExtensionAPI) {
-  pi.registerTool({
-    name: 'demo_bash',
-    label: 'Demo bash',
+export default function demoCommands(): CommandSpec[] {
+  const commands: CommandSpec[] = []
+  commands.push({
+    verb: 'bash',
     description:
       'Execute a bash command (e.g. playwright-cli commands). In prepared-asset slideshows, forward navigation is allowed exactly one page at a time and only after the current page has narration.',
     parameters: Type.Object({
@@ -746,9 +746,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_narrate',
-    label: 'Demo narrate',
+  commands.push({
+    verb: 'narrate',
     description:
       'Speak one line of narration. Pass `focus` (an element ref) when the line is about a specific element: the page scrolls it to centre before speech. On a PDF/image slide pass `emphasis` (a rectangle from pitch demo analyze-slide or pitch demo ground-region) so the zoom and callout begin with the voice.',
     parameters: Type.Object({
@@ -859,9 +858,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_fill_field',
-    label: 'Demo fill field',
+  commands.push({
+    verb: 'fill-field',
     description:
       'Type text into a form field with visible character-by-character typing. ALWAYS ' +
       "use this for text inputs (never pitch demo bash 'playwright-cli fill') so the viewer " +
@@ -927,9 +925,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_zoom_in',
-    label: 'Demo zoom in',
+  commands.push({
+    verb: 'zoom-in',
     description:
       'Move the camera onto an element (ref from the snapshot). While already zoomed, calling it on a nearby element pans smoothly — do not zoom out between adjacent fields.',
     parameters: Type.Object({
@@ -1021,9 +1018,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_zoom_out',
-    label: 'Demo zoom out',
+  commands.push({
+    verb: 'zoom-out',
     description: 'Zoom the camera back out to the full view.',
     parameters: Type.Object({}),
     async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
@@ -1038,9 +1034,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_list_assets',
-    label: 'Demo list assets',
+  commands.push({
+    verb: 'list-assets',
     description:
       'List the PDFs/images prepared for this video, including rendered PDF page paths, extracted text, and OCR hotspot regions.',
     parameters: Type.Object({}),
@@ -1058,9 +1053,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_build_slideshow',
-    label: 'Demo build slideshow',
+  commands.push({
+    verb: 'build-slideshow',
     description:
       'Build a full-screen explanatory slideshow from every prepared PDF page/image in manifest order. OCR regions become labelled hotspot refs for precise fallback emphasis.',
     parameters: Type.Object({
@@ -1120,9 +1114,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_clear_annotations',
-    label: 'Demo clear annotations',
+  commands.push({
+    verb: 'clear-annotations',
     description: 'Remove all explanatory callouts before advancing or highlighting another point.',
     parameters: Type.Object({}),
     async execute(_id, _args: any, _signal, _onUpdate, ctx: any) {
@@ -1146,9 +1139,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_analyze_slide',
-    label: 'Demo analyze slide',
+  commands.push({
+    verb: 'analyze-slide',
     description:
       'Use Gemini to understand the actual rendered pixels on the current PDF/image slide. Returns a factual page summary and confidence-gated narration points with viewport rectangles, even when PDF text and OCR are empty. Call once on every slide before narration; results are cached by slide index.',
     parameters: Type.Object({
@@ -1237,9 +1229,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_ground_region',
-    label: 'Demo ground region',
+  commands.push({
+    verb: 'ground-region',
     description:
       'Gemini grounding on the current 1920×1080 slide pixels: a confidence-gated viewport rect for a described target, even with no text layer. Use after pitch demo analyze-slide to correct a box or find another target; a found rect is staged for the next narration.',
     parameters: Type.Object({
@@ -1329,9 +1320,8 @@ export default function demoTools(pi: ExtensionAPI) {
     },
   })
 
-  pi.registerTool({
-    name: 'demo_read_file',
-    label: 'Demo read file',
+  commands.push({
+    verb: 'read-file',
     description: 'Read a file from the filesystem',
     parameters: Type.Object({
       path: Type.String({ description: 'The path to the file' }),
@@ -1341,4 +1331,5 @@ export default function demoTools(pi: ExtensionAPI) {
       return toolResult(content)
     },
   })
+  return commands
 }

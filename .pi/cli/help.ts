@@ -37,8 +37,8 @@ export function summarize(description: string, max = 96): string {
 
 /** Level 1: the namespaces. */
 export async function topHelp(): Promise<string> {
-  const all = await commands()
-  const lines = (await namespaces()).map(ns => {
+  const all = commands()
+  const lines = namespaces().map(ns => {
     const n = all.filter(c => c.namespace === ns).length
     return `  ${ns.padEnd(10)} ${BLURBS[ns] ?? ''} (${n})`
   })
@@ -59,10 +59,10 @@ export async function topHelp(): Promise<string> {
 
 /** Level 2: one namespace. */
 export async function namespaceHelp(ns: string): Promise<string> {
-  const all = await commands()
+  const all = commands()
   const mine = all.filter(c => c.namespace === ns)
   if (!mine.length) {
-    const known = (await namespaces()).join(', ')
+    const known = namespaces().join(', ')
     return `No namespace "${ns}". There is: ${known}`
   }
   const width = Math.max(...mine.map(c => c.verb.length))
@@ -94,7 +94,7 @@ function optionLine(name: string, spec: any, required: boolean): string {
 
 /** Level 3: one command. */
 export async function commandHelp(ns: string, verb: string): Promise<string> {
-  const cmd = await findCommand(ns, verb)
+  const cmd = findCommand(ns, verb)
   if (!cmd) return namespaceHelp(ns)
   const schema = cmd.parameters ?? {}
   const props: Record<string, any> = schema.properties ?? {}
