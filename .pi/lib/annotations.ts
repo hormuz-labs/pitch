@@ -2,7 +2,7 @@
  * annotations.ts
  *
  * Pure builders for on-screen annotations (circle / box / highlighter /
- * underline / arrow / spotlight). `demo_narrate.emphasis` runs the JS returned
+ * underline / arrow / spotlight). `pitch demo narrate.emphasis` runs the JS returned
  * by `buildAnnotateEvalJs` inside the page via `playwright-cli eval`; it reads
  * the target element's live bounding rect (or an explicit rect) and appends an
  * animated overlay into a fixed `#annotations` layer, so the annotation is

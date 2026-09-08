@@ -1,12 +1,11 @@
 ---
 name: generated-video
-tools: motion
-description: Generate footage that does not exist — establishing shots, textures, metaphors, abstract transitions, B-roll — with video_generate (Gemini Omni). Read this before generating anything; it says when generated footage is right, when it is wrong, how to write the prompt, and how to get a clip into a film without paying twice.
+description: Generate footage that does not exist — establishing shots, textures, metaphors, abstract transitions, B-roll — with pitch video generate (Gemini Omni). Read this before generating anything; it says when generated footage is right, when it is wrong, how to write the prompt, and how to get a clip into a film without paying twice.
 ---
 
 # Generated video
 
-`video_generate` invents a clip nobody filmed: ~10 seconds, 16:9 or 9:16,
+`pitch video generate` invents a clip nobody filmed: ~10 seconds, 16:9 or 9:16,
 360p to 4k, **with its own audio**, ~30s to generate at 360p, billed to the
 user whether or not you keep it. Everything else in the studio renders
 something that exists.
@@ -22,8 +21,8 @@ out"), an abstract transition, B-roll the user cannot film.
 **Never generate the product.** The model invents plausible UI — buttons that
 do not exist, copy nobody wrote, a nearly-right logo — and a film showing
 fictional software is worse than none. The product's UI, pages and dashboards
-come from `motion_*` or a real recording; its logo from `motion_recon` and its
-screens from `motion_screenshot`; charts and numbers from the deck builder with figures you
+come from `motion_*` or a real recording; its logo from `pitch motion recon` and its
+screens from `pitch motion screenshot`; charts and numbers from the deck builder with figures you
 can source; anything uploaded from the upload. Never generate a person who is
 meant to be real. If your prompt describes a screen, stop.
 
@@ -44,7 +43,7 @@ generated lettering is usually misspelled; add titles afterwards.
 
 ## Cost discipline
 
-Draft at 360p. Look at it (`media_probe`; pull a still with `media_ffmpeg`
+Draft at 360p. Look at it (`pitch media probe`; pull a still with `pitch media ffmpeg`
 if needed). Refine with `continues` — pass the clip path and make the prompt
 the *change* ("same shot, slower push, colder light"). Only then re-generate
 at 1080p. One clip, look, refine — never three variations to pick from.
@@ -52,13 +51,17 @@ at 1080p. One clip, look, refine — never three variations to pick from.
 ## Into the film
 
 The clip is an ordinary MP4 in `renders/` and the media tools own it from
-there. Its audio will fight your mix: strip it with `media_ffmpeg({ args:
-['-i','renders/gen-01.mp4','-an','-c:v','copy','renders/gen-01-mute.mp4'],
-out: 'renders/gen-01-mute.mp4' })` unless the ambience *is* the sound design.
+there. Its audio will fight your mix: strip it with
+
+```
+pitch media ffmpeg --args '["-i","renders/gen-01.mp4","-an","-c:v","copy","renders/gen-01-mute.mp4"]' --out renders/gen-01-mute.mp4
+```
+
+unless the ambience *is* the sound design.
 Trim to the beat you need; match frame rate to the rest of the timeline (a
 filter, not a concat). In a launch film a generated clip is a source for a
 shot, not something concatenated onto the render — see `launch-video`.
-`media_publish` only when the finished thing is the deliverable.
+`pitch media publish` only when the finished thing is the deliverable.
 
 Say once, plainly, which shot is generated: "the opening establishing shot
 is generated; everything from 0:08 is your real product".

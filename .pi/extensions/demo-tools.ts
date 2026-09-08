@@ -2,7 +2,7 @@
  * demo-generator tools — pi extension
  *
  * Toolset for the product-demo agent (.pi/agents/demo-video). The agent
- * drives an ALREADY-OPEN browser (demo_record_start attaches playwright-cli and
+ * drives an ALREADY-OPEN browser (pitch demo record-start attaches playwright-cli and
  * starts the recording) and narrates with Gemini TTS, while these tools emit
  * the zoom/click/audio events into recording/demo-state.json that the render
  * pipeline (cursor-fx, zoom-filter, smart_trim, intro/outro) consumes unchanged.
@@ -16,16 +16,16 @@
  *
  * Several projects record at once in ONE studio process, so every
  * playwright-cli call is scoped to the session named after the workspace
- * (`-s=<basename(cwd)>`), matching the session demo_record_start attached.
+ * (`-s=<basename(cwd)>`), matching the session pitch demo record-start attached.
  *
- * Handoff contract — demo_record_start writes recording/demo-config.json
+ * Handoff contract — pitch demo record-start writes recording/demo-config.json
  * BEFORE the agent drives the page: { startTime, voiceName, assetsManifestPath?,
  * storyboard? }. startTime anchors every event timestamp (wall-clock ms → video
  * seconds); voiceName selects the TTS voice; an approved storyboard supplies
  * persistent slide overlays.
  *
  * Skills are handled by pi natively, so there is no load_skill here. The agent
- * has no built-in read tool either, which is why demo_read_file exists.
+ * has no built-in read tool either, which is why pitch demo read-file exists.
  */
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
@@ -282,7 +282,7 @@ function shellDoubleQuoteEscape(value: string): string {
 // demo.webm, snapshots, and traces are written where the render expects them,
 // not from the studio process cwd — and they must be scoped to THIS project's
 // playwright-cli session (named after the workspace directory, the name
-// demo_record_start attached with) so concurrent projects never share a browser.
+// pitch demo record-start attached with) so concurrent projects never share a browser.
 const run = (base: string, command: string) => {
   const session = path.basename(base)
   const scopedCommand =
@@ -378,7 +378,7 @@ async function resolveViewportRect(
 
 /**
  * Start the camera move and draw the callout immediately before the matching
- * narration clip is timestamped. Keeping this inside demo_narrate makes the
+ * narration clip is timestamped. Keeping this inside pitch demo narrate makes the
  * visual and spoken statistic one atomic beat instead of sequential agent calls.
  */
 async function applyNarrationEmphasis(
@@ -431,7 +431,7 @@ async function applyNarrationEmphasis(
 // Playwright awaits the promise returned by eval, so by the time this resolves the
 // animation has finished and a follow-up snapshot reads the element's settled box.
 // Self-skips (returns false) when the element is already comfortably in view, so it's
-// safe to call unconditionally — e.g. right after a demo_zoom_in already scrolled it in.
+// safe to call unconditionally — e.g. right after a pitch demo zoom-in already scrolled it in.
 async function smoothScrollIntoView(base: string, ref: string): Promise<boolean> {
   try {
     const arg = `"${SMOOTH_SCROLL_JS.replace(/(["\\$`])/g, '\\$1')}"`
@@ -558,7 +558,7 @@ export default function demoTools(pi: ExtensionAPI) {
             )
           }
           // The camera must reset before each page change. Agents sometimes forget
-          // to call demo_zoom_out() before pressing ArrowRight, which leaves the
+          // to call pitch demo zoom-out before pressing ArrowRight, which leaves the
           // video stuck zoomed in on the previous slide's highlight for the rest of
           // the demo. Inject the missing zoom-out deterministically.
           state.zoomEvents = appendAutoZoomOut(state.zoomEvents, nowSec, videoTimeSec => ({
@@ -566,7 +566,7 @@ export default function demoTools(pi: ExtensionAPI) {
             videoTimeSec,
           }))
           // Also clear any lingering callouts so old annotations do not persist
-          // across the page transition if the agent skipped demo_clear_annotations().
+          // across the page transition if the agent skipped pitch demo clear-annotations.
           try {
             await run(
               base,
@@ -750,7 +750,7 @@ export default function demoTools(pi: ExtensionAPI) {
     name: 'demo_narrate',
     label: 'Demo narrate',
     description:
-      'Speak one line of narration. Pass `focus` (an element ref) when the line is about a specific element: the page scrolls it to centre before speech. On a PDF/image slide pass `emphasis` (a rectangle from demo_analyze_slide or demo_ground_region) so the zoom and callout begin with the voice.',
+      'Speak one line of narration. Pass `focus` (an element ref) when the line is about a specific element: the page scrolls it to centre before speech. On a PDF/image slide pass `emphasis` (a rectangle from pitch demo analyze-slide or pitch demo ground-region) so the zoom and callout begin with the voice.',
     parameters: Type.Object({
       text: Type.String({ description: 'The text to be spoken' }),
       focus: Type.Optional(
@@ -803,7 +803,7 @@ export default function demoTools(pi: ExtensionAPI) {
               JSON.stringify({
                 status: 'slide_analysis_required',
                 error: error instanceof Error ? error.message : String(error),
-                next: 'Call demo_analyze_slide, then narrate its summary or a returned point.',
+                next: 'Call pitch demo analyze-slide, then narrate its summary or a returned point.',
               }),
             )
           }
@@ -853,7 +853,7 @@ export default function demoTools(pi: ExtensionAPI) {
           )
         }
         return toolResult(
-          `TTS FAILED — audio was NOT recorded. Error: ${result.error}. Continue without narration for this clip; retry demo_narrate on the next step.`,
+          `TTS FAILED — audio was NOT recorded. Error: ${result.error}. Continue without narration for this clip; retry pitch demo narrate on the next step.`,
         )
       })
     },
@@ -864,7 +864,7 @@ export default function demoTools(pi: ExtensionAPI) {
     label: 'Demo fill field',
     description:
       'Type text into a form field with visible character-by-character typing. ALWAYS ' +
-      "use this for text inputs (never demo_bash 'playwright-cli fill') so the viewer " +
+      "use this for text inputs (never pitch demo bash 'playwright-cli fill') so the viewer " +
       'sees each value being entered. Zoom in on the field/form first so it is in view.',
     parameters: Type.Object({
       target: Type.String({
@@ -1107,7 +1107,7 @@ export default function demoTools(pi: ExtensionAPI) {
             regionCount: slides.reduce((count, slide) => count + (slide.regions?.length ?? 0), 0),
             overlayCount: slides.reduce((count, slide) => count + (slide.overlays?.length ?? 0), 0),
             transition: reviewedStoryboard?.transition ?? args.transition ?? 'fade',
-            next: `Open ${url}, then call demo_analyze_slide on the current rendered page before narration.`,
+            next: `Open ${url}, then call pitch demo analyze-slide on the current rendered page before narration.`,
           }),
         )
       } catch (error) {
@@ -1220,7 +1220,7 @@ export default function demoTools(pi: ExtensionAPI) {
               analysis,
               next:
                 analysis.narrationPoints.length > 0
-                  ? 'Narrate a returned point with its rect as viewport emphasis; use demo_ground_region only to retry or locate another target.'
+                  ? 'Narrate a returned point with its rect as viewport emphasis; use pitch demo ground-region only to retry or locate another target.'
                   : 'Narrate only the cautious page summary without a guessed highlight.',
             }),
           )
@@ -1241,7 +1241,7 @@ export default function demoTools(pi: ExtensionAPI) {
     name: 'demo_ground_region',
     label: 'Demo ground region',
     description:
-      'Gemini grounding on the current 1920×1080 slide pixels: a confidence-gated viewport rect for a described target, even with no text layer. Use after demo_analyze_slide to correct a box or find another target; a found rect is staged for the next narration.',
+      'Gemini grounding on the current 1920×1080 slide pixels: a confidence-gated viewport rect for a described target, even with no text layer. Use after pitch demo analyze-slide to correct a box or find another target; a found rect is staged for the next narration.',
     parameters: Type.Object({
       query: Type.String({
         description: 'A precise visual target, e.g. "the blue revenue bar for Q4".',

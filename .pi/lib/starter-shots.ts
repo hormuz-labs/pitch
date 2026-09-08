@@ -1,7 +1,7 @@
 /**
  * The first shots.js.
  *
- * motion_scaffold used to write index.html and say "Next: write shots.js",
+ * pitch motion scaffold used to write index.html and say "Next: write shots.js",
  * and the agent's next nine turns went on the file's shape: it read
  * index.html, searched outside the workspace for an example, pulled a schema
  * section and wrote the file three times before the check accepted
@@ -114,12 +114,12 @@ export function starterShots(tokens: ReconTokens | null): string {
   const ink = c.ink ?? '#111111'
   const accent = c.accent ?? '#2563EB'
   const note = measured
-    ? 'measured by motion_recon (recon/brand-tokens.md has the evidence)'
-    : 'PLACEHOLDERS — run motion_recon and put the measured values here'
+    ? 'measured by pitch motion recon (recon/brand-tokens.md has the evidence)'
+    : 'PLACEHOLDERS — run pitch motion recon and put the measured values here'
   const fonts = fontEntries(tokens?.fonts)
   const lines = [
     '// shots.js — the film, as one data literal the engine compiles.',
-    '// Fields: motion_schema({ types: [...] }) and motion_schema({ section: "..." }).',
+    '// Fields: pitch motion schema --types <type> and pitch motion schema --section <name>.',
     'window.SHOTS = {',
     `  brand: {                          // ${note}`,
     `    bg: ${quote(bg)},`,
@@ -134,8 +134,8 @@ export function starterShots(tokens: ReconTokens | null): string {
         ]
       : []),
     '  },',
-    '  // audio: { vo: "audio/vo.wav" },    // after motion_tts + motion_align',
-    '  ambient: { kind: "none" },          // the stage: motion_schema({ section: "density layer" })',
+    '  // audio: { vo: "audio/vo.wav" },    // after pitch motion tts + motion_align',
+    '  ambient: { kind: "none" },          // the stage: pitch motion schema --section "density layer"',
     '  motion: { exit: "up", cutDur: 0.5 },',
     '  shots: [',
     ...openingShot(tokens),

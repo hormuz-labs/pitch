@@ -1,7 +1,6 @@
 ---
 name: slide-deck
-tools: deck
-description: Make and maintain a 1280×720 slide deck — generate one from a topic (optionally inside a named template), enhance an uploaded PDF/PPTX (recreate or preserve), or edit the finished deck by chat. The deck is deck.html in the workspace, built from build/deck-config.js by pdf_build, previewed live and published with deck_publish. Read this before any deck work.
+description: Make and maintain a 1280×720 slide deck — generate one from a topic (optionally inside a named template), enhance an uploaded PDF/PPTX (recreate or preserve), or edit the finished deck by chat. The deck is deck.html in the workspace, built from build/deck-config.js by pitch pdf build, previewed live and published with pitch deck publish. Read this before any deck work.
 ---
 
 # Slide decks
@@ -9,7 +8,7 @@ description: Make and maintain a 1280×720 slide deck — generate one from a to
 You make ONE presentation: **`deck.html`** — a single HTML document, one
 `.slide` element per **1280×720** page, styles inline, images embedded as
 base64. The studio previews it live and reloads on every change;
-`deck_publish` turns it into the downloadable PDF + HTML. The user wants
+`pitch deck publish` turns it into the downloadable PDF + HTML. The user wants
 results: make every content and design decision yourself, narrate the
 important ones in a line, and stop only if a hard requirement is missing.
 
@@ -37,7 +36,7 @@ existing deck (the user points at slides and elements).
   `output.pdf` — the last build.
 - `build/parsed-slides.json` (+ `build/input-images/`) — an enhance job's
   parsed upload, produced before your first turn; `input/` — the upload.
-- `renders/slide-NN.jpg` — pages rendered by `deck_render`.
+- `renders/slide-NN.jpg` — pages rendered by `pitch deck render`.
 - In this skill directory: `design-library.md` (50 measured brand palettes)
   and `templates/<name>/spec_lock.md` + `skill.md` for each template.
 
@@ -47,13 +46,13 @@ browser with the network, so the builder's CDN `<script>` tags (Chart.js)
 load fine. Never conclude a chart cannot work because *you* cannot reach the
 CDN, and never rewrite the builder to avoid it. Image paths in the CONFIG
 are relative to `build/`: `getBase64Image('images/<slug>/pinterest_01.jpg')`.
-Only reference files `pdf_scrape_images` or `ls build/images/<slug>` showed
+Only reference files `pitch pdf scrape-images` or `ls build/images/<slug>` showed
 you; never invent a filename or a remote URL.
 
 ## Generate and enhance
 
 1. **Read what you need.** Enhance: `build/parsed-slides.json` first (re-parse
-   only with `pdf_parse`, only if it is missing or the mode changed). Template:
+   only with `pitch pdf parse`, only if it is missing or the mode changed). Template:
    `templates/<dir>/spec_lock.md` and `skill.md` (`BRUTALIST_NEWSPAPER` →
    `brutalist-newspaper`, `MINIMAL_CORPORATE`, `DARK_TECH`, `COMIC_POP`,
    `TECH_DUEL`, `STARTUP_AMPLIFY` likewise); the spec lock overrides
@@ -75,12 +74,12 @@ you; never invent a filename or a remote URL.
    know and cite where they come from; a chart with three true numbers beats
    a full one with invented ones. Placeholder data (`10%`, `Value A`) is
    forbidden. Every chart and stat cites a `source`.
-4. `pdf_scaffold({ template? })` — once. It writes `build/deck-config.js`
+4. `pitch pdf scaffold [--template <name>]` — once. It writes `build/deck-config.js`
    (jobId and template pre-filled) and the builder.
 5. **Images.** For each slide that needs one, write a 15–30 word rich prompt
    and derive a 3–5 word concrete query (scenes, objects, places — "smog
-   over delhi skyline", never "pollution impact"); `pdf_scrape_images({
-   keywords, richPrompts })`. Templates whose `image_source` is `gemini-only`
+   over delhi skyline", never "pollution impact"); `pitch pdf scrape-images
+   --keywords <list> --rich-prompts <json>`. Templates whose `image_source` is `gemini-only`
    take `engineOrder: "gemini,pinterest"`. Cover images must be 16:9. Preserve
    mode: `ls build/input-images`, map files to slides via `extractedImages`
    in the parsed JSON, skip files under 5KB and `.emf`/`.wmf`, and scrape only
@@ -91,17 +90,17 @@ you; never invent a filename or a remote URL.
    charts, `secondary` for body copy, `accent` for headings, `fontDisplay`,
    `fontBody`; contrast ≥ 4.5:1; no stark `#FFFFFF`/`#000000` backgrounds
    unless the brand's own), then the slides. No placeholder text anywhere.
-7. `pdf_build`. A DOM-QA failure (text overflow, missing image, layout
+7. `pitch pdf build`. A DOM-QA failure (text overflow, missing image, layout
    break) aborts and lists the defects: fix the config, build again.
 8. **Visual QA — never skipped.** `read` EVERY `build/qa-renders/slide_N.jpg`
    and look: overflow, collision, empty slide, missing image, white text on a
    light image (raise the overlay), template placeholder, token drift (with a
    template, re-read `spec_lock.md` before each fix round). Patch the config,
-   `pdf_build`, re-read, until every slide is clean.
-9. `deck_publish({ summary })` once, then a short reply: slide count,
+   `pitch pdf build`, re-read, until every slide is clean.
+9. `pitch deck publish --summary "<what changed>"` once, then a short reply: slide count,
    template or mode, QA rounds.
 
-`pdf_build` writes `deck.html` from the config, so during generation the
+`pitch pdf build` writes `deck.html` from the config, so during generation the
 config is where changes go. After the deck exists, `deck.html` is the truth:
 rebuilding from the config throws away hand edits — say so if you must.
 
@@ -142,15 +141,15 @@ clicked elements, a legend — `[1] <h1> in slide 3 · text "…" · selector: �
    slide byte-identical. Match the deck's existing classes, fonts and palette;
    restyle only when asked.
 2. **Edit `deck.html` directly** for wording, layout and styling. Use the
-   config + `pdf_build` only for a rebuild the user explicitly wants (a new
+   config + `pitch pdf build` only for a rebuild the user explicitly wants (a new
    template, many slides regenerated) — and say so, because it replaces the
    whole deck.
 3. Every slide stays a self-contained 1280×720 page: no overflow, nothing
    escaping the box, no placeholder text.
-4. Images keep their `src`; a new one is fetched with `pdf_scrape_images` and
+4. Images keep their `src`; a new one is fetched with `pitch pdf scrape-images` and
    embedded as base64 (node can encode one in a line). Remove an image cleanly.
-5. **Look before you publish**: `deck_render({ slides: [3] })`, `read`
+5. **Look before you publish**: `pitch deck render --slides 3`, `read`
    `renders/slide-03.jpg`, fix what the tool flags or you see.
-6. `deck_publish` once per turn with a one-line summary; never a broken or
+6. `pitch deck publish` once per turn with a one-line summary; never a broken or
    half-finished deck. If the request is ambiguous, take the most sensible
    reading, do it, and say what you assumed.

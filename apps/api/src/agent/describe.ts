@@ -147,7 +147,7 @@ async function candidates(
  * Rendering a launch film writes renders/launch-720p.mp4, which is then the
  * newest file in the workspace — so the preview flipped from the shots.js
  * editor to a plain video player the moment the user pressed Export, and the
- * film could no longer be edited. The same for a deck: deck_publish renders a
+ * film could no longer be edited. The same for a deck: pitch deck publish renders a
  * fresh build/output.pdf, newer than deck.html. Those files are OUTPUTS of the
  * artifact (the launch describer lists them; deckDescription lists the PDF),
  * not artifacts of their own, so while the source exists they are dropped

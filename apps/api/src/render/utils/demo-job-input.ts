@@ -25,7 +25,7 @@ export function buildDemoJobInput(options: DemoJobInputOptions): DemoJobInput {
     const analysisScope =
       options.storyboard?.status === 'approved' ? 'every displayed page' : 'every page'
     sections.push(
-      `This job has ${options.assetCount} prepared asset(s). Start with demo_list_assets and build the asset slideshow before using any optional URL. ${pageSelectionInstruction} Call demo_analyze_slide on ${analysisScope} before narrating it so Gemini understands the rendered slide pixels even when extracted text and OCR are empty. Use its narration points and viewport boxes first; PDF text and OCR rectangles are supplementary fallback inputs. Use demo_ground_region only to retry a box or locate another target.`,
+      `This job has ${options.assetCount} prepared asset(s). Start with pitch demo list-assets and build the asset slideshow before using any optional URL. ${pageSelectionInstruction} Call pitch demo analyze-slide on ${analysisScope} before narrating it so Gemini understands the rendered slide pixels even when extracted text and OCR are empty. Use its narration points and viewport boxes first; PDF text and OCR rectangles are supplementary fallback inputs. Use pitch demo ground-region only to retry a box or locate another target.`,
     )
   }
   const url = options.url?.trim()
@@ -48,7 +48,7 @@ export function buildDemoJobInput(options: DemoJobInputOptions): DemoJobInput {
       }))
     const renderContract = { slideshowTransition: options.storyboard.transition, scenes }
     sections.push(
-      `APPROVED STORYBOARD REVISION ${revision} (exact render contract):\n${JSON.stringify(renderContract)}\n\nDo not rewrite, rephrase, omit, or add narration. On each page, call demo_analyze_slide only to satisfy rendered-page validation, then narrate the approved text exactly and use the approved emphasis rectangles, coordinate spaces, and styles. Camera framing is automatic from each emphasis bounding box. Persistent overlays are already applied by the slideshow and must remain visible for their complete scene.`,
+      `APPROVED STORYBOARD REVISION ${revision} (exact render contract):\n${JSON.stringify(renderContract)}\n\nDo not rewrite, rephrase, omit, or add narration. On each page, call pitch demo analyze-slide only to satisfy rendered-page validation, then narrate the approved text exactly and use the approved emphasis rectangles, coordinate spaces, and styles. Camera framing is automatic from each emphasis bounding box. Persistent overlays are already applied by the slideshow and must remain visible for their complete scene.`,
     )
   }
   return {

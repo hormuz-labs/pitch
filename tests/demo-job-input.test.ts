@@ -16,7 +16,7 @@ describe('buildDemoJobInput', () => {
     expect(input.prompt).toContain('Display every prepared page in manifest order at least once')
     expect(input.prompt).toContain('Never jump over pages')
     expect(input.prompt).toContain('Shorten narration instead of skipping a page')
-    expect(input.prompt).toContain('demo_analyze_slide')
+    expect(input.prompt).toContain('pitch demo analyze-slide')
     expect(input.prompt).toMatch(/every page.*before narrat/i)
     expect(input.prompt).toMatch(/Gemini.*rendered slide pixels/i)
     expect(input.prompt).toMatch(/OCR.*fallback/i)

@@ -5,14 +5,14 @@
  * or both. They wrap the executable steps of the slide-deck
  * pipeline:
  *
- *   pdf_parse          parse an uploaded PDF/PPTX into build/parsed-slides.json
+ *   pitch pdf parse          parse an uploaded PDF/PPTX into build/parsed-slides.json
                       (+ build/input-images/ for a preserved PPTX)
-   pdf_scaffold       copy the builder (+ inject the chosen template's
+   pitch pdf scaffold       copy the builder (+ inject the chosen template's
  *                      layouts/CSS) into <workspace>/build/, ready for the config
  *                      authoring
- *   pdf_scrape_images  fetch Pinterest/Unsplash images (Gemini fallback) for the
+ *   pitch pdf scrape-images  fetch Pinterest/Unsplash images (Gemini fallback) for the
  *                      deck's keywords into <workspace>/build/images/<keyword>/
- *   pdf_build          run build/pdf-builder.js (Playwright HTML→PDF + DOM QA +
+ *   pitch pdf build          run build/pdf-builder.js (Playwright HTML→PDF + DOM QA +
  *                      slide screenshots) and promote build/output.html to
  *                      <workspace>/deck.html — the deck the studio previews
  *
@@ -87,7 +87,7 @@ function npmGlobalRoot(): string | null {
 /**
  * The studio browser library, as a file:// URL the deck scripts can `import()`.
  *
- * They cannot reach it by a relative path: pdf_scaffold copies the builder into
+ * They cannot reach it by a relative path: pitch pdf scaffold copies the builder into
  * <workspace>/build/, so "../lib/browser.mjs" would point at the workspace. And
  * they cannot reach it by a bare specifier either — NODE_PATH is a CommonJS
  * mechanism and these are ESM imports. So the tool that runs them says where it
@@ -167,7 +167,7 @@ export default function pdfTools(pi: ExtensionAPI) {
       try {
         if (fs.existsSync(configOut) && !args.force) {
           return text(
-            `build/deck-config.js already exists — edit it instead, or call pdf_scaffold with force: true to start over.`,
+            `build/deck-config.js already exists — edit it instead, or call pitch pdf scaffold with force: true to start over.`,
           )
         }
         fs.mkdirSync(path.join(buildDir, 'reference'), { recursive: true })
@@ -219,9 +219,9 @@ export default function pdfTools(pi: ExtensionAPI) {
           `Build directory ready: build/ (in your workspace)\n` +
             `- build/deck-config.js — YOUR file: the theme and the slides (jobId${args.template ? ' and template' : ''} pre-filled)\n` +
             `- build/pdf-builder.js${injected ? ` (template ${args.template} injected)` : ''} — the renderer; never edit it\n` +
-            `- build/reference/qa-dom.js — the DOM QA pdf_build runs\n` +
-            `Next: pdf_scrape_images for your keywords, author build/deck-config.js ` +
-            `(image paths relative to build/, e.g. getBase64Image('images/<keyword>/pinterest_01.jpg')), then pdf_build.`,
+            `- build/reference/qa-dom.js — the DOM QA pitch pdf build runs\n` +
+            `Next: pitch pdf scrape-images for your keywords, author build/deck-config.js ` +
+            `(image paths relative to build/, e.g. getBase64Image('images/<keyword>/pinterest_01.jpg')), then pitch pdf build.`,
         )
       } catch (e) {
         return text(`ERROR: scaffold failed — ${e instanceof Error ? e.message : String(e)}`)
@@ -357,7 +357,7 @@ export default function pdfTools(pi: ExtensionAPI) {
       const builder = path.join(buildDir, 'pdf-builder.js')
       if (!fs.existsSync(builder) || !fs.existsSync(path.join(buildDir, 'deck-config.js')))
         return text(
-          'ERROR: build/deck-config.js or build/pdf-builder.js is missing — run pdf_scaffold first.',
+          'ERROR: build/deck-config.js or build/pdf-builder.js is missing — run pitch pdf scaffold first.',
         )
       if (!fs.existsSync(path.join(buildDir, 'reference', 'qa-dom.js'))) {
         fs.mkdirSync(path.join(buildDir, 'reference'), { recursive: true })
@@ -402,13 +402,13 @@ export default function pdfTools(pi: ExtensionAPI) {
             `- deck.html: ${ok ? 'updated from build/output.html (the studio preview reloads)' : 'unchanged'}\n` +
             `- qa-renders: ${renders.length} slide screenshot(s) in build/qa-renders/` +
             `${renders.length ? ` — ${renders.join(', ')}` : ''}\n` +
-            `${renders.length ? '\nRead each render (build/qa-renders/<file>) with the read tool for Visual QA; patch build/deck-config.js and re-run pdf_build on any defect. When every slide is clean, deck_publish.\n' : ''}` +
+            `${renders.length ? '\nRead each render (build/qa-renders/<file>) with the read tool for Visual QA; patch build/deck-config.js and re-run pitch pdf build on any defect. When every slide is clean, pitch deck publish.\n' : ''}` +
             `\n--- build output (tail) ---\n${out.slice(-4000)}`,
         )
       } catch (e: any) {
         const out = `${e.stdout || ''}\n${e.stderr || ''}`.trim()
         return text(
-          `ERROR: build failed — ${e.message}\n(DOM QA failures are listed below; fix them in build/pdf-builder.js and run pdf_build again. deck.html was not updated.)\n${out.slice(-3000)}`,
+          `ERROR: build failed — ${e.message}\n(DOM QA failures are listed below; fix them in build/pdf-builder.js and run pitch pdf build again. deck.html was not updated.)\n${out.slice(-3000)}`,
         )
       } finally {
         fs.rmSync(scratchRoot, { recursive: true, force: true })

@@ -44,7 +44,7 @@ export const PROJECTS_DIR = process.env.PROJECTS_DIR || path.join(REPO_ROOT, 'pr
  * and refused for writes by every host tool.
  *
  * The engine is not among them. The agent edits shots.js and reads the
- * engine's contract through `motion_schema`; the compiler and the factories
+ * engine's contract through `pitch motion schema`; the compiler and the factories
  * (135KB) are library code it once read four times in one film. The same
  * goes for the vendor libraries under assets/ — see LIBRARY_DIRS.
  */
@@ -121,7 +121,7 @@ export function resolveIn(
   if (LIBRARY_DIRS.some(dir => contains(resolveSymlinks(dir), real))) {
     throw new PathError(
       `${input} is library code the page loads for you — there is nothing in it to read. ` +
-        'The engine is described by motion_schema, the effects by motion_effects.',
+        'The engine is `pitch motion schema`, the effects lab is `pitch effects`.',
     )
   }
   return abs
@@ -147,7 +147,7 @@ export function describeWorkspace(workspace: string): string {
     `Current working directory: ${workspace} — this project's workspace, and the only place ` +
     `you can write. Read-only references: your skills at ${SKILLS_DIR}, the music, SFX and ` +
     `font libraries at ${ASSETS_DIR}, the motion effects lab at ${EFFECTS_DIR}. The engine ` +
-    `and the vendor libraries are not on disk for you: motion_schema and motion_effects are ` +
+    `and the vendor libraries are not on disk for you: \`pitch motion schema\` and \`pitch effects\` are ` +
     `their reference. Nothing else on this machine exists for you: no other project, ` +
     `no network, no environment.`
   )

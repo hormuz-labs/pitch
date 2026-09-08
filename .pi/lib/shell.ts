@@ -9,14 +9,14 @@
  * older single files still load when present.
  *
  * `refreshShell` is what lets a new file appear without a scaffold call:
- * motion_check runs it first, so "write js/shots/x.js, then check" is the
+ * pitch motion check runs it first, so "write js/shots/x.js, then check" is the
  * whole loop.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 
 export const SHELL_MARK =
-  '<!-- studio shell: written by motion_scaffold; motion_check keeps the js/shots and css/shots links current -->'
+  '<!-- studio shell: written by pitch motion scaffold; pitch motion check keeps the js/shots and css/shots links current -->'
 
 /** The whole licensed GSAP set; the compiler registers whatever it finds on window. */
 export const GSAP_PLUGINS = [
@@ -178,7 +178,7 @@ export function rewriteReason(rel: string, bytes: number): string {
   return (
     `${rel} already exists (${kb} KB). Rewriting a file this size from memory is what the edits that could not find their text came from, ` +
     `and it costs a minute of output a time. Read the lines you are changing and \`edit\` them; ` +
-    `a shot type that needs a whole new version goes in its own file — js/shots/<type>.js, css/shots/<type>.css — which motion_check links for you. ` +
+    `a shot type that needs a whole new version goes in its own file — js/shots/<type>.js, css/shots/<type>.css — which pitch motion check links for you. ` +
     `To replace ${rel} wholesale on purpose, delete it first.`
   )
 }

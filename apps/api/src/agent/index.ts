@@ -1,9 +1,9 @@
 /**
- * The studio agent — one agent, every tool, any project.
+ * The studio agent — one agent, one command line, any project.
  *
  * This replaces the four flows. A project is a workspace and a conversation;
  * what it is making is decided by the request, turn by turn, and can change.
- * The pipelines survive as host tools and skills (see agent/toolkit.ts), and
+ * The pipelines survive as `pitch` subcommands and skills (see .pi/cli/), and
  * the preview follows whatever artifact is newest (see agent/describe.ts).
  *
  * Workspace layout — the union of what every pipeline expects, seeded the
@@ -164,7 +164,7 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
   parts.push(
     turn.first
       ? `New project "${ws.name}". ${await inventory(ws)}\nOptions the user chose: ${optionSummary(options)}.\n\nDecide what they are asking for and read the matching skill. If they named an outcome but not which KIND of it — a launch video is a cinematic film, a product walkthrough, a 3D render or a teaser — ask that with one \`ask_user\` call and end your turn; their answer arrives as the next message. Everything else is yours: make the creative decisions yourself and report what you made.`
-      : `You are iterating on "${ws.name}". ${await inventory(ws)}\nOptions: ${optionSummary(options)}.\n\nApply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the media_* tools before regenerating anything.`,
+      : `You are iterating on "${ws.name}". ${await inventory(ws)}\nOptions: ${optionSummary(options)}.\n\nApply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the pitch media commands before regenerating anything.`,
   )
 
   if (turn.slide) parts.push(`The user is looking at slide ${turn.slide}.`)
@@ -214,7 +214,7 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
         `The user selected these and referenced them as [n] below:`,
         lines.join('\n'),
         timed
-          ? 'Those times are on the video that is on screen now. Work on exactly that span — media_probe it first, then one media_ffmpeg edit — and leave the rest of the video untouched.'
+          ? 'Those times are on the video that is on screen now. Work on exactly that span — pitch media probe it first, then one pitch media ffmpeg edit — and leave the rest of the video untouched.'
           : null,
         filed
           ? 'Those paths are workspace-relative and already exist — pass them straight to a tool. They are material to USE, not the artifact to change.'

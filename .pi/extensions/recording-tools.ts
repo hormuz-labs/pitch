@@ -12,18 +12,18 @@
  *                     ──→ Agentic Vision verifies ──→ demo-state.json   (these tools)
  *
  * Tools:
- *   probe_video        duration / resolution / fps / has-audio
- *   transcribe_video   segment/word-level transcript via the local Whisper service
- *   detect_key_moments scene-cut candidates (ffmpeg) — the visual prior
- *   grab_frames        before/during/after frames at a timestamp
- *   inspect_frames     Gemini 3 Flash + code execution (Agentic Vision) verifies an
+ *   pitch recording probe-video        duration / resolution / fps / has-audio
+ *   pitch recording transcribe-video   segment/word-level transcript via the local Whisper service
+ *   pitch recording detect-key-moments scene-cut candidates (ffmpeg) — the visual prior
+ *   pitch recording grab-frames        before/during/after frames at a timestamp
+ *   pitch recording inspect-frames     Gemini 3 Flash + code execution (Agentic Vision) verifies an
  *                      action window → { bbox, actionTimeSec, eventType, confidence, label }
- *   record_zoom_in     camera zoom event (auto-fit zoom derived from the verified bbox)
- *   record_zoom_out    camera zoom-out event
- *   record_click       cursor/click event (drives cursor fx downstream)
+ *   pitch recording record-zoom-in     camera zoom event (auto-fit zoom derived from the verified bbox)
+ *   pitch recording record-zoom-out    camera zoom-out event
+ *   pitch recording record-click       cursor/click event (drives cursor fx downstream)
  *
  * External contracts:
- *   • whisper-cli + a ggml model (see ../lib/whisper.ts) — transcribe_video:
+ *   • whisper-cli + a ggml model (see ../lib/whisper.ts) — pitch recording transcribe-video:
  *     POST multipart form, field "file" (audio/wav) → whisper verbose_json shape:
  *     { segments: [{ start, end, text, words?: [{ word, start, end }] }] }
  *   • GEMINI_API_KEY — Gemini 3 Flash, called with code execution enabled
@@ -216,7 +216,7 @@ function readTranscript(base: string): TranscriptSegment[] {
 // vision model sees what came just before/after the window (referent context).
 function transcriptExcerpt(base: string, start: number, end: number): string {
   const segs = readTranscript(base)
-  if (!segs.length) return '(no transcript available — transcribe_video has not run)'
+  if (!segs.length) return '(no transcript available — pitch recording transcribe-video has not run)'
   const hits = segs.map((s, i) => (s.end >= start && s.start <= end ? i : -1)).filter(i => i >= 0)
   if (!hits.length) return '(no narration inside this window)'
   const lo = Math.max(0, hits[0]! - 1)
@@ -276,8 +276,8 @@ export default function recordingTools(pi: ExtensionAPI) {
     description:
       "Transcribe the video's narration with whisper.cpp on the host: extracts the audio, " +
       'saves the full transcript with word timestamps to recording/transcript.json, and returns ' +
-      'it with segment timestamps. Call once, after probe_video. If it fails (a host problem) you ' +
-      'can still continue with detect_key_moments (visual-only candidates).',
+      'it with segment timestamps. Call once, after pitch recording probe-video. If it fails (a host problem) you ' +
+      'can still continue with pitch recording detect-key-moments (visual-only candidates).',
     parameters: Type.Object({
       videoPath: Type.String({ description: 'Path to the uploaded video file.' }),
     }),
@@ -395,7 +395,7 @@ export default function recordingTools(pi: ExtensionAPI) {
     description:
       'Extract frames around a timestamp (default: one before, one at, one after — a ' +
       'click is a temporal event, so a single frame cannot show it). Returns the frame ' +
-      'file paths. Use inspect_frames instead when you want Gemini to analyse them; ' +
+      'file paths. Use pitch recording inspect-frames instead when you want Gemini to analyse them; ' +
       'this tool is for grabbing frames without a vision call.',
     parameters: Type.Object({
       videoPath: Type.String({ description: 'Path to the uploaded video file.' }),
@@ -431,7 +431,7 @@ export default function recordingTools(pi: ExtensionAPI) {
     name: 'inspect_frames',
     label: 'Inspect frames',
     description:
-      'Verify a candidate action window with Gemini vision: samples frames across it, attaches the matching transcript excerpt, and returns { actionFound, actionTimeSec, eventType, bbox, confidence, label } — where on screen the action or its result happens (not the cursor) and when. bbox is full-frame 1920×1080 pixels, ready for record_zoom_in. If actionFound is false, skip or widen once.',
+      'Verify a candidate action window with Gemini vision: samples frames across it, attaches the matching transcript excerpt, and returns { actionFound, actionTimeSec, eventType, bbox, confidence, label } — where on screen the action or its result happens (not the cursor) and when. bbox is full-frame 1920×1080 pixels, ready for pitch recording record-zoom-in. If actionFound is false, skip or widen once.',
     parameters: Type.Object({
       videoPath: Type.String({ description: 'Path to the uploaded video file.' }),
       windowStartSec: Type.Number({
@@ -539,7 +539,7 @@ export default function recordingTools(pi: ExtensionAPI) {
         }
         // Gemini object detection returns box_2d = [ymin, xmin, ymax, xmax]
         // normalized to 0-1000 (vertical axis first). Convert to full-frame pixel
-        // {x, y, w, h} (top-left + size) which record_zoom_in consumes.
+        // {x, y, w, h} (top-left + size) which pitch recording record-zoom-in consumes.
         const rawBox = Array.isArray(parsed.box_2d) ? parsed.box_2d : parsed.bbox
         let bbox: { x: number; y: number; w: number; h: number } | null = null
         if (Array.isArray(rawBox) && rawBox.length >= 4) {
@@ -587,10 +587,10 @@ export default function recordingTools(pi: ExtensionAPI) {
     name: 'record_zoom_in',
     label: 'Record zoom in',
     description:
-      'Record a camera zoom-in at a verified action. Pass the bbox from inspect_frames (the zoom auto-fits, 1.3–2.2, clamped to the frame) or explicit x/y with an optional zoom. Once per verified action.',
+      'Record a camera zoom-in at a verified action. Pass the bbox from pitch recording inspect-frames (the zoom auto-fits, 1.3–2.2, clamped to the frame) or explicit x/y with an optional zoom. Once per verified action.',
     parameters: Type.Object({
       videoTimeSec: Type.Number({
-        description: 'When the zoom lands, in video seconds — use inspect_frames actionTimeSec.',
+        description: 'When the zoom lands, in video seconds — use pitch recording inspect-frames actionTimeSec.',
       }),
       bbox: Type.Optional(
         Type.Object(
@@ -600,7 +600,7 @@ export default function recordingTools(pi: ExtensionAPI) {
             w: Type.Number(),
             h: Type.Number(),
           },
-          { description: 'Element bounding box from inspect_frames (full-frame pixels).' },
+          { description: 'Element bounding box from pitch recording inspect-frames (full-frame pixels).' },
         ),
       ),
       x: Type.Optional(
@@ -705,10 +705,10 @@ export default function recordingTools(pi: ExtensionAPI) {
     name: 'record_click',
     label: 'Record click',
     description:
-      'Record a click at a verified action point (drives the cursor overlay and click emphasis). Only when inspect_frames confirmed a click or fill with decent confidence.',
+      'Record a click at a verified action point (drives the cursor overlay and click emphasis). Only when pitch recording inspect-frames confirmed a click or fill with decent confidence.',
     parameters: Type.Object({
       videoTimeSec: Type.Number({
-        description: 'Click time in video seconds (inspect_frames actionTimeSec).',
+        description: 'Click time in video seconds (pitch recording inspect-frames actionTimeSec).',
       }),
       x: Type.Number({ description: 'Click pixel x (bbox centre).' }),
       y: Type.Number({ description: 'Click pixel y (bbox centre).' }),

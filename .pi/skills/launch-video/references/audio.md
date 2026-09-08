@@ -7,7 +7,7 @@ The tools carry their own parameters; this is the craft. Files live in
 
 ## 1. The bed
 
-The studio's music picker and `motion_find_audio` read the same curated
+The studio's music picker and `pitch motion find-audio` read the same curated
 library; a bed the user picked is already in `audio/`. Pick by the audio
 persona (direction.md Axis 8) and name the file in your summary. The beat map
 beside the beds (`musicTimestamp.json`) lists beat times and strengths —
@@ -27,16 +27,16 @@ picture is cut to its words.**
   sentences in the voice. Give every beat the words its picture needs (a 3s
   demo ≈ 6–7 words, or a written pause "…"); a punch word needs one. If the
   film feels slow, add a second act to the picture, never speed to the read.
-- **One call.** `motion_tts({ script: "audio/vo.txt", voice, style })` with
+- **One call.** `pitch motion tts --script audio/vo.txt --voice <v> --style <s>` with
   one delivery direction for the whole read; the arc (drawing-in → proud →
   inviting) lives in phrasing and punctuation. Over 2.45 words/s is rushed
   (the audit fails at 2.7) — re-record unhurried; under 1.6 drags.
-- **Time it.** `motion_align` transcribes the read locally and aligns the
+- **Time it.** `pitch motion align` transcribes the read locally and aligns the
   known script to it, so every word has an onset even where a brand name was
   misheard; under 60% matched means the wrong file or text.
 - **Cue and sync.** `audio: { vo: "audio/vo.wav", voStart: 0.3 }` at the top
   of `shots.js`; `cue: "step two"` on every shot, and on beats, `word-build`
-  lines and `more` items that should land on a word. `motion_sync` prints the
+  lines and `more` items that should land on a word. `pitch motion sync` prints the
   plan; `{ write: true }` starts each cued shot ~0.12s before its word, fills
   `at` / `lineAt` / `moreAt`, retimes the SFX sheet and keeps
   `shots.js.bak`. Uncued shots share their interval proportionally; the last
@@ -54,7 +54,7 @@ beat: did something change state? is it the beat's subject (background
 motion gets nothing)? is the voice speaking (then only micro-events, 6dB
 quieter)? One perfectly placed sound beats six.
 
-**Vocabulary** (`motion_sfx({ mode: "list" })` is the source of truth):
+**Vocabulary** (`pitch motion sfx --mode list` is the source of truth):
 `tick` counters/steps · `pop` an item appearing · `click` a real control ·
 `type` typing · `select` a confirm · `data` scanning/populating · `notify` a
 toast · `chime` grace note · `success` completion · `camera` snapshot ·
@@ -84,7 +84,7 @@ snappy tween is the classic "sounds off" failure.
 **Cue sheet** `audio/sfx-cues.json`: `{ "duration", "defaults": { "gainDb" },
 "cues": [{ "label", "t", "event" | "clip", "dur"?, "fadeOut"?, "gainDb"?,
 "lead"?, "max"?, "varied"? }] }`. `t` is the moment the visual event happens:
-the real shot start (`motion_cues`) plus the factory's in-shot offset (a
+the real shot start (`pitch motion cues`) plus the factory's in-shot offset (a
 `stat-counter` lands at ~`0.1 + min(2.2, D*0.55)`; a `ui-frame` cursor
 presses at `cursor.at + 0.82`) — never eyeballed from a draft.
 
@@ -98,7 +98,7 @@ reveal → `riser` ending on the `impact`. Banned: meme/game/franchise audio
 item of a stagger, anything under a sentence louder than −28 LUFS, ambient
 loops in the SFX bus.
 
-## 4. The mix — `motion_mix` only
+## 4. The mix — `pitch motion mix` only
 
 Never hand-roll it (there is no ffmpeg in your shell anyway). The tool
 builds in stages and **verifies by extraction**, failing if the voice is not

@@ -169,7 +169,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_tts',
     label: 'Motion TTS',
     description:
-      'Record the narration: ONE continuous Gemini TTS read of the whole script → audio/vo.wav (the text saved beside it as audio/vo.txt). One call per film, never one per shot. Then set audio.vo in shots.js, motion_align, cue every shot, motion_sync.',
+      'Record the narration: ONE continuous Gemini TTS read of the whole script → audio/vo.wav (the text saved beside it as audio/vo.txt). One call per film, never one per shot. Then set audio.vo in shots.js, pitch motion align, cue every shot, pitch motion sync.',
     parameters: Type.Object({
       text: Type.Optional(
         Type.String({
@@ -213,7 +213,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
       if (!p.text && !p.script)
-        return text('motion_tts needs `text` (the whole script) or `script` (a file path).')
+        return text('pitch motion tts needs `text` (the whole script) or `script` (a file path).')
       const a = ['--out=' + relativeIn(ws, p.out || 'audio/vo.wav', 'write')]
       if (p.script) a.push('--script=' + relativeIn(ws, p.script))
       else a.push('--text=' + p.text)
@@ -230,7 +230,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     description:
       'Word-level timestamps for the continuous narration read (local whisper.cpp) → audio/vo-words.json. ' +
       'Aligns the known script (audio/vo.txt) to the recording so every word has an onset. Required before ' +
-      'motion_sync and by motion_audit whenever shots.js has audio.vo.',
+      'pitch motion sync and by pitch motion audit whenever shots.js has audio.vo.',
     parameters: Type.Object({
       vo: Type.Optional(Type.String({ description: 'Narration WAV (default audio/vo.wav)' })),
       script: Type.Optional(
@@ -287,7 +287,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_render',
     label: 'Motion Render',
     description:
-      'Render index.html to MP4 by deterministic seek-and-capture. To LOOK at shots use motion_review (frames, not video); render a from/to segment (fps 30, no audio) only when the motion itself is in doubt — a shutter (motion blur) is one such case. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after motion_audit and motion_review pass. Shutter, samples, depth and codec default to the film\'s `render` block in shots.js and the look to its `grade` block (motion_schema({ section: "render and grade" })); the flags here override for one render.',
+      'Render index.html to MP4 by deterministic seek-and-capture. To LOOK at shots use pitch motion review (frames, not video); render a from/to segment (fps 30, no audio) only when the motion itself is in doubt — a shutter (motion blur) is one such case. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after pitch motion audit and pitch motion review pass. Shutter, samples, depth and codec default to the film\'s `render` block in shots.js and the look to its `grade` block (pitch motion schema --section "render and grade"); the flags here override for one render.',
     parameters: Type.Object({
       out: Type.String({
         description:
@@ -384,7 +384,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_review',
     label: 'Look at the Film',
     description:
-      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. It also measures, at every frame, each run of hero type against the mask holding it (or the stage edge) and lists what is clipped, in px, with the fix; and, at the settled frame, the ground — a shot sitting on a colour that is none of the brand's is named (`bg: \"ink\"` passes). Look for: words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. What is on the stage — one thing or three forms — is the lab effect's composition and yours; the review does not count it. The frames carry the film's `grade` block. Fix in shots.js, then re-run with `shots` for the ones you touched — not another motion_audit, unless a dur, a cue or a beat changed. Run after motion_audit passes and after every shot edit; frames in review/ are for you, not the user.",
+      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. It also measures, at every frame, each run of hero type against the mask holding it (or the stage edge) and lists what is clipped, in px, with the fix; and, at the settled frame, the ground — a shot sitting on a colour that is none of the brand's is named (`bg: \"ink\"` passes). Look for: words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. What is on the stage — one thing or three forms — is the lab effect's composition and yours; the review does not count it. The frames carry the film's `grade` block. Fix in shots.js, then re-run with `shots` for the ones you touched — not another pitch motion audit, unless a dur, a cue or a beat changed. Run after pitch motion audit passes and after every shot edit; frames in review/ are for you, not the user.",
     parameters: Type.Object({
       shots: Type.Optional(
         Type.Array(Type.String(), { description: 'Only these shot ids (default: every shot)' }),
@@ -438,7 +438,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     name: 'motion_audit',
     label: 'Motion Audit',
     description:
-      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run, and a pacing note answered in direction.md is closed. After a fix that changes a dur, a cue or a beat, re-run with `shots` for the shots you touched: it samples only their stretch on the same grid (a 5s shot is ~8s, the film ~30s) and replaces their frames in audit/. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs motion_cues and motion_mix, not the gate.",
+      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run, and a pacing note answered in direction.md is closed. After a fix that changes a dur, a cue or a beat, re-run with `shots` for the shots you touched: it samples only their stretch on the same grid (a 5s shot is ~8s, the film ~30s) and replaces their frames in audit/. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs pitch motion cues and pitch motion mix, not the gate.",
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       shots: Type.Optional(
@@ -512,7 +512,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
       if (!p.url && !p.html) {
-        throw new Error("Provide either 'url' or 'html' to motion_screenshot.")
+        throw new Error("Provide either 'url' or 'html' to pitch motion screenshot.")
       }
       if (p.url && !/^https?:\/\//i.test(p.url)) {
         throw new Error('url must be an http(s) URL.')
@@ -991,8 +991,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       }
 
       return text(
-        `Shot types (motion_schema({ types: [...] }) for their fields):\n  ${[...types.keys()].join(', ')}\n\n` +
-          `Sections (motion_schema({ section: "..." })):\n  ${[...sections.keys()].filter(k => k !== 'intro').join(', ')}`,
+        `Shot types (pitch motion schema --types <type> for their fields):\n  ${[...types.keys()].join(', ')}\n\n` +
+          `Sections (pitch motion schema --section <name>):\n  ${[...sections.keys()].filter(k => k !== 'intro').join(', ')}`,
       )
     },
   })
@@ -1006,7 +1006,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
       'a starter shots.js with the brand from recon (bg, ink, accent, the font and its self-hosted files) and a PLACEHOLDER ' +
       'opening shot built from the site\'s own h1, so the preview is never blank: replace it with your hook and keep adding ' +
       'one shot at a time. Call this once instead of writing the page by hand. New type files after that need no ' +
-      'scaffold call: motion_check links them. Pass rive: true when a shot uses a .riv file.',
+      'scaffold call: pitch motion check links them. Pass rive: true when a shot uses a .riv file.',
     parameters: Type.Object({
       title: Type.Optional(
         Type.String({ description: 'Page <title>; defaults to the project name.' }),
@@ -1045,7 +1045,7 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
         writeFileSync(shotsPath, starterShots(tokens))
         starter = tokens
           ? '\nshots.js written with the brand recon measured and a placeholder opener from the site\'s h1 — it is playing now; replace it with your hook.'
-          : '\nshots.js written with a PLACEHOLDER brand (no recon/brand-tokens.json yet): run motion_recon, then put the measured values in brand.'
+          : '\nshots.js written with a PLACEHOLDER brand (no recon/brand-tokens.json yet): run pitch motion recon, then put the measured values in brand.'
       }
       const linked = [...files.styles, ...files.scripts]
       return text(
@@ -1054,8 +1054,8 @@ export default function htmlMotionTools(pi: ExtensionAPI) {
             ? 'GSAP loads from the shared ../../assets/gsap/.'
             : '⚠ assets/gsap/gsap.min.js is missing — the page will not compile. Say so and stop.') +
           starter +
-          '\nCustom shot types: one per file, js/shots/<type>.js (+ css/shots/<type>.css); motion_check links each new one.' +
-          '\nNext: replace the placeholder opener and add ONE shot at a time — save and motion_check after each, so the user is watching a film that runs.',
+          '\nCustom shot types: one per file, js/shots/<type>.js (+ css/shots/<type>.css); pitch motion check links each new one.' +
+          '\nNext: replace the placeholder opener and add ONE shot at a time — save and pitch motion check after each, so the user is watching a film that runs.',
       )
     },
   })

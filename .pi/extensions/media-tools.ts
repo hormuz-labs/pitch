@@ -9,7 +9,7 @@
  * not edit them.
  *
  * Everything is scoped to the project workspace on the host, where ffmpeg and
- * the media files live. `media_probe` first, always: it is how you learn what
+ * the media files live. `pitch media probe` first, always: it is how you learn what
  * streams a file actually has before you touch it.
  */
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'

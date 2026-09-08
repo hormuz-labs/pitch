@@ -37,13 +37,13 @@ window.SHOTS = {
 The studio's philosophy: **something new happens on screen at least every
 ~1.2s.** An entrance-then-hold shot is a slide, not a shot. The engine gives
 every shot three layers of life on top of the factory's own animation, and
-`motion_audit` measures the result (no quiet stretch > 1.5s).
+`pitch motion audit` measures the result (no quiet stretch > 1.5s).
 
 | Field | Where | Meaning |
 |---|---|---|
 | `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — a living stage *between* every shot's background and its content, continuous across cuts (positions are a function of film time), position-only. `kind` is the direction.md Axis-1 choice: `blobs` (soft blurred discs — deep space + glow), `light` (one large soft light source orbiting — studio backdrop), `blueprint` (a fine line grid panning — technical grid; `size` = cell), `hairlines` (a few 1px rules drifting — editorial light, terminal noir), `halftone` (a dot screen panning — duotone poster; `size` = cell), `shapes` (flat discs, bars and slabs drifting and turning — solid brand field), `grid` (blurred rounded tiles), `aurora` (three or four very soft discs in the brand's own hues — `colors: [...]`, else the accent and two tints of it — the stage under hero type; `opacity` 0.22), `none` (a bare stage: whitespace does the work). `shot.ambient = false` hides it on one shot — product shots often sit on the bare stage while the type beats get the aurora. |
 | `motion.exit` / `shot.exit` | top / shot | `up` (default) \| `down` \| `scale` \| `scatter` \| `blur` \| `left` \| `right` \| `none` — the outgoing content leaves the frame in its last ~0.3s, so a cut is an arrival, not a freeze. `blur` rises 70px and blurs to nothing over 9 frames: the continuous take's one exit, the next thing already there on the following frame. `left` / `right` accelerate the whole line off that side (ease-in). `scatter` throws words/cards in random directions. |
-| `beats` | shot | `[{ at, kind, sel?, … }]` — mid-shot events for *any* type. `swap` (replace the text of `sel`, default the headline), `pulse` (scale pop on `sel`), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame color flash), `hide` / `show` (`sel`), `nudge` (move `sel` by `amount`/`y`), **`halo`** (a blurred disc of `color` blooms behind `sel`, `size` 900, `hold`, `fade: false` keeps it — the pre-flood glow, the press glow), `ripple` (**do not use** — rings from a press are the tell of a template and `motion_audit` fails it; a press is the control's own state change or a `flood`), **`blurout`** (`sel` blurs and fades in place over 0.3s), **`flood`** (the frame floods with `color` from `sel` — halo for `pre` 0.2s, solid for `hold` 0.08s, retreats to that point over `dur` 0.9s; `stay: true` leaves the frame that colour), **`zoom`** (the camera pushes into `sel` so it fills `fill` 0.6 of the width over `dur` 0.25s, everything else blurs (`dof: false` to keep it sharp); `release` seconds later it pulls back), **`breath`** (no picture: the music bed dips for `dur` 0.45s by `depth` 0.75 — the pause before a payoff; `motion_mix` reads them from `audio/cues.json`). `at` defaults to evenly spaced. |
+| `beats` | shot | `[{ at, kind, sel?, … }]` — mid-shot events for *any* type. `swap` (replace the text of `sel`, default the headline), `pulse` (scale pop on `sel`), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame color flash), `hide` / `show` (`sel`), `nudge` (move `sel` by `amount`/`y`), **`halo`** (a blurred disc of `color` blooms behind `sel`, `size` 900, `hold`, `fade: false` keeps it — the pre-flood glow, the press glow), `ripple` (**do not use** — rings from a press are the tell of a template and `pitch motion audit` fails it; a press is the control's own state change or a `flood`), **`blurout`** (`sel` blurs and fades in place over 0.3s), **`flood`** (the frame floods with `color` from `sel` — halo for `pre` 0.2s, solid for `hold` 0.08s, retreats to that point over `dur` 0.9s; `stay: true` leaves the frame that colour), **`zoom`** (the camera pushes into `sel` so it fills `fill` 0.6 of the width over `dur` 0.25s, everything else blurs (`dof: false` to keep it sharp); `release` seconds later it pulls back), **`breath`** (no picture: the music bed dips for `dur` 0.45s by `depth` 0.75 — the pause before a payoff; `pitch motion mix` reads them from `audio/cues.json`). `at` defaults to evenly spaced. |
 | `reveal: "words"` | word-cut, color-punch | Words arrive one after another (0.13s apart, `each` overrides); parts with `accent: true` pop harder and take the accent color. |
 | `parts[].accent` | any `parts` | The keyword. Colored `--accent` (ink on accent backgrounds). One per line. |
 
@@ -112,7 +112,7 @@ and leave dead air between them.
 |---|---|
 | `id` | Stable label (`shot1`, `hook`, …). The studio's scene strip and the element inspector use it. |
 | `type` | One of the types below, or a project-local type from `js/shots.custom.js`. |
-| `dur` | Seconds. A `line` with steps or a shot posing actors is a scene and may run to 6s; a plain type beat 0.9–6s; a `ui-frame` demo 3–6s. When narrated, `motion_sync` sets it from the cue words — you author the `cue`, not the number. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). |
+| `dur` | Seconds. A `line` with steps or a shot posing actors is a scene and may run to 6s; a plain type beat 0.9–6s; a `ui-frame` demo 3–6s. When narrated, `pitch motion sync` sets it from the cue words — you author the `cue`, not the number. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). |
 | `bg` | `accent` \| `ink` \| `bg` \| a `brand.palette` name \| any CSS color. Text color is picked for contrast. |
 | `ink` | Optional explicit text color for this shot. |
 | `chapter` | The prompt → product → payoff group this shot belongs to (`"create"`, `"style"`). The studio and the audit read the groups; the first shot of a group opens it. |
@@ -124,8 +124,8 @@ and leave dead air between them.
 | `actors` | `{ name: pose \| [pose, …] }` — see "Actors". |
 | `ambient` | `false` hides the ambient stage on this shot. |
 | `lab` | The effects-lab id this shot's move was ported from (`"text/bold-text-snap"`). Annotation only — the audit counts it and the user can say "that one, but slower". |
-| `cue` | The script phrase this shot lands on (`"step two"`). `motion_sync` starts the shot ~0.12s before that word. Beats, `word-build` lines and `device-notif` `more` items take `cue` too (→ `at`, `lineAt`, `moreAt`). |
-| `vo`, `voDur` | **Legacy per-shot clip — do not use.** More than one fails `motion_audit` (fragmented narration). |
+| `cue` | The script phrase this shot lands on (`"step two"`). `pitch motion sync` starts the shot ~0.12s before that word. Beats, `word-build` lines and `device-notif` `more` items take `cue` too (→ `at`, `lineAt`, `moreAt`). |
+| `vo`, `voDur` | **Legacy per-shot clip — do not use.** More than one fails `pitch motion audit` (fragmented narration). |
 | `drift` | `false` disables the slow rest travel (scale 1.045, x +10, y −8 over the shot). `driftScale` / `driftX` / `driftY` override it. |
 
 ## Types
@@ -147,7 +147,7 @@ and leave dead air between them.
 | `device-notif` | `notif: {app, src?, iconBg?, kicker, body, tint, ink, meta, call?, sub?}` — `app` is sms/whatsapp/telegram/viber/email/voice/flash, or give `src` for the product's own icon. `more: [notif, …]` drops further notifications in mid-shot, pushing earlier ones down (`moreAt: [s, …]` to place them; `tilt: false` to stop the phone rocking) |
 | `stat-counter` | `value`, `prefix?`, `suffix?`, `decimals?`, `from?`, `label` (parts or string). Numbers come from recon. |
 | `lottie` | a Lottie file driven frame by frame from the timeline — `src` (a harvested `.json`, `recon/harvested.json` kind `lottie`, or one the user supplied), `height` (720), `width` (= height), `x`/`y` (centred), `fit: contain\|cover`, `from`/`to` (frames; default the whole file at its own rate, looping if the shot is longer), `speed`, `loop: false`, `enter: rise\|scale\|none`, `caption` (parts) + `captionPos`. Mascots, product animations, icon sets — the product's own motion. |
-| `rive` | a Rive `.riv` scrubbed from the timeline — `src`, `artboard?`, `animation?` (name; default the file's default animation), `from` (s), `speed`, plus the `lottie` geometry, `enter` and `caption` fields. Needs `motion_scaffold({ rive: true })`. |
+| `rive` | a Rive `.riv` scrubbed from the timeline — `src`, `artboard?`, `animation?` (name; default the file's default animation), `from` (s), `speed`, plus the `lottie` geometry, `enter` and `caption` fields. Needs `pitch motion scaffold``. |
 | `device-3d` | the product's screen on a real object: `device: slab\|card\|phone\|laptop` (decide it), `src` (a harvested screenshot or a mined frame for the screen, cover-fit; `align: top\|center`), `turn: { from: [x°, y°], to: [x°, y°], ease? }` (decide it — without one the console warns and a house move plays), `color` (body; default the ink), `light`, `shadow` (0–1), `fov`, `offsetY` (px, positive moves the device up — a laptop's base needs room below), `enter: "none"` to skip the arrival from depth, `hover: false`, `caption` + `captionPos`. **`ring`**: several screens around the view axis, seen from inside — `ring: { srcs: [five mined frames], radius: 760, z: -250, lean: 0.55, spin: [-14, 14], offset: 0 }`, each lying along the ring and leaning in; `turn` tilts the whole ring, `exit3d: "through"` flies it past the camera at the end (the frame that then floods or becomes the bar). Real geometry — thickness, bevels, a laptop base — under a key light, a rim in the accent and a cast shadow; use a dark `bg` for a single device or the shadow vanishes; the ring stands on the bare stage. No custom factory; `ShotKit.three` is for what this does not do. |
 | `ui-frame` | the product itself — see below |
 
@@ -179,7 +179,7 @@ and the render stays deterministic.
             then: "assets/harvested/deal-open.png", leave: true,
             zoom: { scale: 2.6, at: 1.0, dur: 0.3, dof: true, veil: 0.7, blur: 8 } },   // the click pushes the camera into the point and the rest of the screen blurs to white
   cursors: [{ label: "Kai", color: "#E24B7A", path: [{ x: 0.2, y: 0.7, at: 0.3 }, { x: 0.6, y: 0.6, at: 1.4 }] }],   // named collaborator cursors travelling waypoints
-  layers: {                                // parallax: pieces cut from the SAME screenshot by motion_screenshot({ layers })
+  layers: {                                // parallax: pieces cut from the SAME screenshot by `pitch motion screenshot`
     w: 1920, h: 1080,                      //   the screenshot's CSS size (the tool prints this whole block)
     items: [                               //   rect in screenshot px; depth 1 = page chrome, 2 = an overlay nearest the viewer
       { src: "assets/harvested/app.layer-1.png", x: 0, y: 0, w: 1920, h: 72, depth: 1 },
@@ -219,7 +219,7 @@ the class on an element of a custom type:
 ## Render and grade
 
 Two optional top-level blocks decide what the encoder adds to the frames.
-The studio's Export button and `motion_render` read both; flags on the tool
+The studio's Export button and `pitch motion render` read both; flags on the tool
 override for one render. Both are direction.md decisions — a shutter belongs
 to a Fluid or Kinetic motion language, a grade to the palette's finish —
 never a default, and never copied in "to be safe". **A shutter is the cost
@@ -232,7 +232,7 @@ language needs blur, and then say so in direction.md.
 | Block | Fields |
 |---|---|
 | `render` | `shutter` 0–1: fraction of each frame interval the shutter is open (0.5 = a 180° film shutter, 1 = frame blending; 0 = off, crisp). `samples` 2–16: captures averaged per frame (4 is enough at 60fps; the render takes `samples`× longer). `depth: 10` for 10-bit output so soft glows and gradients stop banding (H.264 High 10, or HEVC Main 10 with `codec: "hevc"` for Apple devices; 8-bit H.264 plays everywhere). `crf`. |
-| `grade` | Applied in RGB before the video conversion, then in YUV: `temperature` (K, 6500 neutral; 5000 warm, 8000 cool), `curves` (a preset — `vintage`, `cross_process`, `darker`, `lighter`, `increase_contrast`, `linear_contrast`, `medium_contrast`, `strong_contrast`, `negative`, `color_negative` — or `{ master, r, g, b }` point strings like `"0/0 0.5/0.58 1/1"`), `lut` (a `.cube`/`.3dl` file in the project, e.g. one the user supplied), `vibrance` −2–2, `contrast` 0–3, `brightness` −1–1, `gamma`, `saturation` 0–3, `vignette` 0–1, `grain` 0–100 (temporal film grain, added after the shutter so it is not averaged away). `motion_review` sheets show the graded frames. |
+| `grade` | Applied in RGB before the video conversion, then in YUV: `temperature` (K, 6500 neutral; 5000 warm, 8000 cool), `curves` (a preset — `vintage`, `cross_process`, `darker`, `lighter`, `increase_contrast`, `linear_contrast`, `medium_contrast`, `strong_contrast`, `negative`, `color_negative` — or `{ master, r, g, b }` point strings like `"0/0 0.5/0.58 1/1"`), `lut` (a `.cube`/`.3dl` file in the project, e.g. one the user supplied), `vibrance` −2–2, `contrast` 0–3, `brightness` −1–1, `gamma`, `saturation` 0–3, `vignette` 0–1, `grain` 0–100 (temporal film grain, added after the shutter so it is not averaged away). `pitch motion review` sheets show the graded frames. |
 
 Every render is converted to BT.709 limited range explicitly and tagged so,
 whatever these blocks say — players stop shifting the brand colours. Both
@@ -244,7 +244,7 @@ speed, and a card flip or a fly-past reads as motion instead of strobing.
 When no built-in type shows a beat well, add one **in the project**, never in
 the engine.
 
-**The whole GSAP set is registered and yours to use** — `motion_scaffold`
+**The whole GSAP set is registered and yours to use** — `pitch motion scaffold`
 loads all of it from `../../assets/gsap/` and the compiler registers whatever
 it finds, so a custom factory can call any of these without touching
 index.html:
@@ -269,8 +269,8 @@ run on the returned timeline — see Rules; a plugin does not excuse a bare
 `gsap.to`.
 
 Declare it in the project — **one type per file**, `js/shots/<type>.js`, with
-its styles in `css/shots/<type>.css` when it needs any. `motion_check` and
-`motion_scaffold` link every file in those two folders into index.html (after
+its styles in `css/shots/<type>.css` when it needs any. `pitch motion check` and
+`pitch motion scaffold` link every file in those two folders into index.html (after
 factories.js, before compiler.js), so a change to one type is a small edit
 and never a rewrite of every type:
 
@@ -325,7 +325,7 @@ opacity/brightness loops, and every image from `assets/`.
 
 - **Density.** 4–40 shots, average ≤ 3.6s, any one shot ≤ 6s; narrated
   shots start on their `cue` word (sync.mjs). No stretch longer than 1.5s without a designed event.
-  `motion_audit` enforces all of this.
+  `pitch motion audit` enforces all of this.
 - One idea per shot. Headlines only (≤ 8 words on screen; 2–4 on a `line`).
 - A cut is a decision: an actor, a carry, a flood or a blur exit hides the
   boundary; a punch lands on the beat; a zoom moves between hero and UI

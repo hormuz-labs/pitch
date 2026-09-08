@@ -19,8 +19,8 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     label: 'Prepare uploaded assets',
     description:
       "Turn the project's uploaded PDFs/images into the slideshow manifest (page images, text, OCR " +
-      'regions) under recording/assets/. Call once, before demo_record_start, whenever the project ' +
-      'has uploads. Returns the manifest summary; demo_list_assets reads the same manifest later.',
+      'regions) under recording/assets/. Call once, before pitch demo record-start, whenever the project ' +
+      'has uploads. Returns the manifest summary; pitch demo list-assets reads the same manifest later.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
       return text(await hostAction(workspaceOf(ctx), 'demo_prepare_assets', {}))
@@ -33,8 +33,8 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     description:
       "Open the user's browser profile, attach playwright-cli and start the screen recording. " +
       'Optionally navigates to `url` first. Returns the session name, the start time and, when a ' +
-      'storyboard exists, the approved render contract. After this, drive the page with demo_bash / ' +
-      'demo_narrate / demo_zoom_in / demo_fill_field. Never call `playwright-cli open` yourself.',
+      'storyboard exists, the approved render contract. After this, drive the page with pitch demo bash / ' +
+      'pitch demo narrate / pitch demo zoom-in / pitch demo fill-field. Never call `playwright-cli open` yourself.',
     parameters: Type.Object({
       url: Type.Optional(Type.String({ description: 'Page to open once recording has started' })),
     }),
@@ -48,7 +48,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     label: 'Stop recording',
     description:
       'Stop the screen recording and close the browser. Call as soon as the walkthrough (and the ' +
-      'logo capture) is done — before demo_render, and always before you finish a turn.',
+      'logo capture) is done — before pitch demo render, and always before you finish a turn.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
       return text(await hostAction(workspaceOf(ctx), 'demo_record_stop', {}))
@@ -111,7 +111,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
       'Build a storyboard draft (storyboard.json) from the prepared PDF/image pages: Gemini reads ' +
       'every page and proposes narration + emphasis rectangles; a voiceover script, when given, is ' +
       'split across the pages instead. Only when the user wants to review a storyboard before ' +
-      'recording. Requires demo_prepare_assets first. Returns a per-scene summary.',
+      'recording. Requires pitch demo prepare-assets first. Returns a per-scene summary.',
     parameters: Type.Object({}),
     async execute(_id, _p: any, _signal, _onUpdate, ctx: any) {
       return text(await hostAction(workspaceOf(ctx), 'storyboard_plan', {}))
@@ -124,7 +124,7 @@ export default function demoFlowTools(pi: ExtensionAPI) {
     description:
       'Write (optional `json`) and validate storyboard.json, saving it as the next revision. Reports the exact ' +
       "problem when a phrase is not in its scene's narration, a rect is out of bounds, or a scene has " +
-      'no narration — fix the JSON and save again. The next demo_record_start records this storyboard.',
+      'no narration — fix the JSON and save again. The next pitch demo record-start records this storyboard.',
     parameters: Type.Object({
       json: Type.Optional(
         Type.String({

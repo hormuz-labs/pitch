@@ -32,8 +32,8 @@ const SHELL = process.env.STUDIO_SANDBOX_SHELL || '/bin/bash'
 const BASH_DESCRIPTION =
   "Run a shell command in this project's workspace (your cwd, and the only writable place; the " +
   'engine, skills and asset libraries are readable). You have bash, node and python, but NO ' +
-  'ffmpeg, browser or network — recon, screenshots, audio, audit and rendering are motion_* tools ' +
-  'that run outside the sandbox. When one of them fails you cannot install what it is missing and ' +
+  'ffmpeg, browser or network — recon, screenshots, audio, audit and rendering are `pitch` ' +
+  'commands that run outside the sandbox. When one of them fails you cannot install what it is missing and ' +
   'cannot reach the network: say what failed and stop. Never hand-write a file a tool produces ' +
   '(vo-words.json, cues.json, brand-tokens.json) — those are measurements, and a plausible ' +
   'substitute is a fabricated result nothing downstream can detect.'

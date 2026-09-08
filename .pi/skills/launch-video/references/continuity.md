@@ -41,8 +41,8 @@ was the no-cut film's. A chain with a gap in it is two films.
 | the picture leaves, the object stays | `motion.exit: "blur"` under an actor with `hold: true` |
 
 An actor with poses in consecutive shots crosses a `hard` cut untouched —
-that is the mechanism. `motion_schema({ section: "actors" })` has every pose
-field. `motion_check` counts the boundaries with nothing crossing them and
+that is the mechanism. `pitch motion schema --section actors` has every pose
+field. `pitch motion check` counts the boundaries with nothing crossing them and
 warns past a third; a `punch` is the cut you keep, on a beat, two or three
 in a film. A `dissolve` or a `wipe-left` on its own joins nothing.
 

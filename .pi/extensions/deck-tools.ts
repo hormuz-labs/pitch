@@ -1,7 +1,7 @@
 /**
  * Slide-deck flow tools. The deck is `deck.html` in the workspace: one
  * document, one `.slide` element per 1280×720 page. The agent edits it with
- * the sandboxed file tools (or regenerates it with pdf_build); these host
+ * the sandboxed file tools (or regenerates it with pitch pdf build); these host
  * tools render pages for inspection and publish the result — HTML plus a
  * freshly rendered PDF — as the project's outputs.
  */

@@ -64,13 +64,13 @@ describe('what the agent can reach', () => {
 
   it('does not read the engine or the vendor libraries — library code it only names', () => {
     // The agent used to read compiler.js and factories.js (135KB) several
-    // times per film to find a class name motion_schema already lists.
+    // times per film to find a class name `pitch motion schema` already lists.
     expect(() => resolveIn(WS, path.join(ENGINE_DIR, 'js/compiler.js'))).toThrow(PathError)
     expect(() => resolveIn(WS, '../../engine/schema.md')).toThrow(PathError)
     for (const dir of LIBRARY_DIRS) {
       expect(() => resolveIn(WS, path.join(dir, 'x.min.js'))).toThrow(/library code/)
     }
-    expect(() => resolveIn(WS, '../../assets/gsap/gsap.min.js')).toThrow(/motion_schema/)
+    expect(() => resolveIn(WS, '../../assets/gsap/gsap.min.js')).toThrow(/pitch motion schema/)
     // The rest of assets/ stays readable.
     expect(resolveIn(WS, path.join(ASSETS_DIR, 'fonts'))).toBe(path.join(ASSETS_DIR, 'fonts'))
   })

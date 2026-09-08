@@ -24,7 +24,7 @@ project factory instead.
 
 Preview: the studio, or serve the repo root and open
 `/projects/<name>/index.html?play` (space play/pause, arrows seek).
-`?audit` builds the page with drift and ambient off — what `motion_audit`
+`?audit` builds the page with drift and ambient off — what `pitch motion audit`
 measures. `projects/pacing-demo/` is a reference shot list that passes the
 gate and exercises every density feature.
 

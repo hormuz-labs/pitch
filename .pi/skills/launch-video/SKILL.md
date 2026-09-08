@@ -1,7 +1,6 @@
 ---
 name: launch-video
-tools: motion
-description: Build a product launch film — promo, teaser, feature announcement, kinetic typography, narrated product video — as a shots.js shot list the shared GSAP engine compiles, its moves drawn from the effects lab (motion_effects), previewed live in the studio and gated by motion_audit. Read this before starting any launch film.
+description: Build a product launch film — promo, teaser, feature announcement, kinetic typography, narrated product video — as a shots.js shot list the shared GSAP engine compiles, its moves drawn from the effects lab (`pitch effects`), previewed live in the studio and gated by pitch motion audit. Read this before starting any launch film.
 ---
 
 # Launch films
@@ -68,8 +67,8 @@ from you, in every one of them.
 
 ## Know the product
 
-`motion_recon` on the home page and one page that says what the hero hides
-(docs, changelog, pricing); `motion_screenshot` a couple of frames; read
+`pitch motion recon` on the home page and one page that says what the hero hides
+(docs, changelog, pricing); `pitch motion screenshot` a couple of frames; read
 `recon/brand-tokens.md`. Take from it the real palette and type (self-host
 the font via `brand.fonts`), the real facts (feature names, numbers, the words
 on its buttons, its register) and the mechanism: what goes in, what happens,
@@ -80,7 +79,7 @@ so and set the wordmark in the brand's type. Recon also self-hosts the
 product's font files into your `assets/fonts/`; when it saved none, the
 brand font is a system stack — the shared assets are not the brand. Everything
 else is designed motion in the brand's voice, not a collage of its
-screenshots; `motion_image` makes an image nobody has. Never stall for an
+screenshots; `pitch motion image` makes an image nobody has. Never stall for an
 asset — say once what would help and keep building.
 
 ## Make it this product's film
@@ -104,10 +103,10 @@ the diamond becomes the mesh. One object, restated, and the viewer never
 re-orients. Name it in `direction.md` — this product's: its file, its
 message, its card, its cursor, its mark; never a reference's shapes — and
 write its chain as one line. Then let it cross: an **actor** posed on both
-sides of every cut (`motion_schema({ section: "actors" })` — `anchor`,
+sides of every cut (`pitch motion schema --section actors` — `anchor`,
 `into`, `hold`, `w/h/r` and `path` poses that morph), a `carry` for a match
 cut on one element, a `flood` or a `zoom` where the frame itself is the
-join. `motion_check` counts the boundaries nothing crosses; over a third and
+join. `pitch motion check` counts the boundaries nothing crosses; over a third and
 the film reads as slides however dense it is. A `punch` is the cut you keep,
 on a beat, two or three in a film.
 
@@ -118,7 +117,7 @@ A 2.2s shot then holds three events and never reads as a hold — that is
 the answer to "enough time to read, not enough to get bored", not a longer
 `dur`.
 
-Plan to the gate, not after it. `motion_audit` notes a picture that sits
+Plan to the gate, not after it. `pitch motion audit` notes a picture that sits
 still past 1.5s or averages under 0.7 changes a second. Those are the
 reference films' numbers and a suggestion, not a rule: answer a note with a
 beat or a cut, or keep the hold and say why in direction.md — a lab effect
@@ -126,7 +125,7 @@ ported whole keeps its own timing, and a counter never gets a film rebuilt.
 What does get rebuilt at the end is a shot list that only enters, so every
 shot in the table has **three acts** — it arrives, something changes, it
 leaves — and the `move` column names all three. A lab effect ported whole
-already has them: its timeline is the acts, and `motion_check` does not
+already has them: its timeline is the acts, and `pitch motion check` does not
 judge a project type. `beats` exist for the built-in types that only enter
 (`line`, `logo-cta`, `stat-counter`…) — a `swap`, a `flood`, a `breath`.
 **Never add a `pulse`, `kick`, `shake` or `halo` to a ported effect to
@@ -160,11 +159,17 @@ flags. The built-ins that carry the product itself — `ui-frame`,
 `device-3d`, `logo-sting`, `logo-cta`, `stat-counter`, `line` with steps —
 stay.
 
-- `motion_effects({ query })` — describe the beat in plain words. Ask for
-  `limit: 10`, read past the first hit, and search a beat that matters more
-  than one way. Filter with `family`, `moves`, `libs`.
-- `motion_effects({ slug })` — the effect whole. **Look at the strip** before
-  porting.
+- `pitch effects list` — the whole shelf, one line each: id, length, the
+  libraries and the move it makes. **Read it once, early**, and you have seen
+  every option instead of guessing at eight at a time. Narrow it with
+  `--family text`, `--moves flip-3d`, `--libs three`.
+- `pitch effects search a card flipping to reveal a price` — the same shelf
+  scored against words, when you know the move but not where it lives.
+- `pitch effects show text/bold-text-snap` — the effect whole. **Look at the
+  strip** before porting.
+
+The lab is a directory, so an effect added to it is listed the moment it is
+there. Nothing is indexed ahead of time and there is nothing to rebuild.
 
 Porting: its DOM goes in `mount(el, shot)`; `fx.timeline({ duration })`
 becomes the `gsap.timeline()` that `animate(el, shot, D)` returns; times are
@@ -174,21 +179,27 @@ stage is the film's 1920×1080 at 1.5×. **Masks clip.** A reveal that hides
 overflow at line-height ≤ 1 cuts every descender and accent at hero size:
 give the mask `padding: .16em .08em .24em` with the same negative margin,
 start hidden text at yPercent 140, keep the longest line inside 1760px.
-`motion_schema({ section: "custom shot types" })` has the shape. The product's
+`pitch motion schema --section "custom shot types"` has the shape. The product's
 own words, colours and counts go in; the lab's timing and composition stay. Put
 `lab: "<id>"` on the shot and cite it in the table so the user can say
 "that one, but slower".
 
-`motion_schema()` lists the built-in types, `motion_schema({ types })` gives
+`pitch motion schema` lists the built-in types, `pitch motion schema --types <type>` gives
 their fields. A custom type is **one file**: `js/shots/<type>.js` (its styles
 in `css/shots/<type>.css`), registered with
 `Object.assign(window.ProjectShotFactories ||= {}, { "<type>": … })`;
-`motion_check` links each new file into index.html. The engine and the vendor
+`pitch motion check` links each new file into index.html. The engine and the vendor
 libraries are not on disk for you; read only what you edit (`shots.js`,
 `js/shots/*.js`, `direction.md`) and reference everything else through the
 tools.
 
 ## Build
+
+**One `pitch` call, several commands.** Everything below that is two decided
+steps in a row goes in one call, on separate lines — reading the schema for
+three sections, checking after a save, listing the lab and reading one effect.
+The last run spent six turns on six schema lookups before it had written a
+line. Turns are the cost; a batch is free.
 
 **One shot at a time, and the film runs after every one.** The user is
 watching the preview; a film that appears all at once at minute nine is a
@@ -197,15 +208,15 @@ blank stage for nine minutes. Measured on a real run: the scaffold landed at
 the first frame appeared at 9:05. Every shot you add is a save, and every save
 is a film that plays end to end — shorter than the last one, never broken.
 
-1. `motion_scaffold()` writes index.html and a starter `shots.js` — the brand
+1. `pitch motion scaffold` writes index.html and a starter `shots.js` — the brand
    recon measured and a **placeholder opener** built from the site's own h1,
    so there is already a frame on the stage. Replace it with your hook, add
    the stage and the `actors` block and one or two more shots **using
-   built-in types only**, and save. `motion_check` — it prints the shot-list
+   built-in types only**, and save. `pitch motion check` — it prints the shot-list
    warnings the audit will raise, the plain boundaries among them; fix them
    now. The user should be watching a film inside three or four minutes.
 2. Then one lab effect at a time: write its `js/shots/<type>.js` (+ its css),
-   put its shot in `shots.js`, **save, `motion_check`, and only then start
+   put its shot in `shots.js`, **save, `pitch motion check`, and only then start
    the next**. Never write a batch of type files before the shots that use
    them — an unused type is a file the check cannot judge and the user cannot
    see. Every save is a complete evaluating literal.
@@ -218,28 +229,28 @@ is a film that plays end to end — shorter than the last one, never broken.
 3. Audio, once the **picture is settled** — every shot in, every `dur` you
    intend. Narration and the mix are measured against the cut, so a shot
    retimed afterwards costs the whole pass again (that same run paid for two
-   full audio passes, ~2 minutes each). `references/audio.md`. Bed via `motion_find_audio`. Narration is
-   one read: script (1.9–2.4 words/s) → `motion_tts` once (it re-records by
-   itself if a take comes back rushed) → `audio.vo` → `motion_align` →
-   `cue` on every shot → `motion_sync({ write: true })`. Then `motion_cues`,
-   one `motion_sfx({ mode: "query", event: "impact,whoosh_deep,…" })` for every
+   full audio passes, ~2 minutes each). `references/audio.md`. Bed via `pitch motion find-audio`. Narration is
+   one read: script (1.9–2.4 words/s) → `pitch motion tts` once (it re-records by
+   itself if a take comes back rushed) → `audio.vo` → `pitch motion align` →
+   `cue` on every shot → `pitch motion sync --write`. Then `pitch motion cues`,
+   one `pitch motion sfx --mode query --event impact,whoosh_deep,…` for every
    event the film needs, a cue sheet written to the budget (~6 signature
-   cues per 30s, one per shot), `motion_sfx({ mode: "build" })` (★ marks the
-   signature cues the budget counts), `motion_mix`.
-4. `motion_audit({})`: zero ❌. A ⚠️ is a note: pacing notes name the still
+   cues per 30s, one per shot), `pitch motion sfx --mode build` (★ marks the
+   signature cues the budget counts), `pitch motion mix`.
+4. `pitch motion audit`: zero ❌. A ⚠️ is a note: pacing notes name the still
    stretch — answer with a beat or a cut, or keep it and say why in
    direction.md — that closes the note; never a longer shot
-   (`references/pacing.md` has the numbers). Then `motion_review({})`: fix every line of its clipped-type
+   (`references/pacing.md` has the numbers). Then `pitch motion review`: fix every line of its clipped-type
    and off-brand-ground reports, and **look at every sheet** — an empty frame, a colour
    that is not the brand's, a lab placeholder still on screen, an edge
-   touched. Fix in `shots.js`, then `motion_review({ shots: [...] })` for what
+   touched. Fix in `shots.js`, then `pitch motion review --shots <ids>` for what
    you touched — not another audit unless a `dur`, a cue or a beat changed,
-   and then `motion_audit({ shots: [...] })` for those shots only: it samples
+   and then `pitch motion audit --shots <ids>` for those shots only: it samples
    their stretch on the same grid, in a quarter of the time.
    Audio-only changes (a breath, a level) and a `direction.md` edit need no
    audit at all. Quote the scorecard, say what the sheets showed, stop.
-5. Export only when the user asks for an MP4: `motion_audit`,
-   `motion_render({ out, out_res, fps: 60 })`, `motion_verify_duration`.
+5. Export only when the user asks for an MP4: `pitch motion audit`,
+   `pitch motion render --out <file> --out-res 1920x1080 --fps 60`, `pitch motion verify-duration`.
 
 Length is approximate: the material decides and you report what it came out
 at. "Shorter" means cut a shot, never rush a read.
@@ -248,7 +259,7 @@ at. "Shorter" means cut a shot, never rush a read.
 
 A prompt naming a shot edits that shot's entry and keeps its `dur` unless
 asked. "That one, but slower" names a lab id: read it whole and retime.
-Verify with `motion_review({ shots: [id] })`, never a full render.
+Verify with `pitch motion review --shots <id>`, never a full render.
 
 ## When a tool fails
 

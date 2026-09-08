@@ -13,7 +13,7 @@
  * across restarts.
  */
 import { existsSync, mkdirSync } from 'node:fs'
-import { readdir, readFile, rm } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import {
@@ -24,18 +24,7 @@ import {
 } from '@earendil-works/pi-coding-agent'
 import { prisma } from '@saas/db'
 import { createLogger } from '@saas/shared'
-import {
-  activeToolNames,
-  EXTENSIONS,
-  type Family,
-  familiesFor,
-  familyOfTool,
-  type ProjectEvidence,
-  type SkillFamilies,
-  skillFamilies,
-  skillNamed,
-  type ToolsByExtension,
-} from '../agent/toolkit.js'
+import { EXTENSIONS } from '../agent/toolkit.js'
 import type { getAgent } from '../flows/index.js'
 import { ASSET_PATH } from '../projects/assets.js'
 import { emitProjectEvent, type StudioEvent } from './events.js'
@@ -81,16 +70,6 @@ export interface Session {
   projectId: string
   ws: Workspace
   agent: Agent
-  /** Tool families shown so far; they only ever grow, from evidence. */
-  families: Set<Family>
-  /** Skills whose SKILL.md the agent has read; each brings its declared families. */
-  skillsRead: Set<string>
-  /** What every skill declares it needs (`tools:` in its frontmatter). */
-  declared: SkillFamilies
-  /** Every tool pi loaded, by the extension file that registered it. */
-  toolsByExtension: ToolsByExtension
-  /** The sandboxed file tools, active on every turn. */
-  alwaysOn: string[]
   session: any
   entries: Entry[]
   busy: boolean
@@ -320,11 +299,8 @@ function onPiEvent(s: Session, ev: any): void {
       }
       addEntry(s, 'tool', toolLabel(ev.toolName, ev.args), { name: ev.toolName, status: 'running' })
       emit(s, { type: 'tool', name: ev.toolName, args: ev.args ?? {} })
-      if (ev.toolName === 'read' || ev.toolName === 'bash') onSkillRead(s, ev.args)
       break
     case 'tool_execution_end': {
-      if (ev.isError && /^Tool \S+ not found/.test(resultText(ev.result)))
-        onHiddenTool(s, ev.toolName)
       const entry = [...s.entries]
         .reverse()
         .find(e => e.role === 'tool' && e.tool?.status === 'running' && e.tool.name === ev.toolName)
@@ -397,7 +373,6 @@ export interface OpenSessionOptions {
   ws: Workspace
   agent: Agent
   sessionFile: string | null
-  /** The user's words this turn, so a new need widens the toolkit. */
   prompt?: string
   uploads?: string[]
   /** A `provider/id` the user picked in the composer; falls back to STUDIO_MODEL. */
@@ -405,36 +380,11 @@ export interface OpenSessionOptions {
 }
 
 /**
- * What this project's workspace shows, for familiesFor().
- *
- * A shallow listing plus the two nested paths the classifier looks at; the
- * agent's own files are what say a deck has become a film.
- */
-async function evidenceFor(s: Session, opts: OpenSessionOptions): Promise<ProjectEvidence> {
-  const files: string[] = []
-  for (const name of await readdir(s.ws.dir).catch(() => [] as string[])) {
-    files.push(name)
-    if (name === 'recording' || name === 'uploads' || name === 'build') {
-      for (const inner of await readdir(path.join(s.ws.dir, name)).catch(() => [] as string[]))
-        files.push(`${name}/${inner}`)
-    }
-  }
-  const skills = new Set(s.skillsRead)
-  try {
-    const project = JSON.parse(await readFile(path.join(s.ws.dir, 'project.json'), 'utf8'))
-    if (typeof project?.options?.skill === 'string') skills.add(project.options.skill)
-  } catch {
-    // no project.json yet — the files and the skills the agent reads decide
-  }
-  return { files, uploads: opts.uploads, skills: [...skills], declared: s.declared }
-}
-
-/**
  * Get (or lazily create) the pi session bound to a project.
  *
- * Every extension is loaded once; which tools the model is SHOWN is decided
- * per turn (see activateTools), so a session never has to be rebuilt when a
- * deck turns into a film — the toolkit simply widens before the next prompt.
+ * One toolkit, fixed for the life of the session: the sandboxed file tools,
+ * the question card and `pitch`. A deck that turns into a film needs no
+ * rebuild and no widening — every capability was already one command away.
  */
 export async function getSession(opts: OpenSessionOptions): Promise<Session> {
   const existing = sessions.get(opts.projectId)
@@ -478,14 +428,9 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
     for (const e of ext?.errors ?? [])
       logger.warn({ err: e.error, path: e.path }, 'extension failed to load')
 
-    const toolsByExtension = new Map<string, string[]>()
-    for (const e of ext?.extensions ?? []) {
-      toolsByExtension.set(path.resolve(e.resolvedPath ?? e.path), [...(e.tools?.keys?.() ?? [])])
-    }
-    const extensionTools: string[] = [...toolsByExtension.values()].flat()
-    const alwaysOn = agent.sandbox
-      ? (toolsByExtension.get(path.resolve(SANDBOX_EXTENSION)) ?? [])
-      : [...agent.builtinTools]
+    const extensionTools: string[] = (ext?.extensions ?? []).flatMap((e: any) => [
+      ...(e.tools?.keys?.() ?? []),
+    ])
     const { session } = await createAgentSession({
       cwd: ws.dir,
       modelRuntime,
@@ -503,11 +448,6 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       projectId: opts.projectId,
       ws,
       agent,
-      families: new Set<Family>(),
-      skillsRead: new Set<string>(),
-      declared: await skillFamilies(),
-      toolsByExtension,
-      alwaysOn,
       session,
       entries: [],
       busy: false,
@@ -518,7 +458,6 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       cost: 0,
     }
     session.subscribe((ev: any) => onPiEvent(s, ev))
-    await activateTools(s, opts)
     sessions.set(opts.projectId, s)
     watchWorkspace(
       ws.dir,
@@ -598,51 +537,6 @@ export function listBusy(): Set<string> {
 }
 
 /**
- * Show the model the tools this turn needs.
- *
- * The families come from the evidence — the workspace's files, the uploads,
- * the skills — and accumulate: once a project has been a deck it can always
- * edit the deck. pi rebuilds the tool list before every model call, so a
- * family added mid-turn is there for the agent's next step.
- */
-async function activateTools(s: Session, opts: OpenSessionOptions): Promise<void> {
-  widen(s, familiesFor(await evidenceFor(s, opts)), 'turn')
-}
-
-function widen(s: Session, needed: Iterable<Family>, why: string): void {
-  const added = [...needed].filter(f => !s.families.has(f))
-  for (const f of added) s.families.add(f)
-  if (!added.length && s.turn > 0) return
-  const names = activeToolNames(s.families, s.toolsByExtension, s.alwaysOn)
-  s.session.setActiveToolsByName(names)
-  logger.info(
-    { projectId: s.projectId, families: [...s.families], added, tools: names.length, why },
-    'session toolkit',
-  )
-}
-
-/**
- * The agent has read a skill: it has decided what this project is, and the
- * skill's frontmatter says which tools that takes. Widen before its next step.
- */
-function onSkillRead(s: Session, args: unknown): void {
-  const skill = skillNamed(args)
-  if (!skill || s.skillsRead.has(skill)) return
-  s.skillsRead.add(skill)
-  widen(s, s.declared.get(skill) ?? [], `read skill ${skill}`)
-}
-
-/**
- * The agent called a tool it was not shown. If the tool exists, its family
- * is what the turn needs: widen, and pi's "not found" result is followed by
- * a model call that has it — the retry is the agent's own next move.
- */
-function onHiddenTool(s: Session, toolName: string): void {
-  const family = familyOfTool(toolName, s.toolsByExtension)
-  if (family && !s.families.has(family)) widen(s, [family], `hidden tool ${toolName}`)
-}
-
-/**
  * Switch a live session to the model the user picked. pi's setModel validates
  * auth itself and records the change in the transcript, so a resumed session
  * keeps the choice.
@@ -669,7 +563,6 @@ export async function promptSession(
     err.code = 'BUSY'
     throw err
   }
-  await activateTools(s, opts)
   addEntry(s, 'user', text)
   setBusy(s, true)
   s.turn += 1

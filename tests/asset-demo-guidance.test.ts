@@ -35,7 +35,7 @@ describe('prepared-asset narration guidance', () => {
     const agent = read('.pi/skills/demo-video/SKILL.md')
 
     for (const guidance of [agent]) {
-      expect(guidance).toContain('demo_analyze_slide')
+      expect(guidance).toContain('pitch demo analyze-slide')
       expect(guidance).toMatch(/every (?:prepared )?(?:page|slide).*before narrat/is)
       expect(guidance).toMatch(/empty|no machine-readable text/i)
     }
