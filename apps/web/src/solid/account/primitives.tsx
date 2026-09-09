@@ -98,7 +98,9 @@ export function Popover(props: {
             props.class ??
             'absolute right-0 top-full z-50 mt-2 min-w-48 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl'
           }
-          onClick={() => setOpen(false)}
+          onClick={event => {
+            if ((event.target as Element).closest('[role="menuitem"]')) setOpen(false)
+          }}
         >
           {props.children}
         </div>

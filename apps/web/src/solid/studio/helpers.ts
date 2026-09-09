@@ -59,7 +59,7 @@ export function buildStatus(entries: Entry[], note: string | null): string {
     const e = entries[i]
     if (e.role === 'question') return 'waiting for your answer…'
     if (e.role === 'tool' && e.tool?.status === 'running') return phase(e.tool.name)
-    if ((e.role === 'assistant' || e.role === 'thinking') && e.text.trim())
+    if (e.role === 'assistant' && e.text.trim())
       return e.text.trim().split('\n').filter(Boolean).at(-1)!.replace(/\*\*/g, '').slice(0, 120)
   }
   return 'Warming up…'
