@@ -4,10 +4,10 @@
 <link rel="stylesheet" href="../../_lib/base.css">
 <style>
   .stage{background:#101014}
-  .grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(20,1fr);grid-template-rows:repeat(11,1fr);padding:30px;gap:0}
+  .grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(20,1fr);grid-template-rows:repeat(11,1fr);padding:30px;gap:0;opacity:.7}
   .cell{display:grid;place-items:center}
   .dot{width:36px;height:36px;border-radius:9px;background:#ffd23f;will-change:transform,opacity}
-  .mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:110px;letter-spacing:-.04em;color:#fff;mix-blend-mode:difference}
+  .mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:"Sharp Grotesk","Atlas Grotesk",sans-serif;font-weight:500;font-size:110px;letter-spacing:-.04em;color:#fff;z-index:2}
 </style>
 <div class="stage"><div class="grid" id="grid"></div><div class="mark">Northwind</div></div>
 <script src="../../../assets/gsap/gsap.min.js"></script>

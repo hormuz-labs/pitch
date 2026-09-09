@@ -20,8 +20,8 @@
   .apt small{display:block;font-family:"Atlas Grotesk",sans-serif;font-size:13px;color:#6b7280;letter-spacing:0;margin-top:6px}
   .apt.r{text-align:right}
   .arc{height:110px;position:relative}
-  .arc svg{width:100%;height:100%;overflow:visible}
-  .plane{position:absolute;left:0;top:0;width:30px;height:30px;margin:-15px;will-change:transform}
+  .arc > svg:first-child{width:100%;height:100%;overflow:visible}
+  .plane{position:absolute;left:0;top:0;width:24px;height:24px;margin:-12px;will-change:transform;pointer-events:none;opacity:0}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px}
   .grid div{font-size:26px;font-weight:500;letter-spacing:-.02em}
   .grid div small{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6b7280;font-weight:400;margin-bottom:6px}
@@ -38,8 +38,8 @@
       <div class="hd"><i></i><b>Northwind Air</b>NW 214<span class="st">Boarding</span></div>
       <div class="route">
         <div class="apt">SFO<small>San Francisco · 07:45</small></div>
-        <div class="arc"><svg viewBox="0 0 400 110"><path id="p" d="M8,95 C120,-10 280,-10 392,95" fill="none" stroke="#d7dbe3" stroke-width="2" stroke-dasharray="5 7"/><path id="p2" d="M8,95 C120,-10 280,-10 392,95" fill="none" stroke="#2f6bff" stroke-width="3" stroke-linecap="round"/><circle cx="8" cy="95" r="6" fill="#0b1220"/><circle cx="392" cy="95" r="6" fill="#0b1220"/></svg>
-          <svg class="plane" viewBox="0 0 24 24"><path d="M2 12l20-8-6 8 6 8z" fill="#0b1220"/></svg></div>
+        <div class="arc"><svg viewBox="0 0 400 110"><path id="p" d="M12,95 C120,-10 280,-10 382,95" fill="none" stroke="#d7dbe3" stroke-width="2" stroke-dasharray="5 7"/><path id="p2" d="M12,95 C120,-10 280,-10 382,95" fill="none" stroke="#2f6bff" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="95" r="6" fill="#0b1220"/><circle cx="382" cy="95" r="6" fill="#0b1220"/></svg>
+          <svg class="plane" viewBox="0 0 512 512"><path d="M186.62 464H160a16 16 0 0 1-14.57-22.6l64.46-142.25L113.1 297l-35.3 42.77C71.07 348.23 65.7 352 52 352H34.08a17.66 17.66 0 0 1-14.7-7.06c-2.38-3.21-4.72-8.65-2.44-16.41l19.82-71c.15-.53.33-1.06.53-1.58a.4.4 0 0 0 0-.15 15 15 0 0 1-.53-1.59l-19.84-71.45c-2.15-7.61.2-12.93 2.56-16.06a16.83 16.83 0 0 1 13.6-6.7H52c10.23 0 20.16 4.59 26 12l34.57 42.05 97.32-1.44-64.44-142A16 16 0 0 1 160 48h26.91a25 25 0 0 1 19.35 9.8l125.05 152 57.77-1.52c4.23-.23 15.95-.31 18.66-.31C463 208 496 225.94 496 256c0 9.46-3.78 27-29.07 38.16-14.93 6.6-34.85 9.94-59.21 9.94-2.68 0-14.37-.08-18.66-.31l-57.76-1.54-125.36 152a25 25 0 0 1-19.32 9.75" fill="#0b1220"/></svg></div>
         <div class="apt r">JFK<small>New York · 16:20</small></div>
       </div>
       <div class="grid"><div><small>Gate</small><span class="g">B12</span></div><div><small>Boarding</small><span class="bt">07:05</span></div><div><small>Seat</small><span class="se">14A</span></div><div><small>Group</small><span class="gr">2</span></div></div>
@@ -71,6 +71,7 @@
     // barcode prints in
     .from('#bar i', { scaleY: 0, stagger: 0.012, duration: 0.3, ease: 'power2.out' }, 1.0)
     // the route draws and the plane follows it, nose along the curve
+    .to('.plane', { opacity: 1, duration: 0.2 }, 1.5)
     .fromTo('#p2', { drawSVG: '0%' }, { drawSVG: '100%', duration: 3.2, ease: 'power2.inOut' }, 1.5)
     .to('.plane', { motionPath: { path: '#p', align: '#p', alignOrigin: [0.5, 0.5], autoRotate: true }, duration: 3.2, ease: 'power2.inOut' }, 1.5)
     // the pass reacts: gate and boarding time update with a flip
