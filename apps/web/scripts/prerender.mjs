@@ -19,24 +19,21 @@ const dist = path.join(root, 'dist')
 // ── Route list ────────────────────────────────────────────────────────────────
 // Blog slugs/titles are parsed out of the BLOG_POSTS source so the prerender
 // set always matches what the app renders.
-const blogSrc = fs.readFileSync(path.join(root, 'src/components/Blog.tsx'), 'utf8')
+const blogSrc = fs.readFileSync(path.join(root, 'src/solid/public/Blog.tsx'), 'utf8')
 const blogPosts = blogSrc
-  .slice(blogSrc.indexOf('const BLOG_POSTS'))
-  .split(/\{?\s*slug: '/)
+  .slice(blogSrc.indexOf('export const BLOG_POSTS'), blogSrc.indexOf('].map'))
+  .split(/\n  \[\n/)
   .slice(1)
   .map(block => {
-    const slug = block.slice(0, block.indexOf("'"))
-    const head = block.slice(0, block.indexOf('content:'))
-    // Titles may be single- or double-quoted (double when they contain an apostrophe).
-    const title =
-      head.match(/title:\s*'((?:[^'\\]|\\.)*)'/)?.[1] ??
-      head.match(/title:\s*"((?:[^"\\]|\\.)*)"/)?.[1]
-    return { slug, title }
+    const fields = [...block.matchAll(/^\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"),?$/gm)].map(
+      match => match[1] ?? match[2],
+    )
+    return { slug: fields[0], title: fields[4] }
   })
   .filter(p => p.slug && p.title)
 
 if (blogPosts.length === 0) {
-  console.error('prerender: could not parse any blog posts from Blog.tsx')
+  console.error('prerender: could not parse any blog posts from solid/public/Blog.tsx')
   process.exit(1)
 }
 
@@ -91,7 +88,7 @@ const base = `http://127.0.0.1:${port}`
 // The API's share routes (/d/:slug) fetch the deployed app shell and inject
 // per-job OG tags into it. That shell used to be `/`, which was an empty SPA
 // stub — but `/` is now a fully prerendered landing page, so a share link would
-// paint the whole homepage before React replaced it with the demo. Keep a copy
+// paint the whole homepage before the app replaced it with the demo. Keep a copy
 // of the content-free build output for that purpose before `/` is overwritten.
 fs.copyFileSync(path.join(dist, 'index.html'), path.join(dist, 'app-shell.html'))
 console.log('wrote dist/app-shell.html (content-free shell for share routes)')

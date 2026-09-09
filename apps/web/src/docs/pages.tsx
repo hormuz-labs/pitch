@@ -11,16 +11,16 @@
  *   project     apps/api/src/projects/service.ts
  * If you change one, change the other.
  */
-import type { ReactNode } from 'react'
+import type { JSX } from 'solid-js'
 
 export type Block =
-  | { k: 'p'; text: ReactNode }
+  | { k: 'p'; text: JSX.Element }
   | { k: 'h2'; text: string }
   | { k: 'h3'; text: string }
   | { k: 'code'; lang?: string; code: string }
-  | { k: 'table'; head: string[]; rows: ReactNode[][] }
-  | { k: 'list'; items: ReactNode[]; ordered?: boolean }
-  | { k: 'note'; text: ReactNode }
+  | { k: 'table'; head: string[]; rows: JSX.Element[][] }
+  | { k: 'list'; items: JSX.Element[]; ordered?: boolean }
+  | { k: 'note'; text: JSX.Element }
 
 export interface DocPage {
   slug: string
@@ -31,8 +31,8 @@ export interface DocPage {
   blocks: Block[]
 }
 
-const C = ({ children }: { children: ReactNode }) => <code>{children}</code>
-const A = ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>
+const C = ({ children }: { children: JSX.Element; key?: string }) => <code>{children}</code>
+const A = ({ to, children }: { to: string; children: JSX.Element }) => <a href={to}>{children}</a>
 
 const BASE = 'https://api.trypitch.co'
 
@@ -1533,9 +1533,8 @@ const restApi: DocPage = {
           '6 to 13',
           <>
             <C>resolution</C> (<C>720p</C>, <C>1080p</C> default, <C>4k</C>; sets the price; every
-            export is 60 fps),{' '}
-            <C>narration</C> (default true; false saves 1 credit), <C>music</C> (track filename from
-            the shared library)
+            export is 60 fps), <C>narration</C> (default true; false saves 1 credit), <C>music</C>{' '}
+            (track filename from the shared library)
           </>,
         ],
         [

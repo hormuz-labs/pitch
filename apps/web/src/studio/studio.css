@@ -166,6 +166,10 @@
   gap: 6px;
 }
 .lv-studio .topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   font-size: 13px;
   padding: 5px 12px;
   border-radius: 8px;

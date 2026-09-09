@@ -1,17 +1,17 @@
 import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
 import path from 'path'
 import { defineConfig } from 'vite'
+import solid from 'vite-plugin-solid'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [solid(), tailwindcss()],
   envDir: '../../',
   // Dashboard-only dependencies live behind lazy route imports. Pre-bundle
   // them at startup so opening /dashboard cannot trigger a second optimizer
   // pass that invalidates module URLs already loaded by the browser.
   optimizeDeps: {
-    include: ['motion/react', 'react-icons/fi'],
+    include: ['@clerk/clerk-js', '@solidjs/router', 'solid-js'],
   },
   build: {
     rollupOptions: {
@@ -21,36 +21,20 @@ export default defineConfig({
           if (!id.includes('node_modules')) return
           if (/[\\/]node_modules[\\/]@clerk[\\/]/.test(id)) return 'vendor-clerk'
           if (/[\\/]node_modules[\\/](gsap)[\\/]/.test(id)) return 'vendor-gsap'
-          if (/[\\/]node_modules[\\/](framer-motion|motion|motion-dom|motion-utils)[\\/]/.test(id))
-            return 'vendor-motion'
-          // jspdf/html-to-image/qrcode are deliberately NOT grouped. Every one of
-          // them is reachable only from lazily-loaded views, but bundling them
-          // into a single manual chunk made that chunk the home of Rolldown's
-          // shared __vitePreload helper — which the entry needs for its own
-          // route-level dynamic imports. The entry then statically imported the
-          // whole 645 kB group, so every landing visitor downloaded jsPDF.
-          // Left unassigned, they ride along with the views that actually use them.
           if (/[\\/]node_modules[\\/]posthog-js[\\/]/.test(id)) return 'vendor-posthog'
-          if (
-            /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(
-              id,
-            )
-          )
-            return 'vendor-react'
+          if (/[\\/]node_modules[\\/](solid-js|@solidjs)[\\/]/.test(id)) return 'vendor-solid'
         },
       },
     },
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['solid-js'],
   },
   server: {
-    // Optimized dependency URLs are versioned, but a dependency install can
-    // leave an already-open tab holding an old React/ReactDOM graph. Never let
-    // browsers persist dev-server modules across optimizer restarts.
+    // Never let browsers persist dev-server modules across optimizer restarts.
     headers: {
       'Cache-Control': 'no-store',
     },

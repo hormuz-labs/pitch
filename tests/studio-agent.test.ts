@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { describeWorkspace, RELEVANT } from '../apps/api/src/agent/describe.js'
 import { COMPUTE_USD_PER_SEC, creditsOwed, usageUsd } from '../apps/api/src/projects/usage.js'
 import type { Workspace } from '../apps/api/src/studio/paths.js'
-import { withTargetLegend } from '../apps/web/src/studio/useProject.js'
+import { withTargetLegend } from '../apps/web/src/solid/studio/helpers.js'
 
 function workspace(): Workspace {
   const dir = mkdtempSync(path.join(tmpdir(), 'studio-ws-'))
