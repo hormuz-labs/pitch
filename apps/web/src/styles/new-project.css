@@ -116,31 +116,19 @@
 .lv-studio.new-project-page .link-btn:hover:not(:disabled) { color: #56514d; }
 .new-featured-cue { display: flex; align-items: center; justify-content: center; gap: 8px; width: max-content; margin: 64px auto 0; color: #77726e; font-size: 10px; text-decoration: none; }
 
-.inspiration-drawer { position: fixed; bottom: 0; left: calc(var(--shell-sidebar-width, 0px) + (100vw - var(--shell-sidebar-width, 0px)) / 2); z-index: 20; width: min(900px, calc(100vw - var(--shell-sidebar-width, 0px) - 36px)); height: 58px; overflow: hidden; border: 1px solid rgb(255 255 255 / 8%); border-bottom: 0; border-radius: 22px 22px 0 0; background: #202220; box-shadow: 0 -16px 48px rgb(0 0 0 / 22%); transform: translateX(-50%); transition: height 280ms cubic-bezier(.22,1,.36,1), left 360ms cubic-bezier(.22,1,.36,1), width 360ms cubic-bezier(.22,1,.36,1); }
-.inspiration-drawer.is-open { height: min(390px, calc(100vh - 92px)); }
-.lv-studio.new-project-page .inspiration-drawer__toggle { width: 100%; height: 58px; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; border: 0; background: transparent; color: #a1a49f; font-size: 13px; cursor: pointer; }
-.inspiration-drawer__toggle > span { display: inline-flex; align-items: center; gap: 9px; }
-.inspiration-drawer__toggle > span:last-child { color: #777b75; font-size: 12px; }
-.inspiration-drawer__toggle svg { flex: none; }
-.inspiration-drawer__toggle > span:last-child svg { transition: transform 220ms ease; }
-.inspiration-drawer.is-open .inspiration-drawer__toggle > span:last-child svg { transform: rotate(180deg); }
-.lv-studio.new-project-page .inspiration-drawer__toggle:hover:not(:disabled) { background: #252725; color: #f1f1ee; }
-.inspiration-drawer__content { height: calc(100% - 58px); padding: 4px 22px 24px; overflow-y: auto; border-top: 1px solid rgb(255 255 255 / 7%); }
-.inspiration-drawer__intro { padding: 18px 0 14px; }
-.inspiration-drawer__intro span { color: #f1f1ee; font-size: 15px; font-weight: 570; }
-.inspiration-drawer__intro p { margin: 4px 0 0; color: #858983; font-size: 12px; }
-.inspiration-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.lv-studio.new-project-page .inspiration-card { min-width: 0; padding: 0; overflow: hidden; border: 1px solid rgb(255 255 255 / 9%); border-radius: 13px; background: #171817; color: #ededeb; text-align: left; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease; }
-.lv-studio.new-project-page .inspiration-card:hover:not(:disabled) { border-color: rgb(255 255 255 / 23%); background: #1b1d1b; transform: translateY(-2px); }
-.inspiration-card__art { position: relative; width: 100%; aspect-ratio: 16 / 9; display: block; overflow: hidden; background: radial-gradient(circle at 76% 22%, var(--inspiration-c), transparent 27%), linear-gradient(135deg, var(--inspiration-a), var(--inspiration-b)); }
-.inspiration-card__art::after { position: absolute; right: 10%; bottom: 13%; left: 10%; height: 2px; border-radius: 2px; background: rgb(255 255 255 / 68%); content: ""; }
-.inspiration-card__art i { position: absolute; width: 34%; height: 10%; border-radius: 999px; background: rgb(255 255 255 / 74%); }
-.inspiration-card__art i:nth-child(1) { top: 28%; left: 10%; }
-.inspiration-card__art i:nth-child(2) { top: 43%; left: 10%; width: 52%; opacity: .55; }
-.inspiration-card__art i:nth-child(3) { top: 58%; left: 10%; width: 24%; opacity: .35; }
-.inspiration-card__copy { padding: 11px 12px 13px; display: flex; flex-direction: column; gap: 3px; }
-.inspiration-card__copy small { color: #777b75; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
-.inspiration-card__copy strong { overflow: hidden; color: #dedfdb; font-size: 12px; font-weight: 540; text-overflow: ellipsis; white-space: nowrap; }
+.inspiration-showcase { min-height: 100vh; padding: clamp(90px, 12vh, 150px) clamp(20px, 5vw, 72px); display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgb(255 255 255 / 7%); background: #151615; }
+.inspiration-showcase__head { width: min(1160px, 100%); margin: 0 auto 34px; }
+.inspiration-showcase__head > span { color: #858983; font-size: 10px; font-weight: 620; letter-spacing: .1em; text-transform: uppercase; }
+.inspiration-showcase__head h2 { margin: 10px 0 8px; color: #f1f1ee; font-size: clamp(28px, 4vw, 48px); font-weight: 520; letter-spacing: -.045em; line-height: 1.02; }
+.inspiration-showcase__head p { margin: 0; color: #858983; font-size: 14px; }
+.inspiration-grid { width: min(1160px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 2vw, 22px); }
+.lv-studio.new-project-page .inspiration-card { min-width: 0; overflow: hidden; border: 1px solid rgb(255 255 255 / 9%); border-radius: 18px; background: #1d1f1d; color: #ededeb; transition: transform 220ms cubic-bezier(.22,1,.36,1), border-color 180ms ease; }
+.lv-studio.new-project-page .inspiration-card:hover { border-color: rgb(255 255 255 / 20%); transform: translateY(-4px); }
+.inspiration-card video { width: 100%; aspect-ratio: 16 / 9; display: block; object-fit: cover; background: #0c0d0c; }
+.inspiration-card__copy { min-height: 128px; padding: 17px 18px 20px; display: flex; flex-direction: column; align-items: flex-start; }
+.inspiration-card__copy small { margin-bottom: 7px; color: #858983; font-size: 9px; font-weight: 620; letter-spacing: .08em; text-transform: uppercase; }
+.inspiration-card__copy strong { color: #f1f1ee; font-size: 17px; font-weight: 560; letter-spacing: -.02em; }
+.inspiration-card__copy p { margin: 7px 0 0; color: #969a94; font-size: 12px; line-height: 1.45; }
 
 /* The skill pills sit under the composer: a hint row, not a mode switch.
    Grey at rest — the blue stroke only appears on the selected skill. */
@@ -223,16 +211,156 @@
   .new-composer-wrap .composer-add-menu { width: min(246px, calc(100vw - 48px)); }
   .new-project-wordmark { width: 148px; }
   .lv-studio .new-composer-wrap { width: 100%; }
-  .inspiration-drawer { left: 50%; width: calc(100vw - 24px); }
-  .inspiration-drawer.is-open { height: min(520px, calc(100svh - 76px)); }
-  .inspiration-grid { grid-template-columns: 1fr 1fr; }
-  .inspiration-drawer__content { padding-inline: 14px; }
-  .lv-studio.new-project-page .inspiration-drawer__toggle { padding-inline: 16px; }
-  .inspiration-drawer__toggle > span:last-child { font-size: 0; }
+  .inspiration-showcase { padding: 80px 16px; }
+  .inspiration-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .new-composer-wrap .composer-add-menu { animation: none; }
   .new-featured__panel { width: 100%; height: 100vh; border-radius: 0; transform: none; }
   .new-featured__content, .new-featured__video video { transform: none; transition: none; }
+}
+
+/* The original new-project screen was authored as a dark-only surface. Keep
+   its visual hierarchy in light mode instead of leaving a dark island inside
+   the light app shell. */
+[data-theme="light"] :is(.new-shell-main, .lv-studio.new-project-page) {
+  background: #f7f7f5 !important;
+}
+
+[data-theme="light"] .lv-studio.new-project-page {
+  color: #242422;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__links :is(a, button) {
+  color: #71716d;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__links :is(a, button):hover,
+[data-theme="light"] .lv-studio.new-project-page .new-template-strip__head button:hover:not(:disabled) {
+  color: #242422;
+}
+
+[data-theme="light"] .new-project-wordmark {
+  color: #242422;
+}
+
+[data-theme="light"] .lv-studio .new-composer-wrap .composer-box {
+  border-color: #d8d8d4;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgb(42 42 38 / 10%);
+}
+
+[data-theme="light"] .lv-studio .new-composer-wrap .composer-box:focus-within {
+  border-color: #aaa9a4;
+  box-shadow: 0 26px 76px rgb(42 42 38 / 12%), 0 0 0 3px rgb(36 36 34 / 5%);
+}
+
+[data-theme="light"] .lv-studio .new-composer-wrap textarea {
+  color: #242422;
+}
+
+[data-theme="light"] .lv-studio .new-composer-wrap textarea::placeholder {
+  color: #92928d;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .attach-plus {
+  border-color: #d8d8d4;
+  background: #f0f0ed;
+  color: #5f5f5b;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled) {
+  border-color: #bdbdb8;
+  background: #e8e8e5;
+  color: #242422;
+}
+
+[data-theme="light"] :is(.new-composer-wrap .composer-add-menu, .new-composer-wrap .model-menu) {
+  border-color: #d8d8d4;
+  background: #ffffff;
+  box-shadow: 0 18px 46px rgb(42 42 38 / 14%), 0 2px 8px rgb(42 42 38 / 5%);
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .composer-add-menu button,
+[data-theme="light"] .new-composer-wrap .composer-add-menu label,
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .model-option {
+  color: #4f4f4b;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .composer-add-menu button:hover:not(:disabled),
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .composer-add-menu button.is-selected,
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .model-option:hover:not(:disabled),
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .model-option.is-active {
+  background: #efefec;
+  color: #242422;
+}
+
+[data-theme="light"] .new-composer-wrap .composer-add-menu label > select {
+  color: #242422;
+  background-color: #efefec;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .send-btn {
+  background: #242422;
+  color: #ffffff;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) {
+  background: #000000;
+  color: #ffffff;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .send-btn:disabled {
+  background: #dfdfdc;
+  color: #92928d;
+}
+
+[data-theme="light"] .lv-studio.new-project-page :is(.composer-credits button, .new-composer-wrap .model-btn) {
+  color: #71716d;
+}
+
+[data-theme="light"] .lv-studio.new-project-page :is(.composer-credits button, .new-composer-wrap .model-btn):hover:not(:disabled) {
+  background: #efefec;
+  color: #242422;
+}
+
+[data-theme="light"] .inspiration-showcase {
+  border-top-color: #e2e2de;
+  background: #efefec;
+}
+
+[data-theme="light"] .inspiration-showcase__head h2,
+[data-theme="light"] .inspiration-card__copy strong {
+  color: #242422;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .inspiration-card {
+  border-color: #dededb;
+  background: #ffffff;
+  color: #242422;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .inspiration-card:hover:not(:disabled) {
+  border-color: #bdbdb8;
+  background: #ffffff;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-skill-pill {
+  border-color: #d8d8d4;
+  color: #71716d;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) {
+  border-color: #bdbdb8;
+  background: #efefec;
+  color: #242422;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-skill-pill.is-active,
+[data-theme="light"] .lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled),
+[data-theme="light"] .lv-studio.new-project-page .new-skill-chip {
+  border-color: #777773;
+  background: #242422;
+  color: #ffffff;
 }

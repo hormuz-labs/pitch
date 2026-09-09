@@ -3398,9 +3398,8 @@ to {
 /* ══════════════════════════════════════════════════════════════════════════
    Responsive
    ──────────────────────────────────────────────────────────────────────────
-   The editor was a fixed two-column layout at every width: below about a
-   thousand pixels the stage and the thread were both too narrow to use. It
-   now stacks — artifact on top, agent beneath it — and each keeps its own
+   At phone widths the stage and thread are too narrow to use side by side, so
+   they stack — artifact on top, agent beneath it — and each keeps its own
    scroll so the composer stays on screen and the page itself never scrolls.
    ═════════════════════════════════════════════════════════════════════════ */
 
@@ -3408,7 +3407,7 @@ to {
   .lv-studio .edit-sidebar { width: clamp(320px, 34vw, 420px); }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 720px) {
   .lv-studio .editor { flex-direction: column; }
   /* YouTube-style: the player is sized by width at 16:9 rather than a
      viewport-height clamp, so the artifact fills the phone's width and the
@@ -4272,7 +4271,9 @@ to {
     margin-left: auto;
     flex-wrap: nowrap;
   }
+}
 
+@media (max-width: 720px) {
   .lv-studio .editor-stage {
     order: 1;
     height: auto;
@@ -4860,7 +4861,7 @@ to {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 720px) {
   .lv-studio .editor-stage:has(.pro-multi-track-timeline) {
     width: 100%;
     height: min(70dvh, 640px);
@@ -5306,7 +5307,9 @@ to {
   .lv-studio:not(.new-project-page) .editor-stage {
     border: 0;
   }
+}
 
+@media (max-width: 720px) {
   .lv-studio:not(.new-project-page) .edit-sidebar {
     width: auto;
     max-width: none;

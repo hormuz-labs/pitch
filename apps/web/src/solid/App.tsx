@@ -46,7 +46,7 @@ function Protected(props: { component: Component; shellProps?: boolean }) {
   const location = useLocation()
   const returnTo = () => `${location.pathname}${location.search}${location.hash}`
   return (
-    <Show when={auth.isLoaded()} fallback={<div class="h-screen w-screen bg-[#FDFDFD]" />}>
+    <Show when={auth.isLoaded()} fallback={<div class="h-screen w-screen bg-[var(--bg-page)]" />}>
       <Show
         when={auth.isSignedIn()}
         fallback={<Navigate href={`/sign-up?redirect=${encodeURIComponent(returnTo())}`} />}
@@ -81,7 +81,7 @@ function SsoCallback() {
       signUpFallbackRedirectUrl: '/new',
     })
   })
-  return <div class="h-screen w-screen bg-[#FDFDFD]" />
+  return <div class="h-screen w-screen bg-[var(--bg-page)]" />
 }
 
 function ProductRoute() {
@@ -104,7 +104,7 @@ function AuthRoute() {
   const location = useLocation()
   const destination = () => safeRedirect(new URLSearchParams(location.search).get('redirect'))
   return (
-    <Show when={auth.isLoaded()} fallback={<div class="h-screen w-screen bg-[#FDFDFD]" />}>
+    <Show when={auth.isLoaded()} fallback={<div class="h-screen w-screen bg-[var(--bg-page)]" />}>
       <Show when={!auth.isSignedIn()} fallback={<Navigate href={destination()} />}>
         <Dynamic
           component={Auth as Component<{ mode: 'sign-in' | 'sign-up' }>}
@@ -118,7 +118,7 @@ function AuthRoute() {
 function PricingRoute() {
   const auth = useAuth()
   return (
-    <Show when={auth.isLoaded()} fallback={<div class="h-screen w-screen bg-[#FDFDFD]" />}>
+    <Show when={auth.isLoaded()} fallback={<div class="h-screen w-screen bg-[var(--bg-page)]" />}>
       <Show when={auth.isSignedIn()} fallback={<Dynamic component={Pricing} />}>
         <Dynamic component={AccountPricing} />
       </Show>
@@ -164,7 +164,7 @@ function AppRoot(props: ParentProps) {
     shellPaths.some(path => location.pathname === path || location.pathname.startsWith(path))
   return (
     <ScrollToTop>
-      <Suspense fallback={<div class="h-screen w-screen bg-[#FDFDFD]" />}>
+      <Suspense fallback={<div class="h-screen w-screen bg-[var(--bg-page)]" />}>
         <Show when={inShell()} fallback={props.children}>
           <AppShell>{props.children}</AppShell>
         </Show>

@@ -5,6 +5,7 @@ import {
   Gift,
   LogOut,
   MessageSquare,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   PlugZap,
@@ -12,6 +13,7 @@ import {
   Search,
   Settings,
   Shield,
+  Sun,
   UserRound,
   X,
 } from 'lucide-solid'
@@ -37,6 +39,7 @@ import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
 import { PitchWordmark } from '../public/brand'
 import { useAuth, useClerk, useUser } from './auth'
+import { useTheme } from './theme'
 
 interface AppShellContextValue {
   isMobile: Accessor<boolean>
@@ -79,6 +82,7 @@ function Sidebar(props: {
 }) {
   const navigate = useNavigate()
   const clerk = useClerk()
+  const theme = useTheme()
   const { userAccessor } = useUser()
   const [query, setQuery] = createSignal('')
   const go = (path: string) => {
@@ -174,6 +178,9 @@ function Sidebar(props: {
             <span>New chat</span>
             <kbd>⌘ K</kbd>
           </button>
+          <p class="conversation-sidebar__section-title conversation-sidebar__nav-title">
+            Workspace
+          </p>
           <button
             type="button"
             class={`conversation-sidebar__row${props.selectedKey === 'sessions' ? ' is-active' : ''}`}
@@ -190,14 +197,6 @@ function Sidebar(props: {
             <PlugZap size={16} />
             <span>API / MCP</span>
           </button>
-          <button
-            type="button"
-            class="conversation-sidebar__row"
-            onClick={() => props.openSettings('account')}
-          >
-            <Settings size={16} />
-            <span>Settings</span>
-          </button>
           <Show when={props.isAdmin}>
             <button
               type="button"
@@ -210,6 +209,10 @@ function Sidebar(props: {
           </Show>
         </nav>
 
+        <div class="conversation-sidebar__projects-head">
+          <p class="conversation-sidebar__section-title">Projects</p>
+          <span>{props.projects.length}</span>
+        </div>
         <div class="conversation-sidebar__search">
           <Search size={14} />
           <input
@@ -250,6 +253,26 @@ function Sidebar(props: {
         </div>
 
         <div class="conversation-sidebar__footer">
+          <div class="conversation-sidebar__utilities">
+            <button
+              type="button"
+              class="conversation-sidebar__row"
+              onClick={() => props.openSettings('account')}
+            >
+              <Settings size={16} />
+              <span>Settings</span>
+            </button>
+            <button
+              type="button"
+              class="conversation-sidebar__row"
+              onClick={theme.toggleTheme}
+              aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
+              aria-pressed={theme.theme() === 'dark'}
+            >
+              {theme.theme() === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              <span>{theme.theme() === 'dark' ? 'Light' : 'Dark'} theme</span>
+            </button>
+          </div>
           <button
             type="button"
             class="conversation-sidebar__invite"
@@ -275,7 +298,7 @@ function Sidebar(props: {
             </button>
             <button
               type="button"
-              class="ml-auto rounded-md p-1.5 text-stone-400 hover:bg-stone-200 hover:text-stone-700"
+              class="conversation-sidebar__signout"
               onClick={() => void clerk.signOut({ redirectUrl: '/' })}
               aria-label="Sign out"
               title="Sign out"
@@ -433,10 +456,10 @@ export function AppShell(props: ParentProps) {
           </button>
         </Show>
         <div
-          class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l border-white/10 bg-[#0f100f]${studio() ? ' app-shell-panel--studio' : ''}`}
+          class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l${studio() ? ' app-shell-panel--studio' : ''}`}
         >
           <main
-            class={`app-shell-main relative flex-1 overflow-x-hidden bg-[#0f100f]${studio() ? ' overflow-hidden' : ' overflow-y-auto'}${selectedKey() === 'new' ? ' new-shell-main' : ''}`}
+            class={`app-shell-main relative flex-1 overflow-x-hidden${studio() ? ' overflow-hidden' : ' overflow-y-auto'}${selectedKey() === 'new' ? ' new-shell-main' : ''}`}
           >
             {props.children}
           </main>

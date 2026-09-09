@@ -1,16 +1,7 @@
 import { useNavigate, useSearchParams } from '@solidjs/router'
-import {
-  ArrowUp,
-  ChevronDown,
-  Clock3,
-  Film,
-  Lightbulb,
-  Paperclip,
-  Plus,
-  RectangleHorizontal,
-  X,
-} from 'lucide-solid'
+import { ArrowUp, Clock3, Film, Paperclip, Plus, RectangleHorizontal, X } from 'lucide-solid'
 import { createEffect, createMemo, createSignal, For, onMount, Show } from 'solid-js'
+import { carouselAsset } from '../../components/landing/carouselAssets'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
 import {
   createProject,
@@ -41,36 +32,22 @@ const SKILLS = [
 ] as const
 const INSPIRATION = [
   {
-    title: 'Cinematic product launch',
-    type: 'Launch video',
-    skill: 'launch-video',
-    prompt:
-      'Create a cinematic launch video with a bold opening hook, polished product visuals, and a clear final call to action.',
-    colors: ['#123c45', '#24386b', '#5fd5ed'],
+    title: 'Graphify',
+    type: 'Launch film',
+    description: 'A cinematic product story built from the live Graphify experience.',
+    src: carouselAsset('graphify.mp4'),
   },
   {
-    title: 'Narrated product tour',
+    title: 'shadcn/ui',
     type: 'Product demo',
-    skill: 'demo-video',
-    prompt:
-      'Create a concise narrated product demo that shows the main workflow, highlights key benefits, and ends with the result.',
-    colors: ['#171717', '#343a40', '#f5f5f1'],
+    description: 'A narrated walkthrough that follows the real component workflow.',
+    src: carouselAsset('demo.mp4'),
   },
   {
-    title: 'Investor story deck',
-    type: 'Slide deck',
-    skill: 'slide-deck',
-    prompt:
-      'Create an investor-ready presentation with a sharp problem statement, market opportunity, product story, traction, and ask.',
-    colors: ['#f0e7d5', '#c5694f', '#23211e'],
-  },
-  {
-    title: 'Fast social cut',
-    type: 'Edit recording',
-    skill: 'recording-edit',
-    prompt:
-      'Turn this recording into a fast-paced social clip with clean cuts, readable captions, and a strong opening moment.',
-    colors: ['#241637', '#864ee5', '#f3cb5b'],
+    title: 'GTM Cofounder',
+    type: 'Explainer',
+    description: 'A concise product explainer that makes the value clear in under a minute.',
+    src: carouselAsset('gtmcofounder.mp4'),
   },
 ] as const
 type Skill = (typeof SKILLS)[number]['id']
@@ -96,7 +73,6 @@ export function NewProjectView(props: {
   const [uploading, setUploading] = createSignal(false)
   const [submitting, setSubmitting] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
-  const [inspirationOpen, setInspirationOpen] = createSignal(false)
   const [error, setError] = createSignal('')
   const [ratio, setRatio] = createSignal<(typeof RATIOS)[number]>('16:9')
   const [duration, setDuration] = createSignal<number | null>(null)
@@ -413,63 +389,38 @@ export function NewProjectView(props: {
           </Show>
         </div>
       </section>
-      <section class={`inspiration-drawer${inspirationOpen() ? ' is-open' : ''}`}>
-        <button
-          type="button"
-          class="inspiration-drawer__toggle"
-          onClick={() => setInspirationOpen(value => !value)}
-          aria-expanded={inspirationOpen()}
-          aria-controls="inspiration-content"
-        >
-          <span>
-            <Lightbulb size={16} /> Explore inspiration
-          </span>
-          <span>
-            {inspirationOpen() ? 'Close' : 'Scroll to explore'} <ChevronDown size={16} />
-          </span>
-        </button>
-        <Show when={inspirationOpen()}>
-          <div id="inspiration-content" class="inspiration-drawer__content">
-            <div class="inspiration-drawer__intro">
-              <span>Starting points</span>
-              <p>Choose an idea, then make it yours in the composer.</p>
-            </div>
-            <div class="inspiration-grid">
-              <For each={INSPIRATION}>
-                {item => (
-                  <button
-                    type="button"
-                    class="inspiration-card"
-                    onClick={() => {
-                      setPrompt(item.prompt)
-                      setSkill(item.skill)
-                      setError('')
-                      setInspirationOpen(false)
-                      requestAnimationFrame(() => textarea.focus())
-                    }}
-                  >
-                    <span
-                      class="inspiration-card__art"
-                      style={{
-                        '--inspiration-a': item.colors[0],
-                        '--inspiration-b': item.colors[1],
-                        '--inspiration-c': item.colors[2],
-                      }}
-                    >
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                    <span class="inspiration-card__copy">
-                      <small>{item.type}</small>
-                      <strong>{item.title}</strong>
-                    </span>
-                  </button>
-                )}
-              </For>
-            </div>
-          </div>
-        </Show>
+      <section class="inspiration-showcase" aria-labelledby="inspiration-title">
+        <div class="inspiration-showcase__head">
+          <span>Explore inspiration</span>
+          <h2 id="inspiration-title">A few projects we have built</h2>
+          <p>Real launch films, demos, and explainers made with Pitch.</p>
+        </div>
+        <div class="inspiration-grid">
+          <For each={INSPIRATION}>
+            {item => (
+              <article class="inspiration-card">
+                <video
+                  src={item.src}
+                  muted
+                  loop
+                  playsinline
+                  controls
+                  preload="metadata"
+                  aria-label={`${item.title} ${item.type}`}
+                  onPointerEnter={event => void event.currentTarget.play()}
+                  onPointerLeave={event => event.currentTarget.pause()}
+                  onFocusIn={event => void event.currentTarget.play()}
+                  onFocusOut={event => event.currentTarget.pause()}
+                />
+                <div class="inspiration-card__copy">
+                  <small>{item.type}</small>
+                  <strong>{item.title}</strong>
+                  <p>{item.description}</p>
+                </div>
+              </article>
+            )}
+          </For>
+        </div>
       </section>
     </div>
   )
