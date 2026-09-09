@@ -58,7 +58,7 @@
    rescales the workspace (a resizing layout blurred the preview's scaled
    iframe every frame). The page underneath is dimmed by a blur scrim. */
 .conversation-sidebar {
-  width: 280px;
+  width: 272px;
   height: 100%;
   border-right: 0;
   background: var(--shell-bg);
@@ -68,7 +68,7 @@
 }
 
 .app-shell-bg {
-  --shell-sidebar-width: 280px;
+  --shell-sidebar-width: 272px;
   --shell-bg: #f3f3f1;
   --shell-panel: #ffffff;
   --shell-raised: #e9e9e6;
@@ -365,8 +365,8 @@
 }
 
 .conversation-sidebar__brand {
-  height: 52px;
-  padding: 10px 12px 6px;
+  height: 64px;
+  padding: 14px 14px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -391,13 +391,13 @@
 }
 
 .conversation-sidebar__wordmark img {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 
 .conversation-sidebar__wordmark-svg {
   width: auto;
-  height: 32px;
+  height: 29px;
   padding-bottom: 4px;
   color: #f0f0ed;
 }
@@ -418,7 +418,7 @@
 
 .conversation-sidebar__primary,
 .conversation-sidebar__footer {
-  padding: 4px 8px;
+  padding: 4px 10px;
 }
 
 .conversation-sidebar__new,
@@ -444,25 +444,25 @@
 }
 
 .conversation-sidebar__new {
-  margin-bottom: 10px;
-  min-height: 36px;
+  margin-bottom: 18px;
+  min-height: 40px;
   border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #252825;
   color: #f1f1ee;
   font-size: 12px;
   font-weight: 560;
   letter-spacing: -0.01em;
-  box-shadow: none;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 5%);
 }
 
 .conversation-sidebar__new kbd {
   margin-left: auto;
   padding: 2px 6px;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid var(--shell-border);
   border-radius: 5px;
-  background: rgb(255 255 255 / 5%);
-  color: #858983;
+  background: color-mix(in srgb, var(--shell-panel) 55%, transparent);
+  color: var(--shell-faint);
   font: 500 10px/1.35 "Geist Variable", "Geist", Arial, sans-serif;
 }
 
@@ -490,7 +490,7 @@
 }
 
 .conversation-sidebar :is(button, a):focus-visible {
-  outline: 2px solid #d8d9d5;
+  outline: 2px solid var(--shell-text);
   outline-offset: 1px;
 }
 
@@ -521,26 +521,51 @@
   letter-spacing: 0.01em;
 }
 
+.conversation-sidebar__nav-title {
+  margin-bottom: 6px;
+}
+
+.conversation-sidebar__projects-head {
+  margin: 20px 18px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.conversation-sidebar__projects-head .conversation-sidebar__section-title {
+  margin: 0;
+}
+
+.conversation-sidebar__projects-head > span {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--shell-raised);
+  color: var(--shell-faint);
+  font-size: 9px;
+  text-align: center;
+}
+
 .conversation-sidebar__group+.conversation-sidebar__group {
   margin-top: 11px;
 }
 
 .conversation-sidebar__search {
-  height: 30px;
-  margin: 6px 8px 8px;
+  height: 34px;
+  margin: 6px 10px 8px;
   padding: 0 9px;
   display: flex;
   align-items: center;
   gap: 7px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 9px;
   background: #222522;
   color: #858983;
 }
 
 .conversation-sidebar__search:focus-within {
-  border-color: rgb(255 255 255 / 15%);
-  background: #292c29;
+  border-color: var(--shell-border);
+  background: var(--shell-hover);
 }
 
 .conversation-sidebar__search input {
@@ -558,7 +583,7 @@
 .conversation-sidebar__history {
   min-height: 90px;
   flex: 1;
-  padding: 6px 8px;
+  padding: 4px 10px 10px;
   overflow-y: auto;
 }
 
@@ -614,8 +639,21 @@
 }
 
 .conversation-sidebar__footer {
-  padding: 8px;
-  border-top: 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--shell-border);
+}
+
+.conversation-sidebar__utilities {
+  margin-bottom: 7px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.conversation-sidebar__utilities .conversation-sidebar__row {
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: 11px;
 }
 
 .conversation-sidebar__socials {
@@ -658,15 +696,15 @@
 
 .conversation-sidebar__invite {
   width: 100%;
-  min-height: 52px;
+  min-height: 46px;
   margin-top: 4px;
   padding: 8px 10px;
   display: flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 10px;
-  background: #202320;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
   color: #c6c9c4;
   text-align: left;
   cursor: pointer;
@@ -674,9 +712,8 @@
 }
 
 .conversation-sidebar__invite:hover {
-  border-color: rgb(255 255 255 / 15%);
-  background: #292c29;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  background: var(--shell-hover);
+  box-shadow: none;
 }
 
 .conversation-sidebar__invite>span {
@@ -706,7 +743,7 @@
 
 .conversation-sidebar__account {
   margin-top: 7px;
-  padding: 8px 7px 2px;
+  padding: 10px 7px 2px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -725,6 +762,21 @@
   cursor: pointer;
 }
 
+.conversation-sidebar__account > .conversation-sidebar__signout {
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--shell-faint);
+}
+
+.conversation-sidebar__account > .conversation-sidebar__signout:hover {
+  background: var(--shell-hover);
+  color: var(--shell-text);
+}
+
 .conversation-sidebar__account strong {
   font-size: 11px;
   font-weight: 580;
@@ -740,7 +792,7 @@
   overflow: hidden;
   border: 0 !important;
   border-radius: 14px;
-  background: var(--shell-bg) !important;
+  background: var(--shell-panel) !important;
 }
 
 .app-shell-panel--studio {
@@ -748,7 +800,7 @@
 }
 
 .app-shell-main {
-  background: var(--shell-bg) !important;
+  background: var(--shell-panel) !important;
 }
 
 .app-shell-bg.is-sidebar-collapsed .app-shell-panel--studio .job-topbar-split {
@@ -809,8 +861,8 @@
   .conversation-sidebar__open {
     top: max(12px, env(safe-area-inset-top));
     left: max(12px, env(safe-area-inset-left));
-    background: rgb(255 255 255 / 92%);
-    color: #444743;
+    background: color-mix(in srgb, var(--shell-raised) 92%, transparent);
+    color: var(--shell-muted);
   }
 }
 
