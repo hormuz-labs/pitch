@@ -26,6 +26,11 @@
   animation: settings-enter 220ms cubic-bezier(.2,.8,.2,1) both;
 }
 
+.settings-dialog:focus-visible {
+  outline: 2px solid #242220;
+  outline-offset: 3px;
+}
+
 .settings-dialog__header {
   min-height: 78px;
   padding: 18px 22px;
@@ -198,7 +203,7 @@
   .settings-dialog__header p { display: none; }
   .settings-dialog__body { display: block; overflow: hidden; }
   .settings-nav { display: none; }
-  .settings-content { height: 100%; padding: 16px; }
+  .settings-content { height: calc(100% - 70px); padding: 16px; overflow-y: auto; }
   .settings-mobile-tabs { margin-bottom: 16px; display: flex; flex-direction: column; gap: 5px; }
   .settings-mobile-tabs label { color: #8a847e; font-size: 10px; text-transform: uppercase; }
   .settings-mobile-tabs select { height: 40px; padding: 0 10px; border: 1px solid #d8d5d1; border-radius: 9px; background: #fff; color: #222; }
@@ -209,6 +214,13 @@
   .settings-billing-cycle { align-self: stretch; justify-content: center; }
   .mcp-step, .mcp-autonomous-step { grid-template-columns: 24px minmax(0, 1fr); }
   .mcp-code--prompt { max-height: 260px; }
+}
+
+@media (max-width: 420px) {
+  .settings-dialog__header { padding-inline: 12px; }
+  .settings-dialog__header h2 { font-size: 15px; }
+  .settings-content { padding: 12px; }
+  .settings-card { padding: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

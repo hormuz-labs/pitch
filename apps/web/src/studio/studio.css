@@ -164,6 +164,7 @@
   margin-left: auto;
   display: flex;
   gap: 6px;
+  flex: 0 0 auto;
 }
 .lv-studio .topbar-btn {
   display: inline-flex;
@@ -1770,6 +1771,41 @@ to {
   border-bottom: 1px solid var(--border);
   background: var(--paper);
   flex: 0 0 auto;
+  min-width: 0;
+}
+
+.lv-studio .topbar-split-left {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.lv-studio .topbar-split-right {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: 1 1 auto;
+}
+
+.lv-studio .topbar-split-tabs {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .lv-studio .topbar-split-right {
+    gap: 6px;
+  }
+
+  .lv-studio .topbar-split-tabs span {
+    display: none;
+  }
+
+  .lv-studio .topbar-btn {
+    padding-inline: 8px;
+  }
 }
 
 .lv-studio .job-topbar .editor-project {
@@ -3207,26 +3243,32 @@ to {
    ═════════════════════════════════════════════════════════════════════════ */
 
 .lv-studio {
-  --paper: #ededed;
-  --panel: #ffffff;
-  --panel-2: #f4f3f1;
-  --ink: #111111;
-  --muted: #56514d;
-  --faint: #8f8b86;
-  --border: #dcdbd8;
+  --paper: #0f100f;
+  --panel: #151615;
+  --panel-2: #202220;
+  --ink: #f1f1ee;
+  --muted: #a1a49f;
+  --faint: #777b75;
+  --border: rgb(255 255 255 / 10%);
 
   /* One accent for the whole product: the landing's blue, used the way the
      landing uses it — selection, focus, the live dot. Never a button fill. */
   --accent: #1385d6;
   --accent-hover: #0f6fb4;
-  --accent-soft: #e7f1fb;
-  --accent-ink: #0f6fb4;
+  --accent-soft: rgb(19 133 214 / 18%);
+  --accent-ink: #7bbcf0;
 
   --sans: 'Geist Variable', 'Geist', Inter, system-ui, sans-serif;
 }
 
 /* The page itself, and the shell panel it sits in. */
-.lv-studio .editor-wrap { background: var(--paper); }
+.lv-studio .editor-wrap {
+  background: var(--paper);
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
+}
 
 /* ── the header bar ─────────────────────────────────────────────────────── */
 
@@ -3235,6 +3277,7 @@ to {
   padding: 0 16px;
   gap: 12px;
   background: var(--panel);
+  border-bottom: 1px solid var(--border);
 }
 
 .lv-studio .job-topbar .editor-project {
@@ -3252,7 +3295,7 @@ to {
   font-size: 12.5px;
   border-color: var(--border);
   color: var(--muted);
-  background: transparent;
+  background: rgb(255 255 255 / 3%);
 }
 .lv-studio .topbar-btn:hover:not(:disabled),
 .lv-studio .topbar-shell button:hover:not(:disabled) {
@@ -3262,9 +3305,9 @@ to {
 }
 .lv-studio .topbar-btn.primary,
 .lv-studio .topbar-btn.primary:hover:not(:disabled) {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #ffffff;
+  background: #f1f1ee;
+  border-color: #f1f1ee;
+  color: #141514;
 }
 .lv-studio .topbar-btn.export { min-width: 122px; }
 .lv-studio .topbar-btn.export.open { background: var(--panel-2); border-color: #b9b5b1; }
@@ -3314,7 +3357,7 @@ to {
   /* Width arrives as a custom property so the drag can set it on desktop and
      a media query can drop it for a stacked phone layout without !important. */
   width: var(--sidebar-w, 420px);
-  background: var(--paper);
+  background: #131413;
   border-left: 1px solid var(--border);
 }
 .lv-studio .feed-header { padding: 14px 18px 2px; }
@@ -3327,19 +3370,20 @@ to {
 .lv-studio .feed { padding: 12px 18px 14px; }
 .lv-studio .feed-empty { font-size: 12.5px; color: var(--faint); }
 .lv-studio .msg { font-size: 13px; border-radius: 14px; }
-.lv-studio .msg.user { background: var(--ink); color: #ffffff; }
+.lv-studio .msg.user { background: #292c29; color: #f1f1ee; }
 
 .lv-studio .composer-wrap { max-width: none; }
 .lv-studio .composer-box {
   border-radius: 18px;
-  border-color: #d6d5d2;
-  box-shadow: 0 16px 42px rgb(0 0 0 / 6%), 0 2px 7px rgb(0 0 0 / 3%);
+  border-color: var(--border);
+  background: #1b1d1b;
+  box-shadow: 0 16px 42px rgb(0 0 0 / 22%), 0 2px 7px rgb(0 0 0 / 12%);
 }
 .lv-studio .composer-box:focus-within {
-  border-color: #aaa8a4;
-  box-shadow: 0 20px 48px rgb(0 0 0 / 8%), 0 0 0 3px rgb(0 0 0 / 3%);
+  border-color: rgb(255 255 255 / 25%);
+  box-shadow: 0 20px 48px rgb(0 0 0 / 28%), 0 0 0 3px rgb(255 255 255 / 4%);
 }
-.lv-studio .composer-box textarea { font-size: 14px; color: #171615; }
+.lv-studio .composer-box textarea { font-size: 14px; color: #f1f1ee; }
 .lv-studio .send-btn { border-radius: 999px; }
 .lv-studio .music-btn { font-size: 12px; color: var(--muted); }
 .lv-studio .music-btn:hover:not(:disabled) { border-color: #b9b5b1; }
@@ -3347,6 +3391,13 @@ to {
 
 /* The drag handle only means anything while the two panes sit side by side. */
 .lv-studio .resize-handle:active::after { background: var(--ink); }
+
+.lv-studio .editor-wrap,
+.lv-studio .job-topbar,
+.lv-studio .edit-sidebar,
+.lv-studio .editor-stage {
+  transition: background-color 220ms ease, border-color 220ms ease;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    Responsive
@@ -4877,5 +4928,328 @@ to {
   .lv-studio .pro-multi-track-timeline,
   .lv-studio .pro-multi-track-timeline * {
     scroll-behavior: auto !important;
+  }
+}
+
+/* The application shell is dark end-to-end. These final declarations are the
+   studio's surface contract; older preview-specific rules above may style the
+   artifact itself, but cannot turn the surrounding workspace light again. */
+.lv-studio:not(.new-project-page) {
+  --paper: #0f100f;
+  --panel: #151615;
+  --panel-2: #202220;
+  --ink: #f1f1ee;
+  --muted: #a1a49f;
+  --faint: #777b75;
+  --border: rgb(255 255 255 / 10%);
+  --stage: #101110;
+  background: var(--paper);
+}
+
+.lv-studio:not(.new-project-page) :is(
+  .editor-wrap,
+  .editor,
+  .job-topbar,
+  .job-topbar.job-topbar-split,
+  .topbar-split-left,
+  .topbar-split-right,
+  .edit-sidebar,
+  .feed,
+  .job-composer
+) {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+.lv-studio:not(.new-project-page) .editor-wrap {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.lv-studio:not(.new-project-page) .job-composer-box {
+  border-color: rgb(255 255 255 / 14%);
+  background: #202220;
+  box-shadow: 0 16px 42px rgb(0 0 0 / 24%), 0 2px 7px rgb(0 0 0 / 14%);
+}
+
+.lv-studio:not(.new-project-page) .job-composer-box:focus-within {
+  border-color: rgb(255 255 255 / 28%);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 30%), 0 0 0 3px rgb(255 255 255 / 4%);
+}
+
+.lv-studio:not(.new-project-page) .job-composer-box textarea {
+  color: var(--ink);
+}
+
+.lv-studio:not(.new-project-page) .job-composer-box textarea::placeholder {
+  color: var(--faint);
+}
+
+.lv-studio:not(.new-project-page) :is(.topbar-btn, .preview-pane-tab, .job-attach-plus) {
+  border-color: var(--border);
+  background: rgb(255 255 255 / 3%);
+  color: var(--muted);
+}
+
+.lv-studio:not(.new-project-page) :is(.topbar-btn, .preview-pane-tab, .job-attach-plus):hover:not(:disabled),
+.lv-studio:not(.new-project-page) .preview-pane-tab.is-active {
+  border-color: rgb(255 255 255 / 16%);
+  background: #292b29;
+  color: var(--ink);
+}
+
+.lv-studio:not(.new-project-page) .job-send-round {
+  background: #f1f1ee;
+  color: #151615;
+}
+
+.lv-studio:not(.new-project-page) .job-send-round:hover:not(:disabled) {
+  background: #fff;
+}
+
+.lv-studio:not(.new-project-page) .job-send-round:disabled {
+  background: #3b3e3a;
+  color: #777b75;
+}
+
+.lv-studio:not(.new-project-page) .resize-handle,
+.lv-studio:not(.new-project-page) .resize-handle-h {
+  border-color: var(--border);
+  background: #121312;
+}
+
+.lv-studio:not(.new-project-page) .editor-stage,
+.lv-studio:not(.new-project-page) .player {
+  background: var(--stage);
+}
+
+.lv-studio:not(.new-project-page) .building-stage {
+  border-color: var(--border);
+  background-color: #171817;
+  background-image: radial-gradient(circle, rgb(255 255 255 / 7%) 1px, transparent 1px);
+}
+
+.lv-studio:not(.new-project-page) .msg.user {
+  border-color: rgb(255 255 255 / 8%);
+  background: #292c29;
+  color: var(--ink);
+}
+
+.lv-studio:not(.new-project-page) :is(.model-menu, .export-menu) {
+  border-color: var(--border);
+  background: #202220;
+  color: var(--ink);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 34%);
+}
+
+.lv-studio:not(.new-project-page) :is(.model-option, .export-row):hover:not(:disabled) {
+  background: #2b2e2b;
+  color: var(--ink);
+}
+
+.lv-studio:not(.new-project-page) :is(
+  .tray,
+  .timeline,
+  .timeline.pro-multi-track-timeline,
+  .pro-timeline-toolbar,
+  .pro-timeline-grid,
+  .tray-tabs
+) {
+  border-color: var(--border);
+  background: #151615;
+  color: var(--ink);
+}
+
+.lv-studio:not(.new-project-page) :is(.modular-track-cover, .modular-track-lane) {
+  border-color: var(--border);
+  background: #1a1b1a;
+  color: var(--muted);
+}
+
+.lv-studio:not(.new-project-page) :is(
+  .modular-track-cover.ruler-corner,
+  .modular-track-lane.time-ruler
+) {
+  background: #202220;
+  color: var(--faint);
+}
+
+.lv-studio:not(.new-project-page) .lane-video {
+  background: #171817;
+}
+
+.lv-studio:not(.new-project-page) .lane-vo {
+  border-color: rgb(168 85 247 / 18%);
+  background: rgb(88 28 135 / 12%);
+}
+
+.lv-studio:not(.new-project-page) :is(.lane-sfx, .lane-music) {
+  border-color: rgb(245 158 11 / 16%);
+  background: rgb(120 53 15 / 10%);
+}
+
+.lv-studio:not(.new-project-page) .pro-timecode-badge {
+  background: #222422;
+  color: var(--muted);
+}
+
+/* Keep structure without outlining every region. The editor backgrounds
+   already separate conversation, canvas and timeline; persistent resize rails
+   only duplicate those boundaries. */
+.lv-studio:not(.new-project-page) .job-topbar.job-topbar-split {
+  border-bottom: 0;
+}
+
+.lv-studio:not(.new-project-page) .topbar-split-left {
+  border-right: 0;
+}
+
+.lv-studio:not(.new-project-page) .resize-handle {
+  width: 7px;
+  margin: 0 -3px;
+  border: 0;
+  background: transparent;
+  z-index: 20;
+}
+
+.lv-studio:not(.new-project-page) .resize-handle::after {
+  width: 2px;
+  background: transparent;
+}
+
+.lv-studio:not(.new-project-page) .resize-handle:is(:hover, :focus-visible, :active)::after {
+  background: #666a64;
+}
+
+.lv-studio:not(.new-project-page) .resize-handle-h {
+  height: 8px;
+  flex-basis: 8px;
+  border: 0;
+  background: transparent;
+}
+
+.lv-studio:not(.new-project-page) .resize-handle-h::after {
+  width: 38px;
+  height: 2px;
+  background: #4b4e49;
+}
+
+.lv-studio:not(.new-project-page) .resize-handle-h:is(:hover, :focus-visible, :active)::after {
+  background: #777b75;
+}
+
+.lv-studio:not(.new-project-page) :is(
+  .tray,
+  .timeline,
+  .timeline.pro-multi-track-timeline,
+  .pro-timeline-toolbar
+) {
+  border: 0;
+}
+
+.lv-studio:not(.new-project-page) .pro-timeline-grid {
+  padding-top: 2px;
+}
+
+.lv-studio:not(.new-project-page) .pro-timeline-canvas {
+  gap: 2px;
+}
+
+.lv-studio:not(.new-project-page) :is(.modular-track-cover, .modular-track-lane) {
+  border: 0;
+}
+
+.lv-studio:not(.new-project-page) .modular-track-cover {
+  box-shadow: none;
+}
+
+.lv-studio:not(.new-project-page) .modular-track-row {
+  border-radius: 7px;
+  background: #191a19;
+}
+
+.lv-studio:not(.new-project-page) .modular-track-row > :first-child {
+  border-radius: 7px 0 0 7px;
+}
+
+.lv-studio:not(.new-project-page) .modular-track-row > :last-child {
+  border-radius: 0 7px 7px 0;
+}
+
+.lv-studio:not(.new-project-page) .lane-video .scene-card {
+  border-color: rgb(255 255 255 / 10%);
+  background: #202220;
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .lv-studio:not(.new-project-page) .job-topbar.job-topbar-split {
+    height: 54px;
+    min-height: 54px;
+    padding-left: 54px;
+  }
+
+  .lv-studio:not(.new-project-page) .topbar-split-left {
+    width: auto !important;
+    max-width: min(42%, 210px);
+    padding: 0 8px;
+    flex: 0 1 auto;
+  }
+
+  .lv-studio:not(.new-project-page) .topbar-split-right {
+    min-width: 0;
+    padding: 0 10px 0 4px;
+  }
+
+  .lv-studio:not(.new-project-page) .editor-stage {
+    border: 0;
+  }
+
+  .lv-studio:not(.new-project-page) .edit-sidebar {
+    border-top: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .lv-studio:not(.new-project-page) .job-topbar .nav-crumb {
+    overflow: hidden;
+  }
+
+  .lv-studio:not(.new-project-page) .job-topbar .editor-project {
+    font-size: 13px;
+  }
+
+  .lv-studio:not(.new-project-page) .topbar-split-tabs {
+    gap: 0;
+  }
+
+  .lv-studio:not(.new-project-page) .preview-pane-tab {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .lv-studio:not(.new-project-page) .preview-pane-tab small,
+  .lv-studio:not(.new-project-page) .topbar-actions > .topbar-btn:not(.export) {
+    display: none;
+  }
+
+  .lv-studio:not(.new-project-page) .topbar-btn.export {
+    min-width: 84px;
+    max-width: 96px;
+  }
+
+  .lv-studio:not(.new-project-page) .editor-stage:has(.pro-multi-track-timeline) {
+    height: min(54dvh, 440px);
+    max-height: none;
+  }
+
+  .lv-studio:not(.new-project-page) .editor-stage:has(.pro-multi-track-timeline) > .player {
+    min-height: 190px;
+  }
+
+  .lv-studio:not(.new-project-page) .editor-stage:has(.pro-multi-track-timeline) > .tray {
+    height: 180px !important;
   }
 }

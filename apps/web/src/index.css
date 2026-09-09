@@ -29,8 +29,8 @@ html, body, #root {
   width: 100%;
   min-height: 100vh;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-sunken, #e6e6e6);
-  color: var(--text-primary, #111827);
+  background-color: #0f100f;
+  color: #ededeb;
   -webkit-font-smoothing: antialiased;
   /* clip, not hidden: hidden forces overflow-y:auto on these elements, which
      turns them into scroll containers and breaks position:sticky anywhere in

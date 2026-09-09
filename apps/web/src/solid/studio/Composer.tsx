@@ -291,6 +291,7 @@ export function Composer(props: { store: ProjectStore }) {
               class="job-attach-plus"
               disabled={uploading()}
               onClick={() => fileInput?.click()}
+              aria-label="Attach files"
             >
               {uploading() ? <span class="spinner" /> : <Plus size={18} />}
             </button>
@@ -306,7 +307,13 @@ export function Composer(props: { store: ProjectStore }) {
             <CreditMarker getToken={s.getToken} />
             <Show when={models().length}>
               <div class="model-select" ref={modelEl}>
-                <button class="model-btn" onClick={() => setModelOpen(v => !v)}>
+                <button
+                  class="model-btn"
+                  onClick={() => setModelOpen(v => !v)}
+                  aria-label="Choose model"
+                  aria-haspopup="listbox"
+                  aria-expanded={modelOpen()}
+                >
                   <span>
                     {models().find(m => m.spec === (s.model ?? defaultModel()))?.label ?? 'Model'}
                   </span>
@@ -338,12 +345,17 @@ export function Composer(props: { store: ProjectStore }) {
                   class="job-send-round"
                   disabled={uploading() || !s.draft.trim()}
                   onClick={() => void send()}
+                  aria-label="Send message"
                 >
                   <ArrowUp size={17} />
                 </button>
               }
             >
-              <button class="job-send-round stop" onClick={() => void s.stop()}>
+              <button
+                class="job-send-round stop"
+                onClick={() => void s.stop()}
+                aria-label="Stop generation"
+              >
                 <Square size={12} fill="currentColor" />
               </button>
             </Show>
