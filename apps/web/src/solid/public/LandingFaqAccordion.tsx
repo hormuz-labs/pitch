@@ -41,7 +41,7 @@ const PRODUCT_FAQ: readonly AccordionItemData[] = [
     value: 'faq-7',
     title: 'Will the video have a watermark?',
     content:
-      'Free and Starter tier videos include a small "Powered by Pitch" watermark. The Pro and Enterprise plans remove it.',
+      'Starter videos include a small "Powered by Pitch" watermark. Pro and Enterprise plans remove it.',
   },
 ]
 

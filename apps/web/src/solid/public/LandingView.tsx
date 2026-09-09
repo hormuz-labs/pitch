@@ -762,7 +762,7 @@ export const LandingView = () => {
               <LandingChatInput />
             </div>
             <p class="lb-hintrow">
-              First render is on the house. No card. Or{' '}
+              Choose a plan to create. Or{' '}
               <button
                 onClick={() => setVideoSrc(carouselAsset('demo.mp4'))}
                 style={{ 'text-decoration': 'underline' }}

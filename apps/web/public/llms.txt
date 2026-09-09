@@ -62,7 +62,7 @@ Every output is a project: a workspace, an agent, and a conversation. Creating o
 - **What does a video cost?** A full AI-generated demo video uses 3 credits (~$3 on Starter, ~$2.40 on Pro). Credits never expire.
 - **Do I need to install anything or instrument my site?** No. You just provide a public URL. The agent uses a real browser — nothing to install, no SDK, no code change.
 - **Can I edit the video after it's generated?** Yes. Edit captions, swap voices, or re-render individual scenes without regenerating the entire video.
-- **Will the video have a watermark?** Free and Starter videos include a small "Powered by Pitch" watermark. Pro and Enterprise remove it.
+- **Will the video have a watermark?** Starter videos include a small "Powered by Pitch" watermark. Pro and Enterprise remove it.
 
 ## Blog
 
