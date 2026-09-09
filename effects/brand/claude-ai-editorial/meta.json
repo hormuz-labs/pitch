@@ -1,0 +1,20 @@
+{
+  "move": "Claude AI editorial serif headline, unfolding terracotta starburst emblem, and conversational chat bubble with code accordion expand",
+  "how": "1920x1080 stage with warm paper background (#fbfaf7) and subtle terracotta radial halo. Claude 12-point starburst emblem unfurls with elastic rotation. Editorial headline set in Sorts Mill Goudy reveals upwards. Conversational prompt dialog staggers user message and assistant reply, expanding a syntax-highlighted code block. Synchronized with Web Audio SFX sweeps, pops, and bell chime.",
+  "moves": [
+    "starburst-unfold",
+    "editorial-serif",
+    "chat-dialog",
+    "code-accordion",
+    "subtle-halo",
+    "typography-editorial"
+  ],
+  "libs": ["gsap", "CustomEase"],
+  "adapt": "Replace the editorial headline, user query, assistant reply, and code block snippet with your AI product capabilities; adjust starburst color and background tones.",
+  "port": "mount(el, shot) creates the editorial layout with shot.dialogue and shot.code; animate(el, shot, D) schedules dialogue pacing.",
+  "caveats": ["requires Sorts Mill Goudy font for authentic editorial typography"],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1920x1080",
+  "seconds": 8
+}

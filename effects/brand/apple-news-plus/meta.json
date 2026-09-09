@@ -1,0 +1,16 @@
+{
+  "move": "Apple News+ 3D magazine cards fan out, hero card flips 180 degrees, and cards reshuffle in continuous carousel",
+  "how": "1920x1080 stage with Apple-style radial ambient light. Clean typography lockup with red badge entrance. Three glossy editorial cards stagger up with 3D Y-axis rotation and shadow depth, followed by an in-place 180-degree flip transition on the hero card and a smooth horizontal carousel reshuffle. Synchronized with Web Audio SFX sweeps and card pops.",
+  "moves": ["card-flip", "3d-fan", "carousel-shuffle", "perspective", "spring", "editorial-cards"],
+  "libs": ["gsap", "CustomEase"],
+  "adapt": "Replace the headlines, brand tags, and card gradients with your product screenshots or magazine covers; adjust card aspect ratio or count in the cards-container.",
+  "port": "mount(el, shot) creates the 3D card layout and applies shot.cards data; animate(el, shot, D) returns the GSAP timeline scaled to shot duration.",
+  "caveats": [
+    "requires 3D perspective container on stage (perspective: 1600px)",
+    "backface-visibility hidden required for flip card faces"
+  ],
+  "fidelity": "faithful",
+  "loop": true,
+  "size": "1920x1080",
+  "seconds": 8
+}

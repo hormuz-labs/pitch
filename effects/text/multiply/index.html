@@ -3,7 +3,10 @@
 <meta name="fx" content="w=1280 h=720">
 <link rel="stylesheet" href="../../_lib/base.css">
 <style>
-  .stage{background:#f2ede4}
+  :root{--scale:min(calc(100vw / 1280px), calc(100vh / 720px))}
+  body{background:#f2ede4}
+  .stage{background:#f2ede4;display:flex;align-items:center;justify-content:center;width:100vw;height:100vh;overflow:hidden}
+  .artboard{position:absolute;width:1280px;height:720px;background:#f2ede4;overflow:hidden;transform-origin:center center;transform:scale(var(--scale, 1))}
   .s{position:absolute;mix-blend-mode:multiply;will-change:transform}
   .c1{width:520px;height:520px;border-radius:50%;background:#ff4d3d;left:240px;top:60px}
   .c2{width:560px;height:560px;border-radius:50%;background:#2d6cff;left:540px;top:120px}
@@ -16,15 +19,24 @@
   .cap2{position:absolute;right:60px;bottom:52px;font-family:"Atlas Grotesk",sans-serif;font-size:15px;letter-spacing:.4em;text-transform:uppercase;color:#1a1a1a;opacity:.7}
 </style>
 <div class="stage">
-  <div class="s c1"></div><div class="s c2"></div><div class="s c3"></div><div class="s r1"></div><div class="s r2"></div>
-  <div class="t">Multiply</div>
-  <div class="t i">Multiply</div>
-  <div class="cap">Antinomy — Issue 04</div>
-  <div class="cap2">Blend study</div>
+  <div class="artboard">
+    <div class="s c1"></div><div class="s c2"></div><div class="s c3"></div><div class="s r1"></div><div class="s r2"></div>
+    <div class="t">Multiply</div>
+    <div class="t i">Multiply</div>
+    <div class="cap">Antinomy — Issue 04</div>
+    <div class="cap2">Blend study</div>
+  </div>
 </div>
 <script src="../../../assets/gsap/gsap.min.js"></script>
 <script src="../../_lib/fx.js"></script>
 <script>
+  function updateScale() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    document.documentElement.style.setProperty('--scale', s);
+  }
+  window.addEventListener('resize', updateScale);
+  updateScale();
+
   const D = 8, TAU = Math.PI * 2;
   fx.register({
     duration: D,

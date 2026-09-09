@@ -1,11 +1,14 @@
 {
   "move": "grid of rounded dots pulses in radial waves, colours rotate around centre",
-  "how": "A 20x11 grid of 36px rounded yellow squares fills the frame with a large white 'Northwind' wordmark on top in mix-blend-mode difference. Nothing is on a GSAP timeline: a seek(t) function computes, for each dot, two sine waves travelling outward from the centre (one keyed on distance, one on distance plus angle), and writes transform scale (0.15 to 1), rotate (plus or minus 45deg) and opacity (0.35 to 1) each frame. The dot colour cycles through four palette swatches by angular sector, advancing one full turn per loop. The phase runs exactly 2pi over the 5s duration so the last frame equals the first and the loop is seamless.",
+  "how": "A 20x11 grid of 36px rounded yellow squares fills the frame with a large white 'Northwind' wordmark on top at the front. Nothing is on a GSAP timeline: a seek(t) function computes, for each dot, two sine waves travelling outward from the centre (one keyed on distance, one on distance plus angle), and writes transform scale (0.15 to 1), rotate (plus or minus 45deg) and opacity (0.35 to 1) each frame. The dot colour cycles through four palette swatches by angular sector, advancing one full turn per loop. The phase runs exactly 2pi over the 5s duration so the last frame equals the first and the loop is seamless.",
   "moves": ["ripple", "pulse", "grid-wave", "colour-cycle", "loop"],
   "libs": ["gsap"],
   "adapt": "Change the wordmark string, the four palette colours, the dot size and radius, and the COLS/ROWS density; the wave frequencies (0.55 and 0.25 per cell distance) set the look and are worth keeping. gsap is loaded but not used.",
   "port": "mount(el, shot) creates the grid of .dot cells inside el and stores the per-cell distance/angle list; animate(el, shot, D) returns a gsap.timeline holding a single tween on a proxy object {p:0 to 1, duration D, ease none} whose onUpdate runs the same per-dot math with ph = p*2pi and writes styles directly. Scope the grid to el rather than document.getElementById.",
-  "caveats": ["220 DOM style writes per frame; fine at 30fps but heavier than a tween", "the fx.register seek loop must become an onUpdate tween on the returned timeline"],
+  "caveats": [
+    "220 DOM style writes per frame; fine at 30fps but heavier than a tween",
+    "the fx.register seek loop must become an onUpdate tween on the returned timeline"
+  ],
   "fidelity": "faithful",
   "loop": true,
   "size": "1280x720"

@@ -3,7 +3,10 @@
 <meta name="fx" content="w=1080 h=1080">
 <link rel="stylesheet" href="../../_lib/base.css">
 <style>
-  .stage{background:#0c0c10}
+  :root{--scale:min(calc(100vw / 1080px), calc(100vh / 1080px))}
+  body{background:#0c0c10}
+  .stage{background:#0c0c10;display:flex;align-items:center;justify-content:center;width:100vw;height:100vh;overflow:hidden}
+  .artboard{position:absolute;width:1080px;height:1080px;background:#0c0c10;overflow:hidden;transform-origin:center center;transform:scale(var(--scale, 1))}
   .glow{position:absolute;left:50%;top:44%;width:800px;height:800px;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,45,85,.22),rgba(255,45,85,0) 65%);will-change:transform}
   .wrap{position:absolute;left:50%;top:44%;width:420px;height:420px;margin:-210px 0 0 -210px}
   .pulse{position:absolute;inset:0;border-radius:50%;border:6px solid #ff2d55;opacity:0;will-change:transform,opacity}
@@ -23,19 +26,28 @@
   .viewers .n span{display:block}
 </style>
 <div class="stage">
-  <div class="glow"></div>
-  <div class="wrap">
-    <div class="pulse p1"></div><div class="pulse p2"></div><div class="pulse p3"></div>
-    <div class="ring"></div>
-    <div class="avatar"><div class="bg"></div><div class="body"></div><div class="person"></div></div>
-    <div class="live"><i></i>LIVE</div>
+  <div class="artboard">
+    <div class="glow"></div>
+    <div class="wrap">
+      <div class="pulse p1"></div><div class="pulse p2"></div><div class="pulse p3"></div>
+      <div class="ring"></div>
+      <div class="avatar"><div class="bg"></div><div class="body"></div><div class="person"></div></div>
+      <div class="live"><i></i>LIVE</div>
+    </div>
+    <div class="name"><b>Mara Kessler</b><span>@marak · Studio session</span></div>
+    <div class="viewers"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="n"><span id="v">2,318</span></span> watching</div>
   </div>
-  <div class="name"><b>Mara Kessler</b><span>@marak · Studio session</span></div>
-  <div class="viewers"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="n"><span id="v">2,318</span></span> watching</div>
 </div>
 <script src="../../../assets/gsap/gsap.min.js"></script>
 <script src="../../_lib/fx.js"></script>
 <script>
+  function updateScale() {
+    const s = Math.min(window.innerWidth / 1080, window.innerHeight / 1080);
+    document.documentElement.style.setProperty('--scale', s);
+  }
+  window.addEventListener('resize', updateScale);
+  updateScale();
+
   const tl = fx.timeline({ duration: 4 });
   tl.fromTo('.ring', { rotation: 0 }, { rotation: 360, duration: 4, ease: 'none' }, 0)
     .fromTo('.avatar .bg', { scale: 1.1, x: -8 }, { scale: 1.18, x: 8, duration: 4, ease: 'none' }, 0)
