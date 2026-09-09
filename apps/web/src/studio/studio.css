@@ -1430,10 +1430,6 @@ to {
 .lv-studio .log-line.tool.error {
   color: var(--danger);
 }
-.lv-studio .log-line.thinking-line .log-text {
-  font-style: italic;
-  white-space: pre-wrap;
-}
 .lv-studio .log-line.working {
   color: var(--muted);
 }
@@ -4931,19 +4927,47 @@ to {
   }
 }
 
-/* The application shell is dark end-to-end. These final declarations are the
-   studio's surface contract; older preview-specific rules above may style the
-   artifact itself, but cannot turn the surrounding workspace light again. */
+/* Kimi-style workspace contract. The shell, conversation, and top bar form one
+   quiet canvas; the artifact is the only recessed surface. */
 .lv-studio:not(.new-project-page) {
-  --paper: #0f100f;
-  --panel: #151615;
-  --panel-2: #202220;
-  --ink: #f1f1ee;
-  --muted: #a1a49f;
-  --faint: #777b75;
+  --paper: #f3f3f1;
+  --panel: #f3f3f1;
+  --panel-2: #e9e9e6;
+  --ink: #242422;
+  --muted: #71716d;
+  --faint: #9b9b96;
+  --border: #dededb;
+  --stage: #e9e9e6;
+  --control: #ffffff;
+  --control-hover: #e3e3e0;
+  --composer: #ffffff;
+  --composer-border: #d4d4d0;
+  --composer-shadow: 0 12px 36px rgb(42 42 38 / 8%);
+  --timeline-row: #f1f1ef;
+  --timeline-cell: #fafaf8;
+  --working-panel: #fafaf8;
+  --working-border: #d7d7d2;
+  background: var(--paper);
+}
+
+[data-theme="dark"] .lv-studio:not(.new-project-page) {
+  --paper: #171817;
+  --panel: #171817;
+  --panel-2: #222322;
+  --ink: #eeeeeb;
+  --muted: #aaa9a5;
+  --faint: #777974;
   --border: rgb(255 255 255 / 10%);
   --stage: #101110;
-  background: var(--paper);
+  --control: #222322;
+  --control-hover: #2b2d2b;
+  --composer: #222322;
+  --composer-border: #4b4d49;
+  --composer-shadow: none;
+  --timeline-row: #191a19;
+  --timeline-cell: #1e201e;
+  --working-panel: #1c1d1c;
+  --working-border: rgb(255 255 255 / 13%);
 }
 
 .lv-studio:not(.new-project-page) :is(
@@ -4963,19 +4987,20 @@ to {
 
 .lv-studio:not(.new-project-page) .editor-wrap {
   border: 0;
-  border-radius: 0;
+  border-radius: 14px;
   box-shadow: none;
 }
 
 .lv-studio:not(.new-project-page) .job-composer-box {
-  border-color: rgb(255 255 255 / 14%);
-  background: #202220;
-  box-shadow: 0 16px 42px rgb(0 0 0 / 24%), 0 2px 7px rgb(0 0 0 / 14%);
+  min-height: 128px;
+  border-color: var(--composer-border);
+  background: var(--composer);
+  box-shadow: var(--composer-shadow);
 }
 
 .lv-studio:not(.new-project-page) .job-composer-box:focus-within {
-  border-color: rgb(255 255 255 / 28%);
-  box-shadow: 0 18px 48px rgb(0 0 0 / 30%), 0 0 0 3px rgb(255 255 255 / 4%);
+  border-color: var(--muted);
+  box-shadow: var(--composer-shadow), 0 0 0 3px color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
 .lv-studio:not(.new-project-page) .job-composer-box textarea {
@@ -4988,35 +5013,35 @@ to {
 
 .lv-studio:not(.new-project-page) :is(.topbar-btn, .preview-pane-tab, .job-attach-plus) {
   border-color: var(--border);
-  background: rgb(255 255 255 / 3%);
+  background: transparent;
   color: var(--muted);
 }
 
 .lv-studio:not(.new-project-page) :is(.topbar-btn, .preview-pane-tab, .job-attach-plus):hover:not(:disabled),
 .lv-studio:not(.new-project-page) .preview-pane-tab.is-active {
-  border-color: rgb(255 255 255 / 16%);
-  background: #292b29;
+  border-color: var(--border);
+  background: var(--control-hover);
   color: var(--ink);
 }
 
 .lv-studio:not(.new-project-page) .job-send-round {
-  background: #f1f1ee;
-  color: #151615;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .lv-studio:not(.new-project-page) .job-send-round:hover:not(:disabled) {
-  background: #fff;
+  background: color-mix(in srgb, var(--ink) 84%, var(--paper));
 }
 
 .lv-studio:not(.new-project-page) .job-send-round:disabled {
-  background: #3b3e3a;
-  color: #777b75;
+  background: var(--panel-2);
+  color: var(--faint);
 }
 
 .lv-studio:not(.new-project-page) .resize-handle,
 .lv-studio:not(.new-project-page) .resize-handle-h {
   border-color: var(--border);
-  background: #121312;
+  background: transparent;
 }
 
 .lv-studio:not(.new-project-page) .editor-stage,
@@ -5026,25 +5051,25 @@ to {
 
 .lv-studio:not(.new-project-page) .building-stage {
   border-color: var(--border);
-  background-color: #171817;
-  background-image: radial-gradient(circle, rgb(255 255 255 / 7%) 1px, transparent 1px);
+  background-color: var(--control);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 7%, transparent) 1px, transparent 1px);
 }
 
 .lv-studio:not(.new-project-page) .msg.user {
-  border-color: rgb(255 255 255 / 8%);
-  background: #292c29;
+  border-color: var(--border);
+  background: var(--panel-2);
   color: var(--ink);
 }
 
 .lv-studio:not(.new-project-page) :is(.model-menu, .export-menu) {
   border-color: var(--border);
-  background: #202220;
+  background: var(--control);
   color: var(--ink);
-  box-shadow: 0 16px 42px rgb(0 0 0 / 34%);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 18%);
 }
 
 .lv-studio:not(.new-project-page) :is(.model-option, .export-row):hover:not(:disabled) {
-  background: #2b2e2b;
+  background: var(--control-hover);
   color: var(--ink);
 }
 
@@ -5057,13 +5082,13 @@ to {
   .tray-tabs
 ) {
   border-color: var(--border);
-  background: #151615;
+  background: var(--panel);
   color: var(--ink);
 }
 
 .lv-studio:not(.new-project-page) :is(.modular-track-cover, .modular-track-lane) {
   border-color: var(--border);
-  background: #1a1b1a;
+  background: var(--timeline-cell);
   color: var(--muted);
 }
 
@@ -5071,12 +5096,12 @@ to {
   .modular-track-cover.ruler-corner,
   .modular-track-lane.time-ruler
 ) {
-  background: #202220;
+  background: var(--panel-2);
   color: var(--faint);
 }
 
 .lv-studio:not(.new-project-page) .lane-video {
-  background: #171817;
+  background: var(--panel);
 }
 
 .lv-studio:not(.new-project-page) .lane-vo {
@@ -5090,7 +5115,7 @@ to {
 }
 
 .lv-studio:not(.new-project-page) .pro-timecode-badge {
-  background: #222422;
+  background: var(--panel-2);
   color: var(--muted);
 }
 
@@ -5098,12 +5123,80 @@ to {
    already separate conversation, canvas and timeline; persistent resize rails
    only duplicate those boundaries. */
 .lv-studio:not(.new-project-page) .job-topbar.job-topbar-split {
+  height: 56px;
+  padding: 0 10px;
   border-bottom: 0;
 }
 
 .lv-studio:not(.new-project-page) .topbar-split-left {
   border-right: 0;
+  padding: 0 10px;
 }
+
+.lv-studio:not(.new-project-page) .topbar-split-right { padding: 0 6px; }
+.lv-studio:not(.new-project-page) .topbar-split-tabs { gap: 2px; }
+.lv-studio:not(.new-project-page) .preview-pane-tab { height: 34px; border-radius: 10px; }
+.lv-studio:not(.new-project-page) .topbar-btn { min-height: 34px; }
+
+.lv-studio:not(.new-project-page) .editor {
+  gap: 8px;
+  padding: 0 8px 8px;
+  background: var(--paper);
+}
+
+.lv-studio:not(.new-project-page) .edit-sidebar {
+  max-width: 42%;
+  border: 0;
+  border-radius: 12px;
+  background: var(--panel);
+  transition: background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.lv-studio:not(.new-project-page) .edit-sidebar.is-working {
+  background: var(--working-panel);
+  box-shadow: inset 0 0 0 1px var(--working-border);
+}
+
+.lv-studio:not(.new-project-page) .feed {
+  padding: 20px 18px 10px;
+}
+
+.lv-studio:not(.new-project-page) .feed-empty {
+  margin: auto;
+  max-width: 36ch;
+  color: var(--faint);
+  text-align: center;
+}
+
+.lv-studio:not(.new-project-page) .job-composer {
+  padding: 10px 14px 14px;
+  background: transparent;
+}
+
+.lv-studio:not(.new-project-page) .editor-stage {
+  --paper: transparent;
+  --panel: #f3f3f1;
+  --panel-2: #e9e9e6;
+  --ink: #242422;
+  --muted: #71716d;
+  --faint: #9b9b96;
+  --border: #dededb;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--stage);
+}
+
+[data-theme="dark"] .lv-studio:not(.new-project-page) .editor-stage {
+  --panel: #171817;
+  --panel-2: #222322;
+  --ink: #eeeeeb;
+  --muted: #aaa9a5;
+  --faint: #777974;
+  --border: rgb(255 255 255 / 10%);
+}
+
+.lv-studio:not(.new-project-page) .player { padding: 14px; }
 
 .lv-studio:not(.new-project-page) .resize-handle {
   width: 7px;
@@ -5119,7 +5212,7 @@ to {
 }
 
 .lv-studio:not(.new-project-page) .resize-handle:is(:hover, :focus-visible, :active)::after {
-  background: #666a64;
+  background: var(--muted);
 }
 
 .lv-studio:not(.new-project-page) .resize-handle-h {
@@ -5132,11 +5225,11 @@ to {
 .lv-studio:not(.new-project-page) .resize-handle-h::after {
   width: 38px;
   height: 2px;
-  background: #4b4e49;
+  background: var(--border);
 }
 
 .lv-studio:not(.new-project-page) .resize-handle-h:is(:hover, :focus-visible, :active)::after {
-  background: #777b75;
+  background: var(--muted);
 }
 
 .lv-studio:not(.new-project-page) :is(
@@ -5166,7 +5259,7 @@ to {
 
 .lv-studio:not(.new-project-page) .modular-track-row {
   border-radius: 7px;
-  background: #191a19;
+  background: var(--timeline-row);
 }
 
 .lv-studio:not(.new-project-page) .modular-track-row > :first-child {
@@ -5178,9 +5271,17 @@ to {
 }
 
 .lv-studio:not(.new-project-page) .lane-video .scene-card {
-  border-color: rgb(255 255 255 / 10%);
-  background: #202220;
+  border-color: var(--border);
+  background: var(--timeline-cell);
   color: var(--ink);
+}
+
+@media (min-width: 901px) {
+  .app-shell-bg.is-sidebar-collapsed
+    .lv-studio:not(.new-project-page)
+    .job-topbar.job-topbar-split {
+    padding-left: 62px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -5207,6 +5308,8 @@ to {
   }
 
   .lv-studio:not(.new-project-page) .edit-sidebar {
+    width: auto;
+    max-width: none;
     border-top: 0;
   }
 }

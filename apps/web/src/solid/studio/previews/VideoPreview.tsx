@@ -169,7 +169,7 @@ export function VideoPreview(props: { store: ProjectStore; src: string }) {
       </div>
       <Show when={s.busy}>
         <div class="preview-updating">
-          <span class="spinner" /> {s.status}
+          <span class="spinner" /> Updating preview…
         </div>
       </Show>
     </div>

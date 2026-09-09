@@ -313,7 +313,12 @@ export function StudioView(props: { projectId: string }) {
             </div>
           </header>
           <div class="editor">
-            <aside class="edit-sidebar" ref={side} style={{ '--sidebar-w': `${sidebar()}px` }}>
+            <aside
+              class={`edit-sidebar${s.busy ? ' is-working' : ''}`}
+              ref={side}
+              style={{ '--sidebar-w': `${sidebar()}px` }}
+              aria-busy={s.busy}
+            >
               <div class="feed" ref={feed}>
                 <Show
                   when={s.entries.length}

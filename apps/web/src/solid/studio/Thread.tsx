@@ -198,7 +198,7 @@ export function Thread(props: {
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
   return (
     <div class="thread">
-      <For each={props.entries}>
+      <For each={props.entries.filter(e => e.role !== 'thinking')}>
         {e => (
           <Show
             when={e.role === 'question'}
@@ -206,26 +206,14 @@ export function Thread(props: {
               <Show
                 when={e.role === 'tool'}
                 fallback={
-                  <Show
-                    when={e.role === 'thinking'}
-                    fallback={
-                      <Show when={e.text.trim()}>
-                        {e.role === 'assistant' ? (
-                          <div class="msg assistant md">
-                            <AgentMarkdown text={e.text} />
-                          </div>
-                        ) : (
-                          <div class={`msg ${e.role}`}>{e.text}</div>
-                        )}
-                      </Show>
-                    }
-                  >
-                    <Show when={e.text.trim()}>
-                      <div class="log-line thinking-line">
-                        <span class="log-icon">∴</span>
-                        <span class="log-text">{e.text}</span>
+                  <Show when={e.text.trim()}>
+                    {e.role === 'assistant' ? (
+                      <div class="msg assistant md">
+                        <AgentMarkdown text={e.text} />
                       </div>
-                    </Show>
+                    ) : (
+                      <div class={`msg ${e.role}`}>{e.text}</div>
+                    )}
                   </Show>
                 }
               >

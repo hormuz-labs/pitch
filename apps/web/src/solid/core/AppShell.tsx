@@ -399,7 +399,6 @@ export function AppShell(props: ParentProps) {
     <AppShellContext.Provider value={context}>
       <div
         class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}`}
-        style={{ 'background-color': '#0f100f', color: '#ededeb' }}
       >
         <OnboardingSurvey />
         <Show when={settingsSection()}>
