@@ -508,6 +508,10 @@
 }
 
 .conversation-sidebar__chat i {
+  flex: 0 0 auto;
+}
+
+.conversation-sidebar__chat i {
   width: 5px;
   height: 5px;
   margin-left: auto;
@@ -655,5 +659,11 @@
 
   .app-shell-panel {
     border-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .conversation-sidebar__rail {
+    display: none;
   }
 }

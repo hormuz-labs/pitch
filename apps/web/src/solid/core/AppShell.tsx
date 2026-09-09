@@ -128,7 +128,8 @@ function Sidebar(props: {
           : `conversation-sidebar__chat${project.id === props.selectedProjectId ? ' is-active' : ''}`
       }
       onClick={() => go(`/p/${project.id}`)}
-      title={project.title}
+      title={`${project.title || 'Untitled project'}${project.busy ? ' (Working)' : ''}`}
+      aria-label={`${project.title || 'Untitled project'}${project.busy ? ', working' : ''}`}
     >
       <MessageSquare size={13} />
       <span>{project.title || 'Untitled project'}</span>
@@ -397,6 +398,7 @@ export function AppShell(props: ParentProps) {
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
   const selectedKey = createMemo(() => routeKey(location.pathname))
+  const studioRoute = createMemo(() => selectedKey() === 'studio')
   const selectedProjectId = createMemo(() =>
     location.pathname.startsWith('/p/') ? location.pathname.split('/')[2] : undefined,
   )
@@ -404,6 +406,9 @@ export function AppShell(props: ParentProps) {
     setSettingsSection(section)
     if (isMobile()) setCollapsed(true)
   }
+  createEffect(() => {
+    if (studioRoute()) setCollapsed(true)
+  })
   const context: AppShellContextValue = {
     isMobile,
     toggleSidebar: () => setCollapsed(value => !value),
@@ -509,7 +514,7 @@ export function AppShell(props: ParentProps) {
           )}
         </Show>
         <Sidebar
-          collapsed={collapsed()}
+          collapsed={studioRoute() || collapsed()}
           isMobile={isMobile()}
           isAdmin={isAdmin()}
           projects={projects()}
@@ -519,7 +524,7 @@ export function AppShell(props: ParentProps) {
           toggle={() => setCollapsed(value => !value)}
           openSettings={openSettings}
         />
-        <Show when={isMobile() && collapsed()}>
+        <Show when={isMobile() && collapsed() && !studioRoute()}>
           <button
             type="button"
             class="fixed top-3 left-3 z-[64] grid h-9 w-9 place-items-center rounded-lg border border-stone-200 bg-white/90 text-stone-700 shadow-sm backdrop-blur"

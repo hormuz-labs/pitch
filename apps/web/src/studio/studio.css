@@ -164,6 +164,7 @@
   margin-left: auto;
   display: flex;
   gap: 6px;
+  flex: 0 0 auto;
 }
 .lv-studio .topbar-btn {
   display: inline-flex;
@@ -1770,6 +1771,41 @@ to {
   border-bottom: 1px solid var(--border);
   background: var(--paper);
   flex: 0 0 auto;
+  min-width: 0;
+}
+
+.lv-studio .topbar-split-left {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.lv-studio .topbar-split-right {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: 1 1 auto;
+}
+
+.lv-studio .topbar-split-tabs {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .lv-studio .topbar-split-right {
+    gap: 6px;
+  }
+
+  .lv-studio .topbar-split-tabs span {
+    display: none;
+  }
+
+  .lv-studio .topbar-btn {
+    padding-inline: 8px;
+  }
 }
 
 .lv-studio .job-topbar .editor-project {
