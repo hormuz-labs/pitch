@@ -1,5 +1,37 @@
 [
  {
+  "name": "Apple News+",
+  "family": "Brand",
+  "familySlug": "brand",
+  "slug": "apple-news-plus",
+  "seconds": 8,
+  "tags": [
+   "card-flip",
+   "3d-fan",
+   "carousel-shuffle",
+   "brand"
+  ],
+  "description": "Apple News+ commercial recreation featuring 3D fanning magazine cards, flipping transitions, and continuous carousel.",
+  "raylightSlug": "ax3DxDlf",
+  "raylightUrl": "https://www.raylight.app/t/ax3DxDlf"
+ },
+ {
+  "name": "Claude AI Editorial",
+  "family": "Brand",
+  "familySlug": "brand",
+  "slug": "claude-ai-editorial",
+  "seconds": 8,
+  "tags": [
+   "editorial-serif",
+   "starburst-unfold",
+   "chat-dialog",
+   "code-accordion"
+  ],
+  "description": "Claude AI editorial presentation with Sorts Mill Goudy serif typography, unfolding starburst mark, and conversational code block expand.",
+  "raylightSlug": "XURkSmRa",
+  "raylightUrl": "https://www.raylight.app/t/XURkSmRa"
+ },
+ {
   "name": "Animated Feature List",
   "family": "Text",
   "familySlug": "text",
