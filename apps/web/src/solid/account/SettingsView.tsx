@@ -393,7 +393,7 @@ export function SettingsModal(props: {
             <h2>Pitch settings</h2>
             <p>Manage your account, usage, billing and integrations.</p>
           </div>
-          <button onClick={props.onClose}>
+          <button onClick={props.onClose} aria-label="Close settings" title="Close settings">
             <X size={18} />
           </button>
         </header>

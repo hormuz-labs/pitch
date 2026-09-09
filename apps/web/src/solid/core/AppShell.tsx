@@ -3,7 +3,6 @@ import {
   AppWindow,
   ChevronRight,
   Gift,
-  History,
   LogOut,
   MessageSquare,
   PanelLeftClose,
@@ -82,11 +81,9 @@ function Sidebar(props: {
   const clerk = useClerk()
   const { userAccessor } = useUser()
   const [query, setQuery] = createSignal('')
-  const [railQuery, setRailQuery] = createSignal('')
-  const [historyOpen, setHistoryOpen] = createSignal(false)
   const go = (path: string) => {
     navigate(path)
-    props.close()
+    if (props.isMobile) props.close()
   }
   const visibleProjects = createMemo(() => {
     const value = query().trim().toLowerCase()
@@ -108,12 +105,6 @@ function Sidebar(props: {
       result[updated >= today ? 0 : updated >= today - week ? 1 : 2].items.push(project)
     }
     return result.filter(group => group.items.length)
-  })
-  const railProjects = createMemo(() => {
-    const value = railQuery().trim().toLowerCase()
-    return props.projects
-      .filter(project => !value || project.title.toLowerCase().includes(value))
-      .slice(0, 8)
   })
   const user = userAccessor
   const displayName = () => user()?.fullName || user()?.firstName || 'Pitch creator'
@@ -141,7 +132,7 @@ function Sidebar(props: {
 
   return (
     <>
-      <Show when={!props.collapsed}>
+      <Show when={!props.collapsed && props.isMobile}>
         <button
           type="button"
           aria-label="Close navigation"
@@ -155,6 +146,8 @@ function Sidebar(props: {
       </Show>
       <aside
         class={`conversation-sidebar flex shrink-0 flex-col${props.isMobile ? ' fixed inset-y-0 left-0 z-50 transition-transform duration-200' : ''}${props.collapsed ? (props.isMobile ? ' -translate-x-full' : ' is-collapsed') : ''}`}
+        aria-hidden={props.collapsed}
+        inert={props.collapsed}
       >
         <div class="conversation-sidebar__brand">
           <button type="button" class="conversation-sidebar__wordmark" onClick={() => go('/new')}>
@@ -179,6 +172,7 @@ function Sidebar(props: {
           >
             <Plus size={17} />
             <span>New chat</span>
+            <kbd>⌘ K</kbd>
           </button>
           <button
             type="button"
@@ -291,98 +285,6 @@ function Sidebar(props: {
           </div>
         </div>
       </aside>
-
-      <Show when={!props.isMobile}>
-        <aside class="conversation-sidebar__rail" aria-label="Quick navigation">
-          <button
-            type="button"
-            onClick={props.toggle}
-            aria-label="Open sidebar"
-            title="Open sidebar"
-          >
-            <PanelLeftOpen size={17} />
-          </button>
-          <button type="button" onClick={() => go('/new')} aria-label="New chat" title="New chat">
-            <Plus size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => go('/sessions')}
-            aria-label="Browser sessions"
-            title="Browser sessions"
-          >
-            <AppWindow size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => props.openSettings('mcp')}
-            aria-label="API and MCP"
-            title="API / MCP"
-          >
-            <PlugZap size={16} />
-          </button>
-          <div
-            class="conversation-sidebar__rail-pop"
-            onMouseEnter={() => setHistoryOpen(true)}
-            onMouseLeave={() => {
-              setHistoryOpen(false)
-              setRailQuery('')
-            }}
-            onFocusIn={() => setHistoryOpen(true)}
-            onFocusOut={event => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-                setHistoryOpen(false)
-            }}
-          >
-            <button
-              type="button"
-              onClick={props.toggle}
-              aria-label="Recent chats"
-              title="Recent chats"
-            >
-              <History size={16} />
-            </button>
-            <Show when={historyOpen()}>
-              <div class="conversation-sidebar__rail-history">
-                <p>History</p>
-                <div class="conversation-sidebar__rail-history-list">
-                  <Show
-                    when={railProjects().length}
-                    fallback={
-                      <span class="conversation-sidebar__rail-history-empty">No chats yet</span>
-                    }
-                  >
-                    <For each={railProjects()}>{project => chat(project, true)}</For>
-                  </Show>
-                </div>
-                <div class="conversation-sidebar__rail-history-search">
-                  <Search size={12} />
-                  <input
-                    aria-label="Search all chats"
-                    placeholder="Search all chats"
-                    value={railQuery()}
-                    onInput={event => setRailQuery(event.currentTarget.value)}
-                  />
-                </div>
-              </div>
-            </Show>
-          </div>
-          <span />
-          <button
-            type="button"
-            onClick={() => props.openSettings('account')}
-            aria-label="Settings"
-            title="Settings"
-          >
-            <Settings size={16} />
-          </button>
-          <Show when={props.isAdmin}>
-            <button type="button" onClick={() => go('/admin')} aria-label="Admin" title="Admin">
-              <Shield size={16} />
-            </button>
-          </Show>
-        </aside>
-      </Show>
     </>
   )
 }
@@ -393,12 +295,11 @@ export function AppShell(props: ParentProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = createSignal(window.innerWidth < 1024)
-  const [collapsed, setCollapsed] = createSignal(true)
+  const [collapsed, setCollapsed] = createSignal(window.innerWidth < 1024)
   const [projects, setProjects] = createSignal<Project[]>([])
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
   const selectedKey = createMemo(() => routeKey(location.pathname))
-  const studioRoute = createMemo(() => selectedKey() === 'studio')
   const selectedProjectId = createMemo(() =>
     location.pathname.startsWith('/p/') ? location.pathname.split('/')[2] : undefined,
   )
@@ -406,9 +307,6 @@ export function AppShell(props: ParentProps) {
     setSettingsSection(section)
     if (isMobile()) setCollapsed(true)
   }
-  createEffect(() => {
-    if (studioRoute()) setCollapsed(true)
-  })
   const context: AppShellContextValue = {
     isMobile,
     toggleSidebar: () => setCollapsed(value => !value),
@@ -500,8 +398,8 @@ export function AppShell(props: ParentProps) {
   return (
     <AppShellContext.Provider value={context}>
       <div
-        class="app-shell-bg flex h-screen w-screen overflow-hidden"
-        style={{ 'background-color': '#ededed', color: '#171615' }}
+        class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}`}
+        style={{ 'background-color': '#0f100f', color: '#ededeb' }}
       >
         <OnboardingSurvey />
         <Show when={settingsSection()}>
@@ -514,7 +412,7 @@ export function AppShell(props: ParentProps) {
           )}
         </Show>
         <Sidebar
-          collapsed={studioRoute() || collapsed()}
+          collapsed={collapsed()}
           isMobile={isMobile()}
           isAdmin={isAdmin()}
           projects={projects()}
@@ -524,19 +422,22 @@ export function AppShell(props: ParentProps) {
           toggle={() => setCollapsed(value => !value)}
           openSettings={openSettings}
         />
-        <Show when={isMobile() && collapsed() && !studioRoute()}>
+        <Show when={collapsed()}>
           <button
             type="button"
-            class="fixed top-3 left-3 z-[64] grid h-9 w-9 place-items-center rounded-lg border border-stone-200 bg-white/90 text-stone-700 shadow-sm backdrop-blur"
+            class="conversation-sidebar__open"
             onClick={() => setCollapsed(false)}
             aria-label="Open navigation"
+            title="Open navigation"
           >
             <PanelLeftOpen size={18} />
           </button>
         </Show>
-        <div class="app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l border-gray-200 bg-white">
+        <div
+          class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l border-white/10 bg-[#0f100f]${studio() ? ' app-shell-panel--studio' : ''}`}
+        >
           <main
-            class={`app-shell-main relative flex-1 overflow-x-hidden bg-white${studio() ? ' overflow-hidden' : ' overflow-y-auto'}${selectedKey() === 'new' ? ' new-shell-main' : ''}`}
+            class={`app-shell-main relative flex-1 overflow-x-hidden bg-[#0f100f]${studio() ? ' overflow-hidden' : ' overflow-y-auto'}${selectedKey() === 'new' ? ' new-shell-main' : ''}`}
           >
             {props.children}
           </main>

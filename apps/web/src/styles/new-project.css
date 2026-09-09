@@ -1,8 +1,8 @@
 .new-shell-main,
 .lv-studio.new-project-page,
-.lv-studio .new-create-view { background: #ededed; }
+.lv-studio .new-create-view { background: #101110; }
 .new-shell-main { border-radius: 0; }
-.lv-studio.new-project-page { display: block; min-height: 100%; height: auto; overflow: visible; color: #111; font-family: "Geist Variable", "Geist", Arial, sans-serif; }
+.lv-studio.new-project-page { display: block; min-height: 100%; height: auto; overflow: visible; color: #ededeb; font-family: "Geist Variable", "Geist", Arial, sans-serif; }
 .lv-studio .new-create-view { position: relative; display: block; width: 100%; min-height: 100%; padding: 0; overflow: visible; }
 /* Dropping a file is signalled in ink too, not the studio's accent. */
 .lv-studio.new-project-page .drop-veil { border-color: #b6b3af; color: #2a2724; }
@@ -22,10 +22,10 @@
 .lv-studio.new-project-page .new-project-menu:focus-visible { outline: 2px solid #111; outline-offset: 2px; }
 .new-project-topnav { position: absolute; top: 0; right: 0; left: 0; z-index: 10; height: 54px; padding: 0 16px; display: flex; align-items: center; justify-content: center; }
 .new-project-topnav__links { display: flex; align-items: center; gap: 26px; }
-.lv-studio.new-project-page .new-project-topnav__links :is(a, button) { padding: 0; border: 0; background: transparent; color: #77726d; font-size: 13px; font-weight: 460; letter-spacing: -0.004em; text-decoration: none; white-space: nowrap; cursor: pointer; transition: color 140ms ease; }
-.new-project-topnav__links :is(a, button):hover { color: #111; }
+.lv-studio.new-project-page .new-project-topnav__links :is(a, button) { padding: 0; border: 0; background: transparent; color: #858983; font-size: 13px; font-weight: 460; letter-spacing: -0.004em; text-decoration: none; white-space: nowrap; cursor: pointer; transition: color 140ms ease; }
+.new-project-topnav__links :is(a, button):hover { color: #f1f1ee; }
 .lv-studio.new-project-page .new-project-topnav__links button:hover:not(:disabled),
-.lv-studio.new-project-page .new-template-strip__head button:hover:not(:disabled) { background: transparent; color: #111; }
+.lv-studio.new-project-page .new-template-strip__head button:hover:not(:disabled) { background: transparent; color: #f1f1ee; }
 .new-project-topnav__actions { position: absolute; right: 14px; display: flex; align-items: center; gap: 7px; }
 .lv-studio.new-project-page .new-project-topnav__actions > :is(a, button) { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border: 1px solid #e0dfdc; border-radius: 50%; background: rgb(255 255 255 / 80%); color: #6e6965; text-decoration: none; cursor: pointer; transition: border-color 140ms ease, color 140ms ease, background 140ms ease; }
 .lv-studio.new-project-page .new-project-topnav__actions > :is(a, button):hover { border-color: #c4c2be; background: #fff; color: #111; }
@@ -64,70 +64,100 @@
   .new-project-profile-menu { animation: none; }
 }
 
-.new-create-hero { min-height: 100vh; padding: 106px 34px 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.new-create-hero__intro { display: flex; flex-direction: column; align-items: center; margin: 0 0 30px; text-align: center; }
+.new-create-hero { min-height: 100vh; padding: 110px 34px 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.new-create-hero__intro { display: flex; flex-direction: column; align-items: center; margin: 0 0 34px; text-align: center; }
+.new-project-wordmark { width: 160px; height: auto; color: #f1f1ee; }
 .new-create-wordmark { width: 196px; height: auto; margin: 8px 0 0; color: #111; }
 
 .lv-studio .new-composer-wrap { width: min(720px, 100%); max-width: none; }
-.lv-studio .new-composer-wrap .composer-box { min-height: 132px; padding: 16px 16px 12px; border: 1px solid #d6d5d2; border-radius: 24px; background: #fff; box-shadow: 0 16px 42px rgb(0 0 0 / 6%), 0 2px 7px rgb(0 0 0 / 3%); }
-.lv-studio .new-composer-wrap .composer-box:focus-within { border-color: #aaa8a4; box-shadow: 0 20px 48px rgb(0 0 0 / 8%), 0 0 0 3px rgb(0 0 0 / 3%); }
-.lv-studio .new-composer-wrap textarea { min-height: 60px; padding: 6px 7px; color: #171615; font-size: 14px; }
-.lv-studio .new-composer-wrap textarea::placeholder { color: #aaa6a2; }
-.lv-studio.new-project-page .new-composer-wrap .attach-plus { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid #dcdbd8; border-radius: 50%; background: #fff; color: #55514d; }
-.lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled) { border-color: #aaa7a3; background: #fff; color: #111; }
+.lv-studio .new-composer-wrap .composer-box { min-height: 152px; padding: 18px 18px 13px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 24px; background: #202220; box-shadow: 0 24px 70px rgb(0 0 0 / 28%); }
+.lv-studio .new-composer-wrap .composer-box:focus-within { border-color: rgb(255 255 255 / 32%); box-shadow: 0 26px 76px rgb(0 0 0 / 34%), 0 0 0 3px rgb(255 255 255 / 4%); }
+.lv-studio .new-composer-wrap textarea { min-height: 72px; padding: 6px 7px; color: #f1f1ee; font-size: 16px; }
+.lv-studio .new-composer-wrap textarea::placeholder { color: #858983; }
+.lv-studio.new-project-page .new-composer-wrap .attach-plus { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 16%); border-radius: 50%; background: #292c29; color: #d7d9d4; }
+.lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled) { border-color: rgb(255 255 255 / 28%); background: #343734; color: #fff; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus .spinner { width: 13px; height: 13px; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus svg { transition: transform 160ms ease; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus.is-open { border-color: #b8b5b1; background: #f1f0ee; color: #222; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus.is-open svg { transform: rotate(45deg); }
 .new-composer-wrap .composer-add { position: relative; }
-.new-composer-wrap .composer-add-menu { position: absolute; bottom: calc(100% + 9px); left: 0; z-index: 30; width: 246px; padding: 5px; border: 1px solid #deddd9; border-radius: 13px; background: #fff; box-shadow: 0 18px 46px rgb(0 0 0 / 14%), 0 2px 8px rgb(0 0 0 / 5%); animation: composer-menu-in 150ms cubic-bezier(.2,.8,.2,1) both; }
-.lv-studio.new-project-page .new-composer-wrap .composer-add-menu button { width: 100%; min-height: 39px; padding: 8px 9px; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto 14px; align-items: center; gap: 7px; border: 0; border-radius: 8px; background: transparent; color: #47433f; font: 440 12px/1.25 "Geist Variable", "Geist", Arial, sans-serif; text-align: left; cursor: pointer; }
+.new-composer-wrap .composer-add-menu { position: absolute; top: calc(100% + 9px); bottom: auto; left: 0; z-index: 30; width: 246px; padding: 5px; border: 1px solid rgb(255 255 255 / 12%); border-radius: 13px; background: #202220; box-shadow: 0 18px 46px rgb(0 0 0 / 35%), 0 2px 8px rgb(0 0 0 / 20%); animation: composer-menu-in 150ms cubic-bezier(.2,.8,.2,1) both; }
+.lv-studio.new-project-page .new-composer-wrap .composer-add-menu button { width: 100%; min-height: 39px; padding: 8px 9px; display: flex; align-items: center; gap: 9px; border: 0; border-radius: 8px; background: transparent; color: #d0d2cd; font: 440 12px/1.25 "Geist Variable", "Geist", Arial, sans-serif; text-align: left; cursor: pointer; }
 .lv-studio.new-project-page .new-composer-wrap .composer-add-menu button:hover:not(:disabled),
-.lv-studio.new-project-page .new-composer-wrap .composer-add-menu button.is-selected { background: #f1f0ee; color: #171615; }
+.lv-studio.new-project-page .new-composer-wrap .composer-add-menu button.is-selected { background: #303330; color: #fff; }
 .new-composer-wrap .composer-add-menu button > svg { color: #77726d; }
 .new-composer-wrap .composer-add-menu button > span { min-width: 0; }
+.new-composer-wrap .composer-add-menu label { min-height: 44px; padding: 6px 9px; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 9px; border-radius: 8px; color: #d0d2cd; font-size: 12px; }
+.new-composer-wrap .composer-add-menu label > svg { color: #77726d; }
+.new-composer-wrap .composer-add-menu label > select { min-width: 0; width: auto; max-width: 132px; padding: 5px 26px 5px 9px; appearance: none; color: #ededeb; background-color: #303330; background-image: linear-gradient(45deg, transparent 50%, #a1a49f 50%), linear-gradient(135deg, #a1a49f 50%, transparent 50%); background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
 .new-composer-wrap .composer-add-menu button > small { color: #96918b; font-size: 10px; }
 .new-composer-wrap .composer-add-menu button > b { color: #827d77; font-size: 9px; font-weight: 520; }
 .new-composer-wrap .composer-add-menu__divider { height: 1px; margin: 4px 5px; display: block; background: #ecebe8; }
 .lv-studio.new-project-page .new-composer-wrap .composer-add-menu .composer-add-menu__back { grid-template-columns: 18px minmax(0, 1fr); color: #272421; font-weight: 560; }
 .new-composer-wrap .composer-add-menu__back svg { transform: rotate(180deg); }
 .lv-studio.new-project-page .new-composer-wrap .attach-chip em { margin-left: 2px; padding: 2px 5px; border-radius: 999px; background: #ecebe8; color: #77726d; font-size: 8px; font-style: normal; text-transform: uppercase; letter-spacing: .04em; }
-.lv-studio.new-project-page .new-composer-wrap .send-btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: #111; color: #fff; }
-.lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) { background: #2a2a28; color: #fff; }
-.lv-studio.new-project-page .new-composer-wrap .send-btn:disabled { background: #e5e4e2; color: #aba7a2; cursor: default; }
-.lv-studio.new-project-page .composer-credits button { color: #94908b; }
-.lv-studio.new-project-page .composer-credits button:hover:not(:disabled) { color: #55514d; }
+.lv-studio.new-project-page .new-composer-wrap .send-btn { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: #f1f1ee; color: #151615; }
+.lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) { background: #fff; color: #111; }
+.lv-studio.new-project-page .new-composer-wrap .send-btn:disabled { background: #414440; color: #858983; cursor: default; }
+.lv-studio.new-project-page .composer-credits button { color: #858983; }
+.lv-studio.new-project-page .composer-credits button:hover:not(:disabled) { color: #f1f1ee; }
 .lv-studio.new-project-page .new-composer-wrap .model-select { position: relative; }
-.lv-studio.new-project-page .new-composer-wrap .model-btn { display: inline-flex; align-items: center; gap: 5px; max-width: 190px; padding: 7px 10px; border: 0; border-radius: 999px; background: transparent; color: #76716d; font-size: 12px; cursor: pointer; }
+.lv-studio.new-project-page .new-composer-wrap .model-btn { display: inline-flex; align-items: center; gap: 5px; max-width: 190px; padding: 7px 10px; border: 0; border-radius: 999px; background: transparent; color: #a1a49f; font-size: 12px; cursor: pointer; }
 .lv-studio.new-project-page .new-composer-wrap .model-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lv-studio.new-project-page .new-composer-wrap .model-btn:hover:not(:disabled) { background: #f4f3f1; color: #111; }
-.new-composer-wrap .model-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 210px; max-height: min(420px, 70vh); padding: 4px; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; border: 1px solid #e2e1de; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px rgb(0 0 0 / 12%), 0 2px 6px rgb(0 0 0 / 5%); }
-.lv-studio.new-project-page .new-composer-wrap .model-option { padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: #403c38; font-size: 12px; text-align: left; white-space: nowrap; cursor: pointer; }
-.lv-studio.new-project-page .new-composer-wrap .model-option:hover:not(:disabled) { background: #f4f3f1; color: #111; }
-.lv-studio.new-project-page .new-composer-wrap .model-option.is-active { font-weight: 600; color: #111; }
+.lv-studio.new-project-page .new-composer-wrap .model-btn:hover:not(:disabled) { background: #303330; color: #fff; }
+.new-composer-wrap .model-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 210px; max-height: min(420px, 70vh); padding: 4px; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; border: 1px solid rgb(255 255 255 / 12%); border-radius: 12px; background: #202220; box-shadow: 0 12px 32px rgb(0 0 0 / 35%), 0 2px 6px rgb(0 0 0 / 20%); }
+.lv-studio.new-project-page .new-composer-wrap .model-option { padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: #d0d2cd; font-size: 12px; text-align: left; white-space: nowrap; cursor: pointer; }
+.lv-studio.new-project-page .new-composer-wrap .model-option:hover:not(:disabled) { background: #303330; color: #fff; }
+.lv-studio.new-project-page .new-composer-wrap .model-option.is-active { font-weight: 600; color: #fff; }
 /* The gauge ring goes amber near the end of a balance; here it stays with the
    rest of the marker, because nothing on this page is coloured. */
 .lv-studio.new-project-page .composer-credits svg { color: inherit; }
-.lv-studio.new-project-page .link-btn { color: #111; }
+.lv-studio.new-project-page .link-btn { color: #ededeb; }
 .lv-studio.new-project-page .link-btn:hover:not(:disabled) { color: #56514d; }
 .new-featured-cue { display: flex; align-items: center; justify-content: center; gap: 8px; width: max-content; margin: 64px auto 0; color: #77726e; font-size: 10px; text-decoration: none; }
 
+.inspiration-drawer { position: fixed; bottom: 0; left: calc(var(--shell-sidebar-width, 0px) + (100vw - var(--shell-sidebar-width, 0px)) / 2); z-index: 20; width: min(900px, calc(100vw - var(--shell-sidebar-width, 0px) - 36px)); height: 58px; overflow: hidden; border: 1px solid rgb(255 255 255 / 8%); border-bottom: 0; border-radius: 22px 22px 0 0; background: #202220; box-shadow: 0 -16px 48px rgb(0 0 0 / 22%); transform: translateX(-50%); transition: height 280ms cubic-bezier(.22,1,.36,1), left 360ms cubic-bezier(.22,1,.36,1), width 360ms cubic-bezier(.22,1,.36,1); }
+.inspiration-drawer.is-open { height: min(390px, calc(100vh - 92px)); }
+.lv-studio.new-project-page .inspiration-drawer__toggle { width: 100%; height: 58px; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; border: 0; background: transparent; color: #a1a49f; font-size: 13px; cursor: pointer; }
+.inspiration-drawer__toggle > span { display: inline-flex; align-items: center; gap: 9px; }
+.inspiration-drawer__toggle > span:last-child { color: #777b75; font-size: 12px; }
+.inspiration-drawer__toggle svg { flex: none; }
+.inspiration-drawer__toggle > span:last-child svg { transition: transform 220ms ease; }
+.inspiration-drawer.is-open .inspiration-drawer__toggle > span:last-child svg { transform: rotate(180deg); }
+.lv-studio.new-project-page .inspiration-drawer__toggle:hover:not(:disabled) { background: #252725; color: #f1f1ee; }
+.inspiration-drawer__content { height: calc(100% - 58px); padding: 4px 22px 24px; overflow-y: auto; border-top: 1px solid rgb(255 255 255 / 7%); }
+.inspiration-drawer__intro { padding: 18px 0 14px; }
+.inspiration-drawer__intro span { color: #f1f1ee; font-size: 15px; font-weight: 570; }
+.inspiration-drawer__intro p { margin: 4px 0 0; color: #858983; font-size: 12px; }
+.inspiration-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.lv-studio.new-project-page .inspiration-card { min-width: 0; padding: 0; overflow: hidden; border: 1px solid rgb(255 255 255 / 9%); border-radius: 13px; background: #171817; color: #ededeb; text-align: left; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease; }
+.lv-studio.new-project-page .inspiration-card:hover:not(:disabled) { border-color: rgb(255 255 255 / 23%); background: #1b1d1b; transform: translateY(-2px); }
+.inspiration-card__art { position: relative; width: 100%; aspect-ratio: 16 / 9; display: block; overflow: hidden; background: radial-gradient(circle at 76% 22%, var(--inspiration-c), transparent 27%), linear-gradient(135deg, var(--inspiration-a), var(--inspiration-b)); }
+.inspiration-card__art::after { position: absolute; right: 10%; bottom: 13%; left: 10%; height: 2px; border-radius: 2px; background: rgb(255 255 255 / 68%); content: ""; }
+.inspiration-card__art i { position: absolute; width: 34%; height: 10%; border-radius: 999px; background: rgb(255 255 255 / 74%); }
+.inspiration-card__art i:nth-child(1) { top: 28%; left: 10%; }
+.inspiration-card__art i:nth-child(2) { top: 43%; left: 10%; width: 52%; opacity: .55; }
+.inspiration-card__art i:nth-child(3) { top: 58%; left: 10%; width: 24%; opacity: .35; }
+.inspiration-card__copy { padding: 11px 12px 13px; display: flex; flex-direction: column; gap: 3px; }
+.inspiration-card__copy small { color: #777b75; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+.inspiration-card__copy strong { overflow: hidden; color: #dedfdb; font-size: 12px; font-weight: 540; text-overflow: ellipsis; white-space: nowrap; }
+
 /* The skill pills sit under the composer: a hint row, not a mode switch.
    Grey at rest — the blue stroke only appears on the selected skill. */
-.lv-studio .new-skills { max-width: 720px; margin: 16px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.lv-studio.new-project-page .new-skill-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid #d4d3d0; border-radius: 999px; background: transparent; color: #56514d; font-size: 12px; cursor: pointer; transition: border-color 140ms ease, background 140ms ease, color 140ms ease; }
+.lv-studio .new-skills { max-width: 820px; margin: 20px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; }
+.lv-studio.new-project-page .new-skill-pill { display: inline-flex; align-items: center; gap: 6px; padding: 9px 15px; border: 1px solid rgb(255 255 255 / 11%); border-radius: 999px; background: transparent; color: #a1a49f; font-size: 12px; cursor: pointer; transition: border-color 140ms ease, background 140ms ease, color 140ms ease; }
 .new-skill-pill svg { color: #9c9791; }
-.lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) { border-color: #aaa7a3; background: #fff; color: #111; }
+.lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) { border-color: rgb(255 255 255 / 24%); background: #202220; color: #fff; }
 .lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) svg { color: #56514d; }
 .lv-studio.new-project-page .new-skill-pill.is-active,
-.lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled) { border-color: #2563eb; background: #fff; color: #2563eb; }
+.lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled) { border-color: #7b7f79; background: #2a2c2a; color: #fff; }
 .lv-studio.new-project-page .new-skill-pill.is-active svg,
-.lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled) svg { color: #2563eb; }
+.lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled) svg { color: #fff; }
 
 /* The selected skill rides inside the composer as a small blue-stroked chip
    glued to the plus button, and clears back to freestyle with its ×. */
-.lv-studio.new-project-page .new-skill-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 4px 5px 4px 10px; border: 1px solid color-mix(in srgb, #2563eb 38%, #fff); border-radius: 999px; background: #fff; color: #2563eb; font-size: 11px; font-weight: 500; white-space: nowrap; }
-.new-skill-chip > svg { flex: none; color: #2563eb; }
+.lv-studio.new-project-page .new-skill-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 4px 5px 4px 10px; border: 1px solid rgb(255 255 255 / 18%); border-radius: 999px; background: #2a2c2a; color: #f1f1ee; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.new-skill-chip > svg { flex: none; color: #f1f1ee; }
 .lv-studio.new-project-page .new-skill-chip button { flex: none; width: 16px; height: 16px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #96918b; font-size: 12px; line-height: 1; cursor: pointer; }
 .lv-studio.new-project-page .new-skill-chip button:hover:not(:disabled) { background: #f1f0ee; color: #171513; }
 
@@ -183,7 +213,7 @@
   .new-project-topnav { height: 64px; padding: 0 12px 0 64px; justify-content: flex-end; }
   .new-project-topnav__links { display: none; }
   .new-project-topnav__actions { position: static; }
-  .new-create-hero { min-height: 100svh; padding: 76px 16px 44px; }
+  .new-create-hero { min-height: 100svh; padding: 82px 16px 60px; }
   .new-create-wordmark { width: 148px; }
   .new-template-strip__cards { grid-template-columns: 1fr 1fr; }
   .new-template-strip__cards button:last-child { display: none; }
@@ -191,6 +221,14 @@
   .new-skill-gallery .new-template-strip__cards button:last-child { display: block; }
   .new-featured__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .new-composer-wrap .composer-add-menu { width: min(246px, calc(100vw - 48px)); }
+  .new-project-wordmark { width: 148px; }
+  .lv-studio .new-composer-wrap { width: 100%; }
+  .inspiration-drawer { left: 50%; width: calc(100vw - 24px); }
+  .inspiration-drawer.is-open { height: min(520px, calc(100svh - 76px)); }
+  .inspiration-grid { grid-template-columns: 1fr 1fr; }
+  .inspiration-drawer__content { padding-inline: 14px; }
+  .lv-studio.new-project-page .inspiration-drawer__toggle { padding-inline: 16px; }
+  .inspiration-drawer__toggle > span:last-child { font-size: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
