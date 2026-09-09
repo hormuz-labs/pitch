@@ -496,7 +496,7 @@ export function AppShell(props: ParentProps) {
     <AppShellContext.Provider value={context}>
       <div
         class="app-shell-bg flex h-screen w-screen overflow-hidden"
-        style={{ 'background-color': '#ededed' }}
+        style={{ 'background-color': '#ededed', color: '#171615' }}
       >
         <OnboardingSurvey />
         <Show when={settingsSection()}>

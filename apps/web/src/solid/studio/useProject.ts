@@ -45,6 +45,10 @@ export function useProject(id: string | undefined) {
   let nextRef = 1,
     events: EventSource | null = null,
     generation = 0,
+    entryRevision = 0,
+    busyRevision = 0,
+    reconnectTimer = 0,
+    disposed = false,
     exportTimer = 0,
     autoSeek: { t: number; play: boolean } | null = null,
     playingNow = false
@@ -129,9 +133,11 @@ export function useProject(id: string | undefined) {
     switch (ev.type) {
       case 'hello':
       case 'status':
+        busyRevision++
         setBusy(ev.busy)
         break
       case 'entry':
+        entryRevision++
         setEntries(v => {
           if (ev.entry.role === 'user') {
             const i = v.findIndex(e => e.id.startsWith('local-') && e.text === ev.entry.text)
@@ -145,12 +151,15 @@ export function useProject(id: string | undefined) {
         })
         break
       case 'delta':
+        entryRevision++
         setEntries(v => v.map(e => (e.id === ev.id ? { ...e, text: e.text + ev.delta } : e)))
         break
       case 'update':
+        entryRevision++
         setEntries(v => v.map(e => (e.id === ev.entry.id ? ev.entry : e)))
         break
       case 'idle':
+        busyRevision++
         setBusy(false)
         setLiveCount(null)
         setVideoVersion(v => v + 1)
@@ -171,6 +180,8 @@ export function useProject(id: string | undefined) {
         setProject(v => (v ? { ...v, ...ev.project, description: v.description } : v))
         break
       case 'error':
+        entryRevision++
+        busyRevision++
         setBusy(false)
         setEntries(v => [
           ...v,
@@ -183,7 +194,7 @@ export function useProject(id: string | undefined) {
     }
   }
   const connect = async () => {
-    if (!id) return
+    if (!id || disposed) return
     const mine = ++generation
     events?.close()
     let token: string
@@ -192,7 +203,7 @@ export function useProject(id: string | undefined) {
     } catch {
       return
     }
-    if (mine !== generation) return
+    if (mine !== generation || disposed) return
     const es = new EventSource(studio.eventsUrl(id, token))
     es.onmessage = e => {
       try {
@@ -201,7 +212,10 @@ export function useProject(id: string | undefined) {
     }
     es.onerror = () => {
       es.close()
-      if (mine === generation) setTimeout(() => void connect(), 2000)
+      if (mine === generation && !disposed) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = window.setTimeout(() => void connect(), 2000)
+      }
     }
     events = es
   }
@@ -245,6 +259,8 @@ export function useProject(id: string | undefined) {
     void connect()
     void (async () => {
       if (!id) return
+      const initialEntryRevision = entryRevision
+      const initialBusyRevision = busyRevision
       const t = await getToken().catch(() => null)
       if (!t) return
       const [d, m, e, a] = await Promise.all([
@@ -253,9 +269,15 @@ export function useProject(id: string | undefined) {
         studio.getExport(t, id).catch(() => null),
         studio.assets(t, id).catch(() => []),
       ])
+      if (!live) return
       if (d) setProject(d)
-      setEntries(m.entries)
-      setBusy(m.busy)
+      if (initialEntryRevision === entryRevision) setEntries(m.entries)
+      else
+        setEntries(current => {
+          const liveIds = new Set(current.map(entry => entry.id))
+          return [...m.entries.filter(entry => !liveIds.has(entry.id)), ...current]
+        })
+      if (initialBusyRevision === busyRevision) setBusy(m.busy)
       setAssets(a)
       if (e) {
         setExportStatus(e)
@@ -264,7 +286,9 @@ export function useProject(id: string | undefined) {
     })()
     onCleanup(() => {
       live = false
+      disposed = true
       clearInterval(tokenTimer)
+      clearTimeout(reconnectTimer)
       generation++
       events?.close()
       stopPoll()

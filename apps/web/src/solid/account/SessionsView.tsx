@@ -122,11 +122,18 @@ export function SessionsView() {
     let value = url().trim()
     if (!/^https?:\/\//i.test(value)) value = `https://${value}`
     try {
-      new URL(value)
+      const parsed = new URL(value)
+      if (
+        !['http:', 'https:'].includes(parsed.protocol) ||
+        !parsed.hostname ||
+        /\s|%20/i.test(value)
+      )
+        throw new Error('Invalid URL')
     } catch {
       setUrlError("That doesn't look like a valid URL.")
       return
     }
+    setUrlError('')
     setStarting(true)
     try {
       const token = await getToken()
@@ -135,7 +142,7 @@ export function SessionsView() {
       setModal(false)
       window.dispatchEvent(new Event('credits-changed'))
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Failed to start session')
+      setUrlError(reason instanceof Error ? reason.message : 'Failed to start session')
     } finally {
       setStarting(false)
     }

@@ -6,6 +6,7 @@ export function DeckPreview(props: { store: ProjectStore; src: string }) {
   let frame: HTMLIFrameElement | undefined, container: HTMLDivElement | undefined
   const [scale, setScale] = createSignal(0.5),
     [ready, setReady] = createSignal(false),
+    [loadVersion, setLoadVersion] = createSignal(0),
     [height, setHeight] = createSignal(720)
   const post = (m: unknown) => frame?.contentWindow?.postMessage(m, '*'),
     resize = () => {
@@ -15,18 +16,19 @@ export function DeckPreview(props: { store: ProjectStore; src: string }) {
         setHeight(r.height)
       }
     }
-  createEffect(
-    () =>
-      ready() && post({ type: 'studio_toggle_inspect', enabled: s.inspectMode, scale: scale() }),
-  )
-  createEffect(
-    () =>
-      ready() &&
-      post({ type: 'studio_set_marks', marks: s.targets.map(t => t.mark).filter(x => x != null) }),
-  )
-  createEffect(
-    () => ready() && s.selectedSlide && post({ type: 'studio_scroll_to', index: s.selectedSlide }),
-  )
+  createEffect(() => {
+    loadVersion()
+    if (ready()) post({ type: 'studio_toggle_inspect', enabled: s.inspectMode, scale: scale() })
+  })
+  createEffect(() => {
+    loadVersion()
+    if (ready())
+      post({ type: 'studio_set_marks', marks: s.targets.map(t => t.mark).filter(x => x != null) })
+  })
+  createEffect(() => {
+    loadVersion()
+    if (ready() && s.selectedSlide) post({ type: 'studio_scroll_to', index: s.selectedSlide })
+  })
   onMount(() => {
     resize()
     const ro = new ResizeObserver(resize)
@@ -63,7 +65,10 @@ export function DeckPreview(props: { store: ProjectStore; src: string }) {
           ref={frame}
           src={props.src}
           title="Deck preview"
-          onLoad={() => setReady(true)}
+          onLoad={() => {
+            setReady(true)
+            setLoadVersion(value => value + 1)
+          }}
           style={{
             width: '1280px',
             height: `${height() / scale()}px`,

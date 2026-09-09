@@ -43,7 +43,7 @@ const tabs = [
 export function SettingsView() {
   const { getToken } = useAuth()
   const clerk = useClerk()
-  const { user } = useUser()
+  const { userAccessor: user } = useUser()
   const [tab, setTab] = createSignal<Tab>('profile')
   const [summary, setSummary] = createSignal<Summary | null>(null)
   const [loading, setLoading] = createSignal(false)
@@ -102,18 +102,18 @@ export function SettingsView() {
             <section class="rounded-2xl border bg-white p-6 shadow-sm">
               <div class="flex items-center gap-4">
                 <Show
-                  when={user?.imageUrl}
+                  when={user()?.imageUrl}
                   fallback={
                     <span class="flex h-14 w-14 items-center justify-center rounded-full bg-gray-900 text-white">
-                      {user?.firstName?.[0] ?? 'P'}
+                      {user()?.firstName?.[0] ?? 'P'}
                     </span>
                   }
                 >
                   {src => <img src={src()} alt="" class="h-14 w-14 rounded-full" />}
                 </Show>
                 <div>
-                  <h1 class="text-xl font-bold">{user?.fullName || 'Pitch creator'}</h1>
-                  <p class="text-sm text-gray-500">{user?.primaryEmailAddress?.emailAddress}</p>
+                  <h1 class="text-xl font-bold">{user()?.fullName || 'Pitch creator'}</h1>
+                  <p class="text-sm text-gray-500">{user()?.primaryEmailAddress?.emailAddress}</p>
                 </div>
               </div>
               <button
@@ -371,7 +371,7 @@ export function SettingsModal(props: {
   onClose: () => void
 }) {
   const navigate = useNavigate()
-  const { user } = useUser()
+  const { userAccessor: user } = useUser()
   const sections: [SettingsSection, string][] = [
     ['account', 'Account'],
     ['usage', 'Usage'],
@@ -430,8 +430,8 @@ export function SettingsModal(props: {
             <Show when={props.section === 'account'}>
               <section class="settings-card">
                 <h4>Profile</h4>
-                <strong>{user?.fullName || 'Pitch creator'}</strong>
-                <small>{user?.primaryEmailAddress?.emailAddress}</small>
+                <strong>{user()?.fullName || 'Pitch creator'}</strong>
+                <small>{user()?.primaryEmailAddress?.emailAddress}</small>
               </section>
             </Show>
             <Show when={props.section === 'mcp'}>

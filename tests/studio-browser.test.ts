@@ -197,11 +197,13 @@ describe('nothing in the studio reaches for a local Chromium', () => {
   }
 
   // The places allowed to name these: browser.mjs and manager-browser.ts
-  // connect over CDP rather than launching, and sandbox.ts names the install
-  // command only to say the sandbox is what stops it.
+  // connect over CDP, thumbnails.ts has a macOS-only local development
+  // fallback, and sandbox.ts names the install command only to say the
+  // sandbox is what stops it.
   const ALLOWED = [
     '/scripts/launch-video/lib/browser.mjs:',
     '/render/utils/manager-browser.ts:',
+    '/projects/thumbnails.ts:',
     '/.pi/lib/sandbox.ts:',
   ]
   const offenders = (lines: string[]) => lines.filter(l => !ALLOWED.some(a => l.includes(a)))

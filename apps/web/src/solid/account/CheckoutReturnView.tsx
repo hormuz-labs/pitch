@@ -17,7 +17,7 @@ interface Receipt {
 }
 export function CheckoutReturnView() {
   const { getToken, isLoaded, userId } = useAuth()
-  const { user } = useUser()
+  const { userAccessor: user } = useUser()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const param = (value: string | string[] | undefined) =>
@@ -106,7 +106,7 @@ export function CheckoutReturnView() {
             </h1>
             <p class="mt-2 text-sm text-gray-500">
               {value().status === 'success'
-                ? `${value().credits ?? 50} credits were added for ${user?.fullName || user?.primaryEmailAddress?.emailAddress || 'your account'}.`
+                ? `${value().credits ?? 50} credits were added for ${user()?.fullName || user()?.primaryEmailAddress?.emailAddress || 'your account'}.`
                 : 'We could not confirm this checkout.'}
             </p>
             <Show when={value().status === 'success'}>
