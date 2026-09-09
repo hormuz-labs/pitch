@@ -203,115 +203,449 @@ export const LandingChatInput = () => {
 }
 
 const films = [
-  'graphify.mp4',
-  'gtmcofounder.mp4',
-  'supermemory.mp4',
-  'unsloth-launch.mp4',
-  'demo.mp4',
-]
-export const ScrollSpreadFilms = () => (
-  <section class="lb-band lb-spread" aria-labelledby="films-heading">
-    <div class="lb-spread-inner">
-      <div class="lb-spread-header lb-wrap">
-        <p class="lb-chy">URL to film</p>
-        <h2 id="films-heading" class="lb-h2">
-          A sentence in. <i>A film out.</i>
-        </h2>
-        <p class="lb-sub lb-muted">
-          One URL and a line of direction. Every clip still carries the brief that made it.
-        </p>
-      </div>
-      <div class="lb-spread-carousel">
-        <div class="flex gap-4 overflow-x-auto px-[10vw] py-10 snap-x">
-          <For each={films}>
-            {(src, i) => (
-              <video
-                src={carouselAsset(src)}
-                muted
-                loop
-                playsinline
-                autoplay
-                preload={i() === 0 ? 'metadata' : 'none'}
-                class="snap-center shrink-0 rounded-2xl shadow-xl w-[clamp(260px,40vw,520px)] aspect-video object-cover"
-              />
-            )}
-          </For>
+  ['graphify.mp4', 'Graphify launch film'],
+  ['gtmcofounder.mp4', 'GTM Cofounder launch film'],
+  ['supermemory.mp4', 'Supermemory launch film'],
+  ['unsloth-launch.mp4', 'Unsloth launch film'],
+  ['demo.mp4', 'Pitch product demo'],
+] as const
+export const ScrollSpreadFilms = () => {
+  let section!: HTMLElement
+  let header!: HTMLDivElement
+  const cards: HTMLDivElement[] = []
+  const videos: HTMLVideoElement[] = []
+  const [selected, setSelected] = createSignal(0)
+  let spread = 0
+  let position = 0
+  let targetPosition = 0
+  let animationFrame: number | undefined
+  let suppressClick = false
+  let drag: {
+    id: number
+    x: number
+    position: number
+    velocity: number
+    time: number
+    moved: boolean
+  } | null = null
+  let paint = () => {}
+
+  const indexAt = (value: number) =>
+    ((Math.round(value) % films.length) + films.length) % films.length
+  const cardOffset = (index: number) => {
+    let offset = index - position
+    offset = ((offset % films.length) + films.length) % films.length
+    if (offset > films.length / 2) offset -= films.length
+    return offset
+  }
+
+  const playSelected = (index: number) => {
+    window.setTimeout(() => {
+      videos.forEach((video, videoIndex) => {
+        if (videoIndex === index) {
+          video.muted = false
+          void video.play().catch(() => {})
+        } else {
+          video.pause()
+          video.muted = true
+        }
+      })
+    }, 180)
+  }
+
+  const settle = (target: number, play = false) => {
+    cancelAnimationFrame(animationFrame ?? 0)
+    targetPosition = target
+    const index = indexAt(target)
+    setSelected(index)
+    if (play) playSelected(index)
+    const step = () => {
+      const remaining = targetPosition - position
+      if (Math.abs(remaining) < 0.0005) {
+        position = targetPosition
+        paint()
+        return
+      }
+      position += remaining * 0.16
+      paint()
+      animationFrame = requestAnimationFrame(step)
+    }
+    animationFrame = requestAnimationFrame(step)
+  }
+
+  const selectFilm = (index: number) => {
+    if (suppressClick) return
+    const target = index + Math.round((targetPosition - index) / films.length) * films.length
+    settle(target, true)
+  }
+
+  onMount(() => {
+    paint = () => {
+      const width = cards[0]?.offsetWidth ?? 0
+      const pitch = width * 0.78
+      const smoothSpread = spread * spread * (3 - 2 * spread)
+      cards.forEach((card, index) => {
+        const offset = cardOffset(index)
+        const distance = Math.abs(offset)
+        const ramp = distance ** 0.56
+        const tilt = Math.min(44 * ramp, 82) * Math.sign(offset)
+        card.style.transform =
+          `translate(-50%, -50%) translateX(${offset * pitch * smoothSpread}px) ` +
+          `translateZ(${-0.6 * width * ramp * smoothSpread}px) rotateY(${-tilt * smoothSpread}deg) ` +
+          `scale(${index === selected() ? 1.08 : 1})`
+        card.style.opacity = String(
+          distance < 0.5 ? 1 : smoothSpread * Math.max(0.62, 1 - distance * 0.1),
+        )
+        card.style.zIndex = String(100 - Math.round(distance))
+      })
+    }
+    const mm = gsap.matchMedia()
+    mm.add('(min-width: 769px) and (prefers-reduced-motion: no-preference)', () => {
+      spread = 0
+      paint()
+      const trigger = ScrollTrigger.create({
+        trigger: section,
+        start: 'top top',
+        end: () => `+=${Math.round(window.innerHeight * 1.35)}`,
+        pin: true,
+        scrub: 0.18,
+        onRefresh: self => {
+          spread = gsap.utils.clamp(0, 1, (self.progress - 0.12) / 0.88)
+          paint()
+        },
+        onUpdate: self => {
+          const progress = self.progress
+          spread = gsap.utils.clamp(0, 1, (progress - 0.12) / 0.88)
+          paint()
+          const fade = gsap.utils.clamp(0, 1, (progress - 0.025) / 0.3)
+          header.style.opacity = String(1 - fade)
+          header.style.transform = `translateY(${-fade * 28}px)`
+        },
+      })
+      return () => {
+        trigger.kill()
+        header.style.opacity = ''
+        header.style.transform = ''
+      }
+    })
+    mm.add('(max-width: 768px), (prefers-reduced-motion: reduce)', () => {
+      spread = 1
+      paint()
+    })
+    const resize = new ResizeObserver(paint)
+    resize.observe(cards[0])
+    videos.forEach((video, index) => {
+      if (index !== selected()) video.pause()
+    })
+    onCleanup(() => {
+      cancelAnimationFrame(animationFrame ?? 0)
+      resize.disconnect()
+      mm.revert()
+    })
+  })
+
+  return (
+    <section ref={section} class="lb-band lb-spread" aria-labelledby="films-heading">
+      <div class="lb-spread-inner">
+        <div ref={header} class="lb-spread-header lb-wrap">
+          <p class="lb-chy">URL to film</p>
+          <h2 id="films-heading" class="lb-h2">
+            A sentence in. <i>A film out.</i>
+          </h2>
+          <p class="lb-sub lb-muted">
+            One URL and a line of direction. Scroll to open the reel. Every clip still carries the
+            brief that made it.
+          </p>
+        </div>
+        <div class="lb-spread-carousel">
+          <div
+            class="lb-spread-reel"
+            role="region"
+            aria-roledescription="carousel"
+            aria-label="Films made with Pitch"
+            tabIndex={0}
+            onPointerDown={event => {
+              if ((event.target as Element).closest('.lb-spread-card.is-active')) return
+              cancelAnimationFrame(animationFrame ?? 0)
+              targetPosition = position
+              drag = {
+                id: event.pointerId,
+                x: event.clientX,
+                position,
+                velocity: 0,
+                time: performance.now(),
+                moved: false,
+              }
+            }}
+            onPointerMove={event => {
+              if (!drag || drag.id !== event.pointerId) return
+              const pitch = (cards[0]?.offsetWidth ?? 1) * 0.78
+              const now = performance.now()
+              const previous = position
+              const distance = event.clientX - drag.x
+              if (Math.abs(distance) > 5 && !drag.moved) {
+                drag.moved = true
+                event.currentTarget.setPointerCapture(event.pointerId)
+              }
+              position = drag.position - distance / pitch
+              drag.velocity = ((position - previous) / Math.max(now - drag.time, 1)) * 1000
+              drag.time = now
+              setSelected(indexAt(position))
+              paint()
+            }}
+            onPointerUp={event => {
+              if (!drag || drag.id !== event.pointerId) return
+              const moved = drag.moved
+              const carried = Math.max(-2, Math.min(2, drag.velocity * 0.18))
+              drag = null
+              if (moved) {
+                suppressClick = true
+                window.setTimeout(() => (suppressClick = false), 0)
+              }
+              settle(Math.round(position + carried), moved)
+            }}
+            onPointerCancel={() => {
+              drag = null
+              settle(Math.round(position))
+            }}
+            onKeyDown={event => {
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                event.preventDefault()
+                settle(Math.round(targetPosition) + (event.key === 'ArrowLeft' ? -1 : 1), true)
+              }
+            }}
+          >
+            <For each={films}>
+              {(film, index) => (
+                <div
+                  ref={element => (cards[index()] = element)}
+                  class={`lb-spread-card${index() === selected() ? ' is-active' : cardOffset(index()) < 0 ? ' is-left' : ' is-right'}`}
+                  role="group"
+                  aria-label={`${film[1]}, ${index() + 1} of ${films.length}`}
+                >
+                  <video
+                    ref={element => (videos[index()] = element)}
+                    src={`${carouselAsset(film[0])}#t=0.6`}
+                    muted
+                    loop
+                    playsinline
+                    autoplay={index() === selected()}
+                    controls={index() === selected()}
+                    preload="metadata"
+                  />
+                  <Show when={index() !== selected()}>
+                    <button
+                      type="button"
+                      class="lb-spread-select"
+                      aria-label={`Select and play ${film[1]}`}
+                      onClick={() => selectFilm(index())}
+                    >
+                      <span>▶</span>
+                    </button>
+                  </Show>
+                </div>
+              )}
+            </For>
+          </div>
+          <div class="lb-spread-nav" aria-label="Choose a film">
+            <For each={films}>
+              {(film, index) => (
+                <button
+                  type="button"
+                  class={index() === selected() ? 'is-active' : ''}
+                  aria-label={`Show ${film[1]}`}
+                  aria-current={index() === selected() ? 'true' : undefined}
+                  onClick={() => selectFilm(index())}
+                />
+              )}
+            </For>
+          </div>
+          <p class="lb-spread-caption">{films[selected()][1]}</p>
         </div>
       </div>
-    </div>
-  </section>
-)
+    </section>
+  )
+}
 const steps = [
   [
     '01',
     'The brief',
     'Prompt',
     'Describe the demo in one sentence and drop the URL. No storyboard, no script to write.',
+    ['Plan mode', 'Pick a voice', 'Aspect & length'],
   ],
   [
     '02',
     'Understanding',
     'Research',
     'The agent reads your site and brand: real colours, type and tone, plus the flows actually worth showing.',
+    ['Reads your site', 'Pulls brand', 'Finds the flows'],
   ],
   [
     '03',
     'Direction',
     'Plan',
     'It storyboards the cut scene by scene, with pacing, a shot list and narration.',
+    ['Scene by scene', 'Shot list', 'Narration beats'],
   ],
   [
     '04',
     'Production',
     'Shoot',
     'It drives the real product, records every scene, then narrates, scores and colour-grades a 1080p cut.',
+    ['Real browser', 'Narrated & scored', '40+ languages'],
   ],
   [
     '05',
     'Iterate',
     'Edit',
     'Swap a voice, trim a scene, restyle a caption. No full re-render, no hallucinated frames.',
+    ['Edit any scene', 'Swap the voice', 'No re-render'],
   ],
-]
-export const HowItWorks = () => (
-  <section class="lb-band lb-hiw">
-    <div class="lb-wrap lb-hiw-head lb-reveal">
-      <p class="lb-chy">How it works</p>
-      <h2 class="lb-h2">One agent. Idea to finished cut.</h2>
-      <p class="lb-sub lb-muted">
-        Research, planning, shooting, voiceover, scoring and edit. One pass, one place.
-      </p>
+] as const
+
+type PipelineWindow = Window & {
+  __dcSetProps?: (name: string, props: Record<string, unknown>) => void
+}
+
+const AgentPipelineFrame = (props: { active: number }) => {
+  let viewport!: HTMLDivElement
+  let frame!: HTMLIFrameElement
+  const [scale, setScale] = createSignal(0.82)
+  let retry: number | undefined
+  let attempts = 0
+
+  const syncStep = () => {
+    window.clearTimeout(retry)
+    const frameWindow = frame.contentWindow as PipelineWindow | null
+    const frameDocument = frame.contentDocument
+    if (!frameWindow?.__dcSetProps || !frameDocument) {
+      if (attempts++ < 80) retry = window.setTimeout(syncStep, 100)
+      return
+    }
+    attempts = 0
+    frameWindow.__dcSetProps('Root', { autoplay: false, speed: 1 })
+    requestAnimationFrame(() => {
+      const bars = [...frameDocument.querySelectorAll<HTMLElement>('div')].filter(
+        element => element.style.cursor === 'pointer' && element.style.height === '2px',
+      )
+      bars[props.active]?.click()
+    })
+  }
+
+  onMount(() => {
+    const resize = () => setScale(viewport.clientWidth / 560)
+    resize()
+    const observer = new ResizeObserver(resize)
+    observer.observe(viewport)
+    frame.addEventListener('load', syncStep)
+    onCleanup(() => {
+      observer.disconnect()
+      frame.removeEventListener('load', syncStep)
+      window.clearTimeout(retry)
+    })
+  })
+  createEffect(() => {
+    props.active
+    syncStep()
+  })
+
+  return (
+    <div ref={viewport} class="lb-hiw-pipeline-viewport" style={{ height: `${455 * scale()}px` }}>
+      <iframe
+        ref={frame}
+        class="lb-hiw-pipeline-frame"
+        src={new URL('../../components/landing/Agent Pipeline v2.dc.html', import.meta.url).href}
+        title="Agent pipeline animation"
+        tabIndex={-1}
+        loading="lazy"
+        style={{ transform: `scale(${scale()})` }}
+      />
     </div>
-    <div class="lb-wrap lb-hiw-grid">
-      <div class="lb-hiw-stage">
-        <div class="lb-hiw-visual is-active">
-          <iframe
-            class="lb-hiw-pipeline-frame"
-            src={
-              new URL('../../components/landing/Agent Pipeline v2.dc.html', import.meta.url).href
-            }
-            title="Agent pipeline animation"
-            loading="lazy"
-          />
-        </div>
+  )
+}
+
+export const HowItWorks = () => {
+  const [active, setActive] = createSignal(0)
+  const stepElements: HTMLLIElement[] = []
+
+  onMount(() => {
+    const mm = gsap.matchMedia()
+    mm.add('(min-width: 769px) and (prefers-reduced-motion: no-preference)', () => {
+      const triggers: ScrollTrigger[] = []
+      stepElements.forEach((element, index) => {
+        const paint = (progress: number) => {
+          const enter = gsap.utils.clamp(0, 1, progress / 0.3)
+          const exit = gsap.utils.clamp(0, 1, (progress - 0.7) / 0.3)
+          const visibility =
+            progress < 0.3 ? enter * enter * (3 - 2 * enter) : 1 - exit * exit * (3 - 2 * exit)
+          gsap.set(element, {
+            autoAlpha: 0.1 + visibility * 0.9,
+            y: progress < 0.3 ? 34 * (1 - visibility) : -34 * (1 - visibility),
+          })
+        }
+        triggers.push(
+          ScrollTrigger.create({
+            trigger: element,
+            start: 'top 88%',
+            end: 'bottom 12%',
+            onUpdate: self => paint(self.progress),
+            onRefresh: self => paint(self.progress),
+          }),
+          ScrollTrigger.create({
+            trigger: element,
+            start: 'top 58%',
+            end: 'bottom 42%',
+            onToggle: self => self.isActive && setActive(index),
+          }),
+        )
+      })
+      return () => triggers.forEach(trigger => trigger.kill())
+    })
+    onCleanup(() => mm.revert())
+  })
+
+  return (
+    <section class="lb-band lb-hiw" aria-labelledby="hiw-heading">
+      <div class="lb-wrap lb-hiw-head lb-reveal">
+        <p class="lb-chy">How it works</p>
+        <h2 id="hiw-heading" class="lb-h2">
+          One agent. Idea to finished cut.
+        </h2>
+        <p class="lb-sub lb-muted">
+          Research, planning, shooting, voiceover, scoring and edit. One pass, one place.
+        </p>
       </div>
-      <ol class="lb-hiw-steps">
-        <For each={steps}>
-          {s => (
-            <li class="lb-hiw-step is-active">
-              <p class="lb-hiw-num">
-                <span>{s[0]}</span>
-                {s[1]}
-              </p>
-              <h3>{s[2]}</h3>
-              <p class="lb-hiw-body">{s[3]}</p>
-            </li>
-          )}
-        </For>
-      </ol>
-    </div>
-  </section>
-)
+      <div class="lb-wrap lb-hiw-grid">
+        <div class="lb-hiw-stage" aria-hidden="true">
+          <div class="lb-hiw-visual is-active">
+            <AgentPipelineFrame active={active()} />
+          </div>
+        </div>
+        <ol class="lb-hiw-steps">
+          <For each={steps}>
+            {(step, index) => (
+              <li
+                ref={element => (stepElements[index()] = element)}
+                class={`lb-hiw-step${index() === active() ? ' is-active' : ''}`}
+              >
+                <p class="lb-hiw-num">
+                  <span>{step[0]}</span>
+                  {step[1]}
+                </p>
+                <h3>{step[2]}</h3>
+                <p class="lb-hiw-body">{step[3]}</p>
+                <div class="lb-hiw-chips">
+                  <For each={step[4]}>{chip => <span>{chip}</span>}</For>
+                </div>
+              </li>
+            )}
+          </For>
+        </ol>
+      </div>
+    </section>
+  )
+}
 export const McpConnect = () => (
   <section class="lb-band lb-mcp" id="api">
     <div class="lb-wrap lb-mcp-head lb-reveal">
@@ -341,7 +675,7 @@ export const LandingView = () => {
   const auth = useAuth(),
     clerk = useClerk(),
     [logoDone, setLogoDone] = createSignal(false),
-    [videoOpen, setVideoOpen] = createSignal(false)
+    [videoSrc, setVideoSrc] = createSignal<string | null>(null)
   let root!: HTMLDivElement
   let lenis: Lenis | undefined
   onMount(() => {
@@ -350,11 +684,22 @@ export const LandingView = () => {
       anchors: true,
       lerp: 0.085,
       smoothWheel: true,
+      wheelMultiplier: 0.85,
       respectReducedMotion: true,
     })
     const update = (t: number) => lenis?.raf(t * 1000)
     lenis.on('scroll', ScrollTrigger.update)
     gsap.ticker.add(update)
+    gsap.ticker.lagSmoothing(0)
+    const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh())
+    let disposed = false
+    const refresh = () => {
+      if (disposed) return
+      lenis?.resize()
+      ScrollTrigger.refresh()
+    }
+    void document.fonts.ready.then(refresh)
+    window.addEventListener('load', refresh, { once: true })
     const io = new IntersectionObserver(
       entries =>
         entries.forEach(e => {
@@ -364,6 +709,10 @@ export const LandingView = () => {
     )
     root.querySelectorAll('.lb-reveal').forEach(el => io.observe(el))
     const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setVideoSrc(null)
+        return
+      }
       if (
         !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) &&
         (e.key === 'g' || e.key === 'G')
@@ -372,13 +721,18 @@ export const LandingView = () => {
     }
     window.addEventListener('keydown', key)
     onCleanup(() => {
+      disposed = true
       io.disconnect()
+      cancelAnimationFrame(refreshFrame)
       window.removeEventListener('keydown', key)
+      window.removeEventListener('load', refresh)
       gsap.ticker.remove(update)
+      gsap.ticker.lagSmoothing(500, 33)
+      lenis?.off('scroll', ScrollTrigger.update)
       lenis?.destroy()
     })
   })
-  createEffect(() => (videoOpen() ? lenis?.stop() : lenis?.start()))
+  createEffect(() => (videoSrc() ? lenis?.stop() : lenis?.start()))
   return (
     <>
       <Seo
@@ -391,9 +745,12 @@ export const LandingView = () => {
         <section class="lb-band lb-hero">
           <div class="lb-hero-in">
             <h1 class="sr-only">Pitch, an agent that uses your product, then films the demo</h1>
-            <div class="lb-wordmark">
+            <div class="lb-wordmark" aria-hidden="true">
               <PitchLogoAnimation onComplete={() => setLogoDone(true)} />
-              <span class={`lb-wordmark-credit${logoDone() ? ' is-visible' : ''}`}>
+              <span
+                class={`lb-wordmark-credit${logoDone() ? ' is-visible' : ''}`}
+                data-text="by Hormuz Labs"
+              >
                 by Hormuz Labs
               </span>
             </div>
@@ -406,7 +763,10 @@ export const LandingView = () => {
             </div>
             <p class="lb-hintrow">
               First render is on the house. No card. Or{' '}
-              <button onClick={() => setVideoOpen(true)} style={{ 'text-decoration': 'underline' }}>
+              <button
+                onClick={() => setVideoSrc(carouselAsset('demo.mp4'))}
+                style={{ 'text-decoration': 'underline' }}
+              >
                 watch one first
               </button>
               .
@@ -439,35 +799,38 @@ export const LandingView = () => {
         </section>
         <LandingFooter />
       </div>
-      <Show when={videoOpen()}>
-        <Portal>
-          <div
-            class="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8"
-            style={{ background: 'rgba(0,0,0,.85)', 'backdrop-filter': 'blur(6px)' }}
-            onClick={() => setVideoOpen(false)}
-          >
+      <Show when={videoSrc()} keyed>
+        {src => (
+          <Portal>
             <div
-              class="relative w-full max-w-4xl rounded-2xl overflow-hidden"
-              style={{ 'aspect-ratio': '16/9' }}
-              onClick={e => e.stopPropagation()}
+              class="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8"
+              style={{ background: 'rgba(0,0,0,.85)', 'backdrop-filter': 'blur(6px)' }}
+              onClick={() => setVideoSrc(null)}
             >
-              <button
-                class="absolute top-3 right-3 z-10 text-white"
-                onClick={() => setVideoOpen(false)}
+              <div
+                class="relative w-full max-w-4xl rounded-2xl overflow-hidden"
+                style={{ 'aspect-ratio': '16/9' }}
+                onClick={e => e.stopPropagation()}
               >
-                ×
-              </button>
-              <video
-                src={carouselAsset('demo.mp4')}
-                poster={demoThumbnail}
-                class="w-full h-full object-cover"
-                autoplay
-                controls
-                playsinline
-              />
+                <button
+                  class="absolute top-3 right-3 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/30 bg-black/70 text-xl text-white hover:bg-black/90"
+                  aria-label="Close video"
+                  onClick={() => setVideoSrc(null)}
+                >
+                  ×
+                </button>
+                <video
+                  src={src}
+                  poster={src.endsWith('/demo.mp4') ? demoThumbnail : undefined}
+                  class="w-full h-full object-cover"
+                  autoplay
+                  controls
+                  playsinline
+                />
+              </div>
             </div>
-          </div>
-        </Portal>
+          </Portal>
+        )}
       </Show>
     </>
   )

@@ -1,9 +1,10 @@
 import { A, useNavigate } from '@solidjs/router'
-import { ChevronDown, Menu, X } from 'lucide-solid'
+import { ChevronDown, Menu, Moon, Sun, X } from 'lucide-solid'
 import { createEffect, createSignal, createUniqueId, For, onCleanup, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import tabLogoB from '../../assets/tabLogoB.svg'
 import { useAuth } from '../core/auth'
+import { useTheme } from '../core/theme'
 import { PitchLogoAnimation } from './brand'
 import { SOCIALS } from './LandingFooter'
 import { McpSetup } from './McpSetup'
@@ -116,6 +117,7 @@ const ProductMenu = () => {
 
 export const LandingNav = () => {
   const auth = useAuth(),
+    theme = useTheme(),
     navigate = useNavigate(),
     [mcpOpen, setMcpOpen] = createSignal(false),
     [mobileOpen, setMobileOpen] = createSignal(false)
@@ -192,11 +194,20 @@ export const LandingNav = () => {
               <For each={SOCIALS}>
                 {social => (
                   <a href={social.href} target="_blank" rel="noreferrer" aria-label={social.label}>
-                    {social.label.slice(0, 1)}
+                    {social.icon?.({ size: 15 })}
                   </a>
                 )}
               </For>
             </div>
+            <button
+              type="button"
+              class="lb-theme-toggle lb-theme-toggle--desktop"
+              aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
+              aria-pressed={theme.theme() === 'dark'}
+              onClick={theme.toggleTheme}
+            >
+              {theme.theme() === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
             <A href={signedIn(auth) ? '/new' : '/sign-up'} class="lb-cta">
               {signedIn(auth) ? 'Dashboard' : 'Get started'}
             </A>
@@ -243,6 +254,13 @@ export const LandingNav = () => {
                 API / MCP
               </button>
               <A href="/docs">Docs</A>
+            </div>
+            <div class="lb-mobile-appearance">
+              <span>Appearance</span>
+              <button type="button" onClick={theme.toggleTheme}>
+                {theme.theme() === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                {theme.theme() === 'dark' ? 'Light' : 'Dark'} theme
+              </button>
             </div>
             <div class="lb-mobile-socials">
               <span>Follow</span>
