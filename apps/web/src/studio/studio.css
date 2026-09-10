@@ -2931,14 +2931,23 @@ to {
 }
 
 .lv-studio .asset-viewer-close {
-  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
   margin-left: auto;
-  padding: 2px 8px;
+  padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1;
+  touch-action: manipulation;
 }
 
 .lv-studio .asset-viewer-close:hover:not(:disabled) {
@@ -2947,6 +2956,7 @@ to {
 }
 
 .lv-studio .asset-viewer-body {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -2956,8 +2966,7 @@ to {
   background: #141413;
 }
 
-.lv-studio .asset-viewer-body video,
-.lv-studio .asset-viewer-body img {
+.lv-studio .asset-viewer-body video {
   max-width: 100%;
   max-height: 72vh;
   object-fit: contain;
@@ -3062,6 +3071,7 @@ to {
   min-height: 0;
   flex: 1;
   overflow: auto;
+  touch-action: none;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: #888 transparent;

@@ -22,7 +22,18 @@ function ZoomableImage(props: { src: string; name: string }) {
   const [mode, setMode] = createSignal<'fit' | 'width' | 'custom'>('fit')
   const [customScale, setCustomScale] = createSignal(1)
   const [dragging, setDragging] = createSignal(false)
-  let drag: { x: number; y: number; left: number; top: number } | undefined
+  const pointers = new Map<number, { x: number; y: number }>()
+  const gesture = () => {
+    const points = [...pointers.values()]
+    if (!points.length) return
+    const first = points[0],
+      second = points[1] ?? first
+    return {
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+      distance: Math.hypot(first.x - second.x, first.y - second.y),
+    }
+  }
   const scale = createMemo(() => {
     const image = natural(),
       box = bounds()
@@ -34,7 +45,13 @@ function ZoomableImage(props: { src: string; name: string }) {
       mode() === 'fit' ? box.height / image.height : Infinity,
     )
   })
-  const zoom = (value: number, x = viewport.clientWidth / 2, y = viewport.clientHeight / 2) => {
+  const zoom = (
+    value: number,
+    x = viewport.clientWidth / 2,
+    y = viewport.clientHeight / 2,
+    panX = 0,
+    panY = 0,
+  ) => {
     const previous = scale(),
       image = natural()
     if (!image.width) return
@@ -42,19 +59,21 @@ function ZoomableImage(props: { src: string; name: string }) {
     const oldTop = Math.max(0, (viewport.clientHeight - image.height * previous) / 2)
     const imageX = (viewport.scrollLeft + x - oldLeft) / previous
     const imageY = (viewport.scrollTop + y - oldTop) / previous
-    const next = Math.min(4, Math.max(0.01, value))
+    const next = Math.min(6, Math.max(0.01, value))
     setCustomScale(next)
     setMode('custom')
-    requestAnimationFrame(() => {
-      viewport.scrollLeft =
-        imageX * next + Math.max(0, (viewport.clientWidth - image.width * next) / 2) - x
-      viewport.scrollTop =
-        imageY * next + Math.max(0, (viewport.clientHeight - image.height * next) / 2) - y
-    })
+    viewport.scrollLeft =
+      imageX * next + Math.max(0, (viewport.clientWidth - image.width * next) / 2) - x - panX
+    viewport.scrollTop =
+      imageY * next + Math.max(0, (viewport.clientHeight - image.height * next) / 2) - y - panY
   }
   const fit = (value: 'fit' | 'width') => {
     setMode(value)
     viewport.scrollTo(0, 0)
+  }
+  const pointerUp = (event: PointerEvent) => {
+    pointers.delete(event.pointerId)
+    setDragging(pointers.size > 0)
   }
   onMount(() => {
     const observer = new ResizeObserver(() =>
@@ -88,7 +107,7 @@ function ZoomableImage(props: { src: string; name: string }) {
           <Minus size={15} />
         </button>
         <output aria-live="polite">{Math.round(scale() * 100)}%</output>
-        <button onClick={() => zoom(scale() * 1.25)} aria-label="Zoom in" disabled={scale() >= 4}>
+        <button onClick={() => zoom(scale() * 1.25)} aria-label="Zoom in" disabled={scale() >= 6}>
           <Plus size={15} />
         </button>
         <button onClick={() => fit('fit')} aria-pressed={mode() === 'fit'} title="Fit image">
@@ -120,32 +139,37 @@ function ZoomableImage(props: { src: string; name: string }) {
           }
         }}
         onPointerDown={event => {
-          if (event.button !== 0 || event.pointerType === 'touch') return
-          drag = {
-            x: event.clientX,
-            y: event.clientY,
-            left: viewport.scrollLeft,
-            top: viewport.scrollTop,
-          }
+          if (event.button !== 0) return
+          pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
           viewport.setPointerCapture(event.pointerId)
           setDragging(true)
         }}
         onPointerMove={event => {
-          if (!drag) return
-          viewport.scrollLeft = drag.left - (event.clientX - drag.x)
-          viewport.scrollTop = drag.top - (event.clientY - drag.y)
+          if (!pointers.has(event.pointerId)) return
+          const previous = gesture()!
+          pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          const current = gesture()!
+          if (pointers.size >= 2 && previous.distance > 0 && current.distance > 0) {
+            const rect = viewport.getBoundingClientRect()
+            zoom(
+              scale() * (current.distance / previous.distance),
+              previous.x - rect.left,
+              previous.y - rect.top,
+              current.x - previous.x,
+              current.y - previous.y,
+            )
+          } else {
+            viewport.scrollLeft -= current.x - previous.x
+            viewport.scrollTop -= current.y - previous.y
+          }
         }}
-        onPointerUp={() => {
-          drag = undefined
-          setDragging(false)
-        }}
-        onPointerCancel={() => {
-          drag = undefined
-          setDragging(false)
-        }}
-        onLostPointerCapture={() => {
-          drag = undefined
-          setDragging(false)
+        onPointerUp={pointerUp}
+        onPointerCancel={pointerUp}
+        onLostPointerCapture={pointerUp}
+        onDblClick={event => {
+          if (mode() === 'custom') return fit('fit')
+          const rect = viewport.getBoundingClientRect()
+          zoom(scale() * 2, event.clientX - rect.left, event.clientY - rect.top)
         }}
       >
         <div
@@ -226,8 +250,15 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
                 {props.asset.path} · {size(props.asset.size)}
               </span>
               <button
+                type="button"
                 class="asset-viewer-close"
                 aria-label="Close asset preview"
+                title="Close"
+                onPointerDown={event => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  props.close()
+                }}
                 onClick={props.close}
               >
                 ✕
