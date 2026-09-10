@@ -165,9 +165,6 @@ function Sidebar(props: {
             <span>New chat</span>
             <kbd>⌘ K</kbd>
           </button>
-          <p class="conversation-sidebar__section-title conversation-sidebar__nav-title">
-            Workspace
-          </p>
           <button
             type="button"
             class={`conversation-sidebar__row${props.selectedKey === 'sessions' ? ' is-active' : ''}`}
@@ -400,6 +397,7 @@ export function AppShell(props: ParentProps) {
     captureRefFromUrl()
     const resize = () => {
       const mobile = window.innerWidth < 1024
+      if (mobile === isMobile()) return
       setIsMobile(mobile)
       if (mobile) setCollapsed(true)
     }

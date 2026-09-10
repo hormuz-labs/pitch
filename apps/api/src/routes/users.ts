@@ -219,15 +219,18 @@ router.post('/sync', async (req, res) => {
     }
 
     if (!existingUser) {
-      await db.addCredits(userId, SIGNUP_BONUS_CREDITS, 'promo', 'New user signup bonus', {
-        idempotencyKey: `signup_bonus:${userId}`,
-      })
-      logger.info({ userId }, `Applied signup bonus credits (${SIGNUP_BONUS_CREDITS})`)
+      // New accounts deliberately start at zero; do not create a zero-value
+      // ledger entry that looks like a promotional grant.
+      if (SIGNUP_BONUS_CREDITS > 0) {
+        await db.addCredits(userId, SIGNUP_BONUS_CREDITS, 'promo', 'New user signup bonus', {
+          idempotencyKey: `signup_bonus:${userId}`,
+        })
+        logger.info({ userId }, `Applied signup bonus credits (${SIGNUP_BONUS_CREDITS})`)
+      }
       try {
         const welcome = await sendWelcomeEmail({
           to: email,
           firstName,
-          credits: SIGNUP_BONUS_CREDITS,
           userId,
         })
         if (welcome.error) {
@@ -244,8 +247,8 @@ router.post('/sync', async (req, res) => {
       // backwards compatibility, but in production the web (trypitch.co) and
       // API (api.trypitch.co) are cross-origin so the cookie never actually
       // reaches this handler — `refCode` is the path that actually fires.
-      // Reward the new user and the referrer in credits. Failures must never
-      // block signup.
+      // Record the lead and apply configured referral rewards. New-user reward
+      // is zero under the no-free-credits policy. Failures never block signup.
       const attribution = await resolveReferralAttribution(req)
       assert(
         attribution === null ||

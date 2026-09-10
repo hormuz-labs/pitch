@@ -247,17 +247,19 @@ export function StudioView(props: { projectId: string }) {
       typeof window === 'undefined' ? 520 : Math.min(620, Math.max(360, innerWidth * 0.36)),
     ),
     [tray, setTray] = createSignal(
-      typeof window === 'undefined' ? 340 : Math.min(380, Math.max(300, innerHeight * 0.36)),
+      typeof window === 'undefined' ? 240 : Math.min(300, Math.max(180, innerHeight * 0.3)),
     )
   let feed: HTMLDivElement | undefined,
     side: HTMLElement | undefined,
     wrap: HTMLDivElement | undefined,
+    stage: HTMLDivElement | undefined,
+    followFeed = true,
     drag: { x: number; w: number } | null = null,
     trayDrag: { y: number; h: number } | null = null
   createEffect(() => {
     s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
     queueMicrotask(() => {
-      if (feed) feed.scrollTop = feed.scrollHeight
+      if (feed && followFeed) feed.scrollTop = feed.scrollHeight
     })
   })
   const strip = createMemo(() =>
@@ -268,6 +270,13 @@ export function StudioView(props: { projectId: string }) {
       <SceneStrip store={s} />
     ) : null,
   )
+  const resizeTray = (height: number) =>
+    setTray(Math.max(120, Math.min(height, Math.max(120, (stage?.clientHeight ?? 600) - 200))))
+  onMount(() => {
+    const observer = new ResizeObserver(() => resizeTray(tray()))
+    if (stage) observer.observe(stage)
+    onCleanup(() => observer.disconnect())
+  })
   return (
     <div class="lv-studio">
       <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
@@ -294,6 +303,7 @@ export function StudioView(props: { projectId: string }) {
             <div class="topbar-split-right">
               <div class="topbar-split-tabs">
                 <button
+                  aria-label="Preview"
                   class={`preview-pane-tab${view() === 'preview' ? ' is-active' : ''}`}
                   onClick={() => setView('preview')}
                 >
@@ -301,6 +311,7 @@ export function StudioView(props: { projectId: string }) {
                   <span>Preview</span>
                 </button>
                 <button
+                  aria-label={`Files (${s.assets.length})`}
                   class={`preview-pane-tab${view() === 'files' ? ' is-active' : ''}`}
                   onClick={() => setView('files')}
                 >
@@ -319,7 +330,14 @@ export function StudioView(props: { projectId: string }) {
               style={{ '--sidebar-w': `${sidebar()}px` }}
               aria-busy={s.busy}
             >
-              <div class="feed" ref={feed}>
+              <div
+                class="feed"
+                ref={feed}
+                onScroll={event => {
+                  const el = event.currentTarget
+                  followFeed = el.scrollHeight - el.scrollTop - el.clientHeight < 64
+                }}
+              >
                 <Show
                   when={s.entries.length}
                   fallback={
@@ -351,7 +369,7 @@ export function StudioView(props: { projectId: string }) {
               }}
               onPointerUp={() => (drag = null)}
             />
-            <div class="editor-stage">
+            <div class="editor-stage" ref={stage}>
               <Show
                 when={view() === 'preview'}
                 fallback={
@@ -369,16 +387,40 @@ export function StudioView(props: { projectId: string }) {
                   <div
                     class="resize-handle-h"
                     role="separator"
+                    aria-label="Resize timeline"
+                    aria-orientation="horizontal"
+                    aria-valuemin={120}
+                    aria-valuemax={Math.max(120, (stage?.clientHeight ?? 600) - 200)}
+                    aria-valuenow={Math.round(tray())}
                     tabIndex={0}
+                    onKeyDown={event => {
+                      if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
+                      event.preventDefault()
+                      resizeTray(
+                        event.key === 'Home'
+                          ? 120
+                          : event.key === 'End'
+                            ? Infinity
+                            : tray() + (event.key === 'ArrowUp' ? 24 : -24),
+                      )
+                    }}
                     onPointerDown={e => {
-                      trayDrag = { y: e.clientY, h: tray() }
+                      e.preventDefault()
+                      e.currentTarget.focus()
+                      trayDrag = {
+                        y: e.clientY,
+                        h:
+                          e.currentTarget.nextElementSibling?.getBoundingClientRect().height ??
+                          tray(),
+                      }
                       e.currentTarget.setPointerCapture(e.pointerId)
                     }}
                     onPointerMove={e =>
-                      trayDrag &&
-                      setTray(Math.min(560, Math.max(220, trayDrag.h - (e.clientY - trayDrag.y))))
+                      trayDrag && resizeTray(trayDrag.h - (e.clientY - trayDrag.y))
                     }
                     onPointerUp={() => (trayDrag = null)}
+                    onPointerCancel={() => (trayDrag = null)}
+                    onLostPointerCapture={() => (trayDrag = null)}
                   />
                 </Show>
                 <div class="tray" style={strip() ? { height: `${tray()}px` } : undefined}>
