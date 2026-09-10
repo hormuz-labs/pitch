@@ -1,4 +1,5 @@
-import { createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import { Maximize, Minus, Plus } from 'lucide-solid'
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import type { Asset } from './types'
 import type { ProjectStore } from './useProject'
@@ -14,133 +15,190 @@ const GLYPH: Record<string, string> = { image: '▣', video: '▶', audio: '♪'
 const size = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} B`
 
-const MIN_ZOOM = 1
-const MAX_ZOOM = 6
-
-function ImageViewer(props: { src: string; alt: string }) {
-  const [zoom, setZoom] = createSignal(MIN_ZOOM),
-    [x, setX] = createSignal(0),
-    [y, setY] = createSignal(0),
-    [dragging, setDragging] = createSignal(false)
-  let viewport: HTMLDivElement | undefined,
-    image: HTMLImageElement | undefined,
-    lastPoint: { x: number; y: number } | null = null,
-    pinch: { distance: number; midpoint: { x: number; y: number } } | null = null
+function ZoomableImage(props: { src: string; name: string }) {
+  let viewport!: HTMLDivElement
+  const [natural, setNatural] = createSignal({ width: 0, height: 0 })
+  const [bounds, setBounds] = createSignal({ width: 1, height: 1 })
+  const [mode, setMode] = createSignal<'fit' | 'width' | 'custom'>('fit')
+  const [customScale, setCustomScale] = createSignal(1)
+  const [dragging, setDragging] = createSignal(false)
   const pointers = new Map<number, { x: number; y: number }>()
-  const clampZoom = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
-  const clampPan = (nextX: number, nextY: number, nextZoom: number) => {
-    if (!viewport || !image || nextZoom <= MIN_ZOOM) return { x: 0, y: 0 }
-    const maxX = Math.max(0, (image.offsetWidth * nextZoom - viewport.clientWidth) / 2)
-    const maxY = Math.max(0, (image.offsetHeight * nextZoom - viewport.clientHeight) / 2)
+  const gesture = () => {
+    const points = [...pointers.values()]
+    if (!points.length) return
+    const first = points[0],
+      second = points[1] ?? first
     return {
-      x: Math.min(maxX, Math.max(-maxX, nextX)),
-      y: Math.min(maxY, Math.max(-maxY, nextY)),
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+      distance: Math.hypot(first.x - second.x, first.y - second.y),
     }
   }
-  const update = (nextZoom: number, nextX = x(), nextY = y()) => {
-    const scale = clampZoom(nextZoom)
-    const pan = clampPan(nextX, nextY, scale)
-    setZoom(scale)
-    setX(pan.x)
-    setY(pan.y)
-  }
-  const zoomAt = (nextZoom: number, clientX?: number, clientY?: number) => {
-    if (!viewport) return update(nextZoom)
-    const scale = clampZoom(nextZoom)
-    const ratio = scale / zoom()
-    const rect = viewport.getBoundingClientRect()
-    const anchorX = (clientX ?? rect.left + rect.width / 2) - rect.left - rect.width / 2
-    const anchorY = (clientY ?? rect.top + rect.height / 2) - rect.top - rect.height / 2
-    update(scale, anchorX - (anchorX - x()) * ratio, anchorY - (anchorY - y()) * ratio)
-  }
-  const reset = () => update(MIN_ZOOM, 0, 0)
-  const midpoint = (points: Array<{ x: number; y: number }>) => ({
-    x: (points[0].x + points[1].x) / 2,
-    y: (points[0].y + points[1].y) / 2,
+  const scale = createMemo(() => {
+    const image = natural(),
+      box = bounds()
+    if (!image.width) return 1
+    if (mode() === 'custom') return customScale()
+    return Math.min(
+      1,
+      box.width / image.width,
+      mode() === 'fit' ? box.height / image.height : Infinity,
+    )
   })
-  const distance = (points: Array<{ x: number; y: number }>) =>
-    Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)
-  const pointerDown = (event: PointerEvent) => {
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
-    event.currentTarget instanceof HTMLElement &&
-      event.currentTarget.setPointerCapture(event.pointerId)
-    const points = [...pointers.values()]
-    if (points.length === 1) lastPoint = points[0]
-    if (points.length === 2) pinch = { distance: distance(points), midpoint: midpoint(points) }
-    setDragging(true)
+  const zoom = (
+    value: number,
+    x = viewport.clientWidth / 2,
+    y = viewport.clientHeight / 2,
+    panX = 0,
+    panY = 0,
+  ) => {
+    const previous = scale(),
+      image = natural()
+    if (!image.width) return
+    const oldLeft = Math.max(0, (viewport.clientWidth - image.width * previous) / 2)
+    const oldTop = Math.max(0, (viewport.clientHeight - image.height * previous) / 2)
+    const imageX = (viewport.scrollLeft + x - oldLeft) / previous
+    const imageY = (viewport.scrollTop + y - oldTop) / previous
+    const next = Math.min(6, Math.max(0.01, value))
+    setCustomScale(next)
+    setMode('custom')
+    viewport.scrollLeft =
+      imageX * next + Math.max(0, (viewport.clientWidth - image.width * next) / 2) - x - panX
+    viewport.scrollTop =
+      imageY * next + Math.max(0, (viewport.clientHeight - image.height * next) / 2) - y - panY
   }
-  const pointerMove = (event: PointerEvent) => {
-    if (!pointers.has(event.pointerId)) return
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
-    const points = [...pointers.values()]
-    if (points.length === 1 && lastPoint) {
-      update(zoom(), x() + points[0].x - lastPoint.x, y() + points[0].y - lastPoint.y)
-      lastPoint = points[0]
-    } else if (points.length === 2 && pinch && viewport) {
-      const nextMidpoint = midpoint(points)
-      const nextZoom = clampZoom(zoom() * (distance(points) / pinch.distance))
-      const ratio = nextZoom / zoom()
-      const rect = viewport.getBoundingClientRect()
-      const previousX = pinch.midpoint.x - rect.left - rect.width / 2
-      const previousY = pinch.midpoint.y - rect.top - rect.height / 2
-      const currentX = nextMidpoint.x - rect.left - rect.width / 2
-      const currentY = nextMidpoint.y - rect.top - rect.height / 2
-      update(nextZoom, currentX - (previousX - x()) * ratio, currentY - (previousY - y()) * ratio)
-      pinch = { distance: distance(points), midpoint: nextMidpoint }
-    }
+  const fit = (value: 'fit' | 'width') => {
+    setMode(value)
+    viewport.scrollTo(0, 0)
   }
   const pointerUp = (event: PointerEvent) => {
     pointers.delete(event.pointerId)
-    const points = [...pointers.values()]
-    pinch = null
-    lastPoint = points[0] ?? null
-    setDragging(points.length > 0)
+    setDragging(pointers.size > 0)
   }
-
+  onMount(() => {
+    const observer = new ResizeObserver(() =>
+      setBounds({ width: viewport.clientWidth, height: viewport.clientHeight }),
+    )
+    observer.observe(viewport)
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      event.preventDefault()
+      const rect = viewport.getBoundingClientRect()
+      zoom(
+        scale() * Math.exp(-event.deltaY * 0.01),
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+      )
+    }
+    viewport.addEventListener('wheel', wheel, { passive: false })
+    onCleanup(() => {
+      observer.disconnect()
+      viewport.removeEventListener('wheel', wheel)
+    })
+  })
   return (
-    <div
-      ref={viewport}
-      class={`asset-image-viewport${dragging() ? ' dragging' : ''}`}
-      onWheel={event => {
-        event.preventDefault()
-        zoomAt(zoom() * Math.exp(-event.deltaY * 0.002), event.clientX, event.clientY)
-      }}
-      onPointerDown={pointerDown}
-      onPointerMove={pointerMove}
-      onPointerUp={pointerUp}
-      onPointerCancel={pointerUp}
-      onDblClick={event => (zoom() > MIN_ZOOM ? reset() : zoomAt(2, event.clientX, event.clientY))}
-    >
-      <img
-        ref={image}
-        src={props.src}
-        alt={props.alt}
-        draggable={false}
-        style={{ transform: `translate3d(${x()}px, ${y()}px, 0) scale(${zoom()})` }}
-      />
-      <div class="asset-zoom-controls" aria-label="Image zoom controls">
+    <div class="asset-image-viewer">
+      <div class="asset-zoom-toolbar" role="toolbar" aria-label="Image zoom">
         <button
-          disabled={zoom() <= MIN_ZOOM}
+          onClick={() => zoom(scale() / 1.25)}
           aria-label="Zoom out"
-          onClick={() => zoomAt(zoom() / 1.3)}
+          disabled={scale() <= 0.01}
         >
-          −
+          <Minus size={15} />
         </button>
-        <button class="asset-zoom-level" aria-label="Reset zoom" onClick={reset}>
-          {Math.round(zoom() * 100)}%
+        <output aria-live="polite">{Math.round(scale() * 100)}%</output>
+        <button onClick={() => zoom(scale() * 1.25)} aria-label="Zoom in" disabled={scale() >= 6}>
+          <Plus size={15} />
         </button>
-        <button
-          disabled={zoom() >= MAX_ZOOM}
-          aria-label="Zoom in"
-          onClick={() => zoomAt(zoom() * 1.3)}
+        <button onClick={() => fit('fit')} aria-pressed={mode() === 'fit'} title="Fit image">
+          <Maximize size={14} /> Fit
+        </button>
+        <button onClick={() => fit('width')} aria-pressed={mode() === 'width'}>
+          Fit width
+        </button>
+        <button onClick={() => zoom(1)}>100%</button>
+      </div>
+      <div
+        ref={viewport}
+        class={`asset-image-viewport${dragging() ? ' is-dragging' : ''}`}
+        tabIndex={0}
+        role="region"
+        aria-label="Image preview. Scroll to pan, or use Control plus scroll to zoom."
+        onKeyDown={event => {
+          if (event.key === '+' || event.key === '=') {
+            event.preventDefault()
+            zoom(scale() * 1.25)
+          }
+          if (event.key === '-') {
+            event.preventDefault()
+            zoom(scale() / 1.25)
+          }
+          if (event.key === '0') {
+            event.preventDefault()
+            fit('fit')
+          }
+        }}
+        onPointerDown={event => {
+          if (event.button !== 0) return
+          pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          viewport.setPointerCapture(event.pointerId)
+          setDragging(true)
+        }}
+        onPointerMove={event => {
+          if (!pointers.has(event.pointerId)) return
+          const previous = gesture()!
+          pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          const current = gesture()!
+          if (pointers.size >= 2 && previous.distance > 0 && current.distance > 0) {
+            const rect = viewport.getBoundingClientRect()
+            zoom(
+              scale() * (current.distance / previous.distance),
+              previous.x - rect.left,
+              previous.y - rect.top,
+              current.x - previous.x,
+              current.y - previous.y,
+            )
+          } else {
+            viewport.scrollLeft -= current.x - previous.x
+            viewport.scrollTop -= current.y - previous.y
+          }
+        }}
+        onPointerUp={pointerUp}
+        onPointerCancel={pointerUp}
+        onLostPointerCapture={pointerUp}
+        onDblClick={event => {
+          if (mode() === 'custom') return fit('fit')
+          const rect = viewport.getBoundingClientRect()
+          zoom(scale() * 2, event.clientX - rect.left, event.clientY - rect.top)
+        }}
+      >
+        <div
+          class="asset-image-canvas"
+          style={{
+            width: `${natural().width * scale()}px`,
+            height: `${natural().height * scale()}px`,
+          }}
         >
-          +
-        </button>
+          <img
+            src={props.src}
+            alt={props.name}
+            style={{
+              width: `${natural().width * scale()}px`,
+              height: `${natural().height * scale()}px`,
+            }}
+            draggable={false}
+            onLoad={event =>
+              setNatural({
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              })
+            }
+          />
+        </div>
       </div>
     </div>
   )
 }
-
 function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void }) {
   const [busy, setBusy] = createSignal(false),
     [error, setError] = createSignal<string | null>(null),
@@ -177,7 +235,13 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
     <Portal>
       <div class="lv-studio">
         <div class="asset-viewer" onClick={props.close}>
-          <div class="asset-viewer-box" onClick={e => e.stopPropagation()}>
+          <div
+            class="asset-viewer-box"
+            role="dialog"
+            aria-modal="true"
+            aria-label={props.asset.name}
+            onClick={e => e.stopPropagation()}
+          >
             <div class="asset-viewer-head">
               <span class="asset-viewer-name" title={props.asset.path}>
                 {props.asset.name}
@@ -188,13 +252,14 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
               <button
                 type="button"
                 class="asset-viewer-close"
-                aria-label="Close file preview"
+                aria-label="Close asset preview"
                 title="Close"
                 onPointerDown={event => {
                   event.preventDefault()
                   event.stopPropagation()
                   props.close()
                 }}
+                onClick={props.close}
               >
                 ✕
               </button>
@@ -223,7 +288,7 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
                               </Show>
                             }
                           >
-                            <ImageViewer src={u()} alt={props.asset.name} />
+                            <ZoomableImage src={u()} name={props.asset.name} />
                           </Show>
                         }
                       >

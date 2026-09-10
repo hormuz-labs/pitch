@@ -62,7 +62,7 @@ export function SettingsView() {
   }
   onMount(() => void load())
   return (
-    <div class="absolute inset-0 flex h-full w-full flex-col bg-[#fafafa] md:flex-row">
+    <div class="settings-page absolute inset-0 flex h-full w-full flex-col bg-[#fafafa] md:flex-row">
       <aside class="w-full shrink-0 border-b bg-white p-4 md:w-64 md:border-b-0 md:border-r md:p-6">
         <h2 class="mb-6 hidden text-xl font-bold md:block">Settings</h2>
         <div class="md:hidden">
@@ -387,7 +387,13 @@ export function SettingsModal(props: {
       class="settings-overlay"
       onMouseDown={event => event.target === event.currentTarget && props.onClose()}
     >
-      <div class="settings-dialog" role="dialog" aria-modal="true">
+      <div
+        class="settings-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pitch settings"
+        onKeyDown={event => event.key === 'Escape' && props.onClose()}
+      >
         <header class="settings-dialog__header">
           <div>
             <h2>Pitch settings</h2>
@@ -398,18 +404,19 @@ export function SettingsModal(props: {
           </button>
         </header>
         <div class="settings-dialog__body">
-          <aside class="settings-nav">
+          <nav class="settings-nav" aria-label="Settings sections">
             <For each={sections}>
               {item => (
                 <button
                   class={props.section === item[0] ? 'is-active' : ''}
+                  aria-current={props.section === item[0] ? 'page' : undefined}
                   onClick={() => props.onSectionChange(item[0])}
                 >
                   {item[1]}
                 </button>
               )}
             </For>
-          </aside>
+          </nav>
           <main class="settings-content">
             <div class="settings-mobile-tabs">
               <label for="settings-section">Settings</label>
@@ -419,7 +426,6 @@ export function SettingsModal(props: {
                 onChange={event =>
                   props.onSectionChange(event.currentTarget.value as SettingsSection)
                 }
-                style={{ color: '#222', background: '#fff' }}
               >
                 <For each={sections}>{item => <option value={item[0]}>{item[1]}</option>}</For>
               </select>
@@ -468,6 +474,7 @@ export function SettingsModal(props: {
                 <Gift />
                 <p>Earn credits by inviting people to Pitch.</p>
                 <button
+                  class="settings-primary"
                   onClick={() => {
                     props.onClose()
                     navigate('/affiliate')
@@ -478,7 +485,7 @@ export function SettingsModal(props: {
               </section>
             </Show>
             <Show when={props.section === 'support'}>
-              <section class="settings-card">
+              <section class="settings-card settings-support">
                 <a href="mailto:support@trypitch.co">Email support</a>
                 <a href="https://discord.gg/a4SBW36mD">Join Discord</a>
               </section>
