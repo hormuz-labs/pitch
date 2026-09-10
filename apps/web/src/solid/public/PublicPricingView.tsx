@@ -170,7 +170,7 @@ export const PublicPricingView = () => {
           <LandingFaqAccordion />
         </section>
         <section class="public-pricing-cta">
-          <p>First render is on us</p>
+          <p>Choose the credits you need</p>
           <h2>Turn your next product story into a film.</h2>
           <div>
             <button onClick={() => clerk.openSignUp()}>Get started</button>

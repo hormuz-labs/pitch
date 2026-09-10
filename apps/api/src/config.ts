@@ -60,15 +60,14 @@ export type PackKey = keyof typeof CREDIT_PACKS
 export type TopupKey = keyof typeof TOPUP_PACKS
 
 // ── Referral program ──────────────────────────────────────────────────────────
-// Welcome credits every new user gets on signup (organic). 5 = one free video
-// (3 credits) + 2 leftover — a deliberate "near-miss" nudge to top up or refer a
-// friend (earning +1, the referrerSignup reward) to reach 3 for another video.
-export const SIGNUP_BONUS_CREDITS = 5
+// New accounts start with an empty wallet. Keep this explicit so signup,
+// onboarding, and referral code paths all share the same policy.
+export const SIGNUP_BONUS_CREDITS = 0
 
-// Launch-phase referral rewards (paid in credits, no cash). A referred new user
-// gets SIGNUP_BONUS_CREDITS + newUserBonus = 6 total (a clean two free videos).
+// Referral rewards are paid to the referrer in credits. Referred users do not
+// receive a signup grant: all new accounts start at zero.
 export const REFERRAL_REWARDS = {
-  newUserBonus: 1,
+  newUserBonus: 0,
   referrerSignup: 1,
   referrerPurchase: 8,
 } as const

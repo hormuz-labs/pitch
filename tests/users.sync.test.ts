@@ -71,9 +71,9 @@ vi.mock('../apps/api/src/config.js', () => ({
   },
   connection: { publish: vi.fn().mockResolvedValue(1) },
   subscriber: { subscribe: vi.fn(), on: vi.fn(), off: vi.fn() },
-  // Referral config consumed by users.ts /sync (signup bonus + referral attribution).
-  SIGNUP_BONUS_CREDITS: 3,
-  REFERRAL_REWARDS: { newUserBonus: 3, referrerSignup: 1, referrerPurchase: 8 },
+  // New users start at zero, including referred users.
+  SIGNUP_BONUS_CREDITS: 0,
+  REFERRAL_REWARDS: { newUserBonus: 0, referrerSignup: 1, referrerPurchase: 8 },
 }))
 
 import * as db from '@saas/db'
@@ -158,6 +158,16 @@ describe('onboarding survey', () => {
 })
 
 describe('POST /users/sync', () => {
+  it('starts a new account at zero without writing a promotional credit transaction', async () => {
+    _verifiedProfile = { email: 'new-user@example.com', firstName: 'New' }
+
+    const res = await request(app).post('/users/sync').send({})
+
+    expect(res.status).toBe(200)
+    expect(res.body.balance).toBe(0)
+    expect(db.addCredits).not.toHaveBeenCalled()
+  })
+
   it('ignores body-supplied email and uses the Clerk-verified primary email', async () => {
     _verifiedProfile = {
       email: 'real-user@example.com',
@@ -243,7 +253,7 @@ describe('POST /users/sync — referral attribution via refCode', () => {
     vi.mocked((db as any).recordReferralSignup).mockResolvedValue({ rewarded: true })
   })
 
-  it('records a referral lead and grants new-user + referrer credits when refCode matches an active affiliate', async () => {
+  it('records a referral lead without granting the new user credits', async () => {
     vi.mocked((db as any).getAffiliateByCode).mockResolvedValue({
       id: 'aff_1',
       userId: 'referrer_user',
@@ -264,7 +274,7 @@ describe('POST /users/sync — referral attribution via refCode', () => {
       expect.objectContaining({
         affiliateId: 'aff_1',
         newUserId: 'user_attacker',
-        newUserReward: 3, // REFERRAL_REWARDS.newUserBonus from the test config mock
+        newUserReward: 0,
         referrerReward: 1, // REFERRAL_REWARDS.referrerSignup
       }),
     )
@@ -317,9 +327,8 @@ describe('POST /users/sync — referral attribution via refCode', () => {
     const res = await request(app).post('/users/sync').send({ refCode: 'ADNANS-4BA5' })
 
     expect(res.status).toBe(200)
-    // The signup bonus is still applied (the addCredits call sits outside
-    // the attribution try/catch and ran before the throw).
-    expect(db.addCredits).toHaveBeenCalled()
+    // New accounts remain at zero even when referral attribution fails.
+    expect(db.addCredits).not.toHaveBeenCalled()
     // No referral is recorded when the lookup itself blew up.
     expect(db.recordReferralSignup).not.toHaveBeenCalled()
   })

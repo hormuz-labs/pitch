@@ -154,12 +154,7 @@ async function sendTransactional(
   return { id: data?.id }
 }
 
-export function sendWelcomeEmail(input: {
-  to: string
-  firstName?: string | null
-  credits: number
-  userId: string
-}) {
+export function sendWelcomeEmail(input: { to: string; firstName?: string | null; userId: string }) {
   return sendTransactional(
     input.to,
     {
@@ -169,10 +164,8 @@ export function sendWelcomeEmail(input: {
       title: 'Your first great video starts here.',
       intro:
         'I am glad you are here. Pitch helps you turn a product, recording, or idea into a polished video without wrestling with a timeline. Bring us the story and we will help with the making.',
-      badge: `${input.credits} credits added to your account`,
-      badgeTone: 'success',
-      ctaLabel: 'Create your first video',
-      ctaUrl: `${APP_URL()}/new`,
+      ctaLabel: 'Choose a plan',
+      ctaUrl: `${APP_URL()}/pricing`,
       note: 'You can also connect your AI agents to Pitch through MCP and create videos from your own workflows.',
     },
     { firstName: input.firstName, idempotencyKey: `welcome-${input.userId}` },
