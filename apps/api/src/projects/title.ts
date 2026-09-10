@@ -2,12 +2,14 @@ const URL_PATTERN = /(?:https?:\/\/)?(?:www\.)?([a-z0-9](?:[a-z0-9-]*\.)+[a-z]{2
 const GENERIC_SUBDOMAINS = new Set(['app', 'dashboard', 'docs', 'go', 'm', 'www'])
 const SECOND_LEVEL_SUFFIXES = new Set(['co', 'com', 'net', 'org'])
 const OUTPUTS: Array<[RegExp, string]> = [
-  [/^launch video\b/i, 'Launch video'],
-  [/^(?:product )?demo(?: video)?\b/i, 'Demo'],
-  [/^(?:pdf|pdf document)\b/i, 'PDF'],
-  [/^(?:slide deck|presentation|deck)\b/i, 'Presentation'],
-  [/^(?:edited |edit )?(?:recording|video)\b/i, 'Video edit'],
+  [/\blaunch film\b/i, 'Launch film'],
+  [/\blaunch video\b/i, 'Launch video'],
+  [/\b(?:product )?demo(?: video)?\b/i, 'Demo'],
+  [/\b(?:pdf|pdf document)\b/i, 'PDF'],
+  [/\b(?:slide deck|presentation|deck)\b/i, 'Presentation'],
+  [/\b(?:edited |edit )?(?:recording|video)\b/i, 'Video edit'],
 ]
+const TRAILING_WORD = /^(?:a|an|and|about|for|of|on|or|the|to|using|with)$/i
 
 function productName(host: string): string {
   const parts = host
@@ -26,6 +28,23 @@ function productName(host: string): string {
     .join(' ')
 }
 
+function concise(value: string, maxWords: number, maxLength: number): string {
+  const words = value
+    .replace(/\s+and\s+(?:add|create|give|include|make|provide|show|suggest|use)\b.*$/i, '')
+    .replace(/\s+(?:based on|featuring|including|using|with)\b.*$/i, '')
+    .replace(/^[\s,;:–—-]+|[\s,;:–—-]+$/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, maxWords)
+  while (
+    words.length &&
+    (words.join(' ').length > maxLength || TRAILING_WORD.test(words.at(-1)!))
+  ) {
+    words.pop()
+  }
+  return words.join(' ')
+}
+
 function promptTitle(prompt: string): string {
   let readable = prompt
     .replace(URL_PATTERN, (_match, host: string) => productName(host))
@@ -40,26 +59,33 @@ function promptTitle(prompt: string): string {
     .trim()
 
   let output: string | undefined
+  let outputMatch: RegExpMatchArray | null = null
   for (const [pattern, label] of OUTPUTS) {
-    if (!pattern.test(readable)) continue
+    const match = readable.match(pattern)
+    if (!match) continue
     output = label
-    readable = readable.replace(pattern, '').trim()
+    outputMatch = match
     break
   }
 
-  if (output) {
-    const subject = readable
-      .replace(/^(?:for|about|of|on)\s+(?:the\s+)?/i, '')
-      .replace(/^(?:website|site|company|product)\s+(?:for\s+)?/i, '')
-      .trim()
+  if (output && outputMatch?.index !== undefined) {
+    const before = readable.slice(0, outputMatch.index)
+    const after = readable.slice(outputMatch.index + outputMatch[0].length)
+    const candidate = /^(?:\s*(?:for|about|of|on)\b)/i.test(after) ? after : before
+    const subject = concise(
+      candidate
+        .trim()
+        .replace(/^(?:for|about|of|on)\s+(?:the\s+)?/i, '')
+        .replace(/^(?:website|site|company|product)\s+(?:for\s+)?/i, ''),
+      4,
+      40,
+    )
     if (!subject) return output
-    const words = subject.split(' ').slice(0, 3)
-    return `${output} for ${words.join(' ')}`
+    return `${output} for ${subject}`
   }
 
-  const words = readable.split(' ').slice(0, 6)
-  while (words.join(' ').length > 48) words.pop()
-  const title = words.join(' ')
+  const title = concise(readable, 8, 48)
+  if (!title) return ''
   return `${title[0].toUpperCase()}${title.slice(1)}`
 }
 

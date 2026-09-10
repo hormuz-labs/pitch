@@ -1,4 +1,5 @@
-import { createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import { Maximize, Minus, Plus } from 'lucide-solid'
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import type { Asset } from './types'
 import type { ProjectStore } from './useProject'
@@ -13,6 +14,191 @@ const GLYPH: Record<string, string> = { image: '▣', video: '▶', audio: '♪'
   }
 const size = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} B`
+
+function ZoomableImage(props: { src: string; name: string }) {
+  let viewport!: HTMLDivElement
+  const [natural, setNatural] = createSignal({ width: 0, height: 0 })
+  const [bounds, setBounds] = createSignal({ width: 1, height: 1 })
+  const [mode, setMode] = createSignal<'fit' | 'width' | 'custom'>('fit')
+  const [customScale, setCustomScale] = createSignal(1)
+  const [dragging, setDragging] = createSignal(false)
+  const pointers = new Map<number, { x: number; y: number }>()
+  const gesture = () => {
+    const points = [...pointers.values()]
+    if (!points.length) return
+    const first = points[0],
+      second = points[1] ?? first
+    return {
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+      distance: Math.hypot(first.x - second.x, first.y - second.y),
+    }
+  }
+  const scale = createMemo(() => {
+    const image = natural(),
+      box = bounds()
+    if (!image.width) return 1
+    if (mode() === 'custom') return customScale()
+    return Math.min(
+      1,
+      box.width / image.width,
+      mode() === 'fit' ? box.height / image.height : Infinity,
+    )
+  })
+  const zoom = (
+    value: number,
+    x = viewport.clientWidth / 2,
+    y = viewport.clientHeight / 2,
+    panX = 0,
+    panY = 0,
+  ) => {
+    const previous = scale(),
+      image = natural()
+    if (!image.width) return
+    const oldLeft = Math.max(0, (viewport.clientWidth - image.width * previous) / 2)
+    const oldTop = Math.max(0, (viewport.clientHeight - image.height * previous) / 2)
+    const imageX = (viewport.scrollLeft + x - oldLeft) / previous
+    const imageY = (viewport.scrollTop + y - oldTop) / previous
+    const next = Math.min(6, Math.max(0.01, value))
+    setCustomScale(next)
+    setMode('custom')
+    viewport.scrollLeft =
+      imageX * next + Math.max(0, (viewport.clientWidth - image.width * next) / 2) - x - panX
+    viewport.scrollTop =
+      imageY * next + Math.max(0, (viewport.clientHeight - image.height * next) / 2) - y - panY
+  }
+  const fit = (value: 'fit' | 'width') => {
+    setMode(value)
+    viewport.scrollTo(0, 0)
+  }
+  const pointerUp = (event: PointerEvent) => {
+    pointers.delete(event.pointerId)
+    setDragging(pointers.size > 0)
+  }
+  onMount(() => {
+    const observer = new ResizeObserver(() =>
+      setBounds({ width: viewport.clientWidth, height: viewport.clientHeight }),
+    )
+    observer.observe(viewport)
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      event.preventDefault()
+      const rect = viewport.getBoundingClientRect()
+      zoom(
+        scale() * Math.exp(-event.deltaY * 0.01),
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+      )
+    }
+    viewport.addEventListener('wheel', wheel, { passive: false })
+    onCleanup(() => {
+      observer.disconnect()
+      viewport.removeEventListener('wheel', wheel)
+    })
+  })
+  return (
+    <div class="asset-image-viewer">
+      <div class="asset-zoom-toolbar" role="toolbar" aria-label="Image zoom">
+        <button
+          onClick={() => zoom(scale() / 1.25)}
+          aria-label="Zoom out"
+          disabled={scale() <= 0.01}
+        >
+          <Minus size={15} />
+        </button>
+        <output aria-live="polite">{Math.round(scale() * 100)}%</output>
+        <button onClick={() => zoom(scale() * 1.25)} aria-label="Zoom in" disabled={scale() >= 6}>
+          <Plus size={15} />
+        </button>
+        <button onClick={() => fit('fit')} aria-pressed={mode() === 'fit'} title="Fit image">
+          <Maximize size={14} /> Fit
+        </button>
+        <button onClick={() => fit('width')} aria-pressed={mode() === 'width'}>
+          Fit width
+        </button>
+        <button onClick={() => zoom(1)}>100%</button>
+      </div>
+      <div
+        ref={viewport}
+        class={`asset-image-viewport${dragging() ? ' is-dragging' : ''}`}
+        tabIndex={0}
+        role="region"
+        aria-label="Image preview. Scroll to pan, or use Control plus scroll to zoom."
+        onKeyDown={event => {
+          if (event.key === '+' || event.key === '=') {
+            event.preventDefault()
+            zoom(scale() * 1.25)
+          }
+          if (event.key === '-') {
+            event.preventDefault()
+            zoom(scale() / 1.25)
+          }
+          if (event.key === '0') {
+            event.preventDefault()
+            fit('fit')
+          }
+        }}
+        onPointerDown={event => {
+          if (event.button !== 0) return
+          pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          viewport.setPointerCapture(event.pointerId)
+          setDragging(true)
+        }}
+        onPointerMove={event => {
+          if (!pointers.has(event.pointerId)) return
+          const previous = gesture()!
+          pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+          const current = gesture()!
+          if (pointers.size >= 2 && previous.distance > 0 && current.distance > 0) {
+            const rect = viewport.getBoundingClientRect()
+            zoom(
+              scale() * (current.distance / previous.distance),
+              previous.x - rect.left,
+              previous.y - rect.top,
+              current.x - previous.x,
+              current.y - previous.y,
+            )
+          } else {
+            viewport.scrollLeft -= current.x - previous.x
+            viewport.scrollTop -= current.y - previous.y
+          }
+        }}
+        onPointerUp={pointerUp}
+        onPointerCancel={pointerUp}
+        onLostPointerCapture={pointerUp}
+        onDblClick={event => {
+          if (mode() === 'custom') return fit('fit')
+          const rect = viewport.getBoundingClientRect()
+          zoom(scale() * 2, event.clientX - rect.left, event.clientY - rect.top)
+        }}
+      >
+        <div
+          class="asset-image-canvas"
+          style={{
+            width: `${natural().width * scale()}px`,
+            height: `${natural().height * scale()}px`,
+          }}
+        >
+          <img
+            src={props.src}
+            alt={props.name}
+            style={{
+              width: `${natural().width * scale()}px`,
+              height: `${natural().height * scale()}px`,
+            }}
+            draggable={false}
+            onLoad={event =>
+              setNatural({
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              })
+            }
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void }) {
   const [busy, setBusy] = createSignal(false),
     [error, setError] = createSignal<string | null>(null),
@@ -49,7 +235,13 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
     <Portal>
       <div class="lv-studio">
         <div class="asset-viewer" onClick={props.close}>
-          <div class="asset-viewer-box" onClick={e => e.stopPropagation()}>
+          <div
+            class="asset-viewer-box"
+            role="dialog"
+            aria-modal="true"
+            aria-label={props.asset.name}
+            onClick={e => e.stopPropagation()}
+          >
             <div class="asset-viewer-head">
               <span class="asset-viewer-name" title={props.asset.path}>
                 {props.asset.name}
@@ -57,7 +249,18 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
               <span class="asset-viewer-meta">
                 {props.asset.path} · {size(props.asset.size)}
               </span>
-              <button class="asset-viewer-close" onClick={props.close}>
+              <button
+                type="button"
+                class="asset-viewer-close"
+                aria-label="Close asset preview"
+                title="Close"
+                onPointerDown={event => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  props.close()
+                }}
+                onClick={props.close}
+              >
                 ✕
               </button>
             </div>
@@ -85,7 +288,7 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
                               </Show>
                             }
                           >
-                            <img src={u()} alt={props.asset.name} />
+                            <ZoomableImage src={u()} name={props.asset.name} />
                           </Show>
                         }
                       >

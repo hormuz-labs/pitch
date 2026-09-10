@@ -1,8 +1,6 @@
 import { useLocation, useNavigate } from '@solidjs/router'
 import {
   AppWindow,
-  ChevronRight,
-  Gift,
   LogOut,
   MessageSquare,
   Moon,
@@ -178,9 +176,6 @@ function Sidebar(props: {
             <span>New chat</span>
             <kbd>⌘ K</kbd>
           </button>
-          <p class="conversation-sidebar__section-title conversation-sidebar__nav-title">
-            Workspace
-          </p>
           <button
             type="button"
             class={`conversation-sidebar__row${props.selectedKey === 'sessions' ? ' is-active' : ''}`}
@@ -264,27 +259,15 @@ function Sidebar(props: {
             </button>
             <button
               type="button"
-              class="conversation-sidebar__row"
+              class="conversation-sidebar__row conversation-sidebar__theme"
               onClick={theme.toggleTheme}
               aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
+              title={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
               aria-pressed={theme.theme() === 'dark'}
             >
               {theme.theme() === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              <span>{theme.theme() === 'dark' ? 'Light' : 'Dark'} theme</span>
             </button>
           </div>
-          <button
-            type="button"
-            class="conversation-sidebar__invite"
-            onClick={() => props.openSettings('rewards')}
-          >
-            <Gift size={16} />
-            <span>
-              <strong>Invite a friend</strong>
-              <small>Earn credits when they sign up</small>
-            </span>
-            <ChevronRight size={14} />
-          </button>
           <div class="conversation-sidebar__account">
             <Show
               when={user()?.imageUrl}
@@ -349,6 +332,7 @@ export function AppShell(props: ParentProps) {
     captureRefFromUrl()
     const resize = () => {
       const mobile = window.innerWidth < 1024
+      if (mobile === isMobile()) return
       setIsMobile(mobile)
       setCollapsed(mobile)
     }

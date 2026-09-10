@@ -81,13 +81,22 @@ function parseRow(r: any): ProjectRow {
   const outputs = safeJson<Output[]>(r.outputs, [])
   return {
     ...r,
-    title: replaceLegacyUrlTitle(r.title, r.prompt),
     options: safeJson(r.options, {}),
     outputs: normalizePublishedOutputs(outputs),
     thumbnailUrl: r.thumbnailUrl ? normalizePublishedUrl(r.thumbnailUrl) : null,
     createdAt: new Date(r.createdAt).toISOString(),
     updatedAt: new Date(r.updatedAt).toISOString(),
   }
+}
+
+async function parseAndUpgradeRow(r: any): Promise<ProjectRow> {
+  const p = parseRow(r)
+  const title = replaceLegacyUrlTitle(p.title, p.prompt)
+  if (title === p.title) return p
+  await db.prisma.project
+    .updateMany({ where: { id: p.id, title: p.title }, data: { title } })
+    .catch(err => logger.warn({ err, projectId: p.id }, 'could not persist improved project title'))
+  return { ...p, title }
 }
 
 function safeJson<T>(v: unknown, fallback: T): T {
@@ -122,7 +131,7 @@ function statusOf(
 export async function getRow(userId: string, id: string): Promise<ProjectRow> {
   const r = await db.prisma.project.findFirst({ where: { id, userId } })
   if (!r) throw new NotFoundError('Project not found')
-  return parseRow(r)
+  return parseAndUpgradeRow(r)
 }
 
 export async function listProjects(userId: string, flow?: FlowId): Promise<ProjectInfo[]> {
@@ -136,7 +145,7 @@ export async function listProjects(userId: string, flow?: FlowId): Promise<Proje
   // alone cannot tell whether it is empty. Ask the filesystem, cheaply.
   return Promise.all(
     rows.map(async r => {
-      const p = parseRow(r)
+      const p = await parseAndUpgradeRow(r)
       const artifact = await agent.hasArtifact(workspaceOf(p)).catch(() => false)
       return { ...p, busy: busy.has(p.id), status: statusOf(p, busy.has(p.id), null, artifact) }
     }),
@@ -489,7 +498,7 @@ export async function getPublicProject(shareSlug: string): Promise<ProjectRow | 
   await db.prisma.project
     .update({ where: { id: r.id }, data: { shareViews: { increment: 1 } } })
     .catch(() => {})
-  return parseRow(r)
+  return parseAndUpgradeRow(r)
 }
 
 // ── Webhooks (job.completed compatibility) ────────────────────────────────────
