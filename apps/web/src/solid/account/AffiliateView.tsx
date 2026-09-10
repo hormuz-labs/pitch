@@ -1,8 +1,23 @@
-import { ArrowUpRight, DollarSign, ExternalLink, TrendingUp, Users, Wallet } from 'lucide-solid'
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BadgeCheck,
+  CircleDollarSign,
+  ExternalLink,
+  Gift,
+  Link2,
+  MousePointerClick,
+  Sparkles,
+  TrendingUp,
+  UserPlus,
+  Users,
+  WalletCards,
+} from 'lucide-solid'
 import { createSignal, For, onMount, Show } from 'solid-js'
 import { API_URL } from '../../config'
 import { useAuth } from '../core/auth'
 import { CopyButton, Loading, Popover } from './primitives'
+import '../../styles/affiliate-portal.css'
 
 interface Affiliate {
   code: string
@@ -61,60 +76,231 @@ export function AffiliateView() {
       ? `${location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://trypitch.co'}/r/${data()!.code}`
       : ''
   const share = (target: string) => window.open(target, '_blank', 'noopener,noreferrer')
+  const ReferralArtwork = () => (
+    <svg
+      class="affiliate-artwork"
+      viewBox="0 0 620 500"
+      role="img"
+      aria-label="A referral link connecting creators and earning credits"
+    >
+      <defs>
+        <linearGradient id="affiliate-card" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity=".96" />
+          <stop offset="1" stop-color="#f0ede5" stop-opacity=".88" />
+        </linearGradient>
+        <linearGradient id="affiliate-line" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ff6b3d" />
+          <stop offset="1" stop-color="#7c5cff" />
+        </linearGradient>
+        <filter id="affiliate-shadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow
+            dx="0"
+            dy="18"
+            stdDeviation="18"
+            flood-color="#251b16"
+            flood-opacity=".12"
+          />
+        </filter>
+      </defs>
+      <circle class="affiliate-artwork__orbit orbit-one" cx="310" cy="250" r="174" />
+      <circle class="affiliate-artwork__orbit orbit-two" cx="310" cy="250" r="125" />
+      <path class="affiliate-artwork__route" d="M130 308C206 186 262 185 310 250s111 84 184-57" />
+      <g class="affiliate-artwork__person person-one" transform="translate(76 265)">
+        <circle cx="42" cy="42" r="42" fill="#171713" />
+        <circle cx="42" cy="31" r="12" fill="#f8f5ee" />
+        <path d="M20 67c3-14 12-21 22-21s19 7 22 21" fill="#f8f5ee" />
+      </g>
+      <g class="affiliate-artwork__person person-two" transform="translate(456 105)">
+        <circle cx="42" cy="42" r="42" fill="#7c5cff" />
+        <circle cx="42" cy="31" r="12" fill="#fff" />
+        <path d="M20 67c3-14 12-21 22-21s19 7 22 21" fill="#fff" />
+      </g>
+      <g
+        class="affiliate-artwork__card"
+        filter="url(#affiliate-shadow)"
+        transform="translate(190 172)"
+      >
+        <rect width="240" height="156" rx="26" fill="url(#affiliate-card)" />
+        <rect x="24" y="25" width="78" height="9" rx="4.5" fill="#171713" opacity=".18" />
+        <rect x="24" y="45" width="154" height="11" rx="5.5" fill="#171713" opacity=".78" />
+        <rect x="24" y="78" width="192" height="48" rx="14" fill="#171713" />
+        <path d="M48 102h116" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".76" />
+        <path
+          d="m183 94 8 8-8 8"
+          fill="none"
+          stroke="#ff7851"
+          stroke-width="5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </g>
+      <g class="affiliate-artwork__coin coin-one" transform="translate(425 310)">
+        <circle cx="36" cy="36" r="34" fill="#ff7043" />
+        <path
+          d="M36 19v34M27 26h14c9 0 9 10 0 10H31c-9 0-9 10 0 10h15"
+          fill="none"
+          stroke="#fff"
+          stroke-width="5"
+          stroke-linecap="round"
+        />
+      </g>
+      <g class="affiliate-artwork__coin coin-two" transform="translate(138 125)">
+        <circle cx="24" cy="24" r="22" fill="#f4c95d" />
+        <path
+          d="m17 25 5 5 10-12"
+          fill="none"
+          stroke="#171713"
+          stroke-width="4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </g>
+      <circle class="affiliate-artwork__spark spark-one" cx="494" cy="379" r="6" fill="#7c5cff" />
+      <circle class="affiliate-artwork__spark spark-two" cx="112" cy="208" r="5" fill="#ff7043" />
+    </svg>
+  )
   return (
-    <Show when={!loading()} fallback={<Loading />}>
+    <Show
+      when={!loading()}
+      fallback={
+        <div class="affiliate-loading">
+          <Loading />
+        </div>
+      }
+    >
       <Show
         when={data()}
         fallback={
-          <div class="flex h-full flex-col items-center justify-center gap-5 p-8 text-center">
-            <h1 class="text-2xl font-bold">Affiliate Program</h1>
-            <div>
-              <strong class="text-6xl">8</strong>
-              <span class="text-xl font-bold"> cr</span>
-              <p class="text-xs uppercase text-gray-400">Credits per referral upgrade</p>
-            </div>
-            <h2 class="text-2xl font-bold">Turn referrals into free videos</h2>
-            <p class="max-w-sm text-sm text-gray-500">
-              Friends get starter credits, and you earn credits when they sign up or upgrade.
-            </p>
-            <Show when={error()}>
-              <p class="text-sm text-red-600">{error()}</p>
-            </Show>
-            <button
-              class="flex items-center gap-2 rounded-full bg-black px-6 py-2.5 text-sm font-semibold text-white"
-              disabled={registering()}
-              onClick={() => void register()}
-            >
-              {registering() ? 'Setting up...' : 'Get started for free'}
-              <ArrowUpRight size={14} />
-            </button>
-          </div>
+          <main class="affiliate-portal affiliate-portal--welcome">
+            <section class="affiliate-welcome">
+              <div class="affiliate-welcome__copy">
+                <div class="affiliate-eyebrow">
+                  <Sparkles size={14} />
+                  Pitch partner program
+                </div>
+                <h1>
+                  Share great work.
+                  <br />
+                  Make more of it.
+                </h1>
+                <p class="affiliate-lede">
+                  Invite creators to Pitch. They get extra credits to start, and you earn credits
+                  every time a referral signs up or upgrades.
+                </p>
+                <div class="affiliate-welcome__actions">
+                  <button
+                    class="affiliate-primary-action"
+                    disabled={registering()}
+                    onClick={() => void register()}
+                  >
+                    {registering() ? 'Creating your link...' : 'Activate my referral link'}
+                    <ArrowRight size={17} />
+                  </button>
+                  <a class="affiliate-text-link" href="/affiliates" target="_blank" rel="noopener">
+                    Program details <ArrowUpRight size={15} />
+                  </a>
+                </div>
+                <Show when={error()}>
+                  <p class="affiliate-error" role="alert">
+                    {error()}
+                  </p>
+                </Show>
+                <div class="affiliate-trust-row">
+                  <span>
+                    <BadgeCheck size={16} /> Instant access
+                  </span>
+                  <span>
+                    <BadgeCheck size={16} /> No referral cap
+                  </span>
+                  <span>
+                    <BadgeCheck size={16} /> Automatic rewards
+                  </span>
+                </div>
+              </div>
+              <div class="affiliate-welcome__visual">
+                <ReferralArtwork />
+              </div>
+            </section>
+            <section class="affiliate-reward-strip" aria-label="Program rewards">
+              <div>
+                <span class="affiliate-reward-strip__icon">
+                  <UserPlus size={19} />
+                </span>
+                <p>
+                  <strong>+1 credit</strong>
+                  <span>when a friend signs up</span>
+                </p>
+              </div>
+              <ArrowRight class="affiliate-reward-strip__arrow" size={18} />
+              <div>
+                <span class="affiliate-reward-strip__icon">
+                  <CircleDollarSign size={19} />
+                </span>
+                <p>
+                  <strong>+8 credits</strong>
+                  <span>when they first purchase</span>
+                </p>
+              </div>
+              <ArrowRight class="affiliate-reward-strip__arrow" size={18} />
+              <div>
+                <span class="affiliate-reward-strip__icon">
+                  <Gift size={19} />
+                </span>
+                <p>
+                  <strong>More videos</strong>
+                  <span>credited to your wallet</span>
+                </p>
+              </div>
+            </section>
+          </main>
         }
       >
         {affiliate => {
           const stats = () => affiliate().stats
           const cards = () =>
             [
-              [TrendingUp, 'Link Clicks', stats().clicks],
-              [Users, 'Signups', stats().signups],
-              [DollarSign, 'Conversions', stats().conversions],
-              [Wallet, 'Credits Earned', stats().creditsEarned],
+              [MousePointerClick, 'Link clicks', stats().clicks, 'People who opened your link'],
+              [Users, 'Signups', stats().signups, 'New creators who joined'],
+              [TrendingUp, 'Conversions', stats().conversions, 'Referrals who purchased'],
+              [
+                WalletCards,
+                'Credits earned',
+                stats().creditsEarned,
+                'Added directly to your wallet',
+              ],
             ] as const
           return (
-            <div class="mx-auto max-w-5xl space-y-6 p-6">
-              <header>
-                <p class="text-xs uppercase tracking-widest text-gray-400">Affiliate Portal</p>
-                <h1 class="text-xl font-bold">Dashboard</h1>
+            <main class="affiliate-portal affiliate-dashboard">
+              <header class="affiliate-dashboard__header">
+                <div>
+                  <div class="affiliate-eyebrow">
+                    <Sparkles size={14} /> Affiliate portal
+                  </div>
+                  <h1>Your referrals</h1>
+                  <p>Track your reach, share your link, and turn recommendations into credits.</p>
+                </div>
+                <span class="affiliate-status">
+                  <i /> {affiliate().status || 'Active'}
+                </span>
               </header>
-              <section class="rounded-2xl bg-gradient-to-br from-gray-950 to-gray-800 p-6 text-white">
-                <p class="text-xs uppercase text-gray-400">Your referral link</p>
-                <div class="mt-4 flex gap-3">
-                  <code class="min-w-0 flex-1 truncate rounded-xl bg-white/10 p-3">{url()}</code>
-                  <CopyButton value={url()} />
+              <section class="affiliate-link-card">
+                <div class="affiliate-link-card__content">
+                  <span class="affiliate-link-card__icon">
+                    <Link2 size={21} />
+                  </span>
+                  <div>
+                    <p class="affiliate-link-card__label">Your unique referral link</p>
+                    <h2>One link. Every channel.</h2>
+                  </div>
+                </div>
+                <div class="affiliate-link-card__controls">
+                  <code title={url()}>{url()}</code>
+                  <CopyButton value={url()} label="Copy link" />
                   <Popover
                     label="Share referral link"
+                    class="affiliate-share-menu"
                     trigger={
-                      <span class="flex items-center gap-1">
+                      <span class="affiliate-share-trigger">
                         <ExternalLink size={14} />
                         Share
                       </span>
@@ -137,10 +323,7 @@ export function AffiliateView() {
                       ]}
                     >
                       {item => (
-                        <button
-                          class="block w-full rounded-lg p-2 text-left text-sm"
-                          onClick={() => share(item[1])}
-                        >
+                        <button class="affiliate-share-option" onClick={() => share(item[1])}>
                           Share on {item[0]}
                         </button>
                       )}
@@ -148,31 +331,54 @@ export function AffiliateView() {
                   </Popover>
                 </div>
               </section>
-              <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <section class="affiliate-stat-grid" aria-label="Referral performance">
                 <For each={cards()}>
-                  {card => {
+                  {(card, index) => {
                     const Icon = card[0]
                     return (
-                      <article class="rounded-2xl border bg-white p-5">
-                        <Icon class="mb-4 text-gray-500" size={18} />
-                        <p class="text-xs uppercase text-gray-400">{card[1]}</p>
-                        <strong class="text-2xl">{card[2].toLocaleString()}</strong>
+                      <article class="affiliate-stat-card" style={{ '--card-index': index() }}>
+                        <div class="affiliate-stat-card__top">
+                          <span>
+                            <Icon size={18} />
+                          </span>
+                          <ArrowUpRight size={16} />
+                        </div>
+                        <p>{card[1]}</p>
+                        <strong>{card[2].toLocaleString()}</strong>
+                        <small>{card[3]}</small>
                       </article>
                     )
                   }}
                 </For>
-              </div>
-              <section class="rounded-2xl border bg-white p-5">
-                <h2 class="font-semibold">Credits earned</h2>
-                <p class="mt-2 text-3xl font-bold">
-                  {stats().creditsEarned}{' '}
-                  <span class="text-sm font-normal text-gray-400">
-                    = {stats().videosEarned} free videos
-                  </span>
-                </p>
-                <p class="mt-2 text-xs text-gray-500">Credits land in your wallet automatically.</p>
               </section>
-            </div>
+              <section class="affiliate-progress-card">
+                <div>
+                  <div class="affiliate-progress-card__title">
+                    <span>
+                      <Gift size={19} />
+                    </span>
+                    <div>
+                      <p>Creative runway</p>
+                      <h2>{stats().videosEarned} free videos earned</h2>
+                    </div>
+                  </div>
+                  <p class="affiliate-progress-card__copy">
+                    Your {stats().creditsEarned.toLocaleString()} earned credits are already in your
+                    wallet and ready for the next project.
+                  </p>
+                </div>
+                <div class="affiliate-credit-orbit" aria-hidden="true">
+                  <span>{stats().creditsEarned.toLocaleString()}</span>
+                  <small>credits</small>
+                  <i />
+                </div>
+              </section>
+              <Show when={error()}>
+                <p class="affiliate-error" role="alert">
+                  {error()}
+                </p>
+              </Show>
+            </main>
           )
         }}
       </Show>

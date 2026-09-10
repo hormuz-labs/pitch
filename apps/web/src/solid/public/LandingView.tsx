@@ -5,12 +5,15 @@ import 'lenis/dist/lenis.css'
 import { A, useNavigate } from '@solidjs/router'
 import {
   ArrowUp,
+  Check,
+  ChevronDown,
   Clapperboard,
   Code2,
   Compass,
   Crosshair,
   MonitorPlay,
   Presentation,
+  Scissors,
 } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
@@ -26,11 +29,20 @@ import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 
 gsap.registerPlugin(ScrollTrigger)
-type Agent = 'launch-video' | 'demo-video' | 'pdf-maker'
+type Agent = 'launch-video' | 'demo-video' | 'ppt-generator' | 'recording-edit'
 const AGENTS = {
   'launch-video': { label: 'Launch Video', href: '/new?flow=launch-video', icon: Clapperboard },
-  'demo-video': { label: 'Demo Video', href: '/new?flow=demo-video', icon: MonitorPlay },
-  'pdf-maker': { label: 'PDF Maker', href: '/new?flow=deck', icon: Presentation },
+  'demo-video': {
+    label: 'Product Demo Video',
+    href: '/new?flow=demo-video',
+    icon: MonitorPlay,
+  },
+  'ppt-generator': { label: 'PPT Generator', href: '/new?flow=deck', icon: Presentation },
+  'recording-edit': {
+    label: 'Edit Recording',
+    href: '/new?flow=recording-edit',
+    icon: Scissors,
+  },
 }
 const suggestions = [
   [
@@ -59,7 +71,7 @@ const suggestions = [
   ],
   [
     'Investor deck',
-    'pdf-maker',
+    'ppt-generator',
     Presentation,
     'Create a 10-slide investor pitch deck for https://trypitch.co',
   ],
@@ -79,9 +91,13 @@ const placeholders: Record<Agent, string[]> = {
     'Walk through the onboarding and sign-up flow on https://trypitch.co',
     'Create a narrated feature walkthrough of https://trypitch.co',
   ],
-  'pdf-maker': [
+  'ppt-generator': [
     'Create a 10-slide seed round investor pitch deck for an AI startup',
     'Make a sleek product one-pager presentation for our enterprise tier',
+  ],
+  'recording-edit': [
+    'Upload a recording to polish with clean cuts and captions',
+    'Edit my recording into a concise, polished video',
   ],
 }
 const isSigned = (auth: ReturnType<typeof useAuth>) =>
@@ -148,9 +164,54 @@ export const LandingChatInput = () => {
           <div class="landing-chat-toolbar">
             <span />
             <div class="landing-chat-toolbar-right">
-              <button class="landing-chat-dropdown-trigger" onClick={() => setOpen(!open())}>
-                {AGENTS[agent()].label}
-              </button>
+              <div class="landing-chat-dropdown-wrap">
+                <button
+                  class="landing-chat-dropdown-trigger"
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={open()}
+                  onClick={() => setOpen(!open())}
+                >
+                  <span class="landing-chat-dropdown-label">{AGENTS[agent()].label}</span>
+                  <span
+                    class={`landing-chat-dropdown-chevron${open() ? ' landing-chat-dropdown-chevron--open' : ''}`}
+                  >
+                    <ChevronDown size={13} />
+                  </span>
+                </button>
+                <Show when={open()}>
+                  <div class="landing-chat-dropdown-menu" role="listbox">
+                    <For each={Object.entries(AGENTS)}>
+                      {([value, item]) => {
+                        const Icon = item.icon
+                        const selected = () => value === agent()
+                        return (
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected()}
+                            class={`landing-chat-dropdown-option${selected() ? ' landing-chat-dropdown-option--active' : ''}`}
+                            onClick={() => {
+                              setAgent(value as Agent)
+                              setOpen(false)
+                            }}
+                          >
+                            <span class="landing-chat-dropdown-icon">
+                              <Icon size={14} />
+                            </span>
+                            <span class="landing-chat-dropdown-option-label">{item.label}</span>
+                            <Show when={selected()}>
+                              <span class="landing-chat-dropdown-check">
+                                <Check size={13} />
+                              </span>
+                            </Show>
+                          </button>
+                        )
+                      }}
+                    </For>
+                  </div>
+                </Show>
+              </div>
               <button
                 class={`landing-chat-submit${input().trim() ? ' landing-chat-submit--active' : ''}`}
                 onClick={send}
@@ -161,23 +222,6 @@ export const LandingChatInput = () => {
           </div>
         </div>
       </div>
-      <Show when={open()}>
-        <div class="landing-chat-dropdown-menu" role="listbox">
-          <For each={Object.entries(AGENTS)}>
-            {([value, item]) => (
-              <button
-                class="landing-chat-dropdown-option"
-                onClick={() => {
-                  setAgent(value as Agent)
-                  setOpen(false)
-                }}
-              >
-                {item.label}
-              </button>
-            )}
-          </For>
-        </div>
-      </Show>
       <div class="landing-chat-suggestions">
         <For each={suggestions}>
           {s => {
