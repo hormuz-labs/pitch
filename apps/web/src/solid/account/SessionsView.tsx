@@ -6,6 +6,7 @@ import { api } from '../../lib/api'
 import { useAuth } from '../core/auth'
 import { CreditChip } from './credits'
 import { Dialog, Loading } from './primitives'
+import '../../styles/sessions.css'
 
 interface Profile {
   loggedInOrigins: string[]
@@ -66,6 +67,7 @@ function BrowserViewer(props: { profileId: string }) {
         </div>
       </Show>
       <button
+        aria-label="Fullscreen browser"
         class="absolute bottom-4 right-4 rounded-lg bg-black/50 p-2 text-white opacity-0 group-hover:opacity-100"
         onClick={() => void wrapper.requestFullscreen?.()}
       >
@@ -102,6 +104,7 @@ export function SessionsView() {
       const data = await api.get<ProfileResponse>('/browser/profile', token)
       setProfile(data.profile)
       setSession(data.activeSessions[0] ?? null)
+      setError('')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Failed to load profile')
     } finally {
@@ -158,6 +161,8 @@ export function SessionsView() {
       setSession(null)
       await load()
       if (returnPath) navigate(returnPath)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not save the session')
     } finally {
       setClosing(false)
     }
@@ -166,20 +171,23 @@ export function SessionsView() {
     setDeleting(origin)
     try {
       const token = await getToken()
-      if (token) await api.delete(`/browser/origins?origin=${encodeURIComponent(origin)}`, token)
+      if (!token) return
+      await api.delete(`/browser/origins?origin=${encodeURIComponent(origin)}`, token)
       setProfile(current =>
         current
           ? { ...current, loggedInOrigins: current.loggedInOrigins.filter(item => item !== origin) }
           : null,
       )
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not remove the login')
     } finally {
       setDeleting('')
     }
   }
   return (
-    <div class="min-h-full bg-[#f7f7f5] px-4 py-6 sm:px-6 lg:px-10">
+    <div class="sessions-page min-h-full px-4 py-6 sm:px-6 lg:px-10">
       <div class="mx-auto max-w-[1100px]">
-        <header class="mb-7 flex items-end justify-between border-b pb-7">
+        <header class="sessions-header mb-7 flex flex-wrap items-end justify-between gap-5 border-b pb-7">
           <div>
             <p class="text-[11px] uppercase tracking-[.16em] text-gray-500">Browser access</p>
             <h1 class="text-[34px] font-semibold tracking-[-.04em]">
@@ -192,7 +200,7 @@ export function SessionsView() {
           <button
             id="add-login-btn"
             disabled={!!session()}
-            class="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm text-white disabled:opacity-50"
+            class="sessions-primary flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm disabled:opacity-50"
             onClick={() => setModal(true)}
           >
             <Plus size={14} />
@@ -206,11 +214,11 @@ export function SessionsView() {
         <Show when={!loading()} fallback={<Loading />}>
           <Show when={session()}>
             {active => (
-              <section class="mb-8 rounded-2xl border bg-white p-5">
+              <section class="sessions-card mb-8 rounded-2xl border p-5">
                 <div class="mb-4 flex items-center justify-between">
                   <b>Live authentication session</b>
                   <button
-                    class="rounded-lg border px-4 py-2 text-xs font-semibold"
+                    class="sessions-secondary flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold"
                     disabled={closing()}
                     onClick={() => void close()}
                   >
@@ -229,7 +237,7 @@ export function SessionsView() {
               </section>
             )}
           </Show>
-          <section class="rounded-2xl border bg-white p-5">
+          <section class="sessions-card rounded-2xl border p-5">
             <h2 class="font-semibold">Logged-in sites</h2>
             <Show
               when={profile()?.loggedInOrigins.length}
@@ -243,10 +251,11 @@ export function SessionsView() {
               <ul class="mt-4 grid gap-2 md:grid-cols-2">
                 <For each={profile()?.loggedInOrigins}>
                   {origin => (
-                    <li class="flex items-center gap-3 rounded-lg border bg-gray-50 p-3">
+                    <li class="sessions-origin flex items-center gap-3 rounded-lg border p-3">
                       <Globe size={14} />
                       <span class="min-w-0 flex-1 truncate text-sm">{new URL(origin).host}</span>
                       <button
+                        class="sessions-remove"
                         aria-label={`Remove ${origin}`}
                         disabled={deleting() === origin}
                         onClick={() => void remove(origin)}
@@ -266,37 +275,54 @@ export function SessionsView() {
         </Show>
       </div>
       <Dialog open={modal()} title="Authenticate a site" onClose={() => setModal(false)}>
-        <div class="flex items-center gap-2">
-          <Lock size={18} />
-          <h2 class="text-lg font-semibold">Authenticate a site</h2>
-        </div>
-        <p class="my-3 text-sm text-gray-500">
-          Open a secure browser, complete the login, then save the session.
-        </p>
-        <input
-          autofocus
-          type="url"
-          class="w-full rounded-lg border p-3 text-sm"
-          placeholder="https://example.com"
-          value={url()}
-          onInput={event => {
-            setUrl(event.currentTarget.value)
-            setUrlError('')
+        <form
+          noValidate
+          onSubmit={event => {
+            event.preventDefault()
+            if (!starting()) void start()
           }}
-        />
-        <Show when={urlError()}>
-          <p class="mt-1 text-xs text-red-600">{urlError()}</p>
-        </Show>
-        <div class="mt-5 flex justify-end gap-2">
-          <button onClick={() => setModal(false)}>Cancel</button>
-          <button
-            class="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white"
-            disabled={starting()}
-            onClick={() => void start()}
-          >
-            {starting() ? 'Starting browser...' : 'Open browser'}
-          </button>
-        </div>
+        >
+          <div class="flex items-center gap-2">
+            <Lock size={18} />
+            <h2 class="text-lg font-semibold">Authenticate a site</h2>
+          </div>
+          <p class="my-3 text-sm text-gray-500">
+            Open a secure browser, complete the login, then save the session.
+          </p>
+          <input
+            aria-label="Site URL"
+            aria-invalid={!!urlError()}
+            required
+            autofocus
+            type="url"
+            class="w-full rounded-lg border p-3 text-sm"
+            placeholder="https://example.com"
+            value={url()}
+            onInput={event => {
+              setUrl(event.currentTarget.value)
+              setUrlError('')
+            }}
+          />
+          <Show when={urlError()}>
+            <p class="mt-1 text-xs text-red-600">{urlError()}</p>
+          </Show>
+          <div class="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              class="sessions-secondary rounded-lg px-4 py-2 text-sm"
+              onClick={() => setModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="sessions-primary rounded-lg px-4 py-2 text-sm"
+              disabled={starting()}
+            >
+              {starting() ? 'Starting browser...' : 'Open browser'}
+            </button>
+          </div>
+        </form>
       </Dialog>
     </div>
   )

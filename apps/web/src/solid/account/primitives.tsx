@@ -52,7 +52,10 @@ export function Dialog(props: {
           role="dialog"
           aria-modal="true"
           aria-label={props.title}
-          class={props.class ?? 'w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl'}
+          class={
+            props.class ??
+            'w-full max-w-md rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 text-[var(--text-primary)] shadow-2xl'
+          }
         >
           {props.children}
         </div>
