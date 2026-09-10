@@ -36,29 +36,14 @@ export function SceneStrip(props: { store: ProjectStore }) {
           time: Number(c.t ?? c.time ?? 0),
           sceneId: c.sceneId,
         }))
-      const out: Cue[] = []
-      scenes().forEach((x, i) => {
-        if (i)
-          out.push({
-            id: `sfx-trans-${i}`,
-            label: i === 1 ? 'whoosh_fast' : i === 2 ? 'click_soft' : 'swoosh_out',
-            time: x.start,
-            sceneId: x.id,
-          })
-        if (x.dur >= 4)
-          out.push({
-            id: `sfx-accent-${i}`,
-            label: i % 2 ? 'impact_drop' : 'chime_accent',
-            time: x.start + Math.min(2.5, x.dur / 2),
-            sceneId: x.id,
-          })
-      })
-      return out.sort((a, b) => a.time - b.time)
+      return []
     }),
     tracks = createMemo(() => {
-      const result: Cue[][] = [[]],
+      const result: Cue[][] = [],
         gap = Math.max(2.4, duration() * 0.065)
-      for (const cue of cues()) {
+      for (const cue of [...cues()]
+        .filter(c => Number.isFinite(c.time) && c.time >= 0 && c.time < duration())
+        .sort((a, b) => a.time - b.time)) {
         let row = result.find(x => !x.length || cue.time - x.at(-1)!.time >= gap)
         if (!row) {
           row = []
@@ -66,7 +51,7 @@ export function SceneStrip(props: { store: ProjectStore }) {
         }
         row.push(cue)
       }
-      return result.slice(0, 3)
+      return result
     }),
     width = () => Math.min(7200, Math.max(760, Math.ceil(duration() * 48), scenes().length * 132))
   createEffect(() => {
@@ -124,17 +109,26 @@ export function SceneStrip(props: { store: ProjectStore }) {
       >
         <div class="pro-timeline-toolbar">
           <div class="pro-toolbar-left">
-            <button class="transport-btn" onClick={() => s.seekPlayer(0)}>
+            <button
+              class="transport-btn"
+              aria-label="Seek to start"
+              onClick={() => s.seekPlayer(0)}
+            >
               <SkipBack size={12} />
             </button>
             <span class="pro-timecode-badge">
               {fmt(s.playhead)} / {fmt(duration())}
             </span>
             <span class="pro-track-stats">
-              {scenes().length} scenes · {3 + tracks().length} tracks
+              {scenes().length} scenes ·{' '}
+              {1 +
+                (scenes().some(x => x.label) ? 1 : 0) +
+                (s.project?.description.audioUrl ? 1 : 0) +
+                tracks().length}{' '}
+              tracks
             </span>
           </div>
-          <span class="pro-toolbar-hint">Click any Scene, Voice, SFX or Music to edit in chat</span>
+          <span class="pro-toolbar-hint">Select a clip to reference it in chat</span>
         </div>
         <div class="pro-timeline-grid" ref={viewport}>
           <div class="pro-timeline-canvas" style={{ '--timeline-content-w': `${width()}px` }}>
@@ -175,7 +169,11 @@ export function SceneStrip(props: { store: ProjectStore }) {
                   {x => (
                     <button
                       class={`scene-card ${x.id === s.selectedScene ? 'selected' : ''} ${s.playhead >= x.start && s.playhead < x.end ? 'playing' : ''}`}
-                      style={{ flex: `${Math.max(0.8, x.dur)} 0 0%` }}
+                      title={`${x.label || x.id} · ${fmt(x.start)}–${fmt(x.end)}`}
+                      style={{
+                        left: `${(x.start / duration()) * 100}%`,
+                        width: `${(Math.max(0, x.end - x.start) / duration()) * 100}%`,
+                      }}
                       onClick={() => {
                         s.setSelectedScene(x.id === s.selectedScene ? null : x.id)
                         target(x)
@@ -191,28 +189,31 @@ export function SceneStrip(props: { store: ProjectStore }) {
                 </For>
               </div>
             </div>
-            <div class="modular-track-row row-vo">
-              <div class="modular-track-cover cover-vo">
-                <span class="track-tag">Voiceover</span>
+            <Show when={scenes().some(x => x.label)}>
+              <div class="modular-track-row row-vo">
+                <div class="modular-track-cover cover-vo">
+                  <span class="track-tag">Scene notes</span>
+                </div>
+                <div class="modular-track-lane lane-vo">
+                  <For each={scenes().filter(x => x.label)}>
+                    {x => (
+                      <button
+                        class="timeline-item item-vo"
+                        style={{
+                          left: `${(x.start / duration()) * 100}%`,
+                          width: `${(x.dur / duration()) * 100}%`,
+                        }}
+                        title={x.label ?? x.id}
+                        onClick={() => target(x)}
+                      >
+                        <Mic size={10} />
+                        <span class="item-text">"{x.label}"</span>
+                      </button>
+                    )}
+                  </For>
+                </div>
               </div>
-              <div class="modular-track-lane lane-vo">
-                <For each={scenes().filter(x => x.label)}>
-                  {x => (
-                    <button
-                      class="timeline-item item-vo"
-                      style={{
-                        left: `${(x.start / duration()) * 100}%`,
-                        width: `${(x.dur / duration()) * 100}%`,
-                      }}
-                      onClick={() => target(x, 'voiceover')}
-                    >
-                      <Mic size={10} />
-                      <span class="item-text">"{x.label}"</span>
-                    </button>
-                  )}
-                </For>
-              </div>
-            </div>
+            </Show>
             <For each={tracks()}>
               {(row, i) => (
                 <div class="modular-track-row row-sfx">
@@ -248,34 +249,34 @@ export function SceneStrip(props: { store: ProjectStore }) {
                 </div>
               )}
             </For>
-            <div class="modular-track-row row-music">
-              <div class="modular-track-cover cover-music">
-                <span class="track-tag">Music Bed</span>
+            <Show when={s.project?.description.audioUrl}>
+              <div class="modular-track-row row-music">
+                <div class="modular-track-cover cover-music">
+                  <span class="track-tag">Music Bed</span>
+                </div>
+                <div class="modular-track-lane lane-music">
+                  <button
+                    class="timeline-item item-music"
+                    style={{ left: '0%', width: '100%' }}
+                    onClick={() =>
+                      s.addTarget({
+                        sceneId: null,
+                        time: 0,
+                        endTime: duration(),
+                        text: 'background music bed',
+                        tagName: 'music',
+                        selector: 'audio#music',
+                        className: 'music-bed',
+                        id: 'music-bed',
+                      })
+                    }
+                  >
+                    <Music size={10} />
+                    <span class="item-text">Background audio</span>
+                  </button>
+                </div>
               </div>
-              <div class="modular-track-lane lane-music">
-                <button
-                  class="timeline-item item-music"
-                  style={{ left: '0%', width: '100%' }}
-                  onClick={() =>
-                    s.addTarget({
-                      sceneId: null,
-                      time: 0,
-                      endTime: duration(),
-                      text: 'background music bed',
-                      tagName: 'music',
-                      selector: 'audio#music',
-                      className: 'music-bed',
-                      id: 'music-bed',
-                    })
-                  }
-                >
-                  <Music size={10} />
-                  <span class="item-text">
-                    BGM Bed (audio/music.mp3 — ducks under voiceover speech)
-                  </span>
-                </button>
-              </div>
-            </div>
+            </Show>
           </div>
         </div>
       </Show>

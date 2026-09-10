@@ -1,0 +1,27 @@
+.sessions-page {
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+.sessions-page :is(header, section, li, input, button) { border-color: var(--border-default); }
+.sessions-card { background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+.sessions-origin { background: var(--bg-raised); }
+.sessions-page :is(.text-gray-500, .text-gray-300) { color: var(--text-muted); }
+.sessions-page :is(.bg-red-50) { background: var(--error-subtle); }
+.sessions-page :is(.text-red-700, .text-red-600) { color: var(--error); }
+.sessions-page input { background: var(--bg-surface); color: var(--text-primary); }
+.sessions-primary { background: var(--interactive-bg); color: var(--interactive-text); }
+.sessions-primary:hover:not(:disabled) { background: var(--interactive-bg-hover); }
+.sessions-secondary { background: var(--bg-raised); color: var(--text-secondary); }
+.sessions-secondary:hover:not(:disabled) { background: var(--bg-sunken); }
+.sessions-remove { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--text-muted); }
+.sessions-remove:hover:not(:disabled) { background: var(--error-subtle); color: var(--error); }
+.sessions-page button { cursor: pointer; }
+.sessions-page button:disabled { cursor: default; opacity: .5; }
+.sessions-page :is(button, input):focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 3px; }
+.app-shell-bg.is-sidebar-collapsed .sessions-header { padding-left: 48px; }
+
+@media (max-width: 640px) {
+  .sessions-header h1 { font-size: 28px; line-height: 1.2; margin-top: 8px; }
+  .sessions-header > button { width: 100%; justify-content: center; }
+}

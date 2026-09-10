@@ -365,6 +365,7 @@
 }
 
 .conversation-sidebar__brand {
+  flex-shrink: 0;
   height: 64px;
   padding: 14px 14px 10px;
   display: flex;
@@ -418,6 +419,7 @@
 
 .conversation-sidebar__primary,
 .conversation-sidebar__footer {
+  flex-shrink: 0;
   padding: 4px 10px;
 }
 
@@ -444,7 +446,7 @@
 }
 
 .conversation-sidebar__new {
-  margin-bottom: 18px;
+  margin-bottom: 10px;
   min-height: 40px;
   border: 1px solid rgb(255 255 255 / 9%);
   border-radius: 10px;
@@ -526,7 +528,8 @@
 }
 
 .conversation-sidebar__projects-head {
-  margin: 20px 18px 4px;
+  flex-shrink: 0;
+  margin: 24px 18px 6px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -551,6 +554,7 @@
 }
 
 .conversation-sidebar__search {
+  flex-shrink: 0;
   height: 34px;
   margin: 6px 10px 8px;
   padding: 0 9px;
@@ -581,7 +585,7 @@
 }
 
 .conversation-sidebar__history {
-  min-height: 90px;
+  min-height: 0;
   flex: 1;
   padding: 4px 10px 10px;
   overflow-y: auto;
@@ -600,9 +604,9 @@
 }
 
 .conversation-sidebar__chat {
-  min-height: 28px;
+  min-height: 36px;
   color: #b9bcb7;
-  font-size: 11.5px;
+  font-size: 12.5px;
 }
 
 .conversation-sidebar__chat svg {
@@ -646,15 +650,17 @@
 .conversation-sidebar__utilities {
   margin-bottom: 7px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 36px;
   gap: 5px;
 }
 
 .conversation-sidebar__utilities .conversation-sidebar__row {
   min-width: 0;
   padding-inline: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
+
+.conversation-sidebar__utilities .conversation-sidebar__theme { justify-content: center; }
 
 .conversation-sidebar__socials {
   display: flex;
@@ -751,6 +757,7 @@
 }
 
 .conversation-sidebar__account>button {
+  min-width: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -763,6 +770,7 @@
 }
 
 .conversation-sidebar__account > .conversation-sidebar__signout {
+  flex-shrink: 0;
   width: 30px;
   height: 30px;
   margin-left: auto;
@@ -783,6 +791,10 @@
 }
 
 .conversation-sidebar__account span {
+  max-width: 158px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #96918d;
   font-size: 9px;
 }
