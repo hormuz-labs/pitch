@@ -1,6 +1,21 @@
 import { useNavigate } from '@solidjs/router'
-import { Code, CreditCard, Gift, User, Webhook, X } from 'lucide-solid'
-import { createSignal, For, onMount, Show } from 'solid-js'
+import type { LucideProps } from 'lucide-solid'
+import {
+  BarChart3,
+  CircleHelp,
+  Code,
+  Coins,
+  CreditCard,
+  ExternalLink,
+  Gift,
+  KeyRound,
+  Mail,
+  MessageCircle,
+  User,
+  Webhook,
+  X,
+} from 'lucide-solid'
+import { type Component, createEffect, createSignal, For, onMount, Show } from 'solid-js'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
 import { useAuth, useClerk, useUser } from '../core/auth'
@@ -371,16 +386,36 @@ export function SettingsModal(props: {
   onClose: () => void
 }) {
   const navigate = useNavigate()
+  const { getToken } = useAuth()
   const { userAccessor: user } = useUser()
-  const sections: [SettingsSection, string][] = [
-    ['account', 'Account'],
-    ['usage', 'Usage'],
-    ['plans', 'Plans & billing'],
-    ['credits', 'Credits'],
-    ['rewards', 'Rewards'],
-    ['mcp', 'MCP'],
-    ['api', 'API'],
-    ['support', 'Help & support'],
+  const [summary, setSummary] = createSignal<Summary | null>(null)
+  const [loadingSummary, setLoadingSummary] = createSignal(false)
+  const loadSummary = async () => {
+    if (summary() || loadingSummary()) return
+    setLoadingSummary(true)
+    try {
+      const token = await getToken()
+      if (!token) return
+      const response = await fetch(`${API_URL}/credits`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (response.ok) setSummary(await response.json())
+    } finally {
+      setLoadingSummary(false)
+    }
+  }
+  createEffect(() => {
+    if (['usage', 'plans', 'credits'].includes(props.section)) void loadSummary()
+  })
+  const sections: Array<{ value: SettingsSection; label: string; icon: Component<LucideProps> }> = [
+    { value: 'account', label: 'Account', icon: User },
+    { value: 'usage', label: 'Usage', icon: BarChart3 },
+    { value: 'plans', label: 'Plans & billing', icon: CreditCard },
+    { value: 'credits', label: 'Credits', icon: Coins },
+    { value: 'rewards', label: 'Rewards', icon: Gift },
+    { value: 'mcp', label: 'MCP', icon: Code },
+    { value: 'api', label: 'API', icon: KeyRound },
+    { value: 'support', label: 'Help & support', icon: CircleHelp },
   ]
   return (
     <div
@@ -406,15 +441,19 @@ export function SettingsModal(props: {
         <div class="settings-dialog__body">
           <nav class="settings-nav" aria-label="Settings sections">
             <For each={sections}>
-              {item => (
-                <button
-                  class={props.section === item[0] ? 'is-active' : ''}
-                  aria-current={props.section === item[0] ? 'page' : undefined}
-                  onClick={() => props.onSectionChange(item[0])}
-                >
-                  {item[1]}
-                </button>
-              )}
+              {item => {
+                const Icon = item.icon
+                return (
+                  <button
+                    class={props.section === item.value ? 'is-active' : ''}
+                    aria-current={props.section === item.value ? 'page' : undefined}
+                    onClick={() => props.onSectionChange(item.value)}
+                  >
+                    <Icon size={15} />
+                    {item.label}
+                  </button>
+                )
+              }}
             </For>
           </nav>
           <main class="settings-content">
@@ -427,11 +466,13 @@ export function SettingsModal(props: {
                   props.onSectionChange(event.currentTarget.value as SettingsSection)
                 }
               >
-                <For each={sections}>{item => <option value={item[0]}>{item[1]}</option>}</For>
+                <For each={sections}>
+                  {item => <option value={item.value}>{item.label}</option>}
+                </For>
               </select>
             </div>
             <div class="settings-content__heading">
-              <h3>{sections.find(item => item[0] === props.section)?.[1]}</h3>
+              <h3>{sections.find(item => item.value === props.section)?.label}</h3>
             </div>
             <Show when={props.section === 'account'}>
               <section class="settings-card">
@@ -446,28 +487,28 @@ export function SettingsModal(props: {
             <Show when={props.section === 'api'}>
               <ApiKeysView embedded />
             </Show>
-            <Show
-              when={
-                props.section === 'plans' ||
-                props.section === 'credits' ||
-                props.section === 'usage'
-              }
-            >
-              <section class="settings-card">
-                <p>
-                  Open the full billing area for plans, credit activity, receipts, and metered
-                  usage.
-                </p>
-                <button
-                  class="settings-primary"
-                  onClick={() => {
-                    props.onClose()
-                    navigate(props.section === 'plans' ? '/pricing' : '/settings')
-                  }}
-                >
-                  Open billing
-                </button>
-              </section>
+            <Show when={props.section === 'usage'}>
+              <SettingsUsage summary={summary()} loading={loadingSummary()} />
+            </Show>
+            <Show when={props.section === 'plans'}>
+              <SettingsPlan
+                summary={summary()}
+                loading={loadingSummary()}
+                openPricing={() => {
+                  props.onClose()
+                  navigate('/pricing')
+                }}
+              />
+            </Show>
+            <Show when={props.section === 'credits'}>
+              <SettingsCredits
+                summary={summary()}
+                loading={loadingSummary()}
+                openPricing={() => {
+                  props.onClose()
+                  navigate('/pricing')
+                }}
+              />
             </Show>
             <Show when={props.section === 'rewards'}>
               <section class="settings-card">
@@ -486,13 +527,142 @@ export function SettingsModal(props: {
             </Show>
             <Show when={props.section === 'support'}>
               <section class="settings-card settings-support">
-                <a href="mailto:support@trypitch.co">Email support</a>
-                <a href="https://discord.gg/a4SBW36mD">Join Discord</a>
+                <a href="mailto:support@trypitch.co">
+                  <i>
+                    <Mail size={18} />
+                  </i>
+                  <span>
+                    <strong>Email support</strong>
+                    <small>Get help from the Pitch team</small>
+                  </span>
+                  <ExternalLink size={14} />
+                </a>
+                <a href="https://discord.gg/a4SBW36mD" target="_blank" rel="noreferrer">
+                  <i>
+                    <MessageCircle size={18} />
+                  </i>
+                  <span>
+                    <strong>Join Discord</strong>
+                    <small>Ask questions and meet creators</small>
+                  </span>
+                  <ExternalLink size={14} />
+                </a>
+                <a href="/docs" target="_blank" rel="noopener">
+                  <i>
+                    <Code size={18} />
+                  </i>
+                  <span>
+                    <strong>Documentation</strong>
+                    <small>Guides for the API and MCP</small>
+                  </span>
+                  <ExternalLink size={14} />
+                </a>
               </section>
             </Show>
           </main>
         </div>
       </div>
     </div>
+  )
+}
+
+function SettingsUsage(props: { summary: Summary | null; loading: boolean }) {
+  return (
+    <Show
+      when={!props.loading}
+      fallback={<section class="settings-card">Loading usage...</section>}
+    >
+      <section class="settings-card">
+        <h4>Metered usage</h4>
+        <strong>${(props.summary?.usage?.usd ?? 0).toFixed(2)}</strong>
+        <small>Model and rendering spend across your projects.</small>
+      </section>
+      <section class="settings-card settings-activity">
+        <h4>Project usage</h4>
+        <Show
+          when={props.summary?.usage?.projects.length}
+          fallback={<small>No project usage recorded yet.</small>}
+        >
+          <For each={props.summary?.usage?.projects}>
+            {project => (
+              <div>
+                <span>
+                  <strong>{project.title}</strong>
+                  <small>{new Date(project.updatedAt).toLocaleDateString()}</small>
+                </span>
+                <b>{project.creditsCharged} credits</b>
+              </div>
+            )}
+          </For>
+        </Show>
+      </section>
+    </Show>
+  )
+}
+
+function SettingsPlan(props: {
+  summary: Summary | null
+  loading: boolean
+  openPricing: () => void
+}) {
+  return (
+    <Show when={!props.loading} fallback={<section class="settings-card">Loading plan...</section>}>
+      <section class="settings-card">
+        <h4>Current plan</h4>
+        <strong>{props.summary?.activeSubscription?.planKey ?? 'No active plan'}</strong>
+        <small>
+          {props.summary?.activeSubscription
+            ? `${props.summary.activeSubscription.creditsPerCycle} credits per billing cycle`
+            : 'Choose a subscription or buy a one-time top-up.'}
+        </small>
+        <button class="settings-primary" onClick={props.openPricing}>
+          View plans and billing
+        </button>
+      </section>
+    </Show>
+  )
+}
+
+function SettingsCredits(props: {
+  summary: Summary | null
+  loading: boolean
+  openPricing: () => void
+}) {
+  return (
+    <Show
+      when={!props.loading}
+      fallback={<section class="settings-card">Loading credits...</section>}
+    >
+      <section class="settings-card">
+        <h4>Available credits</h4>
+        <strong>{props.summary?.balance ?? 0}</strong>
+        <small>Credits are used for model work and rendering compute.</small>
+        <button class="settings-primary" onClick={props.openPricing}>
+          Buy credits
+        </button>
+      </section>
+      <section class="settings-card settings-activity">
+        <h4>Recent credit activity</h4>
+        <Show
+          when={props.summary?.transactions.length}
+          fallback={<small>No credit activity yet.</small>}
+        >
+          <For each={props.summary?.transactions.slice(0, 8)}>
+            {transaction => (
+              <div>
+                <span>
+                  <strong>{transaction.description}</strong>
+                  <small>{new Date(transaction.createdAt).toLocaleDateString()}</small>
+                </span>
+                <b class={transaction.delta > 0 ? 'is-positive' : ''}>
+                  {transaction.delta > 0 ? '+' : ''}
+                  {transaction.delta}
+                </b>
+              </div>
+            )}
+          </For>
+        </Show>
+      </section>
+    </Show>
   )
 }

@@ -58,7 +58,7 @@
    rescales the workspace (a resizing layout blurred the preview's scaled
    iframe every frame). The page underneath is dimmed by a blur scrim. */
 .conversation-sidebar {
-  width: 272px;
+  width: 286px;
   height: 100%;
   border-right: 0;
   background: var(--shell-bg);
@@ -68,7 +68,7 @@
 }
 
 .app-shell-bg {
-  --shell-sidebar-width: 272px;
+  --shell-sidebar-width: 286px;
   --shell-bg: #f3f3f1;
   --shell-panel: #ffffff;
   --shell-raised: #e9e9e6;
@@ -366,8 +366,8 @@
 
 .conversation-sidebar__brand {
   flex-shrink: 0;
-  height: 64px;
-  padding: 14px 14px 10px;
+  height: 72px;
+  padding: 16px 16px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -385,15 +385,15 @@
 .conversation-sidebar__wordmark {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: 9px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 
 .conversation-sidebar__wordmark img {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
 }
 
 .conversation-sidebar__wordmark-svg {
@@ -404,11 +404,11 @@
 }
 
 .conversation-sidebar__icon {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 7px;
+  border-radius: 9px;
   color: #858983;
 }
 
@@ -420,25 +420,31 @@
 .conversation-sidebar__primary,
 .conversation-sidebar__footer {
   flex-shrink: 0;
-  padding: 4px 10px;
+  padding: 6px 14px;
+}
+
+.conversation-sidebar__primary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .conversation-sidebar__new,
 .conversation-sidebar__row,
 .conversation-sidebar__chat {
   width: 100%;
-  min-height: 30px;
-  padding: 5px 9px;
+  min-height: 38px;
+  padding: 8px 11px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   overflow: hidden;
   border: 0;
-  border-radius: 7px;
+  border-radius: 9px;
   background: transparent;
   color: #babdb8;
-  font-size: 12px;
-  font-weight: 450;
+  font-size: 13px;
+  font-weight: 470;
   letter-spacing: -0.008em;
   text-align: left;
   cursor: pointer;
@@ -446,26 +452,27 @@
 }
 
 .conversation-sidebar__new {
-  margin-bottom: 10px;
+  margin-bottom: 0;
   min-height: 40px;
+  padding-inline: 11px;
   border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 10px;
+  border-radius: 9px;
   background: #252825;
   color: #f1f1ee;
-  font-size: 12px;
-  font-weight: 560;
+  font-size: 13px;
+  font-weight: 510;
   letter-spacing: -0.01em;
   box-shadow: 0 1px 1px rgb(0 0 0 / 5%);
 }
 
 .conversation-sidebar__new kbd {
   margin-left: auto;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border: 1px solid var(--shell-border);
   border-radius: 5px;
   background: color-mix(in srgb, var(--shell-panel) 55%, transparent);
   color: var(--shell-faint);
-  font: 500 10px/1.35 "Geist Variable", "Geist", Arial, sans-serif;
+  font: 500 9px/1.25 "Geist Mono", monospace;
 }
 
 .conversation-sidebar__new:hover {
@@ -477,14 +484,16 @@
 .conversation-sidebar__row svg,
 .conversation-sidebar__new svg {
   flex: none;
+  width: 17px;
+  height: 17px;
 }
 
 /* Primary nav rows sit a notch above the chat list: slightly bigger, firmer. */
 .conversation-sidebar__row {
-  min-height: 32px;
+  min-height: 40px;
   color: #c1c4bf;
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 510;
 }
 
 .conversation-sidebar__row svg {
@@ -516,11 +525,11 @@
 }
 
 .conversation-sidebar__section-title {
-  margin: 6px 9px 4px;
+  margin: 8px 11px 6px;
   color: #858983;
-  font-size: 10px;
-  font-weight: 550;
-  letter-spacing: 0.01em;
+  font: 600 9.5px/1.2 "Geist Mono", monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .conversation-sidebar__nav-title {
@@ -529,7 +538,7 @@
 
 .conversation-sidebar__projects-head {
   flex-shrink: 0;
-  margin: 24px 18px 6px;
+  margin: 28px 18px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -545,24 +554,24 @@
   border-radius: 999px;
   background: var(--shell-raised);
   color: var(--shell-faint);
-  font-size: 9px;
+  font: 550 9px/1.4 "Geist Mono", monospace;
   text-align: center;
 }
 
 .conversation-sidebar__group+.conversation-sidebar__group {
-  margin-top: 11px;
+  margin-top: 16px;
 }
 
 .conversation-sidebar__search {
   flex-shrink: 0;
-  height: 34px;
-  margin: 6px 10px 8px;
-  padding: 0 9px;
+  height: 38px;
+  margin: 6px 14px 10px;
+  padding: 0 11px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  border: 1px solid transparent;
-  border-radius: 9px;
+  gap: 9px;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
   background: #222522;
   color: #858983;
 }
@@ -580,14 +589,14 @@
   outline: 0;
   background: transparent;
   color: #ededeb;
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: -0.006em;
 }
 
 .conversation-sidebar__history {
   min-height: 0;
   flex: 1;
-  padding: 4px 10px 10px;
+  padding: 4px 14px 14px;
   overflow-y: auto;
 }
 
@@ -604,7 +613,7 @@
 }
 
 .conversation-sidebar__chat {
-  min-height: 36px;
+  min-height: 38px;
   color: #b9bcb7;
   font-size: 12.5px;
 }
@@ -636,28 +645,28 @@
 
 .conversation-sidebar__empty {
   display: block;
-  padding: 8px 9px;
+  padding: 12px 11px;
   color: #999590;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
 .conversation-sidebar__footer {
-  padding: 8px 10px 10px;
+  padding: 10px 14px 14px;
   border-top: 1px solid var(--shell-border);
 }
 
 .conversation-sidebar__utilities {
-  margin-bottom: 7px;
+  margin-bottom: 9px;
   display: grid;
-  grid-template-columns: 1fr 36px;
-  gap: 5px;
+  grid-template-columns: 1fr 40px;
+  gap: 6px;
 }
 
 .conversation-sidebar__utilities .conversation-sidebar__row {
   min-width: 0;
-  padding-inline: 8px;
-  font-size: 12px;
+  padding-inline: 10px;
+  font-size: 12.5px;
 }
 
 .conversation-sidebar__utilities .conversation-sidebar__theme { justify-content: center; }
@@ -748,12 +757,14 @@
 }
 
 .conversation-sidebar__account {
-  margin-top: 7px;
-  padding: 10px 7px 2px;
+  margin-top: 8px;
+  padding: 12px 10px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  border-top: 1px solid rgb(255 255 255 / 8%);
+  gap: 10px;
+  border: 1px solid var(--shell-border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--shell-panel) 52%, transparent);
 }
 
 .conversation-sidebar__account>button {
@@ -786,17 +797,17 @@
 }
 
 .conversation-sidebar__account strong {
-  font-size: 11px;
-  font-weight: 580;
+  font-size: 12px;
+  font-weight: 590;
 }
 
 .conversation-sidebar__account span {
-  max-width: 158px;
+  max-width: 164px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #96918d;
-  font-size: 9px;
+  font-size: 9.5px;
 }
 
 .app-shell-panel {

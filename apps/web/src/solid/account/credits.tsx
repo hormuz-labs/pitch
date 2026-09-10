@@ -1,5 +1,5 @@
 import { useNavigate } from '@solidjs/router'
-import { createSignal, onCleanup, onMount, Show } from 'solid-js'
+import { createSignal, onCleanup, onMount } from 'solid-js'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
 import { useAuth } from '../core/auth'
@@ -50,7 +50,7 @@ export function CreditPopover(props: { variant?: 'chip' | 'marker' }) {
           }
         >
           <img src={pCoinIcon} alt="" class="h-5 w-5" />
-          <Show when={props.variant !== 'marker'}>{credits() ?? '—'}</Show>
+          <span>{credits() ?? '—'}</span>
         </span>
       }
       class="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl"

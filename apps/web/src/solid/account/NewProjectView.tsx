@@ -185,7 +185,7 @@ export function NewProjectView(props: {
     >
       <nav class="new-project-topnav">
         <div class="new-project-topnav__links">
-          <button onClick={() => props.openSettings?.('plans')}>Pricing</button>
+          <button onClick={() => navigate('/pricing')}>Pricing</button>
           <button onClick={() => navigate('/affiliate')}>Affiliates</button>
           <button onClick={() => props.openSettings?.('mcp')}>API / MCP</button>
           <button onClick={() => navigate('/docs')}>Docs</button>
@@ -319,7 +319,9 @@ export function NewProjectView(props: {
                 </Show>
               </div>
               <div class="tool-row">
-                <CreditPopover variant="marker" />
+                <span class="composer-credits">
+                  <CreditPopover variant="marker" />
+                </span>
                 <Show when={models().length}>
                   <Select
                     value={model()}

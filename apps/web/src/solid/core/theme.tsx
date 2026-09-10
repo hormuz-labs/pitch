@@ -3,8 +3,6 @@ import {
   createContext,
   createEffect,
   createSignal,
-  onCleanup,
-  onMount,
   type ParentProps,
   useContext,
 } from 'solid-js'
@@ -32,12 +30,8 @@ function storedTheme(): Theme | null {
 
 export function ThemeProvider(props: ParentProps) {
   const savedTheme = storedTheme()
-  const [theme, setThemeSignal] = createSignal<Theme>(
-    savedTheme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
-  )
-  const [followsSystem, setFollowsSystem] = createSignal(savedTheme === null)
+  const [theme, setThemeSignal] = createSignal<Theme>(savedTheme ?? 'light')
   const setTheme = (value: Theme) => {
-    setFollowsSystem(false)
     setThemeSignal(value)
     try {
       localStorage.setItem(THEME_STORAGE_KEY, value)
@@ -45,15 +39,6 @@ export function ThemeProvider(props: ParentProps) {
       // Theme switching still works when storage is unavailable.
     }
   }
-
-  onMount(() => {
-    const preference = matchMedia('(prefers-color-scheme: dark)')
-    const sync = (event: MediaQueryListEvent) => {
-      if (followsSystem()) setThemeSignal(event.matches ? 'dark' : 'light')
-    }
-    preference.addEventListener('change', sync)
-    onCleanup(() => preference.removeEventListener('change', sync))
-  })
 
   createEffect(() => {
     const value = theme()
