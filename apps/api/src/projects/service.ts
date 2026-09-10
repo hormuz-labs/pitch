@@ -31,6 +31,7 @@ import {
 } from '../studio/session.js'
 import { normalizeCreationOptions } from './creation-options.js'
 import { normalizePublishedOutputs, normalizePublishedUrl } from './output-urls.js'
+import { projectTitle, replaceLegacyUrlTitle } from './title.js'
 import { chargeTurn, MIN_BALANCE } from './usage.js'
 
 const logger = createLogger('studio:projects')
@@ -88,6 +89,16 @@ function parseRow(r: any): ProjectRow {
   }
 }
 
+async function parseAndUpgradeRow(r: any): Promise<ProjectRow> {
+  const p = parseRow(r)
+  const title = replaceLegacyUrlTitle(p.title, p.prompt)
+  if (title === p.title) return p
+  await db.prisma.project
+    .updateMany({ where: { id: p.id, title: p.title }, data: { title } })
+    .catch(err => logger.warn({ err, projectId: p.id }, 'could not persist improved project title'))
+  return { ...p, title }
+}
+
 function safeJson<T>(v: unknown, fallback: T): T {
   if (typeof v !== 'string') return (v as T) ?? fallback
   try {
@@ -120,7 +131,7 @@ function statusOf(
 export async function getRow(userId: string, id: string): Promise<ProjectRow> {
   const r = await db.prisma.project.findFirst({ where: { id, userId } })
   if (!r) throw new NotFoundError('Project not found')
-  return parseRow(r)
+  return parseAndUpgradeRow(r)
 }
 
 export async function listProjects(userId: string, flow?: FlowId): Promise<ProjectInfo[]> {
@@ -134,7 +145,7 @@ export async function listProjects(userId: string, flow?: FlowId): Promise<Proje
   // alone cannot tell whether it is empty. Ask the filesystem, cheaply.
   return Promise.all(
     rows.map(async r => {
-      const p = parseRow(r)
+      const p = await parseAndUpgradeRow(r)
       const artifact = await agent.hasArtifact(workspaceOf(p)).catch(() => false)
       return { ...p, busy: busy.has(p.id), status: statusOf(p, busy.has(p.id), null, artifact) }
     }),
@@ -230,7 +241,10 @@ export async function createProject(
   const balance = await db.getCreditBalance(userId)
   if (balance < MIN_BALANCE) throw new InsufficientCreditsError(balance)
 
-  const title = titleFor(prompt, uploads)
+  const title = projectTitle(
+    prompt,
+    uploads.map(upload => upload.name),
+  )
   const wanted = input.name && isValidProjectName(input.name) ? input.name : slugify(title)
   const name = await uniqueName(userId, 'studio', wanted)
 
@@ -259,15 +273,6 @@ export async function createProject(
     .catch(() => {})
 
   return getProject(userId, p.id)
-}
-
-/** A project's name comes from the request, not from a category. */
-function titleFor(prompt: string, uploads: UploadRef[]): string {
-  const host = prompt.match(/https?:\/\/([^/\s)]+)/i)?.[1]?.replace(/^www\./i, '')
-  if (host) return host
-  const trimmed = prompt.trim()
-  if (trimmed) return trimmed.length > 60 ? `${trimmed.slice(0, 57)}…` : trimmed
-  return uploads[0]?.name ?? 'Untitled project'
 }
 
 interface PromptOptions {
@@ -493,7 +498,7 @@ export async function getPublicProject(shareSlug: string): Promise<ProjectRow | 
   await db.prisma.project
     .update({ where: { id: r.id }, data: { shareViews: { increment: 1 } } })
     .catch(() => {})
-  return parseRow(r)
+  return parseAndUpgradeRow(r)
 }
 
 // ── Webhooks (job.completed compatibility) ────────────────────────────────────
