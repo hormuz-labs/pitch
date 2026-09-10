@@ -2927,13 +2927,23 @@ to {
 }
 
 .lv-studio .asset-viewer-close {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
   margin-left: auto;
-  padding: 2px 8px;
+  padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1;
+  touch-action: manipulation;
 }
 
 .lv-studio .asset-viewer-close:hover:not(:disabled) {
@@ -2942,19 +2952,90 @@ to {
 }
 
 .lv-studio .asset-viewer-body {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   background: #141413;
 }
 
-.lv-studio .asset-viewer-body video,
-.lv-studio .asset-viewer-body img {
+.lv-studio .asset-viewer-body video {
   max-width: 100%;
   max-height: 72vh;
   object-fit: contain;
+}
+
+.lv-studio .asset-image-viewport {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-height: 72vh;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: zoom-in;
+  overscroll-behavior: contain;
+  touch-action: none;
+  user-select: none;
+}
+
+.lv-studio .asset-image-viewport.dragging {
+  cursor: grabbing;
+}
+
+.lv-studio .asset-image-viewport img {
+  max-width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.lv-studio .asset-zoom-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(20, 20, 19, 0.88);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+}
+
+.lv-studio .asset-zoom-controls button {
+  min-width: 34px;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0;
+  background: transparent;
+  color: #f4f4f2;
+  font-size: 14px;
+}
+
+.lv-studio .asset-zoom-controls button:last-child {
+  border-right: 0;
+}
+
+.lv-studio .asset-zoom-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lv-studio .asset-zoom-controls button:disabled {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.lv-studio .asset-zoom-controls .asset-zoom-level {
+  min-width: 58px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .lv-studio .asset-viewer-body audio {
