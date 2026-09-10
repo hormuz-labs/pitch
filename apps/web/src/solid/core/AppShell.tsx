@@ -3,18 +3,16 @@ import {
   AppWindow,
   ChevronRight,
   Gift,
-  LogOut,
+  History,
   MessageSquare,
-  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   PlugZap,
   Plus,
   Search,
-  Settings,
+  Share2,
   Shield,
-  Sun,
-  UserRound,
+  UsersRound,
   X,
 } from 'lucide-solid'
 import {
@@ -38,8 +36,8 @@ import type { UserProfile } from '../../types'
 import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
 import { PitchWordmark } from '../public/brand'
-import { useAuth, useClerk, useUser } from './auth'
-import { useTheme } from './theme'
+import { SOCIALS } from '../public/LandingFooter'
+import { useAuth, useUser } from './auth'
 
 interface AppShellContextValue {
   isMobile: Accessor<boolean>
@@ -81,9 +79,6 @@ function Sidebar(props: {
   openSettings: (section?: SettingsSection) => void
 }) {
   const navigate = useNavigate()
-  const clerk = useClerk()
-  const theme = useTheme()
-  const { userAccessor } = useUser()
   const [query, setQuery] = createSignal('')
   const go = (path: string) => {
     navigate(path)
@@ -110,10 +105,6 @@ function Sidebar(props: {
     }
     return result.filter(group => group.items.length)
   })
-  const user = userAccessor
-  const displayName = () => user()?.fullName || user()?.firstName || 'Pitch creator'
-  const email = () => user()?.primaryEmailAddress?.emailAddress ?? ''
-
   const chat = (project: Project, rail = false) => (
     <button
       type="button"
@@ -140,11 +131,7 @@ function Sidebar(props: {
         <button
           type="button"
           aria-label="Close navigation"
-          class={
-            props.isMobile
-              ? 'fixed inset-0 z-40 border-0 bg-black/20 backdrop-blur-[6px]'
-              : 'conversation-sidebar__scrim'
-          }
+          class="conversation-sidebar__scrim"
           onClick={props.close}
         />
       </Show>
@@ -251,28 +238,7 @@ function Sidebar(props: {
             </Show>
           </Show>
         </div>
-
-        <div class="conversation-sidebar__footer">
-          <div class="conversation-sidebar__utilities">
-            <button
-              type="button"
-              class="conversation-sidebar__row"
-              onClick={() => props.openSettings('account')}
-            >
-              <Settings size={16} />
-              <span>Settings</span>
-            </button>
-            <button
-              type="button"
-              class="conversation-sidebar__row"
-              onClick={theme.toggleTheme}
-              aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
-              aria-pressed={theme.theme() === 'dark'}
-            >
-              {theme.theme() === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              <span>{theme.theme() === 'dark' ? 'Light' : 'Dark'} theme</span>
-            </button>
-          </div>
+        <footer class="conversation-sidebar__footer">
           <button
             type="button"
             class="conversation-sidebar__invite"
@@ -285,30 +251,115 @@ function Sidebar(props: {
             </span>
             <ChevronRight size={14} />
           </button>
-          <div class="conversation-sidebar__account">
-            <Show
-              when={user()?.imageUrl}
-              fallback={<UserRound size={28} class="rounded-full bg-white p-1.5" />}
-            >
-              {src => <img src={src()} alt="" class="h-7 w-7 rounded-full object-cover" />}
-            </Show>
-            <button type="button" onClick={() => void clerk.openUserProfile()}>
-              <strong>{displayName()}</strong>
-              <span>{email()}</span>
-            </button>
-            <button
-              type="button"
-              class="conversation-sidebar__signout"
-              onClick={() => void clerk.signOut({ redirectUrl: '/' })}
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut size={15} />
-            </button>
+          <div class="conversation-sidebar__socials" aria-label="Pitch social links">
+            <For each={SOCIALS}>
+              {social => {
+                const Icon = social.icon
+                return (
+                  <a
+                    class="conversation-sidebar__social"
+                    href={social.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={social.label}
+                    title={social.label}
+                  >
+                    {Icon?.({ size: 16 })}
+                  </a>
+                )
+              }}
+            </For>
           </div>
-        </div>
+        </footer>
       </aside>
     </>
+  )
+}
+
+function SidebarRail(props: {
+  hidden: boolean
+  selectedKey: string
+  open: () => void
+  go: (path: string) => void
+  openSettings: (section?: SettingsSection) => void
+}) {
+  const share = async () => {
+    const data = { title: 'Pitch', text: 'Create with Pitch', url: `${window.location.origin}/new` }
+    try {
+      if (navigator.share) await navigator.share(data)
+      else await navigator.clipboard.writeText(data.url)
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+        console.error('Could not share Pitch', reason)
+      }
+    }
+  }
+  return (
+    <nav
+      class={`conversation-sidebar__rail${props.hidden ? ' is-hidden' : ''}`}
+      aria-label="Workspace navigation"
+      aria-hidden={props.hidden}
+      inert={props.hidden}
+    >
+      <button
+        type="button"
+        onClick={props.open}
+        aria-label="Open navigation"
+        title="Open navigation"
+      >
+        <PanelLeftOpen />
+      </button>
+      <button
+        type="button"
+        class={props.selectedKey === 'new' ? 'is-active' : ''}
+        onClick={() => props.go('/new')}
+        aria-label="New project"
+        title="New project"
+      >
+        <Plus />
+      </button>
+      <button
+        type="button"
+        onClick={() => props.openSettings('mcp')}
+        aria-label="API and MCP"
+        title="API and MCP"
+      >
+        <PlugZap />
+      </button>
+      <button
+        type="button"
+        onClick={() => props.go('/affiliate')}
+        aria-label="Affiliates"
+        title="Affiliates"
+      >
+        <UsersRound />
+      </button>
+      <button
+        type="button"
+        onClick={props.open}
+        aria-label="Project history"
+        title="Project history"
+      >
+        <History />
+      </button>
+      <span />
+      <button
+        type="button"
+        onClick={() => props.openSettings('rewards')}
+        aria-label="Invite a friend"
+        title="Invite a friend"
+      >
+        <Gift />
+      </button>
+      <button
+        type="button"
+        onClick={() => void share()}
+        aria-label="Share Pitch"
+        title="Share Pitch"
+      >
+        <Share2 />
+      </button>
+    </nav>
   )
 }
 
@@ -318,7 +369,7 @@ export function AppShell(props: ParentProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = createSignal(window.innerWidth < 1024)
-  const [collapsed, setCollapsed] = createSignal(window.innerWidth < 1024)
+  const [collapsed, setCollapsed] = createSignal(true)
   const [projects, setProjects] = createSignal<Project[]>([])
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
@@ -350,7 +401,7 @@ export function AppShell(props: ParentProps) {
     const resize = () => {
       const mobile = window.innerWidth < 1024
       setIsMobile(mobile)
-      setCollapsed(mobile)
+      if (mobile) setCollapsed(true)
     }
     const newChat = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return
@@ -421,7 +472,7 @@ export function AppShell(props: ParentProps) {
   return (
     <AppShellContext.Provider value={context}>
       <div
-        class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}`}
+        class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}${selectedKey() === 'new' ? ' is-new-shell' : ''}`}
       >
         <OnboardingSurvey />
         <Show when={settingsSection()}>
@@ -433,27 +484,53 @@ export function AppShell(props: ParentProps) {
             />
           )}
         </Show>
-        <Sidebar
-          collapsed={collapsed()}
-          isMobile={isMobile()}
-          isAdmin={isAdmin()}
-          projects={projects()}
-          selectedKey={selectedKey()}
-          selectedProjectId={selectedProjectId()}
-          close={() => setCollapsed(true)}
-          toggle={() => setCollapsed(value => !value)}
-          openSettings={openSettings}
-        />
-        <Show when={collapsed()}>
-          <button
-            type="button"
-            class="conversation-sidebar__open"
-            onClick={() => setCollapsed(false)}
-            aria-label="Open navigation"
-            title="Open navigation"
+        <Show when={!isMobile()}>
+          <div
+            class={`conversation-sidebar-frame${collapsed() ? ' is-collapsed' : ' is-expanded'}`}
           >
-            <PanelLeftOpen size={18} />
-          </button>
+            <SidebarRail
+              hidden={!collapsed()}
+              selectedKey={selectedKey()}
+              open={() => setCollapsed(false)}
+              go={path => navigate(path)}
+              openSettings={openSettings}
+            />
+            <Sidebar
+              collapsed={collapsed()}
+              isMobile={false}
+              isAdmin={isAdmin()}
+              projects={projects()}
+              selectedKey={selectedKey()}
+              selectedProjectId={selectedProjectId()}
+              close={() => setCollapsed(true)}
+              toggle={() => setCollapsed(value => !value)}
+              openSettings={openSettings}
+            />
+          </div>
+        </Show>
+        <Show when={isMobile()}>
+          <Sidebar
+            collapsed={collapsed()}
+            isMobile
+            isAdmin={isAdmin()}
+            projects={projects()}
+            selectedKey={selectedKey()}
+            selectedProjectId={selectedProjectId()}
+            close={() => setCollapsed(true)}
+            toggle={() => setCollapsed(value => !value)}
+            openSettings={openSettings}
+          />
+          <Show when={collapsed()}>
+            <button
+              type="button"
+              class="conversation-sidebar__open"
+              onClick={() => setCollapsed(false)}
+              aria-label="Open navigation"
+              title="Open navigation"
+            >
+              <PanelLeftOpen size={18} />
+            </button>
+          </Show>
         </Show>
         <div
           class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l${studio() ? ' app-shell-panel--studio' : ''}`}

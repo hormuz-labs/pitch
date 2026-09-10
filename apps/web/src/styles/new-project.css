@@ -1,6 +1,6 @@
 .new-shell-main,
 .lv-studio.new-project-page,
-.lv-studio .new-create-view { background: #101110; }
+.lv-studio .new-create-view { background: #000; }
 .new-shell-main { border-radius: 0; }
 .lv-studio.new-project-page { display: block; min-height: 100%; height: auto; overflow: visible; color: #ededeb; font-family: "Geist Variable", "Geist", Arial, sans-serif; }
 .lv-studio .new-create-view { position: relative; display: block; width: 100%; min-height: 100%; padding: 0; overflow: visible; }
@@ -27,15 +27,18 @@
 .lv-studio.new-project-page .new-project-topnav__links button:hover:not(:disabled),
 .lv-studio.new-project-page .new-template-strip__head button:hover:not(:disabled) { background: transparent; color: #f1f1ee; }
 .new-project-topnav__actions { position: absolute; right: 14px; display: flex; align-items: center; gap: 7px; }
-.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button) { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border: 1px solid #e0dfdc; border-radius: 50%; background: rgb(255 255 255 / 80%); color: #6e6965; text-decoration: none; cursor: pointer; transition: border-color 140ms ease, color 140ms ease, background 140ms ease; }
-.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button):hover { border-color: #c4c2be; background: #fff; color: #111; }
+.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button),
+.lv-studio.new-project-page .new-project-topnav__actions > .relative > button { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 14%); border-radius: 50%; background: transparent; color: #a1a49f; text-decoration: none; cursor: pointer; transition: border-color 140ms ease, color 140ms ease, background 140ms ease; }
+.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button):hover,
+.lv-studio.new-project-page .new-project-topnav__actions > .relative > button:hover:not(:disabled) { border-color: rgb(255 255 255 / 28%); background: #171817; color: #fff; }
 /* The credits pill comes from the settings modal and styles itself with one
    class, which `.lv-studio button` outranks — that is how it ended up an
    orange lozenge in a page with no orange in it. */
-.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger { height: 30px; min-width: 52px; padding: 0 10px; border: 1px solid #e0dfdc; border-radius: 999px; background: rgb(255 255 255 / 80%); color: #57524e; box-shadow: none; opacity: 1; }
-.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger:hover:not(:disabled) { border-color: #c4c2be; background: #fff; color: #221f1c; }
-.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger span { color: inherit; opacity: 1; }
-.lv-studio.new-project-page .new-project-topnav__credits .settings-credit-trigger img { opacity: 1; }
+.lv-studio.new-project-page .new-project-topnav__credits > .relative > button { width: auto; min-width: 54px; padding: 0; border: 0; background: transparent; }
+.lv-studio.new-project-page .new-project-topnav__credits > .relative > button > span { width: auto; min-width: 54px; padding: 0 10px; gap: 5px; color: #d0d2cd; font-size: 11px; font-weight: 560; }
+.lv-studio.new-project-page .new-project-topnav__credits img { width: 16px; height: 16px; }
+.new-project-topnav__avatar { width: 30px; height: 30px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: #098c82; color: #fff; }
+.new-project-topnav__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .new-project-topnav__actions :is(.cl-rootBox, .cl-userButton-root) { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; }
 .lv-studio.new-project-page .new-project-topnav__actions .cl-userButtonTrigger,
 .lv-studio.new-project-page .new-project-topnav__actions .cl-userButtonTrigger:hover:not(:disabled) { width: 28px; height: 28px; min-width: 28px; padding: 0; overflow: visible; border: 0; border-radius: 50%; background: transparent; color: inherit; box-shadow: none; }
@@ -45,16 +48,16 @@
 .new-project-topnav__profile span { width: 100%; height: 100%; display: grid; place-items: center; object-fit: cover; background: #272421; color: #fff; font-size: 11px; font-weight: 600; text-transform: uppercase; }
 
 .new-project-profile-menu-positioner { z-index: 90; outline: none; }
-.new-project-profile-menu { width: 210px; padding: 6px; border: 1px solid #deddd9; border-radius: 13px; outline: none; background: #fff; color: #22201e; box-shadow: 0 18px 46px rgb(0 0 0 / 14%), 0 2px 8px rgb(0 0 0 / 5%); font: 450 13px/1 "Geist Variable", "Geist", Arial, sans-serif; animation: new-project-profile-menu-in 150ms cubic-bezier(.2,.8,.2,1) both; }
-.new-project-profile-menu :is([role="menuitem"], a) { min-height: 38px; padding: 0 10px; display: flex; align-items: center; gap: 10px; border-radius: 8px; outline: none; color: #37332f; text-decoration: none; cursor: pointer; user-select: none; }
-.new-project-profile-menu :is([role="menuitem"], a):is(:hover, [data-highlighted]) { background: #f1f0ee; color: #171513; }
+.new-project-profile-menu { width: 210px; padding: 6px; border: 1px solid rgb(255 255 255 / 12%); border-radius: 13px; outline: none; background: #202220; color: #ededeb; box-shadow: 0 18px 46px rgb(0 0 0 / 35%), 0 2px 8px rgb(0 0 0 / 20%); font: 450 13px/1 "Geist Variable", "Geist", Arial, sans-serif; animation: new-project-profile-menu-in 150ms cubic-bezier(.2,.8,.2,1) both; }
+.new-project-profile-menu :is([role="menuitem"], a) { width: 100%; min-height: 38px; padding: 0 10px; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 8px; outline: none; background: transparent; color: #d0d2cd; text-decoration: none; cursor: pointer; user-select: none; }
+.new-project-profile-menu :is([role="menuitem"], a):is(:hover, [data-highlighted]) { background: #303330; color: #fff; }
 .new-project-profile-menu :is([role="menuitem"], a):focus-visible { box-shadow: inset 0 0 0 2px #c9c6c2; }
 .new-project-profile-menu :is([role="menuitem"], a) svg { width: 16px; height: 16px; flex: none; color: #77726d; }
 .new-project-profile-menu a svg { color: #5865f2; }
 .new-project-profile-menu .new-project-profile-menu__danger { color: #b4232d; }
 .new-project-profile-menu .new-project-profile-menu__danger:is(:hover, [data-highlighted]) { background: #fff1f1; color: #991b1b; }
 .new-project-profile-menu .new-project-profile-menu__danger svg { color: #c43d45; }
-.new-project-profile-menu__separator { height: 1px; margin: 5px 4px; background: #ebe9e6; }
+.new-project-profile-menu__separator { height: 1px; margin: 5px 4px; background: rgb(255 255 255 / 9%); }
 
 @keyframes new-project-profile-menu-in {
   from { opacity: 0; transform: translateY(-4px) scale(.985); }
@@ -69,7 +72,10 @@
 .new-project-wordmark { width: 160px; height: auto; color: #f1f1ee; }
 .new-create-wordmark { width: 196px; height: auto; margin: 8px 0 0; color: #111; }
 
-.lv-studio .new-composer-wrap { width: min(720px, 100%); max-width: none; }
+.lv-studio.new-project-page .composer-wrap.new-composer-wrap {
+  width: min(720px, 100%);
+  max-width: 720px;
+}
 .lv-studio .new-composer-wrap .composer-box { min-height: 152px; padding: 18px 18px 13px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 24px; background: #202220; box-shadow: 0 24px 70px rgb(0 0 0 / 28%); }
 .lv-studio .new-composer-wrap .composer-box:focus-within { border-color: rgb(255 255 255 / 32%); box-shadow: 0 26px 76px rgb(0 0 0 / 34%), 0 0 0 3px rgb(255 255 255 / 4%); }
 .lv-studio .new-composer-wrap textarea { min-height: 72px; padding: 6px 7px; color: #f1f1ee; font-size: 16px; }
@@ -210,7 +216,10 @@
   .new-featured__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .new-composer-wrap .composer-add-menu { width: min(246px, calc(100vw - 48px)); }
   .new-project-wordmark { width: 148px; }
-  .lv-studio .new-composer-wrap { width: 100%; }
+  .lv-studio.new-project-page .composer-wrap.new-composer-wrap {
+    width: 100%;
+    max-width: 720px;
+  }
   .inspiration-showcase { padding: 80px 16px; }
   .inspiration-grid { grid-template-columns: 1fr; }
 }
@@ -221,9 +230,7 @@
   .new-featured__content, .new-featured__video video { transform: none; transition: none; }
 }
 
-/* The original new-project screen was authored as a dark-only surface. Keep
-   its visual hierarchy in light mode instead of leaving a dark island inside
-   the light app shell. */
+/* The creation door intentionally stays dark in both themes. */
 [data-theme="light"] :is(.new-shell-main, .lv-studio.new-project-page) {
   background: #f7f7f5 !important;
 }
@@ -236,8 +243,7 @@
   color: #71716d;
 }
 
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__links :is(a, button):hover,
-[data-theme="light"] .lv-studio.new-project-page .new-template-strip__head button:hover:not(:disabled) {
+[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__links :is(a, button):hover {
   color: #242422;
 }
 
@@ -247,7 +253,7 @@
 
 [data-theme="light"] .lv-studio .new-composer-wrap .composer-box {
   border-color: #d8d8d4;
-  background: #ffffff;
+  background: #fff;
   box-shadow: 0 24px 70px rgb(42 42 38 / 10%);
 }
 
@@ -270,45 +276,9 @@
   color: #5f5f5b;
 }
 
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled) {
-  border-color: #bdbdb8;
-  background: #e8e8e5;
-  color: #242422;
-}
-
-[data-theme="light"] :is(.new-composer-wrap .composer-add-menu, .new-composer-wrap .model-menu) {
-  border-color: #d8d8d4;
-  background: #ffffff;
-  box-shadow: 0 18px 46px rgb(42 42 38 / 14%), 0 2px 8px rgb(42 42 38 / 5%);
-}
-
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .composer-add-menu button,
-[data-theme="light"] .new-composer-wrap .composer-add-menu label,
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .model-option {
-  color: #4f4f4b;
-}
-
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .composer-add-menu button:hover:not(:disabled),
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .composer-add-menu button.is-selected,
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .model-option:hover:not(:disabled),
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .model-option.is-active {
-  background: #efefec;
-  color: #242422;
-}
-
-[data-theme="light"] .new-composer-wrap .composer-add-menu label > select {
-  color: #242422;
-  background-color: #efefec;
-}
-
 [data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .send-btn {
   background: #242422;
-  color: #ffffff;
-}
-
-[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) {
-  background: #000000;
-  color: #ffffff;
+  color: #fff;
 }
 
 [data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .send-btn:disabled {
@@ -316,11 +286,17 @@
   color: #92928d;
 }
 
-[data-theme="light"] .lv-studio.new-project-page :is(.composer-credits button, .new-composer-wrap .model-btn) {
+[data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .model-btn {
   color: #71716d;
 }
 
-[data-theme="light"] .lv-studio.new-project-page :is(.composer-credits button, .new-composer-wrap .model-btn):hover:not(:disabled) {
+[data-theme="light"] .lv-studio.new-project-page .new-skill-pill {
+  border-color: #d8d8d4;
+  color: #71716d;
+}
+
+[data-theme="light"] .lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) {
+  border-color: #bdbdb8;
   background: #efefec;
   color: #242422;
 }
@@ -337,30 +313,6 @@
 
 [data-theme="light"] .lv-studio.new-project-page .inspiration-card {
   border-color: #dededb;
-  background: #ffffff;
+  background: #fff;
   color: #242422;
-}
-
-[data-theme="light"] .lv-studio.new-project-page .inspiration-card:hover:not(:disabled) {
-  border-color: #bdbdb8;
-  background: #ffffff;
-}
-
-[data-theme="light"] .lv-studio.new-project-page .new-skill-pill {
-  border-color: #d8d8d4;
-  color: #71716d;
-}
-
-[data-theme="light"] .lv-studio.new-project-page .new-skill-pill:hover:not(:disabled) {
-  border-color: #bdbdb8;
-  background: #efefec;
-  color: #242422;
-}
-
-[data-theme="light"] .lv-studio.new-project-page .new-skill-pill.is-active,
-[data-theme="light"] .lv-studio.new-project-page .new-skill-pill.is-active:hover:not(:disabled),
-[data-theme="light"] .lv-studio.new-project-page .new-skill-chip {
-  border-color: #777773;
-  background: #242422;
-  color: #ffffff;
 }

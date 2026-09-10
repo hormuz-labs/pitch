@@ -1,5 +1,18 @@
 import { useNavigate, useSearchParams } from '@solidjs/router'
-import { ArrowUp, Clock3, Film, Paperclip, Plus, RectangleHorizontal, X } from 'lucide-solid'
+import {
+  ArrowUp,
+  Clock3,
+  Film,
+  LogOut,
+  Moon,
+  Paperclip,
+  Plus,
+  RectangleHorizontal,
+  Settings,
+  Sun,
+  UserRound,
+  X,
+} from 'lucide-solid'
 import { createEffect, createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import { carouselAsset } from '../../components/landing/carouselAssets'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
@@ -10,10 +23,12 @@ import {
   type UploadRef,
   uploads as uploadFiles,
 } from '../../lib/studio-api'
-import { useAuth } from '../core/auth'
+import { useAuth, useClerk, useUser } from '../core/auth'
+import { useTheme } from '../core/theme'
 import { PitchWordmark } from '../public/brand'
 import { CreditPopover } from './credits'
 import { Popover, Select } from './primitives'
+import type { SettingsSection } from './SettingsView'
 import '../../studio/studio.css'
 import '../../styles/new-project.css'
 
@@ -60,9 +75,12 @@ const FLOW_TO_SKILL: Record<string, Skill> = {
 
 export function NewProjectView(props: {
   onNotice?: (message: string, type: 'success' | 'error') => void
-  openSettings?: (section: string) => void
+  openSettings?: (section: SettingsSection) => void
 }) {
   const { getToken } = useAuth()
+  const clerk = useClerk()
+  const { userAccessor: user } = useUser()
+  const theme = useTheme()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [prompt, setPrompt] = createSignal(
@@ -189,6 +207,43 @@ export function NewProjectView(props: {
           <button onClick={() => navigate('/affiliate')}>Affiliates</button>
           <button onClick={() => props.openSettings?.('mcp')}>API / MCP</button>
           <button onClick={() => navigate('/docs')}>Docs</button>
+        </div>
+        <div class="new-project-topnav__actions">
+          <button
+            type="button"
+            onClick={theme.toggleTheme}
+            aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            {theme.theme() === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <div class="new-project-topnav__credits">
+            <CreditPopover />
+          </div>
+          <Popover
+            label="Open account menu"
+            trigger={
+              <span class="new-project-topnav__avatar">
+                <Show when={user()?.imageUrl} fallback={<UserRound size={17} />}>
+                  {src => <img src={src()} alt="" />}
+                </Show>
+              </span>
+            }
+            class="new-project-profile-menu absolute right-0 top-full z-50 mt-2"
+          >
+            <button role="menuitem" onClick={() => props.openSettings?.('account')}>
+              <Settings />
+              Account settings
+            </button>
+            <button
+              role="menuitem"
+              class="new-project-profile-menu__danger"
+              onClick={() => void clerk.signOut({ redirectUrl: '/' })}
+            >
+              <LogOut />
+              Sign out
+            </button>
+          </Popover>
         </div>
       </nav>
       <Show when={dragging()}>
@@ -319,7 +374,6 @@ export function NewProjectView(props: {
                 </Show>
               </div>
               <div class="tool-row">
-                <CreditPopover variant="marker" />
                 <Show when={models().length}>
                   <Select
                     value={model()}
