@@ -6,13 +6,21 @@ export type DiscordProject = {
   lastError?: string | null
 }
 
+export type DiscordCreationKind = 'auto' | 'demo' | 'launch' | 'generated'
+
 export interface PitchBotApi {
-  createVideo(discordUserId: string, prompt: string): Promise<{ project: DiscordProject }>
+  createVideo(
+    discordUserId: string,
+    prompt: string,
+    kind: DiscordCreationKind,
+  ): Promise<{ project: DiscordProject }>
   getProject(discordUserId: string, projectId: string): Promise<{ project: DiscordProject }>
+  shareProject(discordUserId: string, projectId: string): Promise<{ shareUrl: string }>
 }
 
 export interface VideoCommandInteraction {
   discordUserId: string
+  kind: DiscordCreationKind
   prompt: string
   acknowledge(): Promise<void>
   updateProgress(message: string): Promise<void>
@@ -41,7 +49,11 @@ export async function handleVideoCommand(
 ): Promise<void> {
   await interaction.acknowledge()
   try {
-    const created = await api.createVideo(interaction.discordUserId, interaction.prompt)
+    const created = await api.createVideo(
+      interaction.discordUserId,
+      interaction.prompt,
+      interaction.kind,
+    )
     const appUrl = options.appUrl.replace(/\/$/, '')
     const projectUrl = `${appUrl}/p/${created.project.id}`
     await interaction.updateProgress(
@@ -56,9 +68,8 @@ export async function handleVideoCommand(
       }
       const { project } = await api.getProject(interaction.discordUserId, created.project.id)
       if (project.status === 'ready') {
-        const resultUrl =
-          project.outputs?.find(output => output.kind === 'video')?.url ?? projectUrl
-        await interaction.postToChannel(`✅ **${project.title}** is ready: ${resultUrl}`)
+        const { shareUrl } = await api.shareProject(interaction.discordUserId, project.id)
+        await interaction.postToChannel(`✅ **${project.title}** is ready: ${shareUrl}`)
         return
       }
       if (project.status === 'failed') {

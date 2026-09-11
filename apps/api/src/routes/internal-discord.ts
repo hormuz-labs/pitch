@@ -8,6 +8,19 @@ const logger = createLogger('studio:discord-api')
 
 export const router = Router()
 const DISCORD_ID = /^\d{5,25}$/
+const APP_URL = (process.env.APP_URL || 'https://trypitch.co').replace(/\/$/, '')
+const DISCORD_INTENTS = {
+  auto: '',
+  demo: 'Create a product demo walkthrough that clearly shows the product experience.',
+  launch: 'Create a cinematic launch film focused on positioning, story, and visual impact.',
+  generated: 'Create a video built around AI-generated footage and visuals.',
+} as const
+type DiscordIntent = keyof typeof DISCORD_INTENTS
+
+function discordPrompt(kind: DiscordIntent, prompt: string): string {
+  const hint = DISCORD_INTENTS[kind]
+  return hint ? `${hint}\n\nUser request:\n${prompt}` : prompt
+}
 
 function authorized(header: string | undefined): boolean {
   const configured = process.env.DISCORD_SERVICE_TOKEN
@@ -47,10 +60,14 @@ router.use((req, res, next) => {
 router.post('/projects', async (req, res) => {
   const discordUserId = String(req.body?.discordUserId ?? '').trim()
   const prompt = String(req.body?.prompt ?? '').trim()
+  const kind = String(req.body?.kind ?? 'auto') as DiscordIntent
   if (!DISCORD_ID.test(discordUserId)) {
     return res.status(400).json({ error: 'A valid Discord user id is required' })
   }
   if (!prompt) return res.status(400).json({ error: 'prompt is required' })
+  if (!(kind in DISCORD_INTENTS)) {
+    return res.status(400).json({ error: 'A valid Discord video type is required' })
+  }
 
   // Discord is a sponsored surface, so it must never inherit a potentially
   // expensive model selected for the main product. Require an explicit model
@@ -75,7 +92,7 @@ router.post('/projects', async (req, res) => {
       })
     }
     const project = await projects.createProject(userId, {
-      prompt,
+      prompt: discordPrompt(kind, prompt),
       source: 'discord',
       model,
     })
@@ -85,6 +102,25 @@ router.post('/projects', async (req, res) => {
     if (status >= 500)
       logger.error({ err: error, discordUserId }, 'Discord project creation failed')
     res.status(status).json({ error: error?.message ?? 'Could not create project' })
+  }
+})
+
+router.post('/projects/:id/share', async (req, res) => {
+  const discordUserId = String(req.body?.discordUserId ?? '').trim()
+  if (!DISCORD_ID.test(discordUserId)) {
+    return res.status(400).json({ error: 'A valid Discord user id is required' })
+  }
+
+  try {
+    const userId = await pitchUserId(discordUserId)
+    if (!userId) return res.status(404).json({ error: 'Discord account is not linked' })
+    const project = await projects.shareProject(userId, req.params.id)
+    if (!project.shareSlug) throw new Error('Could not create project share link')
+    res.json({ shareUrl: `${APP_URL}/d/${project.shareSlug}` })
+  } catch (error: any) {
+    const status = error?.status ?? 500
+    if (status >= 500) logger.error({ err: error, discordUserId }, 'Discord share failed')
+    res.status(status).json({ error: error?.message ?? 'Could not share project' })
   }
 })
 

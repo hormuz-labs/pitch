@@ -3,12 +3,13 @@
 The Pitch bot lets a linked member start a video from Discord with:
 
 ```text
-/video prompt:<describe the video>
+/video type:<auto|product demo|launch film|generated footage> prompt:<describe the video>
 ```
 
 Pitch creates a normal studio project, posts a progress link in the channel,
-and posts the finished video back to that same channel. The project also
-appears in the member's Pitch chat history.
+and posts the finished project's short public Pitch share URL (`/d/<slug>`) to
+that same channel. It never posts the underlying S3 output URL. The project
+also appears in the member's Pitch chat history.
 
 ## Recommended server channels
 
@@ -42,7 +43,17 @@ member-list access, voice permissions, or access to private staff channels.
 
 ## What members can create directly from Discord
 
-Discord v1 accepts a text prompt and can directly start these jobs:
+Discord v1 asks members to choose one of four intent hints before entering the
+prompt. These guide the one Studio agent; they are not stored project flows.
+
+| Type | Behavior |
+| --- | --- |
+| Auto | Pitch reads the request and chooses the appropriate video tools. |
+| Product demo | Prioritizes a clear product walkthrough and product experience. |
+| Launch film | Prioritizes cinematic positioning, story, and visual impact. |
+| Generated footage | Prioritizes AI-generated footage and visuals. |
+
+It can directly start these jobs:
 
 | Outcome | Good prompt example |
 | --- | --- |
@@ -66,6 +77,7 @@ The current slash command has no attachment input. Use Pitch on the web for:
 
 - editing an uploaded screen recording;
 - turning uploaded PDFs or images into a narrated slideshow;
+- creating PDF slide decks;
 - using private assets that are not already in the project;
 - signing into a private product before recording it;
 - detailed revisions after the first Discord request.

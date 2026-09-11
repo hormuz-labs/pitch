@@ -16,6 +16,7 @@ vi.mock('@saas/shared', () => ({
 vi.mock('../apps/api/src/projects/service.js', () => ({
   createProject: vi.fn(),
   getProject: vi.fn(),
+  shareProject: vi.fn(),
   InsufficientCreditsError: class InsufficientCreditsError extends Error {
     status = 402
     constructor(public balance: number) {
@@ -78,7 +79,11 @@ describe('Discord internal project API', () => {
     const response = await request(app)
       .post('/internal/discord/projects')
       .set('Authorization', 'Bearer service-secret')
-      .send({ discordUserId: '99887766', prompt: 'Make a launch video for Pitch' })
+      .send({
+        discordUserId: '99887766',
+        kind: 'launch',
+        prompt: 'Make a launch video for Pitch',
+      })
 
     expect(response.status).toBe(202)
     expect(response.body.project).toMatchObject({ id: 'project_123', status: 'working' })
@@ -87,7 +92,9 @@ describe('Discord internal project API', () => {
       dailyLimit: 3,
     })
     expect(projects.createProject).toHaveBeenCalledWith('user_123', {
-      prompt: 'Make a launch video for Pitch',
+      prompt: expect.stringMatching(
+        /cinematic launch film.*User request:.*Make a launch video for Pitch/s,
+      ),
       source: 'discord',
       model: 'google/gemini-3.8-flash',
     })
@@ -124,6 +131,25 @@ describe('Discord internal project API', () => {
     expect(response.status).toBe(429)
     expect(response.body.error).toMatch(/3 Discord videos per day/)
     expect(projects.createProject).not.toHaveBeenCalled()
+  })
+
+  it('creates the canonical short public share link for a completed project', async () => {
+    vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({ id: 'user_123' })
+    vi.mocked(projects.shareProject).mockResolvedValue({
+      id: 'project_123',
+      userId: 'user_123',
+      shareSlug: 'abc234defg',
+      isPublic: true,
+    } as any)
+
+    const response = await request(app)
+      .post('/internal/discord/projects/project_123/share')
+      .set('Authorization', 'Bearer service-secret')
+      .send({ discordUserId: '99887766' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ shareUrl: 'https://trypitch.co/d/abc234defg' })
+    expect(projects.shareProject).toHaveBeenCalledWith('user_123', 'project_123')
   })
 
   it('returns derived project status only for its linked Discord owner', async () => {

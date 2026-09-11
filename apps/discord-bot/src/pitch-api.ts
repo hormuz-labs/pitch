@@ -25,14 +25,19 @@ export function createPitchApi(
   }
 
   return {
-    createVideo: (discordUserId, prompt) =>
+    createVideo: (discordUserId, prompt, kind) =>
       call('/projects', {
         method: 'POST',
-        body: JSON.stringify({ discordUserId, prompt }),
+        body: JSON.stringify({ discordUserId, prompt, kind }),
       }),
     getProject: (discordUserId, projectId) =>
       call(
         `/projects/${encodeURIComponent(projectId)}?discordUserId=${encodeURIComponent(discordUserId)}`,
       ),
+    shareProject: (discordUserId, projectId) =>
+      call(`/projects/${encodeURIComponent(projectId)}/share`, {
+        method: 'POST',
+        body: JSON.stringify({ discordUserId }),
+      }),
   }
 }

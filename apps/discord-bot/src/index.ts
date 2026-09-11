@@ -7,7 +7,11 @@ import {
   Routes,
   SlashCommandBuilder,
 } from 'discord.js'
-import { handleVideoCommand, type VideoCommandInteraction } from './handler.js'
+import {
+  type DiscordCreationKind,
+  handleVideoCommand,
+  type VideoCommandInteraction,
+} from './handler.js'
 import { createPitchApi } from './pitch-api.js'
 
 const required = (name: string): string => {
@@ -29,6 +33,18 @@ const command = new SlashCommandBuilder()
   .setDescription('Create a video with Pitch')
   .addStringOption(option =>
     option
+      .setName('type')
+      .setDescription('Choose what kind of video Pitch should make')
+      .setRequired(true)
+      .addChoices(
+        { name: 'Auto — let Pitch decide', value: 'auto' },
+        { name: 'Product demo', value: 'demo' },
+        { name: 'Launch film', value: 'launch' },
+        { name: 'Generated footage', value: 'generated' },
+      ),
+  )
+  .addStringOption(option =>
+    option
       .setName('prompt')
       .setDescription('Describe the video you want Pitch to create')
       .setRequired(true)
@@ -45,6 +61,7 @@ await rest.put(
 
 const adaptInteraction = (interaction: ChatInputCommandInteraction): VideoCommandInteraction => ({
   discordUserId: interaction.user.id,
+  kind: interaction.options.getString('type', true) as DiscordCreationKind,
   prompt: interaction.options.getString('prompt', true),
   acknowledge: async () => {
     await interaction.deferReply()
