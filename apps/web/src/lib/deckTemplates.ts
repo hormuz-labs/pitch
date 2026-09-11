@@ -1,4 +1,4 @@
-/** Deck template presets — ids match the server's template registry and TemplatesView. */
+/** Deck template presets; ids match the server's template registry. */
 export interface DeckTemplateInfo {
   id: string
   name: string
