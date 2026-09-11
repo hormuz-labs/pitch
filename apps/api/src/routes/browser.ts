@@ -10,7 +10,7 @@ export const router = Router()
 
 // Credits charged once per stealth authentication session (kept in sync with the
 // CreditChip amount shown on the Authenticate / Open-browser buttons).
-const AUTH_SESSION_COST = 2
+const AUTH_SESSION_COST = 80
 
 router.get('/profile', async (req, res) => {
   const userId = requireAuth(req, res)

@@ -103,6 +103,7 @@ export async function exportProject(
         throw Object.assign(new Error('Insufficient credits'), { status: 402, balance })
       await db.deductCredit(userId, upgrade, `Launch video export upgrade (${paid} → ${wanted})`, {
         projectId: p.id,
+        channel: p.source === 'api' ? 'api' : 'product',
       })
       await db.prisma.project.update({
         where: { id: p.id },

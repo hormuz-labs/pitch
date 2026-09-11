@@ -47,13 +47,6 @@ export type CreditTransactionType =
   | 'promo'
   | 'referral'
 
-export class ActiveSubscriptionRequiredError extends Error {
-  constructor() {
-    super('One-time top-ups are only available with an active subscription.')
-    this.name = 'ActiveSubscriptionRequiredError'
-  }
-}
-
 /**
  * Calculates the current credit balance for a user from the ledger.
  * Returns 0 if the user has no transactions yet.
@@ -131,6 +124,8 @@ export async function deductCredit(
   opts?: {
     projectId?: string
     idempotencyKey?: string
+    /** Which surface spent it — drives the usage chart's app/API split. */
+    channel?: 'product' | 'api'
   },
 ): Promise<number> {
   const result = await prisma.$transaction(async tx => {
@@ -153,6 +148,7 @@ export async function deductCredit(
         description,
         projectId: opts?.projectId,
         idempotencyKey: opts?.idempotencyKey,
+        channel: opts?.channel ?? 'product',
       },
     })
 
@@ -235,7 +231,35 @@ export async function cancelSubscription(dodoSubscriptionId: string) {
 }
 
 /**
- * Ends a subscription and forfeits the user's remaining balance. The ledger
+ * How much of a balance a subscription takes with it when it ends.
+ *
+ * A monthly allowance is use-it-or-lose-it, but credits the user bought
+ * outright — a Flex pack, a promo, a referral reward — are theirs to keep. So
+ * spend draws the allowance down first, and only what is left of the allowance
+ * is forfeited. Refunded work goes back to the allowance that paid for it.
+ */
+export function forfeitableCredits(ledger: {
+  subscriptionGrants: number
+  refunds: number
+  spend: number
+  balance: number
+}): number {
+  const netSpend = Math.max(0, ledger.spend - ledger.refunds)
+  const allowanceLeft = Math.max(0, ledger.subscriptionGrants - netSpend)
+  return Math.max(0, Math.min(ledger.balance, allowanceLeft))
+}
+
+/** Sums the deltas matching `where`, as a non-negative number. */
+async function sumDeltas(
+  tx: Prisma.TransactionClient,
+  where: Prisma.CreditTransactionWhereInput,
+): Promise<number> {
+  const agg = await tx.creditTransaction.aggregate({ where, _sum: { delta: true } })
+  return Math.abs(agg._sum.delta ?? 0)
+}
+
+/**
+ * Ends a subscription and forfeits what is left of its allowance. The ledger
  * adjustment is idempotent so duplicate terminal webhooks are harmless.
  */
 export async function endSubscription(dodoSubscriptionId: string, status: string) {
@@ -251,14 +275,21 @@ export async function endSubscription(dodoSubscriptionId: string, status: string
     const idempotencyKey = `subscription_end:${dodoSubscriptionId}`
     const existing = await tx.creditTransaction.findUnique({ where: { idempotencyKey } })
     if (!existing) {
-      const balance = await getCreditBalance(subscription.userId, tx)
-      if (balance > 0) {
+      const userId = subscription.userId
+      const [balance, subscriptionGrants, refunds, spend] = await Promise.all([
+        getCreditBalance(userId, tx),
+        sumDeltas(tx, { userId, type: 'subscription_grant', delta: { gt: 0 } }),
+        sumDeltas(tx, { userId, type: 'refund', delta: { gt: 0 } }),
+        sumDeltas(tx, { userId, delta: { lt: 0 } }),
+      ])
+      const forfeit = forfeitableCredits({ subscriptionGrants, refunds, spend, balance })
+      if (forfeit > 0) {
         await tx.creditTransaction.create({
           data: {
-            userId: subscription.userId,
-            delta: -balance,
+            userId,
+            delta: -forfeit,
             type: 'admin_adjustment',
-            description: `Remaining credits forfeited when subscription ${status}`,
+            description: `Subscription credits forfeited when subscription ${status}`,
             subscriptionId: subscription.id,
             idempotencyKey,
           },
@@ -311,11 +342,6 @@ export async function recordTopUp(data: {
       console.log(`[Credits] Skipped duplicate top-up (paymentId: ${data.dodoPaymentId})`)
       return existing
     }
-
-    const subscription = await tx.subscription.findFirst({
-      where: { userId: data.userId, status: 'active' },
-    })
-    if (!subscription) throw new ActiveSubscriptionRequiredError()
 
     const topUp = await tx.topUpPurchase.create({
       data: {

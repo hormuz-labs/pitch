@@ -148,6 +148,66 @@ router.get('/me', async (req, res) => {
 })
 
 /**
+ * A handle is lower-case letters, digits and underscores, 3-20 long. Case is
+ * folded before the uniqueness check so `Ada` and `ada` can never both exist.
+ */
+const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
+
+router.patch('/me', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  // Only these three are the settings page's to change. Anything else in the
+  // body — role, email, credit balance — is ignored rather than trusted.
+  const body = req.body as Record<string, unknown>
+  const data: { username?: string; emailNotifications?: boolean; browserNotifications?: boolean } =
+    {}
+
+  if (body.username !== undefined) {
+    if (typeof body.username !== 'string') {
+      return res.status(400).json({ error: 'Username must be text' })
+    }
+    const username = body.username.trim().toLowerCase()
+    if (!USERNAME_PATTERN.test(username)) {
+      return res.status(400).json({
+        error: 'Username must be 3-20 characters, using lowercase letters, numbers or underscores',
+      })
+    }
+    data.username = username
+  }
+  for (const field of ['emailNotifications', 'browserNotifications'] as const) {
+    if (body[field] !== undefined) {
+      if (typeof body[field] !== 'boolean') {
+        return res.status(400).json({ error: `${field} must be true or false` })
+      }
+      data[field] = body[field] as boolean
+    }
+  }
+  if (Object.keys(data).length === 0) {
+    return res.status(400).json({ error: 'Nothing to update' })
+  }
+
+  try {
+    if (data.username) {
+      const holder = await db.prisma.userProfile.findUnique({
+        where: { username: data.username },
+        select: { id: true },
+      })
+      if (holder && holder.id !== userId) {
+        return res.status(409).json({ error: 'That username is taken' })
+      }
+    }
+    const updated = await db.prisma.userProfile.update({ where: { id: userId }, data })
+    res.json(updated)
+  } catch (error: any) {
+    // Two people can clear the pre-check at once; the index settles it.
+    if (error?.code === 'P2002') return res.status(409).json({ error: 'That username is taken' })
+    logger.error({ err: error, userId }, 'Failed to update profile')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * Resolves the referral attribution for a signup. Best-effort: never throws
  * to the caller — a DB blip is logged and yields `null`, so the signup
  * flow always proceeds. Postcondition (asserted at the call site): if

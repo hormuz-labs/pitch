@@ -64,6 +64,8 @@ export interface ProjectRow {
   isPublic: boolean
   shareSlug: string | null
   shareViews: number
+  /** Where the project was started: "app", "api", or "discord". */
+  source: string
   createdAt: string
   updatedAt: string
 }
@@ -197,6 +199,8 @@ export interface CreateProjectInput {
   name?: string
   /** A `provider/id` model spec from the composer picker; kept in options. */
   model?: string
+  /** Where this project was started. Defaults to "app". */
+  source?: string
 }
 
 /**
@@ -249,7 +253,15 @@ export async function createProject(
   const name = await uniqueName(userId, 'studio', wanted)
 
   const row = await db.prisma.project.create({
-    data: { userId, flow: 'studio', name, title, prompt, options: JSON.stringify(options) },
+    data: {
+      userId,
+      flow: 'studio',
+      name,
+      title,
+      prompt,
+      options: JSON.stringify(options),
+      source: input.source ?? 'app',
+    },
   })
   const p = parseRow(row)
 

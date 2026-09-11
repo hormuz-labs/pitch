@@ -4,13 +4,48 @@ import { createLogger } from '@saas/shared'
 import DodoPayments from 'dodopayments'
 import express, { Router } from 'express'
 import { Webhook } from 'standardwebhooks'
-import { CREDIT_PACKS, DODO_ENV, REFERRAL_REWARDS, TOPUP_PACKS, webhookQueue } from '../config.js'
+import {
+  CREDIT_PACKS,
+  DODO_ENV,
+  LEGACY_CREDIT_PACKS,
+  LEGACY_TOPUP_PACKS,
+  REFERRAL_REWARDS,
+  TOPUP_PACKS,
+  webhookQueue,
+} from '../config.js'
 import { executeWebhookDelivery } from '../lib/webhook-service.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api')
 
 export const router = Router()
+
+/** A plan we sell, or a grandfathered one we still honour. */
+function planEntitlement(planKey: string): { credits: number; label: string } | undefined {
+  return (
+    CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS] ??
+    LEGACY_CREDIT_PACKS[planKey as keyof typeof LEGACY_CREDIT_PACKS]
+  )
+}
+
+/**
+ * Credits to grant for a renewal. The allowance stored on the subscription wins:
+ * `pro` names both the retired $40 plan and the current $45 one, so a lookup by
+ * key alone would quietly upgrade everyone still on the old one.
+ */
+async function creditsForRenewal(
+  dodoSubscriptionId: string,
+  planKey: string,
+  metadataCredits: number,
+): Promise<number> {
+  const existing = await db.prisma.subscription
+    .findUnique({
+      where: { dodoSubscriptionId },
+      select: { creditsPerCycle: true },
+    })
+    .catch(() => null)
+  return existing?.creditsPerCycle ?? planEntitlement(planKey)?.credits ?? metadataCredits
+}
 
 router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
   const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET
@@ -57,8 +92,8 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       }
 
       const subscriptionId: string = data.subscription_id
-      const planKey = metadata.pack || 'starter'
-      const pack = CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]
+      const planKey = metadata.pack || 'pro'
+      const pack = planEntitlement(planKey)
       const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10)
 
       // Determine billing period. Dodo provides these on the subscription object.
@@ -104,9 +139,13 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       }
 
       const subscriptionId: string = data.subscription_id
-      const planKey = metadata.pack || 'starter'
-      const pack = CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]
-      const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10)
+      const planKey = metadata.pack || 'pro'
+      const pack = planEntitlement(planKey)
+      const credits = await creditsForRenewal(
+        subscriptionId,
+        planKey,
+        parseInt(metadata.credits || '0', 10),
+      )
 
       const periodStart = data.current_period_start
         ? new Date(data.current_period_start as string)
@@ -160,7 +199,10 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       if (subscriptionId) {
         const status = String(event.type).replace('subscription.', '')
         await db.endSubscription(subscriptionId, status)
-        logger.info({ subscriptionId, status }, '[Dodo] Subscription ended; credits forfeited')
+        logger.info(
+          { subscriptionId, status },
+          '[Dodo] Subscription ended; unused plan credits forfeited',
+        )
         if (userId) {
           await sendBillingNotification(userId, 'subscription-cancelled', subscriptionId)
         }
@@ -176,14 +218,15 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
 
       const paymentId: string = data.payment_id
       const packKey = metadata.pack as keyof typeof TOPUP_PACKS
-      const pack = TOPUP_PACKS[packKey]
+      const pack =
+        TOPUP_PACKS[packKey] ?? LEGACY_TOPUP_PACKS[packKey as keyof typeof LEGACY_TOPUP_PACKS]
       const credits = pack?.credits ?? parseInt(metadata.credits || '0', 10)
       const amountUsd = (data.total_amount || 0) / 100
 
       await db.recordTopUp({
         userId,
         dodoPaymentId: paymentId,
-        packKey: packKey || 'topup_10',
+        packKey: packKey || 'flex',
         credits,
         amountUsd,
       })

@@ -36,8 +36,11 @@ import { PrismaClient } from '@prisma/client'
 import {
   addCredits,
   deductCredit,
+  endSubscription,
+  forfeitableCredits,
   getCreditBalance,
   getCreditTransactions,
+  recordTopUp,
 } from '../packages/db/src/index.js'
 
 // The singleton the module uses — same object returned by the constructor.
@@ -145,6 +148,7 @@ describe('deductCredit', () => {
         description: 'turn_billed',
         projectId: 'proj_xyz',
         idempotencyKey: undefined,
+        channel: 'product',
       },
     })
   })
@@ -193,5 +197,165 @@ describe('getCreditTransactions', () => {
   it('returns an empty array when the user has no transactions', async () => {
     mockPrisma.creditTransaction.findMany.mockResolvedValue([])
     expect(await getCreditTransactions('nobody')).toEqual([])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Ending a subscription forfeits what is left of the monthly allowance, but
+ * credits the user bought outright — a Flex pack, a promo, a referral reward —
+ * are theirs and survive. Spend draws the allowance down first.
+ */
+describe('forfeitableCredits', () => {
+  it('forfeits what is left of the subscription allowance', () => {
+    // 2,500 granted, 1,200 spent, plus an 800-credit Flex pack: balance 2,100.
+    expect(
+      forfeitableCredits({ subscriptionGrants: 2500, refunds: 0, spend: 1200, balance: 2100 }),
+    ).toBe(1300)
+  })
+
+  it('leaves purchased credits untouched', () => {
+    const balance = 2100
+    const forfeit = forfeitableCredits({
+      subscriptionGrants: 2500,
+      refunds: 0,
+      spend: 1200,
+      balance,
+    })
+    expect(balance - forfeit).toBe(800)
+  })
+
+  it('forfeits nothing once the allowance is spent', () => {
+    expect(
+      forfeitableCredits({ subscriptionGrants: 2500, refunds: 0, spend: 3000, balance: 300 }),
+    ).toBe(0)
+  })
+
+  it('forfeits nothing from someone who only ever bought credits', () => {
+    expect(forfeitableCredits({ subscriptionGrants: 0, refunds: 0, spend: 0, balance: 800 })).toBe(
+      0,
+    )
+  })
+
+  it('returns refunded work to the allowance it was paid from', () => {
+    expect(
+      forfeitableCredits({ subscriptionGrants: 2500, refunds: 1200, spend: 1200, balance: 3300 }),
+    ).toBe(2500)
+  })
+
+  it('never forfeits more than the balance', () => {
+    expect(
+      forfeitableCredits({ subscriptionGrants: 5000, refunds: 0, spend: 4900, balance: 100 }),
+    ).toBe(100)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('endSubscription', () => {
+  /** A ledger where `granted` came from the plan and the rest was bought. */
+  function ledger({ granted = 0, refunded = 0, spent = 0, balance = 0 } = {}) {
+    const create = vi.fn().mockResolvedValue({})
+    const aggregate = vi.fn(async ({ where }: any) => {
+      if (where.type === 'subscription_grant') return { _sum: { delta: granted } }
+      if (where.type === 'refund') return { _sum: { delta: refunded } }
+      if (where.delta?.lt === 0) return { _sum: { delta: -spent } }
+      return { _sum: { delta: balance } }
+    })
+    mockPrisma.$transaction = vi.fn(async (cb: any) =>
+      cb({
+        subscription: {
+          findUnique: vi.fn().mockResolvedValue({ id: 'sub_row', userId: 'user_1' }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        creditTransaction: { aggregate, findUnique: vi.fn().mockResolvedValue(null), create },
+      }),
+    )
+    return { create }
+  }
+
+  it('forfeits the unused allowance and leaves purchased credits behind', async () => {
+    // 2,500 from the plan, 800 bought as Flex, 1,200 spent.
+    const { create } = ledger({ granted: 2500, spent: 1200, balance: 2100 })
+
+    await endSubscription('sub_dodo', 'expired')
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: 'user_1', delta: -1300 }),
+    })
+  })
+
+  it('writes no adjustment when the user only holds credits they bought', async () => {
+    const { create } = ledger({ granted: 0, spent: 0, balance: 800 })
+
+    await endSubscription('sub_dodo', 'cancelled')
+
+    expect(create).not.toHaveBeenCalled()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('recordTopUp', () => {
+  /** Wires $transaction with a ledger that has no active subscription. */
+  function noSubscription() {
+    const create = vi.fn().mockResolvedValue({ id: 'topup_1' })
+    const grant = vi.fn().mockResolvedValue({})
+    mockPrisma.$transaction = vi.fn(async (cb: any) =>
+      cb({
+        topUpPurchase: { findUnique: vi.fn().mockResolvedValue(null), create },
+        subscription: { findFirst: vi.fn().mockResolvedValue(null) },
+        creditTransaction: {
+          findUnique: vi.fn().mockResolvedValue(null),
+          create: grant,
+          aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 800 } }),
+        },
+      }),
+    )
+    return { create, grant }
+  }
+
+  it('grants a standalone pack bought without a subscription', async () => {
+    // Flex is the entry product: charging the card and granting nothing would
+    // take the money and give back no credits.
+    const { create, grant } = noSubscription()
+
+    await recordTopUp({
+      userId: 'user_1',
+      dodoPaymentId: 'pay_1',
+      packKey: 'flex',
+      credits: 800,
+      amountUsd: 20,
+    })
+
+    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({ credits: 800 }) })
+    expect(grant).toHaveBeenCalledWith({
+      data: expect.objectContaining({ delta: 800, type: 'topup_grant' }),
+    })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('deductCredit channel attribution', () => {
+  it('defaults to the product channel when the caller does not say otherwise', async () => {
+    const aggregateMock = vi.fn().mockResolvedValue({ _sum: { delta: 500 } })
+    const createMock = vi.fn().mockResolvedValue({})
+    mockPrisma.$transaction = makeTx({ aggregate: aggregateMock, create: createMock })
+
+    await deductCredit('user_1', 40, 'turn_billed', { projectId: 'proj_xyz' })
+
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ channel: 'product' }),
+    })
+  })
+
+  it('records the api channel for a project stamped source: "api"', async () => {
+    const aggregateMock = vi.fn().mockResolvedValue({ _sum: { delta: 500 } })
+    const createMock = vi.fn().mockResolvedValue({})
+    mockPrisma.$transaction = makeTx({ aggregate: aggregateMock, create: createMock })
+
+    await deductCredit('user_1', 40, 'turn_billed', { projectId: 'proj_xyz', channel: 'api' })
+
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ channel: 'api' }),
+    })
   })
 })

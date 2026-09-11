@@ -10,9 +10,9 @@ import pino from 'pino'
  * viewport would reflow every absolutely-positioned scene.
  */
 export const LAUNCH_VIDEO_RESOLUTIONS = {
-  '720p': { label: '720p', credits: 5, scale: 1, outHeight: 720 },
-  '1080p': { label: '1080p', credits: 8, scale: 1, outHeight: null },
-  '4k': { label: '4K', credits: 12, scale: 2, outHeight: null },
+  '720p': { label: '720p', credits: 200, scale: 1, outHeight: 720 },
+  '1080p': { label: '1080p', credits: 320, scale: 1, outHeight: null },
+  '4k': { label: '4K', credits: 480, scale: 2, outHeight: null },
 } as const
 
 export type LaunchVideoResolution = keyof typeof LAUNCH_VIDEO_RESOLUTIONS
@@ -24,7 +24,7 @@ export const DEFAULT_LAUNCH_VIDEO_RESOLUTION: LaunchVideoResolution = '1080p'
  * voiceover clip per scene — on top of the render, so it prices above the
  * music-only cut at the same resolution.
  */
-export const LAUNCH_VIDEO_NARRATION_CREDITS = 1
+export const LAUNCH_VIDEO_NARRATION_CREDITS = 40
 
 /**
  * Credits for one launch video: the resolution tier, plus the narration
@@ -46,7 +46,7 @@ export function isLaunchVideoResolution(v: unknown): v is LaunchVideoResolution 
  * then carry no `resolution` in their parameters, and refunding them at today's
  * default tier would hand back more than was ever charged.
  */
-export const LAUNCH_VIDEO_LEGACY_CREDIT_COST = 5
+export const LAUNCH_VIDEO_LEGACY_CREDIT_COST = 200
 
 /**
  * Kept for callers that predate per-resolution pricing. Equals the default

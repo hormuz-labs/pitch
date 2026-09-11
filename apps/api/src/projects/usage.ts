@@ -22,8 +22,8 @@ import { type ProjectRow, workspaceOf } from './service.js'
 
 const logger = createLogger('studio:usage')
 
-/** What one credit buys, in measured cost. */
-export const CREDIT_USD = 0.1
+/** What one credit buys, in measured cost. A demo video runs about 120 credits. */
+export const CREDIT_USD = 0.0025
 
 /**
  * Host compute, per second. A studio machine that can encode 4K and drive a
@@ -32,8 +32,8 @@ export const CREDIT_USD = 0.1
  */
 export const COMPUTE_USD_PER_SEC = 0.002
 
-/** A turn cannot start unless the user can pay for at least one credit of it. */
-export const MIN_BALANCE = 1
+/** A turn cannot start unless the user can pay for a meaningful slice of it. */
+export const MIN_BALANCE = 40
 
 export interface TurnUsage {
   modelUsd: number
@@ -75,7 +75,10 @@ export async function chargeTurn(p: ProjectRow, modelUsd: number): Promise<numbe
 
   if (owed > 0) {
     await db
-      .deductCredit(p.userId, owed, `Usage: ${p.title}`, { projectId: p.id })
+      .deductCredit(p.userId, owed, `Usage: ${p.title}`, {
+        projectId: p.id,
+        channel: p.source === 'api' ? 'api' : 'product',
+      })
       .catch(err => logger.warn({ err, projectId: p.id }, 'usage charge failed'))
     logger.info(
       { projectId: p.id, modelUsd, computeSeconds, totalUsd: total, owed },

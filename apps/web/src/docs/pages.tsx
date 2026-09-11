@@ -75,22 +75,22 @@ const overview: DocPage = {
         [
           <C key="a">demo-video</C>,
           'The agent drives your live product and narrates the flow',
-          '3',
+          '~120',
         ],
         [
           <C key="b">launch-video</C>,
           'A scripted, scored, cinematic film built scene by scene',
-          '6 to 13',
+          '240 to 520',
         ],
-        [<C key="c">deck</C>, 'A slide deck written and designed from a topic', '1'],
+        [<C key="c">deck</C>, 'A slide deck written and designed from a topic', '~40'],
         [
           <>
             <C>deck</C> + upload
           </>,
           'A redesign of a PDF or PPTX you upload',
-          '2',
+          '~80',
         ],
-        [<C key="e">recording-edit</C>, 'A cut of a screen recording you already made', '2'],
+        [<C key="e">recording-edit</C>, 'A cut of a screen recording you already made', '~80'],
       ],
     },
     {
@@ -118,9 +118,8 @@ const overview: DocPage = {
       k: 'p',
       text: (
         <>
-          Credits come off the balance when the project is created, not when it finishes. If the
-          first turn ends with nothing usable, we refund it. Every prompt after the first is free.
-          See <A to="/docs/polling">Polling projects</A>.
+          Work is metered as it happens, not charged up front. If the first turn ends with nothing
+          usable, we refund what it cost. See <A to="/docs/polling">Polling projects</A>.
         </>
       ),
     },
@@ -149,7 +148,7 @@ const gettingStarted: DocPage = {
   title: 'Getting started',
   group: 'Guide',
   nav: 'Getting Started',
-  lede: 'Create an API key, spend a credit, and get a video back. Four steps, about five minutes of waiting.',
+  lede: 'Create an API key, spend some credits, and get a video back. Four steps, about five minutes of waiting.',
   blocks: [
     { k: 'h2', text: '1. Create an API key' },
     {
@@ -180,7 +179,7 @@ const gettingStarted: DocPage = {
       k: 'code',
       lang: 'json',
       code: `{
-  "balance": 42,
+  "balance": 1840,
   "plan": "pro",
   "transactions": [ ... ]
 }`,
@@ -189,7 +188,7 @@ const gettingStarted: DocPage = {
       k: 'p',
       text: (
         <>
-          A demo video costs 3 credits. If the balance is short, project creation fails with{' '}
+          A demo video costs about 120 credits. If the balance is short, project creation fails with{' '}
           <C>402 insufficient_credits</C> and nothing is charged. Buy more at{' '}
           <A to="/pricing">trypitch.co/pricing</A>.
         </>
@@ -654,40 +653,35 @@ const credits: DocPage = {
   title: 'Credits',
   group: 'Guide',
   nav: 'Credits',
-  lede: 'Every project costs credits once, when it is created. Every prompt after the first is free.',
+  lede: 'Work is metered. The studio bills what a project actually costs to make, a fraction of a credit at a time.',
   blocks: [
     { k: 'h2', text: 'What things cost' },
     {
       k: 'p',
       text: (
         <>
-          Both surfaces create projects the same way: <C>POST /v1/projects</C> over REST,{' '}
-          <C>create_project</C> over MCP. The <C>flow</C> sets the price.
+          One credit is $0.0025 of measured cost: the agent's model usage plus the machine time
+          spent recording and rendering. Nothing is charged when a project is created — the meter
+          runs as the work happens, so a quick edit costs far less than a 4K render. These are
+          typical totals, not fixed prices.
         </>
       ),
     },
     {
       k: 'table',
-      head: ['Flow', 'What it makes', 'Credits'],
+      head: ['Flow', 'What it makes', 'Credits (~)'],
       rows: [
-        [<C key="a">demo-video</C>, 'Narrated demo of your live product', '3'],
-        [<C key="b">launch-video</C>, 'Cinematic launch film', '6 to 13'],
-        [<C key="c">deck</C>, 'Slide deck from a topic', '1'],
+        [<C key="a">demo-video</C>, 'Narrated demo of your live product', '120'],
+        [<C key="b">launch-video</C>, 'Cinematic launch film', '240 to 520'],
+        [<C key="c">deck</C>, 'Slide deck from a topic', '40'],
         [
           <>
             <C>deck</C> with an upload and <C>options.mode</C>
           </>,
           'Redesign of a PDF or PPTX',
-          '2',
+          '80',
         ],
-        [<C key="e">recording-edit</C>, 'Cut of a screen recording', '2'],
-        [
-          <>
-            <C>POST /v1/projects/:id/prompt</C> / <C>prompt_project</C>
-          </>,
-          'Any follow-up: edits, changes, re-renders',
-          'free',
-        ],
+        [<C key="e">recording-edit</C>, 'Cut of a screen recording', '80'],
         [
           <>
             <C>GET /v1/*</C> / <C>get_*</C>, <C>list_*</C>
@@ -697,25 +691,25 @@ const credits: DocPage = {
         ],
       ],
     },
-    { k: 'h2', text: 'Launch video pricing' },
+    { k: 'h2', text: 'Launch video exports' },
     {
       k: 'p',
-      text: 'Launch videos are the one variable price. The resolution sets the base, and narration adds one credit on top, because a narrated film needs a script and a voiceover clip per scene.',
+      text: 'An export is the one place with a published tier price. The resolution sets the base, and narration adds 40 credits on top, because a narrated film needs a script and a voiceover clip per scene.',
     },
     {
       k: 'table',
       head: ['Resolution', 'Narrated (default)', 'Music only'],
       rows: [
-        ['720p', '6', '5'],
-        ['1080p (default)', '9', '8'],
-        ['4K', '13', '12'],
+        ['720p', '240', '200'],
+        ['1080p (default)', '360', '320'],
+        ['4K', '520', '480'],
       ],
     },
     {
       k: 'p',
       text: (
         <>
-          If you send no <C>options.resolution</C>, you get 1080p and pay 9. An unrecognised value
+          If you send no <C>options.resolution</C>, you get 1080p and pay 360. An unrecognised value
           also falls back to 1080p rather than the cheapest tier, so a typo can never underpay.
           Exporting at a higher resolution later, from the app, charges only the difference.
         </>
@@ -724,7 +718,7 @@ const credits: DocPage = {
     {
       k: 'code',
       lang: 'bash',
-      code: `# a 6-credit launch video instead of the 9-credit default
+      code: `# a 240-credit launch video instead of the 360-credit default
 curl -X POST ${BASE}/v1/projects \\
   -H "Authorization: Bearer pk_your_key" \\
   -H "Content-Type: application/json" \\
@@ -744,11 +738,11 @@ curl -X POST ${BASE}/v1/projects \\
       k: 'code',
       lang: 'json',
       code: `{
-  "balance": 42,
+  "balance": 1840,
   "plan": "pro",
   "transactions": [
-    { "amount": -3, "reason": "Demo video (trypitch.co)", "projectId": "cm4x...", "createdAt": "..." },
-    { "amount": 50, "reason": "Subscription renewal", "createdAt": "..." }
+    { "amount": -120, "reason": "Usage: Demo video (trypitch.co)", "projectId": "cm4x...", "createdAt": "..." },
+    { "amount": 2500, "reason": "Subscription renewal", "createdAt": "..." }
   ]
 }`,
     },
@@ -772,21 +766,17 @@ curl -X POST ${BASE}/v1/projects \\
       k: 'code',
       lang: 'json',
       code: `{
-  "flows": [
-    { "id": "launch-video",   "title": "Launch video",   "credits": 9 },
-    { "id": "demo-video",     "title": "Demo video",     "credits": 3 },
-    { "id": "deck",           "title": "Slide deck",     "credits": 1 },
-    { "id": "recording-edit", "title": "Recording edit", "credits": 2 }
-  ],
+  "model": "usage",
+  "creditUsd": 0.0025,
+  "computeUsdPerSecond": 0.002,
+  "explanation": "Projects are not priced up front...",
   "launchVideo": {
     "tiers": [
-      { "res": "720p",  "credits": 5,  "narrated": 6 },
-      { "res": "1080p", "credits": 8,  "narrated": 9 },
-      { "res": "4k",    "credits": 12, "narrated": 13 }
+      { "res": "720p",  "credits": 200, "narrated": 240 },
+      { "res": "1080p", "credits": 320, "narrated": 360 },
+      { "res": "4k",    "credits": 480, "narrated": 520 }
     ]
-  },
-  "deck": { "generate": 1, "enhance": 2 },
-  "edits": "Every prompt after the first is free."
+  }
 }`,
     },
     {
@@ -813,8 +803,8 @@ curl -X POST ${BASE}/v1/projects \\
       code: `{
   "error": {
     "code": "insufficient_credits",
-    "message": "Not enough credits. Balance is 2. Buy more at https://trypitch.co/pricing.",
-    "balance": 2
+    "message": "Not enough credits. Balance is 35. Buy more at https://trypitch.co/pricing.",
+    "balance": 35
   }
 }`,
     },
@@ -823,20 +813,24 @@ curl -X POST ${BASE}/v1/projects \\
       text: (
         <>
           Over MCP the same case comes back as a tool error whose text carries the balance, so the
-          agent can tell the user how short they are.
+          agent can tell the user how short they are. Want a video without buying credits? Ask in{' '}
+          <A to="https://discord.gg/a4SBW36mD">our Discord</A>.
         </>
       ),
     },
     { k: 'h2', text: 'Refunds' },
     {
       k: 'p',
-      text: 'Credits come off as soon as the project row is written. If the agent’s first turn ends with nothing usable, whether it failed, was stopped, or finished empty, we mark the project failed and put the exact amount back, so a bad first run never silently eats credits.',
+      text: 'If the agent’s first turn ends with nothing usable, whether it failed, was stopped, or finished empty, we mark the project failed and put back everything it was charged, so a bad first run never silently eats credits.',
     },
     {
       k: 'p',
-      text: 'Follow-up prompts are free, so there is nothing to refund on them. Email support@trypitch.co if a project failed for a reason on our side and was not refunded.',
+      text: 'Email support@trypitch.co if a project failed for a reason on our side and was not refunded.',
     },
-    { k: 'p', text: 'Credits never expire.' },
+    {
+      k: 'p',
+      text: 'Credits you bought outright stay on the balance. Whatever is left of a monthly allowance is forfeited when the subscription ends, including after a failed renewal payment. Spend draws the allowance down first, so a plan never eats the credits you paid for separately.',
+    },
   ],
 }
 
@@ -1360,7 +1354,7 @@ const errors: DocPage = {
   "content": [
     {
       "type": "text",
-      "text": "Insufficient credits: your current balance is 2. Buy more at https://trypitch.co/pricing, then retry."
+      "text": "Insufficient credits: your current balance is 35. Buy more at https://trypitch.co/pricing, then retry."
     }
   ]
 }`,
@@ -1530,16 +1524,16 @@ const restApi: DocPage = {
       rows: [
         [
           <C key="a">launch-video</C>,
-          '6 to 13',
+          '240 to 520',
           <>
             <C>resolution</C> (<C>720p</C>, <C>1080p</C> default, <C>4k</C>; sets the price; every
-            export is 60 fps), <C>narration</C> (default true; false saves 1 credit), <C>music</C>{' '}
+            export is 60 fps), <C>narration</C> (default true; false saves 40 credits), <C>music</C>{' '}
             (track filename from the shared library)
           </>,
         ],
         [
           <C key="b">demo-video</C>,
-          '3',
+          '~120',
           <>
             <C>url</C> (also read from the prompt), <C>instructions</C>, <C>script</C> (your own
             narration), <C>voice</C>, <C>background</C>, <C>shape</C>, <C>inset</C>,{' '}
@@ -1548,7 +1542,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="c">deck</C>,
-          '1, or 2 with an upload',
+          '~40, or ~80 with an upload',
           <>
             <C>topic</C>, <C>slideCount</C>, <C>headings</C>, <C>template</C>, <C>mode</C> (
             <C>recreate</C> rebuilds an uploaded deck, <C>preserve</C> keeps its layout; setting it
@@ -1557,7 +1551,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="d">recording-edit</C>,
-          '2',
+          '~80',
           <>
             <C>productName</C> (intro card), <C>productUrl</C> (outro card), <C>instructions</C>,{' '}
             <C>fps</C> (<C>30</C> or <C>60</C>; default the recording's own)
