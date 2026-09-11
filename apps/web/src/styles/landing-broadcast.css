@@ -1,12 +1,11 @@
-@import '@fontsource-variable/geist';
 @import '@fontsource-variable/geist-mono';
 
 /*
  * Pitch landing — reference-locked to Factory.ai
  * (refero style f1ed1d46 · "architectural blueprint on white marble").
  *
- * Preserve: #ededed marble canvas (not pure white), Geist at weight 400 for
- * everything with heavy negative tracking on headlines, Geist Mono for labels /
+ * Preserve: #ededed marble canvas (not pure white), restrained sans typography
+ * with heavy negative tracking on headlines, Geist Mono for labels /
  * metadata / CLI, one vivid orange reserved for dots + badges (never buttons),
  * 4px buttons / 6px cards / no shadows / no gradients, hairline cool-gray rules,
  * left-aligned two-column compositions, ~72px section rhythm, dotted-grid motifs.
@@ -36,7 +35,7 @@
   --lb-screen-dim:  #7d7a77;
   --lb-screen-line: #232320;
 
-  --lb-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --lb-sans: var(--font-sans);
   --lb-mono: 'Geist Mono Variable', ui-monospace, 'JetBrains Mono', monospace;
 }
 

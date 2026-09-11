@@ -8,7 +8,7 @@
   background: rgb(23 22 21 / 42%);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  font-family: "Geist Variable", "Geist", Arial, sans-serif;
+  font-family: var(--font-sans);
   animation: settings-fade 160ms ease both;
 }
 

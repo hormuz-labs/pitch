@@ -18,7 +18,7 @@
   --st-accent: #1385d6;
   --st-watermark: #dededc;
 
-  --st-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --st-sans: var(--font-sans);
   --st-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   position: relative;

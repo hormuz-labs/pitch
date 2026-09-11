@@ -1,7 +1,33 @@
 import { useNavigate, useSearchParams } from '@solidjs/router'
-import { ArrowUp, Clock3, Film, Paperclip, Plus, RectangleHorizontal, X } from 'lucide-solid'
-import { createEffect, createMemo, createSignal, For, onMount, Show } from 'solid-js'
-import { carouselAsset } from '../../components/landing/carouselAssets'
+import Lenis from 'lenis'
+import {
+  ArrowUp,
+  Clock3,
+  Film,
+  LogOut,
+  Megaphone,
+  Moon,
+  Paperclip,
+  Plus,
+  RectangleHorizontal,
+  Settings,
+  Sparkles,
+  Sun,
+  UserRound,
+  X,
+} from 'lucide-solid'
+import 'lenis/dist/lenis.css'
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js'
+import { FeaturedVideos } from '../../components/landing/FeaturedVideos'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
 import {
   createProject,
@@ -10,10 +36,12 @@ import {
   type UploadRef,
   uploads as uploadFiles,
 } from '../../lib/studio-api'
-import { useAuth } from '../core/auth'
+import { useAuth, useClerk, useUser } from '../core/auth'
+import { useTheme } from '../core/theme'
 import { PitchWordmark } from '../public/brand'
 import { CreditPopover } from './credits'
 import { Popover, Select } from './primitives'
+import type { SettingsSection } from './SettingsView'
 import '../../studio/studio.css'
 import '../../styles/new-project.css'
 
@@ -30,26 +58,6 @@ const SKILLS = [
     prompt: 'Polish this recording with clean cuts and captions.',
   },
 ] as const
-const INSPIRATION = [
-  {
-    title: 'Graphify',
-    type: 'Launch film',
-    description: 'A cinematic product story built from the live Graphify experience.',
-    src: carouselAsset('graphify.mp4'),
-  },
-  {
-    title: 'shadcn/ui',
-    type: 'Product demo',
-    description: 'A narrated walkthrough that follows the real component workflow.',
-    src: carouselAsset('demo.mp4'),
-  },
-  {
-    title: 'GTM Cofounder',
-    type: 'Explainer',
-    description: 'A concise product explainer that makes the value clear in under a minute.',
-    src: carouselAsset('gtmcofounder.mp4'),
-  },
-] as const
 type Skill = (typeof SKILLS)[number]['id']
 const FLOW_TO_SKILL: Record<string, Skill> = {
   deck: 'slide-deck',
@@ -58,11 +66,59 @@ const FLOW_TO_SKILL: Record<string, Skill> = {
   'recording-edit': 'recording-edit',
 }
 
+/** The empty composer keeps suggesting openings, typed out and erased in
+ * place so the box is never a blank stare. It pauses the moment real text is
+ * in the field; with reduced motion the first one just sits there, static. */
+const PLACEHOLDER_PROMPTS = [
+  'A launch video for https://yourproduct.com.',
+  'A cinematic brand documentary about our origin, customers and point of view.',
+  'A clear deep-dive explainer that makes this complex topic feel obvious.',
+  'Match the pacing and visual language of this YouTube video: https://youtube.com/.',
+  'Create a refined loading animation using this logo.',
+  'Turn this recording into a polished talking-head video with captions and clean cuts.',
+]
+
+function useTypedPlaceholder(paused: Accessor<boolean>) {
+  const [text, setText] = createSignal('')
+  createEffect(() => {
+    if (paused()) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setText(PLACEHOLDER_PROMPTS[0])
+      return
+    }
+    let phrase = 0
+    let char = 0
+    let deleting = false
+    let timer = 0
+    const step = () => {
+      const current = PLACEHOLDER_PROMPTS[phrase]
+      char += deleting ? -1 : 1
+      setText(current.slice(0, char))
+      let delay = deleting ? 14 : 32
+      if (!deleting && char === current.length) {
+        deleting = true
+        delay = 2800
+      } else if (deleting && char === 0) {
+        deleting = false
+        phrase = (phrase + 1) % PLACEHOLDER_PROMPTS.length
+        delay = 500
+      }
+      timer = window.setTimeout(step, delay)
+    }
+    timer = window.setTimeout(step, 800)
+    onCleanup(() => window.clearTimeout(timer))
+  })
+  return text
+}
+
 export function NewProjectView(props: {
   onNotice?: (message: string, type: 'success' | 'error') => void
-  openSettings?: (section: string) => void
+  openSettings?: (section: SettingsSection) => void
 }) {
   const { getToken } = useAuth()
+  const clerk = useClerk()
+  const { userAccessor: user } = useUser()
+  const theme = useTheme()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [prompt, setPrompt] = createSignal(
@@ -97,6 +153,7 @@ export function NewProjectView(props: {
     setError('')
     requestAnimationFrame(() => textarea.focus())
   }
+  const typedPlaceholder = useTypedPlaceholder(() => prompt().length > 0)
   createEffect(() => {
     const flow = queryValue(params.flow)
     setSkill(flow ? (FLOW_TO_SKILL[flow] ?? null) : null)
@@ -116,6 +173,35 @@ export function NewProjectView(props: {
     } catch {
       /* server default remains available */
     }
+  })
+  let pageRoot: HTMLDivElement | undefined
+  // Lenis on the page's own scroll container (main.app-shell-main, not the
+  // window): the long featured-videos pass should glide. Overscroll stays off
+  // so the page comes to rest exactly on the end of that section.
+  onMount(() => {
+    const wrapper = pageRoot?.closest('.app-shell-main')
+    if (!pageRoot || !(wrapper instanceof HTMLElement)) return
+    const lenis = new Lenis({
+      wrapper,
+      content: pageRoot,
+      lerp: 0.09,
+      smoothWheel: true,
+      wheelMultiplier: 0.9,
+      anchors: true,
+      overscroll: false,
+      syncTouch: false,
+      respectReducedMotion: true,
+    })
+    let frame = 0
+    const raf = (time: number) => {
+      lenis.raf(time)
+      frame = requestAnimationFrame(raf)
+    }
+    frame = requestAnimationFrame(raf)
+    onCleanup(() => {
+      cancelAnimationFrame(frame)
+      lenis.destroy()
+    })
   })
   const create = async (text: string, uploaded: UploadRef[], token: string) => {
     const project = await createProject(token, {
@@ -187,6 +273,7 @@ export function NewProjectView(props: {
   }
   return (
     <div
+      ref={pageRoot}
       class={`lv-studio new-project-page ${dragging() ? 'dropping' : ''}`}
       onDragOver={event => event.preventDefault()}
       onDragEnter={() => setDragging(true)}
@@ -203,6 +290,51 @@ export function NewProjectView(props: {
           <button onClick={() => navigate('/affiliate')}>Affiliates</button>
           <button onClick={() => props.openSettings?.('mcp')}>API / MCP</button>
           <button onClick={() => navigate('/docs')}>Docs</button>
+        </div>
+        <div class="new-project-topnav__actions">
+          <button
+            type="button"
+            onClick={() => navigate('/blog')}
+            aria-label="Announcements"
+            title="Announcements"
+          >
+            <Megaphone size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={theme.toggleTheme}
+            aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            {theme.theme() === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <div class="new-project-topnav__credits">
+            <CreditPopover />
+          </div>
+          <Popover
+            label="Open account menu"
+            trigger={
+              <span class="new-project-topnav__avatar">
+                <Show when={user()?.imageUrl} fallback={<UserRound size={17} />}>
+                  {src => <img src={src()} alt="" />}
+                </Show>
+              </span>
+            }
+            class="new-project-profile-menu absolute right-0 top-full z-50 mt-2"
+          >
+            <button role="menuitem" onClick={() => props.openSettings?.('account')}>
+              <Settings />
+              Account settings
+            </button>
+            <button
+              role="menuitem"
+              class="new-project-profile-menu__danger"
+              onClick={() => void clerk.signOut({ redirectUrl: '/' })}
+            >
+              <LogOut />
+              Sign out
+            </button>
+          </Popover>
         </div>
       </nav>
       <Show when={dragging()}>
@@ -242,11 +374,9 @@ export function NewProjectView(props: {
             </Show>
             <textarea
               ref={textarea}
-              rows={3}
+              rows={2}
               id="new-project-prompt"
-              placeholder={
-                activeSkill()?.prompt ?? 'Describe what you want to make, or drop in a file.'
-              }
+              placeholder={activeSkill()?.prompt ?? typedPlaceholder()}
               value={prompt()}
               onInput={event => {
                 setPrompt(event.currentTarget.value)
@@ -326,8 +456,8 @@ export function NewProjectView(props: {
                 <Show when={activeSkill()}>
                   {selected => (
                     <span class="new-skill-chip">
+                      <Sparkles size={13} />
                       {selected().label}
-                      <button onClick={() => setSkill(null)}>×</button>
                     </span>
                   )}
                 </Show>
@@ -347,7 +477,7 @@ export function NewProjectView(props: {
                 </Show>
                 <button
                   class="send-btn"
-                  disabled={submitting() || uploading()}
+                  disabled={submitting() || uploading() || (!prompt().trim() && !files().length)}
                   onClick={() => void submit()}
                   aria-label="Start project"
                 >
@@ -404,41 +534,12 @@ export function NewProjectView(props: {
               </div>
             </section>
           </Show>
+          <a class="new-featured-cue" href="#featured-videos">
+            See featured videos <span>↓</span>
+          </a>
         </div>
       </section>
-      <section class="inspiration-showcase" aria-labelledby="inspiration-title">
-        <div class="inspiration-showcase__head">
-          <span>Explore inspiration</span>
-          <h2 id="inspiration-title">A few projects we have built</h2>
-          <p>Real launch films, demos, and explainers made with Pitch.</p>
-        </div>
-        <div class="inspiration-grid">
-          <For each={INSPIRATION}>
-            {item => (
-              <article class="inspiration-card">
-                <video
-                  src={item.src}
-                  muted
-                  loop
-                  playsinline
-                  controls
-                  preload="metadata"
-                  aria-label={`${item.title} ${item.type}`}
-                  onPointerEnter={event => void event.currentTarget.play()}
-                  onPointerLeave={event => event.currentTarget.pause()}
-                  onFocusIn={event => void event.currentTarget.play()}
-                  onFocusOut={event => event.currentTarget.pause()}
-                />
-                <div class="inspiration-card__copy">
-                  <small>{item.type}</small>
-                  <strong>{item.title}</strong>
-                  <p>{item.description}</p>
-                </div>
-              </article>
-            )}
-          </For>
-        </div>
-      </section>
+      <FeaturedVideos />
     </div>
   )
 }

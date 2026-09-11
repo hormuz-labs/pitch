@@ -44,31 +44,26 @@ export function CreditPopover(props: { variant?: 'chip' | 'marker' }) {
       trigger={
         <span
           class={
-            props.variant === 'marker'
-              ? 'text-[11px] text-gray-500'
-              : 'inline-flex h-9 items-center gap-1 rounded-lg border border-gray-200 px-3 text-sm font-semibold'
+            props.variant === 'marker' ? 'text-[11px] text-gray-500' : 'credit-popover-trigger'
           }
         >
           <img src={pCoinIcon} alt="" class="h-5 w-5" />
           <span>{credits() ?? '—'}</span>
         </span>
       }
-      class="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl"
+      class="credit-popover-menu absolute right-0 top-full z-50 mt-2 w-72"
     >
-      <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Credits</p>
-      <p class="mt-1 text-lg font-bold text-gray-900">{credits() ?? '—'} available</p>
-      <p class="mt-3 text-sm leading-relaxed text-gray-500">
+      <p class="credit-popover-menu__eyebrow">Credits</p>
+      <p class="credit-popover-menu__balance">{credits() ?? '—'} available</p>
+      <p class="credit-popover-menu__copy">
         Agent model spend and rendering compute draw from the same balance. Unused credits are
         forfeited when your subscription ends.
       </p>
-      <div class="mt-4 flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
+      <div class="credit-popover-menu__plan">
         <span>Current plan</span>
         <b>{plan() ?? 'Free'}</b>
       </div>
-      <button
-        class="mt-3 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium"
-        onClick={() => navigate('/pricing')}
-      >
+      <button class="credit-popover-menu__action" onClick={() => navigate('/pricing')}>
         View pricing plans
       </button>
     </Popover>

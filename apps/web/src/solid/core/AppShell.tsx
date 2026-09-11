@@ -1,18 +1,14 @@
 import { useLocation, useNavigate } from '@solidjs/router'
 import {
   AppWindow,
-  LogOut,
-  MessageSquare,
-  Moon,
+  ChevronRight,
+  Gift,
+  History,
   PanelLeftClose,
   PanelLeftOpen,
   PlugZap,
   Plus,
-  Search,
-  Settings,
   Shield,
-  Sun,
-  UserRound,
   X,
 } from 'lucide-solid'
 import {
@@ -36,8 +32,8 @@ import type { UserProfile } from '../../types'
 import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
 import { PitchWordmark } from '../public/brand'
-import { useAuth, useClerk, useUser } from './auth'
-import { useTheme } from './theme'
+import { SOCIALS } from '../public/LandingFooter'
+import { useAuth, useUser } from './auth'
 
 interface AppShellContextValue {
   isMobile: Accessor<boolean>
@@ -60,6 +56,7 @@ export function useAppShell(): AppShellContextValue {
 const routeKey = (path: string) => {
   if (path.startsWith('/p/')) return 'studio'
   if (path.startsWith('/sessions')) return 'sessions'
+  if (path.startsWith('/chats')) return 'chats'
   if (path.startsWith('/admin')) return 'admin'
   if (path.startsWith('/settings')) return 'settings'
   if (path.startsWith('/api-keys')) return 'api-keys'
@@ -79,52 +76,21 @@ function Sidebar(props: {
   openSettings: (section?: SettingsSection) => void
 }) {
   const navigate = useNavigate()
-  const clerk = useClerk()
-  const theme = useTheme()
-  const { userAccessor } = useUser()
-  const [query, setQuery] = createSignal('')
+  let historyList: HTMLDivElement | undefined
+  const focusHistory = () => historyList?.scrollIntoView({ block: 'center' })
   const go = (path: string) => {
     navigate(path)
     if (props.isMobile) props.close()
   }
-  const visibleProjects = createMemo(() => {
-    const value = query().trim().toLowerCase()
-    return props.projects
-      .filter(project => !value || project.title.toLowerCase().includes(value))
-      .slice(0, 30)
-  })
-  const groups = createMemo(() => {
-    if (query().trim()) return []
-    const today = new Date().setHours(0, 0, 0, 0)
-    const week = 7 * 24 * 60 * 60 * 1000
-    const result: Array<{ label: string; items: Project[] }> = [
-      { label: 'Today', items: [] },
-      { label: 'This week', items: [] },
-      { label: 'Older', items: [] },
-    ]
-    for (const project of visibleProjects()) {
-      const updated = new Date(project.updatedAt).getTime()
-      result[updated >= today ? 0 : updated >= today - week ? 1 : 2].items.push(project)
-    }
-    return result.filter(group => group.items.length)
-  })
-  const user = userAccessor
-  const displayName = () => user()?.fullName || user()?.firstName || 'Pitch creator'
-  const email = () => user()?.primaryEmailAddress?.emailAddress ?? ''
-
-  const chat = (project: Project, rail = false) => (
+  const visibleProjects = createMemo(() => props.projects.slice(0, 30))
+  const chat = (project: Project) => (
     <button
       type="button"
-      class={
-        rail
-          ? undefined
-          : `conversation-sidebar__chat${project.id === props.selectedProjectId ? ' is-active' : ''}`
-      }
+      class={`conversation-sidebar__chat${project.id === props.selectedProjectId ? ' is-active' : ''}`}
       onClick={() => go(`/p/${project.id}`)}
       title={`${project.title || 'Untitled project'}${project.busy ? ' (Working)' : ''}`}
       aria-label={`${project.title || 'Untitled project'}${project.busy ? ', working' : ''}`}
     >
-      <MessageSquare size={13} />
       <span>{project.title || 'Untitled project'}</span>
       <Show when={project.busy}>
         <i aria-label="Working" />
@@ -138,11 +104,7 @@ function Sidebar(props: {
         <button
           type="button"
           aria-label="Close navigation"
-          class={
-            props.isMobile
-              ? 'fixed inset-0 z-40 border-0 bg-black/20 backdrop-blur-[6px]'
-              : 'conversation-sidebar__scrim'
-          }
+          class="conversation-sidebar__scrim"
           onClick={props.close}
         />
       </Show>
@@ -202,96 +164,87 @@ function Sidebar(props: {
               <span>Admin</span>
             </button>
           </Show>
+          <button type="button" class="conversation-sidebar__row" onClick={focusHistory}>
+            <History size={16} />
+            <span>History</span>
+          </button>
         </nav>
 
         <div class="conversation-sidebar__projects-head">
-          <p class="conversation-sidebar__section-title">Projects</p>
-          <span>{props.projects.length}</span>
+          <p class="conversation-sidebar__section-title">Chats</p>
+          <button
+            type="button"
+            class="conversation-sidebar__all-chats"
+            onClick={() => go('/chats')}
+          >
+            All Chats
+          </button>
         </div>
-        <div class="conversation-sidebar__search">
-          <Search size={14} />
-          <input
-            aria-label="Search chats"
-            placeholder="Search chats…"
-            value={query()}
-            onInput={event => setQuery(event.currentTarget.value)}
-          />
-        </div>
-        <div class="conversation-sidebar__history">
+        <div class="conversation-sidebar__history" ref={historyList}>
           <Show
             when={visibleProjects().length}
             fallback={
-              <span class="conversation-sidebar__empty">
-                {query() ? 'No matching chats' : 'Your projects will appear here'}
-              </span>
+              <span class="conversation-sidebar__empty">Your projects will appear here</span>
             }
           >
-            <Show
-              when={!query().trim()}
-              fallback={
-                <>
-                  <p class="conversation-sidebar__section-title">Recent chats</p>
-                  <For each={visibleProjects()}>{project => chat(project)}</For>
-                </>
-              }
-            >
-              <For each={groups()}>
-                {group => (
-                  <div class="conversation-sidebar__group">
-                    <p class="conversation-sidebar__section-title">{group.label}</p>
-                    <For each={group.items}>{project => chat(project)}</For>
-                  </div>
-                )}
-              </For>
-            </Show>
+            <For each={visibleProjects()}>{project => chat(project)}</For>
           </Show>
         </div>
-
-        <div class="conversation-sidebar__footer">
-          <div class="conversation-sidebar__utilities">
-            <button
-              type="button"
-              class="conversation-sidebar__row"
-              onClick={() => props.openSettings('account')}
-            >
-              <Settings size={16} />
-              <span>Settings</span>
-            </button>
-            <button
-              type="button"
-              class="conversation-sidebar__row conversation-sidebar__theme"
-              onClick={theme.toggleTheme}
-              aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
-              title={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
-              aria-pressed={theme.theme() === 'dark'}
-            >
-              {theme.theme() === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
+        <footer class="conversation-sidebar__footer">
+          <button
+            type="button"
+            class="conversation-sidebar__invite"
+            onClick={() => props.openSettings('rewards')}
+          >
+            <Gift size={16} />
+            <span>
+              <strong>Invite a friend</strong>
+              <small>Earn credits when they sign up</small>
+            </span>
+            <ChevronRight size={14} />
+          </button>
+          <div class="conversation-sidebar__socials" aria-label="Pitch social links">
+            <For each={SOCIALS}>
+              {social => {
+                const Icon = social.icon
+                return (
+                  <a
+                    class="conversation-sidebar__social"
+                    href={social.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={social.label}
+                    title={social.label}
+                  >
+                    {Icon?.({ size: 16 })}
+                  </a>
+                )
+              }}
+            </For>
           </div>
-          <div class="conversation-sidebar__account">
-            <Show
-              when={user()?.imageUrl}
-              fallback={<UserRound size={28} class="rounded-full bg-white p-1.5" />}
-            >
-              {src => <img src={src()} alt="" class="h-7 w-7 rounded-full object-cover" />}
-            </Show>
-            <button type="button" onClick={() => void clerk.openUserProfile()}>
-              <strong>{displayName()}</strong>
-              <span>{email()}</span>
-            </button>
-            <button
-              type="button"
-              class="conversation-sidebar__signout"
-              onClick={() => void clerk.signOut({ redirectUrl: '/' })}
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut size={15} />
-            </button>
-          </div>
-        </div>
+        </footer>
       </aside>
     </>
+  )
+}
+
+function SidebarRail(props: { hidden: boolean; open: () => void }) {
+  return (
+    <nav
+      class={`conversation-sidebar__rail${props.hidden ? ' is-hidden' : ''}`}
+      aria-label="Workspace navigation"
+      aria-hidden={props.hidden}
+      inert={props.hidden}
+    >
+      <button
+        type="button"
+        onClick={props.open}
+        aria-label="Expand sidebar"
+        title="Expand sidebar (Ctrl+B)"
+      >
+        <PanelLeftOpen />
+      </button>
+    </nav>
   )
 }
 
@@ -301,7 +254,7 @@ export function AppShell(props: ParentProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = createSignal(window.innerWidth < 1024)
-  const [collapsed, setCollapsed] = createSignal(window.innerWidth < 1024)
+  const [collapsed, setCollapsed] = createSignal(true)
   const [projects, setProjects] = createSignal<Project[]>([])
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
@@ -334,13 +287,19 @@ export function AppShell(props: ParentProps) {
       const mobile = window.innerWidth < 1024
       if (mobile === isMobile()) return
       setIsMobile(mobile)
-      setCollapsed(mobile)
+      if (mobile) setCollapsed(true)
     }
     const newChat = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return
-      event.preventDefault()
-      navigate('/new')
-      if (isMobile()) setCollapsed(true)
+      if (!(event.metaKey || event.ctrlKey)) return
+      const key = event.key.toLowerCase()
+      if (key === 'k') {
+        event.preventDefault()
+        navigate('/new')
+        if (isMobile()) setCollapsed(true)
+      } else if (key === 'b') {
+        event.preventDefault()
+        setCollapsed(value => !value)
+      }
     }
     window.addEventListener('resize', resize)
     window.addEventListener('keydown', newChat)
@@ -405,7 +364,7 @@ export function AppShell(props: ParentProps) {
   return (
     <AppShellContext.Provider value={context}>
       <div
-        class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}`}
+        class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}${selectedKey() === 'new' ? ' is-new-shell' : ''}`}
       >
         <OnboardingSurvey />
         <Show when={settingsSection()}>
@@ -417,30 +376,50 @@ export function AppShell(props: ParentProps) {
             />
           )}
         </Show>
-        <Sidebar
-          collapsed={collapsed()}
-          isMobile={isMobile()}
-          isAdmin={isAdmin()}
-          projects={projects()}
-          selectedKey={selectedKey()}
-          selectedProjectId={selectedProjectId()}
-          close={() => setCollapsed(true)}
-          toggle={() => setCollapsed(value => !value)}
-          openSettings={openSettings}
-        />
-        <Show when={collapsed()}>
-          <button
-            type="button"
-            class="conversation-sidebar__open"
-            onClick={() => setCollapsed(false)}
-            aria-label="Open navigation"
-            title="Open navigation"
+        <Show when={!isMobile()}>
+          <div
+            class={`conversation-sidebar-frame${collapsed() ? ' is-collapsed' : ' is-expanded'}`}
           >
-            <PanelLeftOpen size={18} />
-          </button>
+            <SidebarRail hidden={!collapsed()} open={() => setCollapsed(false)} />
+            <Sidebar
+              collapsed={collapsed()}
+              isMobile={false}
+              isAdmin={isAdmin()}
+              projects={projects()}
+              selectedKey={selectedKey()}
+              selectedProjectId={selectedProjectId()}
+              close={() => setCollapsed(true)}
+              toggle={() => setCollapsed(value => !value)}
+              openSettings={openSettings}
+            />
+          </div>
+        </Show>
+        <Show when={isMobile()}>
+          <Sidebar
+            collapsed={collapsed()}
+            isMobile
+            isAdmin={isAdmin()}
+            projects={projects()}
+            selectedKey={selectedKey()}
+            selectedProjectId={selectedProjectId()}
+            close={() => setCollapsed(true)}
+            toggle={() => setCollapsed(value => !value)}
+            openSettings={openSettings}
+          />
+          <Show when={collapsed()}>
+            <button
+              type="button"
+              class="conversation-sidebar__open"
+              onClick={() => setCollapsed(false)}
+              aria-label="Open navigation"
+              title="Open navigation"
+            >
+              <PanelLeftOpen size={18} />
+            </button>
+          </Show>
         </Show>
         <div
-          class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden border-l${studio() ? ' app-shell-panel--studio' : ''}`}
+          class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden${studio() ? ' app-shell-panel--studio' : ''}`}
         >
           <main
             class={`app-shell-main relative flex-1 overflow-x-hidden${studio() ? ' overflow-hidden' : ' overflow-y-auto'}${selectedKey() === 'new' ? ' new-shell-main' : ''}`}

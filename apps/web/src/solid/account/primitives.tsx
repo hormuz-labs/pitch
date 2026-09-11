@@ -129,6 +129,7 @@ export function Select(props: {
           props.class ??
           'h-10 w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 pr-9 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-900/10'
         }
+        style={{ appearance: 'none', '-webkit-appearance': 'none', '-moz-appearance': 'none' }}
       >
         <For each={props.options}>
           {option => <option value={option.value}>{option.label}</option>}
