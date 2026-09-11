@@ -41,9 +41,12 @@ as buttons they click:
    question, plus the ending (Download · Sign up · Just the mark). Three or
    four options, drawn from what recon actually found — never a generic list.
 
-Both rounds can be one call when the first turn already gave you the product
-(a URL you have reconned, or files in the workspace). "You decide" means take
-your own first option for each, say so in a line, and get on with it.
+Ask only about consequential choices the brief leaves open. Skip every choice
+the user already settled or delegated to you; a complete brief needs no questions.
+
+Both rounds can be one call when the first actionable request already gave you
+the product (a URL you have reconned, or files in the workspace). "You decide"
+means take your own first option for each, say so in a line, and get on with it.
 
 Do not ask a third time, do not ask anything you can answer by reading the
 site or the shelf, and never let a question stall the build once it is

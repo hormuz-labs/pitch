@@ -53,6 +53,7 @@ export interface Description {
 }
 
 export interface TurnInput {
+  /** The project's first conversational turn, which may not be its first actionable request. */
   first: boolean
   options: Record<string, any>
   targets?: Array<Record<string, any>>
