@@ -14,6 +14,12 @@ coverage/
 .env
 .env.*
 !.env.example
+.github_token
+.gh_token
+.secrets/
+**/*.pem
+**/*.key
+gha-creds-*.json
 
 # Logs
 *.log
@@ -32,6 +38,7 @@ Thumbs.db
 
 # Git
 .git/
+.git
 .gitignore
 
 # Docker
@@ -51,6 +58,8 @@ demos/
 
 # Local dev data directories (large, not needed in images)
 docker-data/
+projects/
+renders/
 .playwright-cli/
 recordings/
 grafana/
