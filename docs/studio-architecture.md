@@ -138,6 +138,7 @@ The four products survive as **host actions** plus a skill, not as flows:
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
 | generated footage | `video_generate` | `generated-video` |
 | anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
+| audio effects / SFX processing | `media_pedalboard` (`pitch media pedalboard`) | `audio-effects` |
 
 `video_generate` is the odd one out: everything else RENDERS something that
 exists (a GSAP composition, a real browser session, printed slides), and it
