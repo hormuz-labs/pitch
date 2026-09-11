@@ -13,7 +13,10 @@ export function Dialog(props: {
     if (!props.open) return
     const previous = document.activeElement as HTMLElement | null
     const overflow = document.body.style.overflow
+    const scroller = dialog?.closest<HTMLElement>('.app-shell-main')
+    const scrollOverflow = scroller?.style.overflow ?? ''
     document.body.style.overflow = 'hidden'
+    if (scroller) scroller.style.overflow = 'hidden'
     queueMicrotask(() => dialog.querySelector<HTMLElement>('[autofocus],input,button')?.focus())
     const keydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') props.onClose()
@@ -38,13 +41,15 @@ export function Dialog(props: {
     onCleanup(() => {
       document.removeEventListener('keydown', keydown)
       document.body.style.overflow = overflow
+      if (scroller) scroller.style.overflow = scrollOverflow
       previous?.focus()
     })
   })
   return (
     <Show when={props.open}>
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
+        data-lenis-prevent
         onMouseDown={event => event.target === event.currentTarget && props.onClose()}
       >
         <div

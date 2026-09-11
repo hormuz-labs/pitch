@@ -46,6 +46,7 @@ import {
   type StoryboardOverlaySceneLike,
   zoomEventForViewportRect,
 } from '../lib/asset-demo.ts'
+import { projectAudioConfig } from '../lib/audio-config.ts'
 import {
   chunkTypedText,
   clampToFrame,
@@ -78,6 +79,7 @@ import {
   type SlideshowProgress,
 } from '../lib/slideshow-progress.ts'
 import { type RunningSlideshowServer, startSlideshowServer } from '../lib/slideshow-server.ts'
+import { hostAction } from '../lib/studio-host.ts'
 import {
   analyzeVisualSlide,
   groundVisualRegion,
@@ -465,6 +467,36 @@ async function speak(base: string, text: string, state: DemoState): Promise<Spea
   // the moment the narrator *would have spoken*, not after the inference delay.
   const playStartTime = Date.now()
   try {
+    let projectOptions = {}
+    try {
+      projectOptions =
+        JSON.parse(fs.readFileSync(path.join(base, 'project.json'), 'utf8')).options ?? {}
+    } catch {
+      /* Standalone recordings use the operator's audio defaults. */
+    }
+    const config = projectAudioConfig(projectOptions).tts
+    if (config.provider === 'elevenlabs') {
+      const out = `recording/audio/clip_${clipId}.mp3`
+      const result = JSON.parse(
+        await hostAction(base, 'elevenlabs_voiceover', {
+          text,
+          voiceId: config.elevenlabs.voice,
+          model: config.elevenlabs.model,
+          out,
+          resultFormat: 'json',
+        }),
+      )
+      const durationSecs = Number(result.durationSeconds)
+      if (!Number.isFinite(durationSecs) || durationSecs <= 0)
+        throw new Error('Narration has no playable duration')
+      state.audioClips.push({
+        filePath: path.join(base, out),
+        absoluteTimestamp: playStartTime,
+        text,
+      })
+      await new Promise(resolve => setTimeout(resolve, durationSecs * 1000))
+      return { success: true, durationSecs }
+    }
     const apiKey = process.env.GEMINI_TTS_API_KEY_2
     if (!apiKey) throw new Error('No Gemini API key found')
     const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${apiKey}`

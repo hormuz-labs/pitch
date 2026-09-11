@@ -188,11 +188,20 @@ GET    /files/projects/:internal/*     workspace files (owner or preview cookie)
 GET    /files/engine/*                 the shots.js engine
 GET    /files/music/*                  curated beds
 GET    /music                          MusicTrack[]
+GET    /voices                         authenticated ElevenLabs catalog, search + pagination + preview URLs
 POST   /uploads                        multipart → S3 URLs (used by "new project" for PDFs/images/videos)
 GET    /d/:slug, /projects/public/:slug   share page + payload
 /mcp, /v1                              create_project / get_project / list_projects / prompt_project (+ credits)
 /checkout /credits /users /api-keys /affiliate /newsletter /browser /webhooks /admin   carried over
 ```
+
+The new-project composer can pass `options.narrationVoice` as
+`{ provider: 'elevenlabs', id, name }`. It is saved in `project.json` and used
+by both `pitch motion tts` and `pitch demo speak`. It is a narration preference,
+not a request to add speech. `ELEVEN_LABS_KEY` (or `ELEVENLABS_API_KEY`) stays on
+the server. The voice picker uses existing provider samples; previewing them
+does not generate or bill new audio. If a restricted key lacks `voices_read`,
+the picker uses ElevenLabs' public standard-voice catalog.
 
 ## Events (SSE per project)
 

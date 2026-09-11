@@ -172,6 +172,15 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
 
   if (turn.slide) parts.push(`The user is looking at slide ${turn.slide}.`)
 
+  if (
+    options.narrationVoice?.provider === 'elevenlabs' &&
+    typeof options.narrationVoice.id === 'string'
+  ) {
+    parts.push(
+      `Narration preference: the user selected ElevenLabs voice ${JSON.stringify(options.narrationVoice.name)} (id ${JSON.stringify(options.narrationVoice.id)}). The motion tts and demo speak tools use this voice by default. For motion narration, use pitch motion tts --provider elevenlabs --voice ${JSON.stringify(options.narrationVoice.id)}. This preference alone does not request narration or a new artifact.`,
+    )
+  }
+
   if (turn.scene?.startsWith('beat-')) {
     const desc = await describeWorkspace(ws)
     const beat = describeBeat(desc.scenes ?? [], turn.scene)

@@ -2,25 +2,25 @@ import { useNavigate, useSearchParams } from '@solidjs/router'
 import Lenis from 'lenis'
 import {
   ArrowUp,
+  AudioLines,
+  Check,
+  ChevronDown,
+  ChevronsUp,
   Clock3,
   Film,
+  Lightbulb,
+  MonitorPlay,
   Paperclip,
   Plus,
+  Presentation,
   RectangleHorizontal,
+  Rocket,
+  Scissors,
   Sparkles,
   X,
 } from 'lucide-solid'
 import 'lenis/dist/lenis.css'
-import {
-  type Accessor,
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-} from 'solid-js'
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { FeaturedVideos } from '../../components/landing/FeaturedVideos'
 import { isApiError } from '../../lib/api'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
@@ -30,14 +30,14 @@ import {
   type StudioModel,
   type UploadRef,
   uploads as uploadFiles,
+  type VoicePreference,
 } from '../../lib/studio-api'
 import { useAuth } from '../core/auth'
 import { PitchWordmark } from '../public/brand'
-import { CreditPopover } from './credits'
 import { DiscordOfferModal } from './DiscordOfferModal'
-import { Popover, Select } from './primitives'
 import type { SettingsSection } from './SettingsView'
-import { TopNav } from './TopNav.tsx'
+import { StudioMenu, StudioSubmenu } from './StudioMenu'
+import { VoicePicker } from './VoicePicker'
 import '../../studio/studio.css'
 import '../../styles/new-project.css'
 
@@ -45,12 +45,28 @@ const ACCEPT =
   '.pdf,.pptx,.ppt,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a'
 const RATIOS = ['16:9', '9:16', '1:1', '4:5'] as const
 const SKILLS = [
-  { id: 'launch-video', label: 'Launch video', prompt: 'Create a cinematic launch video for ' },
-  { id: 'demo-video', label: 'Product demo', prompt: 'Create a narrated product demo for ' },
-  { id: 'slide-deck', label: 'Slide deck', prompt: 'Create a concise presentation about ' },
+  {
+    id: 'launch-video',
+    label: 'Launch video',
+    icon: Rocket,
+    prompt: 'Create a cinematic launch video for ',
+  },
+  {
+    id: 'demo-video',
+    label: 'Product demo',
+    icon: MonitorPlay,
+    prompt: 'Create a narrated product demo for ',
+  },
+  {
+    id: 'slide-deck',
+    label: 'Slide deck',
+    icon: Presentation,
+    prompt: 'Create a concise presentation about ',
+  },
   {
     id: 'recording-edit',
     label: 'Edit recording',
+    icon: Scissors,
     prompt: 'Polish this recording with clean cuts and captions.',
   },
 ] as const
@@ -60,51 +76,6 @@ const FLOW_TO_SKILL: Record<string, Skill> = {
   'launch-video': 'launch-video',
   'demo-video': 'demo-video',
   'recording-edit': 'recording-edit',
-}
-
-/** The empty composer keeps suggesting openings, typed out and erased in
- * place so the box is never a blank stare. It pauses the moment real text is
- * in the field; with reduced motion the first one just sits there, static. */
-const PLACEHOLDER_PROMPTS = [
-  'A launch video for https://yourproduct.com.',
-  'A cinematic brand documentary about our origin, customers and point of view.',
-  'A clear deep-dive explainer that makes this complex topic feel obvious.',
-  'Match the pacing and visual language of this YouTube video: https://youtube.com/.',
-  'Create a refined loading animation using this logo.',
-  'Turn this recording into a polished talking-head video with captions and clean cuts.',
-]
-
-function useTypedPlaceholder(paused: Accessor<boolean>) {
-  const [text, setText] = createSignal('')
-  createEffect(() => {
-    if (paused()) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setText(PLACEHOLDER_PROMPTS[0])
-      return
-    }
-    let phrase = 0
-    let char = 0
-    let deleting = false
-    let timer = 0
-    const step = () => {
-      const current = PLACEHOLDER_PROMPTS[phrase]
-      char += deleting ? -1 : 1
-      setText(current.slice(0, char))
-      let delay = deleting ? 14 : 32
-      if (!deleting && char === current.length) {
-        deleting = true
-        delay = 2800
-      } else if (deleting && char === 0) {
-        deleting = false
-        phrase = (phrase + 1) % PLACEHOLDER_PROMPTS.length
-        delay = 500
-      }
-      timer = window.setTimeout(step, delay)
-    }
-    timer = window.setTimeout(step, 800)
-    onCleanup(() => window.clearTimeout(timer))
-  })
-  return text
 }
 
 export function NewProjectView(props: {
@@ -135,6 +106,9 @@ export function NewProjectView(props: {
   )
   const [models, setModels] = createSignal<StudioModel[]>([])
   const [model, setModel] = createSignal('')
+  const [voice, setVoice] = createSignal<VoicePreference | null>(null)
+  const [voiceOpen, setVoiceOpen] = createSignal(false)
+  const [exploring, setExploring] = createSignal(false)
   let input!: HTMLInputElement
   let referenceInput!: HTMLInputElement
   let textarea!: HTMLTextAreaElement
@@ -147,7 +121,12 @@ export function NewProjectView(props: {
     setError('')
     requestAnimationFrame(() => textarea.focus())
   }
-  const typedPlaceholder = useTypedPlaceholder(() => prompt().length > 0)
+  createEffect(() => {
+    prompt()
+    if (!textarea) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`
+  })
   createEffect(() => {
     const flow = queryValue(params.flow)
     setSkill(flow ? (FLOW_TO_SKILL[flow] ?? null) : null)
@@ -157,7 +136,7 @@ export function NewProjectView(props: {
     if (value !== undefined) setPrompt(value)
   })
   onMount(async () => {
-    textarea.focus()
+    if (window.matchMedia('(min-width: 761px)').matches) textarea.focus()
     try {
       const token = await getToken()
       if (!token) return
@@ -169,9 +148,20 @@ export function NewProjectView(props: {
     }
   })
   let pageRoot: HTMLDivElement | undefined
-  // Lenis on the page's own scroll container (main.app-shell-main, not the
-  // window): the long featured-videos pass should glide. Overscroll stays off
-  // so the page comes to rest exactly on the end of that section.
+  let scrollController: Lenis | undefined
+  const scrollTo = (target: 'inspiration' | 'composer') => {
+    const element = pageRoot?.querySelector<HTMLElement>('.new-featured-cue')
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    scrollController?.scrollTo(target === 'composer' ? 0 : (element ?? 0), {
+      duration: 0.55,
+      easing: t => 1 - (1 - t) ** 4,
+      immediate: reduced,
+      onComplete: () => {
+        if (target === 'composer') textarea.focus({ preventScroll: true })
+      },
+    })
+  }
+  // Smooth the page's own scroll container, including the inspiration anchor.
   onMount(() => {
     const wrapper = pageRoot?.closest('.app-shell-main')
     if (!pageRoot || !(wrapper instanceof HTMLElement)) return
@@ -186,6 +176,28 @@ export function NewProjectView(props: {
       syncTouch: false,
       respectReducedMotion: true,
     })
+    scrollController = lenis
+    const updateExplore = () => {
+      const hero = pageRoot?.querySelector<HTMLElement>('.new-create-hero')
+      const travel = Math.max(1, (hero?.offsetHeight ?? wrapper.clientHeight) - 52)
+      const progress = Math.min(1, wrapper.scrollTop / travel)
+      pageRoot?.style.setProperty('--explore-progress', String(progress))
+      setExploring(progress > 0.4)
+    }
+    const reset = () => {
+      setPrompt('')
+      setFiles([])
+      setReferenceVideoFiles([])
+      setSkill(null)
+      setDeckTemplate(null)
+      setError('')
+      setVoice(null)
+      setRatio('16:9')
+      setDuration(null)
+      scrollTo('composer')
+    }
+    wrapper.addEventListener('scroll', updateExplore, { passive: true })
+    window.addEventListener('pitch:new-chat', reset)
     let frame = 0
     const raf = (time: number) => {
       lenis.raf(time)
@@ -194,7 +206,10 @@ export function NewProjectView(props: {
     frame = requestAnimationFrame(raf)
     onCleanup(() => {
       cancelAnimationFrame(frame)
+      wrapper.removeEventListener('scroll', updateExplore)
+      window.removeEventListener('pitch:new-chat', reset)
       lenis.destroy()
+      scrollController = undefined
     })
   })
   const create = async (text: string, uploaded: UploadRef[], token: string) => {
@@ -203,6 +218,7 @@ export function NewProjectView(props: {
       uploads: uploaded,
       options: {
         aspectRatio: ratio(),
+        ...(voice() ? { narrationVoice: voice() } : {}),
         ...(duration() ? { durationSeconds: duration() } : {}),
         ...(skill() ? { skill: skill() } : {}),
         ...(deckTemplate()
@@ -218,27 +234,30 @@ export function NewProjectView(props: {
     navigate(`/p/${project.id}`)
   }
   const pick = async (list: FileList | null, openAfter = false, reference = false) => {
-    if (!list?.length) return
+    if (!list?.length || uploading() || submitting()) return
     const picked = [...list]
     const oversized = picked.find(file => file.size > 500 * 1024 * 1024)
     if (oversized) {
-      props.onNotice?.(`${oversized.name} is over 500 MB`, 'error')
+      setError(`${oversized.name} is over 500 MB`)
       return
     }
     setUploading(true)
+    setError('')
     try {
       const token = await getToken()
       if (!token) throw new Error('Not signed in')
       const form = new FormData()
       picked.forEach(file => form.append('files', file))
       const added = await uploadFiles(token, form)
-      setFiles(current => [...current, ...added])
+      const allFiles = [...files(), ...added]
+      setFiles(allFiles)
       if (reference)
         setReferenceVideoFiles(current => [
           ...new Set([...current, ...added.map(file => file.name)]),
         ])
-      if (openAfter) await create(prompt().trim(), added, token)
+      if (openAfter && !prompt().trim()) await create('', allFiles, token)
     } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Upload failed')
       props.onNotice?.(reason instanceof Error ? reason.message : 'Upload failed', 'error')
     } finally {
       setUploading(false)
@@ -270,15 +289,24 @@ export function NewProjectView(props: {
       setSubmitting(false)
     }
   }
+  let dragDepth = 0
   return (
     <div
       ref={pageRoot}
       class={`lv-studio new-project-page ${dragging() ? 'dropping' : ''}`}
       onDragOver={event => event.preventDefault()}
-      onDragEnter={() => setDragging(true)}
-      onDragLeave={() => setDragging(false)}
+      onDragEnter={event => {
+        if (!event.dataTransfer?.types.includes('Files')) return
+        dragDepth++
+        setDragging(true)
+      }}
+      onDragLeave={() => {
+        dragDepth = Math.max(0, dragDepth - 1)
+        if (!dragDepth) setDragging(false)
+      }}
       onDrop={event => {
         event.preventDefault()
+        dragDepth = 0
         setDragging(false)
         void pick(event.dataTransfer?.files ?? null, true)
       }}
@@ -297,15 +325,22 @@ export function NewProjectView(props: {
           }}
         />
       </Show>
-      <TopNav openSettings={props.openSettings} />
+      <Show when={voiceOpen()}>
+        <VoicePicker value={voice()} onChange={setVoice} onClose={() => setVoiceOpen(false)} />
+      </Show>
       <Show when={dragging()}>
         <div class="drop-veil" aria-live="polite">
-          <span>Drop it here - this opens the editor</span>
+          <span>
+            {prompt().trim()
+              ? 'Drop files to add them to your brief'
+              : 'Drop a file to open it in the studio'}
+          </span>
         </div>
       </Show>
       <section class="new-create-hero">
         <div class="new-create-hero__intro">
           <PitchWordmark class="new-project-wordmark" />
+          <h1 class="sr-only">What do you want to make?</h1>
         </div>
         <div class="composer-wrap new-composer-wrap">
           <div class={`composer-box ${error() ? 'invalid' : ''}`}>
@@ -315,6 +350,9 @@ export function NewProjectView(props: {
                   {(file, index) => (
                     <span class="attach-chip">
                       <span>{file.name}</span>
+                      <Show when={referenceVideoFiles().includes(file.name)}>
+                        <em>Reference</em>
+                      </Show>
                       <button
                         aria-label={`Remove ${file.name}`}
                         onClick={() => {
@@ -337,14 +375,21 @@ export function NewProjectView(props: {
               ref={textarea}
               rows={2}
               id="new-project-prompt"
-              placeholder={activeSkill()?.prompt ?? typedPlaceholder()}
+              aria-label="Describe your project"
+              aria-describedby={error() ? 'new-project-error' : 'new-project-hint'}
+              aria-invalid={Boolean(error())}
+              disabled={submitting()}
+              placeholder={
+                activeSkill()?.prompt ??
+                'Describe a video, presentation, or edit. Start with an idea or a link…'
+              }
               value={prompt()}
               onInput={event => {
                 setPrompt(event.currentTarget.value)
                 setError('')
               }}
               onKeyDown={event => {
-                if (event.key === 'Enter' && !event.shiftKey) {
+                if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
                   event.preventDefault()
                   void submit()
                 }
@@ -367,74 +412,139 @@ export function NewProjectView(props: {
                   accept=".mp4,.webm,.mov,.mkv"
                   onChange={event => void pick(event.currentTarget.files, false, true)}
                 />
-                <Popover
+                <StudioMenu
                   label="Add files and preferences"
+                  width={208}
+                  triggerClass="composer-menu-trigger"
                   trigger={
                     <span class="attach-plus">
-                      <Plus size={18} />
+                      <Show when={!uploading()} fallback={<span class="spinner" />}>
+                        <Plus size={20} />
+                      </Show>
                     </span>
                   }
-                  class="composer-add-menu absolute bottom-full left-0 z-20 mb-2"
                 >
-                  <button role="menuitem" onClick={() => input.click()}>
+                  <button
+                    role="menuitem"
+                    disabled={uploading() || submitting()}
+                    onClick={() => input.click()}
+                  >
                     <Paperclip size={15} />
-                    <span>Add photos &amp; files</span>
+                    <span>Add files &amp; photos</span>
                   </button>
-                  <button role="menuitem" onClick={() => referenceInput.click()}>
+                  <button
+                    role="menuitem"
+                    disabled={uploading() || submitting()}
+                    onClick={() => referenceInput.click()}
+                  >
                     <Film size={15} />
-                    <span>Add a reference video</span>
+                    <span>Reference video</span>
                   </button>
-                  <label>
-                    <RectangleHorizontal size={15} />
-                    <span>Aspect ratio</span>
-                    <select
-                      value={ratio()}
-                      onChange={event =>
-                        setRatio(event.currentTarget.value as (typeof RATIOS)[number])
-                      }
-                    >
-                      <For each={RATIOS}>{value => <option>{value}</option>}</For>
-                    </select>
-                  </label>
-                  <label>
-                    <Clock3 size={15} />
-                    <span>Duration</span>
-                    <select
-                      value={duration() ?? ''}
-                      onChange={event =>
-                        setDuration(
-                          event.currentTarget.value ? Number(event.currentTarget.value) : null,
-                        )
-                      }
-                    >
-                      <option value="">Auto</option>
-                      <For each={[6, 15, 30, 60]}>
-                        {value => <option value={value}>{value} seconds</option>}
-                      </For>
-                    </select>
-                  </label>
-                </Popover>
-                <Show when={activeSkill()}>
-                  {selected => (
-                    <span class="new-skill-chip">
-                      <Sparkles size={13} />
-                      {selected().label}
-                    </span>
-                  )}
+                  <button role="menuitem" onClick={() => setVoiceOpen(true)}>
+                    <AudioLines size={16} />
+                    <span>Narration voice</span>
+                  </button>
+                  <div class="menu-separator" />
+                  <StudioSubmenu
+                    label="Aspect ratio"
+                    icon={<RectangleHorizontal />}
+                    value={ratio()}
+                  >
+                    <For each={RATIOS}>
+                      {value => (
+                        <button
+                          role="menuitemradio"
+                          aria-checked={ratio() === value}
+                          onClick={() => setRatio(value)}
+                        >
+                          <span>{value}</span>
+                          <Show when={ratio() === value}>
+                            <Check class="menu-check" />
+                          </Show>
+                        </button>
+                      )}
+                    </For>
+                  </StudioSubmenu>
+                  <StudioSubmenu
+                    label="Duration"
+                    icon={<Clock3 />}
+                    value={duration() ? `${duration()}s` : 'Auto'}
+                  >
+                    <For each={[null, 6, 15, 30, 60]}>
+                      {value => (
+                        <button
+                          role="menuitemradio"
+                          aria-checked={duration() === value}
+                          onClick={() => setDuration(value)}
+                        >
+                          <span>{value ? `${value} seconds` : 'Auto'}</span>
+                          <Show when={duration() === value}>
+                            <Check class="menu-check" />
+                          </Show>
+                        </button>
+                      )}
+                    </For>
+                  </StudioSubmenu>
+                </StudioMenu>
+                <Show when={voice()}>
+                  <button
+                    class={`new-voice-trigger ${voice() ? 'is-selected' : ''}`}
+                    aria-label={
+                      voice()
+                        ? `Change narration voice, ${voice()!.name}`
+                        : 'Choose narration voice'
+                    }
+                    aria-haspopup="dialog"
+                    disabled={submitting()}
+                    onClick={() => setVoiceOpen(true)}
+                  >
+                    <AudioLines size={16} />
+                    <span>{voice()?.name.split(' - ')[0] ?? 'Voice'}</span>
+                    <ChevronDown size={12} />
+                  </button>
                 </Show>
               </div>
               <div class="tool-row">
-                <span class="composer-credits">
-                  <CreditPopover variant="marker" />
-                </span>
                 <Show when={models().length}>
-                  <Select
-                    value={model()}
+                  <StudioMenu
                     label="Model"
-                    options={models().map(item => ({ value: item.spec, label: item.label }))}
-                    onChange={setModel}
-                    class="model-btn"
-                  />
+                    align="end"
+                    width={264}
+                    triggerClass="new-model-trigger"
+                    trigger={
+                      <>
+                        <span>
+                          {models().find(item => item.spec === model())?.label ?? 'Model'}
+                        </span>
+                        <ChevronDown size={14} />
+                      </>
+                    }
+                  >
+                    <For each={models()}>
+                      {item => (
+                        <button
+                          class="menu-model"
+                          role="menuitemradio"
+                          aria-checked={model() === item.spec}
+                          onClick={() => setModel(item.spec)}
+                        >
+                          <span>
+                            <strong>{item.label}</strong>
+                            <small class="menu-description">
+                              {item.label.includes('Pro')
+                                ? 'Detailed planning and complex projects'
+                                : item.label.includes('Gemma')
+                                  ? 'Open-weight model for creative work'
+                                  : 'Quick drafts and everyday projects'}
+                            </small>
+                          </span>
+                          <Show when={model() === item.spec}>
+                            <Check class="menu-check" />
+                          </Show>
+                        </button>
+                      )}
+                    </For>
+                  </StudioMenu>
                 </Show>
                 <button
                   class="send-btn"
@@ -448,9 +558,40 @@ export function NewProjectView(props: {
                 </button>
               </div>
             </div>
+            <Show when={activeSkill() || ratio() !== '16:9' || duration()}>
+              <div class="new-preferences">
+                <Show when={activeSkill()}>
+                  {selected => (
+                    <button
+                      class="new-skill-chip"
+                      aria-label={`Clear ${selected().label} preference`}
+                      onClick={() => {
+                        setSkill(null)
+                        setDeckTemplate(null)
+                      }}
+                    >
+                      <Sparkles size={12} />
+                      {selected().label}
+                      <X size={12} />
+                    </button>
+                  )}
+                </Show>
+                <Show when={ratio() !== '16:9'}>
+                  <button aria-label="Reset aspect ratio" onClick={() => setRatio('16:9')}>
+                    {ratio()}
+                    <X size={12} />
+                  </button>
+                </Show>
+                <Show when={duration()}>
+                  <button aria-label="Reset duration" onClick={() => setDuration(null)}>
+                    {duration()}s<X size={12} />
+                  </button>
+                </Show>
+              </div>
+            </Show>
           </div>
           <Show when={error()}>
-            <div class="create-error" role="alert">
+            <div id="new-project-error" class="create-error" role="alert">
               {error()}
             </div>
           </Show>
@@ -466,10 +607,13 @@ export function NewProjectView(props: {
                         if (item.id === 'slide-deck') setDeckTemplate(null)
                         return null
                       }
+                      if (item.id !== 'slide-deck') setDeckTemplate(null)
                       return item.id
                     })
+                    textarea.focus()
                   }}
                 >
+                  <item.icon size={16} />
                   {item.label}
                 </button>
               )}
@@ -495,12 +639,35 @@ export function NewProjectView(props: {
               </div>
             </section>
           </Show>
-          <a class="new-featured-cue" href="#featured-videos">
-            See featured videos <span>↓</span>
-          </a>
+          <p class="sr-only" id="new-project-hint">
+            {uploading()
+              ? 'Uploading your files…'
+              : files().length && !prompt().trim()
+                ? 'Open your files in the studio, then tell Pitch what to change.'
+                : 'Drop a file to start from what you have. Pitch takes it from there.'}
+          </p>
         </div>
+        <button
+          class="new-featured-cue"
+          onClick={() => scrollTo('inspiration')}
+          aria-label="Explore inspiration"
+        >
+          <span>
+            <Lightbulb size={16} />
+            Explore inspiration
+          </span>
+          <span>
+            Scroll to explore <ChevronsUp size={15} />
+          </span>
+        </button>
       </section>
       <FeaturedVideos />
+      <div class={`new-return-wrap ${exploring() ? 'is-visible' : ''}`} inert={!exploring()}>
+        <button class="new-return-button" onClick={() => scrollTo('composer')}>
+          <ArrowUp size={17} />
+          Create with Pitch
+        </button>
+      </div>
     </div>
   )
 }

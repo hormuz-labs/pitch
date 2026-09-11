@@ -1,13 +1,13 @@
 import { useLocation, useNavigate } from '@solidjs/router'
 import {
   AppWindow,
-  ChevronRight,
-  Gift,
-  History,
+  FileText,
+  FolderOpen,
   PanelLeftClose,
   PanelLeftOpen,
   PlugZap,
   Plus,
+  Search,
   Shield,
   X,
 } from 'lucide-solid'
@@ -32,8 +32,7 @@ import type { UserProfile } from '../../types'
 import { DiscordOfferModal } from '../account/DiscordOfferModal'
 import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
-import { PitchWordmark } from '../public/brand'
-import { SOCIALS } from '../public/LandingFooter'
+import { SidebarAccountMenu } from '../account/SidebarAccountMenu'
 import { useAuth, useUser } from './auth'
 
 interface AppShellContextValue {
@@ -71,6 +70,7 @@ function Sidebar(props: {
   isMobile: boolean
   isAdmin: boolean
   projects: Project[]
+  projectsLoading: boolean
   selectedKey: string
   selectedProjectId?: string
   close: () => void
@@ -78,25 +78,55 @@ function Sidebar(props: {
   openSettings: (section?: SettingsSection) => void
 }) {
   const navigate = useNavigate()
-  let historyList: HTMLDivElement | undefined
-  const focusHistory = () => historyList?.scrollIntoView({ block: 'center' })
+  const location = useLocation()
+  const [search, setSearch] = createSignal('')
   const go = (path: string) => {
     navigate(path)
+    if (path === '/new') window.dispatchEvent(new Event('pitch:new-chat'))
     if (props.isMobile) props.close()
   }
-  const visibleProjects = createMemo(() => props.projects.slice(0, 30))
-  const chat = (project: Project) => (
+  const matches = createMemo(() => {
+    const query = search().trim().toLowerCase()
+    return props.projects
+      .filter(project => !query || project.title.toLowerCase().includes(query))
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+  })
+  const visibleProjects = createMemo(() => matches().slice(0, search().trim() ? 8 : 5))
+  const projectState = (project: Project) =>
+    project.busy
+      ? 'Working'
+      : project.status === 'ready'
+        ? 'Ready'
+        : project.status === 'failed'
+          ? 'Needs attention'
+          : 'Draft'
+  const projectDate = (value: string) => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    return date.toDateString() === new Date().toDateString()
+      ? 'Today'
+      : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  }
+  const recentProject = (project: Project) => (
     <button
       type="button"
-      class={`conversation-sidebar__chat${project.id === props.selectedProjectId ? ' is-active' : ''}`}
+      class={`sidebar-recent-project${project.id === props.selectedProjectId ? ' is-active' : ''}`}
       onClick={() => go(`/p/${project.id}`)}
       title={`${project.title || 'Untitled project'}${project.busy ? ' (Working)' : ''}`}
       aria-label={`${project.title || 'Untitled project'}${project.busy ? ', working' : ''}`}
+      aria-current={project.id === props.selectedProjectId ? 'page' : undefined}
     >
-      <span>{project.title || 'Untitled project'}</span>
-      <Show when={project.busy}>
-        <i aria-label="Working" />
-      </Show>
+      <span class="sidebar-recent-project__icon">
+        <FileText size={15} />
+      </span>
+      <span class="sidebar-recent-project__copy">
+        <strong>{project.title || 'Untitled project'}</strong>
+        <small>
+          <span classList={{ 'is-working': project.busy }}>{projectState(project)}</span>
+          <span aria-hidden="true">·</span>
+          <time datetime={project.updatedAt}>{projectDate(project.updatedAt)}</time>
+        </small>
+      </span>
     </button>
   )
 
@@ -116,9 +146,14 @@ function Sidebar(props: {
         inert={props.collapsed}
       >
         <div class="conversation-sidebar__brand">
-          <button type="button" class="conversation-sidebar__wordmark" onClick={() => go('/new')}>
+          <button
+            type="button"
+            class="conversation-sidebar__wordmark"
+            aria-label="Pitch home"
+            onClick={() => go('/new')}
+          >
             <img src={tabLogo} alt="" />
-            <PitchWordmark class="conversation-sidebar__wordmark-svg" />
+            <span class="sidebar-brand-name">Pitch</span>
           </button>
           <button
             type="button"
@@ -133,12 +168,20 @@ function Sidebar(props: {
         <nav class="conversation-sidebar__primary" aria-label="Primary">
           <button
             type="button"
-            class={`conversation-sidebar__new${props.selectedKey === 'new' ? ' is-active' : ''}`}
+            class={`conversation-sidebar__new${location.pathname === '/new' ? ' is-active' : ''}`}
             onClick={() => go('/new')}
           >
             <Plus size={17} />
-            <span>New chat</span>
+            <span>New project</span>
             <kbd>⌘ K</kbd>
+          </button>
+          <button
+            type="button"
+            class={`conversation-sidebar__row${location.pathname === '/projects' ? ' is-active' : ''}`}
+            onClick={() => go('/projects')}
+          >
+            <FolderOpen size={16} />
+            <span>Projects</span>
           </button>
           <button
             type="button"
@@ -166,64 +209,71 @@ function Sidebar(props: {
               <span>Admin</span>
             </button>
           </Show>
-          <button type="button" class="conversation-sidebar__row" onClick={focusHistory}>
-            <History size={16} />
-            <span>History</span>
-          </button>
         </nav>
 
-        <div class="conversation-sidebar__projects-head">
-          <p class="conversation-sidebar__section-title">Chats</p>
-          <button
-            type="button"
-            class="conversation-sidebar__all-chats"
-            onClick={() => go('/chats')}
-          >
-            All Chats
-          </button>
-        </div>
-        <div class="conversation-sidebar__history" ref={historyList}>
-          <Show
-            when={visibleProjects().length}
-            fallback={
-              <span class="conversation-sidebar__empty">Your projects will appear here</span>
-            }
-          >
-            <For each={visibleProjects()}>{project => chat(project)}</For>
-          </Show>
-        </div>
-        <footer class="conversation-sidebar__footer">
-          <button
-            type="button"
-            class="conversation-sidebar__invite"
-            onClick={() => props.openSettings('rewards')}
-          >
-            <Gift size={16} />
-            <span>
-              <strong>Invite a friend</strong>
-              <small>Earn credits when they sign up</small>
-            </span>
-            <ChevronRight size={14} />
-          </button>
-          <div class="conversation-sidebar__socials" aria-label="Pitch social links">
-            <For each={SOCIALS}>
-              {social => {
-                const Icon = social.icon
-                return (
-                  <a
-                    class="conversation-sidebar__social"
-                    href={social.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={social.label}
-                    title={social.label}
-                  >
-                    {Icon?.({ size: 16 })}
-                  </a>
-                )
-              }}
-            </For>
+        <section class="sidebar-recents" aria-label="Recent projects">
+          <div class="conversation-sidebar__projects-head">
+            <h2 class="conversation-sidebar__section-title">
+              {search().trim() ? 'Search results' : 'Recent projects'}
+            </h2>
+            <button
+              type="button"
+              class="conversation-sidebar__all-chats"
+              aria-label="View all projects"
+              onClick={() => go('/projects')}
+            >
+              View all
+            </button>
           </div>
+          <div class="sidebar-project-search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search projects"
+              placeholder="Find a project…"
+              value={search()}
+              onInput={event => setSearch(event.currentTarget.value)}
+              onKeyDown={event => {
+                if (event.key === 'Escape') setSearch('')
+              }}
+            />
+            <Show when={search()}>
+              <button type="button" aria-label="Clear project search" onClick={() => setSearch('')}>
+                <X size={13} />
+              </button>
+            </Show>
+          </div>
+          <div class="conversation-sidebar__history" aria-busy={props.projectsLoading}>
+            <Show
+              when={!props.projectsLoading}
+              fallback={
+                <p class="sidebar-recents__empty" role="status">
+                  Loading projects…
+                </p>
+              }
+            >
+              <Show
+                when={visibleProjects().length}
+                fallback={
+                  <p class="sidebar-recents__empty">
+                    {search().trim()
+                      ? 'No projects match your search.'
+                      : 'Your recent work will appear here.'}
+                  </p>
+                }
+              >
+                <For each={visibleProjects()}>{recentProject}</For>
+                <Show when={search().trim() && matches().length > 8}>
+                  <p class="sidebar-recents__empty">
+                    Showing 8 of {matches().length}. Refine your search to find a project.
+                  </p>
+                </Show>
+              </Show>
+            </Show>
+          </div>
+        </section>
+        <footer class="conversation-sidebar__footer">
+          <SidebarAccountMenu openSettings={props.openSettings} />
         </footer>
       </aside>
     </>
@@ -256,8 +306,9 @@ export function AppShell(props: ParentProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = createSignal(window.innerWidth < 1024)
-  const [collapsed, setCollapsed] = createSignal(true)
+  const [collapsed, setCollapsed] = createSignal(window.innerWidth < 1024)
   const [projects, setProjects] = createSignal<Project[]>([])
+  const [projectsLoading, setProjectsLoading] = createSignal(true)
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [discordPromoOpen, setDiscordPromoOpen] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
@@ -300,6 +351,8 @@ export function AppShell(props: ParentProps) {
       if (token) setProjects(await listProjects(token))
     } catch {
       // History must not make primary navigation unavailable.
+    } finally {
+      setProjectsLoading(false)
     }
   }
 
@@ -319,6 +372,7 @@ export function AppShell(props: ParentProps) {
       if (key === 'k') {
         event.preventDefault()
         navigate('/new')
+        window.dispatchEvent(new Event('pitch:new-chat'))
         if (isMobile()) setCollapsed(true)
       } else if (key === 'b') {
         event.preventDefault()
@@ -426,6 +480,7 @@ export function AppShell(props: ParentProps) {
               isMobile={false}
               isAdmin={isAdmin()}
               projects={projects()}
+              projectsLoading={projectsLoading()}
               selectedKey={selectedKey()}
               selectedProjectId={selectedProjectId()}
               close={() => setCollapsed(true)}
@@ -440,6 +495,7 @@ export function AppShell(props: ParentProps) {
             isMobile
             isAdmin={isAdmin()}
             projects={projects()}
+            projectsLoading={projectsLoading()}
             selectedKey={selectedKey()}
             selectedProjectId={selectedProjectId()}
             close={() => setCollapsed(true)}

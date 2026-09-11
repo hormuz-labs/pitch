@@ -6,7 +6,8 @@
  * pipelines/elevenlabs.ts). The choice is the operator's, not the agent's —
  * it is a matter of keys, cost and taste — so it lives in a file next to
  * models.json, outside the sandbox, and `pitch motion tts` reads it on every
- * call. `--provider` on that command overrides it for one read.
+ * call. Project narration preferences override these operator defaults;
+ * explicit `--provider` and `--voice` arguments override them for one read.
  *
  * Each provider block holds the defaults a call may leave out: the voice
  * (a Gemini voice name; an ElevenLabs voice id, see `pitch motion voices`)
@@ -65,4 +66,25 @@ export function parseAudioConfig(json: string): AudioConfig {
 export function audioConfig(file = AUDIO_CONFIG_FILE): AudioConfig {
   if (!existsSync(file)) return DEFAULTS
   return parseAudioConfig(readFileSync(file, 'utf8'))
+}
+
+/** A project voice wins over operator defaults; explicit tool arguments can still override it. */
+export function projectAudioConfig(
+  options: Record<string, any>,
+  config = audioConfig(),
+): AudioConfig {
+  const voice = options.narrationVoice
+  if (
+    voice?.provider !== 'elevenlabs' ||
+    typeof voice.id !== 'string' ||
+    !/^[a-zA-Z0-9_-]{1,100}$/.test(voice.id)
+  )
+    return config
+  return {
+    tts: {
+      ...config.tts,
+      provider: 'elevenlabs',
+      elevenlabs: { ...config.tts.elevenlabs, voice: voice.id },
+    },
+  }
 }

@@ -163,6 +163,20 @@ export interface StudioModel {
   label: string
 }
 
+export interface StudioVoice {
+  id: string
+  name: string
+  description: string
+  labels: Record<string, string>
+  previewUrl: string | null
+}
+
+export interface VoicePreference {
+  provider: 'elevenlabs'
+  id: string
+  name: string
+}
+
 // ── Thread / events ───────────────────────────────────────────────────────────
 
 export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool'
@@ -261,6 +275,15 @@ export const getFlows = (token: string) => api.get<FlowInfo[]>('/projects/flows'
 
 export const listStudioModels = (token: string) =>
   api.get<{ default: string; models: StudioModel[] }>('/projects/models', token)
+
+export const listStudioVoices = (token: string, search = '', cursor = '') => {
+  const query = new URLSearchParams({ search, cursor })
+  return api.get<{
+    voices: StudioVoice[]
+    nextCursor: string | null
+    source: 'account' | 'default'
+  }>(`/voices?${query}`, token)
+}
 
 export const createProject = (token: string, input: CreateProjectInput) =>
   api.post<ProjectDetail>('/projects', token, input)

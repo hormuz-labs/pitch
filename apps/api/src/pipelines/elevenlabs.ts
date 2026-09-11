@@ -13,6 +13,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
+import { elevenLabsKey } from '../lib/elevenlabs.js'
+import { getMediaDurationSec } from '../render/media.js'
 import { registerHostAction } from '../studio/host-actions.js'
 import type { Workspace } from '../studio/paths.js'
 import { insideWorkspace } from './media.js'
@@ -26,12 +28,6 @@ const TTS_MODELS = new Set(['eleven_v3', 'eleven_multilingual_v2', 'eleven_flash
 const MUSIC_TIMEOUT_MS = Number(process.env.ELEVENLABS_MUSIC_TIMEOUT_MS ?? 10 * 60_000)
 const SFX_TIMEOUT_MS = Number(process.env.ELEVENLABS_SFX_TIMEOUT_MS ?? 2 * 60_000)
 const TTS_TIMEOUT_MS = Number(process.env.ELEVENLABS_TTS_TIMEOUT_MS ?? 3 * 60_000)
-
-function apiKey(): string {
-  const key = process.env.ELEVENLABS_API_KEY
-  if (!key) throw new Error('ElevenLabs needs ELEVENLABS_API_KEY in the API environment')
-  return key
-}
 
 export interface MusicRequest {
   prompt: string
@@ -161,7 +157,7 @@ async function generate(
     const query = outputFormat ? `?output_format=${encodeURIComponent(outputFormat)}` : ''
     const res = await fetch(`${BASE_URL}${endpoint}${query}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'xi-api-key': apiKey() },
+      headers: { 'Content-Type': 'application/json', 'xi-api-key': elevenLabsKey() },
       body: JSON.stringify(body),
       signal: controller.signal,
     })
@@ -189,7 +185,7 @@ async function getJson(endpoint: string, timeoutMs: number): Promise<any> {
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
-      headers: { 'xi-api-key': apiKey() },
+      headers: { 'xi-api-key': elevenLabsKey() },
       signal: controller.signal,
     })
     const text = await res.text()
@@ -289,6 +285,9 @@ registerHostAction('elevenlabs_voiceover', async (ws, params) => {
   // The exact text spoken, beside the file, so `pitch motion align` can time every word.
   const txt = out.abs.replace(/\.\w+$/, '.txt')
   await writeFile(txt, `${request.text}\n`, 'utf8')
+  if (params.resultFormat === 'json') {
+    return JSON.stringify({ file: out.rel, durationSeconds: await getMediaDurationSec(out.abs) })
+  }
   const words = request.text.split(/\s+/).filter(Boolean).length
   return (
     `Recorded one continuous ElevenLabs read: ${out.rel} (${mb(result.audio)}, ${words} words, ${String(body.model_id)}, voice ${voiceId}). ` +
