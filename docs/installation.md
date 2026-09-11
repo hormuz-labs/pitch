@@ -1,5 +1,8 @@
 # Installation
 
+For production on Google Cloud, use the [GKE deployment guide](gke-deployment.md).
+The instructions below cover the Docker Compose installation.
+
 ## Prerequisites
 
 - Docker with Docker Compose plugin

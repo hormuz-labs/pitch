@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1
+ARG RUNTIME_IMAGE=ghcr.io/hormuz-labs/pitch-base:latest
 # ── Stage 1: install & build ──────────────────────────────────────────────────
 FROM oven/bun:1-debian AS builder
 
@@ -27,7 +28,7 @@ COPY . .
 RUN PATH="/app/packages/db/node_modules/.bin:$PATH" ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM ghcr.io/hormuz-labs/pitch-base:latest AS runtime
+FROM ${RUNTIME_IMAGE} AS runtime
 
 WORKDIR /app
 COPY --from=builder /app .
@@ -50,5 +51,6 @@ ENV NODE_ENV=production
 ARG GIT_HASH
 ENV GIT_HASH=${GIT_HASH}
 EXPOSE 3000
+STOPSIGNAL SIGTERM
 
-CMD ["sh", "-c", "bunx prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/api/src/index.ts"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma && exec bun apps/api/src/index.ts"]

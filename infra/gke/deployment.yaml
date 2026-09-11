@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pitch
+spec:
+  # Sessions, SSE, exports and file watchers belong to one process.
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 900
+  selector:
+    matchLabels:
+      app: pitch
+  template:
+    metadata:
+      labels:
+        app: pitch
+    spec:
+      serviceAccountName: pitch
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+      initContainers:
+        - name: prepare-state
+          image: pitch-api
+          command: [sh, -c, 'mkdir -p /state/projects /state/pi /state/whisper /state/browser']
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          volumeMounts:
+            - name: state
+              mountPath: /state
+        # Native sidecar starts before migrations and stays until the API has stopped.
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.18.2@sha256:fc224915ef435afeb5b2a9421260a0d31986d5c8b7c7f5783c7f5d5885700cd2
+          restartPolicy: Always
+          args:
+            - --structured-logs
+            - --private-ip
+            - --port=5432
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9090
+            - ${CLOUD_SQL_CONNECTION_NAME}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet: { path: /startup, port: 9090 }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readiness, port: 9090 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+      containers:
+        - name: api
+          image: pitch-api
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef: { name: pitch-config }
+            - secretRef: { name: pitch-runtime }
+          # Same namespace/mount permissions as the supported Compose sandbox.
+          # Requires GKE Standard and a node policy allowing bubblewrap.
+          securityContext:
+            capabilities:
+              add: [SYS_ADMIN]
+            seccompProfile: { type: Unconfined }
+            appArmorProfile: { type: Unconfined }
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 5
+            failureThreshold: 120
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests: { cpu: '2', memory: 4Gi, ephemeral-storage: 2Gi }
+            limits: { cpu: '8', memory: 16Gi, ephemeral-storage: 20Gi }
+          volumeMounts:
+            - { name: state, mountPath: /app/projects, subPath: projects }
+            - { name: state, mountPath: /root/.pi/agent, subPath: pi }
+            - { name: state, mountPath: /root/.cache/whisper-cpp, subPath: whisper }
+            - { name: scratch, mountPath: /tmp }
+        - name: browser
+          image: cloakbrowser-manager
+          ports:
+            - name: manager
+              containerPort: 8080
+          startupProbe:
+            tcpSocket: { port: manager }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket: { port: manager }
+          livenessProbe:
+            tcpSocket: { port: manager }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: '1', memory: 2Gi }
+            limits: { cpu: '4', memory: 8Gi }
+          volumeMounts:
+            - { name: state, mountPath: /data, subPath: browser }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: state
+          persistentVolumeClaim: { claimName: pitch-state }
+        - name: scratch
+          emptyDir: { sizeLimit: 20Gi }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }
