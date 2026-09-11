@@ -16,6 +16,7 @@ import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { resolveSymlinks } from '../../../../.pi/lib/paths.ts'
+import { runPedalboard } from '../lib/pedalboard.js'
 import { addOutput, projectRowFor } from '../projects/service.js'
 import { execAsync, getMediaDurationSec } from '../render/media.js'
 import { registerHostAction } from '../studio/host-actions.js'
@@ -171,4 +172,14 @@ registerHostAction('media_publish', async (ws, params) => {
   return published
     ? `Published ${rel} as "${params.label}". URL: ${url}`
     : `Recorded ${rel} as "${params.label}" (upload failed; serving it from the workspace).`
+})
+
+registerHostAction('media_pedalboard', async (ws, params) => {
+  if (params.list === true) return runPedalboard({ list: true })
+  const file = insideWorkspace(ws, params.file)
+  const out = insideWorkspace(ws, params.out)
+  if (!(await stat(file)).isFile()) throw new Error(`not an audio file: ${params.file}`)
+  if (path.extname(out).toLowerCase() !== '.wav') throw new Error('out must be a new .wav file')
+  const result = await runPedalboard({ file, out, effects: params.effects, tail: params.tail })
+  return `Wrote ${params.out}. ${result}\nUse this file in an SFX cue sheet or mix it into the project.`
 })

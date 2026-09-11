@@ -124,6 +124,7 @@ skill before you start**. Do not work from memory of these formats.
 | slides, a deck, a PDF presentation, or a rebuild of an uploaded one | `slide-deck` |
 | an uploaded screen recording cut into a demo | `recording-edit` |
 | footage that does not exist — an establishing shot, a texture, a metaphor, B-roll | `generated-video` |
+| shape a sound effect or audio stem — echo, reverb, pitch, distortion, lo-fi | `audio-effects` |
 
 ## Asking, with buttons
 

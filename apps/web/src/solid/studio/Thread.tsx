@@ -1,3 +1,4 @@
+import { Pencil } from 'lucide-solid'
 import { For, Show } from 'solid-js'
 import { AskStepper } from './Ask'
 import type { Entry } from './types'
@@ -193,6 +194,7 @@ export function Thread(props: {
   entries: Entry[]
   busy: boolean
   onAnswer?: (text: string) => void
+  onEdit?: (entry: Entry) => void
 }) {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
@@ -212,7 +214,28 @@ export function Thread(props: {
                         <AgentMarkdown text={e.text} />
                       </div>
                     ) : (
-                      <div class={`msg ${e.role}`}>{e.text}</div>
+                      <div class="user-message">
+                        <div class={`msg ${e.role}`}>
+                          {e.text}
+                          <Show when={e.pending}>
+                            {pending => <span class="message-state">{pending()}</span>}
+                          </Show>
+                        </div>
+                        <Show
+                          when={
+                            e.role === 'user' && e.sessionEntryId && e.checkpointId && !props.busy
+                          }
+                        >
+                          <button
+                            class="message-edit"
+                            aria-label="Edit and resend from this message"
+                            title="Edit and resend from here"
+                            onClick={() => props.onEdit?.(e)}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        </Show>
+                      </div>
                     )}
                   </Show>
                 }
@@ -235,7 +258,7 @@ export function Thread(props: {
             <Show when={e.ask}>
               <AskStepper
                 ask={e.ask!}
-                disabled={!props.onAnswer || props.busy || e.id !== open()?.id}
+                disabled={!props.onAnswer || e.id !== open()?.id}
                 onSend={t => props.onAnswer?.(t)}
               />
             </Show>

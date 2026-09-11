@@ -20,6 +20,7 @@ import {
   createAgentSession,
   DefaultResourceLoader,
   ModelRuntime,
+  type SessionEntry,
   SessionManager,
 } from '@earendil-works/pi-coding-agent'
 import { prisma } from '@saas/db'
@@ -28,6 +29,14 @@ import { EXTENSIONS } from '../agent/toolkit.js'
 import type { getAgent } from '../flows/index.js'
 import { ASSET_PATH } from '../projects/assets.js'
 import { emitProjectEvent, type StudioEvent } from './events.js'
+import {
+  createWorkspaceCheckpoint,
+  type ProjectCheckpointState,
+  readTurnHistory,
+  restoreWorkspaceCheckpoint,
+  saveTurnRecord,
+  type TurnRecord,
+} from './history.js'
 import {
   assembleStudioPicker,
   DEFAULT_STUDIO_MODEL,
@@ -62,9 +71,28 @@ export interface Entry {
   /** Present on `question` entries only: what the buttons say. */
   ask?: Ask
   at: number
+  /** Pi's persistent user-message id, used to branch the transcript. */
+  sessionEntryId?: string
+  /** Workspace state immediately before this user message ran. */
+  checkpointId?: string
+  /** User messages accepted but not yet delivered to the model. */
+  pending?: 'queued' | 'steering' | 'cancelled'
 }
 
 type Agent = ReturnType<typeof getAgent>
+
+interface PendingPrompt {
+  text: string
+  context?: string | (() => Promise<string>)
+  model?: string
+  entry: Entry
+  turn: number
+}
+
+interface PendingSteer {
+  entry: Entry
+  full: string
+}
 
 export interface Session {
   projectId: string
@@ -78,6 +106,11 @@ export interface Session {
   thinkingId: string | null
   turn: number
   cost: number
+  queue: PendingPrompt[]
+  active: PendingPrompt | null
+  pendingBindings: Entry[]
+  preStartSteers: PendingSteer[]
+  stopping: boolean
 }
 
 const sessions = new Map<string, Session>()
@@ -227,6 +260,98 @@ function toolLabel(name: string, args: any): string {
   return h ? `${name} · ${h.length > 80 ? `${h.slice(0, 77)}…` : h}` : name
 }
 
+function contentText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map(part => (part?.type === 'text' && typeof part.text === 'string' ? part.text : ''))
+    .join('')
+}
+
+function displayPrompt(text: string): string {
+  const end = text.indexOf('</studio-context>')
+  return end < 0 ? text : text.slice(end + '</studio-context>'.length).trimStart()
+}
+
+function entryTime(entry: SessionEntry): number {
+  if (entry.type === 'message' && typeof (entry.message as any)?.timestamp === 'number')
+    return (entry.message as any).timestamp
+  const timestamp = Date.parse(entry.timestamp)
+  return Number.isFinite(timestamp) ? timestamp : Date.now()
+}
+
+export function sessionEntriesFromTranscript(
+  manager: SessionManager,
+  turns: Map<string, TurnRecord>,
+): Entry[] {
+  const branch = manager.getBranch()
+  const completedTools = new Map<string, boolean>()
+  for (const item of branch) {
+    if (item.type !== 'message' || item.message.role !== 'toolResult') continue
+    completedTools.set((item.message as any).toolCallId, !(item.message as any).isError)
+  }
+
+  const entries: Entry[] = []
+  for (const item of branch) {
+    if (item.type !== 'message') continue
+    const message = item.message as any
+    const at = entryTime(item)
+    if (message.role === 'user') {
+      const saved = turns.get(item.id)
+      entries.push({
+        id: saved?.uiId ?? `pi-${item.id}`,
+        role: 'user',
+        text: saved?.text ?? displayPrompt(contentText(message.content)),
+        at,
+        sessionEntryId: item.id,
+        ...(saved?.checkpointId ? { checkpointId: saved.checkpointId } : {}),
+      })
+      continue
+    }
+    if (message.role !== 'assistant' || !Array.isArray(message.content)) continue
+    for (let i = 0; i < message.content.length; i++) {
+      const part = message.content[i]
+      if (part?.type === 'text' && part.text) {
+        entries.push({ id: `${item.id}-text-${i}`, role: 'assistant', text: part.text, at })
+      } else if (part?.type === 'thinking' && part.thinking) {
+        entries.push({ id: `${item.id}-thinking-${i}`, role: 'thinking', text: part.thinking, at })
+      } else if (part?.type === 'toolCall') {
+        const args = part.arguments ?? part.input ?? {}
+        if (part.name === 'ask_user') {
+          const ask = parseAsk(args)
+          if (ask)
+            entries.push({
+              id: `${item.id}-question-${i}`,
+              role: 'question',
+              text: ask.intro ?? '',
+              ask,
+              at,
+            })
+          continue
+        }
+        const ok = completedTools.get(part.id)
+        entries.push({
+          id: `${item.id}-tool-${i}`,
+          role: 'tool',
+          text: toolLabel(part.name, args),
+          tool: { name: part.name, status: ok === false ? 'error' : ok ? 'done' : 'running' },
+          at,
+        })
+      }
+    }
+  }
+  return entries
+}
+
+async function projectCheckpoint(projectId: string): Promise<ProjectCheckpointState> {
+  const row = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { outputs: true, thumbnailUrl: true, lastError: true },
+  })
+  if (!row) throw new Error('Project not found')
+  return row
+}
+
 /**
  * The `ask_user` arguments, trusted only as far as their shape. A model that
  * sends a question with no options, or twenty of them, gets what fits: a
@@ -258,10 +383,48 @@ export function parseAsk(args: any): Ask | null {
   return { ...(intro ? { intro } : {}), questions }
 }
 
+function bindPersistedUserEntry(s: Session): void {
+  const ui = s.pendingBindings.shift()
+  if (!ui) return
+  const item = s.session.sessionManager.getLeafEntry?.() as SessionEntry | undefined
+  if (item?.type !== 'message' || item.message.role !== 'user') {
+    s.pendingBindings.unshift(ui)
+    return
+  }
+  ui.sessionEntryId = item.id
+  ui.pending = undefined
+  emit(s, { type: 'update', entry: ui })
+  if (!ui.checkpointId) return
+  void saveTurnRecord(s.ws.dir, {
+    entryId: item.id,
+    uiId: ui.id,
+    text: ui.text,
+    checkpointId: ui.checkpointId,
+    at: ui.at,
+  }).catch(err =>
+    logger.warn({ err, projectId: s.projectId, entryId: item.id }, 'could not save turn history'),
+  )
+}
+
+function sendSteer(s: Session, pending: PendingSteer): void {
+  s.pendingBindings.push(pending.entry)
+  void s.session.prompt(pending.full, { streamingBehavior: 'steer' }).catch((error: unknown) => {
+    s.pendingBindings = s.pendingBindings.filter(entry => entry !== pending.entry)
+    pending.entry.pending = 'cancelled'
+    updateEntry(s, pending.entry)
+    emit(s, { type: 'error', message: String((error as Error)?.message ?? error) })
+  })
+}
+
 function onPiEvent(s: Session, ev: any): void {
   switch (ev?.type) {
     case 'agent_start':
       setBusy(s, true)
+      for (const pending of s.preStartSteers.splice(0)) {
+        pending.entry.checkpointId ??= s.active?.entry.checkpointId
+        updateEntry(s, pending.entry)
+        sendSteer(s, pending)
+      }
       break
     case 'message_start':
       if (ev.message?.role === 'assistant') {
@@ -285,6 +448,9 @@ function onPiEvent(s: Session, ev: any): void {
     case 'message_end': {
       const cost = Number(ev.message?.usage?.cost?.total ?? 0)
       if (ev.message?.role === 'assistant' && cost > 0) s.cost += cost
+      // Pi persists the message immediately after notifying subscribers. Bind
+      // the UI entry on the next microtask, when its stable transcript id exists.
+      if (ev.message?.role === 'user') queueMicrotask(() => bindPersistedUserEntry(s))
       break
     }
     case 'tool_execution_start':
@@ -310,13 +476,6 @@ function onPiEvent(s: Session, ev: any): void {
       }
       break
     }
-    case 'agent_end':
-    case 'agent_settled':
-      if (s.busy) {
-        setBusy(s, false)
-        emit(s, { type: 'idle', turn: s.turn, cost: s.cost })
-      }
-      break
   }
 }
 
@@ -377,6 +536,21 @@ export interface OpenSessionOptions {
   uploads?: string[]
   /** A `provider/id` the user picked in the composer; falls back to STUDIO_MODEL. */
   model?: string
+}
+
+function watchSession(s: Session): void {
+  watchWorkspace(
+    s.ws.dir,
+    {
+      relevant: s.agent.relevant,
+      assets: ASSET_PATH,
+      probe: async dir => {
+        const d = await s.agent.describe({ ...s.ws, dir })
+        return { ok: !d.error, error: d.error ?? null, description: d }
+      },
+    },
+    ev => emit(s, ev),
+  )
 }
 
 /**
@@ -445,33 +619,29 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
         : { noTools: 'builtin' as const, tools: [...agent.builtinTools, ...extensionTools] }),
     })
 
+    const turns = await readTurnHistory(ws.dir)
+    const restoredEntries = sessionEntriesFromTranscript(session.sessionManager, turns)
     const s: Session = {
       projectId: opts.projectId,
       ws,
       agent,
       session,
-      entries: [],
+      entries: restoredEntries,
       busy: false,
-      counter: 0,
+      counter: restoredEntries.length,
       textId: null,
       thinkingId: null,
       turn: 0,
       cost: 0,
+      queue: [],
+      active: null,
+      pendingBindings: [],
+      preStartSteers: [],
+      stopping: false,
     }
     session.subscribe((ev: any) => onPiEvent(s, ev))
     sessions.set(opts.projectId, s)
-    watchWorkspace(
-      ws.dir,
-      {
-        relevant: agent.relevant,
-        assets: ASSET_PATH,
-        probe: async dir => {
-          const d = await agent.describe({ ...ws, dir })
-          return { ok: !d.error, error: d.error ?? null, description: d }
-        },
-      },
-      ev => emit(s, ev),
-    )
+    watchSession(s)
 
     if (typeof session.sessionFile === 'string')
       await persistSessionFile(opts.projectId, session.sessionFile)
@@ -551,32 +721,48 @@ async function applyModel(s: Session, spec: string): Promise<void> {
   logger.info({ projectId: s.projectId, model: spec }, 'session model switched')
 }
 
-/** Fire-and-forget prompt; `context` rides along in a tagged block. */
-export async function promptSession(
-  opts: OpenSessionOptions,
-  text: string,
-  context?: string,
-): Promise<Session> {
-  const s = await getSession(opts)
-  if (opts.model) await applyModel(s, opts.model)
-  if (s.busy) {
-    const err: any = new Error('The agent is still working on this project')
-    err.code = 'BUSY'
-    throw err
-  }
-  addEntry(s, 'user', text)
-  setBusy(s, true)
-  s.turn += 1
-  const full = context ? `<studio-context>\n${context}\n</studio-context>\n\n${text}` : text
-  void s.session.prompt(full).catch(async (err: unknown) => {
+export type PromptDelivery = 'queue' | 'steer'
+
+export interface PromptSessionResult {
+  session: Session
+  turn: number
+  delivery: 'started' | 'queued' | 'steered'
+}
+
+function updateEntry(s: Session, entry: Entry): void {
+  emit(s, { type: 'update', entry })
+}
+
+async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
+  s.active = request
+  let failed = false
+  try {
+    if (request.model) await applyModel(s, request.model)
+    request.entry.checkpointId ??= await createWorkspaceCheckpoint(
+      s.ws.dir,
+      await projectCheckpoint(s.projectId),
+    )
+    request.entry.pending = undefined
+    updateEntry(s, request.entry)
+    if (s.stopping) return
+    const context =
+      typeof request.context === 'function' ? await request.context() : request.context
+    const full = context
+      ? `<studio-context>\n${context}\n</studio-context>\n\n${request.text}`
+      : request.text
+    s.pendingBindings.push(request.entry)
+    await s.session.prompt(full)
+  } catch (err) {
+    failed = true
+    s.pendingBindings = s.pendingBindings.filter(entry => entry !== request.entry)
+    request.entry.pending = 'cancelled'
+    updateEntry(s, request.entry)
     logger.error({ err, projectId: s.projectId }, 'prompt failed')
-    // A missing transcript poisons the cached session: every later turn throws
-    // the same ENOENT until the process restarts. Drop it so the next attempt
-    // builds a fresh one, and say so in words the user can act on.
     const missing = (err as NodeJS.ErrnoException)?.code === 'ENOENT'
     if (missing) {
       sessions.delete(s.projectId)
       await forgetSessionFile(s.projectId)
+      s.stopping = true
     }
     emit(s, {
       type: 'error',
@@ -584,19 +770,198 @@ export async function promptSession(
         ? 'This project lost its conversation history. Send that again and it will start a new one — the workspace and its files are untouched.'
         : String((err as Error)?.message ?? err),
     })
-    setBusy(s, false)
-    emit(s, { type: 'idle', turn: s.turn, cost: s.cost, failed: true })
-  })
-  return s
+  } finally {
+    const aborted = s.stopping
+    s.active = null
+    const cancelled = aborted ? s.queue.splice(0) : []
+    for (const queued of cancelled) {
+      queued.entry.pending = 'cancelled'
+      updateEntry(s, queued.entry)
+    }
+    const next = aborted ? undefined : s.queue.shift()
+    if (!next) {
+      s.stopping = false
+      setBusy(s, false)
+    }
+    emit(s, {
+      type: 'idle',
+      turn: request.turn,
+      cost: s.cost,
+      busy: Boolean(next),
+      ...(failed ? { failed: true } : {}),
+      ...(aborted ? { aborted: true } : {}),
+    })
+    for (const queued of cancelled)
+      emit(s, { type: 'idle', turn: queued.turn, cost: 0, busy: false, aborted: true })
+    if (next) void runPrompt(s, next)
+  }
+}
+
+/** Accept a prompt, queue it behind the active turn, or steer the active run. */
+export async function promptSession(
+  opts: OpenSessionOptions,
+  text: string,
+  context?: string | (() => Promise<string>),
+  delivery: PromptDelivery = 'queue',
+  displayText = text,
+): Promise<PromptSessionResult> {
+  const s = await getSession(opts)
+  if (s.busy) {
+    if (delivery === 'steer') {
+      const entry = addEntry(s, 'user', displayText)
+      entry.pending = 'steering'
+      try {
+        if (opts.model) await applyModel(s, opts.model)
+        const resolved = typeof context === 'function' ? await context() : context
+        const full = resolved ? `<studio-context>\n${resolved}\n</studio-context>\n\n${text}` : text
+        if (s.session.isStreaming) {
+          entry.checkpointId = s.active?.entry.checkpointId
+          updateEntry(s, entry)
+          sendSteer(s, { entry, full })
+          return { session: s, turn: s.active?.turn ?? s.turn, delivery: 'steered' }
+        }
+        if (s.busy && s.active) {
+          entry.checkpointId = s.active.entry.checkpointId
+          updateEntry(s, entry)
+          s.preStartSteers.push({ entry, full })
+          return { session: s, turn: s.active.turn, delivery: 'steered' }
+        }
+        entry.pending = 'queued'
+        updateEntry(s, entry)
+        const request = { text, context, model: opts.model, entry, turn: ++s.turn }
+        if (s.busy) s.queue.unshift(request)
+        else {
+          setBusy(s, true)
+          void runPrompt(s, request)
+        }
+        return { session: s, turn: request.turn, delivery: 'queued' }
+      } catch (error) {
+        entry.pending = 'cancelled'
+        updateEntry(s, entry)
+        throw error
+      }
+    }
+    const entry = addEntry(s, 'user', displayText)
+    entry.pending = 'queued'
+    const request = { text, context, model: opts.model, entry, turn: ++s.turn }
+    s.queue.push(request)
+    return { session: s, turn: request.turn, delivery: 'queued' }
+  }
+
+  const entry = addEntry(s, 'user', displayText)
+  setBusy(s, true)
+  const request = { text, context, model: opts.model, entry, turn: ++s.turn }
+  void runPrompt(s, request)
+  return { session: s, turn: request.turn, delivery: 'started' }
 }
 
 export async function stopSession(projectId: string): Promise<boolean> {
   const s = sessions.get(projectId)
   if (!s?.busy) return false
+  s.stopping = true
+  for (const request of s.queue) {
+    request.entry.pending = 'cancelled'
+    updateEntry(s, request.entry)
+  }
+  for (const pending of s.preStartSteers.splice(0)) {
+    pending.entry.pending = 'cancelled'
+    updateEntry(s, pending.entry)
+  }
+  const activeBinding = s.active?.entry
+  const keep: Entry[] = []
+  for (const entry of s.pendingBindings) {
+    if (entry === activeBinding) keep.push(entry)
+    else if (!entry.sessionEntryId) {
+      entry.pending = 'cancelled'
+      updateEntry(s, entry)
+    }
+  }
+  s.pendingBindings = keep
+  s.session.clearQueue?.()
   await s.session.abort()
-  setBusy(s, false)
-  emit(s, { type: 'idle', turn: s.turn, cost: s.cost, aborted: true })
   return true
+}
+
+export async function getSessionEntries(opts: OpenSessionOptions): Promise<Entry[]> {
+  return (await getSession(opts)).entries
+}
+
+export interface RollbackResult {
+  text: string
+  entries: Entry[]
+  project: ProjectCheckpointState
+}
+
+/** Branch before a user message and restore the workspace captured before it ran. */
+export async function rollbackSession(
+  opts: OpenSessionOptions,
+  sessionEntryId: string,
+): Promise<RollbackResult> {
+  const s = await getSession(opts)
+  if (s.busy) {
+    const error: any = new Error('Stop the agent before rolling back the conversation')
+    error.code = 'BUSY'
+    throw error
+  }
+  const target = s.session.sessionManager.getEntry(sessionEntryId) as SessionEntry | undefined
+  const active = (s.session.sessionManager.getBranch() as SessionEntry[]).some(
+    entry => entry.id === sessionEntryId,
+  )
+  if (!active || target?.type !== 'message' || target.message.role !== 'user') {
+    const error: any = new Error('That message is no longer on the active conversation branch')
+    error.status = 409
+    throw error
+  }
+  const turns = await readTurnHistory(s.ws.dir)
+  const saved = turns.get(sessionEntryId)
+  const live = s.entries.find(entry => entry.sessionEntryId === sessionEntryId)
+  const checkpointId = saved?.checkpointId ?? live?.checkpointId
+  if (!checkpointId) {
+    const error: any = new Error('This message predates workspace history and cannot be restored')
+    error.status = 409
+    throw error
+  }
+
+  const oldLeaf = s.session.sessionManager.getLeafId() as string | null
+  await s.session.navigateTree(sessionEntryId, { summarize: false })
+  // SessionManager stores a tree, but its leaf pointer is otherwise only in
+  // memory until another message is appended. Persist the rollback branch so
+  // a refresh or server restart before resend cannot reopen the abandoned path.
+  s.session.sessionManager.appendCustomEntry('pitch-rollback', { sessionEntryId })
+  unwatchWorkspace(s.ws.dir)
+  let project: ProjectCheckpointState
+  try {
+    project = await restoreWorkspaceCheckpoint(s.ws.dir, checkpointId)
+  } catch (error) {
+    if (oldLeaf) s.session.sessionManager.branch(oldLeaf)
+    else s.session.sessionManager.resetLeaf()
+    s.session.sessionManager.appendCustomEntry('pitch-rollback-reverted', { sessionEntryId })
+    s.session.agent.state.messages = s.session.sessionManager.buildSessionContext().messages
+    watchSession(s)
+    throw error
+  }
+  watchSession(s)
+
+  s.entries = sessionEntriesFromTranscript(s.session.sessionManager, turns)
+  s.counter = s.entries.length
+  emit(s, { type: 'reset', entries: s.entries })
+  try {
+    const description = await s.agent.describe(s.ws)
+    emit(s, {
+      type: 'preview',
+      ok: !description.error,
+      error: description.error ?? null,
+      files: [],
+      description,
+    })
+  } catch (error) {
+    logger.warn({ error, projectId: s.projectId }, 'could not describe restored workspace')
+  }
+  return {
+    text: saved?.text ?? live?.text ?? displayPrompt(contentText(target.message.content)),
+    entries: s.entries,
+    project,
+  }
 }
 
 /** Abort, drop the in-memory session and its pi session file, unwatch the workspace. */
@@ -608,6 +973,9 @@ export async function closeSession(
   unwatchWorkspace(dir)
   const s = sessions.get(projectId)
   if (s) {
+    s.stopping = true
+    s.queue.length = 0
+    s.preStartSteers.length = 0
     await s.session.abort().catch(() => {})
     sessions.delete(projectId)
     try {
@@ -622,6 +990,9 @@ export async function closeSession(
 export async function closeStudio(): Promise<void> {
   await Promise.all(
     [...sessions.values()].map(async s => {
+      s.stopping = true
+      s.queue.length = 0
+      s.preStartSteers.length = 0
       if (s.busy) await s.session.abort().catch(() => {})
       unwatchWorkspace(s.ws.dir)
     }),

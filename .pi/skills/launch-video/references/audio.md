@@ -91,7 +91,9 @@ snappy tween is the classic "sounds off" failure.
 **Cue sheet** `audio/sfx-cues.json`: `{ "duration", "defaults": { "gainDb" },
 "cues": [{ "label", "t", "event" | "clip" | "file", "dur"?, "fadeOut"?, "gainDb"?,
 "lead"?, "max"?, "varied"? }] }`. A `file` is a sound the manifest lacks and
-`pitch motion sound` generated into `audio/generated-sfx/` — one event per
+`pitch motion sound` generated into `audio/generated-sfx/` or
+`pitch media pedalboard` processed into `audio/sfx/` (read `audio-effects`
+for reverb, delay, pitch and texture recipes) — one event per
 call, named by its transient and material; it still needs its `event` class
 so the build knows its tier. `t` is the moment the visual event happens:
 the real shot start (`pitch motion cues`) plus the factory's in-shot offset (a

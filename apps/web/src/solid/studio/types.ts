@@ -77,6 +77,9 @@ export interface Entry {
   tool?: { name: string; status: 'running' | 'done' | 'error' }
   ask?: Ask
   at?: number
+  sessionEntryId?: string
+  checkpointId?: string
+  pending?: 'queued' | 'steering' | 'cancelled'
 }
 export interface ExportStatus {
   running: boolean
@@ -111,7 +114,8 @@ export type StudioEvent =
   | { type: 'delta'; id: string; delta: string }
   | { type: 'update'; entry: Entry }
   | { type: 'tool'; name: string; args: Record<string, unknown> }
-  | { type: 'idle'; aborted?: boolean; failed?: boolean }
+  | { type: 'idle'; aborted?: boolean; failed?: boolean; busy?: boolean }
+  | { type: 'reset'; entries: Entry[] }
   | { type: 'assets'; files: string[] }
   | { type: 'error'; message: string }
   | ({ type: 'preview'; ok: boolean; files: string[] } & Partial<Description>)
