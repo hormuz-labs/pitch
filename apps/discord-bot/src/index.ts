@@ -30,7 +30,7 @@ const api = createPitchApi(apiUrl, serviceToken)
 
 const command = new SlashCommandBuilder()
   .setName('video')
-  .setDescription('Create a video with Pitch')
+  .setDescription('Create a video using your Pitch credits')
   .addStringOption(option =>
     option
       .setName('type')

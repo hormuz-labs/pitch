@@ -73,6 +73,12 @@ router.post('/redeem', async (req, res) => {
   const raw = (req.body as { code?: unknown } | undefined)?.code
   const code = typeof raw === 'string' ? raw.trim().toUpperCase() : ''
   if (!code) return res.status(400).json({ error: 'Enter a promo code' })
+  // Retired daily sponsorship codes are internal receipts, not welcome rewards.
+  if (code.startsWith('DISCORD_VIDEO_')) {
+    return res
+      .status(400)
+      .json({ error: 'Claim your Discord welcome reward in Settings → Discord.' })
+  }
 
   try {
     const promo = await db.prisma.promoCode.findUnique({ where: { code } })

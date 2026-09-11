@@ -98,30 +98,64 @@ account:
 An unlinked member receives a direct link to Settings → Connections. The bot
 never creates a Clerk/Pitch user automatically.
 
-## Free Discord allowance
+## Community welcome reward
 
-Each linked Pitch account can start **3 Discord videos per UTC day**. Each
-accepted request receives 120 Discord-only credits.
+Joining the Pitch server earns **120 regular Pitch credits, once**. Existing
+members can claim too. Connect Discord in Pitch, join the server and accept
+its rules, then select **Claim welcome credits** in Settings → Discord (also
+available under Rewards).
 
-- Discord credits never appear in or increase the normal Pitch balance.
-- Discord creation never falls back to paid/main-platform credits.
-- Unused Discord allowance does not become a main-platform balance.
-- The fourth Discord request is rejected until 00:00 UTC.
-- Later edits and exports performed on the Pitch website use the member's
-  normal Pitch credits.
+The API reads the linked identity directly from Clerk, verifies membership in
+`DISCORD_GUILD_ID` using Discord's Get Guild Member endpoint, and atomically
+writes a `DiscordRewardClaim` receipt and a `promo` credit transaction. The
+grant uses the normal `product` credit channel: it is available in the app,
+API, or bot and has no daily reset. There is no per-video or daily grant.
 
-Configure the allowance with:
+The campaign has unique constraints on both the Pitch user ID and Discord user
+ID. Repeated claims, leaving/rejoining, and unlinking/relinking cannot grant
+again. Receipts retain both IDs, the server, amount, claim time, and ledger ID
+independently of the current account link. Historical daily sponsorship stays
+in its old ledger channel and is not converted into regular credits.
+
+`/video` spends the member's **regular Pitch credits**, just like creating on
+the website. Video costs vary with the work; the welcome grant is a credit
+amount, not a guarantee that every requested video costs exactly 120 credits.
+
+Configure the bot's model with:
 
 ```env
-DISCORD_DAILY_VIDEO_LIMIT="3"
-DISCORD_FREE_VIDEO_CREDITS="120"
 DISCORD_STUDIO_MODEL="google/gemini-3.8-flash"
 ```
 
 `DISCORD_STUDIO_MODEL` is required and uses the same `provider/model` format as
-`STUDIO_MODEL`. Discord requests never inherit `STUDIO_MODEL`; the API rejects
-the request before granting a daily slot if the Discord model is missing or
-malformed.
+`STUDIO_MODEL`. The API rejects bot creation if this model is missing or
+malformed. The welcome reward itself does not require a generation model or
+the bot process to be running.
+
+### Tracking claims
+
+Credits appear as **Discord community welcome reward** in the existing credit
+ledger. `DiscordRewardClaim` is the campaign audit trail. For example:
+
+```sql
+SELECT "userId", "discordUserId", "guildId", "credits", "claimedAt", "creditTransactionId"
+FROM "DiscordRewardClaim"
+WHERE "campaignId" = 'discord-welcome-v1'
+ORDER BY "claimedAt" DESC;
+```
+
+### Rollout
+
+1. Deploy the `20260912120000_discord_welcome_reward` migration.
+2. Give the **API** both `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID`. The bot must
+   be installed in that server; no privileged member-list intent is required.
+3. Deploy/restart the API, web app, and bot together so offer text and billing
+   agree. The old `DISCORD_DAILY_VIDEO_LIMIT` and `DISCORD_FREE_VIDEO_CREDITS`
+   environment variables are no longer used.
+
+API endpoints (Pitch sign-in required): `GET /credits/discord` for claim state
+and `POST /credits/discord/claim` to verify membership and grant. The client
+does not supply the Discord ID, server ID, or credit amount.
 
 ## Discord Developer Portal setup
 
@@ -164,12 +198,10 @@ DISCORD_BOT_TOKEN="replace_with_the_secret_bot_token"
 # The API and bot must receive the exact same value.
 DISCORD_SERVICE_TOKEN="replace_with_a_long_random_service_secret"
 
-# Optional during development. Enable Discord Developer Mode, right-click the
-# test server, and select Copy Server ID. This is not a discord.gg invite URL.
+# Required community server. Enable Discord Developer Mode, right-click the
+# server, and select Copy Server ID. This is not a discord.gg invite URL.
 DISCORD_GUILD_ID="123456789012345678"
 
-DISCORD_DAILY_VIDEO_LIMIT="3"
-DISCORD_FREE_VIDEO_CREDITS="120"
 DISCORD_STUDIO_MODEL="google/gemini-3.8-flash"
 ```
 
@@ -183,7 +215,8 @@ status, billing, chat history, and output behavior remain consistent.
 
 ## Run it
 
-The API must be running and the `discordUserId` migration must be deployed.
+The API must be running and the Discord identity and welcome reward migrations
+must be deployed.
 
 Docker:
 
@@ -214,7 +247,7 @@ Expected startup log:
 member runs /video in #create-videos
   → bot acknowledges the command
   → Pitch resolves the linked Discord ID
-  → one daily Discord allowance slot is claimed
+  → Pitch checks the member's regular credit balance
   → Pitch creates a source:discord studio project
   → bot posts the Pitch progress link
   → bot polls the API's derived project status
@@ -247,7 +280,14 @@ member runs /video in #create-videos
 - Confirm View Channel and Send Messages in `#create-videos`.
 - For a thread, also grant Send Messages in Threads.
 
-### Daily limit reached
+### Not enough credits
 
-The account has already started three Discord videos since 00:00 UTC. The
-allowance resets at the next 00:00 UTC boundary.
+Claim the one-time community reward in Settings → Discord if eligible, or buy
+credits in Pitch. `/video` uses the same balance as the website.
+
+### Membership could not be verified
+
+Confirm that the API has the correct bot token and community server ID, and
+that the bot is installed in that server. The member must join using the
+linked Discord account and complete server rules screening. Discord outages
+and rate limits never grant credits; the member can retry.

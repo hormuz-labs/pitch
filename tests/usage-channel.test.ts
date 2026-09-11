@@ -61,7 +61,7 @@ describe('chargeTurn channel attribution', () => {
     )
   })
 
-  it('attributes a Discord-made project only to its sponsored Discord balance', async () => {
+  it('preserves the historical sponsorship channel when explicitly supplied', async () => {
     mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
 
     await chargeTurn(project({ source: 'discord' }), 0.3, 'discord')
@@ -74,7 +74,7 @@ describe('chargeTurn channel attribution', () => {
     )
   })
 
-  it('uses main product credits for later web edits to a Discord-origin project', async () => {
+  it('uses regular Pitch credits for Discord-origin projects', async () => {
     mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
 
     await chargeTurn(project({ source: 'discord' }), 0.3)

@@ -178,6 +178,11 @@
 .settings-connection__provider > button { margin: 0; }
 .settings-connection__linked { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
 .settings-connection__linked b { color: var(--st-green-bright); font-size: 11px; font-weight: 650; }
+.settings-discord-reward { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
+.settings-discord-reward ol { padding-left: 20px; margin: 0 0 16px; color: var(--text-muted); font-size: 12px; line-height: 1.9; list-style: decimal; }
+.settings-discord-reward__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.settings-discord-reward__actions > * { margin: 0; text-decoration: none; }
+.settings-discord-reward > a { color: var(--text-primary); font-size: 12px; text-decoration: underline; }
 .settings-error { margin: 12px 0 0; color: var(--st-error) !important; font-size: 11.5px; }
 
 @media (max-width: 520px) {

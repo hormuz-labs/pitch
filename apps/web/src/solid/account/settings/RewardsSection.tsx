@@ -2,6 +2,7 @@ import { Gift } from 'lucide-solid'
 import { createResource, createSignal, Show } from 'solid-js'
 import { api, isApiError } from '../../../lib/api'
 import { useAuth } from '../../core/auth'
+import { DiscordConnectionSection } from './DiscordConnectionSection'
 
 interface Affiliate {
   code: string
@@ -77,6 +78,7 @@ export function RewardsSection() {
 
   return (
     <>
+      <DiscordConnectionSection />
       <section class="settings-card">
         <div class="settings-card__title">
           <Gift size={16} />
