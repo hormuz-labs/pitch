@@ -27,7 +27,7 @@ import { resolveBackgroundAsset, shapeRadius } from './utils/background.js'
 import type { Beat } from './utils/beats.js'
 import { type BrowserHeaderMode, renderBrowserChromePng } from './utils/browser-chrome.js'
 import { buildGlidingCursorChain, type ClickEvent } from './utils/cursor-fx.js'
-import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
+import { appendEncoderFilter, videoEncodePlan } from './utils/encoder.js'
 import {
   addIntroOutro,
   type BrowserChromeSegment,
@@ -277,15 +277,17 @@ export async function renderDemo(
   // Quality 18: this is the source every later stage re-encodes from, so it gets
   // the highest quality of the chain — generational loss lands on text sharpness
   // first. Audio matches the profile used everywhere downstream (24kHz mono AAC).
-  const renderVideoArgs = await videoEncodeArgs({ quality: 18, cpuPreset: 'veryfast' })
+  const encodePlan = await videoEncodePlan({ quality: 18, cpuPreset: 'veryfast' })
+  const encodedVideo = appendEncoderFilter(filterComplex, '[zoomedv]', encodePlan)
+  filterComplex = encodedVideo.graph
   const ffmpegCmd =
-    `ffmpeg -y ${videoInputs} ` +
+    `ffmpeg -y ${encodePlan.inputArgs} ${videoInputs} ` +
     `-filter_complex "${filterComplex}" ` +
-    `-map "[zoomedv]" ${validClips > 0 ? '-map "[outa]"' : ''} ` +
-    `${renderVideoArgs} ${validClips > 0 ? '-c:a aac -ar 24000 -ac 1' : ''} "${rawVideo}"`
+    `-map "${encodedVideo.outputLabel}" ${validClips > 0 ? '-map "[outa]"' : ''} ` +
+    `${encodePlan.outputArgs} ${validClips > 0 ? '-c:a aac -ar 24000 -ac 1' : ''} "${rawVideo}"`
 
   logger.info(
-    { encoder: (await nvencAvailable()) ? 'h264_nvenc (GPU)' : 'libx264 (CPU)' },
+    { encoder: encodePlan.label },
     'Assembling and rendering raw video with zoom pans + overlays',
   )
   const renderT0 = Date.now()

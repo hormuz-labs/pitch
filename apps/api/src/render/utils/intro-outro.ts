@@ -5,7 +5,7 @@ import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { promisify } from 'util'
 import { prepareBackgroundFrame } from './background.js'
-import { videoEncodeArgs } from './encoder.js'
+import { appendEncoderFilter, videoEncodePlan } from './encoder.js'
 
 const execAsync = promisify(exec)
 
@@ -297,12 +297,13 @@ async function renderCardClip(svg: string, output: string, config: CardConfig): 
   try {
     fs.writeFileSync(svgPath, svg)
     await svgToPng(svgPath, pngPath, width, height)
-    const videoArgs = await videoEncodeArgs({ quality: 20, cpuPreset: 'veryfast' })
+    const encodePlan = await videoEncodePlan({ quality: 20, cpuPreset: 'veryfast' })
+    const uploadFilter = encodePlan.uploadFilter ? `,${encodePlan.uploadFilter}` : ''
     await execAsync(
-      `ffmpeg -y -loop 1 -i "${pngPath}" ` +
+      `ffmpeg -y ${encodePlan.inputArgs} -loop 1 -i "${pngPath}" ` +
         `-f lavfi -i "anullsrc=channel_layout=mono:sample_rate=24000" ` +
-        `-vf "fade=t=in:st=0:d=0.4,fade=t=out:st=${outStart}:d=${fadeOut}" ` +
-        `${videoArgs} -map 0:v -map 1:a -c:a aac -ar 24000 -ac 1 ` +
+        `-vf "fade=t=in:st=0:d=0.4,fade=t=out:st=${outStart}:d=${fadeOut}${uploadFilter}" ` +
+        `${encodePlan.outputArgs} -map 0:v -map 1:a -c:a aac -ar 24000 -ac 1 ` +
         `-t ${duration} -r ${fps} "${output}"`,
     )
   } finally {
@@ -573,12 +574,14 @@ export async function addIntroOutro(
     console.log(
       `Assembling ${segments.join(' + ')} (+ watermark${extras.length ? ` + ${extras.join(' + ')}` : ''}) in one pass...`,
     )
-    const videoArgs = await videoEncodeArgs({ quality: 19, cpuPreset: 'veryfast' })
+    const encodePlan = await videoEncodePlan({ quality: 19, cpuPreset: 'veryfast' })
+    const encodedVideo = appendEncoderFilter(graph, '[v]', encodePlan)
+    graph = encodedVideo.graph
     await execAsync(
-      `ffmpeg -y ${inputs} ` +
+      `ffmpeg -y ${encodePlan.inputArgs} ${inputs} ` +
         `-filter_complex "${graph}" ` +
-        `-map "[v]" -map "[a]" ` +
-        `${videoArgs} ` +
+        `-map "${encodedVideo.outputLabel}" -map "[a]" ` +
+        `${encodePlan.outputArgs} ` +
         `-c:a aac -ar 24000 -ac 1 ` +
         `"${outputPath}"`,
     )

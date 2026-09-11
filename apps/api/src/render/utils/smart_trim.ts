@@ -2,7 +2,7 @@ import { exec } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
-import { videoEncodeArgs } from './encoder.js'
+import { appendEncoderFilter, videoEncodePlan } from './encoder.js'
 
 const execAsync = promisify(exec)
 
@@ -753,16 +753,18 @@ export async function processVideo(
     .map(s => `between(t,${s.start.toFixed(3)},${s.end.toFixed(3)})`)
     .join('+')
   const hasAudio = audioDuration > 0
-  const filter = hasAudio
+  let filter = hasAudio
     ? `[0:v]select='${keepExpr}',setpts=N/FRAME_RATE/TB[v];` +
       `[0:a]aselect='${keepExpr}',asetpts=N/SR/TB[a]`
     : `[0:v]select='${keepExpr}',setpts=N/FRAME_RATE/TB[v]`
-  const videoArgs = await videoEncodeArgs({ quality: 19, cpuPreset: 'veryfast' })
+  const encodePlan = await videoEncodePlan({ quality: 19, cpuPreset: 'veryfast' })
+  const encodedVideo = appendEncoderFilter(filter, '[v]', encodePlan)
+  filter = encodedVideo.graph
 
   await execAsync(
-    `ffmpeg -y -i "${input}" -filter_complex "${filter}" ` +
-      `-map "[v]" ${hasAudio ? '-map "[a]" -c:a aac -ar 24000 -ac 1 ' : ''}` +
-      `${videoArgs} "${output}"`,
+    `ffmpeg -y ${encodePlan.inputArgs} -i "${input}" -filter_complex "${filter}" ` +
+      `-map "${encodedVideo.outputLabel}" ${hasAudio ? '-map "[a]" -c:a aac -ar 24000 -ac 1 ' : ''}` +
+      `${encodePlan.outputArgs} "${output}"`,
     { maxBuffer: 1024 * 1024 * 100 },
   )
 

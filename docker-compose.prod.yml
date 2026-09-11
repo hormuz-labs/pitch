@@ -1,5 +1,5 @@
 # Production overrides — applied on the Linux host via: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# Remaps volumes to stable /mnt/hdd paths and re-enables AMD GPU access for the worker.
+# Remaps volumes to stable /mnt/hdd paths and enables Linux VAAPI access for the API.
 # Grafana / Loki / MinIO data lives on the HDD at /mnt/hdd; everything else stays on the SSD at /opt/pitch.
 
 services:
@@ -51,5 +51,4 @@ services:
       - /opt/pitch/pi:/root/.pi/agent
       - /usr/local/share/whisper.cpp/models:/root/.cache/whisper-cpp
     devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
+      - ${FFMPEG_VAAPI_DEVICE:-/dev/dri/renderD128}:${FFMPEG_VAAPI_DEVICE:-/dev/dri/renderD128}

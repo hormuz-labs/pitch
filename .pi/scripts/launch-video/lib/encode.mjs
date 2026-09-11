@@ -149,6 +149,36 @@ export function gradeYuvFilters(grade) {
 
 export const pixelFormat = (depth) => (depth === 10 ? "yuv420p10le" : "yuv420p");
 
+/** Whether a hardware backend supports the requested codec/depth combination. */
+export function encoderSupports(render, backend) {
+  if (backend === "cpu") return true;
+  // VideoToolbox, NVENC and VAAPI do not expose a usable High 10 H.264 path.
+  return !(render.codec === "h264" && render.depth === 10);
+}
+
+/** Automatic backend order for the host OS. Every path ends with CPU fallback. */
+export function encoderCandidates(platform, render) {
+  const hardware = platform === "darwin"
+    ? ["videotoolbox"]
+    : platform === "linux"
+      ? ["nvenc", "vaapi"]
+      : [];
+  return [...hardware.filter(backend => encoderSupports(render, backend)), "cpu"];
+}
+
+/** Arguments that have to precede ffmpeg's inputs. */
+export function encoderInputArgs(backend, { vaapiDevice = "/dev/dri/renderD128" } = {}) {
+  return backend === "vaapi"
+    ? ["-init_hw_device", `vaapi=va:${vaapiDevice}`, "-filter_hw_device", "va"]
+    : [];
+}
+
+/** VAAPI consumes hardware frames; other encoders accept the software filter output. */
+export function encoderUploadFilter(render, backend) {
+  if (backend !== "vaapi") return null;
+  return `format=${render.depth === 10 ? "p010le" : "nv12"},hwupload`;
+}
+
 /**
  * The end of every chain: the output depth (whatever an 8-bit filter did in
  * between) and the frames tagged BT.709 limited, so the encoder and the
@@ -216,9 +246,35 @@ export function reviewFilter({ grade = null, tile }) {
  * reach the x264/x265 VUI in the studio's ffmpeg 7.1 build (verified —
  * ffprobe reads them back as unknown), colorprim/transfer/colormatrix do.
  */
-export function codecArgs(render) {
+export function codecArgs(render, backend = "cpu", { muxer = true } = {}) {
   const { codec, depth, crf } = render;
   const vui = "colorprim=bt709:transfer=bt709:colormatrix=bt709";
+  const color = ["-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv"];
+  const container = muxer ? [...(codec === "hevc" ? ["-tag:v", "hvc1"] : []), "-movflags", "+faststart"] : [];
+
+  if (!encoderSupports(render, backend)) {
+    throw new Error(`${backend} does not support ${depth}-bit ${codec}`);
+  }
+
+  if (backend === "videotoolbox") {
+    const quality = Math.round(clamp(100 - crf * 2, 1, 100));
+    const encoder = codec === "hevc" ? "hevc_videotoolbox" : "h264_videotoolbox";
+    const profile = codec === "hevc" ? (depth === 10 ? "main10" : "main") : "high";
+    return ["-c:v", encoder, "-profile:v", profile, "-realtime", "0", "-q:v", String(quality), "-pix_fmt", depth === 10 ? "p010le" : "yuv420p", ...color, ...container];
+  }
+
+  if (backend === "nvenc") {
+    const encoder = codec === "hevc" ? "hevc_nvenc" : "h264_nvenc";
+    const profile = codec === "hevc" ? (depth === 10 ? "main10" : "main") : "high";
+    return ["-c:v", encoder, "-preset", "p6", "-rc", "vbr", "-cq", String(crf), "-b:v", "0", "-spatial-aq", "1", "-profile:v", profile, "-pix_fmt", depth === 10 ? "p010le" : "yuv420p", ...color, ...container];
+  }
+
+  if (backend === "vaapi") {
+    const encoder = codec === "hevc" ? "hevc_vaapi" : "h264_vaapi";
+    const profile = codec === "hevc" ? (depth === 10 ? "main10" : "main") : "high";
+    return ["-c:v", encoder, "-profile:v", profile, "-rc_mode", "CQP", "-qp", String(clamp(crf, 1, 51)), ...color, ...container];
+  }
+
   if (codec === "hevc") {
     return ["-c:v", "libx265", "-preset", "medium", "-crf", String(crf), "-tag:v", "hvc1", "-x265-params", `log-level=error:${vui}:range=limited`, "-movflags", "+faststart"];
   }

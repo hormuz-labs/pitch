@@ -12,6 +12,7 @@
  *   node capture.mjs page.html [--fps=60] [--scale=2] [--out-res=720p|1080p|4k] [--width=1920] [--height=1080]
  *                    [--workers=8] [--out=out/video.mp4] [--from=<sec>] [--to=<sec>]
  *                    [--samples=4 --shutter=0.5] [--depth=8|10] [--codec=h264|hevc] [--crf=16] [--frames=jpeg|png]
+ *                    [--encoder=auto|videotoolbox|nvenc|vaapi|cpu]
  *
  * --from/--to render only a segment of the timeline (e.g. one scene, for fast
  * iteration; several segment renders can run in parallel). Segment renders
@@ -28,7 +29,19 @@ import { resolve, dirname } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
-import { codecArgs, describeRender, normalizeGrade, normalizeRender, renderFilter, sampleTimes } from "./lib/encode.mjs";
+import {
+  codecArgs,
+  describeRender,
+  encoderCandidates,
+  encoderInputArgs,
+  encoderSupports,
+  encoderUploadFilter,
+  normalizeGrade,
+  normalizeRender,
+  pixelFormat,
+  renderFilter,
+  sampleTimes,
+} from "./lib/encode.mjs";
 
 /** This script's own directory — used to resolve the repo-root font for the watermark. */
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +51,51 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
   const [k, v] = a.replace(/^--/, "").split("=");
   return [k, v === undefined ? true : v];
 }));
+
+function vaapiDevice() {
+  const configured = process.env.FFMPEG_VAAPI_DEVICE;
+  return configured && /^\/[\w./-]+$/.test(configured) ? configured : "/dev/dri/renderD128";
+}
+
+function probeEncoder(render, backend) {
+  if (backend === "cpu") return true;
+  const upload = encoderUploadFilter(render, backend);
+  const filter = [`format=${pixelFormat(render.depth)}`, upload].filter(Boolean).join(",");
+  try {
+    execFileSync("ffmpeg", [
+      "-hide_banner", "-loglevel", "error", "-y",
+      ...encoderInputArgs(backend, { vaapiDevice: vaapiDevice() }),
+      "-f", "lavfi", "-i", "color=c=black:s=128x128:r=5:d=0.2",
+      "-vf", filter, "-an",
+      ...codecArgs(render, backend, { muxer: false }),
+      "-frames:v", "1", "-f", "null", "-",
+    ], { stdio: "ignore", timeout: 15000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function selectEncoder(render) {
+  const requested = String(args.encoder ?? process.env.FFMPEG_ENCODER ?? "auto").toLowerCase();
+  const known = new Set(["auto", "videotoolbox", "nvenc", "vaapi", "cpu"]);
+  let candidates = encoderCandidates(process.platform, render);
+  if (!known.has(requested)) {
+    console.warn(`Unknown encoder ${requested}; using automatic detection`);
+  } else if (requested !== "auto") {
+    candidates = encoderSupports(render, requested) ? [requested, "cpu"] : ["cpu"];
+  }
+  return candidates.find(backend => probeEncoder(render, backend)) ?? "cpu";
+}
+
+function encoderLabel(backend) {
+  return {
+    videotoolbox: "VideoToolbox (GPU)",
+    nvenc: "NVENC (GPU)",
+    vaapi: `VAAPI (GPU, ${vaapiDevice()})`,
+    cpu: "x264/x265 (CPU)",
+  }[backend];
+}
 
 const pageArg  = process.argv.slice(2).find(a => !a.startsWith("--")) ?? "index.html";
 const fps      = Number(args.fps ?? 60);
@@ -125,7 +183,9 @@ const render = normalizeRender(film.render, {
 });
 const { grade, warnings: gradeWarnings } = normalizeGrade(film.grade, { lutExists: (p) => existsSync(resolve(p)) });
 for (const w of gradeWarnings) console.warn(`   ⚠ ${w}`);
+const encoder = selectEncoder(render);
 console.log(`   Look:      ${describeRender(render, grade)}\n`);
+console.log(`   Encoder:   ${encoderLabel(encoder)}\n`);
 
 const from = Math.max(0, Number(args.from ?? 0));
 const to   = args.to !== undefined ? Math.min(Number(args.to), duration) : duration;
@@ -229,12 +289,14 @@ function watermarkFilter() {
 }
 
 const wm = watermarkFilter();
-const vf = renderFilter({ fps, render, grade, downscale, watermark: wm });
+const upload = encoderUploadFilter(render, encoder);
+const vf = [renderFilter({ fps, render, grade, downscale, watermark: wm }), upload].filter(Boolean).join(",");
 console.log(`\n🎬 Assembling Video Track with FFmpeg...${wm ? " (+ watermark)" : ""}${downscale ? ` (→ ${outRes.height}p)` : ""}${render.samples > 1 ? ` (shutter ${render.shutter}, ${render.samples} samples/frame)` : ""}${grade ? " (+ grade)" : ""}`);
 try {
   execFileSync("ffmpeg", [
-    "-y", "-framerate", String(fps * render.samples), "-i", `${tmp}/f_%07d.${frameExt}`,
-    "-vf", vf, ...codecArgs(render), "-r", String(fps), rawVideo,
+    "-y", ...encoderInputArgs(encoder, { vaapiDevice: vaapiDevice() }),
+    "-framerate", String(fps * render.samples), "-i", `${tmp}/f_%07d.${frameExt}`,
+    "-vf", vf, ...codecArgs(render, encoder), "-r", String(fps), rawVideo,
   ], { stdio: "inherit" });
 } finally {
   // Never leave thousands of frames behind, even when the encode fails.

@@ -120,7 +120,6 @@ services:
       # runs in its own container — it must reach this one by a name the compose
       # network resolves, not by loopback.
       STUDIO_INTERNAL_ORIGIN: http://api:3000
-      HSA_OVERRIDE_GFX_VERSION: "10.3.0"
     volumes:
       # Project workspaces: sources, recordings, renders. The directory is the truth.
       - ./projects:/app/projects
@@ -142,8 +141,8 @@ services:
     cap_add:
       - SYS_ADMIN
     group_add:
-      - "44"
-      - "992"
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"
     depends_on:
       postgres:
         condition: service_healthy
