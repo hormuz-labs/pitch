@@ -26,6 +26,7 @@ model UserProfile {
   lastName            String?
   imageUrl            String?
   role                String              @default("user")
+  gptEnabled          Boolean             @default(false)
   onboardingSkippedAt DateTime?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt()

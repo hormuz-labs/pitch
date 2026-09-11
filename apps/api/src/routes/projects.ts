@@ -10,7 +10,7 @@ import * as projects from '../projects/service.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
 import { onProjectEvent } from '../studio/events.js'
 import { isFlowId } from '../studio/paths.js'
-import { listStudioModels, peekSession, STUDIO_DEFAULT_MODEL } from '../studio/session.js'
+import { listStudioModels, peekSession } from '../studio/session.js'
 
 const logger = createLogger('studio:routes')
 export const router = express.Router()
@@ -47,7 +47,8 @@ router.get('/models', async (req, res) => {
   if (!userId) return
   try {
     res.set('Cache-Control', 'no-store')
-    res.json({ default: STUDIO_DEFAULT_MODEL, models: await listStudioModels() })
+    const models = await listStudioModels(userId)
+    res.json({ default: models[0]?.spec ?? '', models })
   } catch (err) {
     fail(res, err, 'list models failed')
   }

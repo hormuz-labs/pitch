@@ -132,7 +132,19 @@ export function AdminView() {
                   </div>
                 </Show>
                 <Show when={tab() === 'users'}>
-                  <Users users={filteredUsers()} projects={projects()} onProject={setSelected} />
+                  <Users
+                    users={filteredUsers()}
+                    projects={projects()}
+                    onProject={setSelected}
+                    onGptAccess={(id, gptEnabled) =>
+                      setData((current: any) => ({
+                        ...current,
+                        users: current.users.map((user: any) =>
+                          user.id === id ? { ...user, gptEnabled } : user,
+                        ),
+                      }))
+                    }
+                  />
                 </Show>
                 <Show when={tab() === 'projects'}>
                   <Projects projects={filteredProjects()} onSelect={setSelected} />
@@ -221,14 +233,42 @@ function Users(props: {
   users: any[]
   projects: AdminProject[]
   onProject: (project: AdminProject) => void
+  onGptAccess: (id: string, enabled: boolean) => void
 }) {
+  const { getToken } = useAuth()
+  const [saving, setSaving] = createSignal<string | null>(null)
+  const [error, setError] = createSignal('')
+  const toggleGpt = async (user: any) => {
+    setSaving(user.id)
+    setError('')
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      const result = await api.patch<{ gptEnabled: boolean }>(
+        `/admin/users/${encodeURIComponent(user.id)}/gpt-access`,
+        token,
+        { gptEnabled: !user.gptEnabled },
+      )
+      props.onGptAccess(user.id, result.gptEnabled)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Failed to update GPT access')
+    } finally {
+      setSaving(null)
+    }
+  }
   return (
     <div class="overflow-x-auto">
+      <Show when={error()}>
+        <p role="alert" class="p-3 text-red-600">
+          {error()}
+        </p>
+      </Show>
       <table class="w-full min-w-[700px] text-left text-sm">
         <thead class="bg-gray-50 text-xs uppercase text-gray-400">
           <tr>
             <th class="p-3">User</th>
             <th>Role</th>
+            <th>GPT access</th>
             <th>Plan</th>
             <th>Joined</th>
             <th>Credits left</th>
@@ -240,7 +280,7 @@ function Users(props: {
             each={props.users}
             fallback={
               <tr>
-                <td colSpan="6" class="p-12 text-center">
+                <td colSpan="7" class="p-12 text-center">
                   No users found
                 </td>
               </tr>
@@ -253,6 +293,19 @@ function Users(props: {
                   <p class="text-xs text-gray-400">{user.email}</p>
                 </td>
                 <td>{user.role}</td>
+                <td>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!!user.gptEnabled}
+                    aria-label={`GPT access for ${user.email}`}
+                    disabled={saving() !== null}
+                    class="rounded-lg border px-3 py-1 text-xs disabled:opacity-50"
+                    onClick={() => void toggleGpt(user)}
+                  >
+                    {saving() === user.id ? 'Saving…' : user.gptEnabled ? 'Enabled' : 'Disabled'}
+                  </button>
+                </td>
                 <td>{user.subscription?.planKey ?? 'Free'}</td>
                 <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                 <td>{user.creditsRemaining}</td>
