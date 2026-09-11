@@ -1,4 +1,4 @@
-import type { Description, Entry, Target } from './types'
+import type { Entry, Target } from './types'
 export const fmt = (t: number) => {
   const m = Math.floor(t / 60)
   const s = (t % 60).toFixed(1).padStart(4, '0')
@@ -63,13 +63,6 @@ export function buildStatus(entries: Entry[], note: string | null): string {
       return e.text.trim().split('\n').filter(Boolean).at(-1)!.replace(/\*\*/g, '').slice(0, 120)
   }
   return 'Warming up…'
-}
-export function hasViewablePreview(description: Description | null | undefined): boolean {
-  const preview = description?.preview
-  if (!preview) return false
-  if (preview.kind === 'html') return Boolean(description.scenes?.length)
-  if (preview.kind === 'deck') return Boolean(description.slides?.length)
-  return true
 }
 export function timelineFollowScrollLeft(
   contentX: number,
