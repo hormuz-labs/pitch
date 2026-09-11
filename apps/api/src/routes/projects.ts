@@ -10,7 +10,7 @@ import * as projects from '../projects/service.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
 import { onProjectEvent } from '../studio/events.js'
 import { isFlowId } from '../studio/paths.js'
-import { listStudioModels, peekSession, STUDIO_DEFAULT_MODEL } from '../studio/session.js'
+import { listStudioModels, peekSession } from '../studio/session.js'
 
 const logger = createLogger('studio:routes')
 export const router = express.Router()
@@ -47,7 +47,8 @@ router.get('/models', async (req, res) => {
   if (!userId) return
   try {
     res.set('Cache-Control', 'no-store')
-    res.json({ default: STUDIO_DEFAULT_MODEL, models: await listStudioModels() })
+    const models = await listStudioModels(userId)
+    res.json({ default: models[0]?.spec ?? '', models })
   } catch (err) {
     fail(res, err, 'list models failed')
   }
@@ -173,7 +174,7 @@ router.post('/:id/prompt', async (req, res) => {
     const text = String(req.body?.text ?? '').trim()
     if (!text) return res.status(400).json({ error: 'text is required' })
     const targets = Array.isArray(req.body?.targets) ? req.body.targets.slice(0, 30) : []
-    await projects.promptProject(p, text, {
+    const result = await projects.promptProject(p, text, {
       targets,
       scene: typeof req.body?.scene === 'string' ? req.body.scene : null,
       slide: typeof req.body?.slide === 'number' ? req.body.slide : null,
@@ -181,10 +182,25 @@ router.post('/:id/prompt', async (req, res) => {
       options:
         req.body?.options && typeof req.body.options === 'object' ? req.body.options : undefined,
       model: typeof req.body?.model === 'string' ? req.body.model : undefined,
+      delivery: req.body?.delivery === 'steer' ? 'steer' : 'queue',
+      displayText:
+        typeof req.body?.displayText === 'string' ? req.body.displayText.trim() : undefined,
     })
-    res.status(202).json({ ok: true })
+    res.status(202).json({ ok: true, ...result })
   } catch (err) {
     fail(res, err, 'prompt failed')
+  }
+})
+
+router.post('/:id/rollback', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    const entryId = String(req.body?.entryId ?? '').trim()
+    if (!entryId) return res.status(400).json({ error: 'entryId is required' })
+    res.json(await projects.rollbackProject(userId, req.params.id, entryId))
+  } catch (err) {
+    fail(res, err, 'rollback failed')
   }
 })
 
@@ -203,7 +219,8 @@ router.get('/:id/messages', async (req, res) => {
   if (!userId) return
   try {
     const p = await projects.getRow(userId, req.params.id)
-    res.json({ entries: projects.getEntries(p.id), busy: peekSession(p.id)?.busy ?? false })
+    const entries = await projects.getEntries(p)
+    res.json({ entries, busy: peekSession(p.id)?.busy ?? false })
   } catch (err) {
     fail(res, err, 'messages failed')
   }

@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1
+ARG RUNTIME_IMAGE=ghcr.io/hormuz-labs/pitch-base:latest
 # ── Stage 1: install & build ──────────────────────────────────────────────────
 FROM oven/bun:1-debian AS builder
 
@@ -27,10 +28,21 @@ COPY . .
 RUN PATH="/app/packages/db/node_modules/.bin:$PATH" ./node_modules/.bin/zenstack generate --schema packages/db/prisma/schema.zmodel
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM ghcr.io/hormuz-labs/pitch-base:latest AS runtime
+FROM ${RUNTIME_IMAGE} AS runtime
 
 WORKDIR /app
 COPY --from=builder /app .
+
+# Host-side audio DSP, isolated from the system Python and the agent sandbox.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get -qq update \
+    && apt-get install -y -qq --no-install-recommends python3 python3-venv \
+    && python3 -m venv /opt/pitch-audio \
+    && /opt/pitch-audio/bin/pip install --no-cache-dir -r requirements-audio.txt \
+    && /opt/pitch-audio/bin/python -I -c "import pedalboard, numpy" \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV STUDIO_PYTHON=/opt/pitch-audio/bin/python
 
 # GPU devices (/dev/dri) for NVENC/VAAPI encodes when the host passes them.
 RUN groupadd -f render && usermod -aG render,video root
@@ -39,5 +51,6 @@ ENV NODE_ENV=production
 ARG GIT_HASH
 ENV GIT_HASH=${GIT_HASH}
 EXPOSE 3000
+STOPSIGNAL SIGTERM
 
-CMD ["sh", "-c", "bunx prisma migrate deploy --schema packages/db/prisma/schema.prisma && bun apps/api/src/index.ts"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma && exec bun apps/api/src/index.ts"]

@@ -153,6 +153,8 @@ export interface PromptInput {
   uploads?: UploadRef[]
   options?: Record<string, any>
   model?: string
+  delivery?: 'queue' | 'steer'
+  displayText?: string
 }
 
 export interface StudioModel {
@@ -171,6 +173,9 @@ export interface Entry {
   text: string
   tool?: { name: string; status: 'running' | 'done' | 'error'; args?: Record<string, unknown> }
   createdAt?: string
+  sessionEntryId?: string
+  checkpointId?: string
+  pending?: 'queued' | 'steering' | 'cancelled'
 }
 
 export type StudioEvent =
@@ -180,7 +185,8 @@ export type StudioEvent =
   | { type: 'update'; entry: Entry }
   | { type: 'tool'; name: string; args: Record<string, unknown> }
   | { type: 'status'; busy: boolean }
-  | { type: 'idle'; aborted?: boolean }
+  | { type: 'idle'; aborted?: boolean; busy?: boolean }
+  | { type: 'reset'; entries: Entry[] }
   | { type: 'error'; message: string }
   | ({ type: 'preview'; ok: boolean; files: string[] } & Partial<Description>)
   | { type: 'project'; project: Project }
@@ -270,7 +276,16 @@ export const patchProject = (
 export const deleteProject = (token: string, id: string) => api.delete<null>(p(id), token)
 
 export const prompt = (token: string, id: string, input: PromptInput) =>
-  api.post<{ ok: boolean }>(`${p(id)}/prompt`, token, input)
+  api.post<{ ok: boolean; delivery: 'started' | 'queued' | 'steered'; turn: number }>(
+    `${p(id)}/prompt`,
+    token,
+    input,
+  )
+
+export const rollback = (token: string, id: string, entryId: string) =>
+  api.post<{ text: string; entries: Entry[]; project: Project }>(`${p(id)}/rollback`, token, {
+    entryId,
+  })
 
 export const stop = (token: string, id: string) =>
   api.post<{ stopped: boolean }>(`${p(id)}/stop`, token)
@@ -324,6 +339,7 @@ export const studioApi = {
   patchProject,
   deleteProject,
   prompt,
+  rollback,
   stop,
   messages,
   eventsUrl,

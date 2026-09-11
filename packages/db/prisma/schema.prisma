@@ -30,6 +30,7 @@ model UserProfile {
   username             String?               @unique()
   emailNotifications   Boolean               @default(true)
   browserNotifications Boolean               @default(false)
+  gptEnabled           Boolean               @default(false)
   onboardingSkippedAt  DateTime?
   discordPromoSeenAt   DateTime?
   createdAt            DateTime              @default(now())

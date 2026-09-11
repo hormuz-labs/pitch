@@ -46,12 +46,14 @@ const Question = Type.Object({
   ),
 })
 
+export const ASK_USER_DESCRIPTION =
+  'Ask the user up to three questions as CLICKABLE OPTIONS in the chat. Call this only after the user explicitly requests a named outcome and a consequential missing choice would materially change the result. Greetings, thanks, small talk and capability questions on their own are not briefs: reply briefly without calling this tool, inferring an outcome from project options or loading a skill. Answers to your pending question and permission to proceed continue the existing brief. Conversational turns do not consume the first actionable request. For an actionable brief, ask what kind only when the request leaves materially different outcomes possible, or ask which real part of a known product the piece should cover. Ask ALL necessary questions in ONE call, give every question a first option you would pick yourself, then END YOUR TURN and wait: the answer arrives as their next message. Never ask about the look, the moves, the colours, the fonts or the music, and never ask twice.'
+
 export default function askTools(pi: ExtensionAPI) {
   pi.registerTool({
     name: 'ask_user',
     label: 'Ask the user',
-    description:
-      'Ask the user up to three questions as CLICKABLE OPTIONS in the chat. Use it when the request names an outcome but not which kind of it — "a launch video" is a cinematic film, a product walkthrough, a 3D render or a teaser, and they are different films — or, once you know the product, which part of it the piece is about. Ask ALL of it in ONE call, give every question a first option you would pick yourself, then END YOUR TURN and wait: the answer arrives as their next message. Never ask about the look, the moves, the colours, the fonts or the music, and never ask twice.',
+    description: ASK_USER_DESCRIPTION,
     parameters: Type.Object({
       intro: Type.Optional(
         Type.String({

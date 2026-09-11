@@ -43,6 +43,7 @@ model UserProfile {
   // "your video is ready" mail; browser alerts need a permission prompt first.
   emailNotifications   Boolean @default(true)
   browserNotifications Boolean @default(false)
+  gptEnabled Boolean @default(false) // Granted per user by an admin
   // Set when the user dismisses the welcome survey. The survey is never a
   // gate, so this only stops us asking again on their other devices.
   onboardingSkippedAt DateTime?

@@ -21,7 +21,7 @@ import type { Logger } from '@saas/shared'
 import { execAsync, getMediaDurationSec, outputFps, probeVideo } from './media.js'
 import type { Beat } from './utils/beats.js'
 import type { ClickEvent } from './utils/cursor-fx.js'
-import { nvencAvailable, videoEncodeArgs } from './utils/encoder.js'
+import { appendEncoderFilter, videoEncodePlan } from './utils/encoder.js'
 import { addIntroOutro, planTitleCards } from './utils/intro-outro.js'
 import { mapThroughKeptSegments, processVideo, type Segment } from './utils/smart_trim.js'
 import { buildContinuousZoomFilter, type ZoomEvent } from './utils/zoom-filter.js'
@@ -106,14 +106,18 @@ export async function renderRecordingEdit(
 
   // Keep the original narration: re-encode the source track to the house
   // profile (AAC 24kHz mono). `-map 0:a?` tolerates audio-less uploads.
-  const renderVideoArgs = await videoEncodeArgs({ quality: 18, cpuPreset: 'veryfast' })
+  const encodePlan = await videoEncodePlan({ quality: 18, cpuPreset: 'veryfast' })
+  const encodedVideo = appendEncoderFilter(filterComplex, finalVLabel, encodePlan)
+  filterComplex = encodedVideo.graph
   const ffmpegCmd =
-    `ffmpeg -y ${videoInputs} ` +
-    (filterComplex ? `-filter_complex "${filterComplex}" -map "${finalVLabel}" ` : `-map 0:v `) +
-    `-map 0:a? ${renderVideoArgs} -c:a aac -ar 24000 -ac 1 "${rawVideo}"`
+    `ffmpeg -y ${encodePlan.inputArgs} ${videoInputs} ` +
+    (filterComplex
+      ? `-filter_complex "${filterComplex}" -map "${encodedVideo.outputLabel}" `
+      : `-map 0:v `) +
+    `-map 0:a? ${encodePlan.outputArgs} -c:a aac -ar 24000 -ac 1 "${rawVideo}"`
 
   logger.info(
-    { encoder: (await nvencAvailable()) ? 'h264_nvenc (GPU)' : 'libx264 (CPU)' },
+    { encoder: encodePlan.label },
     'Rendering camera moves + cursor over uploaded recording',
   )
   const renderT0 = Date.now()

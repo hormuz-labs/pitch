@@ -49,8 +49,21 @@ export const studio = {
       uploads?: UploadRef[]
       options?: Record<string, unknown>
       model?: string
+      delivery?: 'queue' | 'steer'
+      displayText?: string
     },
-  ) => api.post<{ ok: boolean }>(`${p(id)}/prompt`, token, body),
+  ) =>
+    api.post<{ ok: boolean; delivery: 'started' | 'queued' | 'steered'; turn: number }>(
+      `${p(id)}/prompt`,
+      token,
+      body,
+    ),
+  rollback: (token: string, id: string, entryId: string) =>
+    api.post<{ text: string; entries: Entry[]; project: ProjectSummary }>(
+      `${p(id)}/rollback`,
+      token,
+      { entryId },
+    ),
   stop: (token: string, id: string) => api.post<{ stopped: boolean }>(`${p(id)}/stop`, token),
   messages: (token: string, id: string) =>
     api.get<{ entries: Entry[]; busy: boolean }>(`${p(id)}/messages`, token),

@@ -7,6 +7,7 @@ on:
 
 jobs:
   build-and-deploy:
+    if: vars.DEPLOY_TARGET != 'gke'
     runs-on: self-hosted
     permissions:
       contents: read

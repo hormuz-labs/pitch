@@ -1032,9 +1032,9 @@ const polling: DocPage = {
       k: 'note',
       text: (
         <>
-          <C>busy</C> is the same fact as <C>status === "working"</C>, as a boolean. A follow-up
-          prompt sent while <C>busy</C> is true is refused with <C>409 busy</C>; wait for the turn
-          to end and send it again.
+          <C>busy</C> is the same fact as <C>status === "working"</C>, as a boolean. Follow-up
+          prompts sent while <C>busy</C> is true are queued by default. Set <C>delivery</C> to{' '}
+          <C>"steer"</C> to inject the instruction into the active run instead.
         </>
       ),
     },
@@ -1142,7 +1142,7 @@ console.log(latest.url)`,
     { k: 'h2', text: 'Following up' },
     {
       k: 'p',
-      text: 'Once a project is ready you can send the agent another message. It edits in place and the new render is added to outputs. This is how you fix a scene, change the voice, tighten the cut, or ask for a different take. It costs nothing.',
+      text: 'You can send the agent another message at any time. It queues behind active work by default, edits in place, and adds the new render to outputs. This is how you fix a scene, change the voice, tighten the cut, or ask for a different take. It costs nothing.',
     },
     {
       k: 'code',
@@ -1642,6 +1642,12 @@ const restApi: DocPage = {
           </>,
         ],
         [<C key="c">slide</C>, 'number', 'no', 'A 1-based slide index, for decks'],
+        [
+          <C key="d">delivery</C>,
+          <C key="dt">"queue" | "steer"</C>,
+          'no',
+          'Queue behind active work (default), or steer the active run',
+        ],
       ],
     },
     {
@@ -1656,8 +1662,8 @@ const restApi: DocPage = {
       k: 'p',
       text: (
         <>
-          Returns <C>202</C> with the project. Returns <C>409 busy</C> if the agent is still on the
-          previous turn.
+          Returns <C>202</C> with the project. If the agent is already working, the prompt queues
+          behind it unless <C>delivery: "steer"</C> is provided.
         </>
       ),
     },
@@ -1776,14 +1782,20 @@ const tools: DocPage = {
         [<C key="b">text</C>, 'string', 'yes', ''],
         [<C key="c">scene</C>, 'string', 'no', 'Scope to a scene or shot id'],
         [<C key="d">slide</C>, 'number', 'no', 'Scope to a slide, 1-based'],
+        [
+          <C key="e">delivery</C>,
+          <C key="et">"queue" | "steer"</C>,
+          'no',
+          'Queue behind active work (default), or steer the active run',
+        ],
       ],
     },
     {
       k: 'note',
       text: (
         <>
-          Fails with a busy error while the previous turn is still running. Wait for{' '}
-          <C>get_project</C> to leave <C>working</C>, then send it again.
+          Messages sent while the project is working queue by default. Use <C>delivery: "steer"</C>{' '}
+          when the new instruction should redirect the active run.
         </>
       ),
     },

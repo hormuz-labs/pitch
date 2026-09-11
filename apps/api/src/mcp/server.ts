@@ -10,8 +10,6 @@ import { createLogger } from '@saas/shared'
 import { z } from 'zod'
 import {
   createFromApi,
-  exportFromApi,
-  exportStatusFromApi,
   getFromApi,
   listFromApi,
   pricing,
@@ -91,14 +89,19 @@ export const buildMcpServer = (userId: string): McpServer => {
         text: z.string(),
         scene: z.string().optional().describe('Scope to a scene/shot id'),
         slide: z.number().int().optional().describe('Scope to a slide (1-based)'),
+        delivery: z
+          .enum(['queue', 'steer'])
+          .optional()
+          .describe('Queue behind active work (default), or steer the active run'),
       },
     },
-    async ({ projectId, text, scene, slide }) => {
+    async ({ projectId, text, scene, slide, delivery }) => {
       try {
         return jsonResult(
           await promptFromApi(userId, projectId, text, {
             scene: scene ?? null,
             slide: slide ?? null,
+            delivery,
           }),
         )
       } catch (error) {

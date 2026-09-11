@@ -17,16 +17,17 @@ The video records in **real time** from `pitch demo record-start` until
 `pitch demo record-stop`, including while you think. The user wants a video, not
 questions: decide everything yourself and narrate your choices briefly.
 
-One exception, and only on the first turn of a new project: **which demo**.
-A product has more flows than one recording can cover, and "a demo of X" does
-not say whether it is the full tour, one workflow end to end, the setup, or a
-90-second highlight. Ask that once with `ask_user` — it draws the options as
-buttons — alongside the depth (Quick tour · One workflow in full · Setup and
-first run) and, when there is any doubt, which flow, offered in the product's
-own words. Then end the turn and wait. Never ask about the voice, the pacing,
-the zooms or the look, and never ask once recording has started.
+One exception, and only on the first actionable request for a new demo:
+**which demo**. A product has more flows than one recording can cover, and "a
+demo of X" does not say whether it is the full tour, one workflow end to end,
+the setup, or a 90-second highlight. Ask that once with `ask_user` — it draws
+the options as buttons — alongside the depth (Quick tour · One workflow in
+full · Setup and first run) and, when there is any doubt, which flow, offered
+in the product's own words. Then end the turn and wait. Never ask about the
+voice, the pacing, the zooms or the look, and never ask once recording has
+started. Skip choices already settled in the brief or delegated to you.
 
-## The production run (first turn)
+## The production run (first build turn)
 
 1. **Assets** — if the project has uploads: `pitch demo prepare-assets`.
 2. **Storyboard** — only if the user explicitly asked to review one before

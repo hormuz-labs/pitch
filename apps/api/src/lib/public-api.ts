@@ -16,7 +16,7 @@ import {
   promptProject,
 } from '../projects/service.js'
 import { COMPUTE_USD_PER_SEC, CREDIT_USD } from '../projects/usage.js'
-import { type FlowId, isFlowId } from '../studio/paths.js'
+import { isFlowId } from '../studio/paths.js'
 import {
   EDIT_EXTS,
   EDIT_MAX_BYTES,
@@ -97,7 +97,12 @@ export async function promptFromApi(
   userId: string,
   id: string,
   text: string,
-  opts: { targets?: any[]; scene?: string | null; slide?: number | null } = {},
+  opts: {
+    targets?: any[]
+    scene?: string | null
+    slide?: number | null
+    delivery?: 'queue' | 'steer'
+  } = {},
 ) {
   const p = await getRow(userId, id)
   await promptProject(p, text, opts)

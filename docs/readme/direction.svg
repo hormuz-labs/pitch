@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Point. Prompt. Preview.</title>
+  <desc id="desc">An illustrated editing desk. A headline is selected as target one, seconds twelve to eighteen as target two, and logo.png as target three. The prompt asks to enlarge the headline, lower the music in the range, and use the logo on the closing card.</desc>
+  <defs>
+    <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#B9B0A5" fill-opacity=".5"/></pattern>
+    <linearGradient id="screen" x1="655" y1="140" x2="1200" y2="430" gradientUnits="userSpaceOnUse"><stop stop-color="#282236"/><stop offset="1" stop-color="#141219"/></linearGradient>
+    <style>
+      .sans { font-family: 'DM Sans', Arial, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+      .serif { font-family: 'Instrument Serif', Georgia, serif; }
+    </style>
+  </defs>
+  <rect x=".5" y=".5" width="1279" height="639" rx="20" fill="#F0ECE3" stroke="#D3CCC0"/>
+  <rect x="1" y="1" width="1278" height="638" rx="20" fill="url(#dots)"/>
+  <text x="48" y="48" class="mono" font-size="12" letter-spacing="2" fill="#736B61">THE DIRECTION DESK</text>
+  <text x="942" y="48" class="mono" font-size="12" letter-spacing="1.5" fill="#736B61">THREE WAYS TO SAY “THIS”</text>
+  <path d="M48 68H1232" stroke="#D1C8BB"/>
+
+  <text x="46" y="135" class="serif" font-size="51" letter-spacing="-2" fill="#29252D">Less explaining.</text>
+  <text x="46" y="189" class="serif" font-size="51" font-style="italic" letter-spacing="-2" fill="#77618E">More directing.</text>
+  <text x="48" y="232" class="sans" font-size="18" fill="#71695F">Select the thing. Say what you mean.</text>
+
+  <!-- The prompt is the destination for all three selection types. -->
+  <rect x="48" y="266" width="493" height="219" rx="15" fill="#FFFCF6" stroke="#D3CABC"/>
+  <text x="70" y="301" class="mono" font-size="11" letter-spacing="2" fill="#82776A">YOUR NEXT DIRECTION</text>
+  <g class="sans" font-size="18" fill="#37313D">
+    <text x="70" y="348">Make</text><text x="165" y="348">bigger.</text>
+    <text x="70" y="386">Lower the music during</text>
+    <text x="70" y="424">Use</text><text x="154" y="424">on the closing card.</text>
+  </g>
+  <g fill="#E8DDF8" stroke="#BAA3D4">
+    <rect x="123" y="324" width="32" height="32" rx="8"/>
+    <rect x="270" y="362" width="32" height="32" rx="8"/>
+    <rect x="112" y="400" width="32" height="32" rx="8"/>
+  </g>
+  <g class="mono" font-size="17" fill="#694884" text-anchor="middle"><text x="139" y="346">1</text><text x="286" y="384">2</text><text x="128" y="422">3</text></g>
+  <circle cx="506" cy="450" r="17" fill="#29232F"/>
+  <path d="M506 457v-14m-5 5 5-5 5 5" stroke="#F5EEF8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M557 331h51m-7-6 7 6-7 6" stroke="#9C88AF" stroke-width="1.5"/>
+
+  <!-- A composition, deliberately schematic rather than a product screenshot. -->
+  <rect x="636" y="96" width="596" height="345" rx="12" fill="#141218" stroke="#4B4058"/>
+  <path d="M636 136H1232" stroke="#3B3345"/>
+  <circle cx="657" cy="117" r="3" fill="#82758F"/><circle cx="670" cy="117" r="3" fill="#82758F"/><circle cx="683" cy="117" r="3" fill="#82758F"/>
+  <text x="702" y="122" class="mono" font-size="11" fill="#BFB1CD">PREVIEW / OPENING SCENE</text>
+  <text x="1174" y="122" class="mono" font-size="11" fill="#BFB1CD">16:9</text>
+  <rect x="650" y="150" width="568" height="277" rx="4" fill="url(#screen)"/>
+  <text x="687" y="190" class="mono" font-size="10" letter-spacing="2.5" fill="#A99AB9">INTRODUCING YOUR NEXT CHAPTER</text>
+  <text x="684" y="251" class="serif" font-size="44" fill="#F5EFFA">Good things</text>
+  <text x="684" y="301" class="serif" font-size="44" font-style="italic" fill="#CEB5EE">deserve a debut.</text>
+  <text x="687" y="350" class="sans" font-size="15" fill="#A99AB9">Made with a little direction.</text>
+  <path d="M687 384H868" stroke="#5F4C71"/>
+  <text x="687" y="406" class="mono" font-size="10" letter-spacing="2" fill="#A99AB9">PITCH / FIRST LOOK</text>
+  <circle cx="1116" cy="288" r="65" stroke="#5E4D76"/>
+  <circle cx="1116" cy="288" r="46" stroke="#9A7FC0" stroke-width="12"/>
+  <ellipse cx="1116" cy="288" rx="21" ry="46" stroke="#D1B3F2" stroke-width="5" transform="rotate(-30 1116 288)"/>
+
+  <!-- DOM target with selection handles. -->
+  <rect x="675" y="207" width="333" height="111" stroke="#CEAAFB" stroke-width="1.5"/>
+  <g fill="#E6CCFF" stroke="#5F397D"><path d="M672 204h6v6h-6zM1005 204h6v6h-6zM672 315h6v6h-6zM1005 315h6v6h-6z"/></g>
+  <rect x="981" y="181" width="28" height="27" rx="6" fill="#DDC0FC"/>
+  <text x="995" y="200" class="mono" font-size="16" fill="#492C60" text-anchor="middle">1</text>
+  <path d="m994 297 9 30 5-10 11-2z" fill="#F6EFFF" stroke="#54356C" stroke-width="1.5"/>
+
+  <!-- A video time-range target. -->
+  <rect x="636" y="455" width="391" height="111" rx="10" fill="#E8E1D6" stroke="#CFC3B5"/>
+  <g class="mono" font-size="10" fill="#807366"><text x="652" y="478">00:00</text><text x="816" y="478">00:12</text><text x="962" y="478">00:24</text></g>
+  <rect x="652" y="491" width="359" height="34" rx="4" fill="#CCC0D7"/>
+  <path d="M661 508h340m-326-9v18m9-12v6m9-14v22m9-17v12m9-15v18m9-12v6m9-16v26m9-19v12m9-15v18m9-12v6m9-14v22m9-18v14m9-10v6m9-17v28m9-22v16m9-13v10m9-17v24m9-17v10m9-9v8m9-12v16m9-10v4m9-12v20m9-15v10m9-17v24m9-18v12m9-10v8m9-15v22m9-16v10m9-14v18m9-13v8m9-16v24m9-16v8m9-9v10m9-12v14m9-10v6m9-12v18m9-13v8m9-10v12" stroke="#806994" stroke-width="1.5"/>
+  <rect x="823" y="488" width="93" height="40" rx="4" fill="#BE8EE4" fill-opacity=".3" stroke="#8557A6" stroke-width="2"/>
+  <path d="M828 500v16m83-16v16" stroke="#784597" stroke-width="2"/>
+  <rect x="825" y="535" width="23" height="22" rx="5" fill="#785594"/>
+  <text x="836" y="551" class="mono" font-size="13" fill="#FFF" text-anchor="middle">2</text>
+  <text x="859" y="551" class="mono" font-size="11" fill="#685575">12s – 18s</text>
+
+  <!-- An asset target; this file is material to use. -->
+  <rect x="1041" y="455" width="191" height="111" rx="10" fill="#FFFCF6" stroke="#BAA3D4" stroke-width="1.5"/>
+  <rect x="1056" y="469" width="44" height="44" rx="8" fill="#28232D"/>
+  <path d="M1067 479h6v5h-6zM1075 479h6v5h-6zM1083 479h6v5h-6zM1067 486h6v5h-6zM1083 486h6v5h-6zM1067 493h6v5h-6zM1075 493h6v5h-6zM1083 493h6v5h-6zM1067 500h6v5h-6z" fill="#F5EFFA"/>
+  <text x="1112" y="496" class="sans" font-size="16" fill="#4A3D55">logo.png</text>
+  <rect x="1056" y="530" width="23" height="22" rx="5" fill="#785594"/>
+  <text x="1067" y="546" class="mono" font-size="13" fill="#FFF" text-anchor="middle">3</text>
+  <text x="1089" y="546" class="mono" font-size="10" fill="#83708F">USE THIS FILE</text>
+
+  <path d="M48 591H1232" stroke="#D1C8BB"/>
+  <text x="48" y="619" class="mono" font-size="11" letter-spacing="1" fill="#736B61">ELEMENT → SELECTOR</text>
+  <text x="477" y="619" class="mono" font-size="11" letter-spacing="1" fill="#736B61">RANGE → TIMESTAMPS</text>
+  <text x="1001" y="619" class="mono" font-size="11" letter-spacing="1" fill="#736B61">ASSET → FILE PATH</text>
+</svg>

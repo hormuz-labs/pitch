@@ -7,6 +7,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   codecArgs,
+  encoderCandidates,
+  encoderInputArgs,
+  encoderSupports,
+  encoderUploadFilter,
   escapeFilterPath,
   normalizeGrade,
   normalizeRender,
@@ -179,6 +183,37 @@ describe('codecArgs', () => {
     expect(h).toContain('libx265')
     expect(h.join(' ')).toContain('-tag:v hvc1')
     expect(h.join(' ')).toContain('colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited')
+  })
+
+  it('uses VideoToolbox on macOS-compatible output', () => {
+    const render = normalizeRender(null, {})
+    expect(encoderCandidates('darwin', render)).toEqual(['videotoolbox', 'cpu'])
+    expect(codecArgs(render, 'videotoolbox').join(' ')).toContain('-c:v h264_videotoolbox')
+  })
+
+  it('uses NVENC then VAAPI on Linux and prepares VAAPI frames', () => {
+    const render = normalizeRender(null, {})
+    expect(encoderCandidates('linux', render)).toEqual(['nvenc', 'vaapi', 'cpu'])
+    expect(codecArgs(render, 'nvenc').join(' ')).toContain('-c:v h264_nvenc')
+    expect(codecArgs(render, 'vaapi').join(' ')).toContain('-c:v h264_vaapi')
+    expect(encoderInputArgs('vaapi')).toEqual([
+      '-init_hw_device',
+      'vaapi=va:/dev/dri/renderD128',
+      '-filter_hw_device',
+      'va',
+    ])
+    expect(encoderUploadFilter(render, 'vaapi')).toBe('format=nv12,hwupload')
+  })
+
+  it('keeps 10-bit H.264 on the CPU but accelerates 10-bit HEVC when supported', () => {
+    const h264 = normalizeRender({ codec: 'h264', depth: 10 })
+    const hevc = normalizeRender({ codec: 'hevc', depth: 10 })
+    expect(encoderSupports(h264, 'videotoolbox')).toBe(false)
+    expect(encoderCandidates('darwin', h264)).toEqual(['cpu'])
+    expect(encoderUploadFilter(hevc, 'vaapi')).toBe('format=p010le,hwupload')
+    expect(codecArgs(hevc, 'videotoolbox').join(' ')).toContain(
+      '-c:v hevc_videotoolbox -profile:v main10',
+    )
   })
 })
 

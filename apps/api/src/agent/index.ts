@@ -155,6 +155,9 @@ function optionSummary(options: Record<string, any>): string {
     : '(none)'
 }
 
+export const TURN_REQUEST_CONTRACT =
+  'First decide whether the user asks for work or continues an existing request. Answers to a pending question, "go ahead" and "you decide" continue the brief; use the conversation to understand them. Greetings, thanks, small talk and capability questions on their own are not actionable briefs: reply briefly without inferring an outcome, reading a skill, calling `ask_user`, calling another tool or starting work. Project options may be UI defaults and do not request an outcome. Conversational turns do not consume the first actionable request. When an explicit request names an outcome, read its skill and use `ask_user` only if a consequential choice that would materially change the result is missing.'
+
 /** Per-turn steering, appended in a <studio-context> block. */
 export async function buildContext(ws: Workspace, turn: TurnInput): Promise<string> {
   const project = await readProjectFile(ws)
@@ -163,8 +166,8 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
 
   parts.push(
     turn.first
-      ? `New project "${ws.name}". ${await inventory(ws)}\nOptions the user chose: ${optionSummary(options)}.\n\nDecide what they are asking for and read the matching skill. If they named an outcome but not which KIND of it — a launch video is a cinematic film, a product walkthrough, a 3D render or a teaser — ask that with one \`ask_user\` call and end your turn; their answer arrives as the next message. Everything else is yours: make the creative decisions yourself and report what you made.`
-      : `You are iterating on "${ws.name}". ${await inventory(ws)}\nOptions: ${optionSummary(options)}.\n\nApply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the pitch media commands before regenerating anything.`,
+      ? `New project "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}`
+      : `You are continuing "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}\n\nIf the message is actionable, apply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the pitch media commands before regenerating anything.`,
   )
 
   if (turn.slide) parts.push(`The user is looking at slide ${turn.slide}.`)
