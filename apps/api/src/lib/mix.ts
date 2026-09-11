@@ -165,6 +165,11 @@ async function ensureMixNow(dir: string): Promise<MixResult> {
         : []
   const inputs = [
     path.join(dir, 'shots.js'),
+    path.join(audioDir, 'cues.json'),
+    path.join(audioDir, 'mix-settings.json'),
+    MIX_SCRIPT,
+    path.join(MOTION_SCRIPTS_DIR, 'lib', 'breaths.mjs'),
+    path.join(MOTION_SCRIPTS_DIR, 'lib', 'audio-levels.mjs'),
     ...voFiles,
     bed ? path.join(audioDir, bed) : '',
     sfx ? path.join(dir, sfx) : '',
@@ -186,12 +191,14 @@ async function ensureMixNow(dir: string): Promise<MixResult> {
   )
   const { code, out } = await run(args, dir)
   const tail = out.trim().split('\n').slice(-12).join('\n')
+  if (code !== 0) {
+    logger.warn({ workspace: path.basename(dir), code }, 'mix failed its quality check')
+    throw new Error(`Audio mix failed its quality check: ${tail}`)
+  }
   const produced = existsSync(mixPath) && mtime(mixPath) >= newestInput
   if (!produced) {
     logger.warn({ workspace: path.basename(dir), code, tail }, 'mix.mjs exited without a mix')
     return { built: false, reason: `mix.mjs exited ${code}`, log: tail }
   }
-  if (code !== 0)
-    logger.warn({ workspace: path.basename(dir), code }, 'mix built but its gate reported problems')
-  return { built: true, reason: code === 0 ? 'built' : `built, gate exit ${code}`, log: tail }
+  return { built: true, reason: 'built', log: tail }
 }

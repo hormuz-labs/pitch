@@ -786,7 +786,7 @@
           break;
         }
         case "breath":
-          (window.__BREATHS = window.__BREATHS || []).push({ at: +(shotStart + at).toFixed(3), dur: b.dur ?? 0.45, depth: b.depth ?? 0.75, shot: shot.id });
+          (window.__BREATHS = window.__BREATHS || []).push({ at: +(shotStart + at).toFixed(3), dur: b.dur ?? 0.45, depth: b.depth ?? 0.35, attack: b.attack ?? 0.15, release: b.release ?? 0.3, shot: shot.id });
           break;
         case "swap": {
           if (!sel) break;

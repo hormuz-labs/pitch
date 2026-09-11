@@ -5,7 +5,7 @@
  *
  * Run from the project folder, after the master timeline exists:
  *   node $SKILL/scripts/cues.mjs [index.html] [--out=audio/cues.json]
- *   node $SKILL/scripts/cues.mjs --check        # report only, write nothing
+ *   node $SKILL/scripts/cues.mjs --check        # compile check + refresh labels
  *
  * WHY: scene start times can be derived two ways, and only one is correct.
  * Summing `SCENE_TIMING[].dur` gives the times a scene WOULD start if every
@@ -28,6 +28,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { extractSpec, lintWhileBuilding } from "./lib/design-rules.mjs";
+import { actionableOverruns } from "./lib/overruns.mjs";
 
 const args = process.argv.slice(2);
 const page_ = args.find(a => !a.startsWith("--")) || "index.html";
@@ -65,13 +66,14 @@ const data = await page.evaluate(() => ({
 const spec = CHECK ? await page.evaluate(extractSpec) : null;
 await studio.close();
 
-if (!CHECK) {
+if (!errors.length) {
   mkdirSync(dirname(resolve(out)), { recursive: true });
   writeFileSync(out, JSON.stringify({ duration: data.duration, cues: data.cues, breaths: data.breaths }, null, 2));
 }
 
+const overruns = actionableOverruns(data.overruns);
 const head = CHECK
-  ? `${errors.length ? "❌" : "✅"} ${page_} compiles — ${data.shots.length} shots · ${data.duration.toFixed(2)}s · ${data.overruns.length} overrun${data.overruns.length === 1 ? "" : "s"}`
+  ? `${errors.length ? "❌" : "✅"} ${page_} compiles — ${data.shots.length} shots · ${data.duration.toFixed(2)}s · ${overruns.length} actionable overrun${overruns.length === 1 ? "" : "s"}`
   : `✨ ${out} — duration ${data.duration.toFixed(2)}s, ${data.cues.length} labels${data.breaths.length ? `, ${data.breaths.length} breath${data.breaths.length === 1 ? "" : "s"}` : ""}`;
 console.log(head);
 const byLabel = new Map(data.cues.map((c) => [c.label, c.time]));
@@ -79,7 +81,7 @@ for (const c of data.cues) {
   const shot = data.shots.find((s) => s.id === c.label);
   console.log(`   ${c.label.padEnd(14)} ${c.time.toFixed(2).padStart(6)}s${shot ? `  ${String(shot.dur).padStart(5)}s  ${shot.type}` : ""}`);
 }
-for (const o of data.overruns) {
+for (const o of overruns) {
   // compiler.js records { id, type, dur, ran, speed }
   const speed = Number(o.speed) || (o.ran && o.dur ? o.ran / o.dur : 0);
   if (speed < 1.1) continue; // a 2% squeeze is invisible; retiming it cost a run thirteen turns
@@ -101,5 +103,6 @@ if (CHECK) {
   if (unset.length) console.log(`⚠ brand.${unset.join(", brand.")} not set — the film is rendering the engine's DEFAULT palette, not the product's. Put the measured values in brand.bg / brand.ink / brand.accent (the audit fails on this).`);
   const missing = data.shots.filter((s) => !byLabel.has(s.id));
   if (missing.length) console.log(`⚠ shots without a timeline label: ${missing.map((s) => s.id).join(", ")}`);
-  console.log(`   The studio preview already shows this cut. Keep going: next shots, then motion_audit.`);
+  console.log(`   ${out} refreshed; no separate cues call is needed for this cut.`);
+  console.log(`   The preview shows this cut. Add the next shots before running a full audit. After the first audit/review, batch fixes and use --shots <changed-ids>; audio-only edits need only motion mix.`);
 }

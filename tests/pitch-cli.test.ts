@@ -130,6 +130,25 @@ describe('the registry', () => {
 })
 
 describe('help', () => {
+  it('serves sections and shot types together in one schema lookup', async () => {
+    const out = await run('motion schema --section actors --types line,logo-cta')
+    expect(out).toContain('## Actors')
+    expect(out).toContain('| type | Fields |')
+    expect(out).toContain('logo-cta')
+  })
+
+  it('exposes SFX trim and scheduled-dip control on the supported mix command', async () => {
+    const cmd = findCommand('motion', 'mix')!
+    expect(
+      parseArgs(['--duration', '59', '--sfx-db', '-3', '--no-breaths=false'], cmd.parameters),
+    ).toMatchObject({
+      duration: 59,
+      sfx_db: -3,
+      no_breaths: false,
+    })
+    expect(await run('motion mix --help')).toContain('local 400ms windows')
+  })
+
   it('lists the namespaces with no arguments', async () => {
     const out = await run('help', ctx)
     expect(out).toContain('pitch <namespace> <command>')
