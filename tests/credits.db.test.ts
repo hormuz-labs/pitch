@@ -40,6 +40,8 @@ import {
   forfeitableCredits,
   getCreditBalance,
   getCreditTransactions,
+  getDiscordCreditBalance,
+  grantDiscordVideoReward,
   recordTopUp,
 } from '../packages/db/src/index.js'
 
@@ -70,7 +72,7 @@ describe('getCreditBalance', () => {
 
     expect(await getCreditBalance('user_1')).toBe(42)
     expect(mockPrisma.creditTransaction.aggregate).toHaveBeenCalledWith({
-      where: { userId: 'user_1' },
+      where: { userId: 'user_1', channel: { not: 'discord' } },
       _sum: { delta: true },
     })
   })
@@ -78,6 +80,25 @@ describe('getCreditBalance', () => {
   it('returns 0 for a user with no transactions', async () => {
     mockPrisma.creditTransaction.aggregate.mockResolvedValue({ _sum: { delta: null } })
     expect(await getCreditBalance('brand_new')).toBe(0)
+  })
+
+  it('keeps the UTC-day Discord balance separate from the main balance', async () => {
+    mockPrisma.creditTransaction.aggregate.mockResolvedValue({ _sum: { delta: 120 } })
+
+    await expect(
+      getDiscordCreditBalance('user_1', mockPrisma, new Date('2026-09-11T12:00:00.000Z')),
+    ).resolves.toBe(120)
+    expect(mockPrisma.creditTransaction.aggregate).toHaveBeenCalledWith({
+      where: {
+        userId: 'user_1',
+        channel: 'discord',
+        createdAt: {
+          gte: new Date('2026-09-11T00:00:00.000Z'),
+          lt: new Date('2026-09-12T00:00:00.000Z'),
+        },
+      },
+      _sum: { delta: true },
+    })
   })
 })
 
@@ -95,10 +116,11 @@ describe('addCredits', () => {
         delta: 10,
         type: 'admin_adjustment',
         description: 'manual top-up',
-        jobId: undefined,
+        projectId: undefined,
         subscriptionId: undefined,
         topUpId: undefined,
         idempotencyKey: undefined,
+        channel: 'product',
       },
     })
     expect(result).toBe(10)
@@ -128,6 +150,113 @@ describe('addCredits', () => {
     })
     expect(mockPrisma.creditTransaction.create).not.toHaveBeenCalled()
     expect(result).toBe(7) // returns existing balance, no double-grant
+  })
+})
+
+describe('Discord video reward', () => {
+  const offerDay = new Date('2026-09-11T12:00:00.000Z')
+
+  it('grants one video at a time from the daily allowance', async () => {
+    const promoCode = {
+      upsert: vi.fn().mockResolvedValue({ id: 'promo_discord', credits: 120 }),
+      update: vi.fn().mockResolvedValue({}),
+    }
+    const promoCodeRedemption = {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+    }
+    const creditTransaction = {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 120 } }),
+    }
+    mockPrisma.$transaction.mockImplementation(async (callback: any) =>
+      callback({ promoCode, promoCodeRedemption, creditTransaction }),
+    )
+
+    await expect(
+      grantDiscordVideoReward('user_1', 120, { dailyLimit: 3, now: offerDay }),
+    ).resolves.toEqual({
+      granted: true,
+      credits: 120,
+      remaining: 2,
+    })
+    expect(promoCode.upsert).toHaveBeenCalledWith({
+      where: { code: 'DISCORD_VIDEO_2026_09_11_1' },
+      create: { code: 'DISCORD_VIDEO_2026_09_11_1', credits: 120 },
+      update: { credits: 120 },
+    })
+    expect(promoCodeRedemption.create).toHaveBeenCalledWith({
+      data: { userId: 'user_1', codeId: 'promo_discord', credits: 120 },
+    })
+    expect(creditTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'user_1',
+        delta: 120,
+        type: 'promo',
+        channel: 'discord',
+        idempotencyKey: 'promo:discord-video:2026-09-11:1:user_1',
+      }),
+    })
+  })
+
+  it('uses the next unredeemed slot for the same UTC day', async () => {
+    const creditCreate = vi.fn()
+    const findUnique = vi.fn().mockResolvedValueOnce({ credits: 120 }).mockResolvedValueOnce(null)
+    mockPrisma.$transaction.mockImplementation(async (callback: any) =>
+      callback({
+        promoCode: {
+          upsert: vi.fn(({ where }: any) => ({ id: where.code, credits: 120 })),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        promoCodeRedemption: {
+          findUnique,
+          create: vi.fn().mockResolvedValue({}),
+        },
+        creditTransaction: {
+          findUnique: vi.fn().mockResolvedValue(null),
+          create: creditCreate,
+          aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 120 } }),
+        },
+      }),
+    )
+
+    await expect(
+      grantDiscordVideoReward('user_1', 120, { dailyLimit: 3, now: offerDay }),
+    ).resolves.toEqual({
+      granted: true,
+      credits: 120,
+      remaining: 1,
+    })
+    expect(creditCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        idempotencyKey: 'promo:discord-video:2026-09-11:2:user_1',
+      }),
+    })
+  })
+
+  it('rejects a fourth Discord video on the same UTC day', async () => {
+    const creditCreate = vi.fn()
+    const findUnique = vi.fn().mockResolvedValue({ credits: 120 })
+    mockPrisma.$transaction.mockImplementation(async (callback: any) =>
+      callback({
+        promoCode: {
+          upsert: vi.fn(({ where }: any) => ({ id: where.code, credits: 120 })),
+        },
+        promoCodeRedemption: { findUnique },
+        creditTransaction: { create: creditCreate },
+      }),
+    )
+
+    await expect(
+      grantDiscordVideoReward('user_1', 120, { dailyLimit: 3, now: offerDay }),
+    ).resolves.toEqual({
+      granted: false,
+      credits: 0,
+      remaining: 0,
+    })
+    expect(findUnique).toHaveBeenCalledTimes(3)
+    expect(creditCreate).not.toHaveBeenCalled()
   })
 })
 
@@ -187,7 +316,7 @@ describe('getCreditTransactions', () => {
     const result = await getCreditTransactions('user_1')
 
     expect(mockPrisma.creditTransaction.findMany).toHaveBeenCalledWith({
-      where: { userId: 'user_1' },
+      where: { userId: 'user_1', channel: { not: 'discord' } },
       orderBy: { createdAt: 'desc' },
     })
     expect(result).toHaveLength(2)
@@ -356,6 +485,25 @@ describe('deductCredit channel attribution', () => {
 
     expect(createMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ channel: 'api' }),
+    })
+  })
+
+  it('can only spend today’s Discord allowance on the discord channel', async () => {
+    const aggregateMock = vi.fn().mockResolvedValue({ _sum: { delta: 120 } })
+    const createMock = vi.fn().mockResolvedValue({})
+    mockPrisma.$transaction = makeTx({ aggregate: aggregateMock, create: createMock })
+
+    await deductCredit('user_1', 120, 'Discord video', {
+      projectId: 'proj_discord',
+      channel: 'discord',
+    })
+
+    expect(aggregateMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({ userId: 'user_1', channel: 'discord' }),
+      _sum: { delta: true },
+    })
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ channel: 'discord' }),
     })
   })
 })

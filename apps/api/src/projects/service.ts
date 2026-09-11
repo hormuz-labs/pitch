@@ -242,7 +242,10 @@ export async function createProject(
   // Nothing is charged for opening a project: the studio bills what the work
   // actually costs, turn by turn (projects/usage.ts). The balance check is
   // only that they can pay for some of it.
-  const balance = await db.getCreditBalance(userId)
+  const balance =
+    input.source === 'discord'
+      ? await db.getDiscordCreditBalance(userId)
+      : await db.getCreditBalance(userId)
   if (balance < MIN_BALANCE) throw new InsufficientCreditsError(balance)
 
   const title = projectTitle(
@@ -268,7 +271,13 @@ export async function createProject(
   const ws = workspaceOf(p)
   try {
     await agent.prepare(ws, options, uploads)
-    if (prompt) await promptProject(p, prompt, { first: true, uploads })
+    if (prompt)
+      await promptProject(p, prompt, {
+        first: true,
+        uploads,
+        billingChannel:
+          input.source === 'discord' ? 'discord' : input.source === 'api' ? 'api' : 'product',
+      })
   } catch (err: any) {
     logger.error({ err, projectId: p.id }, 'could not open the project')
     await failProject(p, `Could not start: ${err.message}`, false)
@@ -297,6 +306,8 @@ interface PromptOptions {
   options?: Record<string, any>
   /** This turn's model pick; overrides the one stored in the project's options. */
   model?: string
+  /** Explicit billing pool for service-created first turns. */
+  billingChannel?: 'product' | 'api' | 'discord'
 }
 
 export async function promptProject(
@@ -346,7 +357,7 @@ export async function promptProject(
     text,
     context,
   )
-  billTurn(p, s.turn)
+  billTurn(p, s.turn, opts.billingChannel)
   if (first) followFirstTurn(p, s.turn)
   if (p.lastError)
     await db.prisma.project
@@ -359,11 +370,15 @@ export async function promptProject(
  * this is where the money is: the model spend it used plus the machine time
  * its host actions burned.
  */
-function billTurn(p: ProjectRow, turn: number): void {
+function billTurn(
+  p: ProjectRow,
+  turn: number,
+  channel: 'product' | 'api' | 'discord' = p.source === 'api' ? 'api' : 'product',
+): void {
   const off = onProjectEvent(p.id, (ev: StudioEvent) => {
     if (ev.type !== 'idle' || ev.turn !== turn) return
     off()
-    void chargeTurn(p, takeModelCost(p.id)).catch(err =>
+    void chargeTurn(p, takeModelCost(p.id), channel).catch(err =>
       logger.warn({ err, projectId: p.id }, 'could not bill the turn'),
     )
   })
@@ -403,6 +418,7 @@ export async function failProject(p: ProjectRow, error: string, refund: boolean)
       .addCredits(p.userId, p.creditsCharged, 'refund', 'Refund: the project produced nothing', {
         projectId: p.id,
         idempotencyKey: `refund:project:${p.id}`,
+        channel: p.source === 'discord' ? 'discord' : 'product',
       })
       .catch(err => logger.warn({ err, projectId: p.id }, 'refund failed'))
   }

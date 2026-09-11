@@ -61,8 +61,20 @@ describe('chargeTurn channel attribution', () => {
     )
   })
 
-  it('attributes a Discord-made project to the product channel, not api', async () => {
-    // Discord drives the same app-facing surface, not the /v1 key surface.
+  it('attributes a Discord-made project only to its sponsored Discord balance', async () => {
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+
+    await chargeTurn(project({ source: 'discord' }), 0.3, 'discord')
+
+    expect(mocks.deductCredit).toHaveBeenCalledWith(
+      'user_1',
+      expect.any(Number),
+      expect.any(String),
+      expect.objectContaining({ channel: 'discord' }),
+    )
+  })
+
+  it('uses main product credits for later web edits to a Discord-origin project', async () => {
     mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
 
     await chargeTurn(project({ source: 'discord' }), 0.3)

@@ -28,7 +28,8 @@
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "test:integration": "vitest run --project integration",
-    "dev:api": "bun --filter api dev"
+    "dev:api": "bun --filter api dev",
+    "dev:discord": "bun --filter @pitch/discord-bot dev"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",

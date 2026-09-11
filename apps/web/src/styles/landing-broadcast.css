@@ -2221,3 +2221,8 @@
   .mcp-modal-card { padding: 18px; border-radius: 14px; }
   .mcp-modal-head h2 { font-size: 1.2rem; }
 }
+
+/* Same brand-mark treatment as the settings modal: ChatGPT's knot inverts on
+   the dark canvas; the baked black Cursor/Perplexity tiles get a faint edge. */
+[data-theme="dark"] .mcp-icon--invert { filter: invert(1); }
+[data-theme="dark"] .mcp-icon--tile { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 14%); }

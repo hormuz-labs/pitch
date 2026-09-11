@@ -33,6 +33,8 @@ model UserProfile {
   firstName String?
   lastName  String?
   imageUrl  String?
+  // Discord's snowflake user id, mirrored from Clerk for indexed bot lookup.
+  discordUserId String? @unique
   role      String   @default("user") // "user" or "admin"
   // Public handle, chosen in settings. Null until the user picks one, and
   // unique across accounts once they do.
@@ -272,8 +274,8 @@ model CreditTransaction {
   subscriptionId String?                       // set for subscription_grant transactions (FK to Subscription.id)
   topUpId        String?                       // set for topup_grant transactions (FK to TopUpPurchase.id)
   idempotencyKey String?  @unique              // prevents double-grants (e.g. dodo event id)
-  // Which surface the spend came from: "product" (the app) or "api" (a /v1 key).
-  // Grants are always "product". Drives the usage chart's split in settings.
+  // Which isolated balance/surface owns the transaction: "product", "api", or
+  // "discord". Discord promo grants and spend never enter the main balance.
   channel        String   @default("product")
   createdAt      DateTime @default(now())
 

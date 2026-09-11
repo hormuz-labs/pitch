@@ -23,11 +23,11 @@ function daysBetween(from: Date, to: Date): string[] {
  * GET /credits
  *
  * Returns the full billing summary for the authenticated user:
- * - balance: calculated credit balance (SUM of all transactions)
+ * - balance: calculated main-platform balance (Discord sponsorship excluded)
  * - activeSubscription: current active subscription if any
  * - subscriptions: full subscription history
  * - topUps: all one-time top-up purchases
- * - transactions: immutable credit ledger, newest first
+ * - transactions: immutable main-platform ledger, newest first
  */
 router.get('/', async (req, res) => {
   const userId = requireAuth(req, res)
@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
     const [summary, projects] = await Promise.all([
       db.getCreditSummary(userId),
       db.prisma.project.findMany({
-        where: { userId },
+        where: { userId, source: { not: 'discord' } },
         select: {
           id: true,
           title: true,
@@ -103,6 +103,7 @@ router.get('/usage/daily', async (req, res) => {
       FROM "CreditTransaction"
       WHERE "userId" = ${userId}
         AND "type" = 'usage'
+        AND "channel" IN ('product', 'api')
         AND "createdAt" >= ${from}
         AND "createdAt" < ${new Date(to.getTime() + 24 * 60 * 60 * 1000)}
       GROUP BY day

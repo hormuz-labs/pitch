@@ -203,6 +203,42 @@ async function resolveCheckoutAttribution(req: Request, userId: string): Promise
   }
 }
 
+/**
+ * GET /checkout/billing-portal
+ *
+ * Opens Dodo's hosted billing portal. We don't persist a customer id — every
+ * checkout implicitly creates one — so it's looked up by email at request
+ * time. 404 when nobody has ever purchased anything: a portal link for a
+ * customer that doesn't exist yet is a broken link, not a helpful one.
+ */
+router.get('/billing-portal', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const dodoKey = process.env.DODO_PAYMENTS_API_KEY
+  if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' })
+
+  try {
+    const { prisma } = await import('@saas/db')
+    const profile = await prisma.userProfile.findUnique({ where: { id: userId } })
+    if (!profile?.email) return res.status(404).json({ error: 'No billing history yet' })
+
+    const client = new DodoPayments({ bearerToken: dodoKey, environment: DODO_ENV })
+    const customers = await client.customers.list({ email: profile.email })
+    const customer = customers.items[0]
+    if (!customer) return res.status(404).json({ error: 'No billing history yet' })
+
+    const session = await client.customers.customerPortal.create(customer.customer_id)
+    res.json({ url: session.link })
+  } catch (error: unknown) {
+    logger.error(
+      { err: error instanceof Error ? error.message : String(error), userId },
+      '[Dodo Billing Portal] Error',
+    )
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) })
+  }
+})
+
 router.post('/', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return

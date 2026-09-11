@@ -47,8 +47,16 @@ export type CreditTransactionType =
   | 'promo'
   | 'referral'
 
+export type CreditChannel = 'product' | 'api' | 'discord'
+
+function utcDayRange(now: Date): { gte: Date; lt: Date } {
+  const day = now.toISOString().slice(0, 10)
+  const gte = new Date(`${day}T00:00:00.000Z`)
+  return { gte, lt: new Date(gte.getTime() + 24 * 60 * 60 * 1000) }
+}
+
 /**
- * Calculates the current credit balance for a user from the ledger.
+ * Calculates the user's main Pitch balance, excluding Discord sponsorship.
  * Returns 0 if the user has no transactions yet.
  */
 export async function getCreditBalance(
@@ -56,7 +64,20 @@ export async function getCreditBalance(
   client: PrismaClient | Prisma.TransactionClient = prisma,
 ): Promise<number> {
   const agg = await client.creditTransaction.aggregate({
-    where: { userId },
+    where: { userId, channel: { not: 'discord' } },
+    _sum: { delta: true },
+  })
+  return agg._sum.delta ?? 0
+}
+
+/** Discord promotional credits are a separate, expiring UTC-day balance. */
+export async function getDiscordCreditBalance(
+  userId: string,
+  client: PrismaClient | Prisma.TransactionClient = prisma,
+  now: Date = new Date(),
+): Promise<number> {
+  const agg = await client.creditTransaction.aggregate({
+    where: { userId, channel: 'discord', createdAt: utcDayRange(now) },
     _sum: { delta: true },
   })
   return agg._sum.delta ?? 0
@@ -77,6 +98,7 @@ export async function addCredits(
     subscriptionId?: string
     topUpId?: string
     idempotencyKey?: string
+    channel?: CreditChannel
     // Run inside an existing transaction so the grant is atomic with its caller.
     tx?: Prisma.TransactionClient
   },
@@ -90,7 +112,9 @@ export async function addCredits(
     })
     if (existing) {
       console.log(`[Credits] Skipped duplicate grant (key: ${opts.idempotencyKey})`)
-      return getCreditBalance(userId, client)
+      return opts.channel === 'discord'
+        ? getDiscordCreditBalance(userId, client)
+        : getCreditBalance(userId, client)
     }
   }
 
@@ -104,12 +128,73 @@ export async function addCredits(
       subscriptionId: opts?.subscriptionId,
       topUpId: opts?.topUpId,
       idempotencyKey: opts?.idempotencyKey,
+      channel: opts?.channel ?? 'product',
     },
   })
 
-  const newBalance = await getCreditBalance(userId, client)
+  const newBalance =
+    opts?.channel === 'discord'
+      ? await getDiscordCreditBalance(userId, client)
+      : await getCreditBalance(userId, client)
   console.log(`[Credits] +${amount} (${type}) for user ${userId}. New balance: ${newBalance}`)
   return newBalance
+}
+
+/**
+ * Claims one Discord video from a user's UTC-day allowance. Each daily slot is
+ * represented by a system promo code, so PromoCodeRedemption's unique
+ * (userId, codeId) pair remains the concurrency guard and no parallel free
+ * credit ledger is introduced.
+ */
+export async function grantDiscordVideoReward(
+  userId: string,
+  credits: number,
+  opts: { dailyLimit?: number; now?: Date } = {},
+): Promise<{ granted: boolean; credits: number; remaining: number }> {
+  const dailyLimit = opts.dailyLimit ?? 3
+  if (!Number.isInteger(credits) || credits <= 0 || !Number.isInteger(dailyLimit)) {
+    return { granted: false, credits: 0, remaining: 0 }
+  }
+  if (dailyLimit <= 0) return { granted: false, credits: 0, remaining: 0 }
+
+  const day = (opts.now ?? new Date()).toISOString().slice(0, 10)
+  const codeDay = day.replaceAll('-', '_')
+  for (let slot = 1; slot <= dailyLimit; slot++) {
+    const code = `DISCORD_VIDEO_${codeDay}_${slot}`
+    try {
+      const claimed = await prisma.$transaction(async tx => {
+        const promo = await tx.promoCode.upsert({
+          where: { code },
+          create: { code, credits },
+          update: { credits },
+        })
+        const existing = await tx.promoCodeRedemption.findUnique({
+          where: { userId_codeId: { userId, codeId: promo.id } },
+        })
+        if (existing) return false
+
+        await tx.promoCodeRedemption.create({
+          data: { userId, codeId: promo.id, credits },
+        })
+        await tx.promoCode.update({
+          where: { id: promo.id },
+          data: { redemptionCount: { increment: 1 } },
+        })
+        await addCredits(userId, credits, 'promo', 'Daily Discord video allowance', {
+          idempotencyKey: `promo:discord-video:${day}:${slot}:${userId}`,
+          channel: 'discord',
+          tx,
+        })
+        return true
+      })
+      if (claimed) return { granted: true, credits, remaining: dailyLimit - slot }
+    } catch (error: any) {
+      // Two simultaneous commands can race for a slot. The unique redemption
+      // picks a winner; the loser continues to the next available daily slot.
+      if (error?.code !== 'P2002') throw error
+    }
+  }
+  return { granted: false, credits: 0, remaining: 0 }
 }
 
 /**
@@ -125,13 +210,17 @@ export async function deductCredit(
     projectId?: string
     idempotencyKey?: string
     /** Which surface spent it — drives the usage chart's app/API split. */
-    channel?: 'product' | 'api'
+    channel?: CreditChannel
   },
 ): Promise<number> {
   const result = await prisma.$transaction(async tx => {
+    const channel = opts?.channel ?? 'product'
     // Compute current balance inside the transaction to prevent races
     const agg = await tx.creditTransaction.aggregate({
-      where: { userId },
+      where:
+        channel === 'discord'
+          ? { userId, channel, createdAt: utcDayRange(new Date()) }
+          : { userId, channel: { not: 'discord' } },
       _sum: { delta: true },
     })
     const current = agg._sum.delta ?? 0
@@ -148,7 +237,7 @@ export async function deductCredit(
         description,
         projectId: opts?.projectId,
         idempotencyKey: opts?.idempotencyKey,
-        channel: opts?.channel ?? 'product',
+        channel,
       },
     })
 
@@ -160,11 +249,11 @@ export async function deductCredit(
 }
 
 /**
- * Returns the full transaction history for a user, newest first.
+ * Returns the main Pitch transaction history, excluding Discord sponsorship.
  */
 export async function getCreditTransactions(userId: string) {
   return prisma.creditTransaction.findMany({
-    where: { userId },
+    where: { userId, channel: { not: 'discord' } },
     orderBy: { createdAt: 'desc' },
   })
 }
@@ -278,9 +367,19 @@ export async function endSubscription(dodoSubscriptionId: string, status: string
       const userId = subscription.userId
       const [balance, subscriptionGrants, refunds, spend] = await Promise.all([
         getCreditBalance(userId, tx),
-        sumDeltas(tx, { userId, type: 'subscription_grant', delta: { gt: 0 } }),
-        sumDeltas(tx, { userId, type: 'refund', delta: { gt: 0 } }),
-        sumDeltas(tx, { userId, delta: { lt: 0 } }),
+        sumDeltas(tx, {
+          userId,
+          channel: { not: 'discord' },
+          type: 'subscription_grant',
+          delta: { gt: 0 },
+        }),
+        sumDeltas(tx, {
+          userId,
+          channel: { not: 'discord' },
+          type: 'refund',
+          delta: { gt: 0 },
+        }),
+        sumDeltas(tx, { userId, channel: { not: 'discord' }, delta: { lt: 0 } }),
       ])
       const forfeit = forfeitableCredits({ subscriptionGrants, refunds, spend, balance })
       if (forfeit > 0) {
@@ -406,6 +505,7 @@ export interface UserProfileData {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
 }
 
 /**
@@ -422,12 +522,14 @@ export async function upsertUser(data: UserProfileData) {
       firstName: data.firstName,
       lastName: data.lastName,
       imageUrl: data.imageUrl,
+      discordUserId: data.discordUserId,
     },
     update: {
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
       imageUrl: data.imageUrl,
+      discordUserId: data.discordUserId,
     },
   })
 }

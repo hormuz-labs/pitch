@@ -6,6 +6,7 @@ export {
   sendBillingEmail,
   sendJobCompletedEmail,
   sendJobFailedEmail,
+  sendReferralInviteEmail,
   sendWelcomeEmail,
   type TransactionalEmailContent,
 } from './transactional.js'

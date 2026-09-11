@@ -236,6 +236,25 @@ export function sendJobFailedEmail(input: {
   )
 }
 
+/** Invites a friend to Pitch with the sender's own persistent referral link. */
+export function sendReferralInviteEmail(input: {
+  to: string
+  fromName: string
+  referralUrl: string
+}) {
+  return sendTransactional(input.to, {
+    subject: `${input.fromName} thinks you'd like Pitch`,
+    preheader: `${input.fromName} invited you to try Pitch, an AI video studio.`,
+    eyebrow: 'You were invited',
+    title: `${input.fromName} sent you Pitch credits.`,
+    intro:
+      'Pitch turns a product page into a finished demo video with an AI agent. Follow the link below to sign up.',
+    ctaLabel: 'Accept the invite',
+    ctaUrl: input.referralUrl,
+    note: `Sent because ${input.fromName} shared this invite through Pitch.`,
+  })
+}
+
 export function sendBillingEmail(input: {
   to: string
   firstName?: string | null

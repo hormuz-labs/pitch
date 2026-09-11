@@ -61,6 +61,7 @@ const { router: userRoutes } = await import('./routes/users.js')
 const { router: v1Routes } = await import('./routes/v1.js')
 const { router: webhookRoutes } = await import('./routes/webhooks.js')
 const { router: clerkWebhookRoutes } = await import('./routes/clerk-webhooks.js')
+const { router: internalDiscordRoutes } = await import('./routes/internal-discord.js')
 
 export const app = express()
 
@@ -77,6 +78,10 @@ app.use('/v1', cors({ origin: true }), express.json({ limit: '750mb' }), v1Route
 app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: true, credentials: true }))
 app.use(cookieParser())
+
+// Service-to-service bot API. It owns Discord identity resolution and still
+// delegates project creation to the studio's one canonical creation path.
+app.use('/internal/discord', internalDiscordRoutes)
 
 // EventSource / <video> / <img> / <iframe> can't set Authorization headers, so
 // a Clerk session token may ride in ?token= for streams and files.

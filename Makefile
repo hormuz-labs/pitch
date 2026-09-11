@@ -8,7 +8,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev start dev-docker prod down logs ps test test-watch unittest integration sandbox-check whisper-model
+.PHONY: help dev start dev-docker discord prod down logs ps test test-watch unittest integration sandbox-check whisper-model
 
 help:
 	@echo ""
@@ -17,6 +17,7 @@ help:
 	@echo "  $(GREEN)make dev$(RESET)        — start everything at once (backing services in Docker + API and web via Bun)"
 	@echo "  $(GREEN)make start$(RESET)      — alias for make dev"
 	@echo "  $(GREEN)make dev-docker$(RESET) — run the full stack inside Docker Compose"
+	@echo "  $(GREEN)make discord$(RESET)    — start the Discord bot after its credentials are configured"
 	@echo "  $(GREEN)make prod$(RESET)       — start all containers in production mode"
 	@echo "  $(GREEN)make down$(RESET)       — stop all containers and free dev ports"
 	@echo "  $(GREEN)make logs$(RESET)       — tail logs for the API container"
@@ -74,6 +75,11 @@ dev-docker:
 	@echo ""
 	@echo "  $(GREEN)All containers started. Run 'make logs' to tail output.$(RESET)"
 	@echo ""
+
+# Build only the bot image, then connect it to the API already started by `make dev`.
+discord:
+	docker compose -p pitch --profile discord build discord-bot
+	DISCORD_PITCH_API_URL=http://host.docker.internal:3000 docker compose -p pitch --profile discord up -d --no-build --no-deps discord-bot
 
 # ─── Production ───────────────────────────────────────────────────────────────
 prod:

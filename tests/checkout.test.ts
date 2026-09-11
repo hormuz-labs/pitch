@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
   process.env.DODO_PRODUCT_FLEX_TEST = 'pdt_flex'
   process.env.DODO_PRODUCT_PRO_TEST = 'pdt_pro'
   process.env.DODO_PRODUCT_MAX_TEST = ''
+  process.env.DODO_PRODUCT_PRO_ANNUAL_TEST = 'pdt_pro_annual'
   return {
     createSession: vi.fn().mockResolvedValue({ checkout_url: 'https://dodo.test/checkout/abc' }),
     getActiveSubscription: vi.fn().mockResolvedValue(null),
@@ -81,5 +82,17 @@ describe('POST /checkout', () => {
     const response = await request(app).post('/checkout').send({ pack: 'starter' })
 
     expect(response.status).toBe(400)
+  })
+
+  it('sells an annual plan through the same generic product lookup', async () => {
+    const response = await request(app).post('/checkout').send({ pack: 'pro_annual' })
+
+    expect(response.status).toBe(200)
+    expect(mocks.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        product_cart: [{ product_id: 'pdt_pro_annual', quantity: 1 }],
+        metadata: expect.objectContaining({ credits: '30000', pack: 'pro_annual' }),
+      }),
+    )
   })
 })

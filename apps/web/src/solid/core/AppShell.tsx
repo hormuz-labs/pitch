@@ -61,6 +61,7 @@ const routeKey = (path: string) => {
   if (path.startsWith('/settings')) return 'settings'
   if (path.startsWith('/api-keys')) return 'api-keys'
   if (path.startsWith('/pricing') || path.startsWith('/account/pricing')) return 'pricing'
+  if (path.startsWith('/affiliate')) return 'affiliate'
   return 'new'
 }
 
@@ -109,7 +110,7 @@ function Sidebar(props: {
         />
       </Show>
       <aside
-        class={`conversation-sidebar flex shrink-0 flex-col${props.isMobile ? ' fixed inset-y-0 left-0 z-50 transition-transform duration-200' : ''}${props.collapsed ? (props.isMobile ? ' -translate-x-full' : ' is-collapsed') : ''}`}
+        class={`conversation-sidebar flex shrink-0 flex-col${props.isMobile ? ' fixed inset-y-0 left-0 z-[80] transition-transform duration-200' : ''}${props.collapsed ? (props.isMobile ? ' -translate-x-full' : ' is-collapsed') : ''}`}
         aria-hidden={props.collapsed}
         inert={props.collapsed}
       >
@@ -262,7 +263,7 @@ export function AppShell(props: ParentProps) {
   const selectedProjectId = createMemo(() =>
     location.pathname.startsWith('/p/') ? location.pathname.split('/')[2] : undefined,
   )
-  const openSettings = (section: SettingsSection = 'account') => {
+  const openSettings = (section: SettingsSection = 'profile') => {
     setSettingsSection(section)
     if (isMobile()) setCollapsed(true)
   }
@@ -282,6 +283,8 @@ export function AppShell(props: ParentProps) {
   }
 
   onMount(() => {
+    const settings = new URLSearchParams(window.location.search).get('settings')
+    if (settings === 'connections') setSettingsSection('connections')
     captureRefFromUrl()
     const resize = () => {
       const mobile = window.innerWidth < 1024

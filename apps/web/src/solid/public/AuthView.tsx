@@ -9,6 +9,20 @@ import '../../styles/auth.css'
 
 const CALLBACK_URL = `${window.location.origin}/sso-callback`
 
+type OAuthStrategy = 'oauth_google' | 'oauth_github'
+
+function GithubIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path
+        fill-rule="evenodd"
+        clip-rule="evenodd"
+        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+      />
+    </svg>
+  )
+}
+
 function GoogleIcon() {
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -48,7 +62,7 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
   const [code, setCode] = createSignal('')
   const [verifying, setVerifying] = createSignal(false)
   const [loading, setLoading] = createSignal(false)
-  const [oauthPending, setOauthPending] = createSignal(false)
+  const [oauthPending, setOauthPending] = createSignal<OAuthStrategy | null>(null)
   const [error, setError] = createSignal('')
   const signIn = useSignIn()
   const signUp = useSignUp()
@@ -75,23 +89,47 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
     setError('')
     try {
       if (verifying()) {
-        const resource = signUp.signUp()
-        if (!resource) throw new Error('Sign-up is not ready yet.')
-        const result = await resource.attemptEmailAddressVerification({ code: code().trim() })
-        if (result.status !== 'complete') throw new Error('That code could not be verified.')
-        await complete(result.createdSessionId)
+        if (tab() === 'sign-in') {
+          const resource = signIn.signIn()
+          if (!resource) throw new Error('Sign-in is not ready yet.')
+          const result = await resource.attemptFirstFactor({
+            strategy: 'email_code',
+            code: code().trim(),
+          })
+          if (result.status !== 'complete') throw new Error('That code could not be verified.')
+          await complete(result.createdSessionId)
+        } else {
+          const resource = signUp.signUp()
+          if (!resource) throw new Error('Sign-up is not ready yet.')
+          const result = await resource.attemptEmailAddressVerification({ code: code().trim() })
+          if (result.status !== 'complete') throw new Error('That code could not be verified.')
+          await complete(result.createdSessionId)
+        }
       } else if (tab() === 'sign-in') {
         const resource = signIn.signIn()
         if (!resource) throw new Error('Sign-in is not ready yet.')
         const result = await resource.create({
-          strategy: 'password',
           identifier: email().trim(),
           password: password(),
         })
-        if (result.status !== 'complete') {
+        if (result.status === 'complete') {
+          await complete(result.createdSessionId)
+        } else if (result.status === 'needs_first_factor') {
+          const emailCodeFactor = result.supportedFirstFactors?.find(
+            (factor: any) => factor.strategy === 'email_code',
+          ) as { emailAddressId?: string } | undefined
+          if (emailCodeFactor?.emailAddressId) {
+            await result.prepareFirstFactor({
+              strategy: 'email_code',
+              emailAddressId: emailCodeFactor.emailAddressId,
+            })
+            setVerifying(true)
+          } else {
+            throw new Error('This account needs an additional verification method.')
+          }
+        } else {
           throw new Error('This account needs an additional verification method.')
         }
-        await complete(result.createdSessionId)
       } else {
         const resource = signUp.signUp()
         if (!resource) throw new Error('Sign-up is not ready yet.')
@@ -109,22 +147,22 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
     }
   }
 
-  const oauth = async () => {
+  const oauth = async (strategy: OAuthStrategy) => {
     setLoading(true)
-    setOauthPending(true)
+    setOauthPending(strategy)
     setError('')
     try {
       const resource = tab() === 'sign-in' ? signIn.signIn() : signUp.signUp()
       if (!resource) throw new Error('Authentication is not ready yet.')
       await resource.authenticateWithRedirect({
-        strategy: 'oauth_google',
+        strategy,
         redirectUrl: CALLBACK_URL,
         redirectUrlComplete: redirectTo(),
       })
     } catch (cause) {
       setError(errorMessage(cause))
       setLoading(false)
-      setOauthPending(false)
+      setOauthPending(null)
     }
   }
 
@@ -169,21 +207,44 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
           </div>
 
           <Show when={!verifying()}>
-            <button
-              class="auth-google-btn"
-              type="button"
-              onClick={() => void oauth()}
-              disabled={loading()}
-            >
-              <Show when={!oauthPending()} fallback={<span class="auth-spinner" />}>
-                <GoogleIcon />
-              </Show>
-              <span>
-                {oauthPending()
-                  ? 'Connecting to Google…'
-                  : `${tab() === 'sign-up' ? 'Sign up' : 'Continue'} with Google`}
-              </span>
-            </button>
+            <div class="auth-oauth-stack">
+              <button
+                class="auth-oauth-btn"
+                type="button"
+                onClick={() => void oauth('oauth_google')}
+                disabled={loading()}
+              >
+                <Show
+                  when={oauthPending() !== 'oauth_google'}
+                  fallback={<span class="auth-spinner" />}
+                >
+                  <GoogleIcon />
+                </Show>
+                <span>
+                  {oauthPending() === 'oauth_google'
+                    ? 'Connecting to Google…'
+                    : `${tab() === 'sign-up' ? 'Sign up' : 'Continue'} with Google`}
+                </span>
+              </button>
+              <button
+                class="auth-oauth-btn"
+                type="button"
+                onClick={() => void oauth('oauth_github')}
+                disabled={loading()}
+              >
+                <Show
+                  when={oauthPending() !== 'oauth_github'}
+                  fallback={<span class="auth-spinner" />}
+                >
+                  <GithubIcon />
+                </Show>
+                <span>
+                  {oauthPending() === 'oauth_github'
+                    ? 'Connecting to GitHub…'
+                    : `${tab() === 'sign-up' ? 'Sign up' : 'Continue'} with GitHub`}
+                </span>
+              </button>
+            </div>
             <div class="my-5 flex items-center gap-3 text-[11px] uppercase tracking-[.12em] text-neutral-400 before:h-px before:flex-1 before:bg-neutral-200 after:h-px after:flex-1 after:bg-neutral-200">
               or
             </div>
@@ -280,28 +341,36 @@ export function AuthView(props: { mode?: 'sign-in' | 'sign-up' }) {
         </div>
 
         <Show when={oauthPending()}>
-          <div class="auth-connecting" role="status" aria-live="polite">
-            <div class="auth-connecting-dialog">
-              <div class="auth-provider-link">
-                <span class="auth-provider-logo auth-provider-logo--pitch">
-                  <img src={logoTab} alt="Pitch" />
-                </span>
-                <span class="auth-link-line">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <span class="auth-provider-logo">
-                  <GoogleIcon />
-                </span>
+          {strategy => {
+            const isGithub = strategy() === 'oauth_github'
+            const providerName = isGithub ? 'GitHub' : 'Google'
+            return (
+              <div class="auth-connecting" role="status" aria-live="polite">
+                <div class="auth-connecting-dialog">
+                  <div class="auth-provider-link">
+                    <span class="auth-provider-logo auth-provider-logo--pitch">
+                      <img src={logoTab} alt="Pitch" />
+                    </span>
+                    <span class="auth-link-line">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    <span class="auth-provider-logo">
+                      <Show when={isGithub} fallback={<GoogleIcon />}>
+                        <GithubIcon />
+                      </Show>
+                    </span>
+                  </div>
+                  <h3>Connecting to {providerName}</h3>
+                  <p>A secure {providerName} window is opening. This should only take a moment.</p>
+                  <div class="auth-progress">
+                    <span />
+                  </div>
+                </div>
               </div>
-              <h3>Connecting to Google</h3>
-              <p>A secure Google window is opening. This should only take a moment.</p>
-              <div class="auth-progress">
-                <span />
-              </div>
-            </div>
-          </div>
+            )
+          }}
         </Show>
       </section>
     </main>

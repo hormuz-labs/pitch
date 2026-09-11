@@ -53,7 +53,11 @@ export function creditsOwed(usd: number, charged: number): number {
  * Bill a finished turn. Returns the credits deducted, which is usually zero:
  * most turns cost a few cents and only move the running total.
  */
-export async function chargeTurn(p: ProjectRow, modelUsd: number): Promise<number> {
+export async function chargeTurn(
+  p: ProjectRow,
+  modelUsd: number,
+  channel: 'product' | 'api' | 'discord' = p.source === 'api' ? 'api' : 'product',
+): Promise<number> {
   const computeSeconds = takeComputeSeconds(workspaceOf(p).internal)
   const usd = usageUsd({ modelUsd, computeSeconds })
   if (usd <= 0) return 0
@@ -77,7 +81,7 @@ export async function chargeTurn(p: ProjectRow, modelUsd: number): Promise<numbe
     await db
       .deductCredit(p.userId, owed, `Usage: ${p.title}`, {
         projectId: p.id,
-        channel: p.source === 'api' ? 'api' : 'product',
+        channel,
       })
       .catch(err => logger.warn({ err, projectId: p.id }, 'usage charge failed'))
     logger.info(

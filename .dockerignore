@@ -50,7 +50,12 @@ demos/
 !apps/web/public/backgrounds/*.mp4
 
 # Local dev data directories (large, not needed in images)
-docker-data/
+# Keep every spelling explicit. Some BuildKit context senders attempt to walk
+# an unreadable bind-mount directory before applying a trailing-slash pattern.
+/docker-data
+/docker-data/**
+docker-data
+docker-data/**
 .playwright-cli/
 recordings/
 grafana/

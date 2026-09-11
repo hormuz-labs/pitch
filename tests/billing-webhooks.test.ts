@@ -102,4 +102,16 @@ describe('subscription.active', () => {
       expect.objectContaining({ creditsPerCycle: 400 }),
     )
   })
+
+  it('grants a full year of credits upfront for an annual plan', async () => {
+    // No monthly-renewal event exists for a year-billed subscription, so the
+    // whole year's allowance is granted on activation.
+    mocks.verify.mockReturnValue(event('subscription.active', 'pro_annual', '30000', 'sub_annual'))
+
+    await post()
+
+    expect(mocks.upsertSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ planKey: 'pro_annual', creditsPerCycle: 30_000 }),
+    )
+  })
 })

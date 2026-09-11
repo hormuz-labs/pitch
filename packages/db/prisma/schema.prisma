@@ -25,6 +25,7 @@ model UserProfile {
   firstName            String?
   lastName             String?
   imageUrl             String?
+  discordUserId        String?               @unique()
   role                 String                @default("user")
   username             String?               @unique()
   emailNotifications   Boolean               @default(true)

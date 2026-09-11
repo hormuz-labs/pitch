@@ -20,21 +20,45 @@ const PRODUCT_IDS =
         flex: process.env.DODO_PRODUCT_FLEX_LIVE ?? '',
         pro: process.env.DODO_PRODUCT_PRO_LIVE ?? '',
         max: process.env.DODO_PRODUCT_MAX_LIVE ?? '',
+        proAnnual: process.env.DODO_PRODUCT_PRO_ANNUAL_LIVE ?? '',
+        maxAnnual: process.env.DODO_PRODUCT_MAX_ANNUAL_LIVE ?? '',
       }
     : {
         flex: process.env.DODO_PRODUCT_FLEX_TEST ?? '',
         pro: process.env.DODO_PRODUCT_PRO_TEST ?? '',
         max: process.env.DODO_PRODUCT_MAX_TEST ?? '',
+        proAnnual: process.env.DODO_PRODUCT_PRO_ANNUAL_TEST ?? '',
+        maxAnnual: process.env.DODO_PRODUCT_MAX_ANNUAL_TEST ?? '',
       }
 
 /**
  * Subscriptions we sell today. Credits are fine grained — a demo video is about
  * 120 of them — so a plan's allowance is quoted in thousands and its headline
  * number is the price per credit (see CREDIT_USD in projects/usage.ts).
+ *
+ * Annual plans grant the full year's credits in one upfront
+ * `subscription_grant` (12 × the monthly allowance) rather than a monthly
+ * trickle: Dodo only fires `subscription.renewed` once a year for a
+ * year-billed subscription, so there is no once-a-month event to hang a
+ * smaller grant off without a separate scheduler. Cancelling mid-year
+ * forfeits whatever is left of that grant, same policy as monthly plans —
+ * see forfeitableCredits() in packages/db/src/index.ts.
  */
 export const CREDIT_PACKS = {
   pro: { credits: 2500, priceUsd: 45, label: '2,500 Credits/mo', productId: PRODUCT_IDS.pro },
   max: { credits: 5000, priceUsd: 80, label: '5,000 Credits/mo', productId: PRODUCT_IDS.max },
+  pro_annual: {
+    credits: 30_000,
+    priceUsd: 432,
+    label: '30,000 Credits/yr',
+    productId: PRODUCT_IDS.proAnnual,
+  },
+  max_annual: {
+    credits: 60_000,
+    priceUsd: 768,
+    label: '60,000 Credits/yr',
+    productId: PRODUCT_IDS.maxAnnual,
+  },
 } as const
 
 /** Entry retail price of a credit, used where a pack price is unavailable. */

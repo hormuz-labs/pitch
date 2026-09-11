@@ -11,6 +11,8 @@
 /** Credits a typical demo video consumes, used for the "about N videos" copy. */
 export const CREDITS_PER_DEMO_VIDEO = 120
 
+export type Cadence = 'monthly' | 'annual'
+
 export interface Plan {
   /** Checkout key. `enterprise` has no product: it routes to sales. */
   key: 'flex' | 'pro' | 'max' | 'enterprise'
@@ -22,6 +24,32 @@ export interface Plan {
   description: string
   features: string[]
   popular?: boolean
+  /** Present only on plans that also sell annually. */
+  annual?: { key: string; priceUsd: number; credits: number }
+}
+
+/** A plan's price/credits/checkout-key for one billing cadence. */
+export interface CadenceView {
+  key: string
+  priceUsd: number
+  credits: number
+  cadence: Cadence
+}
+
+/** Resolves a subscription plan to its monthly or annual numbers and key. */
+export function forCadence(plan: Plan, cadence: Cadence): CadenceView | null {
+  if (cadence === 'annual') {
+    if (!plan.annual) return null
+    return { key: plan.annual.key, priceUsd: plan.annual.priceUsd, credits: plan.annual.credits, cadence }
+  }
+  if (plan.priceUsd === null || plan.credits === null) return null
+  return { key: plan.key, priceUsd: plan.priceUsd, credits: plan.credits, cadence }
+}
+
+/** How much cheaper the annual price is than paying monthly for a year, as a whole percent. */
+export function annualSavingsPercent(plan: Plan): number | null {
+  if (!plan.annual || !plan.priceUsd) return null
+  return Math.round((1 - plan.annual.priceUsd / (plan.priceUsd * 12)) * 100)
 }
 
 export const PLANS: readonly Plan[] = [
@@ -48,6 +76,7 @@ export const PLANS: readonly Plan[] = [
       'Up to 4K exports',
     ],
     popular: true,
+    annual: { key: 'pro_annual', priceUsd: 432, credits: 30_000 },
   },
   {
     key: 'max',
@@ -63,6 +92,7 @@ export const PLANS: readonly Plan[] = [
       'Up to 4K exports',
       'Priority queue access',
     ],
+    annual: { key: 'max_annual', priceUsd: 768, credits: 60_000 },
   },
   {
     key: 'enterprise',
@@ -82,14 +112,14 @@ export const PLANS: readonly Plan[] = [
 
 export const planByKey = (key: string) => PLANS.find(plan => plan.key === key)
 
-/** Price of a single credit, in dollars — e.g. `$0.025`. */
-export function pricePerCredit(plan: Plan): string | null {
+/** Price of a single credit, in dollars — e.g. `$0.025`. Works for any cadence. */
+export function pricePerCredit(plan: { priceUsd: number | null; credits: number | null }): string | null {
   if (!plan.priceUsd || !plan.credits) return null
   return `$${(plan.priceUsd / plan.credits).toFixed(3)}`
 }
 
-/** Roughly how many demo videos a plan's credits buy. */
-export function demoVideos(plan: Plan): number | null {
+/** Roughly how many demo videos a plan's credits buy. Works for any cadence. */
+export function demoVideos(plan: { credits: number | null }): number | null {
   return plan.credits ? Math.floor(plan.credits / CREDITS_PER_DEMO_VIDEO) : null
 }
 

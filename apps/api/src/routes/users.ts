@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict'
+import { clerkClient } from '@clerk/express'
 import * as db from '@saas/db'
 import { sendWelcomeEmail } from '@saas/email'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
+import DodoPayments from 'dodopayments'
 import { type Request, Router } from 'express'
-import { REFERRAL_REWARDS, SIGNUP_BONUS_CREDITS } from '../config.js'
+import { DODO_ENV, REFERRAL_REWARDS, SIGNUP_BONUS_CREDITS } from '../config.js'
 import { getVerifiedClerkProfile } from '../lib/clerk.js'
 import { requireAuth } from '../middleware/auth.js'
+import { deleteClerkUserData } from './clerk-webhooks.js'
 
 const logger = createLogger('api')
 
-export const router = Router()
+export const router: Router = Router()
 
 const ONBOARDING_OPTIONS = {
   creationGoal: [
@@ -208,6 +211,38 @@ router.patch('/me', async (req, res) => {
 })
 
 /**
+ * Deletes the account: cancels billing first so nothing charges after the
+ * user has asked to leave, wipes local data synchronously — the same
+ * idempotent cleanup the Clerk `user.deleted` webhook runs, called directly
+ * rather than waiting on that webhook to arrive — then removes the Clerk
+ * identity itself.
+ */
+router.delete('/me', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  try {
+    const dodoKey = process.env.DODO_PAYMENTS_API_KEY
+    if (dodoKey) {
+      const subscription = await db.getActiveSubscription(userId)
+      if (subscription) {
+        const client = new DodoPayments({ bearerToken: dodoKey, environment: DODO_ENV })
+        await client.subscriptions.update(subscription.dodoSubscriptionId, {
+          status: 'cancelled',
+        })
+      }
+    }
+
+    await deleteClerkUserData(userId)
+    await clerkClient.users.deleteUser(userId)
+    res.json({ deleted: true })
+  } catch (error: any) {
+    logger.error({ err: error, userId }, 'Failed to delete account')
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * Resolves the referral attribution for a signup. Best-effort: never throws
  * to the caller — a DB blip is logged and yields `null`, so the signup
  * flow always proceeds. Postcondition (asserted at the call site): if
@@ -246,12 +281,14 @@ router.post('/sync', async (req, res) => {
   let firstName: string | undefined
   let lastName: string | undefined
   let imageUrl: string | undefined
+  let discordUserId: string | null
   try {
     const verified = await getVerifiedClerkProfile(userId)
     email = verified.email
     firstName = verified.firstName
     lastName = verified.lastName
     imageUrl = verified.imageUrl
+    discordUserId = verified.discordUserId
   } catch (err: any) {
     logger.error({ err, userId }, 'Failed to fetch verified Clerk profile')
     return res.status(500).json({ error: 'Failed to verify identity' })
@@ -259,7 +296,14 @@ router.post('/sync', async (req, res) => {
 
   try {
     const existingUser = await db.prisma.userProfile.findUnique({ where: { id: userId } })
-    const profile = await db.upsertUser({ id: userId, email, firstName, lastName, imageUrl })
+    const profile = await db.upsertUser({
+      id: userId,
+      email,
+      firstName,
+      lastName,
+      imageUrl,
+      discordUserId,
+    })
     logger.info({ userId }, 'User profile synced')
 
     // Keep the audience synced without re-subscribing a contact who opted out.
