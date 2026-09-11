@@ -4,16 +4,10 @@ import {
   ArrowUp,
   Clock3,
   Film,
-  LogOut,
-  Megaphone,
-  Moon,
   Paperclip,
   Plus,
   RectangleHorizontal,
-  Settings,
   Sparkles,
-  Sun,
-  UserRound,
   X,
 } from 'lucide-solid'
 import 'lenis/dist/lenis.css'
@@ -28,6 +22,7 @@ import {
   Show,
 } from 'solid-js'
 import { FeaturedVideos } from '../../components/landing/FeaturedVideos'
+import { isApiError } from '../../lib/api'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
 import {
   createProject,
@@ -36,12 +31,13 @@ import {
   type UploadRef,
   uploads as uploadFiles,
 } from '../../lib/studio-api'
-import { useAuth, useClerk, useUser } from '../core/auth'
-import { useTheme } from '../core/theme'
+import { useAuth } from '../core/auth'
 import { PitchWordmark } from '../public/brand'
 import { CreditPopover } from './credits'
+import { DiscordOfferModal } from './DiscordOfferModal'
 import { Popover, Select } from './primitives'
 import type { SettingsSection } from './SettingsView'
+import { TopNav } from './TopNav.tsx'
 import '../../studio/studio.css'
 import '../../styles/new-project.css'
 
@@ -116,9 +112,6 @@ export function NewProjectView(props: {
   openSettings?: (section: SettingsSection) => void
 }) {
   const { getToken } = useAuth()
-  const clerk = useClerk()
-  const { userAccessor: user } = useUser()
-  const theme = useTheme()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [prompt, setPrompt] = createSignal(
@@ -130,6 +123,7 @@ export function NewProjectView(props: {
   const [submitting, setSubmitting] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
   const [error, setError] = createSignal('')
+  const [creditOfferOpen, setCreditOfferOpen] = createSignal(false)
   const [ratio, setRatio] = createSignal<(typeof RATIOS)[number]>('16:9')
   const [duration, setDuration] = createSignal<number | null>(null)
   const [deckTemplate, setDeckTemplate] = createSignal<(typeof DECK_TEMPLATES)[number] | null>(null)
@@ -264,6 +258,11 @@ export function NewProjectView(props: {
       if (!token) throw new Error('Not signed in')
       await create(prompt().trim(), files(), token)
     } catch (reason) {
+      if (isApiError(reason) && reason.status === 402) {
+        setError('')
+        setCreditOfferOpen(true)
+        return
+      }
       const message = reason instanceof Error ? reason.message : 'Could not create the project'
       setError(message)
       props.onNotice?.(message, 'error')
@@ -284,59 +283,21 @@ export function NewProjectView(props: {
         void pick(event.dataTransfer?.files ?? null, true)
       }}
     >
-      <nav class="new-project-topnav">
-        <div class="new-project-topnav__links">
-          <button onClick={() => navigate('/pricing')}>Pricing</button>
-          <button onClick={() => navigate('/affiliate')}>Affiliates</button>
-          <button onClick={() => props.openSettings?.('mcp')}>API / MCP</button>
-          <button onClick={() => navigate('/docs')}>Docs</button>
-        </div>
-        <div class="new-project-topnav__actions">
-          <button
-            type="button"
-            onClick={() => navigate('/blog')}
-            aria-label="Announcements"
-            title="Announcements"
-          >
-            <Megaphone size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={theme.toggleTheme}
-            aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
-            title={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
-          >
-            {theme.theme() === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <div class="new-project-topnav__credits">
-            <CreditPopover />
-          </div>
-          <Popover
-            label="Open account menu"
-            trigger={
-              <span class="new-project-topnav__avatar">
-                <Show when={user()?.imageUrl} fallback={<UserRound size={17} />}>
-                  {src => <img src={src()} alt="" />}
-                </Show>
-              </span>
-            }
-            class="new-project-profile-menu absolute right-0 top-full z-50 mt-2"
-          >
-            <button role="menuitem" onClick={() => props.openSettings?.('account')}>
-              <Settings />
-              Account settings
-            </button>
-            <button
-              role="menuitem"
-              class="new-project-profile-menu__danger"
-              onClick={() => void clerk.signOut({ redirectUrl: '/' })}
-            >
-              <LogOut />
-              Sign out
-            </button>
-          </Popover>
-        </div>
-      </nav>
+      <Show when={creditOfferOpen()}>
+        <DiscordOfferModal
+          mode="no-credits"
+          onClose={() => setCreditOfferOpen(false)}
+          onBuyCredits={() => {
+            setCreditOfferOpen(false)
+            props.openSettings?.('credits')
+          }}
+          onJoinDiscord={() => {
+            setCreditOfferOpen(false)
+            window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+          }}
+        />
+      </Show>
+      <TopNav openSettings={props.openSettings} />
       <Show when={dragging()}>
         <div class="drop-veil" aria-live="polite">
           <span>Drop it here - this opens the editor</span>

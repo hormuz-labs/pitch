@@ -18,7 +18,13 @@ export const Glyph = (props: { id: string }) => (
     when={BRAND[props.id]}
     fallback={props.id === 'api' ? <SquareTerminal size={13} /> : <Bot size={13} />}
   >
-    <img src={BRAND[props.id]} alt="" class="mcp-tab-ico" width="14" height="14" />
+    <img
+      src={BRAND[props.id]}
+      alt=""
+      class={`mcp-tab-ico${props.id === 'chatgpt' ? ' mcp-icon--invert' : ''}${props.id === 'cursor' || props.id === 'perplexity' ? ' mcp-icon--tile' : ''}`}
+      width="14"
+      height="14"
+    />
   </Show>
 )
 type Line =

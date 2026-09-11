@@ -8,13 +8,23 @@ import { API_URL } from '../../config'
 import { CopyButton } from './primitives'
 
 const endpoint = 'https://api.trypitch.co/mcp'
+/* chatgpt.png is black-on-transparent (invisible on dark surfaces) and the
+   cursor/perplexity marks are baked black tiles — flag them so the CSS can
+   invert / ring them where the background is dark. */
 const clients = [
   { id: 'claude', label: 'Claude', icon: claudeIcon },
-  { id: 'cursor', label: 'Cursor', icon: cursorIcon },
-  { id: 'chatgpt', label: 'ChatGPT', icon: chatgptIcon },
-  { id: 'perplexity', label: 'Perplexity', icon: perplexityIcon },
+  { id: 'cursor', label: 'Cursor', icon: cursorIcon, tile: true },
+  { id: 'chatgpt', label: 'ChatGPT', icon: chatgptIcon, invertOnDark: true },
+  { id: 'perplexity', label: 'Perplexity', icon: perplexityIcon, tile: true },
   { id: 'other', label: 'Any agent', icon: null },
 ] as const
+const iconClass = (item: (typeof clients)[number]) =>
+  [
+    'tile' in item && item.tile ? 'mcp-icon--tile' : '',
+    'invertOnDark' in item && item.invertOnDark ? 'mcp-icon--invert' : '',
+  ]
+    .join(' ')
+    .trim() || undefined
 export function McpSettingsPanel(props: { openApi: () => void; showHeading?: boolean }) {
   const [client, setClient] = createSignal<(typeof clients)[number]['id']>('claude')
   const [autonomous, setAutonomous] = createSignal(false)
@@ -60,7 +70,7 @@ export function McpSettingsPanel(props: { openApi: () => void; showHeading?: boo
                 onClick={() => setClient(item.id)}
               >
                 <Show when={item.icon} fallback={<Bot size={14} />}>
-                  {icon => <img src={icon()} alt="" />}
+                  {icon => <img src={icon()} alt="" class={iconClass(item)} />}
                 </Show>
                 {item.label}
               </button>

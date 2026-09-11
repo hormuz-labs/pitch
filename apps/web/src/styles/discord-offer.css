@@ -1,0 +1,19 @@
+.discord-offer { position: fixed; inset: 0; z-index: 10020; display: grid; place-items: center; padding: 24px; background: rgba(12, 14, 20, .48); backdrop-filter: blur(8px); animation: discord-offer-fade 200ms ease-out both; }
+.discord-offer__card { position: relative; width: min(100%, 460px); padding: 34px; border: 1px solid var(--border-subtle, #d9d9dc); border-radius: 20px; background: var(--bg-panel, #fff); color: var(--text-primary, #17181c); box-shadow: 0 24px 80px rgba(0,0,0,.22); text-align: center; animation: discord-offer-card 240ms cubic-bezier(.22,1,.36,1) both; }
+.discord-offer__close { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted, #73757d); cursor: pointer; }
+.discord-offer__close:hover { background: var(--bg-subtle, #f1f1f3); color: var(--text-primary, #17181c); }
+.discord-offer__icon { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; border-radius: 15px; background: #5865f2; color: #fff; }
+.discord-offer__eyebrow { margin: 0 0 8px; color: #5865f2; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.discord-offer h2 { margin: 0; font-size: 25px; line-height: 1.15; letter-spacing: -.035em; text-wrap: balance; }
+.discord-offer__card > p:not(.discord-offer__eyebrow) { margin: 14px auto 0; max-width: 380px; color: var(--text-secondary, #62646c); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
+.discord-offer__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 26px; }
+.discord-offer__actions button { min-height: 44px; padding: 0 18px; border-radius: 11px; font: 600 13px/1 inherit; cursor: pointer; }
+.discord-offer__primary { border: 1px solid var(--text-primary, #17181c); background: var(--text-primary, #17181c); color: var(--bg-panel, #fff); }
+.discord-offer__secondary { border: 1px solid var(--border-strong, #c4c5ca); background: transparent; color: var(--text-primary, #17181c); }
+.discord-offer__quiet { border: 0; background: transparent; color: var(--text-muted, #73757d); }
+.discord-offer__card small { display: block; margin-top: 18px; color: var(--text-muted, #858790); font-size: 11px; }
+.discord-offer button:focus-visible { outline: 2px solid #5865f2; outline-offset: 3px; }
+@keyframes discord-offer-fade { from { opacity: 0; } }
+@keyframes discord-offer-card { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+@media (max-width: 520px) { .discord-offer { padding: 16px; } .discord-offer__card { padding: 30px 20px 24px; } .discord-offer__actions { flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) { .discord-offer, .discord-offer__card { animation: none; } }

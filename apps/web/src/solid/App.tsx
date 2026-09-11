@@ -77,9 +77,10 @@ function SsoCallback() {
   createEffect(() => {
     if (!auth.isLoaded() || handled) return
     handled = true
+    const linkingDiscord = sessionStorage.getItem('pitch_discord_link_pending') === '1'
     void clerk.handleRedirectCallback({
-      signInFallbackRedirectUrl: '/new',
-      signUpFallbackRedirectUrl: '/new',
+      signInFallbackRedirectUrl: linkingDiscord ? '/new?settings=connections' : '/new',
+      signUpFallbackRedirectUrl: linkingDiscord ? '/new?settings=connections' : '/new',
     })
   })
   return <div class="h-screen w-screen bg-[var(--bg-page)]" />
@@ -104,12 +105,13 @@ function AuthRoute() {
   const auth = useAuth()
   const location = useLocation()
   const destination = () => safeRedirect(new URLSearchParams(location.search).get('redirect'))
+  const isSignIn = () => location.pathname === '/sign-in' || location.pathname === '/signin'
   return (
     <Show when={auth.isLoaded()} fallback={<div class="h-screen w-screen bg-[var(--bg-page)]" />}>
       <Show when={!auth.isSignedIn()} fallback={<Navigate href={destination()} />}>
         <Dynamic
           component={Auth as Component<{ mode: 'sign-in' | 'sign-up' }>}
-          mode={location.pathname === '/sign-in' ? 'sign-in' : 'sign-up'}
+          mode={isSignIn() ? 'sign-in' : 'sign-up'}
         />
       </Show>
     </Show>
@@ -191,6 +193,8 @@ export default function App() {
       <Route path="/d/:slug" component={SharedDemoRoute} />
       <Route path="/sign-in" component={AuthRoute} />
       <Route path="/sign-up" component={AuthRoute} />
+      <Route path="/signin" component={AuthRoute} />
+      <Route path="/signup" component={AuthRoute} />
       <Route path="/sso-callback" component={SsoCallback} />
 
       <Route path="/projects" component={protectedRoute(Projects)} />
@@ -201,7 +205,7 @@ export default function App() {
       <Route path="/api-keys" component={protectedRoute(ApiKeys)} />
       <Route path="/sessions" component={protectedRoute(Sessions)} />
       <Route path="/chats" component={protectedRoute(ChatHistory)} />
-      <Route path="/affiliate" component={protectedRoute(Affiliate)} />
+      <Route path="/affiliate" component={protectedRoute(Affiliate, true)} />
       <Route path="/admin" component={protectedRoute(Admin)} />
       <Route path="/checkout/return" component={protectedRoute(CheckoutReturn)} />
 

@@ -205,7 +205,7 @@ export function SessionsView() {
           >
             <Plus size={14} />
             Authenticate with URL
-            <CreditChip amount={2} class="bg-white text-gray-900" />
+            <CreditChip amount={80} class="bg-white text-gray-900" />
           </button>
         </header>
         <Show when={error()}>

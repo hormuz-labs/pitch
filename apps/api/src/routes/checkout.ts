@@ -2,7 +2,16 @@ import assert from 'node:assert/strict'
 import { createLogger } from '@saas/shared'
 import DodoPayments from 'dodopayments'
 import { type Request, Router } from 'express'
-import { CREDIT_PACKS, DODO_ENV, type PackKey, TOPUP_PACKS, type TopupKey } from '../config.js'
+import {
+  CREDIT_PACKS,
+  CREDIT_RETAIL_USD,
+  DODO_ENV,
+  LEGACY_CREDIT_PACKS,
+  LEGACY_TOPUP_PACKS,
+  type PackKey,
+  TOPUP_PACKS,
+  type TopupKey,
+} from '../config.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const logger = createLogger('api')
@@ -121,7 +130,10 @@ function buildPaymentReceipt(payment: DodoPaymentObj, balance: number): ReceiptP
     date: formatReceiptDate(payment.created_at),
     email: payment.customer?.email ?? null,
     name: payment.customer?.name ?? null,
-    label: TOPUP_PACKS[packKey]?.label ?? `${credits} Credits`,
+    label:
+      TOPUP_PACKS[packKey]?.label ??
+      LEGACY_TOPUP_PACKS[packKey as keyof typeof LEGACY_TOPUP_PACKS]?.label ??
+      `${credits} Credits`,
   }
 }
 
@@ -131,7 +143,7 @@ function buildSubscriptionReceipt(
 ): ReceiptPayload {
   const metadata = (subscription.metadata || {}) as Record<string, string>
   const credits = parseInt(metadata.credits || '0', 10)
-  const planKey = metadata.pack || 'starter'
+  const planKey = metadata.pack || 'pro'
   return {
     id: subscription.subscription_id ?? '',
     amount: formatAmount(subscription.recurring_pre_tax_amount, subscription.currency),
@@ -141,7 +153,10 @@ function buildSubscriptionReceipt(
     date: formatReceiptDate(subscription.created_at),
     email: subscription.customer?.email ?? null,
     name: subscription.customer?.name ?? null,
-    label: CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ?? `${credits} Credits / mo`,
+    label:
+      CREDIT_PACKS[planKey as keyof typeof CREDIT_PACKS]?.label ??
+      LEGACY_CREDIT_PACKS[planKey as keyof typeof LEGACY_CREDIT_PACKS]?.label ??
+      `${credits} Credits / mo`,
   }
 }
 
@@ -188,6 +203,42 @@ async function resolveCheckoutAttribution(req: Request, userId: string): Promise
   }
 }
 
+/**
+ * GET /checkout/billing-portal
+ *
+ * Opens Dodo's hosted billing portal. We don't persist a customer id — every
+ * checkout implicitly creates one — so it's looked up by email at request
+ * time. 404 when nobody has ever purchased anything: a portal link for a
+ * customer that doesn't exist yet is a broken link, not a helpful one.
+ */
+router.get('/billing-portal', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const dodoKey = process.env.DODO_PAYMENTS_API_KEY
+  if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' })
+
+  try {
+    const { prisma } = await import('@saas/db')
+    const profile = await prisma.userProfile.findUnique({ where: { id: userId } })
+    if (!profile?.email) return res.status(404).json({ error: 'No billing history yet' })
+
+    const client = new DodoPayments({ bearerToken: dodoKey, environment: DODO_ENV })
+    const customers = await client.customers.list({ email: profile.email })
+    const customer = customers.items[0]
+    if (!customer) return res.status(404).json({ error: 'No billing history yet' })
+
+    const session = await client.customers.customerPortal.create(customer.customer_id)
+    res.json({ url: session.link })
+  } catch (error: unknown) {
+    logger.error(
+      { err: error instanceof Error ? error.message : String(error), userId },
+      '[Dodo Billing Portal] Error',
+    )
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) })
+  }
+})
+
 router.post('/', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
@@ -208,10 +259,14 @@ router.post('/', async (req, res) => {
 
   const dodoKey = process.env.DODO_PAYMENTS_API_KEY
   if (!dodoKey) return res.status(503).json({ error: 'Dodo Payments not configured' })
+  if (!chosen.productId) {
+    return res.status(503).json({ error: 'This plan is not available for purchase yet' })
+  }
 
   try {
     // Block duplicate active subscriptions — every subscribe creates a NEW Dodo
-    // subscription, so without this guard a user ends up double-billed.
+    // subscription, so without this guard a user ends up double-billed. Top-ups
+    // have no such guard: Flex is the entry product and sells without a plan.
     if (pack) {
       const { getActiveSubscription } = await import('@saas/db')
       const existing = await getActiveSubscription(userId)
@@ -219,13 +274,6 @@ router.post('/', async (req, res) => {
         return res.status(409).json({
           error:
             'You already have an active subscription. Cancel or manage it in Settings before changing plans.',
-        })
-      }
-    } else if (topup) {
-      const { getActiveSubscription } = await import('@saas/db')
-      if (!(await getActiveSubscription(userId))) {
-        return res.status(403).json({
-          error: 'One-time top-ups are only available with an active subscription.',
         })
       }
     }
@@ -250,7 +298,7 @@ router.post('/', async (req, res) => {
       metadata: {
         clerk_user_id: userId,
         credits: chosen.credits.toString(),
-        pack: pack || topup || 'starter',
+        pack: pack || topup || 'pro',
         type: isTopup ? 'topup' : 'subscription',
         affiliate_cookie: affCookie,
       },
@@ -329,9 +377,9 @@ router.get('/status', async (req, res) => {
         await recordTopUp({
           userId: payUserId,
           dodoPaymentId: paymentId,
-          packKey: packKey || 'topup_10',
+          packKey: packKey || 'flex',
           credits,
-          amountUsd: pack?.priceUsd ?? credits * 1.2,
+          amountUsd: pack?.priceUsd ?? credits * CREDIT_RETAIL_USD,
         })
       }
 
@@ -346,7 +394,7 @@ router.get('/status', async (req, res) => {
 
       const metadata = (subscription.metadata || {}) as Record<string, string>
       const subUserId = metadata.clerk_user_id
-      const planKey = metadata.pack || 'starter'
+      const planKey = metadata.pack || 'pro'
       const credits = parseInt(metadata.credits || '0', 10)
 
       if (subUserId && subUserId !== userId) {

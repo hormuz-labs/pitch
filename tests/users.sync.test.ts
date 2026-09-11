@@ -195,6 +195,20 @@ describe('POST /users/sync', () => {
     expect(getVerifiedClerkProfile).toHaveBeenCalledWith('user_attacker')
   })
 
+  it('mirrors the linked Discord account id from Clerk', async () => {
+    _verifiedProfile = {
+      email: 'creator@example.com',
+      discordUserId: 'discord_123',
+    }
+
+    const res = await request(app).post('/users/sync').send({})
+
+    expect(res.status).toBe(200)
+    expect(db.upsertUser).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'user_attacker', discordUserId: 'discord_123' }),
+    )
+  })
+
   it('cannot escalate to admin by passing an admin email in the body', async () => {
     // Body claims an admin address; Clerk says the user's verified email is a non-admin one.
     process.env.ADMIN_EMAILS = 'admin@trypitch.co'

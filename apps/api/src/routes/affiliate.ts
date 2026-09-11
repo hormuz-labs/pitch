@@ -1,8 +1,11 @@
 import * as db from '@saas/db'
+import { sendReferralInviteEmail } from '@saas/email'
 import { createLogger } from '@saas/shared'
 import crypto from 'crypto'
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const _logger = createLogger('affiliate-routes')
 
@@ -54,6 +57,35 @@ router.post('/register', async (req, res) => {
     const firstName = profile?.firstName || 'User'
     const affiliate = await db.registerAffiliate(userId, firstName)
     res.json(affiliate)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.post('/invite', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+
+  const raw = (req.body as { email?: unknown } | undefined)?.email
+  const email = typeof raw === 'string' ? raw.trim() : ''
+  if (!EMAIL_PATTERN.test(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address' })
+  }
+
+  try {
+    const affiliate = await db.getAffiliateByUserId(userId)
+    if (!affiliate) return res.status(404).json({ error: 'Register for rewards first' })
+
+    const profile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
+    const appUrl = process.env.APP_URL || 'https://trypitch.co'
+
+    const result = await sendReferralInviteEmail({
+      to: email,
+      fromName: profile?.firstName || 'A Pitch user',
+      referralUrl: `${appUrl}/r/${affiliate.code}`,
+    })
+    if (result.error) return res.status(502).json({ error: result.error })
+    res.json({ sent: true })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

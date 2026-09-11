@@ -117,6 +117,7 @@ export interface Project {
   isPublic: boolean
   shareSlug: string | null
   shareViews: number
+  source: string
   createdAt: string
   updatedAt: string
   /** Derived, never stored. */

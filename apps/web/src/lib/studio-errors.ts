@@ -7,9 +7,9 @@ export function describeStudioError(err: unknown, fallback = 'Something went wro
   if (isApiError(err)) {
     if (err.status === 402) {
       const balance = typeof err.body?.balance === 'number' ? err.body.balance : null
-      return balance !== null
-        ? `Not enough credits (you have ${balance}). Top up to continue.`
-        : 'Not enough credits. Top up to continue.'
+      const short =
+        balance !== null ? `Not enough credits (you have ${balance}).` : 'Not enough credits.'
+      return `${short} Top up to continue, or make one free video in our Discord.`
     }
     if (err.status === 409) return err.message || 'The agent is busy — try again in a moment.'
     if (err.status === 404) return 'That project no longer exists.'

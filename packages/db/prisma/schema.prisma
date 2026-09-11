@@ -20,26 +20,56 @@ model User {
 }
 
 model UserProfile {
-  id                  String              @id()
-  email               String
-  firstName           String?
-  lastName            String?
-  imageUrl            String?
-  role                String              @default("user")
-  gptEnabled          Boolean             @default(false)
-  onboardingSkippedAt DateTime?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt()
-  subscriptions       Subscription[]
-  topUpPurchases      TopUpPurchase[]
-  creditTransactions  CreditTransaction[]
-  affiliate           Affiliate?
-  browserProfile      BrowserProfile?
-  browserSessions     BrowserSession[]
-  apiKeys             ApiKey[]
-  webhookEndpoints    WebhookEndpoint[]
-  webhookDeliveries   WebhookDelivery[]
-  onboardingSurvey    OnboardingSurvey?
+  id                   String                @id()
+  email                String
+  firstName            String?
+  lastName             String?
+  imageUrl             String?
+  discordUserId        String?               @unique()
+  role                 String                @default("user")
+  username             String?               @unique()
+  emailNotifications   Boolean               @default(true)
+  browserNotifications Boolean               @default(false)
+  gptEnabled           Boolean               @default(false)
+  onboardingSkippedAt  DateTime?
+  discordPromoSeenAt   DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt()
+  subscriptions        Subscription[]
+  topUpPurchases       TopUpPurchase[]
+  creditTransactions   CreditTransaction[]
+  affiliate            Affiliate?
+  browserProfile       BrowserProfile?
+  browserSessions      BrowserSession[]
+  apiKeys              ApiKey[]
+  webhookEndpoints     WebhookEndpoint[]
+  webhookDeliveries    WebhookDelivery[]
+  onboardingSurvey     OnboardingSurvey?
+  promoRedemptions     PromoCodeRedemption[]
+}
+
+model PromoCode {
+  id              String                @id() @default(cuid())
+  code            String                @unique()
+  credits         Int
+  maxRedemptions  Int?
+  redemptionCount Int                   @default(0)
+  expiresAt       DateTime?
+  createdAt       DateTime              @default(now())
+  redemptions     PromoCodeRedemption[]
+}
+
+model PromoCodeRedemption {
+  id          String      @id() @default(cuid())
+  userId      String
+  codeId      String
+  credits     Int
+  createdAt   DateTime    @default(now())
+  userProfile UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode   PromoCode   @relation(fields: [codeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeId])
+  @@index([codeId])
 }
 
 model OnboardingSurvey {
@@ -149,6 +179,7 @@ model CreditTransaction {
   subscriptionId String?
   topUpId        String?
   idempotencyKey String?        @unique()
+  channel        String         @default("product")
   createdAt      DateTime       @default(now())
   userProfile    UserProfile    @relation(fields: [userId], references: [id])
   project        Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -157,6 +188,7 @@ model CreditTransaction {
 
   @@index([userId])
   @@index([idempotencyKey])
+  @@index([userId, createdAt])
 }
 
 model Affiliate {
@@ -297,6 +329,7 @@ model Project {
   isPublic           Boolean             @default(false)
   shareSlug          String?             @unique()
   shareViews         Int                 @default(0)
+  source             String              @default("app")
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt()
   creditTransactions CreditTransaction[]

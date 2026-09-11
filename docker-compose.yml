@@ -153,5 +153,24 @@ services:
       cloakbrowser-manager:
         condition: service_started
 
+  discord-bot:
+    image: pitch-discord-bot:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/discord-bot/Dockerfile
+    container_name: pitch_discord_bot
+    restart: always
+    profiles: ["discord"]
+    env_file:
+      - .env
+    environment:
+      # `make discord` overrides this to reach a host-run dev API. In a fully
+      # containerized deployment the bot uses the Compose API service instead.
+      PITCH_API_URL: ${DISCORD_PITCH_API_URL:-http://api:3000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - api
+
 volumes:
   cloakprofiles:

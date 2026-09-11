@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { describeWorkspace, RELEVANT } from '../apps/api/src/agent/describe.js'
-import { COMPUTE_USD_PER_SEC, creditsOwed, usageUsd } from '../apps/api/src/projects/usage.js'
+import {
+  COMPUTE_USD_PER_SEC,
+  CREDIT_USD,
+  creditsOwed,
+  usageUsd,
+} from '../apps/api/src/projects/usage.js'
 import type { Workspace } from '../apps/api/src/studio/paths.js'
 import { withTargetLegend } from '../apps/web/src/solid/studio/helpers.js'
 
@@ -91,15 +96,15 @@ describe('usage billing', () => {
 
   it('charges nothing until the cost crosses a whole credit', () => {
     // A cheap edit — the case the old per-flow pricing got most wrong.
-    expect(creditsOwed(0.085, 0)).toBe(0)
-    expect(creditsOwed(0.1, 0)).toBe(1)
-    expect(creditsOwed(0.95, 0)).toBe(9)
+    expect(creditsOwed(CREDIT_USD * 0.85, 0)).toBe(0)
+    expect(creditsOwed(CREDIT_USD, 0)).toBe(1)
+    expect(creditsOwed(CREDIT_USD * 9.5, 0)).toBe(9)
   })
 
   it('bills only the credits not already charged, so turns never double-charge', () => {
-    expect(creditsOwed(0.35, 3)).toBe(0)
-    expect(creditsOwed(0.45, 3)).toBe(1)
-    expect(creditsOwed(0.2, 5)).toBe(0)
+    expect(creditsOwed(CREDIT_USD * 3.5, 3)).toBe(0)
+    expect(creditsOwed(CREDIT_USD * 4.5, 3)).toBe(1)
+    expect(creditsOwed(CREDIT_USD * 2, 5)).toBe(0)
   })
 })
 

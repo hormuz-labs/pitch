@@ -14,30 +14,25 @@
 .lv-studio.new-project-page button { background: transparent; color: inherit; }
 .lv-studio.new-project-page button:hover:not(:disabled) { background: transparent; }
 
-/* The only navigation on a phone, so it is a real 40px target rather than a
-   floating pill: ink on white, a hairline, and a press state that reads. */
-.lv-studio.new-project-page .new-project-menu { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 43; width: 40px; height: 40px; padding: 0; display: none; place-items: center; border: 1px solid #dcdbd8; border-radius: 12px; background: rgb(255 255 255 / 92%); color: #24221f; box-shadow: 0 6px 18px rgb(0 0 0 / 8%), 0 1px 2px rgb(0 0 0 / 4%); backdrop-filter: blur(12px); transition: background 140ms ease, border-color 140ms ease, transform 140ms ease; cursor: pointer; }
-.lv-studio.new-project-page .new-project-menu:hover:not(:disabled) { border-color: #bdbab6; background: #fff; color: #111; }
-.lv-studio.new-project-page .new-project-menu:active { transform: scale(0.94); }
-.lv-studio.new-project-page .new-project-menu:focus-visible { outline: 2px solid #111; outline-offset: 2px; }
 .new-project-topnav { position: absolute; top: 0; right: 0; left: 0; z-index: 10; height: 54px; padding: 0 16px; display: flex; align-items: center; justify-content: center; }
 .new-project-topnav__links { display: flex; align-items: center; gap: 26px; }
-.lv-studio.new-project-page .new-project-topnav__links :is(a, button) { padding: 0; border: 0; background: transparent; color: #858983; font-size: 13px; font-weight: 460; letter-spacing: -0.004em; text-decoration: none; white-space: nowrap; cursor: pointer; transition: color 140ms ease; }
-.new-project-topnav__links :is(a, button):hover { color: #f1f1ee; }
-.lv-studio.new-project-page .new-project-topnav__links button:hover:not(:disabled),
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__links :is(a, button) { padding: 0; border: 0; background: transparent; color: #858983; font-size: 13px; font-weight: 460; letter-spacing: -0.004em; text-decoration: none; white-space: nowrap; cursor: pointer; transition: color 140ms ease; }
+.new-project-topnav__links :is(a, button):hover,
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__links :is(a, button).is-active { color: #f1f1ee; font-weight: 560; }
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__links button:hover:not(:disabled),
 .lv-studio.new-project-page .new-template-strip__head button:hover:not(:disabled) { background: transparent; color: #f1f1ee; }
 .new-project-topnav__actions { position: absolute; right: 14px; display: flex; align-items: center; gap: 7px; }
-.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button),
-.lv-studio.new-project-page .new-project-topnav__actions > .relative > button { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 14%); border-radius: 50%; background: transparent; color: #a1a49f; text-decoration: none; cursor: pointer; transition: border-color 140ms ease, color 140ms ease, background 140ms ease; }
-.lv-studio.new-project-page .new-project-topnav__actions > :is(a, button):hover,
-.lv-studio.new-project-page .new-project-topnav__actions > .relative > button:hover:not(:disabled) { border-color: rgb(255 255 255 / 28%); background: #171817; color: #fff; }
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > :is(a, button),
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > .relative > button { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 14%); border-radius: 50%; background: transparent; color: #a1a49f; text-decoration: none; cursor: pointer; transition: border-color 140ms ease, color 140ms ease, background 140ms ease; }
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > :is(a, button):hover,
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > .relative > button:hover:not(:disabled) { border-color: rgb(255 255 255 / 28%); background: #171817; color: #fff; }
 /* The credits pill comes from the settings modal and styles itself with one
    class, which `.lv-studio button` outranks — that is how it ended up an
    orange lozenge in a page with no orange in it. */
-.lv-studio.new-project-page .new-project-topnav__credits > .relative > button { width: auto; min-width: 64px; height: 32px; padding: 0; border: 1px solid rgb(255 255 255 / 14%); border-radius: 999px; background: transparent; }
-.lv-studio.new-project-page .new-project-topnav__credits > .relative > button:hover:not(:disabled) { border-color: rgb(255 255 255 / 28%); background: #171817; }
-.lv-studio.new-project-page .new-project-topnav__credits > .relative > button > span { width: auto; min-width: 62px; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 999px; color: #d0d2cd; font-size: 11px; font-weight: 560; }
-.lv-studio.new-project-page .new-project-topnav__credits img { width: 16px; height: 16px; }
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__credits > .relative > button { width: auto; min-width: 64px; height: 32px; padding: 0; border: 1px solid rgb(255 255 255 / 14%); border-radius: 999px; background: transparent; }
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__credits > .relative > button:hover:not(:disabled) { border-color: rgb(255 255 255 / 28%); background: #171817; }
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__credits > .relative > button > span { width: auto; min-width: 62px; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 999px; color: #d0d2cd; font-size: 11px; font-weight: 560; }
+:is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__credits img { width: 16px; height: 16px; }
 .new-project-topnav__avatar { width: 30px; height: 30px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: #098c82; color: #fff; }
 .new-project-topnav__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .new-project-topnav__actions :is(.cl-rootBox, .cl-userButton-root) { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; }
@@ -207,10 +202,9 @@
 }
 
 @media (max-width: 760px) {
-  .lv-studio.new-project-page .new-project-menu { display: grid; }
-  .new-project-topnav { height: 64px; padding: 0 12px 0 64px; justify-content: flex-end; }
+  .new-project-topnav { height: 64px; padding: 0 12px 0 56px; justify-content: flex-end; }
   .new-project-topnav__links { display: none; }
-  .new-project-topnav__actions { position: static; }
+  .new-project-topnav__actions { position: static; gap: 5px; }
   .new-create-hero { min-height: calc(100svh - 130px); padding: 100px 16px 42px; }
   .new-create-wordmark { width: 148px; }
   .new-template-strip__cards { grid-template-columns: 1fr 1fr; }
@@ -218,11 +212,40 @@
   .new-skill-gallery .new-template-strip__cards { grid-template-columns: 1fr 1fr; }
   .new-skill-gallery .new-template-strip__cards button:last-child { display: block; }
   .new-featured__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The ghost sidebar button floats over the top-left corner; as the featured
+     panel grows to full width its header would slide under the button, so the
+     heading and filter pills keep clear of its 50px footprint. */
+  .new-featured__head { padding-left: 40px; }
   .new-composer-wrap .composer-add-menu { width: min(246px, calc(100vw - 48px)); }
   .new-project-wordmark { width: 148px; }
   .lv-studio.new-project-page .composer-wrap.new-composer-wrap {
     width: 100%;
     max-width: 720px;
+  }
+  /* One compact footer row on a phone: a bare + on the left, model picker
+     and the solid send circle on the right. The credits marker stays in the
+     topnav pill, and the box hugs the two-line input instead of leaving a
+     tall empty band under the placeholder. */
+  .lv-studio .new-composer-wrap .composer-box { min-height: 0; padding: 12px 14px 10px; border-radius: 20px; }
+  .lv-studio .new-composer-wrap textarea { min-height: 44px; }
+  .lv-studio .new-composer-wrap .composer-footer { flex-wrap: nowrap; align-items: center; padding-top: 10px; column-gap: 8px; }
+  .lv-studio .new-composer-wrap .composer-footer .tool-row { flex-wrap: nowrap; min-width: 0; }
+  .lv-studio.new-project-page .composer-credits { display: none; }
+  .lv-studio.new-project-page .new-composer-wrap .attach-plus,
+  .lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled),
+  .lv-studio.new-project-page .new-composer-wrap .attach-plus.is-open {
+    width: 32px; height: 32px; border: 0; background: transparent; box-shadow: none; color: #a1a49f;
+  }
+  .lv-studio.new-project-page .new-composer-wrap .model-btn,
+  .lv-studio.new-project-page .new-composer-wrap .model-btn:hover:not(:disabled) {
+    max-width: 150px; padding: 7px 24px 7px 4px; border-color: transparent; background: transparent; font-size: 13px;
+  }
+  .lv-studio.new-project-page .new-composer-wrap .send-btn { flex: none; width: 36px; height: 36px; }
+  .lv-studio.new-project-page .new-skill-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  [data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .attach-plus,
+  [data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled),
+  [data-theme="light"] .lv-studio.new-project-page .new-composer-wrap .attach-plus.is-open {
+    border: 0; background: transparent; box-shadow: none; color: #6f6f6a;
   }
 }
 
@@ -266,31 +289,32 @@
   background: #ddd;
 }
 
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__links :is(a, button) {
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__links :is(a, button) {
   color: #71716d;
 }
 
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__links :is(a, button):hover {
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__links :is(a, button):hover,
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__links :is(a, button).is-active {
   color: #242422;
 }
 
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__actions > :is(a, button),
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__actions > .relative > button,
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__credits > .relative > button {
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > :is(a, button),
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > .relative > button,
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__credits > .relative > button {
   border-color: var(--border-subtle);
   background: transparent;
   color: var(--text-muted);
 }
 
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__actions > :is(a, button):hover,
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__actions > .relative > button:hover:not(:disabled),
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__credits > .relative > button:hover:not(:disabled) {
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > :is(a, button):hover,
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__actions > .relative > button:hover:not(:disabled),
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__credits > .relative > button:hover:not(:disabled) {
   border-color: var(--border-default);
   background: var(--bg-raised);
   color: var(--text-primary);
 }
 
-[data-theme="light"] .lv-studio.new-project-page .new-project-topnav__credits > .relative > button > span {
+[data-theme="light"] :is(.lv-studio.new-project-page, .account-topnav) .new-project-topnav__credits > .relative > button > span {
   color: var(--text-secondary);
 }
 

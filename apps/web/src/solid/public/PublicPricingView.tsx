@@ -1,4 +1,5 @@
-import { createSignal, For, onCleanup, onMount } from 'solid-js'
+import { createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import { demoVideos, PLANS, type Plan, pricePerCredit } from '../../lib/plans'
 import { useClerk } from '../core/auth'
 import { Seo } from '../core/Seo'
 import { LandingFaqAccordion } from './LandingFaqAccordion'
@@ -8,87 +9,12 @@ import '../../styles/landing.css'
 import '../../styles/landing-broadcast.css'
 import '../../styles/public-pricing.css'
 
-type Plan = {
-  name: string
-  price: string
-  cadence?: string
-  eyebrow: string
-  description: string
-  features: string[]
-  recommended?: boolean
-  enterprise?: boolean
+const eyebrows: Record<Plan['key'], string> = {
+  flex: 'For occasional videos',
+  pro: 'For regular launches',
+  max: 'For teams publishing often',
+  enterprise: 'For teams at scale',
 }
-const monthly: Plan[] = [
-  {
-    name: 'Starter',
-    price: '$10',
-    cadence: '/month',
-    eyebrow: 'For first projects',
-    description: 'A focused starting point for making polished product demos.',
-    features: [
-      '10 AI credits every month',
-      '3 complete demo videos',
-      'Up to 1080p exports',
-      'Priority queue access',
-    ],
-  },
-  {
-    name: 'Pro',
-    price: '$40',
-    cadence: '/month',
-    eyebrow: 'For regular launches',
-    description: 'More room to create, refine, and publish without slowing down.',
-    features: [
-      '50 AI credits every month',
-      '20% lower cost per credit',
-      'Custom agent instructions',
-      'Watermark-free exports',
-    ],
-    recommended: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    eyebrow: 'For teams at scale',
-    description: 'Flexible volume, tailored agents, and support for larger teams.',
-    features: [
-      'Custom credit volume',
-      'Volume pricing',
-      'Custom agent fine-tuning',
-      'Dedicated account manager',
-    ],
-    enterprise: true,
-  },
-]
-const topups: Plan[] = [
-  {
-    name: '10 credits',
-    price: '$12',
-    cadence: 'one time',
-    eyebrow: 'For a quick refill',
-    description: 'Finish a launch or make a few more demos without a subscription change.',
-    features: [
-      '10 AI credits',
-      'Active subscription required',
-      'One-time payment',
-      'Up to 1080p exports',
-    ],
-  },
-  {
-    name: '50 credits',
-    price: '$45',
-    cadence: 'one time',
-    eyebrow: 'For a bigger production run',
-    description: 'The best-value top-up when you have several videos ready to make.',
-    features: [
-      '50 AI credits',
-      'Lower cost per credit',
-      'Active subscription required',
-      'Up to 1080p exports',
-    ],
-    recommended: true,
-  },
-]
 export const PublicPricingView = () => {
   const clerk = useClerk(),
     [mode, setMode] = createSignal<'monthly' | 'topup'>('monthly')
@@ -97,8 +23,10 @@ export const PublicPricingView = () => {
   }
   onMount(() => window.addEventListener('keydown', key))
   onCleanup(() => window.removeEventListener('keydown', key))
+  const shown = () =>
+    PLANS.filter(plan => (mode() === 'topup' ? plan.kind === 'topup' : plan.kind !== 'topup'))
   const start = (p: Plan) => {
-    if (p.enterprise) {
+    if (p.kind === 'contact') {
       location.href = 'mailto:support@trypitch.co?subject=Pitch%20Enterprise'
       return
     }
@@ -126,26 +54,48 @@ export const PublicPricingView = () => {
         </header>
         <section class="public-pricing-plans">
           <div class="public-pricing-section-head">
-            <p>{mode() === 'monthly' ? 'Monthly plans' : 'One-time top-ups'}</p>
-            <span>3 credits create one complete AI demo video.</span>
+            <p>{mode() === 'monthly' ? 'Monthly plans' : 'One-time credits'}</p>
+            <span>About 120 credits make one complete AI demo video.</span>
           </div>
           <div class={`public-pricing-grid ${mode() === 'topup' ? 'is-topup' : ''}`}>
-            <For each={mode() === 'monthly' ? monthly : topups}>
+            <For each={shown()}>
               {p => (
-                <article class={`public-pricing-card ${p.recommended ? 'is-recommended' : ''}`}>
+                <article class={`public-pricing-card ${p.popular ? 'is-recommended' : ''}`}>
                   <div>
                     <div class="public-pricing-card-title">
                       <h2>{p.name}</h2>
-                      {p.recommended && <span>Recommended</span>}
+                      {p.popular && <span>Recommended</span>}
                     </div>
                     <p class="public-pricing-price">
-                      {p.price}
-                      <small>{p.cadence}</small>
+                      {p.priceUsd === null ? 'Custom' : `$${p.priceUsd}`}
+                      <small>
+                        {p.kind === 'subscription'
+                          ? '/month'
+                          : p.kind === 'topup'
+                            ? 'one time'
+                            : ''}
+                      </small>
                     </p>
-                    <p class="public-pricing-eyebrow">{p.eyebrow}</p>
+                    <p class="public-pricing-eyebrow">{eyebrows[p.key]}</p>
                     <p class="public-pricing-description">{p.description}</p>
                   </div>
                   <ul>
+                    <Show when={pricePerCredit(p)}>
+                      {rate => (
+                        <li>
+                          <span>✓</span>
+                          {rate()} per credit
+                        </li>
+                      )}
+                    </Show>
+                    <Show when={demoVideos(p)}>
+                      {count => (
+                        <li>
+                          <span>✓</span>
+                          About {count()} demo videos
+                        </li>
+                      )}
+                    </Show>
                     <For each={p.features}>
                       {f => (
                         <li>
@@ -155,16 +105,16 @@ export const PublicPricingView = () => {
                       )}
                     </For>
                   </ul>
-                  <button class={p.recommended ? 'is-primary' : ''} onClick={() => start(p)}>
-                    {p.enterprise ? 'Contact us' : `Get ${p.name}`}
+                  <button class={p.popular ? 'is-primary' : ''} onClick={() => start(p)}>
+                    {p.kind === 'contact' ? 'Contact us' : `Get ${p.name}`}
                   </button>
                 </article>
               )}
             </For>
           </div>
           <p class="public-pricing-note">
-            Secure payments. Top-ups require an active subscription. Unused credits are forfeited
-            when the subscription ends. <a href="mailto:support@trypitch.co">Talk to us</a>.
+            Secure payments. Credits you buy are yours to keep; monthly plan credits are forfeited
+            when the plan ends. <a href="mailto:support@trypitch.co">Talk to us</a>.
           </p>
         </section>
         <section class="public-pricing-faq">

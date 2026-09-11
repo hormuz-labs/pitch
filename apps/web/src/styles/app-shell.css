@@ -155,16 +155,14 @@
   }
 }
 
-/* The blur veil over the page while the drawer is open. Clicking it closes. */
+/* The dim veil over the page while the drawer is open. Clicking it closes. */
 .conversation-sidebar__scrim {
   position: fixed;
   inset: 0;
   z-index: 65;
   padding: 0;
   border: 0;
-  background: rgb(0 0 0 / 36%);
-  -webkit-backdrop-filter: blur(10px) saturate(0.85);
-  backdrop-filter: blur(10px) saturate(0.85);
+  background: rgb(0 0 0 / 42%);
   cursor: default;
   animation: scrim-in 160ms ease;
 }
@@ -205,7 +203,7 @@
   color: #a1a49f;
   box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
 .conversation-sidebar__open:hover {
@@ -831,7 +829,17 @@
   background: #000;
 }
 
+/* Same for the mobile drawer: on the creation door it slides in over the
+   page, so it takes the page's background rather than the shell's. */
+.app-shell-bg.is-new-shell .conversation-sidebar {
+  background: #000;
+}
+
 [data-theme="light"] .app-shell-bg.is-new-shell .conversation-sidebar__rail {
+  background: #fbfaf9;
+}
+
+[data-theme="light"] .app-shell-bg.is-new-shell .conversation-sidebar {
   background: #fbfaf9;
 }
 
@@ -889,17 +897,37 @@
     box-shadow: 14px 0 45px rgb(0 0 0 / 16%);
   }
 
+  /* The drawer's shadow blurs 45px to the right; slid off-screen that bleed
+     still paints as a dark gradient down the left edge of the page. */
+  .conversation-sidebar.-translate-x-full {
+    box-shadow: none;
+  }
+
   .app-shell-panel {
     margin: 0;
     border-left: 0;
     border-radius: 0;
   }
 
+  /* A bare ghost icon on phones and tablets — no tile, border or shadow, so
+     it reads as chrome rather than a floating card. */
   .conversation-sidebar__open {
     top: max(12px, env(safe-area-inset-top));
     left: max(12px, env(safe-area-inset-left));
-    background: color-mix(in srgb, var(--shell-raised) 92%, transparent);
+    border-color: transparent;
+    background: transparent;
     color: var(--shell-muted);
+    box-shadow: none;
+  }
+
+  .conversation-sidebar__open:hover {
+    border-color: transparent;
+    background: transparent;
+    color: var(--shell-text);
+  }
+
+  .conversation-sidebar__open:active {
+    transform: scale(0.9);
   }
 }
 

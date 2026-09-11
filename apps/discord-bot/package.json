@@ -1,0 +1,18 @@
+{
+  "name": "@pitch/discord-bot",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "typescript": "~6.0.2"
+  }
+}

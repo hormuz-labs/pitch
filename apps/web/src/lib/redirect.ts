@@ -23,7 +23,14 @@ export const safeRedirect = (value: string | null | undefined): string => {
   // `//evil.com` and `https://evil.com` are both off-site to a browser.
   if (!decoded.startsWith('/') || decoded.startsWith('//')) return DEFAULT_REDIRECT
   // Bouncing back to auth would loop.
-  if (decoded.startsWith('/sign-in') || decoded.startsWith('/sign-up')) return DEFAULT_REDIRECT
+  if (
+    decoded.startsWith('/sign-in') ||
+    decoded.startsWith('/sign-up') ||
+    decoded.startsWith('/signin') ||
+    decoded.startsWith('/signup')
+  ) {
+    return DEFAULT_REDIRECT
+  }
 
   return decoded
 }

@@ -88,6 +88,7 @@ export async function createFromApi(userId: string, body: CreateRequest) {
     options: body.options ?? {},
     uploads,
     name: body.name,
+    source: 'api',
   })
   return publicProject(project)
 }
@@ -125,8 +126,8 @@ export function pricing() {
     explanation:
       'Projects are not priced up front. The studio meters what the work costs — the ' +
       "agent's model usage plus the machine time spent recording and rendering — and " +
-      `charges one credit per $${CREDIT_USD.toFixed(2)} of it. Asking a question is nearly ` +
-      'free; rendering 4K is not.',
+      `charges one credit per $${CREDIT_USD.toFixed(4)} of it. Asking a question is nearly ` +
+      'free; rendering 4K is not. A demo video runs about 120 credits.',
     launchVideo: {
       tiers: Object.entries(LAUNCH_VIDEO_RESOLUTIONS).map(([res, t]) => ({
         res,

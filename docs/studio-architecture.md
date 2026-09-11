@@ -270,8 +270,12 @@ and bills that (`apps/api/src/projects/usage.ts`):
 Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as
 it crosses each `CREDIT_USD` boundary, so a cheap turn is not rounded up to a
 credit and many cheap turns still add up. Asking a question costs almost
-nothing; encoding 4K does not. A turn needs a balance of at least one credit
-to start.
+nothing; encoding 4K does not. A turn needs `MIN_BALANCE` credits to start.
+
+Credits are fine grained — `CREDIT_USD` is $0.0025, so a demo video runs about
+120 of them. That scale is a pricing decision, not a physical one: changing it
+means changing every stored credit integer in lockstep (see the
+`20260911120000_redenominate_credits` migration).
 
 ## There is no legacy path
 

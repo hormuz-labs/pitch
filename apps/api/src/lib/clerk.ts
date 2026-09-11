@@ -5,6 +5,7 @@ export type VerifiedClerkProfile = {
   firstName?: string
   lastName?: string
   imageUrl?: string
+  discordUserId: string | null
 }
 
 /**
@@ -27,5 +28,8 @@ export async function getVerifiedClerkProfile(userId: string): Promise<VerifiedC
     firstName: user.firstName ?? undefined,
     lastName: user.lastName ?? undefined,
     imageUrl: user.imageUrl ?? undefined,
+    discordUserId:
+      user.externalAccounts.find(account => ['discord', 'oauth_discord'].includes(account.provider))
+        ?.providerUserId ?? null,
   }
 }

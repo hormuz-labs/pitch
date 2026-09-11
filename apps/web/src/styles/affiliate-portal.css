@@ -1,3 +1,26 @@
+.affiliate-page-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+}
+
+.account-topnav.affiliate-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  height: 54px;
+  backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--affiliate-bg, #f3f3f1) 85%, transparent);
+  border-bottom: 1px solid var(--affiliate-line, #dededb);
+}
+
+[data-theme="dark"] .account-topnav.affiliate-topnav {
+  background: color-mix(in srgb, var(--shell-bg, #171817) 85%, transparent);
+  border-bottom-color: var(--shell-border, rgb(255 255 255 / 10%));
+}
+
 .affiliate-portal {
   --affiliate-bg: var(--shell-bg, #f3f3f1);
   --affiliate-panel: var(--shell-panel, #fff);

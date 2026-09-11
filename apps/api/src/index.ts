@@ -54,6 +54,7 @@ const { router: filesRoutes } = await import('./routes/files.js')
 const { router: mcpRoutes } = await import('./routes/mcp.js')
 const { router: musicRoutes } = await import('./routes/music.js')
 const { router: newsletterRoutes } = await import('./routes/newsletter.js')
+const { router: promoRoutes } = await import('./routes/promo.js')
 const { router: projectRoutes, publicRouter: publicProjectRoutes } = await import(
   './routes/projects.js'
 )
@@ -63,6 +64,7 @@ const { router: userRoutes } = await import('./routes/users.js')
 const { router: v1Routes } = await import('./routes/v1.js')
 const { router: webhookRoutes } = await import('./routes/webhooks.js')
 const { router: clerkWebhookRoutes } = await import('./routes/clerk-webhooks.js')
+const { router: internalDiscordRoutes } = await import('./routes/internal-discord.js')
 
 export const app = express()
 const { prisma } = await import('@saas/db')
@@ -95,6 +97,10 @@ app.use('/v1', cors({ origin: true }), express.json({ limit: '750mb' }), v1Route
 app.use(express.json({ limit: '50mb' }))
 app.use(cors({ origin: true, credentials: true }))
 app.use(cookieParser())
+
+// Service-to-service bot API. It owns Discord identity resolution and still
+// delegates project creation to the studio's one canonical creation path.
+app.use('/internal/discord', internalDiscordRoutes)
 
 // EventSource / <video> / <img> / <iframe> can't set Authorization headers, so
 // a Clerk session token may ride in ?token= for streams and files.
@@ -145,6 +151,7 @@ app.use('/api-keys', apiKeyRoutes)
 app.use('/credits', creditRoutes)
 app.use('/users', userRoutes)
 app.use('/checkout', checkoutRoutes)
+app.use('/promo', promoRoutes)
 app.use(redirectRouter)
 app.use(shareRouter)
 app.use('/affiliate', affiliateRoutes)

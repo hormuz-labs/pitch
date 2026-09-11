@@ -70,6 +70,8 @@ export interface ProjectRow {
   isPublic: boolean
   shareSlug: string | null
   shareViews: number
+  /** Where the project was started: "app", "api", or "discord". */
+  source: string
   createdAt: string
   updatedAt: string
 }
@@ -212,6 +214,8 @@ export interface CreateProjectInput {
   name?: string
   /** A `provider/id` model spec from the composer picker; kept in options. */
   model?: string
+  /** Where this project was started. Defaults to "app". */
+  source?: string
 }
 
 /**
@@ -258,7 +262,10 @@ export async function createProject(
   // Nothing is charged for opening a project: the studio bills what the work
   // actually costs, turn by turn (projects/usage.ts). The balance check is
   // only that they can pay for some of it.
-  const balance = await db.getCreditBalance(userId)
+  const balance =
+    input.source === 'discord'
+      ? await db.getDiscordCreditBalance(userId)
+      : await db.getCreditBalance(userId)
   if (balance < MIN_BALANCE) throw new InsufficientCreditsError(balance)
 
   const title = projectTitle(
@@ -269,14 +276,28 @@ export async function createProject(
   const name = await uniqueName(userId, 'studio', wanted)
 
   const row = await db.prisma.project.create({
-    data: { userId, flow: 'studio', name, title, prompt, options: JSON.stringify(options) },
+    data: {
+      userId,
+      flow: 'studio',
+      name,
+      title,
+      prompt,
+      options: JSON.stringify(options),
+      source: input.source ?? 'app',
+    },
   })
   const p = parseRow(row)
 
   const ws = workspaceOf(p)
   try {
     await agent.prepare(ws, options, uploads)
-    if (prompt) await promptProject(p, prompt, { first: true, uploads })
+    if (prompt)
+      await promptProject(p, prompt, {
+        first: true,
+        uploads,
+        billingChannel:
+          input.source === 'discord' ? 'discord' : input.source === 'api' ? 'api' : 'product',
+      })
   } catch (err: any) {
     logger.error({ err, projectId: p.id }, 'could not open the project')
     await failProject(p, `Could not start: ${err.message}`, false)
@@ -309,6 +330,8 @@ interface PromptOptions {
   delivery?: PromptDelivery
   /** Text shown in the thread when `text` also contains a generated target legend. */
   displayText?: string
+  /** Explicit billing pool for service-created turns. */
+  billingChannel?: 'product' | 'api' | 'discord'
 }
 
 export interface PromptProjectResult {
@@ -361,7 +384,7 @@ export async function promptProject(
     opts.delivery,
     opts.displayText,
   )
-  if (result.delivery !== 'steered') billTurn(p, result.turn)
+  if (result.delivery !== 'steered') billTurn(p, result.turn, opts.billingChannel)
   if (first) followFirstTurn(p, result.turn)
   if (p.lastError)
     await db.prisma.project
@@ -375,11 +398,15 @@ export async function promptProject(
  * this is where the money is: the model spend it used plus the machine time
  * its host actions burned.
  */
-function billTurn(p: ProjectRow, turn: number): void {
+function billTurn(
+  p: ProjectRow,
+  turn: number,
+  channel: 'product' | 'api' | 'discord' = p.source === 'api' ? 'api' : 'product',
+): void {
   const off = onProjectEvent(p.id, (ev: StudioEvent) => {
     if (ev.type !== 'idle' || ev.turn !== turn) return
     off()
-    void chargeTurn(p, takeModelCost(p.id)).catch(err =>
+    void chargeTurn(p, takeModelCost(p.id), channel).catch(err =>
       logger.warn({ err, projectId: p.id }, 'could not bill the turn'),
     )
   })
@@ -426,6 +453,7 @@ export async function failProject(p: ProjectRow, error: string, refund: boolean)
       .addCredits(p.userId, p.creditsCharged, 'refund', 'Refund: the project produced nothing', {
         projectId: p.id,
         idempotencyKey: `refund:project:${p.id}`,
+        channel: p.source === 'discord' ? 'discord' : 'product',
       })
       .catch(err => logger.warn({ err, projectId: p.id }, 'refund failed'))
   }

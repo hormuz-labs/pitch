@@ -33,11 +33,22 @@ model UserProfile {
   firstName String?
   lastName  String?
   imageUrl  String?
+  // Discord's snowflake user id, mirrored from Clerk for indexed bot lookup.
+  discordUserId String? @unique
   role      String   @default("user") // "user" or "admin"
+  // Public handle, chosen in settings. Null until the user picks one, and
+  // unique across accounts once they do.
+  username  String?  @unique
+  // Notification preferences. Email is on by default because it carries the
+  // "your video is ready" mail; browser alerts need a permission prompt first.
+  emailNotifications   Boolean @default(true)
+  browserNotifications Boolean @default(false)
   gptEnabled Boolean @default(false) // Granted per user by an admin
   // Set when the user dismisses the welcome survey. The survey is never a
   // gate, so this only stops us asking again on their other devices.
   onboardingSkippedAt DateTime?
+  // One-time product announcement dismissal, stored per account/device-independent.
+  discordPromoSeenAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -51,6 +62,41 @@ model UserProfile {
   webhookEndpoints   WebhookEndpoint[]
   webhookDeliveries  WebhookDelivery[]
   onboardingSurvey   OnboardingSurvey?
+  promoRedemptions   PromoCodeRedemption[]
+}
+
+// A redeemable credit code. Minted by an admin, entered by a user in settings.
+model PromoCode {
+  id              String    @id @default(cuid())
+  code            String    @unique   // stored upper-case, e.g. "LAUNCH50"
+  credits         Int
+  maxRedemptions  Int?                // null = unlimited
+  redemptionCount Int       @default(0)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  redemptions PromoCodeRedemption[]
+
+  // Codes are handed out, not browsed: only the server touches this table.
+  @@deny('all', true)
+}
+
+// One redemption per account per code — the unique pair IS the once-only rule,
+// so two simultaneous requests cannot both grant credits.
+model PromoCodeRedemption {
+  id        String   @id @default(cuid())
+  userId    String
+  codeId    String
+  credits   Int                       // what was granted, for the activity list
+  createdAt DateTime @default(now())
+
+  userProfile UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode   PromoCode   @relation(fields: [codeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeId])
+  @@index([codeId])
+  @@deny('all', auth() == null)
+  @@allow('read', userId == auth().id)
 }
 
 // One immutable onboarding response per Clerk user. The unique userId is the
@@ -231,6 +277,9 @@ model CreditTransaction {
   subscriptionId String?                       // set for subscription_grant transactions (FK to Subscription.id)
   topUpId        String?                       // set for topup_grant transactions (FK to TopUpPurchase.id)
   idempotencyKey String?  @unique              // prevents double-grants (e.g. dodo event id)
+  // Which isolated balance/surface owns the transaction: "product", "api", or
+  // "discord". Discord promo grants and spend never enter the main balance.
+  channel        String   @default("product")
   createdAt      DateTime @default(now())
 
   userProfile    UserProfile    @relation(fields: [userId], references: [id])
@@ -240,6 +289,8 @@ model CreditTransaction {
 
   @@index([userId])
   @@index([idempotencyKey])
+  // Serves the date-range usage query, which scans one user's recent ledger.
+  @@index([userId, createdAt])
 }
 
 // ── Video editions ────────────────────────────────────────────────────────────────────────────
@@ -408,6 +459,9 @@ model Project {
   isPublic       Boolean  @default(false)
   shareSlug      String?  @unique
   shareViews     Int      @default(0)
+  // Where the project was started: "app", "api" (a /v1 key), or "discord".
+  // Stamped on the row so usage can be attributed long after the fact.
+  source         String   @default("app")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
