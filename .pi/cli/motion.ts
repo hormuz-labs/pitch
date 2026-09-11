@@ -23,7 +23,7 @@ import {
 import { basename, dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { Type } from '@sinclair/typebox'
-import { audioConfig, TTS_PROVIDERS, type TtsProvider } from '../lib/audio-config.ts'
+import { projectAudioConfig, TTS_PROVIDERS, type TtsProvider } from '../lib/audio-config.ts'
 import {
   ASSETS_DIR,
   ENGINE_DIR,
@@ -239,7 +239,13 @@ export default function motionCommands(): CommandSpec[] {
       const ws = workspaceOf(ctx)
       if (!p.text && !p.script)
         return text('pitch motion tts needs `text` (the whole script) or `script` (a file path).')
-      const config = audioConfig().tts
+      let options = {}
+      try {
+        options = JSON.parse(readFileSync(join(ws, 'project.json'), 'utf8')).options ?? {}
+      } catch {
+        /* Workspaces created outside the studio use operator defaults. */
+      }
+      const config = projectAudioConfig(options).tts
       const provider: TtsProvider = TTS_PROVIDERS.includes(p.provider)
         ? p.provider
         : config.provider

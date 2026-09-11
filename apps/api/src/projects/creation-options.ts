@@ -27,6 +27,23 @@ export function normalizeCreationOptions(value: unknown): Record<string, any> {
     delete options.skill
   }
 
+  if ('narrationVoice' in options) {
+    const voice = options.narrationVoice
+    if (
+      voice?.provider === 'elevenlabs' &&
+      typeof voice.id === 'string' &&
+      /^[a-zA-Z0-9_-]{1,100}$/.test(voice.id)
+    ) {
+      options.narrationVoice = {
+        provider: 'elevenlabs',
+        id: voice.id,
+        name: typeof voice.name === 'string' ? voice.name.trim().slice(0, 160) : voice.id,
+      }
+    } else {
+      delete options.narrationVoice
+    }
+  }
+
   if ('durationSeconds' in options) {
     const duration = Number(options.durationSeconds)
     if (Number.isFinite(duration) && duration >= 3 && duration <= 300) {
