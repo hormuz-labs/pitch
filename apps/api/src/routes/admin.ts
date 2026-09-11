@@ -82,6 +82,7 @@ router.get('/dashboard', async (_req, res) => {
         lastName: u.lastName,
         imageUrl: u.imageUrl,
         role: u.role,
+        gptEnabled: u.gptEnabled,
         createdAt: u.createdAt,
         updatedAt: u.updatedAt,
         creditsRemaining: balAgg?._sum?.delta ?? 0,
@@ -105,6 +106,23 @@ router.get('/dashboard', async (_req, res) => {
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to fetch admin dashboard')
     res.status(500).json({ error: error.message })
+  }
+})
+
+router.patch('/users/:id/gpt-access', async (req, res) => {
+  if (typeof req.body?.gptEnabled !== 'boolean') {
+    return res.status(400).json({ error: 'gptEnabled must be a boolean' })
+  }
+  try {
+    const result = await db.prisma.userProfile.updateMany({
+      where: { id: req.params.id },
+      data: { gptEnabled: req.body.gptEnabled },
+    })
+    if (!result.count) return res.status(404).json({ error: 'User not found' })
+    res.json({ gptEnabled: req.body.gptEnabled })
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to update GPT access')
+    res.status(500).json({ error: 'Failed to update GPT access' })
   }
 })
 

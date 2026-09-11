@@ -6,23 +6,20 @@ import {
   GEMINI_38_FLASH_SPEC,
   GEMMA_4_26B_SPEC,
   GEMMA_4_31B_SPEC,
-  GLM_FLASH_SPEC,
-  KIMI_SPEC,
+  GPT_54_MINI_SPEC,
+  GPT_54_SPEC,
   parseModelSpec,
+  selectStudioModel,
   studioModelSpecs,
 } from '../apps/api/src/studio/model-picker.js'
 
 const model = (provider: string, id: string, name: string) => ({ provider, id, name })
 
 describe('parseModelSpec', () => {
-  it('splits on the first slash so OpenRouter ids may contain more', () => {
-    expect(parseModelSpec(GLM_FLASH_SPEC)).toEqual({
-      provider: 'openrouter',
-      id: 'z-ai/glm-5.3-flash',
-    })
-    expect(parseModelSpec(KIMI_SPEC)).toEqual({
-      provider: 'openrouter',
-      id: 'moonshotai/kimi-k3',
+  it('splits provider and model id', () => {
+    expect(parseModelSpec(GPT_54_SPEC)).toEqual({
+      provider: 'openai',
+      id: 'gpt-5.4',
     })
     expect(parseModelSpec(GEMINI_38_FLASH_SPEC)).toEqual({
       provider: 'google',
@@ -40,8 +37,12 @@ describe('parseModelSpec', () => {
 })
 
 describe('studioModelSpecs', () => {
-  it('defaults to Gemini and Gemma models', () => {
+  it('defaults to Google and direct GPT models', () => {
     expect(studioModelSpecs(undefined)).toEqual([...DEFAULT_STUDIO_MODELS])
+  })
+
+  it('rejects OpenRouter even when configured explicitly', () => {
+    expect(studioModelSpecs(`openrouter/moonshotai/kimi-k3,${GPT_54_SPEC}`)).toEqual([GPT_54_SPEC])
   })
 
   it('keeps a configured allowlist in order', () => {
@@ -62,6 +63,8 @@ describe('assembleStudioPicker', () => {
     model('openrouter', 'z-ai/glm-5.3-flash', 'Z.ai: GLM 5.3 Flash'),
     model('openrouter', 'moonshotai/kimi-k3', 'MoonshotAI: Kimi K3'),
     model('openrouter', 'openai/gpt-4o', 'GPT-4o'),
+    model('openai', 'gpt-5.4', 'GPT-5.4'),
+    model('openai', 'gpt-5.4-mini', 'GPT-5.4 mini'),
   ]
 
   it('lists only the allowlist, with short labels, and ignores the rest', () => {
@@ -83,5 +86,40 @@ describe('assembleStudioPicker', () => {
       { specs: [...DEFAULT_STUDIO_MODELS] },
     )
     expect(out.map(m => m.spec)).toEqual([GEMINI_38_FLASH_SPEC, GEMMA_4_31B_SPEC])
+  })
+
+  it('allows GPT only after an admin enables the account', () => {
+    const out = assembleStudioPicker(catalog, {
+      specs: [...DEFAULT_STUDIO_MODELS],
+      gptEnabled: true,
+    })
+    expect(out.slice(-2).map(m => m.spec)).toEqual([GPT_54_MINI_SPEC, GPT_54_SPEC])
+  })
+
+  it('cannot bypass entitlement or the allowlist via STUDIO_MODEL', () => {
+    expect(
+      assembleStudioPicker(catalog, {
+        specs: [GEMINI_38_FLASH_SPEC],
+        defaultSpec: GPT_54_SPEC,
+        gptEnabled: true,
+      }).map(m => m.spec),
+    ).toEqual([GEMINI_38_FLASH_SPEC])
+    expect(
+      assembleStudioPicker(catalog, {
+        specs: [...DEFAULT_STUDIO_MODELS],
+        defaultSpec: GPT_54_SPEC,
+      }).some(m => m.spec === GPT_54_SPEC),
+    ).toBe(false)
+  })
+
+  it('rejects explicit forbidden picks and replaces revoked or removed saved models', () => {
+    const allowed = assembleStudioPicker(catalog, { specs: [...DEFAULT_STUDIO_MODELS] })
+    expect(() => selectStudioModel(allowed, GPT_54_SPEC)).toThrow('not available')
+    expect(selectStudioModel(allowed, undefined, GPT_54_SPEC)).toBe(GEMINI_38_FLASH_SPEC)
+    expect(selectStudioModel(allowed, undefined, 'openrouter/moonshotai/kimi-k3')).toBe(
+      GEMINI_38_FLASH_SPEC,
+    )
+    expect(selectStudioModel(allowed, GEMMA_4_31B_SPEC)).toBe(GEMMA_4_31B_SPEC)
+    expect(() => selectStudioModel([])).toThrow('No studio models')
   })
 })

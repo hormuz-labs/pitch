@@ -1,6 +1,6 @@
 /**
  * The composer's model menu is a short allowlist. Google exposes dozens of ids;
- * the product runs the Gemini and Gemma models below.
+ * the product runs Google models and opt-in GPT models below.
  *
  * Override with STUDIO_MODELS (comma-separated `provider/id` specs).
  */
@@ -10,10 +10,8 @@ export const GEMINI_31_PRO_SPEC = 'google/gemini-3.1-pro-preview'
 export const GEMMA_4_31B_SPEC = 'google/gemma-4-31b-it'
 export const GEMMA_4_26B_SPEC = 'google/gemma-4-26b-a4b-it'
 
-/** @deprecated Replaced by Gemma models */
-export const GLM_FLASH_SPEC = 'openrouter/z-ai/glm-5.3-flash'
-/** @deprecated Replaced by Gemma models */
-export const KIMI_SPEC = 'openrouter/moonshotai/kimi-k3'
+export const GPT_54_SPEC = 'openai/gpt-5.4'
+export const GPT_54_MINI_SPEC = 'openai/gpt-5.4-mini'
 
 /** Menu order. The first runnable entry is also the studio default. */
 export const DEFAULT_STUDIO_MODELS = [
@@ -21,6 +19,8 @@ export const DEFAULT_STUDIO_MODELS = [
   GEMINI_31_PRO_SPEC,
   GEMMA_4_31B_SPEC,
   GEMMA_4_26B_SPEC,
+  GPT_54_MINI_SPEC,
+  GPT_54_SPEC,
 ] as const
 
 export const DEFAULT_STUDIO_MODEL = GEMINI_38_FLASH_SPEC
@@ -30,8 +30,8 @@ const LABELS: Record<string, string> = {
   [GEMINI_31_PRO_SPEC]: 'Gemini 3.1 Pro',
   [GEMMA_4_31B_SPEC]: 'Gemma 4 31B',
   [GEMMA_4_26B_SPEC]: 'Gemma 4 26B',
-  [KIMI_SPEC]: 'Kimi K3',
-  [GLM_FLASH_SPEC]: 'GLM 5.3 Flash',
+  [GPT_54_SPEC]: 'GPT-5.4',
+  [GPT_54_MINI_SPEC]: 'GPT-5.4 mini',
 }
 
 export interface PickerModel {
@@ -56,7 +56,7 @@ export function studioModelSpecs(
     .split(',')
     .map(s => s.trim())
     .filter(Boolean)) {
-    if (seen.has(spec)) continue
+    if (seen.has(spec) || !['google', 'openai'].includes(parseModelSpec(spec).provider)) continue
     seen.add(spec)
     out.push(spec)
   }
@@ -66,9 +66,29 @@ export function studioModelSpecs(
 /** @deprecated use studioModelSpecs */
 export const extraStudioModelSpecs = studioModelSpecs
 
+/** Entitlement is independent of provider credentials and the deployment allowlist. */
+export function canUseStudioModel(spec: string, gptEnabled = false): boolean {
+  const { provider } = parseModelSpec(spec)
+  return provider === 'google' || (provider === 'openai' && gptEnabled)
+}
+
+/** Explicit picks must be allowed; obsolete saved picks can safely fall back. */
+export function selectStudioModel(
+  models: PickerModel[],
+  requested?: string,
+  saved?: string,
+): string {
+  if (requested !== undefined && !models.some(m => m.spec === requested)) {
+    throw Object.assign(new Error('This model is not available for your account'), { status: 403 })
+  }
+  const spec = requested ?? models.find(m => m.spec === saved)?.spec ?? models[0]?.spec
+  if (!spec) throw Object.assign(new Error('No studio models are available'), { status: 503 })
+  return spec
+}
+
 export function assembleStudioPicker(
   available: Iterable<{ provider: string; id: string; name?: string }>,
-  opts: { specs: string[]; defaultSpec?: string },
+  opts: { specs: string[]; defaultSpec?: string; gptEnabled?: boolean },
 ): PickerModel[] {
   const bySpec = new Map<string, PickerModel>()
   for (const m of available) {
@@ -82,7 +102,13 @@ export function assembleStudioPicker(
   const seen = new Set<string>()
   const push = (spec: string): boolean => {
     const row = bySpec.get(spec)
-    if (!row || seen.has(spec)) return false
+    if (
+      !row ||
+      seen.has(spec) ||
+      !opts.specs.includes(spec) ||
+      !canUseStudioModel(spec, opts.gptEnabled)
+    )
+      return false
     seen.add(spec)
     out.push(row)
     return true

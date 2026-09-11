@@ -12,6 +12,7 @@ import { createLogger, sendDiscordMessage } from '@saas/shared'
 import { getAgent } from '../flows/index.js'
 import type { Description, Output, UploadRef } from '../flows/types.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
+import { selectStudioModel } from '../studio/model-picker.js'
 import {
   type FlowId,
   isValidProjectName,
@@ -24,6 +25,7 @@ import {
   closeSession,
   type Entry,
   listBusy,
+  listStudioModels,
   peekSession,
   promptSession,
   stopSession,
@@ -217,9 +219,14 @@ export async function createProject(
   if (!prompt && !input.uploads?.length)
     throw Object.assign(new Error('prompt is required'), { status: 400 })
   const options = normalizeCreationOptions(input.options)
-  const model =
-    typeof input.model === 'string' && input.model.includes('/') ? input.model : undefined
-  if (model) options.model = model
+  options.model = selectStudioModel(
+    await listStudioModels(userId),
+    typeof input.model === 'string'
+      ? input.model
+      : typeof options.model === 'string'
+        ? options.model
+        : undefined,
+  )
   const uploads = input.uploads ?? []
   if (Array.isArray(options.referenceVideoFiles)) {
     const uploadedPaths = new Map(
@@ -295,6 +302,7 @@ export async function promptProject(
   const agent = getAgent()
   const ws = workspaceOf(p)
   const first = opts.first ?? false
+  const model = selectStudioModel(await listStudioModels(p.userId), opts.model, p.options?.model)
   if (opts.uploads?.length && !first)
     await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
   const context = await agent.context(ws, {
@@ -306,13 +314,7 @@ export async function promptProject(
   })
   // This turn's pick wins; otherwise the project keeps running on the model
   // it was created (or last prompted) with.
-  const model =
-    typeof opts.model === 'string' && opts.model.includes('/')
-      ? opts.model
-      : typeof p.options?.model === 'string'
-        ? p.options.model
-        : undefined
-  if (opts.model && model && p.options?.model !== model) {
+  if (p.options?.model !== model) {
     p.options = { ...p.options, model }
     void db.prisma.project
       .update({ where: { id: p.id }, data: { options: JSON.stringify(p.options) } })

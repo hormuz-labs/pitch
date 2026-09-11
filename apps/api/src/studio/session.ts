@@ -107,8 +107,8 @@ function resolveModel(spec = MODEL_SPEC): { model?: any; thinkingLevel?: any } {
   return { model, thinkingLevel: THINKING_LEVEL }
 }
 
-function openRouterApiKey(): string | undefined {
-  const key = process.env.OPENROUTER_API_KEY?.trim()
+function openAiApiKey(): string | undefined {
+  const key = process.env.OPENAI_API_KEY?.trim()
   return key || undefined
 }
 
@@ -119,7 +119,7 @@ function googleApiKey(): string | undefined {
 
 function providerIsRunnable(provider: string): boolean {
   if (modelRuntime.hasConfiguredAuth(provider)) return true
-  if (provider === 'openrouter') return Boolean(openRouterApiKey())
+  if (provider === 'openai') return Boolean(openAiApiKey())
   if (provider === 'google') {
     return Boolean(googleApiKey())
   }
@@ -143,17 +143,17 @@ export function initStudio(): Promise<void> {
           'GEMINI_API_KEY is not set — Google models will be hidden from the picker',
         )
       }
-      const orKey = openRouterApiKey()
-      if (orKey) {
+      const openAiKey = openAiApiKey()
+      if (openAiKey) {
         try {
-          await modelRuntime.setRuntimeApiKey('openrouter', orKey)
+          await modelRuntime.setRuntimeApiKey('openai', openAiKey)
         } catch (err) {
-          logger.warn({ err }, 'could not apply OPENROUTER_API_KEY to the model runtime')
+          logger.warn({ err }, 'could not apply OPENAI_API_KEY to the model runtime')
         }
-      } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'openrouter')) {
+      } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'openai')) {
         logger.warn(
           { allowed: ALLOWED_SPECS },
-          'OPENROUTER_API_KEY is not set — OpenRouter models will be hidden from the picker',
+          'OPENAI_API_KEY is not set — GPT models will be hidden from the picker',
         )
       }
       const m = resolveModel()
@@ -162,7 +162,7 @@ export function initStudio(): Promise<void> {
           model: m.model ? `${m.model.provider}/${m.model.id}` : '(pi default)',
           allowed: ALLOWED_SPECS,
           google: Boolean(gKey),
-          openrouter: Boolean(orKey),
+          openai: Boolean(openAiKey),
           thinking: THINKING_LEVEL,
         },
         'studio model runtime ready',
@@ -501,8 +501,12 @@ export const STUDIO_DEFAULT_MODEL = MODEL_SPEC
  * the runtime can actually run. A provider without a key is dropped so a
  * turn cannot pick something that would fail.
  */
-export async function listStudioModels(): Promise<{ spec: string; label: string }[]> {
+export async function listStudioModels(userId: string): Promise<{ spec: string; label: string }[]> {
   await initStudio()
+  const profile = await prisma.userProfile.findUnique({
+    where: { id: userId },
+    select: { gptEnabled: true },
+  })
   const available = new Map<string, any>()
   for (const m of await modelRuntime.getAvailable()) {
     const spec = `${m.provider}/${m.id}`
@@ -518,6 +522,7 @@ export async function listStudioModels(): Promise<{ spec: string; label: string 
   return assembleStudioPicker(available.values(), {
     defaultSpec: MODEL_SPEC,
     specs: ALLOWED_SPECS,
+    gptEnabled: profile?.gptEnabled === true,
   })
 }
 
