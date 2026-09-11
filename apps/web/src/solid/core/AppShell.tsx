@@ -172,14 +172,20 @@ function Sidebar(props: {
 
         <div class="conversation-sidebar__projects-head">
           <p class="conversation-sidebar__section-title">Chats</p>
-          <button type="button" class="conversation-sidebar__all-chats" onClick={() => go('/chats')}>
+          <button
+            type="button"
+            class="conversation-sidebar__all-chats"
+            onClick={() => go('/chats')}
+          >
             All Chats
           </button>
         </div>
         <div class="conversation-sidebar__history" ref={historyList}>
           <Show
             when={visibleProjects().length}
-            fallback={<span class="conversation-sidebar__empty">Your projects will appear here</span>}
+            fallback={
+              <span class="conversation-sidebar__empty">Your projects will appear here</span>
+            }
           >
             <For each={visibleProjects()}>{project => chat(project)}</For>
           </Show>

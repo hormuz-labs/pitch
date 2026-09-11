@@ -79,7 +79,10 @@ export function FeaturedVideos() {
             '--featured-radius': `${18 * (1 - enter())}px`,
           }}
         >
-          <div class="new-featured__content" style={{ '--featured-grid-y': `${-52 * gridTravel()}vh` }}>
+          <div
+            class="new-featured__content"
+            style={{ '--featured-grid-y': `${-52 * gridTravel()}vh` }}
+          >
             <div class="new-featured__head">
               <h2>Featured videos</h2>
               <div>

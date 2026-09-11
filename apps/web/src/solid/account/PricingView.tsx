@@ -44,7 +44,7 @@ const topups = [
     price: 12,
     credits: 10,
     desc: 'A few extra credits to finish a project.',
-    features: ['10 AI credits', 'One-time payment, no expiry'],
+    features: ['10 AI credits', 'One-time payment', 'Active subscription required'],
   },
   {
     key: 'topup_50',
@@ -53,7 +53,7 @@ const topups = [
     credits: 50,
     popular: true,
     desc: 'The quickest way to refill your balance.',
-    features: ['50 AI credits', 'Better value per credit', 'One-time payment, no expiry'],
+    features: ['50 AI credits', 'Better value per credit', 'Active subscription required'],
   },
 ]
 
@@ -106,7 +106,8 @@ export function PricingView() {
           <span>credit, generate demos</span>
         </h1>
         <p class="mt-3 text-sm text-gray-500">
-          Subscribe for monthly credits, or buy top-ups whenever you need more.
+          Subscribe for monthly credits, then buy top-ups whenever you need more. Unused credits are
+          forfeited when the subscription ends.
         </p>
         <div role="tablist" class="mt-6 inline-flex rounded-xl bg-gray-100 p-1">
           <button
@@ -166,15 +167,19 @@ export function PricingView() {
                 when={pack.key === 'enterprise'}
                 fallback={
                   <button
-                    disabled={!!loading() || active() === pack.key}
+                    disabled={
+                      !!loading() || active() === pack.key || (mode() === 'topup' && !active())
+                    }
                     class="mb-5 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                     onClick={() => void checkout(pack.key)}
                   >
-                    {active() === pack.key
-                      ? 'Current plan'
-                      : loading() === pack.key
-                        ? 'Redirecting...'
-                        : `Buy ${pack.credits} Credits`}
+                    {mode() === 'topup' && !active()
+                      ? 'Subscription required'
+                      : active() === pack.key
+                        ? 'Current plan'
+                        : loading() === pack.key
+                          ? 'Redirecting...'
+                          : `Buy ${pack.credits} Credits`}
                   </button>
                 }
               >

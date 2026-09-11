@@ -67,7 +67,12 @@ const topups: Plan[] = [
     cadence: 'one time',
     eyebrow: 'For a quick refill',
     description: 'Finish a launch or make a few more demos without a subscription change.',
-    features: ['10 AI credits', 'Credits never expire', 'One-time payment', 'Up to 1080p exports'],
+    features: [
+      '10 AI credits',
+      'Active subscription required',
+      'One-time payment',
+      'Up to 1080p exports',
+    ],
   },
   {
     name: '50 credits',
@@ -78,7 +83,7 @@ const topups: Plan[] = [
     features: [
       '50 AI credits',
       'Lower cost per credit',
-      'Credits never expire',
+      'Active subscription required',
       'Up to 1080p exports',
     ],
     recommended: true,
@@ -158,8 +163,8 @@ export const PublicPricingView = () => {
             </For>
           </div>
           <p class="public-pricing-note">
-            Secure payments. Credits never expire.{' '}
-            <a href="mailto:support@trypitch.co">Talk to us</a>.
+            Secure payments. Top-ups require an active subscription. Unused credits are forfeited
+            when the subscription ends. <a href="mailto:support@trypitch.co">Talk to us</a>.
           </p>
         </section>
         <section class="public-pricing-faq">

@@ -150,6 +150,23 @@ router.post('/dodo', express.raw({ type: 'application/json' }), async (req, res)
       }
     }
 
+    // ── Subscription ended after failed/non-renewed billing ───────────────────
+    else if (
+      event.type === 'subscription.on_hold' ||
+      event.type === 'subscription.failed' ||
+      event.type === 'subscription.expired'
+    ) {
+      const subscriptionId: string = data.subscription_id
+      if (subscriptionId) {
+        const status = String(event.type).replace('subscription.', '')
+        await db.endSubscription(subscriptionId, status)
+        logger.info({ subscriptionId, status }, '[Dodo] Subscription ended; credits forfeited')
+        if (userId) {
+          await sendBillingNotification(userId, 'subscription-cancelled', subscriptionId)
+        }
+      }
+    }
+
     // ── One-time top-up payment succeeded ─────────────────────────────────────
     else if (event.type === 'payment.succeeded' && metadata.type === 'topup') {
       if (!userId) {

@@ -47,6 +47,13 @@ export type CreditTransactionType =
   | 'promo'
   | 'referral'
 
+export class ActiveSubscriptionRequiredError extends Error {
+  constructor() {
+    super('One-time top-ups are only available with an active subscription.')
+    this.name = 'ActiveSubscriptionRequiredError'
+  }
+}
+
 /**
  * Calculates the current credit balance for a user from the ledger.
  * Returns 0 if the user has no transactions yet.
@@ -228,6 +235,42 @@ export async function cancelSubscription(dodoSubscriptionId: string) {
 }
 
 /**
+ * Ends a subscription and forfeits the user's remaining balance. The ledger
+ * adjustment is idempotent so duplicate terminal webhooks are harmless.
+ */
+export async function endSubscription(dodoSubscriptionId: string, status: string) {
+  return prisma.$transaction(async tx => {
+    const subscription = await tx.subscription.findUnique({ where: { dodoSubscriptionId } })
+    if (!subscription) return null
+
+    await tx.subscription.update({
+      where: { id: subscription.id },
+      data: { status, cancelledAt: new Date() },
+    })
+
+    const idempotencyKey = `subscription_end:${dodoSubscriptionId}`
+    const existing = await tx.creditTransaction.findUnique({ where: { idempotencyKey } })
+    if (!existing) {
+      const balance = await getCreditBalance(subscription.userId, tx)
+      if (balance > 0) {
+        await tx.creditTransaction.create({
+          data: {
+            userId: subscription.userId,
+            delta: -balance,
+            type: 'admin_adjustment',
+            description: `Remaining credits forfeited when subscription ${status}`,
+            subscriptionId: subscription.id,
+            idempotencyKey,
+          },
+        })
+      }
+    }
+
+    return subscription
+  })
+}
+
+/**
  * Returns the active subscription for a user, if any.
  */
 export async function getActiveSubscription(userId: string) {
@@ -260,37 +303,44 @@ export async function recordTopUp(data: {
   credits: number
   amountUsd: number
 }) {
-  // Check if already processed
-  const existing = await prisma.topUpPurchase.findUnique({
-    where: { dodoPaymentId: data.dodoPaymentId },
+  return prisma.$transaction(async tx => {
+    const existing = await tx.topUpPurchase.findUnique({
+      where: { dodoPaymentId: data.dodoPaymentId },
+    })
+    if (existing) {
+      console.log(`[Credits] Skipped duplicate top-up (paymentId: ${data.dodoPaymentId})`)
+      return existing
+    }
+
+    const subscription = await tx.subscription.findFirst({
+      where: { userId: data.userId, status: 'active' },
+    })
+    if (!subscription) throw new ActiveSubscriptionRequiredError()
+
+    const topUp = await tx.topUpPurchase.create({
+      data: {
+        userId: data.userId,
+        dodoPaymentId: data.dodoPaymentId,
+        packKey: data.packKey,
+        credits: data.credits,
+        amountUsd: data.amountUsd,
+      },
+    })
+
+    await addCredits(
+      data.userId,
+      data.credits,
+      'topup_grant',
+      `Top-up: ${data.credits} credits ($${data.amountUsd.toFixed(2)})`,
+      {
+        topUpId: topUp.id,
+        idempotencyKey: `topup_grant:${data.dodoPaymentId}`,
+        tx,
+      },
+    )
+
+    return topUp
   })
-  if (existing) {
-    console.log(`[Credits] Skipped duplicate top-up (paymentId: ${data.dodoPaymentId})`)
-    return existing
-  }
-
-  const topUp = await prisma.topUpPurchase.create({
-    data: {
-      userId: data.userId,
-      dodoPaymentId: data.dodoPaymentId,
-      packKey: data.packKey,
-      credits: data.credits,
-      amountUsd: data.amountUsd,
-    },
-  })
-
-  await addCredits(
-    data.userId,
-    data.credits,
-    'topup_grant',
-    `Top-up: ${data.credits} credits ($${data.amountUsd.toFixed(2)})`,
-    {
-      topUpId: topUp.id,
-      idempotencyKey: `topup_grant:${data.dodoPaymentId}`,
-    },
-  )
-
-  return topUp
 }
 
 /**

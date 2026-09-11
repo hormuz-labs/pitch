@@ -94,7 +94,8 @@
 .lv-studio .new-composer-wrap .composer-box:focus-within { border-color: rgb(255 255 255 / 32%); box-shadow: 0 26px 76px rgb(0 0 0 / 34%), 0 0 0 3px rgb(255 255 255 / 4%); }
 .lv-studio .new-composer-wrap textarea { min-height: 50px; padding: 6px 7px; color: #f1f1ee; font-size: 16px; }
 .lv-studio .new-composer-wrap textarea::placeholder { color: #858983; }
-.lv-studio.new-project-page .new-composer-wrap .attach-plus { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 16%); border-radius: 50%; background: #292c29; color: #d7d9d4; }
+.lv-studio .new-composer-wrap .composer-footer { padding-top: 13px; border-top: 1px solid rgb(255 255 255 / 8%); }
+.lv-studio.new-project-page .new-composer-wrap .attach-plus { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 14%); border-radius: 50%; background: rgb(255 255 255 / 5%); color: #d7d9d4; box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%); }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus:hover:not(:disabled) { border-color: rgb(255 255 255 / 28%); background: #343734; color: #fff; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus .spinner { width: 13px; height: 13px; }
 .lv-studio.new-project-page .new-composer-wrap .attach-plus svg { transition: transform 160ms ease; }
@@ -116,13 +117,17 @@
 .lv-studio.new-project-page .new-composer-wrap .composer-add-menu .composer-add-menu__back { grid-template-columns: 18px minmax(0, 1fr); color: #272421; font-weight: 560; }
 .new-composer-wrap .composer-add-menu__back svg { transform: rotate(180deg); }
 .lv-studio.new-project-page .new-composer-wrap .attach-chip em { margin-left: 2px; padding: 2px 5px; border-radius: 999px; background: #ecebe8; color: #77726d; font-size: 8px; font-style: normal; text-transform: uppercase; letter-spacing: .04em; }
-.lv-studio.new-project-page .new-composer-wrap .send-btn { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: #f1f1ee; color: #151615; }
-.lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) { background: #fff; color: #111; }
+.lv-studio.new-project-page .new-composer-wrap .send-btn { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 75%); border-radius: 50%; background: linear-gradient(180deg, #fff, #e7e7e3); color: #151615; box-shadow: 0 5px 16px rgb(0 0 0 / 28%), inset 0 1px 0 #fff; transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease; }
+.lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) { background: #fff; color: #111; box-shadow: 0 7px 20px rgb(0 0 0 / 34%), inset 0 1px 0 #fff; transform: translateY(-1px); }
+.lv-studio.new-project-page .new-composer-wrap .send-btn:active:not(:disabled) { transform: translateY(0) scale(.96); }
 .lv-studio.new-project-page .new-composer-wrap .send-btn:disabled { background: #414440; color: #858983; cursor: default; }
-.lv-studio.new-project-page .composer-credits button { color: #858983; }
+.lv-studio.new-project-page .composer-credits button { min-height: 32px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; color: #a1a49f; }
+.lv-studio.new-project-page .composer-credits button > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.lv-studio.new-project-page .composer-credits img { width: 18px; height: 18px; flex: none; }
 .lv-studio.new-project-page .composer-credits button:hover:not(:disabled) { color: #f1f1ee; }
 .lv-studio.new-project-page .new-composer-wrap .model-select { position: relative; }
-.lv-studio.new-project-page .new-composer-wrap .model-btn { display: inline-flex; align-items: center; gap: 5px; max-width: 190px; padding: 7px 10px; border: 0; border-radius: 999px; background: transparent; color: #a1a49f; font-size: 12px; cursor: pointer; }
+.lv-studio.new-project-page .new-composer-wrap .model-btn { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; max-width: 190px; padding: 7px 30px 7px 11px; appearance: none; border: 1px solid transparent; border-radius: 999px; background: rgb(255 255 255 / 3%); color: #aeb1ac; font-size: 12px; cursor: pointer; }
+.lv-studio.new-project-page .new-composer-wrap label:has(.model-btn) svg { right: 9px; color: currentColor; }
 .lv-studio.new-project-page .new-composer-wrap .model-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lv-studio.new-project-page .new-composer-wrap .model-btn:hover:not(:disabled) { background: #303330; color: #fff; }
 .new-composer-wrap .model-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 210px; max-height: min(420px, 70vh); padding: 4px; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; border: 1px solid rgb(255 255 255 / 12%); border-radius: 12px; background: #202220; box-shadow: 0 12px 32px rgb(0 0 0 / 35%), 0 2px 6px rgb(0 0 0 / 20%); }
@@ -168,6 +173,7 @@
 .lv-studio.new-project-page .new-template-strip__head button { padding: 0; border: 0; background: transparent; color: #77726d; font-size: 10px; cursor: pointer; }
 .new-template-strip__cards { display: grid; grid-template-columns: repeat(3, 152px); gap: 8px; }
 .lv-studio.new-project-page .new-template-strip__cards button { padding: 0; overflow: hidden; border: 1px solid #d8d7d4; border-radius: 10px; background: #fff; color: #514d49; font-size: 10px; text-align: left; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease; }
+.lv-studio.new-project-page .new-template-strip__cards button.is-active { border-color: #222; box-shadow: inset 0 0 0 1px #222; color: #171513; }
 .new-template-strip__cards button:hover { border-color: #aaa7a3; transform: translateY(-2px); }
 .lv-studio.new-project-page .new-template-strip__cards button:hover:not(:disabled) { background: #fff; color: #222; }
 /* The card holds a live slide from the preset, scaled down by the preview
@@ -341,4 +347,3 @@
   background: #efefec;
   color: #242422;
 }
-

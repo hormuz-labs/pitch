@@ -30,7 +30,7 @@ export const ROUTE_MODULES = {
   auth: route('../public/AuthView.tsx', 'AuthView'),
   notFound: route('../public/StatusView.tsx', 'NotFoundView'),
   newProject: route('../account/NewProjectView.tsx', 'NewProjectView'),
-  templates: route('../account/TemplatesView.tsx', 'TemplatesView'),
+  projects: route('../account/ProjectsView.tsx', 'ProjectsView'),
   pricingAccount: route('../account/PricingView.tsx', 'PricingView'),
   settings: route('../account/SettingsView.tsx', 'SettingsView'),
   apiKeys: route('../account/ApiKeysView.tsx', 'ApiKeysView'),

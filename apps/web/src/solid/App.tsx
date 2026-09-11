@@ -20,7 +20,7 @@ const SharedDemo = routeComponent('sharedDemo')
 const Auth = routeComponent('auth')
 const NotFound = routeComponent('notFound')
 const NewProject = routeComponent('newProject')
-const Templates = routeComponent('templates')
+const Projects = routeComponent('projects')
 const AccountPricing = routeComponent('pricingAccount')
 const Settings = routeComponent('settings')
 const ApiKeys = routeComponent('apiKeys')
@@ -145,8 +145,8 @@ const redirect = (href: string) => () => <Navigate href={href} />
 
 const shellPaths = [
   '/new',
+  '/projects',
   '/p/',
-  '/templates',
   '/pricing',
   '/account/pricing',
   '/settings',
@@ -193,10 +193,9 @@ export default function App() {
       <Route path="/sign-up" component={AuthRoute} />
       <Route path="/sso-callback" component={SsoCallback} />
 
-      <Route path="/projects" component={redirect('/new')} />
+      <Route path="/projects" component={protectedRoute(Projects)} />
       <Route path="/new" component={protectedRoute(NewProject, true)} />
       <Route path="/p/:id" component={protectedRoute(StudioRoute)} />
-      <Route path="/templates" component={protectedRoute(Templates)} />
       <Route path="/account/pricing" component={protectedRoute(AccountPricing)} />
       <Route path="/settings" component={protectedRoute(Settings)} />
       <Route path="/api-keys" component={protectedRoute(ApiKeys)} />
