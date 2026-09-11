@@ -221,6 +221,13 @@ router.post('/', async (req, res) => {
             'You already have an active subscription. Cancel or manage it in Settings before changing plans.',
         })
       }
+    } else if (topup) {
+      const { getActiveSubscription } = await import('@saas/db')
+      if (!(await getActiveSubscription(userId))) {
+        return res.status(403).json({
+          error: 'One-time top-ups are only available with an active subscription.',
+        })
+      }
     }
 
     const client = new DodoPayments({

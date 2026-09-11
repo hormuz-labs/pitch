@@ -58,7 +58,8 @@ export function CreditPopover(props: { variant?: 'chip' | 'marker' }) {
       <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Credits</p>
       <p class="mt-1 text-lg font-bold text-gray-900">{credits() ?? '—'} available</p>
       <p class="mt-3 text-sm leading-relaxed text-gray-500">
-        Agent model spend and rendering compute draw from the same balance. Credits never expire.
+        Agent model spend and rendering compute draw from the same balance. Unused credits are
+        forfeited when your subscription ends.
       </p>
       <div class="mt-4 flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
         <span>Current plan</span>
