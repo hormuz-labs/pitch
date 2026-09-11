@@ -143,4 +143,5 @@ export interface Target extends SelectedElement {
 }
 export interface PlayerCtrl {
   seek(seconds: number): void
+  pause?(): void
 }

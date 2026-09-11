@@ -1,6 +1,6 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js'
 import type { ProjectStore } from '../useProject'
-import { InspectButton, SelectToggle } from './HtmlPreview'
+import { InspectButton, SelectToggle } from './PlaybackControls'
 export function DeckPreview(props: { store: ProjectStore; src: string }) {
   const s = props.store
   let frame: HTMLIFrameElement | undefined, container: HTMLDivElement | undefined

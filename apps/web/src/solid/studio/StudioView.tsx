@@ -1,5 +1,15 @@
 import { Files, Link, MonitorPlay } from 'lucide-solid'
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+} from 'solid-js'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
 import { BrowserPreview } from './previews/BrowserPreview'
@@ -11,6 +21,7 @@ import { SceneStrip, SlideStrip } from './Strips'
 import { Thread } from './Thread'
 import { type ProjectStore, useProject } from './useProject'
 import '../../studio/studio.css'
+import './playback.css'
 
 const TITLES: Record<string, string> = {
   html: 'Launch film',
@@ -20,25 +31,20 @@ const TITLES: Record<string, string> = {
   browser: 'Recording',
 }
 function Preview(props: { store: ProjectStore }) {
-  const s = props.store,
-    p = () => s.project?.description.preview,
-    src = () => {
-      const x = p()
-      return x && 'url' in x ? s.mediaUrl(x.url, s.videoVersion) : null
-    }
+  const s = props.store
+  const preview = () => s.project?.description.preview
+  const kind = createMemo(() => preview()?.kind)
+  const src = createMemo(() => {
+    const value = preview()
+    return value && 'url' in value ? s.previewUrl(value.url) : null
+  })
   return (
-    <Show
-      when={p()}
+    <Switch
       fallback={
         s.busy ? (
           <Build store={s} />
         ) : (
           <div class="building-stage">
-            <div class="building-orbs">
-              <span class="orb o1" />
-              <span class="orb o2" />
-              <span class="orb o3" />
-            </div>
             <div class="building-copy">
               <MonitorPlay size={20} />
               <div class="building-title">Nothing to preview yet</div>
@@ -52,31 +58,22 @@ function Preview(props: { store: ProjectStore }) {
         )
       }
     >
-      {x => (
-        <Show
-          when={x().kind === 'browser'}
-          fallback={
-            <Show when={src()}>
-              {u => (
-                <>
-                  {x().kind === 'html' ? (
-                    <HtmlPreview store={s} src={u()!} />
-                  ) : x().kind === 'deck' ? (
-                    <DeckPreview store={s} src={`${u()}&studio=1`} />
-                  ) : x().kind === 'video' ? (
-                    <VideoPreview store={s} src={u()!} />
-                  ) : (
-                    <PdfPreview store={s} src={u()!} />
-                  )}
-                </>
-              )}
-            </Show>
-          }
-        >
-          {<BrowserPreview store={s} profileId={(x() as { profileId: string }).profileId} />}
-        </Show>
-      )}
-    </Show>
+      <Match when={kind() === 'html' && !!src()}>
+        <HtmlPreview store={s} src={src()!} />
+      </Match>
+      <Match when={kind() === 'deck' && !!src()}>
+        <DeckPreview store={s} src={`${src()}&studio=1`} />
+      </Match>
+      <Match when={kind() === 'video' && !!src()}>
+        <VideoPreview store={s} src={src()!} />
+      </Match>
+      <Match when={kind() === 'pdf' && !!src()}>
+        <PdfPreview store={s} src={src()!} />
+      </Match>
+      <Match when={kind() === 'browser'}>
+        <BrowserPreview store={s} profileId={(preview() as { profileId: string }).profileId} />
+      </Match>
+    </Switch>
   )
 }
 function Build(props: { store: ProjectStore }) {
@@ -244,10 +241,10 @@ export function StudioView(props: { projectId: string }) {
   const s = useProject(props.projectId),
     [view, setView] = createSignal<'preview' | 'files'>('preview'),
     [sidebar, setSidebar] = createSignal(
-      typeof window === 'undefined' ? 520 : Math.min(620, Math.max(360, innerWidth * 0.36)),
+      typeof window === 'undefined' ? 440 : Math.min(520, Math.max(340, innerWidth * 0.3)),
     ),
     [tray, setTray] = createSignal(
-      typeof window === 'undefined' ? 240 : Math.min(300, Math.max(180, innerHeight * 0.3)),
+      typeof window === 'undefined' ? 220 : Math.min(240, Math.max(180, innerHeight * 0.23)),
     )
   let feed: HTMLDivElement | undefined,
     side: HTMLElement | undefined,
@@ -262,13 +259,13 @@ export function StudioView(props: { projectId: string }) {
       if (feed && followFeed) feed.scrollTop = feed.scrollHeight
     })
   })
-  const strip = createMemo(() =>
-    s.project?.description.slides ? (
-      <SlideStrip store={s} />
-    ) : (s.project?.description.scenes?.length ?? 0) > 0 ||
-      s.project?.description.preview?.kind === 'html' ? (
-      <SceneStrip store={s} />
-    ) : null,
+  const stripKind = createMemo(() =>
+    s.project?.description.slides
+      ? 'slides'
+      : (s.project?.description.scenes?.length ?? 0) > 0 ||
+          s.project?.description.preview?.kind === 'html'
+        ? 'scenes'
+        : null,
   )
   const resizeTray = (height: number) =>
     setTray(Math.max(120, Math.min(height, Math.max(120, (stage?.clientHeight ?? 600) - 200))))
@@ -313,7 +310,10 @@ export function StudioView(props: { projectId: string }) {
                 <button
                   aria-label={`Files (${s.assets.length})`}
                   class={`preview-pane-tab${view() === 'files' ? ' is-active' : ''}`}
-                  onClick={() => setView('files')}
+                  onClick={() => {
+                    s.player.current?.pause?.()
+                    setView('files')
+                  }}
                 >
                   <Files size={15} />
                   <span>Files</span>
@@ -360,6 +360,8 @@ export function StudioView(props: { projectId: string }) {
             <div
               class="resize-handle"
               role="separator"
+              aria-label="Resize conversation"
+              aria-orientation="vertical"
               tabIndex={0}
               onPointerDown={e => {
                 drag = { x: e.clientX, w: sidebar() }
@@ -367,28 +369,27 @@ export function StudioView(props: { projectId: string }) {
               }}
               onPointerMove={e => {
                 if (!drag) return
-                const w = Math.min(640, Math.max(340, drag.w + e.clientX - drag.x))
+                const w = Math.min(
+                  640,
+                  (wrap?.clientWidth ?? innerWidth) * 0.48,
+                  Math.max(320, drag.w + e.clientX - drag.x),
+                )
                 side?.style.setProperty('--sidebar-w', `${w}px`)
                 wrap?.style.setProperty('--sidebar-w', `${w}px`)
                 setSidebar(w)
               }}
               onPointerUp={() => (drag = null)}
+              onPointerCancel={() => (drag = null)}
+              onLostPointerCapture={() => (drag = null)}
             />
             <div class="editor-stage" ref={stage}>
-              <Show
-                when={view() === 'preview'}
-                fallback={
-                  <div class="studio-files-view">
-                    <AssetShelf store={s} />
-                  </div>
-                }
-              >
+              <div class="studio-preview-view" hidden={view() !== 'preview'}>
                 <div class="player">
                   <div class="player-stage">
                     <Preview store={s} />
                   </div>
                 </div>
-                <Show when={strip()}>
+                <Show when={stripKind()}>
                   <div
                     class="resize-handle-h"
                     role="separator"
@@ -428,15 +429,29 @@ export function StudioView(props: { projectId: string }) {
                     onLostPointerCapture={() => (trayDrag = null)}
                   />
                 </Show>
-                <div class="tray" style={strip() ? { height: `${tray()}px` } : undefined}>
-                  {strip() ?? (
-                    <div class="timeline studio-empty-timeline">
-                      <div class="timeline-header">
-                        <h2>Timeline</h2>
-                        <span class="timeline-meta">Scenes and slides appear here</span>
+                <div class="tray" style={stripKind() ? { height: `${tray()}px` } : undefined}>
+                  <Switch
+                    fallback={
+                      <div class="timeline studio-empty-timeline">
+                        <div class="timeline-header">
+                          <h2>Timeline</h2>
+                          <span class="timeline-meta">Scenes and slides appear here</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    }
+                  >
+                    <Match when={stripKind() === 'slides'}>
+                      <SlideStrip store={s} />
+                    </Match>
+                    <Match when={stripKind() === 'scenes'}>
+                      <SceneStrip store={s} />
+                    </Match>
+                  </Switch>
+                </div>
+              </div>
+              <Show when={view() === 'files'}>
+                <div class="studio-files-view">
+                  <AssetShelf store={s} />
                 </div>
               </Show>
             </div>

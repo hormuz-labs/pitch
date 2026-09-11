@@ -811,20 +811,6 @@
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
-/* The selectable video is a COLUMN: player on top, track underneath. A flex
-   item's `max-height: 100%` is 100% of the whole column, so the player claimed
-   the full height and pushed the track — and itself — straight out of the
-   stage. It has to be the item that flexes, with min-height:0 so it may
-   actually shrink, and no forced ratio: object-fit letterboxes whatever shape
-   the footage really is (portrait uploads are common). */
-.lv-studio .video-container > video {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  aspect-ratio: auto;
-  object-fit: contain;
-}
-
 .lv-studio .video-container > .video-select {
   flex: 0 0 auto;
 }
@@ -841,71 +827,6 @@
   border-radius: 10px;
   background: radial-gradient(120% 120% at 30% 20%, #232320 0%, #17171a 60%, #111113 100%);
   border: 1px solid rgba(255, 255, 255, 0.06);
-}
-.lv-studio .building-orbs .orb {
-  position: absolute;
-  width: 40vmin;
-  height: 40vmin;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.3;
-  animation: drift 14s ease-in-out infinite alternate;
-}
-.lv-studio .building-orbs .o1 {
-  background: var(--accent);
-  top: -10%;
-  left: -5%;
-}
-.lv-studio .building-orbs .o2 {
-  background: #7b6cff;
-  bottom: -15%;
-  right: 0%;
-  animation-delay: -4s;
-  animation-duration: 18s;
-}
-.lv-studio .building-orbs .o3 {
-  background: #2ea89b;
-  top: 40%;
-  left: 55%;
-  width: 26vmin;
-  height: 26vmin;
-  animation-delay: -9s;
-}
-
-@keyframes drift {
-  from {
-    transform: translate(0, 0) scale(1);
-  }
-to {
-    transform: translate(8vmin, -6vmin) scale(1.25);
-  }
-}
-.lv-studio .building-frames {
-  position: absolute;
-  bottom: 26px;
-  display: flex;
-  gap: 10px;
-}
-.lv-studio .building-frames .bframe {
-  width: 52px;
-  height: 30px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.05);
-  animation: framePulse 2.4s ease-in-out infinite;
-}
-.building-frames .bframe:nth-child(2) { animation-delay: 0.3s; }
-.building-frames .bframe:nth-child(3) { animation-delay: 0.6s; }
-.building-frames .bframe:nth-child(4) { animation-delay: 0.9s; }
-.building-frames .bframe:nth-child(5) { animation-delay: 1.2s; }
-
-@keyframes framePulse {
-  0%, 100% {
-    background: rgba(255, 255, 255, 0.05);
-  }
-50% {
-    background: rgba(217, 119, 87, 0.4);
-  }
 }
 .lv-studio .building-copy {
   position: relative;
@@ -930,46 +851,7 @@ to {
   min-height: 1.6em;
   transition: opacity 0.3s;
 }
-/* Live HTML preview: a 1920x1080 iframe scaled to fit the stage. The player
-   chrome is sized to the scaled frame so the controls sit on the video. */
-
-.lv-studio .live-preview {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #000;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
-  user-select: none;
-}
-.lv-studio .live-preview.fullscreen {
-  border-radius: 0;
-  box-shadow: none;
-}
-.lv-studio .live-preview-viewport {
-  position: relative;
-  overflow: hidden;
-  background: #000;
-  cursor: pointer;
-  flex: 0 0 auto;
-}
-.lv-studio .live-preview-viewport iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1920px;
-  height: 1080px;
-  border: 0;
-  background: #000;
-  pointer-events: none; /* clicks fall through to the play/pause handler */
-}
-.live-preview.inspect-active .live-preview-viewport,
-.lv-studio .live-preview.inspect-active .live-preview-viewport iframe {
-  pointer-events: auto;
-  cursor: crosshair;
-}
+/* Media layout and transport controls live in solid/studio/playback.css. */
 .lv-studio .preview-loading {
   position: absolute;
   inset: 0;
@@ -1046,91 +928,6 @@ to {
 70% { box-shadow: 0 0 0 6px rgba(217, 119, 87, 0); }
 100% { box-shadow: 0 0 0 0 rgba(217, 119, 87, 0); }
 }
-/* Controls overlay */
-
-.lv-studio .preview-controls {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 12px 6px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
-  z-index: 20;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-.live-preview:hover .preview-controls,
-.lv-studio .live-preview.show-controls .preview-controls {
-  opacity: 1;
-  pointer-events: auto;
-}
-.lv-studio .preview-progress-wrap {
-  position: relative;
-  width: 100%;
-  height: 14px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-.lv-studio .preview-scrub {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 5;
-  margin: 0;
-  padding: 0;
-}
-.lv-studio .preview-progress-wrap::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.28);
-  border-radius: 2px;
-  transition: height 0.12s ease;
-}
-.lv-studio .preview-progress-fill {
-  position: absolute;
-  left: 0;
-  height: 3px;
-  background: var(--accent);
-  border-radius: 2px;
-  pointer-events: none;
-  transition: height 0.12s ease;
-}
-.preview-progress-wrap:hover::before,
-.lv-studio .preview-progress-wrap:hover .preview-progress-fill {
-  height: 5px;
-}
-.lv-studio .preview-progress-fill::after {
-  content: "";
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%) scale(0);
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
-  transition: transform 0.12s ease;
-}
-.lv-studio .preview-progress-wrap:hover .preview-progress-fill::after {
-  transform: translateY(-50%) scale(1);
-}
-.lv-studio .preview-controls-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 34px;
-}
 .lv-studio .preview-btn {
   width: 34px;
   height: 34px;
@@ -1158,18 +955,6 @@ to {
 .lv-studio .preview-btn:disabled {
   opacity: 0.35;
   cursor: default;
-}
-.lv-studio .preview-time {
-  color: #e6e4dc;
-  font-size: 12px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  margin-left: 6px;
-  letter-spacing: 0.02em;
-}
-.lv-studio .preview-spacer {
-  flex: 1;
 }
 /* Timeline strip */
 
@@ -3160,62 +2945,6 @@ to {
   background: currentColor;
 }
 
-/* --- The film strip: what happens, not just when ---------------------------
-
-   The track under the player says WHEN. These say WHAT — click a frame and
-   the player goes there with that moment selected. */
-
-.lv-studio .video-frames {
-  display: flex;
-  gap: 4px;
-  margin-top: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
-}
-
-.lv-studio .video-frame {
-  position: relative;
-  flex: 1 1 0;
-  min-width: 54px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-}
-
-.lv-studio .video-frame img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.lv-studio .video-frame:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.lv-studio .video-frame.on {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-.lv-studio .video-frame-time {
-  position: absolute;
-  left: 3px;
-  bottom: 3px;
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  font-size: 9.5px;
-  line-height: 1.3;
-  font-variant-numeric: tabular-nums;
-}
-
 /* --- A PDF's pages ---------------------------------------------------------
 
    The browser's PDF viewer gives us no DOM and will not say what the reader
@@ -3514,29 +3243,6 @@ to {
 
 @media (max-width: 720px) {
   .lv-studio .editor { flex-direction: column; }
-  /* YouTube-style: the player is sized by width at 16:9 rather than a
-     viewport-height clamp, so the artifact fills the phone's width and the
-     conversation below takes whatever height is left. */
-  .lv-studio .editor-stage {
-    flex: 0 0 auto;
-    height: auto;
-    min-height: 0;
-  }
-  .lv-studio .editor-stage > .player {
-    flex: 0 0 auto;
-    aspect-ratio: 16 / 9;
-  }
-  /* The selectable video keeps its selection track below the picture instead
-     of squeezing it: the video itself gets the 16:9 ratio and the player
-     grows to fit the track underneath. */
-  .lv-studio .editor-stage > .player:has(.video-container) {
-    aspect-ratio: auto;
-  }
-  .lv-studio .editor-stage > .player .video-container > video {
-    flex: 0 0 auto;
-    height: auto;
-    aspect-ratio: 16 / 9;
-  }
   .lv-studio .player { padding: 12px; }
   .lv-studio .resize-handle { display: none; }
   .lv-studio .edit-sidebar {
@@ -4041,23 +3747,6 @@ to {
   box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
 }
 
-.lv-studio .building-orbs .orb {
-  display: none;
-}
-
-.lv-studio .building-orbs .o1 { background: #a9d7f7; }
-.lv-studio .building-orbs .o2 { background: #d8cff8; }
-.lv-studio .building-orbs .o3 { background: #bfe8df; }
-
-.lv-studio .building-frames .bframe {
-  display: none;
-}
-
-.lv-studio .building-frames .bframe:first-child {
-  border-color: #b7b4af;
-  background: #ecebe8;
-}
-
 .lv-studio .building-title {
   color: var(--ink);
   font-family: var(--serif);
@@ -4220,7 +3909,6 @@ to {
   }
 }
 
-.lv-studio .live-preview,
 .lv-studio .deck-preview,
 .lv-studio .pdf-preview,
 .lv-studio .browser-preview {
@@ -4399,24 +4087,6 @@ to {
      bounded share of the screen; only the preview gets the 16:9 treatment. */
   .lv-studio .editor-stage:has(.studio-files-view) {
     height: clamp(260px, 44vh, 420px);
-  }
-
-  .lv-studio .editor-stage > .player {
-    flex: 0 0 auto;
-    aspect-ratio: 16 / 9;
-  }
-
-  /* The selectable video keeps its selection track below the picture instead
-     of squeezing it: the video itself gets the 16:9 ratio and the player
-     grows to fit the track underneath. */
-  .lv-studio .editor-stage > .player:has(.video-container) {
-    aspect-ratio: auto;
-  }
-
-  .lv-studio .editor-stage > .player .video-container > video {
-    flex: 0 0 auto;
-    height: auto;
-    aspect-ratio: 16 / 9;
   }
 
   .lv-studio .resize-handle {
@@ -4755,49 +4425,6 @@ to {
   border-radius: 0 0 8px 0;
 }
 
-/* Draw the playhead inside each lane instead of as one canvas-height line.
-   The sticky label column can then never expose it through the row gaps, and
-   the percentage remains relative to the timed lane rather than the canvas. */
-.lv-studio .modular-track-lane::after {
-  content: "";
-  position: absolute;
-  z-index: 40;
-  top: -1px;
-  bottom: -1px;
-  left: var(--playhead-pct, 0%);
-  width: 2px;
-  background: #ef4444;
-  pointer-events: none;
-  will-change: left;
-  transition: left 80ms linear;
-}
-
-.lv-studio .time-ruler::before {
-  content: "";
-  position: absolute;
-  z-index: 41;
-  top: 0;
-  left: var(--playhead-pct, 0%);
-  width: 10px;
-  height: 9px;
-  background: #ef4444;
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  transform: translateX(-4px);
-  pointer-events: none;
-  will-change: left;
-  transition: left 80ms linear;
-}
-
-.lv-studio .playhead-anchor {
-  position: absolute;
-  top: 0;
-  left: var(--playhead-pct, 0%);
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
 .lv-studio .modular-track-lane.time-ruler {
   height: 24px;
   background: #f4f4f2;
@@ -4970,35 +4597,9 @@ to {
     display: none;
   }
 
-  .lv-studio .track-headers {
-    width: 92px;
-    min-width: 92px;
-  }
-
-  .lv-studio .track-lanes-area {
-    flex-basis: max(calc(100% - 92px), var(--timeline-content-w, 760px));
-    width: max(calc(100% - 92px), var(--timeline-content-w, 760px));
-  }
 }
 
 @media (max-width: 720px) {
-  .lv-studio .editor-stage:has(.pro-multi-track-timeline) {
-    width: 100%;
-    height: min(70dvh, 640px);
-    max-height: calc(100dvh - 104px);
-    flex: 0 0 auto;
-  }
-
-  .lv-studio .editor-stage:has(.pro-multi-track-timeline) > .player {
-    min-height: 150px;
-  }
-
-  .lv-studio .editor-stage:has(.pro-multi-track-timeline) > .tray {
-    height: clamp(220px, 38dvh, 320px) !important;
-    flex: 0 0 auto;
-    overflow: hidden;
-  }
-
   .lv-studio .resize-handle-h {
     display: none;
   }
@@ -5014,31 +4615,6 @@ to {
     display: none;
   }
 
-  .lv-studio .track-headers {
-    width: 78px;
-    min-width: 78px;
-    padding-right: 6px;
-    padding-left: 6px;
-  }
-
-  .lv-studio .track-header-cell {
-    padding: 0 7px;
-    font-size: 10.5px;
-  }
-
-  .lv-studio .track-lanes-area {
-    flex-basis: max(calc(100% - 78px), var(--timeline-content-w, 760px));
-    width: max(calc(100% - 78px), var(--timeline-content-w, 760px));
-    padding-right: 10px;
-  }
-
-  .lv-studio .editor-stage:has(.pro-multi-track-timeline) {
-    height: min(76dvh, 600px);
-  }
-
-  .lv-studio .editor-stage:has(.pro-multi-track-timeline) > .tray {
-    height: clamp(210px, 42dvh, 300px) !important;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5480,20 +5056,4 @@ to {
     max-width: 96px;
   }
 
-  .lv-studio:not(.new-project-page) .editor-stage:has(.pro-multi-track-timeline) {
-    height: min(48dvh, 400px);
-    max-height: none;
-  }
-
-  .lv-studio:not(.new-project-page) .editor-stage:has(.pro-multi-track-timeline) > .player {
-    height: auto;
-    min-height: 0;
-    max-height: none;
-    flex: 1 1 0;
-  }
-
-  .lv-studio:not(.new-project-page) .editor-stage:has(.pro-multi-track-timeline) > .tray {
-    height: 150px !important;
-    max-height: 48%;
-  }
 }

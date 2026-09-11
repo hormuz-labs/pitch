@@ -1,17 +1,44 @@
-import { Mic, Music, SkipBack } from 'lucide-solid'
-import { createEffect, createMemo, For, Show } from 'solid-js'
+import { LocateFixed, Mic, Music, SkipBack } from 'lucide-solid'
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 import { fmt, timelineFollowScrollLeft } from './helpers'
 import type { Scene } from './types'
 import type { ProjectStore } from './useProject'
 
 function Thumb(props: { store: ProjectStore; t: number; label: string }) {
+  const [src, setSrc] = createSignal<string | null>(null)
+  const [loaded, setLoaded] = createSignal(false)
+  let contentKey = ''
+  createEffect(() => {
+    const key = `${props.store.videoVersion}:${props.t}`
+    const candidate = props.store.thumbnailUrl(props.t)
+    if (key !== contentKey) {
+      contentKey = key
+      setLoaded(false)
+      setSrc(candidate)
+    } else if (!loaded()) {
+      // Lazy/failed thumbnails need current credentials. Already decoded
+      // images keep their source so token renewal cannot flash the strip.
+      setSrc(candidate)
+    }
+  })
   return (
     <div class="scene-thumb">
-      <Show
-        when={props.store.thumbnailUrl(props.t)}
-        fallback={<span class="scene-thumb-fallback">{props.label}</span>}
-      >
-        {u => <img src={u()!} alt={props.label} draggable={false} />}
+      <span class="scene-thumb-fallback" aria-hidden="true">
+        {props.label}
+      </span>
+      <Show when={src()}>
+        {url => (
+          <img
+            src={url()}
+            alt={props.label}
+            classList={{ 'is-loaded': loaded() }}
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            onLoad={() => setLoaded(true)}
+            onError={() => setLoaded(false)}
+          />
+        )}
       </Show>
     </div>
   )
@@ -24,9 +51,10 @@ interface Cue {
 }
 export function SceneStrip(props: { store: ProjectStore }) {
   const s = props.store
-  let viewport: HTMLDivElement | undefined, head: HTMLSpanElement | undefined
-  const scenes = () => s.project?.description.scenes ?? [],
-    duration = () => s.project?.description.duration || scenes().at(-1)?.end || 1,
+  const [follow, setFollow] = createSignal(false)
+  let viewport: HTMLDivElement | undefined
+  const scenes = createMemo(() => s.project?.description.scenes ?? []),
+    duration = createMemo(() => s.project?.description.duration || scenes().at(-1)?.end || 1),
     cues = createMemo<Cue[]>(() => {
       const raw = (s.project?.description.extra as any)?.sfxCues
       if (Array.isArray(raw) && raw.length)
@@ -53,26 +81,30 @@ export function SceneStrip(props: { store: ProjectStore }) {
       }
       return result
     }),
-    width = () => Math.min(7200, Math.max(760, Math.ceil(duration() * 48), scenes().length * 132))
+    width = createMemo(() =>
+      Math.min(7200, Math.max(760, Math.ceil(duration() * 48), scenes().length * 132)),
+    ),
+    playheadX = () => Math.max(0, Math.min(1, s.playhead / duration())) * width(),
+    activeScene = createMemo(
+      () => scenes().find(scene => s.playhead >= scene.start && s.playhead < scene.end)?.id,
+    )
   createEffect(() => {
-    s.playhead
-    s.playing
-    width()
-    requestAnimationFrame(() => {
-      if (!viewport || !head) return
-      const vr = viewport.getBoundingClientRect(),
-        hr = head.getBoundingClientRect(),
-        x = viewport.scrollLeft + hr.left - vr.left,
-        next = timelineFollowScrollLeft(
-          x,
-          viewport.scrollLeft,
-          viewport.clientWidth,
-          viewport.scrollWidth,
-          Math.min(104, viewport.clientWidth * 0.28),
-          s.playing,
-        )
-      if (next != null) viewport.scrollTo({ left: next, behavior: s.playing ? 'auto' : 'smooth' })
+    const playing = s.playing
+    if (playing && !follow()) return
+    const x = 112 + playheadX()
+    const frame = requestAnimationFrame(() => {
+      if (!viewport) return
+      const next = timelineFollowScrollLeft(
+        x,
+        viewport.scrollLeft,
+        viewport.clientWidth,
+        viewport.scrollWidth,
+        Math.min(104, viewport.clientWidth * 0.28),
+        playing,
+      )
+      if (next != null) viewport.scrollTo({ left: next, behavior: 'smooth' })
     })
+    onCleanup(() => cancelAnimationFrame(frame))
   })
   const target = (scene: Scene, kind = 'scene') => {
     s.seekPlayer(scene.start + 0.01)
@@ -92,7 +124,6 @@ export function SceneStrip(props: { store: ProjectStore }) {
       class="timeline pro-multi-track-timeline"
       style={{
         '--timeline-content-w': `${width()}px`,
-        '--playhead-pct': `${(s.playhead / duration()) * 100}%`,
       }}
     >
       <Show
@@ -128,10 +159,32 @@ export function SceneStrip(props: { store: ProjectStore }) {
               tracks
             </span>
           </div>
-          <span class="pro-toolbar-hint">Select a clip to reference it in chat</span>
+          <button
+            class={`timeline-follow-btn${follow() ? ' is-active' : ''}`}
+            aria-label="Follow playhead"
+            aria-pressed={follow()}
+            title="Automatically scroll the timeline during playback"
+            onClick={() => setFollow(value => !value)}
+          >
+            <LocateFixed size={13} />
+            <span>Follow</span>
+          </button>
         </div>
-        <div class="pro-timeline-grid" ref={viewport}>
+        <div
+          class="pro-timeline-grid"
+          ref={viewport}
+          onWheel={() => setFollow(false)}
+          onTouchStart={() => setFollow(false)}
+        >
           <div class="pro-timeline-canvas" style={{ '--timeline-content-w': `${width()}px` }}>
+            <span
+              class="timeline-playhead"
+              aria-hidden="true"
+              style={{
+                transform: `translate3d(${playheadX()}px, 0, 0)`,
+                transition: s.playing ? 'transform 100ms linear' : 'none',
+              }}
+            />
             <div class="modular-track-row ruler-row">
               <div class="modular-track-cover ruler-corner" />
               <div
@@ -150,7 +203,6 @@ export function SceneStrip(props: { store: ProjectStore }) {
                   )
                 }
               >
-                <span class="playhead-anchor" ref={head} />
                 <For each={[0, 0.25, 0.5, 0.75, 1]}>
                   {f => (
                     <span class="ruler-mark" style={{ left: `${f * 100}%` }}>
@@ -168,7 +220,7 @@ export function SceneStrip(props: { store: ProjectStore }) {
                 <For each={scenes()}>
                   {x => (
                     <button
-                      class={`scene-card ${x.id === s.selectedScene ? 'selected' : ''} ${s.playhead >= x.start && s.playhead < x.end ? 'playing' : ''}`}
+                      class={`scene-card ${x.id === s.selectedScene ? 'selected' : ''} ${activeScene() === x.id ? 'playing' : ''}`}
                       title={`${x.label || x.id} · ${fmt(x.start)}–${fmt(x.end)}`}
                       style={{
                         left: `${(x.start / duration()) * 100}%`,
@@ -252,7 +304,7 @@ export function SceneStrip(props: { store: ProjectStore }) {
             <Show when={s.project?.description.audioUrl}>
               <div class="modular-track-row row-music">
                 <div class="modular-track-cover cover-music">
-                  <span class="track-tag">Music Bed</span>
+                  <span class="track-tag">Audio mix</span>
                 </div>
                 <div class="modular-track-lane lane-music">
                   <button
@@ -263,16 +315,16 @@ export function SceneStrip(props: { store: ProjectStore }) {
                         sceneId: null,
                         time: 0,
                         endTime: duration(),
-                        text: 'background music bed',
-                        tagName: 'music',
-                        selector: 'audio#music',
-                        className: 'music-bed',
-                        id: 'music-bed',
+                        text: 'project audio mix',
+                        tagName: 'audio',
+                        selector: 'audio#mix',
+                        className: 'audio-mix',
+                        id: 'audio-mix',
                       })
                     }
                   >
                     <Music size={10} />
-                    <span class="item-text">Background audio</span>
+                    <span class="item-text">Project audio</span>
                   </button>
                 </div>
               </div>

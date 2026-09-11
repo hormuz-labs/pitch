@@ -1,13 +1,26 @@
-import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import type { PlayerCtrl } from '../types'
 import type { ProjectStore } from '../useProject'
+import { FullscreenButton, PreviewUpdate } from './PlaybackControls'
+import { useFullscreen } from './useFullscreen'
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`,
   precise = (t: number) => `${fmt(t)}.${Math.floor((t % 1) * 10)}`
 export function VideoPreview(props: { store: ProjectStore; src: string }) {
   const s = props.store
   let video: HTMLVideoElement | undefined,
+    player: HTMLDivElement | undefined,
     track: HTMLDivElement | undefined,
-    drag: { anchor: number; moved: boolean } | null = null
+    drag: { anchor: number } | null = null
+  const fullscreen = useFullscreen(() => player)
+  const control: PlayerCtrl = {
+    seek: t => {
+      if (!video) return
+      video.currentTime = Math.max(0, Math.min(t, video.duration || t))
+      void video.play().catch(() => {})
+    },
+    pause: () => video?.pause(),
+  }
   const [duration, setDuration] = createSignal(0),
     [range, setRange] = createSignal<{ start: number; end: number } | null>(null)
   createEffect(() => {
@@ -15,7 +28,31 @@ export function VideoPreview(props: { store: ProjectStore; src: string }) {
     setRange(null)
   })
   onCleanup(() => {
-    s.player.current = null
+    if (s.player.current === control) {
+      s.player.current = null
+      s.notePlayerState(false)
+    }
+    video?.pause()
+  })
+  onMount(() => {
+    s.player.current = control
+    const key = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== 'f' ||
+        player?.closest('[hidden]') ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        (event.target as HTMLElement)?.closest?.(
+          'input,textarea,select,[contenteditable="true"],[role="dialog"],[role="menu"]',
+        )
+      )
+        return
+      event.preventDefault()
+      void fullscreen.toggle()
+    }
+    window.addEventListener('keydown', key)
+    onCleanup(() => window.removeEventListener('keydown', key))
   })
   const timeAt = (x: number) => {
       const r = track?.getBoundingClientRect()
@@ -51,7 +88,7 @@ export function VideoPreview(props: { store: ProjectStore; src: string }) {
   const down = (e: PointerEvent) => {
       if (!duration()) return
       const t = timeAt(e.clientX)
-      drag = { anchor: t, moved: false }
+      drag = { anchor: t }
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
       setRange({ start: t, end: t })
       seek(t)
@@ -67,25 +104,37 @@ export function VideoPreview(props: { store: ProjectStore; src: string }) {
     }
   return (
     <div class="video-container">
-      <video
-        ref={el => {
-          video = el
-          s.player.current = {
-            seek: t => {
-              el.currentTime = t
-              void el.play()
-            },
-          }
-        }}
-        src={props.src}
-        controls
-        preload="metadata"
-        onLoadedMetadata={e => setDuration(e.currentTarget.duration || 0)}
-        onDurationChange={e => setDuration(e.currentTarget.duration || 0)}
-        onTimeUpdate={e => s.setPlayhead(e.currentTarget.currentTime)}
-        onPlay={() => s.notePlayerState(true)}
-        onPause={() => s.notePlayerState(false)}
-      />
+      <div ref={player} class={`native-preview${fullscreen.active() ? ' is-fullscreen' : ''}`}>
+        <video
+          ref={video}
+          src={props.src}
+          controls
+          playsinline
+          preload="metadata"
+          onLoadedMetadata={e => {
+            const element = e.currentTarget
+            setDuration(element.duration || 0)
+            const jump = s.consumeAutoSeek()
+            if (jump) {
+              element.currentTime = Math.min(
+                Math.max(0, jump.t),
+                Math.max(0, element.duration - 0.001),
+              )
+              if (jump.play) void element.play().catch(() => {})
+            }
+            s.setPlayhead(element.currentTime)
+          }}
+          onDurationChange={e => setDuration(e.currentTarget.duration || 0)}
+          onTimeUpdate={e => s.setPlayhead(e.currentTarget.currentTime)}
+          onPlay={() => s.notePlayerState(true)}
+          onPause={() => s.notePlayerState(false)}
+          onEnded={() => s.notePlayerState(false)}
+        />
+        <div class="native-preview-actions">
+          <PreviewUpdate store={s} />
+          <FullscreenButton active={fullscreen.active()} onClick={() => void fullscreen.toggle()} />
+        </div>
+      </div>
       <div class="video-select">
         <div class="video-select-head">
           <span class="video-select-hint">
@@ -148,30 +197,7 @@ export function VideoPreview(props: { store: ProjectStore; src: string }) {
           <span>0:00</span>
           <span>{fmt(duration())}</span>
         </div>
-        <Show when={duration()}>
-          <div class="video-frames">
-            <For each={Array.from({ length: 12 }, (_, i) => ((i + 0.5) * duration()) / 12)}>
-              {t => (
-                <button
-                  class={`video-frame${Math.abs(s.playhead - t) < duration() / 24 ? ' on' : ''}`}
-                  onClick={() => {
-                    seek(t)
-                    setRange({ start: t, end: t })
-                  }}
-                >
-                  <img src={s.thumbnailUrl(t) ?? ''} alt="" loading="lazy" draggable={false} />
-                  <span class="video-frame-time">{fmt(t)}</span>
-                </button>
-              )}
-            </For>
-          </div>
-        </Show>
       </div>
-      <Show when={s.busy}>
-        <div class="preview-updating">
-          <span class="spinner" /> Updating preview…
-        </div>
-      </Show>
     </div>
   )
 }
