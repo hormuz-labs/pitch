@@ -94,6 +94,16 @@ describe('PATCH /users/me', () => {
     })
   })
 
+  it('records the Discord announcement dismissal using server time', async () => {
+    const response = await patch({ discordPromoSeen: true })
+
+    expect(response.status).toBe(200)
+    expect(mocks.userProfile.update).toHaveBeenCalledWith({
+      where: { id: 'user_1' },
+      data: { discordPromoSeenAt: expect.any(Date) },
+    })
+  })
+
   it('ignores fields the settings page has no business changing', async () => {
     await patch({ role: 'admin', email: 'attacker@example.com', emailNotifications: false })
 

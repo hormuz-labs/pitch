@@ -29,6 +29,7 @@ export interface UserProfile {
   lastName?: string | null
   imageUrl?: string | null
   discordUserId?: string | null
+  discordPromoSeenAt?: string | null
   role?: 'user' | 'admin' | string
   createdAt?: string
 }

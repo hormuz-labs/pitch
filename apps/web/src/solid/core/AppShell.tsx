@@ -29,6 +29,7 @@ import { api, isApiError } from '../../lib/api'
 import { captureRefFromUrl, getRefCode } from '../../lib/referral'
 import { listProjects, type Project } from '../../lib/studio-api'
 import type { UserProfile } from '../../types'
+import { DiscordOfferModal } from '../account/DiscordOfferModal'
 import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
 import { PitchWordmark } from '../public/brand'
@@ -258,6 +259,7 @@ export function AppShell(props: ParentProps) {
   const [collapsed, setCollapsed] = createSignal(true)
   const [projects, setProjects] = createSignal<Project[]>([])
   const [isAdmin, setIsAdmin] = createSignal(false)
+  const [discordPromoOpen, setDiscordPromoOpen] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
   const selectedKey = createMemo(() => routeKey(location.pathname))
   const selectedProjectId = createMemo(() =>
@@ -271,6 +273,25 @@ export function AppShell(props: ParentProps) {
     isMobile,
     toggleSidebar: () => setCollapsed(value => !value),
     openSettings,
+  }
+
+  const dismissDiscordPromo = async () => {
+    setDiscordPromoOpen(false)
+    try {
+      const token = await auth.getToken()
+      if (token) await api.patch('/users/me', token, { discordPromoSeen: true })
+    } catch {
+      // Dismissal is best-effort; never trap the user in an announcement.
+    }
+  }
+
+  const considerDiscordPromo = (profile: UserProfile) => {
+    if (profile.discordPromoSeenAt || selectedKey() !== 'new') return
+    window.setTimeout(() => {
+      if (!document.querySelector('.onboarding-survey') && !settingsSection()) {
+        setDiscordPromoOpen(true)
+      }
+    }, 800)
   }
 
   const loadProjects = async () => {
@@ -343,10 +364,16 @@ export function AppShell(props: ParentProps) {
         return profile
       }
       try {
-        if (!sessionStorage.getItem(key)) await sync()
+        if (!sessionStorage.getItem(key)) {
+          const profile = await sync()
+          if (profile && !cancelled) considerDiscordPromo(profile)
+        }
         try {
           const profile = await api.get<UserProfile>('/users/me', token)
-          if (!cancelled) setIsAdmin(profile.role === 'admin')
+          if (!cancelled) {
+            setIsAdmin(profile.role === 'admin')
+            considerDiscordPromo(profile)
+          }
         } catch (error) {
           if (!isApiError(error) || error.status !== 404) throw error
           sessionStorage.removeItem(key)
@@ -370,6 +397,16 @@ export function AppShell(props: ParentProps) {
         class={`app-shell-bg flex h-screen w-screen overflow-hidden${collapsed() ? ' is-sidebar-collapsed' : ''}${selectedKey() === 'new' ? ' is-new-shell' : ''}`}
       >
         <OnboardingSurvey />
+        <Show when={discordPromoOpen()}>
+          <DiscordOfferModal
+            mode="announcement"
+            onClose={() => void dismissDiscordPromo()}
+            onJoinDiscord={() => {
+              void dismissDiscordPromo()
+              window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+            }}
+          />
+        </Show>
         <Show when={settingsSection()}>
           {section => (
             <SettingsModal

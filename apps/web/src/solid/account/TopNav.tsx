@@ -4,6 +4,7 @@ import { Show } from 'solid-js'
 import { useAppShell } from '../core/AppShell'
 import { useAuth, useClerk, useUser } from '../core/auth'
 import { useTheme } from '../core/theme'
+import { DiscordIcon } from '../public/brand'
 import { CreditPopover } from './credits'
 import { Popover } from './primitives'
 import type { SettingsSection } from './SettingsView'
@@ -94,6 +95,15 @@ export function TopNav(props: {
               <Settings />
               Account settings
             </button>
+            <a
+              role="menuitem"
+              href="https://discord.gg/a4SBW36mD"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <DiscordIcon />
+              Join Discord
+            </a>
             <button
               role="menuitem"
               class="new-project-profile-menu__danger"

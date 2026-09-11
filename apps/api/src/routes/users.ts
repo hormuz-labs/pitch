@@ -160,11 +160,15 @@ router.patch('/me', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
 
-  // Only these three are the settings page's to change. Anything else in the
+  // Only these settings fields are user-controlled. Anything else in the
   // body — role, email, credit balance — is ignored rather than trusted.
   const body = req.body as Record<string, unknown>
-  const data: { username?: string; emailNotifications?: boolean; browserNotifications?: boolean } =
-    {}
+  const data: {
+    username?: string
+    emailNotifications?: boolean
+    browserNotifications?: boolean
+    discordPromoSeenAt?: Date
+  } = {}
 
   if (body.username !== undefined) {
     if (typeof body.username !== 'string') {
@@ -185,6 +189,12 @@ router.patch('/me', async (req, res) => {
       }
       data[field] = body[field] as boolean
     }
+  }
+  if (body.discordPromoSeen !== undefined) {
+    if (body.discordPromoSeen !== true) {
+      return res.status(400).json({ error: 'discordPromoSeen must be true' })
+    }
+    data.discordPromoSeenAt = new Date()
   }
   if (Object.keys(data).length === 0) {
     return res.status(400).json({ error: 'Nothing to update' })

@@ -46,6 +46,8 @@ model UserProfile {
   // Set when the user dismisses the welcome survey. The survey is never a
   // gate, so this only stops us asking again on their other devices.
   onboardingSkippedAt DateTime?
+  // One-time product announcement dismissal, stored per account/device-independent.
+  discordPromoSeenAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

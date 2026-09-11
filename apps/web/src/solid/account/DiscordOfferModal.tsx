@@ -1,0 +1,57 @@
+import { X } from 'lucide-solid'
+import { DiscordIcon } from '../public/brand'
+import '../../styles/discord-offer.css'
+
+export function DiscordOfferModal(props: {
+  mode: 'announcement' | 'no-credits'
+  onClose: () => void
+  onJoinDiscord: () => void
+  onBuyCredits?: () => void
+}) {
+  const announcement = () => props.mode === 'announcement'
+  return (
+    <div
+      class="discord-offer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="discord-offer-title"
+    >
+      <section class="discord-offer__card">
+        <button class="discord-offer__close" aria-label="Close" onClick={props.onClose}>
+          <X size={17} />
+        </button>
+        <div class="discord-offer__icon" aria-hidden="true">
+          <DiscordIcon size={28} />
+        </div>
+        <p class="discord-offer__eyebrow">Pitch on Discord</p>
+        <h2 id="discord-offer-title">
+          {announcement() ? '3 free videos a day on Discord' : 'You’re out of Pitch credits'}
+        </h2>
+        <p>
+          {announcement()
+            ? 'Join the Pitch server and use /video. The bot will help you link your account when you make your first video.'
+            : 'Buy credits to continue here, or create up to 3 free videos today in Discord.'}
+        </p>
+        <div class="discord-offer__actions">
+          {!announcement() && (
+            <button class="discord-offer__primary" onClick={props.onBuyCredits}>
+              Buy credits
+            </button>
+          )}
+          <button
+            class={announcement() ? 'discord-offer__primary' : 'discord-offer__secondary'}
+            onClick={props.onJoinDiscord}
+          >
+            Join Discord server
+          </button>
+          {announcement() && (
+            <button class="discord-offer__quiet" onClick={props.onClose}>
+              Not now
+            </button>
+          )}
+        </div>
+        <small>Discord credits can only be used through the Discord bot.</small>
+      </section>
+    </div>
+  )
+}

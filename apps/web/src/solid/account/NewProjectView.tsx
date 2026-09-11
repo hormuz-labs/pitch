@@ -22,6 +22,7 @@ import {
   Show,
 } from 'solid-js'
 import { FeaturedVideos } from '../../components/landing/FeaturedVideos'
+import { isApiError } from '../../lib/api'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
 import {
   createProject,
@@ -33,6 +34,7 @@ import {
 import { useAuth } from '../core/auth'
 import { PitchWordmark } from '../public/brand'
 import { CreditPopover } from './credits'
+import { DiscordOfferModal } from './DiscordOfferModal'
 import { Popover, Select } from './primitives'
 import type { SettingsSection } from './SettingsView'
 import { TopNav } from './TopNav.tsx'
@@ -121,6 +123,7 @@ export function NewProjectView(props: {
   const [submitting, setSubmitting] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
   const [error, setError] = createSignal('')
+  const [creditOfferOpen, setCreditOfferOpen] = createSignal(false)
   const [ratio, setRatio] = createSignal<(typeof RATIOS)[number]>('16:9')
   const [duration, setDuration] = createSignal<number | null>(null)
   const [deckTemplate, setDeckTemplate] = createSignal<(typeof DECK_TEMPLATES)[number] | null>(null)
@@ -255,6 +258,11 @@ export function NewProjectView(props: {
       if (!token) throw new Error('Not signed in')
       await create(prompt().trim(), files(), token)
     } catch (reason) {
+      if (isApiError(reason) && reason.status === 402) {
+        setError('')
+        setCreditOfferOpen(true)
+        return
+      }
       const message = reason instanceof Error ? reason.message : 'Could not create the project'
       setError(message)
       props.onNotice?.(message, 'error')
@@ -275,6 +283,20 @@ export function NewProjectView(props: {
         void pick(event.dataTransfer?.files ?? null, true)
       }}
     >
+      <Show when={creditOfferOpen()}>
+        <DiscordOfferModal
+          mode="no-credits"
+          onClose={() => setCreditOfferOpen(false)}
+          onBuyCredits={() => {
+            setCreditOfferOpen(false)
+            props.openSettings?.('credits')
+          }}
+          onJoinDiscord={() => {
+            setCreditOfferOpen(false)
+            window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+          }}
+        />
+      </Show>
       <TopNav openSettings={props.openSettings} />
       <Show when={dragging()}>
         <div class="drop-veil" aria-live="polite">
