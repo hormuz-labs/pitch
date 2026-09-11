@@ -1402,6 +1402,40 @@ to {
   background: var(--ink);
   color: var(--paper);
 }
+.lv-studio .user-message {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 92%;
+}
+.lv-studio .user-message .msg { max-width: 100%; }
+.lv-studio .message-state {
+  display: block;
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1;
+  text-transform: capitalize;
+}
+.lv-studio .message-edit {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--faint);
+  opacity: 0;
+}
+.lv-studio .user-message:is(:hover, :focus-within) .message-edit { opacity: 1; }
+.lv-studio .message-edit:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--ink);
+}
 .lv-studio .msg.assistant {
   align-self: flex-start;
   background: var(--panel);
@@ -3940,6 +3974,16 @@ to {
 .lv-studio .job-send-round.stop:hover:not(:disabled) {
   background: var(--danger);
   color: #ffffff;
+}
+
+.lv-studio .job-send-round.steer,
+.lv-studio .job-send-round.steer:hover:not(:disabled) {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+@media (hover: none) {
+  .lv-studio .message-edit { opacity: 1; }
 }
 
 .lv-studio .resize-handle {

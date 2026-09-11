@@ -172,7 +172,8 @@ GET    /projects                       list (derived status, outputs, thumbnail)
 POST   /projects                       { prompt, options?, uploads?[] } → creates it; runs the first turn only if `prompt` is non-empty → { project }
 GET    /projects/:id                   detail = Project + Description + busy
 DELETE /projects/:id                   abort, drop session, delete workspace
-POST   /projects/:id/prompt            { text, targets?, scene?, slide?, options? } → 202 / 409 busy
+POST   /projects/:id/prompt            { text, targets?, scene?, slide?, options?, delivery?: 'queue'|'steer' } → 202
+POST   /projects/:id/rollback          { entryId } → branch before that user message and restore its workspace checkpoint
 POST   /projects/:id/stop
 GET    /projects/:id/messages          Entry[]
 GET    /projects/:id/events            SSE (see below)
@@ -200,6 +201,7 @@ hello   { busy }
 entry   { entry }            user / assistant / thinking / tool entries (tool: { name, status })
 delta   { id, delta }        streamed text
 update  { entry }            tool finished
+reset   { entries }          active thread changed after rollback
 tool    { name, args }       (for flows that derive stages)
 status  { busy }
 idle    { aborted? }

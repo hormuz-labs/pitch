@@ -347,7 +347,12 @@ export function StudioView(props: { projectId: string }) {
                     </div>
                   }
                 >
-                  <Thread entries={s.entries} busy={s.busy} onAnswer={s.send} />
+                  <Thread
+                    entries={s.entries}
+                    busy={s.busy}
+                    onAnswer={s.send}
+                    onEdit={entry => void s.rollback(entry)}
+                  />
                 </Show>
               </div>
               <Composer store={s} />
