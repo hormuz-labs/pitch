@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="570" viewBox="0 0 1280 570" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">One studio. A workspace at the center.</title>
+  <desc id="desc">The web studio sends prompts to the API, which hosts a pi session per project. The agent's built-in tools work in the Gondolin sandbox and host actions run media and browser tools. Both write to the project workspace. Saved artifacts update the preview over server-sent events. Published outputs go to S3 or MinIO.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" stroke="#FFF" stroke-opacity=".025"/></pattern>
+    <linearGradient id="workspace" x1="455" y1="350" x2="810" y2="480" gradientUnits="userSpaceOnUse"><stop stop-color="#342A46"/><stop offset="1" stop-color="#241E2F"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="m1 1 6 3-6 3" stroke="#998BAE" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      .sans { font-family: 'DM Sans', Arial, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+    </style>
+  </defs>
+  <rect x=".5" y=".5" width="1279" height="569" rx="20" fill="#101014" stroke="#39333F"/>
+  <rect x="1" y="1" width="1278" height="568" rx="20" fill="url(#grid)"/>
+  <text x="48" y="47" class="mono" font-size="12" letter-spacing="2" fill="#B6A6CD">THE MACHINE ROOM</text>
+  <text x="48" y="99" class="sans" font-size="34" font-weight="600" letter-spacing="-1" fill="#F2EDF8">One studio. A workspace at the center.</text>
+  <text x="1076" y="47" class="mono" font-size="11" letter-spacing="1.5" fill="#8D809D">PITCH / INTERNALS</text>
+
+  <!-- A single API process contains session orchestration. -->
+  <rect x="424" y="135" width="808" height="359" rx="16" fill="#18151E" fill-opacity=".75" stroke="#4B3E59" stroke-dasharray="5 6"/>
+  <text x="450" y="161" class="mono" font-size="11" letter-spacing="2" fill="#A493B8">API / SESSION HOST + TOOL DISPATCH</text>
+
+  <rect x="48" y="186" width="281" height="117" rx="12" fill="#201C27" stroke="#4E425D"/>
+  <text x="70" y="214" class="mono" font-size="11" letter-spacing="2" fill="#9E8FB0">01 / THE SURFACE</text>
+  <text x="70" y="247" class="sans" font-size="25" font-weight="600" fill="#F0EAF7">Web studio</text>
+  <text x="70" y="277" class="sans" font-size="16" fill="#B6ABBF">Chat · targets · live preview</text>
+
+  <path d="M329 220H453" stroke="#998BAE" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="349" y="204" class="mono" font-size="11" fill="#B3A4C4">PROMPT</text>
+
+  <rect x="456" y="186" width="344" height="117" rx="12" fill="#272030" stroke="#78628F"/>
+  <text x="478" y="214" class="mono" font-size="11" letter-spacing="2" fill="#B9A2D0">02 / THE AGENT</text>
+  <text x="478" y="247" class="sans" font-size="25" font-weight="600" fill="#F0EAF7">Resumable pi session</text>
+  <text x="478" y="277" class="sans" font-size="16" fill="#B6ABBF">A prompt, every tool, skills on demand.</text>
+
+  <rect x="880" y="186" width="324" height="117" rx="12" fill="#211C29" stroke="#4E425D"/>
+  <text x="902" y="214" class="mono" font-size="11" letter-spacing="2" fill="#9E8FB0">03 / HOST TOOLS</text>
+  <text x="902" y="247" class="sans" font-size="25" font-weight="600" fill="#F0EAF7">Timed capabilities</text>
+  <text x="902" y="276" class="sans" font-size="15" fill="#B6ABBF">Browser · FFmpeg · voice · vision</text>
+  <path d="M800 243H877" stroke="#998BAE" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- The same directory receives edits and generated artifacts. -->
+  <path d="M628 303v57" stroke="#BA9FD6" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="644" y="336" class="mono" font-size="11" fill="#B3A4C4">GONDOLIN / FILE TOOLS</text>
+  <path d="M1042 303v108H803" stroke="#998BAE" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="1060" y="339" class="mono" font-size="11" fill="#B3A4C4">ARTIFACTS</text>
+  <rect x="456" y="363" width="344" height="103" rx="12" fill="url(#workspace)" stroke="#A284C1"/>
+  <path d="M478 387h15l5 5h20v22h-40z" stroke="#C9AEDF" stroke-width="1.4" stroke-linejoin="round"/>
+  <text x="532" y="408" class="sans" font-size="24" font-weight="600" fill="#F0EAF7">Project workspace</text>
+  <text x="478" y="441" class="mono" font-size="13" fill="#C3AFD6">sources / uploads / audio / renders</text>
+
+  <!-- Saved files drive the preview; publishing produces stored outputs. -->
+  <path d="M456 402H371V271H332" stroke="#BBA1D6" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="54" y="342" class="mono" font-size="11" letter-spacing="1" fill="#BBA1D6">SAVE → DESCRIBE → SSE → PREVIEW</text>
+  <text x="54" y="369" class="sans" font-size="16" fill="#998DA5">The preview follows the newest artifact.</text>
+
+  <path d="M628 466v61h249" stroke="#998BAE" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="675" y="517" class="mono" font-size="10" letter-spacing="1" fill="#B3A4C4">PUBLISH</text>
+  <rect x="880" y="506" width="324" height="42" rx="8" fill="#211C29" stroke="#4E425D"/>
+  <text x="901" y="533" class="sans" font-size="16" fill="#CEC1DA">S3 / MinIO</text>
+  <text x="1025" y="533" class="mono" font-size="11" fill="#A08AAF">PUBLISHED OUTPUTS</text>
+  <text x="48" y="524" class="mono" font-size="11" letter-spacing="1" fill="#8D809D">DB = REGISTRY</text>
+  <text x="48" y="545" class="mono" font-size="11" letter-spacing="1" fill="#BAA5CC">DIRECTORY = TRUTH</text>
+</svg>

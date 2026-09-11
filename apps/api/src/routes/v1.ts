@@ -118,6 +118,7 @@ const promptSchema = z.object({
   text: z.string().min(1),
   scene: z.string().optional(),
   slide: z.number().int().optional(),
+  delivery: z.enum(['queue', 'steer']).optional(),
 })
 router.post('/projects/:id/prompt', async (req, res) => {
   const body = parseBody(res, promptSchema, req.body)
@@ -127,6 +128,7 @@ router.post('/projects/:id/prompt', async (req, res) => {
       await promptFromApi(uid(req), req.params.id, body.text, {
         scene: body.scene ?? null,
         slide: body.slide ?? null,
+        delivery: body.delivery,
       }),
     )
   } catch (error) {

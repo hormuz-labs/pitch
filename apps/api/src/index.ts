@@ -2,6 +2,8 @@
  * Pitch Studio server: auth, credits, projects, agent sessions, previews,
  * renders, sharing, MCP and admin — one process (docs/studio-architecture.md).
  */
+import { mkdir } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clerkMiddleware } from '@clerk/express'
@@ -12,6 +14,7 @@ import dotenv from 'dotenv'
 import express from 'express'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { type Options as PinoHttpOptions, pinoHttp } from 'pino-http'
+import { checkWritableDirectory, healthRouter } from './lib/health.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '../../..')
@@ -62,6 +65,22 @@ const { router: webhookRoutes } = await import('./routes/webhooks.js')
 const { router: clerkWebhookRoutes } = await import('./routes/clerk-webhooks.js')
 
 export const app = express()
+const { prisma } = await import('@saas/db')
+const stateDirs = [
+  process.env.PROJECTS_DIR || path.join(rootDir, 'projects'),
+  process.env.PI_AGENT_DIR || path.join(homedir(), '.pi', 'agent'),
+]
+await Promise.all(stateDirs.map(dir => mkdir(dir, { recursive: true })))
+let draining = false
+// Probe traffic must not depend on Clerk or trigger authentication/network calls.
+app.use(
+  '/health',
+  healthRouter({
+    isDraining: () => draining,
+    check: () =>
+      Promise.all([prisma.$queryRaw`SELECT 1`, ...stateDirs.map(checkWritableDirectory)]),
+  }),
+)
 
 // Clerk and Dodo webhooks need their untouched request bodies and must mount
 // before express.json() and Clerk's session middleware.
@@ -133,15 +152,19 @@ app.use('/admin', adminRoutes)
 app.use('/newsletter', newsletterRoutes)
 app.use('/browser', browserRoutes)
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))
-
 const PORT = process.env.PORT || 3000
 const server = app.listen(PORT, () => logger.info({ port: PORT }, 'studio server started'))
 attachVncProxy(server)
 void resumePendingWebhooks()
 
 const gracefulShutdown = async (signal: string) => {
+  if (draining) return
+  draining = true
   logger.info({ signal }, 'shutting down studio')
+  // Stop new requests before aborting sessions; SSE/WS must not hold shutdown forever.
+  server.close()
+  const deadline = setTimeout(() => process.exit(1), 25_000)
+  deadline.unref()
   try {
     const { shutdownAllSessions } = await import('./services/browser-host.js')
     await shutdownAllSessions()
@@ -156,6 +179,9 @@ const gracefulShutdown = async (signal: string) => {
   } catch (err) {
     logger.warn({ err }, 'studio shutdown failed')
   }
+  await prisma.$disconnect().catch(err => logger.warn({ err }, 'database shutdown failed'))
+  server.closeAllConnections()
+  clearTimeout(deadline)
   process.exit(0)
 }
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))

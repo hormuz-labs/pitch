@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: pitch
+resources:
+  - namespace.yaml
+  - service-account.yaml
+  - storage.yaml
+  - deployment.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: pitch-config
+    literals:
+      - NODE_ENV=production
+      - PORT=3000
+      - PROJECTS_DIR=/app/projects
+      - PI_AGENT_DIR=/root/.pi/agent
+      - STUDIO_SANDBOX=bwrap
+      - FFMPEG_ENCODER=libx264
+      - CLOAK_MANAGER_URL=http://127.0.0.1:8080
+      - STUDIO_INTERNAL_ORIGIN=http://127.0.0.1:3000
+      - SLIDESHOW_BROWSER_HOST=127.0.0.1
+      - WHISPER_MODEL=/root/.cache/whisper-cpp/ggml-base.en.bin
+      - APP_URL=${APP_URL}
+      - MINIO_PUBLIC_URL=${MEDIA_PUBLIC_URL}
+images:
+  - name: pitch-api
+    newName: ${API_IMAGE}
+  - name: cloakbrowser-manager
+    newName: ${CLOAK_IMAGE}

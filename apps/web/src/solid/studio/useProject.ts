@@ -160,11 +160,15 @@ export function useProject(id: string | undefined) {
         break
       case 'idle':
         busyRevision++
-        setBusy(false)
-        setLiveCount(null)
+        setBusy(ev.busy ?? false)
+        if (!ev.busy) setLiveCount(null)
         setVideoVersion(v => v + 1)
         void refresh()
         void refreshAssets()
+        break
+      case 'reset':
+        entryRevision++
+        setEntries(ev.entries)
         break
       case 'assets':
         void refreshAssets()
@@ -181,8 +185,6 @@ export function useProject(id: string | undefined) {
         break
       case 'error':
         entryRevision++
-        busyRevision++
-        setBusy(false)
         setEntries(v => [
           ...v,
           { id: `err-${Date.now()}`, role: 'assistant', text: `⚠ ${ev.message}` },
@@ -304,7 +306,11 @@ export function useProject(id: string | undefined) {
   }
   const send = async (
     text: string,
-    opts: { uploads?: UploadRef[]; options?: Record<string, unknown> } = {},
+    opts: {
+      uploads?: UploadRef[]
+      options?: Record<string, unknown>
+      delivery?: 'queue' | 'steer'
+    } = {},
   ) => {
     if (!id || !text.trim()) return
     const list = targets(),
@@ -315,26 +321,40 @@ export function useProject(id: string | undefined) {
       slide = list.length ? (slides.size === 1 ? [...slides][0] : null) : selectedSlide()
     setDraft('')
     clearTargets()
+    const wasBusy = busy()
+    const delivery = wasBusy ? (opts.delivery ?? 'queue') : undefined
     setBusy(true)
-    setEntries(v => [...v, { id: `local-${++localId}`, role: 'user', text: body }])
+    setEntries(v => [
+      ...v,
+      {
+        id: `local-${++localId}`,
+        role: 'user',
+        text: text.trim(),
+        ...(delivery
+          ? { pending: delivery === 'steer' ? ('steering' as const) : ('queued' as const) }
+          : {}),
+      },
+    ])
     try {
       await studio.prompt(await getToken(), id, {
         text: body,
+        displayText: text.trim(),
         targets: list,
         scene,
         slide,
         uploads: opts.uploads,
         options: opts.options,
         model: model() ?? undefined,
+        delivery,
       })
     } catch (err: any) {
-      setBusy(false)
+      if (!wasBusy) setBusy(false)
       setEntries(v => [
         ...v,
         {
           id: `err-${Date.now()}`,
           role: 'assistant',
-          text: `⚠ ${err?.status === 409 ? 'The agent is still working — wait for it to finish.' : (err?.message ?? 'Could not send')}`,
+          text: `⚠ ${err?.message ?? 'Could not send'}`,
         },
       ])
     }
@@ -446,6 +466,33 @@ export function useProject(id: string | undefined) {
     },
     download,
     send,
+    rollback: async (entry: Entry) => {
+      if (!id || busy() || !entry.sessionEntryId || !entry.checkpointId) return
+      try {
+        const result = await studio.rollback(await getToken(), id, entry.sessionEntryId)
+        setEntries(result.entries)
+        setProject(current =>
+          current ? { ...current, ...result.project, description: current.description } : current,
+        )
+        setDraft(result.text)
+        clearTargets()
+        setSelectedScene(null)
+        setSelectedSlide(null)
+        setVideoVersion(v => v + 1)
+        await refresh()
+        await refreshAssets()
+        queueMicrotask(() => composerRef.current?.focus())
+      } catch (error: any) {
+        setEntries(current => [
+          ...current,
+          {
+            id: `err-${Date.now()}`,
+            role: 'assistant',
+            text: `⚠ ${error?.message ?? 'Could not restore this message'}`,
+          },
+        ])
+      }
+    },
     stop: async () => {
       if (id) await studio.stop(await getToken(), id).catch(() => {})
     },
