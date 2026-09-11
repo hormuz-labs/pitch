@@ -1,5 +1,5 @@
 import { A, useNavigate } from '@solidjs/router'
-import { ArrowUp, ChevronDown, Globe2, LockKeyhole, Plus, Square, X } from 'lucide-solid'
+import { ArrowUp, ChevronDown, Globe2, LockKeyhole, Plus, Square, X, Zap } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { API_URL } from '../../config'
 import { firstUrlInText, isAuthenticatedFor, prettyHost } from '../../lib/authOrigins'
@@ -125,9 +125,9 @@ export function Composer(props: { store: ProjectStore }) {
     promptUrl() !== dismissed() &&
     !profile.loading() &&
     !isAuthenticatedFor(promptUrl(), profile.origins())
-  const send = async () => {
+  const send = async (delivery?: 'queue' | 'steer') => {
     const text = s.draft.trim()
-    if (!text || s.busy || uploading()) return
+    if (!text || uploading()) return
     let uploads
     if (files().length) {
       setUploading(true)
@@ -142,7 +142,7 @@ export function Composer(props: { store: ProjectStore }) {
       setUploading(false)
       setFiles([])
     }
-    await s.send(text, { uploads })
+    await s.send(text, { uploads, delivery })
   }
   const where = () => scope(s),
     placeholder = () =>
@@ -281,7 +281,7 @@ export function Composer(props: { store: ProjectStore }) {
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
-              void send()
+              void send(s.busy && (e.metaKey || e.ctrlKey) ? 'steer' : 'queue')
             }
           }}
         />
@@ -305,7 +305,7 @@ export function Composer(props: { store: ProjectStore }) {
           </div>
           <div class="job-composer-actions">
             <CreditMarker getToken={s.getToken} />
-            <Show when={models().length}>
+            <Show when={!s.busy && models().length}>
               <div class="model-select" ref={modelEl}>
                 <button
                   class="model-btn"
@@ -351,6 +351,24 @@ export function Composer(props: { store: ProjectStore }) {
                 </button>
               }
             >
+              <button
+                class="job-send-round steer"
+                disabled={uploading() || !s.draft.trim()}
+                onClick={() => void send('steer')}
+                aria-label="Steer active run"
+                title="Steer active run (⌘ Enter)"
+              >
+                <Zap size={15} fill="currentColor" />
+              </button>
+              <button
+                class="job-send-round"
+                disabled={uploading() || !s.draft.trim()}
+                onClick={() => void send('queue')}
+                aria-label="Queue message"
+                title="Queue after current work"
+              >
+                <ArrowUp size={17} />
+              </button>
               <button
                 class="job-send-round stop"
                 onClick={() => void s.stop()}

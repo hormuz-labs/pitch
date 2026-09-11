@@ -12,6 +12,7 @@ import { createLogger, sendDiscordMessage } from '@saas/shared'
 import { getAgent } from '../flows/index.js'
 import type { Description, Output, UploadRef } from '../flows/types.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
+import { deleteWorkspaceHistory } from '../studio/history.js'
 import {
   type FlowId,
   isValidProjectName,
@@ -23,9 +24,12 @@ import {
 import {
   closeSession,
   type Entry,
+  getSessionEntries,
   listBusy,
+  type PromptDelivery,
   peekSession,
   promptSession,
+  rollbackSession,
   stopSession,
   takeModelCost,
 } from '../studio/session.js'
@@ -171,8 +175,17 @@ export async function getProject(userId: string, id: string): Promise<ProjectDet
   return { ...p, busy, status: statusOf(p, busy, description), description }
 }
 
-export function getEntries(projectId: string): Entry[] {
-  return peekSession(projectId)?.entries ?? []
+function sessionOptions(p: ProjectRow) {
+  return {
+    projectId: p.id,
+    ws: workspaceOf(p),
+    agent: getAgent(),
+    sessionFile: p.sessionFile,
+  }
+}
+
+export async function getEntries(p: ProjectRow): Promise<Entry[]> {
+  return getSessionEntries(sessionOptions(p))
 }
 
 // ── Writes ────────────────────────────────────────────────────────────────────
@@ -285,25 +298,35 @@ interface PromptOptions {
   options?: Record<string, any>
   /** This turn's model pick; overrides the one stored in the project's options. */
   model?: string
+  /** While busy, queue after the active turn or steer it at the next model boundary. */
+  delivery?: PromptDelivery
+  /** Text shown in the thread when `text` also contains a generated target legend. */
+  displayText?: string
+}
+
+export interface PromptProjectResult {
+  delivery: 'started' | 'queued' | 'steered'
+  turn: number
 }
 
 export async function promptProject(
   p: ProjectRow,
   text: string,
   opts: PromptOptions = {},
-): Promise<void> {
+): Promise<PromptProjectResult> {
   const agent = getAgent()
   const ws = workspaceOf(p)
   const first = opts.first ?? false
   if (opts.uploads?.length && !first)
     await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
-  const context = await agent.context(ws, {
-    first,
-    options: { ...p.options, ...(opts.options ?? {}) },
-    targets: opts.targets,
-    scene: opts.scene ?? null,
-    slide: opts.slide ?? null,
-  })
+  const context = () =>
+    agent.context(ws, {
+      first,
+      options: { ...p.options, ...(opts.options ?? {}) },
+      targets: opts.targets,
+      scene: opts.scene ?? null,
+      slide: opts.slide ?? null,
+    })
   // This turn's pick wins; otherwise the project keeps running on the model
   // it was created (or last prompted) with.
   const model =
@@ -318,7 +341,7 @@ export async function promptProject(
       .update({ where: { id: p.id }, data: { options: JSON.stringify(p.options) } })
       .catch(() => {})
   }
-  const s = await promptSession(
+  const result = await promptSession(
     {
       projectId: p.id,
       ws,
@@ -333,13 +356,16 @@ export async function promptProject(
     },
     text,
     context,
+    opts.delivery,
+    opts.displayText,
   )
-  billTurn(p, s.turn)
-  if (first) followFirstTurn(p, s.turn)
+  if (result.delivery !== 'steered') billTurn(p, result.turn)
+  if (first) followFirstTurn(p, result.turn)
   if (p.lastError)
     await db.prisma.project
       .update({ where: { id: p.id }, data: { lastError: null } })
       .catch(() => {})
+  return { delivery: result.delivery, turn: result.turn }
 }
 
 /**
@@ -359,8 +385,16 @@ function billTurn(p: ProjectRow, turn: number): void {
 
 /** Flag the first turn when it ends without anything usable. */
 function followFirstTurn(p: ProjectRow, turn: number): void {
+  let waitingForQueue = false
   const off = onProjectEvent(p.id, (ev: StudioEvent) => {
-    if (ev.type !== 'idle' || ev.turn !== turn) return
+    if (ev.type !== 'idle') return
+    if (!waitingForQueue && ev.turn !== turn) return
+    // A queued follow-up may be the turn that produces the first artifact, so
+    // assess the project only after the accepted queue drains.
+    if (ev.busy) {
+      waitingForQueue = true
+      return
+    }
     off()
     void (async () => {
       const agent = getAgent()
@@ -438,10 +472,27 @@ export async function stopProject(userId: string, id: string): Promise<boolean> 
   return stopSession(p.id)
 }
 
+export async function rollbackProject(userId: string, id: string, entryId: string) {
+  const p = await getRow(userId, id)
+  const result = await rollbackSession(sessionOptions(p), entryId)
+  const row = await db.prisma.project.update({
+    where: { id },
+    data: {
+      outputs: result.project.outputs as any,
+      thumbnailUrl: result.project.thumbnailUrl,
+      lastError: result.project.lastError,
+    },
+  })
+  const project = parseRow(row)
+  emitProjectEvent(id, { type: 'project', project })
+  return { text: result.text, entries: result.entries, project }
+}
+
 export async function deleteProject(userId: string, id: string): Promise<void> {
   const p = await getRow(userId, id)
   const ws = workspaceOf(p)
   await closeSession(p.id, p.sessionFile, ws.dir)
+  await deleteWorkspaceHistory(ws.dir)
   emitProjectEvent(p.id, { type: 'deleted' })
   await db.prisma.project.delete({ where: { id } })
   if (path.dirname(ws.dir) === PROJECTS_DIR && existsSync(ws.dir)) {
