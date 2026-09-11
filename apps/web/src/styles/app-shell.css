@@ -59,7 +59,7 @@
   border-right: 0;
   background: var(--shell-bg);
   color: var(--shell-text);
-  font-family: "Geist Variable", "Geist", Arial, sans-serif;
+  font-family: var(--font-sans);
   overflow: hidden;
 }
 
@@ -186,7 +186,6 @@
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  border-right: 1px solid var(--shell-border);
   background: var(--shell-bg);
 }
 
@@ -298,7 +297,7 @@
   border-radius: 12px;
   background: #202220;
   box-shadow: 0 20px 50px rgb(0 0 0 / 32%), 0 2px 8px rgb(0 0 0 / 20%);
-  font-family: "Geist Variable", "Geist", Arial, sans-serif;
+  font-family: var(--font-sans);
   animation: rail-history-in 140ms ease;
 }
 
@@ -486,6 +485,7 @@
   border-radius: 7px;
   background: transparent;
   color: #babdb8;
+  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 450;
   letter-spacing: -0.008em;
@@ -514,7 +514,7 @@
   border-radius: 5px;
   background: color-mix(in srgb, var(--shell-panel) 55%, transparent);
   color: var(--shell-faint);
-  font: 500 10px/1.35 "Geist Variable", "Geist", Arial, sans-serif;
+  font: 500 10px/1.35 var(--font-sans);
 }
 
 .conversation-sidebar__new:hover {
@@ -559,8 +559,7 @@
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 3%);
 }
 
-.conversation-sidebar__row.is-active svg,
-.conversation-sidebar__chat.is-active svg {
+.conversation-sidebar__row.is-active svg {
   color: #167fc3;
 }
 
@@ -588,50 +587,21 @@
   margin: 0;
 }
 
-.conversation-sidebar__projects-head > span {
-  min-width: 20px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--shell-raised);
-  color: var(--shell-faint);
-  font-size: 9px;
-  text-align: center;
-}
-
-.conversation-sidebar__group+.conversation-sidebar__group {
-  margin-top: 11px;
-}
-
-.conversation-sidebar__search {
-  flex-shrink: 0;
-  height: 34px;
-  margin: 6px 10px 8px;
-  padding: 0 9px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  background: #222522;
-  color: #858983;
-}
-
-.conversation-sidebar__search:focus-within {
-  border-color: var(--shell-border);
-  background: var(--shell-hover);
-}
-
-.conversation-sidebar__search input {
-  width: 100%;
-  min-width: 0;
+.conversation-sidebar__all-chats {
   padding: 0;
   border: 0;
-  outline: 0;
   background: transparent;
-  color: #ededeb;
-  font-size: 11.5px;
-  letter-spacing: -0.006em;
+  color: var(--shell-faint);
+  font-size: 10px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: color 140ms ease;
 }
+
+.conversation-sidebar__all-chats:hover {
+  color: var(--shell-text);
+}
+
 
 .conversation-sidebar__history {
   min-height: 0;
@@ -656,11 +626,6 @@
   min-height: 36px;
   color: #b9bcb7;
   font-size: 12.5px;
-}
-
-.conversation-sidebar__chat svg {
-  flex: none;
-  color: #97928d;
 }
 
 .conversation-sidebar__chat span {
@@ -847,6 +812,18 @@
   border-radius: 0;
 }
 
+/* The composer page keeps its own full-bleed background rather than the
+   shell's floating-card system, so the collapsed rail matches that
+   background directly — one continuous surface, no seam where it meets
+   the panel. */
+.app-shell-bg.is-new-shell .conversation-sidebar__rail {
+  background: #000;
+}
+
+[data-theme="light"] .app-shell-bg.is-new-shell .conversation-sidebar__rail {
+  background: #fbfaf9;
+}
+
 .app-shell-panel--studio {
   box-shadow: none;
 }
@@ -863,13 +840,11 @@
 .conversation-sidebar__wordmark-svg { color: var(--shell-text); }
 .conversation-sidebar__icon,
 .conversation-sidebar__section-title,
-.conversation-sidebar__search,
 .conversation-sidebar__empty,
 .conversation-sidebar__invite small,
 .conversation-sidebar__invite > svg:last-child { color: var(--shell-faint); }
 .conversation-sidebar__new,
-.conversation-sidebar__invite,
-.conversation-sidebar__search { border-color: var(--shell-border); background: var(--shell-raised); }
+.conversation-sidebar__invite { border-color: var(--shell-border); background: var(--shell-raised); }
 .conversation-sidebar__row,
 .conversation-sidebar__chat,
 .conversation-sidebar__invite,
@@ -884,7 +859,6 @@
 .conversation-sidebar__invite:hover { background: var(--shell-hover); color: var(--shell-text); }
 .conversation-sidebar__row.is-active,
 .conversation-sidebar__chat.is-active { background: var(--shell-active); color: var(--shell-text); }
-.conversation-sidebar__search input { color: var(--shell-text); }
 .conversation-sidebar__account { border-top-color: var(--shell-border); }
 .conversation-sidebar__account span { color: var(--shell-faint); }
 .conversation-sidebar__open {

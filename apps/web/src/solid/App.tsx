@@ -25,6 +25,7 @@ const AccountPricing = routeComponent('pricingAccount')
 const Settings = routeComponent('settings')
 const ApiKeys = routeComponent('apiKeys')
 const Sessions = routeComponent('sessions')
+const ChatHistory = routeComponent('chats')
 const Affiliate = routeComponent('affiliate')
 const Admin = routeComponent('admin')
 const CheckoutReturn = routeComponent('checkoutReturn')
@@ -151,6 +152,7 @@ const shellPaths = [
   '/settings',
   '/api-keys',
   '/sessions',
+  '/chats',
   '/affiliate',
   '/admin',
   '/checkout/return',
@@ -199,6 +201,7 @@ export default function App() {
       <Route path="/settings" component={protectedRoute(Settings)} />
       <Route path="/api-keys" component={protectedRoute(ApiKeys)} />
       <Route path="/sessions" component={protectedRoute(Sessions)} />
+      <Route path="/chats" component={protectedRoute(ChatHistory)} />
       <Route path="/affiliate" component={protectedRoute(Affiliate)} />
       <Route path="/admin" component={protectedRoute(Admin)} />
       <Route path="/checkout/return" component={protectedRoute(CheckoutReturn)} />

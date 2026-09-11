@@ -6,7 +6,7 @@
 .lv-studio .url-auth-suggestion__copy strong { overflow: hidden; color: #272421; font-size: 11.5px; font-weight: 600; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .lv-studio .url-auth-suggestion__copy span { color: #817c77; font-size: 10.5px; line-height: 1.4; }
 .lv-studio .url-auth-suggestion__actions { display: flex; align-items: center; gap: 6px; }
-.lv-studio .url-auth-suggestion__actions button { min-height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #d9d7d3; border-radius: 8px; font: 550 10.5px/1 "Geist Variable", "Geist", Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, transform 90ms ease; }
+.lv-studio .url-auth-suggestion__actions button { min-height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #d9d7d3; border-radius: 8px; font: 550 10.5px/1 var(--font-sans); white-space: nowrap; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, transform 90ms ease; }
 .lv-studio .url-auth-suggestion__actions button:active { transform: scale(.98); }
 .lv-studio button.url-auth-suggestion__public { background: #fff; color: #5e5954; }
 .lv-studio button.url-auth-suggestion__public:hover:not(:disabled) { border-color: #bbb8b4; background: #fff; color: #171615; }

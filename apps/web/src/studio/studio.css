@@ -19,7 +19,7 @@
   --danger: #c0392b;
   --stage: #141413;
   --serif: var(--font-serif, "Instrument Serif", Georgia, serif);
-  --sans: var(--font-sans, Inter, system-ui, sans-serif);
+  --sans: var(--font-sans, 'DM Sans Variable', 'DM Sans', system-ui, sans-serif);
   --mono: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
   color: var(--ink);
   font-family: var(--sans);
@@ -3325,7 +3325,7 @@ to {
   --accent-soft: rgb(19 133 214 / 18%);
   --accent-ink: #7bbcf0;
 
-  --sans: 'Geist Variable', 'Geist', Inter, system-ui, sans-serif;
+  --sans: var(--font-sans, 'DM Sans Variable', 'DM Sans', system-ui, sans-serif);
 }
 
 /* The page itself, and the shell panel it sits in. */
