@@ -111,6 +111,13 @@ docker compose up -d
 
 > See [docs/installation.md](./docs/installation.md) for full setup instructions including Cloudflare Tunnel configuration.
 
+#### 04. Expose Local Services (Dev Tunnel)
+Expose any local service to the internet with automatic HTTPS on `*.trypitch.tech`:
+```bash
+./scripts/tunnel.sh 3000 pitch
+```
+> See [docs/dev-tunnel.md](./docs/dev-tunnel.md) for instructions, agent workflows, and configuration options.
+
 <br>
 
 ## ▌ LICENSING
