@@ -5497,3 +5497,40 @@ to {
     max-height: 48%;
   }
 }
+
+/* Until an artifact is viewable, the project is a conversation rather than an
+   empty editor. Assets stay with that conversation before and after preview. */
+.lv-studio:not(.new-project-page) .editor-wrap.is-chat-only .topbar-split-left {
+  width: min(760px, 100%) !important;
+  max-width: 760px;
+  margin-inline: auto;
+  border-right: 0;
+}
+
+.lv-studio:not(.new-project-page) .editor-wrap.is-chat-only .editor {
+  flex-direction: row;
+  justify-content: center;
+}
+
+.lv-studio:not(.new-project-page) .editor-wrap.is-chat-only .edit-sidebar {
+  width: min(760px, 100%);
+  max-width: 760px;
+  flex: 1 1 auto;
+  margin-inline: auto;
+}
+
+.lv-studio:not(.new-project-page) .chat-assets {
+  flex: 0 0 auto;
+  margin-top: 10px;
+}
+
+.lv-studio:not(.new-project-page) .chat-assets .asset-shelf {
+  padding: 10px 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.lv-studio:not(.new-project-page) .chat-assets .timeline-header {
+  margin-bottom: 6px;
+}

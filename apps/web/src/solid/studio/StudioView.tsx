@@ -1,7 +1,8 @@
-import { Files, Link, MonitorPlay } from 'lucide-solid'
+import { Link, MonitorPlay } from 'lucide-solid'
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
+import { hasViewablePreview } from './helpers'
 import { BrowserPreview } from './previews/BrowserPreview'
 import { DeckPreview } from './previews/DeckPreview'
 import { HtmlPreview } from './previews/HtmlPreview'
@@ -242,7 +243,6 @@ function Actions(props: { store: ProjectStore }) {
 }
 export function StudioView(props: { projectId: string }) {
   const s = useProject(props.projectId),
-    [view, setView] = createSignal<'preview' | 'files'>('preview'),
     [sidebar, setSidebar] = createSignal(
       typeof window === 'undefined' ? 520 : Math.min(620, Math.max(360, innerWidth * 0.36)),
     ),
@@ -256,6 +256,7 @@ export function StudioView(props: { projectId: string }) {
     followFeed = true,
     drag: { x: number; w: number } | null = null,
     trayDrag: { y: number; h: number } | null = null
+  let stageObserver: ResizeObserver | undefined
   createEffect(() => {
     s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
     queueMicrotask(() => {
@@ -270,19 +271,29 @@ export function StudioView(props: { projectId: string }) {
       <SceneStrip store={s} />
     ) : null,
   )
+  const editorReady = createMemo(() => hasViewablePreview(s.project?.description))
   const resizeTray = (height: number) =>
     setTray(Math.max(120, Math.min(height, Math.max(120, (stage?.clientHeight ?? 600) - 200))))
-  onMount(() => {
-    const observer = new ResizeObserver(() => resizeTray(tray()))
-    if (stage) observer.observe(stage)
-    onCleanup(() => observer.disconnect())
-  })
+  const observeStage = (element: HTMLDivElement) => {
+    stage = element
+    stageObserver?.disconnect()
+    stageObserver = new ResizeObserver(() => resizeTray(tray()))
+    stageObserver.observe(element)
+  }
+  onCleanup(() => stageObserver?.disconnect())
   return (
     <div class="lv-studio">
       <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
-        <div class="editor-wrap" ref={wrap} style={{ '--sidebar-w': `${sidebar()}px` }}>
+        <div
+          class={`editor-wrap${editorReady() ? '' : ' is-chat-only'}`}
+          ref={wrap}
+          style={{ '--sidebar-w': `${sidebar()}px` }}
+        >
           <header class="job-topbar job-topbar-split">
-            <div class="topbar-split-left" style={{ width: `${sidebar()}px` }}>
+            <div
+              class="topbar-split-left"
+              style={editorReady() ? { width: `${sidebar()}px` } : undefined}
+            >
               <div class="nav-crumb">
                 <span class="editor-project">{s.project?.title ?? '…'}</span>
                 <span class="project-kind">
@@ -300,28 +311,11 @@ export function StudioView(props: { projectId: string }) {
                 </span>
               </div>
             </div>
-            <div class="topbar-split-right">
-              <div class="topbar-split-tabs">
-                <button
-                  aria-label="Preview"
-                  class={`preview-pane-tab${view() === 'preview' ? ' is-active' : ''}`}
-                  onClick={() => setView('preview')}
-                >
-                  <MonitorPlay size={15} />
-                  <span>Preview</span>
-                </button>
-                <button
-                  aria-label={`Files (${s.assets.length})`}
-                  class={`preview-pane-tab${view() === 'files' ? ' is-active' : ''}`}
-                  onClick={() => setView('files')}
-                >
-                  <Files size={15} />
-                  <span>Files</span>
-                  <small>{s.assets.length}</small>
-                </button>
+            <Show when={editorReady()}>
+              <div class="topbar-split-right">
+                <Actions store={s} />
               </div>
-              <Actions store={s} />
-            </div>
+            </Show>
           </header>
           <div class="editor">
             <aside
@@ -342,8 +336,7 @@ export function StudioView(props: { projectId: string }) {
                   when={s.entries.length}
                   fallback={
                     <div class="feed-empty">
-                      Describe what you want, or ask for a change. Pick a scene or slide below, or
-                      press <kbd>i</kbd> and click things in the preview.
+                      Describe what you want, attach files, or ask the agent for a change.
                     </div>
                   }
                 >
@@ -354,35 +347,31 @@ export function StudioView(props: { projectId: string }) {
                     onEdit={entry => void s.rollback(entry)}
                   />
                 </Show>
+                <div class="chat-assets">
+                  <AssetShelf store={s} />
+                </div>
               </div>
               <Composer store={s} />
             </aside>
-            <div
-              class="resize-handle"
-              role="separator"
-              tabIndex={0}
-              onPointerDown={e => {
-                drag = { x: e.clientX, w: sidebar() }
-                e.currentTarget.setPointerCapture(e.pointerId)
-              }}
-              onPointerMove={e => {
-                if (!drag) return
-                const w = Math.min(640, Math.max(340, drag.w + e.clientX - drag.x))
-                side?.style.setProperty('--sidebar-w', `${w}px`)
-                wrap?.style.setProperty('--sidebar-w', `${w}px`)
-                setSidebar(w)
-              }}
-              onPointerUp={() => (drag = null)}
-            />
-            <div class="editor-stage" ref={stage}>
-              <Show
-                when={view() === 'preview'}
-                fallback={
-                  <div class="studio-files-view">
-                    <AssetShelf store={s} />
-                  </div>
-                }
-              >
+            <Show when={editorReady()}>
+              <div
+                class="resize-handle"
+                role="separator"
+                tabIndex={0}
+                onPointerDown={e => {
+                  drag = { x: e.clientX, w: sidebar() }
+                  e.currentTarget.setPointerCapture(e.pointerId)
+                }}
+                onPointerMove={e => {
+                  if (!drag) return
+                  const w = Math.min(640, Math.max(340, drag.w + e.clientX - drag.x))
+                  side?.style.setProperty('--sidebar-w', `${w}px`)
+                  wrap?.style.setProperty('--sidebar-w', `${w}px`)
+                  setSidebar(w)
+                }}
+                onPointerUp={() => (drag = null)}
+              />
+              <div class="editor-stage" ref={observeStage}>
                 <div class="player">
                   <div class="player-stage">
                     <Preview store={s} />
@@ -438,8 +427,8 @@ export function StudioView(props: { projectId: string }) {
                     </div>
                   )}
                 </div>
-              </Show>
-            </div>
+              </div>
+            </Show>
           </div>
         </div>
       </Show>
