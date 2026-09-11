@@ -319,9 +319,9 @@ export function NewProjectView(props: {
             setCreditOfferOpen(false)
             props.openSettings?.('credits')
           }}
-          onJoinDiscord={() => {
+          onClaimReward={() => {
             setCreditOfferOpen(false)
-            window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+            props.openSettings?.('connections')
           }}
         />
       </Show>

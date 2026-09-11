@@ -5,7 +5,7 @@ import '../../styles/discord-offer.css'
 export function DiscordOfferModal(props: {
   mode: 'announcement' | 'no-credits'
   onClose: () => void
-  onJoinDiscord: () => void
+  onClaimReward: () => void
   onBuyCredits?: () => void
 }) {
   const announcement = () => props.mode === 'announcement'
@@ -25,12 +25,12 @@ export function DiscordOfferModal(props: {
         </div>
         <p class="discord-offer__eyebrow">Pitch on Discord</p>
         <h2 id="discord-offer-title">
-          {announcement() ? '3 free videos a day on Discord' : 'You’re out of Pitch credits'}
+          {announcement() ? 'Join our Discord. Get 120 credits.' : 'You’re out of Pitch credits'}
         </h2>
         <p>
           {announcement()
-            ? 'Join the Pitch server and use /video. The bot will help you link your account when you make your first video.'
-            : 'Buy credits to continue here, or create up to 3 free videos today in Discord.'}
+            ? 'Meet other creators, share your work, and get a one-time welcome reward. Connect Discord and verify you’ve joined to add 120 credits to your Pitch balance.'
+            : 'Buy credits to continue, or join our Discord and claim 120 welcome credits if you haven’t already.'}
         </p>
         <div class="discord-offer__actions">
           {!announcement() && (
@@ -40,9 +40,9 @@ export function DiscordOfferModal(props: {
           )}
           <button
             class={announcement() ? 'discord-offer__primary' : 'discord-offer__secondary'}
-            onClick={props.onJoinDiscord}
+            onClick={props.onClaimReward}
           >
-            Join Discord server
+            Get welcome credits
           </button>
           {announcement() && (
             <button class="discord-offer__quiet" onClick={props.onClose}>
@@ -50,7 +50,7 @@ export function DiscordOfferModal(props: {
             </button>
           )}
         </div>
-        <small>Discord credits can only be used through the Discord bot.</small>
+        <small>One-time reward. Regular Pitch credits, usable toward any project.</small>
       </section>
     </div>
   )

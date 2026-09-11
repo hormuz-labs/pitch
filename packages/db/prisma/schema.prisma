@@ -48,6 +48,21 @@ model UserProfile {
   promoRedemptions     PromoCodeRedemption[]
 }
 
+model DiscordRewardClaim {
+  id                  String   @id() @default(cuid())
+  campaignId          String
+  userId              String
+  discordUserId       String
+  guildId             String
+  credits             Int
+  creditTransactionId String   @unique()
+  claimedAt           DateTime @default(now())
+
+  @@unique([campaignId, userId])
+  @@unique([campaignId, discordUserId])
+  @@index([claimedAt])
+}
+
 model PromoCode {
   id              String                @id() @default(cuid())
   code            String                @unique()

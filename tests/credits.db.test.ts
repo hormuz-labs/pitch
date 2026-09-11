@@ -19,6 +19,7 @@ vi.mock('@prisma/client', () => {
       create: vi.fn(),
       findMany: vi.fn(),
     },
+    discordRewardClaim: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   }
   function PrismaClient() {
@@ -41,8 +42,9 @@ import {
   getCreditBalance,
   getCreditTransactions,
   getDiscordCreditBalance,
-  grantDiscordVideoReward,
+  grantDiscordWelcomeReward,
   recordTopUp,
+  refundProjectUsage,
 } from '../packages/db/src/index.js'
 
 // The singleton the module uses — same object returned by the constructor.
@@ -153,110 +155,90 @@ describe('addCredits', () => {
   })
 })
 
-describe('Discord video reward', () => {
-  const offerDay = new Date('2026-09-11T12:00:00.000Z')
+describe('Discord welcome reward', () => {
+  beforeEach(() => {
+    mockPrisma.discordRewardClaim.findUnique.mockReset().mockResolvedValue(null)
+  })
 
-  it('grants one video at a time from the daily allowance', async () => {
-    const promoCode = {
-      upsert: vi.fn().mockResolvedValue({ id: 'promo_discord', credits: 120 }),
-      update: vi.fn().mockResolvedValue({}),
+  it('writes the receipt and regular credit grant through the same transaction', async () => {
+    const creditTransaction = { create: vi.fn().mockResolvedValue({ id: 'credit_1' }) }
+    const discordRewardClaim = {
+      create: vi.fn().mockResolvedValue({ id: 'claim_1', userId: 'user_1' }),
     }
-    const promoCodeRedemption = {
-      findUnique: vi.fn().mockResolvedValue(null),
-      create: vi.fn().mockResolvedValue({}),
-    }
-    const creditTransaction = {
-      findUnique: vi.fn().mockResolvedValue(null),
-      create: vi.fn().mockResolvedValue({}),
-      aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 120 } }),
-    }
-    mockPrisma.$transaction.mockImplementation(async (callback: any) =>
-      callback({ promoCode, promoCodeRedemption, creditTransaction }),
+    mockPrisma.$transaction.mockImplementation(async (cb: any) =>
+      cb({ creditTransaction, discordRewardClaim }),
     )
 
-    await expect(
-      grantDiscordVideoReward('user_1', 120, { dailyLimit: 3, now: offerDay }),
-    ).resolves.toEqual({
+    expect(await grantDiscordWelcomeReward('user_1', '99887766', '12345678')).toEqual({
       granted: true,
-      credits: 120,
-      remaining: 2,
-    })
-    expect(promoCode.upsert).toHaveBeenCalledWith({
-      where: { code: 'DISCORD_VIDEO_2026_09_11_1' },
-      create: { code: 'DISCORD_VIDEO_2026_09_11_1', credits: 120 },
-      update: { credits: 120 },
-    })
-    expect(promoCodeRedemption.create).toHaveBeenCalledWith({
-      data: { userId: 'user_1', codeId: 'promo_discord', credits: 120 },
+      claim: { id: 'claim_1', userId: 'user_1' },
     })
     expect(creditTransaction.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        userId: 'user_1',
         delta: 120,
+        channel: 'product',
         type: 'promo',
-        channel: 'discord',
-        idempotencyKey: 'promo:discord-video:2026-09-11:1:user_1',
+        userId: 'user_1',
       }),
     })
-  })
-
-  it('uses the next unredeemed slot for the same UTC day', async () => {
-    const creditCreate = vi.fn()
-    const findUnique = vi.fn().mockResolvedValueOnce({ credits: 120 }).mockResolvedValueOnce(null)
-    mockPrisma.$transaction.mockImplementation(async (callback: any) =>
-      callback({
-        promoCode: {
-          upsert: vi.fn(({ where }: any) => ({ id: where.code, credits: 120 })),
-          update: vi.fn().mockResolvedValue({}),
-        },
-        promoCodeRedemption: {
-          findUnique,
-          create: vi.fn().mockResolvedValue({}),
-        },
-        creditTransaction: {
-          findUnique: vi.fn().mockResolvedValue(null),
-          create: creditCreate,
-          aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 120 } }),
-        },
-      }),
-    )
-
-    await expect(
-      grantDiscordVideoReward('user_1', 120, { dailyLimit: 3, now: offerDay }),
-    ).resolves.toEqual({
-      granted: true,
-      credits: 120,
-      remaining: 1,
-    })
-    expect(creditCreate).toHaveBeenCalledWith({
+    expect(discordRewardClaim.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        idempotencyKey: 'promo:discord-video:2026-09-11:2:user_1',
+        creditTransactionId: 'credit_1',
+        discordUserId: '99887766',
+        guildId: '12345678',
       }),
     })
   })
 
-  it('rejects a fourth Discord video on the same UTC day', async () => {
-    const creditCreate = vi.fn()
-    const findUnique = vi.fn().mockResolvedValue({ credits: 120 })
-    mockPrisma.$transaction.mockImplementation(async (callback: any) =>
-      callback({
-        promoCode: {
-          upsert: vi.fn(({ where }: any) => ({ id: where.code, credits: 120 })),
-        },
-        promoCodeRedemption: { findUnique },
-        creditTransaction: { create: creditCreate },
-      }),
+  it('recognizes a claimed Discord account after it moves to another Pitch account', async () => {
+    mockPrisma.discordRewardClaim.findUnique.mockImplementation(({ where }: any) =>
+      where.campaignId_discordUserId ? { id: 'old_claim', userId: 'original_user' } : null,
     )
-
-    await expect(
-      grantDiscordVideoReward('user_1', 120, { dailyLimit: 3, now: offerDay }),
-    ).resolves.toEqual({
+    expect(await grantDiscordWelcomeReward('new_user', '99887766', '12345678')).toEqual({
       granted: false,
-      credits: 0,
-      remaining: 0,
+      claim: { id: 'old_claim', userId: 'original_user' },
     })
-    expect(findUnique).toHaveBeenCalledTimes(3)
-    expect(creditCreate).not.toHaveBeenCalled()
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('recovers the winning receipt after a concurrent unique conflict', async () => {
+    mockPrisma.$transaction.mockImplementation(async () => {
+      mockPrisma.discordRewardClaim.findUnique.mockResolvedValue({ id: 'winner', userId: 'user_1' })
+      throw { code: 'P2002' }
+    })
+    expect(await grantDiscordWelcomeReward('user_1', '99887766', '12345678')).toEqual({
+      granted: false,
+      claim: { id: 'winner', userId: 'user_1' },
+    })
+  })
+
+  it('propagates a failed transaction so the claim can be retried', async () => {
+    mockPrisma.$transaction.mockRejectedValue(new Error('database unavailable'))
+    await expect(grantDiscordWelcomeReward('user_1', '99887766', '12345678')).rejects.toThrow(
+      'database unavailable',
+    )
+  })
+})
+
+describe('project refunds', () => {
+  it('returns regular and historical sponsored charges to their original pools', async () => {
+    const creditTransaction = {
+      findUnique: vi.fn().mockResolvedValue(null),
+      groupBy: vi.fn().mockResolvedValue([
+        { channel: 'product', _sum: { delta: -40 } },
+        { channel: 'discord', _sum: { delta: -120 } },
+      ]),
+      create: vi.fn(),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { delta: 0 } }),
+    }
+    mockPrisma.$transaction.mockImplementation(async (cb: any) => cb({ creditTransaction }))
+    await refundProjectUsage('user_1', 'project_1')
+    expect(creditTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ channel: 'product', delta: 40 }),
+    })
+    expect(creditTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ channel: 'discord', delta: 120 }),
+    })
   })
 })
 

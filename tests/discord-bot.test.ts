@@ -78,17 +78,17 @@ describe('/video Discord command', () => {
     expect(api.shareProject).toHaveBeenCalledWith('99887766', 'project_123')
   })
 
-  it('explains when the daily Discord video allowance is exhausted', async () => {
+  it('points users with insufficient credits to the one-time welcome reward', async () => {
     const interaction = {
       discordUserId: '99887766',
       kind: 'auto',
-      prompt: 'Make a fourth video',
+      prompt: 'Make a video',
       acknowledge: vi.fn(),
       updateProgress: vi.fn(),
       postToChannel: vi.fn(),
     }
     const api = {
-      createVideo: vi.fn().mockRejectedValue(new PitchApiError(429, 'Daily limit reached')),
+      createVideo: vi.fn().mockRejectedValue(new PitchApiError(402, 'Insufficient credits')),
       getProject: vi.fn(),
       shareProject: vi.fn(),
     }
@@ -99,7 +99,7 @@ describe('/video Discord command', () => {
     })
 
     expect(interaction.updateProgress).toHaveBeenCalledWith(
-      'You have used today’s 3 free Discord videos. Your allowance resets at 00:00 UTC.',
+      'You need more Pitch credits. Claim your one-time Discord welcome reward in Settings → Discord, or buy credits in Pitch: https://trypitch.co/new?settings=connections',
     )
     expect(api.getProject).not.toHaveBeenCalled()
   })

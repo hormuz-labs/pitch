@@ -11,7 +11,10 @@ const clerkUser = (externalAccounts: Array<{ provider: string; providerUserId: s
   firstName: 'Pitch',
   lastName: 'Creator',
   imageUrl: 'https://img.example/avatar.png',
-  externalAccounts,
+  externalAccounts: externalAccounts.map(account => ({
+    verification: { status: 'verified' },
+    ...account,
+  })),
 })
 
 describe('verified Clerk profile', () => {
@@ -32,5 +35,12 @@ describe('verified Clerk profile', () => {
     await expect(getVerifiedClerkProfile('user_123')).resolves.toMatchObject({
       discordUserId: null,
     })
+  })
+
+  it('does not use an unverified Discord identity', async () => {
+    const user = clerkUser([{ provider: 'discord', providerUserId: '99887766' }])
+    user.externalAccounts[0].verification.status = 'unverified'
+    getUser.mockResolvedValue(user)
+    expect((await getVerifiedClerkProfile('user_123')).discordUserId).toBeNull()
   })
 })

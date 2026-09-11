@@ -90,9 +90,9 @@ export async function handleVideoCommand(
       )
       return
     }
-    if (error instanceof PitchApiError && error.status === 429) {
+    if (error instanceof PitchApiError && error.status === 402) {
       await interaction.updateProgress(
-        'You have used today’s 3 free Discord videos. Your allowance resets at 00:00 UTC.',
+        `You need more Pitch credits. Claim your one-time Discord welcome reward in Settings → Discord, or buy credits in Pitch: ${options.appUrl.replace(/\/$/, '')}/new?settings=connections`,
       )
       return
     }

@@ -70,7 +70,7 @@ export async function getCreditBalance(
   return agg._sum.delta ?? 0
 }
 
-/** Discord promotional credits are a separate, expiring UTC-day balance. */
+/** Historical daily sponsorship stays separate; new welcome grants use product credits. */
 export async function getDiscordCreditBalance(
   userId: string,
   client: PrismaClient | Prisma.TransactionClient = prisma,
@@ -140,61 +140,91 @@ export async function addCredits(
   return newBalance
 }
 
-/**
- * Claims one Discord video from a user's UTC-day allowance. Each daily slot is
- * represented by a system promo code, so PromoCodeRedemption's unique
- * (userId, codeId) pair remains the concurrency guard and no parallel free
- * credit ledger is introduced.
- */
-export async function grantDiscordVideoReward(
+export const DISCORD_WELCOME_CAMPAIGN = 'discord-welcome-v1'
+export const DISCORD_WELCOME_CREDITS = 120
+
+export async function getDiscordWelcomeClaim(userId: string, discordUserId: string | null) {
+  const campaignId = DISCORD_WELCOME_CAMPAIGN
+  const [userClaim, discordClaim] = await Promise.all([
+    prisma.discordRewardClaim.findUnique({ where: { campaignId_userId: { campaignId, userId } } }),
+    discordUserId
+      ? prisma.discordRewardClaim.findUnique({
+          where: { campaignId_discordUserId: { campaignId, discordUserId } },
+        })
+      : null,
+  ])
+  return userClaim ?? discordClaim
+}
+
+/** Called only after server-side OAuth ownership and guild membership checks. */
+export async function grantDiscordWelcomeReward(
   userId: string,
-  credits: number,
-  opts: { dailyLimit?: number; now?: Date } = {},
-): Promise<{ granted: boolean; credits: number; remaining: number }> {
-  const dailyLimit = opts.dailyLimit ?? 3
-  if (!Number.isInteger(credits) || credits <= 0 || !Number.isInteger(dailyLimit)) {
-    return { granted: false, credits: 0, remaining: 0 }
-  }
-  if (dailyLimit <= 0) return { granted: false, credits: 0, remaining: 0 }
-
-  const day = (opts.now ?? new Date()).toISOString().slice(0, 10)
-  const codeDay = day.replaceAll('-', '_')
-  for (let slot = 1; slot <= dailyLimit; slot++) {
-    const code = `DISCORD_VIDEO_${codeDay}_${slot}`
-    try {
-      const claimed = await prisma.$transaction(async tx => {
-        const promo = await tx.promoCode.upsert({
-          where: { code },
-          create: { code, credits },
-          update: { credits },
-        })
-        const existing = await tx.promoCodeRedemption.findUnique({
-          where: { userId_codeId: { userId, codeId: promo.id } },
-        })
-        if (existing) return false
-
-        await tx.promoCodeRedemption.create({
-          data: { userId, codeId: promo.id, credits },
-        })
-        await tx.promoCode.update({
-          where: { id: promo.id },
-          data: { redemptionCount: { increment: 1 } },
-        })
-        await addCredits(userId, credits, 'promo', 'Daily Discord video allowance', {
-          idempotencyKey: `promo:discord-video:${day}:${slot}:${userId}`,
-          channel: 'discord',
-          tx,
-        })
-        return true
+  discordUserId: string,
+  guildId: string,
+) {
+  const existing = await getDiscordWelcomeClaim(userId, discordUserId)
+  if (existing) return { granted: false, claim: existing }
+  try {
+    return await prisma.$transaction(async tx => {
+      const credit = await tx.creditTransaction.create({
+        data: {
+          userId,
+          delta: DISCORD_WELCOME_CREDITS,
+          type: 'promo',
+          channel: 'product',
+          description: 'Discord community welcome reward',
+          idempotencyKey: `promo:${DISCORD_WELCOME_CAMPAIGN}:${userId}`,
+        },
       })
-      if (claimed) return { granted: true, credits, remaining: dailyLimit - slot }
-    } catch (error: any) {
-      // Two simultaneous commands can race for a slot. The unique redemption
-      // picks a winner; the loser continues to the next available daily slot.
-      if (error?.code !== 'P2002') throw error
+      const claim = await tx.discordRewardClaim.create({
+        data: {
+          campaignId: DISCORD_WELCOME_CAMPAIGN,
+          userId,
+          discordUserId,
+          guildId,
+          credits: DISCORD_WELCOME_CREDITS,
+          creditTransactionId: credit.id,
+        },
+      })
+      return { granted: true, claim }
+    })
+  } catch (error: any) {
+    // Either unique identity can win a concurrent claim. The losing ledger
+    // write rolls back with the receipt; return the winner on a safe retry.
+    if (error?.code === 'P2002') {
+      const claim = await getDiscordWelcomeClaim(userId, discordUserId)
+      if (claim) return { granted: false, claim }
     }
+    throw error
   }
-  return { granted: false, credits: 0, remaining: 0 }
+}
+
+/** Refund actual charges to their original pools, including historical sponsorship. */
+export async function refundProjectUsage(userId: string, projectId: string): Promise<void> {
+  await prisma.$transaction(async tx => {
+    // Older refunds covered the entire project under this key.
+    if (
+      await tx.creditTransaction.findUnique({
+        where: { idempotencyKey: `refund:project:${projectId}` },
+      })
+    )
+      return
+    const charges = await tx.creditTransaction.groupBy({
+      by: ['channel'],
+      where: { userId, projectId, type: 'usage' },
+      _sum: { delta: true },
+    })
+    for (const charge of charges) {
+      const credits = -(charge._sum.delta ?? 0)
+      if (credits <= 0) continue
+      await addCredits(userId, credits, 'refund', 'Refund: the project produced nothing', {
+        projectId,
+        idempotencyKey: `refund:project:${projectId}:${charge.channel}`,
+        channel: charge.channel as CreditChannel,
+        tx,
+      })
+    }
+  })
 }
 
 /**

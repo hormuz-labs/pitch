@@ -262,10 +262,7 @@ export async function createProject(
   // Nothing is charged for opening a project: the studio bills what the work
   // actually costs, turn by turn (projects/usage.ts). The balance check is
   // only that they can pay for some of it.
-  const balance =
-    input.source === 'discord'
-      ? await db.getDiscordCreditBalance(userId)
-      : await db.getCreditBalance(userId)
+  const balance = await db.getCreditBalance(userId)
   if (balance < MIN_BALANCE) throw new InsufficientCreditsError(balance)
 
   const title = projectTitle(
@@ -295,8 +292,7 @@ export async function createProject(
       await promptProject(p, prompt, {
         first: true,
         uploads,
-        billingChannel:
-          input.source === 'discord' ? 'discord' : input.source === 'api' ? 'api' : 'product',
+        billingChannel: input.source === 'api' ? 'api' : 'product',
       })
   } catch (err: any) {
     logger.error({ err, projectId: p.id }, 'could not open the project')
@@ -450,11 +446,7 @@ export async function failProject(p: ProjectRow, error: string, refund: boolean)
     .catch(() => {})
   if (refund && p.creditsCharged > 0) {
     await db
-      .addCredits(p.userId, p.creditsCharged, 'refund', 'Refund: the project produced nothing', {
-        projectId: p.id,
-        idempotencyKey: `refund:project:${p.id}`,
-        channel: p.source === 'discord' ? 'discord' : 'product',
-      })
+      .refundProjectUsage(p.userId, p.id)
       .catch(err => logger.warn({ err, projectId: p.id }, 'refund failed'))
   }
   emitProjectEvent(p.id, {

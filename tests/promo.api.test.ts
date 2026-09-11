@@ -127,6 +127,14 @@ describe('POST /promo/redeem', () => {
     expect((await redeem('   ')).status).toBe(400)
     expect(mocks.promoCode.findUnique).not.toHaveBeenCalled()
   })
+
+  it('prevents retired daily Discord receipts from bypassing membership verification', async () => {
+    const response = await redeem('discord_video_2026_09_11_1')
+    expect(response.status).toBe(400)
+    expect(response.body.error).toContain('Settings → Discord')
+    expect(mocks.promoCode.findUnique).not.toHaveBeenCalled()
+    expect(mocks.addCredits).not.toHaveBeenCalled()
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

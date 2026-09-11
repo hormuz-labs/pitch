@@ -455,9 +455,9 @@ export function AppShell(props: ParentProps) {
           <DiscordOfferModal
             mode="announcement"
             onClose={() => void dismissDiscordPromo()}
-            onJoinDiscord={() => {
+            onClaimReward={() => {
               void dismissDiscordPromo()
-              window.open('https://discord.gg/a4SBW36mD', '_blank', 'noopener,noreferrer')
+              openSettings('connections')
             }}
           />
         </Show>

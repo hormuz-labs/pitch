@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
 import { Router } from 'express'
+import { getVerifiedClerkProfile } from '../lib/clerk.js'
 import * as projects from '../projects/service.js'
 
 const logger = createLogger('studio:discord-api')
@@ -42,11 +43,6 @@ async function pitchUserId(discordUserId: string): Promise<string | null> {
   return profile?.id ?? null
 }
 
-function nonNegativeInteger(value: string | undefined, fallback: number): number {
-  const parsed = Number(value ?? fallback)
-  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : fallback
-}
-
 router.use((req, res, next) => {
   if (!process.env.DISCORD_SERVICE_TOKEN) {
     return res.status(503).json({ error: 'Discord service is not configured' })
@@ -69,9 +65,7 @@ router.post('/projects', async (req, res) => {
     return res.status(400).json({ error: 'A valid Discord video type is required' })
   }
 
-  // Discord is a sponsored surface, so it must never inherit a potentially
-  // expensive model selected for the main product. Require an explicit model
-  // spec and fail before granting a daily credit slot when it is unavailable.
+  // The bot uses normal Pitch credits. Keep its configured model choice.
   const model = process.env.DISCORD_STUDIO_MODEL?.trim()
   if (!model?.includes('/') || /\s/.test(model)) {
     return res.status(503).json({ error: 'Discord model is not configured' })
@@ -81,22 +75,18 @@ router.post('/projects', async (req, res) => {
     const userId = await pitchUserId(discordUserId)
     if (!userId) return res.status(404).json({ error: 'Discord account is not linked' })
 
-    const dailyVideoLimit = nonNegativeInteger(process.env.DISCORD_DAILY_VIDEO_LIMIT, 3)
-    const creditsPerVideo = nonNegativeInteger(process.env.DISCORD_FREE_VIDEO_CREDITS, 120)
-    const reward = await db.grantDiscordVideoReward(userId, creditsPerVideo, {
-      dailyLimit: dailyVideoLimit,
-    })
-    if (!reward.granted) {
-      return res.status(429).json({
-        error: `${dailyVideoLimit} Discord videos per day allowed; resets at 00:00 UTC`,
-      })
+    // Creating now spends regular credits. An old mirror must not authorize
+    // spending after the user has disconnected Discord in Clerk.
+    const verified = await getVerifiedClerkProfile(userId)
+    if (verified.discordUserId !== discordUserId) {
+      return res.status(404).json({ error: 'Discord account is not linked' })
     }
     const project = await projects.createProject(userId, {
       prompt: discordPrompt(kind, prompt),
       source: 'discord',
       model,
     })
-    res.status(202).json({ project, reward })
+    res.status(202).json({ project })
   } catch (error: any) {
     const status = error?.status ?? 500
     if (status >= 500)

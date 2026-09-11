@@ -65,6 +65,25 @@ model UserProfile {
   promoRedemptions   PromoCodeRedemption[]
 }
 
+// Permanent campaign receipt: independent of the current Discord link and user
+// lifecycle so unlinking or deleting an account cannot reset Discord eligibility.
+// IDs are audit references, deliberately not cascading foreign keys.
+model DiscordRewardClaim {
+  id                  String   @id @default(cuid())
+  campaignId          String
+  userId              String
+  discordUserId       String
+  guildId             String
+  credits             Int
+  creditTransactionId String   @unique
+  claimedAt           DateTime @default(now())
+
+  @@unique([campaignId, userId])
+  @@unique([campaignId, discordUserId])
+  @@index([claimedAt])
+  @@deny('all', true)
+}
+
 // A redeemable credit code. Minted by an admin, entered by a user in settings.
 model PromoCode {
   id              String    @id @default(cuid())

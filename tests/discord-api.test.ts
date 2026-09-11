@@ -6,12 +6,13 @@ vi.mock('@saas/db', () => ({
   prisma: {
     userProfile: { findUnique: vi.fn() },
   },
-  grantDiscordVideoReward: vi.fn(),
 }))
 
 vi.mock('@saas/shared', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }))
+
+vi.mock('../apps/api/src/lib/clerk.js', () => ({ getVerifiedClerkProfile: vi.fn() }))
 
 vi.mock('../apps/api/src/projects/service.js', () => ({
   createProject: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('../apps/api/src/projects/service.js', () => ({
 }))
 
 import * as db from '@saas/db'
+import { getVerifiedClerkProfile } from '../apps/api/src/lib/clerk.js'
 import * as projects from '../apps/api/src/projects/service.js'
 import { router as discordRouter } from '../apps/api/src/routes/internal-discord.js'
 
@@ -38,6 +40,10 @@ describe('Discord internal project API', () => {
     vi.clearAllMocks()
     process.env.DISCORD_SERVICE_TOKEN = 'service-secret'
     process.env.DISCORD_STUDIO_MODEL = 'google/gemini-3.8-flash'
+    vi.mocked(getVerifiedClerkProfile).mockResolvedValue({
+      email: 'creator@example.test',
+      discordUserId: '99887766',
+    })
   })
 
   it('rejects requests without the shared service credential', async () => {
@@ -58,17 +64,11 @@ describe('Discord internal project API', () => {
       .send({ discordUserId: '99887766', prompt: 'Make a launch video' })
 
     expect(response.status).toBe(404)
-    expect((db as any).grantDiscordVideoReward).not.toHaveBeenCalled()
     expect(projects.createProject).not.toHaveBeenCalled()
   })
 
   it('creates a Discord-attributed project for the linked Pitch user', async () => {
     vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({ id: 'user_123' })
-    vi.mocked((db as any).grantDiscordVideoReward).mockResolvedValue({
-      granted: true,
-      credits: 120,
-      remaining: 2,
-    })
     vi.mocked(projects.createProject).mockResolvedValue({
       id: 'project_123',
       userId: 'user_123',
@@ -87,10 +87,7 @@ describe('Discord internal project API', () => {
 
     expect(response.status).toBe(202)
     expect(response.body.project).toMatchObject({ id: 'project_123', status: 'working' })
-    expect(response.body.reward).toEqual({ granted: true, credits: 120, remaining: 2 })
-    expect((db as any).grantDiscordVideoReward).toHaveBeenCalledWith('user_123', 120, {
-      dailyLimit: 3,
-    })
+    expect(response.body.reward).toBeUndefined()
     expect(projects.createProject).toHaveBeenCalledWith('user_123', {
       prompt: expect.stringMatching(
         /cinematic launch film.*User request:.*Make a launch video for Pitch/s,
@@ -111,25 +108,35 @@ describe('Discord internal project API', () => {
 
     expect(response.status).toBe(503)
     expect(response.body.error).toMatch(/Discord model is not configured/)
-    expect((db as any).grantDiscordVideoReward).not.toHaveBeenCalled()
     expect(projects.createProject).not.toHaveBeenCalled()
   })
 
-  it('rejects the fourth Discord video in a UTC day before creating a project', async () => {
+  it('requires regular Pitch credits instead of issuing a daily grant', async () => {
     vi.mocked((db as any).prisma.userProfile.findUnique).mockResolvedValue({ id: 'user_123' })
-    vi.mocked((db as any).grantDiscordVideoReward).mockResolvedValue({
-      granted: false,
-      credits: 0,
-      remaining: 0,
-    })
+    vi.mocked(projects.createProject).mockRejectedValueOnce(
+      new projects.InsufficientCreditsError(0),
+    )
 
     const response = await request(app)
       .post('/internal/discord/projects')
       .set('Authorization', 'Bearer service-secret')
       .send({ discordUserId: '99887766', prompt: 'Make one more video' })
 
-    expect(response.status).toBe(429)
-    expect(response.body.error).toMatch(/3 Discord videos per day/)
+    expect(response.status).toBe(402)
+    expect(response.body.error).toMatch(/Insufficient credits/)
+  })
+
+  it('does not spend regular credits when the mirrored Discord link has been removed', async () => {
+    vi.mocked(db.prisma.userProfile.findUnique).mockResolvedValue({ id: 'user_123' } as any)
+    vi.mocked(getVerifiedClerkProfile).mockResolvedValue({
+      email: 'creator@example.test',
+      discordUserId: null,
+    })
+    const response = await request(app)
+      .post('/internal/discord/projects')
+      .set('Authorization', 'Bearer service-secret')
+      .send({ discordUserId: '99887766', prompt: 'Make a video' })
+    expect(response.status).toBe(404)
     expect(projects.createProject).not.toHaveBeenCalled()
   })
 

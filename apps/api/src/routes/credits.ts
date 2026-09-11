@@ -2,10 +2,12 @@ import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { router as discordRewardRouter } from './discord-reward.js'
 
 const logger = createLogger('api')
 
 export const router = Router()
+router.use('/discord', discordRewardRouter)
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 const MAX_USAGE_RANGE_DAYS = 366
@@ -37,7 +39,15 @@ router.get('/', async (req, res) => {
     const [summary, projects] = await Promise.all([
       db.getCreditSummary(userId),
       db.prisma.project.findMany({
-        where: { userId, source: { not: 'discord' } },
+        where: {
+          userId,
+          // New bot projects spend regular credits; historical sponsored
+          // projects remain outside this main-platform usage summary.
+          OR: [
+            { source: { not: 'discord' } },
+            { creditTransactions: { none: { channel: 'discord' } } },
+          ],
+        },
         select: {
           id: true,
           title: true,
