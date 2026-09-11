@@ -96,11 +96,18 @@ export const launchExporter: Exporter = {
     }
     jobs.set(p.id, job)
     void ensureMix(ws.dir)
-      .catch(err => logger.warn({ err, projectId: p.id }, 'mix step failed'))
-      .finally(() => {
+      .then(() => {
         if (!job.running) return
         job.stage = 'starting'
         spawnCapture(p, ws.dir, ws.internal, job, outFile, res, publish)
+      })
+      .catch(err => {
+        if (!job.running) return
+        logger.warn({ err, projectId: p.id }, 'mix step failed')
+        job.running = false
+        job.stage = 'failed'
+        job.error = err.message
+        job.finishedAt = Date.now()
       })
     return statusOf(job)
   },

@@ -1,50 +1,62 @@
-/**
- * A breath is a dip in the bed before a payoff. These are the numbers the mix
- * hands ffmpeg for it.
- */
 import { describe, expect, it } from 'vitest'
-import { breathExpr, breathFilter, breathsOf } from '../.pi/scripts/launch-video/lib/breaths.mjs'
+import {
+  breathExpr,
+  breathFilter,
+  breathsFromSpec,
+  breathsOf,
+} from '../.pi/scripts/launch-video/lib/breaths.mjs'
 
-describe('breathsOf', () => {
-  it('cleans, defaults and orders the cues file entries', () => {
+const gain = (breaths: object[], t: number) => {
+  const clip = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
+  return new Function('t', 'clip', 'cos', 'PI', 'min', `return ${breathExpr(breaths)}`)(
+    t,
+    clip,
+    Math.cos,
+    Math.PI,
+    Math.min,
+  ) as number
+}
+
+describe('music breaths', () => {
+  it('defaults to a shallow dip and rejects non-finite envelopes', () => {
     const b = breathsOf({
-      breaths: [{ at: 12.8 }, { at: 4.3, dur: 0.3, depth: 2 }, { at: 'x' }, { at: -1 }],
+      breaths: [{ at: 2 }, { at: -1 }, { at: 3, depth: 'bad' }, { at: 5, release: 0 }],
     })
-    expect(b).toEqual([
-      { at: 4.3, dur: 0.3, depth: 1 },
-      { at: 12.8, dur: 0.45, depth: 0.75 },
-    ])
+    expect(b).toEqual([{ at: 2, dur: 0.45, depth: 0.35, attack: 0.15, release: 0.3 }])
     expect(breathsOf(null)).toEqual([])
-  })
-})
-
-describe('breathExpr', () => {
-  it('is null with nothing to duck', () => {
-    expect(breathExpr([])).toBeNull()
     expect(breathFilter([])).toBeNull()
   })
-  it('writes one clipped window per breath and multiplies them', () => {
-    const e = breathExpr(
-      [
-        { at: 4.3, dur: 0.45, depth: 0.75 },
-        { at: 12, dur: 0.5, depth: 0.5 },
-      ],
-      { ramp: 0.05 },
-    )
-    expect(e).toBe(
-      '(1-0.750*clip((t-(4.300-0.050))/0.050,0,1)*clip(((4.750+0.050)-t)/0.050,0,1))*(1-0.500*clip((t-(12.000-0.050))/0.050,0,1)*clip(((12.500+0.050)-t)/0.050,0,1))',
-    )
-    expect(breathFilter([{ at: 1, dur: 0.4, depth: 0.75 }])).toMatch(
-      /^volume=volume='.*':eval=frame$/,
-    )
+
+  it('eases into the dip and stays down across the payoff before recovering', () => {
+    const breaths = breathsOf({ breaths: [{ at: 7.5, dur: 0.45 }] })
+    expect(gain(breaths, 7.3)).toBeCloseTo(1)
+    expect(gain(breaths, 7.425)).toBeCloseTo(0.825)
+    expect(gain(breaths, 7.7)).toBeCloseTo(0.65)
+    expect(gain(breaths, 8)).toBeLessThan(0.7)
+    expect(gain(breaths, 8.3)).toBeCloseTo(1)
   })
-  it('evaluates to full gain outside a breath and the dip inside it', () => {
-    const e = breathExpr([{ at: 2, dur: 0.4, depth: 0.75 }], { ramp: 0.05 })!
-    const clip = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
-    const g = (t: number) => new Function('t', 'clip', `return ${e}`)(t, clip) as number
-    expect(g(1)).toBeCloseTo(1)
-    expect(g(2.2)).toBeCloseTo(0.25)
-    expect(g(1.975)).toBeCloseTo(0.625)
-    expect(g(3)).toBeCloseTo(1)
+
+  it('does not stack overlapping dips into an accidental near-mute', () => {
+    const breaths = breathsOf({
+      breaths: [
+        { at: 2, depth: 0.5 },
+        { at: 2.1, depth: 0.5 },
+      ],
+    })
+    expect(gain(breaths, 2.2)).toBeCloseTo(0.5)
+  })
+
+  it('takes edited beat settings from shots while retaining compiled labels', () => {
+    const breaths = breathsFromSpec(
+      { shots: [{ id: 'reveal', dur: 3, beats: [{ kind: 'breath', at: 1, depth: 0.2 }] }] },
+      {
+        cues: [{ label: 'reveal', time: 8 }],
+        breaths: [{ at: 9, depth: 0.75 }],
+      },
+    )
+    expect(breaths[0]).toMatchObject({ at: 9, depth: 0.2 })
+    expect(
+      breathsFromSpec({ shots: [{ id: 'reveal', dur: 3 }] }, { breaths: [{ at: 1 }] }),
+    ).toEqual([])
   })
 })

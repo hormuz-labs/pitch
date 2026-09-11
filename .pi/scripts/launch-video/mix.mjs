@@ -33,11 +33,12 @@
  *   --vo-map=audio/vo-map.json   →  [{ "file": "audio/vo.wav", "t": 0.3 }]
  */
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { loadShots, voStartOf } from "./lib/vo-words.mjs";
-import { breathFilter, breathsOf } from "./lib/breaths.mjs";
+import { breathFilter, breathsFromSpec } from "./lib/breaths.mjs";
+import { balanceProblems, measureAudioWindows } from "./lib/audio-levels.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -48,6 +49,10 @@ const flag = (name, dflt = null) => {
   return argv.includes(`--${name}`) ? true : dflt;
 };
 const abs = p => (isAbsolute(p) ? p : resolve(process.cwd(), p));
+const SETTINGS = abs("audio/mix-settings.json");
+let settings = {};
+if (existsSync(SETTINGS)) settings = JSON.parse(readFileSync(SETTINGS, "utf8"));
+const setting = (name, fallback) => flag(name, settings[name] ?? fallback);
 
 const DURATION = Number(flag("duration", 0));
 const OUT = abs(flag("out", "audio/mix.wav"));
@@ -74,21 +79,24 @@ const VO_TARGET_MEAN = -18;      // dense speech
 // Under narration the bed is support (-13dB). With no voice it is the whole
 // track — but it must still leave room for the SFX, which are the only thing
 // marking events in a silent film. At -5dB the bed simply buried them.
-const BED_ATTEN_DB = Number(flag("bed-db", MUSIC_ONLY ? -10 : -13));
+const BED_ATTEN_DB = Number(setting("bed-db", MUSIC_ONLY ? -10 : -13));
 
 /**
- * SFX gain trim. The per-class SFX levels are tuned for a mix whose loudest
- * element is a voice; with no voice, the same levels sit far too low against a
- * bed that has moved up. Lift them so events still read as events.
+ * Music leads a voiceless film. The bus is already class/peak-staged; never
+ * boost it globally just because narration is absent.
  */
-const SFX_TRIM_DB = Number(flag("sfx-db", MUSIC_ONLY ? 6 : 0));
-let DUCK_DEPTH = Number(flag("duck", 9));          // extra dB the bed drops under speech (6 under a continuous read — see below)
+const SFX_TRIM_DB = Number(setting("sfx-db", MUSIC_ONLY ? -3 : 0));
+let DUCK_DEPTH = Number(setting("duck", 9));
+const NO_BREATHS = [true, "true"].includes(setting("no-breaths", false));
 const MIN_CONTRAST = Number(flag("min-contrast", 10));  // VO vs music-only gap
 
 
 if (!DURATION) {
   console.error("--duration=<seconds> required (CONTENT_DURATION from __DURATION()).");
   process.exit(1);
+}
+if (![DURATION, BED_ATTEN_DB, SFX_TRIM_DB, DUCK_DEPTH].every(Number.isFinite) || DURATION <= 0 || DUCK_DEPTH < 0 || DUCK_DEPTH > 24) {
+  throw new Error("duration and gains must be finite; duration > 0 and duck between 0 and 24 dB");
 }
 
 const sh = (args, opts = {}) =>
@@ -236,6 +244,7 @@ voClips.sort((a, b) => a.t - b.t);
 // (~3dB, measured); the -13dB bed level and the vocal-band carve keep the voice
 // ~20dB on top (verified by extraction below).
 const CONTINUOUS = !MUSIC_ONLY && voClips.length === 1 && voClips[0].dur > DURATION * 0.6;
+if (CONTINUOUS && flag("duck") === null && settings.duck == null) DUCK_DEPTH = 3;
 if (CONTINUOUS) console.log("mode: continuous read — gentle duck (bed stays audible under the voice)");
 
 for (let i = 0; i < voClips.length - 1; i++) {
@@ -262,7 +271,7 @@ console.log("    T      DUR   CLIP");
 for (const c of voClips) {
   console.log(`  ${c.t.toFixed(2).padStart(6)} ${c.dur.toFixed(2).padStart(6)}   ${c.file}${c.scene ? `  (${c.scene})` : ""}`);
 }
-console.log(`\n  bed ${BED_ATTEN_DB}dB · duck ${CONTINUOUS ? "gentle (continuous read)" : "−" + DUCK_DEPTH + "dB"} under speech · vocal-band carve on bed`);
+console.log(`\n  bed ${BED_ATTEN_DB}dB · ${MUSIC_ONLY ? "music-led; no speech sidechain or vocal carve" : `speech duck up to ${DUCK_DEPTH}dB · vocal-band carve`}`);
 console.log(`  music: ${MUSIC || "(none)"}`);
 console.log(`  sfx:   ${SFX || "(none)"}`);
 
@@ -281,6 +290,7 @@ if (problems.some(p => p.startsWith("missing"))) process.exit(1);
 // 2. Step A — unified full-length VO track
 // ---------------------------------------------------------------------------
 const tmp = join(dirname(OUT), ".mix-build");
+const MIXED = join(tmp, "mix.wav");
 rmSync(tmp, { recursive: true, force: true });
 mkdirSync(tmp, { recursive: true });
 mkdirSync(dirname(OUT), { recursive: true });
@@ -302,9 +312,9 @@ if (!MUSIC_ONLY) {
     `[m]acompressor=threshold=-21dB:ratio=4:makeup=1.8,volume=+4dB,` +
     // The makeup gain can push peaks to 0dBFS on loud lines; catch them here so
     // the VO stem never enters the mix already clipped.
-    `alimiter=level=disabled:limit=0.89,` +
+    `alimiter=level=disabled:limit=0.89:latency=1,` +
     `apad=whole_dur=${(DURATION + TAIL).toFixed(3)},atrim=0:${(DURATION + TAIL).toFixed(3)}[out]`,
-    "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", VO_FULL,
+    "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_f32le", VO_FULL,
   ]);
 }
 if (!MUSIC_ONLY) {
@@ -324,9 +334,12 @@ if (MUSIC) {
   BED = join(tmp, "music_bed.wav");
   // Breaths: the `breath` beats the page exported through cues.mjs. The bed
   // dips there — the pause before a payoff both reference films have.
-  let breaths = [];
-  try { breaths = breathsOf(JSON.parse(readFileSync(abs("audio/cues.json"), "utf8"))); } catch { breaths = []; }
-  if (flag("no-breaths")) breaths = [];
+  let cues = null;
+  try { cues = JSON.parse(readFileSync(abs("audio/cues.json"), "utf8")); } catch {}
+  let spec = null;
+  try { spec = loadShots(abs("shots.js")); } catch {}
+  let breaths = breathsFromSpec(spec, cues);
+  if (NO_BREATHS) breaths = [];
   const breathAf = breathFilter(breaths);
   // The carve: two gentle dips across the speech intelligibility band. Gentle
   // and wide beats one deep notch — the bed keeps its character, the voice
@@ -342,29 +355,33 @@ if (MUSIC) {
     `volume=${BED_ATTEN_DB}dB,` +
     (breathAf ? `${breathAf},` : "") +
     `apad=whole_dur=${(DURATION + TAIL).toFixed(3)}`,
-    "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", BED,
+    "-ar", "48000", "-ac", "2", "-c:a", "pcm_f32le", BED,
   ]);
   const bedStats = await meanVolume(BED);
-  console.log(`Step B  music_bed      mean ${bedStats.mean}dB  peak ${bedStats.peak}dB  (carved + ${BED_ATTEN_DB}dB${breaths.length ? ` · ${breaths.length} breath${breaths.length === 1 ? "" : "s"} at ${breaths.map((b) => b.at.toFixed(1) + "s").join(", ")}` : ""})`);
+  if (MUSIC_ONLY && bedStats.mean < -30) {
+    rmSync(tmp, { recursive: true, force: true });
+    console.error(`❌ Music bed averages ${bedStats.mean}dB; raise --bed-db before mixing SFX (need at least -30dB).`);
+    process.exit(1);
+  }
+  console.log(`Step B  music_bed      mean ${bedStats.mean}dB  peak ${bedStats.peak}dB  (${MUSIC_ONLY ? "uncarved" : "carved"} + ${BED_ATTEN_DB}dB${breaths.length ? ` · ${breaths.length} scheduled breath${breaths.length === 1 ? "" : "s"} at ${breaths.map((b) => b.at.toFixed(1) + "s").join(", ")}` : ""})`);
 
   // ---- Step C — duck the bed against the VO ------------------------------
   if (MUSIC_ONLY) {
     console.log(`Step C  music_ducked   (skipped — nothing to duck against)`);
   } else {
   const DUCKED = join(tmp, "music_ducked.wav");
-  // ratio derived from the requested depth; threshold low enough that normal
-  // speech level triggers it, release long enough to avoid pumping between words.
-  // Continuous read: a gentle, high-threshold duck (a few dB) — the bed must stay
-  // audible for the whole film since there is no gap for it to return in.
-  // Fragmented lines: the classic deep duck that clears each line and releases.
-  const ratio = CONTINUOUS ? "2.0" : Math.max(2, Math.min(20, DUCK_DEPTH * 1.6)).toFixed(1);
-  const threshold = CONTINUOUS ? "0.12" : "0.02";
+  // A low threshold follows speech with a release long enough to bridge words.
+  // Blend a dry floor with the compressed bed: --duck is a real maximum
+  // reduction, also for a continuous read, instead of an unrelated ratio.
+  const floor = 10 ** (-DUCK_DEPTH / 20);
   await sh([
     "-i", BED, "-i", VO_FULL,
     "-filter_complex",
-    `[1:a]asplit=1[sc];[0:a][sc]sidechaincompress=` +
-    `threshold=${threshold}:ratio=${ratio}:attack=8:release=${CONTINUOUS ? 600 : 320}:makeup=1:level_sc=1[out]`,
-    "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", DUCKED,
+    `[0:a]asplit=2[dry][wet];[wet][1:a]sidechaincompress=` +
+    `threshold=0.02:ratio=10:attack=15:release=350:makeup=1[compressed];` +
+    `[dry]volume=${floor}[floor];[compressed]volume=${1 - floor}[duck];` +
+    `[floor][duck]amix=inputs=2:normalize=0[out]`,
+    "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_f32le", DUCKED,
   ]);
   const duckStats = await meanVolume(DUCKED);
   console.log(`Step C  music_ducked   mean ${duckStats.mean}dB  peak ${duckStats.peak}dB  (sidechained to VO)`);
@@ -385,11 +402,33 @@ if (SFX) {
   if (SFX_TRIM_DB !== 0) {
     SFX_STEM = join(tmp, "sfx_trimmed.wav");
     await sh(["-i", sfxPath, "-af", `volume=${SFX_TRIM_DB}dB`,
-      "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", SFX_STEM]);
+      "-ar", "48000", "-ac", "2", "-c:a", "pcm_f32le", SFX_STEM]);
     const t = await meanVolume(SFX_STEM);
-    console.log(`Step C2 sfx_trimmed    mean ${t.mean}dB  (${SFX_TRIM_DB > 0 ? "+" : ""}${SFX_TRIM_DB}dB for a voiceless mix)`);
+    console.log(`Step C2 sfx_trimmed    mean ${t.mean}dB  (${SFX_TRIM_DB > 0 ? "+" : ""}${SFX_TRIM_DB}dB SFX trim)`);
   }
   stems.push(SFX_STEM);
+}
+
+// Check unquantized stems before writing the mix. A final limiter can hide
+// bad gain staging but cannot repair an intermediate that already clipped.
+if (SFX_STEM) {
+  const fx = await measureAudioWindows(SFX_STEM, DURATION);
+  const issues = [];
+  if (fx.clipped) issues.push(`${fx.clipped} SFX samples exceed full scale before the master limiter; lower --sfx-db`);
+  if (MUSIC_ONLY && BED) {
+    const bed = await measureAudioWindows(BED, DURATION);
+    const bad = balanceProblems(bed, fx, { end: DURATION - 1.5 });
+    if (bad.length) {
+      const worst = bad.reduce((a, b) => a.reduceDb > b.reduceDb ? a : b);
+      issues.push(`SFX overpower music near ${worst.t.toFixed(2)}s: RMS ${worst.meanDelta.toFixed(1)}dB / peak ${worst.peakDelta.toFixed(1)}dB above bed (limits 0 / 6dB). Lower --sfx-db by at least ${Math.ceil(worst.reduceDb)}dB or rebalance that cue`);
+    }
+  }
+  if (issues.length) {
+    rmSync(tmp, { recursive: true, force: true });
+    console.error(`❌ Audio balance failed:\n${issues.map(x => "   " + x).join("\n")}`);
+    process.exit(1);
+  }
+  console.log("   SFX headroom and local music balance verified (400ms windows / 100ms hops)");
 }
 
 const fadeOutAt = Math.max(0, DURATION - 1.5);
@@ -400,12 +439,12 @@ await sh([
   `${stems.map((_, i) => `[s${i}]`).join("")}amix=inputs=${stems.length}:dropout_transition=0:normalize=0[m];` +
   `[m]afade=t=in:d=0.3,afade=t=out:st=${fadeOutAt.toFixed(3)}:d=1.4,` +
   `apad=whole_dur=${(DURATION + TAIL).toFixed(3)},atrim=0:${(DURATION + TAIL).toFixed(3)},` +
-  `alimiter=level=disabled:limit=0.95[out]`,
-  "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", OUT,
+  `alimiter=level=disabled:limit=0.95:latency=1[out]`,
+  "-map", "[out]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", MIXED,
 ]);
 
-const outStats = await meanVolume(OUT);
-const outDur = await probeDur(OUT);
+const outStats = await meanVolume(MIXED);
+const outDur = await probeDur(MIXED);
 console.log(`Step D  mix            mean ${outStats.mean}dB  peak ${outStats.peak}dB  ${outDur.toFixed(2)}s`);
 
 // ---------------------------------------------------------------------------
@@ -446,7 +485,7 @@ const bedWindows = (!gapWindows.length && BED) ? voWindows.map(w => ({ ...w, lab
 
 async function measureWindow(w) {
   const f = join(tmp, `w_${Math.round(w.ss * 100)}_${w.file ? "bed" : "mix"}.wav`);
-  await sh(["-i", w.file || OUT, "-ss", String(w.ss), "-t", String(w.t), "-c:a", "pcm_s16le", f]);
+  await sh(["-i", w.file || MIXED, "-ss", String(w.ss), "-t", String(w.t), "-c:a", "pcm_s16le", f]);
   const m = await meanVolume(f);
   return { ...w, ...m };
 }
@@ -457,8 +496,6 @@ for (const w of voWindows) { const r = await measureWindow(w); voM.push(r); cons
 const gapM = [];
 for (const w of gapWindows) { const r = await measureWindow(w); gapM.push(r); console.log(`   GAP  ${r.mean.toFixed(1)}dB  ${r.label}`); }
 for (const w of bedWindows) { const r = await measureWindow(w); gapM.push(r); console.log(`   BED  ${r.mean.toFixed(1)}dB  ${r.label}`); }
-
-rmSync(tmp, { recursive: true, force: true });
 
 let failed = false;
 if (MUSIC_ONLY) {
@@ -498,5 +535,17 @@ if (outDur < DURATION + 1.0) {
   failed = true;
 }
 
-console.log(`\n${failed ? "⚠" : "✅"} ${OUT}`);
+if (!failed && !problems.length) renameSync(MIXED, OUT);
+console.log(`\n${failed || problems.length ? "⚠ Mix rejected; previous output preserved:" : "✅"} ${OUT}`);
+// The export/idle safety net uses this same script. Keep explicit mix choices
+// across its automatic rebuilds instead of reverting to the default gains.
+if (!failed && !problems.length && !flag("out")) {
+  const next = JSON.stringify({ "bed-db": BED_ATTEN_DB, "sfx-db": SFX_TRIM_DB, duck: DUCK_DEPTH, "no-breaths": NO_BREATHS }, null, 2);
+  if (!existsSync(SETTINGS) || readFileSync(SETTINGS, "utf8") !== next) {
+    writeFileSync(SETTINGS, next);
+    const mixedAt = statSync(OUT).mtime;
+    utimesSync(SETTINGS, mixedAt, mixedAt);
+  }
+}
+rmSync(tmp, { recursive: true, force: true });
 process.exit(failed || problems.length ? 1 : 0);

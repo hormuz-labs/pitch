@@ -28,6 +28,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { cueGain, MICRO_EVENTS } from "./lib/audio-levels.mjs";
 
 const execFileAsync = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -72,8 +73,6 @@ const FALLBACK = {
   subdrop: ["impact"],
 };
 
-const MAX_GAIN_DB = 18;
-
 // ---------------------------------------------------------------------------
 function loadManifest() {
   if (!existsSync(MANIFEST)) {
@@ -113,6 +112,7 @@ async function inspectWorkspaceClip(rel, event) {
 
   let onset = 0;
   let lufs = null;
+  let peak = null;
   try {
     const { stderr } = await execFileAsync("ffmpeg", [
       "-hide_banner", "-nostats", "-i", file,
@@ -123,6 +123,7 @@ async function inspectWorkspaceClip(rel, event) {
     }
     const integrated = [...stderr.matchAll(/\bI:\s*(-?[\d.]+) LUFS/g)];
     if (integrated.length) lufs = Number(integrated.at(-1)[1]);
+    peak = Number(stderr.match(/True peak:\s*Peak:\s*(-?[\d.]+) dB FS/)?.[1] ?? NaN);
   } catch {
     // Duration is enough to place the clip; missing level data leaves gain manual.
   }
@@ -133,7 +134,10 @@ async function inspectWorkspaceClip(rel, event) {
     event,
     onset,
     effDur: Math.max(0, fileDur - onset),
-    lufs: Number.isFinite(lufs) ? lufs : null,
+    // EBU R128 reports its -70 sentinel for clips shorter than a gating
+    // window. Their measured peak still provides safe staging.
+    lufs: Number.isFinite(lufs) && lufs > -69 ? lufs : null,
+    peak: Number.isFinite(peak) ? peak : null,
     trust: 1,
     workspace: true,
   };
@@ -290,7 +294,7 @@ const problems = [];
 
 for (const [i, cue] of cues.entries()) {
   const label = cue.label || `cue${i + 1}`;
-  if (typeof cue.t !== "number") { problems.push(`${label}: missing numeric 't'`); continue; }
+  if (!Number.isFinite(cue.t)) { problems.push(`${label}: missing finite numeric 't'`); continue; }
 
   let clip = null, borrowedFrom = null;
   if (cue.file) {
@@ -332,25 +336,36 @@ for (const [i, cue] of cues.entries()) {
 
   const event = cue.event || clip.event;
   const lead = cue.lead ?? DEFAULT_LEAD[event] ?? 0;
+  if (!Number.isFinite(lead) || (cue.dur != null && (!Number.isFinite(cue.dur) || cue.dur <= 0))
+    || (cue.fadeOut != null && (!Number.isFinite(cue.fadeOut) || cue.fadeOut < 0))) {
+    problems.push(`${label}: lead/fadeOut must be finite and dur must be positive`);
+    continue;
+  }
   // Place the TRANSIENT at t: back off the clip's own silent head, then the
   // class lead so travel sounds peak on the beat instead of starting on it.
-  const startAt = cue.align === "file" ? cue.t : cue.t - clip.onset - lead;
-  const trimFrom = cue.align === "file" ? 0 : 0; // onset is handled by delay, keep the attack intact
+  // A riser ENDS at t. Its audible duration is the approach to the payoff.
+  const audibleDur = cue.dur ?? (event === "riser" ? Math.min(1.5, clip.effDur) : null);
+  const startAt = cue.align === "file" ? cue.t
+    : event === "riser" ? cue.t - clip.onset - audibleDur
+    : cue.t - clip.onset - lead;
+  // Negative placement must trim the head, not shift the transient later.
+  const trimFrom = Math.max(0, -startAt);
 
   // How long the SOUND should last. Without this a sustained clip (typing,
   // data chatter, a long whoosh) keeps playing after the visual event it
   // describes has finished — the keyboard still clattering once the text has
   // landed. `dur` is measured in AUDIBLE seconds from the transient, so it
   // lines up with the animation length you read off the timeline.
-  const dur = cue.dur ?? null;
+  const dur = audibleDur;
   const fade = cue.fadeOut ?? (dur ? Math.min(0.18, dur * 0.3) : 0);
 
   const target = cue.targetLufs ?? TARGET_LUFS[event] ?? -28;
   const offset = cue.gainDb ?? defaults.gainDb ?? 0;
-  let gainDb = offset;
-  if (clip.lufs != null) {
-    gainDb = Math.max(-MAX_GAIN_DB, Math.min(MAX_GAIN_DB, target - clip.lufs)) + offset;
+  if (!Number.isFinite(target) || !Number.isFinite(offset)) {
+    problems.push(`${label}: targetLufs and gainDb must be finite numbers`);
+    continue;
   }
+  const { gainDb, ceiling } = cueGain(clip, target, offset, event);
 
   if (clip.lufs != null && Math.abs(target - clip.lufs) > 14) {
     problems.push(`${label}: needs ${(target - clip.lufs).toFixed(1)}dB to reach ${target} LUFS — ` +
@@ -363,15 +378,21 @@ for (const [i, cue] of cues.entries()) {
     problems.push(`${label}: dur ${dur}s exceeds the clip's ${clip.effDur}s of audio — ` +
       `it will end early; pick a longer clip or shorten the cue`);
   }
+  if (!dur && clip.effDur > 1.5) {
+    problems.push(`${label}: ${clip.effDur.toFixed(2)}s sustained sound needs 'dur' matching the animation (and optional fadeOut)`);
+  }
+  if (trimFrom >= clip.onset + (dur ?? clip.effDur)) {
+    problems.push(`${label}: the sound ends before the timeline starts — move t later`);
+  }
 
-  plan.push({ label, event, clip, t: cue.t, startAt: Math.max(0, startAt), trimFrom, gainDb, borrowedFrom, dur, fade });
+  plan.push({ label, event, clip, t: cue.t, startAt: Math.max(0, startAt), trimFrom, gainDb, ceiling, borrowedFrom, dur, fade });
 }
 
 // --- density check: two tiers (see references/sfx-design.md §5) ------------
 // Tier 2 is quiet supporting texture and may be frequent; Tier 1 is the loud
 // signature layer and is strictly budgeted. Counting them together would either
 // ban legitimate texture or wave through six impacts in a row.
-const TIER2 = new Set(["tick", "pop", "click", "type", "data"]);
+const TIER2 = MICRO_EVENTS;
 const per30 = {};
 for (const p of plan) {
   const bucket = Math.floor(p.t / 30);
@@ -388,7 +409,9 @@ for (const [bucket, b] of Object.entries(per30)) {
 
 // Cues closer than 120ms smear into one mushy noise instead of reading as
 // separate events.
-const bySeq = [...plan].sort((a, b) => a.t - b.t);
+// A riser's t is its END, so sharing a payoff with an impact/chime is the
+// intended handoff, not two simultaneous attacks.
+const bySeq = plan.filter(p => p.event !== "riser").sort((a, b) => a.t - b.t);
 for (let i = 0; i < bySeq.length - 1; i++) {
   const gap = bySeq[i + 1].t - bySeq[i].t;
   if (gap < 0.12) {
@@ -400,6 +423,7 @@ for (let i = 0; i < bySeq.length - 1; i++) {
 }
 
 console.log(`SFX bus plan — ${plan.length} cues over ${duration}s`);
+console.log("Peak ceilings before mix trim: signature −9dBFS, micro-texture −18dBFS; LUFS correction is capped by transient headroom.");
 console.log(`★ signature (every event except ${[...TIER2].join("/")}) — ~6 per 30s, one per shot; unmarked rows are micro-texture, up to ~14 per 30s\n`);
 console.log("     T      START   GAIN    EVENT         CLIP");
 for (const p of plan) {
@@ -422,6 +446,8 @@ if (problems.length) {
   for (const p of problems) console.log(`⚠ ${p}`);
 }
 if (!plan.length) { console.error("\nNothing to render."); process.exit(1); }
+// Validate before touching an existing good bus.
+if (problems.length) process.exit(1);
 if (DRY) { console.log("\n--dry-run: nothing rendered."); process.exit(problems.length ? 1 : 0); }
 
 // --- render ----------------------------------------------------------------
@@ -446,12 +472,15 @@ for (const [i, p] of plan.entries()) {
       filters.push(`afade=t=out:st=${Math.max(0, end - p.fade).toFixed(3)}:d=${p.fade.toFixed(3)}`);
     }
   }
-  filters.push("aformat=sample_fmts=s16:sample_rates=48000:channel_layouts=stereo");
+  if (p.trimFrom) filters.push(`atrim=start=${p.trimFrom.toFixed(3)}`, "asetpts=PTS-STARTPTS");
+  filters.push(`alimiter=level=disabled:limit=${(10 ** (p.ceiling / 20)).toFixed(6)}:latency=1`);
+  filters.push("aformat=sample_fmts=flt:sample_rates=48000:channel_layouts=stereo");
 
   await execFileAsync("ffmpeg", [
     "-hide_banner", "-loglevel", "error", "-y",
     "-i", clipPath(p.clip),
     "-af", filters.join(","),
+    "-c:a", "pcm_f32le",
     part,
   ], { timeout: 120000 });
   parts.push({ part, delayMs: Math.round(p.startAt * 1000) });
@@ -465,13 +494,13 @@ const mixIn = parts.map((_, i) => `[d${i}]`).join("");
 const filter =
   `${chains};${mixIn}amix=inputs=${parts.length}:duration=longest:normalize=0[m];` +
   `[m]apad=whole_dur=${(duration + 1.2).toFixed(3)},atrim=0:${(duration + 1.2).toFixed(3)},` +
-  `alimiter=level=disabled:limit=0.95[out]`;
+  `alimiter=level=disabled:limit=0.95:latency=1[out]`;
 
 await execFileAsync("ffmpeg", [
   "-hide_banner", "-loglevel", "error", "-y",
   ...inputs,
   "-filter_complex", filter, "-map", "[out]",
-  "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2",
+  "-c:a", "pcm_f32le", "-ar", "48000", "-ac", "2",
   outPath,
 ], { timeout: 600000, maxBuffer: 16 * 1024 * 1024 });
 

@@ -36,6 +36,7 @@ import {
 import { GSAP_PLUGINS, refreshShell, writeShell } from '../lib/shell.ts'
 import { type ReconTokens, starterShots } from '../lib/starter-shots.ts'
 import { hostAction } from '../lib/studio-host.ts'
+import { cachedValidation } from '../lib/validation-cache.ts'
 import type { CommandSpec } from './registry.ts'
 
 const execFileAsync = promisify(execFile)
@@ -79,6 +80,31 @@ async function runScript(name: string, args: string[], cwd: string, timeoutMs = 
     const detail = `${e.stdout ?? ''}\n${e.stderr ?? ''}`.trim() || e.message || String(err)
     throw new Error(detail)
   }
+}
+
+function validateFilm(name: string, args: string[], ws: string, out: string) {
+  const audio = join(ws, 'audio')
+  const narration = existsSync(audio)
+    ? readdirSync(audio)
+        .filter(f => /^vo[.-]|^vo[_-]/.test(f))
+        .map(f => join(audio, f))
+    : []
+  return cachedValidation({
+    workspace: ws,
+    key: JSON.stringify([name, args]),
+    inputs: [
+      ...['index.html', 'shots.js', 'js', 'css', 'assets', 'recon', 'uploads', 'vendor'].map(f =>
+        join(ws, f),
+      ),
+      ...args.filter(a => !a.startsWith('--')).map(f => join(ws, f)),
+      ...narration,
+      ...['gsap', 'three', 'lottie', 'rive', 'p5', 'fonts'].map(f => join(ASSETS_DIR, f)),
+      ENGINE_DIR,
+      SCRIPTS,
+    ],
+    outputs: [resolveIn(ws, out)],
+    run: () => runScript(name, args, ws, 300_000),
+  })
 }
 
 // ── The engine's schema, served in pieces ─────────────────────────────────────
@@ -538,7 +564,7 @@ export default function motionCommands(): CommandSpec[] {
       if (p.shots?.length) a.push(`--shots=${p.shots.join(',')}`)
       if (p.per_shot) a.push(`--per-shot=${p.per_shot}`)
       if (p.times?.length) a.push(`--times=${p.times.join(',')}`)
-      const out = await runScript('review.mjs', a, ws, 300_000)
+      const out = await validateFilm('review.mjs', a, ws, outRel)
       const dir = resolveIn(ws, outRel)
       const sheets = existsSync(dir)
         ? readdirSync(dir)
@@ -601,7 +627,7 @@ export default function motionCommands(): CommandSpec[] {
       if (p.min_eps) a.push('--min-eps=' + p.min_eps)
       if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       try {
-        return text(await runScript('audit.mjs', a, ws))
+        return text(await validateFilm('audit.mjs', a, ws, p.out || 'audit'))
       } catch (err: any) {
         // A failed gate is a result, not a crash: hand the scorecard back verbatim.
         const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
@@ -845,7 +871,7 @@ export default function motionCommands(): CommandSpec[] {
     description:
       'Query the curated SFX manifest or build the SFX bus. mode=list: the event vocabulary. ' +
       'mode=query: ranked, measured clips — pass every event the film needs in one call (event: "impact,whoosh_deep,chime"), not one call per event. ' +
-      'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json, placing every cue by its measured onset. ' +
+      'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json with peak-safe gain staging. Transients land at t; a riser ENDS at t (dur is its approach, default at most 1.5s). Every other sound longer than 1.5s requires dur matching its animation. ' +
       'Budget per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture; write the sheet to that budget so the build passes first time. The build must finish with no placement warnings.',
     parameters: Type.Object({
       mode: Type.Union([Type.Literal('list'), Type.Literal('query'), Type.Literal('build')]),
@@ -897,7 +923,9 @@ export default function motionCommands(): CommandSpec[] {
     description:
       'Final mixdown to audio/mix.wav: the continuous narration read (shots.js audio.vo, placed at audio.voStart) over the music bed ' +
       'with ducking and a frequency carve, plus the SFX bus, then verified by extraction — fails if ' +
-      'the voice is not clearly above the bed. Pass music_only for a film without narration.',
+      'the voice is not clearly above the bed, or music-only SFX overpower the music in local 400ms windows. Pass music_only for a film without narration. ' +
+      'Music-only defaults: bed -10dB, SFX -3dB, no automatic sidechain. Scheduled breath beats have smooth attack/release. ' +
+      'Successful default-output mixes save gains to audio/mix-settings.json for automatic rebuilds. A level-only fix needs only this command.',
     parameters: Type.Object({
       duration: Type.Number({ description: 'Film duration in seconds (__DURATION())' }),
       music: Type.Optional(Type.String({ description: 'Music bed path, e.g. audio/music.mp3' })),
@@ -906,7 +934,20 @@ export default function motionCommands(): CommandSpec[] {
       bed_db: Type.Optional(
         Type.Number({ description: 'Bed attenuation in dB (default -13, or -10 music-only)' }),
       ),
-      duck: Type.Optional(Type.Number({ description: 'Ducking depth in dB (default 9)' })),
+      sfx_db: Type.Optional(
+        Type.Number({ description: 'SFX bus trim in dB (default -3 music-only, 0 narrated)' }),
+      ),
+      no_breaths: Type.Optional(
+        Type.Boolean({ description: 'Disable scheduled music dips; false re-enables them' }),
+      ),
+      duck: Type.Optional(
+        Type.Number({
+          minimum: 0,
+          maximum: 24,
+          description:
+            'Maximum speech duck in dB (default 3 continuous, 9 otherwise; 0 disables it). Does not duck music against SFX.',
+        }),
+      ),
       vo_map: Type.Optional(
         Type.String({ description: 'Explicit VO placement JSON instead of shots.js' }),
       ),
@@ -920,6 +961,8 @@ export default function motionCommands(): CommandSpec[] {
       if (p.sfx) a.push('--sfx=' + relativeIn(ws, p.sfx))
       if (p.music_only) a.push('--music-only')
       if (p.bed_db !== undefined) a.push('--bed-db=' + p.bed_db)
+      if (p.sfx_db !== undefined) a.push('--sfx-db=' + p.sfx_db)
+      if (p.no_breaths !== undefined) a.push('--no-breaths=' + p.no_breaths)
       if (p.duck !== undefined) a.push('--duck=' + p.duck)
       if (p.vo_map) a.push('--vo-map=' + relativeIn(ws, p.vo_map))
       if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
@@ -1054,8 +1097,8 @@ export default function motionCommands(): CommandSpec[] {
         : p.section
           ? [String(p.section)]
           : []
+      const out: string[] = []
       if (wanted.length) {
-        const out: string[] = []
         for (const want of wanted) {
           const key = want
             .toLowerCase()
@@ -1066,7 +1109,6 @@ export default function motionCommands(): CommandSpec[] {
             [...sections.entries()].find(([k]) => k.includes(key) || key.includes(k))?.[1]
           out.push(hit ?? `No section "${want}". Sections: ${[...sections.keys()].join(', ')}`)
         }
-        return text(out.join('\n\n'))
       }
 
       if (p.types?.length) {
@@ -1091,7 +1133,7 @@ export default function motionCommands(): CommandSpec[] {
           p.types.some((t: string) => /ui-frame/.test(t)) && uiFrameKey
             ? `\n\n${sections.get(uiFrameKey)}`
             : ''
-        return text(
+        out.push(
           [
             common,
             '',
@@ -1108,9 +1150,12 @@ export default function motionCommands(): CommandSpec[] {
         )
       }
 
+      if (out.length) return text(out.join('\n\n'))
+
       return text(
         `Shot types (pitch motion schema --types <type> for their fields):\n  ${[...types.keys()].join(', ')}\n\n` +
-          `Sections (pitch motion schema --section <name>):\n  ${[...sections.keys()].filter(k => k !== 'intro').join(', ')}`,
+          `Sections (pitch motion schema --section <name>):\n  ${[...sections.keys()].filter(k => k !== 'intro').join(', ')}\n\n` +
+          'Batch example: pitch motion schema --section "actors,density layer,custom shot types" --types line,logo-cta,ui-frame',
       )
     },
   })

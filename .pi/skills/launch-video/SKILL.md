@@ -205,6 +205,12 @@ for three sections, checking after a save, listing the lab and reading one
 effect. The last run spent six turns on six schema lookups before it had
 written a line. Turns are the cost; a batch is free.
 
+Use the syntax here directly; ask for help only when a needed option is
+unknown. Get sections **and** types together, for example:
+`pitch motion schema --section "actors,density layer,custom shot types" --types line,logo-cta,ui-frame`.
+Import a listed bed with `pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`;
+probe that workspace-relative path. Never probe an absolute library path.
+
 **One shot at a time, and the film runs after every one.** The user is
 watching the preview; a film that appears all at once at minute nine is a
 blank stage for nine minutes. Measured on a real run: the scaffold landed at
@@ -230,19 +236,13 @@ is a film that plays end to end — shorter than the last one, never broken.
    (`js/shots/<type>.js`, `css/shots/<type>.css`): a change to one type is a
    small edit, and a `write` over an existing file past 12KB is refused —
    read the lines you change and `edit` them.
-3. Audio, once the **picture is settled** — every shot in, every `dur` you
-   intend. Narration and the mix are measured against the cut, so a shot
-   retimed afterwards costs the whole pass again (that same run paid for two
-   full audio passes, ~2 minutes each). `references/audio.md`. Bed via `pitch motion find-audio`, or `pitch motion music`
-   when the library has nothing that fits. Narration is one read: script
+3. If narrated, record and sync before the visual gate: script
    (1.9–2.4 words/s) → `pitch motion tts` once (it prints the file it wrote)
    → `audio.vo` → `pitch motion align` →
-   `cue` on every shot → `pitch motion sync --write`. Then `pitch motion cues`,
-   one `pitch motion sfx --mode query --event impact,whoosh_deep,…` for every
-   event the film needs, a cue sheet written to the budget (~6 signature
-   cues per 30s, one per shot), `pitch motion sfx --mode build` (★ marks the
-   signature cues the budget counts), `pitch motion mix`.
-4. `pitch motion audit`: zero ❌. A ⚠️ is a note: pacing notes name the still
+   `cue` on every shot → `pitch motion sync --write` → `pitch motion check`.
+   Music-only films skip this step.
+4. Once all shots are present, **one full** `pitch motion audit`, followed by
+   **one full** `pitch motion review`. Zero ❌. A ⚠️ is a note: pacing notes name the still
    stretch — answer with a beat or a cut, or keep it and say why in
    direction.md — that closes the note; never a longer shot
    (`references/pacing.md` has the numbers). Then `pitch motion review`: fix every line of its clipped-type
@@ -252,9 +252,22 @@ is a film that plays end to end — shorter than the last one, never broken.
    you touched — not another audit unless a `dur`, a cue or a beat changed,
    and then `pitch motion audit --shots <ids>` for those shots only: it samples
    their stretch on the same grid, in a quarter of the time.
+   Collect the complete report, fix all affected shots in one batch, then run
+   one scoped review for that batch. Do not check every CSS/JS edit separately
+   or run a final full-film pass after scoped fixes already passed. Unchanged
+   successful checks reuse their reports and frames. Harmless factory squeezes
+   below 1.1× are ignored; do not hunt for an unnamed overrun.
+5. Finish sound against the settled picture (`references/audio.md`). Read the
+   audio reference before querying/building. `pitch motion check` already wrote
+   the real labels to `audio/cues.json`; no separate cues call is needed.
+   Query all needed events once, write the cue sheet with duration limits for
+   sustained sounds, build once, then mix. Music-only uses `--music_only`;
+   music leads, and `--sfx_db` controls its supporting effects. The mix names
+   any local balance failure: fix that cue or trim, then re-mix.
    Audio-only changes (a breath, a level) and a `direction.md` edit need no
-   audit at all. Quote the scorecard, say what the sheets showed, stop.
-5. Export only when the user asks for an MP4: `pitch motion audit`,
+   visual audit. Quote the scorecard and audio checks, name the bed, stop.
+6. Export only when the user asks for an MP4: reuse the passing audit for the
+   unchanged cut, then
    `pitch motion render --out <file> --out-res 1920x1080 --fps 60`, `pitch motion verify-duration`.
 
 Length is approximate: the material decides and you report what it came out
