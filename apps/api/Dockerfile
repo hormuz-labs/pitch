@@ -32,6 +32,17 @@ FROM ghcr.io/hormuz-labs/pitch-base:latest AS runtime
 WORKDIR /app
 COPY --from=builder /app .
 
+# Host-side audio DSP, isolated from the system Python and the agent sandbox.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get -qq update \
+    && apt-get install -y -qq --no-install-recommends python3 python3-venv \
+    && python3 -m venv /opt/pitch-audio \
+    && /opt/pitch-audio/bin/pip install --no-cache-dir -r requirements-audio.txt \
+    && /opt/pitch-audio/bin/python -I -c "import pedalboard, numpy" \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV STUDIO_PYTHON=/opt/pitch-audio/bin/python
+
 # GPU devices (/dev/dri) for NVENC/VAAPI encodes when the host passes them.
 RUN groupadd -f render && usermod -aG render,video root
 
