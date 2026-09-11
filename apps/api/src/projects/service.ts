@@ -357,8 +357,8 @@ function billTurn(p: ProjectRow, turn: number): void {
   })
 }
 
-/** Flag the first turn when it ends without anything usable. */
-function followFirstTurn(p: ProjectRow, turn: number): void {
+/** Sync the first output and flag actual failures, not conversational turns. */
+export function followFirstTurn(p: ProjectRow, turn: number): void {
   const off = onProjectEvent(p.id, (ev: StudioEvent) => {
     if (ev.type !== 'idle' || ev.turn !== turn) return
     off()
@@ -369,13 +369,12 @@ function followFirstTurn(p: ProjectRow, turn: number): void {
         await syncOutputs(p.userId, p.id).catch(() => {})
         return
       }
+      // A greeting, explanation or question card can finish successfully with
+      // no artifact. Keep the project empty and ready for the next message.
+      if (!ev.aborted && !ev.failed) return
       await failProject(
         p,
-        ev.aborted
-          ? 'Stopped before anything was produced'
-          : ev.failed
-            ? 'The agent failed'
-            : 'The agent finished without producing anything',
+        ev.aborted ? 'Stopped before anything was produced' : 'The agent failed',
         true,
       )
     })()
