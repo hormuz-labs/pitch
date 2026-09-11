@@ -170,6 +170,7 @@
 .lv-studio.new-project-page .new-template-strip__head button { padding: 0; border: 0; background: transparent; color: #77726d; font-size: 10px; cursor: pointer; }
 .new-template-strip__cards { display: grid; grid-template-columns: repeat(3, 152px); gap: 8px; }
 .lv-studio.new-project-page .new-template-strip__cards button { padding: 0; overflow: hidden; border: 1px solid #d8d7d4; border-radius: 10px; background: #fff; color: #514d49; font-size: 10px; text-align: left; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease; }
+.lv-studio.new-project-page .new-template-strip__cards button.is-active { border-color: #222; box-shadow: inset 0 0 0 1px #222; color: #171513; }
 .new-template-strip__cards button:hover { border-color: #aaa7a3; transform: translateY(-2px); }
 .lv-studio.new-project-page .new-template-strip__cards button:hover:not(:disabled) { background: #fff; color: #222; }
 /* The card holds a live slide from the preset, scaled down by the preview

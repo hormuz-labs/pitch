@@ -1,4 +1,4 @@
-import { useNavigate } from '@solidjs/router'
+import { useNavigate, useSearchParams } from '@solidjs/router'
 import { MoreVertical, Plus, Shapes } from 'lucide-solid'
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import {
@@ -27,6 +27,7 @@ export function ProjectsView(props: {
 }) {
   const { getToken } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [projects, setProjects] = createSignal<Project[] | null>(null)
   const [token, setToken] = createSignal<string | null>(null)
   const [error, setError] = createSignal('')
@@ -54,14 +55,22 @@ export function ProjectsView(props: {
   onCleanup(() => clearInterval(timer))
   const visible = createMemo(() => {
     const query = (props.searchQuery ?? '').trim().toLowerCase()
+    const kind = typeof params.kind === 'string' ? params.kind : params.kind?.[0]
     return (projects() ?? []).filter(
       project =>
-        !query ||
-        [project.title, project.prompt, project.name].some(value =>
-          value.toLowerCase().includes(query),
-        ),
+        (kind !== 'deck' ||
+          project.flow === 'deck' ||
+          project.options.skill === 'slide-deck' ||
+          typeof project.options.template === 'string' ||
+          project.outputs.some(output => output.kind === 'pdf')) &&
+        (!query ||
+          [project.title, project.prompt, project.name].some(value =>
+            value.toLowerCase().includes(query),
+          )),
     )
   })
+  const showingDecks = () =>
+    (typeof params.kind === 'string' ? params.kind : params.kind?.[0]) === 'deck'
   const notify = (message: string, type: 'success' | 'error') => props.onNotice?.(message, type)
   const shareProject = async (project: Project) => {
     try {
@@ -102,15 +111,21 @@ export function ProjectsView(props: {
     <div class="mx-auto w-full max-w-6xl p-6 md:p-8">
       <header class="mb-6 flex items-end justify-between gap-3">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Projects</h1>
-          <p class="mt-1 text-sm text-gray-500">Open a project to keep working with the agent.</p>
+          <h1 class="text-2xl font-bold text-gray-900">
+            {showingDecks() ? 'Slide decks' : 'Projects'}
+          </h1>
+          <p class="mt-1 text-sm text-gray-500">
+            {showingDecks()
+              ? 'Open a deck you have made to keep working on it.'
+              : 'Open a project to keep working with the agent.'}
+          </p>
         </div>
         <button
           class="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3.5 py-2 text-sm font-medium text-white"
-          onClick={() => navigate('/new')}
+          onClick={() => navigate(showingDecks() ? '/new?flow=deck' : '/new')}
         >
           <Plus size={14} />
-          New project
+          {showingDecks() ? 'New deck' : 'New project'}
         </button>
       </header>
       <Show when={error()}>
@@ -126,7 +141,13 @@ export function ProjectsView(props: {
           when={visible().length}
           fallback={
             <div class="rounded-2xl border border-dashed border-gray-200 px-6 py-16 text-center text-sm text-gray-500">
-              {projects()?.length ? 'Nothing matches' : 'No projects yet'}
+              {projects()?.length
+                ? showingDecks()
+                  ? 'No slide decks yet'
+                  : 'Nothing matches'
+                : showingDecks()
+                  ? 'No slide decks yet'
+                  : 'No projects yet'}
             </div>
           }
         >

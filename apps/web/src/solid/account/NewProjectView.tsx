@@ -76,6 +76,7 @@ export function NewProjectView(props: {
   const [error, setError] = createSignal('')
   const [ratio, setRatio] = createSignal<(typeof RATIOS)[number]>('16:9')
   const [duration, setDuration] = createSignal<number | null>(null)
+  const [deckTemplate, setDeckTemplate] = createSignal<(typeof DECK_TEMPLATES)[number] | null>(null)
   const queryValue = (value: string | string[] | undefined) =>
     typeof value === 'string' ? value : value?.[0]
   const initialFlow = queryValue(params.flow)
@@ -88,6 +89,14 @@ export function NewProjectView(props: {
   let referenceInput!: HTMLInputElement
   let textarea!: HTMLTextAreaElement
   const activeSkill = createMemo(() => SKILLS.find(item => item.id === skill()))
+  const selectDeckTemplate = (template: (typeof DECK_TEMPLATES)[number]) => {
+    setDeckTemplate(template)
+    setPrompt(
+      `Create a 12-slide presentation using the ${template.name} template. For example: Slide 3 should compare pricing; slide 8 should show the roadmap. Topic: `,
+    )
+    setError('')
+    requestAnimationFrame(() => textarea.focus())
+  }
   createEffect(() => {
     const flow = queryValue(params.flow)
     setSkill(flow ? (FLOW_TO_SKILL[flow] ?? null) : null)
@@ -116,6 +125,11 @@ export function NewProjectView(props: {
         aspectRatio: ratio(),
         ...(duration() ? { durationSeconds: duration() } : {}),
         ...(skill() ? { skill: skill() } : {}),
+        ...(deckTemplate()
+          ? {
+              template: deckTemplate()!.id,
+            }
+          : {}),
         ...(referenceVideoFiles().length ? { referenceVideoFiles: referenceVideoFiles() } : {}),
       },
       ...(model() ? { model: model() } : {}),
@@ -356,7 +370,13 @@ export function NewProjectView(props: {
                   class={`new-skill-pill ${skill() === item.id ? 'is-active' : ''}`}
                   aria-pressed={skill() === item.id}
                   onClick={() => {
-                    setSkill(current => (current === item.id ? null : item.id))
+                    setSkill(current => {
+                      if (current === item.id) {
+                        if (item.id === 'slide-deck') setDeckTemplate(null)
+                        return null
+                      }
+                      return item.id
+                    })
                   }}
                 >
                   {item.label}
@@ -367,21 +387,16 @@ export function NewProjectView(props: {
           <Show when={skill() === 'slide-deck'}>
             <section class="new-template-strip new-skill-gallery">
               <div class="new-template-strip__head">
-                <span>Start from a slide deck template</span>
-                <button onClick={() => navigate('/templates')}>View all</button>
+                <span>Choose a slide deck template</span>
+                <button onClick={() => navigate('/projects?kind=deck')}>Your decks</button>
               </div>
               <div class="new-template-strip__cards">
                 <For each={DECK_TEMPLATES}>
                   {template => (
-                    <button onClick={() => navigate(`/templates?t=${template.id}`)}>
-                      <span
-                        class="new-template-strip__thumb"
-                        style={{
-                          background: template.swatch[0],
-                          color: template.swatch[1],
-                          'border-color': template.swatch[2],
-                        }}
-                      />
+                    <button
+                      class={deckTemplate()?.id === template.id ? 'is-active' : ''}
+                      onClick={() => selectDeckTemplate(template)}
+                    >
                       <span>{template.name}</span>
                     </button>
                   )}
