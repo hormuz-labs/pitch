@@ -1,6 +1,7 @@
 import { A, useNavigate } from '@solidjs/router'
 import { ArrowUp, ChevronDown, Globe2, LockKeyhole, Plus, Square, X, Zap } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
 import { firstUrlInText, isAuthenticatedFor, prettyHost } from '../../lib/authOrigins'
 import { studio } from './client'
@@ -53,32 +54,60 @@ function suggestions(targets: Target[], where: string | null) {
     ]
   return []
 }
-function CreditMarker(props: { getToken: () => Promise<string> }) {
-  const [credits, setCredits] = createSignal<number | null>(null),
-    [open, setOpen] = createSignal(false)
-  onMount(
-    () =>
-      void props
-        .getToken()
-        .then(t => fetch(`${API_URL}/credits`, { headers: { Authorization: `Bearer ${t}` } }))
-        .then(r => (r.ok ? r.json() : null))
-        .then(d => d && setCredits(d.balance))
-        .catch(() => {}),
-  )
+function CreditMarker(props: { store: ProjectStore }) {
+  const [credits, setCredits] = createSignal<number | null>(null)
+  let request: AbortController | undefined
+  const refresh = async () => {
+    if (document.hidden) return
+    request?.abort()
+    const controller = new AbortController()
+    request = controller
+    try {
+      const token = await props.store.getToken()
+      if (controller.signal.aborted) return
+      const response = await fetch(`${API_URL}/credits`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      if (!response.ok) return
+      const data = await response.json()
+      if (!controller.signal.aborted && typeof data.balance === 'number') setCredits(data.balance)
+    } catch {
+      // Keep the last confirmed balance through transient connection failures.
+    }
+  }
+  createEffect(() => {
+    props.store.busy
+    props.store.project?.creditsCharged
+    void refresh()
+    if (props.store.busy) {
+      const timer = window.setInterval(() => void refresh(), 5000)
+      onCleanup(() => clearInterval(timer))
+    }
+  })
+  onMount(() => {
+    window.addEventListener('credits-changed', refresh)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    onCleanup(() => {
+      window.removeEventListener('credits-changed', refresh)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    })
+  })
+  onCleanup(() => request?.abort())
+  const balance = () => credits()?.toLocaleString() ?? '—'
+  const label = () =>
+    credits() === null
+      ? 'Loading credit balance'
+      : `${balance()} credits remaining — manage credits`
   return (
-    <span class="composer-credits">
-      <button class="model-btn" aria-label="Credits" onClick={() => setOpen(v => !v)}>
-        $ ◯
-      </button>
-      <Show when={open()}>
-        <div class="model-menu" role="dialog">
-          <div class="export-row-note">{credits() ?? '—'} credits available</div>
-          <A class="model-option" href="/pricing">
-            Manage credits
-          </A>
-        </div>
-      </Show>
-    </span>
+    <A class="composer-credits" href="/pricing" aria-label={label()} title={label()}>
+      <img src={pCoinIcon} alt="" width={18} height={18} />
+      <span class="composer-credits__balance">{balance()}</span>
+      <span class="composer-credits__label">credits</span>
+    </A>
   )
 }
 export function Composer(props: { store: ProjectStore }) {
@@ -302,9 +331,9 @@ export function Composer(props: { store: ProjectStore }) {
               hidden
               onChange={e => setFiles(v => [...v, ...Array.from(e.currentTarget.files ?? [])])}
             />
+            <CreditMarker store={s} />
           </div>
           <div class="job-composer-actions">
-            <CreditMarker getToken={s.getToken} />
             <Show when={!s.busy && models().length}>
               <div class="model-select" ref={modelEl}>
                 <button

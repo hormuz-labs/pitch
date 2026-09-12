@@ -17,6 +17,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  createUniqueId,
   For,
   onCleanup,
   onMount,
@@ -33,6 +34,7 @@ import { DiscordOfferModal } from '../account/DiscordOfferModal'
 import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
 import { SidebarAccountMenu } from '../account/SidebarAccountMenu'
+import { PitchWordmark } from '../public/brand'
 import { useAuth, useUser } from './auth'
 
 interface AppShellContextValue {
@@ -107,28 +109,60 @@ function Sidebar(props: {
       ? 'Today'
       : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }
-  const recentProject = (project: Project) => (
-    <button
-      type="button"
-      class={`sidebar-recent-project${project.id === props.selectedProjectId ? ' is-active' : ''}`}
-      onClick={() => go(`/p/${project.id}`)}
-      title={`${project.title || 'Untitled project'}${project.busy ? ' (Working)' : ''}`}
-      aria-label={`${project.title || 'Untitled project'}${project.busy ? ', working' : ''}`}
-      aria-current={project.id === props.selectedProjectId ? 'page' : undefined}
-    >
-      <span class="sidebar-recent-project__icon">
-        <FileText size={15} />
-      </span>
-      <span class="sidebar-recent-project__copy">
-        <strong>{project.title || 'Untitled project'}</strong>
-        <small>
-          <span classList={{ 'is-working': project.busy }}>{projectState(project)}</span>
-          <span aria-hidden="true">·</span>
-          <time datetime={project.updatedAt}>{projectDate(project.updatedAt)}</time>
-        </small>
-      </span>
-    </button>
-  )
+  const recentProject = (project: Project) => {
+    const [expanded, setExpanded] = createSignal(false)
+    const [clipped, setClipped] = createSignal(false)
+    const titleId = createUniqueId()
+    let heading!: HTMLElement
+    onMount(() => {
+      const observer = new ResizeObserver(() => {
+        if (!expanded()) setClipped(heading.scrollWidth > heading.clientWidth)
+      })
+      observer.observe(heading)
+      onCleanup(() => observer.disconnect())
+    })
+    return (
+      <div
+        class={`sidebar-recent-project${project.id === props.selectedProjectId ? ' is-active' : ''}`}
+      >
+        <button
+          type="button"
+          class="sidebar-recent-project__open"
+          onClick={() => go(`/p/${project.id}`)}
+          title={`${project.title || 'Untitled project'}${project.busy ? ' (Working)' : ''}`}
+          aria-label={`${project.title || 'Untitled project'}${project.busy ? ', working' : ''}`}
+          aria-current={project.id === props.selectedProjectId ? 'page' : undefined}
+        >
+          <span class="sidebar-recent-project__icon">
+            <FileText size={15} />
+          </span>
+          <span class="sidebar-recent-project__copy">
+            <strong ref={heading} id={titleId} classList={{ 'is-expanded': expanded() }}>
+              {project.title || 'Untitled project'}
+            </strong>
+          </span>
+        </button>
+        <div class="sidebar-recent-project__meta">
+          <small>
+            <span classList={{ 'is-working': project.busy }}>{projectState(project)}</span>
+            <span aria-hidden="true">·</span>
+            <time datetime={project.updatedAt}>{projectDate(project.updatedAt)}</time>
+          </small>
+          <Show when={clipped() || expanded()}>
+            <button
+              type="button"
+              class="sidebar-recent-project__more"
+              aria-expanded={expanded()}
+              aria-controls={titleId}
+              onClick={() => setExpanded(value => !value)}
+            >
+              {expanded() ? 'Read less' : 'Read more'}
+            </button>
+          </Show>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -153,7 +187,7 @@ function Sidebar(props: {
             onClick={() => go('/new')}
           >
             <img src={tabLogo} alt="" />
-            <span class="sidebar-brand-name">Pitch</span>
+            <PitchWordmark class="conversation-sidebar__wordmark-svg" />
           </button>
           <button
             type="button"
