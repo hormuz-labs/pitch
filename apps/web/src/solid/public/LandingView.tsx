@@ -4,7 +4,6 @@ import Lenis from 'lenis'
 import 'lenis/dist/lenis.css'
 import { A, useNavigate } from '@solidjs/router'
 import {
-  ArrowUp,
   Check,
   ChevronDown,
   Clapperboard,
@@ -18,6 +17,7 @@ import {
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import demoThumbnail from '../../assets/demo-thumbnail.jpg'
+import { GenerateButton } from '../../components/ui/generate-button'
 import { useAuth, useClerk } from '../core/auth'
 import { Seo } from '../core/Seo'
 import { PitchLogoAnimation } from './brand'
@@ -212,12 +212,7 @@ export const LandingChatInput = () => {
                   </div>
                 </Show>
               </div>
-              <button
-                class={`landing-chat-submit${input().trim() ? ' landing-chat-submit--active' : ''}`}
-                onClick={send}
-              >
-                <ArrowUp size={15} />
-              </button>
+              <GenerateButton hue={210} isReady={Boolean(input().trim())} onClick={send} />
             </div>
           </div>
         </div>

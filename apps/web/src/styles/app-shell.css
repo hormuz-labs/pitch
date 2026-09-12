@@ -992,8 +992,9 @@
 .conversation-sidebar .sidebar-theme-switch button { display: flex; justify-content: center; align-items: center; flex: 1; gap: 6px; min-height: 28px; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--shell-muted); font-size: 11px; cursor: pointer; }
 .conversation-sidebar .sidebar-theme-switch button[aria-pressed="true"] { background: var(--shell-raised); color: var(--shell-text); box-shadow: 0 1px 3px rgb(0 0 0 / 7%); }
 .sidebar-resource-links { display: flex; justify-content: center; align-items: center; gap: 18px; padding: 2px 0; }
-.sidebar-resource-links a { color: var(--shell-muted); font-size: 10px; text-decoration: none; }
-.sidebar-resource-links a:hover { color: var(--shell-text); text-decoration: underline; }
+.sidebar-resource-links :is(a, button) { color: var(--shell-muted); font-size: 10px; text-decoration: none; white-space: nowrap; }
+.sidebar-resource-links button { padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer; }
+.sidebar-resource-links :is(a, button):hover { color: var(--shell-text); text-decoration: underline; }
 .sidebar-account-row { display: flex; align-items: center; gap: 4px; }
 .sidebar-account-trigger { flex: 1; min-width: 0; height: 42px; display: flex; align-items: center; gap: 7px; padding: 5px 3px; border: 0; border-radius: 8px; color: var(--shell-text); background: transparent; cursor: pointer; }
 .sidebar-account-trigger:hover, .sidebar-account-trigger[aria-expanded="true"] { background: var(--shell-hover); }

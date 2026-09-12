@@ -22,6 +22,7 @@ import { Thread } from './Thread'
 import { type ProjectStore, useProject } from './useProject'
 import '../../studio/studio.css'
 import './playback.css'
+import './preview-stage.css'
 
 const TITLES: Record<string, string> = {
   html: 'Launch film',
@@ -39,25 +40,7 @@ function Preview(props: { store: ProjectStore }) {
     return value && 'url' in value ? s.previewUrl(value.url) : null
   })
   return (
-    <Switch
-      fallback={
-        s.busy ? (
-          <Build store={s} />
-        ) : (
-          <div class="building-stage">
-            <div class="building-copy">
-              <MonitorPlay size={20} />
-              <div class="building-title">Nothing to preview yet</div>
-              <div class="building-status">
-                {s.project?.lastError
-                  ? `Last attempt failed: ${s.project.lastError}. Ask the agent to try again.`
-                  : 'Describe what you want in chat — the first result appears here as soon as it exists.'}
-              </div>
-            </div>
-          </div>
-        )
-      }
-    >
+    <Switch fallback={<Build store={s} />}>
       <Match when={kind() === 'html' && !!src()}>
         <HtmlPreview store={s} src={src()!} />
       </Match>
@@ -79,27 +62,37 @@ function Preview(props: { store: ProjectStore }) {
 function Build(props: { store: ProjectStore }) {
   const shots = () => props.store.assets.filter(a => a.kind === 'image' && a.origin !== 'upload')
   return (
-    <div class="build-process">
-      <div class="build-process__stage">
-        <Show when={shots()[0]} fallback={<MonitorPlay size={20} />} keyed>
-          {a => <img src={props.store.mediaUrl(a.url, Date.parse(a.mtime)) ?? ''} alt={a.name} />}
-        </Show>
-        <div class="build-process__status">
-          <span class="spinner" />
-          <span>{props.store.status}</span>
+    <Show when={shots().length > 0}>
+      <div class="build-process">
+        <div class="build-process__heading">
+          <span>From your workspace</span>
+          <small>{props.store.busy ? 'Work in progress' : 'Project images'}</small>
         </div>
+        <div class="build-process__stage">
+          <Show when={shots()[0]} keyed>
+            {a => <img src={props.store.mediaUrl(a.url, Date.parse(a.mtime)) ?? ''} alt={a.name} />}
+          </Show>
+        </div>
+        <Show when={props.store.busy}>
+          <div class="build-process__status" role="status">
+            <span class="spinner" />
+            <span>{props.store.status}</span>
+          </div>
+        </Show>
+        <Show when={shots().length > 1}>
+          <div class="build-process__shots">
+            <For each={shots().slice(1, 13)}>
+              {a => (
+                <img
+                  src={props.store.mediaUrl(a.thumbUrl ?? a.url, Date.parse(a.mtime)) ?? ''}
+                  alt={a.name}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
       </div>
-      <div class="build-process__shots">
-        <For each={shots().slice(1, 13)}>
-          {a => (
-            <img
-              src={props.store.mediaUrl(a.thumbUrl ?? a.url, Date.parse(a.mtime)) ?? ''}
-              alt={a.name}
-            />
-          )}
-        </For>
-      </div>
-    </div>
+    </Show>
   )
 }
 const RES = [
@@ -270,13 +263,21 @@ export function StudioView(props: { projectId: string }) {
   )
   const resizeTray = (height: number) =>
     setTray(Math.max(120, Math.min(height, Math.max(120, (stage?.clientHeight ?? 600) - 200))))
+  const hasPreview = createMemo(() => {
+    const preview = s.project?.description.preview
+    return (
+      !!(preview && (preview.kind === 'browser' || ('url' in preview && preview.url))) ||
+      s.assets.some(asset => asset.kind === 'image' && asset.origin !== 'upload')
+    )
+  })
+  const showStage = createMemo(() => hasPreview() || (view() === 'files' && s.assets.length > 0))
   onMount(() => {
     const observer = new ResizeObserver(() => resizeTray(tray()))
     if (stage) observer.observe(stage)
     onCleanup(() => observer.disconnect())
   })
   return (
-    <div class="lv-studio">
+    <div class="lv-studio" classList={{ 'is-chat-only': !showStage() }}>
       <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
         <div class="editor-wrap" ref={wrap} style={{ '--sidebar-w': `${sidebar()}px` }}>
           <header class="job-topbar job-topbar-split">
@@ -300,28 +301,43 @@ export function StudioView(props: { projectId: string }) {
             </div>
             <div class="topbar-split-right">
               <div class="topbar-split-tabs">
-                <button
-                  aria-label="Preview"
-                  class={`preview-pane-tab${view() === 'preview' ? ' is-active' : ''}`}
-                  onClick={() => setView('preview')}
-                >
-                  <MonitorPlay size={15} />
-                  <span>Preview</span>
-                </button>
-                <button
-                  aria-label={`Files (${s.assets.length})`}
-                  class={`preview-pane-tab${view() === 'files' ? ' is-active' : ''}`}
-                  onClick={() => {
-                    s.player.current?.pause?.()
-                    setView('files')
-                  }}
-                >
-                  <Files size={15} />
-                  <span>Files</span>
-                  <small>{s.assets.length}</small>
-                </button>
+                <Show when={hasPreview()}>
+                  <button
+                    aria-label="Preview"
+                    class={`preview-pane-tab${view() === 'preview' ? ' is-active' : ''}`}
+                    onClick={() => setView('preview')}
+                  >
+                    <MonitorPlay size={15} />
+                    <span>Preview</span>
+                  </button>
+                </Show>
+                <Show when={s.assets.length > 0}>
+                  <button
+                    aria-label={`Files (${s.assets.length})`}
+                    class={`preview-pane-tab${view() === 'files' ? ' is-active' : ''}`}
+                    onClick={() => {
+                      s.player.current?.pause?.()
+                      setView(current => (current === 'files' ? 'preview' : 'files'))
+                    }}
+                  >
+                    <Files size={15} />
+                    <span>Files</span>
+                    <small>{s.assets.length}</small>
+                  </button>
+                </Show>
               </div>
-              <Actions store={s} />
+              <Show
+                when={hasPreview()}
+                fallback={
+                  <Show when={s.busy}>
+                    <button class="topbar-btn primary" onClick={() => void s.stop()}>
+                      Stop
+                    </button>
+                  </Show>
+                }
+              >
+                <Actions store={s} />
+              </Show>
             </div>
           </header>
           <div class="editor">
@@ -343,8 +359,8 @@ export function StudioView(props: { projectId: string }) {
                   when={s.entries.length || s.busy}
                   fallback={
                     <div class="feed-empty">
-                      Describe what you want, or ask for a change. Pick a scene or slide below, or
-                      press <kbd>i</kbd> and click things in the preview.
+                      Describe what you want to create. Your preview will open when there’s
+                      something to show.
                     </div>
                   }
                 >
@@ -360,6 +376,7 @@ export function StudioView(props: { projectId: string }) {
             </aside>
             <div
               class="resize-handle"
+              hidden={!showStage()}
               role="separator"
               aria-label="Resize conversation"
               aria-orientation="vertical"
@@ -383,11 +400,13 @@ export function StudioView(props: { projectId: string }) {
               onPointerCancel={() => (drag = null)}
               onLostPointerCapture={() => (drag = null)}
             />
-            <div class="editor-stage" ref={stage}>
+            <div class="editor-stage" ref={stage} hidden={!showStage()}>
               <div class="studio-preview-view" hidden={view() !== 'preview'}>
                 <div class="player">
                   <div class="player-stage">
-                    <Preview store={s} />
+                    <Show when={hasPreview()}>
+                      <Preview store={s} />
+                    </Show>
                   </div>
                 </div>
                 <Show when={stripKind()}>
@@ -430,25 +449,18 @@ export function StudioView(props: { projectId: string }) {
                     onLostPointerCapture={() => (trayDrag = null)}
                   />
                 </Show>
-                <div class="tray" style={stripKind() ? { height: `${tray()}px` } : undefined}>
-                  <Switch
-                    fallback={
-                      <div class="timeline studio-empty-timeline">
-                        <div class="timeline-header">
-                          <h2>Timeline</h2>
-                          <span class="timeline-meta">Scenes and slides appear here</span>
-                        </div>
-                      </div>
-                    }
-                  >
-                    <Match when={stripKind() === 'slides'}>
-                      <SlideStrip store={s} />
-                    </Match>
-                    <Match when={stripKind() === 'scenes'}>
-                      <SceneStrip store={s} />
-                    </Match>
-                  </Switch>
-                </div>
+                <Show when={stripKind()}>
+                  <div class="tray" style={{ height: `${tray()}px` }}>
+                    <Switch>
+                      <Match when={stripKind() === 'slides'}>
+                        <SlideStrip store={s} />
+                      </Match>
+                      <Match when={stripKind() === 'scenes'}>
+                        <SceneStrip store={s} />
+                      </Match>
+                    </Switch>
+                  </div>
+                </Show>
               </div>
               <Show when={view() === 'files'}>
                 <div class="studio-files-view">

@@ -68,7 +68,9 @@ export function UsageSection() {
       <section class="settings-card settings-usage-summary">
         <div>
           <span>Plan</span>
-          <strong>{summary()?.activeSubscription?.planKey ?? 'No active plan'}</strong>
+          <strong>
+            {summary()?.activeSubscription?.planKey.toUpperCase() ?? 'No active plan'}
+          </strong>
         </div>
         <div>
           <span>Available</span>

@@ -1,8 +1,24 @@
-import { createMemo, createSignal, For, onMount, Show } from 'solid-js'
+import {
+  Activity,
+  ArrowUpRight,
+  Check,
+  ChevronRight,
+  FolderOpen,
+  Mail,
+  RefreshCw,
+  Search,
+  Send,
+  Shield,
+  Users as UsersIcon,
+  Wallet,
+  X,
+} from 'lucide-solid'
+import { createMemo, createSignal, For, type JSX, onMount, Show } from 'solid-js'
 import { api } from '../../lib/api'
 import type { Project } from '../../lib/studio-api'
 import { useAuth } from '../core/auth'
 import { Dialog, Loading, Select } from './primitives'
+import '../../styles/admin.css'
 
 type Tab = 'users' | 'newsletter' | 'onboarding' | 'projects' | 'affiliates'
 type AdminProject = Project & { userEmail?: string | null; userName?: string | null }
@@ -13,16 +29,44 @@ const tabs: [Tab, string][] = [
   ['projects', 'Projects'],
   ['affiliates', 'Affiliates'],
 ]
+const descriptions: Record<Tab, string> = {
+  users: 'Manage the people creating with Pitch.',
+  newsletter: 'Keep your audience in the loop.',
+  onboarding: 'Understand who is joining and what they want to create.',
+  projects: 'The latest 300 projects across Pitch.',
+  affiliates: 'Your partners and the audience they bring.',
+}
+const number = (value?: number | null) =>
+  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—'
+const date = (value: string) =>
+  new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+
+function Badge(props: { children: JSX.Element; tone?: string }) {
+  return (
+    <span class="admin-badge" data-tone={props.tone}>
+      {props.children}
+    </span>
+  )
+}
+
+function EmptyState(props: { title: string; description: string }) {
+  return (
+    <div class="admin-empty">
+      <span class="admin-empty__icon">
+        <FolderOpen size={21} />
+      </span>
+      <h3>{props.title}</h3>
+      <p>{props.description}</p>
+    </div>
+  )
+}
 const unwrap = (value: any): AdminProject[] => {
   const projects: AdminProject[] = Array.isArray(value)
     ? value
     : Array.isArray(value?.projects)
       ? value.projects
       : []
-  return projects.map(project => ({
-    ...project,
-    status: project.status !== 'working' && project.outputs.length ? 'ready' : project.status,
-  }))
+  return projects
 }
 export function AdminView() {
   const { getToken } = useAuth()
@@ -31,10 +75,12 @@ export function AdminView() {
   const [analytics, setAnalytics] = createSignal<any>(null)
   const [newsletter, setNewsletter] = createSignal<any>(null)
   const [loading, setLoading] = createSignal(true)
+  const [refreshing, setRefreshing] = createSignal(false)
+  const [updatedAt, setUpdatedAt] = createSignal<Date | null>(null)
   const [error, setError] = createSignal('')
   const [tab, setTab] = createSignal<Tab>('users')
   const [search, setSearch] = createSignal('')
-  const [flow, setFlow] = createSignal('all')
+  const [status, setStatus] = createSignal('all')
   const [selected, setSelected] = createSignal<AdminProject | null>(null)
   const request = async <T,>(path: string) => {
     const token = await getToken()
@@ -42,7 +88,9 @@ export function AdminView() {
     return api.get<T>(path, token)
   }
   const refreshNewsletter = async () => setNewsletter(await request('/admin/newsletter'))
-  onMount(async () => {
+  const refresh = async () => {
+    setRefreshing(true)
+    setError('')
     try {
       const [dashboard, projectRows, stats, audience] = await Promise.all([
         request<any>('/admin/dashboard'),
@@ -54,16 +102,19 @@ export function AdminView() {
       setProjects(unwrap(projectRows))
       setAnalytics(stats)
       setNewsletter(audience)
+      setUpdatedAt(new Date())
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Failed to load admin dashboard')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  })
+  }
+  onMount(() => void refresh())
   const filteredProjects = createMemo(() =>
     projects().filter(
       project =>
-        (flow() === 'all' || project.flow === flow()) &&
+        (status() === 'all' || project.status === status()) &&
         (!search() ||
           [project.title, project.userEmail, project.status].some(value =>
             value?.toLowerCase().includes(search().toLowerCase()),
@@ -80,152 +131,249 @@ export function AdminView() {
     ),
   )
   return (
-    <Show when={!loading()} fallback={<Loading label="Loading admin portal..." />}>
-      <Show when={!error()} fallback={<div class="p-8 text-center text-red-600">{error()}</div>}>
-        <div class="flex h-full flex-col overflow-hidden">
-          <header class="border-b px-6 py-5">
-            <h1 class="text-xl font-bold">Admin Portal</h1>
-            <p class="text-xs text-gray-400">Platform overview · system health · deep insights</p>
-          </header>
-          <main class="flex-1 overflow-y-auto p-5">
-            <div class="mx-auto max-w-[1400px] space-y-5">
-              <Stats stats={data()?.stats} />
-              <section class="overflow-hidden rounded-2xl border bg-white">
-                <nav class="flex overflow-x-auto border-b px-4">
-                  <For each={tabs}>
-                    {item => (
-                      <button
-                        class={`whitespace-nowrap border-b-2 px-4 py-3 text-sm ${tab() === item[0] ? 'border-gray-900 font-semibold' : 'border-transparent text-gray-500'}`}
-                        onClick={() => {
-                          setTab(item[0])
-                          setSearch('')
-                        }}
-                      >
-                        {item[1]}
-                      </button>
-                    )}
-                  </For>
-                </nav>
+    <div class="admin-page">
+      <div class="admin-container">
+        <header class="admin-header">
+          <div>
+            <div class="admin-eyebrow">
+              <Shield size={13} /> Workspace <ChevronRight size={12} /> Admin
+            </div>
+            <h1>Your platform, at a glance.</h1>
+            <p>A little perspective on everything happening at Pitch.</p>
+          </div>
+          <div class="admin-header__actions">
+            <Show when={updatedAt()}>
+              <span class="admin-updated">
+                Updated{' '}
+                {updatedAt()?.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+              </span>
+            </Show>
+            <button
+              type="button"
+              class="admin-button"
+              disabled={refreshing()}
+              onClick={() => void refresh()}
+            >
+              <RefreshCw size={14} classList={{ 'admin-spinning': refreshing() }} />
+              {refreshing() ? 'Refreshing' : 'Refresh'}
+            </button>
+          </div>
+        </header>
+        <Show when={error()}>
+          <p class="admin-alert" role="alert">
+            {error()}
+          </p>
+        </Show>
+        <Show when={!loading()} fallback={<Loading label="Loading your platform…" />}>
+          <Show when={data()}>
+            <Stats stats={data()?.stats} />
+            <section class="admin-workspace" aria-label="Platform management">
+              <nav class="admin-tabs" aria-label="Admin sections">
+                <For each={tabs}>
+                  {item => (
+                    <button
+                      type="button"
+                      class="admin-tab"
+                      aria-current={tab() === item[0] ? 'page' : undefined}
+                      onClick={() => {
+                        setTab(item[0])
+                        setSearch('')
+                      }}
+                    >
+                      {item[1]}
+                    </button>
+                  )}
+                </For>
+              </nav>
+              <div class="admin-section-header">
+                <div>
+                  <h2>
+                    {tabs.find(item => item[0] === tab())?.[1]}
+                    <Show when={tab() === 'users' || tab() === 'projects'}>
+                      <span class="admin-count">
+                        {number(
+                          tab() === 'users' ? filteredUsers().length : filteredProjects().length,
+                        )}
+                      </span>
+                    </Show>
+                  </h2>
+                  <p>{descriptions[tab()]}</p>
+                </div>
                 <Show when={tab() === 'users' || tab() === 'projects'}>
-                  <div class="flex gap-3 border-b p-3">
-                    <input
-                      class="min-w-52 flex-1 rounded-xl border bg-gray-50 p-2 text-sm"
-                      placeholder="Search..."
-                      value={search()}
-                      onInput={event => setSearch(event.currentTarget.value)}
-                    />
+                  <div class="admin-toolbar">
+                    <label class="admin-search">
+                      <Search size={15} aria-hidden="true" />
+                      <input
+                        type="search"
+                        aria-label={tab() === 'users' ? 'Search users' : 'Search projects'}
+                        placeholder={
+                          tab() === 'users' ? 'Search name or email…' : 'Search projects…'
+                        }
+                        value={search()}
+                        onInput={event => setSearch(event.currentTarget.value)}
+                      />
+                    </label>
                     <Show when={tab() === 'projects'}>
                       <Select
-                        label="Flow"
-                        value={flow()}
+                        label="Project status"
+                        class="admin-select"
+                        value={status()}
                         options={[
-                          'all',
-                          'studio',
-                          'launch-video',
-                          'demo-video',
-                          'deck',
-                          'recording-edit',
-                        ].map(value => ({ value, label: value }))}
-                        onChange={setFlow}
+                          { value: 'all', label: 'All statuses' },
+                          { value: 'working', label: 'Working' },
+                          { value: 'ready', label: 'Ready' },
+                          { value: 'empty', label: 'Empty' },
+                          { value: 'failed', label: 'Failed' },
+                        ]}
+                        onChange={setStatus}
                       />
                     </Show>
                   </div>
                 </Show>
-                <Show when={tab() === 'users'}>
-                  <Users
-                    users={filteredUsers()}
-                    projects={projects()}
-                    onProject={setSelected}
-                    onGptAccess={(id, gptEnabled) =>
-                      setData((current: any) => ({
-                        ...current,
-                        users: current.users.map((user: any) =>
-                          user.id === id ? { ...user, gptEnabled } : user,
-                        ),
-                      }))
-                    }
-                  />
-                </Show>
-                <Show when={tab() === 'projects'}>
-                  <Projects projects={filteredProjects()} onSelect={setSelected} />
-                </Show>
-                <Show when={tab() === 'newsletter'}>
-                  <Newsletter audience={newsletter()} refresh={refreshNewsletter} />
-                </Show>
-                <Show when={tab() === 'onboarding'}>
-                  <Onboarding users={data()?.users ?? []} />
-                </Show>
-                <Show when={tab() === 'affiliates'}>
-                  <Affiliates data={analytics()} />
-                </Show>
-              </section>
-            </div>
-          </main>
-          <Dialog
-            open={!!selected()}
-            title="Project details"
-            onClose={() => setSelected(null)}
-            class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl"
+              </div>
+              <Show when={tab() === 'users'}>
+                <Users
+                  users={filteredUsers()}
+                  projects={projects()}
+                  onProject={setSelected}
+                  onGptAccess={(id, gptEnabled) =>
+                    setData((current: any) => ({
+                      ...current,
+                      users: current.users.map((user: any) =>
+                        user.id === id ? { ...user, gptEnabled } : user,
+                      ),
+                    }))
+                  }
+                />
+              </Show>
+              <Show when={tab() === 'projects'}>
+                <Projects projects={filteredProjects()} onSelect={setSelected} />
+              </Show>
+              <Show when={tab() === 'newsletter'}>
+                <Newsletter audience={newsletter()} refresh={refreshNewsletter} />
+              </Show>
+              <Show when={tab() === 'onboarding'}>
+                <Onboarding users={data()?.users ?? []} />
+              </Show>
+              <Show when={tab() === 'affiliates'}>
+                <Affiliates data={analytics()} />
+              </Show>
+            </section>
+            <footer class="admin-footer">
+              <Shield size={12} /> Pitch administration <span>Workspace overview</span>
+            </footer>
+          </Show>
+        </Show>
+      </div>
+      <Dialog
+        open={!!selected()}
+        title="Project details"
+        onClose={() => setSelected(null)}
+        class="admin-dialog"
+      >
+        <div class="admin-dialog__header">
+          <span class="admin-eyebrow">
+            <FolderOpen size={14} /> Project details
+          </span>
+          <button
+            type="button"
+            class="admin-icon-button"
+            aria-label="Close project details"
+            onClick={() => setSelected(null)}
           >
-            <h2 class="text-lg font-bold">{selected()?.title || 'Untitled project'}</h2>
-            <p class="mt-1 text-xs text-gray-400">{selected()?.id}</p>
-            <dl class="mt-5 grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt class="text-gray-400">Owner</dt>
-                <dd>{selected()?.userEmail}</dd>
-              </div>
-              <div>
-                <dt class="text-gray-400">Status</dt>
-                <dd>{selected()?.status}</dd>
-              </div>
-              <div>
-                <dt class="text-gray-400">Credits</dt>
-                <dd>{selected()?.creditsCharged}</dd>
-              </div>
-              <div>
-                <dt class="text-gray-400">Outputs</dt>
-                <dd>{selected()?.outputs.length}</dd>
-              </div>
-            </dl>
-            <p class="mt-5 rounded-lg bg-gray-50 p-3 text-sm">{selected()?.prompt}</p>
-          </Dialog>
+            <X size={18} />
+          </button>
         </div>
-      </Show>
-    </Show>
+        <h2>{selected()?.title || 'Untitled project'}</h2>
+        <p class="admin-project-id">{selected()?.id}</p>
+        <dl class="admin-details">
+          <div>
+            <dt>Owner</dt>
+            <dd>{selected()?.userEmail || 'Unknown owner'}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>
+              <Badge tone={selected()?.status}>{selected()?.status}</Badge>
+            </dd>
+          </div>
+          <div>
+            <dt>Credits used</dt>
+            <dd>{number(selected()?.creditsCharged)}</dd>
+          </div>
+          <div>
+            <dt>Outputs</dt>
+            <dd>{selected()?.outputs.length}</dd>
+          </div>
+        </dl>
+        <div class="admin-prompt">
+          <h3>Original prompt</h3>
+          <p>{selected()?.prompt || 'This project was started with an upload.'}</p>
+        </div>
+      </Dialog>
+    </div>
   )
 }
 
 function Stats(props: { stats: any }) {
-  const success = () =>
-    props.stats?.totalProjects
-      ? Math.round(
-          ((props.stats.totalProjects - props.stats.failedProjects) / props.stats.totalProjects) *
-            100,
-        )
-      : 0
   return (
     <Show when={props.stats}>
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section class="admin-stats" aria-label="Platform overview">
         <For
           each={[
-            ['Total Users', props.stats.totalUsers],
-            ['Revenue', `$${(props.stats.totalRevenue ?? 0).toFixed(0)}`],
-            ['Projects', props.stats.totalProjects],
-            ['Success Rate', `${success()}%`],
+            {
+              label: 'Total users',
+              value: number(props.stats.totalUsers),
+              note: 'People on Pitch',
+              icon: UsersIcon,
+            },
+            {
+              label: 'Top-up revenue',
+              value:
+                typeof props.stats.totalRevenue === 'number'
+                  ? props.stats.totalRevenue.toLocaleString(undefined, {
+                      style: 'currency',
+                      currency: 'USD',
+                    })
+                  : '—',
+              note: 'All-time credit purchases',
+              icon: Wallet,
+            },
+            {
+              label: 'Projects',
+              value: number(props.stats.totalProjects),
+              note: 'Across all workspaces',
+              icon: FolderOpen,
+            },
+            {
+              label: 'Recorded errors',
+              value: number(props.stats.failedProjects),
+              note: 'Projects with a saved error',
+              icon: Activity,
+            },
           ]}
         >
           {card => (
-            <article class="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-500 p-4 text-white">
-              <p class="text-[10px] uppercase text-white/70">{card[0]}</p>
-              <strong class="text-2xl">{card[1]}</strong>
+            <article class="admin-stat">
+              <div class="admin-stat__label">
+                <p>{card.label}</p>
+                <card.icon size={16} strokeWidth={1.5} />
+              </div>
+              <strong>{card.value}</strong>
+              <p class="admin-stat__note">{card.note}</p>
             </article>
           )}
         </For>
-        <article class="col-span-2 rounded-xl border bg-white p-3 lg:col-span-4">
-          <p class="text-[10px] uppercase text-gray-400">Active sessions</p>
-          <strong class="text-xl">{props.stats.activeSessions ?? 0}</strong>
-        </article>
-      </div>
+        <Show when={typeof props.stats.activeSessions === 'number'}>
+          <div class="admin-activity">
+            <span>
+              <Activity size={14} />
+              <strong>{number(props.stats.activeSessions)}</strong> running agent tasks
+            </span>
+            <span>This server · at last refresh</span>
+          </div>
+        </Show>
+      </section>
     </Show>
   )
 }
@@ -257,22 +405,26 @@ function Users(props: {
     }
   }
   return (
-    <div class="overflow-x-auto">
+    <div class="admin-table-wrap">
       <Show when={error()}>
-        <p role="alert" class="p-3 text-red-600">
+        <p role="alert" class="admin-alert">
           {error()}
         </p>
       </Show>
-      <table class="w-full min-w-[700px] text-left text-sm">
-        <thead class="bg-gray-50 text-xs uppercase text-gray-400">
+      <table class="admin-table" aria-label="Users">
+        <thead>
           <tr>
-            <th class="p-3">User</th>
+            <th>User</th>
             <th>Role</th>
-            <th>GPT access</th>
-            <th>Plan</th>
+            <th title="Saved permission to use configured OpenAI models; not model availability">
+              OpenAI permission
+            </th>
+            <th>Subscription</th>
             <th>Joined</th>
             <th>Credits left</th>
-            <th>Projects</th>
+            <th title="Count within the latest 300 projects returned by the server">
+              Recent projects
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -280,44 +432,85 @@ function Users(props: {
             each={props.users}
             fallback={
               <tr>
-                <td colSpan="7" class="p-12 text-center">
-                  No users found
+                <td colSpan="7">
+                  <EmptyState
+                    title="No users found"
+                    description="Try a different name or email address."
+                  />
                 </td>
               </tr>
             }
           >
             {user => (
-              <tr class="border-t">
-                <td class="p-3">
-                  <b>{`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email}</b>
-                  <p class="text-xs text-gray-400">{user.email}</p>
+              <tr>
+                <td>
+                  <div class="admin-person">
+                    <span class="admin-avatar" aria-hidden="true">
+                      {(user.firstName?.[0] || user.email?.[0] || '?').toUpperCase()}
+                      {user.lastName?.[0]?.toUpperCase()}
+                    </span>
+                    <div class="admin-cell-copy">
+                      <strong>
+                        {`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email}
+                      </strong>
+                      <p>{user.email}</p>
+                    </div>
+                  </div>
                 </td>
-                <td>{user.role}</td>
+                <td>
+                  <Badge>{user.role}</Badge>
+                </td>
+                <td>
+                  <Show when={typeof user.gptEnabled === 'boolean'} fallback="—">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={!!user.gptEnabled}
+                      aria-label={`OpenAI model permission for ${user.email}`}
+                      title="Controls eligibility for configured OpenAI models. Availability also depends on server configuration."
+                      disabled={saving() !== null}
+                      class="admin-access"
+                      onClick={() => void toggleGpt(user)}
+                    >
+                      <span class="admin-switch">
+                        <span>
+                          <Show when={user.gptEnabled}>
+                            <Check size={9} />
+                          </Show>
+                        </span>
+                      </span>
+                      <span>
+                        {saving() === user.id
+                          ? 'Saving…'
+                          : user.gptEnabled
+                            ? 'Allowed'
+                            : 'Not allowed'}
+                      </span>
+                    </button>
+                  </Show>
+                </td>
+                <td class="admin-capitalize">
+                  <Show when={user.subscription} fallback="None">
+                    <div class="admin-cell-copy">
+                      <strong>{user.subscription?.planKey || '—'}</strong>
+                      <small>{user.subscription?.status || '—'}</small>
+                    </div>
+                  </Show>
+                </td>
+                <td class="admin-nowrap">{date(user.createdAt)}</td>
+                <td class="admin-numeric">{number(user.creditsRemaining)}</td>
                 <td>
                   <button
                     type="button"
-                    role="switch"
-                    aria-checked={!!user.gptEnabled}
-                    aria-label={`GPT access for ${user.email}`}
-                    disabled={saving() !== null}
-                    class="rounded-lg border px-3 py-1 text-xs disabled:opacity-50"
-                    onClick={() => void toggleGpt(user)}
-                  >
-                    {saving() === user.id ? 'Saving…' : user.gptEnabled ? 'Enabled' : 'Disabled'}
-                  </button>
-                </td>
-                <td>{user.subscription?.planKey ?? 'Free'}</td>
-                <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                <td>{user.creditsRemaining}</td>
-                <td>
-                  <button
-                    class="text-indigo-600"
+                    class="admin-text-button"
+                    disabled={!props.projects.some(item => item.userId === user.id)}
                     onClick={() => {
                       const project = props.projects.find(item => item.userId === user.id)
                       if (project) props.onProject(project)
                     }}
                   >
-                    {props.projects.filter(item => item.userId === user.id).length} projects
+                    {number(props.projects.filter(item => item.userId === user.id).length)}
+                    <ArrowUpRight size={13} />
                   </button>
                 </td>
               </tr>
@@ -330,13 +523,12 @@ function Users(props: {
 }
 function Projects(props: { projects: AdminProject[]; onSelect: (project: AdminProject) => void }) {
   return (
-    <div class="overflow-x-auto">
-      <table class="w-full min-w-[800px] text-left text-sm">
-        <thead class="bg-gray-50 text-xs uppercase text-gray-400">
+    <div class="admin-table-wrap">
+      <table class="admin-table" aria-label="Projects">
+        <thead>
           <tr>
-            <th class="p-3">Project</th>
-            <th>Flow</th>
-            <th>User</th>
+            <th>Project</th>
+            <th>Owner</th>
             <th>Status</th>
             <th>Credits</th>
             <th>Created</th>
@@ -347,26 +539,39 @@ function Projects(props: { projects: AdminProject[]; onSelect: (project: AdminPr
             each={props.projects}
             fallback={
               <tr>
-                <td colSpan="6" class="p-12 text-center">
-                  No projects found
+                <td colSpan="5">
+                  <EmptyState
+                    title="No projects found"
+                    description="Try another search or choose a different status."
+                  />
                 </td>
               </tr>
             }
           >
             {project => (
-              <tr
-                class="cursor-pointer border-t hover:bg-indigo-50"
-                onClick={() => props.onSelect(project)}
-              >
-                <td class="p-3">
-                  <b>{project.title || 'Untitled'}</b>
-                  <p class="text-xs text-gray-400">{project.id.slice(-8)}</p>
+              <tr>
+                <td>
+                  <button
+                    type="button"
+                    class="admin-project-button"
+                    onClick={() => props.onSelect(project)}
+                  >
+                    <span class="admin-project-icon">
+                      <FolderOpen size={17} />
+                    </span>
+                    <span class="admin-cell-copy">
+                      <strong>{project.title || 'Untitled project'}</strong>
+                      <small>{project.id.slice(-8)}</small>
+                    </span>
+                    <ArrowUpRight size={14} />
+                  </button>
                 </td>
-                <td>{project.flow}</td>
-                <td>{project.userEmail}</td>
-                <td>{project.status}</td>
-                <td>{project.creditsCharged}</td>
-                <td>{new Date(project.createdAt).toLocaleString()}</td>
+                <td>{project.userEmail || 'Unknown owner'}</td>
+                <td>
+                  <Badge tone={project.status}>{project.status}</Badge>
+                </td>
+                <td class="admin-numeric">{number(project.creditsCharged)}</td>
+                <td class="admin-nowrap">{date(project.createdAt)}</td>
               </tr>
             )}
           </For>
@@ -378,11 +583,11 @@ function Projects(props: { projects: AdminProject[]; onSelect: (project: AdminPr
 function Onboarding(props: { users: any[] }) {
   const rows = () => props.users.filter(user => user.onboardingSurvey)
   return (
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="admin-table-wrap">
+      <table class="admin-table" aria-label="Onboarding responses">
         <thead>
           <tr>
-            <th class="p-3">User</th>
+            <th>User</th>
             <th>Goal</th>
             <th>Role</th>
             <th>Team size</th>
@@ -391,17 +596,29 @@ function Onboarding(props: { users: any[] }) {
           </tr>
         </thead>
         <tbody>
-          <For each={rows()}>
+          <For
+            each={rows()}
+            fallback={
+              <tr>
+                <td colSpan="6">
+                  <EmptyState
+                    title="Getting to know your users"
+                    description="Onboarding responses will appear here as people join."
+                  />
+                </td>
+              </tr>
+            }
+          >
             {user => {
               const survey = user.onboardingSurvey
               return (
-                <tr class="border-t">
-                  <td class="p-3">{user.email}</td>
-                  <td>{survey.creationGoal}</td>
-                  <td>{survey.role}</td>
-                  <td>{survey.teamSize}</td>
-                  <td>{survey.monthlyVolume}</td>
-                  <td>{survey.discoverySource}</td>
+                <tr>
+                  <td>{user.email}</td>
+                  <td>{survey.creationGoal || '—'}</td>
+                  <td>{survey.role || '—'}</td>
+                  <td>{survey.teamSize || '—'}</td>
+                  <td>{survey.monthlyVolume || '—'}</td>
+                  <td>{survey.discoverySource || '—'}</td>
                 </tr>
               )
             }}
@@ -413,18 +630,35 @@ function Onboarding(props: { users: any[] }) {
 }
 function Affiliates(props: { data: any }) {
   return (
-    <div class="grid gap-4 p-5 md:grid-cols-3">
+    <div class="admin-affiliates">
       <For
         each={props.data?.affiliates ?? []}
-        fallback={<p class="text-sm text-gray-500">No affiliates yet.</p>}
+        fallback={
+          <EmptyState
+            title="Good things grow together"
+            description="Affiliate partners and referral activity will appear here."
+          />
+        }
       >
         {affiliate => (
-          <article class="rounded-xl border p-4">
-            <b>{affiliate.user?.email ?? affiliate.code}</b>
-            <p class="text-sm text-gray-500">Code: {affiliate.code}</p>
-            <p class="mt-2 text-xs">
-              {affiliate.totalClicks ?? 0} clicks · {affiliate.totalConversions ?? 0} conversions
+          <article class="admin-affiliate">
+            <span class="admin-project-icon">
+              <UsersIcon size={18} />
+            </span>
+            <h3>{affiliate.user?.email ?? affiliate.code}</h3>
+            <p>
+              Referral code <Badge>{affiliate.code}</Badge>
             </p>
+            <dl>
+              <div>
+                <dt>Clicks</dt>
+                <dd>{number(affiliate.totalClicks)}</dd>
+              </div>
+              <div>
+                <dt>Conversions</dt>
+                <dd>{number(affiliate.totalConversions)}</dd>
+              </div>
+            </dl>
           </article>
         )}
       </For>
@@ -437,78 +671,152 @@ function Newsletter(props: { audience: any; refresh: () => Promise<void> }) {
   const [message, setMessage] = createSignal('')
   const [email, setEmail] = createSignal('')
   const [result, setResult] = createSignal('')
+  const [error, setError] = createSignal('')
+  const [sending, setSending] = createSignal(false)
+  const [adding, setAdding] = createSignal(false)
   const send = async (event: SubmitEvent) => {
     event.preventDefault()
+    if (sending()) return
     const ids = (props.audience?.subscribers ?? [])
       .filter((item: any) => item.status === 'subscribed')
       .map((item: any) => item.id)
     if (!ids.length || !confirm(`Send this update to ${ids.length} contacts?`)) return
-    const token = await getToken()
-    if (!token) return
-    const response = await api.post<{ sent: number; failed: number }>(
-      '/admin/newsletter/send',
-      token,
-      {
-        subject: subject(),
-        message: message(),
-        ctaLabel: 'See what is new at Pitch',
-        ctaUrl: 'https://trypitch.co',
-        recipientIds: ids,
-      },
-    )
-    setResult(`Sent ${response.sent}; ${response.failed} failed.`)
+    setSending(true)
+    setError('')
+    setResult('')
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      const response = await api.post<{ sent: number; failed: number }>(
+        '/admin/newsletter/send',
+        token,
+        {
+          subject: subject(),
+          message: message(),
+          ctaLabel: 'See what is new at Pitch',
+          ctaUrl: 'https://trypitch.co',
+          recipientIds: ids,
+        },
+      )
+      setResult(`Sent ${response.sent}; ${response.failed} failed.`)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Failed to send update')
+    } finally {
+      setSending(false)
+    }
   }
   const add = async (event: SubmitEvent) => {
     event.preventDefault()
-    const token = await getToken()
-    if (!token) return
-    await api.post('/admin/newsletter/subscribers', token, { email: email() })
-    setEmail('')
-    await props.refresh()
+    if (adding()) return
+    setAdding(true)
+    setError('')
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+      await api.post('/admin/newsletter/subscribers', token, { email: email() })
+      setEmail('')
+      await props.refresh()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Failed to add subscriber')
+    } finally {
+      setAdding(false)
+    }
   }
   return (
-    <div class="grid lg:grid-cols-2">
-      <form class="space-y-3 border-r p-5" onSubmit={send}>
-        <h2 class="font-bold">Send a product update</h2>
-        <input
-          required
-          class="w-full rounded-lg border p-2 text-sm"
-          placeholder="Subject"
-          value={subject()}
-          onInput={event => setSubject(event.currentTarget.value)}
-        />
-        <textarea
-          required
-          rows="8"
-          class="w-full rounded-lg border p-2 text-sm"
-          placeholder="Message"
-          value={message()}
-          onInput={event => setMessage(event.currentTarget.value)}
-        />
-        <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white">
-          Send to subscribers
-        </button>
-        <p class="text-sm">{result()}</p>
+    <div class="admin-newsletter">
+      <Show when={error()}>
+        <p class="admin-alert" role="alert">
+          {error()}
+        </p>
+      </Show>
+      <form class="admin-newsletter__compose" onSubmit={send}>
+        <div class="admin-form-heading">
+          <span class="admin-project-icon">
+            <Send size={17} />
+          </span>
+          <div>
+            <h3>Send a product update</h3>
+            <p>Something worth sharing with your community.</p>
+          </div>
+        </div>
+        <label class="admin-field">
+          <span>Subject</span>
+          <input
+            required
+            class="admin-input"
+            placeholder="What’s new at Pitch?"
+            value={subject()}
+            onInput={event => setSubject(event.currentTarget.value)}
+          />
+        </label>
+        <label class="admin-field">
+          <span>Message</span>
+          <textarea
+            required
+            rows="8"
+            class="admin-input"
+            placeholder="Write something your audience will love…"
+            value={message()}
+            onInput={event => setMessage(event.currentTarget.value)}
+          />
+        </label>
+        <div class="admin-form-actions">
+          <span>{number(props.audience?.subscribed)} subscribed contacts</span>
+          <button
+            type="submit"
+            class="admin-button admin-button--primary"
+            disabled={sending() || !props.audience?.subscribed}
+          >
+            <Send size={14} />
+            {sending() ? 'Sending…' : 'Send update'}
+          </button>
+        </div>
+        <Show when={result()}>
+          <p class="admin-result" role="status">
+            {result()}
+          </p>
+        </Show>
       </form>
-      <div class="p-5">
-        <h2 class="font-bold">Audience ({props.audience?.subscribed ?? 0})</h2>
-        <form class="my-3 flex gap-2" onSubmit={add}>
+      <div class="admin-newsletter__audience">
+        <div class="admin-form-heading">
+          <span class="admin-project-icon">
+            <Mail size={17} />
+          </span>
+          <div>
+            <h3>
+              Your audience <span class="admin-count">{number(props.audience?.subscribed)}</span>
+            </h3>
+            <p>People who want to hear from you.</p>
+          </div>
+        </div>
+        <form class="admin-add-contact" onSubmit={add}>
           <input
             required
             type="email"
-            class="flex-1 rounded-lg border p-2 text-sm"
-            placeholder="Email"
+            class="admin-input"
+            aria-label="Subscriber email"
+            placeholder="Enter an email address"
             value={email()}
             onInput={event => setEmail(event.currentTarget.value)}
           />
-          <button class="rounded-lg border px-3 text-sm">Add</button>
+          <button type="submit" class="admin-button" disabled={adding()}>
+            {adding() ? 'Adding…' : 'Add contact'}
+          </button>
         </form>
-        <div class="max-h-96 overflow-auto">
-          <For each={props.audience?.subscribers ?? []}>
+        <div class="admin-contacts">
+          <For
+            each={props.audience?.subscribers ?? []}
+            fallback={
+              <EmptyState
+                title="Your audience starts here"
+                description="Add a contact to start building your email list."
+              />
+            }
+          >
             {contact => (
-              <div class="border-t py-2 text-sm">
-                <b>{contact.email}</b>
-                <span class="float-right text-xs text-gray-400">{contact.status}</span>
+              <div class="admin-contact">
+                <span>{contact.email}</span>
+                <Badge tone={contact.status}>{contact.status}</Badge>
               </div>
             )}
           </For>

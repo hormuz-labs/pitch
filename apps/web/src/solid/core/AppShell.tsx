@@ -5,7 +5,6 @@ import {
   FolderOpen,
   PanelLeftClose,
   PanelLeftOpen,
-  PlugZap,
   Plus,
   Search,
   Shield,
@@ -224,14 +223,6 @@ function Sidebar(props: {
           >
             <AppWindow size={16} />
             <span>Browser sessions</span>
-          </button>
-          <button
-            type="button"
-            class="conversation-sidebar__row"
-            onClick={() => props.openSettings('mcp')}
-          >
-            <PlugZap size={16} />
-            <span>API / MCP</span>
           </button>
           <Show when={props.isAdmin}>
             <button

@@ -1,0 +1,80 @@
+/* Start with the conversation; give artifacts their own pane once they exist. */
+.lv-studio .editor-stage[hidden],
+.lv-studio .resize-handle[hidden] { display: none; }
+.lv-studio.is-chat-only .editor { padding: 0; gap: 0; }
+.lv-studio.is-chat-only .edit-sidebar {
+  --chat-inset: clamp(16px, 4vw, 64px);
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--paper);
+}
+.lv-studio.is-chat-only .edit-sidebar.is-working { background: var(--paper); box-shadow: none; }
+.lv-studio.is-chat-only .topbar-split-left { width: auto !important; max-width: none; flex: 1; min-width: 0; }
+.lv-studio.is-chat-only .topbar-split-right { flex: 0 0 auto; }
+.lv-studio.is-chat-only .feed {
+  margin: 0 var(--chat-inset);
+  padding: 24px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg-surface);
+  clip-path: inset(0 round 24px);
+}
+.lv-studio.is-chat-only .job-composer {
+  flex: 0 0 auto;
+  padding: 12px var(--chat-inset) 24px;
+  border-top: 0;
+  background: var(--paper);
+}
+
+/* Both panes share an outer frame; clip their contents to the same corners. */
+.lv-studio:not(.is-chat-only) :is(.edit-sidebar, .editor-stage) {
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+@media (min-width: 721px) {
+  .lv-studio:not(.is-chat-only) .editor { align-items: stretch; }
+  .lv-studio:not(.is-chat-only) :is(.edit-sidebar, .editor-stage) {
+    height: 100%;
+    max-height: 100%;
+    align-self: stretch;
+  }
+}
+
+.lv-studio .build-process { padding: 24px; gap: 16px; border-radius: 16px; background: var(--paper); }
+.lv-studio .build-process__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink); font-size: 12px; font-weight: 500; }
+.lv-studio .build-process__heading small { color: var(--muted); font-size: 10px; font-weight: 400; }
+.lv-studio .build-process__stage { width: 100%; max-height: none; min-height: 0; flex: 1 1 0; aspect-ratio: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--control); }
+.lv-studio .build-process__stage > img { width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.lv-studio .build-process__status { position: static; flex: none; padding: 0; background: none; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.lv-studio .build-process__shots { padding-bottom: 2px; }
+.lv-studio .build-process__shots img { width: 72px; background: var(--control); object-fit: contain; }
+
+@media (max-width: 720px) {
+  .app-shell-bg:has(.lv-studio) { height: 100dvh; }
+  .lv-studio.is-chat-only .edit-sidebar { --chat-inset: 12px; }
+  .lv-studio.is-chat-only .feed { padding: 16px; }
+  .lv-studio.is-chat-only .job-composer { padding: 10px var(--chat-inset) max(12px, env(safe-area-inset-bottom)); }
+  .lv-studio.is-chat-only .job-composer-box textarea { font-size: 16px; max-height: min(200px, 30dvh); }
+  .lv-studio.is-chat-only .job-composer-footer { flex-wrap: wrap; gap: 8px; }
+  .lv-studio.is-chat-only .job-composer-actions { min-width: 0; margin-left: auto; }
+  .lv-studio.is-chat-only .model-btn { max-width: 150px; }
+  .lv-studio.is-chat-only .model-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lv-studio.is-chat-only :is(.job-send-round, .job-attach-plus) { width: 40px; height: 40px; flex-shrink: 0; }
+  .lv-studio.is-chat-only .topbar-split-right { gap: 4px; padding-right: 6px; }
+  .lv-studio .build-process { padding: 12px; gap: 9px; }
+  .lv-studio .build-process__shots img { width: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lv-studio .build-process__stage > img { animation: none; }
+}

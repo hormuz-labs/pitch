@@ -22,6 +22,7 @@ import {
 import 'lenis/dist/lenis.css'
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { FeaturedVideos } from '../../components/landing/FeaturedVideos'
+import { GenerateButton } from '../../components/ui/generate-button'
 import { isApiError } from '../../lib/api'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
 import {
@@ -546,16 +547,14 @@ export function NewProjectView(props: {
                     </For>
                   </StudioMenu>
                 </Show>
-                <button
-                  class="send-btn"
+                <GenerateButton
+                  hue={210}
+                  isGenerating={submitting()}
+                  isReady={Boolean(prompt().trim())}
                   disabled={submitting() || uploading() || (!prompt().trim() && !files().length)}
                   onClick={() => void submit()}
-                  aria-label="Start project"
-                >
-                  <Show when={!submitting()} fallback={<span class="spinner" />}>
-                    <ArrowUp size={17} />
-                  </Show>
-                </button>
+                  aria-label={submitting() ? 'Generating project' : 'Generate project'}
+                />
               </div>
             </div>
             <Show when={activeSkill() || ratio() !== '16:9' || duration()}>

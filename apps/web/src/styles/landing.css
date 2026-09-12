@@ -28,59 +28,6 @@
   color: var(--text-primary);
 }
 
-/* ── Announcement bar ─────────────────────────────────────────────── */
-.landing-announcement {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 6px 12px;
-  background: linear-gradient(90deg, #0d8fd9 0%, #1DA1F2 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-@media (max-width: 400px) {
-  .landing-announcement {
-    font-size: 10px;
-    gap: 8px;
-  }
-}
-
-[data-theme="dark"] .landing-announcement {
-  background: linear-gradient(90deg, #0d8fd9 0%, #1DA1F2 100%);
-}
-
-.landing-announcement-cta {
-  padding: 3px 12px;
-  background: #ffffff;
-  color: #0d8fd9;
-  border: none;
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-  flex-shrink: 0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="dark"] .landing-announcement-cta {
-  color: #1a1a1a;
-}
-
-.landing-announcement-cta:hover {
-  opacity: 0.88;
-}
-
 /* ── Navbar ───────────────────────────────────────────────────────── */
 .landing-nav {
   width: 100%;
@@ -202,11 +149,6 @@
 .landing-nav-cta:focus-visible,
 .landing-nav-link:focus-visible {
   outline: 2px solid rgba(0, 0, 0, 0.3);
-  outline-offset: 3px;
-}
-
-.landing-announcement-cta:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 3px;
 }
 
