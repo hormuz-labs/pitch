@@ -108,8 +108,8 @@ export function ProjectsView(props: {
     }
   }
   return (
-    <div class="mx-auto w-full max-w-6xl p-6 md:p-8">
-      <header class="mb-6 flex items-end justify-between gap-3">
+    <div class="projects-page mx-auto w-full max-w-6xl p-6 md:p-8">
+      <header class="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">
             {showingDecks() ? 'Slide decks' : 'Projects'}
@@ -121,7 +121,7 @@ export function ProjectsView(props: {
           </p>
         </div>
         <button
-          class="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3.5 py-2 text-sm font-medium text-white"
+          class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-3.5 py-2 text-sm font-medium text-white"
           onClick={() => navigate(showingDecks() ? '/new?flow=deck' : '/new')}
         >
           <Plus size={14} />

@@ -1,8 +1,9 @@
-import { Files, Link, MonitorPlay } from 'lucide-solid'
+import { ChevronDown, ChevronUp, Files, Link, MessageSquare, MonitorPlay } from 'lucide-solid'
 import {
   createEffect,
   createMemo,
   createSignal,
+  createUniqueId,
   For,
   Match,
   onCleanup,
@@ -232,6 +233,10 @@ function Actions(props: { store: ProjectStore }) {
 }
 export function StudioView(props: { projectId: string }) {
   const s = useProject(props.projectId),
+    chatId = createUniqueId(),
+    timelineId = createUniqueId(),
+    [chatOpen, setChatOpen] = createSignal(false),
+    [timelineOpen, setTimelineOpen] = createSignal(true),
     [view, setView] = createSignal<'preview' | 'files'>('preview'),
     [sidebar, setSidebar] = createSignal(
       typeof window === 'undefined' ? 440 : Math.min(520, Math.max(340, innerWidth * 0.3)),
@@ -247,6 +252,7 @@ export function StudioView(props: { projectId: string }) {
     drag: { x: number; w: number } | null = null,
     trayDrag: { y: number; h: number } | null = null
   createEffect(() => {
+    chatOpen()
     s.busy
     s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
     queueMicrotask(() => {
@@ -272,18 +278,25 @@ export function StudioView(props: { projectId: string }) {
   })
   const showStage = createMemo(() => hasPreview() || (view() === 'files' && s.assets.length > 0))
   onMount(() => {
-    const observer = new ResizeObserver(() => resizeTray(tray()))
+    const observer = new ResizeObserver(() => {
+      if (stage && stage.clientHeight > 0) resizeTray(tray())
+    })
     if (stage) observer.observe(stage)
     onCleanup(() => observer.disconnect())
   })
   return (
-    <div class="lv-studio" classList={{ 'is-chat-only': !showStage() }}>
+    <div
+      class="lv-studio"
+      classList={{ 'is-chat-only': !showStage(), 'is-chat-expanded': chatOpen() }}
+    >
       <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
         <div class="editor-wrap" ref={wrap} style={{ '--sidebar-w': `${sidebar()}px` }}>
           <header class="job-topbar job-topbar-split">
             <div class="topbar-split-left" style={{ width: `${sidebar()}px` }}>
               <div class="nav-crumb">
-                <span class="editor-project">{s.project?.title ?? '…'}</span>
+                <span class="editor-project" title={s.project?.title}>
+                  {s.project?.title ?? '…'}
+                </span>
                 <span class="project-kind">
                   {TITLES[s.project?.description.preview?.kind ?? ''] ?? 'Project'}
                 </span>
@@ -342,6 +355,7 @@ export function StudioView(props: { projectId: string }) {
           </header>
           <div class="editor">
             <aside
+              id={chatId}
               class={`edit-sidebar${s.busy ? ' is-working' : ''}`}
               ref={side}
               style={{ '--sidebar-w': `${sidebar()}px` }}
@@ -374,6 +388,37 @@ export function StudioView(props: { projectId: string }) {
               </div>
               <Composer store={s} />
             </aside>
+            <Show when={showStage()}>
+              <button
+                type="button"
+                class="mobile-chat-toggle"
+                aria-controls={chatId}
+                aria-expanded={chatOpen()}
+                onClick={() => {
+                  if (!chatOpen()) {
+                    setView('preview')
+                    setTimelineOpen(false)
+                  }
+                  setChatOpen(open => !open)
+                }}
+              >
+                <MessageSquare size={18} />
+                <span class="mobile-chat-toggle__label">{chatOpen() ? 'Hide chat' : 'Chat'}</span>
+                <span class="mobile-chat-toggle__status">
+                  {s.targets.length
+                    ? `${s.targets.length} selected`
+                    : s.busy
+                      ? s.status
+                      : s.draft.trim()
+                        ? 'Draft message'
+                        : 'Ask for a change…'}
+                </span>
+                <Show when={s.busy}>
+                  <span class="spinner" aria-hidden="true" />
+                </Show>
+                {chatOpen() ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+              </button>
+            </Show>
             <div
               class="resize-handle"
               hidden={!showStage()}
@@ -409,7 +454,7 @@ export function StudioView(props: { projectId: string }) {
                     </Show>
                   </div>
                 </div>
-                <Show when={stripKind()}>
+                <Show when={stripKind() && timelineOpen()}>
                   <div
                     class="resize-handle-h"
                     role="separator"
@@ -436,7 +481,7 @@ export function StudioView(props: { projectId: string }) {
                       trayDrag = {
                         y: e.clientY,
                         h:
-                          e.currentTarget.nextElementSibling?.getBoundingClientRect().height ??
+                          document.getElementById(timelineId)?.getBoundingClientRect().height ??
                           tray(),
                       }
                       e.currentTarget.setPointerCapture(e.pointerId)
@@ -450,7 +495,25 @@ export function StudioView(props: { projectId: string }) {
                   />
                 </Show>
                 <Show when={stripKind()}>
-                  <div class="tray" style={{ height: `${tray()}px` }}>
+                  <button
+                    type="button"
+                    class="editor-tracks-toggle"
+                    aria-controls={timelineId}
+                    aria-expanded={timelineOpen()}
+                    onClick={() => setTimelineOpen(open => !open)}
+                  >
+                    <span>{stripKind() === 'slides' ? 'Slides' : 'Video editor'}</span>
+                    <span class="editor-tracks-toggle__hint">
+                      {timelineOpen() ? 'Collapse' : 'Expand'}
+                    </span>
+                    {timelineOpen() ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  <div
+                    id={timelineId}
+                    class="tray"
+                    hidden={!timelineOpen()}
+                    style={{ height: `${tray()}px` }}
+                  >
                     <Switch>
                       <Match when={stripKind() === 'slides'}>
                         <SlideStrip store={s} />
