@@ -1,6 +1,21 @@
 /* Start with the conversation; give artifacts their own pane once they exist. */
+.lv-studio:not(.new-project-page) {
+  --accent: var(--ink);
+  --accent-hover: var(--control-hover);
+  --accent-soft: color-mix(in srgb, var(--ink) 12%, transparent);
+  --accent-ink: var(--ink);
+}
+.lv-studio :is(.mobile-chat-toggle, .editor-tracks-toggle):is(:hover, :active):not(:disabled) {
+  background: var(--control-hover);
+  color: var(--ink);
+}
+.lv-studio :is(button, a, input) { -webkit-tap-highlight-color: transparent; }
 .lv-studio .editor-stage[hidden],
 .lv-studio .resize-handle[hidden] { display: none; }
+.lv-studio .mobile-chat-toggle { display: none; }
+.lv-studio .job-topbar .nav-crumb { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; min-width: 0; width: 100%; }
+.lv-studio .job-topbar .editor-project { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lv-studio .job-topbar :is(.project-kind, .project-state) { flex-shrink: 0; white-space: nowrap; }
 .lv-studio.is-chat-only .editor { padding: 0; gap: 0; }
 .lv-studio.is-chat-only .edit-sidebar {
   --chat-inset: clamp(16px, 4vw, 64px);
@@ -60,17 +75,75 @@
 .lv-studio .build-process__shots { padding-bottom: 2px; }
 .lv-studio .build-process__shots img { width: 72px; background: var(--control); object-fit: contain; }
 
+@media (max-width: 1023px) {
+  .lv-studio:not(.new-project-page) .job-topbar.job-topbar-split {
+    height: calc(max(15px, env(safe-area-inset-top)) + 35.2px + 8px);
+    min-height: calc(max(15px, env(safe-area-inset-top)) + 35.2px + 8px);
+    padding-top: max(15px, env(safe-area-inset-top));
+    padding-bottom: 8px;
+    padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px);
+  }
+  .lv-studio:not(.new-project-page) .topbar-split-left { padding-left: 0; }
+}
+
 @media (max-width: 720px) {
+  .lv-studio:not(.new-project-page) .topbar-split-left { flex: 1 1 0; max-width: none; }
+  .lv-studio:not(.new-project-page) .topbar-split-right { flex: 0 0 auto; }
+  .lv-studio .job-topbar :is(.project-kind, .project-state) { display: none; }
   .app-shell-bg:has(.lv-studio) { height: 100dvh; }
+  .lv-studio:not(.is-chat-only) .editor { position: relative; gap: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .lv-studio:not(.is-chat-only) .edit-sidebar { display: none; }
+  .lv-studio:not(.is-chat-only).is-chat-expanded .edit-sidebar {
+    display: flex;
+    flex: 1 1 240px;
+    min-height: 240px;
+    width: auto;
+    max-width: none;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .lv-studio:not(.is-chat-only).is-chat-expanded .editor { overflow-y: auto; overscroll-behavior: contain; }
+  .lv-studio:not(.is-chat-only).is-chat-expanded .editor-stage { flex: 0 0 auto; height: auto; }
+  .lv-studio.is-chat-expanded .studio-preview-view { flex: none; height: auto; }
+  .lv-studio .studio-preview-view > .player { flex: none; }
+  .lv-studio .player-stage { height: auto; aspect-ratio: 16 / 9; }
+  .lv-studio .player-stage:has(.live-preview, .video-container) { aspect-ratio: auto; }
+  .lv-studio .live-preview:not(.is-fullscreen) { height: auto; }
+  .lv-studio .live-preview:not(.is-fullscreen) .live-preview-stage,
+  .lv-studio .native-preview:not(.is-fullscreen) { flex: none; aspect-ratio: 16 / 9; }
+  .lv-studio .video-container { height: auto; }
+  .lv-studio .studio-preview-view { overflow-y: auto; }
+  .lv-studio:not(.new-project-page) .studio-preview-view > .tray { max-height: none; }
+  .lv-studio.is-chat-expanded .mobile-chat-toggle { position: sticky; bottom: 0; z-index: 30; }
+  .lv-studio .mobile-chat-toggle {
+    display: flex;
+    align-items: center;
+    order: 4;
+    flex: 0 0 52px;
+    width: 100%;
+    min-width: 0;
+    gap: 10px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-surface);
+    color: var(--ink);
+    text-align: left;
+  }
+  .lv-studio .mobile-chat-toggle:focus-visible { outline: 2px solid var(--muted); outline-offset: -3px; }
+  .lv-studio .mobile-chat-toggle > svg, .lv-studio .mobile-chat-toggle > .spinner { flex: none; }
+  .lv-studio .mobile-chat-toggle__label { flex: none; font-size: 13px; font-weight: 600; }
+  .lv-studio .mobile-chat-toggle__status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+  .lv-studio .job-composer { max-height: 60%; overflow-y: auto; }
+  .lv-studio .job-composer-box textarea { font-size: 16px; max-height: min(200px, 30dvh); }
+  .lv-studio .job-composer-footer { flex-wrap: wrap; gap: 8px; }
+  .lv-studio .job-composer-actions { min-width: 0; margin-left: auto; }
+  .lv-studio .model-btn { max-width: 150px; }
+  .lv-studio .model-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lv-studio :is(.job-send-round, .job-attach-plus) { width: 40px; height: 40px; flex-shrink: 0; }
   .lv-studio.is-chat-only .edit-sidebar { --chat-inset: 12px; }
   .lv-studio.is-chat-only .feed { padding: 16px; }
   .lv-studio.is-chat-only .job-composer { padding: 10px var(--chat-inset) max(12px, env(safe-area-inset-bottom)); }
-  .lv-studio.is-chat-only .job-composer-box textarea { font-size: 16px; max-height: min(200px, 30dvh); }
-  .lv-studio.is-chat-only .job-composer-footer { flex-wrap: wrap; gap: 8px; }
-  .lv-studio.is-chat-only .job-composer-actions { min-width: 0; margin-left: auto; }
-  .lv-studio.is-chat-only .model-btn { max-width: 150px; }
-  .lv-studio.is-chat-only .model-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lv-studio.is-chat-only :is(.job-send-round, .job-attach-plus) { width: 40px; height: 40px; flex-shrink: 0; }
   .lv-studio.is-chat-only .topbar-split-right { gap: 4px; padding-right: 6px; }
   .lv-studio .build-process { padding: 12px; gap: 9px; }
   .lv-studio .build-process__shots img { width: 48px; }
