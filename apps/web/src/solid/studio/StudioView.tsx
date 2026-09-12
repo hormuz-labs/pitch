@@ -254,6 +254,7 @@ export function StudioView(props: { projectId: string }) {
     drag: { x: number; w: number } | null = null,
     trayDrag: { y: number; h: number } | null = null
   createEffect(() => {
+    s.busy
     s.entries.reduce((n, e) => n + e.text.length, s.entries.length)
     queueMicrotask(() => {
       if (feed && followFeed) feed.scrollTop = feed.scrollHeight
@@ -339,7 +340,7 @@ export function StudioView(props: { projectId: string }) {
                 }}
               >
                 <Show
-                  when={s.entries.length}
+                  when={s.entries.length || s.busy}
                   fallback={
                     <div class="feed-empty">
                       Describe what you want, or ask for a change. Pick a scene or slide below, or

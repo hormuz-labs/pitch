@@ -1,6 +1,8 @@
 import { Pencil } from 'lucide-solid'
-import { For, Show } from 'solid-js'
+import { createMemo, For, Show } from 'solid-js'
 import { AskStepper } from './Ask'
+import { agentActivity } from './agent-activity'
+import { ThinkingOrb } from './ThinkingOrb'
 import type { Entry } from './types'
 
 type Inline = { kind: 'text' | 'strong' | 'em' | 'code' | 'link'; text: string; href?: string }
@@ -182,14 +184,6 @@ function AgentMarkdown(props: { text: string }) {
     </For>
   )
 }
-const lastQuiet = (list: Entry[]) => {
-  const e = list.at(-1)
-  return (
-    !e ||
-    (!(e.role === 'tool' && e.tool?.status === 'running') &&
-      (e.role === 'user' || e.role === 'tool' || e.role === 'question'))
-  )
-}
 export function Thread(props: {
   entries: Entry[]
   busy: boolean
@@ -198,6 +192,7 @@ export function Thread(props: {
 }) {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
+  const activity = createMemo(() => agentActivity(props.entries, props.busy))
   return (
     <div class="thread">
       <For each={props.entries.filter(e => e.role !== 'thinking')}>
@@ -265,13 +260,19 @@ export function Thread(props: {
           </Show>
         )}
       </For>
-      <Show when={props.busy && lastQuiet(props.entries)}>
-        <div class="log-line working">
-          <span class="log-icon">
-            <span class="spinner" />
-          </span>
-          <span class="log-text">working…</span>
-        </div>
+      <Show when={activity()}>
+        {state => (
+          <div class="agent-activity" role="status" aria-live="polite" aria-atomic="true">
+            <ThinkingOrb state={state()} size={64} />
+            <span>
+              {state() === 'listening'
+                ? 'Listening…'
+                : state() === 'searching'
+                  ? 'Searching…'
+                  : 'Thinking…'}
+            </span>
+          </div>
+        )}
       </Show>
     </div>
   )

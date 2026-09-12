@@ -178,7 +178,7 @@
   z-index: 66;
   width: 48px;
   height: 100%;
-  padding: 8px 5px;
+  padding: 15px 8px;
   display: flex;
   flex: 0 0 48px;
   flex-direction: column;
@@ -192,8 +192,8 @@
   top: 18px;
   left: 18px;
   z-index: 64;
-  width: 38px;
-  height: 38px;
+  width: 35.2px;
+  height: 35.2px;
   padding: 0;
   display: grid;
   place-items: center;
@@ -218,8 +218,9 @@
 }
 
 .conversation-sidebar__rail button {
-  width: 38px;
-  height: 38px;
+  width: 35.2px;
+  height: 35.2px;
+  padding: 0;
   display: grid;
   place-items: center;
   border: 0;
@@ -251,13 +252,14 @@
   color: var(--shell-text);
 }
 
-/* One notch bigger than the drawer's glyphs, so the rail reads at a glance.
-   Scoped to the rail's own buttons — the history fly-out keeps its 13px ones. */
+/* Keep the toggle glyph the same size in the drawer and collapsed rail. */
+.conversation-sidebar__icon svg,
+.conversation-sidebar__open svg,
 .conversation-sidebar__rail>button svg,
 .conversation-sidebar__rail-pop>button svg,
 .conversation-sidebar__rail>a svg {
-  width: 19px;
-  height: 19px;
+  width: 17.6px;
+  height: 17.6px;
 }
 
 .conversation-sidebar__rail button:nth-of-type(2) {
@@ -443,15 +445,17 @@
 }
 
 .conversation-sidebar__wordmark-svg {
-  width: auto;
-  height: 29px;
+  width: 88px;
+  height: auto;
   padding-bottom: 4px;
-  color: #f0f0ed;
+  flex-shrink: 0;
+  color: var(--shell-text);
 }
 
 .conversation-sidebar__icon {
-  width: 32px;
-  height: 32px;
+  width: 35.2px;
+  height: 35.2px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 9px;
@@ -888,8 +892,8 @@
   /* A bare ghost icon on phones and tablets — no tile, border or shadow, so
      it reads as chrome rather than a floating card. */
   .conversation-sidebar__open {
-    top: max(12px, env(safe-area-inset-top));
-    left: max(12px, env(safe-area-inset-left));
+    top: max(15px, env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
     border-color: transparent;
     background: transparent;
     color: var(--shell-muted);
@@ -902,9 +906,6 @@
     color: var(--shell-text);
   }
 
-  .conversation-sidebar__open:active {
-    transform: scale(0.9);
-  }
 }
 
 @media (max-width: 720px) {
@@ -916,11 +917,39 @@
 /* Workspace navigation stays compact; recent work and everyday controls are separate. */
 .app-shell-bg { --shell-bg: #faf9f8; --shell-raised: #fff; --shell-hover: #f0efee; --shell-active: #ecebea; --shell-border: #eae9e8; --shell-text: #303030; --shell-muted: #666; --shell-faint: #929292; }
 [data-theme="dark"] .app-shell-bg { --shell-bg: #191919; --shell-panel: #111; --shell-raised: #202020; --shell-hover: #262626; --shell-active: #2d2d2d; --shell-border: #303030; --shell-text: #d9d9d9; --shell-muted: #aaa; --shell-faint: #777; }
-.conversation-sidebar__brand { height: 62px; padding: 12px 12px 12px 16px; }
-.sidebar-brand-name { color: var(--shell-text); font-size: 17px; font-weight: 600; letter-spacing: -.04em; }
+.conversation-sidebar__brand { height: 62px; padding: 15px 12px 15px 16px; justify-content: space-between; gap: 8px; }
+@media (max-width: 1023px) {
+  .conversation-sidebar__brand { height: auto; padding-top: max(15px, env(safe-area-inset-top)); padding-left: max(16px, env(safe-area-inset-left)); }
+}
 .conversation-sidebar__primary { gap: 2px; padding: 0 12px; max-height: calc(100% - 250px); overflow-y: auto; scrollbar-width: thin; }
-.conversation-sidebar__new { min-height: 40px; margin-bottom: 8px; padding: 9px 10px; border: 1px solid var(--shell-border); border-radius: 10px; font-weight: 500; font-size: 13px; box-shadow: none; }
-.conversation-sidebar__new kbd { padding: 2px 4px; border: 0; border-radius: 3px; font: 400 12px/1.2 var(--font-sans); background: var(--shell-hover); }
+.conversation-sidebar__new {
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+  padding: 0 8px;
+  gap: 7px;
+  border: 0.5px solid var(--shell-border);
+  border-radius: 8px;
+  background: var(--shell-raised);
+  color: var(--shell-text);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: normal;
+  line-height: 18px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+.conversation-sidebar__new > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-sidebar__new svg { width: 15px; height: 15px; }
+.conversation-sidebar__new kbd { flex-shrink: 0; padding: 2px 5px; border: 1px solid var(--shell-border); border-radius: 4px; color: var(--shell-muted); font: 400 10px/1.2 var(--font-mono); background: transparent; white-space: nowrap; }
+.conversation-sidebar__new:hover { border-color: color-mix(in srgb, var(--shell-text) 22%, var(--shell-border)); background: var(--shell-hover); color: var(--shell-text); box-shadow: 0 2px 4px rgb(0 0 0 / 4%); }
+.conversation-sidebar__new:active { background: var(--shell-active); box-shadow: none; }
+.conversation-sidebar__new:focus-visible { outline: 2px solid var(--shell-muted); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .conversation-sidebar__new { min-height: 44px; }
+  .conversation-sidebar__new kbd { display: none; }
+}
 .conversation-sidebar .conversation-sidebar__row { min-height: 36px; padding: 8px 10px; gap: 9px; border-radius: 8px; font-size: 13px; font-weight: 400; color: var(--shell-muted); letter-spacing: normal; }
 .conversation-sidebar .conversation-sidebar__row:is(:hover, .is-active) { color: var(--shell-text); }
 .conversation-sidebar__row svg, .conversation-sidebar__row.is-active svg { color: inherit; width: 16px; height: 16px; }
@@ -937,13 +966,19 @@
 .sidebar-project-search input::-webkit-search-cancel-button { display: none; }
 .sidebar-project-search button { display: grid; place-items: center; width: 18px; height: 22px; flex: none; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--shell-muted); cursor: pointer; }
 .sidebar-recents .conversation-sidebar__history { flex: 1; min-height: 0; padding: 0 0 12px; overflow-y: auto; scrollbar-width: thin; }
-.conversation-sidebar .sidebar-recent-project { display: flex; align-items: flex-start; gap: 8px; width: 100%; min-height: 56px; padding: 9px 6px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--shell-text); text-align: left; cursor: pointer; }
+.conversation-sidebar .sidebar-recent-project { width: 100%; min-width: 0; padding: 6px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--shell-text); }
 .conversation-sidebar .sidebar-recent-project:hover { background: var(--shell-hover); }
 .conversation-sidebar .sidebar-recent-project.is-active { border-color: var(--shell-border); background: var(--shell-raised); }
-.sidebar-recent-project__icon { width: 28px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 7px; background: var(--shell-raised); color: var(--shell-muted); }
+.conversation-sidebar .sidebar-recent-project__open { display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.sidebar-recent-project__icon { width: 22px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 6px; background: var(--shell-raised); color: var(--shell-muted); }
 .sidebar-recent-project__copy { display: block; flex: 1; min-width: 0; }
-.sidebar-recent-project strong { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; line-height: 1.45; font-weight: 450; overflow-wrap: anywhere; }
-.sidebar-recent-project small { display: flex; align-items: center; gap: 5px; margin-top: 3px; color: var(--shell-muted); font-size: 10px; line-height: 1.3; }
+.sidebar-recent-project strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.45; font-weight: 450; }
+.sidebar-recent-project strong.is-expanded { white-space: normal; overflow-wrap: anywhere; }
+.sidebar-recent-project__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 6px; padding-left: 29px; }
+.sidebar-recent-project small { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--shell-muted); font-size: 10px; line-height: 1.3; }
+.conversation-sidebar .sidebar-recent-project__more { flex: none; padding: 3px 0; border: 0; background: transparent; color: var(--shell-muted); font: inherit; font-size: 10px; line-height: 1.3; cursor: pointer; }
+.conversation-sidebar .sidebar-recent-project__more:hover { color: var(--shell-text); text-decoration: underline; }
+.conversation-sidebar .sidebar-recent-project__open:focus-visible, .conversation-sidebar .sidebar-recent-project__more:focus-visible { outline: 2px solid var(--shell-muted); outline-offset: 2px; border-radius: 4px; }
 .sidebar-recent-project .is-working { color: #438ed0; }
 .sidebar-recents__empty { padding: 14px 8px; margin: 0; color: var(--shell-muted); font-size: 12px; line-height: 1.6; }
 .conversation-sidebar__footer { padding: 10px 12px 12px; border-top: 1px solid var(--shell-border); }
@@ -966,9 +1001,9 @@
 .sidebar-account-chevron { flex: none; color: var(--shell-faint); }
 .sidebar-account-avatar { width: 28px; height: 28px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--shell-active); }
 .sidebar-account-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.sidebar-account-balance .settings-credit-trigger { min-width: 0; height: auto; padding: 6px 8px; display: grid; grid-template-columns: 12px auto; align-items: center; column-gap: 4px; border: 1px solid var(--shell-border); border-radius: 8px; background: var(--shell-raised); box-shadow: none; color: var(--shell-text); font-size: 11px; line-height: 1.3; }
+.sidebar-account-balance .settings-credit-trigger { min-width: 0; height: auto; padding: 6px 8px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; border: 1px solid var(--shell-border); border-radius: 8px; background: var(--shell-raised); box-shadow: none; color: var(--shell-text); font-size: 11px; line-height: 1.3; }
 .sidebar-account-balance .settings-credit-trigger img { width: 12px; height: 12px; }
-.sidebar-account-balance .settings-credit-trigger small { grid-column: 2; color: var(--shell-muted); font-size: 9px; font-weight: 400; text-align: left; }
+.sidebar-account-balance .settings-credit-trigger small { color: var(--shell-muted); font-size: 9px; font-weight: 400; text-align: left; }
 @media (min-width: 1024px) {
   .conversation-sidebar-frame { width: 240px; flex-basis: 240px; }
   .conversation-sidebar { width: 240px; }

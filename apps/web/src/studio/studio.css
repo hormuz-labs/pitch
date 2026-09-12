@@ -1249,8 +1249,17 @@
 .lv-studio .log-line.tool.error {
   color: var(--danger);
 }
-.lv-studio .log-line.working {
+.lv-studio .agent-activity {
+  --thinking-orb-size: clamp(24px, 3vw, 32px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--thinking-orb-size);
   color: var(--muted);
+  font-size: 12.5px;
+}
+.lv-studio .agent-activity canvas {
+  flex: none;
 }
 
 /* The agent's question, as a stepper (see Ask.tsx) */
@@ -1438,6 +1447,7 @@
 }
 .lv-studio .job-composer-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -2530,29 +2540,43 @@
   color: var(--faint);
 }
 
-/* The credit balance, where it is about to be spent. Faint by design: it is a
-   reference, not a call to action, so it must not compete with Send.
-
-   The button reset matters — `.lv-studio button` is an element selector and
-   beats CreditPopover's own utility classes, which is how a quiet marker ends
-   up painted accent-orange. */
+/* Exact wallet balance, kept visible beside the composer's attach control. */
 .lv-studio .composer-credits {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-}
-
-.lv-studio .composer-credits button {
-  padding: 2px 4px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--faint);
-}
-
-.lv-studio .composer-credits button:hover:not(:disabled) {
-  background: transparent;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
   color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.lv-studio .composer-credits img {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.lv-studio .composer-credits__balance {
+  color: var(--ink);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.lv-studio .composer-credits__label {
+  font-size: 11px;
+}
+.lv-studio .composer-credits:hover {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+.lv-studio .composer-credits:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
 
 
@@ -3519,6 +3543,7 @@
 }
 
 .lv-studio .job-composer {
+  container-type: inline-size;
   padding: 10px 14px 14px;
   border-top: 0;
   background: #ffffff;
@@ -3553,7 +3578,20 @@
 .lv-studio .job-composer-actions {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 7px;
+}
+.lv-studio .job-composer-actions {
+  margin-left: auto;
+}
+
+@container (max-width: 380px) {
+  .lv-studio .composer-credits__label { display: none; }
+  .lv-studio .job-composer-box { padding: 12px 10px 10px; }
+  .lv-studio .job-composer-footer { gap: 6px; }
+  .lv-studio .job-composer-tools,
+  .lv-studio .job-composer-actions { gap: 4px; }
+  .lv-studio .job-composer .model-select .model-btn { max-width: 100px; padding-inline: 6px; }
 }
 
 .lv-studio .job-attach-plus,
