@@ -8,7 +8,7 @@
  *
  * Checks:
  *   1. Shot-list lint (window.SHOTS): the shot-list rules (lib/design-rules.mjs —
- *      shot count, durations, hook, breaths, the stage), and the
+ *      shot count, durations, hook, breaths), and the
  *      narration contract — ONE continuous read (audio.vo) with the picture cut
  *      to its words (shot `cue`s vs audio/vo-words.json); per-shot clips fail.
  *   2. Event density: consecutive samples (every 0.25s) that differ by more than
@@ -40,7 +40,7 @@ import os from "node:os";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
-import { BUILT_IN, TYPE_BEATS, designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
+import { TYPE_BEATS, designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -185,10 +185,6 @@ if (!spec) {
   const unsetTokens = ["bg", "ink", "accent"].filter(k => !brandTokens[k]);
   if (unsetTokens.length) lint.push({ level: "fail", msg: `brand.${unsetTokens.join(", brand.")} not set — every shot is rendering in the engine's default palette, not the product's, and the ambient stage is invisible. Set the measured hex values on brand (top level), then re-run.` });
 
-  // ---- Template tells: what makes two films look like the same film -------------
-  // The shared engine gives every product the same ten looks; a film with no
-  // project-local shot type is assembled, not directed.
-  if (!shots.some(s => !BUILT_IN.has(s.type)) && !spec.actors) lint.push({ level: "warn", msg: "Every shot is a built-in type and nothing crosses the cuts — no signature. Either declare `actors` (the product's own object living across the scenes) or write one project-local type in js/shots.custom.js for the beat only this product could own (motion_schema({ section: \"custom shot types\" }))." });
   // Uniform durations read as a metronome whatever the content.
   if (shots.length >= 8) {
     const durs = shots.map(s => s.dur);

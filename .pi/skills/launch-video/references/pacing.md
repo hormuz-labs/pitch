@@ -15,7 +15,7 @@ Energy is **density and layering**, not speed.
 
 The failure mode is the opposite film: narration setting the durations, every
 shot an entrance then a hold, a whole desktop where one control should be.
-The fix is one read cut to words, a second act in every shot, and a stage —
+The fix is one read cut to words and a second act in every shot —
 planned in the shot table, not discovered by the gate. A lab effect ported
 whole brings its own acts and its own composition; nothing is added to it.
 
@@ -36,8 +36,8 @@ effect ported whole keeps its timing. Everything else is a ❌.
 | Events per second | ≥ 0.7 (the references run 2–3) — *note* |
 | Fails | a caret typing as the opener; a `ripple` beat |
 | Warnings, while building (`pitch motion check`) | a built-in type over 1.5s with nothing after its entrance (a project type is its own acts and is not judged); `word-cut` / `type-wipe` / `color-punch` / `type-field` / `overlay-type` with no `lab` port behind it; a whole screen in a browser frame with no `focus`, `cursor.zoom` or layers; a still screenshot as the product |
-| Warnings, at the gate | no `breath` beats; no `punch` cuts; a bare stage with no actors |
-| Boundaries (`pitch motion check` and the gate) | over a third of the cuts with nothing crossing them — no actor on both sides, no `carry`, no `flood` or `zoom`. Density is not continuity: a reference measured at 3.4 events/s reads as one piece because the wipe *is* the next subject (`continuity.md`) |
+| Warnings, at the gate | no `breath` beats; no `punch` cuts |
+| Continuity (visual review) | Review the connection in meaning, framing, motion or sound. Clean cuts and bare stages are valid; there is no actor or linked-cut quota. Use an object handoff only when it has a role in the scene (`continuity.md`). |
 | Clipped type (`pitch motion review`) | hero type measured against its mask and the stage edge at every frame: a run cut at the settled frame, or bigger than its mask mid-move (a snap scaled past its row), is listed with the fix |
 
 Both reference films measured 2.3 and 2.5 events per second, longest still

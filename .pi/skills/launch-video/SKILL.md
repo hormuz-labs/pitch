@@ -56,9 +56,9 @@ answered.
 
 The answer is not a label on the same film. It decides the material:
 
-| kind | the stage | where the moves come from | the object |
+| kind | the stage | where the moves come from | a way to connect the scenes |
 |---|---|---|---|
-| Cinematic | designed motion, no chrome | `text`, light, camera families | a form — the mark, a shape that becomes the product |
+| Cinematic | designed motion, no chrome | `text`, light, camera families | the story arc, matched composition or a product-object handoff |
 | Product walkthrough | `ui-frame` with a cursor, real screens pushed into | `ui`, `device-3d`, cursor moves | the cursor, or the card it drags |
 | 3D render | three.js / an isometric stage | the `3d` and `three` libs in the lab | the object itself, turning |
 | Teaser | one idea, ~15s, mostly type | `text`, `word-cut`, hard cuts | one word, restated |
@@ -89,29 +89,34 @@ asset — say once what would help and keep building.
 
 Write `direction.md`, a few lines each: what the film is about in one
 sentence; the look (palette, type, stage, finish, each with its evidence from
-recon); the arc and the hook; the rhythm; **the object** (below); and the
+recon); the arc and the hook; the rhythm; **how the scenes connect** (below); and the
 **signature** — the one thing only this product could own. Then the shot
 table: `# | id | type | move (lab id) | dur | copy | cut | joins | sound`.
 Present it and keep building; do not wait for approval.
 
 The structure is open — chapters cut on the beat, a manifesto, a demo with a
-cursor, something you invent for this product — but the joins are not.
+cursor, something you invent for this product. Choose the joins to suit it.
 
-## One object, and the transition is the next subject
+## Continuity comes from the sequence
 
-What keeps a viewer on a launch film is that almost nothing arrives new
-(`references/continuity.md`, measured). The bar that wipes a line away
-turns edge-on and is the phone the next shot is about; the square becomes
-the diamond becomes the mesh. One object, restated, and the viewer never
-re-orients. Name it in `direction.md` — this product's: its file, its
-message, its card, its cursor, its mark; never a reference's shapes — and
-write its chain as one line. Then let it cross: an **actor** posed on both
-sides of every cut (`pitch motion schema --section actors` — `anchor`,
-`into`, `hold`, `w/h/r` and `path` poses that morph), a `carry` for a match
-cut on one element, a `flood` or a `zoom` where the frame itself is the
-join. `pitch motion check` counts the boundaries nothing crosses; over a third and
-the film reads as slides however dense it is. A `punch` is the cut you keep,
-on a beat, two or three in a film.
+Each scene should follow the last in meaning, motion, composition or sound.
+A question can cut to its answer, a feature to its result, a wide view to a
+detail; matched framing, movement, typography, colour and an audio bridge
+can carry the connection. A clean cut is a valid choice. There is no quota
+of objects crossing cuts, and a film does not need a persistent actor.
+
+An object handoff is one option (`references/continuity.md`): a product card
+becomes the next shot's subject, or a cursor completes an action across a
+cut. Use an **actor**, `carry`, `flood` or `zoom` when that specific handoff
+helps the story. Give a shared actor a visible job and an exit or landing
+(`out` / `into`). `hold: true` deliberately keeps it visible after its last
+pose; use it only when that continued presence belongs in the composition.
+
+Do not add a dot, line, orb or other floating shape merely to signal
+continuity. Moving the same decoration around every scene does not connect
+their ideas. A recurring motif may leave and return; it need not remain on
+screen. Keep ported effects' compositions intact instead of overlaying a
+film-wide ornament.
 
 The same is true inside a shot. A line arrives **one word at a time**, each
 fully formed in a single frame, 0.6–0.8s apart: `line` with `steps`, one
@@ -220,11 +225,12 @@ is a film that plays end to end — shorter than the last one, never broken.
 
 1. `pitch motion scaffold` writes index.html and a starter `shots.js` — the brand
    recon measured and a **placeholder opener** built from the site's own h1,
-   so there is already a frame on the stage. Replace it with your hook, add
-   the stage and the `actors` block and one or two more shots **using
+   so there is already a frame on the stage. Replace it with your hook, choose
+   the stage (including `none`) and add one or two more shots **using
    built-in types only**, and save. `pitch motion check` — it prints the shot-list
-   warnings the audit will raise, the plain boundaries among them; fix them
-   now. The user should be watching a film inside three or four minutes.
+   warnings the audit will raise; address them while building. Add actors
+   only for planned object handoffs. The user should be watching a film
+   inside three or four minutes.
 2. Then one lab effect at a time: write its `js/shots/<type>.js` (+ its css),
    put its shot in `shots.js`, **save, `pitch motion check`, and only then start
    the next**. Never write a batch of type files before the shots that use

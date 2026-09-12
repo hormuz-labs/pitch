@@ -1,11 +1,15 @@
-# Continuity — why a launch film holds the viewer
+# Continuity — connecting scenes
 
-Two reference films measured frame by frame (`docs/studies/`): a 33s SaaS
-launch ad with **no cut at all**, and a 40s promo with thirty whole-frame
-turnovers. They read the same way — as one piece — for the same reason:
-**almost nothing arrives new.** Density is not what does it. The second film
-runs 3.4 events/s on the audit's own metric, five times the floor, and would
-still be slides if its shots did not come out of each other.
+Continuity is the viewer understanding why the next scene follows this one.
+Build it through the sequence of ideas, consistent visual language, matched
+framing or motion, and sound that carries across a cut. A question followed
+by its answer or a feature followed by its result can connect with a clean
+cut. Neither a persistent object nor a particular transition is required.
+
+Two reference films measured frame by frame (`docs/studies/`) use object
+handoffs especially well: a 33s SaaS launch ad with no cut and a 40s promo
+with thirty whole-frame turnovers. These are examples of one approach,
+not a requirement that every launch film keep a shape on screen.
 
 ## The transition is the next subject
 
@@ -18,19 +22,19 @@ Measured at 8 fps from 23.6s in the promo:
 | 25.0–25.4 | it turns in 3D, thickens, and a camera bump appears: the wipe bar **is the phone** |
 | 25.5–26.5 | the phone lands on a disc, the next line on its screen |
 
-The device that clears the last shot is the thing the next shot is about. The
-viewer never re-orients, so every feature reads as the consequence of the last
-one. Over 40s one red form is restated eighteen times — dot, cube, pill, the
+The device that clears the last shot is the thing the next shot is about.
+Over 40s one red form is restated eighteen times — dot, cube, pill, the
 vertices of a mesh, square, diamond, octahedron, nib, wipe bar, phone, panel,
-capsule, circle, toggle — and nothing else is ever the subject.
+capsule, circle, toggle. Each transformation gives it a new role in the
+composition. It is not an extra dot floating above otherwise unrelated scenes.
 
-Those are the reference's shapes. Yours is **the product's object**: the file
-it takes, the message it sends, the card it issues, the cursor that does the
-work, its mark at the end. Name it in `direction.md` and write its chain as one
-line — `words → folder → laptop → phones → bar → check → card → star → logo`
-was the no-cut film's. A chain with a gap in it is two films.
+When an object handoff fits, use something the product actually works with:
+its file, message, card, cursor or mark. Describe that handoff in `direction.md`,
+including where the object leaves or lands. A motif can disappear and return
+later; a chapter can introduce a new subject. Do not invent an ornament to
+fill a gap in an object chain.
 
-## The three joins, in fields
+## Optional object handoffs, in fields
 
 | the reference does | write |
 |---|---|
@@ -40,11 +44,16 @@ was the no-cut film's. A chain with a gap in it is two films.
 | the frame fills, and the next thing is born from the colour | `cut: "flood"`, a `flood` beat |
 | the picture leaves, the object stays | `motion.exit: "blur"` under an actor with `hold: true` |
 
-An actor with poses in consecutive shots crosses a `hard` cut untouched —
-that is the mechanism. `pitch motion schema --section actors` has every pose
-field. `pitch motion check` counts the boundaries with nothing crossing them and
-warns past a third; a `punch` is the cut you keep, on a beat, two or three
-in a film. A `dissolve` or a `wipe-left` on its own joins nothing.
+An actor with poses in consecutive shots crosses a `hard` cut untouched.
+`pitch motion schema --section actors` has every pose field. Its layer sits
+above the scenes: `hold: true` keeps it visible after its last pose, including
+later scenes that do not name it. Prefer an explicit `out` or `into` when its
+job ends. A dot, line or shape whose only job is to remain visible is not an
+object handoff; leave it out.
+
+The checker has no minimum number of actor-linked cuts. Pick hard cuts,
+dissolves, wipes, punches or object handoffs for what the viewer should see
+next, then review the actual transition and composition.
 
 ## The line builds a word at a time
 

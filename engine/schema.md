@@ -54,13 +54,15 @@ its own three acts — `beats` are not added on top of a lab port.
 
 ## Actors
 
-An actor is **one object across many shots**: one element in a layer above
+An actor is an **optional object shared across shots**: one element in a layer above
 the shots, posed by each shot it passes through, tweened from wherever it was
 to the new pose at that shot's start. Cuts stop mattering to it. The folder
 that sat between two words is the same folder that drops into the laptop in
 the next shot; the bar that counted to 100 is the pill that becomes the disc
 the check draws in; the star that was a button lands as the full stop of the
-last line and then becomes the mark. One object, carried through the film.
+last line and then becomes the mark. Use it for a specific handoff, not as a
+decoration required to remain visible throughout the film. Scenes can connect
+through their meaning, composition, motion or sound without an actor.
 
 ```js
 actors: {
@@ -89,11 +91,12 @@ shots: [
 | `enter` | first pose only: `scale-blur` (from 0.6× and 20px blur — the reference arrival), `fly` (from `from: {x, y}`, oversize, blurred), `fade`, `none` |
 | `out` | the actor leaves at the end of this pose's shot (`outAt` seconds to place it): `blur` (rise and blur), `left` / `right`, `shrink`, `fade` |
 | `into: sel` | lands into this shot's element, which stays hidden until it does (the mark, a card in a grid); the actor hides on landing |
-| `hold: true` | keep the actor on after its last pose instead of leaving with that shot |
+| `hold: true` | keep the actor visible after its last pose, through later shots that do not name it, until an explicit exit/landing or the film ends. Omit for a normal exit with its last shot. |
 
 An actor with poses in consecutive shots crosses the cut untouched, so a
-`hard` cut under a moving actor reads as one take. The layer sits above
-every shot; what the actor covers is the shot's business.
+`hard` cut under a moving actor can read as one take. The layer sits above
+every shot, so give the actor an `out` or `into` when its role ends and check
+that it does not linger over unrelated content. No actor is required.
 
 ## Narration spine (when direction.md chose a voice)
 
