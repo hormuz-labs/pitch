@@ -869,7 +869,7 @@
 
 @media (max-width: 1023px) {
   .projects-page { padding-top: calc(max(15px, env(safe-area-inset-top)) + 1.6px); }
-  .projects-page > header > div { padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px - 24px); }
+  .projects-page__heading { padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px - 24px); }
   .projects-page > header h1 { line-height: 32px; }
   .app-shell-bg {
     --shell-sidebar-width: 0px;
@@ -912,7 +912,7 @@
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
-  .projects-page > header > div { padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px - 32px); }
+  .projects-page__heading { padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px - 32px); }
 }
 
 @media (max-width: 720px) {

@@ -109,24 +109,24 @@ export function ProjectsView(props: {
   }
   return (
     <div class="projects-page mx-auto w-full max-w-6xl p-6 md:p-8">
-      <header class="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">
+      <header class="mb-6">
+        <div class="projects-page__heading flex items-center justify-between gap-2">
+          <h1 class="min-w-0 text-xl font-bold text-gray-900 sm:text-2xl">
             {showingDecks() ? 'Slide decks' : 'Projects'}
           </h1>
-          <p class="mt-1 text-sm text-gray-500">
-            {showingDecks()
-              ? 'Open a deck you have made to keep working on it.'
-              : 'Open a project to keep working with the agent.'}
-          </p>
+          <button
+            class="flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 text-xs font-medium text-white sm:px-3.5 sm:text-sm"
+            onClick={() => navigate(showingDecks() ? '/new?flow=deck' : '/new')}
+          >
+            <Plus size={14} />
+            {showingDecks() ? 'New deck' : 'New project'}
+          </button>
         </div>
-        <button
-          class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-3.5 py-2 text-sm font-medium text-white"
-          onClick={() => navigate(showingDecks() ? '/new?flow=deck' : '/new')}
-        >
-          <Plus size={14} />
-          {showingDecks() ? 'New deck' : 'New project'}
-        </button>
+        <p class="mt-2 text-sm text-gray-500">
+          {showingDecks()
+            ? 'Open a deck you have made to keep working on it.'
+            : 'Open a project to keep working with the agent.'}
+        </p>
       </header>
       <Show when={error()}>
         <div
