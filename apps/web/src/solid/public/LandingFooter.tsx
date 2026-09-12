@@ -1,8 +1,10 @@
 import { A } from '@solidjs/router'
-import { Instagram, Linkedin, Youtube } from 'lucide-solid'
 import { For, type JSX, onMount } from 'solid-js'
-import { DiscordIcon, PitchWordmark, XIcon } from './brand'
+import { PitchWordmark } from './brand'
+import { SOCIALS } from './socials'
 import '../../styles/landing-broadcast.css'
+
+export { SOCIALS } from './socials'
 
 export interface Footer15Link {
   label: string
@@ -19,17 +21,6 @@ export interface Footer15Props {
   columns?: Footer15Column[]
 }
 
-export const SOCIALS: Footer15Link[] = [
-  { label: 'Twitter', href: 'https://x.com/trypitchdotco', icon: XIcon },
-  { label: 'Instagram', href: 'https://www.instagram.com/trypitch.co', icon: Instagram },
-  {
-    label: 'LinkedIn',
-    href: 'https://www.linkedin.com/company/trypitchdotco/',
-    icon: Linkedin,
-  },
-  { label: 'Discord', href: 'https://discord.gg/a4SBW36mD', icon: DiscordIcon },
-  { label: 'YouTube', href: 'https://www.youtube.com/@trypitchdotco', icon: Youtube },
-]
 const columns: Footer15Column[] = [
   {
     title: 'Company',

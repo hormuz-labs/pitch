@@ -155,12 +155,6 @@ export const LandingNav = () => {
   })
   return (
     <>
-      <div class="landing-announcement lb-chrome" role="banner">
-        <span>$5 in render credits when you sign up</span>
-        <A href="/sign-up" class="landing-announcement-cta">
-          Claim
-        </A>
-      </div>
       <nav
         class="lb-nav lb-chrome"
         aria-label="Main navigation"

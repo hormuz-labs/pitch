@@ -41,6 +41,7 @@ describe('POST /affiliate/invite', () => {
     const response = await invite('friend@example.com')
 
     expect(response.status).toBe(200)
+    expect(response.body).toEqual({ sent: true })
     expect(mocks.sendReferralInviteEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'friend@example.com',
@@ -63,5 +64,30 @@ describe('POST /affiliate/invite', () => {
 
     expect(response.status).toBe(400)
     expect(mocks.sendReferralInviteEmail).not.toHaveBeenCalled()
+  })
+
+  it('does not send an inactive referral link', async () => {
+    mocks.getAffiliateByUserId.mockResolvedValue({ code: 'ADA-X7K2', status: 'suspended' })
+
+    const response = await invite('friend@example.com')
+
+    expect(response.status).toBe(403)
+    expect(mocks.sendReferralInviteEmail).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { error: 'RESEND_API_KEY is not configured' },
+    { error: 'Provider rejected the sender domain' },
+    {},
+  ])('does not report success when email submission fails: %j', async result => {
+    mocks.sendReferralInviteEmail.mockResolvedValue(result)
+
+    const response = await invite('friend@example.com')
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({
+      error: 'Could not send the invite email. Please try again later.',
+    })
+    expect(response.body.sent).toBeUndefined()
   })
 })

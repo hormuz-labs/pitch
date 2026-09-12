@@ -75,7 +75,7 @@
 [data-theme="light"] .lv-studio .new-composer-wrap .composer-box { box-shadow: 0 4px 12px rgb(0 0 0 / 5%); }
 .lv-studio .new-composer-wrap .composer-box:focus-within { border-color: var(--new-input-border); box-shadow: none; }
 .lv-studio .new-composer-wrap .composer-box.invalid { border-color: #d65d66; }
-.lv-studio .new-composer-wrap .composer-box textarea { min-height: 56px; max-height: 220px; width: 100%; padding: 0 10px; border: 0; border-radius: 0; background: transparent; color: var(--new-ink); font: 400 16px/1.6 var(--font-sans); resize: none; outline: none; box-shadow: none; }
+.lv-studio .new-composer-wrap .composer-box textarea { min-height: 56px; max-height: 220px; width: 100%; padding: 0 10px; border: 0; border-radius: 0; background: transparent; color: var(--new-ink); font-family: inherit; font-size: 15px; font-weight: 400; font-style: normal; line-height: 1.6; letter-spacing: -.01em; font-optical-sizing: auto; -webkit-font-smoothing: antialiased; resize: none; outline: none; box-shadow: none; }
 .lv-studio .new-composer-wrap textarea::placeholder { color: var(--new-faint); }
 .lv-studio .new-composer-wrap .composer-footer { padding-top: 10px; border: 0; gap: 12px; flex-wrap: nowrap; }
 .lv-studio .new-composer-wrap .tool-row { display: flex; align-items: center; flex-wrap: nowrap; min-width: 0; gap: 8px; }
@@ -96,9 +96,9 @@
 .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 190px; min-height: 34px; padding: 7px 25px 7px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--new-muted); font-size: 12px; cursor: pointer; text-overflow: ellipsis; }
 .new-composer-wrap label:has(.model-btn) svg { right: 6px; color: var(--new-muted); width: 14px; }
 .lv-studio.new-project-page .model-btn option { background: var(--new-surface); color: var(--new-ink); }
-.lv-studio.new-project-page .new-composer-wrap .send-btn { flex: none; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--new-ink); color: var(--new-bg); box-shadow: none; transition: transform 150ms ease; }
-.lv-studio.new-project-page .new-composer-wrap .send-btn:hover:not(:disabled) { background: var(--new-ink); transform: translateY(-1px); }
-.lv-studio.new-project-page .new-composer-wrap .send-btn:disabled { background: color-mix(in srgb, var(--new-ink) 22%, var(--new-surface)); color: var(--new-surface); opacity: 1; cursor: default; }
+.lv-studio.new-project-page .generate-button { --generate-font-size: 13px; }
+.lv-studio.new-project-page .generate-button > .gen-btn { background-color: var(--button-color); color: #fff; }
+.lv-studio.new-project-page .generate-button > .gen-btn:hover:not(:disabled) { background-color: var(--button-color); }
 .lv-studio.new-project-page .new-preferences { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 3px 2px; padding-top: 10px; border-top: 1px solid var(--new-border); }
 .lv-studio.new-project-page .new-preferences button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 7px; border: 0; border-radius: 6px; background: var(--new-raised); color: var(--new-muted); font-size: 11px; }
 .lv-studio.new-project-page .new-preferences .new-skill-chip { background: var(--new-selected); color: var(--new-blue); }
@@ -204,7 +204,8 @@
   .new-create-hero__intro h1 { font-size: 15px; }
   .lv-studio .new-composer-wrap .composer-box { padding: 14px 10px 10px; border-radius: 20px; }
   .lv-studio .new-composer-wrap .composer-box textarea { padding: 0 5px; min-height: 58px; font-size: 16px; }
-  .lv-studio .new-composer-wrap .composer-footer { gap: 4px; }
+  .lv-studio .new-composer-wrap .composer-footer { gap: 4px; flex-wrap: wrap; }
+  .lv-studio .new-composer-wrap .composer-footer > .tool-row:last-child { margin-left: auto; }
   .lv-studio .new-composer-wrap .tool-row { gap: 3px; }
   .lv-studio.new-project-page .new-voice-trigger { max-width: 112px; padding: 7px 4px; gap: 4px; }
   .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 130px; padding-left: 4px; font-size: 11px; }
@@ -226,6 +227,7 @@
   .new-featured__video > span { font-size: 12px; padding-inline: 2px; }
   .new-featured__image { border-radius: 12px; }
   .lv-studio.new-project-page .new-model-trigger { font-size: 12px; padding: 8px 6px; }
+  .lv-studio.new-project-page .generate-button { --generate-font-size: 12px; }
   .new-model-trigger span { max-width: 133px; }
   .new-featured__head { padding-left: 30px; }
 }

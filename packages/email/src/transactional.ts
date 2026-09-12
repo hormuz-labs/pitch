@@ -246,7 +246,7 @@ export function sendReferralInviteEmail(input: {
     subject: `${input.fromName} thinks you'd like Pitch`,
     preheader: `${input.fromName} invited you to try Pitch, an AI video studio.`,
     eyebrow: 'You were invited',
-    title: `${input.fromName} sent you Pitch credits.`,
+    title: `${input.fromName} invited you to Pitch.`,
     intro:
       'Pitch turns a product page into a finished demo video with an AI agent. Follow the link below to sign up.',
     ctaLabel: 'Accept the invite',

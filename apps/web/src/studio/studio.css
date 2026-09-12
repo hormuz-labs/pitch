@@ -3809,10 +3809,19 @@
   color: var(--muted);
 }
 
+.lv-studio .building-hint {
+  margin: 10px 0 0;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 /* The build, live: while there is no artifact to preview, the stage shows
    what the agent is looking at (the snapshots it keeps saving), the steps it
    has taken, and its latest thought — instead of a bare spinner. */
 .lv-studio .build-process {
+  width: 100%;
+  min-width: 0;
   height: 100%;
   padding: 18px;
   display: flex;
@@ -4783,9 +4792,10 @@
 }
 
 .lv-studio:not(.new-project-page) .building-stage {
-  border-color: var(--border);
-  background-color: var(--control);
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 7%, transparent) 1px, transparent 1px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .lv-studio:not(.new-project-page) .msg.user {

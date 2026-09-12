@@ -94,8 +94,10 @@ export function PlansSection() {
             {sub => (
               <>
                 <strong class="settings-current-plan__value">
-                  {PLANS.find(plan => plan.key === sub().planKey || plan.annual?.key === sub().planKey)
-                    ?.name ?? sub().planKey}
+                  {(
+                    PLANS.find(plan => plan.key === sub().planKey || plan.annual?.key === sub().planKey)
+                      ?.name ?? sub().planKey
+                  ).toUpperCase()}
                 </strong>
                 <small>{formatCredits(sub().creditsPerCycle)} credits per billing cycle</small>
               </>

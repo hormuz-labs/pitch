@@ -58,6 +58,9 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
         <A href="/docs">Docs</A>
         <A href="/pricing">Pricing</A>
         <A href="/affiliate">Affiliates</A>
+        <button type="button" onClick={() => props.openSettings('mcp')}>
+          API / MCP
+        </button>
       </nav>
       <div class="sidebar-account-row">
         <StudioMenu

@@ -75,16 +75,27 @@ router.post('/invite', async (req, res) => {
   try {
     const affiliate = await db.getAffiliateByUserId(userId)
     if (!affiliate) return res.status(404).json({ error: 'Register for rewards first' })
+    if (affiliate.status !== 'active') {
+      return res.status(403).json({ error: 'Reward invitations are unavailable for this account' })
+    }
 
     const profile = await db.prisma.userProfile.findUnique({ where: { id: userId } })
-    const appUrl = process.env.APP_URL || 'https://trypitch.co'
+    const appUrl = (process.env.APP_URL || 'https://trypitch.co').replace(/\/$/, '')
 
     const result = await sendReferralInviteEmail({
       to: email,
       fromName: profile?.firstName || 'A Pitch user',
       referralUrl: `${appUrl}/r/${affiliate.code}`,
     })
-    if (result.error) return res.status(502).json({ error: result.error })
+    if (result.error || !result.id) {
+      _logger.warn(
+        { error: result.error, userId },
+        'Referral invite was not accepted by email provider',
+      )
+      return res
+        .status(500)
+        .json({ error: 'Could not send the invite email. Please try again later.' })
+    }
     res.json({ sent: true })
   } catch (error: any) {
     res.status(500).json({ error: error.message })

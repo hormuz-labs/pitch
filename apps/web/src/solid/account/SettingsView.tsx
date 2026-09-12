@@ -10,11 +10,11 @@ import { McpGuide, McpSettingsPanel } from './McpPanels'
 import { Select, Switch } from './primitives'
 import { AccountSection } from './settings/AccountSection'
 import { BuyCreditsSection } from './settings/BuyCreditsSection'
-import { DiscordConnectionSection } from './settings/DiscordConnectionSection'
 import { NotificationsSection } from './settings/NotificationsSection'
 import { PlansSection } from './settings/PlansSection'
 import { ProfileSection } from './settings/ProfileSection'
 import { RewardsSection } from './settings/RewardsSection'
+import { SocialSection } from './settings/SocialSection'
 import { UsageSection } from './settings/UsageSection'
 import '../../styles/settings-modal.css'
 
@@ -406,7 +406,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Connections',
     items: [
-      { value: 'connections', label: 'Discord' },
+      { value: 'connections', label: 'Socials' },
       { value: 'mcp', label: 'MCP' },
       { value: 'api', label: 'API' },
     ],
@@ -501,7 +501,7 @@ export function SettingsModal(props: {
               <RewardsSection />
             </Show>
             <Show when={props.section === 'connections'}>
-              <DiscordConnectionSection />
+              <SocialSection />
             </Show>
             <Show when={props.section === 'mcp'}>
               <McpSettingsPanel openApi={() => props.onSectionChange('api')} />
