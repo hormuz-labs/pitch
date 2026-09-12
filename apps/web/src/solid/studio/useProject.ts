@@ -1,7 +1,8 @@
-import { createEffect, createSignal, onCleanup, onMount } from 'solid-js'
+import { batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
 import { useAuth } from '../core/auth'
 import { mediaUrl as buildMediaUrl, studio } from './client'
 import { buildStatus, withTargetLegend } from './helpers'
+import { createPreviewCredential, createPreviewRefresh } from './preview-refresh'
 import type {
   Asset,
   Entry,
@@ -28,7 +29,8 @@ export function useProject(id: string | undefined) {
     [busy, setBusy] = createSignal(false),
     [videoVersion, setVideoVersion] = createSignal(0)
   const [previewNote, setPreviewNote] = createSignal<string | null>(null),
-    [liveCount, setLiveCount] = createSignal<number | null>(null)
+    [liveCount, setLiveCount] = createSignal<number | null>(null),
+    [previewPending, setPreviewPending] = createSignal(false)
   const [selectedScene, setSelectedScene] = createSignal<string | null>(null),
     [selectedSlide, setSelectedSlide] = createSignal<number | null>(null)
   const [targets, setTargets] = createSignal<Target[]>([]),
@@ -47,6 +49,7 @@ export function useProject(id: string | undefined) {
     generation = 0,
     entryRevision = 0,
     busyRevision = 0,
+    projectRevision = 0,
     reconnectTimer = 0,
     disposed = false,
     exportTimer = 0,
@@ -56,22 +59,41 @@ export function useProject(id: string | undefined) {
     setDraftValue(d => (typeof v === 'function' ? v(d) : v))
   const mediaUrl = (path: string | null | undefined, version?: number) =>
     buildMediaUrl(path, mediaToken(), version)
+  // Token rotation must not navigate a loaded iframe or restart an audio/video
+  // resource. Capture the latest credential only when the artifact changes.
+  const captureCredential = createPreviewCredential()
+  const previewToken = createMemo(() => captureCredential(mediaToken(), videoVersion()))
+  const previewUrl = (path: string | null | undefined) =>
+    buildMediaUrl(path, previewToken(), videoVersion())
   const thumbnailUrl = (t: number) =>
     id && mediaToken() ? studio.thumbnailUrl(id, t, mediaToken()!, videoVersion()) : null
+  const previewRefresh = createPreviewRefresh({
+    read: async () => studio.get(await getToken(), id!),
+    held: () => playingNow,
+    pending: setPreviewPending,
+    error: reason =>
+      setPreviewNote(reason instanceof Error ? reason.message : 'Could not refresh the preview'),
+    apply: (detail, invalidate) => {
+      const before = project()
+      const changed =
+        invalidate || JSON.stringify(before?.description) !== JSON.stringify(detail.description)
+      if (changed) autoSeek = { t: playhead(), play: playingNow }
+      projectRevision++
+      batch(() => {
+        setProject(changed ? detail : { ...detail, description: before!.description })
+        if (changed) setVideoVersion(v => v + 1)
+        setPreviewNote(null)
+        setLiveCount(
+          busy() && detail.description.scenes?.length ? detail.description.scenes.length : null,
+        )
+      })
+      void refreshAssets()
+    },
+  })
   const refresh = async () => {
-    if (!id) return null
-    try {
-      const d = await studio.get(await getToken(), id)
-      setProject(d)
-      return d
-    } catch (err: any) {
-      setLoadError(
-        err?.status === 404
-          ? 'This project no longer exists.'
-          : (err?.message ?? 'Could not load the project'),
-      )
-      return null
-    }
+    if (!id || disposed) return
+    previewRefresh.request()
+    await previewRefresh.flush()
   }
   const refreshAssets = async () => {
     if (!id) return
@@ -112,23 +134,6 @@ export function useProject(id: string | undefined) {
     setTargets([])
     nextRef = 1
   }
-  const onPreviewChanged = async () => {
-    const before = project(),
-      detail = await refresh()
-    if (!detail) return
-    const old = before?.description.scenes?.length ?? 0,
-      first = detail.description.scenes?.[old]
-    autoSeek = first
-      ? { t: before?.description.preview ? first.start + 0.01 : 0, play: true }
-      : { t: playhead(), play: playingNow }
-    setLiveCount(
-      busy() && (detail.description.scenes?.length ?? 0) > 0
-        ? detail.description.scenes!.length
-        : null,
-    )
-    setVideoVersion(v => v + 1)
-    void refreshAssets()
-  }
   const handle = (ev: StudioEvent) => {
     switch (ev.type) {
       case 'hello':
@@ -162,8 +167,7 @@ export function useProject(id: string | undefined) {
         busyRevision++
         setBusy(ev.busy ?? false)
         if (!ev.busy) setLiveCount(null)
-        setVideoVersion(v => v + 1)
-        void refresh()
+        previewRefresh.request()
         void refreshAssets()
         break
       case 'reset':
@@ -177,7 +181,7 @@ export function useProject(id: string | undefined) {
         if (!ev.ok) setPreviewNote(ev.error ?? 'the preview does not load')
         else {
           setPreviewNote(null)
-          void onPreviewChanged()
+          previewRefresh.request(true)
         }
         break
       case 'project':
@@ -263,6 +267,7 @@ export function useProject(id: string | undefined) {
       if (!id) return
       const initialEntryRevision = entryRevision
       const initialBusyRevision = busyRevision
+      const initialProjectRevision = projectRevision
       const t = await getToken().catch(() => null)
       if (!t) return
       const [d, m, e, a] = await Promise.all([
@@ -272,7 +277,7 @@ export function useProject(id: string | undefined) {
         studio.assets(t, id).catch(() => []),
       ])
       if (!live) return
-      if (d) setProject(d)
+      if (d && projectRevision === initialProjectRevision) setProject(d)
       if (initialEntryRevision === entryRevision) setEntries(m.entries)
       else
         setEntries(current => {
@@ -289,15 +294,13 @@ export function useProject(id: string | undefined) {
     onCleanup(() => {
       live = false
       disposed = true
+      previewRefresh.dispose()
       clearInterval(tokenTimer)
       clearTimeout(reconnectTimer)
       generation++
       events?.close()
       stopPoll()
     })
-  })
-  createEffect(() => {
-    playingNow = playing()
   })
   const upload = async (files: File[]) => {
     const form = new FormData()
@@ -412,6 +415,10 @@ export function useProject(id: string | undefined) {
     get previewNote() {
       return previewNote()
     },
+    get previewPending() {
+      return previewPending()
+    },
+    applyPreview: () => previewRefresh.flush(true),
     get liveCount() {
       return liveCount()
     },
@@ -456,7 +463,11 @@ export function useProject(id: string | undefined) {
       autoSeek = null
       return a
     },
-    notePlayerState: (v: boolean) => setPlaying(v),
+    notePlayerState: (v: boolean) => {
+      playingNow = v
+      setPlaying(v)
+      if (!v) previewRefresh.resume()
+    },
     get exportStatus() {
       return exportStatus()
     },
@@ -478,8 +489,8 @@ export function useProject(id: string | undefined) {
         clearTargets()
         setSelectedScene(null)
         setSelectedSlide(null)
-        setVideoVersion(v => v + 1)
-        await refresh()
+        previewRefresh.request(true)
+        await previewRefresh.flush(true)
         await refreshAssets()
         queueMicrotask(() => composerRef.current?.focus())
       } catch (error: any) {
@@ -521,6 +532,7 @@ export function useProject(id: string | undefined) {
     deleteAsset,
     refresh,
     mediaUrl,
+    previewUrl,
     get mediaToken() {
       return mediaToken()
     },

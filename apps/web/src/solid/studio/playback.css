@@ -1,0 +1,64 @@
+/* Playback has one layout owner. Media and its controls never size their parent. */
+.lv-studio .studio-preview-view { display: flex; flex: 1; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
+.lv-studio .studio-preview-view[hidden] { display: none; }
+.lv-studio .studio-preview-view > .player { flex: 1 1 0; min-width: 0; min-height: 0; }
+.lv-studio .studio-preview-view > .tray { flex: 0 0 auto; min-height: 0; max-height: calc(100% - 180px); overflow: hidden; }
+.lv-studio:not(.new-project-page) .edit-sidebar { width: var(--sidebar-w, 440px); max-width: 48%; }
+.lv-studio .live-preview { display: flex; flex-direction: column; position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid rgb(255 255 255 / 8%); border-radius: 10px; background: #0c0d0f; color: #f1f3f5; box-shadow: 0 3px 14px rgb(0 0 0 / 8%); user-select: none; }
+.live-preview-stage { position: relative; display: grid; place-items: center; flex: 1 1 0; width: 100%; min-height: 0; overflow: hidden; }
+.lv-studio .live-preview-viewport { position: relative; overflow: hidden; cursor: pointer; }
+.lv-studio .live-preview-viewport iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; background: #0c0d0f; transform-origin: 0 0; pointer-events: none; }
+.lv-studio .live-preview.inspect-active .live-preview-viewport iframe { pointer-events: auto; cursor: crosshair; }
+.lv-studio :is(.live-preview, .native-preview).is-fullscreen { position: fixed; inset: 0; z-index: 200; width: 100vw; height: 100dvh; max-width: none; max-height: none; border: 0; border-radius: 0; background: #000; box-shadow: none; }
+.lv-studio :is(.live-preview, .native-preview):fullscreen { width: 100vw; height: 100dvh; }
+.lv-studio .media-controls { display: flex; flex: 0 0 auto; flex-direction: column; padding: 0 10px 6px; border-top: 1px solid rgb(255 255 255 / 8%); background: #111316; color: #f1f3f5; }
+.media-controls__row { display: flex; align-items: center; min-height: 38px; gap: 5px; }
+.media-controls__spacer { flex: 1; min-width: 4px; }
+.lv-studio .media-controls .preview-btn, .lv-studio .native-preview-actions .preview-btn { flex: none; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #eef0f3; }
+.lv-studio .media-controls .preview-btn:hover:not(:disabled), .lv-studio .native-preview-actions .preview-btn:hover:not(:disabled) { background: #2b2e33; }
+.lv-studio .media-controls .preview-btn.active { background: #284366; color: #b8d8ff; }
+.lv-studio .media-controls .preview-btn:focus-visible, .lv-studio .preview-update-btn:focus-visible { outline: 2px solid #82b8ff; outline-offset: 1px; }
+.media-time { min-width: 88px; margin-left: 4px; color: #e2e5ea; font: 12px/1.4 var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.media-time > span { color: #959ca7; }
+.lv-studio .media-controls .media-scrub { flex: none; width: 100%; height: 16px; margin: 0; padding: 0; border: 0; border-radius: 0; appearance: none; background: linear-gradient(to right, #83b5f4 var(--progress), #42464e var(--progress)) center / 100% 3px no-repeat; box-shadow: none; cursor: pointer; }
+.media-scrub::-webkit-slider-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; appearance: none; background: #a1c7f7; }
+.media-scrub::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #a1c7f7; }
+.lv-studio .media-controls .media-scrub:focus-visible { outline: 2px solid #83b5f4; outline-offset: 1px; }
+.lv-studio .preview-update-btn { display: inline-flex; flex: none; align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid #475c77; border-radius: 7px; background: #25354b; color: #c8dfff; font-size: 11px; white-space: nowrap; }
+.lv-studio .preview-update-btn:hover:not(:disabled) { background: #324963; }
+.media-preview-note { position: absolute; right: 12px; bottom: 12px; left: 12px; padding: 8px 10px; border-radius: 6px; background: rgb(20 20 22 / 90%); color: #f3cc9c; font-size: 12px; line-height: 1.4; }
+.lv-studio .native-preview { position: relative; display: flex; flex: 1 1 0; width: 100%; min-height: 0; overflow: hidden; border-radius: 10px; background: #0c0d0f; }
+.lv-studio .native-preview > video { width: 100%; height: 100%; min-height: 0; max-height: 100%; aspect-ratio: auto; object-fit: contain; border-radius: 0; box-shadow: none; }
+.native-preview-actions { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 6px; padding: 3px; border-radius: 8px; background: rgb(17 19 22 / 85%); }
+.lv-studio .video-container { padding: 0; }
+.lv-studio .video-select { flex: 0 0 auto; }
+.lv-studio .video-track { height: 26px; }
+.lv-studio .scene-thumb { position: relative; }
+.lv-studio .scene-thumb img { position: absolute; inset: 0; opacity: 0; }
+.lv-studio .scene-thumb img.is-loaded { opacity: 1; }
+.lv-studio .scene-thumb-fallback { color: #979ba3; font-size: 13px; }
+.lv-studio .lane-video .scene-card { display: flex; flex-direction: column; }
+.lv-studio .lane-video .scene-card-label { flex: 0 0 auto; }
+.lv-studio .pro-timeline-grid { isolation: isolate; contain: layout paint; }
+.lv-studio .media-controls { isolation: isolate; contain: layout paint; }
+.lv-studio .timeline-follow-btn { display: inline-flex; align-items: center; gap: 5px; min-height: 27px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); font-size: 11px; }
+.lv-studio .timeline-follow-btn:hover:not(:disabled), .lv-studio .timeline-follow-btn.is-active { background: var(--control-hover); color: var(--ink); }
+.lv-studio .timeline-follow-btn.is-active { border-color: var(--accent); }
+.lv-studio .timeline-playhead { position: absolute; top: 4px; bottom: 20px; left: 112px; z-index: 46; width: 2px; background: #ec6b62; pointer-events: none; will-change: transform; }
+.timeline-playhead::before { content: ''; position: absolute; top: 0; left: -4px; width: 10px; height: 8px; background: #ec6b62; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.lv-studio:not(.new-project-page) .pro-timeline-canvas { gap: 0; }
+@media (max-width: 1000px) {
+  .preview-update-btn > span { display: none; }
+}
+@media (max-width: 720px) {
+  .lv-studio:not(.new-project-page) .editor-stage { height: clamp(280px, 48dvh, 440px); min-height: 0; flex: 0 0 auto; }
+  .lv-studio:not(.new-project-page) .edit-sidebar { width: 100%; max-width: none; flex: 1 1 0; min-height: 0; }
+  .lv-studio:not(.new-project-page) .studio-preview-view > .player { padding: 6px; }
+  .lv-studio:not(.new-project-page) .studio-preview-view > .tray { height: 96px !important; max-height: 30%; }
+  .media-controls__row { gap: 2px; }
+  .lv-studio .media-controls { padding-inline: 5px; }
+  .lv-studio .media-controls .preview-btn { width: 30px; height: 30px; }
+  .media-time { min-width: 78px; font-size: 11px; }
+  .lv-studio .video-select-head { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .lv-studio .media-controls * { transition: none; } }
