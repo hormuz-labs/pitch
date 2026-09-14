@@ -342,6 +342,7 @@ interface PromptOptions {
 export interface PromptProjectResult {
   delivery: 'started' | 'queued' | 'steered'
   turn: number
+  entryId: string
 }
 
 export async function promptProject(
@@ -395,7 +396,7 @@ export async function promptProject(
     await db.prisma.project
       .update({ where: { id: p.id }, data: { lastError: null } })
       .catch(() => {})
-  return { delivery: result.delivery, turn: result.turn }
+  return { delivery: result.delivery, turn: result.turn, entryId: result.entryId }
 }
 
 /**

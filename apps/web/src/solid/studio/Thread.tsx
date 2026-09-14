@@ -1,4 +1,4 @@
-import { Pencil } from 'lucide-solid'
+import { CornerUpLeft, Pencil } from 'lucide-solid'
 import { createMemo, For, Show } from 'solid-js'
 import { AskStepper } from './Ask'
 import { agentActivity } from './agent-activity'
@@ -189,6 +189,7 @@ export function Thread(props: {
   busy: boolean
   onAnswer?: (text: string) => void
   onEdit?: (entry: Entry) => void
+  onSteer?: (entry: Entry) => void
 }) {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
@@ -209,13 +210,22 @@ export function Thread(props: {
                         <AgentMarkdown text={e.text} />
                       </div>
                     ) : (
-                      <div class="user-message">
+                      <div class={`user-message${e.pending === 'queued' ? ' is-queued' : ''}`}>
                         <div class={`msg ${e.role}`}>
-                          {e.text}
-                          <Show when={e.pending}>
+                          <Show when={e.pending === 'queued'}>
+                            <span class="queued-label">Queued</span>
+                          </Show>
+                          <span class="message-copy">{e.text}</span>
+                          <Show when={e.pending && e.pending !== 'queued'}>
                             {pending => <span class="message-state">{pending()}</span>}
                           </Show>
                         </div>
+                        <Show when={e.pending === 'queued'}>
+                          <button class="message-steer" onClick={() => props.onSteer?.(e)}>
+                            <CornerUpLeft size={12} />
+                            <span>Steer now</span>
+                          </button>
+                        </Show>
                         <Show
                           when={
                             e.role === 'user' && e.sessionEntryId && e.checkpointId && !props.busy

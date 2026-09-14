@@ -53,11 +53,12 @@ export const studio = {
       displayText?: string
     },
   ) =>
-    api.post<{ ok: boolean; delivery: 'started' | 'queued' | 'steered'; turn: number }>(
-      `${p(id)}/prompt`,
-      token,
-      body,
-    ),
+    api.post<{
+      ok: boolean
+      delivery: 'started' | 'queued' | 'steered'
+      turn: number
+      entryId: string
+    }>(`${p(id)}/prompt`, token, body),
   rollback: (token: string, id: string, entryId: string) =>
     api.post<{ text: string; entries: Entry[]; project: ProjectSummary }>(
       `${p(id)}/rollback`,
@@ -65,6 +66,8 @@ export const studio = {
       { entryId },
     ),
   stop: (token: string, id: string) => api.post<{ stopped: boolean }>(`${p(id)}/stop`, token),
+  steerQueued: (token: string, id: string, entryId: string) =>
+    api.post<{ steered: boolean }>(`${p(id)}/queue/${encodeURIComponent(entryId)}/steer`, token),
   messages: (token: string, id: string) =>
     api.get<{ entries: Entry[]; busy: boolean }>(`${p(id)}/messages`, token),
   eventsUrl: (id: string, token: string) => mediaUrl(`${p(id)}/events`, token) as string,

@@ -497,6 +497,7 @@ export function StudioView(props: { projectId: string }) {
                     busy={s.busy}
                     onAnswer={s.send}
                     onEdit={entry => void s.rollback(entry)}
+                    onSteer={entry => void s.steerQueued(entry.id)}
                   />
                 </Show>
               </div>

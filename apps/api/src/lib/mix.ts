@@ -43,6 +43,17 @@ export function correctiveBedDb(output: string): number | null {
   return Math.max(-30, Math.round((bedDb - (required - actual) - 1) * 10) / 10)
 }
 
+/** A failed local SFX balance check reports the minimum trim it needs. */
+export function correctiveSfxDb(output: string): number | null {
+  const reduction = /Lower --sfx-db by at least\s+([\d.]+)dB/.exec(output)
+  const current = /\((-?[\d.]+)dB SFX trim\)/.exec(output)
+  if (!reduction || !current) return null
+  const reduceDb = Number(reduction[1])
+  const sfxDb = Number(current[1])
+  if (![reduceDb, sfxDb].every(Number.isFinite) || reduceDb <= 0) return null
+  return Math.max(-30, Math.round((sfxDb - reduceDb - 1) * 10) / 10)
+}
+
 const inflight = new Map<string, Promise<MixResult>>()
 
 function mtime(p: string): number {
@@ -202,12 +213,24 @@ async function ensureMixNow(dir: string): Promise<MixResult> {
     'building audio/mix.wav',
   )
   let { code, out } = await run(args, dir)
-  if (code !== 0) {
+  let correctedArgs = args
+  for (let attempt = 0; code !== 0 && attempt < 2; attempt++) {
     const bedDb = correctiveBedDb(out)
-    if (bedDb !== null) {
+    const sfxDb = correctiveSfxDb(out)
+    if (sfxDb !== null) {
+      logger.info({ workspace: path.basename(dir), sfxDb }, 'retrying mix with corrected SFX level')
+      correctedArgs = [
+        ...correctedArgs.filter(arg => !arg.startsWith('--sfx-db=')),
+        `--sfx-db=${sfxDb}`,
+      ]
+    } else if (bedDb !== null) {
       logger.info({ workspace: path.basename(dir), bedDb }, 'retrying mix with corrected bed level')
-      ;({ code, out } = await run([...args, `--bed-db=${bedDb}`], dir))
-    }
+      correctedArgs = [
+        ...correctedArgs.filter(arg => !arg.startsWith('--bed-db=')),
+        `--bed-db=${bedDb}`,
+      ]
+    } else break
+    ;({ code, out } = await run(correctedArgs, dir))
   }
   const tail = out.trim().split('\n').slice(-12).join('\n')
   if (code !== 0) {
