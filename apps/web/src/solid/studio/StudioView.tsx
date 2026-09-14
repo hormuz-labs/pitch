@@ -13,6 +13,7 @@ import {
 } from 'solid-js'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
+import { type EditableFormat, type ExportResolution, exportFilename } from './editable-export'
 import { BrowserPreview } from './previews/BrowserPreview'
 import { DeckPreview } from './previews/DeckPreview'
 import { HtmlPreview } from './previews/HtmlPreview'
@@ -100,13 +101,28 @@ const RES = [
   { res: '720p', note: '1280 × 720 · 60 fps · quick share' },
   { res: '1080p', note: '1920 × 1080 · 60 fps · standard' },
   { res: '4k', note: '3840 × 2160 · 60 fps · slow render' },
+] satisfies { res: ExportResolution; note: string }[]
+const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[] = [
+  { format: 'premiere', label: 'Premiere Pro', note: 'XML + media' },
+  { format: 'after-effects', label: 'After Effects', note: 'JSX + media' },
+  { format: 'blender', label: 'Blender', note: 'Python + media' },
 ]
 function Actions(props: { store: ProjectStore }) {
   const s = props.store,
     [open, setOpen] = createSignal(false),
+    [resolution, setResolution] = createSignal<ExportResolution>('1080p'),
+    menuId = createUniqueId(),
+    resolutionId = createUniqueId(),
     [sharing, setSharing] = createSignal(false)
-  let wrap: HTMLDivElement | undefined
+  let wrap: HTMLDivElement | undefined, trigger: HTMLButtonElement | undefined
   const launch = () => s.project?.description.preview?.kind === 'html',
+    editable = () => launch() || s.project?.description.preview?.kind === 'video',
+    exportBlocked = () => s.busy || s.exportPending || !!s.exportStatus?.running,
+    currentRender = () => renders().find(r => r.res === resolution() && !r.stale),
+    exportProgress = () =>
+      s.exportPending
+        ? 'Starting export...'
+        : `${s.exportStatus?.stage === 'packaging' ? 'Packaging' : 'Rendering'} ${s.exportStatus?.progress ?? 0}%`,
     outputs = () =>
       [
         ...(s.project?.outputs ?? []),
@@ -123,8 +139,18 @@ function Actions(props: { store: ProjectStore }) {
       }[]
   onMount(() => {
     const close = (e: MouseEvent) => wrap && !wrap.contains(e.target as Node) && setOpen(false)
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !open()) return
+      e.preventDefault()
+      setOpen(false)
+      trigger?.focus()
+    }
     document.addEventListener('mousedown', close)
-    onCleanup(() => document.removeEventListener('mousedown', close))
+    document.addEventListener('keydown', closeOnEscape)
+    onCleanup(() => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', closeOnEscape)
+    })
   })
   const share = async () => {
     setSharing(true)
@@ -151,21 +177,27 @@ function Actions(props: { store: ProjectStore }) {
         <Link size={14} /> {s.project?.shareSlug ? 'Copy share link' : 'Share'}
       </button>
       <div class="export-wrap" ref={wrap}>
-        <button class="topbar-btn export" onClick={() => setOpen(v => !v)}>
+        <button
+          class="topbar-btn export"
+          ref={trigger}
+          aria-expanded={open()}
+          aria-controls={menuId}
+          onClick={() => setOpen(v => !v)}
+        >
           <span
             class="export-fill"
             style={{ width: s.exportStatus?.running ? `${s.exportStatus.progress}%` : '0' }}
           />
           <span class="export-label">
-            {s.exportStatus?.running
-              ? `Rendering ${s.exportStatus.progress}%`
+            {s.exportPending || s.exportStatus?.running
+              ? exportProgress()
               : launch()
                 ? 'Export MP4'
                 : 'Download'}
           </span>
         </button>
         <Show when={open()}>
-          <div class="export-menu">
+          <div class="export-menu" id={menuId}>
             <Show
               when={launch()}
               fallback={
@@ -198,12 +230,13 @@ function Actions(props: { store: ProjectStore }) {
                   return (
                     <button
                       class="export-row"
-                      disabled={!!s.exportStatus?.running}
-                      onClick={() =>
+                      disabled={exportBlocked()}
+                      onClick={() => {
+                        setResolution(r.res)
                         have() && !have()!.stale
                           ? s.download(have()!.url, `${s.project?.title ?? 'export'}-${r.res}.mp4`)
                           : void s.exportVideo({ res: r.res })
-                      }
+                      }}
                     >
                       <span class="export-row-main">
                         <span class="export-row-label">{r.res}</span>
@@ -217,13 +250,91 @@ function Actions(props: { store: ProjectStore }) {
                 }}
               </For>
             </Show>
+            <Show when={editable()}>
+              <div class="export-section">
+                <div class="export-section-heading">
+                  <span class="export-row-label">Editable project</span>
+                  <span class="export-row-status">ZIP · Beta</span>
+                </div>
+                <Show when={launch()} fallback={<p class="export-hint">Uses source resolution.</p>}>
+                  <div class="export-resolution">
+                    <label for={resolutionId}>Resolution</label>
+                    <select
+                      id={resolutionId}
+                      value={resolution()}
+                      disabled={exportBlocked()}
+                      onChange={e => setResolution(e.currentTarget.value as ExportResolution)}
+                    >
+                      <For each={RES}>{r => <option value={r.res}>{r.res}</option>}</For>
+                    </select>
+                  </div>
+                  <p class="export-hint" role="status">
+                    {currentRender()
+                      ? `Uses your current ${resolution()} MP4 render.`
+                      : `Render a current ${resolution()} MP4 above first, then export a ZIP.`}
+                  </p>
+                </Show>
+                <p class="export-hint">
+                  Fidelity-first: graphics are baked into video, not native layers. The soundtrack
+                  stays mixed.
+                </p>
+              </div>
+              <For each={EDITABLE_FORMATS}>
+                {item => (
+                  <button
+                    class="export-row"
+                    disabled={exportBlocked() || (launch() && !currentRender())}
+                    onClick={() =>
+                      void s.exportVideo({
+                        format: item.format,
+                        ...(launch() ? { res: resolution() } : {}),
+                      })
+                    }
+                  >
+                    <span class="export-row-main">
+                      <span class="export-row-label">{item.label}</span>
+                      <span class="export-row-note">{item.note}</span>
+                    </span>
+                    <span class="export-row-status">ZIP</span>
+                  </button>
+                )}
+              </For>
+            </Show>
+            <Show when={s.exportPending || s.exportStatus?.running}>
+              <div class="export-hint export-feedback" role="status">
+                {exportProgress()}
+              </div>
+            </Show>
             <Show when={s.exportStatus?.running}>
               <button class="export-row" onClick={() => void s.cancelExport()}>
-                Cancel render
+                Cancel export
               </button>
             </Show>
-            <Show when={s.exportStatus?.stage === 'failed'}>
-              <div class="export-error">{s.exportStatus?.error}</div>
+            <Show when={!s.exportPending && s.exportStatus?.stage === 'done' && s.exportStatus.url}>
+              <div class="export-hint export-feedback" role="status">
+                Export ready. If the download did not start, download it below.
+              </div>
+              <button
+                class="export-row export-download"
+                onClick={() =>
+                  s.download(
+                    s.exportStatus!.url!,
+                    exportFilename(s.exportStatus!, s.project?.title),
+                  )
+                }
+              >
+                <span class="export-row-main">
+                  <span class="export-row-label">Download export</span>
+                  <span class="export-row-note">
+                    {exportFilename(s.exportStatus!, s.project?.title)}
+                  </span>
+                </span>
+              </button>
+            </Show>
+            <Show when={!s.exportPending && s.exportStatus?.stage === 'failed'}>
+              <div class="export-error" role="alert">
+                {s.exportStatus?.error}
+              </div>
             </Show>
           </div>
         </Show>

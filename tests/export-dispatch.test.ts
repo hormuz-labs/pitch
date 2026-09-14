@@ -23,6 +23,10 @@ vi.mock('../apps/api/src/projects/service.js', () => ({
 }))
 vi.mock('../apps/api/src/agent/describe.js', () => ({
   artifactKind: async (ws: { internal: string }) => kinds.get(ws.internal) ?? null,
+  activeArtifact: async (ws: { internal: string }) => {
+    const kind = kinds.get(ws.internal)
+    return kind ? { kind, rel: kind === 'video' ? 'renders/video.mp4' : 'index.html', at: 1 } : null
+  },
 }))
 
 const { exportProject, registerExporter } = await import('../apps/api/src/projects/export.js')
@@ -66,6 +70,16 @@ describe('exportProject picks the renderer by what the workspace holds', () => {
     kinds.set('p2', 'launch')
     await exportProject('user_1', 'p2', {})
     expect(started).toEqual(['p2'])
+  })
+
+  it('treats an explicit mp4 format as the normal launch export', async () => {
+    rows.set('p-mp4', { id: 'p-mp4', flow: 'studio', options: {}, outputs: [] })
+    kinds.set('p-mp4', 'launch')
+
+    const status = await exportProject('user_1', 'p-mp4', { format: 'mp4' })
+
+    expect(status.stage).toBe('starting')
+    expect(started).toEqual(['p-mp4'])
   })
 
   it('exports a deck as the PDF its agent published', async () => {

@@ -82,6 +82,8 @@ export interface Entry {
   pending?: 'queued' | 'steering' | 'cancelled'
 }
 export interface ExportStatus {
+  format?: string
+  filename?: string
   running: boolean
   res: string | null
   url: string | null

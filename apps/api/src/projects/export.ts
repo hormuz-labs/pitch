@@ -5,8 +5,10 @@
  */
 import * as db from '@saas/db'
 import { isLaunchVideoResolution, LAUNCH_VIDEO_RESOLUTIONS } from '@saas/shared'
-import { artifactKind } from '../agent/describe.js'
+import { activeArtifact } from '../agent/describe.js'
 import type { Output } from '../flows/types.js'
+import { cancelEditableExport, editableStatus, startEditableExport } from './editable-export.js'
+import type { EditableFormat } from './editable-formats.js'
 import { addOutput, getProject, getRow, type ProjectRow, workspaceOf } from './service.js'
 
 /**
@@ -16,13 +18,21 @@ import { addOutput, getProject, getRow, type ProjectRow, workspaceOf } from './s
  * the launch film renders on demand; everything else exports what its agent
  * already published.
  */
-async function exporterFor(p: ProjectRow): Promise<Exporter | undefined> {
-  const kind = await artifactKind(workspaceOf(p))
-  if (kind === 'launch') return exporters.get('launch-video')
+interface Artifact {
+  kind: string
+  rel: string
+  at: number
+}
+
+function exporterFor(p: ProjectRow, artifact: Artifact | null): Exporter | undefined {
+  if (artifact?.kind === 'launch') return exporters.get('launch-video')
+  if (artifact?.kind === 'browser') return undefined
   return exporters.get(p.flow)
 }
 
 export interface ExportStatus {
+  format?: string
+  filename?: string
   running: boolean
   res: string | null
   url: string | null
@@ -45,6 +55,8 @@ export interface Exporter {
 }
 
 const exporters = new Map<string, Exporter>()
+const starting = new Map<string, Promise<ExportStatus>>()
+const directJobs = new Map<string, ExportStatus>()
 export function registerExporter(flow: string, e: Exporter): void {
   exporters.set(flow, e)
 }
@@ -61,15 +73,22 @@ const IDLE: ExportStatus = {
 }
 
 export function getExport(projectId: string): ExportStatus {
+  const editable = editableStatus(projectId)
+  const found: ExportStatus[] = editable ? [editable] : []
+  const direct = directJobs.get(projectId)
+  if (direct) found.push(direct)
   for (const e of exporters.values()) {
     const s = e.status(projectId)
-    if (s.stage !== 'idle') return s
+    if (s.stage !== 'idle') found.push(s)
   }
-  return IDLE
+  return found.reduce<ExportStatus>(
+    (latest, status) => ((status.startedAt ?? 0) >= (latest.startedAt ?? 0) ? status : latest),
+    IDLE,
+  )
 }
 
 export function cancelExport(projectId: string): boolean {
-  return [...exporters.values()].some(e => e.cancel(projectId))
+  return cancelEditableExport(projectId) || [...exporters.values()].some(e => e.cancel(projectId))
 }
 
 export async function exportProject(
@@ -78,16 +97,51 @@ export async function exportProject(
   body: Record<string, any>,
 ): Promise<ExportStatus> {
   const p = await getRow(userId, id)
-  const exporter = await exporterFor(p)
+  const pending = starting.get(p.id)
+  if (pending) return pending
+  const start = startProjectExport(userId, id, p, body)
+  starting.set(p.id, start)
+  try {
+    return await start
+  } finally {
+    if (starting.get(p.id) === start) starting.delete(p.id)
+  }
+}
+
+async function startProjectExport(
+  userId: string,
+  id: string,
+  p: ProjectRow,
+  body: Record<string, any>,
+): Promise<ExportStatus> {
+  if (body.format && !['mp4', 'premiere', 'after-effects', 'blender'].includes(body.format))
+    throw Object.assign(new Error('unknown export format'), { status: 400 })
+  const existing = getExport(p.id)
+  if (existing.running) return existing
+  const artifact = await activeArtifact(workspaceOf(p))
+  if (body.format && body.format !== 'mp4') {
+    const current = getExport(p.id)
+    if (current.running) return current
+    return startEditableExport(p, artifact, body.format as EditableFormat, body.res, () =>
+      getExport(p.id),
+    )
+  }
+  const exporter = exporterFor(p, artifact)
   if (!exporter) {
     // Nothing to render: the latest published output is the export.
     const latest = p.outputs.find(o => o.kind === 'video' || o.kind === 'pdf')
-    return {
+    const now = Math.max(Date.now(), (getExport(p.id).startedAt ?? 0) + 1)
+    const status: ExportStatus = {
       ...IDLE,
       stage: latest ? 'done' : 'failed',
       url: latest?.url ?? null,
+      progress: latest ? 100 : 0,
       error: latest ? null : 'nothing to export yet',
+      startedAt: now,
+      finishedAt: now,
     }
+    directJobs.set(p.id, status)
+    return status
   }
   // Launch video: the paid tier is free; higher tiers charge the difference once.
   if (exporter === exporters.get('launch-video')) {
@@ -115,5 +169,7 @@ export async function exportProject(
   const detail = await getProject(userId, id)
   if (!detail.description.preview)
     throw Object.assign(new Error('nothing to export yet'), { status: 409 })
+  const current = getExport(p.id)
+  if (current.running) return current
   return await exporter.start(p, body, o => addOutput(userId, id, o).then(() => undefined))
 }

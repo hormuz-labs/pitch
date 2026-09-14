@@ -180,7 +180,7 @@ GET    /projects/:id/events            SSE (see below)
 GET    /projects/:id/thumbnail?t=      JPEG from the live preview (html/deck) or the render at t
 GET    /projects/:id/assets            Asset[] — the shelf, derived from the workspace
 POST   /projects/:id/assets            { uploads[] } → stages them into uploads/; runs no turn
-POST   /projects/:id/export            { res } → RenderStatus   (a launch page renders; anything else re-uploads)
+POST   /projects/:id/export            { res, format? } → RenderStatus (`format` may request an editable ZIP)
 GET    /projects/:id/export            RenderStatus
 POST   /projects/:id/export/cancel
 POST   /projects/:id/share             → { shareSlug }      DELETE …/share
@@ -194,6 +194,14 @@ GET    /d/:slug, /projects/public/:slug   share page + payload
 /mcp, /v1                              create_project / get_project / list_projects / prompt_project (+ credits)
 /checkout /credits /users /api-keys /affiliate /newsletter /browser /webhooks /admin   carried over
 ```
+
+Editable video exports are fidelity-first interchange packages for Premiere
+Pro, After Effects, or Blender. They contain the exact rendered movie, its
+final mixed soundtrack as a separate WAV, frame-aligned shot/beat cuts, an
+import file or project-building script, and a manifest. Browser graphics and
+effects remain baked into the movie; unsupported media is rejected rather
+than silently transcoded. Launch films require a current MP4 at the selected
+resolution before packaging.
 
 The new-project composer can pass `options.narrationVoice` as
 `{ provider: 'elevenlabs', id, name }`. It is saved in `project.json` and used

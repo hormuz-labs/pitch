@@ -1,6 +1,7 @@
 import { batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
 import { useAuth } from '../core/auth'
 import { mediaUrl as buildMediaUrl, studio } from './client'
+import { createExportRequest, exportFilename } from './editable-export'
 import { buildStatus, withTargetLegend } from './helpers'
 import { createPreviewCredential, createPreviewRefresh } from './preview-refresh'
 import type {
@@ -38,6 +39,7 @@ export function useProject(id: string | undefined) {
     [draft, setDraftValue] = createSignal('')
   const [playhead, setPlayhead] = createSignal(0),
     [playing, setPlaying] = createSignal(false),
+    [exportPending, setExportPending] = createSignal(false),
     [exportStatus, setExportStatus] = createSignal<ExportStatus | null>(null)
   const [mediaToken, setMediaToken] = createSignal<string | null>(null),
     [assets, setAssets] = createSignal<Asset[]>([]),
@@ -53,6 +55,7 @@ export function useProject(id: string | undefined) {
     reconnectTimer = 0,
     disposed = false,
     exportTimer = 0,
+    pollInFlight = false,
     autoSeek: { t: number; play: boolean } | null = null,
     playingNow = false
   const setDraft = (v: string | ((d: string) => string)) =>
@@ -236,19 +239,23 @@ export function useProject(id: string | undefined) {
     exportTimer = 0
   }
   const poll = async () => {
-    if (!id) return
+    if (!id || disposed || pollInFlight) return
+    pollInFlight = true
     try {
       const st = await studio.getExport(await getToken(), id)
+      if (disposed) return
       setExportStatus(st)
       if (!st.running) {
         stopPoll()
         if (st.stage === 'done') {
+          if (st.url) download(st.url, exportFilename(st, project()?.title))
           await refresh()
-          if (st.url)
-            download(st.url, `${project()?.title ?? 'video'}${st.res ? `-${st.res}` : ''}.mp4`)
         }
       }
-    } catch {}
+    } catch {
+    } finally {
+      pollInFlight = false
+    }
   }
   const startPoll = () => {
     stopPoll()
@@ -286,7 +293,7 @@ export function useProject(id: string | undefined) {
         })
       if (initialBusyRevision === busyRevision) setBusy(m.busy)
       setAssets(a)
-      if (e) {
+      if (e && !exportPending() && !exportStatus()) {
         setExportStatus(e)
         if (e.running) startPoll()
       }
@@ -362,33 +369,38 @@ export function useProject(id: string | undefined) {
       ])
     }
   }
-  const exportVideo = async (body: Record<string, unknown> = {}) => {
-    if (!id) return
-    try {
-      const st = await studio.startExport(await getToken(), id, body)
-      setExportStatus(st)
-      if (st.running) startPoll()
-      else if (st.stage === 'done' && st.url)
-        download(
-          st.url,
-          `${project()?.title ?? 'export'}${st.res ? `-${st.res}` : ''}${/\.pdf($|\?)/.test(st.url) ? '.pdf' : '.mp4'}`,
-        )
-    } catch (err: any) {
-      setExportStatus({
-        running: false,
-        res: typeof body.res === 'string' ? body.res : null,
-        url: null,
-        progress: 0,
-        stage: 'failed',
-        error:
-          err?.status === 402
-            ? 'Not enough credits for this resolution'
-            : String(err?.message ?? err),
-        startedAt: null,
-        finishedAt: null,
-      })
-    }
-  }
+  const exportVideo = createExportRequest(
+    async body => {
+      if (!id) return
+      try {
+        const st = await studio.startExport(await getToken(), id, body)
+        if (disposed) return
+        setExportStatus(st)
+        if (st.running) startPoll()
+        else if (st.stage === 'done') {
+          if (st.url) download(st.url, exportFilename(st, project()?.title))
+          void refresh()
+        }
+      } catch (err: any) {
+        setExportStatus({
+          running: false,
+          format: body.format,
+          res: typeof body.res === 'string' ? body.res : null,
+          url: null,
+          progress: 0,
+          stage: 'failed',
+          error:
+            err?.status === 402
+              ? 'Not enough credits for this resolution'
+              : String(err?.message ?? err),
+          startedAt: null,
+          finishedAt: null,
+        })
+      }
+    },
+    () => !id || disposed || busy() || !!exportStatus()?.running,
+    setExportPending,
+  )
   const projectModel = () =>
       typeof project()?.options.model === 'string' ? (project()!.options.model as string) : null,
     model = () => modelPick() ?? projectModel()
@@ -470,6 +482,9 @@ export function useProject(id: string | undefined) {
     },
     get exportStatus() {
       return exportStatus()
+    },
+    get exportPending() {
+      return exportPending()
     },
     exportVideo,
     cancelExport: async () => {

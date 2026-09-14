@@ -24,11 +24,12 @@
  */
 import { execFileSync, execSync } from "node:child_process";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { rename, stat, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { renderTimeline } from "./lib/render-timeline.mjs";
 import {
   codecArgs,
   describeRender,
@@ -174,6 +175,7 @@ const initPage = await studio.newPage();
 await initPage.goto(url, { waitUntil: "domcontentloaded" });
 await initPage.waitForFunction("window.__READY === true", null, { timeout: 30000 });
 const duration = await initPage.evaluate("window.__DURATION()");
+const cues = await initPage.evaluate("window.__CUES().map(({ label, time }) => ({ label, time }))");
 const film = await initPage.evaluate("({ render: (window.SHOTS && window.SHOTS.render) || null, grade: (window.SHOTS && window.SHOTS.grade) || null })");
 await initPage.close();
 
@@ -189,8 +191,10 @@ console.log(`   Encoder:   ${encoderLabel(encoder)}\n`);
 
 const from = Math.max(0, Number(args.from ?? 0));
 const to   = args.to !== undefined ? Math.min(Number(args.to), duration) : duration;
-if (to <= from) { console.error(`Invalid segment: --from=${from} --to=${to}`); process.exit(1); }
+if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) { console.error(`Invalid segment: --from=${from} --to=${to}`); process.exit(1); }
 const isSegment = from > 0 || to < duration;
+// Fail before capture if the browser returned malformed timeline data.
+renderTimeline(cues, { from, to, sourceBytes: 0, sourceMtimeMs: 0 });
 
 const total = Math.ceil((to - from) * fps);
 const captures = total * render.samples;
@@ -312,6 +316,23 @@ if (!isSegment && existsSync("audio/mix.wav")) {
   rmSync(rawVideo, { force: true });
 } else {
   execFileSync("mv", [rawVideo, resolve(out)]);
+}
+
+const finalOut = resolve(out);
+const sourceStat = await stat(finalOut);
+const timeline = renderTimeline(cues, {
+  from,
+  to,
+  sourceBytes: sourceStat.size,
+  sourceMtimeMs: sourceStat.mtimeMs,
+});
+const timelineOut = finalOut.replace(/\.[^./]+$/, "") + ".timeline.json";
+const timelineTmp = `${timelineOut}.${process.pid}.tmp`;
+try {
+  await writeFile(timelineTmp, `${JSON.stringify(timeline, null, 2)}\n`, "utf8");
+  await rename(timelineTmp, timelineOut);
+} finally {
+  rmSync(timelineTmp, { force: true });
 }
 
 console.log(`\n✨ DONE! Deliverable Ready: ${out}\n`);

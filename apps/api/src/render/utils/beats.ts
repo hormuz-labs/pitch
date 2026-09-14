@@ -8,7 +8,8 @@
  * into a scene strip, which is what makes a video editable by selection:
  * pick the moment, say what should change.
  */
-import { readFile, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { readFile, rename, stat, writeFile } from 'node:fs/promises'
 
 export interface Beat {
   /** Seconds on the final video timeline. */
@@ -23,6 +24,9 @@ export interface Beat {
 export interface Timeline {
   durationSec: number
   beats: Beat[]
+  /** Optional identity of the exact rendered movie this sidecar describes. */
+  sourceBytes?: number
+  sourceMtimeMs?: number
 }
 
 /** A scene as the studio's Description.scenes wants it (flows/types.ts). */
@@ -44,7 +48,15 @@ export function timelineFileFor(videoPath: string): string {
 }
 
 export async function writeTimeline(videoPath: string, timeline: Timeline): Promise<void> {
-  await writeFile(timelineFileFor(videoPath), `${JSON.stringify(timeline, null, 2)}\n`, 'utf8')
+  const source = await stat(videoPath)
+  const file = timelineFileFor(videoPath)
+  const temp = `${file}.${randomUUID()}.tmp`
+  await writeFile(
+    temp,
+    `${JSON.stringify({ ...timeline, sourceBytes: source.size, sourceMtimeMs: source.mtimeMs }, null, 2)}\n`,
+    'utf8',
+  )
+  await rename(temp, file)
 }
 
 export async function readTimeline(videoPath: string): Promise<Timeline | null> {

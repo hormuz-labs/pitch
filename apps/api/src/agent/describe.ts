@@ -177,6 +177,16 @@ export async function artifactKind(ws: Workspace): Promise<string | null> {
   return (await candidates(ws))[0]?.kind ?? null
 }
 
+/** The source artifact currently selected by directory truth. */
+export async function activeArtifact(
+  ws: Workspace,
+): Promise<{ kind: string; rel: string; at: number } | null> {
+  if (!existsSync(ws.dir)) return null
+  const profileId = await liveBrowser(ws)
+  if (profileId) return { kind: 'browser', rel: 'recording/live.json', at: Date.now() }
+  return (await candidates(ws))[0] ?? null
+}
+
 /**
  * Does this workspace hold anything to look at?
  *
