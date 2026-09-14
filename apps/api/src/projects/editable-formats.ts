@@ -114,7 +114,15 @@ Open the “OPEN ME” composition. “BAKED FIDELITY” is enabled by default; 
 “EDITABLE NATIVE” to inspect the transparent, visibly incomplete native reconstruction.
 Unsupported effects remain only in the baked mode. Font family assignment is best effort;
 font weight and style cannot be reproduced exactly, and missing fonts fall back in After Effects.`
-      : 'Fidelity: baked visuals from the rendered video, with editable cuts; no native DOM layers.'
+      : format === 'premiere' && manifest.native
+        ? `Native Premiere content: the import contains two sibling sequences. “BAKED FIDELITY”
+preserves the render; “EDITABLE IMAGES” is a transparent image-only, visibly incomplete
+reconstruction. Text, unsupported layers, and images with non-uniform scale are omitted.`
+        : format === 'blender' && manifest.native
+          ? `Native Blender content: one scene contains the baked movie enabled by default and
+muted NATIVE text/image strips beneath it. Mute the baked movie strips and unmute the NATIVE
+strips to inspect the transparent, visibly incomplete reconstruction. The soundtrack stays enabled once.`
+          : 'Fidelity: baked visuals from the rendered video, with editable cuts; no native DOM layers.'
   const readme = `Pitch editable timeline
 
 Extract the ZIP first and keep the extracted folders together, including media/.
@@ -333,6 +341,66 @@ ${manifest.warnings.length ? manifest.warnings.map(w => `- ${w}`).join('\n') : '
     const audioMedia = audio
       ? `<audio><format>${audioSample}</format><outputs><group><index>1</index><numchannels>${audio.channels}</numchannels><downmix>0</downmix>${Array.from({ length: audio.channels }, (_, i) => `<channel><index>${i + 1}</index></channel>`).join('')}</group></outputs>${audioTracks}</audio>`
       : ''
+    if (manifest.native) {
+      const sx = video.width / manifest.native.stage.width
+      const sy = video.height / manifest.native.stage.height
+      const imageLayers = manifest.native.layers.filter(
+        (layer): layer is NativeImageLayer =>
+          layer.kind === 'image' && layer.keys.scale.every(([, x, y]) => Math.abs(x - y) <= 0.01),
+      )
+      const parameter = (id: string, name: string, values: string) =>
+        `<parameter authoringApp="PremierePro"><parameterid>${id}</parameterid><name>${name}</name>${values}</parameter>`
+      const scalarKeys = (
+        values: NativeValueKey[],
+        inFrame: number,
+        convert: (value: number) => number,
+      ) =>
+        values
+          .map(
+            ([frame, value]) =>
+              `<keyframe><when>${frame - inFrame}</when><value>${convert(value)}</value><interpolation><name>linear</name></interpolation></keyframe>`,
+          )
+          .join('')
+      const nativeTracks = imageLayers
+        .map((layer, i) => {
+          const duration = layer.outFrame - layer.inFrame
+          const centerKeys = layer.keys.position
+            .map(
+              ([frame, x, y]) =>
+                `<keyframe><when>${frame - layer.inFrame}</when><value><horiz>${(x * sx - video.width / 2) / layer.box.width}</horiz><vert>${(y * sy - video.height / 2) / layer.box.height}</vert></value><interpolation><name>linear</name></interpolation></keyframe>`,
+            )
+            .join('')
+          const scaleKeys = layer.keys.scale.map(([frame, x]) => [frame, x] as NativeValueKey)
+          const alpha = /\.(?:png|webp)(?:[?#].*)?$/i.test(layer.asset) ? 'straight' : 'none'
+          const effects = `<filter><effect><name>Basic Motion</name><effectid>basic</effectid><effectcategory>motion</effectcategory><effecttype>motion</effecttype><mediatype>video</mediatype>${parameter('center', 'Center', centerKeys)}${parameter(
+            'scale',
+            'Scale',
+            scalarKeys(scaleKeys, layer.inFrame, value => value * sx),
+          )}${parameter(
+            'rotation',
+            'Rotation',
+            scalarKeys(layer.keys.rotation, layer.inFrame, value => -value),
+          )}</effect></filter><filter><effect><name>Opacity</name><effectid>opacity</effectid><effectcategory>opacity</effectcategory><effecttype>motion</effecttype><mediatype>video</mediatype>${parameter(
+            'opacity',
+            'Opacity',
+            scalarKeys(layer.keys.opacity, layer.inFrame, value => value),
+          )}</effect></filter>`
+          return `<track><clipitem id="native-${i}"><name>${xml(layer.name)}</name><duration>${duration}</duration>${rate}<start>${layer.inFrame}</start><end>${layer.outFrame}</end><in>0</in><out>${duration}</out><stillframe>TRUE</stillframe><alphatype>${alpha}</alphatype><compositemode>normal</compositemode><file id="native-file-${i}"><name>${xml(layer.name)}</name><pathurl>${xml(layer.asset)}</pathurl><duration>${duration}</duration>${rate}<media><video><duration>${duration}</duration><stillframe>TRUE</stillframe><alphatype>${alpha}</alphatype><samplecharacteristics>${rate}<width>${layer.box.width}</width><height>${layer.box.height}</height><anamorphic>FALSE</anamorphic><pixelaspectratio>square</pixelaspectratio><fielddominance>none</fielddominance></samplecharacteristics></video></media></file>${effects}</clipitem></track>`
+        })
+        .join('')
+      const nativeAudio = audioMedia
+        .replaceAll('id="audio-', 'id="native-audio-')
+        .replaceAll('id="soundtrack"', 'id="native-soundtrack"')
+      const baked = `<sequence id="sequence-baked"><name>${xml(`${manifest.title} — BAKED FIDELITY`)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format><track>${clips}</track></video>${audioMedia}</media></sequence>`
+      const editable = `<sequence id="sequence-editable"><name>${xml(`${manifest.title} — EDITABLE IMAGES`)}</name><duration>${video.frames}</duration>${rate}<media><video><format>${sample}</format>${nativeTracks}</video>${nativeAudio}</media></sequence>`
+      return {
+        'README.txt': readme,
+        'project.xml': `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xmeml>
+<xmeml version="5">${baked}${editable}</xmeml>
+`,
+      }
+    }
     return {
       'README.txt': readme,
       'project.xml': `<?xml version="1.0" encoding="UTF-8"?>
@@ -370,13 +438,87 @@ scene.view_settings.look = "None"
 scene.view_settings.exposure = 0
 scene.view_settings.gamma = 1
 strips = scene.sequence_editor_create().strips
+baked_channel = 1
+if data.get("native"):
+    import math
+    import re
+    native = data["native"]
+    sx = video["width"] / native["stage"]["width"]
+    sy = video["height"] / native["stage"]["height"]
+    def css_color(value):
+        match = re.fullmatch(r"rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)(?:\\s*,\\s*([\\d.]+))?\\s*\\)", value, re.I)
+        if match:
+            channels = [float(match.group(i)) / 255 for i in range(1, 4)]
+            return (*channels, float(match.group(4)) if match.group(4) is not None else 1.0)
+        match = re.fullmatch(r"#([0-9a-f]{6})([0-9a-f]{2})?", value, re.I)
+        if match:
+            rgb = match.group(1)
+            return tuple(int(rgb[i:i + 2], 16) / 255 for i in (0, 2, 4)) + ((int(match.group(2), 16) / 255) if match.group(2) else 1.0,)
+        return (1.0, 1.0, 1.0, 1.0)
+    def native_keys(strip, item, image):
+        for frame, x, y in item["keys"]["position"]:
+            strip.transform.offset_x = x * sx - video["width"] / 2
+            strip.transform.offset_y = video["height"] / 2 - y * sy
+            strip.transform.keyframe_insert(data_path="offset_x", frame=frame + 1)
+            strip.transform.keyframe_insert(data_path="offset_y", frame=frame + 1)
+        for frame, x, y in item["keys"]["scale"]:
+            strip.transform.scale_x = x / 100 * (sx if image else 1)
+            strip.transform.scale_y = y / 100 * (sy if image else 1)
+            strip.transform.keyframe_insert(data_path="scale_x", frame=frame + 1)
+            strip.transform.keyframe_insert(data_path="scale_y", frame=frame + 1)
+        for frame, value in item["keys"]["rotation"]:
+            strip.transform.rotation = math.radians(-value)
+            strip.transform.keyframe_insert(data_path="rotation", frame=frame + 1)
+        for frame, value in item["keys"]["opacity"]:
+            strip.blend_alpha = value / 100
+            strip.keyframe_insert(data_path="blend_alpha", frame=frame + 1)
+    for index, item in enumerate(native["layers"]):
+        start = item["inFrame"] + 1
+        duration = item["outFrame"] - item["inFrame"]
+        if item["kind"] == "image":
+            strip = strips.new_image("NATIVE — " + item["name"], str(root / item["asset"]), channel=index + 1, frame_start=start, fit_method='ORIGINAL')
+            strip.frame_final_duration = duration
+            strip.frame_final_end = item["outFrame"] + 1
+            is_image = True
+        else:
+            if bpy.app.version >= (5, 0, 0):
+                strip = strips.new_effect("NATIVE — " + item["name"], type='TEXT', channel=index + 1, frame_start=start, length=duration)
+            else:
+                strip = strips.new_effect("NATIVE — " + item["name"], type='TEXT', channel=index + 1, frame_start=start, frame_end=item["outFrame"] + 1)
+            strip.text = item["text"]
+            strip.location = (0.5, 0.5)
+            strip.anchor_x = 'CENTER'
+            strip.anchor_y = 'CENTER'
+            strip.font_size = item["font"]["size"] * sy
+            color = css_color(item["font"]["color"])
+            strip.color = (color[0], color[1], color[2], 1.0)
+            strip.alignment_x = {"left": "LEFT", "center": "CENTER", "right": "RIGHT"}.get(item["font"]["align"], "LEFT")
+            is_image = False
+        strip.mute = True
+        native_keys(strip, item, is_image)
+    animation = getattr(scene, "animation_data", None)
+    action = getattr(animation, "action", None) if animation else None
+    if action:
+        curves = getattr(action, "fcurves", None)
+        if curves is None:
+            slot = getattr(action, "slots", [None])[0] if getattr(action, "slots", None) else None
+            layers = getattr(action, "layers", [])
+            layered_strip = layers[0].strips[0] if layers and getattr(layers[0], "strips", None) else None
+            bag = layered_strip.channelbag(slot, ensure=False) if slot and layered_strip else None
+            curves = getattr(bag, "fcurves", []) if bag else []
+        for curve in curves:
+            for point in getattr(curve, "keyframe_points", []):
+                point.interpolation = 'LINEAR'
+    baked_channel = len(native["layers"]) + 2
 for cut in data["cuts"]:
-    strip = strips.new_movie(cut["label"], str(root / video["file"]), channel=1, frame_start=1)
+    strip = strips.new_movie(cut["label"], str(root / video["file"]), channel=baked_channel, frame_start=1)
+    strip.mute = False
     # Frame 1 is source frame 0. Move handles, not the source origin.
     strip.frame_final_start = cut["start"] + 1
     strip.frame_final_end = cut["end"] + 1
 if data["audio"]:
-    sound = strips.new_sound("Soundtrack", str(root / data["audio"]["file"]), channel=2, frame_start=1)
+    sound = strips.new_sound("Soundtrack", str(root / data["audio"]["file"]), channel=baked_channel + 1, frame_start=1)
+    sound.mute = False
     sound.frame_final_end = video["frames"] + 1
 if bpy.context.window:
     bpy.context.window.scene = scene

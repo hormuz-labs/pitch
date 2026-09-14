@@ -80,6 +80,54 @@ async function sha256(file: string) {
     .digest('hex')
 }
 
+const keys = {
+  position: [[0, 32, 24]] as [[number, number, number]],
+  scale: [[0, 100, 100]] as [[number, number, number]],
+  rotation: [[0, 0]] as [[number, number]],
+  opacity: [[0, 100]] as [[number, number]],
+}
+
+function textLayer() {
+  return {
+    id: 'text-1',
+    name: 'Headline',
+    shotId: 'hero',
+    kind: 'text' as const,
+    text: 'Hello',
+    font: {
+      family: 'Inter',
+      style: 'normal',
+      weight: '700',
+      size: 12,
+      lineHeight: 14,
+      tracking: 0,
+      color: '#ffffff',
+      align: 'left',
+    },
+    box: { width: 32, height: 12 },
+    inFrame: 0,
+    outFrame: 30,
+    keys,
+    warnings: [],
+  }
+}
+
+function imageLayer(assetSha256: string) {
+  return {
+    id: 'image-1',
+    name: 'Product',
+    shotId: 'hero',
+    kind: 'image' as const,
+    asset: 'uploads/product.webp',
+    assetSha256,
+    box: { width: 32, height: 24 },
+    inFrame: 0,
+    outFrame: 30,
+    keys,
+    warnings: [],
+  }
+}
+
 it('packages only the selected silent movie with exact frames and losslessly remuxed pixels', async () => {
   const source = await movie()
   await writeFile(join(workspaceDir, 'secret.txt'), 'not collected')
@@ -164,6 +212,141 @@ it('collects validated AE native image assets and rewrites their manifest paths'
   const zip = new AdmZip(await readFile(file))
   expect(zip.readFile('assets/product.webp')).toEqual(Buffer.from('image bytes'))
   expect(manifest.warnings.join('\n')).not.toMatch(/no native layers/i)
+})
+
+it('packages only image native layers and assets for Premiere while text remains baked', async () => {
+  const source = await movie()
+  const sourceIdentity = await stat(source)
+  await mkdir(join(workspaceDir, 'uploads'))
+  const imageBytes = Buffer.from('image bytes')
+  await writeFile(join(workspaceDir, 'uploads', 'product.webp'), imageBytes)
+  const { file, manifest } = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'premiere',
+    title: 'Premiere native',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [textLayer(), imageLayer(createHash('sha256').update(imageBytes).digest('hex'))],
+      warnings: [],
+    },
+  })
+
+  expect(manifest.native?.layers).toEqual([
+    expect.objectContaining({ kind: 'image', asset: 'assets/product.webp' }),
+  ])
+  expect(new AdmZip(await readFile(file)).readFile('assets/product.webp')).toEqual(imageBytes)
+  expect(manifest.warnings.join('\n')).toMatch(/text.*baked/i)
+  expect(manifest.warnings.join('\n')).not.toMatch(/after effects/i)
+})
+
+it('packages text and image native layers and image assets for Blender', async () => {
+  const source = await movie()
+  const sourceIdentity = await stat(source)
+  await mkdir(join(workspaceDir, 'uploads'))
+  const imageBytes = Buffer.from('blender image')
+  await writeFile(join(workspaceDir, 'uploads', 'product.webp'), imageBytes)
+  const { file, manifest } = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'blender',
+    title: 'Blender native',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [textLayer(), imageLayer(createHash('sha256').update(imageBytes).digest('hex'))],
+      warnings: [],
+    },
+  })
+
+  expect(manifest.native?.layers).toEqual([
+    expect.objectContaining({ kind: 'text', text: 'Hello' }),
+    expect.objectContaining({ kind: 'image', asset: 'assets/product.webp' }),
+  ])
+  expect(new AdmZip(await readFile(file)).readFile('assets/product.webp')).toEqual(imageBytes)
+  expect(manifest.warnings.join('\n')).toMatch(/native Blender content/i)
+  expect(manifest.warnings.join('\n')).not.toMatch(/after effects/i)
+})
+
+it.each([
+  ['premiere', [textLayer()], /no supported native image layers.*Premiere.*text.*baked/i],
+  ['after-effects', [], /no supported native layers.*After Effects.*baked fidelity/i],
+  ['blender', [], /no supported native layers.*Blender.*baked fidelity/i],
+] as const)(
+  'omits zero eligible native layers for %s with a baked fallback warning',
+  async (format, layers, warning) => {
+    const source = await movie()
+    const sourceIdentity = await stat(source)
+    const { file, manifest } = await buildEditablePackage({
+      workspaceDir,
+      outputDir,
+      videoRel: 'selected.mov',
+      format,
+      title: 'Baked fallback',
+      nativeLayers: {
+        version: 1,
+        stage: { width: 64, height: 48 },
+        fps: 30,
+        frames: 30,
+        sourceBytes: sourceIdentity.size,
+        sourceMtimeMs: sourceIdentity.mtimeMs,
+        sourceSha256: await sha256(source),
+        layers: [...layers],
+        warnings: [],
+      },
+    })
+
+    expect(manifest.native).toBeUndefined()
+    expect(manifest.warnings.join('\n')).toMatch(warning)
+    expect(
+      new AdmZip(await readFile(file))
+        .getEntries()
+        .some(entry => entry.entryName.startsWith('assets/')),
+    ).toBe(false)
+  },
+)
+
+it('validates malformed Premiere text metadata before filtering it out', async () => {
+  const source = await movie()
+  const sourceIdentity = await stat(source)
+  const malformed = textLayer()
+  malformed.font.family = ''
+  const { manifest } = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'premiere',
+    title: 'Malformed filtered layer',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [malformed],
+      warnings: [],
+    },
+  })
+
+  expect(manifest.native).toBeUndefined()
+  expect(manifest.warnings).toContain(
+    'Native layer metadata is invalid; exported baked fidelity only.',
+  )
 })
 
 it('falls back to baked fidelity for hostile native asset traversal without collecting it', async () => {

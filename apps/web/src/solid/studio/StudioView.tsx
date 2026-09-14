@@ -103,9 +103,9 @@ const RES = [
   { res: '4k', note: '3840 × 2160 · 60 fps · slow render' },
 ] satisfies { res: ExportResolution; note: string }[]
 const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[] = [
-  { format: 'premiere', label: 'Premiere Pro', note: 'XML + media' },
+  { format: 'premiere', label: 'Premiere Pro', note: 'Image motion + baked sequence' },
   { format: 'after-effects', label: 'After Effects', note: 'Native text, images + fallback' },
-  { format: 'blender', label: 'Blender', note: 'Python + media' },
+  { format: 'blender', label: 'Blender', note: 'Native text, images + fallback' },
 ]
 function Actions(props: { store: ProjectStore }) {
   const s = props.store,
@@ -275,8 +275,8 @@ function Actions(props: { store: ProjectStore }) {
                   </p>
                 </Show>
                 <p class="export-hint">
-                  After Effects keeps supported text, images, and transforms editable. Complex
-                  effects use the baked fallback. The soundtrack stays mixed.
+                  Supported layers stay editable: text and images in After Effects or Blender, and
+                  image motion in Premiere. Complex effects use a baked fallback.
                 </p>
               </div>
               <For each={EDITABLE_FORMATS}>
