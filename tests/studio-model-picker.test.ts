@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import {
+  AZURE_ASTRA_SPEC,
+  AZURE_GPT_55_SPEC,
+  AZURE_LUNA_SPEC,
+  AZURE_SOL_SPEC,
+  AZURE_TERRA_SPEC,
   assembleStudioPicker,
   DEFAULT_STUDIO_MODELS,
+  estimatedModelCredits,
   GEMINI_31_PRO_SPEC,
   GEMINI_38_FLASH_SPEC,
   GEMMA_4_26B_SPEC,
   GEMMA_4_31B_SPEC,
   GPT_54_MINI_SPEC,
   GPT_54_SPEC,
+  modelCreditMultiplier,
+  modelCreditMultipliers,
   parseModelSpec,
+  platformMargin,
   selectStudioModel,
   studioModelSpecs,
 } from '../apps/api/src/studio/model-picker.js'
@@ -53,6 +62,43 @@ describe('studioModelSpecs', () => {
   })
 })
 
+describe('model credit pricing', () => {
+  it('uses defaults and allows deployment overrides', () => {
+    expect(modelCreditMultiplier(GEMINI_38_FLASH_SPEC)).toBe(1)
+    expect(modelCreditMultiplier(GEMINI_31_PRO_SPEC)).toBe(2)
+    expect(
+      modelCreditMultipliers(`{"${GEMINI_38_FLASH_SPEC}":1.5,"custom/model":3}`),
+    ).toMatchObject({ [GEMINI_38_FLASH_SPEC]: 1.5, 'custom/model': 3 })
+  })
+
+  it('ignores invalid values and malformed configuration', () => {
+    const prices = modelCreditMultipliers('{"custom/free":0,"custom/bad":"2"}')
+    expect(modelCreditMultiplier('custom/free', prices)).toBe(1)
+    expect(modelCreditMultiplier('custom/bad', prices)).toBe(1)
+    expect(modelCreditMultipliers('not json')).toEqual(modelCreditMultipliers(undefined))
+  })
+
+  it('uses a 25% platform margin by default and accepts larger overrides', () => {
+    expect(platformMargin(undefined)).toBe(1.25)
+    expect(platformMargin('1.4')).toBe(1.4)
+    expect(platformMargin('0.5')).toBe(1.25)
+  })
+
+  it('adds duration-priced video cost to the harness estimate', () => {
+    expect(estimatedModelCredits(AZURE_SOL_SPEC, 15, { [AZURE_SOL_SPEC]: 1 })).toEqual({
+      total: 1250,
+      harness: 125,
+      video: 1250,
+    })
+    expect(estimatedModelCredits(AZURE_ASTRA_SPEC, 30, { [AZURE_ASTRA_SPEC]: 2 })).toEqual({
+      total: 2500,
+      harness: 250,
+      video: 2500,
+    })
+    expect(estimatedModelCredits(AZURE_ASTRA_SPEC, 60, { [AZURE_ASTRA_SPEC]: 2 }).total).toBe(5000)
+  })
+})
+
 describe('assembleStudioPicker', () => {
   const catalog = [
     model('google', 'gemini-2.5-flash', 'Gemini 2.5 Flash'),
@@ -73,10 +119,34 @@ describe('assembleStudioPicker', () => {
       specs: [...DEFAULT_STUDIO_MODELS],
     })
     expect(out).toEqual([
-      { spec: GEMINI_38_FLASH_SPEC, label: 'Gemini 3.8 Flash' },
-      { spec: GEMINI_31_PRO_SPEC, label: 'Gemini 3.1 Pro' },
-      { spec: GEMMA_4_31B_SPEC, label: 'Gemma 4 31B' },
-      { spec: GEMMA_4_26B_SPEC, label: 'Gemma 4 26B' },
+      {
+        spec: GEMINI_38_FLASH_SPEC,
+        label: 'Gemini 3.8 Flash',
+        creditMultiplier: 1,
+        estimatedCredits: 125,
+        harnessCredits: 125,
+      },
+      {
+        spec: GEMINI_31_PRO_SPEC,
+        label: 'Gemini 3.1 Pro',
+        creditMultiplier: 2,
+        estimatedCredits: 250,
+        harnessCredits: 250,
+      },
+      {
+        spec: GEMMA_4_31B_SPEC,
+        label: 'Gemma 4 31B',
+        creditMultiplier: 1,
+        estimatedCredits: 125,
+        harnessCredits: 125,
+      },
+      {
+        spec: GEMMA_4_26B_SPEC,
+        label: 'Gemma 4 26B',
+        creditMultiplier: 0.75,
+        estimatedCredits: 94,
+        harnessCredits: 94,
+      },
     ])
   })
 
@@ -88,34 +158,76 @@ describe('assembleStudioPicker', () => {
     expect(out.map(m => m.spec)).toEqual([GEMINI_38_FLASH_SPEC, GEMMA_4_31B_SPEC])
   })
 
-  it('allows GPT only after an admin enables the account', () => {
+  it('shows direct GPT models when they are configured and runnable', () => {
     const out = assembleStudioPicker(catalog, {
       specs: [...DEFAULT_STUDIO_MODELS],
-      gptEnabled: true,
     })
     expect(out.slice(-2).map(m => m.spec)).toEqual([GPT_54_MINI_SPEC, GPT_54_SPEC])
   })
 
-  it('cannot bypass entitlement or the allowlist via STUDIO_MODEL', () => {
+  it('includes every configured Azure model', () => {
+    const azure = [
+      model('azure-apim', 'gpt-5.5', 'GPT-5.5'),
+      model('azure-apim', 'gpt-5.6-luna', 'Luna'),
+      model('azure-apim', 'gpt-5.6-terra', 'Terra'),
+      model('azure-apim', 'gpt-5.6-sol', 'Sol'),
+      model('azure-apim', 'gpt-6-astra', 'Astra'),
+    ]
+    expect(
+      assembleStudioPicker(azure, {
+        specs: [...DEFAULT_STUDIO_MODELS],
+      }).map(item => item.spec),
+    ).toEqual([
+      AZURE_GPT_55_SPEC,
+      AZURE_LUNA_SPEC,
+      AZURE_TERRA_SPEC,
+      AZURE_SOL_SPEC,
+      AZURE_ASTRA_SPEC,
+    ])
+  })
+
+  it('shows Azure and direct OpenAI models together when both are runnable', () => {
+    const catalog = [
+      model('azure-apim', 'gpt-5.6-sol', 'Sol'),
+      model('openai', 'gpt-5.4', 'GPT-5.4'),
+    ]
+    expect(
+      assembleStudioPicker(catalog, {
+        specs: [AZURE_SOL_SPEC, GPT_54_SPEC],
+      }).map(item => item.spec),
+    ).toEqual([AZURE_SOL_SPEC, GPT_54_SPEC])
+  })
+
+  it('shows Azure and Gemini without account entitlement filtering', () => {
+    const out = assembleStudioPicker(
+      [
+        model('google', 'gemini-3.8-flash', 'Gemini 3.8 Flash'),
+        model('azure-apim', 'gpt-5.6-sol', 'Sol'),
+      ],
+      { specs: [GEMINI_38_FLASH_SPEC, AZURE_SOL_SPEC] },
+    )
+    expect(out.map(item => item.spec)).toEqual([GEMINI_38_FLASH_SPEC, AZURE_SOL_SPEC])
+  })
+
+  it('cannot bypass the deployment allowlist via STUDIO_MODEL', () => {
     expect(
       assembleStudioPicker(catalog, {
         specs: [GEMINI_38_FLASH_SPEC],
         defaultSpec: GPT_54_SPEC,
-        gptEnabled: true,
       }).map(m => m.spec),
     ).toEqual([GEMINI_38_FLASH_SPEC])
     expect(
       assembleStudioPicker(catalog, {
         specs: [...DEFAULT_STUDIO_MODELS],
         defaultSpec: GPT_54_SPEC,
-      }).some(m => m.spec === GPT_54_SPEC),
-    ).toBe(false)
+      })[0]?.spec,
+    ).toBe(GPT_54_SPEC)
   })
 
   it('rejects explicit forbidden picks and replaces revoked or removed saved models', () => {
     const allowed = assembleStudioPicker(catalog, { specs: [...DEFAULT_STUDIO_MODELS] })
-    expect(() => selectStudioModel(allowed, GPT_54_SPEC)).toThrow('not available')
-    expect(selectStudioModel(allowed, undefined, GPT_54_SPEC)).toBe(GEMINI_38_FLASH_SPEC)
+    expect(selectStudioModel(allowed, GPT_54_SPEC)).toBe(GPT_54_SPEC)
+    expect(selectStudioModel(allowed, undefined, GPT_54_SPEC)).toBe(GPT_54_SPEC)
     expect(selectStudioModel(allowed, undefined, 'openrouter/moonshotai/kimi-k3')).toBe(
       GEMINI_38_FLASH_SPEC,
     )

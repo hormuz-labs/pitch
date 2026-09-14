@@ -40,6 +40,7 @@ import {
 import {
   assembleStudioPicker,
   DEFAULT_STUDIO_MODEL,
+  type PickerModel,
   parseModelSpec,
   studioModelSpecs,
 } from './model-picker.js'
@@ -127,7 +128,7 @@ const SANDBOX_EXTENSION = path.join(PI_EXTENSIONS_DIR, 'bwrap-sandbox.ts')
 // sits at "working" forever. Check against the runtime before changing it.
 const MODEL_SPEC = process.env.STUDIO_MODEL || DEFAULT_STUDIO_MODEL
 const ALLOWED_SPECS = studioModelSpecs()
-const THINKING_LEVEL = (process.env.STUDIO_THINKING || 'high') as any
+const THINKING_LEVEL = (process.env.STUDIO_THINKING || 'medium') as any
 const STUDIO_MODELS_JSON = path.join(PI_DIR, 'models.json')
 
 function resolveModel(spec = MODEL_SPEC): { model?: any; thinkingLevel?: any } {
@@ -145,6 +146,15 @@ function openAiApiKey(): string | undefined {
   return key || undefined
 }
 
+function azureApimApiKey(): string | undefined {
+  const key = (
+    process.env.AZURE_APIM_PRIMARY_KEY ||
+    process.env.AZURE_APIM_SECONDARY_KEY ||
+    process.env.AZURE_APIM_API_KEY
+  )?.trim()
+  return key || undefined
+}
+
 function googleApiKey(): string | undefined {
   const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY)?.trim()
   return key || undefined
@@ -153,6 +163,7 @@ function googleApiKey(): string | undefined {
 function providerIsRunnable(provider: string): boolean {
   if (modelRuntime.hasConfiguredAuth(provider)) return true
   if (provider === 'openai') return Boolean(openAiApiKey())
+  if (provider === 'azure-apim') return Boolean(azureApimApiKey())
   if (provider === 'google') {
     return Boolean(googleApiKey())
   }
@@ -189,6 +200,19 @@ export function initStudio(): Promise<void> {
           'OPENAI_API_KEY is not set — GPT models will be hidden from the picker',
         )
       }
+      const azureKey = azureApimApiKey()
+      if (azureKey) {
+        try {
+          await modelRuntime.setRuntimeApiKey('azure-apim', azureKey)
+        } catch (err) {
+          logger.warn({ err }, 'could not apply AZURE_APIM_API_KEY to the model runtime')
+        }
+      } else if (ALLOWED_SPECS.some(s => parseModelSpec(s).provider === 'azure-apim')) {
+        logger.warn(
+          { allowed: ALLOWED_SPECS },
+          'AZURE_APIM_API_KEY is not set — Azure models will be hidden from the picker',
+        )
+      }
       const m = resolveModel()
       logger.info(
         {
@@ -196,6 +220,7 @@ export function initStudio(): Promise<void> {
           allowed: ALLOWED_SPECS,
           google: Boolean(gKey),
           openai: Boolean(openAiKey),
+          azureApim: Boolean(azureKey),
           thinking: THINKING_LEVEL,
         },
         'studio model runtime ready',
@@ -671,12 +696,8 @@ export const STUDIO_DEFAULT_MODEL = MODEL_SPEC
  * the runtime can actually run. A provider without a key is dropped so a
  * turn cannot pick something that would fail.
  */
-export async function listStudioModels(userId: string): Promise<{ spec: string; label: string }[]> {
+export async function listStudioModels(userId: string): Promise<PickerModel[]> {
   await initStudio()
-  const profile = await prisma.userProfile.findUnique({
-    where: { id: userId },
-    select: { gptEnabled: true },
-  })
   const available = new Map<string, any>()
   for (const m of await modelRuntime.getAvailable()) {
     const spec = `${m.provider}/${m.id}`
@@ -692,7 +713,6 @@ export async function listStudioModels(userId: string): Promise<{ spec: string; 
   return assembleStudioPicker(available.values(), {
     defaultSpec: MODEL_SPEC,
     specs: ALLOWED_SPECS,
-    gptEnabled: profile?.gptEnabled === true,
   })
 }
 

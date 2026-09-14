@@ -2,6 +2,8 @@ import { A } from '@solidjs/router'
 import {
   ArrowUpRight,
   ChevronUp,
+  CircleHelp,
+  Code2,
   Gift,
   LogOut,
   Megaphone,
@@ -10,11 +12,12 @@ import {
   Sun,
   UserRound,
 } from 'lucide-solid'
-import { Show } from 'solid-js'
-import { useClerk, useUser } from '../core/auth'
+import { createSignal, onCleanup, onMount, Show } from 'solid-js'
+import pCoinIcon from '../../assets/pCoin.svg'
+import { API_URL } from '../../config'
+import { useAuth, useClerk, useUser } from '../core/auth'
 import { useTheme } from '../core/theme'
 import { DiscordIcon } from '../public/brand'
-import { SettingsCreditButton } from './credits'
 import type { SettingsSection } from './SettingsView'
 import { StudioMenu } from './StudioMenu'
 
@@ -22,6 +25,22 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
   const { userAccessor: user } = useUser()
   const clerk = useClerk()
   const theme = useTheme()
+  const { getToken } = useAuth()
+  const [credits, setCredits] = createSignal<number | null>(null)
+  const loadCredits = async () => {
+    const token = await getToken()
+    if (!token) return
+    const response = await fetch(`${API_URL}/credits`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    if (response.ok) setCredits((await response.json()).balance)
+  }
+  onMount(() => {
+    void loadCredits()
+    window.addEventListener('credits-changed', loadCredits)
+    onCleanup(() => window.removeEventListener('credits-changed', loadCredits))
+  })
   return (
     <div class="sidebar-footer-stack">
       <a
@@ -34,34 +53,6 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
         <span>Join Discord</span>
         <ArrowUpRight size={13} />
       </a>
-      <div class="sidebar-theme-switch" role="group" aria-label="Color theme">
-        <button
-          type="button"
-          aria-label="Switch to light theme"
-          aria-pressed={theme.theme() === 'light'}
-          onClick={() => theme.setTheme('light')}
-        >
-          <Sun size={14} />
-          <span>Light</span>
-        </button>
-        <button
-          type="button"
-          aria-label="Switch to dark theme"
-          aria-pressed={theme.theme() === 'dark'}
-          onClick={() => theme.setTheme('dark')}
-        >
-          <Moon size={14} />
-          <span>Dark</span>
-        </button>
-      </div>
-      <nav class="sidebar-resource-links" aria-label="Resources">
-        <A href="/docs">Docs</A>
-        <A href="/pricing">Pricing</A>
-        <A href="/affiliate">Affiliates</A>
-        <button type="button" onClick={() => props.openSettings('mcp')}>
-          API / MCP
-        </button>
-      </nav>
       <div class="sidebar-account-row">
         <StudioMenu
           label="Open account menu"
@@ -80,6 +71,32 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
             </>
           }
         >
+          <A role="menuitem" href="/pricing">
+            <ArrowUpRight />
+            <span>Upgrade plan</span>
+          </A>
+          <button
+            role="menuitem"
+            class="sidebar-menu-credits"
+            onClick={() => props.openSettings('credits')}
+          >
+            <img src={pCoinIcon} alt="" />
+            <span>Credits</span>
+            <small>{credits()?.toLocaleString() ?? '—'}</small>
+          </button>
+          <button role="menuitem" onClick={() => props.openSettings('mcp')}>
+            <Code2 />
+            <span>API / MCP</span>
+          </button>
+          <A role="menuitem" href="/docs">
+            <CircleHelp />
+            <span>Docs &amp; help</span>
+          </A>
+          <A role="menuitem" href="/affiliate">
+            <Gift />
+            <span>Affiliates</span>
+          </A>
+          <div class="menu-separator" />
           <button role="menuitem" onClick={() => props.openSettings('account')}>
             <Settings />
             <span>Settings</span>
@@ -87,6 +104,15 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
           <button role="menuitem" onClick={() => props.openSettings('rewards')}>
             <Gift />
             <span>Invite a friend</span>
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => theme.setTheme(theme.theme() === 'dark' ? 'light' : 'dark')}
+          >
+            <Show when={theme.theme() === 'dark'} fallback={<Moon />}>
+              <Sun />
+            </Show>
+            <span>{theme.theme() === 'dark' ? 'Light mode' : 'Dark mode'}</span>
           </button>
           <div class="menu-separator" />
           <A role="menuitem" href="/blog">
@@ -103,9 +129,6 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
             <span>Sign out</span>
           </button>
         </StudioMenu>
-        <div class="sidebar-account-balance">
-          <SettingsCreditButton showLabel onClick={() => props.openSettings('credits')} />
-        </div>
       </div>
     </div>
   )

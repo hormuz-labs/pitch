@@ -3723,8 +3723,14 @@
     0 12px 32px rgb(0 0 0 / 12%),
     0 2px 6px rgb(0 0 0 / 5%);
 }
+.lv-studio .job-composer .model-menu--catalog { width: min(420px, calc(100vw - 32px)); min-width: min(420px, calc(100vw - 32px)); max-height: min(520px, 70vh); padding: 7px; --menu-bg: var(--panel); --menu-hover: var(--panel-2); --menu-border: var(--border); --menu-ink: var(--ink); --menu-muted: var(--muted); }
+.model-menu--catalog.is-portal { --menu-bg: var(--bg-surface, #fff); --menu-hover: var(--bg-raised, #f3f3f3); --menu-border: var(--border-subtle, #dedede); --menu-ink: var(--text-primary, #171717); --menu-muted: var(--text-muted, #777); position: fixed; top: auto; left: auto; z-index: 160; width: min(420px, calc(100vw - 24px)); min-width: min(420px, calc(100vw - 24px)); max-height: min(520px, 70vh); padding: 7px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--menu-border); border-radius: 14px; background: var(--menu-bg); color: var(--menu-ink); box-shadow: 0 18px 48px rgb(0 0 0 / 18%), 0 2px 8px rgb(0 0 0 / 8%); }
 
 .lv-studio .job-composer .model-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   padding: 7px 10px;
   border: 0;
   border-radius: 8px;
@@ -3736,6 +3742,12 @@
   cursor: pointer;
 }
 
+.lv-studio .job-composer .model-option small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
 .lv-studio .job-composer .model-option:hover:not(:disabled) {
   background: var(--panel-2);
   color: var(--ink);
@@ -3744,6 +3756,18 @@
 .lv-studio .job-composer .model-option.is-active {
   font-weight: 600;
   color: var(--ink);
+}
+
+
+.lv-studio .job-composer .generation-count {
+  flex: none;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .lv-studio .job-send-round {

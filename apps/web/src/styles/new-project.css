@@ -86,6 +86,7 @@
 .lv-studio.new-project-page .new-model-trigger { min-height: 36px; padding: 8px 11px; display: flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; background: transparent; color: var(--new-ink); font-size: 13px; font-weight: 400; }
 .new-model-trigger span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .new-model-trigger svg { color: var(--new-faint); }
+.lv-studio.new-project-page .generation-count { flex: none; padding: 8px 12px; border-radius: 999px; background: var(--new-raised); color: var(--new-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .lv-studio.new-project-page .new-model-trigger[aria-expanded="true"] { background: var(--new-raised); }
 .lv-studio.new-project-page .composer-add > .relative > button { display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; }
 .new-composer-wrap .attach-plus { width: 34px; height: 34px; display: grid; place-items: center; color: var(--new-ink); }
@@ -108,6 +109,8 @@
 .lv-studio.new-project-page .new-skill-pill.is-active { background: var(--new-selected); border-color: color-mix(in srgb, var(--new-blue) 40%, var(--new-border)); color: var(--new-blue); }
 .new-project-hint { margin: 19px 0 0; color: var(--new-faint); text-align: center; font-size: 11px; line-height: 1.6; }
 .lv-studio .new-composer-wrap .create-error { margin-top: 12px; color: #d65d66; font-size: 12px; }
+.composer-credit-warning { width: 100%; margin: 8px 4px 0; color: #c53f49; font-size: 11px; line-height: 1.45; }
+.composer-credit-warning a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .lv-studio.new-project-page .new-featured-cue { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: min(768px, calc(100% - 48px)); height: 52px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 0; border-radius: 24px 24px 0 0; background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-muted); font-size: 13px; font-weight: 400; text-decoration: none; }
 .lv-studio.new-project-page .new-featured-cue:hover { background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-ink); }
 .new-featured-cue > span { display: flex; align-items: center; gap: 9px; }

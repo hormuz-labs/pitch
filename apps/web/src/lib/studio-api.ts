@@ -161,6 +161,10 @@ export interface StudioModel {
   /** `provider/id`, e.g. `google/gemini-3.7-flash`. */
   spec: string
   label: string
+  creditMultiplier: number
+  estimatedCredits: number
+  harnessCredits: number
+  videoCreditsPer30Seconds?: number
 }
 
 export interface StudioVoice {

@@ -1,8 +1,7 @@
 /**
  * Checkout rules for the current catalogue.
  *
- * Flex is the entry product now, so a one-time purchase no longer requires a
- * subscription — while subscriptions keep their single-active-plan guard.
+ * Flex is a paid-plan add-on, while subscriptions keep their single-active-plan guard.
  */
 
 import express from 'express'
@@ -49,11 +48,20 @@ beforeEach(() => {
 })
 
 describe('POST /checkout', () => {
-  it('sells a Flex top-up to someone with no subscription', async () => {
+  it('refuses a Flex top-up to someone on Free', async () => {
+    const response = await request(app).post('/checkout').send({ topup: 'flex' })
+
+    expect(response.status).toBe(403)
+    expect(response.body.error).toContain('paid plan')
+    expect(mocks.createSession).not.toHaveBeenCalled()
+  })
+
+  it('sells a Flex top-up to an active subscriber', async () => {
+    mocks.getActiveSubscription.mockResolvedValue({ id: 'sub_1' })
+
     const response = await request(app).post('/checkout').send({ topup: 'flex' })
 
     expect(response.status).toBe(200)
-    expect(response.body.url).toBe('https://dodo.test/checkout/abc')
     expect(mocks.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         product_cart: [{ product_id: 'pdt_flex', quantity: 1 }],
