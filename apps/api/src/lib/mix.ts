@@ -31,6 +31,18 @@ export interface MixResult {
   log?: string
 }
 
+/** A failed contrast check can be corrected deterministically by lowering the bed. */
+export function correctiveBedDb(output: string): number | null {
+  const contrast = /voice is only\s+(-?[\d.]+)dB above the bed \(need ≥(-?[\d.]+)dB\)/.exec(output)
+  const current = /currently\s+(-?[\d.]+)\)/.exec(output)
+  if (!contrast || !current) return null
+  const actual = Number(contrast[1])
+  const required = Number(contrast[2])
+  const bedDb = Number(current[1])
+  if (![actual, required, bedDb].every(Number.isFinite) || actual >= required) return null
+  return Math.max(-30, Math.round((bedDb - (required - actual) - 1) * 10) / 10)
+}
+
 const inflight = new Map<string, Promise<MixResult>>()
 
 function mtime(p: string): number {
@@ -189,7 +201,14 @@ async function ensureMixNow(dir: string): Promise<MixResult> {
     { workspace: path.basename(dir), vo: Boolean(vo), bed, sfx: Boolean(sfx) },
     'building audio/mix.wav',
   )
-  const { code, out } = await run(args, dir)
+  let { code, out } = await run(args, dir)
+  if (code !== 0) {
+    const bedDb = correctiveBedDb(out)
+    if (bedDb !== null) {
+      logger.info({ workspace: path.basename(dir), bedDb }, 'retrying mix with corrected bed level')
+      ;({ code, out } = await run([...args, `--bed-db=${bedDb}`], dir))
+    }
+  }
   const tail = out.trim().split('\n').slice(-12).join('\n')
   if (code !== 0) {
     logger.warn({ workspace: path.basename(dir), code }, 'mix failed its quality check')

@@ -161,6 +161,9 @@ function Actions(props: { store: ProjectStore }) {
       setSharing(false)
     }
   }
+  const canShare = () =>
+    Boolean(s.project?.shareSlug) ||
+    (!s.exportStatus?.running && Boolean(s.project?.description.outputs?.length))
   return (
     <span class="topbar-actions">
       <Show when={s.busy}>
@@ -170,8 +173,8 @@ function Actions(props: { store: ProjectStore }) {
       </Show>
       <button
         class="topbar-btn"
-        title="Publish and copy share link"
-        disabled={sharing()}
+        title={canShare() ? 'Publish and copy share link' : 'Render the project before sharing'}
+        disabled={sharing() || !canShare()}
         onClick={() => void share()}
       >
         <Link size={14} /> {s.project?.shareSlug ? 'Copy share link' : 'Share'}

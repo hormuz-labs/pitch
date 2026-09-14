@@ -567,13 +567,13 @@ export function NewProjectView(props: {
                   aria-label={submitting() ? 'Generating project' : 'Generate project'}
                 />
               </div>
-              <Show when={insufficientCredits() > 0}>
-                <p class="composer-credit-warning" role="alert">
-                  You need {insufficientCredits().toLocaleString()} more credits for this model and
-                  duration. <a href="/pricing">View plans</a>
-                </p>
-              </Show>
             </div>
+            <Show when={insufficientCredits() > 0}>
+              <p class="composer-credit-warning" role="alert">
+                You need {insufficientCredits().toLocaleString()} more credits for this model and
+                duration. <a href="/pricing">View plans</a>
+              </p>
+            </Show>
             <Show when={activeSkill() || ratio() !== '16:9' || duration()}>
               <div class="new-preferences">
                 <Show when={activeSkill()}>
