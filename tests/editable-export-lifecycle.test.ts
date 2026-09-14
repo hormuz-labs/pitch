@@ -168,10 +168,12 @@ describe('editable export lifecycle', () => {
     expect(packageCalls[0].marks).toEqual([{ start: 0.25, label: 'Beat' }])
   })
 
-  it('passes matching launch native layers and omits mismatched metadata with a warning', async () => {
-    for (const [id, bytes] of [
-      ['native-match', 5],
-      ['native-mismatch', 999],
+  it('passes matching launch native layers to every editable format and warns on mismatch', async () => {
+    for (const [id, format, bytes] of [
+      ['native-premiere', 'premiere', 5],
+      ['native-after-effects', 'after-effects', 5],
+      ['native-blender', 'blender', 5],
+      ['native-mismatch', 'premiere', 999],
     ] as const) {
       const dir = await project(id)
       artifacts.set(`studio--user_1--${id}`, { kind: 'launch', rel: 'index.html', at: 1 })
@@ -194,13 +196,15 @@ describe('editable export lifecycle', () => {
           warnings: [],
         }),
       )
-      await exportProject('user_1', id, { format: 'after-effects' })
+      await exportProject('user_1', id, { format })
       await vi.waitFor(() => expect(getExport(id).stage).toBe('done'))
     }
-    expect(packageCalls[0].nativeLayers).toMatchObject({ version: 1, sourceBytes: 5 })
-    expect(packageCalls[0].packageWarnings).toBeUndefined()
-    expect(packageCalls[1].nativeLayers).toBeUndefined()
-    expect(packageCalls[1].packageWarnings?.join('\n')).toMatch(/does not match/i)
+    for (const call of packageCalls.slice(0, 3)) {
+      expect(call.nativeLayers).toMatchObject({ version: 1, sourceBytes: 5 })
+      expect(call.packageWarnings).toBeUndefined()
+    }
+    expect(packageCalls[3].nativeLayers).toBeUndefined()
+    expect(packageCalls[3].packageWarnings?.join('\n')).toMatch(/does not match/i)
   })
 
   it('rejects native metadata with a non-lowercase SHA-256 digest before packaging', async () => {

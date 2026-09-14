@@ -108,6 +108,158 @@ it('routes each soundtrack channel once across the entire Premiere sequence with
   expect(nodes(sequence, 'media/video/track/clipitem/file/media/audio')).toHaveLength(0)
 })
 
+it('adds a sibling Premiere sequence containing only uniformly scaled native images', () => {
+  const input: EditableManifest = {
+    ...manifest,
+    audio: { file: 'media/soundtrack.wav', channels: 1, sampleRate: 48000 },
+    native: {
+      stage: { width: 960, height: 540 },
+      warnings: ['Glow remains baked.'],
+      layers: [
+        {
+          id: 'logo </clipitem>',
+          name: 'Logo <&>',
+          shotId: 'hero',
+          kind: 'image',
+          asset: 'assets/logo.png?x=1&y=2',
+          assetSha256: 'a'.repeat(64),
+          box: { width: 200, height: 100 },
+          inFrame: 3,
+          outFrame: 30,
+          keys: {
+            position: [
+              [3, 480, 270],
+              [9, 720, 135],
+            ],
+            scale: [
+              [3, 50, 50],
+              [9, 75, 75],
+            ],
+            rotation: [[3, 10]],
+            opacity: [[3, 80]],
+          },
+          warnings: [],
+        },
+        {
+          id: 'photo',
+          name: 'Photo',
+          shotId: 'hero',
+          kind: 'image',
+          asset: 'assets/photo.jpg',
+          assetSha256: 'b'.repeat(64),
+          box: { width: 400, height: 200 },
+          inFrame: 30,
+          outFrame: 90,
+          keys: {
+            position: [[30, 240, 135]],
+            scale: [[30, 100, 100.005]],
+            rotation: [[30, -5]],
+            opacity: [[30, 100]],
+          },
+          warnings: [],
+        },
+        {
+          id: 'stretched',
+          name: 'Stretched image',
+          shotId: 'hero',
+          kind: 'image',
+          asset: 'assets/stretched.webp',
+          assetSha256: 'c'.repeat(64),
+          box: { width: 100, height: 100 },
+          inFrame: 0,
+          outFrame: 90,
+          keys: {
+            position: [[0, 100, 100]],
+            scale: [[0, 100, 101]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+        {
+          id: 'title',
+          name: 'Text is unsupported',
+          shotId: 'hero',
+          kind: 'text',
+          text: 'Hello',
+          box: { width: 200, height: 50 },
+          inFrame: 0,
+          outFrame: 90,
+          font: {
+            family: 'Arial',
+            style: 'normal',
+            weight: '400',
+            size: 20,
+            lineHeight: 24,
+            tracking: 0,
+            color: '#ffffff',
+            align: 'left',
+          },
+          keys: {
+            position: [[0, 100, 100]],
+            scale: [[0, 100, 100]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+      ],
+    },
+  }
+
+  const root = xmlTree(projectFiles('premiere', input)['project.xml'])
+  const sequences = nodes(root, 'sequence')
+  expect(sequences.map(sequence => text(sequence, 'name'))).toEqual([
+    `${input.title} — BAKED FIDELITY`,
+    `${input.title} — EDITABLE IMAGES`,
+  ])
+  expect(nodes(sequences[0], 'media/video/track/clipitem')).toHaveLength(2)
+  expect(nodes(sequences[0], 'media/audio/track/clipitem')).toHaveLength(1)
+
+  const tracks = nodes(sequences[1], 'media/video/track')
+  expect(tracks).toHaveLength(2)
+  const nativeClips = tracks.map(track => nodes(track, 'clipitem')[0])
+  expect(nativeClips.map(clip => text(clip, 'name'))).toEqual(['Logo <&>', 'Photo'])
+  expect(nativeClips.map(clip => clip.attrs.id)).toEqual(['native-0', 'native-1'])
+  expect(['duration', 'start', 'end', 'in', 'out'].map(path => text(nativeClips[0], path))).toEqual(
+    ['27', '3', '30', '0', '27'],
+  )
+  expect(text(nativeClips[0], 'file/pathurl')).toBe('assets/logo.png?x=1&y=2')
+  expect(text(nativeClips[0], 'stillframe')).toBe('TRUE')
+  expect(text(nativeClips[0], 'alphatype')).toBe('straight')
+  expect(text(nativeClips[0], 'file/media/video/stillframe')).toBe('TRUE')
+  expect(text(nativeClips[0], 'file/media/video/alphatype')).toBe('straight')
+  expect(text(nativeClips[1], 'file/media/video/alphatype')).toBe('none')
+
+  const effects = nodes(nativeClips[0], 'filter/effect')
+  expect(effects.map(effect => text(effect, 'effectid'))).toEqual(['basic', 'opacity'])
+  const basicParameters = nodes(effects[0], 'parameter')
+  expect(basicParameters.map(parameter => text(parameter, 'parameterid'))).toEqual([
+    'center',
+    'scale',
+    'rotation',
+  ])
+  const centerKeys = nodes(basicParameters[0], 'keyframe')
+  expect(centerKeys.map(key => Number(text(key, 'when')))).toEqual([0, 6])
+  expect(
+    centerKeys.map(key => [Number(text(key, 'value/horiz')), Number(text(key, 'value/vert'))]),
+  ).toEqual([
+    [0, 0],
+    [2.4, -2.7],
+  ])
+  expect(nodes(basicParameters[1], 'keyframe').map(key => Number(text(key, 'value')))).toEqual([
+    100, 150,
+  ])
+  expect(Number(text(nodes(basicParameters[2], 'keyframe')[0], 'value'))).toBe(-10)
+  expect(Number(text(nodes(effects[1], 'parameter/keyframe')[0], 'value'))).toBe(80)
+  expect(nodes(sequences[1], 'media/audio/track/clipitem')).toHaveLength(1)
+
+  const readme = projectFiles('premiere', input)['README.txt']
+  expect(readme).toMatch(/two.*sequences/is)
+  expect(readme).toMatch(/image-only.*incomplete/is)
+  expect(readme).toMatch(/non-uniform.*omitted/is)
+})
+
 function runAe(input: EditableManifest) {
   const imports: Array<{ file: { fsName: string }; mainSource: { conformFrameRate: number } }> = []
   const layers: Array<{
@@ -482,6 +634,14 @@ class Strip:
         self.channel, self.frame_start = channel, frame_start
         self.frame_duration = 90
         self.frame_offset_start = self.frame_offset_end = 0
+        self.mute = False
+        self.blend_alpha = 1
+        self.keyframes = []
+        self.transform = NS(offset_x=0, offset_y=0, scale_x=1, scale_y=1, rotation=0,
+            keyframes=[])
+        self.transform.keyframe_insert = lambda data_path, frame: self.transform.keyframes.append([data_path, frame, getattr(self.transform, data_path)])
+    def keyframe_insert(self, data_path, frame):
+        self.keyframes.append([data_path, frame, getattr(self, data_path)])
     @property
     def frame_final_start(self): return self.frame_start + self.frame_offset_start
     @frame_final_start.setter
@@ -498,16 +658,28 @@ def new_sound(name, filepath, channel, frame_start):
     s = Strip('SOUND', name, filepath, channel, frame_start)
     strips.append(s)
     return s
+def new_image(name, filepath, channel, frame_start, *, fit_method='ORIGINAL'):
+    s = Strip('IMAGE', name, filepath, channel, frame_start)
+    s.fit_method = fit_method
+    strips.append(s)
+    return s
+def new_effect(name, type, channel, frame_start, **kwargs):
+    s = Strip(type, name, '', channel, frame_start)
+    s.frame_duration = kwargs.get('length', kwargs.get('frame_end', frame_start) - frame_start)
+    strips.append(s)
+    return s
 def new_scene(name):
     scene = NS(name=name, render=NS(), view_settings=NS(), display_settings=NS(),
         sequencer_colorspace_settings=NS(),
-        sequence_editor_create=lambda: NS(strips=NS(new_movie=new_movie, new_sound=new_sound)),
+        sequence_editor_create=lambda: NS(strips=NS(new_movie=new_movie, new_sound=new_sound, new_image=new_image, new_effect=new_effect)),
+        animation_data=NS(action=NS(fcurves=[])),
         frame_set=lambda frame: None)
     created.append(scene)
     return scene
 existing = NS(name='Existing scene')
 bpy = types.ModuleType('bpy')
 bpy.data = NS(scenes=NS(new=new_scene))
+bpy.app = NS(version=(5, 0, 0))
 bpy.context = NS(window=NS(scene=existing), space_data=NS(text=NS(filepath='/extracted folder/project.py')))
 bpy.path = NS(abspath=lambda path: path)
 sys.modules['bpy'] = bpy
@@ -517,7 +689,18 @@ scene = created[0]
 print(json.dumps(dict(name=scene.name, render=vars(scene.render), view=vars(scene.view_settings),
     start=scene.frame_start, end=scene.frame_end, existing=existing.name,
     selected=bpy.context.window.scene is scene, scenes=len(created),
-    strips=[dict(vars(s), visible_start=s.frame_final_start, visible_end=s.frame_final_end) for s in strips])))
+    strips=[dict(kind=s.kind, name=s.name, filepath=s.filepath, channel=s.channel,
+        frame_start=s.frame_start, frame_offset_start=s.frame_offset_start,
+        visible_start=s.frame_final_start, visible_end=s.frame_final_end,
+        mute=s.mute, blend_alpha=s.blend_alpha, fit_method=getattr(s, 'fit_method', None),
+        text=getattr(s, 'text', None), font_size=getattr(s, 'font_size', None),
+        color=getattr(s, 'color', None), alignment_x=getattr(s, 'alignment_x', None),
+        anchor_x=getattr(s, 'anchor_x', None), anchor_y=getattr(s, 'anchor_y', None),
+        location=getattr(s, 'location', None), transform=dict(
+            offset_x=s.transform.offset_x, offset_y=s.transform.offset_y,
+            scale_x=s.transform.scale_x, scale_y=s.transform.scale_y,
+            rotation=s.transform.rotation, keyframes=s.transform.keyframes),
+        keyframes=s.keyframes) for s in strips])))
 `,
       ],
       { input: JSON.stringify({ script, fromTextEditor }), encoding: 'utf8' },
@@ -572,6 +755,131 @@ it('builds a new Blender scene with frame-one origin, source trims, rational fps
     visible_start: 1,
     visible_end: 91,
   })
+})
+
+it('adds muted native Blender image and text strips beneath the unmuted baked movie', () => {
+  const input: EditableManifest = {
+    ...manifest,
+    audio: { file: 'media/soundtrack.wav', channels: 2, sampleRate: 48000 },
+    native: {
+      stage: { width: 960, height: 540 },
+      warnings: ['Glow remains baked.'],
+      layers: [
+        {
+          id: 'image',
+          name: 'Product',
+          shotId: 'hero',
+          kind: 'image',
+          asset: 'assets/product.webp',
+          assetSha256: 'a'.repeat(64),
+          box: { width: 400, height: 200 },
+          inFrame: 3,
+          outFrame: 30,
+          keys: {
+            position: [
+              [3, 480, 270],
+              [9, 720, 135],
+            ],
+            scale: [[3, 50, 75]],
+            rotation: [[3, 90]],
+            opacity: [[3, 80]],
+          },
+          warnings: [],
+        },
+        {
+          id: 'text',
+          name: 'Title',
+          shotId: 'hero',
+          kind: 'text',
+          text: 'Hello',
+          box: { width: 200, height: 50 },
+          inFrame: 10,
+          outFrame: 40,
+          font: {
+            family: 'Arial',
+            style: 'normal',
+            weight: '700',
+            size: 20,
+            lineHeight: 24,
+            tracking: 0,
+            color: 'rgba(255, 128, 0, .5)',
+            align: 'right',
+          },
+          keys: {
+            position: [[10, 240, 135]],
+            scale: [[10, 120, 80]],
+            rotation: [[10, -10]],
+            opacity: [[10, 90]],
+          },
+          warnings: [],
+        },
+      ],
+    },
+  }
+
+  const result = runBlender(input)
+  expect(result.strips.map((strip: any) => strip.kind)).toEqual([
+    'IMAGE',
+    'TEXT',
+    'MOVIE',
+    'MOVIE',
+    'SOUND',
+  ])
+  const [image, title, ...baked] = result.strips
+  expect(image).toMatchObject({
+    name: 'NATIVE — Product',
+    filepath: '/extracted folder/assets/product.webp',
+    channel: 1,
+    frame_start: 4,
+    visible_end: 31,
+    mute: true,
+    fit_method: 'ORIGINAL',
+  })
+  expect(image.transform).toMatchObject({
+    offset_x: 480,
+    offset_y: 270,
+    scale_x: 1,
+    scale_y: 1.5,
+    rotation: -Math.PI / 2,
+  })
+  expect(image.transform.keyframes).toContainEqual(['offset_x', 10, 480])
+  expect(image.transform.keyframes).toContainEqual(['offset_y', 10, 270])
+  expect(image.keyframes).toContainEqual(['blend_alpha', 4, 0.8])
+  expect(title).toMatchObject({
+    kind: 'TEXT',
+    name: 'NATIVE — Title',
+    channel: 2,
+    frame_start: 11,
+    visible_end: 41,
+    mute: true,
+    text: 'Hello',
+    font_size: 40,
+    color: [1, 128 / 255, 0, 1],
+    alignment_x: 'RIGHT',
+    anchor_x: 'CENTER',
+    anchor_y: 'CENTER',
+    location: [0.5, 0.5],
+  })
+  expect(title.transform).toMatchObject({
+    offset_x: -480,
+    offset_y: 270,
+    scale_x: 1.2,
+    scale_y: 0.8,
+    rotation: Math.PI / 18,
+  })
+  expect(baked.filter((strip: any) => strip.kind === 'MOVIE')).toHaveLength(2)
+  expect(
+    baked.filter((strip: any) => strip.kind === 'MOVIE').every((strip: any) => !strip.mute),
+  ).toBe(true)
+  expect(
+    baked.filter((strip: any) => strip.kind === 'MOVIE').map((strip: any) => strip.channel),
+  ).toEqual([4, 4])
+  expect(baked.filter((strip: any) => strip.kind === 'SOUND')).toHaveLength(1)
+  expect(baked.find((strip: any) => strip.kind === 'SOUND')).toMatchObject({
+    channel: 5,
+    mute: false,
+  })
+  expect(projectFiles('blender', input)['README.txt']).toMatch(/mute.*baked.*unmute.*NATIVE/is)
 })
 
 it('runs Blender from an opened UI text file without __file__, preserving hostile names as data and no audio', () => {

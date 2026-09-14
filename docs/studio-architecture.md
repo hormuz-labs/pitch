@@ -201,10 +201,16 @@ final mixed soundtrack as a separate WAV, frame-aligned shot/beat cuts, an
 import file or project-building script, and a manifest. Browser graphics and
 effects remain baked into the movie; After Effects packages additionally
 reconstruct conservatively supported text and raster-image layers with sampled
-position, scale, rotation, and opacity keyframes. Unsupported layers remain in
-the baked fidelity composition. Unsupported media is rejected rather than
-silently transcoded. Launch films require a current MP4 at the selected
-resolution before packaging.
+position, scale, rotation, and opacity keyframes. Blender reconstructs the same
+supported 2D text and raster-image animation as sequencer strips, while
+Premiere reconstructs supported raster-image Motion and Opacity animation.
+Unsupported layers remain in a baked fidelity composition or sequence.
+Unsupported media is rejected rather than silently transcoded. Launch films
+require a current MP4 at the selected resolution before packaging.
+
+See [`editable-video-export.md`](editable-video-export.md) for the complete
+strategy, sidecar and package contracts, target mappings, security boundaries,
+limitations, and extension guide.
 
 The new-project composer can pass `options.narrationVoice` as
 `{ provider: 'elevenlabs', id, name }`. It is saved in `project.json` and used

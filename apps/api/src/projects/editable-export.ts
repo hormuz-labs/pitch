@@ -183,10 +183,7 @@ export async function startEditableExport(
       job.staging = staging
       await chmod(staging, 0o700)
       const marks = await trustedMarks(path.join(ws.dir, videoRel))
-      const native =
-        format === 'after-effects' && launch
-          ? await trustedNativeLayers(path.join(ws.dir, videoRel))
-          : {}
+      const native = launch ? await trustedNativeLayers(path.join(ws.dir, videoRel)) : {}
       const result = await buildEditablePackage({
         workspaceDir: ws.dir,
         videoRel,

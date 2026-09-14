@@ -24,8 +24,8 @@
  */
 import { execFileSync, execSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, rmSync, existsSync } from "node:fs";
-import { readFile, rename, stat, writeFile } from "node:fs/promises";
+import { createReadStream, mkdirSync, rmSync, existsSync } from "node:fs";
+import { rename, stat, writeFile } from "node:fs/promises";
 import { resolve, dirname, extname, isAbsolute, relative } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -52,6 +52,12 @@ import {
 
 /** This script's own directory — used to resolve the repo-root font for the watermark. */
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+async function sha256File(path) {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest("hex");
+}
 
 // Parse CLI flags correctly using slice(2)
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -383,9 +389,9 @@ try {
     const workspacePath = relative(cwd, resolve(local));
     if (!workspacePath || isAbsolute(workspacePath) || workspacePath === ".." || workspacePath.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) continue;
     assetPath[candidate.source] = workspacePath.split("\\").join("/");
-    assetSha256[candidate.source] = createHash("sha256").update(await readFile(local)).digest("hex");
+    assetSha256[candidate.source] = await sha256File(local);
   }
-  const sourceSha256 = createHash("sha256").update(await readFile(finalOut)).digest("hex");
+  const sourceSha256 = await sha256File(finalOut);
   const discovery = nativeCaptureError
     ? { candidates: [], warnings: [...nativeDiscovery.warnings, nativeCaptureError] }
     : nativeDiscovery;

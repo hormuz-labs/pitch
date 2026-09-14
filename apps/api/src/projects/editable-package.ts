@@ -350,7 +350,7 @@ export async function buildEditablePackage({
     let native: EditableManifest['native']
     const nativeAssets: Array<{ name: string; bytes: Buffer }> = []
     let nativeWarning: string | undefined
-    if (format === 'after-effects' && nativeLayers) {
+    if (nativeLayers) {
       try {
         if (
           nativeLayers.sourceBytes !== snapshotBytes ||
@@ -366,7 +366,20 @@ export async function buildEditablePackage({
           num / den,
           frames,
           nativeAssets,
+          format !== 'premiere'
+            ? () => true
+            : layer =>
+                layer.kind === 'image' &&
+                layer.keys.scale.every(([, x, y]) => Math.abs(x - y) <= 0.01),
         )
+        if (native.layers.length === 0) {
+          native = undefined
+          nativeAssets.length = 0
+          nativeWarning =
+            format === 'premiere'
+              ? 'No supported native image layers were available for Premiere; text and other visuals remain baked.'
+              : `No supported native layers were available for ${format === 'blender' ? 'Blender' : 'After Effects'}; exported baked fidelity only.`
+        }
       } catch {
         native = undefined
         nativeAssets.length = 0
@@ -402,7 +415,9 @@ export async function buildEditablePackage({
         'The selected movie is losslessly remuxed to MP4, not an original-container copy.',
         ...(native
           ? [
-              `${native.layers.length} supported layer${native.layers.length === 1 ? '' : 's'} included as native After Effects content; unsupported effects remain baked only.`,
+              format === 'premiere'
+                ? `${native.layers.length} supported image layer${native.layers.length === 1 ? '' : 's'} included as native layer data for Premiere; text and unsupported effects remain baked only.`
+                : `${native.layers.length} supported layer${native.layers.length === 1 ? '' : 's'} included as native ${format === 'blender' ? 'Blender' : 'After Effects'} content; unsupported effects remain baked only.`,
             ]
           : [
               'Extra original sources and assets are not included. Only the selected movie is collected.',
@@ -445,6 +460,7 @@ async function validateNativeLayers(
   fps: number,
   frames: number,
   assets: Array<{ name: string; bytes: Buffer }>,
+  retain: (layer: NativeLayer) => boolean,
 ): Promise<NonNullable<EditableManifest['native']>> {
   if (
     sidecar?.version !== 1 ||
@@ -466,7 +482,8 @@ async function validateNativeLayers(
 
   let assetBytes = 0
   const names = new Set<string>()
-  const copied = new Map<string, { archiveName: string; assetSha256: string }>()
+  const copied = new Map<string, { archiveName: string; assetSha256: string; bytes: Buffer }>()
+  const collected = new Set<string>()
   const layers: NativeLayer[] = []
   for (const layer of sidecar.layers) {
     if (
@@ -502,7 +519,7 @@ async function validateNativeLayers(
         !validString(font.align, 50)
       )
         throw new Error('invalid text')
-      layers.push(structuredClone(layer))
+      if (retain(layer)) layers.push(structuredClone(layer))
       continue
     }
     if (
@@ -514,6 +531,7 @@ async function validateNativeLayers(
     const prior = copied.get(layer.asset)
     if (prior && prior.assetSha256 !== layer.assetSha256) throw new Error('asset hash')
     let archiveName = prior?.archiveName
+    let bytes = prior?.bytes
     if (!archiveName) {
       if (isAbsolute(layer.asset) || layer.asset.split(/[\\/]/).includes('..'))
         throw new Error('path')
@@ -541,20 +559,25 @@ async function validateNativeLayers(
         const opened = await handle.stat()
         if (!opened.isFile() || opened.dev !== info.dev || opened.ino !== info.ino)
           throw new Error('changed')
-        const bytes = await handle.readFile()
+        bytes = await handle.readFile()
         const after = await handle.stat()
         if (after.size !== info.size || after.mtimeMs !== info.mtimeMs) throw new Error('changed')
         const expected = Buffer.from(layer.assetSha256, 'hex')
         const actual = createHash('sha256').update(bytes).digest()
         if (!timingSafeEqual(actual, expected)) throw new Error('asset hash')
-        assets.push({ name: candidate, bytes })
       } finally {
         await handle.close()
       }
       archiveName = candidate
-      copied.set(layer.asset, { archiveName, assetSha256: layer.assetSha256 })
+      copied.set(layer.asset, { archiveName, assetSha256: layer.assetSha256, bytes: bytes! })
     }
-    layers.push({ ...structuredClone(layer), asset: archiveName })
+    if (retain(layer)) {
+      if (!collected.has(layer.asset)) {
+        assets.push({ name: archiveName, bytes: bytes! })
+        collected.add(layer.asset)
+      }
+      layers.push({ ...structuredClone(layer), asset: archiveName })
+    }
   }
   return { stage: structuredClone(sidecar.stage), layers, warnings: [...sidecar.warnings] }
 }
