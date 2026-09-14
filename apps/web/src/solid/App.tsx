@@ -20,7 +20,6 @@ const SharedDemo = routeComponent('sharedDemo')
 const Auth = routeComponent('auth')
 const NotFound = routeComponent('notFound')
 const NewProject = routeComponent('newProject')
-const Projects = routeComponent('projects')
 const AccountPricing = routeComponent('pricingAccount')
 const Settings = routeComponent('settings')
 const ApiKeys = routeComponent('apiKeys')
@@ -197,14 +196,15 @@ export default function App() {
       <Route path="/signup" component={AuthRoute} />
       <Route path="/sso-callback" component={SsoCallback} />
 
-      <Route path="/projects" component={protectedRoute(Projects)} />
+      <Route path="/projects" component={redirect('/chats/history')} />
       <Route path="/new" component={protectedRoute(NewProject, true)} />
       <Route path="/p/:id" component={protectedRoute(StudioRoute)} />
       <Route path="/account/pricing" component={protectedRoute(AccountPricing)} />
       <Route path="/settings" component={protectedRoute(Settings)} />
       <Route path="/api-keys" component={protectedRoute(ApiKeys)} />
       <Route path="/sessions" component={protectedRoute(Sessions)} />
-      <Route path="/chats" component={protectedRoute(ChatHistory)} />
+      <Route path="/chats" component={redirect('/chats/history')} />
+      <Route path="/chats/history" component={protectedRoute(ChatHistory)} />
       <Route path="/affiliate" component={protectedRoute(Affiliate, true)} />
       <Route path="/admin" component={protectedRoute(Admin)} />
       <Route path="/checkout/return" component={protectedRoute(CheckoutReturn)} />

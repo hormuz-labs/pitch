@@ -264,13 +264,15 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    // Block duplicate active subscriptions — every subscribe creates a NEW Dodo
-    // subscription, so without this guard a user ends up double-billed. Top-ups
-    // have no such guard: Flex is the entry product and sells without a plan.
-    if (pack) {
+    // Every subscription checkout creates a new Dodo subscription, while
+    // top-ups are add-ons reserved for users who already have a paid plan.
+    if (pack || isTopup) {
       const { getActiveSubscription } = await import('@saas/db')
       const existing = await getActiveSubscription(userId)
-      if (existing) {
+      if (isTopup && !existing) {
+        return res.status(403).json({ error: 'A paid plan is required to buy one-time credits.' })
+      }
+      if (existing && !isTopup) {
         return res.status(409).json({
           error:
             'You already have an active subscription. Cancel or manage it in Settings before changing plans.',

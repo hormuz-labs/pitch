@@ -23,6 +23,7 @@ import 'lenis/dist/lenis.css'
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { FeaturedVideos } from '../../components/landing/FeaturedVideos'
 import { GenerateButton } from '../../components/ui/generate-button'
+import { API_URL } from '../../config'
 import { isApiError } from '../../lib/api'
 import { DECK_TEMPLATES } from '../../lib/deckTemplates'
 import {
@@ -36,6 +37,7 @@ import {
 import { useAuth } from '../core/auth'
 import { PitchWordmark } from '../public/brand'
 import { DiscordOfferModal } from './DiscordOfferModal'
+import { ModelCatalog } from './ModelCatalog'
 import type { SettingsSection } from './SettingsView'
 import { StudioMenu, StudioSubmenu } from './StudioMenu'
 import { VoicePicker } from './VoicePicker'
@@ -107,6 +109,7 @@ export function NewProjectView(props: {
   )
   const [models, setModels] = createSignal<StudioModel[]>([])
   const [model, setModel] = createSignal('')
+  const [credits, setCredits] = createSignal<number | null>(null)
   const [voice, setVoice] = createSignal<VoicePreference | null>(null)
   const [voiceOpen, setVoiceOpen] = createSignal(false)
   const [exploring, setExploring] = createSignal(false)
@@ -114,6 +117,23 @@ export function NewProjectView(props: {
   let referenceInput!: HTMLInputElement
   let textarea!: HTMLTextAreaElement
   const activeSkill = createMemo(() => SKILLS.find(item => item.id === skill()))
+  const selectedModel = createMemo(() => models().find(item => item.spec === model()))
+  const selectedModelCost = createMemo(() => {
+    const selected = selectedModel()
+    if (!selected) return 0
+    if (!selected.videoCreditsPer30Seconds) return selected.estimatedCredits
+    return Math.ceil(selected.videoCreditsPer30Seconds * (Math.max(30, duration() ?? 30) / 30))
+  })
+  const generationsLeft = createMemo(() => {
+    const balance = credits()
+    const cost = selectedModelCost()
+    return balance === null || !cost ? null : Math.floor(balance / cost)
+  })
+  const insufficientCredits = createMemo(() => {
+    const balance = credits()
+    const cost = selectedModelCost()
+    return balance !== null && cost > balance ? cost - balance : 0
+  })
   const selectDeckTemplate = (template: (typeof DECK_TEMPLATES)[number]) => {
     setDeckTemplate(template)
     setPrompt(
@@ -138,15 +158,22 @@ export function NewProjectView(props: {
   })
   onMount(async () => {
     if (window.matchMedia('(min-width: 761px)').matches) textarea.focus()
-    try {
-      const token = await getToken()
-      if (!token) return
-      const result = await listStudioModels(token)
-      setModels(result.models)
-      setModel(result.default)
-    } catch {
-      /* server default remains available */
-    }
+    const token = await getToken()
+    if (!token) return
+    await Promise.allSettled([
+      listStudioModels(token).then(result => {
+        setModels(result.models)
+        setModel(result.default)
+      }),
+      fetch(`${API_URL}/credits`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      }).then(async response => {
+        if (!response.ok) return
+        const data = await response.json()
+        if (typeof data.balance === 'number') setCredits(data.balance)
+      }),
+    ])
   })
   let pageRoot: HTMLDivElement | undefined
   let scrollController: Lenis | undefined
@@ -510,42 +537,26 @@ export function NewProjectView(props: {
                   <StudioMenu
                     label="Model"
                     align="end"
-                    width={264}
+                    side="top"
+                    width={420}
                     triggerClass="new-model-trigger"
                     trigger={
                       <>
-                        <span>
-                          {models().find(item => item.spec === model())?.label ?? 'Model'}
-                        </span>
+                        <span>{selectedModel()?.label ?? 'Model'}</span>
                         <ChevronDown size={14} />
                       </>
                     }
                   >
-                    <For each={models()}>
-                      {item => (
-                        <button
-                          class="menu-model"
-                          role="menuitemradio"
-                          aria-checked={model() === item.spec}
-                          onClick={() => setModel(item.spec)}
-                        >
-                          <span>
-                            <strong>{item.label}</strong>
-                            <small class="menu-description">
-                              {item.label.includes('Pro')
-                                ? 'Detailed planning and complex projects'
-                                : item.label.includes('Gemma')
-                                  ? 'Open-weight model for creative work'
-                                  : 'Quick drafts and everyday projects'}
-                            </small>
-                          </span>
-                          <Show when={model() === item.spec}>
-                            <Check class="menu-check" />
-                          </Show>
-                        </button>
-                      )}
-                    </For>
+                    <ModelCatalog models={models()} selected={model()} onSelect={setModel} />
                   </StudioMenu>
+                </Show>
+                <Show when={generationsLeft() !== null}>
+                  <span
+                    class="generation-count"
+                    title={`Estimated from your balance and about ${selectedModelCost().toLocaleString()} credits for this duration`}
+                  >
+                    {generationsLeft()} left
+                  </span>
                 </Show>
                 <GenerateButton
                   hue={210}
@@ -556,6 +567,12 @@ export function NewProjectView(props: {
                   aria-label={submitting() ? 'Generating project' : 'Generate project'}
                 />
               </div>
+              <Show when={insufficientCredits() > 0}>
+                <p class="composer-credit-warning" role="alert">
+                  You need {insufficientCredits().toLocaleString()} more credits for this model and
+                  duration. <a href="/pricing">View plans</a>
+                </p>
+              </Show>
             </div>
             <Show when={activeSkill() || ratio() !== '16:9' || duration()}>
               <div class="new-preferences">
@@ -622,7 +639,7 @@ export function NewProjectView(props: {
             <section class="new-template-strip new-skill-gallery">
               <div class="new-template-strip__head">
                 <span>Choose a slide deck template</span>
-                <button onClick={() => navigate('/projects?kind=deck')}>Your decks</button>
+                <button onClick={() => navigate('/chats/history?kind=deck')}>Your decks</button>
               </div>
               <div class="new-template-strip__cards">
                 <For each={DECK_TEMPLATES}>

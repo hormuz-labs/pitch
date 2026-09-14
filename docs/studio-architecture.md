@@ -285,6 +285,9 @@ range — it just has no beats drawn on the track.
 
 ## Credits
 
+See [Credit pricing](credit-pricing.md) for the complete formulas, model examples,
+plan allowances, and estimated generations per plan.
+
 Nothing is charged to open a project. The studio meters what the work costs
 and bills that (`apps/api/src/projects/usage.ts`):
 
@@ -293,7 +296,10 @@ and bills that (`apps/api/src/projects/usage.ts`):
 | model spend | `usage.cost.total` on each assistant message, reported by pi |
 | host compute | wall clock inside every host action, timed in the bridge |
 
-Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as
+Each model has a relative credit multiplier (configured with
+`STUDIO_MODEL_CREDIT_MULTIPLIERS`) applied to that turn's model and compute
+cost. A platform margin (`STUDIO_PLATFORM_MARGIN`, default `1.25`) is applied
+afterward. Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as
 it crosses each `CREDIT_USD` boundary, so a cheap turn is not rounded up to a
 credit and many cheap turns still add up. Asking a question costs almost
 nothing; encoding 4K does not. A turn needs `MIN_BALANCE` credits to start.

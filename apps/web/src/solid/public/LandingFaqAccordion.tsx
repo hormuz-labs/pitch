@@ -29,7 +29,7 @@ const PRODUCT_FAQ: readonly AccordionItemData[] = [
     value: 'faq-4',
     title: 'What does a video cost?',
     content:
-      'A full AI-generated demo video uses about 120 credits. Flex ($20 for 800 credits) puts a credit at $0.025, so a video is around $3. On Pro ($45/mo for 2,500 credits) a credit is $0.018 and a video works out to about $2.16. You are billed for what the work actually costs, so a quick edit costs far less than a 4K render.',
+      'Credits are shared across every model and tool. A typical Luna generation is about 94 credits, Terra is about 125, GPT-5.5 is about 188, Sol is 1,250 for up to 30 seconds, and Astra is 2,500. Longer Sol and Astra videos scale with duration; actual metered work can vary with reasoning, tool use, and render time.',
   },
   {
     value: 'faq-5',

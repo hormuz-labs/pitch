@@ -13,7 +13,12 @@ import { getAgent } from '../flows/index.js'
 import type { Description, Output, UploadRef } from '../flows/types.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import { deleteWorkspaceHistory } from '../studio/history.js'
-import { selectStudioModel } from '../studio/model-picker.js'
+import {
+  estimatedModelCredits,
+  selectStudioModel,
+  videoGenerationCostUsd,
+  videoGenerationCredits,
+} from '../studio/model-picker.js'
 import {
   type FlowId,
   isValidProjectName,
@@ -263,7 +268,11 @@ export async function createProject(
   // actually costs, turn by turn (projects/usage.ts). The balance check is
   // only that they can pay for some of it.
   const balance = await db.getCreditBalance(userId)
-  if (balance < MIN_BALANCE) throw new InsufficientCreditsError(balance)
+  const estimatedCredits = estimatedModelCredits(
+    options.model,
+    Number(options.durationSeconds ?? 30),
+  ).total
+  if (balance < Math.max(MIN_BALANCE, estimatedCredits)) throw new InsufficientCreditsError(balance)
 
   const title = projectTitle(
     prompt,
@@ -380,7 +389,7 @@ export async function promptProject(
     opts.delivery,
     opts.displayText,
   )
-  if (result.delivery !== 'steered') billTurn(p, result.turn, opts.billingChannel)
+  if (result.delivery !== 'steered') billTurn(p, result.turn, opts.billingChannel, model, first)
   if (first) followFirstTurn(p, result.turn)
   if (p.lastError)
     await db.prisma.project
@@ -398,12 +407,18 @@ function billTurn(
   p: ProjectRow,
   turn: number,
   channel: 'product' | 'api' | 'discord' = p.source === 'api' ? 'api' : 'product',
+  model?: string,
+  first = false,
 ): void {
   const off = onProjectEvent(p.id, (ev: StudioEvent) => {
     if (ev.type !== 'idle' || ev.turn !== turn) return
     off()
-    void chargeTurn(p, takeModelCost(p.id), channel).catch(err =>
-      logger.warn({ err, projectId: p.id }, 'could not bill the turn'),
+    const providerUsd =
+      first && model ? videoGenerationCostUsd(model, Number(p.options?.durationSeconds ?? 30)) : 0
+    const productCredits =
+      first && model ? videoGenerationCredits(model, Number(p.options?.durationSeconds ?? 30)) : 0
+    void chargeTurn(p, takeModelCost(p.id), channel, model, providerUsd, productCredits).catch(
+      err => logger.warn({ err, projectId: p.id }, 'could not bill the turn'),
     )
   })
 }

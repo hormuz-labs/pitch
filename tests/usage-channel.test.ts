@@ -20,8 +20,12 @@ vi.mock('../apps/api/src/studio/host-actions.js', () => ({ takeComputeSeconds: v
 vi.mock('../apps/api/src/projects/service.js', () => ({
   workspaceOf: vi.fn(() => ({ internal: {} })),
 }))
+vi.mock('../apps/api/src/studio/model-picker.js', () => ({
+  modelCreditMultiplier: vi.fn((spec: string) => (spec === 'provider/astra' ? 2 : 1)),
+  platformMargin: vi.fn(() => 1.25),
+}))
 
-import { chargeTurn } from '../apps/api/src/projects/usage.js'
+import { chargeTurn, noLossCredits, usageUsd } from '../apps/api/src/projects/usage.js'
 
 /** A project row with just what chargeTurn reads. */
 function project(overrides: Record<string, unknown> = {}) {
@@ -84,6 +88,55 @@ describe('chargeTurn channel attribution', () => {
       expect.any(Number),
       expect.any(String),
       expect.objectContaining({ channel: 'product' }),
+    )
+  })
+})
+
+describe('model credit pricing', () => {
+  it('applies a model multiplier to model and compute cost', () => {
+    expect(usageUsd({ modelUsd: 0.1, computeSeconds: 10 }, 2)).toBeCloseTo(0.275)
+  })
+
+  it('charges the model selected for this turn', async () => {
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+
+    await chargeTurn(project(), 0.1, 'product', 'provider/astra')
+
+    expect(mocks.projectUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ usageUsd: 0.25 }) }),
+    )
+    expect(mocks.deductCredit).toHaveBeenCalledWith(
+      'user_1',
+      100,
+      expect.any(String),
+      expect.any(Object),
+    )
+  })
+
+  it('uses the fixed product rate unless measured cost would create a loss', async () => {
+    expect(noLossCredits(12.5)).toBe(977)
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+
+    await chargeTurn(project(), 0, 'product', 'provider/astra', 10, 2500)
+
+    expect(mocks.deductCredit).toHaveBeenCalledWith(
+      'user_1',
+      2500,
+      expect.any(String),
+      expect.any(Object),
+    )
+  })
+
+  it('raises a product charge to the no-loss floor when measured cost spikes', async () => {
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+
+    await chargeTurn(project(), 0, 'product', 'provider/astra', 30, 2500)
+
+    expect(mocks.deductCredit).toHaveBeenCalledWith(
+      'user_1',
+      2930,
+      expect.any(String),
+      expect.any(Object),
     )
   })
 })

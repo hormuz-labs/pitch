@@ -149,6 +149,7 @@ Fill in the keys in [`.env.example`](.env.example). The core services use:
 | :--- | :--- |
 | `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | App authentication. |
 | `GEMINI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` | Agent and Google-backed media capabilities. |
+| `AZURE_APIM_API_KEY` | Azure APIM agent models configured in `.pi/models.json`. |
 | `ELEVENLABS_API_KEY` | Generated music, sound effects, and narration when selected in `.pi/audio.json`. |
 | `DATABASE_URL`, `MINIO_*`, `CLOAK_MANAGER_URL` | Database, storage, and browser service. The template includes local defaults. |
 | `STUDIO_MODEL` | The model used by the studio agent. |

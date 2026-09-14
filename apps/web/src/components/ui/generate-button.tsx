@@ -35,6 +35,7 @@ export function GenerateButton(props: GenerateButtonProps) {
           --button-color: #101010;
 
           user-select: none;
+          position: relative;
           display: flex;
           justify-content: center;
           padding: 0.5em 0.5em 0.5em 1.1em;
@@ -46,7 +47,9 @@ export function GenerateButton(props: GenerateButtonProps) {
           align-items: center;
           color: #fff;
 
-          background-color: var(--button-color);
+          background:
+            linear-gradient(145deg, rgba(255,255,255,.08), transparent 42%),
+            var(--button-color);
 
           box-shadow: none;
 
@@ -55,28 +58,6 @@ export function GenerateButton(props: GenerateButtonProps) {
           cursor: pointer;
 
           transition: box-shadow var(--transition), border var(--transition), background-color var(--transition);
-        }
-        
-        .gen-btn::before {
-          display: none;
-          content: "";
-          position: absolute;
-          top: calc(0px - var(--padding));
-          left: calc(0px - var(--padding));
-          width: calc(100% + var(--padding) * 2);
-          height: calc(100% + var(--padding) * 2);
-          border-radius: calc(var(--border-radius) + var(--padding));
-          pointer-events: none;
-          background-image: linear-gradient(0deg, rgba(0,0,0,0.267), rgba(0,0,0,0.667));
-
-          z-index: -1;
-          transition: box-shadow var(--transition), filter var(--transition);
-          box-shadow: 0 -8px 8px -6px rgba(0,0,0,0) inset, 
-            0 -16px 16px -8px rgba(0,0,0,0) inset,
-            1px 1px 1px rgba(255,255,255,0.133), 
-            2px 2px 2px rgba(255,255,255,0.067), 
-            -1px -1px 1px rgba(0,0,0,0.133),
-            -2px -2px 2px rgba(0,0,0,0.067);
         }
         
         .gen-btn::after {
@@ -266,6 +247,17 @@ export function GenerateButton(props: GenerateButtonProps) {
           animation: none;
         }
         .generate-button > .gen-btn:disabled { cursor: not-allowed; opacity: 1; }
+        .gen-btn[data-ready="false"][data-generating="false"] {
+          --button-color: #101010;
+          color: #8c8c89;
+          box-shadow: inset 0 1px rgba(255,255,255,.08);
+        }
+        .gen-btn[data-ready="false"][data-generating="false"] .gen-btn-svg,
+        .gen-btn[data-ready="false"][data-generating="false"] .gen-submit-arrow {
+          fill: #8c8c89;
+          color: #8c8c89;
+          filter: none;
+        }
         .generate-button > .gen-btn:disabled[data-generating="true"] { cursor: progress; opacity: 1; }
         .gen-btn:disabled:not([data-generating="true"]) :is(.gen-btn-letter, .gen-btn-svg) { animation: none; }
         .gen-btn:disabled:not([data-generating="true"])::after { opacity: 0; }
@@ -276,6 +268,20 @@ export function GenerateButton(props: GenerateButtonProps) {
           animation-duration: 1.8s;
           animation-timing-function: ease-in-out;
           animation-iteration-count: infinite;
+        }
+        .gen-submit-arrow { display: none; width: 17px; height: 17px; color: #fff; fill: none; stroke: currentColor; stroke-width: 2; }
+        @media (max-width: 520px) {
+          .generate-button { margin: 1px; }
+          .generate-button > .gen-btn {
+            width: 38px;
+            min-width: 38px;
+            height: 38px;
+            min-height: 38px;
+            padding: 0;
+            border-radius: 50%;
+          }
+          .gen-btn-svg, .gen-txt-wrapper { display: none; }
+          .gen-submit-arrow { display: block; }
         }
         @keyframes gen-ready-letter {
           0%, 60%, 100% { transform: translateY(0); }
@@ -323,6 +329,9 @@ export function GenerateButton(props: GenerateButtonProps) {
             </For>
           </span>
         </span>
+        <svg class="gen-submit-arrow" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
       </button>
     </div>
   )

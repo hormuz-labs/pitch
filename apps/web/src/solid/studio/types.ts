@@ -59,6 +59,10 @@ export interface ProjectDetail extends ProjectSummary {
 export interface StudioModel {
   spec: string
   label: string
+  creditMultiplier: number
+  estimatedCredits: number
+  harnessCredits: number
+  videoCreditsPer30Seconds?: number
 }
 export interface AskQuestion {
   id: string

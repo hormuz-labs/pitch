@@ -1,5 +1,5 @@
 import { useNavigate } from '@solidjs/router'
-import { createSignal, onCleanup, onMount, Show } from 'solid-js'
+import { createSignal, type JSX, onCleanup, onMount, Show } from 'solid-js'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
 import { useAuth } from '../core/auth'
@@ -70,7 +70,11 @@ export function CreditPopover(props: { variant?: 'chip' | 'marker' }) {
   )
 }
 
-export function SettingsCreditButton(props: { onClick: () => void; showLabel?: boolean }) {
+export function SettingsCreditButton(props: {
+  onClick: () => void
+  showLabel?: boolean
+  role?: JSX.AriaAttributes['role']
+}) {
   const { getToken } = useAuth()
   const [credits, setCredits] = createSignal<number | null>(null)
   const load = async () => {
@@ -89,6 +93,7 @@ export function SettingsCreditButton(props: { onClick: () => void; showLabel?: b
   return (
     <button
       type="button"
+      role={props.role}
       class="settings-credit-trigger"
       onClick={props.onClick}
       aria-label={`${credits() ?? 0} credits - open billing`}

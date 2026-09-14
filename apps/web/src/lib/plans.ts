@@ -11,14 +11,96 @@
 /** Credits a typical demo video consumes, used for the "about N videos" copy. */
 export const CREDITS_PER_DEMO_VIDEO = 120
 
+export const MODEL_CREDIT_RATES = [
+  {
+    name: 'Gemini 3.8 Flash',
+    detail: 'Fast multimodal production',
+    credits: 125,
+    unit: 'typical generation',
+  },
+  {
+    name: 'Gemini 3.1 Pro',
+    detail: 'Complex multimodal projects',
+    credits: 250,
+    unit: 'typical generation',
+  },
+  {
+    name: 'Gemma 4 26B',
+    detail: 'Efficient open-weight model',
+    credits: 94,
+    unit: 'typical generation',
+  },
+  {
+    name: 'Gemma 4 31B',
+    detail: 'Creative open-weight model',
+    credits: 125,
+    unit: 'typical generation',
+  },
+  {
+    name: 'GPT-5.4 mini',
+    detail: 'Fast everyday production',
+    credits: 125,
+    unit: 'typical generation',
+  },
+  {
+    name: 'GPT-5.4',
+    detail: 'Complex planning and execution',
+    credits: 250,
+    unit: 'typical generation',
+  },
+  {
+    name: 'Luna',
+    detail: 'Fast drafts and lightweight edits',
+    credits: 94,
+    unit: 'typical generation',
+  },
+  {
+    name: 'Terra',
+    detail: 'Everyday production work',
+    credits: 125,
+    unit: 'typical generation',
+  },
+  {
+    name: 'GPT-5.5',
+    detail: 'Deep planning and complex production',
+    credits: 188,
+    unit: 'typical generation',
+  },
+  {
+    name: 'Sol',
+    detail: 'Advanced video generation',
+    credits: 1250,
+    unit: 'up to 30 seconds',
+  },
+  {
+    name: 'Astra',
+    detail: 'Highest-capability video generation',
+    credits: 2500,
+    unit: 'up to 30 seconds',
+  },
+] as const
+
+export const generationsFor = (credits: number | null, rate: number): number | null =>
+  credits === null ? null : Math.floor(credits / rate)
+
+export const nonCreditFeatures = (plan: Plan): string[] =>
+  plan.features.filter(feature => !/^[\d,]+ credits per (month|year)$/.test(feature))
+
+export const planIncludesLabel = (plan: Plan): string => {
+  if (plan.kind === 'free') return 'Included with Free'
+  if (plan.key === 'pro') return 'Everything in Free, plus'
+  if (plan.key === 'max') return 'Everything in Pro, plus'
+  return 'Everything in Max, plus'
+}
+
 export type Cadence = 'monthly' | 'annual'
 
 export interface Plan {
   /** Checkout key. `enterprise` has no product: it routes to sales. */
-  key: 'flex' | 'pro' | 'max' | 'enterprise'
+  key: 'free' | 'flex' | 'pro' | 'max' | 'enterprise'
   name: string
   /** How the purchase recurs, which decides the checkout call. */
-  kind: 'topup' | 'subscription' | 'contact'
+  kind: 'free' | 'topup' | 'subscription' | 'contact'
   priceUsd: number | null
   credits: number | null
   description: string
@@ -40,7 +122,12 @@ export interface CadenceView {
 export function forCadence(plan: Plan, cadence: Cadence): CadenceView | null {
   if (cadence === 'annual') {
     if (!plan.annual) return null
-    return { key: plan.annual.key, priceUsd: plan.annual.priceUsd, credits: plan.annual.credits, cadence }
+    return {
+      key: plan.annual.key,
+      priceUsd: plan.annual.priceUsd,
+      credits: plan.annual.credits,
+      cadence,
+    }
   }
   if (plan.priceUsd === null || plan.credits === null) return null
   return { key: plan.key, priceUsd: plan.priceUsd, credits: plan.credits, cadence }
@@ -53,6 +140,15 @@ export function annualSavingsPercent(plan: Plan): number | null {
 }
 
 export const PLANS: readonly Plan[] = [
+  {
+    key: 'free',
+    name: 'Free',
+    kind: 'free',
+    priceUsd: 0,
+    credits: 0,
+    description: 'Explore the studio and start projects before choosing a paid plan.',
+    features: ['Create and edit projects', 'Preview the studio workflow', 'Upgrade when ready'],
+  },
   {
     key: 'flex',
     name: 'Flex',
@@ -113,7 +209,10 @@ export const PLANS: readonly Plan[] = [
 export const planByKey = (key: string) => PLANS.find(plan => plan.key === key)
 
 /** Price of a single credit, in dollars — e.g. `$0.025`. Works for any cadence. */
-export function pricePerCredit(plan: { priceUsd: number | null; credits: number | null }): string | null {
+export function pricePerCredit(plan: {
+  priceUsd: number | null
+  credits: number | null
+}): string | null {
   if (!plan.priceUsd || !plan.credits) return null
   return `$${(plan.priceUsd / plan.credits).toFixed(3)}`
 }

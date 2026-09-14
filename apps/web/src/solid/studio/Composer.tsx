@@ -1,9 +1,11 @@
 import { A, useNavigate } from '@solidjs/router'
 import { ArrowUp, ChevronDown, Globe2, LockKeyhole, Plus, Square, X, Zap } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import { Portal } from 'solid-js/web'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
 import { firstUrlInText, isAuthenticatedFor, prettyHost } from '../../lib/authOrigins'
+import { ModelCatalog } from '../account/ModelCatalog'
 import { studio } from './client'
 import type { Target } from './types'
 import { useBrowserProfile } from './useBrowserProfile'
@@ -54,7 +56,7 @@ function suggestions(targets: Target[], where: string | null) {
     ]
   return []
 }
-function CreditMarker(props: { store: ProjectStore }) {
+function CreditMarker(props: { store: ProjectStore; onBalance?: (balance: number) => void }) {
   const [credits, setCredits] = createSignal<number | null>(null)
   let request: AbortController | undefined
   const refresh = async () => {
@@ -72,7 +74,10 @@ function CreditMarker(props: { store: ProjectStore }) {
       })
       if (!response.ok) return
       const data = await response.json()
-      if (!controller.signal.aborted && typeof data.balance === 'number') setCredits(data.balance)
+      if (!controller.signal.aborted && typeof data.balance === 'number') {
+        setCredits(data.balance)
+        props.onBalance?.(data.balance)
+      }
     } catch {
       // Keep the last confirmed balance through transient connection failures.
     }
@@ -115,11 +120,21 @@ export function Composer(props: { store: ProjectStore }) {
     [files, setFiles] = createSignal<File[]>([]),
     [uploading, setUploading] = createSignal(false),
     [dismissed, setDismissed] = createSignal<string | null>(null),
-    [models, setModels] = createSignal<{ spec: string; label: string }[]>([]),
+    [models, setModels] = createSignal<
+      {
+        spec: string
+        label: string
+        creditMultiplier: number
+        estimatedCredits: number
+      }[]
+    >([]),
+    [credits, setCredits] = createSignal<number | null>(null),
     [defaultModel, setDefaultModel] = createSignal<string | null>(null),
     [modelOpen, setModelOpen] = createSignal(false),
+    [modelPosition, setModelPosition] = createSignal({ right: 12, bottom: 12 }),
     [promptUrl, setPromptUrl] = createSignal<string | null>(null)
   let modelEl: HTMLDivElement | undefined,
+    modelMenuEl: HTMLDivElement | undefined,
     fileInput: HTMLInputElement | undefined,
     timer = 0
   const navigate = useNavigate(),
@@ -145,7 +160,10 @@ export function Composer(props: { store: ProjectStore }) {
       })
       .catch(() => {})
     const doc = (e: MouseEvent) =>
-      modelEl && !modelEl.contains(e.target as Node) && setModelOpen(false)
+      modelEl &&
+      !modelEl.contains(e.target as Node) &&
+      !modelMenuEl?.contains(e.target as Node) &&
+      setModelOpen(false)
     document.addEventListener('mousedown', doc)
     onCleanup(() => document.removeEventListener('mousedown', doc))
   })
@@ -154,6 +172,12 @@ export function Composer(props: { store: ProjectStore }) {
     promptUrl() !== dismissed() &&
     !profile.loading() &&
     !isAuthenticatedFor(promptUrl(), profile.origins())
+  const selectedModel = () => models().find(m => m.spec === (s.model ?? defaultModel()))
+  const generationsLeft = () => {
+    const balance = credits()
+    const cost = selectedModel()?.estimatedCredits
+    return balance === null || !cost ? null : Math.floor(balance / cost)
+  }
   const send = async (delivery?: 'queue' | 'steer') => {
     const text = s.draft.trim()
     if (!text || uploading()) return
@@ -331,41 +355,66 @@ export function Composer(props: { store: ProjectStore }) {
               hidden
               onChange={e => setFiles(v => [...v, ...Array.from(e.currentTarget.files ?? [])])}
             />
-            <CreditMarker store={s} />
+            <CreditMarker store={s} onBalance={setCredits} />
           </div>
           <div class="job-composer-actions">
             <Show when={!s.busy && models().length}>
               <div class="model-select" ref={modelEl}>
                 <button
                   class="model-btn"
-                  onClick={() => setModelOpen(v => !v)}
+                  onClick={() => {
+                    if (modelOpen()) {
+                      setModelOpen(false)
+                      return
+                    }
+                    const rect = modelEl?.getBoundingClientRect()
+                    if (rect) {
+                      setModelPosition({
+                        right: Math.max(12, window.innerWidth - rect.right),
+                        bottom: Math.max(12, window.innerHeight - rect.top + 6),
+                      })
+                    }
+                    setModelOpen(true)
+                  }}
                   aria-label="Choose model"
                   aria-haspopup="listbox"
                   aria-expanded={modelOpen()}
                 >
-                  <span>
-                    {models().find(m => m.spec === (s.model ?? defaultModel()))?.label ?? 'Model'}
-                  </span>
+                  <span>{selectedModel()?.label ?? 'Model'}</span>
                   <ChevronDown size={12} />
                 </button>
                 <Show when={modelOpen()}>
-                  <div class="model-menu" role="listbox">
-                    <For each={models()}>
-                      {m => (
-                        <button
-                          class={`model-option${m.spec === (s.model ?? defaultModel()) ? ' is-active' : ''}`}
-                          onClick={() => {
-                            s.setModel(m.spec)
-                            setModelOpen(false)
-                          }}
-                        >
-                          {m.label}
-                        </button>
-                      )}
-                    </For>
-                  </div>
+                  <Portal>
+                    <div
+                      ref={modelMenuEl}
+                      class="model-menu model-menu--catalog is-portal"
+                      role="listbox"
+                      style={{
+                        right: `${modelPosition().right}px`,
+                        bottom: `${modelPosition().bottom}px`,
+                      }}
+                    >
+                      <ModelCatalog
+                        models={models()}
+                        selected={s.model ?? defaultModel()}
+                        itemRole="option"
+                        onSelect={spec => {
+                          s.setModel(spec)
+                          setModelOpen(false)
+                        }}
+                      />
+                    </div>
+                  </Portal>
                 </Show>
               </div>
+            </Show>
+            <Show when={!s.busy && generationsLeft() !== null}>
+              <span
+                class="generation-count"
+                title={`Estimated from your balance and about ${selectedModel()?.estimatedCredits ?? 0} credits per generation`}
+              >
+                {generationsLeft()} left
+              </span>
             </Show>
             <Show
               when={s.busy}

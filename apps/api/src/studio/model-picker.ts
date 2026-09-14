@@ -12,6 +12,11 @@ export const GEMMA_4_26B_SPEC = 'google/gemma-4-26b-a4b-it'
 
 export const GPT_54_SPEC = 'openai/gpt-5.4'
 export const GPT_54_MINI_SPEC = 'openai/gpt-5.4-mini'
+export const AZURE_GPT_55_SPEC = 'azure-apim/gpt-5.5'
+export const AZURE_LUNA_SPEC = 'azure-apim/gpt-5.6-luna'
+export const AZURE_TERRA_SPEC = 'azure-apim/gpt-5.6-terra'
+export const AZURE_SOL_SPEC = 'azure-apim/gpt-5.6-sol'
+export const AZURE_ASTRA_SPEC = 'azure-apim/gpt-6-astra'
 
 /** Menu order. The first runnable entry is also the studio default. */
 export const DEFAULT_STUDIO_MODELS = [
@@ -21,9 +26,29 @@ export const DEFAULT_STUDIO_MODELS = [
   GEMMA_4_26B_SPEC,
   GPT_54_MINI_SPEC,
   GPT_54_SPEC,
+  AZURE_GPT_55_SPEC,
+  AZURE_LUNA_SPEC,
+  AZURE_TERRA_SPEC,
+  AZURE_SOL_SPEC,
+  AZURE_ASTRA_SPEC,
 ] as const
 
 export const DEFAULT_STUDIO_MODEL = GEMINI_38_FLASH_SPEC
+
+/** Relative credit price for a turn, independent of the provider's token price. */
+export const DEFAULT_MODEL_CREDIT_MULTIPLIERS: Record<string, number> = {
+  [GEMINI_38_FLASH_SPEC]: 1,
+  [GEMINI_31_PRO_SPEC]: 2,
+  [GEMMA_4_31B_SPEC]: 1,
+  [GEMMA_4_26B_SPEC]: 0.75,
+  [GPT_54_MINI_SPEC]: 1,
+  [GPT_54_SPEC]: 2,
+  [AZURE_GPT_55_SPEC]: 1.5,
+  [AZURE_LUNA_SPEC]: 0.75,
+  [AZURE_TERRA_SPEC]: 1,
+  [AZURE_SOL_SPEC]: 1,
+  [AZURE_ASTRA_SPEC]: 2,
+}
 
 const LABELS: Record<string, string> = {
   [GEMINI_38_FLASH_SPEC]: 'Gemini 3.8 Flash',
@@ -32,11 +57,129 @@ const LABELS: Record<string, string> = {
   [GEMMA_4_26B_SPEC]: 'Gemma 4 26B',
   [GPT_54_SPEC]: 'GPT-5.4',
   [GPT_54_MINI_SPEC]: 'GPT-5.4 mini',
+  [AZURE_GPT_55_SPEC]: 'GPT-5.5',
+  [AZURE_LUNA_SPEC]: 'Luna',
+  [AZURE_TERRA_SPEC]: 'Terra',
+  [AZURE_SOL_SPEC]: 'Sol',
+  [AZURE_ASTRA_SPEC]: 'Astra',
 }
 
 export interface PickerModel {
   spec: string
   label: string
+  creditMultiplier: number
+  estimatedCredits: number
+  harnessCredits: number
+  videoCreditsPer30Seconds?: number
+}
+
+export const BASE_GENERATION_CREDITS = 100
+export const DEFAULT_PLATFORM_MARGIN = 1.25
+export const DEFAULT_VIDEO_MODEL_COSTS_USD_30S: Record<string, number> = {
+  [AZURE_SOL_SPEC]: 7,
+  [AZURE_ASTRA_SPEC]: 10,
+}
+export const DEFAULT_VIDEO_MODEL_CREDITS_30S: Record<string, number> = {
+  [AZURE_SOL_SPEC]: 1250,
+  [AZURE_ASTRA_SPEC]: 2500,
+}
+
+export function platformMargin(raw = process.env.STUDIO_PLATFORM_MARGIN): number {
+  const value = Number(raw)
+  return Number.isFinite(value) && value >= 1 ? value : DEFAULT_PLATFORM_MARGIN
+}
+
+export function videoModelCosts(
+  raw = process.env.STUDIO_VIDEO_MODEL_COSTS_USD_30S,
+): Record<string, number> {
+  if (!raw?.trim()) return DEFAULT_VIDEO_MODEL_COSTS_USD_30S
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const configured: Record<string, number> = {}
+    for (const [spec, value] of Object.entries(parsed)) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) configured[spec] = value
+    }
+    return { ...DEFAULT_VIDEO_MODEL_COSTS_USD_30S, ...configured }
+  } catch {
+    return DEFAULT_VIDEO_MODEL_COSTS_USD_30S
+  }
+}
+
+export function videoModelCredits(
+  raw = process.env.STUDIO_VIDEO_MODEL_CREDITS_30S,
+): Record<string, number> {
+  if (!raw?.trim()) return DEFAULT_VIDEO_MODEL_CREDITS_30S
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const configured: Record<string, number> = {}
+    for (const [spec, value] of Object.entries(parsed)) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        configured[spec] = Math.ceil(value)
+      }
+    }
+    return { ...DEFAULT_VIDEO_MODEL_CREDITS_30S, ...configured }
+  } catch {
+    return DEFAULT_VIDEO_MODEL_CREDITS_30S
+  }
+}
+
+export function videoGenerationCredits(
+  spec: string,
+  durationSeconds: number,
+  prices = videoModelCredits(),
+): number {
+  const per30 = prices[spec]
+  return per30 ? Math.ceil(per30 * (Math.max(30, durationSeconds) / 30)) : 0
+}
+
+/** Provider cost for the selected final duration, with a 30-second minimum. */
+export function videoGenerationCostUsd(
+  spec: string,
+  durationSeconds: number,
+  costs = videoModelCosts(),
+): number {
+  const per30 = costs[spec]
+  if (!per30) return 0
+  return per30 * (Math.max(30, durationSeconds) / 30)
+}
+
+export function estimatedModelCredits(
+  spec: string,
+  durationSeconds = 30,
+  multipliers = modelCreditMultipliers(),
+  costs = videoModelCosts(),
+): { total: number; harness: number; video?: number } {
+  const margin = platformMargin()
+  const harness = Math.ceil(
+    BASE_GENERATION_CREDITS * modelCreditMultiplier(spec, multipliers) * margin,
+  )
+  const providerUsd = videoGenerationCostUsd(spec, durationSeconds, costs)
+  if (!providerUsd) return { total: harness, harness }
+  const video = videoGenerationCredits(spec, durationSeconds)
+  return { total: video, harness, video }
+}
+
+export function modelCreditMultipliers(
+  raw = process.env.STUDIO_MODEL_CREDIT_MULTIPLIERS,
+): Record<string, number> {
+  if (!raw?.trim()) return DEFAULT_MODEL_CREDIT_MULTIPLIERS
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const configured: Record<string, number> = {}
+    for (const [spec, value] of Object.entries(parsed)) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) configured[spec] = value
+    }
+    return { ...DEFAULT_MODEL_CREDIT_MULTIPLIERS, ...configured }
+  } catch {
+    return DEFAULT_MODEL_CREDIT_MULTIPLIERS
+  }
+}
+
+export function modelCreditMultiplier(
+  spec: string,
+  multipliers = modelCreditMultipliers(),
+): number {
+  return multipliers[spec] ?? 1
 }
 
 export function parseModelSpec(spec: string): { provider: string; id: string } {
@@ -56,7 +199,11 @@ export function studioModelSpecs(
     .split(',')
     .map(s => s.trim())
     .filter(Boolean)) {
-    if (seen.has(spec) || !['google', 'openai'].includes(parseModelSpec(spec).provider)) continue
+    if (
+      seen.has(spec) ||
+      !['google', 'openai', 'azure-apim'].includes(parseModelSpec(spec).provider)
+    )
+      continue
     seen.add(spec)
     out.push(spec)
   }
@@ -67,9 +214,9 @@ export function studioModelSpecs(
 export const extraStudioModelSpecs = studioModelSpecs
 
 /** Entitlement is independent of provider credentials and the deployment allowlist. */
-export function canUseStudioModel(spec: string, gptEnabled = false): boolean {
+export function canUseStudioModel(spec: string): boolean {
   const { provider } = parseModelSpec(spec)
-  return provider === 'google' || (provider === 'openai' && gptEnabled)
+  return ['google', 'openai', 'azure-apim'].includes(provider)
 }
 
 /** Explicit picks must be allowed; obsolete saved picks can safely fall back. */
@@ -88,13 +235,27 @@ export function selectStudioModel(
 
 export function assembleStudioPicker(
   available: Iterable<{ provider: string; id: string; name?: string }>,
-  opts: { specs: string[]; defaultSpec?: string; gptEnabled?: boolean },
+  opts: {
+    specs: string[]
+    defaultSpec?: string
+    gptEnabled?: boolean
+    azureEnabled?: boolean
+    creditMultipliers?: Record<string, number>
+  },
 ): PickerModel[] {
   const bySpec = new Map<string, PickerModel>()
   for (const m of available) {
     const spec = `${m.provider}/${m.id}`
     if (!bySpec.has(spec)) {
-      bySpec.set(spec, { spec, label: LABELS[spec] || m.name || m.id })
+      const estimate = estimatedModelCredits(spec, 30, opts.creditMultipliers)
+      bySpec.set(spec, {
+        spec,
+        label: LABELS[spec] || m.name || m.id,
+        creditMultiplier: modelCreditMultiplier(spec, opts.creditMultipliers),
+        estimatedCredits: estimate.total,
+        harnessCredits: estimate.harness,
+        ...(estimate.video ? { videoCreditsPer30Seconds: estimate.video } : {}),
+      })
     }
   }
 
@@ -102,13 +263,8 @@ export function assembleStudioPicker(
   const seen = new Set<string>()
   const push = (spec: string): boolean => {
     const row = bySpec.get(spec)
-    if (
-      !row ||
-      seen.has(spec) ||
-      !opts.specs.includes(spec) ||
-      !canUseStudioModel(spec, opts.gptEnabled)
-    )
-      return false
+    if (!row || seen.has(spec) || !opts.specs.includes(spec)) return false
+    if (!canUseStudioModel(spec)) return false
     seen.add(spec)
     out.push(row)
     return true
