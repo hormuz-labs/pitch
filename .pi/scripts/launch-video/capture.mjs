@@ -23,12 +23,18 @@
  * (lib/encode.mjs documents both). Flags override the block for one render.
  */
 import { execFileSync, execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
-import { rename, stat, writeFile } from "node:fs/promises";
-import { resolve, dirname } from "node:path";
+import { readFile, rename, stat, writeFile } from "node:fs/promises";
+import { resolve, dirname, extname, isAbsolute, relative } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
+import { localPageUrl, localPathFromUrl, openStudioBrowser } from "./lib/browser.mjs";
+import {
+  buildNativeLayerSidecar,
+  discoverNativeCandidates,
+  sampleNativeCandidates,
+} from "./lib/native-layers.mjs";
 import { renderTimeline } from "./lib/render-timeline.mjs";
 import {
   codecArgs,
@@ -177,6 +183,13 @@ await initPage.waitForFunction("window.__READY === true", null, { timeout: 30000
 const duration = await initPage.evaluate("window.__DURATION()");
 const cues = await initPage.evaluate("window.__CUES().map(({ label, time }) => ({ label, time }))");
 const film = await initPage.evaluate("({ render: (window.SHOTS && window.SHOTS.render) || null, grade: (window.SHOTS && window.SHOTS.grade) || null })");
+let nativeCaptureError = null;
+let nativeDiscovery = { candidates: [], warnings: [] };
+try {
+  nativeDiscovery = await initPage.evaluate(discoverNativeCandidates);
+} catch (error) {
+  nativeCaptureError = `Native layer discovery skipped: ${error?.message ?? String(error)}`;
+}
 await initPage.close();
 
 // The film's render and grade blocks, with flags overriding for this run.
@@ -203,6 +216,8 @@ if (render.samples > 1) console.log(`   ⚠ shutter: ${render.samples} captures 
 if (scale >= 2) console.log(`   ⚠ 4K: each capture is four times the pixels of 1080p — expect about three times the time.`);
 
 const chunkSize = Math.ceil(total / workers);
+const nativeSamples = new Array(total);
+const nativeIds = nativeDiscovery.candidates.map(candidate => candidate.id);
 const startMs = Date.now();
 let completedFrames = 0;
 let lastReport = startMs;
@@ -229,8 +244,28 @@ const tasks = Array.from({ length: workers }, async (_, workerIdx) => {
   const cdp = await page.context().newCDPSession(page);
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("window.__READY === true", null, { timeout: 30000 });
+  let workerNative = nativeCaptureError === null;
+  if (workerNative) {
+    try {
+      const workerDiscovery = await page.evaluate(discoverNativeCandidates);
+      const workerIds = workerDiscovery.candidates.map(candidate => candidate.id);
+      if (JSON.stringify(workerIds) !== JSON.stringify(nativeIds)) throw new Error("candidate set changed");
+    } catch (error) {
+      nativeCaptureError = `Native layer sampling skipped in worker ${workerIdx}: ${error?.message ?? String(error)}`;
+      workerNative = false;
+    }
+  }
 
   for (let i = startFrame; i < endFrame; i++) {
+    await page.evaluate((seekT) => { window.__SEEK(seekT); }, from + i / fps);
+    if (workerNative && nativeCaptureError === null) {
+      try {
+        nativeSamples[i] = await page.evaluate(sampleNativeCandidates, nativeIds);
+      } catch (error) {
+        nativeCaptureError = `Native layer sampling skipped: ${error?.message ?? String(error)}`;
+        workerNative = false;
+      }
+    }
     const times = sampleTimes(from + i / fps, fps, render);
     for (let k = 0; k < times.length; k++) {
       await page.evaluate((seekT) => { window.__SEEK(seekT); }, times[k]);
@@ -333,6 +368,39 @@ try {
   await rename(timelineTmp, timelineOut);
 } finally {
   rmSync(timelineTmp, { force: true });
+}
+
+const layersOut = finalOut.replace(/\.[^./]+$/, "") + ".layers.json";
+const layersTmp = `${layersOut}.${process.pid}.tmp`;
+try {
+  const cwd = resolve(process.cwd());
+  const assetPath = {};
+  const assetSha256 = {};
+  for (const candidate of nativeDiscovery.candidates) {
+    if (candidate.kind !== "image" || !candidate.source) continue;
+    const local = localPathFromUrl(candidate.source);
+    if (!local || !/^\.(?:png|jpe?g|webp)$/i.test(extname(local))) continue;
+    const workspacePath = relative(cwd, resolve(local));
+    if (!workspacePath || isAbsolute(workspacePath) || workspacePath === ".." || workspacePath.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) continue;
+    assetPath[candidate.source] = workspacePath.split("\\").join("/");
+    assetSha256[candidate.source] = createHash("sha256").update(await readFile(local)).digest("hex");
+  }
+  const sourceSha256 = createHash("sha256").update(await readFile(finalOut)).digest("hex");
+  const discovery = nativeCaptureError
+    ? { candidates: [], warnings: [...nativeDiscovery.warnings, nativeCaptureError] }
+    : nativeDiscovery;
+  const samples = nativeCaptureError ? Array.from({ length: total }, () => []) : nativeSamples;
+  const nativeLayers = buildNativeLayerSidecar(discovery, samples, {
+    stage: { width, height }, fps, frames: total, from,
+    sourceBytes: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, sourceSha256,
+    assetPath, assetSha256,
+  });
+  await writeFile(layersTmp, `${JSON.stringify(nativeLayers, null, 2)}\n`, "utf8");
+  await rename(layersTmp, layersOut);
+} catch (error) {
+  console.warn(`⚠ native After Effects metadata skipped: ${error?.message ?? String(error)}`);
+} finally {
+  rmSync(layersTmp, { force: true });
 }
 
 console.log(`\n✨ DONE! Deliverable Ready: ${out}\n`);

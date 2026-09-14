@@ -1,5 +1,62 @@
 export type EditableFormat = 'premiere' | 'after-effects' | 'blender'
 
+export type NativePositionKey = [frame: number, x: number, y: number]
+export type NativeScaleKey = [frame: number, x: number, y: number]
+export type NativeValueKey = [frame: number, value: number]
+
+export interface NativeLayerKeys {
+  position: NativePositionKey[]
+  scale: NativeScaleKey[]
+  rotation: NativeValueKey[]
+  opacity: NativeValueKey[]
+}
+
+export interface NativeLayerBase {
+  id: string
+  name: string
+  shotId: string
+  box: { width: number; height: number }
+  inFrame: number
+  outFrame: number
+  keys: NativeLayerKeys
+  warnings: string[]
+}
+
+export interface NativeTextLayer extends NativeLayerBase {
+  kind: 'text'
+  text: string
+  font: {
+    family: string
+    style: string
+    weight: string
+    size: number
+    lineHeight: number
+    tracking: number
+    color: string
+    align: string
+  }
+}
+
+export interface NativeImageLayer extends NativeLayerBase {
+  kind: 'image'
+  asset: string
+  assetSha256: string
+}
+
+export type NativeLayer = NativeTextLayer | NativeImageLayer
+
+export interface NativeLayerSidecar {
+  version: 1
+  stage: { width: number; height: number }
+  fps: number
+  frames: number
+  sourceBytes: number
+  sourceMtimeMs: number
+  sourceSha256: string
+  layers: NativeLayer[]
+  warnings: string[]
+}
+
 export interface EditableManifest {
   version: 1
   title: string
@@ -13,6 +70,11 @@ export interface EditableManifest {
   audio: { file: string; channels: number; sampleRate: number } | null
   cuts: Array<{ label: string; start: number; end: number }>
   warnings: string[]
+  native?: {
+    stage: { width: number; height: number }
+    layers: NativeLayer[]
+    warnings: string[]
+  }
 }
 
 export function projectFiles(
@@ -45,6 +107,14 @@ Use File > Save As to choose a new .blend file in the extracted folder.
 Enable Relative Remap when saving; if you move the package later, use
 File > External Data > Find Missing Files to locate its media folder.`,
   }[format]
+  const fidelity =
+    format === 'after-effects' && manifest.native
+      ? `Native After Effects content: ${manifest.native.layers.length} supported editable layers.
+Open the “OPEN ME” composition. “BAKED FIDELITY” is enabled by default; disable it and enable
+“EDITABLE NATIVE” to inspect the transparent, visibly incomplete native reconstruction.
+Unsupported effects remain only in the baked mode. Font family assignment is best effort;
+font weight and style cannot be reproduced exactly, and missing fonts fall back in After Effects.`
+      : 'Fidelity: baked visuals from the rendered video, with editable cuts; no native DOM layers.'
   const readme = `Pitch editable timeline
 
 Extract the ZIP first and keep the extracted folders together, including media/.
@@ -52,7 +122,7 @@ ${instructions}
 This package is not a native .prproj, .aep or .blend until opened and saved in its application.
 The scripts do not automatically save or overwrite files. Choose a new filename when saving.
 
-Fidelity: baked visuals from the rendered video, with editable cuts; no native DOM layers.
+${fidelity}
 Audio, when present, is one final mixed soundtrack, not separate stems.
 Cuts derived from markers may be beat boundaries rather than visual scene changes.
 Source and sequence frame coordinates match; ends are exclusive.
@@ -63,6 +133,123 @@ Warnings:
 ${manifest.warnings.length ? manifest.warnings.map(w => `- ${w}`).join('\n') : 'None.'}
 `
   if (format === 'after-effects') {
+    if (manifest.native) {
+      const aeLayers = manifest.native.layers.map(layer => {
+        if (layer.kind !== 'text') return layer
+        const color = parseColor(layer.font.color)
+        return {
+          ...layer,
+          font: {
+            ...layer.font,
+            family: firstFontFamily(layer.font.family),
+            tracking: (layer.font.tracking / layer.font.size) * 1000,
+          },
+          ...(color ? { aeColor: color.rgb } : {}),
+        }
+      })
+      const data = JSON.stringify({
+        ...manifest,
+        native: { ...manifest.native, layers: aeLayers },
+        cuts,
+      })
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029')
+      return {
+        'README.txt': readme,
+        'project.jsx': `(function () {
+  var data = ${data};
+  var root = File($.fileName).parent;
+  var fps = data.video.fps.num / data.video.fps.den;
+  var duration = data.video.frames / fps;
+  var sx = data.video.width / data.native.stage.width;
+  var sy = data.video.height / data.native.stage.height;
+  function transform(layer) { return layer.property("ADBE Transform Group"); }
+  function keys(property, values, convert) {
+    var times = [], output = [];
+    for (var i = 0; i < values.length; i++) {
+      times.push(values[i][0] / fps);
+      output.push(convert(values[i]));
+    }
+    property.setValuesAtTimes(times, output);
+    if (typeof KeyframeInterpolationType !== "undefined" && property.setInterpolationTypeAtKey) {
+      for (var k = 1; k <= values.length; k++) property.setInterpolationTypeAtKey(k, KeyframeInterpolationType.LINEAR, KeyframeInterpolationType.LINEAR);
+    }
+  }
+  app.beginUndoGroup("Import Pitch native timeline");
+  try {
+    var movie = app.project.importFile(new ImportOptions(File(root.fsName + "/" + data.video.file)));
+    movie.mainSource.conformFrameRate = fps;
+    var baked = app.project.items.addComp(data.title + " — BAKED", data.video.width, data.video.height, 1, duration, fps);
+    baked.displayStartTime = 0;
+    for (var b = 0; b < data.cuts.length; b++) {
+      var bakedCut = data.cuts[b];
+      var bakedMovie = baked.layers.add(movie);
+      bakedMovie.name = bakedCut.label;
+      bakedMovie.startTime = 0; bakedMovie.inPoint = bakedCut.start / fps; bakedMovie.outPoint = bakedCut.end / fps; bakedMovie.audioEnabled = false;
+    }
+    var sound = data.audio ? app.project.importFile(new ImportOptions(File(root.fsName + "/" + data.audio.file))) : null;
+    var open = app.project.items.addComp(data.title + " — OPEN ME", data.video.width, data.video.height, 1, duration, fps);
+    open.displayStartTime = 0;
+    var bakedMode = open.layers.add(baked); bakedMode.name = "[MODE] BAKED FIDELITY"; bakedMode.audioEnabled = false; bakedMode.enabled = true;
+    if (sound) {
+      var soundtrack = open.layers.add(sound); soundtrack.name = "Soundtrack"; soundtrack.startTime = 0; soundtrack.inPoint = 0; soundtrack.outPoint = duration; soundtrack.audioEnabled = true;
+    }
+    try {
+      var editable = app.project.items.addComp(data.title + " — EDITABLE", data.video.width, data.video.height, 1, duration, fps);
+      editable.displayStartTime = 0;
+      var images = {}, skippedImages = 0;
+      for (var a = 0; a < data.native.layers.length; a++) {
+        var candidate = data.native.layers[a];
+        if (candidate.kind === "image" && !images[candidate.asset]) {
+          try { images[candidate.asset] = app.project.importFile(new ImportOptions(File(root.fsName + "/" + candidate.asset))); }
+          catch (_imageImportError) { skippedImages++; }
+        }
+      }
+      editable.comment = "Transparent and incomplete native reconstruction. Compare with the disabled guide reference." + (skippedImages ? " Some native images could not be imported and were skipped." : "");
+      for (var i = 0; i < data.native.layers.length; i++) {
+        var item = data.native.layers[i], layer;
+        if (item.kind === "text") {
+          layer = editable.layers.addBoxText([item.box.width * sx, item.box.height * sy]);
+          try {
+            var document = new TextDocument(item.text);
+            try { document.font = item.font.family; } catch (_missingFont) {}
+            document.fontSize = item.font.size * sy;
+            document.leading = item.font.lineHeight * sy;
+            document.tracking = item.font.tracking;
+            if (item.aeColor) document.fillColor = item.aeColor;
+            if (typeof ParagraphJustification !== "undefined") {
+              if (item.font.align === "center") document.justification = ParagraphJustification.CENTER_JUSTIFY;
+              else if (item.font.align === "right") document.justification = ParagraphJustification.RIGHT_JUSTIFY;
+              else if (ParagraphJustification.LEFT_JUSTIFY !== undefined) document.justification = ParagraphJustification.LEFT_JUSTIFY;
+            }
+            layer.property("ADBE Text Properties").property("ADBE Text Document").setValue(document);
+          } catch (_fontError) {}
+          transform(layer).property("ADBE Anchor Point").setValue([item.box.width * sx / 2, item.box.height * sy / 2]);
+        } else {
+          if (!images[item.asset]) continue;
+          layer = editable.layers.add(images[item.asset]);
+          transform(layer).property("ADBE Anchor Point").setValue([item.box.width / 2, item.box.height / 2]);
+        }
+        layer.name = item.name;
+        layer.inPoint = item.inFrame / fps; layer.outPoint = item.outFrame / fps; layer.audioEnabled = false;
+        keys(transform(layer).property("ADBE Position"), item.keys.position, function (v) { return [v[1] * sx, v[2] * sy]; });
+        keys(transform(layer).property("ADBE Scale"), item.keys.scale, item.kind === "image" ? function (v) { return [v[1] * sx, v[2] * sy]; } : function (v) { return [v[1], v[2]]; });
+        keys(transform(layer).property("ADBE Rotate Z"), item.keys.rotation, function (v) { return v[1]; });
+        keys(transform(layer).property("ADBE Opacity"), item.keys.opacity, function (v) { return v[1]; });
+      }
+      var reference = editable.layers.add(movie);
+      reference.name = "[REFERENCE] Full render"; reference.startTime = 0; reference.inPoint = 0; reference.outPoint = duration;
+      reference.audioEnabled = false; reference.enabled = false; reference.guideLayer = true; reference.locked = true;
+      var nativeMode = open.layers.add(editable); nativeMode.name = "[MODE] EDITABLE NATIVE"; nativeMode.audioEnabled = false; nativeMode.enabled = false;
+    } catch (_nativeBuildError) {
+      // The baked composition remains usable when optional native reconstruction fails.
+    }
+    open.openInViewer();
+  } finally { app.endUndoGroup(); }
+}());
+`,
+      }
+    }
     return {
       'README.txt': readme,
       'project.jsx': `(function () {
@@ -196,4 +383,43 @@ if bpy.context.window:
 scene.frame_set(1)
 `,
   }
+}
+
+function firstFontFamily(value: string): string {
+  return value
+    .split(',')[0]
+    .trim()
+    .replace(/^(['"])(.*)\1$/, '$2')
+}
+
+function parseColor(value: string): { rgb: [number, number, number] } | undefined {
+  const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i.exec(
+    value,
+  )
+  if (rgb) {
+    const channels = rgb.slice(1, 4).map(Number)
+    if (
+      channels.every(channel => Number.isFinite(channel) && channel >= 0 && channel <= 255) &&
+      (rgb[4] === undefined || finiteAlpha(rgb[4]))
+    )
+      return {
+        rgb: channels.map(channel => channel / 255) as [number, number, number],
+      }
+  }
+  const hex = /^#([\da-f]{6})([\da-f]{2})?$/i.exec(value)
+  if (hex) {
+    return {
+      rgb: [0, 2, 4].map(offset => Number.parseInt(hex[1].slice(offset, offset + 2), 16) / 255) as [
+        number,
+        number,
+        number,
+      ],
+    }
+  }
+  return undefined
+}
+
+function finiteAlpha(value: string): boolean {
+  const alpha = Number(value)
+  return Number.isFinite(alpha) && alpha >= 0 && alpha <= 1
 }

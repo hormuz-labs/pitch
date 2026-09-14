@@ -1,5 +1,16 @@
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, open, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import {
+  mkdir,
+  mkdtemp,
+  open,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -63,6 +74,12 @@ async function pixels(file: string) {
   ).stdout
 }
 
+async function sha256(file: string) {
+  return createHash('sha256')
+    .update(await readFile(file))
+    .digest('hex')
+}
+
 it('packages only the selected silent movie with exact frames and losslessly remuxed pixels', async () => {
   const source = await movie()
   await writeFile(join(workspaceDir, 'secret.txt'), 'not collected')
@@ -97,6 +114,288 @@ it('packages only the selected silent movie with exact frames and losslessly rem
   expect(readme).toMatch(/single clip/i)
   expect(readme).toMatch(/remux/i)
   expect(readme).toMatch(/original sources.*not included/i)
+})
+
+it('collects validated AE native image assets and rewrites their manifest paths', async () => {
+  const source = await movie()
+  const sourceIdentity = await stat(source)
+  await mkdir(join(workspaceDir, 'uploads'))
+  const imageBytes = Buffer.from('image bytes')
+  await writeFile(join(workspaceDir, 'uploads', 'product.webp'), imageBytes)
+  const { file, manifest } = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'after-effects',
+    title: 'Native',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 128, height: 96 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [
+        {
+          id: 'image-1',
+          name: 'Product',
+          shotId: 'hero',
+          kind: 'image',
+          asset: 'uploads/product.webp',
+          assetSha256: createHash('sha256').update(imageBytes).digest('hex'),
+          box: { width: 32, height: 24 },
+          inFrame: 0,
+          outFrame: 30,
+          keys: {
+            position: [[0, 64, 48]],
+            scale: [[0, 100, 100]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+      ],
+      warnings: [],
+    },
+  })
+
+  expect(manifest.native?.layers[0]).toMatchObject({ asset: 'assets/product.webp' })
+  const zip = new AdmZip(await readFile(file))
+  expect(zip.readFile('assets/product.webp')).toEqual(Buffer.from('image bytes'))
+  expect(manifest.warnings.join('\n')).not.toMatch(/no native layers/i)
+})
+
+it('falls back to baked fidelity for hostile native asset traversal without collecting it', async () => {
+  const source = await movie()
+  const sourceIdentity = await stat(source)
+  const secret = Buffer.from('secret')
+  await writeFile(join(root, 'secret.png'), secret)
+  const result = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'after-effects',
+    title: 'Unsafe native',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [
+        {
+          id: 'x',
+          name: 'x',
+          shotId: 'x',
+          kind: 'image',
+          asset: '../secret.png',
+          assetSha256: createHash('sha256').update(secret).digest('hex'),
+          box: { width: 1, height: 1 },
+          inFrame: 0,
+          outFrame: 1,
+          keys: {
+            position: [[0, 0, 0]],
+            scale: [[0, 100, 100]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+      ],
+      warnings: [],
+    },
+  })
+  expect(result.manifest.native).toBeUndefined()
+  expect(result.manifest.warnings).toContain(
+    'Native layer metadata is invalid; exported baked fidelity only.',
+  )
+  const zip = new AdmZip(await readFile(result.file))
+  expect(zip.getEntries().map(entry => entry.entryName)).not.toContain('assets/secret.png')
+  expect(zip.getEntries().some(entry => entry.getData().equals(secret))).toBe(false)
+})
+
+it('falls back to baked fidelity for malformed native timing and key data', async () => {
+  const source = await movie()
+  const sourceIdentity = await stat(source)
+  for (const nativeLayers of [
+    {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 29,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [],
+      warnings: [],
+    },
+    {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [
+        {
+          id: 'bad',
+          name: 'bad',
+          shotId: 'bad',
+          kind: 'text',
+          text: 'bad',
+          box: { width: 1, height: 1 },
+          inFrame: 0,
+          outFrame: 2,
+          font: {
+            family: '',
+            style: '',
+            weight: '',
+            size: 1,
+            lineHeight: 1,
+            tracking: 0,
+            color: 'red',
+            align: 'left',
+          },
+          keys: {
+            position: [
+              [1, 0, 0],
+              [0, 1, 1],
+            ],
+            scale: [[0, 100]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+      ],
+      warnings: [],
+    },
+  ] as any[]) {
+    const result = await buildEditablePackage({
+      workspaceDir,
+      outputDir,
+      videoRel: 'selected.mov',
+      format: 'after-effects',
+      title: 'Bad',
+      nativeLayers,
+    })
+    expect(result.manifest.native).toBeUndefined()
+    expect(result.manifest.warnings).toContain(
+      'Native layer metadata is invalid; exported baked fidelity only.',
+    )
+  }
+})
+
+it('falls back to baked fidelity when native image bytes do not match their digest', async () => {
+  const source = await movie()
+  const sourceIdentity = await stat(source)
+  await mkdir(join(workspaceDir, 'uploads'))
+  const asset = join(workspaceDir, 'uploads', 'product.png')
+  const original = Buffer.from('original image')
+  await writeFile(asset, original)
+  const assetSha256 = createHash('sha256').update(original).digest('hex')
+  await writeFile(asset, 'mutated image')
+
+  const result = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'after-effects',
+    title: 'Changed asset',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: sourceIdentity.size,
+      sourceMtimeMs: sourceIdentity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [
+        {
+          id: 'image',
+          name: 'Image',
+          shotId: 'shot',
+          kind: 'image',
+          asset: 'uploads/product.png',
+          assetSha256,
+          box: { width: 10, height: 10 },
+          inFrame: 0,
+          outFrame: 30,
+          keys: {
+            position: [[0, 0, 0]],
+            scale: [[0, 100, 100]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+      ],
+      warnings: [],
+    },
+  })
+
+  expect(result.manifest.native).toBeUndefined()
+  expect(new AdmZip(await readFile(result.file)).getEntry('assets/product.png')).toBeNull()
+})
+
+it('binds native metadata to the copied movie snapshot identity', async () => {
+  const source = await movie()
+  const identity = await stat(source)
+  const result = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'after-effects',
+    title: 'Stale native',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: identity.size + 1,
+      sourceMtimeMs: identity.mtimeMs,
+      sourceSha256: await sha256(source),
+      layers: [],
+      warnings: [],
+    },
+  })
+
+  expect(result.manifest.native).toBeUndefined()
+  expect(result.manifest.warnings).toContain(
+    'Native layer metadata is invalid; exported baked fidelity only.',
+  )
+})
+
+it('falls back to baked fidelity when native metadata names a different movie digest', async () => {
+  const source = await movie()
+  const identity = await stat(source)
+  const result = await buildEditablePackage({
+    workspaceDir,
+    outputDir,
+    videoRel: 'selected.mov',
+    format: 'after-effects',
+    title: 'Wrong digest',
+    nativeLayers: {
+      version: 1,
+      stage: { width: 64, height: 48 },
+      fps: 30,
+      frames: 30,
+      sourceBytes: identity.size,
+      sourceMtimeMs: identity.mtimeMs,
+      sourceSha256: '0'.repeat(64),
+      layers: [],
+      warnings: [],
+    },
+  })
+
+  expect(result.manifest.native).toBeUndefined()
+  expect(result.manifest.warnings).toContain(
+    'Native layer metadata is invalid; exported baked fidelity only.',
+  )
 })
 
 it('extracts the selected movie stereo mix as 24-bit PCM, retaining delayed onset and channel waveforms', async () => {

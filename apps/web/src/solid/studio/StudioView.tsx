@@ -104,7 +104,7 @@ const RES = [
 ] satisfies { res: ExportResolution; note: string }[]
 const EDITABLE_FORMATS: { format: EditableFormat; label: string; note: string }[] = [
   { format: 'premiere', label: 'Premiere Pro', note: 'XML + media' },
-  { format: 'after-effects', label: 'After Effects', note: 'JSX + media' },
+  { format: 'after-effects', label: 'After Effects', note: 'Native text, images + fallback' },
   { format: 'blender', label: 'Blender', note: 'Python + media' },
 ]
 function Actions(props: { store: ProjectStore }) {
@@ -275,8 +275,8 @@ function Actions(props: { store: ProjectStore }) {
                   </p>
                 </Show>
                 <p class="export-hint">
-                  Fidelity-first: graphics are baked into video, not native layers. The soundtrack
-                  stays mixed.
+                  After Effects keeps supported text, images, and transforms editable. Complex
+                  effects use the baked fallback. The soundtrack stays mixed.
                 </p>
               </div>
               <For each={EDITABLE_FORMATS}>

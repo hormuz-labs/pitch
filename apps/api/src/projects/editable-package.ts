@@ -1,11 +1,19 @@
 import { execFile } from 'node:child_process'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { constants, createWriteStream } from 'node:fs'
 import { lstat, mkdir, open, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
+import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
 import AdmZip from 'adm-zip'
-import { type EditableFormat, type EditableManifest, projectFiles } from './editable-formats.js'
+import {
+  type EditableFormat,
+  type EditableManifest,
+  type NativeLayer,
+  type NativeLayerSidecar,
+  projectFiles,
+} from './editable-formats.js'
 
 const exec = promisify(execFile)
 
@@ -17,6 +25,8 @@ export async function buildEditablePackage({
   title,
   signal,
   marks,
+  nativeLayers,
+  packageWarnings,
 }: {
   workspaceDir: string
   videoRel: string
@@ -25,6 +35,8 @@ export async function buildEditablePackage({
   title: string
   signal?: AbortSignal
   marks?: Array<{ start: number; label?: string }>
+  nativeLayers?: NativeLayerSidecar
+  packageWarnings?: string[]
 }): Promise<{ file: string; manifest: EditableManifest }> {
   signal?.throwIfAborted()
   const snapshot = join(outputDir, 'source.snapshot')
@@ -50,6 +62,9 @@ export async function buildEditablePackage({
       )
     return result.stdout
   }
+  let snapshotBytes = 0
+  let snapshotMtimeMs = 0
+  let snapshotSha256: Buffer | undefined
   try {
     const workspace = await realpath(workspaceDir)
     if (!videoRel || isAbsolute(videoRel) || videoRel.split(/[\\/]/).includes('..')) {
@@ -74,6 +89,8 @@ export async function buildEditablePackage({
     )
     try {
       const before = await handle.stat({ bigint: true })
+      snapshotBytes = Number(before.size)
+      snapshotMtimeMs = Number(before.mtimeNs) / 1_000_000
       if (before.size === 0n || before.size > 128n * 1024n * 1024n) {
         throw new Error('Selected movie is empty or exceeds the 128 MiB input cap.')
       }
@@ -85,11 +102,19 @@ export async function buildEditablePackage({
       ) {
         throw new Error('Selected workspace file changed while opening its snapshot.')
       }
+      const sourceHash = createHash('sha256')
       await pipeline(
         handle.createReadStream({ autoClose: false, start: 0, end: Number(before.size) - 1 }),
+        new Transform({
+          transform(chunk, _encoding, callback) {
+            sourceHash.update(chunk)
+            callback(null, chunk)
+          },
+        }),
         createWriteStream(snapshot, { flags: 'wx' }),
         { signal },
       )
+      snapshotSha256 = sourceHash.digest()
       const after = await handle.stat({ bigint: true })
       const current = await lstat(source, { bigint: true })
       if (
@@ -322,6 +347,32 @@ export async function buildEditablePackage({
     const cuts = points
       .slice(0, -1)
       .map((start, i) => ({ label: boundaries.get(start)!, start, end: points[i + 1] }))
+    let native: EditableManifest['native']
+    const nativeAssets: Array<{ name: string; bytes: Buffer }> = []
+    let nativeWarning: string | undefined
+    if (format === 'after-effects' && nativeLayers) {
+      try {
+        if (
+          nativeLayers.sourceBytes !== snapshotBytes ||
+          Math.abs(nativeLayers.sourceMtimeMs - snapshotMtimeMs) > 0.01 ||
+          !snapshotSha256 ||
+          !/^[\da-f]{64}$/.test(nativeLayers.sourceSha256) ||
+          !timingSafeEqual(snapshotSha256, Buffer.from(nativeLayers.sourceSha256, 'hex'))
+        )
+          throw new Error('source identity')
+        native = await validateNativeLayers(
+          nativeLayers,
+          workspace,
+          num / den,
+          frames,
+          nativeAssets,
+        )
+      } catch {
+        native = undefined
+        nativeAssets.length = 0
+        nativeWarning = 'Native layer metadata is invalid; exported baked fidelity only.'
+      }
+    }
     const manifest: EditableManifest = {
       version: 1,
       title,
@@ -341,19 +392,30 @@ export async function buildEditablePackage({
         : null,
       cuts,
       warnings: [
+        ...(packageWarnings ?? []),
+        ...(nativeWarning ? [nativeWarning] : []),
+        ...(native?.warnings ?? []),
         ...(cuts.length === 1
           ? ['No internal boundaries supplied: exported as a single clip.']
           : []),
         'Marks may be beat boundaries rather than visual scene changes; normalized to frame boundaries.',
         'The selected movie is losslessly remuxed to MP4, not an original-container copy.',
-        'Extra original sources and assets are not included. Only the selected movie is collected.',
-        'Baked visuals only: no native layers. Unsupported codecs, VFR, display geometry and HDR are rejected rather than silently converted.',
+        ...(native
+          ? [
+              `${native.layers.length} supported layer${native.layers.length === 1 ? '' : 's'} included as native After Effects content; unsupported effects remain baked only.`,
+            ]
+          : [
+              'Extra original sources and assets are not included. Only the selected movie is collected.',
+              'Baked visuals only: no native layers. Unsupported codecs, VFR, display geometry and HDR are rejected rather than silently converted.',
+            ]),
       ],
+      ...(native ? { native } : {}),
     }
     const zip = new AdmZip()
     zip.addFile(manifest.video.file, await readFile(join(mediaDir, 'video.mp4')))
     if (manifest.audio)
       zip.addFile(manifest.audio.file, await readFile(join(mediaDir, 'soundtrack.wav')))
+    for (const asset of nativeAssets) zip.addFile(asset.name, asset.bytes)
     zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2)))
     for (const [name, content] of Object.entries(projectFiles(format, manifest))) {
       zip.addFile(name, Buffer.from(content))
@@ -371,4 +433,155 @@ export async function buildEditablePackage({
     await rm(snapshot, { force: true })
     await rm(mediaDir, { recursive: true, force: true })
   }
+}
+
+const validString = (value: unknown, max = 500) => typeof value === 'string' && value.length <= max
+const finite = (value: unknown, min: number, max: number) =>
+  typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
+
+async function validateNativeLayers(
+  sidecar: NativeLayerSidecar,
+  workspace: string,
+  fps: number,
+  frames: number,
+  assets: Array<{ name: string; bytes: Buffer }>,
+): Promise<NonNullable<EditableManifest['native']>> {
+  if (
+    sidecar?.version !== 1 ||
+    !Number.isSafeInteger(sidecar.sourceBytes) ||
+    sidecar.sourceBytes <= 0 ||
+    !finite(sidecar.sourceMtimeMs, 0, Number.MAX_SAFE_INTEGER) ||
+    !/^[\da-f]{64}$/.test(sidecar.sourceSha256) ||
+    !finite(sidecar.stage?.width, 1, 8192) ||
+    !finite(sidecar.stage?.height, 1, 8192) ||
+    !finite(sidecar.fps, 1, 99) ||
+    Math.abs(sidecar.fps - fps) > 0.00001 ||
+    sidecar.frames !== frames ||
+    !Array.isArray(sidecar.layers) ||
+    sidecar.layers.length > 100 ||
+    !Array.isArray(sidecar.warnings) ||
+    !sidecar.warnings.every(value => validString(value, 1000))
+  )
+    throw new Error('invalid sidecar')
+
+  let assetBytes = 0
+  const names = new Set<string>()
+  const copied = new Map<string, { archiveName: string; assetSha256: string }>()
+  const layers: NativeLayer[] = []
+  for (const layer of sidecar.layers) {
+    if (
+      !layer ||
+      !validString(layer.id) ||
+      !validString(layer.name) ||
+      !validString(layer.shotId) ||
+      !finite(layer.box?.width, 0.01, 8192) ||
+      !finite(layer.box?.height, 0.01, 8192) ||
+      !Number.isSafeInteger(layer.inFrame) ||
+      !Number.isSafeInteger(layer.outFrame) ||
+      layer.inFrame < 0 ||
+      layer.outFrame <= layer.inFrame ||
+      layer.outFrame > frames ||
+      !Array.isArray(layer.warnings) ||
+      !layer.warnings.every(value => validString(value, 1000)) ||
+      !validKeys(layer)
+    )
+      throw new Error('invalid layer')
+    if (layer.kind === 'text') {
+      const font = layer.font
+      if (
+        !validString(layer.text, 20_000) ||
+        !font ||
+        !validString(font.family) ||
+        font.family.trim().length === 0 ||
+        !validString(font.style) ||
+        !validString(font.weight) ||
+        !finite(font.size, 0.01, 2000) ||
+        !finite(font.lineHeight, 0.01, 4000) ||
+        !finite(font.tracking, -10_000, 10_000) ||
+        !validString(font.color, 100) ||
+        !validString(font.align, 50)
+      )
+        throw new Error('invalid text')
+      layers.push(structuredClone(layer))
+      continue
+    }
+    if (
+      layer.kind !== 'image' ||
+      !validString(layer.asset, 1000) ||
+      !/^[\da-f]{64}$/.test(layer.assetSha256)
+    )
+      throw new Error('invalid kind')
+    const prior = copied.get(layer.asset)
+    if (prior && prior.assetSha256 !== layer.assetSha256) throw new Error('asset hash')
+    let archiveName = prior?.archiveName
+    if (!archiveName) {
+      if (isAbsolute(layer.asset) || layer.asset.split(/[\\/]/).includes('..'))
+        throw new Error('path')
+      const source = resolve(workspace, layer.asset)
+      const resolved = await realpath(source)
+      const rel = relative(workspace, resolved)
+      if (!rel || rel.startsWith('..') || resolved !== source) throw new Error('escape')
+      const info = await lstat(source)
+      const extension = /\.(png|jpe?g|webp)$/i.exec(source)?.[0].toLowerCase()
+      if (!info.isFile() || info.isSymbolicLink() || !extension || info.size > 32 * 1024 * 1024)
+        throw new Error('asset')
+      assetBytes += info.size
+      if (assetBytes > 64 * 1024 * 1024) throw new Error('assets')
+      const stem =
+        source
+          .slice(source.lastIndexOf('/') + 1, -extension.length)
+          .replace(/[^A-Za-z0-9._-]+/g, '-')
+          .replace(/^[-.]+|[-.]+$/g, '') || 'image'
+      let candidate = `assets/${stem}${extension}`
+      for (let suffix = 2; names.has(candidate); suffix++)
+        candidate = `assets/${stem}-${suffix}${extension}`
+      names.add(candidate)
+      const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW)
+      try {
+        const opened = await handle.stat()
+        if (!opened.isFile() || opened.dev !== info.dev || opened.ino !== info.ino)
+          throw new Error('changed')
+        const bytes = await handle.readFile()
+        const after = await handle.stat()
+        if (after.size !== info.size || after.mtimeMs !== info.mtimeMs) throw new Error('changed')
+        const expected = Buffer.from(layer.assetSha256, 'hex')
+        const actual = createHash('sha256').update(bytes).digest()
+        if (!timingSafeEqual(actual, expected)) throw new Error('asset hash')
+        assets.push({ name: candidate, bytes })
+      } finally {
+        await handle.close()
+      }
+      archiveName = candidate
+      copied.set(layer.asset, { archiveName, assetSha256: layer.assetSha256 })
+    }
+    layers.push({ ...structuredClone(layer), asset: archiveName })
+  }
+  return { stage: structuredClone(sidecar.stage), layers, warnings: [...sidecar.warnings] }
+}
+
+function validKeys(layer: NativeLayer): boolean {
+  const specs = [
+    [layer.keys?.position, 3, -100_000, 100_000],
+    [layer.keys?.scale, 3, -10_000, 10_000],
+    [layer.keys?.rotation, 2, -1_000_000, 1_000_000],
+    [layer.keys?.opacity, 2, 0, 100],
+  ] as const
+  return specs.every(([keys, width, min, max]) => {
+    if (!Array.isArray(keys) || keys.length < 1 || keys.length > 10_000) return false
+    let previous = -1
+    for (const key of keys) {
+      if (
+        !Array.isArray(key) ||
+        key.length !== width ||
+        !Number.isSafeInteger(key[0]) ||
+        key[0] < layer.inFrame ||
+        key[0] >= layer.outFrame ||
+        key[0] <= previous ||
+        !key.slice(1).every(value => finite(value, min, max))
+      )
+        return false
+      previous = key[0]
+    }
+    return true
+  })
 }

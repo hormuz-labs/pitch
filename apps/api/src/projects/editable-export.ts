@@ -1,9 +1,10 @@
-import { chmod, mkdir, mkdtemp, rename, rm, stat } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { chmod, mkdir, mkdtemp, open, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { newestMtime, renderFile, sourceTargets } from '../flows/launch-video/describe.js'
 import { readTimeline } from '../render/utils/beats.js'
 import { fileUrl, slugify } from '../studio/paths.js'
-import type { EditableFormat } from './editable-formats.js'
+import type { EditableFormat, NativeLayerSidecar } from './editable-formats.js'
 import { buildEditablePackage } from './editable-package.js'
 import type { ExportStatus } from './export.js'
 import type { ProjectRow } from './service.js'
@@ -59,6 +60,52 @@ async function trustedMarks(video: string) {
     Math.abs(timeline.sourceMtimeMs - videoStat.mtimeMs) <= MTIME_TOLERANCE_MS
   if (!identityMatches) return undefined
   return timeline.beats.map(beat => ({ start: beat.start, label: beat.text }))
+}
+
+async function trustedNativeLayers(video: string): Promise<{
+  nativeLayers?: NativeLayerSidecar
+  packageWarnings?: string[]
+}> {
+  const dot = video.lastIndexOf('.')
+  const sidecar = `${dot < 0 ? video : video.slice(0, dot)}.layers.json`
+  let handle
+  try {
+    handle = await open(sidecar, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const info = await handle.stat()
+    if (!info.isFile() || info.size > 5 * 1024 * 1024)
+      return {
+        packageWarnings: [
+          'Native layer metadata is invalid or too large; exported baked fidelity only.',
+        ],
+      }
+    const bytes = await handle.readFile()
+    if (bytes.length > 5 * 1024 * 1024)
+      return {
+        packageWarnings: [
+          'Native layer metadata is invalid or too large; exported baked fidelity only.',
+        ],
+      }
+    const parsed = JSON.parse(bytes.toString('utf8')) as NativeLayerSidecar
+    const videoStat = await stat(video)
+    if (
+      parsed?.version !== 1 ||
+      parsed.sourceBytes !== videoStat.size ||
+      !Number.isFinite(parsed.sourceMtimeMs) ||
+      Math.abs(parsed.sourceMtimeMs - videoStat.mtimeMs) > MTIME_TOLERANCE_MS ||
+      !/^[\da-f]{64}$/.test(parsed.sourceSha256)
+    )
+      return {
+        packageWarnings: [
+          'Native layer metadata does not match the selected movie; exported baked fidelity only.',
+        ],
+      }
+    return { nativeLayers: parsed }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}
+    return { packageWarnings: ['Native layer metadata is invalid; exported baked fidelity only.'] }
+  } finally {
+    await handle?.close()
+  }
 }
 
 export async function startEditableExport(
@@ -136,6 +183,10 @@ export async function startEditableExport(
       job.staging = staging
       await chmod(staging, 0o700)
       const marks = await trustedMarks(path.join(ws.dir, videoRel))
+      const native =
+        format === 'after-effects' && launch
+          ? await trustedNativeLayers(path.join(ws.dir, videoRel))
+          : {}
       const result = await buildEditablePackage({
         workspaceDir: ws.dir,
         videoRel,
@@ -144,6 +195,7 @@ export async function startEditableExport(
         title: p.title || p.name,
         signal: controller.signal,
         marks,
+        ...native,
       })
       controller.signal.throwIfAborted()
       await rename(result.file, path.join(ws.dir, finalRel))

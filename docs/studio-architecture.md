@@ -199,8 +199,11 @@ Editable video exports are fidelity-first interchange packages for Premiere
 Pro, After Effects, or Blender. They contain the exact rendered movie, its
 final mixed soundtrack as a separate WAV, frame-aligned shot/beat cuts, an
 import file or project-building script, and a manifest. Browser graphics and
-effects remain baked into the movie; unsupported media is rejected rather
-than silently transcoded. Launch films require a current MP4 at the selected
+effects remain baked into the movie; After Effects packages additionally
+reconstruct conservatively supported text and raster-image layers with sampled
+position, scale, rotation, and opacity keyframes. Unsupported layers remain in
+the baked fidelity composition. Unsupported media is rejected rather than
+silently transcoded. Launch films require a current MP4 at the selected
 resolution before packaging.
 
 The new-project composer can pass `options.narrationVoice` as

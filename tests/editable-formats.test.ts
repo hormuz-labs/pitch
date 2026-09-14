@@ -228,6 +228,240 @@ it('keeps hostile AE names as data, including legacy ExtendScript line separator
   expect(imports).toHaveLength(1)
 })
 
+it('builds native AE modes with scaled text/image keys, a disabled reference, and one soundtrack', () => {
+  const native: EditableManifest = {
+    ...manifest,
+    audio: { file: 'media/soundtrack.wav', channels: 2, sampleRate: 48000 },
+    native: {
+      stage: { width: 960, height: 540 },
+      warnings: ['Glow remains baked.'],
+      layers: [
+        {
+          id: 'title',
+          name: 'Title',
+          shotId: 'hero',
+          kind: 'text',
+          text: 'Hello',
+          box: { width: 200, height: 50 },
+          inFrame: 3,
+          outFrame: 30,
+          font: {
+            family: '"Missing Font", Arial, sans-serif',
+            style: 'normal',
+            weight: '700',
+            size: 20,
+            lineHeight: 24,
+            tracking: 1,
+            color: 'rgba(255, 128, 0, .5)',
+            align: 'center',
+          },
+          keys: {
+            position: [
+              [3, 100, 200],
+              [9, 200, 250],
+            ],
+            scale: [[3, 100, 80]],
+            rotation: [[3, 10]],
+            opacity: [[3, 90]],
+          },
+          warnings: [],
+        },
+        {
+          id: 'image',
+          name: 'Image',
+          shotId: 'hero',
+          kind: 'image',
+          asset: 'assets/product.webp',
+          assetSha256: 'a'.repeat(64),
+          box: { width: 400, height: 200 },
+          inFrame: 0,
+          outFrame: 90,
+          keys: {
+            position: [[0, 480, 270]],
+            scale: [[0, 50, 75]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+        {
+          id: 'missing-image',
+          name: 'Missing Image',
+          shotId: 'hero',
+          kind: 'image',
+          asset: 'assets/missing.png',
+          assetSha256: 'b'.repeat(64),
+          box: { width: 100, height: 100 },
+          inFrame: 0,
+          outFrame: 90,
+          keys: {
+            position: [[0, 100, 100]],
+            scale: [[0, 100, 100]],
+            rotation: [[0, 0]],
+            opacity: [[0, 100]],
+          },
+          warnings: [],
+        },
+      ],
+    },
+  }
+  const imports: any[] = []
+  const comps: any[] = []
+  const property = () => ({
+    values: [] as any[],
+    value: undefined as any,
+    setValuesAtTimes(times: number[], values: any[]) {
+      this.values = times.map((time, i) => [time, values[i]])
+    },
+    setValue(value: any) {
+      this.value = value
+    },
+    setInterpolationTypeAtKey: vi.fn(),
+  })
+  const layer = (source?: any) => {
+    const properties: Record<string, any> = {
+      'ADBE Position': property(),
+      'ADBE Scale': property(),
+      'ADBE Rotate Z': property(),
+      'ADBE Opacity': property(),
+      'ADBE Anchor Point': property(),
+      'ADBE Text Document': property(),
+    }
+    return {
+      source,
+      name: '',
+      enabled: true,
+      audioEnabled: true,
+      guideLayer: false,
+      locked: false,
+      property(name: string) {
+        if (name === 'ADBE Transform Group')
+          return { property: (child: string) => properties[child] }
+        if (name === 'ADBE Text Properties')
+          return { property: (child: string) => properties[child] }
+        return properties[name]
+      },
+      properties,
+    }
+  }
+  const addComp = vi.fn((name: string) => {
+    const layers: any[] = []
+    const comp = {
+      name,
+      layers: {
+        add(source: any) {
+          const value = layer(source)
+          layers.push(value)
+          return value
+        },
+        addBoxText(size: number[]) {
+          const value = layer()
+          value.boxSize = size
+          layers.push(value)
+          return value
+        },
+      },
+      layerList: layers,
+      openInViewer: vi.fn(),
+      comment: '',
+    }
+    comps.push(comp)
+    return comp
+  })
+  const app = {
+    project: {
+      items: { addComp },
+      importFile(options: any) {
+        if (options.file.fsName.endsWith('/assets/missing.png')) throw new Error('missing image')
+        const item = { file: options.file, mainSource: { conformFrameRate: 0 } }
+        imports.push(item)
+        return item
+      },
+      save: vi.fn(),
+    },
+    beginUndoGroup: vi.fn(),
+    endUndoGroup: vi.fn(),
+  }
+  function File(path: string) {
+    return { fsName: path, parent: { fsName: '/package' } }
+  }
+  function ImportOptions(this: any, file: any) {
+    this.file = file
+  }
+  function TextDocument(this: any, text: string) {
+    this.text = text
+  }
+  runInNewContext(projectFiles('after-effects', native)['project.jsx'], {
+    app,
+    File,
+    ImportOptions,
+    TextDocument,
+    ParagraphJustification: { CENTER_JUSTIFY: 'center' },
+    KeyframeInterpolationType: { LINEAR: 'linear' },
+    $: { fileName: '/package/project.jsx' },
+  })
+
+  expect(comps.map(comp => comp.name)).toEqual([
+    `${native.title} — BAKED`,
+    `${native.title} — OPEN ME`,
+    `${native.title} — EDITABLE`,
+  ])
+  const editable = comps[2]
+  const baked = comps[0]
+  const text = editable.layerList.find((item: any) => item.name === 'Title')
+  const image = editable.layerList.find((item: any) => item.name === 'Image')
+  const reference = editable.layerList.find((item: any) => item.name === '[REFERENCE] Full render')
+  expect(text.boxSize).toEqual([400, 100])
+  expect(text.properties['ADBE Position'].values).toEqual([
+    [3 / (30000 / 1001), [200, 400]],
+    [9 / (30000 / 1001), [400, 500]],
+  ])
+  expect(text.properties['ADBE Scale'].values[0][1]).toEqual([100, 80])
+  expect(text.properties['ADBE Text Document'].value).toMatchObject({
+    font: 'Missing Font',
+    tracking: 50,
+    fillColor: [1, 128 / 255, 0],
+  })
+  expect(text.properties['ADBE Opacity'].values[0][1]).toBe(90)
+  expect(image.properties['ADBE Scale'].values[0][1]).toEqual([100, 150])
+  expect(editable.layerList.some((item: any) => item.name === 'Missing Image')).toBe(false)
+  expect(baked.layerList).toHaveLength(native.cuts.length)
+  native.cuts.forEach((cut, i) => {
+    expect(baked.layerList[i]).toMatchObject({
+      name: cut.label,
+      startTime: 0,
+      inPoint: cut.start / (30000 / 1001),
+      outPoint: cut.end / (30000 / 1001),
+      audioEnabled: false,
+    })
+  })
+  expect(reference).toMatchObject({
+    enabled: false,
+    guideLayer: true,
+    locked: true,
+    audioEnabled: false,
+  })
+  const open = comps[1].layerList
+  expect(open.find((item: any) => item.name === '[MODE] EDITABLE NATIVE').enabled).toBe(false)
+  expect(open.find((item: any) => item.name === '[MODE] BAKED FIDELITY').enabled).toBe(true)
+  expect(
+    comps.flatMap(comp => comp.layerList).filter((item: any) => item.name === 'Soundtrack'),
+  ).toHaveLength(1)
+  expect(imports.map(item => item.file.fsName)).toEqual([
+    '/package/media/video.mp4',
+    '/package/media/soundtrack.wav',
+    '/package/assets/product.webp',
+  ])
+  const readme = projectFiles('after-effects', native)['README.txt']
+  expect(readme).toMatch(/3 supported editable layers/i)
+  expect(readme).toMatch(/transparent.*incomplete/i)
+  expect(readme).toMatch(/font.*fall back/i)
+  expect(readme).toMatch(/font family.*best effort.*font weight.*style/is)
+  expect(readme).not.toMatch(/no native DOM layers/i)
+  expect(app.project.save).not.toHaveBeenCalled()
+  expect(app.endUndoGroup).toHaveBeenCalledOnce()
+})
+
 function runBlender(input: EditableManifest, fromTextEditor = false) {
   const script = projectFiles('blender', input)['project.py']
   expect(script).toBeTypeOf('string')
