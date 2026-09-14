@@ -46,12 +46,23 @@ Azure APIM provides GPT-5.5, Luna, Terra, Sol, and Astra. The studio defaults
 reasoning to `medium`; reasoning tokens are already included in reported model
 usage, so there is no second reasoning-level surcharge.
 
+Every runnable model is shown regardless of plan. Selecting one does not deduct
+credits. The composer warns when the balance is below the model-and-duration
+estimate, and project creation performs the authoritative balance check before
+generation starts.
+
+The Free plan means no active subscription; it does not make model usage free.
+Free users can generate only with credits already in their balance from rewards,
+promotions, or earlier purchases.
+
 | Model | Harness | Video provider cost | 30s estimate |
 |---|---:|---:|---:|
-| Gemini Flash | 125 credits | None configured | 125 credits |
-| Gemini Pro | 250 credits | None configured | 250 credits |
-| GPT mini | 125 credits | None configured | 125 credits |
-| GPT full | 250 credits | None configured | 250 credits |
+| Gemini 3.8 Flash | 125 credits | None configured | 125 credits |
+| Gemini 3.1 Pro | 250 credits | None configured | 250 credits |
+| Gemma 4 26B | 94 credits | None configured | 94 credits |
+| Gemma 4 31B | 125 credits | None configured | 125 credits |
+| GPT-5.4 mini | 125 credits | None configured | 125 credits |
+| GPT-5.4 | 250 credits | None configured | 250 credits |
 | GPT-5.5 | 188 credits | None configured | 188 credits |
 | Luna | 94 credits | None configured | 94 credits |
 | Terra | 125 credits | None configured | 125 credits |
@@ -95,7 +106,7 @@ final charge = max(normal charge, no-loss floor)
 This is an estimate. Actual billing can be lower or higher because token usage,
 tool calls, rendering time, and recording time vary between requests.
 
-Suggested Azure configuration once the exact model specs are known:
+Current Azure pricing configuration:
 
 ```env
 STUDIO_MODEL_CREDIT_MULTIPLIERS='{"azure-apim/gpt-5.6-sol":1,"azure-apim/gpt-6-astra":2}'
@@ -106,10 +117,21 @@ STUDIO_VIDEO_MODEL_CREDITS_30S='{"azure-apim/gpt-5.6-sol":1250,"azure-apim/gpt-6
 
 The identifiers match the Azure APIM models in `.pi/models.json`.
 
+Azure APIM authentication uses:
+
+```env
+AZURE_APIM_PRIMARY_KEY="..."
+AZURE_APIM_SECONDARY_KEY="..."
+```
+
+Primary is preferred; secondary is used only when primary is absent. Restart
+the API after changing either key.
+
 ## Plans
 
 | Plan | Customer price | Credits granted | Customer price per credit |
 |---|---:|---:|---:|
+| Free | $0 | 0 recurring credits | — |
 | Flex, one-time | $20 | 800 | $0.0250 |
 | Pro, monthly | $45/month | 2,500/month | $0.0180 |
 | Max, monthly | $80/month | 5,000/month | $0.0160 |
@@ -118,8 +140,9 @@ The identifiers match the Azure APIM models in `.pi/models.json`.
 | Enterprise | Custom | Custom | Custom |
 
 Annual subscriptions grant the full annual allowance when the subscription is
-activated or renewed. Flex credits are a one-time purchase. Unused subscription
-credits are forfeited when the subscription ends; purchased top-up credits remain.
+activated or renewed. Flex is a one-time add-on available only while Pro or Max
+is active; the API enforces this requirement. Unused subscription credits are
+forfeited when the subscription ends; purchased top-up credits remain.
 
 ## Estimated generations by plan
 
@@ -128,7 +151,8 @@ models, 1,250 for Sol, and 2,500 for Astra.
 
 | Plan | Credits | 1x model | 2x model | Sol 30s | Astra 30s |
 |---|---:|---:|---:|---:|---:|
-| Flex | 800 | 6 | 3 | 0 | 0 |
+| Free | 0 recurring | 0 | 0 | 0 | 0 |
+| Flex add-on | 800 | 6 | 3 | 0 | 0 |
 | Pro monthly | 2,500 | 20 | 10 | 2 | 1 |
 | Max monthly | 5,000 | 40 | 20 | 4 | 2 |
 | Pro annual | 30,000 | 240 | 120 | 24 | 12 |

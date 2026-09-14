@@ -9,6 +9,7 @@ import {
   cueGain,
   measureAudioWindows,
 } from '../.pi/scripts/launch-video/lib/audio-levels.mjs'
+import { correctiveBedDb } from '../apps/api/src/lib/mix.js'
 
 const exec = promisify(execFile)
 const mixScript = path.resolve('.pi/scripts/launch-video/mix.mjs')
@@ -63,6 +64,15 @@ afterAll(async () => {
 })
 
 describe('launch audio regression', () => {
+  it('computes a safer bed level from a marginal contrast failure', () => {
+    expect(
+      correctiveBedDb(
+        'FAIL — the voice is only 7.6dB above the bed (need ≥10dB).\n(currently -13)',
+      ),
+    ).toBe(-16.4)
+    expect(correctiveBedDb('SFX overpower music')).toBeNull()
+  })
+
   it('caps LUFS correction by transient headroom, including user gain', () => {
     expect(cueGain({ lufs: -32.8, peak: -9.7 }, -21, 0, 'impact').gainDb).toBeCloseTo(0.7)
     expect(cueGain({ lufs: -27.2, peak: -2.5 }, -30, 6, 'click').gainDb).toBeCloseTo(-15.5)

@@ -109,7 +109,7 @@
 .lv-studio.new-project-page .new-skill-pill.is-active { background: var(--new-selected); border-color: color-mix(in srgb, var(--new-blue) 40%, var(--new-border)); color: var(--new-blue); }
 .new-project-hint { margin: 19px 0 0; color: var(--new-faint); text-align: center; font-size: 11px; line-height: 1.6; }
 .lv-studio .new-composer-wrap .create-error { margin-top: 12px; color: #d65d66; font-size: 12px; }
-.composer-credit-warning { width: 100%; margin: 8px 4px 0; color: #c53f49; font-size: 11px; line-height: 1.45; }
+.composer-credit-warning { width: auto; margin: 6px 10px 0; padding: 8px 10px; border-radius: 9px; background: color-mix(in srgb, #d94752 8%, transparent); color: #b8323d; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
 .composer-credit-warning a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .lv-studio.new-project-page .new-featured-cue { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: min(768px, calc(100% - 48px)); height: 52px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 0; border-radius: 24px 24px 0 0; background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-muted); font-size: 13px; font-weight: 400; text-decoration: none; }
 .lv-studio.new-project-page .new-featured-cue:hover { background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-ink); }
@@ -210,6 +210,7 @@
   .lv-studio .new-composer-wrap .composer-footer { gap: 4px; flex-wrap: wrap; }
   .lv-studio .new-composer-wrap .composer-footer > .tool-row:last-child { margin-left: auto; }
   .lv-studio .new-composer-wrap .tool-row { gap: 3px; }
+  .composer-credit-warning { margin: 7px 5px 0; padding: 8px; font-size: 10.5px; }
   .lv-studio.new-project-page .new-voice-trigger { max-width: 112px; padding: 7px 4px; gap: 4px; }
   .lv-studio.new-project-page .new-composer-wrap .model-btn { max-width: 130px; padding-left: 4px; font-size: 11px; }
   .lv-studio.new-project-page .new-skills { gap: 8px; margin-top: 22px; }
