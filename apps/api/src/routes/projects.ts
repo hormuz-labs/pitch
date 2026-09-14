@@ -10,7 +10,7 @@ import * as projects from '../projects/service.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
 import { onProjectEvent } from '../studio/events.js'
 import { isFlowId } from '../studio/paths.js'
-import { listStudioModels, peekSession } from '../studio/session.js'
+import { listStudioModels, peekSession, steerQueuedPrompt } from '../studio/session.js'
 
 const logger = createLogger('studio:routes')
 export const router = express.Router()
@@ -201,6 +201,19 @@ router.post('/:id/rollback', async (req, res) => {
     res.json(await projects.rollbackProject(userId, req.params.id, entryId))
   } catch (err) {
     fail(res, err, 'rollback failed')
+  }
+})
+
+router.post('/:id/queue/:entryId/steer', async (req, res) => {
+  const userId = requireAuth(req, res)
+  if (!userId) return
+  try {
+    await projects.getRow(userId, req.params.id)
+    const steered = await steerQueuedPrompt(req.params.id, req.params.entryId)
+    if (!steered) return res.status(409).json({ error: 'That message is no longer queued' })
+    res.json({ steered: true })
+  } catch (err) {
+    fail(res, err, 'steer queued message failed')
   }
 })
 

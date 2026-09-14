@@ -1,5 +1,5 @@
 import { A, useNavigate } from '@solidjs/router'
-import { ArrowUp, ChevronDown, Globe2, LockKeyhole, Plus, Square, X, Zap } from 'lucide-solid'
+import { ArrowUp, ChevronDown, Globe2, LockKeyhole, Plus, Square, X } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import pCoinIcon from '../../assets/pCoin.svg'
@@ -429,31 +429,28 @@ export function Composer(props: { store: ProjectStore }) {
                 </button>
               }
             >
-              <button
-                class="job-send-round steer"
-                disabled={uploading() || !s.draft.trim()}
-                onClick={() => void send('steer')}
-                aria-label="Steer active run"
-                title="Steer active run (⌘ Enter)"
+              <Show
+                when={s.draft.trim()}
+                fallback={
+                  <button
+                    class="job-send-round stop"
+                    onClick={() => void s.stop()}
+                    aria-label="Stop generation"
+                  >
+                    <Square size={12} fill="currentColor" />
+                  </button>
+                }
               >
-                <Zap size={15} fill="currentColor" />
-              </button>
-              <button
-                class="job-send-round"
-                disabled={uploading() || !s.draft.trim()}
-                onClick={() => void send('queue')}
-                aria-label="Queue message"
-                title="Queue after current work"
-              >
-                <ArrowUp size={17} />
-              </button>
-              <button
-                class="job-send-round stop"
-                onClick={() => void s.stop()}
-                aria-label="Stop generation"
-              >
-                <Square size={12} fill="currentColor" />
-              </button>
+                <button
+                  class="job-send-round"
+                  disabled={uploading()}
+                  onClick={() => void send('queue')}
+                  aria-label="Queue message"
+                  title="Queue after current work"
+                >
+                  <ArrowUp size={17} />
+                </button>
+              </Show>
             </Show>
           </div>
         </div>

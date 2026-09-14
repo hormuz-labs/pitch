@@ -9,7 +9,7 @@ import {
   cueGain,
   measureAudioWindows,
 } from '../.pi/scripts/launch-video/lib/audio-levels.mjs'
-import { correctiveBedDb } from '../apps/api/src/lib/mix.js'
+import { correctiveBedDb, correctiveSfxDb } from '../apps/api/src/lib/mix.js'
 
 const exec = promisify(execFile)
 const mixScript = path.resolve('.pi/scripts/launch-video/mix.mjs')
@@ -71,6 +71,16 @@ describe('launch audio regression', () => {
       ),
     ).toBe(-16.4)
     expect(correctiveBedDb('SFX overpower music')).toBeNull()
+  })
+
+  it('computes a safer SFX trim from a local balance failure', () => {
+    expect(
+      correctiveSfxDb(
+        'Step C2 sfx_trimmed mean -32.3dB (-3dB SFX trim)\n' +
+          'SFX overpower music near 2.50s. Lower --sfx-db by at least 12dB or rebalance that cue',
+      ),
+    ).toBe(-16)
+    expect(correctiveSfxDb('voice is too quiet')).toBeNull()
   })
 
   it('caps LUFS correction by transient headroom, including user gain', () => {

@@ -334,10 +334,11 @@ export function useProject(id: string | undefined) {
     const wasBusy = busy()
     const delivery = wasBusy ? (opts.delivery ?? 'queue') : undefined
     setBusy(true)
+    const localEntryId = `local-${++localId}`
     setEntries(v => [
       ...v,
       {
-        id: `local-${++localId}`,
+        id: localEntryId,
         role: 'user',
         text: text.trim(),
         ...(delivery
@@ -346,7 +347,7 @@ export function useProject(id: string | undefined) {
       },
     ])
     try {
-      await studio.prompt(await getToken(), id, {
+      const result = await studio.prompt(await getToken(), id, {
         text: body,
         displayText: text.trim(),
         targets: list,
@@ -357,6 +358,11 @@ export function useProject(id: string | undefined) {
         model: model() ?? undefined,
         delivery,
       })
+      setEntries(current =>
+        current.map(entry =>
+          entry.id === localEntryId ? { ...entry, id: result.entryId } : entry,
+        ),
+      )
     } catch (err: any) {
       if (!wasBusy) setBusy(false)
       setEntries(v => [
@@ -492,6 +498,10 @@ export function useProject(id: string | undefined) {
     },
     download,
     send,
+    steerQueued: async (entryId: string) => {
+      if (!id) return
+      await studio.steerQueued(await getToken(), id, entryId)
+    },
     rollback: async (entry: Entry) => {
       if (!id || busy() || !entry.sessionEntryId || !entry.checkpointId) return
       try {

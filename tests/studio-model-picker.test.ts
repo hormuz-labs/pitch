@@ -147,6 +147,20 @@ describe('assembleStudioPicker', () => {
         estimatedCredits: 94,
         harnessCredits: 94,
       },
+      {
+        spec: GPT_54_MINI_SPEC,
+        label: 'GPT-5.4 mini',
+        creditMultiplier: 1,
+        estimatedCredits: 125,
+        harnessCredits: 125,
+      },
+      {
+        spec: GPT_54_SPEC,
+        label: 'GPT-5.4',
+        creditMultiplier: 2,
+        estimatedCredits: 250,
+        harnessCredits: 250,
+      },
     ])
   })
 

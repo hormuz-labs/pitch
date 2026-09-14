@@ -696,7 +696,7 @@ export const STUDIO_DEFAULT_MODEL = MODEL_SPEC
  * the runtime can actually run. A provider without a key is dropped so a
  * turn cannot pick something that would fail.
  */
-export async function listStudioModels(userId: string): Promise<PickerModel[]> {
+export async function listStudioModels(_userId: string): Promise<PickerModel[]> {
   await initStudio()
   const available = new Map<string, any>()
   for (const m of await modelRuntime.getAvailable()) {
@@ -751,6 +751,7 @@ export type PromptDelivery = 'queue' | 'steer'
 export interface PromptSessionResult {
   session: Session
   turn: number
+  entryId: string
   delivery: 'started' | 'queued' | 'steered'
 }
 
@@ -843,13 +844,18 @@ export async function promptSession(
           entry.checkpointId = s.active?.entry.checkpointId
           updateEntry(s, entry)
           sendSteer(s, { entry, full })
-          return { session: s, turn: s.active?.turn ?? s.turn, delivery: 'steered' }
+          return {
+            session: s,
+            turn: s.active?.turn ?? s.turn,
+            entryId: entry.id,
+            delivery: 'steered',
+          }
         }
         if (s.busy && s.active) {
           entry.checkpointId = s.active.entry.checkpointId
           updateEntry(s, entry)
           s.preStartSteers.push({ entry, full })
-          return { session: s, turn: s.active.turn, delivery: 'steered' }
+          return { session: s, turn: s.active.turn, entryId: entry.id, delivery: 'steered' }
         }
         entry.pending = 'queued'
         updateEntry(s, entry)
@@ -859,7 +865,7 @@ export async function promptSession(
           setBusy(s, true)
           void runPrompt(s, request)
         }
-        return { session: s, turn: request.turn, delivery: 'queued' }
+        return { session: s, turn: request.turn, entryId: entry.id, delivery: 'queued' }
       } catch (error) {
         entry.pending = 'cancelled'
         updateEntry(s, entry)
@@ -870,14 +876,33 @@ export async function promptSession(
     entry.pending = 'queued'
     const request = { text, context, model: opts.model, entry, turn: ++s.turn }
     s.queue.push(request)
-    return { session: s, turn: request.turn, delivery: 'queued' }
+    return { session: s, turn: request.turn, entryId: entry.id, delivery: 'queued' }
   }
 
   const entry = addEntry(s, 'user', displayText)
   setBusy(s, true)
   const request = { text, context, model: opts.model, entry, turn: ++s.turn }
   void runPrompt(s, request)
-  return { session: s, turn: request.turn, delivery: 'started' }
+  return { session: s, turn: request.turn, entryId: entry.id, delivery: 'started' }
+}
+
+/** Promote an already queued user message into the active model run. */
+export async function steerQueuedPrompt(projectId: string, entryId: string): Promise<boolean> {
+  const s = sessions.get(projectId)
+  if (!s?.busy) return false
+  const index = s.queue.findIndex(request => request.entry.id === entryId)
+  if (index < 0) return false
+  const [request] = s.queue.splice(index, 1)
+  request.entry.pending = 'steering'
+  request.entry.checkpointId ??= s.active?.entry.checkpointId
+  updateEntry(s, request.entry)
+  const context = typeof request.context === 'function' ? await request.context() : request.context
+  const full = context
+    ? `<studio-context>\n${context}\n</studio-context>\n\n${request.text}`
+    : request.text
+  if (s.session.isStreaming) sendSteer(s, { entry: request.entry, full })
+  else s.preStartSteers.push({ entry: request.entry, full })
+  return true
 }
 
 export async function stopSession(projectId: string): Promise<boolean> {
