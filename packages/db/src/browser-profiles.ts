@@ -24,6 +24,8 @@ export interface BrowserSessionPayload {
   startUrl: string | null
   cdpPort: number | null
   noVncUrl: string | null
+  /** The CloakBrowser manager the session runs on; null for rows from before nodes had their own. */
+  managerUrl: string | null
   pid: number | null
   error: string | null
   startedAt: Date
@@ -68,6 +70,7 @@ function shapeSession(row: any): BrowserSessionPayload {
     startUrl: row.startUrl ?? null,
     cdpPort: row.cdpPort ?? null,
     noVncUrl: row.noVncUrl ?? null,
+    managerUrl: row.managerUrl ?? null,
     pid: row.pid ?? null,
     error: row.error ?? null,
     startedAt: row.startedAt,
@@ -149,6 +152,7 @@ export async function createBrowserSession(
     profileId: string
     startUrl?: string | null
     cdpPort?: number | null
+    managerUrl?: string | null
     expiresAt: Date
   },
   user?: AuthUser,
@@ -160,6 +164,7 @@ export async function createBrowserSession(
       profileId: data.profileId,
       startUrl: data.startUrl ?? null,
       cdpPort: data.cdpPort ?? null,
+      managerUrl: data.managerUrl ?? null,
       expiresAt: data.expiresAt,
     },
   })

@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutBucketPolicyCommand,
   PutObjectCommand,
   S3Client,
@@ -240,8 +241,14 @@ async function ensurePrivateBucketExists(bucketName: string) {
   try {
     await client.send(new HeadBucketCommand({ Bucket: bucketName }))
   } catch {
-    await client.send(new CreateBucketCommand({ Bucket: bucketName }))
-    console.log(`[Storage] Created private bucket: ${bucketName}`)
+    try {
+      await client.send(new CreateBucketCommand({ Bucket: bucketName }))
+      console.log(`[Storage] Created private bucket: ${bucketName}`)
+    } catch (e: any) {
+      // Two processes noticing the missing bucket at once: the loser's
+      // create fails, and the bucket is there all the same.
+      if (e?.name !== 'BucketAlreadyOwnedByYou' && e?.name !== 'BucketAlreadyExists') throw e
+    }
   }
 }
 
@@ -373,4 +380,110 @@ export async function pruneStorageStateCookies(userId: string, host: string): Pr
     `[Storage] Pruned ${before - remaining.length} cookie(s) for ${target} (user ${userId})`,
   )
   return true
+}
+
+// ---------------------------------------------------------------------------
+// Private objects (studio workspace checkpoints)
+//
+// Workspace checkpoints hold every file of a project — uploads, recordings,
+// the pi transcript — so they live in a PRIVATE bucket: nothing here ever
+// receives the public read policy uploadFile() applies. Callers stream bodies
+// in and out; nothing is buffered whole in memory.
+// ---------------------------------------------------------------------------
+
+export interface PrivateObjectStore {
+  put(key: string, body: Readable | Buffer, contentType?: string): Promise<void>
+  get(key: string): Promise<Readable | null>
+  head(key: string): Promise<{ size: number } | null>
+  remove(key: string): Promise<void>
+  list(prefix: string): Promise<string[]>
+}
+
+/** An object store scoped to one private bucket, created on first use. */
+export function privateBucket(bucketName: string): PrivateObjectStore {
+  let ensured: Promise<void> | null = null
+  const ensure = () => {
+    ensured ??= ensurePrivateBucketExists(bucketName).catch(err => {
+      ensured = null
+      throw err
+    })
+    return ensured
+  }
+  return {
+    async put(key, body, contentType = 'application/octet-stream') {
+      await ensure()
+      if (Buffer.isBuffer(body)) {
+        await client.send(
+          new PutObjectCommand({
+            Bucket: bucketName,
+            Key: key,
+            Body: body,
+            ContentType: contentType,
+          }),
+        )
+        return
+      }
+      await new Upload({
+        client,
+        params: { Bucket: bucketName, Key: key, Body: body, ContentType: contentType },
+        queueSize: MULTIPART_QUEUE_SIZE,
+        partSize: MULTIPART_PART_SIZE,
+      }).done()
+    },
+    async get(key) {
+      try {
+        const res = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }))
+        return (res.Body as Readable) ?? null
+      } catch (e: any) {
+        if (
+          e.name === 'NoSuchKey' ||
+          e.name === 'NoSuchBucket' ||
+          e.$metadata?.httpStatusCode === 404
+        )
+          return null
+        throw e
+      }
+    },
+    async head(key) {
+      try {
+        const res = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }))
+        return { size: Number(res.ContentLength ?? 0) }
+      } catch (e: any) {
+        if (
+          e.name === 'NotFound' ||
+          e.name === 'NoSuchBucket' ||
+          e.$metadata?.httpStatusCode === 404
+        )
+          return null
+        throw e
+      }
+    },
+    async remove(key) {
+      await client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key })).catch(e => {
+        if (e?.name !== 'NoSuchBucket' && e?.$metadata?.httpStatusCode !== 404) throw e
+      })
+    },
+    async list(prefix) {
+      const keys: string[] = []
+      let token: string | undefined
+      do {
+        let res: any
+        try {
+          res = await client.send(
+            new ListObjectsV2Command({
+              Bucket: bucketName,
+              Prefix: prefix,
+              ContinuationToken: token,
+            }),
+          )
+        } catch (e: any) {
+          if (e.name === 'NoSuchBucket') return keys
+          throw e
+        }
+        for (const o of res.Contents ?? []) if (o.Key) keys.push(o.Key)
+        token = res.IsTruncated ? res.NextContinuationToken : undefined
+      } while (token)
+      return keys
+    },
+  }
 }

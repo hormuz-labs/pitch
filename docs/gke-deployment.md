@@ -1,7 +1,10 @@
 # Deploy Pitch on GKE
 
-The launch topology is **one API pod**, with CloakBrowser and Cloud SQL Auth
-Proxy alongside it. The frontend stays on Vercel. Cloud SQL replaces the local
+The launch topology is **one API pod** (`STUDIO_ROLE=all`), with CloakBrowser
+and Cloud SQL Auth Proxy alongside it. To add capacity, run the same image as
+a `worker` Deployment (one CloakBrowser per pod, its own `projects/` and pi
+volumes, `STUDIO_WORKER_URL` set to the pod's cluster address, the shared
+`STUDIO_WORKER_TOKEN`) — see `docs/studio-architecture.md` → Scaling. The frontend stays on Vercel. Cloud SQL replaces the local
 PostgreSQL container; the existing S3-compatible media service remains external.
 `infra/gke` and `scripts/render-gke.mjs` produce the Kubernetes resources.
 

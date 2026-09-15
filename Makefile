@@ -29,8 +29,9 @@ help:
 	@echo "  $(GREEN)make sandbox-check$(RESET)— verify the agent's shell is confined on this host"
 	@echo "  $(GREEN)make whisper-model$(RESET)— fetch the model motion_align needs"
 	@echo ""
-	@echo "  $(YELLOW)Architecture note:$(RESET) There is no standalone worker or queue service."
-	@echo "  The agent sessions, FFmpeg rendering, and studio previews run unified inside the API."
+	@echo "  $(YELLOW)Architecture note:$(RESET) There is no queue. The api container is the API and a"
+	@echo "  worker in one; more capacity is more workers (docker compose --profile worker up,"
+	@echo "  or STUDIO_ROLE=worker on other nodes) — see docs/studio-architecture.md → Scaling."
 	@echo ""
 
 # ─── Development ──────────────────────────────────────────────────────────────

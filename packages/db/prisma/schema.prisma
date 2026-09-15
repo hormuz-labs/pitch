@@ -138,6 +138,7 @@ model BrowserSession {
   startUrl       String?
   cdpPort        Int?
   noVncUrl       String?
+  managerUrl     String?
   pid            Int?
   error          String?
   startedAt      DateTime       @default(now())
@@ -328,29 +329,49 @@ model NewsletterDelivery {
 }
 
 model Project {
-  id                 String              @id() @default(cuid())
-  userId             String
-  flow               String
-  name               String
-  title              String
-  prompt             String              @default("")
-  options            String              @default("{}")
-  sessionFile        String?
-  creditsCharged     Int                 @default(0)
-  usageUsd           Float               @default(0)
-  outputs            String              @default("[]")
-  thumbnailUrl       String?
-  lastError          String?
-  isPublic           Boolean             @default(false)
-  shareSlug          String?             @unique()
-  shareViews         Int                 @default(0)
-  source             String              @default("app")
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt()
-  creditTransactions CreditTransaction[]
+  id                    String              @id() @default(cuid())
+  userId                String
+  flow                  String
+  name                  String
+  title                 String
+  prompt                String              @default("")
+  options               String              @default("{}")
+  sessionFile           String?
+  creditsCharged        Int                 @default(0)
+  usageUsd              Float               @default(0)
+  outputs               String              @default("[]")
+  thumbnailUrl          String?
+  lastError             String?
+  isPublic              Boolean             @default(false)
+  shareSlug             String?             @unique()
+  shareViews            Int                 @default(0)
+  source                String              @default("app")
+  workerId              String?
+  workerEpoch           Int?
+  leasedAt              DateTime?
+  lastWorkerId          String?
+  workspaceVersion      Int                 @default(0)
+  workspaceCheckpointAt DateTime?
+  artifactKind          String?
+  busyAt                DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt()
+  creditTransactions    CreditTransaction[]
 
   @@unique([userId, flow, name])
   @@index([userId])
+  @@index([workerId])
+}
+
+model StudioWorker {
+  id          String   @id()
+  url         String
+  slots       Int      @default(4)
+  epoch       Int      @default(1)
+  draining    Boolean  @default(false)
+  version     String?
+  startedAt   DateTime @default(now())
+  heartbeatAt DateTime @default(now())
 }
 
 model WebhookEndpoint {

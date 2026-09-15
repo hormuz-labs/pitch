@@ -13,9 +13,11 @@ picks the pipeline it needs, and can change its mind next turn. That is what
 makes the ordinary request possible — upload a video, ask for the music to be
 quieter — which no arrangement of per-product flows could answer.
 
-There are no workers, queues or phase tables. The studio server hosts every
-session (pi multiplexes them); heavy work (ffmpeg, Playwright, TTS, whisper)
-runs as host tools in child processes.
+There are no queues or phase tables. A project is held by one **worker**
+process, which hosts its pi session and runs the heavy work (ffmpeg,
+Playwright, TTS, whisper) as host tools in child processes. The default
+layout is one process that is the API and the only worker; adding nodes is
+described under [Scaling](#scaling).
 
 ```
 apps/api        the server: auth, credits, projects, sessions, previews, renders, share, MCP, admin
@@ -308,6 +310,81 @@ Credits are fine grained — `CREDIT_USD` is $0.0025, so a demo video runs about
 120 of them. That scale is a pricing decision, not a physical one: changing it
 means changing every stored credit integer in lockstep (see the
 `20260911120000_redenominate_credits` migration).
+
+## Scaling
+
+The studio scales by adding **worker** nodes. There is no queue, no leader
+and no message bus: coordination is two things in Postgres, and every API
+replica and every worker reads the same two things.
+
+```
+StudioWorker { id, url, slots, epoch, draining, heartbeatAt }   one row per worker process
+Project      { workerId, workerEpoch, leasedAt, lastWorkerId,   the lease
+               workspaceVersion, artifactKind, busyAt }         worker-maintained caches
+```
+
+**Roles** (`STUDIO_ROLE`, one image): `all` is the API and a worker in one
+process — the single box, and what `make dev` runs; `api` replicas hold no
+project and proxy every project operation; `worker` nodes own projects and
+answer only the worker contract (`/internal/worker`, behind
+`STUDIO_WORKER_TOKEN`) and `/files` (for the CloakBrowser beside them).
+
+**Registration.** A worker upserts its row on boot with a new `epoch`,
+heartbeats every `STUDIO_HEARTBEAT_MS`, and is dead once the heartbeat is
+older than `STUDIO_LEASE_TTL_MS`. A new node with four slots is known to
+every API the moment its first heartbeat lands. A worker that cannot write a
+heartbeat for a whole TTL drops everything it holds, because the rest of the
+system is entitled to re-place it.
+
+**Placement** (`worker/lease.ts`). A project's owner is the worker named on
+its row, valid while that worker is live at that epoch. Otherwise whichever
+API touches the project next places it, in one short transaction: live,
+not draining, a free slot, preferring the last holder (warm disk), else the
+least loaded. Two replicas placing the same project at once cannot both win.
+`worker/client.ts` turns the owner into a `WorkerClient` — the host module
+itself when the owner is this process, an HTTP client otherwise — and the
+routes only ever talk to that.
+
+**Ownership** (`worker/host.ts`). Every worker-side operation first checks
+that the row still names this worker at this epoch. That is the fence: a
+worker that lost its lease answers 409, drops the project, and the API
+places again. The worker keeps `busyAt` and `artifactKind` on the row so
+lists never open a project.
+
+**Storage.** The hot copy is `projects/<internal>/` on the owner's disk —
+where ffmpeg, the browser and the file watcher want it. The durable copy is
+a checkpoint in a private bucket (`STUDIO_WORKSPACE_BUCKET`):
+`workspaces/<projectId>/<version>/{workspace.tar,history.tar,session.jsonl,manifest.json}`
+plus `cover.jpg` for the grid. A dirty workspace is checkpointed once it has
+been quiet for `STUDIO_CHECKPOINT_SETTLE_MS` and the turn is over; the
+version bump is fenced by the lease. A worker opening a project compares the
+row's version with the marker file in its local copy (`.studio-checkpoint`)
+and restores when they differ; a directory with no marker and a row that
+was never checkpointed is a workspace from before this existed, adopted as
+it is. Idle projects (`STUDIO_IDLE_RELEASE_MS`, never with an open event
+stream) are checkpointed, closed and released; the directory stays as a
+warm cache.
+
+**What a dead node loses:** the turn in flight since the last checkpoint,
+and any live browser recording. The next request re-places the project on
+another worker, which restores the last checkpoint and carries on.
+
+**Events.** A browser's event stream is held by one API replica and fed by
+the owning worker's bus. An event raised elsewhere (an API marking a project
+failed) is forwarded to the owner. If the worker goes away the stream sends
+an error and the client reconnects, landing wherever the project is by then.
+
+**Draining.** `SIGTERM` marks the worker draining, checkpoints and releases
+everything it holds (`STUDIO_SHUTDOWN_GRACE_MS`), then exits. Replace a node
+by starting the new one and stopping the old.
+
+**Networking.** Workers need a private URL other processes can reach
+(`STUDIO_WORKER_URL`): a VPC address, a compose service name, a Tailscale
+MagicDNS name. Nothing here needs a public port. Every node needs the same
+`DATABASE_URL`, `MINIO_*`, `STUDIO_WORKER_TOKEN` and `PREVIEW_COOKIE_SECRET`,
+its own CloakBrowser manager (`CLOAK_MANAGER_URL`, recorded on browser
+sessions so the VNC proxy bridges to the right one), and its own `projects/`
+and pi volumes.
 
 ## There is no legacy path
 

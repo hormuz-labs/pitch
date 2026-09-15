@@ -81,6 +81,13 @@ Rules:
   `projects/service.ts createProject`). Never charge credits anywhere else.
 - The studio loads `.pi/extensions/*.ts` and `.pi/skills/*` when a session is
   created; restart the server after editing them (open sessions keep the old code).
+- Scaling (`apps/api/src/worker/`, docs/studio-architecture.md → Scaling):
+  a project is held by one worker under a Postgres lease; `projects/service.ts`
+  is the API side (row, credits, placement) and `worker/host.ts` the worker
+  side (session, workspace, checkpoints). Anything that touches a workspace or
+  a session belongs in the host and is reached through `ownerFor()` — never
+  read `projects/<internal>/` from a route. `STUDIO_ROLE=all` (the default and
+  `make dev`) is both in one process, so nothing changes locally.
 - Docker: `apps/api/Dockerfile` on `pitch-base` (ffmpeg, bubblewrap, Node 22,
   whisper-cli — no browser, that is CloakBrowser over CDP); compose mounts
   `./projects`, `docker-data/pi` and `whisper`. The agent's shell is sandboxed

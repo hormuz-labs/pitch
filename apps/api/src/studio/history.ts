@@ -54,7 +54,8 @@ interface TurnHistory {
   turns: Record<string, TurnRecord>
 }
 
-function historyDir(workspace: string): string {
+/** Where a workspace's turn checkpoints live: a sibling of the workspace, never inside it. */
+export function historyDir(workspace: string): string {
   return path.join(path.dirname(workspace), HISTORY_ROOT, path.basename(workspace))
 }
 

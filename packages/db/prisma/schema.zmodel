@@ -213,6 +213,9 @@ model BrowserSession {
   startUrl    String?
   cdpPort     Int?
   noVncUrl    String?
+  // The CloakBrowser manager this session runs on. Every studio node has its
+  // own manager, so the VNC proxy must bridge to the one that holds the profile.
+  managerUrl  String?
   pid         Int?
   error       String?
   startedAt   DateTime  @default(now())
@@ -481,6 +484,27 @@ model Project {
   // Where the project was started: "app", "api" (a /v1 key), or "discord".
   // Stamped on the row so usage can be attributed long after the fact.
   source         String   @default("app")
+  // ── Placement (apps/api/src/worker/) ──────────────────────────────────────
+  // The studio worker that holds this project's session and hot workspace
+  // copy, fenced by the epoch of the worker boot that took the lease. A row
+  // whose worker is dead (stale heartbeat) or whose epoch no longer matches
+  // is unowned and can be placed again.
+  workerId       String?
+  workerEpoch    Int?
+  leasedAt       DateTime?
+  // The worker that last held it: placement prefers it while it is alive,
+  // because its disk is still warm.
+  lastWorkerId   String?
+  // Durable copy of the workspace in object storage, keyed by version; 0 means
+  // nothing has been checkpointed yet. A worker whose local copy is not at
+  // this version restores before opening the project.
+  workspaceVersion      Int       @default(0)
+  workspaceCheckpointAt DateTime?
+  // Cheap, worker-maintained caches of what the workspace holds, for lists
+  // that must not open every project: the kind of artifact on disk and when
+  // the current turn started (null when idle).
+  artifactKind   String?
+  busyAt         DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -488,11 +512,35 @@ model Project {
 
   @@unique([userId, flow, name])
   @@index([userId])
+  @@index([workerId])
 
   // Deny everything when not authenticated (public share pages read via the base client).
   @@deny('all', auth() == null && isPublic != true)
   @@allow('all', userId == auth().id)
   @@allow('read', isPublic == true && auth() == null)
+}
+
+// ── Studio workers ──────────────────────────────────────────────────────────
+// One row per studio worker process (apps/api/src/worker/registry.ts). A
+// worker upserts its row on boot with a new epoch, heartbeats every few
+// seconds, and is considered dead once the heartbeat is older than the lease
+// TTL. Placement (worker/lease.ts) reads only this table and the Project
+// lease columns, so any number of API replicas reach the same answer.
+
+model StudioWorker {
+  id          String   @id
+  // Private base URL other processes reach it at (never a browser-supplied host).
+  url         String
+  // Concurrent projects it will hold.
+  slots       Int      @default(4)
+  // Bumped every boot: leases taken by an earlier boot are void.
+  epoch       Int      @default(1)
+  draining    Boolean  @default(false)
+  version     String?
+  startedAt   DateTime @default(now())
+  heartbeatAt DateTime @default(now())
+
+  @@deny('all', true)
 }
 
 // ── Outbound Webhooks ───────────────────────────────────────────────────────

@@ -181,6 +181,9 @@ export async function startSession(input: StartSessionInput): Promise<StartSessi
     userId: input.userId,
     profileId: profile.id,
     startUrl: input.startUrl ?? null,
+    // Recorded so the VNC proxy on any API replica bridges to the manager
+    // that actually runs this profile, not to whichever one sits beside it.
+    managerUrl: getManagerBaseUrl(),
     expiresAt,
   })
 

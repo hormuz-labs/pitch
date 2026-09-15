@@ -13,7 +13,7 @@ import type { Browser } from 'playwright'
 import { getAgent } from '../flows/index.js'
 import { PREVIEW_COOKIE, previewGrant } from '../lib/preview-auth.js'
 import { connectStudioBrowser } from '../render/utils/manager-browser.js'
-import { describeProject, type ProjectRow, workspaceOf } from './service.js'
+import { type ProjectRow, workspaceOf } from './rows.js'
 
 const execFileP = promisify(execFile)
 const logger = createLogger('studio:thumbnails')
@@ -79,8 +79,12 @@ async function newestSourceMtime(dir: string, flow: ReturnType<typeof getAgent>)
 export async function projectThumbnail(p: ProjectRow, t: number): Promise<Buffer | null> {
   const ws = workspaceOf(p)
   const flow = getAgent()
-  const desc = await describeProject(p)
-  if (!desc.preview) return null
+  if (!existsSync(ws.dir)) return null
+  const desc = await flow.describe(ws).catch(err => {
+    logger.warn({ err, projectId: p.id }, 'describe failed')
+    return null
+  })
+  if (!desc?.preview) return null
   const thumbsDir = path.join(ws.dir, '.thumbs')
   const cacheFile = path.join(
     thumbsDir,

@@ -27,7 +27,7 @@ import { download, extOf } from '../flows/recording-edit/index.js'
 import type { Description, TurnInput, UploadRef } from '../flows/types.js'
 import { describeBeat, readTimeline, scenesFromTimeline } from '../render/utils/beats.js'
 import type { Workspace } from '../studio/paths.js'
-import { describeWorkspace, hasArtifact, RELEVANT } from './describe.js'
+import { artifactKind, describeWorkspace, hasArtifact, RELEVANT } from './describe.js'
 import { BUILTIN_TOOLS, EXTENSIONS, skills, systemPrompt } from './toolkit.js'
 
 const logger = createLogger('studio:agent')
@@ -255,7 +255,12 @@ export const studioAgent = {
   extensions: EXTENSIONS,
   builtinTools: BUILTIN_TOOLS,
   sandbox: true,
-  relevant: RELEVANT,
+  // A getter, not a value: describe.ts is reached through flows/deck →
+  // projects/thumbnails → flows/index → here while it is still evaluating,
+  // and a const read at that moment is a TDZ error at boot.
+  get relevant() {
+    return RELEVANT
+  },
   skills,
   systemPrompt,
   prepare: prepareWorkspace,
@@ -263,6 +268,7 @@ export const studioAgent = {
   context: buildContext,
   hasResult,
   hasArtifact,
+  artifactKind,
 }
 
 export { readTimeline, scenesFromTimeline }

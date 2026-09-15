@@ -44,14 +44,18 @@ function abort(socket: Duplex, code: number, message: string): void {
   }
 }
 
-/** Verify the Clerk token and confirm the user owns an active session for this profile. */
-async function authorize(token: string | null, profileId: string): Promise<boolean> {
-  if (!token) return false
+/**
+ * Verify the Clerk token and confirm the user owns an active session for this
+ * profile. Returns the manager that runs it (every studio node has its own),
+ * or null when the request is not allowed.
+ */
+async function authorize(token: string | null, profileId: string): Promise<string | null> {
+  if (!token) return null
 
   const secretKey = process.env.CLERK_SECRET_KEY
   if (!secretKey) {
     logger.error('CLERK_SECRET_KEY missing — cannot verify VNC token')
-    return false
+    return null
   }
 
   let userId: string | undefined
@@ -60,18 +64,20 @@ async function authorize(token: string | null, profileId: string): Promise<boole
     userId = claims.sub
   } catch (err) {
     logger.warn({ err }, 'VNC token verification failed')
-    return false
+    return null
   }
-  if (!userId) return false
+  if (!userId) return null
 
   const sessions = await db.listActiveBrowserSessions(userId)
   // browser-host stores the manager profile id in `noVncUrl`.
-  return sessions.some((s: { noVncUrl: string | null }) => s.noVncUrl === profileId)
+  const session = sessions.find((s: { noVncUrl: string | null }) => s.noVncUrl === profileId)
+  if (!session) return null
+  return session.managerUrl || getManagerBaseUrl()
 }
 
 /** Pipe an accepted browser WS to the manager's VNC WS, both directions. */
-function bridge(client: WebSocket, profileId: string): void {
-  const target = `${getManagerBaseUrl().replace(/^http/, 'ws')}/api/profiles/${profileId}/vnc`
+function bridge(client: WebSocket, profileId: string, managerUrl: string): void {
+  const target = `${managerUrl.replace(/^http/, 'ws')}/api/profiles/${profileId}/vnc`
   // node ws client sends no Origin header → passes the manager CSWSH check.
   const upstream = new WebSocket(target, ['binary'], { headers: getManagerHeaders() })
 
@@ -137,12 +143,14 @@ export function attachVncProxy(server: Server): void {
     const token = url.searchParams.get('token')
 
     authorize(token, profileId)
-      .then(ok => {
-        if (!ok) {
+      .then(managerUrl => {
+        if (!managerUrl) {
           abort(socket, 403, 'Forbidden')
           return
         }
-        wss.handleUpgrade(req, socket, head, client => bridge(client as WebSocket, profileId))
+        wss.handleUpgrade(req, socket, head, client =>
+          bridge(client as WebSocket, profileId, managerUrl),
+        )
       })
       .catch(err => {
         logger.error({ err, profileId }, 'VNC upgrade failed')

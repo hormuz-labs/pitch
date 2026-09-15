@@ -4,16 +4,26 @@
 import { createLogger } from '@saas/shared'
 import express from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { addAssets, assetThumbnail, deleteAsset, listAssets } from '../projects/assets.js'
-import { cancelExport, exportProject, getExport } from '../projects/export.js'
 import * as projects from '../projects/service.js'
-import { projectThumbnail } from '../projects/thumbnails.js'
-import { onProjectEvent } from '../studio/events.js'
 import { isFlowId } from '../studio/paths.js'
-import { listStudioModels, peekSession, steerQueuedPrompt } from '../studio/session.js'
+import { listStudioModels } from '../studio/session.js'
+import { readCover } from '../worker/checkpoint.js'
+import { currentOwner, ownerFor, withOwner } from '../worker/client.js'
 
 const logger = createLogger('studio:routes')
 export const router = express.Router()
+
+/** What an export looks like on a project no worker holds: nothing running. */
+const IDLE_EXPORT = {
+  running: false,
+  res: null,
+  url: null,
+  progress: 0,
+  stage: 'idle',
+  error: null,
+  startedAt: null,
+  finishedAt: null,
+}
 
 function fail(res: express.Response, err: any, what: string) {
   const status = err?.status ?? (err?.code === 'BUSY' ? 409 : 500)
@@ -107,7 +117,7 @@ router.get('/:id/assets', async (req, res) => {
   if (!userId) return
   try {
     const p = await projects.getRow(userId, req.params.id)
-    res.json(await listAssets(projects.workspaceOf(p), p.id))
+    res.json(await withOwner(p.id, w => w.listAssets(p.id)))
   } catch (err) {
     fail(res, err, 'list assets failed')
   }
@@ -121,7 +131,7 @@ router.post('/:id/assets', async (req, res) => {
     const uploads = Array.isArray(req.body?.uploads) ? req.body.uploads : []
     if (!uploads.length) return res.status(400).json({ error: 'uploads is required' })
     const p = await projects.getRow(userId, req.params.id)
-    res.json(await addAssets(projects.workspaceOf(p), p.id, uploads))
+    res.json(await withOwner(p.id, w => w.addAssets(p.id, uploads)))
   } catch (err) {
     fail(res, err, 'add assets failed')
   }
@@ -135,7 +145,7 @@ router.delete('/:id/assets', async (req, res) => {
     const rel = String(req.query.path ?? '')
     if (!rel) return res.status(400).json({ error: 'path is required' })
     const p = await projects.getRow(userId, req.params.id)
-    const removed = await deleteAsset(projects.workspaceOf(p), rel)
+    const removed = await withOwner(p.id, w => w.deleteAsset(p.id, rel))
     res.json({ removed })
   } catch (err) {
     fail(res, err, 'delete asset failed')
@@ -153,10 +163,12 @@ router.get('/:id/assets/thumb', async (req, res) => {
   try {
     const p = await projects.getRow(userId, req.params.id)
     const at = req.query.at === undefined ? undefined : Number(req.query.at)
-    const buf = await assetThumbnail(projects.workspaceOf(p), {
-      path: String(req.query.path ?? ''),
-      at: Number.isFinite(at) ? at : undefined,
-    })
+    const buf = await withOwner(p.id, w =>
+      w.assetThumbnail(p.id, {
+        path: String(req.query.path ?? ''),
+        at: Number.isFinite(at) ? at : undefined,
+      }),
+    )
     if (!buf) return res.status(404).end()
     res.setHeader('Content-Type', 'image/jpeg')
     res.setHeader('Cache-Control', 'private, max-age=60')
@@ -208,8 +220,7 @@ router.post('/:id/queue/:entryId/steer', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
   try {
-    await projects.getRow(userId, req.params.id)
-    const steered = await steerQueuedPrompt(req.params.id, req.params.entryId)
+    const steered = await projects.steerProject(userId, req.params.id, req.params.entryId)
     if (!steered) return res.status(409).json({ error: 'That message is no longer queued' })
     res.json({ steered: true })
   } catch (err) {
@@ -232,13 +243,18 @@ router.get('/:id/messages', async (req, res) => {
   if (!userId) return
   try {
     const p = await projects.getRow(userId, req.params.id)
-    const entries = await projects.getEntries(p)
-    res.json({ entries, busy: peekSession(p.id)?.busy ?? false })
+    res.json(await projects.getEntries(p))
   } catch (err) {
     fail(res, err, 'messages failed')
   }
 })
 
+/**
+ * The project's event stream. The stream is held open by this replica but
+ * fed by the worker that holds the project — its bus is where the session,
+ * the watcher and the host tools speak. If that worker goes away the client
+ * sees an error event and reconnects, landing wherever the project is by then.
+ */
 router.get('/:id/events', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
@@ -254,13 +270,21 @@ router.get('/:id/events', async (req, res) => {
     Connection: 'keep-alive',
   })
   const send = (ev: unknown) => res.write(`data: ${JSON.stringify(ev)}\n\n`)
-  send({ type: 'hello', busy: peekSession(p.id)?.busy ?? false })
-  const off = onProjectEvent(p.id, send)
+  const gone = new AbortController()
   const keepAlive = setInterval(() => res.write(': ping\n\n'), 15000)
   req.on('close', () => {
     clearInterval(keepAlive)
-    off()
+    gone.abort()
   })
+  try {
+    const owner = await ownerFor(p.id)
+    await owner.events(p.id, send, gone.signal)
+  } catch (err: any) {
+    if (gone.signal.aborted) return
+    logger.warn({ err, projectId: p.id }, 'could not attach to the project stream')
+    send({ type: 'error', message: err?.message ?? 'The studio is unavailable right now' })
+    res.end()
+  }
 })
 
 router.get('/:id/thumbnail', async (req, res) => {
@@ -269,7 +293,12 @@ router.get('/:id/thumbnail', async (req, res) => {
   try {
     const p = await projects.getRow(userId, req.params.id)
     const t = Math.max(0, Number(req.query.t ?? 0))
-    const buf = await projectThumbnail(p, Number.isFinite(t) ? t : 0)
+    // A project nobody holds is not opened just to draw a card in the grid:
+    // the cover its last checkpoint left behind is enough.
+    const owner = await currentOwner(p.id)
+    const buf = owner
+      ? await owner.thumbnail(p.id, Number.isFinite(t) ? t : 0)
+      : await readCover(p.id).catch(() => null)
     if (!buf) return res.status(404).json({ error: 'no preview' })
     res.setHeader('Content-Type', 'image/jpeg')
     res.setHeader('Cache-Control', 'private, max-age=60')
@@ -283,7 +312,8 @@ router.post('/:id/export', async (req, res) => {
   const userId = requireAuth(req, res)
   if (!userId) return
   try {
-    res.json(await exportProject(userId, req.params.id, req.body ?? {}))
+    const p = await projects.getRow(userId, req.params.id)
+    res.json(await withOwner(p.id, w => w.startExport(p.id, req.body ?? {})))
   } catch (err) {
     fail(res, err, 'export failed')
   }
@@ -294,7 +324,8 @@ router.get('/:id/export', async (req, res) => {
   if (!userId) return
   try {
     const p = await projects.getRow(userId, req.params.id)
-    res.json(getExport(p.id))
+    const owner = await currentOwner(p.id)
+    res.json(owner ? await owner.exportStatus(p.id) : IDLE_EXPORT)
   } catch (err) {
     fail(res, err, 'export status failed')
   }
@@ -305,7 +336,8 @@ router.post('/:id/export/cancel', async (req, res) => {
   if (!userId) return
   try {
     const p = await projects.getRow(userId, req.params.id)
-    res.json({ cancelled: cancelExport(p.id) })
+    const owner = await currentOwner(p.id)
+    res.json({ cancelled: owner ? await owner.cancelExport(p.id) : false })
   } catch (err) {
     fail(res, err, 'export cancel failed')
   }

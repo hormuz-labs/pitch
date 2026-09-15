@@ -8,8 +8,8 @@ import { createLogger } from '@saas/shared'
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { normalizePublishedOutputs, normalizePublishedUrl } from '../projects/output-urls.js'
-import { deleteProject, failProject, getRow } from '../projects/service.js'
-import { listBusy } from '../studio/session.js'
+import { parseRow } from '../projects/rows.js'
+import { busyProjects, deleteProject, failProject, getRow } from '../projects/service.js'
 
 const logger = createLogger('studio:admin')
 export const router: Router = Router()
@@ -64,11 +64,12 @@ router.get('/dashboard', async (_req, res) => {
       orderBy: { createdAt: 'desc' },
     })
     const revenueAgg = await db.prisma.topUpPurchase.aggregate({ _sum: { amountUsd: true } })
-    const [totalProjects, failedProjects] = await Promise.all([
+    const [totalProjects, failedProjects, busyRows] = await Promise.all([
       db.prisma.project.count(),
       db.prisma.project.count({ where: { lastError: { not: null } } }),
+      db.prisma.project.findMany({ where: { busyAt: { not: null } } }),
     ])
-    const busy = listBusy()
+    const busy = await busyProjects(busyRows.map(parseRow))
 
     const usersData = users.map(u => {
       const balAgg = creditAggregates.find(b => b.userId === u.id)
@@ -137,7 +138,7 @@ async function decorate(rows: any[]) {
     select: { projectId: true },
   })
   const refunded = new Set(refunds.map(r => r.projectId))
-  const busy = listBusy()
+  const busy = await busyProjects(rows.map(parseRow))
   return rows.map(r => {
     const user = profiles.find(p => p.id === r.userId)
     const outputs = normalizePublishedOutputs(parse(r.outputs, []))

@@ -120,7 +120,8 @@ const pendingCreates = new Map<string, Promise<Session>>()
 let modelRuntime: any
 let initPromise: Promise<void> | null = null
 
-const AGENT_DIR = process.env.PI_AGENT_DIR || path.join(homedir(), '.pi', 'agent')
+/** Where pi keeps its transcripts; the same path on every studio node. */
+export const AGENT_DIR = process.env.PI_AGENT_DIR || path.join(homedir(), '.pi', 'agent')
 const SANDBOX_EXTENSION = path.join(PI_EXTENSIONS_DIR, 'bwrap-sandbox.ts')
 // Must be an id the pi runtime actually has: an unknown one is a warning, not
 // an error, and the studio silently falls back to pi's own default — which
@@ -263,10 +264,18 @@ function appendDelta(s: Session, id: string, delta: string): void {
   emit(s, { type: 'delta', id, delta })
 }
 
+type BusyHook = (projectId: string, busy: boolean) => void
+let busyHook: BusyHook | null = null
+/** The worker host records busy transitions on the project row (worker/host.ts). */
+export function onSessionBusy(hook: BusyHook | null): void {
+  busyHook = hook
+}
+
 function setBusy(s: Session, busy: boolean): void {
   if (s.busy === busy) return
   s.busy = busy
   emit(s, { type: 'status', busy })
+  busyHook?.(s.projectId, busy)
 }
 
 /** The text of a tool result, whatever shape pi gave it. */

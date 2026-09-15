@@ -120,6 +120,13 @@ services:
       # runs in its own container — it must reach this one by a name the compose
       # network resolves, not by loopback.
       STUDIO_INTERNAL_ORIGIN: http://api:3000
+      # This container is the API and a worker in one (STUDIO_ROLE=all). It
+      # registers itself under this id at this URL so worker nodes added later
+      # (see the `worker` service) and this one share the projects between them.
+      STUDIO_ROLE: ${STUDIO_ROLE:-all}
+      STUDIO_WORKER_ID: ${STUDIO_WORKER_ID:-api}
+      STUDIO_WORKER_URL: http://api:3000
+      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-4}
     volumes:
       # Project workspaces: sources, recordings, renders. The directory is the truth.
       - ./projects:/app/projects
@@ -143,12 +150,58 @@ services:
     group_add:
       - "${VIDEO_GID:-44}"
       - "${RENDER_GID:-992}"
+    # Long enough to checkpoint every held workspace to object storage before
+    # the process is killed (STUDIO_SHUTDOWN_GRACE_MS, default 60s).
+    stop_grace_period: 90s
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
       loki:
+        condition: service_healthy
+      cloakbrowser-manager:
+        condition: service_started
+
+  # A second studio worker on the same machine. Real capacity comes from
+  # running this image with STUDIO_ROLE=worker on other nodes (each with its
+  # own CloakBrowser manager, projects volume and pi volume) pointed at the
+  # same DATABASE_URL and MINIO_ENDPOINT; this service is the local shape of
+  # that, for trying the placement out. Needs STUDIO_WORKER_TOKEN in .env.
+  worker:
+    image: pitch-api:${IMAGE_TAG:-latest}
+    container_name: pitch_worker
+    restart: always
+    profiles: ["worker"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_URL: http://localhost:9002
+      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+      STUDIO_INTERNAL_ORIGIN: http://worker:3000
+      STUDIO_ROLE: worker
+      STUDIO_WORKER_ID: worker-1
+      STUDIO_WORKER_URL: http://worker:3000
+      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-4}
+    volumes:
+      - ./docker-data/worker-1/projects:/app/projects
+      - ./docker-data/worker-1/pi:/root/.pi/agent
+      - ./docker-data/whisper:/root/.cache/whisper-cpp
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    cap_add:
+      - SYS_ADMIN
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"
+    stop_grace_period: 90s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
       cloakbrowser-manager:
         condition: service_started

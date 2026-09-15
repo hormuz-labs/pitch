@@ -3,83 +3,57 @@
  * workspace and starts the first agent turn; every later prompt is free.
  * Status is derived (session busy + what the flow finds in the workspace);
  * outputs published to object storage are recorded on the row.
+ *
+ * This is the API's side of a project: authorisation, credits, the row, and
+ * placement. Anything that needs the workspace or the session goes to the
+ * worker holding the lease (worker/client.ts) — which is this very process
+ * in the single-box layout, and some other node otherwise.
  */
-import { existsSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
-import path from 'node:path'
 import * as db from '@saas/db'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
-import { getAgent } from '../flows/index.js'
-import type { Description, Output, UploadRef } from '../flows/types.js'
-import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
-import { deleteWorkspaceHistory } from '../studio/history.js'
+import type { Description, UploadRef } from '../flows/types.js'
+import { publishProjectEvent } from '../studio/events.js'
+import { estimatedModelCredits, selectStudioModel } from '../studio/model-picker.js'
+import { type FlowId, isValidProjectName, slugify } from '../studio/paths.js'
+import { type Entry, listStudioModels } from '../studio/session.js'
+import { currentOwner, ownerFor, withOwner } from '../worker/client.js'
+import { IS_WORKER } from '../worker/config.js'
 import {
-  estimatedModelCredits,
-  selectStudioModel,
-  videoGenerationCostUsd,
-  videoGenerationCredits,
-} from '../studio/model-picker.js'
-import {
-  type FlowId,
-  isValidProjectName,
-  PROJECTS_DIR,
-  slugify,
-  type Workspace,
-  workspaceFor,
-} from '../studio/paths.js'
-import {
-  closeSession,
-  type Entry,
-  getSessionEntries,
-  listBusy,
-  listStudioModels,
-  type PromptDelivery,
-  peekSession,
-  promptSession,
-  rollbackSession,
-  stopSession,
-  takeModelCost,
-} from '../studio/session.js'
+  discardLocal,
+  followFirstTurn,
+  type PromptOptions,
+  type PromptProjectResult,
+} from '../worker/host.js'
+import { isLive } from '../worker/lease.js'
 import { normalizeCreationOptions } from './creation-options.js'
-import { normalizePublishedOutputs, normalizePublishedUrl } from './output-urls.js'
-import { projectTitle, replaceLegacyUrlTitle } from './title.js'
-import { chargeTurn, MIN_BALANCE } from './usage.js'
+import {
+  getRow,
+  InsufficientCreditsError,
+  type ProjectRow,
+  type ProjectStatus,
+  parseAndUpgradeRow,
+  parseRow,
+} from './rows.js'
+import { projectTitle } from './title.js'
+import { MIN_BALANCE } from './usage.js'
+
+export {
+  addOutput,
+  failProject,
+  getRow,
+  InsufficientCreditsError,
+  NotFoundError,
+  type ProjectRow,
+  type ProjectStatus,
+  projectRowFor,
+  rowById,
+  syncOutputs,
+  updateProject,
+  workspaceOf,
+} from './rows.js'
+export { followFirstTurn, type PromptOptions, type PromptProjectResult }
 
 const logger = createLogger('studio:projects')
-
-export class InsufficientCreditsError extends Error {
-  status = 402
-  constructor(public balance: number) {
-    super(`Insufficient credits (balance: ${balance})`)
-  }
-}
-export class NotFoundError extends Error {
-  status = 404
-}
-
-export type ProjectStatus = 'empty' | 'working' | 'ready' | 'failed'
-
-export interface ProjectRow {
-  id: string
-  userId: string
-  flow: FlowId
-  name: string
-  title: string
-  prompt: string
-  options: Record<string, any>
-  sessionFile: string | null
-  creditsCharged: number
-  outputs: Output[]
-  thumbnailUrl: string | null
-  lastError: string | null
-  isPublic: boolean
-  shareSlug: string | null
-  shareViews: number
-  /** Where the project was started: "app", "api", or "discord". */
-  source: string
-  createdAt: string
-  updatedAt: string
-}
 
 export interface ProjectInfo extends ProjectRow {
   status: ProjectStatus
@@ -90,46 +64,11 @@ export interface ProjectDetail extends ProjectInfo {
   description: Description
 }
 
-function parseRow(r: any): ProjectRow {
-  const outputs = safeJson<Output[]>(r.outputs, [])
-  return {
-    ...r,
-    options: safeJson(r.options, {}),
-    outputs: normalizePublishedOutputs(outputs),
-    thumbnailUrl: r.thumbnailUrl ? normalizePublishedUrl(r.thumbnailUrl) : null,
-    createdAt: new Date(r.createdAt).toISOString(),
-    updatedAt: new Date(r.updatedAt).toISOString(),
-  }
-}
-
-async function parseAndUpgradeRow(r: any): Promise<ProjectRow> {
-  const p = parseRow(r)
-  const title = replaceLegacyUrlTitle(p.title, p.prompt)
-  if (title === p.title) return p
-  await db.prisma.project
-    .updateMany({ where: { id: p.id, title: p.title }, data: { title } })
-    .catch(err => logger.warn({ err, projectId: p.id }, 'could not persist improved project title'))
-  return { ...p, title }
-}
-
-function safeJson<T>(v: unknown, fallback: T): T {
-  if (typeof v !== 'string') return (v as T) ?? fallback
-  try {
-    return JSON.parse(v) as T
-  } catch {
-    return fallback
-  }
-}
-
-export function workspaceOf(p: Pick<ProjectRow, 'flow' | 'userId' | 'name'>): Workspace {
-  return workspaceFor(p.flow, p.userId, p.name)
-}
-
 function statusOf(
   p: ProjectRow,
   busy: boolean,
   desc: Description | null,
-  /** Cheap filesystem answer, for lists that do not describe every project. */
+  /** The worker's cached answer, for lists that do not describe every project. */
   artifact = false,
 ): ProjectStatus {
   if (busy) return 'working'
@@ -141,10 +80,18 @@ function statusOf(
 
 // ── Reads ─────────────────────────────────────────────────────────────────────
 
-export async function getRow(userId: string, id: string): Promise<ProjectRow> {
-  const r = await db.prisma.project.findFirst({ where: { id, userId } })
-  if (!r) throw new NotFoundError('Project not found')
-  return parseAndUpgradeRow(r)
+/**
+ * Whether each row's turn is really running: `busyAt` is the worker's word,
+ * and it only counts while that worker is alive at the epoch that set it.
+ */
+export async function busyProjects(rows: ProjectRow[]): Promise<Set<string>> {
+  const candidates = rows.filter(r => r.busyAt && r.workerId)
+  if (!candidates.length) return new Set()
+  const workers = await db.prisma.studioWorker.findMany({
+    where: { id: { in: [...new Set(candidates.map(r => r.workerId!))] } },
+  })
+  const live = new Map(workers.filter(w => isLive(w)).map(w => [w.id, w.epoch]))
+  return new Set(candidates.filter(r => live.get(r.workerId!) === r.workerEpoch).map(r => r.id))
 }
 
 export async function listProjects(userId: string, flow?: FlowId): Promise<ProjectInfo[]> {
@@ -152,25 +99,21 @@ export async function listProjects(userId: string, flow?: FlowId): Promise<Proje
     where: { userId, ...(flow ? { flow } : {}) },
     orderBy: { createdAt: 'desc' },
   })
-  const busy = listBusy()
-  const agent = getAgent()
+  const parsed = await Promise.all(rows.map(parseAndUpgradeRow))
+  const busy = await busyProjects(parsed)
   // A project opened from a drop has a preview and no output yet, so the row
-  // alone cannot tell whether it is empty. Ask the filesystem, cheaply.
-  return Promise.all(
-    rows.map(async r => {
-      const p = await parseAndUpgradeRow(r)
-      const artifact = await agent.hasArtifact(workspaceOf(p)).catch(() => false)
-      return { ...p, busy: busy.has(p.id), status: statusOf(p, busy.has(p.id), null, artifact) }
-    }),
-  )
+  // alone cannot tell whether it is empty; the worker keeps artifactKind for
+  // exactly this question.
+  return parsed.map(p => ({
+    ...p,
+    busy: busy.has(p.id),
+    status: statusOf(p, busy.has(p.id), null, p.artifactKind !== null),
+  }))
 }
 
 export async function describeProject(p: ProjectRow): Promise<Description> {
-  const agent = getAgent()
-  const ws = workspaceOf(p)
-  if (!existsSync(ws.dir)) return { preview: null, outputs: [] }
   try {
-    return await agent.describe(ws)
+    return await withOwner(p.id, w => w.describe(p.id))
   } catch (err: any) {
     logger.warn({ err, projectId: p.id }, 'describe failed')
     return { preview: null, outputs: [], error: err.message }
@@ -179,22 +122,19 @@ export async function describeProject(p: ProjectRow): Promise<Description> {
 
 export async function getProject(userId: string, id: string): Promise<ProjectDetail> {
   const p = await getRow(userId, id)
-  const description = await describeProject(p)
-  const busy = peekSession(p.id)?.busy ?? false
+  const owner = await ownerFor(p.id)
+  const [description, busy] = await Promise.all([
+    owner.describe(p.id).catch((err: any) => {
+      logger.warn({ err, projectId: p.id }, 'describe failed')
+      return { preview: null, outputs: [], error: err.message } as Description
+    }),
+    owner.busy(p.id).catch(() => false),
+  ])
   return { ...p, busy, status: statusOf(p, busy, description), description }
 }
 
-function sessionOptions(p: ProjectRow) {
-  return {
-    projectId: p.id,
-    ws: workspaceOf(p),
-    agent: getAgent(),
-    sessionFile: p.sessionFile,
-  }
-}
-
-export async function getEntries(p: ProjectRow): Promise<Entry[]> {
-  return getSessionEntries(sessionOptions(p))
+export async function getEntries(p: ProjectRow): Promise<{ entries: Entry[]; busy: boolean }> {
+  return withOwner(p.id, w => w.entries(p.id))
 }
 
 // ── Writes ────────────────────────────────────────────────────────────────────
@@ -205,10 +145,10 @@ async function uniqueName(userId: string, flow: FlowId, base: string): Promise<s
       r => r.name,
     ),
   )
-  if (!taken.has(base) && !existsSync(workspaceFor(flow, userId, base).dir)) return base
+  if (!taken.has(base)) return base
   for (let i = 2; ; i++) {
     const n = `${base}-${i}`
-    if (!taken.has(n) && !existsSync(workspaceFor(flow, userId, n).dir)) return n
+    if (!taken.has(n)) return n
   }
 }
 
@@ -236,7 +176,6 @@ export async function createProject(
   userId: string,
   input: CreateProjectInput,
 ): Promise<ProjectDetail> {
-  const agent = getAgent()
   const prompt = String(input.prompt ?? '').trim()
   if (!prompt && !input.uploads?.length)
     throw Object.assign(new Error('prompt is required'), { status: 400 })
@@ -253,7 +192,7 @@ export async function createProject(
   if (Array.isArray(options.referenceVideoFiles)) {
     const uploadedPaths = new Map(
       uploads.map(upload => {
-        const originalName = path.basename(upload.name)
+        const originalName = upload.name.split('/').pop() ?? upload.name
         const workspaceName = originalName.replace(/[^\w.-]+/g, '_') || 'upload'
         return [originalName, `uploads/${workspaceName}`]
       }),
@@ -294,9 +233,9 @@ export async function createProject(
   })
   const p = parseRow(row)
 
-  const ws = workspaceOf(p)
   try {
-    await agent.prepare(ws, options, uploads)
+    const owner = await ownerFor(p.id)
+    await owner.prepare(p.id, options, uploads)
     if (prompt)
       await promptProject(p, prompt, {
         first: true,
@@ -305,6 +244,7 @@ export async function createProject(
       })
   } catch (err: any) {
     logger.error({ err, projectId: p.id }, 'could not open the project')
+    const { failProject } = await import('./rows.js')
     await failProject(p, `Could not start: ${err.message}`, false)
     throw err
   }
@@ -321,238 +261,47 @@ export async function createProject(
   return getProject(userId, p.id)
 }
 
-interface PromptOptions {
-  first?: boolean
-  targets?: Array<Record<string, any>>
-  scene?: string | null
-  slide?: number | null
-  uploads?: UploadRef[]
-  /** Extra per-turn option overrides (e.g. a newly picked music bed). */
-  options?: Record<string, any>
-  /** This turn's model pick; overrides the one stored in the project's options. */
-  model?: string
-  /** While busy, queue after the active turn or steer it at the next model boundary. */
-  delivery?: PromptDelivery
-  /** Text shown in the thread when `text` also contains a generated target legend. */
-  displayText?: string
-  /** Explicit billing pool for service-created turns. */
-  billingChannel?: 'product' | 'api' | 'discord'
-}
-
-export interface PromptProjectResult {
-  delivery: 'started' | 'queued' | 'steered'
-  turn: number
-  entryId: string
-}
-
 export async function promptProject(
   p: ProjectRow,
   text: string,
   opts: PromptOptions = {},
 ): Promise<PromptProjectResult> {
-  const agent = getAgent()
-  const ws = workspaceOf(p)
-  const first = opts.first ?? false
-  const model = selectStudioModel(await listStudioModels(p.userId), opts.model, p.options?.model)
-  if (opts.uploads?.length && !first)
-    await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
-  const context = () =>
-    agent.context(ws, {
-      first,
-      options: { ...p.options, ...(opts.options ?? {}) },
-      targets: opts.targets,
-      scene: opts.scene ?? null,
-      slide: opts.slide ?? null,
-    })
-  // This turn's pick wins; otherwise the project keeps running on the model
-  // it was created (or last prompted) with.
-  if (p.options?.model !== model) {
-    p.options = { ...p.options, model }
-    void db.prisma.project
-      .update({ where: { id: p.id }, data: { options: JSON.stringify(p.options) } })
-      .catch(() => {})
-  }
-  const result = await promptSession(
-    {
-      projectId: p.id,
-      ws,
-      agent,
-      sessionFile: p.sessionFile,
-      // The words decide the toolkit when the workspace is still empty, and
-      // widen it later: "now turn this deck into a video" needs motion tools
-      // the deck session was never given.
-      prompt: `${p.prompt ?? ''}\n${text}`,
-      uploads: opts.uploads?.map(u => u.name),
-      model,
-    },
-    text,
-    context,
-    opts.delivery,
-    opts.displayText,
-  )
-  if (result.delivery !== 'steered') billTurn(p, result.turn, opts.billingChannel, model, first)
-  if (first) followFirstTurn(p, result.turn)
-  if (p.lastError)
-    await db.prisma.project
-      .update({ where: { id: p.id }, data: { lastError: null } })
-      .catch(() => {})
-  return { delivery: result.delivery, turn: result.turn, entryId: result.entryId }
-}
-
-/**
- * Bill the turn when it settles. Nothing was charged to open the project, so
- * this is where the money is: the model spend it used plus the machine time
- * its host actions burned.
- */
-function billTurn(
-  p: ProjectRow,
-  turn: number,
-  channel: 'product' | 'api' | 'discord' = p.source === 'api' ? 'api' : 'product',
-  model?: string,
-  first = false,
-): void {
-  const off = onProjectEvent(p.id, (ev: StudioEvent) => {
-    if (ev.type !== 'idle' || ev.turn !== turn) return
-    off()
-    const providerUsd =
-      first && model ? videoGenerationCostUsd(model, Number(p.options?.durationSeconds ?? 30)) : 0
-    const productCredits =
-      first && model ? videoGenerationCredits(model, Number(p.options?.durationSeconds ?? 30)) : 0
-    void chargeTurn(p, takeModelCost(p.id), channel, model, providerUsd, productCredits).catch(
-      err => logger.warn({ err, projectId: p.id }, 'could not bill the turn'),
-    )
-  })
-}
-
-/** Sync the first output and flag actual failures, not conversational turns. */
-export function followFirstTurn(p: ProjectRow, turn: number): void {
-  let waitingForQueue = false
-  const off = onProjectEvent(p.id, (ev: StudioEvent) => {
-    if (ev.type !== 'idle') return
-    if (!waitingForQueue && ev.turn !== turn) return
-    // A queued follow-up may be the turn that produces the first artifact, so
-    // assess the project only after the accepted queue drains.
-    if (ev.busy) {
-      waitingForQueue = true
-      return
-    }
-    off()
-    void (async () => {
-      const agent = getAgent()
-      const ok = await agent.hasResult(workspaceOf(p)).catch(() => false)
-      if (ok) {
-        await syncOutputs(p.userId, p.id).catch(() => {})
-        return
-      }
-      // A greeting, explanation or question card can finish successfully with
-      // no artifact. Keep the project empty and ready for the next message.
-      if (!ev.aborted && !ev.failed) return
-      await failProject(
-        p,
-        ev.aborted ? 'Stopped before anything was produced' : 'The agent failed',
-        true,
-      )
-    })()
-  })
-}
-
-export async function failProject(p: ProjectRow, error: string, refund: boolean): Promise<void> {
-  await db.prisma.project
-    .update({ where: { id: p.id }, data: { lastError: error } })
-    .catch(() => {})
-  if (refund && p.creditsCharged > 0) {
-    await db
-      .refundProjectUsage(p.userId, p.id)
-      .catch(err => logger.warn({ err, projectId: p.id }, 'refund failed'))
-  }
-  emitProjectEvent(p.id, {
-    type: 'project',
-    project: await getRow(p.userId, p.id).catch(() => null),
-  })
-}
-
-/** Record an output published to object storage on the project row. */
-/**
- * The project row a workspace belongs to. Flow-agnostic on purpose: a
- * workspace is identified by its owner and its name, and what the agent has
- * been asked to make in it can change from one turn to the next.
- */
-export async function projectRowFor(ws: { userId: string; name: string }) {
-  return db.prisma.project.findFirst({ where: { userId: ws.userId, name: ws.name } })
-}
-
-export async function addOutput(userId: string, id: string, output: Output): Promise<ProjectRow> {
-  const p = await getRow(userId, id)
-  const outputs = [
-    output,
-    ...p.outputs.filter(o => !(o.kind === output.kind && o.res === output.res)),
-  ]
-  const thumbnailUrl = output.kind === 'thumbnail' ? output.url : p.thumbnailUrl
-  const row = await db.prisma.project.update({
-    where: { id },
-    data: { outputs: JSON.stringify(outputs), thumbnailUrl, lastError: null },
-  })
-  const updated = parseRow(row)
-  emitProjectEvent(id, { type: 'project', project: updated })
-  void dispatchProjectWebhooks(updated)
-  return updated
-}
-
-/** Flows publish outputs themselves; this re-reads the workspace after a turn as a safety net. */
-export async function syncOutputs(userId: string, id: string): Promise<void> {
-  const p = await getRow(userId, id)
-  emitProjectEvent(id, { type: 'project', project: p })
+  return withOwner(p.id, w => w.prompt(p.id, text, opts))
 }
 
 export async function stopProject(userId: string, id: string): Promise<boolean> {
   const p = await getRow(userId, id)
-  return stopSession(p.id)
+  const owner = await currentOwner(p.id)
+  if (!owner) return false
+  return owner.stop(p.id)
+}
+
+export async function steerProject(userId: string, id: string, entryId: string): Promise<boolean> {
+  const p = await getRow(userId, id)
+  const owner = await currentOwner(p.id)
+  if (!owner) return false
+  return owner.steer(p.id, entryId)
 }
 
 export async function rollbackProject(userId: string, id: string, entryId: string) {
   const p = await getRow(userId, id)
-  const result = await rollbackSession(sessionOptions(p), entryId)
-  const row = await db.prisma.project.update({
-    where: { id },
-    data: {
-      outputs: result.project.outputs as any,
-      thumbnailUrl: result.project.thumbnailUrl,
-      lastError: result.project.lastError,
-    },
-  })
-  const project = parseRow(row)
-  emitProjectEvent(id, { type: 'project', project })
-  return { text: result.text, entries: result.entries, project }
+  return withOwner(p.id, w => w.rollback(p.id, entryId))
 }
 
 export async function deleteProject(userId: string, id: string): Promise<void> {
   const p = await getRow(userId, id)
-  const ws = workspaceOf(p)
-  await closeSession(p.id, p.sessionFile, ws.dir)
-  await deleteWorkspaceHistory(ws.dir)
-  emitProjectEvent(p.id, { type: 'deleted' })
-  await db.prisma.project.delete({ where: { id } })
-  if (path.dirname(ws.dir) === PROJECTS_DIR && existsSync(ws.dir)) {
-    await rm(ws.dir, { recursive: true, force: true })
+  const owner = await currentOwner(p.id)
+  if (owner) {
+    await owner.remove(p)
+  } else {
+    if (IS_WORKER) await discardLocal(p).catch(() => {})
+    const { deleteCheckpoints } = await import('../worker/checkpoint.js')
+    await deleteCheckpoints(p.id).catch(err =>
+      logger.warn({ err, projectId: p.id }, 'could not delete workspace checkpoints'),
+    )
   }
-}
-
-export async function updateProject(
-  userId: string,
-  id: string,
-  data: { title?: string; options?: Record<string, any> },
-): Promise<ProjectRow> {
-  const p = await getRow(userId, id)
-  const row = await db.prisma.project.update({
-    where: { id },
-    data: {
-      ...(data.title ? { title: data.title } : {}),
-      ...(data.options ? { options: JSON.stringify({ ...p.options, ...data.options }) } : {}),
-    },
-  })
-  const updated = parseRow(row)
-  emitProjectEvent(id, { type: 'project', project: updated })
-  return updated
+  publishProjectEvent(p.id, { type: 'deleted' })
+  await db.prisma.project.delete({ where: { id } })
 }
 
 // ── Sharing ───────────────────────────────────────────────────────────────────
@@ -587,27 +336,4 @@ export async function getPublicProject(shareSlug: string): Promise<ProjectRow | 
     .update({ where: { id: r.id }, data: { shareViews: { increment: 1 } } })
     .catch(() => {})
   return parseAndUpgradeRow(r)
-}
-
-// ── Webhooks (job.completed compatibility) ────────────────────────────────────
-
-async function dispatchProjectWebhooks(p: ProjectRow): Promise<void> {
-  try {
-    const { enqueueWebhookDeliveries } = await import('../lib/webhooks.js')
-    const video = p.outputs.find(o => o.kind === 'video')
-    const pdf = p.outputs.find(o => o.kind === 'pdf')
-    await enqueueWebhookDeliveries({
-      id: p.id,
-      userId: p.userId,
-      status: 'COMPLETED',
-      videoUrl: video?.url ?? null,
-      pdfUrl: pdf?.url ?? null,
-      thumbnailUrl: p.thumbnailUrl,
-      parameters: { jobType: p.flow, projectId: p.id, title: p.title, ...p.options },
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-    })
-  } catch (err) {
-    logger.warn({ err, projectId: p.id }, 'webhook dispatch failed')
-  }
 }

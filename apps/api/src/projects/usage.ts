@@ -19,7 +19,7 @@ import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
 import { takeComputeSeconds } from '../studio/host-actions.js'
 import { modelCreditMultiplier, platformMargin } from '../studio/model-picker.js'
-import { type ProjectRow, workspaceOf } from './service.js'
+import { type ProjectRow, workspaceOf } from './rows.js'
 
 const logger = createLogger('studio:usage')
 
