@@ -36,7 +36,12 @@ const values = {
 // What each mode renders and which variables it needs. `app` is the
 // kustomization; the others are single files applied on their own.
 const standalone = {
-  migrate: { file: 'migrate.yaml', needs: ['API_IMAGE', 'CLOUD_SQL_CONNECTION_NAME', 'RELEASE'] },
+  // The Job runs before the app is applied, so it brings the namespace and
+  // the service account (Workload Identity to Cloud SQL) along.
+  migrate: {
+    files: ['namespace.yaml', 'service-account.yaml', 'migrate.yaml'],
+    needs: ['API_IMAGE', 'CLOUD_SQL_CONNECTION_NAME', 'GCP_SERVICE_ACCOUNT', 'RELEASE'],
+  },
   tailscale: { file: 'tailscale/connector.yaml', needs: ['TAILSCALE_ROUTES'] },
   node: { file: 'tailscale/node.yaml', needs: ['NODE_NAME', 'NODE_TAILNET_FQDN'] },
 }
@@ -54,13 +59,14 @@ const substitute = yaml =>
   })
 const source = fileURLToPath(new URL('../infra/gke/', import.meta.url))
 if (mode !== 'app') {
-  process.stdout.write(substitute(readFileSync(path.join(source, standalone[mode].file), 'utf8')))
+  const files = standalone[mode].files ?? [standalone[mode].file]
+  process.stdout.write(files.map(f => substitute(readFileSync(path.join(source, f), 'utf8'))).join('\n---\n'))
   process.exit(0)
 }
 const dir = mkdtempSync(path.join(tmpdir(), 'pitch-gke-'))
 try {
   // Only the kustomization's own files; the standalone ones live beside it.
-  for (const name of readdirSync(source).filter(name => name.endsWith('.yaml') && name !== standalone.migrate.file))
+  for (const name of readdirSync(source).filter(name => name.endsWith('.yaml') && name !== 'migrate.yaml'))
     writeFileSync(path.join(dir, name), substitute(readFileSync(path.join(source, name), 'utf8')))
   const result = spawnSync(process.env.KUSTOMIZE_BIN || 'kubectl', [process.env.KUSTOMIZE_BIN ? 'build' : 'kustomize', dir], { encoding: 'utf8' })
   if (result.error) throw result.error
