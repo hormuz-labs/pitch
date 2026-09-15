@@ -46,6 +46,7 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
         kubernetes.io/arch: amd64
+        pool: system
       containers:
         - name: browser
           image: cloakbrowser-manager
