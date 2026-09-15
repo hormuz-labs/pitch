@@ -92,9 +92,11 @@ spec:
             timeoutSeconds: 5
           # Stateless and proxying: it needs little, and the HPA adds pods
           # before one gets busy.
+          # Idle is ~120 MB, but /mcp and /v1 accept 750 MB JSON bodies and
+          # buffer them, so the ceiling has to clear one large upload.
           resources:
-            requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 1Gi }
-            limits: { cpu: '1', memory: 2Gi, ephemeral-storage: 4Gi }
+            requests: { cpu: 500m, memory: 1Gi, ephemeral-storage: 1Gi }
+            limits: { cpu: '2', memory: 3Gi, ephemeral-storage: 4Gi }
           volumeMounts:
             - { name: scratch, mountPath: /tmp }
       volumes:

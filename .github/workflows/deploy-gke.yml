@@ -113,5 +113,5 @@ jobs:
           kubectl rollout status deployment/pitch -n pitch --timeout=900s
           # Each worker drains gently (up to STUDIO_DRAIN_MS) before its replacement starts.
           kubectl rollout status statefulset/pitch-worker -n pitch --timeout=5h
-          kubectl exec -n pitch pitch-worker-0 -c api -- node scripts/sandbox-check.mjs
+          kubectl exec -n pitch pitch-worker-0 -c worker -- node scripts/sandbox-check.mjs
           curl --fail --retry 12 --retry-delay 10 "https://$API_HOST/health/ready"

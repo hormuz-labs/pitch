@@ -30,7 +30,7 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
                                           │ /internal/worker (STUDIO_WORKER_TOKEN)
                                           ▼
                  StatefulSet pitch-worker  STUDIO_ROLE=worker KEDA on slots, 1–8
-                   pitch-worker-0  ┐  each: api + CloakBrowser + cloud-sql-proxy,
+                   pitch-worker-0  ┐  each: worker + CloakBrowser + cloud-sql-proxy,
                    pitch-worker-1  │        its own disk (warm workspaces),
                    …               ┘        STUDIO_WORKER_URL = pod IP
                  Deployment pitch-browser  the manager API pods share for /browser
@@ -332,7 +332,7 @@ into `docker-data/whisper`).
   SQL (and, on workers, real writes on the project volume); it returns 503
   while draining or when checks fail. The browser and SQL proxy have
   independent pod probes.
-- Run `kubectl exec -n pitch pitch-worker-0 -c api -- node scripts/sandbox-check.mjs`.
+- Run `kubectl exec -n pitch pitch-worker-0 -c worker -- node scripts/sandbox-check.mjs`.
   Verify its isolation results; never fall back to `STUDIO_SANDBOX=none`.
 - Create a project, send a prompt, reconnect its SSE stream, then
   `kubectl delete pod pitch-worker-0` mid-turn: the turn finishes on the old

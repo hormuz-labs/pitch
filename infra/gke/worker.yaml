@@ -115,7 +115,8 @@ spec:
             requests: { cpu: 100m, memory: 128Mi }
             limits: { cpu: '1', memory: 512Mi }
       containers:
-        - name: api
+        # The same program as the API pods, started in the worker role.
+        - name: worker
           image: pitch-api
           command: [bun, apps/api/src/index.ts]
           ports:
