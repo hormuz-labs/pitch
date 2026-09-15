@@ -85,9 +85,10 @@ describe('RELEVANT', () => {
 })
 
 describe('usage billing', () => {
-  it('adds model spend to metered compute time', () => {
-    expect(usageUsd({ modelUsd: 0.5, computeSeconds: 0 })).toBeCloseTo(0.5)
-    expect(usageUsd({ modelUsd: 0, computeSeconds: 100 })).toBeCloseTo(100 * COMPUTE_USD_PER_SEC)
+  it('adds model spend to metered compute time, then applies the platform margin', () => {
+    expect(usageUsd({ modelUsd: 0.5, computeSeconds: 0 }, 1, 1)).toBeCloseTo(0.5)
+    expect(usageUsd({ modelUsd: 0, computeSeconds: 100 }, 1, 1)).toBeCloseTo(100 * COMPUTE_USD_PER_SEC)
+    expect(usageUsd({ modelUsd: 0.5, computeSeconds: 0 }, 1, 1.25)).toBeCloseTo(0.625)
   })
 
   it('never bills negative usage', () => {

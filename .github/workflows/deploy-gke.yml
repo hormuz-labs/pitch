@@ -20,26 +20,13 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    env:
-      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev
-      IMAGE_PREFIX: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}
-      API_HOST: ${{ vars.GKE_API_HOST }}
-      # Optional: more hosts for the same load balancer, e.g. api.trypitch.co once it moves.
-      API_EXTRA_HOSTS: ${{ vars.GKE_API_EXTRA_HOSTS }}
-      APP_URL: ${{ vars.GKE_APP_URL }}
-      MEDIA_PUBLIC_URL: ${{ vars.GKE_MEDIA_PUBLIC_URL }}
-      GCP_SERVICE_ACCOUNT: ${{ vars.GKE_RUNTIME_SERVICE_ACCOUNT }}
-      CLOUD_SQL_CONNECTION_NAME: ${{ vars.CLOUD_SQL_CONNECTION_NAME }}
-      GKE_STATIC_IP_NAME: ${{ vars.GKE_STATIC_IP_NAME }}
-      MEDIA_BUCKET: ${{ vars.GKE_MEDIA_BUCKET }}
-      PROFILES_BUCKET: ${{ vars.GKE_PROFILES_BUCKET }}
-      WORKSPACE_BUCKET: ${{ vars.GKE_WORKSPACE_BUCKET }}
-      CLOAK_IMAGE: ${{ vars.CLOAK_IMAGE }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      - name: Install test tooling
+        run: sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils
       - name: Verify application
         run: |
           bun install --frozen-lockfile
@@ -48,6 +35,25 @@ jobs:
           bunx tsc --noEmit -p apps/web/tsconfig.solid.json
           # Match Bun's module resolution; the legacy composite config excludes .pi.
           bunx tsc --noEmit -p apps/api/tsconfig.json --composite false --rootDir . --module ESNext --moduleResolution Bundler --allowImportingTsExtensions
+      # Set after the tests on purpose: the application reads APP_URL and friends,
+      # and the suite must see the same environment as a developer's machine.
+      - name: Deployment variables
+        run: |
+          cat >> "$GITHUB_ENV" <<EOF
+          REGISTRY=${{ vars.GCP_REGION }}-docker.pkg.dev
+          IMAGE_PREFIX=${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}
+          API_HOST=${{ vars.GKE_API_HOST }}
+          API_EXTRA_HOSTS=${{ vars.GKE_API_EXTRA_HOSTS }}
+          APP_URL=${{ vars.GKE_APP_URL }}
+          MEDIA_PUBLIC_URL=${{ vars.GKE_MEDIA_PUBLIC_URL }}
+          GCP_SERVICE_ACCOUNT=${{ vars.GKE_RUNTIME_SERVICE_ACCOUNT }}
+          CLOUD_SQL_CONNECTION_NAME=${{ vars.CLOUD_SQL_CONNECTION_NAME }}
+          GKE_STATIC_IP_NAME=${{ vars.GKE_STATIC_IP_NAME }}
+          MEDIA_BUCKET=${{ vars.GKE_MEDIA_BUCKET }}
+          PROFILES_BUCKET=${{ vars.GKE_PROFILES_BUCKET }}
+          WORKSPACE_BUCKET=${{ vars.GKE_WORKSPACE_BUCKET }}
+          CLOAK_IMAGE=${{ vars.CLOAK_IMAGE }}
+          EOF
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}

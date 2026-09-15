@@ -730,14 +730,9 @@ it('rejects unsupported codecs explicitly instead of transcoding', async () => {
 
 it('rejects non-square pixels, rotation and HDR rather than changing display appearance', async () => {
   await movie('sar.mp4', ['-vf', 'setsar=2'])
-  await movie('hdr.mp4', [
-    '-color_trc',
-    'smpte2084',
-    '-color_primaries',
-    'bt2020',
-    '-colorspace',
-    'bt2020nc',
-  ])
+  // Tag the colorimetry in the filter graph: output-side -color_* flags stopped
+  // reaching libx264's stream metadata in FFmpeg 9.
+  await movie('hdr.mp4', ['-vf', 'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc'])
   const source = await movie()
   await exec('ffmpeg', [
     '-v',
