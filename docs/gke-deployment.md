@@ -191,15 +191,40 @@ server proxy, below).
 
 GitHub configuration:
 
-- **Repository** variable `DEPLOY_TARGET=gke` selects this workflow and disables
-  the legacy Compose deploy. Set this only at cutover. Before that, use the
-  manual render/apply procedure against staging.
-- `production-gke` environment variables: `GCP_PROJECT_ID`, `GCP_REGION`,
-  `GCP_ARTIFACT_REPOSITORY`, `GCP_WORKLOAD_IDENTITY_PROVIDER`,
-  `GKE_DEPLOY_SERVICE_ACCOUNT`, `GKE_RUNTIME_SERVICE_ACCOUNT`, `GKE_CLUSTER`,
-  `GKE_LOCATION`, `CLOUD_SQL_CONNECTION_NAME`, `GKE_STATIC_IP_NAME`,
-  `GKE_API_HOST`, `GKE_APP_URL`, `GKE_MEDIA_PUBLIC_URL`, `GKE_MEDIA_BUCKET`,
-  `GKE_PROFILES_BUCKET`, `GKE_WORKSPACE_BUCKET`, `CLOAK_IMAGE`.
+- **Repository** variable `DEPLOY_TARGET`: `both` runs this workflow *and*
+  the legacy Compose deploy on every push to `main` (the transition, while
+  `api.trypitch.co` is still the Compose host and `api-v2` is the cluster);
+  `gke` runs only this one. Unset, only the Compose deploy runs.
+- `production-gke` environment variables, as set for silverfish (run with a
+  `gh` login that can administer `hormuz-labs/pitch`):
+
+  ```bash
+  gh api -X PUT repos/hormuz-labs/pitch/environments/production-gke >/dev/null
+  gh variable set DEPLOY_TARGET --body both
+  while IFS='=' read -r k v; do gh variable set "$k" --env production-gke --body "$v"; done <<'EOF'
+  GCP_PROJECT_ID=your-gcp-project
+  GCP_REGION=asia-southeast1
+  GCP_ARTIFACT_REPOSITORY=silverfish
+  GCP_WORKLOAD_IDENTITY_PROVIDER=projects/343322085368/locations/global/workloadIdentityPools/github/providers/github
+  GKE_DEPLOY_SERVICE_ACCOUNT=silverfish-deploy@your-gcp-project.iam.gserviceaccount.com
+  GKE_RUNTIME_SERVICE_ACCOUNT=silverfish-runtime@your-gcp-project.iam.gserviceaccount.com
+  GKE_CLUSTER=silverfish
+  GKE_LOCATION=asia-southeast1-b
+  CLOUD_SQL_CONNECTION_NAME=your-gcp-project:asia-southeast1:silverfish
+  GKE_STATIC_IP_NAME=silverfish-api
+  GKE_API_HOST=api-v2.trypitch.co
+  GKE_APP_URL=https://app.trypitch.co
+  GKE_MEDIA_PUBLIC_URL=https://storage.googleapis.com
+  GKE_MEDIA_BUCKET=silverfish-media
+  GKE_PROFILES_BUCKET=silverfish-profiles
+  GKE_WORKSPACE_BUCKET=silverfish-workspaces
+  CLOAK_IMAGE=cloakhq/cloakbrowser-manager@sha256:eaa08b54f7d30f3512e1f8faa1e457fe340e868af9f76b5f6bad282b3bd7ae2d
+  EOF
+  ```
+
+  The deploy service account authenticates through the `github` Workload
+  Identity pool, restricted to `assertion.repository == 'hormuz-labs/pitch'`;
+  no key is stored in GitHub.
 - Set Vercel `VITE_API_URL` to the final HTTPS API origin and redeploy the web app.
   Update Clerk/Dodo webhook destinations and allowed origins/redirects.
 
