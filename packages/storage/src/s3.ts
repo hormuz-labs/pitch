@@ -41,9 +41,12 @@ export function s3Driver(): ObjectDriver {
       secretAccessKey: process.env.MINIO_ROOT_PASSWORD ?? 'minioadmin',
     },
     forcePathStyle: true, // required for MinIO
+    // Milliseconds: the SDK uses the node-http handler here, not fetch.
+    // (Dividing by 1000 gave every request a 600 ms budget, which only
+    // warned but was wrong.)
     requestHandler: {
-      requestTimeout: UPLOAD_TIMEOUT_MS / 1000, // in seconds for fetch handler
-      connectionTimeout: CONNECT_TIMEOUT_MS / 1000,
+      requestTimeout: UPLOAD_TIMEOUT_MS,
+      connectionTimeout: CONNECT_TIMEOUT_MS,
     } as any,
   })
 
