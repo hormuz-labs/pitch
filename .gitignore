@@ -28,6 +28,9 @@ packages/db/src/*.d.ts
 .DS_Store
 Thumbs.db
 .env
+.env.*
+!.env.example
+.github_token
 .env.local
 .env.development.local
 .env.test.local
