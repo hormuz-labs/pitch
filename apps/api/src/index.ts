@@ -28,7 +28,7 @@ if (!process.env.CLERK_PUBLISHABLE_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY
 }
 
 const logger = createLogger('studio')
-const { IS_API, IS_WORKER, ROLE, SHUTDOWN_GRACE_MS, WORKER_TOKEN } = await import(
+const { DRAIN_MS, IS_API, IS_WORKER, ROLE, SHUTDOWN_GRACE_MS, WORKER_TOKEN } = await import(
   './worker/config.js'
 )
 
@@ -121,6 +121,9 @@ if (ROLE === 'worker') {
 // Clerk and Dodo webhooks need their untouched request bodies and must mount
 // before express.json() and Clerk's session middleware.
 if (IS_API) {
+  // The autoscaler's read, behind the worker token rather than Clerk.
+  const { router: scaleRoutes } = await import('./worker/scale.js')
+  app.use('/internal/scale', scaleRoutes)
   app.use('/webhooks/clerk', clerkWebhookRoutes)
   app.use('/webhooks', webhookRoutes)
 
@@ -221,14 +224,36 @@ if (IS_WORKER) {
     )
 }
 
+// Checkpoint and release every held project so another worker (or this one,
+// next boot) picks it up. With a drain window nothing is lost: the worker
+// keeps serving until each turn ends. Without one, the turns in flight are.
+const drainWorker = async () => {
+  if (!workerHost) return
+  try {
+    // The loops stay up through the drain: busyAt and checkpoints keep
+    // flowing for the projects still being served.
+    await workerHost.drain(DRAIN_MS)
+    workerHost.stopHostLoops()
+    const { stopWorkerHeartbeat } = await import('./worker/registry.js')
+    stopWorkerHeartbeat()
+    const { closeBrowser } = await import('./projects/thumbnails.js')
+    await closeBrowser()
+  } catch (err) {
+    logger.warn({ err }, 'studio shutdown failed')
+  }
+}
+
 const gracefulShutdown = async (signal: string) => {
   if (draining) return
-  draining = true
-  logger.info({ signal }, 'shutting down studio')
+  draining = true // /health/ready answers 503 from here on
+  logger.info({ signal, drainMs: DRAIN_MS }, 'shutting down studio')
+  const deadline = setTimeout(() => process.exit(1), DRAIN_MS + SHUTDOWN_GRACE_MS)
+  deadline.unref()
+  // A gentle drain has to keep the server up: the API reaches held projects
+  // through it until the last one is released.
+  if (DRAIN_MS > 0) await drainWorker()
   // Stop new requests before aborting sessions; SSE/WS must not hold shutdown forever.
   server.close()
-  const deadline = setTimeout(() => process.exit(1), SHUTDOWN_GRACE_MS)
-  deadline.unref()
   if (IS_API) {
     try {
       const { shutdownAllSessions } = await import('./services/browser-host.js')
@@ -237,20 +262,7 @@ const gracefulShutdown = async (signal: string) => {
       logger.warn({ err }, 'browser-host shutdown failed')
     }
   }
-  if (workerHost) {
-    // Checkpoint and release every held project so another worker (or this
-    // one, next boot) picks it up with nothing lost but the turn in flight.
-    try {
-      workerHost.stopHostLoops()
-      await workerHost.drain()
-      const { stopWorkerHeartbeat } = await import('./worker/registry.js')
-      stopWorkerHeartbeat()
-      const { closeBrowser } = await import('./projects/thumbnails.js')
-      await closeBrowser()
-    } catch (err) {
-      logger.warn({ err }, 'studio shutdown failed')
-    }
-  }
+  if (DRAIN_MS <= 0) await drainWorker()
   await prisma.$disconnect().catch(err => logger.warn({ err }, 'database shutdown failed'))
   server.closeAllConnections()
   clearTimeout(deadline)

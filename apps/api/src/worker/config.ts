@@ -80,8 +80,32 @@ export const WORKSPACE_BUCKET =
     : process.env.STUDIO_WORKSPACE_BUCKET.trim()
 export const CHECKPOINTS_ENABLED = WORKSPACE_BUCKET.length > 0
 
-/** Shutdown waits this long for checkpoints and open streams before exiting anyway. */
+/**
+ * On SIGTERM a worker with a drain window keeps serving the projects it
+ * holds and lets each go as its turn ends, so a scale-down or a rollout
+ * loses nothing; what is still mid-turn when the window closes is released
+ * anyway. 0 (the default, and what a plain stop wants) releases everything
+ * at once, losing the turns in flight. Kubernetes must allow at least this
+ * plus SHUTDOWN_GRACE_MS as the pod's terminationGracePeriodSeconds.
+ */
+export const DRAIN_MS = Math.max(0, Number(process.env.STUDIO_DRAIN_MS || 0))
+/** After draining, shutdown waits this long for checkpoints and open streams before exiting anyway. */
 export const SHUTDOWN_GRACE_MS = Math.max(
   5000,
   Number(process.env.STUDIO_SHUTDOWN_GRACE_MS || 60_000),
 )
+
+/**
+ * Free slots the fleet keeps in reserve. The autoscaler reads
+ * /internal/scale, which asks for enough workers to hold every leased
+ * project plus this many empty slots, so a new project never waits for a
+ * node to come up.
+ */
+export const SCALE_HEADROOM = Math.max(0, Number(process.env.STUDIO_SCALE_HEADROOM || 2))
+/**
+ * Which workers the autoscaler adds and removes: those whose id starts with
+ * this (the StatefulSet's pods). Any other live worker — a machine that
+ * joined over Tailscale — is fixed capacity: its slots are counted before
+ * elastic ones are asked for.
+ */
+export const SCALE_GROUP = (process.env.STUDIO_SCALE_GROUP ?? 'pitch-worker-').trim()

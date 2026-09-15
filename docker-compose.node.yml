@@ -1,0 +1,69 @@
+# A worker node anywhere: a machine that joins the GKE fleet over Tailscale
+# (docs/gke-deployment.md → Tailscale). Nothing else runs here — the
+# database is Cloud SQL, storage is Cloud Storage, the API is in the
+# cluster. This file is standalone:
+#
+#   docker compose -f docker-compose.node.yml --env-file .env.node up -d
+#
+# .env.node holds what the cluster's pods get from pitch-config and
+# pitch-runtime (the same values), plus:
+#   NODE_NAME            this machine's name; `node-<NAME>` is its Service in the cluster
+#   TAILSCALE_IP         this machine's tailnet address; the worker listens only there
+#   DATABASE_URL         Cloud SQL's private address, reached through the subnet router
+#   STORAGE_DRIVER=gcs   with GOOGLE_APPLICATION_CREDENTIALS pointing at the mounted key
+#   STUDIO_WORKER_TOKEN, PREVIEW_COOKIE_SECRET   the same as in the cluster
+services:
+  cloakbrowser-manager:
+    image: ${CLOAK_IMAGE:-cloakhq/cloakbrowser-manager}
+    container_name: pitch_node_browser
+    restart: always
+    volumes:
+      - ./docker-data/node/browser:/data
+    shm_size: 2g
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"
+
+  worker:
+    image: ${API_IMAGE:?set API_IMAGE to the pitch-api image the cluster runs}
+    container_name: pitch_node_worker
+    restart: always
+    # Migrations are the cluster's job (the migrate Job runs them per release).
+    command: ["bun", "apps/api/src/index.ts"]
+    ports:
+      # Only on the tailnet: the API reaches this port through the egress Service.
+      - "${TAILSCALE_IP:?set TAILSCALE_IP to this machine's tailnet address}:3000:3000"
+    env_file:
+      - ${ENV_FILE:-.env.node}
+    environment:
+      STUDIO_ROLE: worker
+      STUDIO_WORKER_ID: node-${NODE_NAME:?set NODE_NAME}
+      STUDIO_WORKER_URL: http://node-${NODE_NAME}.pitch.svc.cluster.local:3000
+      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-4}
+      STUDIO_DRAIN_MS: ${STUDIO_DRAIN_MS:-1800000}
+      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+      STUDIO_INTERNAL_ORIGIN: http://worker:3000
+      STUDIO_SANDBOX: bwrap
+      PROJECTS_DIR: /app/projects
+      PI_AGENT_DIR: /root/.pi/agent
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-key.json
+    volumes:
+      - ./docker-data/node/projects:/app/projects
+      - ./docker-data/node/pi:/root/.pi/agent
+      - ./docker-data/whisper:/root/.cache/whisper-cpp
+      # The runtime service account's key: Application Default Credentials
+      # off GCP. Keep it out of the repository.
+      - ${GCP_KEY_FILE:?set GCP_KEY_FILE to the runtime service account key}:/run/secrets/gcp-key.json:ro
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    cap_add:
+      - SYS_ADMIN
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"
+    # STUDIO_DRAIN_MS plus the checkpoint grace, so a `down` loses no turn.
+    stop_grace_period: 1900s
+    depends_on:
+      cloakbrowser-manager:
+        condition: service_started

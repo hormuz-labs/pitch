@@ -1,0 +1,210 @@
+# Workers own projects: the pi session, the hot workspace on a disk of their
+# own, the agent's sandboxed shell, a CloakBrowser beside them for previews.
+#
+# A StatefulSet, not a Deployment, on purpose:
+#   - pod names are stable, so STUDIO_WORKER_ID survives a restart and the
+#     warm copy on the pod's disk is found again (placement prefers it);
+#   - scale-down removes the highest ordinal, and placement packs projects
+#     onto the lowest (worker/lease.ts), so the pod that goes is the empty one;
+#   - each ordinal keeps its PersistentVolumeClaim across a scale-down, so a
+#     worker that comes back comes back warm.
+#
+# Nothing on the disk is the only copy: every workspace is checkpointed to
+# the private STUDIO_WORKSPACE_BUCKET and restored wherever the project is
+# placed next. The disk is a cache.
+apiVersion: v1
+kind: Service
+metadata:
+  name: pitch-worker
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: pitch-worker
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pitch-worker
+spec:
+  serviceName: pitch-worker
+  # No `replicas`: the ScaledObject in autoscaling.yaml owns it, and a value
+  # here would be re-applied on every deploy and undo the scaling.
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  revisionHistoryLimit: 3
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app: pitch-worker
+  template:
+    metadata:
+      labels:
+        app: pitch-worker
+    spec:
+      serviceAccountName: pitch
+      # STUDIO_DRAIN_MS (30 min) + STUDIO_SHUTDOWN_GRACE_MS (60 s) with room
+      # to spare: a worker being removed keeps serving until each of its
+      # projects has finished its turn, then checkpoints and lets it go.
+      terminationGracePeriodSeconds: 1900
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: { app: pitch-worker }
+      initContainers:
+        - name: prepare-state
+          image: pitch-api
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /state/projects /state/pi /state/whisper /state/browser
+              # The alignment model, fetched once per disk. Not baked into the
+              # image on purpose (see Makefile → whisper-model).
+              target="/state/whisper/$WHISPER_MODEL_FILE"
+              if [ ! -s "$target" ]; then
+                echo "fetching $WHISPER_MODEL_FILE"
+                curl -fsSL --retry 5 --retry-delay 5 -o "$target.part" "$WHISPER_MODEL_BASE_URL/$WHISPER_MODEL_FILE"
+                mv "$target.part" "$target"
+              fi
+          envFrom:
+            - configMapRef: { name: pitch-config }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+          volumeMounts:
+            - name: state
+              mountPath: /state
+        # Native sidecar: up before the worker, down after it has drained.
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.18.2@sha256:fc224915ef435afeb5b2a9421260a0d31986d5c8b7c7f5783c7f5d5885700cd2
+          restartPolicy: Always
+          args:
+            - --structured-logs
+            - --private-ip
+            - --port=5432
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9090
+            - ${CLOUD_SQL_CONNECTION_NAME}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet: { path: /startup, port: 9090 }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readiness, port: 9090 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+      containers:
+        - name: api
+          image: pitch-api
+          command: [bun, apps/api/src/index.ts]
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef: { name: pitch-config }
+            - secretRef: { name: pitch-runtime }
+          env:
+            - { name: STUDIO_ROLE, value: worker }
+            - name: STUDIO_WORKER_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            # Where the API replicas reach this worker. The pod IP, not the
+            # headless DNS name: registered afresh on every boot, and never
+            # dependent on readiness or a resolver.
+            - { name: STUDIO_WORKER_URL, value: 'http://$(POD_IP):3000' }
+            - { name: STUDIO_DRAIN_MS, value: '1800000' }
+          # Same namespace/mount permissions as the supported Compose sandbox.
+          # Requires GKE Standard and a node policy allowing bubblewrap.
+          securityContext:
+            capabilities:
+              add: [SYS_ADMIN]
+            seccompProfile: { type: Unconfined }
+            appArmorProfile: { type: Unconfined }
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 5
+            failureThreshold: 120
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests: { cpu: '2', memory: 4Gi, ephemeral-storage: 2Gi }
+            limits: { cpu: '8', memory: 16Gi, ephemeral-storage: 20Gi }
+          volumeMounts:
+            - { name: state, mountPath: /app/projects, subPath: projects }
+            - { name: state, mountPath: /root/.pi/agent, subPath: pi }
+            - { name: state, mountPath: /root/.cache/whisper-cpp, subPath: whisper }
+            - { name: scratch, mountPath: /tmp }
+        # This worker's CloakBrowser: previews and thumbnails load from the
+        # worker over loopback with the preview cookie, so it stays a sidecar.
+        - name: browser
+          image: cloakbrowser-manager
+          ports:
+            - name: manager
+              containerPort: 8080
+          startupProbe:
+            tcpSocket: { port: manager }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket: { port: manager }
+          livenessProbe:
+            tcpSocket: { port: manager }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: '1', memory: 2Gi }
+            limits: { cpu: '4', memory: 8Gi }
+          volumeMounts:
+            - { name: state, mountPath: /data, subPath: browser }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: scratch
+          emptyDir: { sizeLimit: 20Gi }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }
+  volumeClaimTemplates:
+    - metadata:
+        name: state
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: pitch-retained-pd
+        resources:
+          requests:
+            storage: 100Gi
+---
+# Node maintenance evicts one worker at a time; each eviction is a gentle
+# drain, so a pool upgrade takes as long as the longest turn per worker.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pitch-worker
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app: pitch-worker }

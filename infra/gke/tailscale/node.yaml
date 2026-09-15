@@ -1,0 +1,23 @@
+# One external worker node, reachable from the API pods.
+#
+# Pods have no route onto the tailnet; the operator's egress proxy gives a
+# tailnet machine a name inside the cluster instead. The worker on that
+# machine registers with STUDIO_WORKER_URL=http://node-${NODE_NAME}.pitch.svc.cluster.local:3000
+# and the API replicas reach it through this Service. One of these per
+# machine that joins (docker-compose.node.yml):
+#   NODE_NAME=gpu-1 NODE_TAILNET_FQDN=gpu-1.tail1234.ts.net node scripts/render-gke.mjs node | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-${NODE_NAME}
+  namespace: pitch
+  annotations:
+    tailscale.com/tailnet-fqdn: ${NODE_TAILNET_FQDN}
+spec:
+  # The operator rewrites this to its proxy; the placeholder is required.
+  type: ExternalName
+  externalName: placeholder
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

@@ -1,0 +1,19 @@
+# The cluster on the tailnet (docs/gke-deployment.md → Tailscale).
+#
+# A subnet router advertising the VPC ranges the fleet lives on, so any
+# machine on the tailnet — a laptop, a GPU box in a rack, a worker on
+# another cloud — reaches Cloud SQL's private address and the cluster's
+# pods and Services as if it were inside the VPC. Approve the routes in the
+# admin console once (or set autoApprovers in the tailnet policy).
+#
+# Applied by hand after the Tailscale Kubernetes operator is installed:
+#   TAILSCALE_ROUTES=10.10.0.0/20,10.20.0.0/24 node scripts/render-gke.mjs tailscale | kubectl apply -f -
+apiVersion: tailscale.com/v1alpha1
+kind: Connector
+metadata:
+  name: pitch-vpc
+spec:
+  hostname: pitch-gke
+  subnetRouter:
+    advertiseRoutes: [${TAILSCALE_ROUTES}]
+  exitNode: false

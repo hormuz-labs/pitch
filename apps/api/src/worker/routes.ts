@@ -8,10 +8,10 @@
  * service would have used, so the client (worker/client.ts) can rethrow
  * them and the public routes answer exactly as they would have locally.
  */
-import { timingSafeEqual } from 'node:crypto'
 import { createLogger } from '@saas/shared'
 import express from 'express'
 import { rowById } from '../projects/rows.js'
+import { authorizedByWorkerToken } from './auth.js'
 import { WORKER_ID, WORKER_TOKEN } from './config.js'
 import { serveWorkspaceFile } from './files.js'
 import * as host from './host.js'
@@ -21,16 +21,10 @@ const logger = createLogger('studio:worker-routes')
 
 export const router = express.Router()
 
-function authorized(header: string | undefined): boolean {
-  if (!WORKER_TOKEN || !header?.startsWith('Bearer ')) return false
-  const supplied = Buffer.from(header.slice('Bearer '.length).trim())
-  const expected = Buffer.from(WORKER_TOKEN)
-  return supplied.length === expected.length && timingSafeEqual(supplied, expected)
-}
-
 router.use((req, res, next) => {
   if (!WORKER_TOKEN) return res.status(503).json({ error: 'STUDIO_WORKER_TOKEN is not configured' })
-  if (!authorized(req.headers.authorization)) return res.status(401).json({ error: 'Unauthorized' })
+  if (!authorizedByWorkerToken(req.headers.authorization))
+    return res.status(401).json({ error: 'Unauthorized' })
   next()
 })
 router.use(express.json({ limit: '50mb' }))

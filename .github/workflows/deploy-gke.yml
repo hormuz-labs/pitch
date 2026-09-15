@@ -13,6 +13,8 @@ jobs:
   deploy:
     if: vars.DEPLOY_TARGET == 'gke'
     runs-on: ubuntu-latest
+    # Workers roll one at a time and each may drain for up to STUDIO_DRAIN_MS.
+    timeout-minutes: 360
     environment: production-gke
     permissions:
       contents: read
@@ -26,6 +28,10 @@ jobs:
       GCP_SERVICE_ACCOUNT: ${{ vars.GKE_RUNTIME_SERVICE_ACCOUNT }}
       CLOUD_SQL_CONNECTION_NAME: ${{ vars.CLOUD_SQL_CONNECTION_NAME }}
       GKE_STATIC_IP_NAME: ${{ vars.GKE_STATIC_IP_NAME }}
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      MEDIA_BUCKET: ${{ vars.GKE_MEDIA_BUCKET }}
+      PROFILES_BUCKET: ${{ vars.GKE_PROFILES_BUCKET }}
+      WORKSPACE_BUCKET: ${{ vars.GKE_WORKSPACE_BUCKET }}
       CLOAK_IMAGE: ${{ vars.CLOAK_IMAGE }}
     steps:
       - uses: actions/checkout@v4
@@ -80,14 +86,32 @@ jobs:
             RUNTIME_IMAGE=${{ env.IMAGE_PREFIX }}/pitch-base@${{ steps.base.outputs.digest }}
           cache-from: type=gha,scope=gke-api
           cache-to: type=gha,mode=max,scope=gke-api
+      - name: Migrate the database
+        env:
+          API_IMAGE: ${{ env.IMAGE_PREFIX }}/pitch-api@${{ steps.api.outputs.digest }}
+          RELEASE: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          kubectl get secret pitch-runtime -n pitch >/dev/null
+          node scripts/render-gke.mjs migrate > "$RUNNER_TEMP/migrate.yaml"
+          kubectl apply -f "$RUNNER_TEMP/migrate.yaml"
+          job="job/pitch-migrate-$RELEASE"
+          for _ in $(seq 1 180); do
+            [ "$(kubectl get -n pitch "$job" -o jsonpath='{.status.succeeded}')" = 1 ] && exit 0
+            [ -n "$(kubectl get -n pitch "$job" -o jsonpath='{.status.failed}')" ] && break
+            sleep 5
+          done
+          kubectl logs -n pitch "$job" -c migrate || true
+          echo "migration did not succeed" >&2
+          exit 1
       - name: Render and deploy
         env:
           API_IMAGE: ${{ env.IMAGE_PREFIX }}/pitch-api@${{ steps.api.outputs.digest }}
         run: |
           node scripts/render-gke.mjs > "$RUNNER_TEMP/pitch.yaml"
-          kubectl get secret pitch-runtime -n pitch >/dev/null
           kubectl apply --dry-run=server -f "$RUNNER_TEMP/pitch.yaml"
           kubectl apply -f "$RUNNER_TEMP/pitch.yaml"
           kubectl rollout status deployment/pitch -n pitch --timeout=900s
-          kubectl exec -n pitch deployment/pitch -c api -- node scripts/sandbox-check.mjs
+          # Each worker drains gently (up to STUDIO_DRAIN_MS) before its replacement starts.
+          kubectl rollout status statefulset/pitch-worker -n pitch --timeout=5h
+          kubectl exec -n pitch pitch-worker-0 -c api -- node scripts/sandbox-check.mjs
           curl --fail --retry 12 --retry-delay 10 "https://$API_HOST/health/ready"

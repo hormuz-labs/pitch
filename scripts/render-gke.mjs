@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 // Render environment-specific manifests before Kustomize hashes the ConfigMap.
+//
+//   node scripts/render-gke.mjs             the application (infra/gke via kustomize)
+//   node scripts/render-gke.mjs migrate     the per-release migration Job, applied first
+//   node scripts/render-gke.mjs tailscale   the subnet router putting the VPC on the tailnet
+//   node scripts/render-gke.mjs node        an egress Service for one worker machine on the tailnet
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -7,6 +12,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const image = /^[a-z0-9][a-z0-9./_:-]*@sha256:[a-f0-9]{64}$/
+const bucketName = /^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$/
 const values = {
   API_IMAGE: image,
   CLOAK_IMAGE: image,
@@ -16,20 +22,47 @@ const values = {
   GCP_SERVICE_ACCOUNT: /^[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com$/,
   CLOUD_SQL_CONNECTION_NAME: /^[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]+$/,
   GKE_STATIC_IP_NAME: /^[a-z][a-z0-9-]*$/,
+  GCP_PROJECT_ID: /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/,
+  // Cloud Storage bucket names are global; each deployment names its own.
+  MEDIA_BUCKET: bucketName,
+  PROFILES_BUCKET: bucketName,
+  WORKSPACE_BUCKET: bucketName,
+  // Names the migration Job; a Job is immutable, so every release needs a new one.
+  RELEASE: /^[a-z0-9][a-z0-9-]{0,39}$/,
+  // Tailscale: the VPC CIDRs the cluster advertises, and one external worker node.
+  TAILSCALE_ROUTES: /^(?:\d{1,3}(?:\.\d{1,3}){3}\/\d{1,2})(?:,\d{1,3}(?:\.\d{1,3}){3}\/\d{1,2})*$/,
+  NODE_NAME: /^[a-z0-9][a-z0-9-]{0,30}$/,
+  NODE_TAILNET_FQDN: /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/,
 }
-for (const [name, pattern] of Object.entries(values)) {
-  if (!pattern.test(process.env[name] ?? '')) throw new Error(`Set a valid ${name}; images must use immutable sha256 digests`)
+// What each mode renders and which variables it needs. `app` is the
+// kustomization; the others are single files applied on their own.
+const standalone = {
+  migrate: { file: 'migrate.yaml', needs: ['API_IMAGE', 'CLOUD_SQL_CONNECTION_NAME', 'RELEASE'] },
+  tailscale: { file: 'tailscale/connector.yaml', needs: ['TAILSCALE_ROUTES'] },
+  node: { file: 'tailscale/node.yaml', needs: ['NODE_NAME', 'NODE_TAILNET_FQDN'] },
 }
+const mode = process.argv[2] ?? 'app'
+if (mode !== 'app' && !(mode in standalone)) throw new Error(`Unknown mode: ${mode} (app, ${Object.keys(standalone).join(', ')})`)
+const appNeeds = Object.keys(values).filter(k => !['RELEASE', 'TAILSCALE_ROUTES', 'NODE_NAME', 'NODE_TAILNET_FQDN'].includes(k))
+const needed = mode === 'app' ? appNeeds : standalone[mode].needs
+for (const name of needed) {
+  if (!values[name].test(process.env[name] ?? '')) throw new Error(`Set a valid ${name}; images must use immutable sha256 digests`)
+}
+const substitute = yaml =>
+  yaml.replace(/\$\{([A-Z_]+)\}/g, (_match, key) => {
+    if (!needed.includes(key)) throw new Error(`Unknown manifest variable: ${key}`)
+    return process.env[key]
+  })
 const source = fileURLToPath(new URL('../infra/gke/', import.meta.url))
+if (mode !== 'app') {
+  process.stdout.write(substitute(readFileSync(path.join(source, standalone[mode].file), 'utf8')))
+  process.exit(0)
+}
 const dir = mkdtempSync(path.join(tmpdir(), 'pitch-gke-'))
 try {
-  for (const name of readdirSync(source).filter(name => name.endsWith('.yaml'))) {
-    const yaml = readFileSync(path.join(source, name), 'utf8').replace(/\$\{([A-Z_]+)\}/g, (_match, key) => {
-      if (!(key in values)) throw new Error(`Unknown manifest variable: ${key}`)
-      return process.env[key]
-    })
-    writeFileSync(path.join(dir, name), yaml)
-  }
+  // Only the kustomization's own files; the standalone ones live beside it.
+  for (const name of readdirSync(source).filter(name => name.endsWith('.yaml') && name !== standalone.migrate.file))
+    writeFileSync(path.join(dir, name), substitute(readFileSync(path.join(source, name), 'utf8')))
   const result = spawnSync(process.env.KUSTOMIZE_BIN || 'kubectl', [process.env.KUSTOMIZE_BIN ? 'build' : 'kustomize', dir], { encoding: 'utf8' })
   if (result.error) throw result.error
   if (result.status !== 0) throw new Error(result.stderr)

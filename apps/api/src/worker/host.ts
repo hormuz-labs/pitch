@@ -679,14 +679,37 @@ export async function unloadAll(reason: string): Promise<void> {
   await Promise.all([...held.keys()].map(id => unload(id, reason)))
 }
 
-/** Stop taking projects, checkpoint and release the ones we hold. */
-export async function drain(): Promise<void> {
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+
+/**
+ * Stop taking projects and let go of the ones we hold.
+ *
+ * With a window (`settleMs`) this is the gentle path a scale-down or a
+ * rollout wants: placement stops sending projects here at once, but the
+ * worker keeps serving what it holds — the API still reaches it, the lease
+ * says so — and releases each project the moment it is not mid-turn or
+ * exporting. Whoever is watching reconnects and lands on another worker
+ * with the checkpoint. Whatever is still running when the window closes
+ * is released anyway, losing that turn. No window is the old behaviour:
+ * everything at once.
+ */
+export async function drain(settleMs = 0): Promise<void> {
   await setDraining(true)
-  await Promise.all(
-    [...held.keys()].map(id =>
-      release(id).catch(err => logger.error({ err, projectId: id }, 'release failed on drain')),
-    ),
-  )
+  const deadline = Date.now() + settleMs
+  const letGo = (id: string) =>
+    release(id).catch(err => logger.error({ err, projectId: id }, 'release failed on drain'))
+  while (held.size && Date.now() < deadline) {
+    for (const h of [...held.values()]) {
+      if (isBusy(h.id) || exportRunning(h.id)) continue
+      await letGo(h.id)
+    }
+    if (!held.size) break
+    logger.info({ waiting: held.size }, 'draining: waiting for turns to finish')
+    await sleep(Math.max(0, Math.min(2000, deadline - Date.now())))
+  }
+  if (held.size && settleMs > 0)
+    logger.warn({ cut: held.size }, 'drain window closed with turns still running')
+  await Promise.all([...held.keys()].map(letGo))
   await closeStudio()
 }
 

@@ -1,0 +1,63 @@
+# Schema migrations run once per release, before the rollout, as a Job —
+# not on every container boot, now that many pods start at once. Rendered
+# and applied on its own by `node scripts/render-gke.mjs migrate` (it is not
+# in the kustomization: a Job's spec is immutable, so each release gets a
+# fresh name).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pitch-migrate-${RELEASE}
+  namespace: pitch
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: pitch-migrate
+    spec:
+      serviceAccountName: pitch
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+      initContainers:
+        # Native sidecar: the pod finishes when the migration does.
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.18.2@sha256:fc224915ef435afeb5b2a9421260a0d31986d5c8b7c7f5783c7f5d5885700cd2
+          restartPolicy: Always
+          args:
+            - --structured-logs
+            - --private-ip
+            - --port=5432
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9090
+            - ${CLOUD_SQL_CONNECTION_NAME}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet: { path: /startup, port: 9090 }
+            failureThreshold: 30
+            periodSeconds: 2
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+      containers:
+        - name: migrate
+          image: ${API_IMAGE}
+          command:
+            - ./node_modules/.bin/prisma
+            - migrate
+            - deploy
+            - --schema
+            - packages/db/prisma/schema.prisma
+          envFrom:
+            - secretRef: { name: pitch-runtime }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: '1', memory: 1Gi }
