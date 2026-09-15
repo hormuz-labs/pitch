@@ -24,6 +24,8 @@ jobs:
       REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev
       IMAGE_PREFIX: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}
       API_HOST: ${{ vars.GKE_API_HOST }}
+      # Optional: more hosts for the same load balancer, e.g. api.trypitch.co once it moves.
+      API_EXTRA_HOSTS: ${{ vars.GKE_API_EXTRA_HOSTS }}
       APP_URL: ${{ vars.GKE_APP_URL }}
       MEDIA_PUBLIC_URL: ${{ vars.GKE_MEDIA_PUBLIC_URL }}
       GCP_SERVICE_ACCOUNT: ${{ vars.GKE_RUNTIME_SERVICE_ACCOUNT }}

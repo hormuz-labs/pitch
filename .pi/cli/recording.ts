@@ -30,8 +30,7 @@
  *     (Agentic Vision). Override the model id via GEMINI_VISION_MODEL.
  *
  * Timeline rule: every *Sec value is seconds into the UPLOADED video's own
- * timeline. Nothing here trims; the render stage owns trimming (see the trimSec
- * notes in docs/demo-video-pipeline.md).
+ * timeline. Nothing here trims; the render stage owns trimming.
  */
 
 import { exec } from 'node:child_process'

@@ -213,6 +213,7 @@ GitHub configuration:
   CLOUD_SQL_CONNECTION_NAME=your-gcp-project:asia-southeast1:silverfish
   GKE_STATIC_IP_NAME=silverfish-api
   GKE_API_HOST=api-v2.trypitch.co
+  GKE_API_EXTRA_HOSTS=            # later: api.trypitch.co, see the DNS cutover below
   GKE_APP_URL=https://app.trypitch.co
   GKE_MEDIA_PUBLIC_URL=https://storage.googleapis.com
   GKE_MEDIA_BUCKET=silverfish-media
@@ -351,6 +352,23 @@ into `docker-data/whisper`).
 - Check logs in Cloud Logging, alerts for pod restarts/disk usage/SQL errors,
   production payment webhooks and credit metering.
 - Confirm a full SQL restore and an application image rollback in staging.
+
+## DNS cutover
+
+`api.trypitch.co` is baked into users' MCP configs, `openapi.json` and the
+web app's `/r/` and `/d/` rewrites, so the real go-live is moving that A
+record to the static IP, not changing `VITE_API_URL`. Every host gets its own
+`ManagedCertificate` (`API_EXTRA_HOSTS`, comma-separated), because Google
+issues one only after that host's DNS resolves to the load balancer — a host
+still waiting on its DNS must not hold back the ones already serving. Order:
+
+1. Finish the data move below.
+2. Set `GKE_API_EXTRA_HOSTS=api.trypitch.co` and deploy: the `pitch-2`
+   certificate sits in `FailedNotVisible` until DNS moves.
+3. Point the `api` A record at `34.120.181.8` (DNS-only). HTTPS on `api` is
+   broken for 15–60 minutes while the certificate is issued — do it at a
+   quiet hour. Watch `kubectl -n pitch get managedcertificate`.
+4. Retire the Compose host and set `DEPLOY_TARGET=gke`.
 
 ## Migrating from the Compose host
 

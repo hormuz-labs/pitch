@@ -17,6 +17,9 @@ const values = {
   API_IMAGE: image,
   CLOAK_IMAGE: image,
   API_HOST: /^[a-z0-9]+(?:[.-][a-z0-9]+)+$/,
+  // Further hosts the same load balancer answers for (comma-separated, may be
+  // empty): each gets its own ManagedCertificate, issued once its DNS lands.
+  API_EXTRA_HOSTS: /^(?:[a-z0-9]+(?:[.-][a-z0-9]+)+(?:,[a-z0-9]+(?:[.-][a-z0-9]+)+)*)?$/,
   APP_URL: /^https:\/\/[a-z0-9]+(?:[.-][a-z0-9]+)+(?:\/)?$/,
   MEDIA_PUBLIC_URL: /^https:\/\/[a-z0-9]+(?:[.-][a-z0-9]+)+(?:\/[a-zA-Z0-9._/-]*)?$/,
   GCP_SERVICE_ACCOUNT: /^[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com$/,
@@ -52,8 +55,16 @@ const needed = mode === 'app' ? appNeeds : standalone[mode].needs
 for (const name of needed) {
   if (!values[name].test(process.env[name] ?? '')) throw new Error(`Set a valid ${name}; images must use immutable sha256 digests`)
 }
+const extraHosts = (process.env.API_EXTRA_HOSTS ?? '').split(',').filter(Boolean)
+const derived = {
+  MANAGED_CERTIFICATES: ['pitch', ...extraHosts.map((_h, i) => `pitch-${i + 2}`)].join(','),
+  EXTRA_CERTIFICATES: extraHosts
+    .map((host, i) => `---\napiVersion: networking.gke.io/v1\nkind: ManagedCertificate\nmetadata:\n  name: pitch-${i + 2}\nspec:\n  domains: ["${host}"]\n`)
+    .join(''),
+}
 const substitute = yaml =>
   yaml.replace(/\$\{([A-Z_]+)\}/g, (_match, key) => {
+    if (key in derived) return derived[key]
     if (!needed.includes(key)) throw new Error(`Unknown manifest variable: ${key}`)
     return process.env[key]
   })
