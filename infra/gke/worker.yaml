@@ -178,9 +178,11 @@ spec:
           livenessProbe:
             tcpSocket: { port: manager }
             periodSeconds: 20
+          # Frame capture for renders happens here, not in the api container:
+          # this is the burst budget. Requests stay at two workers per node.
           resources:
-            requests: { cpu: '1', memory: 2Gi }
-            limits: { cpu: '4', memory: 8Gi }
+            requests: { cpu: '1500m', memory: 3Gi }
+            limits: { cpu: '6', memory: 12Gi }
           volumeMounts:
             - { name: state, mountPath: /data, subPath: browser }
             - { name: shm, mountPath: /dev/shm }

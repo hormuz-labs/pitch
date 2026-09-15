@@ -53,8 +53,8 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
   Autopilot's restricted security policy cannot run the bubblewrap sandbox.
 - Two node pools, both amd64 Linux, both with the **cluster autoscaler** on:
   a small pool for the API and browser manager (e2-standard-4, min 2), and a
-  worker pool sized for a worker pod's 3.1 CPU / 6+ GiB requests and
-  rendering bursts (e2-standard-16, min 1, max = the ScaledObject's
+  worker pool sized for a worker pod's 3.6 CPU / 7+ GiB requests and
+  rendering bursts (e2-standard-8 fits two, min 1, max = the ScaledObject's
   `maxReplicaCount`). Turn on **image streaming** for the worker pool: a new
   worker is a new node plus a multi-gigabyte pull, and that is the scale-up
   latency the headroom is there to hide.
