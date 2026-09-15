@@ -10,7 +10,7 @@
 #   NODE_NAME            this machine's name; `node-<NAME>` is its Service in the cluster
 #   TAILSCALE_IP         this machine's tailnet address; the worker listens only there
 #   DATABASE_URL         Cloud SQL's private address, reached through the subnet router
-#   STORAGE_DRIVER=gcs   with GOOGLE_APPLICATION_CREDENTIALS pointing at the mounted key
+#   MINIO_ENDPOINT, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD   Cloud Storage's S3 endpoint and the HMAC key
 #   STUDIO_WORKER_TOKEN, PREVIEW_COOKIE_SECRET   the same as in the cluster
 services:
   cloakbrowser-manager:
@@ -46,14 +46,10 @@ services:
       STUDIO_SANDBOX: bwrap
       PROJECTS_DIR: /app/projects
       PI_AGENT_DIR: /root/.pi/agent
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-key.json
     volumes:
       - ./docker-data/node/projects:/app/projects
       - ./docker-data/node/pi:/root/.pi/agent
       - ./docker-data/whisper:/root/.cache/whisper-cpp
-      # The runtime service account's key: Application Default Credentials
-      # off GCP. Keep it out of the repository.
-      - ${GCP_KEY_FILE:?set GCP_KEY_FILE to the runtime service account key}:/run/secrets/gcp-key.json:ro
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined

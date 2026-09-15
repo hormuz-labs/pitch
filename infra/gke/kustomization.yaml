@@ -22,9 +22,14 @@ configMapGenerator:
       - STUDIO_WORKER_SLOTS=4
       - STUDIO_SCALE_HEADROOM=2
       - STUDIO_WORKSPACE_BUCKET=${WORKSPACE_BUCKET}
-      # Google Cloud Storage through Workload Identity: no keys anywhere.
-      - STORAGE_DRIVER=gcs
-      - GCS_PROJECT=${GCP_PROJECT_ID}
+      # Cloud Storage through its S3-compatible endpoint (an HMAC key in
+      # pitch-runtime as MINIO_ROOT_USER/MINIO_ROOT_PASSWORD): the same code
+      # path as MinIO, and the one interface that moves to another cloud
+      # unchanged. Buckets are created ahead of time; the S3 API cannot
+      # create them on GCS.
+      - STORAGE_DRIVER=s3
+      - MINIO_ENDPOINT=https://storage.googleapis.com
+      - MINIO_REGION=auto
       - STORAGE_BUCKET=${MEDIA_BUCKET}
       - STORAGE_PROFILES_BUCKET=${PROFILES_BUCKET}
       - STORAGE_PUBLIC_URL=${MEDIA_PUBLIC_URL}

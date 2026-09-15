@@ -3,10 +3,25 @@
 The cluster runs the studio as a fleet (`docs/studio-architecture.md` →
 Scaling): stateless **API** pods behind the Ingress, **worker** pods that own
 projects, one shared **browser manager** for user browser sessions. Workers
-scale on demand and drain gently when load drops. Cloud SQL is the database,
-Cloud Storage holds media, browser profiles and workspace checkpoints — no
-MinIO, no keys. The frontend stays on Vercel. `infra/gke` and
-`scripts/render-gke.mjs` produce the Kubernetes resources.
+scale on demand and drain gently when load drops. Cloud SQL is the database;
+Cloud Storage holds media, browser profiles and workspace checkpoints, spoken
+to through its S3-compatible endpoint so the storage code (and a later move
+to another cloud) stays the same as with MinIO. The frontend stays on Vercel.
+`infra/gke` and `scripts/render-gke.mjs` produce the Kubernetes resources.
+
+The production deployment is named **silverfish** throughout GCP (cluster,
+Cloud SQL instance, buckets `silverfish-*`, registry, service account, static
+IP) in project `your-gcp-project`, region `asia-southeast1`; the
+Kubernetes namespace stays `pitch`. It answers on `api-v2.trypitch.co` until
+the Compose host is retired and `api.trypitch.co` is pointed at it.
+
+**Portability.** Credits on this project run out at the end of 2026 and the
+fleet may move to Azure then. Postgres, the S3 API, plain Kubernetes and KEDA
+carry over. The GKE-specific pieces are deliberately few and in their own
+places: `ingress.yaml` (GCE Ingress, ManagedCertificate, BackendConfig),
+`storage.yaml` (PD storage class), `service-account.yaml` (Workload Identity)
+and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
+`migrate.yaml`. Swapping those for AKS equivalents is a manifest change.
 
 ```
                  Ingress (GCE, managed TLS)
@@ -56,16 +71,19 @@ MinIO, no keys. The frontend stays on Vercel. `infra/gke` and
   choosing (they are global): **media** — public, `allUsers` gets
   `roles/storage.objectViewer`, uniform bucket-level access; **profiles** and
   **workspaces** — private. Enable Object Versioning on the workspaces
-  bucket; a checkpoint is the durable copy of every workspace. If media should
-  be served from your own hostname, put a load balancer or CDN in front of the
-  media bucket and set `GKE_MEDIA_PUBLIC_URL` to it; otherwise
-  `https://storage.googleapis.com`.
+  bucket; a checkpoint is the durable copy of every workspace. The S3 API
+  cannot create buckets on GCS, so they must exist before the first pod. If
+  media should be served from your own hostname, put a load balancer or CDN
+  in front of the media bucket and set `GKE_MEDIA_PUBLIC_URL` to it;
+  otherwise `https://storage.googleapis.com`.
 - Create a runtime Google service account with `roles/cloudsql.client` on the
-  SQL project and `roles/storage.objectAdmin` on the three buckets (plus
-  `roles/storage.admin` if you want missing buckets created on first use).
-  Grant `roles/iam.workloadIdentityUser` on it to
-  `serviceAccount:PROJECT_ID.svc.id.goog[pitch/pitch]`. The Kubernetes account
-  annotation is populated by `GCP_SERVICE_ACCOUNT`.
+  SQL project and `roles/storage.objectAdmin` on the three buckets. Grant
+  `roles/iam.workloadIdentityUser` on it to
+  `serviceAccount:PROJECT_ID.svc.id.goog[pitch/pitch]` (Cloud SQL uses
+  Workload Identity). Create an **HMAC key** for the same service account
+  (`gcloud storage hmac create SA_EMAIL`); its access id and secret are the
+  `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` in the runtime Secret, and are
+  how storage is reached.
 - Install **KEDA** (`helm install keda kedacore/keda -n keda --create-namespace`).
   The worker ScaledObject needs its CRDs; `kubectl apply --dry-run=server`
   fails before anything is touched if they are missing.
@@ -94,14 +112,16 @@ Required keys:
 | `CLERK_WEBHOOK_SIGNING_SECRET` | Production webhook endpoint |
 | `GEMINI_API_KEY` | Default studio model and media generation |
 | `IP_SALT` | Stable random value |
+| `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | The runtime service account's HMAC access id and secret |
 
 Add ElevenLabs, Dodo (including `DODO_ENVIRONMENT=live_mode`), Resend and other
 capability keys used by your deployment. Keep optional unfinished services off
-until their credentials/webhooks are configured. Cloud SQL and Cloud Storage
-both use Workload Identity: no `MINIO_*`, no Google key file.
+until their credentials/webhooks are configured. Cloud SQL uses Workload
+Identity; storage uses the HMAC key; no Google key file anywhere.
 
 Storage, buckets and every studio knob come from the ConfigMap the
-kustomization generates (`STORAGE_DRIVER=gcs`, `STORAGE_BUCKET`,
+kustomization generates (`STORAGE_DRIVER=s3` against
+`MINIO_ENDPOINT=https://storage.googleapis.com`, `STORAGE_BUCKET`,
 `STORAGE_PROFILES_BUCKET`, `STUDIO_WORKSPACE_BUCKET`, `STUDIO_WORKER_SLOTS`,
 `STUDIO_SCALE_HEADROOM`, the whisper model) and are rendered from the
 variables below.
@@ -121,7 +141,6 @@ CLOAK_IMAGE=cloakhq/cloakbrowser-manager@sha256:DIGEST
 API_HOST=api.example.com
 APP_URL=https://app.example.com
 MEDIA_PUBLIC_URL=https://storage.googleapis.com
-GCP_PROJECT_ID=PROJECT
 GCP_SERVICE_ACCOUNT=pitch-runtime@PROJECT.iam.gserviceaccount.com
 CLOUD_SQL_CONNECTION_NAME=PROJECT:REGION:INSTANCE
 GKE_STATIC_IP_NAME=pitch-api-ip
@@ -258,15 +277,15 @@ NODE_NAME=gpu-1 NODE_TAILNET_FQDN=gpu-1.tail1234.ts.net node scripts/render-gke.
 ```
 
 On the machine: Docker, Tailscale (`tailscale up --accept-routes`), the
-runtime service account's key file (Application Default Credentials off
-GCP), and `docker-compose.node.yml`:
+and `docker-compose.node.yml`:
 
 ```bash
 cp .env.example .env.node   # DATABASE_URL at Cloud SQL's private address (sslmode=require),
-                            # STORAGE_DRIVER=gcs and the three bucket names, STUDIO_WORKER_TOKEN,
-                            # PREVIEW_COOKIE_SECRET, the model keys — the cluster's values
+                            # the MINIO_* endpoint and HMAC key, the three bucket names,
+                            # STUDIO_WORKER_TOKEN, PREVIEW_COOKIE_SECRET, the model keys —
+                            # the cluster's values
 API_IMAGE=REGION-docker.pkg.dev/PROJECT/REPOSITORY/pitch-api@sha256:DIGEST \
-NODE_NAME=gpu-1 TAILSCALE_IP=$(tailscale ip -4) GCP_KEY_FILE=/etc/pitch/runtime-sa.json \
+NODE_NAME=gpu-1 TAILSCALE_IP=$(tailscale ip -4) \
 docker compose -f docker-compose.node.yml --env-file .env.node up -d
 ```
 
@@ -317,11 +336,10 @@ one with no local copy would start it empty. So:
 1. Stop incoming work and wait for active sessions/exports to finish on the
    old host. Back up PostgreSQL, `projects/`, `docker-data/pi/`, the
    CloakBrowser `/data` volume. Restore SQL to Cloud SQL.
-2. Copy the media bucket and the browser-profiles bucket from MinIO to the
-   Cloud Storage buckets (`mc mirror minio/BUCKET gcs/NEW_BUCKET`, or
-   `gsutil -m rsync -r` from a local copy), keeping keys as they are. Then
-   point stored output URLs at the new origin:
-   `UPDATE "Project" SET outputs = replace(outputs, 'https://s3.example.com/OLD_BUCKET/', 'https://storage.googleapis.com/NEW_BUCKET/')`.
+2. Media is not copied: the old MinIO stays reachable at its public URL,
+   so existing output links keep working while new renders land in Cloud
+   Storage. (If MinIO is ever retired, `mc mirror` the bucket across and
+   rewrite `Project.outputs` to the new origin.)
 3. Before the first rollout, mount `state-pitch-worker-0` in a maintenance
    pod (create the PVC by that name with the worker's storage class and
    size so the StatefulSet adopts it) and copy `projects/` and `pi/` into

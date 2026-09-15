@@ -22,7 +22,6 @@ const values = {
   GCP_SERVICE_ACCOUNT: /^[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com$/,
   CLOUD_SQL_CONNECTION_NAME: /^[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]+$/,
   GKE_STATIC_IP_NAME: /^[a-z][a-z0-9-]*$/,
-  GCP_PROJECT_ID: /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/,
   // Cloud Storage bucket names are global; each deployment names its own.
   MEDIA_BUCKET: bucketName,
   PROFILES_BUCKET: bucketName,
