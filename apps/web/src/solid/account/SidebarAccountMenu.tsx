@@ -18,6 +18,7 @@ import { API_URL } from '../../config'
 import { useAuth, useClerk, useUser } from '../core/auth'
 import { useTheme } from '../core/theme'
 import { DiscordIcon } from '../public/brand'
+import { DISCORD_INVITE_URL } from '../public/socials'
 import type { SettingsSection } from './SettingsView'
 import { StudioMenu } from './StudioMenu'
 
@@ -43,16 +44,6 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
   })
   return (
     <div class="sidebar-footer-stack">
-      <a
-        class="sidebar-community-link"
-        href="https://discord.gg/a4SBW36mD"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <DiscordIcon size={17} />
-        <span>Join Discord</span>
-        <ArrowUpRight size={13} />
-      </a>
       <div class="sidebar-account-row">
         <StudioMenu
           label="Open account menu"
@@ -96,6 +87,17 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
             <Gift />
             <span>Affiliates</span>
           </A>
+          <a
+            role="menuitem"
+            class="sidebar-menu-discord"
+            href={DISCORD_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <DiscordIcon size={16} />
+            <span>Join Discord</span>
+            <ArrowUpRight class="sidebar-menu-external" />
+          </a>
           <div class="menu-separator" />
           <button role="menuitem" onClick={() => props.openSettings('account')}>
             <Settings />

@@ -125,8 +125,8 @@
   }
 
   .conversation-sidebar-frame.is-collapsed {
-    width: 48px;
-    flex-basis: 48px;
+    width: 0;
+    flex-basis: 0;
   }
 
   .conversation-sidebar {
@@ -146,18 +146,6 @@
     pointer-events: none;
   }
 
-  .conversation-sidebar__rail {
-    position: absolute;
-    inset: 0 auto 0 0;
-    opacity: 1;
-    transition: opacity 120ms ease;
-  }
-
-  .conversation-sidebar__rail.is-hidden {
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
-  }
 }
 
 /* The dim veil over the page while the drawer is open. Clicking it closes. */
@@ -178,238 +166,43 @@
   }
 }
 
-.conversation-sidebar__rail {
-  position: relative;
-  z-index: 66;
-  width: 48px;
-  height: 100%;
-  padding: 15px 8px;
-  display: flex;
-  flex: 0 0 48px;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  background: var(--shell-bg);
-}
 
+/* The opener sits inside the page's own top-left corner once the sidebar is
+   gone, so the content gets the full width and nothing reads as a leftover
+   rail. */
 .conversation-sidebar__open {
-  position: fixed;
-  top: 18px;
-  left: 18px;
+  position: absolute;
+  top: 12px;
+  left: 12px;
   z-index: 64;
   width: 35.2px;
   height: 35.2px;
   padding: 0;
   display: grid;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 11%);
-  border-radius: 10px;
-  background: #1b1d1b;
-  color: #a1a49f;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--shell-muted);
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
 .conversation-sidebar__open:hover {
-  border-color: rgb(255 255 255 / 20%);
-  background: #292c29;
-  color: #fff;
+  background: var(--shell-hover);
+  color: var(--shell-text);
 }
 
 .conversation-sidebar__open:focus-visible {
-  outline: 2px solid #d8d9d5;
+  outline: 2px solid var(--shell-muted);
   outline-offset: 2px;
 }
 
-.conversation-sidebar__rail button {
-  width: 35.2px;
-  height: 35.2px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--shell-muted);
-  cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
-}
-
-.conversation-sidebar__rail a {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  color: var(--shell-muted);
-  transition: background-color 140ms ease, color 140ms ease;
-}
-
-.conversation-sidebar__rail a:hover,
-.conversation-sidebar__rail button.is-active {
-  background: var(--shell-hover);
-  color: var(--shell-text);
-}
-
-.conversation-sidebar__rail button:hover {
-  background: var(--shell-hover);
-  color: var(--shell-text);
-}
-
-/* Keep the toggle glyph the same size in the drawer and collapsed rail. */
+/* Keep the toggle glyph the same size in the drawer and in the page corner. */
 .conversation-sidebar__icon svg,
-.conversation-sidebar__open svg,
-.conversation-sidebar__rail>button svg,
-.conversation-sidebar__rail-pop>button svg,
-.conversation-sidebar__rail>a svg {
+.conversation-sidebar__open svg {
   width: 17.6px;
   height: 17.6px;
-}
-
-.conversation-sidebar__rail button:nth-of-type(2) {
-  margin: 7px 0 3px;
-  background: var(--shell-hover);
-  color: var(--shell-text);
-}
-
-.conversation-sidebar__rail button:nth-of-type(2):not(.is-active) {
-  background: transparent;
-  color: var(--shell-muted);
-}
-
-.conversation-sidebar__rail>span {
-  flex: 1;
-}
-
-.conversation-sidebar__rail > span + button {
-  color: var(--shell-muted);
-}
-
-/* The collapsed rail's fly-out history: recents and a search, on hover. */
-.conversation-sidebar__rail-pop {
-  position: relative;
-}
-
-.conversation-sidebar__rail .conversation-sidebar__rail-history {
-  position: absolute;
-  top: -6px;
-  left: calc(100% + 10px);
-  z-index: 60;
-  width: 248px;
-  padding: 10px 6px 6px;
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 12px;
-  background: #202220;
-  box-shadow: 0 20px 50px rgb(0 0 0 / 32%), 0 2px 8px rgb(0 0 0 / 20%);
-  font-family: var(--font-sans);
-  animation: rail-history-in 140ms ease;
-}
-
-/* Keep the fly-out hovered while the pointer crosses its visual gutter from
-   the rail icon. The bridge is deliberately transparent: spacing stays airy,
-   but there is no dead zone that dismisses the history before it can be used. */
-.conversation-sidebar__rail .conversation-sidebar__rail-history::before {
-  position: absolute;
-  top: -8px;
-  right: 100%;
-  bottom: -8px;
-  width: 12px;
-  content: "";
-}
-
-@keyframes rail-history-in {
-  from {
-    opacity: 0;
-    transform: translateX(-4px);
-  }
-}
-
-.conversation-sidebar__rail-history>p {
-  margin: 0 8px 5px;
-  color: #858983;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.conversation-sidebar__rail-history-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.conversation-sidebar__rail .conversation-sidebar__rail-history-list button {
-  width: 100%;
-  min-height: 30px;
-  height: auto;
-  padding: 5px 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #c8cac6;
-  font-size: 11.5px;
-  letter-spacing: -0.006em;
-  text-align: left;
-  cursor: pointer;
-}
-
-.conversation-sidebar__rail .conversation-sidebar__rail-history-list button:hover {
-  background: #2b2e2b;
-  color: #fff;
-}
-
-.conversation-sidebar__rail-history-list button svg {
-  flex: none;
-  color: #97928d;
-}
-
-.conversation-sidebar__rail-history-list button span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.conversation-sidebar__rail-history-list button i {
-  width: 5px;
-  height: 5px;
-  margin-left: auto;
-  flex: none;
-  border-radius: 50%;
-  background: #1385d6;
-  box-shadow: 0 0 0 3px rgb(19 133 214 / 10%);
-}
-
-.conversation-sidebar__rail-history-empty {
-  display: block;
-  padding: 6px 8px;
-  color: #858983;
-  font-size: 10.5px;
-}
-
-.conversation-sidebar__rail-history-search {
-  margin-top: 5px;
-  padding: 7px 8px 3px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border-top: 1px solid rgb(255 255 255 / 7%);
-  color: #858983;
-}
-
-.conversation-sidebar__rail-history-search input {
-  width: 100%;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #ededeb;
-  font-size: 11.5px;
-  letter-spacing: -0.006em;
 }
 
 .conversation-sidebar button,
@@ -819,6 +612,7 @@
 }
 
 .app-shell-panel {
+  position: relative;
   margin: 8px 8px 8px 0;
   overflow: hidden;
   border: 0 !important;
@@ -827,7 +621,11 @@
 }
 
 .app-shell-bg.is-new-shell .app-shell-panel { margin: 6px 6px 6px 0; border: 1px solid var(--shell-border) !important; border-radius: 14px; }
-.app-shell-bg.is-new-shell :is(.conversation-sidebar__rail, .conversation-sidebar) { background: var(--shell-bg); }
+@media (min-width: 1024px) {
+  /* With no sidebar the page floats evenly inset on every side. */
+  .app-shell-bg.is-new-shell.is-sidebar-collapsed .app-shell-panel { margin: 6px; }
+}
+.app-shell-bg.is-new-shell .conversation-sidebar { background: var(--shell-bg); }
 
 .app-shell-panel--studio {
   box-shadow: none;
@@ -866,12 +664,6 @@
 .conversation-sidebar__chat.is-active { background: var(--shell-active); color: var(--shell-text); }
 .conversation-sidebar__account { border-top-color: var(--shell-border); }
 .conversation-sidebar__account span { color: var(--shell-faint); }
-.conversation-sidebar__open {
-  border-color: var(--shell-border);
-  background: var(--shell-raised);
-  color: var(--shell-muted);
-}
-.conversation-sidebar__open:hover { background: var(--shell-hover); color: var(--shell-text); }
 
 @media (max-width: 1023px) {
   .projects-page { padding-top: calc(max(15px, env(safe-area-inset-top)) + 1.6px); }
@@ -898,33 +690,14 @@
     border-radius: 0;
   }
 
-  /* A bare ghost icon on phones and tablets — no tile, border or shadow, so
-     it reads as chrome rather than a floating card. */
   .conversation-sidebar__open {
     top: max(15px, env(safe-area-inset-top));
     left: max(8px, env(safe-area-inset-left));
-    border-color: transparent;
-    background: transparent;
-    color: var(--shell-muted);
-    box-shadow: none;
   }
-
-  .conversation-sidebar__open:hover {
-    border-color: transparent;
-    background: transparent;
-    color: var(--shell-text);
-  }
-
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
   .projects-page__heading { padding-left: calc(max(8px, env(safe-area-inset-left)) + 35.2px + 8px - 32px); }
-}
-
-@media (max-width: 720px) {
-  .conversation-sidebar__rail {
-    display: none;
-  }
 }
 
 /* Workspace navigation stays compact; recent work and everyday controls are separate. */
@@ -973,13 +746,6 @@
 .sidebar-recents .conversation-sidebar__section-title { margin: 0; padding: 0; color: var(--shell-faint); font: 450 13px/1.4 var(--font-sans); text-transform: none; letter-spacing: 0; }
 .sidebar-recents .conversation-sidebar__all-chats { padding: 2px 0; opacity: 1; color: var(--shell-muted); font-size: 12px; font-weight: 400; }
 .sidebar-recents .conversation-sidebar__all-chats:hover { color: var(--shell-text); }
-.sidebar-project-search { display: none; }
-.sidebar-project-search:focus-within { border-color: var(--shell-muted); }
-.sidebar-project-search > svg { flex: none; }
-.sidebar-project-search input { flex: 1; min-width: 0; width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--shell-text); font-size: 12px; }
-.sidebar-project-search input::placeholder { color: var(--shell-faint); }
-.sidebar-project-search input::-webkit-search-cancel-button { display: none; }
-.sidebar-project-search button { display: grid; place-items: center; width: 18px; height: 22px; flex: none; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--shell-muted); cursor: pointer; }
 .sidebar-recents .conversation-sidebar__history { flex: 1; min-height: 0; padding: 0 0 12px; overflow-y: auto; scrollbar-width: thin; }
 .conversation-sidebar .sidebar-recent-project { width: 100%; min-width: 0; padding: 8px 4px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--shell-text); }
 .conversation-sidebar .sidebar-recent-project:hover { background: var(--shell-hover); }
@@ -997,18 +763,6 @@
 .sidebar-recents__empty { padding: 14px 8px; margin: 0; color: var(--shell-muted); font-size: 12px; line-height: 1.6; }
 .conversation-sidebar__footer { padding: 8px 10px; border-top: 1px solid var(--shell-border); }
 .sidebar-footer-stack { display: flex; flex-direction: column; gap: 5px; }
-.sidebar-community-link { display: none; }
-.sidebar-community-link > span { flex: 1; }
-.sidebar-community-link > svg { flex: none; }
-.sidebar-community-link:hover { background: rgb(88 101 242 / 12%); }
-[data-theme="dark"] .sidebar-community-link { color: #a9b1ff; background: rgb(88 101 242 / 10%); }
-.sidebar-theme-switch { display: none; }
-.conversation-sidebar .sidebar-theme-switch button { display: flex; justify-content: center; align-items: center; flex: 1; gap: 6px; min-height: 28px; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--shell-muted); font-size: 11px; cursor: pointer; }
-.conversation-sidebar .sidebar-theme-switch button[aria-pressed="true"] { background: var(--shell-raised); color: var(--shell-text); box-shadow: 0 1px 3px rgb(0 0 0 / 7%); }
-.sidebar-resource-links { display: none; }
-.sidebar-resource-links :is(a, button) { color: var(--shell-muted); font-size: 10px; text-decoration: none; white-space: nowrap; }
-.sidebar-resource-links button { padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer; }
-.sidebar-resource-links :is(a, button):hover { color: var(--shell-text); text-decoration: underline; }
 .sidebar-account-row { display: flex; align-items: center; gap: 4px; }
 .sidebar-account-trigger { flex: 1; min-width: 0; height: 48px; display: flex; align-items: center; gap: 9px; padding: 6px 4px; border: 0; border-radius: 9px; color: var(--shell-text); background: transparent; cursor: pointer; }
 .sidebar-account-trigger:hover, .sidebar-account-trigger[aria-expanded="true"] { background: var(--shell-hover); }
@@ -1023,7 +777,4 @@
 @media (max-width: 1023px) {
   .app-shell-bg.is-new-shell .app-shell-panel { margin: 0; border: 0 !important; border-radius: 0; }
   .conversation-sidebar { width: 260px; }
-  .sidebar-project-search input { font-size: 16px; }
-  .conversation-sidebar .sidebar-theme-switch button { min-height: 32px; }
-  .sidebar-community-link { min-height: 38px; }
 }

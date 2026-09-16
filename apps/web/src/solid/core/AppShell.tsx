@@ -256,26 +256,6 @@ function Sidebar(props: {
   )
 }
 
-function SidebarRail(props: { hidden: boolean; open: () => void }) {
-  return (
-    <nav
-      class={`conversation-sidebar__rail${props.hidden ? ' is-hidden' : ''}`}
-      aria-label="Workspace navigation"
-      aria-hidden={props.hidden}
-      inert={props.hidden}
-    >
-      <button
-        type="button"
-        onClick={props.open}
-        aria-label="Expand sidebar"
-        title="Expand sidebar (Ctrl+B)"
-      >
-        <PanelLeftOpen />
-      </button>
-    </nav>
-  )
-}
-
 export function AppShell(props: ParentProps) {
   const auth = useAuth()
   const { userAccessor } = useUser()
@@ -450,7 +430,6 @@ export function AppShell(props: ParentProps) {
           <div
             class={`conversation-sidebar-frame${collapsed() ? ' is-collapsed' : ' is-expanded'}`}
           >
-            <SidebarRail hidden={!collapsed()} open={() => setCollapsed(false)} />
             <Sidebar
               collapsed={collapsed()}
               isMobile={false}
@@ -478,21 +457,23 @@ export function AppShell(props: ParentProps) {
             toggle={() => setCollapsed(value => !value)}
             openSettings={openSettings}
           />
+        </Show>
+        <div
+          class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden${studio() ? ' app-shell-panel--studio' : ''}`}
+        >
+          {/* The collapsed sidebar leaves nothing behind; its opener floats
+              inside the page's own corner, so the content gets the full width. */}
           <Show when={collapsed()}>
             <button
               type="button"
               class="conversation-sidebar__open"
               onClick={() => setCollapsed(false)}
               aria-label="Open navigation"
-              title="Open navigation"
+              title="Open navigation (Ctrl+B)"
             >
               <PanelLeftOpen size={18} />
             </button>
           </Show>
-        </Show>
-        <div
-          class={`app-shell-panel flex min-w-0 flex-1 flex-col overflow-hidden${studio() ? ' app-shell-panel--studio' : ''}`}
-        >
           <main
             class={`app-shell-main relative flex-1 overflow-x-hidden${studio() ? ' overflow-hidden' : ' overflow-y-auto'}${selectedKey() === 'new' ? ' new-shell-main' : ''}`}
           >

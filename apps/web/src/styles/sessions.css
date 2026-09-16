@@ -19,7 +19,7 @@
 .sessions-page button { cursor: pointer; }
 .sessions-page button:disabled { cursor: default; opacity: .5; }
 .sessions-page :is(button, input):focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 3px; }
-.app-shell-bg.is-sidebar-collapsed .sessions-header { padding-left: 48px; }
+.app-shell-bg.is-sidebar-collapsed .sessions-header { padding-left: 56px; }
 
 @media (max-width: 640px) {
   .sessions-header h1 { font-size: 28px; line-height: 1.2; margin-top: 8px; }

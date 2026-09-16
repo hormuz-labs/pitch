@@ -97,7 +97,6 @@ export function NewProjectView(props: {
   const [submitting, setSubmitting] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
   const [error, setError] = createSignal('')
-  const [creditOfferOpen, setCreditOfferOpen] = createSignal(false)
   const [ratio, setRatio] = createSignal<(typeof RATIOS)[number]>('16:9')
   const [duration, setDuration] = createSignal<number | null>(null)
   const [deckTemplate, setDeckTemplate] = createSignal<(typeof DECK_TEMPLATES)[number] | null>(null)
@@ -110,6 +109,10 @@ export function NewProjectView(props: {
   const [models, setModels] = createSignal<StudioModel[]>([])
   const [model, setModel] = createSignal('')
   const [credits, setCredits] = createSignal<number | null>(null)
+  const [creditOfferOpen, setCreditOfferOpen] = createSignal(false)
+  // Whether the one-time Discord welcome credits are still on the table; an
+  // empty balance then offers them beside the plans link instead of a dead end.
+  const [discordWelcome, setDiscordWelcome] = createSignal<number | null>(null)
   const [voice, setVoice] = createSignal<VoicePreference | null>(null)
   const [voiceOpen, setVoiceOpen] = createSignal(false)
   const [exploring, setExploring] = createSignal(false)
@@ -134,6 +137,7 @@ export function NewProjectView(props: {
     const cost = selectedModelCost()
     return balance !== null && cost > balance ? cost - balance : 0
   })
+  const outOfCredits = createMemo(() => credits() === 0)
   const selectDeckTemplate = (template: (typeof DECK_TEMPLATES)[number]) => {
     setDeckTemplate(template)
     setPrompt(
@@ -156,8 +160,30 @@ export function NewProjectView(props: {
     const value = queryValue(params.prompt)
     if (value !== undefined) setPrompt(value)
   })
+  // Balance and reward together: claiming the welcome credits in Settings
+  // fires `credits-changed`, and the banner has to disappear with the balance.
+  const loadCredits = async () => {
+    const token = await getToken()
+    if (!token) return
+    const headers = { Authorization: `Bearer ${token}` }
+    await Promise.allSettled([
+      fetch(`${API_URL}/credits`, { headers, cache: 'no-store' }).then(async response => {
+        if (!response.ok) return
+        const data = await response.json()
+        if (typeof data.balance === 'number') setCredits(data.balance)
+      }),
+      fetch(`${API_URL}/credits/discord`, { headers, cache: 'no-store' }).then(async response => {
+        if (!response.ok) return
+        const reward = await response.json()
+        const unclaimed = reward.state === 'unlinked' || reward.state === 'available'
+        setDiscordWelcome(reward.configured && unclaimed ? reward.credits : null)
+      }),
+    ])
+  }
   onMount(async () => {
     if (window.matchMedia('(min-width: 761px)').matches) textarea.focus()
+    window.addEventListener('credits-changed', loadCredits)
+    onCleanup(() => window.removeEventListener('credits-changed', loadCredits))
     const token = await getToken()
     if (!token) return
     await Promise.allSettled([
@@ -165,14 +191,7 @@ export function NewProjectView(props: {
         setModels(result.models)
         setModel(result.default)
       }),
-      fetch(`${API_URL}/credits`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      }).then(async response => {
-        if (!response.ok) return
-        const data = await response.json()
-        if (typeof data.balance === 'number') setCredits(data.balance)
-      }),
+      loadCredits(),
     ])
   })
   let pageRoot: HTMLDivElement | undefined
@@ -308,6 +327,7 @@ export function NewProjectView(props: {
       if (isApiError(reason) && reason.status === 402) {
         setError('')
         setCreditOfferOpen(true)
+        void loadCredits()
         return
       }
       const message = reason instanceof Error ? reason.message : 'Could not create the project'
@@ -568,11 +588,30 @@ export function NewProjectView(props: {
                 />
               </div>
             </div>
-            <Show when={insufficientCredits() > 0}>
-              <p class="composer-credit-warning" role="alert">
-                You need {insufficientCredits().toLocaleString()} more credits for this model and
-                duration. <a href="/pricing">View plans</a>
-              </p>
+            <Show
+              when={outOfCredits() && discordWelcome()}
+              fallback={
+                <Show when={insufficientCredits() > 0}>
+                  <p class="composer-credit-warning" role="alert">
+                    You need {insufficientCredits().toLocaleString()} more credits for this model
+                    and duration. <a href="/pricing">View plans</a>
+                  </p>
+                </Show>
+              }
+            >
+              {welcome => (
+                <p class="composer-credit-warning" role="alert">
+                  You’re out of credits.{' '}
+                  <button type="button" onClick={() => props.openSettings?.('credits')}>
+                    Buy credits
+                  </button>{' '}
+                  or{' '}
+                  <button type="button" onClick={() => props.openSettings?.('connections')}>
+                    join our Discord for {welcome().toLocaleString()} welcome credits
+                  </button>
+                  .
+                </p>
+              )}
             </Show>
             <Show when={activeSkill() || ratio() !== '16:9' || duration()}>
               <div class="new-preferences">

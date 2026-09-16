@@ -20,6 +20,7 @@
 .studio-menu .menu-separator { height: 1px; margin: 5px 7px; background: var(--menu-border); }
 .studio-menu .menu-danger { color: #d96770; }
 .studio-menu .sidebar-menu-credits img { width: 16px; height: 16px; }
+.studio-menu .sidebar-menu-external { margin-left: auto; width: 13px; height: 13px; color: var(--menu-muted); }
 .studio-menu .sidebar-menu-credits small { margin-left: auto; padding: 3px 7px; border-radius: 999px; background: var(--menu-hover); color: var(--menu-ink); font-size: 11px; font-variant-numeric: tabular-nums; }
 .model-catalog { width: 100%; color: var(--menu-ink); }
 .model-catalog-search { height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 9px; border-radius: 11px; background: var(--menu-hover); color: var(--menu-muted); }
