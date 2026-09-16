@@ -49,7 +49,8 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
 | --- | --- | --- |
 | Deployment `pitch` + HPA + PDB | `api.yaml` | no disk, no sandbox privileges |
 | StatefulSet `pitch-worker` + headless Service + PDB | `worker.yaml` | `replicas: 2`, one PVC per ordinal, `terminationGracePeriodSeconds: 1900`, no browser |
-| Deployment `pitch-render` + Role + RoleBinding | `render.yaml` | spot pool, scratch disk, whisper model, no sandbox privileges; the Role lets the API patch its scale |
+| Deployment `pitch-render` | `render.yaml` | spot pool, scratch disk, whisper model, no sandbox privileges |
+| Role + RoleBinding `pitch-render-scaler` | `rbac.yaml` | applied once by hand; lets the API patch the render Deployment's scale |
 | StatefulSet `pitch-browser` + headless Service + HPA + PDB | `browser.yaml` | one PVC per ordinal; `_manager._tcp` SRV records are how clients find the pods |
 | Job `pitch-migrate-<RELEASE>` | `migrate.yaml` | rendered separately, applied first |
 | Connector, egress Service | `tailscale/` | optional; see Tailscale below |
@@ -101,6 +102,10 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
   (`gcloud storage hmac create SA_EMAIL`); its access id and secret are the
   `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` in the runtime Secret, and are
   how storage is reached.
+- Apply the one Role the API needs to scale the render tier:
+  `kubectl apply -f infra/gke/rbac.yaml`. By hand, as a cluster admin: the
+  deploy service account cannot create RBAC, and the file is not part of
+  the kustomization for that reason.
 - Reserve a global external address for the GCE Ingress. Set its resource name
   as `GKE_STATIC_IP_NAME`; point the API hostname's A record at that address.
   Managed TLS provisioning requires the hostname to resolve to the load balancer.

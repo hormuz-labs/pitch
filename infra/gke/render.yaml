@@ -13,7 +13,8 @@
 #
 # The API scales it (apps/api/src/renderer/autoscale.ts): replicas = jobs
 # queued or running, 0–8, up at once, down after ten quiet minutes. The
-# Role below is what lets it. No KEDA, no HPA.
+# Role that lets it is rbac.yaml, applied once by a cluster admin — the
+# deploy service account may not create RBAC. No KEDA, no HPA.
 #
 # No sandbox privileges: nothing here runs an agent shell. The browser for a
 # capture is a shared manager (browser.yaml) reached over the network.
@@ -140,26 +141,3 @@ spec:
           emptyDir: { sizeLimit: 60Gi }
         - name: scratch
           emptyDir: { sizeLimit: 20Gi }
----
-# What the API needs to scale the render tier: read and patch its scale.
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: pitch-render-scaler
-rules:
-  - apiGroups: [apps]
-    resources: [deployments/scale]
-    resourceNames: [pitch-render]
-    verbs: [get, patch]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: pitch-render-scaler
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: pitch-render-scaler
-subjects:
-  - kind: ServiceAccount
-    name: pitch
