@@ -161,8 +161,8 @@ export interface RenderDemand {
   wanted: number
 }
 
-/** What the render autoscaler follows (worker/scale.ts). */
-export async function renderDemand(min = 1, max = 8): Promise<RenderDemand> {
+/** What the render autoscaler follows (renderer/autoscale.ts; shown on /internal/scale). */
+export async function renderDemand(min = 0, max = 8): Promise<RenderDemand> {
   const [queued, running] = await Promise.all([
     prisma.renderJob.count({ where: { status: 'queued' } }),
     prisma.renderJob.count({ where: { status: 'running' } }),

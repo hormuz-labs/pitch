@@ -55,6 +55,7 @@ const {
 const { awaitJob } = await import('../apps/api/src/worker/remote.js')
 const { changedSince } = await import('../apps/api/src/renderer/transfer.js')
 const { chooseManager } = await import('../packages/shared/src/manager-client.js')
+const { decide } = await import('../apps/api/src/renderer/autoscale.js')
 
 const ws = { flow: 'studio', userId: 'u', name: 'n', internal: 'studio--u--n', dir: '/x' } as any
 
@@ -198,5 +199,22 @@ describe('browser manager pick', () => {
     expect(chooseManager([c(0, null), c(1, 3)], 4)?.ordinal).toBe(1)
     expect(chooseManager([c(0, null), c(1, null)], 4)?.ordinal).toBe(0)
     expect(chooseManager([], 4)).toBeNull()
+  })
+})
+
+describe('render autoscaler decision', () => {
+  const base = { min: 0, max: 8, idleMs: 600_000 }
+  it('scales up at once', () => {
+    expect(decide({ ...base, current: 0, demand: 3, idleFor: 0 })).toBe(3)
+    expect(decide({ ...base, current: 2, demand: 20, idleFor: 0 })).toBe(8)
+  })
+  it('holds until the idle window has passed, then scales down', () => {
+    expect(decide({ ...base, current: 3, demand: 1, idleFor: 60_000 })).toBeNull()
+    expect(decide({ ...base, current: 3, demand: 1, idleFor: 600_000 })).toBe(1)
+    expect(decide({ ...base, current: 1, demand: 0, idleFor: 700_000 })).toBe(0)
+  })
+  it('respects the floor and leaves a matching count alone', () => {
+    expect(decide({ ...base, min: 1, current: 1, demand: 0, idleFor: 900_000 })).toBeNull()
+    expect(decide({ ...base, current: 2, demand: 2, idleFor: 900_000 })).toBeNull()
   })
 })

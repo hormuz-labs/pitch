@@ -9,7 +9,6 @@ resources:
   - api.yaml
   - worker.yaml
   - render.yaml
-  - autoscaling.yaml
   - ingress.yaml
   - discord-bot.yaml
 configMapGenerator:
@@ -20,10 +19,9 @@ configMapGenerator:
       - PROJECTS_DIR=/app/projects
       - PI_AGENT_DIR=/root/.pi/agent
       - STUDIO_SANDBOX=bwrap
-      # Placement and scaling (docs/studio-architecture.md → Scaling). A
-      # worker is light — sessions, not renders — so it holds many.
+      # Placement (docs/studio-architecture.md → Scaling). A worker is light
+      # — sessions, not renders — so it holds many.
       - STUDIO_WORKER_SLOTS=24
-      - STUDIO_SCALE_HEADROOM=4
       - STUDIO_WORKSPACE_BUCKET=${WORKSPACE_BUCKET}
       # Cloud Storage through its S3-compatible endpoint (an HMAC key in
       # pitch-runtime as MINIO_ROOT_USER/MINIO_ROOT_PASSWORD): the same code

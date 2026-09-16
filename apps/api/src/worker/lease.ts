@@ -194,13 +194,12 @@ export interface FleetStatus {
 }
 
 /**
- * The numbers the autoscalers follow (GET /internal/scale). `wanted` is
- * demand, not utilisation: how many elastic workers of the usual size it
- * takes to hold what is leased right now and still keep SCALE_HEADROOM
- * slots free, after the slots of any fixed worker outside the scaled group
- * are used. Draining workers contribute their projects but not their
- * slots, so a worker on its way out is replaced before it is gone.
- * `render.wanted` is one render pod per job queued or running.
+ * The fleet's numbers (GET /internal/scale). `wanted` is demand, not
+ * utilisation: how many elastic workers of the usual size it takes to hold
+ * what is leased right now and still keep SCALE_HEADROOM slots free, after
+ * the slots of any fixed worker outside the scaled group are used —
+ * a reading for whoever sets the worker count. `render.wanted` is one
+ * render pod per job queued or running, which the API sets itself.
  */
 export async function fleetStatus(): Promise<FleetStatus> {
   const since = liveSince()

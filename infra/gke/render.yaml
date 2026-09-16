@@ -7,9 +7,13 @@
 #
 # A Deployment, not a StatefulSet: a render pod is cattle. Its scratch is an
 # emptyDir that dies with it; a job it was running is claimed again by
-# another pod once its heartbeat goes stale. KEDA (autoscaling.yaml) sets the
-# replica count to the number of jobs queued or running, one pod per job,
-# so an idle fleet keeps one warm pod and a burst gets a pod each.
+# another pod once its heartbeat goes stale. That is also why it runs on
+# spot nodes (the `render-spot` pool, min 0): a preempted pod is a retried
+# job, and the pool costs nothing while nothing renders.
+#
+# The API scales it (apps/api/src/renderer/autoscale.ts): replicas = jobs
+# queued or running, 0–8, up at once, down after ten quiet minutes. The
+# Role below is what lets it. No KEDA, no HPA.
 #
 # No sandbox privileges: nothing here runs an agent shell. The browser for a
 # capture is a shared manager (browser.yaml) reached over the network.
@@ -18,7 +22,7 @@ kind: Deployment
 metadata:
   name: pitch-render
 spec:
-  # No `replicas`: the ScaledObject owns it.
+  # No `replicas`: the API owns it (autoscale.ts).
   revisionHistoryLimit: 3
   strategy:
     type: RollingUpdate
@@ -32,16 +36,18 @@ spec:
         app: pitch-render
     spec:
       serviceAccountName: pitch
-      # A render pod finishes the job it is on before it goes; a launch
-      # capture at 4K can take twenty minutes.
+      # A render pod finishes the job it is on before it goes (a scale-down
+      # honours this; a spot preemption gives 25 s and the job is retried).
       terminationGracePeriodSeconds: 1500
-      # The workers pool: a worker pod is small now, so a worker, a render pod
-      # and a browser manager share one e2-standard-8. Requests are sized to
-      # pack that way; limits are the burst.
       nodeSelector:
         kubernetes.io/os: linux
         kubernetes.io/arch: amd64
-        pool: workers
+        pool: render-spot
+      tolerations:
+        - key: cloud.google.com/gke-spot
+          operator: Equal
+          value: 'true'
+          effect: NoSchedule
       initContainers:
         - name: prepare-state
           image: pitch-api
@@ -120,10 +126,10 @@ spec:
             httpGet: { path: /health/ready, port: http }
             periodSeconds: 10
             timeoutSeconds: 5
-          # This is the burst budget: ffmpeg and whisper take every core.
+          # One pod per spot node: ffmpeg and whisper take every core.
           resources:
-            requests: { cpu: '2500m', memory: 6Gi, ephemeral-storage: 10Gi }
-            limits: { cpu: '7', memory: 14Gi, ephemeral-storage: 40Gi }
+            requests: { cpu: '6', memory: 20Gi, ephemeral-storage: 10Gi }
+            limits: { cpu: '7', memory: 28Gi, ephemeral-storage: 60Gi }
           volumeMounts:
             - { name: state, mountPath: /app/projects, subPath: projects }
             - { name: state, mountPath: /root/.pi/agent, subPath: pi }
@@ -134,3 +140,26 @@ spec:
           emptyDir: { sizeLimit: 60Gi }
         - name: scratch
           emptyDir: { sizeLimit: 20Gi }
+---
+# What the API needs to scale the render tier: read and patch its scale.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pitch-render-scaler
+rules:
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    resourceNames: [pitch-render]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pitch-render-scaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pitch-render-scaler
+subjects:
+  - kind: ServiceAccount
+    name: pitch

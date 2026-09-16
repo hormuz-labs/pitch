@@ -141,7 +141,7 @@ jobs:
           kubectl rollout status deployment/pitch -n pitch --timeout=900s
           kubectl rollout status deployment/pitch-discord-bot -n pitch --timeout=300s
           kubectl rollout status statefulset/pitch-browser -n pitch --timeout=900s
-          # A render pod finishes the job it holds before it goes.
+          # Render pods are usually 0; when there are some, each finishes its job first.
           kubectl rollout status deployment/pitch-render -n pitch --timeout=1h
           # Each worker drains gently (up to STUDIO_DRAIN_MS) before its replacement starts.
           kubectl rollout status statefulset/pitch-worker -n pitch --timeout=5h

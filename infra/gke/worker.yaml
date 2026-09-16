@@ -36,8 +36,10 @@ metadata:
   name: pitch-worker
 spec:
   serviceName: pitch-worker
-  # No `replicas`: the ScaledObject in autoscaling.yaml owns it, and a value
-  # here would be re-applied on every deploy and undo the scaling.
+  # Fixed, not autoscaled: a worker holds tens of sessions, so two cover a
+  # long way, and the number is changed here when it needs to be. The CPU
+  # that does move is the render tier (render.yaml).
+  replicas: 2
   podManagementPolicy: Parallel
   updateStrategy:
     type: RollingUpdate

@@ -241,6 +241,9 @@ if (IS_API) {
   void resumePendingWebhooks()
   const { installEventForwarder } = await import('./worker/client.js')
   installEventForwarder()
+  // The render tier's replica count is this process's job in a cluster.
+  const { startRenderAutoscaler } = await import('./renderer/autoscale.js')
+  startRenderAutoscaler()
 }
 const workerHost = IS_WORKER ? await import('./worker/host.js') : null
 if (IS_WORKER) {

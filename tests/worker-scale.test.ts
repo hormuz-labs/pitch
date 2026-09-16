@@ -51,7 +51,7 @@ describe('fleet status', () => {
       slots: 0,
       held: 0,
       wanted: 1,
-      render: { queued: 0, running: 0, wanted: 1 },
+      render: { queued: 0, running: 0, wanted: 0 },
     })
   })
 
@@ -93,16 +93,16 @@ describe('fleet status', () => {
       slots: 8,
       held: 1,
       wanted: 1,
-      render: { queued: 0, running: 0, wanted: 1 },
+      render: { queued: 0, running: 0, wanted: 0 },
     })
   })
 
-  it('asks for one render pod per job in flight, one at least, eight at most', async () => {
+  it('asks for one render pod per job in flight, none idle, eight at most', async () => {
     workers = [worker('pitch-worker-0')]
     held = 0
     queued = 0
     running = 0
-    expect((await fleetStatus()).render.wanted).toBe(1)
+    expect((await fleetStatus()).render.wanted).toBe(0)
     queued = 2
     running = 3
     expect((await fleetStatus()).render).toEqual({ queued: 2, running: 3, wanted: 5 })

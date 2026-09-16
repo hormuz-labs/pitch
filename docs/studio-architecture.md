@@ -428,19 +428,19 @@ load from the worker over the pod network (`STUDIO_INTERNAL_ORIGIN`) with
 the preview cookie; a capture serves the workspace into the page by request
 interception and needs no route back at all.
 
-**Scaling the fleet.** The API answers `GET /internal/scale` (behind the
-worker token) with two numbers. `wanted` is how many elastic workers it
-takes to hold every leased project and still keep `STUDIO_SCALE_HEADROOM`
-slots free — the demand, not the utilisation, because a worker mid-turn is
-mostly waiting on a model and CPU says nothing; with tens of slots per
-worker it barely moves. `render.wanted` is one render pod per job queued
-or running, and it is the number that moves: it is the fleet's CPU. An
-autoscaler (KEDA on GKE, see `docs/gke-deployment.md`) sets each tier to
-its number; the browser managers scale on CPU with a plain HPA. Elastic
-workers are the ones whose id starts with `STUDIO_SCALE_GROUP`; any other
-live worker is fixed capacity whose slots are used first. Draining workers
-count their projects but not their slots, so a replacement is asked for
-before they go.
+**Scaling the fleet.** One number moves: render pods, one per job queued
+or running. The API sets it itself (`renderer/autoscale.ts` patches the
+render Deployment's scale, 0–8, up at once, down after ten quiet minutes)
+— no KEDA, no metrics adapter. The pods run on spot nodes, since a
+preempted pod is just a retried job. Workers are a fixed count: one holds
+tens of sessions and its CPU is not the point. `GET /internal/scale`
+(behind the worker token) reports both — `wanted`, how many workers it
+would take to hold every leased project with `STUDIO_SCALE_HEADROOM` free
+(the demand, not the utilisation: a worker mid-turn is waiting on a
+model), and `render.wanted` — as a reading, and the browser managers scale
+on CPU with a plain HPA. Any live worker whose id is outside
+`STUDIO_SCALE_GROUP` (a machine on the tailnet) is fixed capacity whose
+slots are used first.
 
 **Networking.** Workers need a private URL other processes can reach
 (`STUDIO_WORKER_URL`): a VPC address, a compose service name, a Tailscale
