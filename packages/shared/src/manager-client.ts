@@ -44,10 +44,10 @@ export async function createManagerProfile(userId: string): Promise<any> {
   const res = await fetch(`${getManagerBaseUrl()}/api/profiles`, {
     method: 'POST',
     headers: getManagerHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
-      name: userId,
-      platform: 'windows',
-    }),
+    // Name only: the manager's ProfileCreate rejects unknown fields, and the
+    // GKE image no longer has `platform`. Its defaults (1920x1080) are what
+    // the studio renders at anyway.
+    body: JSON.stringify({ name: userId }),
   })
   if (!res.ok) throw new Error(`Failed to create manager profile: ${await res.text()}`)
   return res.json()
