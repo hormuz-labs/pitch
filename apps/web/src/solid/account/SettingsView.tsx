@@ -10,6 +10,7 @@ import { McpGuide, McpSettingsPanel } from './McpPanels'
 import { Select, Switch } from './primitives'
 import { AccountSection } from './settings/AccountSection'
 import { BuyCreditsSection } from './settings/BuyCreditsSection'
+import { DiscordConnectionSection } from './settings/DiscordConnectionSection'
 import { NotificationsSection } from './settings/NotificationsSection'
 import { PlansSection } from './settings/PlansSection'
 import { ProfileSection } from './settings/ProfileSection'
@@ -406,7 +407,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Connections',
     items: [
-      { value: 'connections', label: 'Socials' },
+      { value: 'connections', label: 'Discord & socials' },
       { value: 'mcp', label: 'MCP' },
       { value: 'api', label: 'API' },
     ],
@@ -501,6 +502,9 @@ export function SettingsModal(props: {
               <RewardsSection />
             </Show>
             <Show when={props.section === 'connections'}>
+              {/* The welcome reward is claimed here: connect Discord, join,
+                  claim. The follow links below it grant nothing. */}
+              <DiscordConnectionSection />
               <SocialSection />
             </Show>
             <Show when={props.section === 'mcp'}>
