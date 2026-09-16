@@ -36,6 +36,7 @@ import {
 } from '../../lib/studio-api'
 import { useAuth } from '../core/auth'
 import { PitchWordmark } from '../public/brand'
+import { DISCORD_INVITE_URL } from '../public/socials'
 import { DiscordOfferModal } from './DiscordOfferModal'
 import { ModelCatalog } from './ModelCatalog'
 import type { SettingsSection } from './SettingsView'
@@ -110,9 +111,15 @@ export function NewProjectView(props: {
   const [model, setModel] = createSignal('')
   const [credits, setCredits] = createSignal<number | null>(null)
   const [creditOfferOpen, setCreditOfferOpen] = createSignal(false)
-  // Whether the one-time Discord welcome credits are still on the table; an
-  // empty balance then offers them beside the plans link instead of a dead end.
-  const [discordWelcome, setDiscordWelcome] = createSignal<number | null>(null)
+  // The one-time Discord welcome reward while it is still on the table: an
+  // empty balance then offers it beside the plans link instead of a dead end.
+  // `linked` means the Discord account is connected, so the claim is one click.
+  const [discordWelcome, setDiscordWelcome] = createSignal<{
+    credits: number
+    linked: boolean
+  } | null>(null)
+  const [claimingWelcome, setClaimingWelcome] = createSignal(false)
+  const [welcomeNotice, setWelcomeNotice] = createSignal('')
   const [voice, setVoice] = createSignal<VoicePreference | null>(null)
   const [voiceOpen, setVoiceOpen] = createSignal(false)
   const [exploring, setExploring] = createSignal(false)
@@ -176,9 +183,37 @@ export function NewProjectView(props: {
         if (!response.ok) return
         const reward = await response.json()
         const unclaimed = reward.state === 'unlinked' || reward.state === 'available'
-        setDiscordWelcome(reward.configured && unclaimed ? reward.credits : null)
+        setDiscordWelcome(
+          reward.configured && unclaimed
+            ? { credits: reward.credits, linked: reward.state === 'available' }
+            : null,
+        )
       }),
     ])
+  }
+  // Linked account: claim right here. The API checks server membership, so a
+  // user who has not joined yet is told to, with the invite one click away.
+  const claimWelcome = async () => {
+    if (claimingWelcome()) return
+    setClaimingWelcome(true)
+    setWelcomeNotice('')
+    try {
+      const token = await getToken()
+      if (!token) return
+      const response = await fetch(`${API_URL}/credits/discord/claim`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Could not claim your Discord reward.')
+      window.dispatchEvent(new Event('credits-changed'))
+    } catch (reason) {
+      setWelcomeNotice(
+        reason instanceof Error ? reason.message : 'Could not claim your Discord reward.',
+      )
+    } finally {
+      setClaimingWelcome(false)
+    }
   }
   onMount(async () => {
     if (window.matchMedia('(min-width: 761px)').matches) textarea.focus()
@@ -606,10 +641,39 @@ export function NewProjectView(props: {
                     Buy credits
                   </button>{' '}
                   or{' '}
-                  <button type="button" onClick={() => props.openSettings?.('connections')}>
-                    join our Discord for {welcome().toLocaleString()} welcome credits
-                  </button>
+                  <Show
+                    when={welcome().linked}
+                    fallback={
+                      // Not connected yet: go straight to the server, and leave
+                      // the connect-and-claim card open for when they return.
+                      <a
+                        href={DISCORD_INVITE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => props.openSettings?.('connections')}
+                      >
+                        join our Discord for {welcome().credits.toLocaleString()} welcome credits
+                      </a>
+                    }
+                  >
+                    <button type="button" disabled={claimingWelcome()} onClick={claimWelcome}>
+                      {claimingWelcome()
+                        ? 'checking your Discord membership…'
+                        : `claim your ${welcome().credits.toLocaleString()} Discord welcome credits`}
+                    </button>
+                  </Show>
                   .
+                  <Show when={welcomeNotice()}>
+                    {notice => (
+                      <>
+                        {' '}
+                        {notice()}{' '}
+                        <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                          Open Discord
+                        </a>
+                      </>
+                    )}
+                  </Show>
                 </p>
               )}
             </Show>

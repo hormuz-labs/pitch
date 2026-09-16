@@ -82,8 +82,25 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] })
 client.once(Events.ClientReady, ready => {
   console.info(`[discord-bot] logged in as ${ready.user.tag}`)
 })
+// The gateway session is the whole bot: a silent drop looks exactly like
+// "The application did not respond", so every state change is logged.
+client.on(Events.ShardDisconnect, (event, shard) => {
+  console.warn(`[discord-bot] shard ${shard} disconnected (${event.code})`)
+})
+client.on(Events.ShardReconnecting, shard => {
+  console.warn(`[discord-bot] shard ${shard} reconnecting`)
+})
+client.on(Events.ShardResume, (shard, replayed) => {
+  console.info(`[discord-bot] shard ${shard} resumed, ${replayed} events replayed`)
+})
+client.on(Events.ShardError, (error, shard) => {
+  console.error(`[discord-bot] shard ${shard} error`, error)
+})
 client.on(Events.InteractionCreate, interaction => {
   if (!interaction.isChatInputCommand() || interaction.commandName !== 'video') return
+  console.info(
+    `[discord-bot] /video from ${interaction.user.id} in ${interaction.guildId ?? 'DM'}`,
+  )
   void handleVideoCommand(adaptInteraction(interaction), api, { appUrl }).catch(async error => {
     console.error('[discord-bot] /video failed', error)
     const message = 'Pitch could not start that video. Please try again shortly.'

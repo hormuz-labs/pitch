@@ -110,7 +110,10 @@
 .new-project-hint { margin: 19px 0 0; color: var(--new-faint); text-align: center; font-size: 11px; line-height: 1.6; }
 .lv-studio .new-composer-wrap .create-error { margin-top: 12px; color: #d65d66; font-size: 12px; }
 .composer-credit-warning { width: auto; margin: 6px 10px 0; padding: 8px 10px; border-radius: 9px; background: color-mix(in srgb, #d94752 8%, transparent); color: #b8323d; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
-.composer-credit-warning :is(a, button) { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+/* Inline links in running text; the studio's button chrome must not apply. */
+.lv-studio.new-project-page .composer-credit-warning :is(a, button) { display: inline; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; font-weight: 600; line-height: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.lv-studio.new-project-page .composer-credit-warning :is(a, button):hover:not(:disabled) { background: none; color: #8f1f29; }
+.lv-studio.new-project-page .composer-credit-warning button:disabled { opacity: .7; }
 .lv-studio.new-project-page .new-featured-cue { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: min(768px, calc(100% - 48px)); height: 52px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 0; border-radius: 24px 24px 0 0; background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-muted); font-size: 13px; font-weight: 400; text-decoration: none; }
 .lv-studio.new-project-page .new-featured-cue:hover { background: color-mix(in srgb, var(--new-raised) calc((1 - var(--explore-progress, 0)) * 100%), transparent); color: var(--new-ink); }
 .new-featured-cue > span { display: flex; align-items: center; gap: 9px; }
