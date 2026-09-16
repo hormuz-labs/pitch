@@ -98,9 +98,7 @@ client.on(Events.ShardError, (error, shard) => {
 })
 client.on(Events.InteractionCreate, interaction => {
   if (!interaction.isChatInputCommand() || interaction.commandName !== 'video') return
-  console.info(
-    `[discord-bot] /video from ${interaction.user.id} in ${interaction.guildId ?? 'DM'}`,
-  )
+  console.info(`[discord-bot] /video from ${interaction.user.id} in ${interaction.guildId ?? 'DM'}`)
   void handleVideoCommand(adaptInteraction(interaction), api, { appUrl }).catch(async error => {
     console.error('[discord-bot] /video failed', error)
     const message = 'Pitch could not start that video. Please try again shortly.'
