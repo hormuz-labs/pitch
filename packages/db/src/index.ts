@@ -141,7 +141,7 @@ export async function addCredits(
 }
 
 export const DISCORD_WELCOME_CAMPAIGN = 'discord-welcome-v1'
-export const DISCORD_WELCOME_CREDITS = 120
+export const DISCORD_WELCOME_CREDITS = 250
 
 export async function getDiscordWelcomeClaim(userId: string, discordUserId: string | null) {
   const campaignId = DISCORD_WELCOME_CAMPAIGN

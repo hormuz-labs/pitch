@@ -25,12 +25,12 @@ export function DiscordOfferModal(props: {
         </div>
         <p class="discord-offer__eyebrow">Pitch on Discord</p>
         <h2 id="discord-offer-title">
-          {announcement() ? 'Join our Discord. Get 120 credits.' : 'You’re out of Pitch credits'}
+          {announcement() ? 'Join our Discord. Get 250 credits.' : 'You’re out of Pitch credits'}
         </h2>
         <p>
           {announcement()
-            ? 'Meet other creators, share your work, and get a one-time welcome reward. Connect Discord and verify you’ve joined to add 120 credits to your Pitch balance.'
-            : 'Buy credits to continue, or join our Discord and claim 120 welcome credits if you haven’t already.'}
+            ? 'Meet other creators, share your work, and get a one-time welcome reward. Connect Discord and verify you’ve joined to add 250 credits to your Pitch balance.'
+            : 'Buy credits to continue, or join our Discord and get 250 welcome credits if you haven’t already.'}
         </p>
         <div class="discord-offer__actions">
           {!announcement() && (

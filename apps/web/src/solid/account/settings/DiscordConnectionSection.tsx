@@ -133,7 +133,7 @@ export function DiscordConnectionSection() {
         <span>
           <strong>Discord</strong>
           <small>
-            Connect your Discord and join the Pitch server: {reward()?.credits ?? 120} welcome
+            Connect your Discord and join the Pitch server: {reward()?.credits ?? 250} welcome
             credits land in your balance on their own.
           </small>
         </span>
