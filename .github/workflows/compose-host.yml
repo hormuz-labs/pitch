@@ -1,0 +1,28 @@
+name: Compose host
+
+# The old Compose host is only reachable through its self-hosted runner.
+# This is the hand on its power switch while the GKE fleet takes over.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do with the Compose stack
+        type: choice
+        required: true
+        default: stop-discord-bot
+        options:
+          - stop-discord-bot
+          - status
+          - stop-all
+
+jobs:
+  run:
+    runs-on: self-hosted
+    steps:
+      - name: ${{ inputs.action }}
+        run: |
+          case "${{ inputs.action }}" in
+            stop-discord-bot) docker stop pitch_discord_bot || true ;;
+            stop-all) docker ps --filter name=pitch -q | xargs -r docker stop ;;
+          esac
+          docker ps -a --filter name=pitch --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
