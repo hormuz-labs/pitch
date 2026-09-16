@@ -59,21 +59,19 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
 - Use GKE **Standard**, Kubernetes 1.31+, a VPC-native cluster with Workload
   Identity, the GCE Ingress controller and the Persistent Disk CSI driver.
   Autopilot's restricted security policy cannot run the bubblewrap sandbox.
-- Four node pools, all amd64 Linux, all with the **cluster autoscaler** on,
+- Two node pools, both amd64 Linux, both with the **cluster autoscaler** on,
   labelled `pool=` as the manifests select them:
   - `system` — the API and the Discord bot (e2-standard-4, min 2);
-  - `workers` — a worker pod requests 1 CPU / 4 GiB and holds tens of
-    sessions (e2-standard-4 fits three, min 1, max = the worker
-    ScaledObject's `maxReplicaCount`);
-  - `render` — a render pod requests 4 CPU / 8 GiB and takes every core it
-    is given (e2-standard-8 fits one, min 1 so a warm pod is always there,
-    max = the render ScaledObject's `maxReplicaCount`);
-  - `browsers` — a manager requests 3 CPU / 6 GiB and is where capture CPU
-    goes (e2-standard-8 fits one, min 1, max = the browser HPA's
-    `maxReplicas`).
-  Turn on **image streaming** for the worker and render pools: a new pod is
-  a new node plus a multi-gigabyte pull, and that is the scale-up latency
-  the headroom (workers) and the warm pod (render) are there to hide.
+  - `workers` — everything elastic: worker pods (1 CPU / 4 GiB, tens of
+    sessions each), render pods (2.5 CPU / 6 GiB requested, every core
+    as the limit) and browser managers (2 CPU / 5 GiB requested). The
+    requests are sized so one of each fits on one e2-standard-8 with room
+    for the sidecars, so the idle fleet is one node; a burst of renders
+    or captures brings more (min 1, max 8). Limits, not requests, are the
+    burst: a lone render pod on a node gets the whole machine.
+  Turn on **image streaming** for the workers pool: a new pod is a new
+  node plus a multi-gigabyte pull, and that is the scale-up latency the
+  headroom (workers) and the warm pod (render) are there to hide.
 - Restrict the bubblewrap exception (`SYS_ADMIN`, unconfined seccomp/AppArmor)
   to the worker pool and the `pitch` namespace, and run the shipped sandbox
   check on the chosen node image. Render pods and browsers need none of it.

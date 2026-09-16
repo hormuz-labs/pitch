@@ -11,8 +11,8 @@
 # packages/shared/src/manager-client.ts → pickManager.
 #
 # This is where capture CPU goes, so it scales on CPU: an HPA on this
-# StatefulSet, in its own node pool. Scale-down removes the highest
-# ordinal, which placement keeps empty when it can.
+# StatefulSet. Scale-down removes the highest ordinal, which placement
+# keeps empty when it can.
 apiVersion: v1
 kind: Service
 metadata:
@@ -52,10 +52,11 @@ spec:
     spec:
       # A recording in progress is lost if its manager goes; give it time.
       terminationGracePeriodSeconds: 600
+      # Shares the workers pool with the worker and render pods (render.yaml).
       nodeSelector:
         kubernetes.io/os: linux
         kubernetes.io/arch: amd64
-        pool: browsers
+        pool: workers
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -81,7 +82,7 @@ spec:
             periodSeconds: 20
           # Frame capture for renders happens here: this is the burst budget.
           resources:
-            requests: { cpu: '3', memory: 6Gi }
+            requests: { cpu: '2', memory: 5Gi }
             limits: { cpu: '7', memory: 14Gi }
           volumeMounts:
             - { name: data, mountPath: /data }
