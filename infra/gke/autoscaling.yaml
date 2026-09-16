@@ -1,17 +1,17 @@
-# Workers scale on demand, not on CPU: a worker mid-turn is mostly waiting
-# on a model, so CPU says little. The API answers GET /internal/scale with
-# `wanted` — enough workers to hold every leased project and still keep
-# STUDIO_SCALE_HEADROOM slots free — and KEDA follows that number
-# (metrics-api trigger; target 1 with the default AverageValue means
-# desired = wanted). Needs KEDA installed in the cluster; see
-# docs/gke-deployment.md.
+# Two elastic tiers, one number each, both read from the API's
+# GET /internal/scale (behind STUDIO_WORKER_TOKEN, so the scaler needs no
+# database of its own) by KEDA metrics-api triggers. Needs KEDA installed
+# in the cluster; see docs/gke-deployment.md.
 #
-# Scale-up is quick (no stabilisation, two pods a minute) because a fresh
-# node plus the image pull already take minutes, and the headroom exists so
-# a project never waits for that. Scale-down is slow (half an hour of
-# stability, one pod every ten minutes) because removing a worker is a
-# gentle drain that can take up to STUDIO_DRAIN_MS, and a short dip is not
-# worth paying that for.
+#   wanted          workers: enough to hold every leased project and still
+#                   keep STUDIO_SCALE_HEADROOM slots free. A worker holds
+#                   tens of projects, so this number barely moves.
+#   render.wanted   render pods: one per RenderJob queued or running, at
+#                   least one, at most eight. This is the number that moves:
+#                   it is the fleet's CPU.
+#
+# The browser managers are the third elastic tier and scale on CPU with a
+# plain HPA (browser.yaml); the API likewise (api.yaml).
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
@@ -22,6 +22,10 @@ spec:
       name: pitch-runtime
       key: STUDIO_WORKER_TOKEN
 ---
+# Workers. Scale-up is quick (no stabilisation, two pods a minute) because a
+# fresh node plus the image pull already take minutes. Scale-down is slow
+# (half an hour of stability, one pod every ten minutes) because removing a
+# worker is a gentle drain that can take up to STUDIO_DRAIN_MS.
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -32,7 +36,7 @@ spec:
     kind: StatefulSet
     name: pitch-worker
   pollingInterval: 15
-  minReplicaCount: 1
+  minReplicaCount: 2
   maxReplicaCount: 8
   advanced:
     horizontalPodAutoscalerConfig:
@@ -50,6 +54,42 @@ spec:
       metadata:
         url: http://pitch.pitch.svc.cluster.local/internal/scale
         valueLocation: wanted
+        targetValue: '1'
+        authMode: bearer
+      authenticationRef:
+        name: pitch-scale
+---
+# Render pods. Up as fast as KEDA polls; down after ten quiet minutes, one
+# pod at a time, since a pod on its way out still finishes the job it holds
+# and the next burst wants a warm one.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: pitch-render
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pitch-render
+  pollingInterval: 10
+  minReplicaCount: 1
+  maxReplicaCount: 8
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 0
+          policies:
+            - { type: Pods, value: 4, periodSeconds: 60 }
+        scaleDown:
+          stabilizationWindowSeconds: 600
+          policies:
+            - { type: Pods, value: 1, periodSeconds: 120 }
+  triggers:
+    - type: metrics-api
+      metadata:
+        url: http://pitch.pitch.svc.cluster.local/internal/scale
+        valueLocation: render.wanted
         targetValue: '1'
         authMode: bearer
       authenticationRef:

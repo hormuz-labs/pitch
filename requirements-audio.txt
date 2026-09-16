@@ -1,3 +1,0 @@
-# Host-side DSP for pitch media pedalboard (Python 3.10+).
-pedalboard==0.9.25
-numpy==2.2.6

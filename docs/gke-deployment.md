@@ -1,9 +1,11 @@
 # Deploy Pitch on GKE
 
 The cluster runs the studio as a fleet (`docs/studio-architecture.md` →
-Scaling): stateless **API** pods behind the Ingress, **worker** pods that own
-projects, one shared **browser manager** for user browser sessions. Workers
-scale on demand and drain gently when load drops. Cloud SQL is the database;
+Scaling): stateless **API** pods behind the Ingress, light **worker** pods
+that own projects (tens each), **render** pods that run the heavy host
+actions workers queue, and a pool of **browser managers** every tier shares.
+Workers scale on demand and drain gently when load drops; render pods scale
+with the queue; browsers scale on CPU. Cloud SQL is the database;
 Cloud Storage holds media, browser profiles and workspace checkpoints, spoken
 to through its S3-compatible endpoint so the storage code (and a later move
 to another cloud) stays the same as with MinIO. The frontend stays on Vercel.
@@ -29,20 +31,26 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
                   Service pitch ──── Deployment pitch      STUDIO_ROLE=api   HPA on CPU, 2–6
                                           │ /internal/worker (STUDIO_WORKER_TOKEN)
                                           ▼
-                 StatefulSet pitch-worker  STUDIO_ROLE=worker KEDA on slots, 1–8
-                   pitch-worker-0  ┐  each: worker + CloakBrowser + cloud-sql-proxy,
-                   pitch-worker-1  │        its own disk (warm workspaces),
-                   …               ┘        STUDIO_WORKER_URL = pod IP
-                 Deployment pitch-browser  the manager API pods share for /browser
+                 StatefulSet pitch-worker  STUDIO_ROLE=worker KEDA on slots, 2–8
+                   pitch-worker-0  ┐  each: worker + cloud-sql-proxy, its own disk
+                   pitch-worker-1  │        (warm workspaces), STUDIO_WORKER_URL = pod IP,
+                   …               ┘        STUDIO_RENDER=remote
+                                          │ RenderJob rows (Postgres) + checkpoints (bucket)
+                                          ▼
+                 Deployment pitch-render   STUDIO_ROLE=render KEDA on jobs, 1–8
+                                           render + cloud-sql-proxy, scratch disk, whisper
+                 StatefulSet pitch-browser CloakBrowser managers, HPA on CPU, 1–4
+                   pitch-browser-0 …       headless Service; every process pins to one
                  Job pitch-migrate-<release>  prisma migrate deploy, before each rollout
 ```
 
 | Resource | File | Notes |
 | --- | --- | --- |
 | Deployment `pitch` + HPA + PDB | `api.yaml` | no disk, no sandbox privileges |
-| StatefulSet `pitch-worker` + headless Service + PDB | `worker.yaml` | one PVC per ordinal, `terminationGracePeriodSeconds: 1900` |
-| ScaledObject + TriggerAuthentication | `autoscaling.yaml` | KEDA `metrics-api` on `GET /internal/scale` |
-| Deployment `pitch-browser` + Service + PVC | `browser.yaml` | |
+| StatefulSet `pitch-worker` + headless Service + PDB | `worker.yaml` | one PVC per ordinal, `terminationGracePeriodSeconds: 1900`, no browser, no sandbox-free CPU work |
+| Deployment `pitch-render` | `render.yaml` | scratch disk, whisper model, no sandbox privileges |
+| Two ScaledObjects + TriggerAuthentication | `autoscaling.yaml` | KEDA `metrics-api` on `GET /internal/scale`: `wanted` (workers) and `render.wanted` (render pods) |
+| StatefulSet `pitch-browser` + headless Service + HPA + PDB | `browser.yaml` | one PVC per ordinal; `_manager._tcp` SRV records are how clients find the pods |
 | Job `pitch-migrate-<RELEASE>` | `migrate.yaml` | rendered separately, applied first |
 | Connector, egress Service | `tailscale/` | optional; see Tailscale below |
 
@@ -51,16 +59,24 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
 - Use GKE **Standard**, Kubernetes 1.31+, a VPC-native cluster with Workload
   Identity, the GCE Ingress controller and the Persistent Disk CSI driver.
   Autopilot's restricted security policy cannot run the bubblewrap sandbox.
-- Two node pools, both amd64 Linux, both with the **cluster autoscaler** on:
-  a small pool for the API and browser manager (e2-standard-4, min 2), and a
-  worker pool sized for a worker pod's 3.6 CPU / 7+ GiB requests and
-  rendering bursts (e2-standard-8 fits two, min 1, max = the ScaledObject's
-  `maxReplicaCount`). Turn on **image streaming** for the worker pool: a new
-  worker is a new node plus a multi-gigabyte pull, and that is the scale-up
-  latency the headroom is there to hide.
+- Four node pools, all amd64 Linux, all with the **cluster autoscaler** on,
+  labelled `pool=` as the manifests select them:
+  - `system` — the API and the Discord bot (e2-standard-4, min 2);
+  - `workers` — a worker pod requests 1 CPU / 4 GiB and holds tens of
+    sessions (e2-standard-4 fits three, min 1, max = the worker
+    ScaledObject's `maxReplicaCount`);
+  - `render` — a render pod requests 4 CPU / 8 GiB and takes every core it
+    is given (e2-standard-8 fits one, min 1 so a warm pod is always there,
+    max = the render ScaledObject's `maxReplicaCount`);
+  - `browsers` — a manager requests 3 CPU / 6 GiB and is where capture CPU
+    goes (e2-standard-8 fits one, min 1, max = the browser HPA's
+    `maxReplicas`).
+  Turn on **image streaming** for the worker and render pools: a new pod is
+  a new node plus a multi-gigabyte pull, and that is the scale-up latency
+  the headroom (workers) and the warm pod (render) are there to hide.
 - Restrict the bubblewrap exception (`SYS_ADMIN`, unconfined seccomp/AppArmor)
   to the worker pool and the `pitch` namespace, and run the shipped sandbox
-  check on the chosen node image.
+  check on the chosen node image. Render pods and browsers need none of it.
 - Enable Artifact Registry and create a Docker repository in the cluster's
   region. Give the **node** service account Artifact Registry Reader; image
   pulls do not use the workload's identity.
@@ -85,13 +101,13 @@ and the `cloud-sql-proxy` sidecar in `api.yaml`, `worker.yaml` and
   `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` in the runtime Secret, and are
   how storage is reached.
 - Install **KEDA** (`helm install keda kedacore/keda -n keda --create-namespace`).
-  The worker ScaledObject needs its CRDs; `kubectl apply --dry-run=server`
+  The worker and render ScaledObjects need its CRDs; `kubectl apply --dry-run=server`
   fails before anything is touched if they are missing.
 - Reserve a global external address for the GCE Ingress. Set its resource name
   as `GKE_STATIC_IP_NAME`; point the API hostname's A record at that address.
   Managed TLS provisioning requires the hostname to resolve to the load balancer.
 
-The manager has no public Service; only the API is exposed. Workers are
+The managers have no public Service; only the API is exposed. Workers are
 reached by pod IP inside the VPC, never through the Ingress.
 
 ## Runtime secrets
@@ -238,44 +254,66 @@ GitHub configuration:
 
 ## Autoscaling
 
+Three elastic tiers, each on the signal that means something for it.
+
 **Workers scale on slots, not CPU.** A worker mid-turn is mostly waiting on a
 model; CPU says nothing about whether the next project has somewhere to go.
 The API answers `GET /internal/scale` (behind `STUDIO_WORKER_TOKEN`) with
 
 ```json
-{ "workers": 2, "slots": 8, "held": 5, "wanted": 2 }
+{ "workers": 2, "slots": 48, "held": 31, "wanted": 2,
+  "render": { "queued": 1, "running": 2, "wanted": 3 } }
 ```
 
 where `wanted` is the number of workers it takes to hold every leased
-project and still keep `STUDIO_SCALE_HEADROOM` (2) slots free, at
-`STUDIO_WORKER_SLOTS` (4) per worker. KEDA polls it every 15 s and sets the
-StatefulSet to `wanted`, between 1 and 8. A draining worker still counts its
+project and still keep `STUDIO_SCALE_HEADROOM` (4) slots free, at
+`STUDIO_WORKER_SLOTS` (24) per worker. KEDA polls it every 15 s and sets the
+StatefulSet to `wanted`, between 2 and 8. A draining worker still counts its
 projects but not its slots, so its replacement is asked for before it is gone.
+With tens of slots per pod this number rarely moves; a worker is sessions
+and file writes, and the CPU is elsewhere.
 
-**Up is quick, down is slow.** Scale-up has no stabilisation window and adds
-up to two pods a minute; the cluster autoscaler brings the node, the pod
-pulls the image, registers, and is placed on within about a minute of
-becoming ready. That takes minutes end to end, which is why the headroom
-exists: a new project lands in a free slot now, and the fleet grows behind
-it. Scale-down waits for thirty minutes of stability and removes one pod
-every ten minutes, because every removal is a gentle drain (above) and a
-short dip is not worth paying that for.
+**Render pods scale on the queue.** `render.wanted` is one pod per
+`RenderJob` queued or running, between 1 and 8; KEDA polls every 10 s and
+sets the `pitch-render` Deployment to it. Up is immediate (four pods a
+minute); down waits ten quiet minutes and removes one pod every two, and a
+pod on its way out finishes the job it holds (`terminationGracePeriodSeconds`
+covers a 4K capture). The one warm pod is what makes a render start now
+rather than after a node boot; the cluster autoscaler brings nodes for the
+rest. A job whose pod died is claimed again by the next pod once its
+heartbeat is 90 s stale, up to three times.
 
-**Which pod goes.** Placement packs projects onto the lowest-numbered worker
-with a free slot (`worker/lease.ts`), so the highest ordinal — the one a
-StatefulSet removes — is the one with the least on it, usually nothing. Its
-PersistentVolumeClaim stays; when load returns, `pitch-worker-N` comes back
-with its warm copies on disk and placement prefers it for the projects it
-last held.
+**Browsers scale on CPU** (70%, 1–4 managers): a capture is six tabs taking
+screenshots as fast as Chromium will, and that is the one thing that makes a
+manager busy. Every process pins to the lowest-ordinal manager with room
+(`CLOAK_MANAGER_CAPACITY` running profiles), so the highest ordinal empties
+first and is the one the HPA removes; scale-down waits fifteen minutes so
+the next capture finds it warm. A user's recording session records its
+manager and is never moved.
+
+**Up is quick, down is slow** for workers too. Scale-up has no stabilisation
+window and adds up to two pods a minute; the cluster autoscaler brings the
+node, the pod pulls the image, registers, and is placed on within about a
+minute of becoming ready. Scale-down waits for thirty minutes of stability
+and removes one pod every ten minutes, because every removal is a gentle
+drain (above) and a short dip is not worth paying that for.
+
+**Which worker goes.** Placement packs projects onto the lowest-numbered
+worker with a free slot (`worker/lease.ts`), so the highest ordinal — the one
+a StatefulSet removes — is the one with the least on it, usually nothing.
+Its PersistentVolumeClaim stays; when load returns, `pitch-worker-N` comes
+back with its warm copies on disk and placement prefers it for the projects
+it last held.
 
 **The API scales on CPU** (60%, 2–6 pods): it is request-bound and holds
 nothing. Its PodDisruptionBudget keeps one pod up through node maintenance;
-the workers' allows one eviction at a time.
+the workers' and the browsers' allow one eviction at a time.
 
-Watch it: `kubectl get scaledobject,hpa -n pitch` shows the current number
-and the HPA KEDA manages; `curl -H "Authorization: Bearer $STUDIO_WORKER_TOKEN" http://pitch.pitch.svc/internal/scale`
-from inside the cluster shows the raw figures; `StudioWorker` rows in the
-database show who is live and who is draining.
+Watch it: `kubectl get scaledobject,hpa -n pitch` shows the current numbers
+and the HPAs; `curl -H "Authorization: Bearer $STUDIO_WORKER_TOKEN" http://pitch.pitch.svc/internal/scale`
+from inside the cluster shows the raw figures; `StudioWorker` rows show who
+is live and who is draining, `RenderJob` rows what is queued, running, and
+why something failed.
 
 ## Tailscale
 
@@ -351,8 +389,11 @@ into `docker-data/whisper`).
   — and confirm the second worker's row appears in `StudioWorker` and new
   projects land on `pitch-worker-0` first. Then let KEDA own it again (it
   will, on its next poll).
-- Confirm the whisper model is readable on a worker and run a short
-  transcription/render.
+- Confirm the whisper model is readable on a render pod
+  (`kubectl exec -n pitch deploy/pitch-render -c render -- ls -la /root/.cache/whisper-cpp`)
+  and run a short transcription and a launch export: the `RenderJob` row
+  goes queued → running → done, the MP4 lands in the worker's `renders/`,
+  and the studio's export status follows the job's stage.
 - Exercise uploads (including a large recording), public output URLs, thumbnail
   rendering, and browser/VNC interaction through HTTPS. The backend timeout is
   one hour for SSE/WebSockets/uploads; clients must still reconnect normally.
@@ -393,9 +434,9 @@ one with no local copy would start it empty. So:
 3. Before the first rollout, mount `state-pitch-worker-0` in a maintenance
    pod (create the PVC by that name with the worker's storage class and
    size so the StatefulSet adopts it) and copy `projects/` and `pi/` into
-   its `projects` and `pi` subdirectories, and the manager's `/data` into
-   `pitch-browser-data`. Stored `Project.sessionFile` paths must resolve
-   after the move.
+   its `projects` and `pi` subdirectories. Browser profiles are a cache
+   (cookies live in the profiles bucket) and need no copy. Stored
+   `Project.sessionFile` paths must resolve after the move.
 4. Once `pitch-worker-0` has opened each project it will be checkpointed on
    its first change; from then on the disk is a cache and any worker can
    take the project.

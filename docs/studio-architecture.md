@@ -140,7 +140,6 @@ The four products survive as **host actions** plus a skill, not as flows:
 | recording edit | `probe_video`, `transcribe_video`, `edit_render` | `recording-edit` |
 | generated footage | `video_generate` | `generated-video` |
 | anything else | `media_probe`, `media_ffmpeg`, `media_publish` | — |
-| audio effects / SFX processing | `media_pedalboard` (`pitch media pedalboard`) | `audio-effects` |
 
 `video_generate` is the odd one out: everything else RENDERS something that
 exists (a GSAP composition, a real browser session, printed slides), and it
@@ -313,21 +312,31 @@ means changing every stored credit integer in lockstep (see the
 
 ## Scaling
 
-The studio scales by adding **worker** nodes. There is no queue, no leader
-and no message bus: coordination is two things in Postgres, and every API
-replica and every worker reads the same two things.
+The studio scales in two directions that have nothing in common. A
+**session** is long-lived, stateful and interactive: a pi conversation, a
+warm workspace, a watcher, mostly waiting on a model and writing files. A
+**render** is short, stateless and retriable: a capture, an encode, a
+transcription, taking every core it is given for a minute or ten. Sessions
+are placed under leases and never queued; renders are queued and never
+placed. Coordination is three tables in Postgres, and every process reads
+the same three.
 
 ```
 StudioWorker { id, url, slots, epoch, draining, heartbeatAt }   one row per worker process
 Project      { workerId, workerEpoch, leasedAt, lastWorkerId,   the lease
                workspaceVersion, artifactKind, busyAt }         worker-maintained caches
+RenderJob    { projectId, action, params, workspaceVersion,     a heavy host action to run
+               status, stage, progress, result, error,          elsewhere, against a checkpoint
+               renderer, attempts, heartbeatAt, cancelRequested }
 ```
 
 **Roles** (`STUDIO_ROLE`, one image): `all` is the API and a worker in one
-process — the single box, and what `make dev` runs; `api` replicas hold no
-project and proxy every project operation; `worker` nodes own projects and
-answer only the worker contract (`/internal/worker`, behind
-`STUDIO_WORKER_TOKEN`) and `/files` (for the CloakBrowser beside them).
+process — the single box, and what `make dev` runs — with every render
+in-process; `api` replicas hold no project and proxy every project
+operation; `worker` nodes own projects and answer only the worker contract
+(`/internal/worker`, behind `STUDIO_WORKER_TOKEN`) and `/files` (for the
+browser managers loading previews); `render` pods hold nothing and run the
+heavy host actions workers queue.
 
 **Registration.** A worker upserts its row on boot with a new `epoch`,
 heartbeats every `STUDIO_HEARTBEAT_MS`, and is dead once the heartbeat is
@@ -386,15 +395,52 @@ closes is released anyway. Without a window (the default, a plain stop)
 everything is released at once and the turns in flight are lost. Then
 `STUDIO_SHUTDOWN_GRACE_MS` for the last checkpoints, and exit.
 
+**The render tier** (`studio/host-actions.ts`, `worker/remote.ts`,
+`renderer/`). A host action registered with `remote: true` is one that
+burns a machine: `launch_export` and `launch_capture` (capture.mjs through
+the browser, then libx264), `launch_align` and `media_transcribe`
+(whisper), `edit_render`, `demo_encode`, `media_ffmpeg`. On a worker in
+`STUDIO_RENDER=remote` (the default with checkpoints) the registry hands
+such a call to the dispatcher instead of running it: the workspace is
+checkpointed as it stands, a `RenderJob` names the action, its params and
+that version, and the worker polls the row, relaying `stage`/`progress`
+to whoever is watching and a cancel the other way. A render pod claims the
+oldest job (`UPDATE … SKIP LOCKED`), restores the checkpoint onto its
+scratch disk — warm if it rendered that project before — runs the very
+same action code against it, tars the files the action wrote to
+`renders/<jobId>/output.tar` in the workspace bucket, and marks the job
+done; the worker extracts them over its hot copy and the watcher sees them
+land. The action never knows where it ran, which is why it must read only
+the workspace and the database and write only into the workspace. A pod
+that dies stops heartbeating and the job is claimed again, up to
+`STUDIO_RENDER_ATTEMPTS`; one that is asked to stop aborts the action's
+signal. A light action may call a heavy one (`demo_render` stops the live
+browser on the worker, then `demo_encode` runs where renders run).
+
+**Browsers.** No process runs a browser of its own. The CloakBrowser
+managers are a pool (`CLOAK_MANAGER_URL` naming a headless Service, or one
+manager); a process resolves the pool and pins to the lowest-ordinal
+manager with fewer than `CLOAK_MANAGER_CAPACITY` profiles running
+(`@saas/shared` → `pickManager`), re-picking every few minutes, and a
+render pod re-picks per job. A user's browser session records the manager
+it started on, so scaling the pool never moves it. Previews and thumbnails
+load from the worker over the pod network (`STUDIO_INTERNAL_ORIGIN`) with
+the preview cookie; a capture serves the workspace into the page by request
+interception and needs no route back at all.
+
 **Scaling the fleet.** The API answers `GET /internal/scale` (behind the
-worker token) with `wanted`: how many elastic workers it takes to hold
-every leased project and still keep `STUDIO_SCALE_HEADROOM` slots free —
-the demand, not the utilisation, because a worker mid-turn is mostly
-waiting on a model and CPU says nothing. An autoscaler (KEDA on GKE, see
-`docs/gke-deployment.md`) sets the worker count to it. Elastic workers are
-the ones whose id starts with `STUDIO_SCALE_GROUP`; any other live worker
-is fixed capacity whose slots are used first. Draining workers count their
-projects but not their slots, so a replacement is asked for before they go.
+worker token) with two numbers. `wanted` is how many elastic workers it
+takes to hold every leased project and still keep `STUDIO_SCALE_HEADROOM`
+slots free — the demand, not the utilisation, because a worker mid-turn is
+mostly waiting on a model and CPU says nothing; with tens of slots per
+worker it barely moves. `render.wanted` is one render pod per job queued
+or running, and it is the number that moves: it is the fleet's CPU. An
+autoscaler (KEDA on GKE, see `docs/gke-deployment.md`) sets each tier to
+its number; the browser managers scale on CPU with a plain HPA. Elastic
+workers are the ones whose id starts with `STUDIO_SCALE_GROUP`; any other
+live worker is fixed capacity whose slots are used first. Draining workers
+count their projects but not their slots, so a replacement is asked for
+before they go.
 
 **Networking.** Workers need a private URL other processes can reach
 (`STUDIO_WORKER_URL`): a VPC address, a compose service name, a Tailscale
@@ -402,9 +448,10 @@ egress Service. Nothing here needs a public port. Every node needs the same
 `DATABASE_URL`, object storage (`STORAGE_DRIVER` and its buckets — GCS in
 production, MinIO locally, one contract in `@saas/storage`),
 `STUDIO_WORKER_TOKEN` and `PREVIEW_COOKIE_SECRET`,
-its own CloakBrowser manager (`CLOAK_MANAGER_URL`, recorded on browser
-sessions so the VNC proxy bridges to the right one), and its own `projects/`
-and pi volumes.
+a reachable browser manager or pool (`CLOAK_MANAGER_URL`; the one a
+session started on is recorded so the VNC proxy bridges to the right one),
+and its own `projects/` and pi volumes. A render pod needs the same minus a
+private URL and plus the whisper model on its disk.
 
 ## There is no legacy path
 

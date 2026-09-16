@@ -34,21 +34,6 @@ FROM ${RUNTIME_IMAGE} AS runtime
 WORKDIR /app
 COPY --from=builder /app .
 
-# Host-side audio DSP, isolated from the system Python and the agent sandbox.
-# The import check is best-effort: prebuilt pedalboard wheels have faulted at
-# build time on some hosts (SIGILL, exit 132) while the runtime degrades
-# gracefully (see lib/pedalboard.ts), so a DSP verification must never fail
-# the image build or block deploys.
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get -qq update \
-    && apt-get install -y -qq --no-install-recommends python3 python3-venv libatomic1 libsndfile1 \
-    && python3 -m venv /opt/pitch-audio \
-    && /opt/pitch-audio/bin/pip install --no-cache-dir -r requirements-audio.txt \
-    && (/opt/pitch-audio/bin/python -I -X faulthandler -c "import numpy; print('numpy ok'); import pedalboard; print('pedalboard ok')" || echo "WARNING: audio DSP smoke test failed - continuing without build-time verification") \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-ENV STUDIO_PYTHON=/opt/pitch-audio/bin/python
-
 # GPU devices (/dev/dri) for NVENC/VAAPI encodes when the host passes them.
 RUN groupadd -f render && usermod -aG render,video root
 

@@ -1,10 +1,11 @@
 /**
  * GET /internal/scale — what the autoscaler follows.
  *
- * Served by the API role, behind the worker token, so the scaler (KEDA's
- * metrics-api trigger, see infra/gke/autoscaling.yaml) needs no database
- * of its own. `wanted` is the number of workers the fleet should have; the
- * rest is there to read on a dashboard.
+ * Served by the API role, behind the worker token, so the scalers (KEDA's
+ * metrics-api triggers, see infra/gke/autoscaling.yaml) need no database
+ * of their own. `wanted` is the number of workers the fleet should have
+ * and `render.wanted` the number of render pods; the rest is there to read
+ * on a dashboard.
  */
 import express from 'express'
 import { authorizedByWorkerToken } from './auth.js'

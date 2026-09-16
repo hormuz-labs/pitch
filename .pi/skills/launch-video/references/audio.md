@@ -96,9 +96,7 @@ snappy tween is the classic "sounds off" failure.
 `{ "t": 51.8, "event": "riser", "dur": 1.2, … }`; do not put the start in
 `t`. Other sustained clips without `dur` fail before replacing the bus.
 A `file` is a sound the manifest lacks and
-`pitch motion sound` generated into `audio/generated-sfx/` or
-`pitch media pedalboard` processed into `audio/sfx/` (read `audio-effects`
-for reverb, delay, pitch and texture recipes) — one event per
+`pitch motion sound` generated into `audio/generated-sfx/` — one event per
 call, named by its transient and material; it still needs its `event` class
 so the build knows its tier. `t` is the moment the visual event happens:
 the real shot start (`pitch motion cues`) plus the factory's in-shot offset (a

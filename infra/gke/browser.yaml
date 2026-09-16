@@ -1,40 +1,47 @@
-# The CloakBrowser manager the API replicas share for user browser sessions
-# (/browser and its VNC proxy). It used to be a sidecar of the one API pod;
-# a session's profile lives in exactly one manager, so with several API pods
-# the manager has to be one thing they all reach. Workers keep a manager of
-# their own for previews (worker.yaml).
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pitch-browser-data
-spec:
-  accessModes: [ReadWriteOnce]
-  storageClassName: pitch-retained-pd
-  resources:
-    requests:
-      storage: 20Gi
----
+# The browser managers: CloakBrowser for everything that needs a page — a
+# user's recording session (the API), a preview thumbnail or a deck render
+# (a worker), a launch capture (a render pod). One pool for the whole
+# fleet, reached over the cluster network; nothing else runs a browser.
+#
+# A StatefulSet behind a headless Service, so each manager is addressable
+# (pitch-browser-0.pitch-browser…). A process picks one manager and pins to
+# it — the lowest ordinal with room, so the highest empties first — and a
+# session records the manager it started on (BrowserSession.managerUrl), so
+# scaling the pool never moves a running browser. The client is
+# packages/shared/src/manager-client.ts → pickManager.
+#
+# This is where capture CPU goes, so it scales on CPU: an HPA on this
+# StatefulSet, in its own node pool. Scale-down removes the highest
+# ordinal, which placement keeps empty when it can.
 apiVersion: v1
 kind: Service
 metadata:
   name: pitch-browser
 spec:
+  clusterIP: None
+  publishNotReadyAddresses: false
   selector:
     app: pitch-browser
   ports:
+    # Named on purpose: SRV records are `_manager._tcp.pitch-browser…`.
     - name: manager
       port: 8080
       targetPort: manager
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pitch-browser
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
+  serviceName: pitch-browser
+  # No `replicas`: the HPA owns it.
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
   revisionHistoryLimit: 3
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   selector:
     matchLabels:
       app: pitch-browser
@@ -43,10 +50,20 @@ spec:
       labels:
         app: pitch-browser
     spec:
+      # A recording in progress is lost if its manager goes; give it time.
+      terminationGracePeriodSeconds: 600
       nodeSelector:
         kubernetes.io/os: linux
         kubernetes.io/arch: amd64
-        pool: system
+        pool: browsers
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: { app: pitch-browser }
       containers:
         - name: browser
           image: cloakbrowser-manager
@@ -62,14 +79,63 @@ spec:
           livenessProbe:
             tcpSocket: { port: manager }
             periodSeconds: 20
+          # Frame capture for renders happens here: this is the burst budget.
           resources:
-            requests: { cpu: '1500m', memory: 3Gi }
-            limits: { cpu: '3', memory: 10Gi }
+            requests: { cpu: '3', memory: 6Gi }
+            limits: { cpu: '7', memory: 14Gi }
           volumeMounts:
             - { name: data, mountPath: /data }
             - { name: shm, mountPath: /dev/shm }
       volumes:
-        - name: data
-          persistentVolumeClaim: { claimName: pitch-browser-data }
         - name: shm
           emptyDir: { medium: Memory, sizeLimit: 2Gi }
+  volumeClaimTemplates:
+    # Profiles are a cache: cookies and storage state live in the profiles
+    # bucket (@saas/storage). A disk per ordinal keeps a manager warm across
+    # a scale-down and back.
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: pitch-retained-pd
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pitch-browser
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: pitch-browser
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - { type: Pods, value: 1, periodSeconds: 60 }
+    scaleDown:
+      # A manager that empties stays a while: the next capture wants it warm.
+      stabilizationWindowSeconds: 900
+      policies:
+        - { type: Pods, value: 1, periodSeconds: 600 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pitch-browser
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app: pitch-browser }

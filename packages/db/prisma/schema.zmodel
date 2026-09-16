@@ -520,6 +520,37 @@ model Project {
   @@allow('read', isPublic == true && auth() == null)
 }
 
+// ── Render jobs ─────────────────────────────────────────────────────────────
+// A heavy host action (a capture, an encode, a transcription) queued by a
+// worker for the render tier. The workspace it needs is the checkpoint at
+// workspaceVersion; what it produced comes back as renders/<id>/output.tar
+// in the workspace bucket. Sessions are never queued — only these are.
+model RenderJob {
+  id               String    @id @default(cuid())
+  projectId        String
+  // Host action name (registered with remote: true) and its JSON params.
+  action           String
+  params           String    @default("{}")
+  workspaceVersion Int
+  // queued | running | done | failed | cancelled
+  status           String    @default("queued")
+  stage            String?
+  progress         Int       @default(0)
+  result           String?
+  error            String?
+  cancelRequested  Boolean   @default(false)
+  // The render pod that claimed it; a stale heartbeat hands it to another.
+  renderer         String?
+  attempts         Int       @default(0)
+  createdAt        DateTime  @default(now())
+  startedAt        DateTime?
+  heartbeatAt      DateTime?
+  finishedAt       DateTime?
+
+  @@index([status, createdAt])
+  @@index([projectId])
+}
+
 // ── Studio workers ──────────────────────────────────────────────────────────
 // One row per studio worker process (apps/api/src/worker/registry.ts). A
 // worker upserts its row on boot with a new epoch, heartbeats every few

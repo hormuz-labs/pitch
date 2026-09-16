@@ -2,35 +2,43 @@
  * How this process takes part in the studio (docs/studio-architecture.md →
  * Scaling).
  *
- * One image, three roles:
+ * One image, four roles:
  *
  *   all      the API and a worker in one process — the single-box layout, and
  *            what `make dev` runs. Nothing changes for it, except that the
  *            process registers itself as a worker and can place projects on
- *            other worker nodes when they exist.
+ *            other worker nodes when they exist. Heavy work runs in-process.
  *   api      stateless: routes, auth, credits, placement. Holds no session,
  *            touches no workspace; every project operation is proxied to the
  *            worker that owns the project.
  *   worker   owns projects: pi sessions, host tools, the hot workspace copy
- *            on local disk, the file watcher, a CloakBrowser beside it.
+ *            on local disk, the file watcher. A worker is light — a session
+ *            is mostly a model wait and file writes — so one holds many.
+ *            Anything that burns CPU (a capture, an encode, a transcription)
+ *            is handed to the render tier as a RenderJob (worker/remote.ts).
+ *   render   holds nothing. Claims RenderJobs from Postgres, restores the
+ *            workspace checkpoint they name, runs the host action, ships
+ *            the files it produced back through the bucket (renderer/).
  *
- * Coordination state lives in Postgres (StudioWorker rows and the lease
- * columns on Project), so any number of `api` replicas and `worker` nodes
- * find each other without a leader, a queue, or a message bus.
+ * Coordination state lives in Postgres (StudioWorker rows, the lease
+ * columns on Project, and RenderJob rows), so any number of `api` replicas,
+ * `worker` nodes and `render` pods find each other without a leader or a
+ * message bus. Sessions are never queued; only renders are.
  */
 import { hostname } from 'node:os'
 
-export type StudioRole = 'all' | 'api' | 'worker'
+export type StudioRole = 'all' | 'api' | 'worker' | 'render'
 
 function roleFromEnv(): StudioRole {
   const v = (process.env.STUDIO_ROLE || 'all').trim().toLowerCase()
-  if (v === 'api' || v === 'worker' || v === 'all') return v
-  throw new Error(`STUDIO_ROLE must be all, api or worker (got "${v}")`)
+  if (v === 'api' || v === 'worker' || v === 'all' || v === 'render') return v
+  throw new Error(`STUDIO_ROLE must be all, api, worker or render (got "${v}")`)
 }
 
 export const ROLE: StudioRole = roleFromEnv()
-export const IS_WORKER = ROLE !== 'api'
-export const IS_API = ROLE !== 'worker'
+export const IS_WORKER = ROLE === 'all' || ROLE === 'worker'
+export const IS_API = ROLE === 'all' || ROLE === 'api'
+export const IS_RENDER = ROLE === 'render'
 
 const PORT = Number(process.env.PORT || 3000)
 
@@ -47,8 +55,12 @@ export const WORKER_URL = (process.env.STUDIO_WORKER_URL || `http://${hostname()
   '',
 )
 
-/** Concurrent projects a worker holds; a node with four of these is four slots. */
-export const WORKER_SLOTS = Math.max(1, Number(process.env.STUDIO_WORKER_SLOTS || 4))
+/**
+ * Concurrent projects a worker holds. A held project is a pi session, a
+ * watcher and a warm directory — memory, not CPU — so the number is high;
+ * the CPU-bound work is not on the worker at all (see STUDIO_RENDER).
+ */
+export const WORKER_SLOTS = Math.max(1, Number(process.env.STUDIO_WORKER_SLOTS || 16))
 
 /**
  * Shared secret for the worker contract (/internal/worker). Required for any
@@ -93,6 +105,39 @@ export const DRAIN_MS = Math.max(0, Number(process.env.STUDIO_DRAIN_MS || 0))
 export const SHUTDOWN_GRACE_MS = Math.max(
   5000,
   Number(process.env.STUDIO_SHUTDOWN_GRACE_MS || 60_000),
+)
+
+/**
+ * Where heavy host actions run. `remote` queues them as RenderJobs for the
+ * render tier and waits; `local` runs them in this process (the single box,
+ * `make dev`, tests). A worker with checkpoints defaults to remote — the
+ * render pod restores the checkpoint, so nothing else could work — and
+ * everything else to local.
+ */
+export type RenderMode = 'local' | 'remote'
+function renderModeFromEnv(): RenderMode {
+  const v = (process.env.STUDIO_RENDER || '').trim().toLowerCase()
+  if (v === 'local' || v === 'remote') return v
+  if (v) throw new Error(`STUDIO_RENDER must be local or remote (got "${v}")`)
+  return ROLE === 'worker' && CHECKPOINTS_ENABLED ? 'remote' : 'local'
+}
+export const RENDER_MODE: RenderMode = renderModeFromEnv()
+
+/** Stable per render pod; what a claimed RenderJob records as its renderer. */
+export const RENDER_ID = (process.env.STUDIO_RENDER_ID || hostname()).trim()
+/** Jobs one render pod runs at once. One: a capture already uses every core. */
+export const RENDER_CONCURRENCY = Math.max(1, Number(process.env.STUDIO_RENDER_CONCURRENCY || 1))
+/** A running job whose renderer has not heartbeat for this long is retried elsewhere. */
+export const RENDER_STALE_MS = Math.max(
+  30_000,
+  Number(process.env.STUDIO_RENDER_STALE_MS || 90_000),
+)
+/** Times a job is claimed before it is failed for good. */
+export const RENDER_ATTEMPTS = Math.max(1, Number(process.env.STUDIO_RENDER_ATTEMPTS || 3))
+/** How long a worker waits on a RenderJob before giving up on it. */
+export const RENDER_TIMEOUT_MS = Math.max(
+  60_000,
+  Number(process.env.STUDIO_RENDER_TIMEOUT_MS || 45 * 60_000),
 )
 
 /**

@@ -1,5 +1,9 @@
 # Workers own projects: the pi session, the hot workspace on a disk of their
-# own, the agent's sandboxed shell, a CloakBrowser beside them for previews.
+# own, the agent's sandboxed shell. A held project is mostly a model wait and
+# file writes, so a worker is light and holds many (STUDIO_WORKER_SLOTS).
+# Anything that burns CPU — a capture, an encode, whisper — is queued as a
+# RenderJob for the render tier (render.yaml); previews and thumbnails use
+# the shared browser managers (browser.yaml) over the cluster network.
 #
 # A StatefulSet, not a Deployment, on purpose:
 #   - pod names are stable, so STUDIO_WORKER_ID survives a restart and the
@@ -73,17 +77,7 @@ spec:
             - sh
             - -ec
             - |
-              mkdir -p /state/projects /state/pi /state/whisper /state/browser
-              # The alignment model, fetched once per disk. Not baked into the
-              # image on purpose (see Makefile → whisper-model).
-              target="/state/whisper/$WHISPER_MODEL_FILE"
-              if [ ! -s "$target" ]; then
-                echo "fetching $WHISPER_MODEL_FILE"
-                curl -fsSL --retry 5 --retry-delay 5 -o "$target.part" "$WHISPER_MODEL_BASE_URL/$WHISPER_MODEL_FILE"
-                mv "$target.part" "$target"
-              fi
-          envFrom:
-            - configMapRef: { name: pitch-config }
+              mkdir -p /state/projects /state/pi
           resources:
             requests: { cpu: 100m, memory: 128Mi }
             limits: { cpu: '1', memory: 512Mi }
@@ -135,7 +129,13 @@ spec:
             # headless DNS name: registered afresh on every boot, and never
             # dependent on readiness or a resolver.
             - { name: STUDIO_WORKER_URL, value: 'http://$(POD_IP):3000' }
+            # The shared browser managers load previews and thumbnails from
+            # this worker over the pod network, with the preview cookie.
+            - { name: STUDIO_INTERNAL_ORIGIN, value: 'http://$(POD_IP):3000' }
+            - { name: SLIDESHOW_BROWSER_HOST, value: '$(POD_IP)' }
             - { name: STUDIO_DRAIN_MS, value: '1800000' }
+            # Heavy host actions become RenderJobs for render.yaml.
+            - { name: STUDIO_RENDER, value: remote }
           # Same namespace/mount permissions as the supported Compose sandbox.
           # Requires GKE Standard and a node policy allowing bubblewrap.
           securityContext:
@@ -155,43 +155,18 @@ spec:
             httpGet: { path: /health/ready, port: http }
             periodSeconds: 10
             timeoutSeconds: 5
+          # Sessions, watchers and the agent's shell: memory more than CPU.
+          # The bursts (ffmpeg, whisper, a capture) are on the render tier.
           resources:
-            requests: { cpu: '2', memory: 4Gi, ephemeral-storage: 2Gi }
-            limits: { cpu: '8', memory: 16Gi, ephemeral-storage: 20Gi }
+            requests: { cpu: '1', memory: 4Gi, ephemeral-storage: 2Gi }
+            limits: { cpu: '4', memory: 12Gi, ephemeral-storage: 20Gi }
           volumeMounts:
             - { name: state, mountPath: /app/projects, subPath: projects }
             - { name: state, mountPath: /root/.pi/agent, subPath: pi }
-            - { name: state, mountPath: /root/.cache/whisper-cpp, subPath: whisper }
             - { name: scratch, mountPath: /tmp }
-        # This worker's CloakBrowser: previews and thumbnails load from the
-        # worker over loopback with the preview cookie, so it stays a sidecar.
-        - name: browser
-          image: cloakbrowser-manager
-          ports:
-            - name: manager
-              containerPort: 8080
-          startupProbe:
-            tcpSocket: { port: manager }
-            periodSeconds: 5
-            failureThreshold: 60
-          readinessProbe:
-            tcpSocket: { port: manager }
-          livenessProbe:
-            tcpSocket: { port: manager }
-            periodSeconds: 20
-          # Frame capture for renders happens here, not in the api container:
-          # this is the burst budget. Requests stay at two workers per node.
-          resources:
-            requests: { cpu: '1500m', memory: 3Gi }
-            limits: { cpu: '6', memory: 12Gi }
-          volumeMounts:
-            - { name: state, mountPath: /data, subPath: browser }
-            - { name: shm, mountPath: /dev/shm }
       volumes:
         - name: scratch
           emptyDir: { sizeLimit: 20Gi }
-        - name: shm
-          emptyDir: { medium: Memory, sizeLimit: 2Gi }
   volumeClaimTemplates:
     - metadata:
         name: state

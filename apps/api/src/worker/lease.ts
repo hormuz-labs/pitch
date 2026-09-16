@@ -15,6 +15,7 @@
  */
 import { prisma } from '@saas/db'
 import { createLogger } from '@saas/shared'
+import { type RenderDemand, renderDemand } from '../renderer/queue.js'
 import { LEASE_TTL_MS, SCALE_GROUP, SCALE_HEADROOM, WORKER_SLOTS } from './config.js'
 
 const logger = createLogger('studio:lease')
@@ -188,24 +189,28 @@ export interface FleetStatus {
   held: number
   /** Elastic workers (ids under SCALE_GROUP) the fleet should have. */
   wanted: number
+  /** The render tier: jobs waiting and running, and the pods it takes. */
+  render: RenderDemand
 }
 
 /**
- * The number the autoscaler follows (GET /internal/scale). It is the
- * demand, not the utilisation: how many elastic workers of the usual size
- * it takes to hold what is leased right now and still keep SCALE_HEADROOM
+ * The numbers the autoscalers follow (GET /internal/scale). `wanted` is
+ * demand, not utilisation: how many elastic workers of the usual size it
+ * takes to hold what is leased right now and still keep SCALE_HEADROOM
  * slots free, after the slots of any fixed worker outside the scaled group
  * are used. Draining workers contribute their projects but not their
  * slots, so a worker on its way out is replaced before it is gone.
+ * `render.wanted` is one render pod per job queued or running.
  */
 export async function fleetStatus(): Promise<FleetStatus> {
   const since = liveSince()
-  const [workers, [{ n }]] = await Promise.all([
+  const [workers, [{ n }], render] = await Promise.all([
     prisma.studioWorker.findMany({ where: { heartbeatAt: { gt: since } } }),
     prisma.$queryRaw<Array<{ n: bigint }>>`
       SELECT count(*) AS n FROM "Project" p
       JOIN "StudioWorker" w ON w."id" = p."workerId" AND w."epoch" = p."workerEpoch"
       WHERE w."heartbeatAt" > ${since}`,
+    renderDemand(),
   ])
   const taking = workers.filter(w => !w.draining)
   const elastic = taking.filter(w => w.id.startsWith(SCALE_GROUP))
@@ -220,5 +225,6 @@ export async function fleetStatus(): Promise<FleetStatus> {
     slots: taking.reduce((sum, w) => sum + w.slots, 0),
     held,
     wanted: Math.max(1, Math.ceil(demand / perWorker)),
+    render,
   }
 }

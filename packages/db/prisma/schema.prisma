@@ -363,6 +363,29 @@ model Project {
   @@index([workerId])
 }
 
+model RenderJob {
+  id               String    @id() @default(cuid())
+  projectId        String
+  action           String
+  params           String    @default("{}")
+  workspaceVersion Int
+  status           String    @default("queued")
+  stage            String?
+  progress         Int       @default(0)
+  result           String?
+  error            String?
+  cancelRequested  Boolean   @default(false)
+  renderer         String?
+  attempts         Int       @default(0)
+  createdAt        DateTime  @default(now())
+  startedAt        DateTime?
+  heartbeatAt      DateTime?
+  finishedAt       DateTime?
+
+  @@index([status, createdAt])
+  @@index([projectId])
+}
+
 model StudioWorker {
   id          String   @id()
   url         String

@@ -74,7 +74,6 @@ spec:
             - secretRef: { name: pitch-runtime }
           env:
             - { name: STUDIO_ROLE, value: api }
-            - { name: CLOAK_MANAGER_URL, value: http://pitch-browser:8080 }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }

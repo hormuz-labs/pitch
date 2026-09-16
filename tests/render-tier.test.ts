@@ -1,0 +1,202 @@
+/**
+ * The render tier's seams, without a database or a bucket:
+ *
+ *   - the registry sends a heavy action to the dispatcher and a light one
+ *     nowhere, meters the outermost call once, and hands progress and the
+ *     abort signal through;
+ *   - the worker's wait relays progress, honours a cancel, and returns the
+ *     job's final row;
+ *   - the output walk ships only what the action wrote;
+ *   - the browser-manager pick packs onto the lowest ordinal with room.
+ */
+import { mkdir, mkdtemp, utimes, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const jobs = new Map<string, any>()
+const withdrawn: string[] = []
+vi.mock('@saas/db', () => ({
+  prisma: {
+    renderJob: {
+      findUnique: vi.fn(async ({ where }: any) => jobs.get(where.id) ?? null),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        const j = jobs.get(where.id)
+        if (!j || (where.status && j.status !== where.status)) return { count: 0 }
+        if (data.cancelRequested) withdrawn.push(where.id)
+        Object.assign(j, data)
+        return { count: 1 }
+      }),
+    },
+  },
+}))
+vi.mock('@saas/shared', () => ({
+  createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+}))
+vi.mock('../apps/api/src/worker/host.js', () => ({
+  checkpointForRender: vi.fn(async () => ({ projectId: 'p1', version: 7 })),
+  noteExternalWrite: vi.fn(),
+}))
+// The bucket side of a transfer is tar plus object storage; only the walk is under test.
+vi.mock('../apps/api/src/worker/checkpoint.js', () => ({
+  bucket: () => ({}),
+  tarCreate: vi.fn(),
+  tarExtract: vi.fn(),
+}))
+process.env.STUDIO_RENDER_POLL_MS = '10'
+
+const {
+  invokeHostAction,
+  registerHostAction,
+  setRemoteDispatcher,
+  takeComputeSeconds,
+  isRemoteAction,
+} = await import('../apps/api/src/studio/host-actions.js')
+const { awaitJob } = await import('../apps/api/src/worker/remote.js')
+const { changedSince } = await import('../apps/api/src/renderer/transfer.js')
+const { chooseManager } = await import('../packages/shared/src/manager-client.js')
+
+const ws = { flow: 'studio', userId: 'u', name: 'n', internal: 'studio--u--n', dir: '/x' } as any
+
+beforeEach(() => {
+  setRemoteDispatcher(null)
+  jobs.clear()
+  withdrawn.length = 0
+  takeComputeSeconds(ws.internal)
+})
+
+describe('host action registry', () => {
+  it('sends a heavy action to the dispatcher and runs a light one here', async () => {
+    const heavy = vi.fn(async () => 'ran here')
+    const light = vi.fn(async () => 'light')
+    registerHostAction('t_heavy', heavy, { remote: true })
+    registerHostAction('t_light', light)
+    expect(isRemoteAction('t_heavy')).toBe(true)
+    expect(isRemoteAction('t_light')).toBe(false)
+    const dispatcher = vi.fn(async (_ws: any, name: string) => `ran elsewhere: ${name}`)
+    setRemoteDispatcher(dispatcher)
+    expect(await invokeHostAction(ws, 't_heavy', { a: 1 })).toBe('ran elsewhere: t_heavy')
+    expect(heavy).not.toHaveBeenCalled()
+    expect(await invokeHostAction(ws, 't_light', {})).toBe('light')
+    expect(dispatcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('dispatches a heavy action reached from inside a light one', async () => {
+    registerHostAction('t_inner', async () => 'inner here', { remote: true })
+    registerHostAction('t_outer', async w => `outer → ${await invokeHostAction(w, 't_inner', {})}`)
+    setRemoteDispatcher(async () => 'inner elsewhere')
+    expect(await invokeHostAction(ws, 't_outer', {})).toBe('outer → inner elsewhere')
+  })
+
+  it('runs everything here when there is no dispatcher and meters the outer call once', async () => {
+    registerHostAction(
+      't_slow',
+      async () => {
+        await new Promise(r => setTimeout(r, 30))
+        return 'ok'
+      },
+      { remote: true },
+    )
+    registerHostAction('t_wrap', async w => invokeHostAction(w, 't_slow', {}))
+    expect(await invokeHostAction(ws, 't_wrap', {})).toBe('ok')
+    const seconds = takeComputeSeconds(ws.internal)
+    expect(seconds).toBeGreaterThan(0.02)
+    expect(seconds).toBeLessThan(0.5)
+  })
+
+  it('passes progress and the signal through', async () => {
+    registerHostAction('t_ctx', async (_w, _p, ctx) => {
+      ctx.progress?.('half', 50)
+      return ctx.signal?.aborted ? 'aborted' : 'live'
+    })
+    const progress = vi.fn()
+    const c = new AbortController()
+    c.abort()
+    expect(await invokeHostAction(ws, 't_ctx', {}, { progress, signal: c.signal })).toBe('aborted')
+    expect(progress).toHaveBeenCalledWith('half', 50)
+  })
+})
+
+describe('waiting on a render job', () => {
+  it('relays progress and resolves with the finished row', async () => {
+    jobs.set('j1', { id: 'j1', status: 'running', stage: 'capturing', progress: 10 })
+    setTimeout(() => Object.assign(jobs.get('j1'), { stage: 'capturing', progress: 60 }), 15)
+    setTimeout(
+      () =>
+        Object.assign(jobs.get('j1'), {
+          status: 'done',
+          stage: 'done',
+          progress: 100,
+          result: 'ok',
+        }),
+      40,
+    )
+    const progress = vi.fn()
+    const row = await awaitJob('j1', { progress })
+    expect(row.status).toBe('done')
+    expect(row.result).toBe('ok')
+    const seen = progress.mock.calls.map(c => c.join(':'))
+    expect(seen[0]).toBe('capturing:10')
+    expect(seen).toContain('capturing:60')
+    expect(seen[seen.length - 1]).toBe('done:100')
+  })
+
+  it('withdraws the job when the caller aborts', async () => {
+    jobs.set('j2', { id: 'j2', status: 'running', stage: 'running', progress: 0 })
+    const c = new AbortController()
+    const wait = awaitJob('j2', { signal: c.signal })
+    setTimeout(() => c.abort(), 15)
+    setTimeout(() => Object.assign(jobs.get('j2'), { status: 'cancelled' }), 40)
+    const row = await wait
+    expect(row.status).toBe('cancelled')
+    expect(withdrawn).toEqual(['j2'])
+  })
+
+  it('gives up after the timeout and withdraws', async () => {
+    jobs.set('j3', { id: 'j3', status: 'queued', stage: null, progress: 0 })
+    await expect(awaitJob('j3', {}, { timeoutMs: 30 })).rejects.toThrow(/did not finish/)
+    expect(jobs.get('j3').status).toBe('cancelled')
+  })
+})
+
+describe('output walk', () => {
+  it('ships only files written after the mark, never scratch or the marker', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'render-out-'))
+    const old = new Date(Date.now() - 60_000)
+    await mkdir(path.join(dir, 'renders'), { recursive: true })
+    await mkdir(path.join(dir, '.thumbs'), { recursive: true })
+    await writeFile(path.join(dir, 'index.html'), 'x')
+    await utimes(path.join(dir, 'index.html'), old, old)
+    await writeFile(path.join(dir, '.studio-checkpoint'), '{}')
+    await new Promise(r => setTimeout(r, 20))
+    const since = Date.now()
+    await new Promise(r => setTimeout(r, 20))
+    await writeFile(path.join(dir, 'renders/launch-1080p.mp4'), 'mp4')
+    await writeFile(path.join(dir, 'renders/launch-1080p.mp4.timeline.json'), '{}')
+    await writeFile(path.join(dir, '.thumbs/html_0_50.jpg'), 'jpg')
+    expect(await changedSince(dir, since)).toEqual([
+      'renders/launch-1080p.mp4',
+      'renders/launch-1080p.mp4.timeline.json',
+    ])
+  })
+})
+
+describe('browser manager pick', () => {
+  const c = (ordinal: number, running: number | null) => ({
+    url: `http://m-${ordinal}`,
+    ordinal,
+    running,
+  })
+  it('packs onto the lowest ordinal with room', () => {
+    expect(chooseManager([c(1, 0), c(0, 2)], 4)?.ordinal).toBe(0)
+    expect(chooseManager([c(0, 4), c(1, 1), c(2, 0)], 4)?.ordinal).toBe(1)
+  })
+  it('falls back to the least loaded when every manager is full', () => {
+    expect(chooseManager([c(0, 6), c(1, 5), c(2, 7)], 4)?.ordinal).toBe(1)
+  })
+  it('ignores managers that did not answer unless nobody did', () => {
+    expect(chooseManager([c(0, null), c(1, 3)], 4)?.ordinal).toBe(1)
+    expect(chooseManager([c(0, null), c(1, null)], 4)?.ordinal).toBe(0)
+    expect(chooseManager([], 4)).toBeNull()
+  })
+})

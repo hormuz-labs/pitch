@@ -88,9 +88,16 @@ Rules:
   a session belongs in the host and is reached through `ownerFor()` — never
   read `projects/<internal>/` from a route. `STUDIO_ROLE=all` (the default and
   `make dev`) is both in one process, so nothing changes locally.
+- Heavy host actions (`registerHostAction(name, fn, { remote: true })`: a
+  capture, an encode, whisper) run on the render tier when the worker is in
+  `STUDIO_RENDER=remote`: `worker/remote.ts` checkpoints the workspace and
+  queues a `RenderJob`; `renderer/runner.ts` (role `render`) restores it, runs
+  the same action, and ships the files back. An action must therefore read
+  only the workspace and the database, and write only into the workspace.
+  Sessions are never queued; only these are.
 - Docker: `apps/api/Dockerfile` on `pitch-base` (ffmpeg, bubblewrap, Node 22,
   whisper-cli — no browser, that is CloakBrowser over CDP); compose mounts
-  `./projects`, `docker-data/pi` and `whisper`. The agent's shell is sandboxed
+  `./projects` and `docker-data/pi`, and `whisper` on the render service. The agent's shell is sandboxed
   with bubblewrap, which needs the `security_opt`/`cap_add` on the api service
   — `make sandbox-check` reports what a given host requires. Linux only: on
   macOS there is no bwrap, so `sandboxMode()` runs the shell unconfined with

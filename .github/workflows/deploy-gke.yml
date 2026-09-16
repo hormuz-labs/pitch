@@ -128,10 +128,21 @@ jobs:
           BOT_IMAGE: ${{ env.IMAGE_PREFIX }}/pitch-discord-bot@${{ steps.bot.outputs.digest }}
         run: |
           node scripts/render-gke.mjs > "$RUNNER_TEMP/pitch.yaml"
+          # The browser manager became a StatefulSet behind a headless Service
+          # (browser.yaml). Neither can be changed in place from what was
+          # there before, so the old Deployment and ClusterIP Service go first;
+          # its old PVC (pitch-browser-data) is left for a hand cleanup.
+          if kubectl get deployment/pitch-browser -n pitch >/dev/null 2>&1; then
+            kubectl delete deployment/pitch-browser -n pitch --wait=true
+            kubectl delete service/pitch-browser -n pitch --ignore-not-found
+          fi
           kubectl apply --dry-run=server -f "$RUNNER_TEMP/pitch.yaml"
           kubectl apply -f "$RUNNER_TEMP/pitch.yaml"
           kubectl rollout status deployment/pitch -n pitch --timeout=900s
           kubectl rollout status deployment/pitch-discord-bot -n pitch --timeout=300s
+          kubectl rollout status statefulset/pitch-browser -n pitch --timeout=900s
+          # A render pod finishes the job it holds before it goes.
+          kubectl rollout status deployment/pitch-render -n pitch --timeout=1h
           # Each worker drains gently (up to STUDIO_DRAIN_MS) before its replacement starts.
           kubectl rollout status statefulset/pitch-worker -n pitch --timeout=5h
           kubectl exec -n pitch pitch-worker-0 -c worker -- node scripts/sandbox-check.mjs

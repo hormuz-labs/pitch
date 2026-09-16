@@ -404,9 +404,9 @@ export default function motionCommands(): CommandSpec[] {
       if (p.script) a.push('--script=' + relativeIn(ws, p.script))
       if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       try {
-        return text(await runScript('align.mjs', a, ws, 300_000))
+        return text(await hostAction(ws, 'launch_align', { args: a }))
       } catch (err: any) {
-        return text(`${err.stdout || ''}\n${err.stderr || err.message || err}`.trim())
+        return text(String(err?.message || err))
       }
     },
   })
@@ -534,7 +534,11 @@ export default function motionCommands(): CommandSpec[] {
       ] as const) {
         if (p[k] !== undefined) a.push(`--${k}=` + p[k])
       }
-      return text(await runScript('capture.mjs', a, ws))
+      try {
+        return text(await hostAction(ws, 'launch_capture', { args: a }))
+      } catch (err: any) {
+        return text(String(err?.message || err))
+      }
     },
   })
 

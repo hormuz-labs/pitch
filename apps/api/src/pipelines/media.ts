@@ -11,12 +11,13 @@
  * path here is resolved against the workspace and rejected if it escapes.
  */
 import { existsSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { resolveSymlinks } from '../../../../.pi/lib/paths.ts'
-import { runPedalboard } from '../lib/pedalboard.js'
+import { transcribeWav } from '../../../../.pi/lib/whisper.ts'
 import { addOutput, projectRowFor } from '../projects/service.js'
 import { execAsync, getMediaDurationSec } from '../render/media.js'
 import { registerHostAction } from '../studio/host-actions.js'
@@ -103,47 +104,51 @@ registerHostAction('media_probe', async (ws, params) => {
     .join('\n')
 })
 
-registerHostAction('media_ffmpeg', async (ws, params) => {
-  const args = Array.isArray(params.args) ? (params.args as string[]) : null
-  if (!args?.length) throw new Error('args must be a non-empty array of ffmpeg arguments')
-  rejectUnsafeArgs(args)
-  const outRel = String(params.out ?? '')
-  const out = insideWorkspace(ws, outRel)
+registerHostAction(
+  'media_ffmpeg',
+  async (ws, params) => {
+    const args = Array.isArray(params.args) ? (params.args as string[]) : null
+    if (!args?.length) throw new Error('args must be a non-empty array of ffmpeg arguments')
+    rejectUnsafeArgs(args)
+    const outRel = String(params.out ?? '')
+    const out = insideWorkspace(ws, outRel)
 
-  // Resolve every argument that names an existing workspace file, so ffmpeg
-  // runs on absolute paths and cwd can never change what it reads.
-  const resolved = args.map(arg => {
-    if (arg.startsWith('-')) return arg
-    const abs = path.resolve(ws.dir, arg)
-    return existsSync(abs) || abs === out ? abs : arg
-  })
-  const cmd = `ffmpeg -y -hide_banner ${resolved.map(a => `"${a.replace(/"/g, '\\"')}"`).join(' ')}`
-  logger.info({ workspace: ws.internal, out: outRel }, 'media_ffmpeg')
+    // Resolve every argument that names an existing workspace file, so ffmpeg
+    // runs on absolute paths and cwd can never change what it reads.
+    const resolved = args.map(arg => {
+      if (arg.startsWith('-')) return arg
+      const abs = path.resolve(ws.dir, arg)
+      return existsSync(abs) || abs === out ? abs : arg
+    })
+    const cmd = `ffmpeg -y -hide_banner ${resolved.map(a => `"${a.replace(/"/g, '\\"')}"`).join(' ')}`
+    logger.info({ workspace: ws.internal, out: outRel }, 'media_ffmpeg')
 
-  const started = Date.now()
-  try {
-    await execAsync(cmd, { cwd: ws.dir, maxBuffer: 64 * 1024 * 1024, timeout: 30 * 60_000 })
-  } catch (err: any) {
-    // ffmpeg says exactly what is wrong on stderr; hand that back verbatim so
-    // the agent can fix the command instead of guessing.
-    const detail = String(err?.stderr || err?.message || err)
-      .trim()
-      .split('\n')
-      .slice(-12)
-      .join('\n')
-    throw new Error(`ffmpeg failed:\n${detail}`)
-  }
-  const seconds = (Date.now() - started) / 1000
+    const started = Date.now()
+    try {
+      await execAsync(cmd, { cwd: ws.dir, maxBuffer: 64 * 1024 * 1024, timeout: 30 * 60_000 })
+    } catch (err: any) {
+      // ffmpeg says exactly what is wrong on stderr; hand that back verbatim so
+      // the agent can fix the command instead of guessing.
+      const detail = String(err?.stderr || err?.message || err)
+        .trim()
+        .split('\n')
+        .slice(-12)
+        .join('\n')
+      throw new Error(`ffmpeg failed:\n${detail}`)
+    }
+    const seconds = (Date.now() - started) / 1000
 
-  if (!existsSync(out)) throw new Error(`ffmpeg reported success but ${outRel} was not written`)
-  const { size } = await stat(out)
-  const duration = await getMediaDurationSec(out).catch(() => 0)
-  return [
-    `Wrote ${outRel} (${(size / 1e6).toFixed(1)} MB${duration ? `, ${duration.toFixed(1)}s` : ''}) in ${seconds.toFixed(1)}s.`,
-    `${params.why ?? 'Edit applied'}.`,
-    'Preview it, and call media_publish when it is what the user asked for.',
-  ].join(' ')
-})
+    if (!existsSync(out)) throw new Error(`ffmpeg reported success but ${outRel} was not written`)
+    const { size } = await stat(out)
+    const duration = await getMediaDurationSec(out).catch(() => 0)
+    return [
+      `Wrote ${outRel} (${(size / 1e6).toFixed(1)} MB${duration ? `, ${duration.toFixed(1)}s` : ''}) in ${seconds.toFixed(1)}s.`,
+      `${params.why ?? 'Edit applied'}.`,
+      'Preview it, and call media_publish when it is what the user asked for.',
+    ].join(' ')
+  },
+  { remote: true },
+)
 
 registerHostAction('media_publish', async (ws, params) => {
   const rel = String(params.file ?? '')
@@ -174,12 +179,36 @@ registerHostAction('media_publish', async (ws, params) => {
     : `Recorded ${rel} as "${params.label}" (upload failed; serving it from the workspace).`
 })
 
-registerHostAction('media_pedalboard', async (ws, params) => {
-  if (params.list === true) return runPedalboard({ list: true })
-  const file = insideWorkspace(ws, params.file)
-  const out = insideWorkspace(ws, params.out)
-  if (!(await stat(file)).isFile()) throw new Error(`not an audio file: ${params.file}`)
-  if (path.extname(out).toLowerCase() !== '.wav') throw new Error('out must be a new .wav file')
-  const result = await runPedalboard({ file, out, effects: params.effects, tail: params.tail })
-  return `Wrote ${params.out}. ${result}\nUse this file in an SFX cue sheet or mix it into the project.`
-})
+/**
+ * Local speech-to-text over any workspace media: the audio is extracted to
+ * 16 kHz mono, whisper.cpp writes word timestamps, and the transcript lands
+ * at `out` as { source, model, segments, words }. whisper uses every core
+ * for as long as the clip runs, which is why this is a render action.
+ */
+registerHostAction(
+  'media_transcribe',
+  async (ws, params) => {
+    const rel = String(params.file ?? '')
+    const file = insideWorkspace(ws, rel)
+    if (!existsSync(file)) throw new Error(`no such file in the workspace: ${rel}`)
+    const outRel = String(params.out ?? 'recording/transcript.json')
+    const out = insideWorkspace(ws, outRel)
+    if (path.extname(out).toLowerCase() !== '.json') throw new Error('out must be a .json path')
+    const tmp = await mkdtemp(path.join(tmpdir(), 'transcribe-'))
+    try {
+      const wav = path.join(tmp, 'audio.wav')
+      await execAsync(`ffmpeg -y -hide_banner -i "${file}" -vn -ac 1 -ar 16000 "${wav}"`, {
+        maxBuffer: 8 * 1024 * 1024,
+      })
+      const lang = typeof params.lang === 'string' ? params.lang : undefined
+      const { model, words, segments } = transcribeWav(wav, { lang })
+      await mkdir(path.dirname(out), { recursive: true })
+      await writeFile(out, JSON.stringify({ source: rel, model, segments, words }, null, 2))
+      const dur = segments.length ? segments[segments.length - 1].end : 0
+      return `Transcribed ${rel} with ${model}: ${segments.length} segments, ${words.length} words, ${dur.toFixed(1)}s → ${outRel}`
+    } finally {
+      await rm(tmp, { recursive: true, force: true })
+    }
+  },
+  { remote: true },
+)

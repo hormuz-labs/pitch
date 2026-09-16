@@ -56,16 +56,18 @@ describe('launch export reuses a fresh render', () => {
   it('renders again when a source changed after the render', async () => {
     await writeFile(path.join(dir, 'renders/launch-1080p.mp4'), 'mp4')
     await ago(path.join(dir, 'renders/launch-1080p.mp4'), 60)
-    // The capture script is absent here, so a real render attempt throws
+    // The capture script is absent here, so a real render attempt fails
     // before spawning: that is the proof it did not hand the stale file back.
-    await expect(launchExporter.start(row, { res: '1080p' }, publish)).rejects.toThrow(
-      /capture script/,
-    )
+    const st = await launchExporter.start(row, { res: '1080p' }, publish)
+    expect(st.running).toBe(true)
+    await vi.waitFor(() => expect(launchExporter.status('p1').stage).toBe('failed'))
+    expect(launchExporter.status('p1').error).toMatch(/capture script/)
   })
 
   it('renders a resolution that has no file yet', async () => {
-    await expect(launchExporter.start(row, { res: '4k' }, publish)).rejects.toThrow(
-      /capture script/,
-    )
+    const st = await launchExporter.start(row, { res: '4k' }, publish)
+    expect(st.running).toBe(true)
+    await vi.waitFor(() => expect(launchExporter.status('p1').stage).toBe('failed'))
+    expect(launchExporter.status('p1').error).toMatch(/capture script/)
   })
 })

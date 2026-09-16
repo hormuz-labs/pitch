@@ -39,7 +39,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { Type } from '@sinclair/typebox'
 import { workspaceOf } from '../lib/paths.ts'
-import { transcribeWav } from '../lib/whisper.ts'
+import { hostAction } from '../lib/studio-host.ts'
 import type { CommandSpec } from './registry.ts'
 
 const execAsync = promisify(exec)
@@ -286,17 +286,18 @@ export default function recordingCommands(): CommandSpec[] {
         const video = resolveVideo(base, args.videoPath)
         if (!fs.existsSync(video)) return text(`ERROR: video not found: ${video}`)
         ensureSessionForVideo(base, video)
-        const wav = path.join(recordingsDir(base), 'upload_audio.wav')
-        await execAsync(`ffmpeg -y -i ${q(video)} -vn -ac 1 -ar 16000 ${q(wav)}`, {
-          maxBuffer: BIG_BUFFER,
-        })
-        let segments: TranscriptSegment[]
+        // whisper runs where the render tier says (a render pod on a fleet,
+        // here on a single box); the transcript comes back into recording/.
+        recordingsDir(base)
         try {
-          segments = transcribeWav(wav).segments
+          await hostAction(base, 'media_transcribe', {
+            file: path.relative(base, video),
+            out: path.relative(base, transcriptPath(base)),
+          })
         } catch (e) {
           return text(`ERROR: ${e instanceof Error ? e.message : String(e)}`)
         }
-        fs.writeFileSync(transcriptPath(base), JSON.stringify({ source: video, segments }, null, 2))
+        const segments: TranscriptSegment[] = readTranscript(base)
         const lines = segments.map(s => `[${s.start.toFixed(1)}s → ${s.end.toFixed(1)}s] ${s.text}`)
         let body = lines.join('\n')
         let truncated = false
