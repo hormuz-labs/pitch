@@ -49,6 +49,8 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            # The image's `bun` user (uid 1000); the kubelet needs the number.
+            runAsUser: 1000
             runAsNonRoot: true
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
