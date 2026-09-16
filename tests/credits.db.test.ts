@@ -175,7 +175,7 @@ describe('Discord welcome reward', () => {
     })
     expect(creditTransaction.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        delta: 120,
+        delta: 250,
         channel: 'product',
         type: 'promo',
         userId: 'user_1',

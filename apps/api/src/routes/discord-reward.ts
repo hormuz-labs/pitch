@@ -27,6 +27,8 @@ interface Reward {
   blocker: string | null
 }
 
+type Settled = Reward & { blockedBy?: DiscordMembershipError }
+
 async function rewardState(userId: string) {
   // Read Clerk afresh; the stored profile mirror may predate an unlink.
   const { discordUserId } = await getVerifiedClerkProfile(userId)
@@ -65,7 +67,7 @@ async function joinOnBehalf(userId: string, discordUserId: string) {
  * Every read settles the reward: a linked member gets the credits right
  * there, so the page they come back to after connecting is the one that pays.
  */
-async function settle(userId: string): Promise<Reward> {
+async function settle(userId: string): Promise<Settled> {
   const { discordUserId, claim, state } = await rewardState(userId)
   const configured = discordRewardConfigured()
   const base = { credits: db.DISCORD_WELCOME_CREDITS, configured, granted: false, blocker: null }
@@ -84,7 +86,7 @@ async function settle(userId: string): Promise<Reward> {
     return { ...base, state: 'claimed', granted: result.granted, claimedAt: result.claim.claimedAt }
   } catch (error) {
     if (error instanceof DiscordMembershipError) {
-      return { ...base, state, claimedAt: null, blocker: error.message }
+      return { ...base, state, claimedAt: null, blocker: error.message, blockedBy: error }
     }
     throw error
   }
@@ -102,7 +104,8 @@ router.get('/', async (req, res) => {
   if (!userId) return
   res.set('Cache-Control', 'no-store')
   try {
-    res.json(await settle(userId))
+    const { blockedBy: _, ...reward } = await settle(userId)
+    res.json(reward)
   } catch (error) {
     fail(res, error, userId)
   }
@@ -124,7 +127,11 @@ router.post('/claim', async (req, res) => {
         .json({ error: 'Connect your Discord account before claiming the reward.' })
     }
     if (reward.state === 'available') {
-      return res.status(403).json({ error: reward.blocker ?? 'Join the Pitch Discord server.' })
+      const blocked = reward.blockedBy
+      if (blocked?.retryAfter) res.set('Retry-After', String(blocked.retryAfter))
+      return res
+        .status(blocked?.status ?? 403)
+        .json({ error: reward.blocker ?? 'Join the Pitch Discord server.' })
     }
     res.json({
       granted: reward.granted,

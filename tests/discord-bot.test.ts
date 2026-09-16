@@ -99,7 +99,7 @@ describe('/video Discord command', () => {
     })
 
     expect(interaction.updateProgress).toHaveBeenCalledWith(
-      'You need more Pitch credits. Claim your one-time Discord welcome reward in Settings → Discord, or buy credits in Pitch: https://trypitch.co/new?settings=connections',
+      'You need more Pitch credits. Buy credits in Pitch, or connect this Discord account there for the one-time welcome credits: https://trypitch.co/new?settings=connections',
     )
     expect(api.getProject).not.toHaveBeenCalled()
   })

@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   grant: vi.fn(),
   balance: vi.fn(),
   membership: vi.fn(),
+  join: vi.fn(),
+  oauthTokens: vi.fn(),
 }))
 vi.mock('@saas/db', () => ({
   DISCORD_WELCOME_CREDITS: 120,
@@ -16,7 +18,12 @@ vi.mock('@saas/db', () => ({
   grantDiscordWelcomeReward: mocks.grant,
   getCreditBalance: mocks.balance,
 }))
-vi.mock('@saas/shared', () => ({ createLogger: () => ({ error: vi.fn() }) }))
+vi.mock('@saas/shared', () => ({
+  createLogger: () => ({ error: vi.fn(), info: vi.fn(), debug: vi.fn() }),
+}))
+vi.mock('@clerk/express', () => ({
+  clerkClient: { users: { getUserOauthAccessToken: mocks.oauthTokens } },
+}))
 vi.mock('../apps/api/src/lib/clerk.js', () => ({ getVerifiedClerkProfile: mocks.profile }))
 vi.mock('../apps/api/src/middleware/auth.js', () => ({
   requireAuth: (_req: unknown, res: express.Response) => {
@@ -27,6 +34,7 @@ vi.mock('../apps/api/src/middleware/auth.js', () => ({
 vi.mock('../apps/api/src/lib/discord-membership.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../apps/api/src/lib/discord-membership.js')>()),
   verifyDiscordMembership: mocks.membership,
+  joinDiscordGuild: mocks.join,
   discordRewardConfigured: () => true,
 }))
 
@@ -34,6 +42,7 @@ import { DiscordMembershipError } from '../apps/api/src/lib/discord-membership.j
 import { router } from '../apps/api/src/routes/discord-reward.js'
 
 const app = express().use(express.json()).use('/credits/discord', router)
+const status = () => request(app).get('/credits/discord')
 const claim = () => request(app).post('/credits/discord/claim')
 
 beforeEach(() => {
@@ -43,26 +52,69 @@ beforeEach(() => {
   mocks.claim.mockResolvedValue(null)
   mocks.balance.mockResolvedValue(160)
   mocks.membership.mockResolvedValue('12345678')
-  mocks.grant.mockResolvedValue({ granted: true, claim: { userId: 'user_1', credits: 120 } })
+  mocks.join.mockResolvedValue('member')
+  mocks.oauthTokens.mockResolvedValue({ data: [] })
+  mocks.grant.mockResolvedValue({
+    granted: true,
+    claim: { userId: 'user_1', credits: 120, claimedAt: '2026-09-16T00:00:00.000Z' },
+  })
 })
 
 describe('Discord community reward', () => {
   it('requires authentication for status and claiming', async () => {
     mocks.userId = null
-    expect((await request(app).get('/credits/discord')).status).toBe(401)
+    expect((await status()).status).toBe(401)
     expect((await claim()).status).toBe(401)
     expect(mocks.profile).not.toHaveBeenCalled()
   })
 
-  it('shows the current linking/claim state without granting or checking membership', async () => {
-    const response = await request(app).get('/credits/discord')
+  it('settles the reward on a status read once the linked account is a member', async () => {
+    const response = await status()
     expect(response.body).toEqual({
-      state: 'available',
+      state: 'claimed',
       credits: 120,
       configured: true,
-      claimedAt: null,
+      claimedAt: '2026-09-16T00:00:00.000Z',
+      granted: true,
+      blocker: null,
     })
     expect(response.headers['cache-control']).toBe('no-store')
+    expect(mocks.membership).toHaveBeenCalledWith('99887766')
+    expect(mocks.grant).toHaveBeenCalledWith('user_1', '99887766', '12345678')
+  })
+
+  it('reports what is still missing when the linked account has not joined', async () => {
+    mocks.membership.mockRejectedValue(new DiscordMembershipError('Join the server first', 403))
+    const response = await status()
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      state: 'available',
+      granted: false,
+      blocker: 'Join the server first',
+    })
+    expect(mocks.grant).not.toHaveBeenCalled()
+  })
+
+  it('joins the server on behalf of the user when Clerk holds a Discord OAuth token', async () => {
+    mocks.oauthTokens.mockResolvedValue({ data: [{ token: 'oauth-token' }] })
+    await status()
+    expect(mocks.oauthTokens).toHaveBeenCalledWith('user_1', 'discord')
+    expect(mocks.join).toHaveBeenCalledWith('99887766', 'oauth-token')
+    expect(mocks.membership).toHaveBeenCalledWith('99887766')
+  })
+
+  it('still verifies membership itself when joining on behalf fails', async () => {
+    mocks.oauthTokens.mockRejectedValue(new Error('Clerk unavailable'))
+    const response = await status()
+    expect(response.body.state).toBe('claimed')
+    expect(mocks.grant).toHaveBeenCalled()
+  })
+
+  it('never checks membership or grants for an unlinked account', async () => {
+    mocks.profile.mockResolvedValue({ discordUserId: null })
+    const response = await status()
+    expect(response.body).toMatchObject({ state: 'unlinked', granted: false, blocker: null })
+    expect(mocks.oauthTokens).not.toHaveBeenCalled()
     expect(mocks.membership).not.toHaveBeenCalled()
     expect(mocks.grant).not.toHaveBeenCalled()
   })
