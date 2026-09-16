@@ -234,7 +234,7 @@ The server exposes `create_project`, `prompt_project`, `get_project`, `list_proj
 
 ### The reading room
 
-[Architecture](docs/studio-architecture.md) &nbsp; / &nbsp; [Launch film engine](docs/launch-video-studio.md) &nbsp; / &nbsp; [Demo pipeline](docs/demo-video-pipeline.md) &nbsp; / &nbsp; [Deployment](docs/installation.md) &nbsp; / &nbsp; [Brand & UI](docs/brand-ui-guidelines.md)
+[Architecture](docs/studio-architecture.md) &nbsp; / &nbsp; [Deployment](docs/installation.md) &nbsp; / &nbsp; [GKE](docs/gke-deployment.md) &nbsp; / &nbsp; [Brand & UI](docs/brand-ui-guidelines.md)
 
 ### License
 

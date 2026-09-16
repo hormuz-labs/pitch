@@ -1,0 +1,135 @@
+# The API: stateless (STUDIO_ROLE=api), any number of replicas behind the
+# Ingress. It holds no session and no workspace; every project operation is
+# proxied to the worker that owns it (see worker.yaml), so it needs no disk,
+# no sandbox privileges and no browser of its own — user browser sessions
+# (/browser) go to the shared manager in browser.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pitch
+spec:
+  # No `replicas`: the HorizontalPodAutoscaler below owns it.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 900
+  selector:
+    matchLabels:
+      app: pitch
+  template:
+    metadata:
+      labels:
+        app: pitch
+    spec:
+      serviceAccountName: pitch
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+        pool: system
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: { app: pitch }
+      initContainers:
+        # Native sidecar: up before the API, down after it.
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.18.2@sha256:fc224915ef435afeb5b2a9421260a0d31986d5c8b7c7f5783c7f5d5885700cd2
+          restartPolicy: Always
+          args:
+            - --structured-logs
+            - --private-ip
+            - --port=5432
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9090
+            - ${CLOUD_SQL_CONNECTION_NAME}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet: { path: /startup, port: 9090 }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readiness, port: 9090 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+      containers:
+        - name: api
+          image: pitch-api
+          # Migrations run once per release in the migrate Job, not on every boot.
+          command: [bun, apps/api/src/index.ts]
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef: { name: pitch-config }
+            - secretRef: { name: pitch-runtime }
+          env:
+            - { name: STUDIO_ROLE, value: api }
+            - { name: CLOAK_MANAGER_URL, value: http://pitch-browser:8080 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 5
+            failureThreshold: 120
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          # Stateless and proxying: it needs little, and the HPA adds pods
+          # before one gets busy.
+          # Idle is ~120 MB, but /mcp and /v1 accept 750 MB JSON bodies and
+          # buffer them, so the ceiling has to clear one large upload.
+          resources:
+            requests: { cpu: 500m, memory: 1Gi, ephemeral-storage: 1Gi }
+            limits: { cpu: '2', memory: 3Gi, ephemeral-storage: 4Gi }
+          volumeMounts:
+            - { name: scratch, mountPath: /tmp }
+      volumes:
+        - name: scratch
+          emptyDir: { sizeLimit: 4Gi }
+---
+# The API is request-bound, so CPU is an honest signal for it (unlike the
+# workers, whose load is slots — see autoscaling.yaml).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pitch
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pitch
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 60 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pitch
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: pitch }

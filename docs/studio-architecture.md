@@ -340,7 +340,9 @@ system is entitled to re-place it.
 its row, valid while that worker is live at that epoch. Otherwise whichever
 API touches the project next places it, in one short transaction: live,
 not draining, a free slot, preferring the last holder (warm disk), else the
-least loaded. Two replicas placing the same project at once cannot both win.
+first by id. First, not least loaded: the fleet packs onto its lowest
+workers and leaves the highest empty, which is the one an autoscaler takes
+away. Two replicas placing the same project at once cannot both win.
 `worker/client.ts` turns the owner into a `WorkerClient` — the host module
 itself when the owner is this process, an HTTP client otherwise — and the
 routes only ever talk to that.
@@ -374,14 +376,32 @@ the owning worker's bus. An event raised elsewhere (an API marking a project
 failed) is forwarded to the owner. If the worker goes away the stream sends
 an error and the client reconnects, landing wherever the project is by then.
 
-**Draining.** `SIGTERM` marks the worker draining, checkpoints and releases
-everything it holds (`STUDIO_SHUTDOWN_GRACE_MS`), then exits. Replace a node
-by starting the new one and stopping the old.
+**Draining.** `SIGTERM` marks the worker draining so placement stops
+sending it projects. With a drain window (`STUDIO_DRAIN_MS`, what a
+scale-down or a rollout sets) it keeps serving what it holds — the API still
+reaches it, the lease says so — and releases each project the moment its
+turn is over, checkpointed; whoever was watching reconnects and lands on
+another worker with nothing lost. Whatever is still running when the window
+closes is released anyway. Without a window (the default, a plain stop)
+everything is released at once and the turns in flight are lost. Then
+`STUDIO_SHUTDOWN_GRACE_MS` for the last checkpoints, and exit.
+
+**Scaling the fleet.** The API answers `GET /internal/scale` (behind the
+worker token) with `wanted`: how many elastic workers it takes to hold
+every leased project and still keep `STUDIO_SCALE_HEADROOM` slots free —
+the demand, not the utilisation, because a worker mid-turn is mostly
+waiting on a model and CPU says nothing. An autoscaler (KEDA on GKE, see
+`docs/gke-deployment.md`) sets the worker count to it. Elastic workers are
+the ones whose id starts with `STUDIO_SCALE_GROUP`; any other live worker
+is fixed capacity whose slots are used first. Draining workers count their
+projects but not their slots, so a replacement is asked for before they go.
 
 **Networking.** Workers need a private URL other processes can reach
 (`STUDIO_WORKER_URL`): a VPC address, a compose service name, a Tailscale
-MagicDNS name. Nothing here needs a public port. Every node needs the same
-`DATABASE_URL`, `MINIO_*`, `STUDIO_WORKER_TOKEN` and `PREVIEW_COOKIE_SECRET`,
+egress Service. Nothing here needs a public port. Every node needs the same
+`DATABASE_URL`, object storage (`STORAGE_DRIVER` and its buckets — GCS in
+production, MinIO locally, one contract in `@saas/storage`),
+`STUDIO_WORKER_TOKEN` and `PREVIEW_COOKIE_SECRET`,
 its own CloakBrowser manager (`CLOAK_MANAGER_URL`, recorded on browser
 sessions so the VNC proxy bridges to the right one), and its own `projects/`
 and pi volumes.

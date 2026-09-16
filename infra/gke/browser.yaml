@@ -1,0 +1,75 @@
+# The CloakBrowser manager the API replicas share for user browser sessions
+# (/browser and its VNC proxy). It used to be a sidecar of the one API pod;
+# a session's profile lives in exactly one manager, so with several API pods
+# the manager has to be one thing they all reach. Workers keep a manager of
+# their own for previews (worker.yaml).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pitch-browser-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: pitch-retained-pd
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pitch-browser
+spec:
+  selector:
+    app: pitch-browser
+  ports:
+    - name: manager
+      port: 8080
+      targetPort: manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pitch-browser
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: pitch-browser
+  template:
+    metadata:
+      labels:
+        app: pitch-browser
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+        pool: system
+      containers:
+        - name: browser
+          image: cloakbrowser-manager
+          ports:
+            - name: manager
+              containerPort: 8080
+          startupProbe:
+            tcpSocket: { port: manager }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket: { port: manager }
+          livenessProbe:
+            tcpSocket: { port: manager }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: '1500m', memory: 3Gi }
+            limits: { cpu: '3', memory: 10Gi }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: pitch-browser-data }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }

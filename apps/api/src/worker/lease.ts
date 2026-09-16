@@ -15,7 +15,7 @@
  */
 import { prisma } from '@saas/db'
 import { createLogger } from '@saas/shared'
-import { LEASE_TTL_MS } from './config.js'
+import { LEASE_TTL_MS, SCALE_GROUP, SCALE_HEADROOM, WORKER_SLOTS } from './config.js'
 
 const logger = createLogger('studio:lease')
 
@@ -56,7 +56,14 @@ interface LeaseColumns {
 
 /**
  * Pure choice, for tests: the candidate with a free slot, preferring the
- * one that last held the project (warm disk), else the least loaded.
+ * one that last held the project (warm disk), else the first by id.
+ *
+ * First by id, not least loaded, on purpose: it packs projects onto the
+ * lowest-numbered workers and leaves the highest empty, which is the one
+ * an autoscaler removes (a StatefulSet scales down from the top ordinal).
+ * Spreading would leave something on every worker and make every
+ * scale-down cost a checkpoint and a cold restore. Ids compare naturally
+ * so worker-10 comes after worker-9.
  */
 export function pickWorker(
   workers: WorkerRow[],
@@ -70,11 +77,7 @@ export function pickWorker(
     const w = id ? free.find(c => c.id === id) : undefined
     if (w) return w
   }
-  free.sort((a, b) => {
-    const la = (held.get(a.id) ?? 0) / a.slots
-    const lb = (held.get(b.id) ?? 0) / b.slots
-    return la - lb || a.id.localeCompare(b.id)
-  })
+  free.sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }))
   return free[0]
 }
 
@@ -174,4 +177,48 @@ export async function leasedTo(workerId: string, epoch: number): Promise<string[
     select: { id: true },
   })
   return rows.map(r => r.id)
+}
+
+export interface FleetStatus {
+  /** Live workers taking projects, elastic and fixed. */
+  workers: number
+  /** Their slots, all together. */
+  slots: number
+  /** Projects leased to any live worker, draining ones included. */
+  held: number
+  /** Elastic workers (ids under SCALE_GROUP) the fleet should have. */
+  wanted: number
+}
+
+/**
+ * The number the autoscaler follows (GET /internal/scale). It is the
+ * demand, not the utilisation: how many elastic workers of the usual size
+ * it takes to hold what is leased right now and still keep SCALE_HEADROOM
+ * slots free, after the slots of any fixed worker outside the scaled group
+ * are used. Draining workers contribute their projects but not their
+ * slots, so a worker on its way out is replaced before it is gone.
+ */
+export async function fleetStatus(): Promise<FleetStatus> {
+  const since = liveSince()
+  const [workers, [{ n }]] = await Promise.all([
+    prisma.studioWorker.findMany({ where: { heartbeatAt: { gt: since } } }),
+    prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT count(*) AS n FROM "Project" p
+      JOIN "StudioWorker" w ON w."id" = p."workerId" AND w."epoch" = p."workerEpoch"
+      WHERE w."heartbeatAt" > ${since}`,
+  ])
+  const taking = workers.filter(w => !w.draining)
+  const elastic = taking.filter(w => w.id.startsWith(SCALE_GROUP))
+  const fixedSlots = taking
+    .filter(w => !w.id.startsWith(SCALE_GROUP))
+    .reduce((sum, w) => sum + w.slots, 0)
+  const perWorker = elastic.length ? Math.max(...elastic.map(w => w.slots)) : WORKER_SLOTS
+  const held = Number(n)
+  const demand = Math.max(0, held + SCALE_HEADROOM - fixedSlots)
+  return {
+    workers: taking.length,
+    slots: taking.reduce((sum, w) => sum + w.slots, 0),
+    held,
+    wanted: Math.max(1, Math.ceil(demand / perWorker)),
+  }
 }

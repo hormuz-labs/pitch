@@ -1,69 +1,46 @@
-import {
-  CreateBucketCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadBucketCommand,
-  HeadObjectCommand,
-  ListObjectsV2Command,
-  PutBucketPolicyCommand,
-  PutObjectCommand,
-  S3Client,
-} from '@aws-sdk/client-s3'
-import { Upload } from '@aws-sdk/lib-storage'
+/**
+ * Object storage for the studio: public media (renders, uploads the app
+ * links to), browser profiles, and workspace checkpoints.
+ *
+ * Two drivers, one contract (driver.ts):
+ *
+ *   STORAGE_DRIVER=s3    MinIO or any S3-compatible service — development,
+ *                        the Compose host. MINIO_ENDPOINT / MINIO_ROOT_USER /
+ *                        MINIO_ROOT_PASSWORD. The default.
+ *   STORAGE_DRIVER=gcs   Google Cloud Storage with Application Default
+ *                        Credentials (Workload Identity on GKE) — production.
+ *
+ * Bucket names and the public origin are the same either way:
+ * STORAGE_BUCKET, STORAGE_PROFILES_BUCKET, STORAGE_PUBLIC_URL (the MINIO_*
+ * spellings still work). A public object's URL is
+ * `<STORAGE_PUBLIC_URL>/<bucket>/<key>` on both, which is exactly what GCS
+ * serves at https://storage.googleapis.com and what MinIO serves
+ * path-style, so a saved URL is portable between them.
+ */
 import fs from 'fs'
 import path from 'path'
 import { Readable } from 'stream'
+import { type ObjectDriver, readAll } from './driver.js'
+import { gcsDriver } from './gcs.js'
+import { s3Driver } from './s3.js'
 
-const endpoint = process.env.MINIO_ENDPOINT ?? 'http://localhost:9000'
-const bucket = process.env.MINIO_BUCKET ?? 'pitch-videos'
-const publicUrl = (process.env.MINIO_PUBLIC_URL ?? endpoint).replace(/\/$/, '')
+export type { ObjectDriver } from './driver.js'
 
-const MULTIPART_THRESHOLD = 5 * 1024 * 1024 // 5 MB
-const MULTIPART_PART_SIZE = 5 * 1024 * 1024 // 5 MB per part
-const MULTIPART_QUEUE_SIZE = 4 // concurrent part uploads
+const DRIVER = (process.env.STORAGE_DRIVER || 's3').trim().toLowerCase()
+if (DRIVER !== 's3' && DRIVER !== 'gcs')
+  throw new Error(`STORAGE_DRIVER must be s3 or gcs (got "${DRIVER}")`)
+export const STORAGE_DRIVER: ObjectDriver['name'] = DRIVER
 
-const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes for large uploads
-const CONNECT_TIMEOUT_MS = 30 * 1000 // 30 seconds to establish connection
+const driver: ObjectDriver = DRIVER === 'gcs' ? gcsDriver() : s3Driver()
 
-const client = new S3Client({
-  endpoint,
-  region: 'us-east-1', // MinIO ignores this but the SDK requires a value
-  credentials: {
-    accessKeyId: process.env.MINIO_ROOT_USER ?? 'minioadmin',
-    secretAccessKey: process.env.MINIO_ROOT_PASSWORD ?? 'minioadmin',
-  },
-  forcePathStyle: true, // required for MinIO
-  requestHandler: {
-    requestTimeout: UPLOAD_TIMEOUT_MS / 1000, // in seconds for fetch handler
-    connectionTimeout: CONNECT_TIMEOUT_MS / 1000,
-  } as any,
-})
-
-async function ensureBucketExists(bucketName: string) {
-  try {
-    await client.send(new HeadBucketCommand({ Bucket: bucketName }))
-  } catch {
-    // Bucket doesn't exist — create it
-    await client.send(new CreateBucketCommand({ Bucket: bucketName }))
-
-    // Make the bucket publicly readable so video URLs work without auth
-    const policy = JSON.stringify({
-      Version: '2012-10-17',
-      Statement: [
-        {
-          Effect: 'Allow',
-          Principal: '*',
-          Action: 's3:GetObject',
-          Resource: `arn:aws:s3:::${bucketName}/*`,
-        },
-      ],
-    })
-
-    await client.send(new PutBucketPolicyCommand({ Bucket: bucketName, Policy: policy }))
-
-    console.log(`[Storage] Created public bucket: ${bucketName}`)
-  }
-}
+const bucket = process.env.STORAGE_BUCKET ?? process.env.MINIO_BUCKET ?? 'pitch-videos'
+const publicUrl = (
+  process.env.STORAGE_PUBLIC_URL ??
+  process.env.MINIO_PUBLIC_URL ??
+  (DRIVER === 'gcs'
+    ? 'https://storage.googleapis.com'
+    : (process.env.MINIO_ENDPOINT ?? 'http://localhost:9000'))
+).replace(/\/$/, '')
 
 function detectContentType(filePath: string): string {
   if (filePath.endsWith('.mp4')) return 'video/mp4'
@@ -85,59 +62,43 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
-export async function uploadFile(localPath: string, bucketOverride?: string, prefix?: string) {
-  const targetBucket = bucketOverride ?? bucket
-  const filename = path.basename(localPath)
-  const contentType = detectContentType(localPath)
-  const fileSize = fs.statSync(localPath).size
-
-  await ensureBucketExists(targetBucket)
-
+const uniqueKey = (filename: string, prefix?: string) => {
   const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  const key = prefix ? path.join(prefix, uniqueId, filename) : `${uniqueId}/${filename}`
+  return prefix ? path.join(prefix, uniqueId, filename) : `${uniqueId}/${filename}`
+}
 
+const logProgress = (loaded: number, total?: number) => {
+  if (!total) return
+  const pct = Math.round((loaded / total) * 100)
+  console.log(`[Storage] Upload progress: ${pct}% (${formatBytes(loaded)} / ${formatBytes(total)})`)
+}
+
+async function publish(
+  targetBucket: string,
+  key: string,
+  body: Readable | Buffer,
+  contentType: string,
+  size: number,
+): Promise<string> {
+  await driver.ensureBucket(targetBucket, true)
   console.log(
-    `[Storage] Uploading ${filename} (${formatBytes(fileSize)}) to MinIO bucket "${targetBucket}"...`,
+    `[Storage] Uploading ${path.basename(key)} (${formatBytes(size)}) to ${driver.name} bucket "${targetBucket}"...`,
   )
-
-  if (fileSize > MULTIPART_THRESHOLD) {
-    const parallelUpload = new Upload({
-      client,
-      params: {
-        Bucket: targetBucket,
-        Key: key,
-        Body: fs.createReadStream(localPath),
-        ContentType: contentType,
-      },
-      queueSize: MULTIPART_QUEUE_SIZE,
-      partSize: MULTIPART_PART_SIZE,
-    })
-
-    parallelUpload.on('httpUploadProgress', progress => {
-      if (progress.total) {
-        const pct = Math.round((progress.loaded! / progress.total) * 100)
-        console.log(
-          `[Storage] Upload progress: ${pct}% (${formatBytes(progress.loaded!)} / ${formatBytes(progress.total)})`,
-        )
-      }
-    })
-
-    await parallelUpload.done()
-  } else {
-    const fileBuffer = fs.readFileSync(localPath)
-    await client.send(
-      new PutObjectCommand({
-        Bucket: targetBucket,
-        Key: key,
-        Body: fileBuffer,
-        ContentType: contentType,
-      }),
-    )
-  }
-
+  await driver.put(targetBucket, key, body, { contentType, size, onProgress: logProgress })
   const url = `${publicUrl}/${targetBucket}/${key}`
   console.log(`[Storage] Upload complete. Public URL: ${url}`)
   return url
+}
+
+export async function uploadFile(localPath: string, bucketOverride?: string, prefix?: string) {
+  const size = fs.statSync(localPath).size
+  return publish(
+    bucketOverride ?? bucket,
+    uniqueKey(path.basename(localPath), prefix),
+    fs.createReadStream(localPath),
+    detectContentType(localPath),
+    size,
+  )
 }
 
 export async function uploadBuffer(
@@ -147,58 +108,13 @@ export async function uploadBuffer(
   bucketOverride?: string,
   prefix?: string,
 ) {
-  const targetBucket = bucketOverride ?? bucket
-  const fileSize = buffer.length
-
-  await ensureBucketExists(targetBucket)
-
-  const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  const key = prefix ? path.join(prefix, uniqueId, filename) : `${uniqueId}/${filename}`
-
-  console.log(
-    `[Storage] Uploading ${filename} (${formatBytes(fileSize)}) to MinIO bucket "${targetBucket}"...`,
+  return publish(
+    bucketOverride ?? bucket,
+    uniqueKey(filename, prefix),
+    buffer,
+    contentType,
+    buffer.length,
   )
-
-  if (fileSize > MULTIPART_THRESHOLD) {
-    const stream = new Readable()
-    stream.push(buffer)
-    stream.push(null)
-    const parallelUpload = new Upload({
-      client,
-      params: {
-        Bucket: targetBucket,
-        Key: key,
-        Body: stream,
-        ContentType: contentType,
-      },
-      queueSize: MULTIPART_QUEUE_SIZE,
-      partSize: MULTIPART_PART_SIZE,
-    })
-
-    parallelUpload.on('httpUploadProgress', progress => {
-      if (progress.total) {
-        const pct = Math.round((progress.loaded! / progress.total) * 100)
-        console.log(
-          `[Storage] Upload progress: ${pct}% (${formatBytes(progress.loaded!)} / ${formatBytes(progress.total)})`,
-        )
-      }
-    })
-
-    await parallelUpload.done()
-  } else {
-    await client.send(
-      new PutObjectCommand({
-        Bucket: targetBucket,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-      }),
-    )
-  }
-
-  const url = `${publicUrl}/${targetBucket}/${key}`
-  console.log(`[Storage] Upload complete. Public URL: ${url}`)
-  return url
 }
 
 /**
@@ -216,14 +132,14 @@ export async function deleteFile(publicFileUrl: string, bucketOverride?: string)
     return
   }
   const key = publicFileUrl.slice(prefix.length)
-  await client.send(new DeleteObjectCommand({ Bucket: targetBucket, Key: key }))
+  await driver.remove(targetBucket, key)
   console.log(`[Storage] Deleted object: ${key} from bucket "${targetBucket}"`)
 }
 
 // ---------------------------------------------------------------------------
-// Browser profile storage_state.json sync (MinIO ↔ local filesystem)
+// Browser profile storage_state.json sync (object store ↔ local filesystem)
 //
-// Each user gets a single S3 object:
+// Each user gets a single object:
 //   browser-profiles/<userId>/storage_state.json
 //
 // Upload happens when the user authenticates via the Browser Sessions tab
@@ -231,114 +147,74 @@ export async function deleteFile(publicFileUrl: string, bucketOverride?: string)
 // latest cookies are available regardless of which worker last ran for that user.
 // ---------------------------------------------------------------------------
 
-const PROFILES_BUCKET = process.env.MINIO_PROFILES_BUCKET ?? 'browser-profiles'
+const PROFILES_BUCKET =
+  process.env.STORAGE_PROFILES_BUCKET ?? process.env.MINIO_PROFILES_BUCKET ?? 'browser-profiles'
 
 function storageStateKey(userId: string): string {
   return `${userId}/storage_state.json`
 }
 
-async function ensurePrivateBucketExists(bucketName: string) {
-  try {
-    await client.send(new HeadBucketCommand({ Bucket: bucketName }))
-  } catch {
-    try {
-      await client.send(new CreateBucketCommand({ Bucket: bucketName }))
-      console.log(`[Storage] Created private bucket: ${bucketName}`)
-    } catch (e: any) {
-      // Two processes noticing the missing bucket at once: the loser's
-      // create fails, and the bucket is there all the same.
-      if (e?.name !== 'BucketAlreadyOwnedByYou' && e?.name !== 'BucketAlreadyExists') throw e
-    }
-  }
-}
-
 /**
- * Upload a local storage_state.json to MinIO for the given user.
- * Called by the worker after the stealth browser shuts down so the latest
- * cookies are persisted for the next job (possibly on a different worker).
+ * Upload a local storage_state.json for the given user. Called by the
+ * worker after the stealth browser shuts down so the latest cookies are
+ * persisted for the next job (possibly on a different worker).
  *
- * Returns the S3 key that was written.
+ * Returns the key that was written.
  */
 export async function uploadStorageState(localPath: string, userId: string): Promise<string> {
   const key = storageStateKey(userId)
-  await ensurePrivateBucketExists(PROFILES_BUCKET)
-  await client.send(
-    new PutObjectCommand({
-      Bucket: PROFILES_BUCKET,
-      Key: key,
-      Body: fs.createReadStream(localPath),
-      ContentType: 'application/json',
-    }),
-  )
+  await driver.ensureBucket(PROFILES_BUCKET, false)
+  await driver.put(PROFILES_BUCKET, key, fs.createReadStream(localPath), {
+    contentType: 'application/json',
+    size: fs.statSync(localPath).size,
+  })
   console.log(`[Storage] Uploaded storage_state for user ${userId} → ${PROFILES_BUCKET}/${key}`)
   return key
 }
 
 /**
- * Download storage_state.json from MinIO into a local file.
- * Called by the worker before launching the stealth browser so the latest
- * cookies are available regardless of which worker last ran a job.
+ * Download storage_state.json into a local file. Called by the worker before
+ * launching the stealth browser so the latest cookies are available
+ * regardless of which worker last ran a job.
  *
  * Returns true if the file was downloaded, false if no object exists yet.
  */
 export async function downloadStorageState(userId: string, destPath: string): Promise<boolean> {
-  const key = storageStateKey(userId)
-  try {
-    const res = await client.send(new GetObjectCommand({ Bucket: PROFILES_BUCKET, Key: key }))
-    const dir = path.dirname(destPath)
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    const chunks: Buffer[] = []
-    for await (const chunk of res.Body as Readable) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-    }
-    fs.writeFileSync(destPath, Buffer.concat(chunks))
-    console.log(`[Storage] Downloaded storage_state for user ${userId} → ${destPath}`)
-    return true
-  } catch (e: any) {
-    if (e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404) {
-      console.log(`[Storage] No storage_state in S3 for user ${userId} — starting fresh`)
-      return false
-    }
-    throw e
+  const body = await driver.get(PROFILES_BUCKET, storageStateKey(userId))
+  if (!body) {
+    console.log(`[Storage] No storage_state stored for user ${userId} — starting fresh`)
+    return false
   }
+  const dir = path.dirname(destPath)
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(destPath, await readAll(body))
+  console.log(`[Storage] Downloaded storage_state for user ${userId} → ${destPath}`)
+  return true
 }
 
 /**
- * Returns true when a storage_state.json exists in S3 for the given user.
+ * Returns true when a storage_state.json exists for the given user.
  * Cheap HEAD check — does not download the object.
  */
 export async function storageStateExists(userId: string): Promise<boolean> {
   try {
-    await client.send(
-      new HeadObjectCommand({ Bucket: PROFILES_BUCKET, Key: storageStateKey(userId) }),
-    )
-    return true
+    return (await driver.head(PROFILES_BUCKET, storageStateKey(userId))) !== null
   } catch {
     return false
   }
 }
 
 /**
- * The S3 side of "forget this login": remove every cookie belonging to `host`
- * (and its registrable domain) from the user's stored storage_state.json. If no
- * cookies remain, the object is deleted entirely. Returns true if anything
+ * The stored side of "forget this login": remove every cookie belonging to
+ * `host` (and its registrable domain) from the user's storage_state.json. If
+ * no cookies remain, the object is deleted entirely. Returns true if anything
  * changed. Done in-memory (get → filter → put/delete), no temp files.
  */
 export async function pruneStorageStateCookies(userId: string, host: string): Promise<boolean> {
   const key = storageStateKey(userId)
-
-  let raw: string
-  try {
-    const res = await client.send(new GetObjectCommand({ Bucket: PROFILES_BUCKET, Key: key }))
-    const chunks: Buffer[] = []
-    for await (const chunk of res.Body as Readable) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-    }
-    raw = Buffer.concat(chunks).toString('utf-8')
-  } catch (e: any) {
-    if (e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404) return false
-    throw e
-  }
+  const body = await driver.get(PROFILES_BUCKET, key)
+  if (!body) return false
+  const raw = (await readAll(body)).toString('utf-8')
 
   let state: { cookies?: Array<{ domain?: string }>; origins?: unknown[] }
   try {
@@ -360,7 +236,7 @@ export async function pruneStorageStateCookies(userId: string, host: string): Pr
   if (remaining.length === before) return false // nothing matched this host
 
   if (remaining.length === 0) {
-    await client.send(new DeleteObjectCommand({ Bucket: PROFILES_BUCKET, Key: key }))
+    await driver.remove(PROFILES_BUCKET, key)
     console.log(
       `[Storage] Removed storage_state for user ${userId} (no cookies left after pruning ${target})`,
     )
@@ -368,14 +244,9 @@ export async function pruneStorageStateCookies(userId: string, host: string): Pr
   }
 
   state.cookies = remaining
-  await client.send(
-    new PutObjectCommand({
-      Bucket: PROFILES_BUCKET,
-      Key: key,
-      Body: Buffer.from(JSON.stringify(state)),
-      ContentType: 'application/json',
-    }),
-  )
+  await driver.put(PROFILES_BUCKET, key, Buffer.from(JSON.stringify(state)), {
+    contentType: 'application/json',
+  })
   console.log(
     `[Storage] Pruned ${before - remaining.length} cookie(s) for ${target} (user ${userId})`,
   )
@@ -387,7 +258,7 @@ export async function pruneStorageStateCookies(userId: string, host: string): Pr
 //
 // Workspace checkpoints hold every file of a project — uploads, recordings,
 // the pi transcript — so they live in a PRIVATE bucket: nothing here ever
-// receives the public read policy uploadFile() applies. Callers stream bodies
+// receives the public read grant uploadFile() applies. Callers stream bodies
 // in and out; nothing is buffered whole in memory.
 // ---------------------------------------------------------------------------
 
@@ -403,7 +274,7 @@ export interface PrivateObjectStore {
 export function privateBucket(bucketName: string): PrivateObjectStore {
   let ensured: Promise<void> | null = null
   const ensure = () => {
-    ensured ??= ensurePrivateBucketExists(bucketName).catch(err => {
+    ensured ??= driver.ensureBucket(bucketName, false).catch(err => {
       ensured = null
       throw err
     })
@@ -412,78 +283,11 @@ export function privateBucket(bucketName: string): PrivateObjectStore {
   return {
     async put(key, body, contentType = 'application/octet-stream') {
       await ensure()
-      if (Buffer.isBuffer(body)) {
-        await client.send(
-          new PutObjectCommand({
-            Bucket: bucketName,
-            Key: key,
-            Body: body,
-            ContentType: contentType,
-          }),
-        )
-        return
-      }
-      await new Upload({
-        client,
-        params: { Bucket: bucketName, Key: key, Body: body, ContentType: contentType },
-        queueSize: MULTIPART_QUEUE_SIZE,
-        partSize: MULTIPART_PART_SIZE,
-      }).done()
+      await driver.put(bucketName, key, body, { contentType })
     },
-    async get(key) {
-      try {
-        const res = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }))
-        return (res.Body as Readable) ?? null
-      } catch (e: any) {
-        if (
-          e.name === 'NoSuchKey' ||
-          e.name === 'NoSuchBucket' ||
-          e.$metadata?.httpStatusCode === 404
-        )
-          return null
-        throw e
-      }
-    },
-    async head(key) {
-      try {
-        const res = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }))
-        return { size: Number(res.ContentLength ?? 0) }
-      } catch (e: any) {
-        if (
-          e.name === 'NotFound' ||
-          e.name === 'NoSuchBucket' ||
-          e.$metadata?.httpStatusCode === 404
-        )
-          return null
-        throw e
-      }
-    },
-    async remove(key) {
-      await client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key })).catch(e => {
-        if (e?.name !== 'NoSuchBucket' && e?.$metadata?.httpStatusCode !== 404) throw e
-      })
-    },
-    async list(prefix) {
-      const keys: string[] = []
-      let token: string | undefined
-      do {
-        let res: any
-        try {
-          res = await client.send(
-            new ListObjectsV2Command({
-              Bucket: bucketName,
-              Prefix: prefix,
-              ContinuationToken: token,
-            }),
-          )
-        } catch (e: any) {
-          if (e.name === 'NoSuchBucket') return keys
-          throw e
-        }
-        for (const o of res.Contents ?? []) if (o.Key) keys.push(o.Key)
-        token = res.IsTruncated ? res.NextContinuationToken : undefined
-      } while (token)
-      return keys
-    },
+    get: key => driver.get(bucketName, key),
+    head: key => driver.head(bucketName, key),
+    remove: key => driver.remove(bucketName, key),
+    list: prefix => driver.list(bucketName, prefix),
   }
 }

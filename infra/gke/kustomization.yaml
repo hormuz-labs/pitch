@@ -5,8 +5,12 @@ resources:
   - namespace.yaml
   - service-account.yaml
   - storage.yaml
-  - deployment.yaml
+  - browser.yaml
+  - api.yaml
+  - worker.yaml
+  - autoscaling.yaml
   - ingress.yaml
+  - discord-bot.yaml
 configMapGenerator:
   - name: pitch-config
     literals:
@@ -15,15 +19,34 @@ configMapGenerator:
       - PROJECTS_DIR=/app/projects
       - PI_AGENT_DIR=/root/.pi/agent
       - STUDIO_SANDBOX=bwrap
+      # Placement and scaling (docs/studio-architecture.md → Scaling).
+      - STUDIO_WORKER_SLOTS=4
+      - STUDIO_SCALE_HEADROOM=2
+      - STUDIO_WORKSPACE_BUCKET=${WORKSPACE_BUCKET}
+      # Cloud Storage through its S3-compatible endpoint (an HMAC key in
+      # pitch-runtime as MINIO_ROOT_USER/MINIO_ROOT_PASSWORD): the same code
+      # path as MinIO, and the one interface that moves to another cloud
+      # unchanged. Buckets are created ahead of time; the S3 API cannot
+      # create them on GCS.
+      - STORAGE_DRIVER=s3
+      - MINIO_ENDPOINT=https://storage.googleapis.com
+      - MINIO_REGION=auto
+      - STORAGE_BUCKET=${MEDIA_BUCKET}
+      - STORAGE_PROFILES_BUCKET=${PROFILES_BUCKET}
+      - STORAGE_PUBLIC_URL=${MEDIA_PUBLIC_URL}
       - FFMPEG_ENCODER=libx264
       - CLOAK_MANAGER_URL=http://127.0.0.1:8080
       - STUDIO_INTERNAL_ORIGIN=http://127.0.0.1:3000
       - SLIDESHOW_BROWSER_HOST=127.0.0.1
-      - WHISPER_MODEL=/root/.cache/whisper-cpp/ggml-base.en.bin
+      # Fetched onto each worker's disk on first boot (worker.yaml → prepare-state).
+      - WHISPER_MODEL_FILE=ggml-large-v3-turbo.bin
+      - WHISPER_MODEL_BASE_URL=https://huggingface.co/ggerganov/whisper.cpp/resolve/main
+      - WHISPER_MODEL=/root/.cache/whisper-cpp/ggml-large-v3-turbo.bin
       - APP_URL=${APP_URL}
-      - MINIO_PUBLIC_URL=${MEDIA_PUBLIC_URL}
 images:
   - name: pitch-api
     newName: ${API_IMAGE}
   - name: cloakbrowser-manager
     newName: ${CLOAK_IMAGE}
+  - name: pitch-discord-bot
+    newName: ${BOT_IMAGE}

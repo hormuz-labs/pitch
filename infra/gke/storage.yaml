@@ -8,14 +8,3 @@ parameters:
 reclaimPolicy: Retain
 allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pitch-state
-spec:
-  accessModes: [ReadWriteOnce]
-  storageClassName: pitch-retained-pd
-  resources:
-    requests:
-      storage: 200Gi

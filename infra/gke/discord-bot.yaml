@@ -1,0 +1,59 @@
+# The Discord bot: a thin adapter from the /video slash command to the API's
+# /internal/discord routes. It holds no state and no database credentials —
+# only its own Discord keys and the service token the API checks. One replica:
+# a second one would answer every command twice.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pitch-discord-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: pitch-discord-bot
+  template:
+    metadata:
+      labels:
+        app: pitch-discord-bot
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+        pool: system
+      containers:
+        - name: bot
+          image: pitch-discord-bot
+          env:
+            - { name: PITCH_API_URL, value: http://pitch }
+            - name: APP_URL
+              valueFrom:
+                configMapKeyRef: { name: pitch-config, key: APP_URL }
+            - name: DISCORD_APPLICATION_ID
+              valueFrom:
+                secretKeyRef: { name: pitch-runtime, key: DISCORD_APPLICATION_ID }
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef: { name: pitch-runtime, key: DISCORD_BOT_TOKEN }
+            - name: DISCORD_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef: { name: pitch-runtime, key: DISCORD_SERVICE_TOKEN }
+            - name: DISCORD_GUILD_ID
+              valueFrom:
+                secretKeyRef: { name: pitch-runtime, key: DISCORD_GUILD_ID }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            # The image's `bun` user (uid 1000); the kubelet needs the number.
+            runAsUser: 1000
+            runAsNonRoot: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}

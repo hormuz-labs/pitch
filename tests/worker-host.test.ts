@@ -55,9 +55,10 @@ vi.mock('../apps/api/src/flows/index.js', () => ({
     hasResult: vi.fn(),
   }),
 }))
+const busy = new Set<string>()
 vi.mock('../apps/api/src/studio/session.js', () => ({
   AGENT_DIR: path.join(root, 'agent'),
-  peekSession: () => undefined,
+  peekSession: (id: string) => (busy.has(id) ? { busy: true } : undefined),
   onSessionBusy: vi.fn(),
   closeSession: vi.fn(async () => {}),
   closeStudio: vi.fn(async () => {}),
@@ -103,6 +104,7 @@ function row(id: string, over: Record<string, unknown> = {}) {
 
 beforeEach(async () => {
   rows.clear()
+  busy.clear()
   updates.length = 0
   describeCalls.length = 0
   await rm(path.join(root, 'projects'), { recursive: true, force: true })
@@ -151,6 +153,32 @@ describe('worker host', () => {
     row('moving', { workerId: 'w2', workerEpoch: 1 })
     await expect(host.busy('moving')).rejects.toMatchObject({ code: 'NOT_OWNER' })
     expect(host.holds('moving')).toBe(false)
+  })
+
+  it('drains gently: idle projects go at once, a running turn is waited for', async () => {
+    row('idle')
+    row('running')
+    await host.describe('idle')
+    await host.describe('running')
+    busy.add('running')
+    const done = host.drain(5000)
+    await new Promise(r => setTimeout(r, 50))
+    expect(host.holds('idle')).toBe(false)
+    expect(host.holds('running')).toBe(true)
+    busy.delete('running')
+    await done
+    expect(host.holds('running')).toBe(false)
+    // Both gave their lease back (earlier tests' leftovers go too; not our concern here).
+    const released = updates.filter(u => u.data.workerId === null).map(u => u.where.id)
+    expect(released).toEqual(expect.arrayContaining(['idle', 'running']))
+  })
+
+  it('drains hard when the window closes with a turn still running', async () => {
+    row('stuck')
+    await host.describe('stuck')
+    busy.add('stuck')
+    await host.drain(100)
+    expect(host.holds('stuck')).toBe(false)
   })
 
   it('answers hello first on subscribe and counts its audience', async () => {

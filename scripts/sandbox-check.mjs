@@ -60,7 +60,7 @@ const checks = [
 let failed = 0;
 console.log(`\n  sandbox check — workspace ${ws}\n`);
 for (const [label, command] of checks) {
-  const argv = bwrapCommand(command, { workspace: ws, shared: {}, env: sandboxEnv(), shell: "/bin/bash" });
+  const argv = bwrapCommand(command, { workspace: ws, shared: [], env: sandboxEnv(), shell: "/bin/bash" });
   const r = spawnSync(process.env.STUDIO_BWRAP || "bwrap", argv, { encoding: "utf8" });
   const err = `${r.stderr ?? ""}${r.error ? String(r.error) : ""}`.trim();
   const ok = r.status === 0 && !explainBwrapFailure(err);

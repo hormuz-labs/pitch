@@ -7,11 +7,15 @@ interface StorageUrlConfig {
 
 /**
  * Replace storage-internal origins that escaped into persisted project rows.
- * New uploads use MINIO_PUBLIC_URL directly; this keeps older outputs usable
- * after that configuration is corrected.
+ * New uploads use STORAGE_PUBLIC_URL (née MINIO_PUBLIC_URL) directly; this
+ * keeps older outputs usable after that configuration is corrected.
  */
 export function normalizePublishedUrl(value: string, config: StorageUrlConfig = {}): string {
-  const publicUrl = (config.publicUrl ?? process.env.MINIO_PUBLIC_URL)?.replace(/\/$/, '')
+  const publicUrl = (
+    config.publicUrl ??
+    process.env.STORAGE_PUBLIC_URL ??
+    process.env.MINIO_PUBLIC_URL
+  )?.replace(/\/$/, '')
   if (!publicUrl) return value
 
   try {
