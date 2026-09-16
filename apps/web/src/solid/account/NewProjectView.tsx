@@ -34,13 +34,14 @@ import {
   uploads as uploadFiles,
   type VoicePreference,
 } from '../../lib/studio-api'
-import { useAuth } from '../core/auth'
+import { useAuth, useUser } from '../core/auth'
 import { PitchWordmark } from '../public/brand'
 import { DISCORD_INVITE_URL } from '../public/socials'
 import { DiscordOfferModal } from './DiscordOfferModal'
 import { ModelCatalog } from './ModelCatalog'
 import type { SettingsSection } from './SettingsView'
 import { StudioMenu, StudioSubmenu } from './StudioMenu'
+import { startDiscordLink } from './settings/discord-connection'
 import { VoicePicker } from './VoicePicker'
 import '../../studio/studio.css'
 import '../../styles/new-project.css'
@@ -87,6 +88,7 @@ export function NewProjectView(props: {
   openSettings?: (section: SettingsSection) => void
 }) {
   const { getToken } = useAuth()
+  const { userAccessor: user } = useUser()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [prompt, setPrompt] = createSignal(
@@ -113,13 +115,12 @@ export function NewProjectView(props: {
   const [creditOfferOpen, setCreditOfferOpen] = createSignal(false)
   // The one-time Discord welcome reward while it is still on the table: an
   // empty balance then offers it beside the plans link instead of a dead end.
-  // `linked` means the Discord account is connected, so the claim is one click.
+  // `linked` means the account is connected and only the server join is left.
   const [discordWelcome, setDiscordWelcome] = createSignal<{
     credits: number
     linked: boolean
   } | null>(null)
-  const [claimingWelcome, setClaimingWelcome] = createSignal(false)
-  const [welcomeNotice, setWelcomeNotice] = createSignal('')
+  const [linkingDiscord, setLinkingDiscord] = createSignal(false)
   const [voice, setVoice] = createSignal<VoicePreference | null>(null)
   const [voiceOpen, setVoiceOpen] = createSignal(false)
   const [exploring, setExploring] = createSignal(false)
@@ -167,19 +168,14 @@ export function NewProjectView(props: {
     const value = queryValue(params.prompt)
     if (value !== undefined) setPrompt(value)
   })
-  // Balance and reward together: claiming the welcome credits in Settings
-  // fires `credits-changed`, and the banner has to disappear with the balance.
+  // Reward before balance: the reward read settles the welcome credits when a
+  // linked member has not been paid yet, and the balance must include them.
   const loadCredits = async () => {
     const token = await getToken()
     if (!token) return
     const headers = { Authorization: `Bearer ${token}` }
-    await Promise.allSettled([
-      fetch(`${API_URL}/credits`, { headers, cache: 'no-store' }).then(async response => {
-        if (!response.ok) return
-        const data = await response.json()
-        if (typeof data.balance === 'number') setCredits(data.balance)
-      }),
-      fetch(`${API_URL}/credits/discord`, { headers, cache: 'no-store' }).then(async response => {
+    await fetch(`${API_URL}/credits/discord`, { headers, cache: 'no-store' })
+      .then(async response => {
         if (!response.ok) return
         const reward = await response.json()
         const unclaimed = reward.state === 'unlinked' || reward.state === 'available'
@@ -188,37 +184,40 @@ export function NewProjectView(props: {
             ? { credits: reward.credits, linked: reward.state === 'available' }
             : null,
         )
-      }),
-    ])
-  }
-  // Linked account: claim right here. The API checks server membership, so a
-  // user who has not joined yet is told to, with the invite one click away.
-  const claimWelcome = async () => {
-    if (claimingWelcome()) return
-    setClaimingWelcome(true)
-    setWelcomeNotice('')
-    try {
-      const token = await getToken()
-      if (!token) return
-      const response = await fetch(`${API_URL}/credits/discord/claim`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       })
-      const body = await response.json()
-      if (!response.ok) throw new Error(body.error || 'Could not claim your Discord reward.')
-      window.dispatchEvent(new Event('credits-changed'))
-    } catch (reason) {
-      setWelcomeNotice(
-        reason instanceof Error ? reason.message : 'Could not claim your Discord reward.',
-      )
+      .catch(() => {})
+    await fetch(`${API_URL}/credits`, { headers, cache: 'no-store' })
+      .then(async response => {
+        if (!response.ok) return
+        const data = await response.json()
+        if (typeof data.balance === 'number') setCredits(data.balance)
+      })
+      .catch(() => {})
+  }
+  // Straight into Discord OAuth from the banner; Clerk brings the user back
+  // to this page with the connection card open, where the reward settles.
+  const linkDiscord = async () => {
+    const current = user()
+    if (!current || linkingDiscord()) return
+    setLinkingDiscord(true)
+    try {
+      if ((await startDiscordLink(current)) === 'linked') await loadCredits()
+    } catch {
+      props.openSettings?.('connections')
     } finally {
-      setClaimingWelcome(false)
+      setLinkingDiscord(false)
     }
   }
   onMount(async () => {
     if (window.matchMedia('(min-width: 761px)').matches) textarea.focus()
-    window.addEventListener('credits-changed', loadCredits)
-    onCleanup(() => window.removeEventListener('credits-changed', loadCredits))
+    // Coming back from the Discord app after joining is what pays the reward.
+    const refresh = () => void loadCredits()
+    window.addEventListener('credits-changed', refresh)
+    window.addEventListener('focus', refresh)
+    onCleanup(() => {
+      window.removeEventListener('credits-changed', refresh)
+      window.removeEventListener('focus', refresh)
+    })
     const token = await getToken()
     if (!token) return
     await Promise.allSettled([
@@ -644,36 +643,19 @@ export function NewProjectView(props: {
                   <Show
                     when={welcome().linked}
                     fallback={
-                      // Not connected yet: go straight to the server, and leave
-                      // the connect-and-claim card open for when they return.
-                      <a
-                        href={DISCORD_INVITE_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => props.openSettings?.('connections')}
-                      >
-                        join our Discord for {welcome().credits.toLocaleString()} welcome credits
-                      </a>
+                      <button type="button" disabled={linkingDiscord()} onClick={linkDiscord}>
+                        {linkingDiscord()
+                          ? 'opening Discord…'
+                          : `connect Discord for ${welcome().credits.toLocaleString()} welcome credits`}
+                      </button>
                     }
                   >
-                    <button type="button" disabled={claimingWelcome()} onClick={claimWelcome}>
-                      {claimingWelcome()
-                        ? 'checking your Discord membership…'
-                        : `claim your ${welcome().credits.toLocaleString()} Discord welcome credits`}
-                    </button>
+                    <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                      join our Discord server for {welcome().credits.toLocaleString()} welcome
+                      credits
+                    </a>
                   </Show>
                   .
-                  <Show when={welcomeNotice()}>
-                    {notice => (
-                      <>
-                        {' '}
-                        {notice()}{' '}
-                        <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
-                          Open Discord
-                        </a>
-                      </>
-                    )}
-                  </Show>
                 </p>
               )}
             </Show>

@@ -70,3 +70,35 @@ export function linkedDiscordAccount(
     handle: identifier.startsWith('@') ? identifier : `@${identifier}`,
   }
 }
+
+export const DISCORD_LINK_PENDING_KEY = 'pitch_discord_link_pending'
+
+interface ClerkUserLike {
+  externalAccounts: ClerkExternalAccountLike[]
+  createExternalAccount(params: {
+    strategy: 'oauth_discord'
+    redirectUrl: string
+  }): Promise<ClerkExternalAccountLike>
+}
+
+/**
+ * Send the user through Discord OAuth. Clerk's callback brings them back to
+ * `/new?settings=connections`, where the connection card finishes the link
+ * and the reward settles on its own. Resolves `linked` only when Clerk had
+ * nothing left to verify.
+ */
+export async function startDiscordLink(user: ClerkUserLike): Promise<'redirected' | 'linked'> {
+  const resumable = resumableDiscordVerificationUrl(user.externalAccounts)
+  const url =
+    resumable ??
+    (
+      await user.createExternalAccount({
+        strategy: 'oauth_discord',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+      })
+    ).verification?.externalVerificationRedirectURL
+  if (!url) return 'linked'
+  sessionStorage.setItem(DISCORD_LINK_PENDING_KEY, '1')
+  window.location.assign(url.href)
+  return 'redirected'
+}

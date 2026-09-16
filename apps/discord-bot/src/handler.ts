@@ -92,7 +92,7 @@ export async function handleVideoCommand(
     }
     if (error instanceof PitchApiError && error.status === 402) {
       await interaction.updateProgress(
-        `You need more Pitch credits. Claim your one-time Discord welcome reward in Settings → Discord, or buy credits in Pitch: ${options.appUrl.replace(/\/$/, '')}/new?settings=connections`,
+        `You need more Pitch credits. Buy credits in Pitch, or connect this Discord account there for the one-time welcome credits: ${options.appUrl.replace(/\/$/, '')}/new?settings=connections`,
       )
       return
     }

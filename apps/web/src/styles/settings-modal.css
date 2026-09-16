@@ -179,7 +179,8 @@
 .settings-connection__linked { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
 .settings-connection__linked b { color: var(--st-green-bright); font-size: 11px; font-weight: 650; }
 .settings-discord-reward { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
-.settings-discord-reward ol { padding-left: 20px; margin: 0 0 16px; color: var(--text-muted); font-size: 12px; line-height: 1.9; list-style: decimal; }
+.settings-discord-reward > p:not(.settings-field__success) { margin: 0 0 12px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.settings-discord-reward > small, .settings-discord-reward__actions > small { color: var(--text-muted); font-size: 11px; line-height: 1.5; }
 .settings-discord-reward__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
 .settings-discord-reward__actions > :is(a, button) { min-height: 36px; margin: 0; padding: 7px 14px; line-height: 20px; text-align: center; text-decoration: none; }
 .settings-discord-reward > a { color: var(--text-primary); font-size: 12px; text-decoration: underline; }
