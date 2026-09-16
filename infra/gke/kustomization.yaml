@@ -10,6 +10,7 @@ resources:
   - worker.yaml
   - autoscaling.yaml
   - ingress.yaml
+  - discord-bot.yaml
 configMapGenerator:
   - name: pitch-config
     literals:
@@ -47,3 +48,5 @@ images:
     newName: ${API_IMAGE}
   - name: cloakbrowser-manager
     newName: ${CLOAK_IMAGE}
+  - name: pitch-discord-bot
+    newName: ${BOT_IMAGE}

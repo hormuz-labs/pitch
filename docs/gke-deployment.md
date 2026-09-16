@@ -128,15 +128,22 @@ variables below.
 
 ## Render and release
 
-Build `Dockerfile.base` and `apps/api/Dockerfile` for **linux/amd64**, publish to
-Artifact Registry, and supply the base digest as the API's `RUNTIME_IMAGE`
-build argument. API and manager images are required to use digests. Choose a
-tested amd64 CloakBrowser manager release and record its digest.
+Build `Dockerfile.base`, `apps/api/Dockerfile` and `apps/discord-bot/Dockerfile`
+for **linux/amd64**, publish to Artifact Registry, and supply the base digest as
+the API's `RUNTIME_IMAGE` build argument. Every image is required to use a
+digest. Choose a tested amd64 CloakBrowser manager release and record its digest.
+
+The Discord bot (`infra/gke/discord-bot.yaml`) is one replica of a stateless
+adapter: it reaches the API at `http://pitch` inside the cluster and gets only
+its own `DISCORD_*` keys from `pitch-runtime` — the same values the API uses.
+Never run a second copy (the Compose host's `discord` profile, a laptop): the
+same token in two places answers every `/video` twice.
 
 Set these non-secret environment variables before rendering:
 
 ```text
 API_IMAGE=REGION-docker.pkg.dev/PROJECT/REPOSITORY/pitch-api@sha256:DIGEST
+BOT_IMAGE=REGION-docker.pkg.dev/PROJECT/REPOSITORY/pitch-discord-bot@sha256:DIGEST
 CLOAK_IMAGE=cloakhq/cloakbrowser-manager@sha256:DIGEST
 API_HOST=api.example.com
 APP_URL=https://app.example.com
