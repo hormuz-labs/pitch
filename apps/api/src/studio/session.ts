@@ -37,6 +37,7 @@ import {
   saveTurnRecord,
   type TurnRecord,
 } from './history.js'
+import { abortHostActions } from './host-actions.js'
 import {
   assembleStudioPicker,
   DEFAULT_STUDIO_MODEL,
@@ -54,8 +55,9 @@ export type EntryRole = 'user' | 'assistant' | 'thinking' | 'tool' | 'question'
 /** One question the studio draws as clickable options (see .pi/extensions/ask-tools.ts). */
 export interface AskQuestion {
   id: string
+  bind?: 'videoType' | 'durationSeconds'
   question: string
-  options: { label: string; hint?: string }[]
+  options: { id: string; label: string; hint?: string }[]
   multi?: boolean
 }
 
@@ -63,6 +65,19 @@ export interface Ask {
   intro?: string
   questions: AskQuestion[]
 }
+
+export interface AskAnswer {
+  askEntryId: string
+  selections: Array<{ questionId: string; optionIds: string[] }>
+}
+
+const optionId = (value: unknown, label: string) =>
+  String(value ?? label)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80)
 
 export interface Entry {
   id: string
@@ -398,15 +413,17 @@ export function parseAsk(args: any): Ask | null {
   for (const q of raw.slice(0, 3)) {
     const options = (Array.isArray(q?.options) ? q.options : [])
       .map((o: any) => ({
+        id: optionId(o?.id, String(o?.label ?? '')),
         label: String(o?.label ?? '').trim(),
         ...(o?.hint ? { hint: String(o.hint).trim() } : {}),
       }))
-      .filter((o: { label: string }) => o.label)
+      .filter((o: { id: string; label: string }) => o.id && o.label)
       .slice(0, 6)
     const question = String(q?.question ?? '').trim()
     if (!question || options.length < 2) continue
     questions.push({
       id: String(q?.id ?? `q${questions.length + 1}`),
+      ...(['videoType', 'durationSeconds'].includes(q?.bind) ? { bind: q.bind } : {}),
       question,
       options,
       ...(q?.multi ? { multi: true } : {}),
@@ -415,6 +432,36 @@ export function parseAsk(args: any): Ask | null {
   if (!questions.length) return null
   const intro = typeof args?.intro === 'string' ? args.intro.trim() : ''
   return { ...(intro ? { intro } : {}), questions }
+}
+
+export function resolveAskAnswer(
+  projectId: string,
+  answer: AskAnswer,
+): {
+  text: string
+  options: Record<string, string | number>
+} {
+  const s = sessions.get(projectId)
+  const entry = s?.entries.find(e => e.id === answer.askEntryId && e.role === 'question' && e.ask)
+  if (!entry?.ask) throw new Error('That question is no longer available')
+  const selected = new Map(answer.selections.map(item => [item.questionId, item.optionIds]))
+  const lines: string[] = []
+  const options: Record<string, string | number> = {}
+  for (const question of entry.ask.questions) {
+    const ids = selected.get(question.id) ?? []
+    const picks = question.options.filter(option => ids.includes(option.id))
+    if (!picks.length || (!question.multi && picks.length !== 1))
+      throw new Error(`Choose an answer for ${question.question}`)
+    lines.push(`${question.question} → ${picks.map(pick => pick.label).join(', ')}`)
+    if (question.bind === 'videoType') options.videoType = picks[0].id
+    if (question.bind === 'durationSeconds') {
+      const seconds = Number.parseInt(picks[0].label.match(/\d{1,3}/)?.[0] ?? '', 10)
+      if (!Number.isFinite(seconds) || seconds < 3 || seconds > 300)
+        throw new Error('The selected duration is invalid')
+      options.durationSeconds = seconds
+    }
+  }
+  return { text: lines.join('\n'), options }
 }
 
 function bindPersistedUserEntry(s: Session): void {
@@ -923,6 +970,7 @@ export async function stopSession(projectId: string): Promise<boolean> {
   const s = sessions.get(projectId)
   if (!s?.busy) return false
   s.stopping = true
+  abortHostActions(s.ws.internal)
   for (const request of s.queue) {
     request.entry.pending = 'cancelled'
     updateEntry(s, request.entry)

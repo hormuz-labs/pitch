@@ -59,7 +59,12 @@ function suggestions(targets: Target[], where: string | null) {
 function CreditMarker(props: { store: ProjectStore }) {
   const [credits, setCredits] = createSignal<number | null>(null)
   let request: AbortController | undefined
-  const refresh = async () => {
+  const refresh = async (event?: Event) => {
+    const live = (event as CustomEvent<{ balance?: number }>)?.detail?.balance
+    if (typeof live === 'number') {
+      setCredits(live)
+      return
+    }
     if (document.hidden) return
     request?.abort()
     const controller = new AbortController()

@@ -66,13 +66,18 @@ export interface StudioModel {
 }
 export interface AskQuestion {
   id: string
+  bind?: 'videoType' | 'durationSeconds'
   question: string
-  options: { label: string; hint?: string }[]
+  options: { id: string; label: string; hint?: string }[]
   multi?: boolean
 }
 export interface Ask {
   intro?: string
   questions: AskQuestion[]
+}
+export interface AskAnswer {
+  askEntryId: string
+  selections: Array<{ questionId: string; optionIds: string[] }>
 }
 export interface Entry {
   id: string
@@ -125,6 +130,7 @@ export type StudioEvent =
   | { type: 'assets'; files: string[] }
   | { type: 'error'; message: string }
   | { type: 'credit_exhausted'; message: string }
+  | { type: 'credit_balance'; balance: number }
   | ({ type: 'preview'; ok: boolean; files: string[] } & Partial<Description>)
   | { type: 'project'; project: ProjectSummary }
   | { type: 'deleted' }

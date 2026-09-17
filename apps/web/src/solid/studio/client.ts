@@ -48,6 +48,7 @@ export const studio = {
       slide?: number | null
       uploads?: UploadRef[]
       options?: Record<string, unknown>
+      answer?: import('./types').AskAnswer
       model?: string
       delivery?: 'queue' | 'steer'
       displayText?: string

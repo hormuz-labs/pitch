@@ -106,7 +106,7 @@ registerHostAction('media_probe', async (ws, params) => {
 
 registerHostAction(
   'media_ffmpeg',
-  async (ws, params) => {
+  async (ws, params, ctx) => {
     const args = Array.isArray(params.args) ? (params.args as string[]) : null
     if (!args?.length) throw new Error('args must be a non-empty array of ffmpeg arguments')
     rejectUnsafeArgs(args)
@@ -125,7 +125,12 @@ registerHostAction(
 
     const started = Date.now()
     try {
-      await execAsync(cmd, { cwd: ws.dir, maxBuffer: 64 * 1024 * 1024, timeout: 30 * 60_000 })
+      await execAsync(cmd, {
+        cwd: ws.dir,
+        maxBuffer: 64 * 1024 * 1024,
+        timeout: 30 * 60_000,
+        signal: ctx.signal,
+      })
     } catch (err: any) {
       // ffmpeg says exactly what is wrong on stderr; hand that back verbatim so
       // the agent can fix the command instead of guessing.

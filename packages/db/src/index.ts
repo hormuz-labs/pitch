@@ -70,6 +70,117 @@ export async function getCreditBalance(
   return agg._sum.delta ?? 0
 }
 
+async function lockCreditAccount(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "UserProfile" WHERE id = ${userId} FOR UPDATE`
+}
+
+export async function getAvailableCreditBalance(
+  userId: string,
+  client: PrismaClient | Prisma.TransactionClient = prisma,
+): Promise<number> {
+  const [balance, held] = await Promise.all([
+    getCreditBalance(userId, client),
+    client.creditReservation.aggregate({
+      where: { userId, status: 'pending' },
+      _sum: { credits: true },
+    }),
+  ])
+  return balance - (held._sum.credits ?? 0)
+}
+
+export async function reserveCredits(input: {
+  key: string
+  userId: string
+  projectId: string
+  channel?: CreditChannel
+  kind: string
+  durationSeconds?: number
+  credits: number
+}) {
+  return prisma.$transaction(async tx => {
+    await lockCreditAccount(tx, input.userId)
+    const existing = await tx.creditReservation.findUnique({ where: { key: input.key } })
+    if (existing?.status === 'pending' || existing?.status === 'settled') return existing
+    const available = await getAvailableCreditBalance(input.userId, tx)
+    if (available < input.credits)
+      throw new Error(`Insufficient credits: balance is ${available}, need ${input.credits}`)
+    if (existing)
+      return tx.creditReservation.update({
+        where: { id: existing.id },
+        data: {
+          channel: input.channel ?? 'product',
+          kind: input.kind,
+          durationSeconds: input.durationSeconds,
+          credits: input.credits,
+          status: 'pending',
+          settledCredits: null,
+        },
+      })
+    return tx.creditReservation.create({
+      data: {
+        key: input.key,
+        userId: input.userId,
+        projectId: input.projectId,
+        channel: input.channel ?? 'product',
+        kind: input.kind,
+        durationSeconds: input.durationSeconds,
+        credits: input.credits,
+      },
+    })
+  })
+}
+
+export async function getCreditReservation(key: string) {
+  return prisma.creditReservation.findUnique({ where: { key } })
+}
+
+export async function settleCreditReservation(key: string, credits: number): Promise<number> {
+  return prisma.$transaction(async tx => {
+    const reservation = await tx.creditReservation.findUnique({ where: { key } })
+    if (!reservation) throw new Error(`Credit reservation not found: ${key}`)
+    await lockCreditAccount(tx, reservation.userId)
+    const current = await tx.creditReservation.findUnique({ where: { key } })
+    if (!current) throw new Error(`Credit reservation not found: ${key}`)
+    if (current.status === 'settled') return current.settledCredits ?? 0
+    if (current.status !== 'pending') return 0
+    const amount = Math.max(0, Math.floor(credits))
+    const [balance, otherHeld] = await Promise.all([
+      getCreditBalance(current.userId, tx),
+      tx.creditReservation.aggregate({
+        where: { userId: current.userId, status: 'pending', id: { not: current.id } },
+        _sum: { credits: true },
+      }),
+    ])
+    const available = balance - (otherHeld._sum.credits ?? 0)
+    if (amount > available)
+      throw new Error(`Insufficient credits: balance is ${available}, need ${amount}`)
+    if (amount > 0)
+      await tx.creditTransaction.create({
+        data: {
+          userId: current.userId,
+          delta: -amount,
+          type: 'usage',
+          description: `Generation: ${current.kind}`,
+          projectId: current.projectId,
+          channel: current.channel,
+          idempotencyKey: `settlement:${current.id}`,
+        },
+      })
+    await tx.creditReservation.update({
+      where: { id: current.id },
+      data: { status: 'settled', settledCredits: amount },
+    })
+    return amount
+  })
+}
+
+export async function releaseCreditReservation(key: string): Promise<void> {
+  await prisma.creditReservation.updateMany({
+    where: { key, status: 'pending' },
+    data: { status: 'released' },
+  })
+}
+
 /** Historical daily sponsorship stays separate; new welcome grants use product credits. */
 export async function getDiscordCreditBalance(
   userId: string,

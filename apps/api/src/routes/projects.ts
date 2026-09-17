@@ -193,6 +193,7 @@ router.post('/:id/prompt', async (req, res) => {
       uploads: Array.isArray(req.body?.uploads) ? req.body.uploads : undefined,
       options:
         req.body?.options && typeof req.body.options === 'object' ? req.body.options : undefined,
+      answer: req.body?.answer && typeof req.body.answer === 'object' ? req.body.answer : undefined,
       model: typeof req.body?.model === 'string' ? req.body.model : undefined,
       delivery: req.body?.delivery === 'steer' ? 'steer' : 'queue',
       displayText:

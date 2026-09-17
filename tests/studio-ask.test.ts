@@ -23,7 +23,10 @@ describe('parseAsk', () => {
         {
           id: 'kind',
           question: 'What kind of launch video?',
-          options: [{ label: 'Cinematic', hint: 'Designed motion' }, { label: 'Teaser' }],
+          options: [
+            { id: 'cinematic', label: 'Cinematic', hint: 'Designed motion' },
+            { id: 'teaser', label: 'Teaser' },
+          ],
         },
       ],
     })
@@ -56,5 +59,23 @@ describe('parseAsk', () => {
       questions: [1, 2, 3, 4, 5].map(n => question({ id: `q${n}` })),
     })
     expect(ask?.questions.map(q => q.id)).toEqual(['q1', 'q2', 'q3'])
+  })
+
+  it('keeps stable bindings and option ids for structured answers', () => {
+    const ask = parseAsk({
+      questions: [
+        question({
+          bind: 'videoType',
+          options: [
+            { id: 'product-walkthrough', label: 'Product walkthrough' },
+            { id: 'teaser', label: 'Teaser' },
+          ],
+        }),
+      ],
+    })
+    expect(ask?.questions[0]).toMatchObject({
+      bind: 'videoType',
+      options: [{ id: 'product-walkthrough' }, { id: 'teaser' }],
+    })
   })
 })
