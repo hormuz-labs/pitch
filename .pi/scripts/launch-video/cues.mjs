@@ -87,6 +87,7 @@ for (const o of overruns) {
   if (speed < 1.1) continue; // a 2% squeeze is invisible; retiming it cost a run thirteen turns
   console.log(`⚠ overrun: ${o.id ?? "?"} (${o.type ?? "?"}) factory timeline ${Number(o.ran ?? 0).toFixed(2)}s in a ${Number(o.dur ?? 0).toFixed(2)}s shot — compressed ${speed.toFixed(2)}×${speed > 1.6 ? " (audit FAILS above 1.6×)" : ""}; time the factory as fractions of D`);
 }
+if (overruns.length) console.log("   Include repeats and stagger: a tween at .6*D with duration .3*D and repeat:1 ends at 1.2*D. yoyo does not shorten it.");
 if (CHECK) {
   // The shot-list rules, now — the audit says the same things after a render,
   // and a film that hears them there gets rebuilt instead of built.
@@ -104,5 +105,5 @@ if (CHECK) {
   const missing = data.shots.filter((s) => !byLabel.has(s.id));
   if (missing.length) console.log(`⚠ shots without a timeline label: ${missing.map((s) => s.id).join(", ")}`);
   console.log(`   ${out} refreshed; no separate cues call is needed for this cut.`);
-  console.log(`   The preview shows this cut. Add the next shots before running a full audit. After the first audit/review, batch fixes and use --shots <changed-ids>; audio-only edits need only motion mix.`);
+  console.log(`   The preview shows this cut. While building, check each added shot; review early only for a specific visual uncertainty. Once the sequence is complete, audit + review the film, batch fixes, then review --shots <changed-ids>. Audio-only edits need only motion mix.`);
 }

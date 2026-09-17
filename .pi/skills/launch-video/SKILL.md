@@ -152,6 +152,13 @@ stall. Never add pulses, shakes, glows or cuts merely to raise a counter.
 Check reading time at delivery size; crop, focus or rebuild a UI detail when
 it cannot be read. An overview is valid when the whole interface is the point.
 
+**Design at the film's scale from the first shot.** The stage is 1920×1080;
+at a 960px-wide preview, 16px source text displays at only 8px. Choose the
+subject's frame occupancy and essential text size before writing CSS. Enlarge
+or isolate the actual checkout amount/control rather than reproducing a whole
+phone at web-page font sizes. Apply a scale correction to upcoming shots too,
+instead of rediscovering the same undersized hierarchy after every review.
+
 ## Use effects to serve the treatment
 
 The effects lab contains hundreds of working GSAP, three.js, lottie and SVG
@@ -200,24 +207,23 @@ tools.
 
 ## Build
 
-**One `bash` call, several `pitch` commands.** Everything below that is two
-decided steps in a row goes in one call, joined with `&&` — reading the schema
-for three sections, checking after a save, listing the lab and reading one
-effect. The last run spent six turns on six schema lookups before it had
-written a line. Turns are the cost; a batch is free.
+**Batch decided commands with `&&`.** Each model round trip re-reads the growing
+conversation. Request only the schema needed for the chosen treatment; do not
+load actors, materials or built-in types merely because an example lists them.
+Reuse documentation already in context rather than fetching it again.
 
 Use the syntax here directly; ask for help only when a needed option is
-unknown. Get sections **and** types together, for example:
-`pitch motion schema --section "actors,density layer,custom shot types" --types line,logo-cta,ui-frame`.
+unknown. Read `common shot fields` once; get needed sections and types together,
+e.g. `pitch motion schema --section "common shot fields" --types line,logo-cta`
+for a film using those types. Custom factories need `--section "custom shot types"`.
 Import a listed bed with `pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`;
 probe that workspace-relative path. Never probe an absolute library path.
 
-**One shot at a time, and the film runs after every one.** The user is
-watching the preview; a film that appears all at once at minute nine is a
-blank stage for nine minutes. Measured on a real run: the scaffold landed at
-5:29, then twelve custom-type files went in before a single shot existed, and
-the first frame appeared at 9:05. Every shot you add is a save, and every save
-is a film that plays end to end — shorter than the last one, never broken.
+**One shot at a time, and the film runs after every one.** Save and compile
+each added shot so the preview grows while the user watches. Use `check`
+during construction; early `review` is for a specific visual uncertainty,
+not a mandatory review/read/polish loop after every shot. Review the complete
+sequence together before making a batch of visual corrections.
 
 1. `pitch motion scaffold` writes index.html and a starter `shots.js` — the brand
    recon measured and a **placeholder opener** built from the site's own h1,
@@ -237,6 +243,8 @@ is a film that plays end to end — shorter than the last one, never broken.
    (`js/shots/<type>.js`, `css/shots/<type>.css`): a change to one type is a
    small edit, and a `write` over an existing file past 12KB is refused —
    read the lines you change and `edit` them.
+   Include repeats and stagger in the time budget: at `.6*D`, a `.3*D` tween
+   with `repeat: 1` ends at `1.2*D`, even with `yoyo: true`.
 3. If narrated, record and sync before the visual gate: script
    (1.9–2.4 words/s) → `pitch motion tts` once (it prints the file it wrote)
    → `audio.vo` → `pitch motion align` →
@@ -263,12 +271,15 @@ is a film that plays end to end — shorter than the last one, never broken.
 5. Finish sound against the settled picture (`references/audio.md`). Read the
    audio reference before querying/building. `pitch motion check` already wrote
    the real labels to `audio/cues.json`; no separate cues call is needed.
-   Query all needed events once, write the cue sheet with duration limits for
+   Query needed events once with a small shortlist (`--limit 3` per event),
+   write the cue sheet as an object with a `cues` array and duration limits for
    sustained sounds, build once, then mix. Music-only uses `--music_only`;
    music leads, and `--sfx_db` controls its supporting effects. The mix names
    any local balance failure: fix that cue or trim, then re-mix.
    Audio-only changes (a breath, a level) and a `direction.md` edit need no
-   visual audit. Quote the scorecard and audio checks, name the bed, stop.
+   visual audit. The preview and Export use `audio/mix.wav` automatically;
+   do not search for or add audio wiring in index.html or shots.js. Once the
+   mix and picture pass, quote the checks briefly, name the bed, and stop.
 6. Export only when the user asks for an MP4: reuse the passing audit for the
    unchanged cut, then
    `pitch motion render --out <file> --out-res 1920x1080 --fps 60`, `pitch motion verify-duration`.
@@ -285,7 +296,9 @@ Verify with `pitch motion review --shots <id>`, never a full render.
 
 ## When a tool fails
 
-There is no network and no host. Report what failed and what is undone, and
-stop. Never hand-write a measurement (`audio/vo-words.json`,
+Correct argument/schema errors using the returned help. Fix validation
+failures in a batch and re-run the affected gate. If a host service or
+dependency is unavailable, report what failed and what is undone; stop rather
+than attempting to provision it. Never hand-write a measurement (`audio/vo-words.json`,
 `audio/cues.json`, `recon/brand-tokens.json`), never paste an effect from
 memory and call it a lab port, never call a film built when a gate never ran.

@@ -143,8 +143,12 @@ export function parseArgs(words: string[], schema: Schema): Record<string, unkno
     const spec = props[name]
     let raw: string
     if (eq !== -1) raw = body.slice(eq + 1)
-    else if (spec?.type === 'boolean') raw = ''
-    else if (i + 1 < words.length && !words[i + 1].startsWith('--')) raw = words[++i]
+    else if (spec?.type === 'boolean') {
+      // Help advertises a boolean value; accept both --flag and --flag true.
+      // Otherwise "true" becomes positional text (even part of an output path).
+      const next = words[i + 1]
+      raw = next === 'true' || next === 'false' ? words[++i] : ''
+    } else if (i + 1 < words.length && !words[i + 1].startsWith('--')) raw = words[++i]
     else throw new ArgvError(`--${flag} needs a value`)
 
     const value = coerce(name, spec, raw)

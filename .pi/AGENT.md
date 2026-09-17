@@ -83,13 +83,13 @@ Values that are objects, or arrays of objects, go in as JSON in one argument;
 everything else is a plain flag. Required values may be given without their
 flag, in order, so `pitch effects show <id>` needs no `--id`.
 
-**A `pitch` command that fails is a stop, not a puzzle.** You have no network, so you
-cannot install what it is missing, and no host access, so you cannot provision
-it. Report exactly what failed and what is still undone. Never reimplement a
-command in the workspace, and never hand-write the file one produces — those
-files are measurements, and a plausible substitute is a fabricated result the
-next command will trust without question. Never describe work as finished when its
-gate never ran.
+**Recover according to the failure.** For invalid arguments or an authored
+file's schema, correct the input using the returned help. For a validation
+failure, fix the reported problems together and re-run the affected gate.
+When a host service, browser or dependency is unavailable, report exactly what
+failed and what remains undone; you cannot install or provision it. Never
+reimplement a host command or hand-write its measurements (`vo-words.json`,
+`cues.json`, `brand-tokens.json`). Never claim a gate passed when it did not.
 
 That limit is on you, not on your output: `pitch` has a real browser
 and a real network, so a CDN `<script>` in a deck loads fine when it is
@@ -187,7 +187,9 @@ money whether or not you keep it.
   authored art-direction choices; never describe a chosen treatment as a
   measured property of the brand.
 - When you finish, say what changed in one or two lines. The user can see the
-  artifact; they do not need it described back to them.
+  artifact; they do not need it described back to them. Once the requested
+  artifact and its gates pass, stop. Do not add exploratory help, filesystem,
+  git or repeated validation calls without a specific unresolved problem.
 - **Say what you could not do, first.** If any part of the request was
   dropped or downgraded — narration skipped because a tool failed, a page
   that would not load, a logo that could not be harvested — the first line

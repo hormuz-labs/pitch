@@ -38,7 +38,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { loadShots, voStartOf } from "./lib/vo-words.mjs";
 import { breathFilter, breathsFromSpec } from "./lib/breaths.mjs";
-import { balanceProblems, measureAudioWindows } from "./lib/audio-levels.mjs";
+import { balanceProblems, balanceRegions, measureAudioWindows } from "./lib/audio-levels.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -421,6 +421,11 @@ if (SFX_STEM) {
     if (bad.length) {
       const worst = bad.reduce((a, b) => a.reduceDb > b.reduceDb ? a : b);
       issues.push(`SFX overpower music near ${worst.t.toFixed(2)}s: RMS ${worst.meanDelta.toFixed(1)}dB / peak ${worst.peakDelta.toFixed(1)}dB above bed (limits 0 / 6dB). Lower --sfx-db by at least ${Math.ceil(worst.reduceDb)}dB or rebalance that cue`);
+      issues.push(`For a global trim, re-run with --sfx-db ${SFX_TRIM_DB - Math.ceil(worst.reduceDb) - 1} (absolute gain, including 1dB margin); no SFX rebuild needed.`);
+      issues.push("For per-cue edits, fix ALL affected ranges before rebuilding SFX + mixing:");
+      for (const region of balanceRegions(bad)) {
+        issues.push(`  ${region.start.toFixed(2)}–${Math.min(DURATION, region.end).toFixed(2)}s: reduce local SFX by at least ${Math.ceil(region.worst.reduceDb)}dB`);
+      }
     }
   }
   if (issues.length) {
@@ -546,6 +551,7 @@ if (!failed && !problems.length && !flag("out")) {
     const mixedAt = statSync(OUT).mtime;
     utimesSync(SETTINGS, mixedAt, mixedAt);
   }
+  console.log("   The studio preview and Export use audio/mix.wav automatically; no shots.js or index.html audio wiring is needed. If picture review passed, summarize and stop. Audio-only changes need no visual check.");
 }
 rmSync(tmp, { recursive: true, force: true });
 process.exit(failed || problems.length ? 1 : 0);

@@ -134,9 +134,12 @@ transients until the final limiter; raising a quiet impact by its LUFS alone
 can clip its attack. Do not add a blanket boost in a music-only film.
 
 The music-only gate compares overlapping **400ms windows every 100ms**,
-ignoring silent/fading music entrances and exits. It names the offending time
-and required reduction. Reduce that cue's `gainDb`, or lower `sfx_db`, and
-re-mix; do not raise music just to mask an oversized hit. Source files keep
+ignoring silent/fading music entrances and exits. It reports every affected
+range and an absolute `--sfx-db` value for a global correction. Either apply
+that trim and re-mix, or fix all named cues' `gainDb` together, rebuild SFX
+once, and mix. Do not subtract the suggested reduction from zero: it is a
+further reduction from the current trim. Do not raise music just to mask an
+oversized hit. Source files keep
 their original loudness, so compare actual stems, not the nominal gain knobs.
 
 **Scheduled breaths are musical automation, not speech ducking.** A `breath`
@@ -155,3 +158,7 @@ from the current shots against the compiled labels by the mixer.
 "The music is missing" → raise `bed_db` (e.g. −10) and re-run. A failing
 gate means re-mix, never render. The renderer and the Export button mux
 `audio/mix.wav` automatically.
+
+The studio preview uses that same mix automatically. After a passing mix and
+picture review, finish; no HTML audio wiring, extra schema lookup or visual
+check is needed.

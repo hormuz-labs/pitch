@@ -877,7 +877,7 @@ export default function motionCommands(): CommandSpec[] {
     description:
       'Query the curated SFX manifest or build the SFX bus. mode=list: the event vocabulary. ' +
       'mode=query: ranked, measured clips — pass every event the film needs in one call (event: "impact,whoosh_deep,chime"), not one call per event. ' +
-      'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json with peak-safe gain staging. Transients land at t; a riser ENDS at t (dur is its approach, default at most 1.5s). Every other sound longer than 1.5s requires dur matching its animation. ' +
+      'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json with peak-safe gain staging. Read references/audio.md first. Cue sheet: {"duration":23.4,"cues":[{"t":6.4,"event":"impact","dur":0.8}]}, not a bare array. Transients land at t; a riser ENDS at t (dur is its approach, default at most 1.5s). Every other sound longer than 1.5s requires dur matching its animation. ' +
       'Ceilings per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture; these are limits, not targets. Choose sparse effects or music alone when the treatment calls for it. The build must finish with no placement warnings.',
     parameters: Type.Object({
       mode: Type.Union([Type.Literal('list'), Type.Literal('query'), Type.Literal('build')]),
@@ -1070,7 +1070,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'schema',
     description:
-      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one section, or SEVERAL AT ONCE as an array — ask for everything you need in one call, not six — from: density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
+      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → only those types' fields and DOM classes; `section` → named sections, one or several at once. Read common shot fields once with --section 'common shot fields'; it is not repeated with each type lookup. Request only capabilities used by the chosen treatment, and reuse sections already in context. Sections include density layer, actors, narration spine, common shot fields, ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
       types: Type.Optional(
         Type.Array(Type.String(), {
@@ -1133,7 +1133,6 @@ export default function motionCommands(): CommandSpec[] {
             mounted?.length ? `${row.replace(/\|\s*$/, '')} DOM: ${mounted.join(' ')} |` : row,
           )
         }
-        const common = sections.get('common shot fields') ?? ''
         const uiFrameKey = [...sections.keys()].find(k => k.startsWith('uiframe'))
         const uiFrame =
           p.types.some((t: string) => /ui-frame/.test(t)) && uiFrameKey
@@ -1141,8 +1140,7 @@ export default function motionCommands(): CommandSpec[] {
             : ''
         out.push(
           [
-            common,
-            '',
+            'Shared fields: pitch motion schema --section "common shot fields" (read once).',
             '| type | Fields |',
             '|---|---|',
             ...rows,

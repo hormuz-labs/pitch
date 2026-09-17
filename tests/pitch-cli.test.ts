@@ -62,6 +62,35 @@ describe('parseArgs', () => {
     expect(parseArgs(['--loop=false'], schema)).toEqual({ loop: false })
   })
 
+  it('consumes explicit booleans without swallowing the next flag or positional', () => {
+    expect(parseArgs(['--loop', 'true', '--dry-run', 'false', '--limit', '3'], schema)).toEqual({
+      loop: true,
+      dryRun: false,
+      limit: 3,
+    })
+    const withQuery = { ...schema, required: ['query'] }
+    expect(parseArgs(['--loop', 'a card flipping'], withQuery)).toEqual({
+      loop: true,
+      query: 'a card flipping',
+    })
+    expect(parseArgs(['--loop', '--limit', '3'], schema)).toEqual({ loop: true, limit: 3 })
+  })
+
+  it('parses the screenshot and SFX commands that failed in a studio session', () => {
+    expect(
+      parseArgs(
+        ['recon/screenshots/full.png', '--url', 'https://example.com', '--fullPage', 'true'],
+        findCommand('motion', 'screenshot')!.parameters,
+      ),
+    ).toEqual({ out: 'recon/screenshots/full.png', url: 'https://example.com', fullPage: true })
+    expect(
+      parseArgs(
+        ['--mode', 'build', '--duration', '23.4', '--dry_run', 'true'],
+        findCommand('motion', 'sfx')!.parameters,
+      ),
+    ).toEqual({ mode: 'build', duration: 23.4, dry_run: true })
+  })
+
   it('collects a repeated array flag and splits a comma list', () => {
     expect(parseArgs(['--moves', 'flip-3d', '--moves', 'stagger'], schema).moves).toEqual([
       'flip-3d',
@@ -135,6 +164,16 @@ describe('help', () => {
     expect(out).toContain('## Actors')
     expect(out).toContain('| type | Fields |')
     expect(out).toContain('logo-cta')
+  })
+
+  it('returns type-specific fields without replaying the common-field table', async () => {
+    const out = await run('motion schema --types logo-cta')
+    expect(out).toContain('| type | Fields |')
+    expect(out).toContain('DOM:')
+    expect(out).not.toContain('## Common shot fields')
+    const combined = await run('motion schema --section "common shot fields" --types logo-cta')
+    expect(combined).toContain('## Common shot fields')
+    expect(combined).toContain('| type | Fields |')
   })
 
   it('exposes SFX trim and scheduled-dip control on the supported mix command', async () => {
