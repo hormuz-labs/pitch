@@ -95,12 +95,15 @@ async function renderOne(browser, rel) {
     console.log(`FAIL ${rel}: ${e.message.split('\n')[0]}${errors.length ? ' | ' + errors[0] : ''}`);
     fs.writeFileSync(path.join(dir, 'render.json'), JSON.stringify({ error: e.message, errors, renderedAt: new Date().toISOString() }, null, 1));
   } finally {
-    await ctx.close();
+    // Another worker or an external stop may already have closed the shared
+    // browser. Cleanup must not replace the useful per-effect result with a
+    // fatal ProtocolError that aborts the rest of the queue.
+    await ctx.close().catch(() => {});
   }
 }
 
 const browser = await chromium.launch({ args: ['--allow-file-access-from-files', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const queue = targets.filter(t => FORCE || !fs.existsSync(path.join(ROOT, t, 'render.mp4')) || !targets.length || true);
+const queue = targets.filter(t => FORCE || !fs.existsSync(path.join(ROOT, t, 'render.mp4')));
 let idx = 0;
 await Promise.all(Array.from({ length: Math.min(JOBS, queue.length) }, async () => {
   while (idx < queue.length) { const t = queue[idx++]; await renderOne(browser, t); }

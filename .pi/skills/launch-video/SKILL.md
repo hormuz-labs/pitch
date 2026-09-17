@@ -96,7 +96,9 @@ and keep building.
 supplied a treatment, consider two genuinely different ways to tell this
 product's story — different material, framing or narrative device, not two
 palettes on the same sequence. Pick the stronger one yourself. This is a short
-creative decision, not extra mockups or an approval round.
+creative decision, not extra mockups or an approval round. Then consult the
+effects knowledge base below before finalizing the shot table or implementing
+new animation. Use what you learn to sharpen the concept and its execution.
 
 Write `direction.md`, briefly:
 
@@ -161,40 +163,41 @@ instead of rediscovering the same undersized hierarchy after every review.
 
 ## Use effects to serve the treatment
 
-The effects lab contains hundreds of working GSAP, three.js, lottie and SVG
-examples, each with code, frames and implementation notes. Built-in types,
-bespoke factories and lab adaptations are equally valid. A simple reveal is
-enough when the composition and story call for one; no lab-use quota applies.
+The effects lab is your **visual knowledge base**: hundreds of working GSAP,
+three.js, lottie and SVG studies with frames, mechanisms and implementation
+notes. **Consult it for every new film or substantially new sequence** before
+writing animation from scratch. For a small edit, reuse the references already
+studied. Learn how strong compositions, reveals, camera moves and transitions
+work, then adapt that knowledge to this product and the chosen treatment.
 
-- `pitch effects list` — the whole shelf, one line each: id, length, the
-  libraries and the move it makes. Browse after choosing the treatment when
-  you need to explore an implementation. Narrow it with
-  `--moves flip-3d`, `--libs three`, or by family: `pitch effects text list`
-  (a family is a subcommand; `pitch effects --help` lists them).
-- `pitch effects search a card flipping to reveal a price` — the same shelf
-  scored against words, when you know the move but not where it lives.
-- `pitch effects show <id>` — a selected effect whole. **Look at the strip**
-  before adapting it. Example ids in tool documentation are syntax examples,
-  not recommended effects.
+1. `pitch effects families` gives the compact map. Browse a relevant family
+   (`pitch effects text list --limit 8`) or search for the desired mechanism
+   (`pitch effects search a card flipping to reveal a price --limit 6`). List
+   and search default to 12 results; narrow first, rather than loading the
+   entire library with `--limit 0`.
+2. `pitch effects show <id>` returns a **study card**, without code. Study a
+   few promising references, usually two or three, and **read their strips**.
+   Note which mechanism or compositional idea helps the film in direction.md.
+   Reuse these notes across shots; a new shot does not require a new search.
+3. Before adapting a selected implementation, read `references/effects.md`
+   **once**, then `pitch effects show <id> --source`. Source is for the chosen
+   mechanism, not every candidate. It is reference code: rebuild the content,
+   scale, timing and styling for the product rather than copying a demo page.
+
+Built-in types, bespoke factories and lab adaptations remain valid execution
+choices. Consulting the library is required; copying a fixed number of effects
+is not. Keep a simple treatment when it tells the story best. Example ids are
+syntax examples, not recommended effects.
 
 The lab is a directory, so an effect added to it is listed the moment it is
 there. Nothing is indexed ahead of time and there is nothing to rebuild.
 
-Porting: its DOM goes in `mount(el, shot)`; `fx.timeline({ duration })`
-becomes the `gsap.timeline()` that `animate(el, shot, D)` returns; times are
-fractions of `D`; selectors scoped to `el`; `fx.rng` → `ShotKit.rng`; a
-canvas or three.js `seek` → a tween with `onUpdate`; the lab's 1280×720
-stage is the film's 1920×1080 at 1.5×. **Masks clip.** A reveal that hides
-overflow at line-height ≤ 1 cuts every descender and accent at hero size:
-give the mask `padding: .16em .08em .24em` with the same negative margin,
-start hidden text at yPercent 140, keep the longest line inside 1760px.
-`pitch motion schema --section "custom shot types"` has the shape. Understand
-the source's visual mechanism, then adapt its composition, count, typography,
-material, timing and exit to the treatment. Preserve it whole only when that
-is the right composition or the user requested a faithful reproduction.
-The source notes describe that effect, not rules for the film. Put
-`lab: "<id>"` on a shot genuinely derived from it, and note substantial changes
-in the table; bespoke shots need no lab annotation.
+`references/effects.md` holds the shared integration contract, sizing and mask
+rules so they are not repeated with every study. Source notes describe the
+original effect; their copy, palette and exact timings are not requirements
+for your film. Put `lab: "<id>"` on a shot genuinely derived from its
+implementation. Record broader visual influences in direction.md; browsing a
+study alone is not an implementation citation.
 
 `pitch motion schema` lists the built-in types, `pitch motion schema --types <type>` gives
 their fields. A custom type is **one file**: `js/shots/<type>.js` (its styles
