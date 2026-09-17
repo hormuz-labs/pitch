@@ -2,16 +2,17 @@
  * Pitch Studio server: auth, credits, projects, agent sessions, previews,
  * renders, sharing, MCP and admin (docs/studio-architecture.md).
  *
- * One image, three roles (worker/config.ts): `all` is the single-box layout
+ * One image, four roles (worker/config.ts): `all` is the single-box layout
  * and the default; `api` replicas hold nothing and proxy to workers; `worker`
- * nodes own projects and answer only the worker contract and file requests.
+ * nodes own projects and answer only the worker contract and file requests;
+ * `render` pods hold nothing and run the heavy host actions workers queue.
  */
 import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clerkMiddleware } from '@clerk/express'
-import { createLogger } from '@saas/shared'
+import { createLogger, pickManager, setManagerBaseUrl } from '@saas/shared'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
@@ -28,9 +29,29 @@ if (!process.env.CLERK_PUBLISHABLE_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY
 }
 
 const logger = createLogger('studio')
-const { DRAIN_MS, IS_API, IS_WORKER, ROLE, SHUTDOWN_GRACE_MS, WORKER_TOKEN } = await import(
-  './worker/config.js'
-)
+const {
+  DRAIN_MS,
+  IS_API,
+  IS_RENDER,
+  IS_WORKER,
+  RENDER_MODE,
+  ROLE,
+  SHUTDOWN_GRACE_MS,
+  WORKER_TOKEN,
+} = await import('./worker/config.js')
+
+// Which browser manager this process uses. One configured means no choice;
+// a pool (a headless Service) means the one with the most room, re-picked
+// now and then so a process outlives any single manager pod.
+const pinManager = async () => {
+  try {
+    setManagerBaseUrl(await pickManager())
+  } catch (err) {
+    logger.warn({ err }, 'could not pick a browser manager; using the configured URL')
+  }
+}
+await pinManager()
+setInterval(() => void pinManager(), 5 * 60_000).unref()
 
 // The pipelines register their host actions (and the launch exporter) on
 // import. There is one agent and it can reach all of them; a pipeline that
@@ -76,13 +97,15 @@ const { router: internalDiscordRoutes } = await import('./routes/internal-discor
 
 export const app = express()
 const { prisma } = await import('@saas/db')
-// An API replica keeps no state on disk; a worker's two directories must be writable.
-const stateDirs = IS_WORKER
-  ? [
-      process.env.PROJECTS_DIR || path.join(rootDir, 'projects'),
-      process.env.PI_AGENT_DIR || path.join(homedir(), '.pi', 'agent'),
-    ]
-  : []
+// An API replica keeps no state on disk; a worker's (and a render pod's)
+// two directories must be writable.
+const stateDirs =
+  IS_WORKER || IS_RENDER
+    ? [
+        process.env.PROJECTS_DIR || path.join(rootDir, 'projects'),
+        process.env.PI_AGENT_DIR || path.join(homedir(), '.pi', 'agent'),
+      ]
+    : []
 await Promise.all(stateDirs.map(dir => mkdir(dir, { recursive: true })))
 let draining = false
 // Probe traffic must not depend on Clerk or trigger authentication/network calls.
@@ -203,11 +226,24 @@ const PORT = process.env.PORT || 3000
 const server = app.listen(PORT, () =>
   logger.info({ port: PORT, role: ROLE }, 'studio server started'),
 )
+// The render tier: claim jobs, run them, ship the files back. It registers
+// nowhere and answers only /health.
+const renderer = IS_RENDER ? await import('./renderer/runner.js') : null
+if (renderer) renderer.startRenderer()
+if (IS_WORKER && RENDER_MODE === 'remote') {
+  const { setRemoteDispatcher } = await import('./studio/host-actions.js')
+  const { dispatchRemote } = await import('./worker/remote.js')
+  setRemoteDispatcher(dispatchRemote)
+  logger.info('heavy host actions go to the render tier')
+}
 if (IS_API) {
   attachVncProxy(server)
   void resumePendingWebhooks()
   const { installEventForwarder } = await import('./worker/client.js')
   installEventForwarder()
+  // The render tier's replica count is this process's job in a cluster.
+  const { startRenderAutoscaler } = await import('./renderer/autoscale.js')
+  startRenderAutoscaler()
 }
 const workerHost = IS_WORKER ? await import('./worker/host.js') : null
 if (IS_WORKER) {
@@ -252,6 +288,8 @@ const gracefulShutdown = async (signal: string) => {
   // A gentle drain has to keep the server up: the API reaches held projects
   // through it until the last one is released.
   if (DRAIN_MS > 0) await drainWorker()
+  // A render pod finishes the job it is on; the queue retries whatever it cannot.
+  if (renderer) await renderer.stopRenderer()
   // Stop new requests before aborting sessions; SSE/WS must not hold shutdown forever.
   server.close()
   if (IS_API) {

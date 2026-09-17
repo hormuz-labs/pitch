@@ -34,7 +34,7 @@ import { EFFECTS_DIR } from '../lib/paths.ts'
 import type { CommandSpec } from './registry.ts'
 
 export interface Effect {
-  /** `family/slug`, e.g. `text/bold-text-snap`. */
+  /** `family/slug`, selected for the current treatment. */
   id: string
   family: string
   slug: string
@@ -244,6 +244,7 @@ export function whole(e: Effect): string {
   return [
     `# ${e.name}  —  ${e.id}`,
     `${e.seconds ?? '?'}s; ${e.size ?? '1280x720'}; loop: ${e.loop ?? '?'}; fidelity: ${e.fidelity ?? '?'}`,
+    'Source study: the notes below describe the original effect. Adapt its composition, material and timing to direction.md; preserve it faithfully only when the treatment or user calls for that.',
     e.description ? `\n${e.description}` : '',
     e.move ? `\nThe move: ${e.move}` : '',
     e.how ? `\nHow: ${e.how}` : '',
@@ -262,7 +263,7 @@ export function whole(e: Effect): string {
     '```',
     '',
     `The page loads GSAP from ../../../assets/gsap/ and its own ../../_lib/fx.js; in the film those plugins are already registered by the scaffold, fx.timeline({duration}) becomes the gsap.timeline() your factory returns, and every time is a fraction of D. Rebuild the placeholder content with the product's own — and put \`lab: "${e.id}"\` on the shot that uses it.`,
-    "Masks: any `overflow: hidden` reveal here sits at line-height ≤ 1 and cuts descenders and accents at hero size. In the port give the mask `padding: .16em .08em .24em; margin: -.16em -.08em -.24em` and start the hidden text at yPercent 140, not 110. Keep the lab's composition: its count of elements, their sizes and their arrangement are the effect — three forms stay three forms. The lab's 1280×720 stage scales to 1920×1080 by 1.5.",
+    'Masks: an `overflow: hidden` reveal at line-height ≤ 1 can cut descenders and accents at hero size. Give the mask `padding: .16em .08em .24em; margin: -.16em -.08em -.24em` and start hidden text at yPercent 140 when needed. Check the adapted layout at delivery size. A 1280×720 source scales to 1920×1080 by 1.5; element count, arrangement, type and timing may change to serve the treatment. Record substantial adaptations alongside the lab citation.',
   ]
     .filter(l => l !== '')
     .join('\n')
@@ -319,8 +320,8 @@ export default function effectsCommands(): CommandSpec[] {
       verb: 'list',
       description:
         'Every effect in the lab, one line each: id, length, libraries and the move it makes. ' +
-        'The whole shelf is a few thousand tokens and you only read it once — prefer it to ' +
-        'guessing at search words. Narrow with --family, --moves, --libs.',
+        'Browse after choosing a visual treatment when you need implementation ideas. ' +
+        'Narrow with --family, --moves, --libs; built-ins and bespoke animation are equally valid.',
       parameters,
       async execute(_id, p: any) {
         const all = loadEffects()
@@ -382,7 +383,7 @@ export default function effectsCommands(): CommandSpec[] {
           id: {
             type: 'string',
             description:
-              'An effect id, e.g. text/bold-text-snap — or just the slug after `pitch effects <family>`. Positional.',
+              'A listed family/slug id — or just the slug after `pitch effects <family>`. Positional.',
           },
           family: { type: 'string', description: 'The family a bare slug belongs to.' },
         },
@@ -401,7 +402,7 @@ export default function effectsCommands(): CommandSpec[] {
           effects.find(e => e.name.toLowerCase() === want.toLowerCase())
         if (!hit) {
           return out(
-            `No effect "${want}". Ids look like text/bold-text-snap — list them with: pitch effects list`,
+            `No effect "${want}". Ids are family/slug — list them with: pitch effects list`,
           )
         }
         return out(whole(hit))

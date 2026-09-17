@@ -53,7 +53,7 @@ export interface Manifest {
 }
 
 let store: PrivateObjectStore | null = null
-function bucket(): PrivateObjectStore {
+export function bucket(): PrivateObjectStore {
   if (!CHECKPOINTS_ENABLED) throw new Error('workspace checkpoints are disabled')
   store ??= privateBucket(WORKSPACE_BUCKET)
   return store
@@ -81,11 +81,15 @@ export async function writeMarker(dir: string, marker: Marker): Promise<void> {
 /** Files under the workspace that are caches or scratch: rebuilt, never restored. */
 const EXCLUDES = ['.thumbs', '.editable-*', '.health-*', MARKER, '.*.restore-*', '.*.backup-*']
 
-function tarCreate(
+export function tarCreate(
   parent: string,
   name: string,
+  /** Explicit members instead of `name`'s whole tree (paths relative to `parent`). */
+  members?: string[],
 ): { stream: NodeJS.ReadableStream; done: Promise<void> } {
-  const args = ['-cf', '-', ...EXCLUDES.map(e => `--exclude=${e}`), '-C', parent, name]
+  const args = members
+    ? ['-cf', '-', '-C', parent, '--', ...members]
+    : ['-cf', '-', ...EXCLUDES.map(e => `--exclude=${e}`), '-C', parent, name]
   const proc = spawn('tar', args, { stdio: ['ignore', 'pipe', 'pipe'] })
   let err = ''
   proc.stderr.on('data', (c: Buffer) => {
@@ -100,7 +104,7 @@ function tarCreate(
   return { stream: proc.stdout, done }
 }
 
-async function tarExtract(into: string, body: NodeJS.ReadableStream): Promise<void> {
+export async function tarExtract(into: string, body: NodeJS.ReadableStream): Promise<void> {
   await mkdir(into, { recursive: true })
   const proc = spawn('tar', ['-xf', '-', '-C', into], { stdio: ['pipe', 'ignore', 'pipe'] })
   let err = ''

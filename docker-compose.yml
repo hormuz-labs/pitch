@@ -126,7 +126,7 @@ services:
       STUDIO_ROLE: ${STUDIO_ROLE:-all}
       STUDIO_WORKER_ID: ${STUDIO_WORKER_ID:-api}
       STUDIO_WORKER_URL: http://api:3000
-      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-4}
+      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-16}
     volumes:
       # Project workspaces: sources, recordings, renders. The directory is the truth.
       - ./projects:/app/projects
@@ -163,11 +163,13 @@ services:
       cloakbrowser-manager:
         condition: service_started
 
-  # A second studio worker on the same machine. Real capacity comes from
-  # running this image with STUDIO_ROLE=worker on other nodes (each with its
-  # own CloakBrowser manager, projects volume and pi volume) pointed at the
-  # same DATABASE_URL and MINIO_ENDPOINT; this service is the local shape of
-  # that, for trying the placement out. Needs STUDIO_WORKER_TOKEN in .env.
+  # A second studio worker on the same machine, plus a render pod. Real
+  # capacity comes from running this image with STUDIO_ROLE=worker and
+  # STUDIO_ROLE=render on other nodes pointed at the same DATABASE_URL and
+  # MINIO_ENDPOINT; these services are the local shape of that, for trying
+  # the placement and the render queue out. Needs STUDIO_WORKER_TOKEN in
+  # .env. A worker with checkpoints defaults to STUDIO_RENDER=remote, so its
+  # heavy actions wait for the `render` service below.
   worker:
     image: pitch-api:${IMAGE_TAG:-latest}
     container_name: pitch_worker
@@ -184,11 +186,10 @@ services:
       STUDIO_ROLE: worker
       STUDIO_WORKER_ID: worker-1
       STUDIO_WORKER_URL: http://worker:3000
-      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-4}
+      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-16}
     volumes:
       - ./docker-data/worker-1/projects:/app/projects
       - ./docker-data/worker-1/pi:/root/.pi/agent
-      - ./docker-data/whisper:/root/.cache/whisper-cpp
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined
@@ -198,6 +199,33 @@ services:
       - "${VIDEO_GID:-44}"
       - "${RENDER_GID:-992}"
     stop_grace_period: 90s
+
+  # The render tier (apps/api/src/renderer/): claims RenderJobs the workers
+  # queue, restores the workspace checkpoint, runs the heavy host action —
+  # a capture, an encode, whisper — and ships the files back through MinIO.
+  # No sandbox privileges: nothing here runs an agent shell.
+  render:
+    image: pitch-api:${IMAGE_TAG:-latest}
+    container_name: pitch_render
+    restart: always
+    profiles: ["worker"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/pitch?schema=public
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_URL: http://localhost:9002
+      CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
+      STUDIO_ROLE: render
+      STUDIO_RENDER_ID: render-1
+    volumes:
+      - ./docker-data/render-1/projects:/app/projects
+      - ./docker-data/render-1/pi:/root/.pi/agent
+      - ./docker-data/whisper:/root/.cache/whisper-cpp
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"
+    stop_grace_period: 600s
     depends_on:
       postgres:
         condition: service_healthy

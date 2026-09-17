@@ -672,6 +672,33 @@ async function checkpointNow(h: Held): Promise<void> {
   return h.checkpointing
 }
 
+/**
+ * The render tier's view of a workspace: the checkpoint it can restore. A
+ * dirty workspace is checkpointed first, so what the render pod sees is
+ * what the agent just wrote. Returns the project and the version to name.
+ */
+export async function checkpointForRender(
+  ws: Workspace,
+): Promise<{ projectId: string; version: number }> {
+  const h = [...held.values()].find(x => x.ws.internal === ws.internal)
+  if (!h) throw new Error(`this worker does not hold ${ws.internal}; nothing to render from`)
+  if (!CHECKPOINTS_ENABLED)
+    throw new Error('remote renders need workspace checkpoints (STUDIO_WORKSPACE_BUCKET)')
+  // Dirty, or never checkpointed (a workspace adopted from before
+  // checkpoints existed): either way the bucket must hold what is on disk.
+  if (h.dirtyAt || (await rowById(h.id)).workspaceVersion === 0) await checkpointNow(h)
+  const row = await rowById(h.id)
+  if (row.workerId !== WORKER_ID || row.workerEpoch !== h.epoch) throw new NotOwnerError(h.id)
+  if (row.workspaceVersion === 0) throw new Error(`${ws.internal} could not be checkpointed`)
+  return { projectId: h.id, version: row.workspaceVersion }
+}
+
+/** Files landed in a held workspace from outside the session (a render came back). */
+export function noteExternalWrite(projectId: string): void {
+  const h = held.get(projectId)
+  if (h) markDirty(h)
+}
+
 /** Checkpoint now if anything changed; used by tests and the drain path. */
 export async function checkpoint(projectId: string): Promise<boolean> {
   const h = held.get(projectId)

@@ -83,7 +83,9 @@ export async function ensureStudioProfile({ name = studioProfileName(), timeoutM
     profile = await managerFetch("/api/profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, platform: "windows" }),
+      // Name only: the manager rejects fields it does not know, and newer
+      // images have no `platform`; its 1920x1080 default is the render size.
+      body: JSON.stringify({ name }),
     });
   }
   if (profile.status !== "running") {

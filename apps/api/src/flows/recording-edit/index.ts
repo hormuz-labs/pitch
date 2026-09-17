@@ -176,81 +176,92 @@ async function projectRowFor(ws: Workspace) {
   })
 }
 
-registerHostAction('edit_render', async (ws, params) => {
-  const state = await readState(ws.dir)
-  if (!state)
-    throw new Error(
-      'recording/demo-state.json not found — run probe_video and record the events first',
-    )
-  const upload = await findUpload(ws.dir)
-  if (!upload) throw new Error('no uploaded recording found under recording/')
-
-  const project = await readProjectJson(ws.dir)
-  const options = {
-    productName:
-      optionStr(params, 'productName') ?? optionStr(project?.options ?? {}, 'productName'),
-    productUrl: optionStr(params, 'productUrl') ?? optionStr(project?.options ?? {}, 'productUrl'),
-    fps: params.fps ?? project?.options?.fps,
-  }
-  const counts = eventCounts(state)
-  const log = logger.child({ workspace: ws.internal })
-  log.info({ ...counts, upload }, 'edit_render start')
-
-  const outDir = path.join(ws.dir, RENDERS_DIR)
-  const result = await renderRecordingEdit(
-    {
-      workspaceDir: ws.dir,
-      uploadPath: path.join(ws.dir, upload),
-      state,
-      options,
-      outDir,
-      narration: await readNarration(ws.dir),
-    },
-    log,
-  )
-  await rm(result.rawPath, { force: true })
-  await writeTimeline(result.finalPath, {
-    durationSec: result.durationSec,
-    beats: result.beats,
-  }).catch(err => log.warn({ err }, 'could not write the render timeline'))
-  const rel = `${RENDERS_DIR}/${path.basename(result.finalPath)}`
-  const createdAt = new Date().toISOString()
-
-  const row = await projectRowFor(ws)
-  const firstRender =
-    !row || !(JSON.parse(String(row.outputs || '[]')) as Output[]).some(o => o.kind === 'video')
-
-  let url = fileUrl(ws.internal, rel)
-  let published = false
-  try {
-    url = await storage.uploadFile(
-      result.finalPath,
-      undefined,
-      `pitch/${ws.userId}/${ws.name}/videos`,
-    )
-    published = true
-  } catch (err) {
-    log.warn({ err }, 'render upload failed — serving the local file')
-  }
-  if (row)
-    await addOutput(ws.userId, row.id, { kind: 'video', url, label: 'Edited recording', createdAt })
-  else log.warn('no project row for workspace — output not recorded')
-
-  // Notify once, when the first render lands (iterations are watched live in the studio).
-  if (published && firstRender && row) {
-    const videoTitle = options.productName || (project?.uploads?.[0]?.name ?? ws.name)
-    void (async () => {
-      const email = await getClerkUserEmail(ws.userId)
-      if (email) await sendJobCompleteEmail({ to: email, jobId: row.id, videoUrl: url, videoTitle })
-      await sendDiscordMessage(
-        `✅ **Recording Edit Completed**\nProject: \`${row.id}\`\nUser: ${email ?? ws.userId}\nTitle: ${row.title}\nOutput Video: ${url}`,
+registerHostAction(
+  'edit_render',
+  async (ws, params) => {
+    const state = await readState(ws.dir)
+    if (!state)
+      throw new Error(
+        'recording/demo-state.json not found — run probe_video and record the events first',
       )
-    })().catch(err => log.warn({ err }, 'completion notification failed'))
-  }
+    const upload = await findUpload(ws.dir)
+    if (!upload) throw new Error('no uploaded recording found under recording/')
 
-  log.info({ url, durationSec: result.durationSec }, 'edit_render done')
-  return (
-    `Rendered ${rel} (${result.durationSec.toFixed(1)}s, ${counts.zoomIn} zoom-ins, ${counts.zoomOut} zoom-outs, ${counts.clicks} clicks). ` +
-    (published ? `Published video URL: ${url}` : `Upload failed; local video URL: ${url}`)
-  )
-})
+    const project = await readProjectJson(ws.dir)
+    const options = {
+      productName:
+        optionStr(params, 'productName') ?? optionStr(project?.options ?? {}, 'productName'),
+      productUrl:
+        optionStr(params, 'productUrl') ?? optionStr(project?.options ?? {}, 'productUrl'),
+      fps: params.fps ?? project?.options?.fps,
+    }
+    const counts = eventCounts(state)
+    const log = logger.child({ workspace: ws.internal })
+    log.info({ ...counts, upload }, 'edit_render start')
+
+    const outDir = path.join(ws.dir, RENDERS_DIR)
+    const result = await renderRecordingEdit(
+      {
+        workspaceDir: ws.dir,
+        uploadPath: path.join(ws.dir, upload),
+        state,
+        options,
+        outDir,
+        narration: await readNarration(ws.dir),
+      },
+      log,
+    )
+    await rm(result.rawPath, { force: true })
+    await writeTimeline(result.finalPath, {
+      durationSec: result.durationSec,
+      beats: result.beats,
+    }).catch(err => log.warn({ err }, 'could not write the render timeline'))
+    const rel = `${RENDERS_DIR}/${path.basename(result.finalPath)}`
+    const createdAt = new Date().toISOString()
+
+    const row = await projectRowFor(ws)
+    const firstRender =
+      !row || !(JSON.parse(String(row.outputs || '[]')) as Output[]).some(o => o.kind === 'video')
+
+    let url = fileUrl(ws.internal, rel)
+    let published = false
+    try {
+      url = await storage.uploadFile(
+        result.finalPath,
+        undefined,
+        `pitch/${ws.userId}/${ws.name}/videos`,
+      )
+      published = true
+    } catch (err) {
+      log.warn({ err }, 'render upload failed — serving the local file')
+    }
+    if (row)
+      await addOutput(ws.userId, row.id, {
+        kind: 'video',
+        url,
+        label: 'Edited recording',
+        createdAt,
+      })
+    else log.warn('no project row for workspace — output not recorded')
+
+    // Notify once, when the first render lands (iterations are watched live in the studio).
+    if (published && firstRender && row) {
+      const videoTitle = options.productName || (project?.uploads?.[0]?.name ?? ws.name)
+      void (async () => {
+        const email = await getClerkUserEmail(ws.userId)
+        if (email)
+          await sendJobCompleteEmail({ to: email, jobId: row.id, videoUrl: url, videoTitle })
+        await sendDiscordMessage(
+          `✅ **Recording Edit Completed**\nProject: \`${row.id}\`\nUser: ${email ?? ws.userId}\nTitle: ${row.title}\nOutput Video: ${url}`,
+        )
+      })().catch(err => log.warn({ err }, 'completion notification failed'))
+    }
+
+    log.info({ url, durationSec: result.durationSec }, 'edit_render done')
+    return (
+      `Rendered ${rel} (${result.durationSec.toFixed(1)}s, ${counts.zoomIn} zoom-ins, ${counts.zoomOut} zoom-outs, ${counts.clicks} clicks). ` +
+      (published ? `Published video URL: ${url}` : `Upload failed; local video URL: ${url}`)
+    )
+  },
+  { remote: true },
+)

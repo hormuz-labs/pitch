@@ -39,8 +39,12 @@ services:
       STUDIO_ROLE: worker
       STUDIO_WORKER_ID: node-${NODE_NAME:?set NODE_NAME}
       STUDIO_WORKER_URL: http://node-${NODE_NAME}.pitch.svc.cluster.local:3000
-      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-4}
+      STUDIO_WORKER_SLOTS: ${STUDIO_WORKER_SLOTS:-24}
       STUDIO_DRAIN_MS: ${STUDIO_DRAIN_MS:-1800000}
+      # Heavy host actions become RenderJobs and run on the cluster's render
+      # pods; this machine only holds sessions. STUDIO_RENDER=local keeps
+      # them here instead (a GPU box, say).
+      STUDIO_RENDER: ${STUDIO_RENDER:-remote}
       CLOAK_MANAGER_URL: http://cloakbrowser-manager:8080
       STUDIO_INTERNAL_ORIGIN: http://worker:3000
       STUDIO_SANDBOX: bwrap
@@ -49,7 +53,6 @@ services:
     volumes:
       - ./docker-data/node/projects:/app/projects
       - ./docker-data/node/pi:/root/.pi/agent
-      - ./docker-data/whisper:/root/.cache/whisper-cpp
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined

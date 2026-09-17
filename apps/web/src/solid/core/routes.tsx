@@ -1,5 +1,6 @@
 import type { Component } from 'solid-js'
 import { lazy } from 'solid-js'
+import { discoveredRouteModules } from './route-modules'
 
 export type SolidRouteModule = { default: Component }
 
@@ -44,8 +45,6 @@ export const ROUTE_MODULES = {
 
 export type RouteModuleId = keyof typeof ROUTE_MODULES
 
-const discovered = import.meta.glob('../{public,account,studio}/*.tsx')
-
 function missingRoute(id: RouteModuleId): SolidRouteModule {
   const { path } = ROUTE_MODULES[id]
   return {
@@ -62,7 +61,7 @@ function missingRoute(id: RouteModuleId): SolidRouteModule {
 
 export async function loadRouteModule(id: RouteModuleId): Promise<SolidRouteModule> {
   const contract = ROUTE_MODULES[id]
-  const loader = discovered[contract.path]
+  const loader = discoveredRouteModules[contract.path]
   if (!loader) return missingRoute(id)
   try {
     const module = (await loader()) as Record<string, unknown>

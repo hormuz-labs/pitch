@@ -61,42 +61,6 @@ export default function mediaCommands(): CommandSpec[] {
   })
 
   commands.push({
-    verb: 'pedalboard',
-    description:
-      'Shape an existing SFX clip or audio stem with Spotify Pedalboard. Use --list to discover built-in effects, parameters and defaults. Otherwise pass file, out and an ordered JSON effects chain. Writes a NEW WAV at the source sample rate and channel count; tail adds seconds for reverb/delay decay (default 0). Read the audio-effects skill for recipes and cue-sheet integration.',
-    parameters: Type.Object({
-      list: Type.Optional(
-        Type.Boolean({ description: 'List available effects and their parameters' }),
-      ),
-      file: Type.Optional(Type.String({ description: 'Workspace-relative source audio path' })),
-      out: Type.Optional(
-        Type.String({
-          description: 'New workspace-relative .wav path, e.g. audio/sfx/echo-click.wav',
-        }),
-      ),
-      effects: Type.Optional(
-        Type.Array(
-          Type.Object({
-            name: Type.String({ description: 'Built-in effect name from --list, e.g. Reverb' }),
-            params: Type.Optional(Type.Record(Type.String(), Type.Number())),
-          }),
-          {
-            minItems: 1,
-            maxItems: 32,
-            description: 'Ordered chain, e.g. [{"name":"Gain","params":{"gain_db":-6}}]',
-          },
-        ),
-      ),
-      tail: Type.Optional(
-        Type.Number({ minimum: 0, maximum: 30, description: 'Extra decay time in seconds (0–30)' }),
-      ),
-    }),
-    async execute(_id, p, _signal, _onUpdate, ctx) {
-      return text(await hostAction(workspaceOf(ctx), 'media_pedalboard', p))
-    },
-  })
-
-  commands.push({
     verb: 'publish',
     description:
       "Record a finished file in the workspace as one of the project's outputs, so it appears under the " +

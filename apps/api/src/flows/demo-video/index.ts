@@ -43,7 +43,7 @@ import {
   buildStoryboardDraft,
   type StoryboardPage,
 } from '../../render/utils/storyboard-planner.js'
-import { registerHostAction } from '../../studio/host-actions.js'
+import { callHostAction, registerHostAction } from '../../studio/host-actions.js'
 import { ASSETS_DIR, fileUrl, type Workspace } from '../../studio/paths.js'
 import type { UploadRef } from '../types.js'
 
@@ -381,62 +381,94 @@ registerHostAction('demo_render', async (ws, params) => {
   )
   if (Object.keys(chosen).length)
     await writeJson(projectFile(ws), { ...project, options: { ...o, ...chosen } })
-
-  const rec = recordingDir(ws)
-  const result = await renderDemo(
-    {
-      workspaceDir: ws.dir,
-      webmPath: path.join(rec, 'demo.webm'),
-      videoDir: rec,
-      recordingStartedAtMs: config.startTime,
-      state,
-      startTime: config.startTime,
-      assetsDir: ASSETS_DIR,
-      options,
-      outDir: rendersDir(ws),
-    },
-    logger,
-  )
-  await rm(result.rawPath, { force: true })
-  // The beat map lives next to the .mp4 so the studio can offer the scene strip
-  // for this render (and only this one) after a restart.
-  await writeTimeline(result.finalPath, {
-    durationSec: result.durationSec,
-    beats: result.beats,
-  }).catch(err => logger.warn({ err }, 'could not write the render timeline'))
-
-  const rel = `renders/${path.basename(result.finalPath)}`
-  const local = fileUrl(ws.internal, rel)
-  const row = await projectRow(ws)
-  let published = local
-  try {
-    published = await storage.uploadFile(
-      result.finalPath,
-      undefined,
-      `pitch/${ws.userId}/${ws.name}/videos`,
-    )
-    await addOutput(ws.userId, row.id, {
-      kind: 'video',
-      url: published,
-      createdAt: new Date().toISOString(),
-    })
-    void notifyPublished(ws, row.id, published, { ...o, ...chosen })
-  } catch (err) {
-    logger.warn({ err, projectId: row.id }, 'render upload failed — serving the local file')
-    await addOutput(ws.userId, row.id, {
-      kind: 'video',
-      url: local,
-      createdAt: new Date().toISOString(),
-    }).catch(() => {})
-    notes.push('Upload to storage failed; the video is only available from the workspace for now.')
-  }
-  const look = `background ${options.background || 'none'}, shape ${options.shape || 'rounded'}, inset ${options.inset ?? 0.87}, browser header ${options.browserHeader}`
-  return [
-    `Rendered ${result.durationSec.toFixed(1)}s (leading trim ${result.leadingTrimSec.toFixed(1)}s) → ${rel} (${look}).`,
-    `Video URL: ${published}`,
-    ...notes,
-  ].join('\n')
+  // The encode is the heavy half: on a fleet it runs on a render pod against
+  // the checkpoint (the stop above made sure demo.webm is on disk to be
+  // checkpointed), here it runs in-process. Either way the MP4 lands in renders/.
+  const encoded = await callHostAction(ws.dir, 'demo_encode', { options })
+  return [encoded, ...notes].join('\n')
 })
+
+/** Encode a stopped recording to renders/ and publish it. Params: { options }. */
+registerHostAction(
+  'demo_encode',
+  async (ws, params) => {
+    const notes: string[] = []
+    const config = await readJson<{ startTime: number; storyboard?: VideoStoryboard }>(
+      configFile(ws),
+    )
+    if (!config?.startTime) throw new Error('Nothing to encode: no recording in this project.')
+    const state = (await readJson<DemoState>(stateFile(ws))) ?? {}
+    const options = (params.options ?? {}) as {
+      url?: string
+      background?: string
+      shape?: string
+      inset?: number | string
+      browserHeader: 'light' | 'dark' | 'none'
+      productName?: string
+      fps?: number | string
+      storyboard?: VideoStoryboard
+    }
+    const project = await readProject(ws)
+    const o = project.options
+    const rec = recordingDir(ws)
+    const result = await renderDemo(
+      {
+        workspaceDir: ws.dir,
+        webmPath: path.join(rec, 'demo.webm'),
+        videoDir: rec,
+        recordingStartedAtMs: config.startTime,
+        state,
+        startTime: config.startTime,
+        assetsDir: ASSETS_DIR,
+        options,
+        outDir: rendersDir(ws),
+      },
+      logger,
+    )
+    await rm(result.rawPath, { force: true })
+    // The beat map lives next to the .mp4 so the studio can offer the scene strip
+    // for this render (and only this one) after a restart.
+    await writeTimeline(result.finalPath, {
+      durationSec: result.durationSec,
+      beats: result.beats,
+    }).catch(err => logger.warn({ err }, 'could not write the render timeline'))
+
+    const rel = `renders/${path.basename(result.finalPath)}`
+    const local = fileUrl(ws.internal, rel)
+    const row = await projectRow(ws)
+    let published = local
+    try {
+      published = await storage.uploadFile(
+        result.finalPath,
+        undefined,
+        `pitch/${ws.userId}/${ws.name}/videos`,
+      )
+      await addOutput(ws.userId, row.id, {
+        kind: 'video',
+        url: published,
+        createdAt: new Date().toISOString(),
+      })
+      void notifyPublished(ws, row.id, published, { ...o, ...options })
+    } catch (err) {
+      logger.warn({ err, projectId: row.id }, 'render upload failed — serving the local file')
+      await addOutput(ws.userId, row.id, {
+        kind: 'video',
+        url: local,
+        createdAt: new Date().toISOString(),
+      }).catch(() => {})
+      notes.push(
+        'Upload to storage failed; the video is only available from the workspace for now.',
+      )
+    }
+    const look = `background ${options.background || 'none'}, shape ${options.shape || 'rounded'}, inset ${options.inset ?? 0.87}, browser header ${options.browserHeader}`
+    return [
+      `Rendered ${result.durationSec.toFixed(1)}s (leading trim ${result.leadingTrimSec.toFixed(1)}s) → ${rel} (${look}).`,
+      `Video URL: ${published}`,
+      ...notes,
+    ].join('\n')
+  },
+  { remote: true },
+)
 
 registerHostAction('storyboard_plan', async ws => {
   const manifest = await readJson<AssetManifest>(manifestFile(ws))

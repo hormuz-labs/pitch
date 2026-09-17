@@ -1,0 +1,143 @@
+# The render tier: the same program as the API and the workers, started in
+# the render role. It holds no project and answers only /health. It claims
+# RenderJobs from Postgres — a launch capture, a recording encode, a whisper
+# transcription — restores the workspace checkpoint the job names onto its
+# scratch disk, runs the host action, ships the files it wrote back through
+# the workspace bucket, and marks the job done (apps/api/src/renderer/).
+#
+# A Deployment, not a StatefulSet: a render pod is cattle. Its scratch is an
+# emptyDir that dies with it; a job it was running is claimed again by
+# another pod once its heartbeat goes stale. That is also why it runs on
+# spot nodes (the `render-spot` pool, min 0): a preempted pod is a retried
+# job, and the pool costs nothing while nothing renders.
+#
+# The API scales it (apps/api/src/renderer/autoscale.ts): replicas = jobs
+# queued or running, 0–8, up at once, down after ten quiet minutes. The
+# Role that lets it is rbac.yaml, applied once by a cluster admin — the
+# deploy service account may not create RBAC. No KEDA, no HPA.
+#
+# No sandbox privileges: nothing here runs an agent shell. The browser for a
+# capture is a shared manager (browser.yaml) reached over the network.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pitch-render
+spec:
+  # No `replicas`: the API owns it (autoscale.ts).
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app: pitch-render
+  template:
+    metadata:
+      labels:
+        app: pitch-render
+    spec:
+      serviceAccountName: pitch
+      # A render pod finishes the job it is on before it goes (a scale-down
+      # honours this; a spot preemption gives 25 s and the job is retried).
+      terminationGracePeriodSeconds: 1500
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+        pool: render-spot
+      tolerations:
+        - key: cloud.google.com/gke-spot
+          operator: Equal
+          value: 'true'
+          effect: NoSchedule
+      initContainers:
+        - name: prepare-state
+          image: pitch-api
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /state/projects /state/pi /state/whisper
+              # The transcription model, fetched per pod (the disk is scratch).
+              # Not baked into the image on purpose (see Makefile → whisper-model).
+              target="/state/whisper/$WHISPER_MODEL_FILE"
+              if [ ! -s "$target" ]; then
+                echo "fetching $WHISPER_MODEL_FILE"
+                curl -fsSL --retry 5 --retry-delay 5 -o "$target.part" "$WHISPER_MODEL_BASE_URL/$WHISPER_MODEL_FILE"
+                mv "$target.part" "$target"
+              fi
+          envFrom:
+            - configMapRef: { name: pitch-config }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+          volumeMounts:
+            - name: state
+              mountPath: /state
+        # Native sidecar: up before the renderer, down after it has finished.
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.18.2@sha256:fc224915ef435afeb5b2a9421260a0d31986d5c8b7c7f5783c7f5d5885700cd2
+          restartPolicy: Always
+          args:
+            - --structured-logs
+            - --private-ip
+            - --port=5432
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9090
+            - ${CLOUD_SQL_CONNECTION_NAME}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet: { path: /startup, port: 9090 }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readiness, port: 9090 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+      containers:
+        - name: render
+          image: pitch-api
+          command: [bun, apps/api/src/index.ts]
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef: { name: pitch-config }
+            - secretRef: { name: pitch-runtime }
+          env:
+            - { name: STUDIO_ROLE, value: render }
+            - name: STUDIO_RENDER_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            # One job at a time: a capture already uses every core it is given.
+            - { name: STUDIO_RENDER_CONCURRENCY, value: '1' }
+          securityContext:
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 5
+            failureThreshold: 120
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          # One pod per spot node: ffmpeg and whisper take every core.
+          resources:
+            requests: { cpu: '6', memory: 20Gi, ephemeral-storage: 10Gi }
+            limits: { cpu: '7', memory: 28Gi, ephemeral-storage: 60Gi }
+          volumeMounts:
+            - { name: state, mountPath: /app/projects, subPath: projects }
+            - { name: state, mountPath: /root/.pi/agent, subPath: pi }
+            - { name: state, mountPath: /root/.cache/whisper-cpp, subPath: whisper }
+            - { name: scratch, mountPath: /tmp }
+      volumes:
+        - name: state
+          emptyDir: { sizeLimit: 60Gi }
+        - name: scratch
+          emptyDir: { sizeLimit: 20Gi }

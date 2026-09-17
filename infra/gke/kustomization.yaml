@@ -8,7 +8,7 @@ resources:
   - browser.yaml
   - api.yaml
   - worker.yaml
-  - autoscaling.yaml
+  - render.yaml
   - ingress.yaml
   - discord-bot.yaml
 configMapGenerator:
@@ -19,9 +19,9 @@ configMapGenerator:
       - PROJECTS_DIR=/app/projects
       - PI_AGENT_DIR=/root/.pi/agent
       - STUDIO_SANDBOX=bwrap
-      # Placement and scaling (docs/studio-architecture.md → Scaling).
-      - STUDIO_WORKER_SLOTS=4
-      - STUDIO_SCALE_HEADROOM=2
+      # Placement (docs/studio-architecture.md → Scaling). A worker is light
+      # — sessions, not renders — so it holds many.
+      - STUDIO_WORKER_SLOTS=24
       - STUDIO_WORKSPACE_BUCKET=${WORKSPACE_BUCKET}
       # Cloud Storage through its S3-compatible endpoint (an HMAC key in
       # pitch-runtime as MINIO_ROOT_USER/MINIO_ROOT_PASSWORD): the same code
@@ -35,10 +35,14 @@ configMapGenerator:
       - STORAGE_PROFILES_BUCKET=${PROFILES_BUCKET}
       - STORAGE_PUBLIC_URL=${MEDIA_PUBLIC_URL}
       - FFMPEG_ENCODER=libx264
-      - CLOAK_MANAGER_URL=http://127.0.0.1:8080
-      - STUDIO_INTERNAL_ORIGIN=http://127.0.0.1:3000
-      - SLIDESHOW_BROWSER_HOST=127.0.0.1
-      # Fetched onto each worker's disk on first boot (worker.yaml → prepare-state).
+      # The browser manager pool (browser.yaml): a headless Service, so every
+      # process resolves the managers behind it and pins to one. The FQDN,
+      # because the SRV lookup does not go through the search list.
+      - CLOAK_MANAGER_URL=http://pitch-browser.pitch.svc.cluster.local:8080
+      - CLOAK_MANAGER_CAPACITY=4
+      # Where a manager loads previews from; workers override it with their pod IP.
+      - STUDIO_INTERNAL_ORIGIN=http://pitch.pitch.svc.cluster.local
+      # Fetched onto each render pod's scratch disk on boot (render.yaml → prepare-state).
       - WHISPER_MODEL_FILE=ggml-large-v3-turbo.bin
       - WHISPER_MODEL_BASE_URL=https://huggingface.co/ggerganov/whisper.cpp/resolve/main
       - WHISPER_MODEL=/root/.cache/whisper-cpp/ggml-large-v3-turbo.bin

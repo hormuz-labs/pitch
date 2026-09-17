@@ -73,26 +73,6 @@ Set the required variables in `.env`:
 docker compose up -d
 ```
 
-### Pedalboard audio effects
-
-The API image installs the pinned `requirements-audio.txt` into
-`/opt/pitch-audio` and sets `STUDIO_PYTHON` automatically. Rebuild the API image
-when updating those dependencies.
-
-For a native API server, install Python 3.10+ and create a host environment:
-
-```bash
-python3 -m venv "$HOME/.venvs/pitch-audio"
-"$HOME/.venvs/pitch-audio/bin/pip" install -r requirements-audio.txt
-export STUDIO_PYTHON="$HOME/.venvs/pitch-audio/bin/python"
-bun run dev:api
-```
-
-You can also set that absolute `STUDIO_PYTHON` path in `.env`. Restart the API
-to load the new CLI command and skill. In a studio session,
-`pitch media pedalboard --list` verifies the runtime and lists supported DSP
-effects. For the local audio regression tests:
-`STUDIO_PYTHON="$HOME/.venvs/pitch-audio/bin/python" bunx vitest run tests/pedalboard.test.ts`.
 
 ---
 

@@ -14,9 +14,14 @@ process.env.STUDIO_SCALE_HEADROOM = '2'
 
 let workers: any[] = []
 let held = 0
+let queued = 0
+let running = 0
 vi.mock('@saas/db', () => ({
   prisma: {
     studioWorker: { findMany: vi.fn(async () => workers) },
+    renderJob: {
+      count: vi.fn(async ({ where }: any) => (where.status === 'queued' ? queued : running)),
+    },
     $queryRaw: vi.fn(async () => [{ n: BigInt(held) }]),
   },
 }))
@@ -41,7 +46,13 @@ describe('fleet status', () => {
   it('asks for one worker when nothing is held', async () => {
     workers = []
     held = 0
-    expect(await fleetStatus()).toEqual({ workers: 0, slots: 0, held: 0, wanted: 1 })
+    expect(await fleetStatus()).toEqual({
+      workers: 0,
+      slots: 0,
+      held: 0,
+      wanted: 1,
+      render: { queued: 0, running: 0, wanted: 0 },
+    })
   })
 
   it('keeps the headroom free and rounds up to whole workers', async () => {
@@ -77,6 +88,27 @@ describe('fleet status', () => {
       .get('/internal/scale')
       .set('Authorization', 'Bearer secret-token')
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ workers: 1, slots: 8, held: 1, wanted: 1 })
+    expect(res.body).toEqual({
+      workers: 1,
+      slots: 8,
+      held: 1,
+      wanted: 1,
+      render: { queued: 0, running: 0, wanted: 0 },
+    })
+  })
+
+  it('asks for one render pod per job in flight, none idle, eight at most', async () => {
+    workers = [worker('pitch-worker-0')]
+    held = 0
+    queued = 0
+    running = 0
+    expect((await fleetStatus()).render.wanted).toBe(0)
+    queued = 2
+    running = 3
+    expect((await fleetStatus()).render).toEqual({ queued: 2, running: 3, wanted: 5 })
+    queued = 20
+    expect((await fleetStatus()).render.wanted).toBe(8)
+    queued = 0
+    running = 0
   })
 })

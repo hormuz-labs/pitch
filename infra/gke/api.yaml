@@ -74,7 +74,10 @@ spec:
             - secretRef: { name: pitch-runtime }
           env:
             - { name: STUDIO_ROLE, value: api }
-            - { name: CLOAK_MANAGER_URL, value: http://pitch-browser:8080 }
+            # The API scales the render tier itself (renderer/autoscale.ts).
+            - { name: STUDIO_RENDER_SCALE_TARGET, value: pitch-render }
+            - { name: STUDIO_RENDER_SCALE_MIN, value: '0' }
+            - { name: STUDIO_RENDER_SCALE_MAX, value: '8' }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }

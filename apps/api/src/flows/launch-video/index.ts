@@ -3,13 +3,18 @@
  * previewed live, exported by seek-and-capture. The agent works sandboxed
  * with the launch-video skill and the motion_* host tools.
  */
+
+import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { copyFile, mkdir, readdir } from 'node:fs/promises'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import { ensureMix } from '../../lib/mix.js'
+import { nodeBinary } from '../../lib/node.js'
 import { registerExporter } from '../../projects/export.js'
 import { emitProjectEvent, onProjectEvent } from '../../studio/events.js'
-import { MUSIC_DIR, SKILLS_DIR, type Workspace } from '../../studio/paths.js'
+import { registerHostAction } from '../../studio/host-actions.js'
+import { MOTION_SCRIPTS_DIR, MUSIC_DIR, SKILLS_DIR, type Workspace } from '../../studio/paths.js'
 import type { UploadRef } from '../types.js'
 import { launchExporter } from './export.js'
 
@@ -50,6 +55,68 @@ const allSkills = existsSync(SKILLS_DIR)
   : []
 
 registerExporter('launch-video', launchExporter)
+
+// ── Heavy skill scripts, as render actions ────────────────────────────────────
+//
+// capture.mjs (a seek-and-capture through the browser, then an encode) and
+// align.mjs (whisper over the narration) are the two skill scripts that burn
+// a machine. `pitch motion render` and `pitch motion align` reach them
+// through these, so on a fleet they run on a render pod against the
+// workspace checkpoint and what they wrote comes back into the workspace.
+
+const execFileAsync = promisify(execFile)
+
+/** Arguments are flags and workspace-relative paths, nothing that climbs out. */
+function scriptArgs(params: Record<string, any>): string[] {
+  const args = Array.isArray(params.args) ? params.args.map(String) : []
+  for (const a of args) {
+    const value = a.includes('=') ? a.slice(a.indexOf('=') + 1) : a
+    if (value.startsWith('/') || value.split('/').includes('..'))
+      throw new Error(`script arguments must stay inside the workspace: "${a}"`)
+  }
+  return args
+}
+
+async function runSkillScript(
+  name: string,
+  ws: Workspace,
+  args: string[],
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<string> {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      nodeBinary(),
+      [path.join(MOTION_SCRIPTS_DIR, name), ...args],
+      {
+        cwd: ws.dir,
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+        timeout: timeoutMs,
+        signal,
+      },
+    )
+    return `${stdout}\n${stderr}`.trim()
+  } catch (err) {
+    // A failing script's own diagnosis lives in its output, not in "Command
+    // failed with exit code 1" — surface it, or the agent invents a workaround.
+    const e = err as { stdout?: string; stderr?: string; message?: string }
+    const detail = `${e.stdout ?? ''}\n${e.stderr ?? ''}`.trim() || e.message || String(err)
+    throw new Error(detail)
+  }
+}
+
+registerHostAction(
+  'launch_capture',
+  (ws, params, ctx) => runSkillScript('capture.mjs', ws, scriptArgs(params), 1_200_000, ctx.signal),
+  { remote: true },
+)
+
+registerHostAction(
+  'launch_align',
+  (ws, params, ctx) => runSkillScript('align.mjs', ws, scriptArgs(params), 300_000, ctx.signal),
+  { remote: true },
+)
 
 // A turn that ended without a mixdown (abort, crash, a model that stopped
 // early) still gets sound: rebuild audio/mix.wav from the workspace.

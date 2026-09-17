@@ -1,0 +1,29 @@
+# What the API needs to scale the render tier: read and patch the render
+# Deployment's scale. Applied once, by hand, by a cluster admin
+# (`kubectl apply -f infra/gke/rbac.yaml`): it is not in the kustomization
+# because the deploy service account is not allowed to create RBAC, and a
+# Role is provisioning, not a release.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pitch-render-scaler
+  namespace: pitch
+rules:
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    resourceNames: [pitch-render]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pitch-render-scaler
+  namespace: pitch
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pitch-render-scaler
+subjects:
+  - kind: ServiceAccount
+    name: pitch
+    namespace: pitch

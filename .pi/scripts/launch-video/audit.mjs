@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * Motion Audit — the philosophy gate for HTML Motion Video.
+ * Motion Audit — render validation and pacing diagnostics for HTML Motion Video.
  *
  * Loads index.html?audit (drift + ambient OFF, so only DESIGNED events count),
- * samples the master timeline densely, and scores the film against the studio
- * philosophy: "something new happens on screen at least every ~1.2s".
+ * samples the master timeline densely, and reports pixel-change measurements
+ * for review against the film's chosen treatment.
  *
  * Checks:
  *   1. Shot-list lint (window.SHOTS): the shot-list rules (lib/design-rules.mjs —
- *      shot count, durations, hook, breaths), and the
+ *      non-empty timeline, valid durations, readability notes), and the
  *      narration contract — ONE continuous read (audio.vo) with the picture cut
  *      to its words (shot `cue`s vs audio/vo-words.json); per-shot clips fail.
  *   2. Event density: consecutive samples (every 0.25s) that differ by more than
@@ -40,7 +40,7 @@ import os from "node:os";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
-import { TYPE_BEATS, designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
+import { designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -121,7 +121,7 @@ if (!spec) {
   lint.push({ level: "warn", msg: "window.SHOTS not found — shot-list lint skipped (engine project expected)." });
 } else {
   const shots = spec.shots;
-  // The shot-list rules — count, lengths, the hook, the tells (lib/design-rules.mjs).
+  // Timeline validity and content-review hints (lib/design-rules.mjs).
   lint.push(...lintDesign(spec));
 
   // ---- Narration: one continuous read, picture cut to the words ----------------
@@ -185,13 +185,6 @@ if (!spec) {
   const unsetTokens = ["bg", "ink", "accent"].filter(k => !brandTokens[k]);
   if (unsetTokens.length) lint.push({ level: "fail", msg: `brand.${unsetTokens.join(", brand.")} not set — every shot is rendering in the engine's default palette, not the product's, and the ambient stage is invisible. Set the measured hex values on brand (top level), then re-run.` });
 
-  // Uniform durations read as a metronome whatever the content.
-  if (shots.length >= 8) {
-    const durs = shots.map(s => s.dur);
-    const mean = durs.reduce((a, b) => a + b, 0) / durs.length;
-    const sd = Math.sqrt(durs.reduce((a, d) => a + (d - mean) ** 2, 0) / durs.length);
-    if (sd < 0.45) lint.push({ level: "warn", msg: `Metronome: every shot is ${mean.toFixed(1)}s ± ${sd.toFixed(2)}. Rhythm is a decision — a burst of three sub-second beats against one long product shot, not the same cut every ${mean.toFixed(1)}s.` });
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -257,10 +250,10 @@ if (cues.length) {
 
 // The threshold in pixels, so a beat that cannot register is not tried twice.
 const eventPx = Math.round(eventThreshold * 1920 * 1080);
-console.log(`📊 Event density (step ${step}s; an event is ≥ ${(eventThreshold * 100).toFixed(1)}% of the frame changing ≈ ${eventPx.toLocaleString("en-US")}px at 1080p — a pulse on a 200px button does not count, a word-sized move does)`);
+console.log(`📊 Pixel-change density (step ${step}s; an event is ≥ ${(eventThreshold * 100).toFixed(1)}% of the frame changing ≈ ${eventPx.toLocaleString("en-US")}px at 1080p — small actions may not register; continuous motion may count repeatedly)`);
 console.log(`   ${"shot".padEnd(12)} ${"type".padEnd(14)} ${"dur".padStart(5)} ${"events".padStart(7)} ${"ev/s".padStart(6)}   bar`);
 for (const r of shotRows) {
-  const bar = "█".repeat(Math.min(24, Math.round(r.eps * 6))) + (r.eps < 0.5 ? "  ← lazy" : "");
+  const bar = "█".repeat(Math.min(24, Math.round(r.eps * 6)));
   console.log(`   ${r.id.padEnd(12)} ${r.type.padEnd(14)} ${r.dur.toFixed(1).padStart(5)} ${String(r.events).padStart(7)} ${r.eps.toFixed(2).padStart(6)}   ${bar}`);
 }
 console.log(`   ${scoped ? "span" : "film"}: ${events.length} events in ${sampledDur.toFixed(1)}s = ${eps.toFixed(2)} ev/s   longest quiet ${longestQuiet.toFixed(2)}s (${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s)\n`);
@@ -336,15 +329,15 @@ const warns = [];
 for (const l of lint) (l.level === "fail" ? fails : warns).push(l.msg);
 // Pacing is a note, not a gate: the numbers are the reference films', and a
 // held frame or a lab effect kept whole can be the right call — said out loud.
-if (longestQuiet > maxQuiet) warns.push(`Pacing: the picture sits still for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}; the reference films never hold past ${maxQuiet}s. A beat (swap/kick/flash/pulse), a second line, 'more' notifications, a cursor/focus — or a cut — answers it. If the hold is the design, keep it and say why in direction.md — that closes this note; do not re-run the audit for it.`);
+if (longestQuiet > maxQuiet) warns.push(`Pacing: no pixel change above the event threshold for ${longestQuiet.toFixed(2)}s at ${quietFrom.toFixed(1)}→${quietTo.toFixed(1)}s${quietGaps.length > 1 ? ` (${quietGaps.length} stretches over ${maxQuiet}s: ${quietGaps.map(g => `${g[0].toFixed(1)}→${g[1].toFixed(1)}`).join(", ")})` : ""}. Review against direction.md and reading time. Intentional holds and subtle action are valid; change only an accidental stall. Do not add decorative motion to raise this metric. No re-run is needed for an intentional hold.`);
 // A film-level number, so only a film-level run may raise it: one shot sampled
 // alone is a different measurement, and "over the film" would be a lie about it.
-if (!scoped && eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} events/s over the film; the reference films run ≥ ${minEps}. Second and third acts, not more entrances — or say in direction.md why this film breathes slower.`);
+if (!scoped && eps < minEps) warns.push(`Pacing: ${eps.toFixed(2)} pixel-change events/s, below the diagnostic threshold ${minEps}. Review the chosen rhythm; this is not a quality score or a required event rate.`);
 if (staticWarnings) fails.push(`${staticWarnings} static hold(s) — see above.`);
 if (determinismWarnings) fails.push("Render is not deterministic.");
 if (overlapWarnings) fails.push(`${overlapWarnings} scene-visibility violation(s).`);
 
-console.log(`\n──────── Philosophy scorecard ────────`);
+console.log(`\n──────── Render and pacing report ────────`);
 console.log(`   brand: bg ${brandTokens.bg ?? "—"} · ink ${brandTokens.ink ?? "—"} · accent ${brandTokens.accent ?? "—"}`);
 if (spec) console.log(`   ${designSummary(spec)}`);
 console.log(`   shots ${spec ? spec.shots.length : "?"} · avg ${spec ? (spec.shots.reduce((a, s) => a + s.dur, 0) / spec.shots.length).toFixed(2) : "?"}s · ${eps.toFixed(2)} ev/s${scoped ? ` (${spanLabel})` : ""} · longest quiet ${longestQuiet.toFixed(2)}s · ambient ${spec?.ambient ? spec.ambient.kind || "on" : "off"} · beats ${spec ? spec.shots.reduce((a, s) => a + s.beats, 0) : "?"}`);
@@ -359,7 +352,7 @@ if (fails.length) {
   process.exit(1);
 } else {
   const pacing = warns.filter(w => w.startsWith("Pacing:")).length;
-  console.log(`\n✅ AUDIT PASSED — ${pacing ? `deterministic; ${pacing} pacing note${pacing === 1 ? "" : "s"} above to answer or to justify in direction.md` : "dense, continuous, deterministic"}. Frames in '${outDir}/'.${pacing ? ` A note answered in direction.md is closed. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
+  console.log(`\n✅ AUDIT PASSED — rendering checks passed${pacing ? `; ${pacing} pacing note${pacing === 1 ? "" : "s"} to review against the treatment` : ""}. Frames in '${outDir}/'.${pacing ? ` Intentional pacing needs no fix or re-run. Re-run only after a dur, a cue or a beat changes — and then with --shots for the shots you touched.` : ""}\n`);
 }
 
 /**
