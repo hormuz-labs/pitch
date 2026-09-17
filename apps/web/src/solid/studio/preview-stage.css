@@ -44,6 +44,13 @@
   clip-path: none;
 }
 .lv-studio .feed[hidden] { display: none; }
+.lv-studio .composer-queue { display: grid; gap: 6px; max-height: 180px; overflow-y: auto; margin-bottom: 8px; }
+.lv-studio .composer-queue-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.lv-studio .composer-queue-copy { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lv-studio .composer-queue .message-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.lv-studio .composer-queue .message-state { margin: 0; font-size: 10px; color: var(--muted); }
+.lv-studio .composer-queue .message-steer:disabled { opacity: .5; cursor: default; }
+.lv-studio .composer-queue-error { grid-column: 1 / -1; color: var(--ink); font-size: 11px; }
 .lv-studio.is-chat-only .job-composer {
   flex: 0 0 auto;
   padding: 12px var(--chat-inset) 24px;

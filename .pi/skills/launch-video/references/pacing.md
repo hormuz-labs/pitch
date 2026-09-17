@@ -7,6 +7,46 @@ required shot count, average duration, three-act shot pattern or cut cadence.
 Equal lengths can support a musical pattern; unequal lengths can support an
 arc. Neither is automatically good.
 
+The requested runtime sets scope, not an exact total, unless the user explicitly
+requires exact delivery or a maximum. Estimate time from the actual content,
+then edit: remove redundant ideas, simplify each state, and allow the remaining
+actions to finish. A longer cut is justified by comprehension or dramatic rhythm,
+not by keeping every feature. A shorter complete film needs no padding.
+
+## Attention and reading time come first
+
+Plan each beat as **reveal → readable hold → clear or transform**. Write the
+single focal subject and those times in `direction.md`. A feature grid that
+builds quickly and remains on screen is not sequential storytelling: it leaves
+the viewer deciding what to read. Show the first point, let it land, then
+replace it with the next. Keep only the context needed to understand the focus.
+
+Count the essential words in the visible state, not just the new words. A useful
+starting estimate for a short phrase is `max(1.5, 0.5 + words / 3)` seconds
+**fully readable**, plus its entrance and exit. Six words therefore start with
+about 2.5s of settled reading time. Numbers, unfamiliar names and UI interactions
+may need longer; isolated familiar words can form a faster rhythmic sequence.
+Test at delivery size and normal playback speed. If a viewer needs to pause,
+shorten the copy, give it more time or separate the ideas.
+
+Count each internal state separately. A 6s shot cycling four OS panels gives
+each panel about 1.5s before transitions, not 6s to read. A heading plus a
+description, command, status and badges remains crowded inside one hero card.
+Remove the secondary reading tasks or demonstrate the point visually. Do not
+use a large heading to justify unreadable supporting claims.
+
+Do not count animated scrambling, an offscreen start, a morphing word or a
+clipped exit as readable time. During the hold, keep the words stable and avoid
+competing entrances, multiple counters or moving background details that pull
+attention away. A held composition can be engaging without constantly changing.
+When narration is present, show the matching idea as it is spoken; do not ask
+the viewer to read a different paragraph at the same time.
+
+Morphs and other transitions belong between reading windows. Transform the
+current focal shape into the next, let it settle, then reveal the next copy.
+Preserve enough visual continuity for the viewer to follow the change; piling
+both compositions on screen during a long overlap defeats the handoff.
+
 ## What the audit actually measures
 
 `pitch motion audit` samples every 0.25s, with optional ambient and drift
@@ -40,6 +80,8 @@ solely to increase the event count.
 | Seek determinism and scene visibility | Fix actual rendering errors. These fail the audit. |
 | Quiet stretches and event rate | Review against the treatment, not a universal density target. |
 | UI readability | An overview may stay wide. Enlarge the relevant detail when it needs to be read. |
+| Attention | One dominant subject and one new idea at a time, including during transitions. Remove or subordinate competing content. |
+| Reading windows | Essential text is fully visible and stable long enough to read at normal speed; entrances and exits are additional time. |
 | Continuity | Review meaning, composition, movement and sound; cuts need no persistent actor. |
 | Clipping and palette | Fix unintended clipping and undeclared palette differences. An intentional image crop is a composition choice. |
 

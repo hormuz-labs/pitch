@@ -5,7 +5,7 @@
  * an unanswerable card in the thread.
  */
 import { describe, expect, it } from 'vitest'
-import { parseAsk } from '../apps/api/src/studio/session.js'
+import { parseAsk, resolveAskSelections } from '../apps/api/src/studio/session.js'
 
 const question = (over: Record<string, unknown> = {}) => ({
   id: 'kind',
@@ -77,5 +77,67 @@ describe('parseAsk', () => {
       bind: 'videoType',
       options: [{ id: 'product-walkthrough' }, { id: 'teaser' }],
     })
+  })
+})
+
+describe('resolveAskSelections', () => {
+  const ask = parseAsk({
+    questions: [
+      question({
+        bind: 'videoType',
+        options: [
+          { id: 'walkthrough', label: 'Walkthrough' },
+          { id: 'teaser', label: 'Teaser' },
+        ],
+      }),
+      question({
+        id: 'features',
+        question: 'What should it cover?',
+        multi: true,
+        options: [
+          { id: 'search', label: 'Search' },
+          { id: 'sharing', label: 'Sharing' },
+        ],
+      }),
+    ],
+  })!
+
+  it('passes a freeform answer verbatim without inventing a structured binding', () => {
+    expect(
+      resolveAskSelections(ask, {
+        askEntryId: 'ask-1',
+        selections: [
+          { questionId: 'kind', optionIds: [], customText: 'A founder-led manifesto' },
+          { questionId: 'features', optionIds: ['search'], customText: 'Offline mode' },
+        ],
+      }),
+    ).toEqual({
+      text: 'What kind of launch video? → A founder-led manifesto\nWhat should it cover? → Search, Offline mode',
+      options: {},
+    })
+  })
+
+  it('retains structured bindings for listed choices', () => {
+    expect(
+      resolveAskSelections(ask, {
+        askEntryId: 'ask-1',
+        selections: [
+          { questionId: 'kind', optionIds: ['teaser'] },
+          { questionId: 'features', optionIds: ['sharing'] },
+        ],
+      }).options,
+    ).toEqual({ videoType: 'teaser' })
+  })
+
+  it('requires exactly one answer for single-choice questions', () => {
+    expect(() =>
+      resolveAskSelections(ask, {
+        askEntryId: 'ask-1',
+        selections: [
+          { questionId: 'kind', optionIds: ['teaser'], customText: 'Both' },
+          { questionId: 'features', optionIds: ['search'] },
+        ],
+      }),
+    ).toThrow('Choose an answer for What kind of launch video?')
   })
 })

@@ -10,12 +10,21 @@
  * ffmpeg is powerful enough to read and write anywhere on the host, so every
  * path here is resolved against the workspace and rejected if it escapes.
  */
+
+import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import { createLogger } from '@saas/shared'
 import * as storage from '@saas/storage'
+import {
+  MEDIA_REVIEW_MAX_BYTES,
+  MEDIA_REVIEW_VERSION,
+  reviewMedia,
+} from '../../../../.pi/lib/media-review.ts'
 import { resolveSymlinks } from '../../../../.pi/lib/paths.ts'
 import { transcribeWav } from '../../../../.pi/lib/whisper.ts'
 import { addOutput, projectRowFor } from '../projects/service.js'
@@ -24,6 +33,19 @@ import { registerHostAction } from '../studio/host-actions.js'
 import { fileUrl, type Workspace } from '../studio/paths.js'
 
 const logger = createLogger('studio:media')
+const execFileP = promisify(execFile)
+
+const REVIEW_MIME: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.ogg': 'audio/ogg',
+  '.flac': 'audio/flac',
+}
 
 /**
  * Resolve a workspace-relative path, refusing anything that escapes. ffmpeg
@@ -102,6 +124,80 @@ registerHostAction('media_probe', async (ws, params) => {
   ]
     .filter(Boolean)
     .join('\n')
+})
+
+registerHostAction('media_review', async (ws, params, ctx) => {
+  const rel = String(params.file ?? '')
+  const file = insideWorkspace(ws, rel)
+  const mimeType = REVIEW_MIME[path.extname(file).toLowerCase()]
+  if (!mimeType)
+    throw new Error(
+      'Review needs an audio or video file (MP4, MOV, WebM, MP3, WAV, M4A, AAC, OGG or FLAC).',
+    )
+  const purpose = params.purpose
+  if (purpose !== 'music' && purpose !== 'film') throw new Error('purpose must be music or film')
+  if (purpose === 'film' && !mimeType.startsWith('video/'))
+    throw new Error(
+      'Film review needs a video with its final soundtrack; use purpose music for an audio candidate.',
+    )
+  const brief = typeof params.brief === 'string' ? params.brief.trim() : ''
+  if (!brief || brief.length > 8000)
+    throw new Error('Provide a creative brief of 1–8000 characters.')
+  const info = await stat(file)
+  if (!info.isFile() || !info.size || info.size > MEDIA_REVIEW_MAX_BYTES)
+    throw new Error(
+      'Review media must be nonempty and at most 14 MiB. Prepare a compressed review copy or a relevant segment with pitch media ffmpeg; keep the original unchanged.',
+    )
+  const data = await readFile(file)
+  const model =
+    process.env.GEMINI_REVIEW_MODEL || process.env.GEMINI_VISION_MODEL || 'gemini-3-flash-preview'
+  const digest = createHash('sha256')
+    .update(data)
+    .update(JSON.stringify({ model, purpose, brief, mimeType, version: MEDIA_REVIEW_VERSION }))
+    .digest('hex')
+  const outRel = `review/media/${digest}.json`
+  const out = insideWorkspace(ws, outRel)
+  const cached = await readFile(out, 'utf8')
+    .then(JSON.parse)
+    .catch(() => null)
+  if (cached?.digest === digest && cached?.review)
+    return JSON.stringify({ ...cached, source: rel, cached: true, report: outRel })
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+  if (!apiKey)
+    throw new Error(
+      'GEMINI_API_KEY or GOOGLE_API_KEY is required for perceptual review; no review was completed.',
+    )
+  const { stdout } = await execFileP(
+    'ffprobe',
+    ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', file],
+    { signal: ctx.signal, timeout: 30_000 },
+  )
+  const duration = Number(JSON.parse(stdout).format?.duration)
+  const review = await reviewMedia({
+    apiKey,
+    model,
+    data,
+    mimeType,
+    purpose,
+    brief,
+    duration,
+    signal: ctx.signal,
+  })
+  const report = {
+    source: rel,
+    digest,
+    model,
+    purpose,
+    duration,
+    brief,
+    reviewedAt: new Date().toISOString(),
+    review,
+    scope:
+      'Model-based perceptual feedback on this file, not a technical gate or frame-perfect certification. Findings use file-relative seconds; verify suspected fast transitions with targeted frames.',
+  }
+  await mkdir(path.dirname(out), { recursive: true })
+  await writeFile(out, JSON.stringify(report, null, 2))
+  return JSON.stringify({ ...report, cached: false, report: outRel })
 })
 
 registerHostAction(

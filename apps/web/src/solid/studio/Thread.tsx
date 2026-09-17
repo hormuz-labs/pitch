@@ -1,4 +1,4 @@
-import { CornerUpLeft, Pencil } from 'lucide-solid'
+import { Pencil } from 'lucide-solid'
 import { createMemo, For, Show } from 'solid-js'
 import { QuestionCard } from './Ask'
 import { agentActivity } from './agent-activity'
@@ -189,14 +189,17 @@ export function Thread(props: {
   busy: boolean
   onAnswer?: (text: string, opts?: { answer?: AskAnswer }) => void
   onEdit?: (entry: Entry) => void
-  onSteer?: (entry: Entry) => void
 }) {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
   const activity = createMemo(() => agentActivity(props.entries, props.busy))
   return (
     <div class="thread">
-      <For each={props.entries.filter(e => e.role !== 'thinking')}>
+      <For
+        each={props.entries.filter(
+          e => e.role !== 'thinking' && e.pending !== 'queued' && e.pending !== 'steering',
+        )}
+      >
         {e => (
           <Show
             when={e.role === 'question'}
@@ -213,22 +216,13 @@ export function Thread(props: {
                             <AgentMarkdown text={e.text} />
                           </div>
                         ) : (
-                          <div class={`user-message${e.pending === 'queued' ? ' is-queued' : ''}`}>
+                          <div class="user-message">
                             <div class={`msg ${e.role}`}>
-                              <Show when={e.pending === 'queued'}>
-                                <span class="queued-label">Queued</span>
-                              </Show>
                               <span class="message-copy">{e.text}</span>
-                              <Show when={e.pending && e.pending !== 'queued'}>
+                              <Show when={e.pending}>
                                 {pending => <span class="message-state">{pending()}</span>}
                               </Show>
                             </div>
-                            <Show when={e.pending === 'queued'}>
-                              <button class="message-steer" onClick={() => props.onSteer?.(e)}>
-                                <CornerUpLeft size={12} />
-                                <span>Steer now</span>
-                              </button>
-                            </Show>
                             <Show
                               when={
                                 e.role === 'user' &&

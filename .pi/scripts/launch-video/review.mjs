@@ -218,7 +218,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
   return [k, v === undefined ? true : v];
 }));
 const pageArg = process.argv.slice(2).find(a => !a.startsWith("--")) ?? "index.html";
-const perShot = Math.max(1, Math.min(6, Number(args["per-shot"] ?? 3)));
+const perShot = Math.max(1, Math.min(6, Number(args["per-shot"] ?? 1)));
 const only = args.shots ? String(args.shots).split(",").map(s => s.trim()).filter(Boolean) : [];
 const times = args.times ? String(args.times).split(",").map(Number).filter(Number.isFinite) : [];
 const cols = Number(args.cols ?? 4);

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -51,4 +51,40 @@ describe('agent conversation contract', () => {
     )
     expect(ASK_USER_DESCRIPTION).toContain('without calling this tool')
   })
+
+  it.each([15, 30, 60])(
+    'treats a saved %ss runtime as a target on subsequent turns',
+    async durationSeconds => {
+      const ws = workspace()
+      writeFileSync(
+        path.join(ws.dir, 'project.json'),
+        JSON.stringify({ options: { durationSeconds } }),
+      )
+      const context = await buildContext(ws, { first: false })
+      expect(context).toContain(`Target runtime: about ${durationSeconds} seconds`)
+      expect(context).toContain("user's current brief takes precedence")
+      expect(context).toContain('shorter or moderately longer is welcome')
+      expect(context).toContain('Honor an explicitly exact duration, maximum or delivery slot')
+      expect(context).not.toContain('Required output duration: exactly')
+    },
+  )
+
+  it('uses the new turn duration over the saved preference', async () => {
+    const ws = workspace()
+    writeFileSync(
+      path.join(ws.dir, 'project.json'),
+      JSON.stringify({ options: { durationSeconds: 15 } }),
+    )
+    const context = await buildContext(ws, { first: false, options: { durationSeconds: 45 } })
+    expect(context).toContain('Target runtime: about 45 seconds')
+    expect(context).not.toContain('Target runtime: about 15 seconds')
+  })
+
+  it.each([undefined, 0, -15, Number.NaN, Number.POSITIVE_INFINITY])(
+    'does not manufacture a target from %s',
+    async durationSeconds => {
+      const context = await buildContext(workspace(), { first: true, options: { durationSeconds } })
+      expect(context).not.toContain('Target runtime:')
+    },
+  )
 })

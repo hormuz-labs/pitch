@@ -1,10 +1,8 @@
 /**
  * Which moments of a film to look at.
  *
- * Three frames per shot by default: the entrance settled (20%), the second act
- * (55%) and the exit beginning (90%). Together they say whether a shot has
- * three acts or one, and they catch what the audit's pixel counts cannot —
- * clipped text, an element half off-canvas, words over a busy image.
+ * One representative settled frame per shot by default. Extra samples are
+ * opt-in for a specific uncertainty, not a requirement to inspect every frame.
  */
 
 /** Sample fractions of a shot for n frames, kept off the cut on both sides. */
@@ -20,12 +18,12 @@ export function fractionsFor(n) {
  * @param {{id:string,type:string,dur:number}[]} p.shots   from window.SHOTS
  * @param {{label:string,time:number}[]} p.cues            real starts from window.__CUES()
  * @param {number} p.duration                              window.__DURATION()
- * @param {number} [p.perShot]                             frames per shot (default 3)
+ * @param {number} [p.perShot]                             frames per shot (default 1)
  * @param {string[]} [p.only]                              shot ids to review (default all)
  * @param {number[]} [p.times]                             explicit seconds, added to the plan
  * @returns {{t:number, shot:string|null, type:string|null, pct:number|null}[]} sorted by t
  */
-export function planSamples({ shots, cues, duration, perShot = 3, only = [], times = [] }) {
+export function planSamples({ shots, cues, duration, perShot = 1, only = [], times = [] }) {
   const starts = new Map(cues.map(c => [c.label, c.time]));
   // Fall back to cumulative durations for a shot whose label is missing.
   let clock = 0;

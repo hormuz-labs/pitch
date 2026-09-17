@@ -386,14 +386,28 @@ export function useProject(id: string | undefined) {
         const received = current.some(entry => entry.id === result.entryId)
         return current.flatMap(entry => {
           if (entry.id !== localEntryId) return [entry]
-          return received ? [] : [{ ...entry, id: result.entryId }]
+          return received
+            ? []
+            : [
+                {
+                  ...entry,
+                  id: result.entryId,
+                  pending:
+                    result.delivery === 'queued'
+                      ? ('queued' as const)
+                      : result.delivery === 'steered'
+                        ? ('steering' as const)
+                        : undefined,
+                },
+              ]
         })
       })
       window.dispatchEvent(new Event('pitch:projects-changed'))
     } catch (err: any) {
       if (!wasBusy) setBusy(false)
+      setDraft(current => current || text)
       setEntries(v => [
-        ...v,
+        ...v.filter(entry => entry.id !== localEntryId),
         {
           id: `err-${Date.now()}`,
           role: 'assistant',
@@ -531,6 +545,13 @@ export function useProject(id: string | undefined) {
     steerQueued: async (entryId: string) => {
       if (!id) return
       await studio.steerQueued(await getToken(), id, entryId)
+      setEntries(current =>
+        current.map(entry =>
+          entry.id === entryId && entry.pending === 'queued'
+            ? { ...entry, pending: 'steering' as const }
+            : entry,
+        ),
+      )
     },
     rollback: async (entry: Entry) => {
       if (!id || busy() || !entry.sessionEntryId || !entry.checkpointId) return

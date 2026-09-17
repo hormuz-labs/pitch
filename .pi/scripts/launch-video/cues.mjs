@@ -117,5 +117,5 @@ if (CHECK) {
   const missing = data.shots.filter((s) => !byLabel.has(s.id));
   if (missing.length) console.log(`⚠ shots without a timeline label: ${missing.map((s) => s.id).join(", ")}`);
   console.log(`   ${out} refreshed; no separate cues call is needed for this cut.`);
-  console.log(`   The preview shows this cut. While building, check each added shot; review early only for a specific visual uncertainty. Once the sequence is complete, audit + review the film, batch fixes, then review --shots <changed-ids>. Audio-only edits need only motion mix.`);
+  console.log(`   The preview shows this cut. Check the complete film with one compact contact sheet; extra frames only for a specific unresolved issue. Launch MP4 export belongs to the user. Audio-only edits need only motion mix.`);
 }
