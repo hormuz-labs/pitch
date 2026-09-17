@@ -36,8 +36,9 @@ router.get('/', async (req, res) => {
   if (!userId) return
 
   try {
-    const [summary, projects] = await Promise.all([
+    const [summary, availableBalance, projects] = await Promise.all([
       db.getCreditSummary(userId),
+      db.getAvailableCreditBalance(userId),
       db.prisma.project.findMany({
         where: {
           userId,
@@ -60,6 +61,7 @@ router.get('/', async (req, res) => {
     ])
     res.json({
       ...summary,
+      balance: availableBalance,
       usage: {
         credits: projects.reduce((total, project) => total + project.creditsCharged, 0),
         usd: projects.reduce((total, project) => total + project.usageUsd, 0),

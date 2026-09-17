@@ -25,6 +25,7 @@ import { deckUpload, modeOf, parseUpload } from '../flows/deck/index.js'
 import { stageMusic } from '../flows/launch-video/index.js'
 import { download, extOf } from '../flows/recording-edit/index.js'
 import type { Description, TurnInput, UploadRef } from '../flows/types.js'
+import { styleDirection } from '../projects/styles.js'
 import { describeBeat, readTimeline, scenesFromTimeline } from '../render/utils/beats.js'
 import type { Workspace } from '../studio/paths.js'
 import { artifactKind, describeWorkspace, hasArtifact, RELEVANT } from './describe.js'
@@ -169,6 +170,13 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       ? `New project "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}`
       : `You are continuing "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}\n\nIf the message is actionable, apply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the pitch media commands before regenerating anything.`,
   )
+
+  if (typeof options.durationSeconds === 'number')
+    parts.push(
+      `Required output duration: exactly ${options.durationSeconds} seconds. Treat this as a hard requirement when planning, scaffolding, authoring and verifying the artifact; do not substitute a pipeline default.`,
+    )
+  const direction = styleDirection(options.videoType)
+  if (direction) parts.push(direction)
 
   if (turn.slide) parts.push(`The user is looking at slide ${turn.slide}.`)
 

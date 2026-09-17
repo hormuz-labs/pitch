@@ -63,8 +63,53 @@ export function creditsOwed(usd: number, charged: number): number {
   return Math.max(0, Math.floor(usd / CREDIT_USD) - charged)
 }
 
+export function projectedCreditsOwed(
+  usageSoFarUsd: number,
+  charged: number,
+  pending: TurnUsage,
+  multiplier = 1,
+  margin = platformMargin(),
+): number {
+  return creditsOwed(usageSoFarUsd + usageUsd(pending, multiplier, margin), charged)
+}
+
 export function noLossCredits(billableCostUsd: number): number {
   return Math.ceil(Math.max(0, billableCostUsd) / MIN_REVENUE_USD_PER_CREDIT)
+}
+
+const VIDEO_KIND_MULTIPLIERS: Record<string, number> = {
+  teaser: 0.65,
+  cinematic: 1.25,
+  'motion-3d': 1.35,
+  'product-walkthrough': 1,
+  'full-walkthrough': 1.25,
+  'feature-spotlight': 0.9,
+  'onboarding-tour': 1.15,
+  'how-to': 1.2,
+  'sales-demo': 1,
+  'generated-video': 1.5,
+  'recording-edit': 0.8,
+}
+
+export function generationReservationCredits(
+  baseCredits: number,
+  kind: string,
+  durationSeconds: number,
+): number {
+  const duration = Math.max(10, Math.min(300, durationSeconds)) / 30
+  const multiplier = VIDEO_KIND_MULTIPLIERS[kind] ?? 1
+  return Math.max(MIN_BALANCE, Math.ceil(baseCredits * duration * multiplier))
+}
+
+export function generationReservationFromEstimate(
+  estimate: { total: number; harness: number; video?: number },
+  kind: string,
+  durationSeconds: number,
+): number {
+  return Math.max(
+    generationReservationCredits(estimate.harness, kind, durationSeconds),
+    estimate.video ?? estimate.total,
+  )
 }
 
 /**
@@ -78,23 +123,59 @@ export async function chargeTurn(
   modelSpec = p.options?.model,
   providerUsd = 0,
   productCredits = 0,
+  reservationKey?: string,
 ): Promise<number> {
   const computeSeconds = takeComputeSeconds(workspaceOf(p).internal)
   const multiplier = modelSpec ? modelCreditMultiplier(modelSpec) : 1
   const margin = platformMargin()
   const measuredUsd = usageUsd({ modelUsd, computeSeconds, providerUsd }, multiplier, margin)
-  const usd = productCredits
-    ? Math.max(productCredits, noLossCredits(measuredUsd)) * CREDIT_USD
-    : measuredUsd
-  if (usd <= 0) return 0
+  if (measuredUsd <= 0 && productCredits <= 0) return 0
 
   const row = await db.prisma.project
     .findUnique({ where: { id: p.id }, select: { usageUsd: true, creditsCharged: true } })
     .catch(() => null)
   if (!row) return 0
 
-  const total = row.usageUsd + usd
-  const owed = creditsOwed(total, row.creditsCharged)
+  const reservation = reservationKey ? await db.getCreditReservation(reservationKey) : null
+  const pendingReservation = reservation?.status === 'pending'
+  const billedUsd =
+    productCredits && !pendingReservation
+      ? Math.max(productCredits, noLossCredits(measuredUsd)) * CREDIT_USD
+      : measuredUsd
+  const total = row.usageUsd + billedUsd
+  const measuredOwed = creditsOwed(total, row.creditsCharged)
+  const legacyProductOwed = productCredits
+    ? Math.max(productCredits, noLossCredits(measuredUsd))
+    : measuredOwed
+  const actualGenerationOwed = providerUsd
+    ? Math.max(
+        creditsOwed(
+          row.usageUsd + usageUsd({ modelUsd, computeSeconds }, multiplier, margin),
+          row.creditsCharged,
+        ),
+        noLossCredits(measuredUsd),
+      )
+    : measuredOwed
+  const owed = pendingReservation ? actualGenerationOwed : legacyProductOwed
+
+  if (reservationKey && pendingReservation) {
+    try {
+      await db.settleCreditReservation(reservationKey, owed)
+    } catch (err) {
+      logger.warn({ err, projectId: p.id }, 'reservation settlement failed')
+      return 0
+    }
+  } else if (owed > 0) {
+    try {
+      await db.deductCredit(p.userId, owed, `Usage: ${p.title}`, {
+        projectId: p.id,
+        channel,
+      })
+    } catch (err) {
+      logger.warn({ err, projectId: p.id }, 'usage charge failed')
+      return 0
+    }
+  }
 
   await db.prisma.project
     .update({
@@ -104,12 +185,6 @@ export async function chargeTurn(
     .catch(err => logger.warn({ err, projectId: p.id }, 'could not record usage'))
 
   if (owed > 0) {
-    await db
-      .deductCredit(p.userId, owed, `Usage: ${p.title}`, {
-        projectId: p.id,
-        channel,
-      })
-      .catch(err => logger.warn({ err, projectId: p.id }, 'usage charge failed'))
     logger.info(
       {
         projectId: p.id,

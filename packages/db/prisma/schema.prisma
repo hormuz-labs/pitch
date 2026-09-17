@@ -38,6 +38,7 @@ model UserProfile {
   subscriptions        Subscription[]
   topUpPurchases       TopUpPurchase[]
   creditTransactions   CreditTransaction[]
+  creditReservations   CreditReservation[]
   affiliate            Affiliate?
   browserProfile       BrowserProfile?
   browserSessions      BrowserSession[]
@@ -207,6 +208,26 @@ model CreditTransaction {
   @@index([userId, createdAt])
 }
 
+model CreditReservation {
+  id              String      @id() @default(cuid())
+  key             String      @unique()
+  userId          String
+  projectId       String
+  channel         String      @default("product")
+  kind            String
+  durationSeconds Int?
+  credits         Int
+  status          String      @default("pending")
+  settledCredits  Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt()
+  userProfile     UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([projectId, status])
+}
+
 model Affiliate {
   id          String                @id() @default(cuid())
   userId      String                @unique()
@@ -357,6 +378,7 @@ model Project {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt()
   creditTransactions    CreditTransaction[]
+  creditReservations    CreditReservation[]
 
   @@unique([userId, flow, name])
   @@index([userId])

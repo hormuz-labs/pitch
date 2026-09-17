@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { findStyle } from './styles.js'
 
 const STUDIO_ASPECT_RATIOS = new Set(['16:9', '9:16', '1:1', '4:5'])
 
@@ -26,6 +27,8 @@ export function normalizeCreationOptions(value: unknown): Record<string, any> {
   if ('skill' in options && !STUDIO_SKILLS.has(options.skill)) {
     delete options.skill
   }
+
+  if ('videoType' in options && !findStyle(options.videoType)) delete options.videoType
 
   if ('narrationVoice' in options) {
     const voice = options.narrationVoice
@@ -63,4 +66,33 @@ export function normalizeCreationOptions(value: unknown): Record<string, any> {
   }
 
   return options
+}
+
+/** Pull a duration from a user brief or an answer emitted by the question card. */
+export function durationOptionFromText(text: string): { durationSeconds: number } | undefined {
+  const lines = text.split('\n')
+  const duration = /(?:~|about\s*)?(\d{1,3})\s*(?:s|sec(?:ond)?s?)\b/i
+  const relevant = lines.find(line => /(?:length|duration|long)/i.test(line) && duration.test(line))
+  const match = duration.exec(relevant ?? text)
+  if (!match) return undefined
+  const durationSeconds = Number(match[1])
+  return durationSeconds >= 3 && durationSeconds <= 300 ? { durationSeconds } : undefined
+}
+
+export function videoTypeOptionFromText(text: string): { videoType: string } | undefined {
+  const normalized = text.toLowerCase()
+  const style = [
+    'product-walkthrough',
+    'teaser',
+    'cinematic',
+    'motion-3d',
+    'full-walkthrough',
+    'feature-spotlight',
+    'onboarding-tour',
+    'how-to',
+    'sales-demo',
+  ]
+    .map(id => findStyle(id)!)
+    .find(item => normalized.includes(item.label.toLowerCase()))
+  return style ? { videoType: style.id } : undefined
 }

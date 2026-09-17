@@ -5,26 +5,11 @@
  * global registry rather than importing API internals.
  *
  * Every action receives the workspace it was called from (resolved from the
- * tool's cwd), so it can authorise against the owning user and job, and a
- * context for the two things a long action needs: a progress line and a
- * cancellation signal.
- *
- * An action registered with `remote: true` is one that burns CPU — a
- * capture, an encode, a transcription. On a worker in remote mode
- * (worker/config.ts → STUDIO_RENDER) the registry hands such a call to the
- * dispatcher, which queues it as a RenderJob for the render tier and waits;
- * the action's own code then runs on a render pod against the restored
- * checkpoint, and the files it wrote come back into this workspace. The
- * action does not know where it ran. Everywhere else the action runs here.
+ * tool's cwd), so it can authorise against the owning user and job.
  */
-import { parseInternal, type Workspace } from './paths.js'
 
-export interface HostContext {
-  /** Where a long action is (stage name, optional percent) for whoever is watching. */
-  progress?: (stage: string, percent?: number) => void
-  /** Aborted when the caller gave up: an export cancelled, a job withdrawn. */
-  signal?: AbortSignal
-}
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { parseInternal, type Workspace } from './paths.js'
 
 export type HostAction = (
   ws: Workspace,
@@ -32,18 +17,26 @@ export type HostAction = (
   ctx: HostContext,
 ) => Promise<string>
 
+export interface HostContext {
+  progress?: (stage: string, percent?: number) => void
+  signal?: AbortSignal
+}
+
 export interface HostActionOptions {
-  /** The action is heavy and may run on the render tier instead of here. */
   remote?: boolean
 }
 
-/** What a remote dispatcher does with a call: run it elsewhere and return the result. */
 export type RemoteDispatcher = (
   ws: Workspace,
   name: string,
   params: Record<string, any>,
   ctx: HostContext,
 ) => Promise<string>
+
+interface Entry {
+  fn: HostAction
+  remote: boolean
+}
 
 /**
  * Wall-clock seconds spent in host actions, per workspace.
@@ -56,6 +49,9 @@ export type RemoteDispatcher = (
  * the project that pays for the machine.
  */
 const spent = new Map<string, number>()
+const active = new Map<string, Set<{ controller: AbortController; started: number }>>()
+const signalContext = new AsyncLocalStorage<AbortSignal>()
+let beforeCall: ((ws: Workspace, name: string) => Promise<void>) | null = null
 
 /** Seconds of host compute this workspace has run up since the last drain. */
 export function takeComputeSeconds(internal: string): number {
@@ -64,9 +60,27 @@ export function takeComputeSeconds(internal: string): number {
   return seconds
 }
 
-interface Entry {
-  fn: HostAction
-  remote: boolean
+/** Host compute accrued without draining it, for live affordability checks. */
+export function peekComputeSeconds(internal: string): number {
+  const running = [...(active.get(internal) ?? [])].reduce(
+    (sum, call) => sum + (Date.now() - call.started) / 1000,
+    0,
+  )
+  return (spent.get(internal) ?? 0) + running
+}
+
+export function abortHostActions(internal: string): void {
+  for (const call of active.get(internal) ?? []) call.controller.abort()
+}
+
+export function hostActionSignal(): AbortSignal | undefined {
+  return signalContext.getStore()
+}
+
+export function setHostActionGuard(
+  guard: ((ws: Workspace, name: string) => Promise<void>) | null,
+): void {
+  beforeCall = guard
 }
 
 interface Registry {
@@ -103,26 +117,37 @@ function registry(): Registry {
       async invoke(ws, name, params, ctx = {}) {
         const entry = actions.get(name)
         if (!entry) throw new Error(`studio host action not available: ${name}`)
+        await beforeCall?.(ws, name)
         const nested = (depth.get(ws.internal) ?? 0) > 0
         depth.set(ws.internal, (depth.get(ws.internal) ?? 0) + 1)
         const started = Date.now()
+        const controller = new AbortController()
+        const onAbort = () => controller.abort()
+        ctx.signal?.addEventListener('abort', onAbort, { once: true })
+        if (ctx.signal?.aborted) controller.abort()
+        const calls = active.get(ws.internal) ?? new Set()
+        const call = { controller, started }
+        if (!nested) {
+          calls.add(call)
+          active.set(ws.internal, calls)
+        }
+        const effective = { ...ctx, signal: controller.signal }
         try {
-          // The dispatcher exists only on a worker in remote mode, so a heavy
-          // action reached from there — directly or from inside a light one —
-          // goes to the render tier; on the render pod itself there is none.
-          if (entry.remote && reg.dispatcher)
-            return await reg.dispatcher(ws, name, params ?? {}, ctx)
-          return await entry.fn(ws, params ?? {}, ctx)
+          return await signalContext.run(controller.signal, async () => {
+            if (entry.remote && reg.dispatcher)
+              return reg.dispatcher(ws, name, params ?? {}, effective)
+            return entry.fn(ws, params ?? {}, effective)
+          })
         } finally {
+          ctx.signal?.removeEventListener('abort', onAbort)
           const d = (depth.get(ws.internal) ?? 1) - 1
           if (d > 0) depth.set(ws.internal, d)
           else depth.delete(ws.internal)
-          // Metered even when the action throws: a render that failed after
-          // four minutes still burned four minutes of machine. Only the
-          // outermost call counts, so an action calling another is not billed twice.
           if (!nested) {
             const seconds = (Date.now() - started) / 1000
             spent.set(ws.internal, (spent.get(ws.internal) ?? 0) + seconds)
+            calls.delete(call)
+            if (!calls.size) active.delete(ws.internal)
           }
         }
       },

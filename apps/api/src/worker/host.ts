@@ -37,6 +37,7 @@ import {
   listAssets as listAssetsOf,
   type ThumbRequest,
 } from '../projects/assets.js'
+import { durationOptionFromText, videoTypeOptionFromText } from '../projects/creation-options.js'
 import { cancelExport, type ExportStatus, exportProject, getExport } from '../projects/export.js'
 import {
   addOutput,
@@ -49,13 +50,19 @@ import {
   workspaceOf,
 } from '../projects/rows.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
-import { chargeTurn } from '../projects/usage.js'
+import {
+  chargeTurn,
+  generationReservationFromEstimate,
+  projectedCreditsOwed,
+} from '../projects/usage.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import { deleteWorkspaceHistory } from '../studio/history.js'
+import { peekComputeSeconds, setHostActionGuard } from '../studio/host-actions.js'
 import {
+  estimatedModelCredits,
+  modelCreditMultiplier,
   selectStudioModel,
   videoGenerationCostUsd,
-  videoGenerationCredits,
 } from '../studio/model-picker.js'
 import { PROJECTS_DIR, type Workspace } from '../studio/paths.js'
 import {
@@ -66,8 +73,10 @@ import {
   listStudioModels,
   onSessionBusy,
   type PromptDelivery,
+  peekModelCost,
   peekSession,
   promptSession,
+  resolveAskAnswer,
   rollbackSession,
   steerQueuedPrompt,
   stopSession,
@@ -86,6 +95,58 @@ import { release as releaseLease } from './lease.js'
 import { currentEpoch, setDraining } from './registry.js'
 
 const logger = createLogger('studio:host')
+const BILLABLE_GENERATION_ACTIONS = new Set([
+  'elevenlabs_voiceover',
+  'elevenlabs_music',
+  'elevenlabs_sound',
+  'demo_record_start',
+  'demo_render',
+  'edit_render',
+  'media_ffmpeg',
+  'video_generate',
+])
+const activatedReservations = new Set<string>()
+
+setHostActionGuard(async (ws, name) => {
+  if (!BILLABLE_GENERATION_ACTIONS.has(name)) return
+  const row = await db.prisma.project.findFirst({ where: { userId: ws.userId, name: ws.name } })
+  if (!row) return
+  const p = parseRow(row)
+  const kind = generationKind(p.options)
+  if (!kind) return
+  const key = `project:${p.id}:initial-generation`
+  const existing = await db.getCreditReservation(key)
+  if (existing?.status === 'pending') {
+    activatedReservations.add(key)
+    return
+  }
+  if (existing?.status === 'settled') return
+  const model = String(p.options.model ?? '')
+  const duration = Number(p.options.durationSeconds ?? 30)
+  const credits = generationReservationFromEstimate(
+    estimatedModelCredits(model, duration),
+    kind,
+    duration,
+  )
+  try {
+    await db.reserveCredits({
+      key,
+      userId: p.userId,
+      projectId: p.id,
+      channel: p.source === 'api' ? 'api' : 'product',
+      kind,
+      durationSeconds: duration,
+      credits,
+    })
+    activatedReservations.add(key)
+  } catch {
+    emitProjectEvent(p.id, {
+      type: 'credit_exhausted',
+      message: 'You need more credits to start generation.',
+    })
+    throw new Error('Insufficient credits. Add a one-time top-up to continue.')
+  }
+})
 
 export class NotOwnerError extends Error {
   status = 409
@@ -264,6 +325,7 @@ export interface PromptOptions {
   uploads?: UploadRef[]
   /** Extra per-turn option overrides (e.g. a newly picked music bed). */
   options?: Record<string, any>
+  answer?: import('../studio/session.js').AskAnswer
   /** This turn's model pick; overrides the one stored in the project's options. */
   model?: string
   /** While busy, queue after the active turn or steer it at the next model boundary. */
@@ -300,7 +362,61 @@ export async function prompt(
   const agent = getAgent()
   const ws = h.ws
   const first = opts.first ?? false
+  const resolvedAnswer = opts.answer ? resolveAskAnswer(p.id, opts.answer) : null
+  if (resolvedAnswer) {
+    text = resolvedAnswer.text
+    opts.displayText = resolvedAnswer.text
+  }
+  const inferredOptions = {
+    ...durationOptionFromText(text),
+    ...videoTypeOptionFromText(text),
+    ...resolvedAnswer?.options,
+  }
+  if (Object.keys(inferredOptions).length) {
+    p.options = { ...p.options, ...inferredOptions }
+    await Promise.all([
+      db.prisma.project.update({
+        where: { id: p.id },
+        data: { options: JSON.stringify(p.options) },
+      }),
+      agent.prepare(ws, p.options, []),
+    ])
+  }
   const model = selectStudioModel(await listStudioModels(p.userId), opts.model, p.options?.model)
+  const kind = generationKind(p.options)
+  const reservationKey = kind ? `project:${p.id}:initial-generation` : undefined
+  const resolvedBrief =
+    typeof p.options.videoType === 'string' ||
+    ['generated-video', 'recording-edit'].includes(String(p.options.skill ?? ''))
+  if (reservationKey && resolvedBrief) {
+    const resolvedKind = kind!
+    const existing = await db.getCreditReservation(reservationKey)
+    if (!existing || existing.status === 'released') {
+      const duration = Number(p.options.durationSeconds ?? 30)
+      const credits = generationReservationFromEstimate(
+        estimatedModelCredits(model, duration),
+        resolvedKind,
+        duration,
+      )
+      try {
+        await db.reserveCredits({
+          key: reservationKey,
+          userId: p.userId,
+          projectId: p.id,
+          channel: opts.billingChannel ?? (p.source === 'api' ? 'api' : 'product'),
+          kind: resolvedKind,
+          durationSeconds: duration,
+          credits,
+        })
+      } catch {
+        const balance = await db.getAvailableCreditBalance(p.userId)
+        throw Object.assign(new Error(`Insufficient credits (balance: ${balance})`), {
+          status: 402,
+          balance,
+        })
+      }
+    }
+  }
   if (opts.uploads?.length && !first)
     await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
   const context = () =>
@@ -319,6 +435,16 @@ export async function prompt(
       .update({ where: { id: p.id }, data: { options: JSON.stringify(p.options) } })
       .catch(() => {})
   }
+  let watchedTurn = 0
+  let stopWatchingReservation: (() => void) | null = null
+  if (reservationKey)
+    stopWatchingReservation = onProjectEvent(p.id, (event: StudioEvent) => {
+      if (event.type === 'idle' && event.turn === watchedTurn) stopWatchingReservation?.()
+      if (event.type === 'tool' && event.name !== 'ask_user') {
+        activatedReservations.add(reservationKey)
+        stopWatchingReservation?.()
+      }
+    })
   const result = await promptSession(
     {
       projectId: p.id,
@@ -337,14 +463,93 @@ export async function prompt(
     opts.delivery,
     opts.displayText,
   )
+  watchedTurn = result.turn
   markDirty(h)
-  if (result.delivery !== 'steered') billTurn(p, result.turn, opts.billingChannel, model, first)
+  if (result.delivery !== 'steered') {
+    billTurn(p, result.turn, opts.billingChannel, model, reservationKey)
+    guardTurnCredits(p, result.turn, model, reservationKey)
+  }
+  if (result.delivery === 'steered') stopWatchingReservation?.()
   if (first) followFirstTurn(p, result.turn)
   if (p.lastError)
     await db.prisma.project
       .update({ where: { id: p.id }, data: { lastError: null } })
       .catch(() => {})
   return { delivery: result.delivery, turn: result.turn, entryId: result.entryId }
+}
+
+function generationKind(options: Record<string, any>): string | null {
+  if (typeof options.videoType === 'string') return options.videoType
+  return ['launch-video', 'demo-video', 'generated-video', 'recording-edit'].includes(options.skill)
+    ? options.skill
+    : null
+}
+
+/** Stop between model/tool boundaries when the accrued turn can no longer be paid for. */
+function guardTurnCredits(
+  p: ProjectRow,
+  turn: number,
+  model: string,
+  reservationKey?: string,
+): void {
+  let checking = false
+  let stopped = false
+  const off = onProjectEvent(p.id, (ev: StudioEvent) => {
+    if (ev.type !== 'idle' || ev.turn !== turn) return
+    stopped = true
+    clearInterval(timer)
+    off()
+  })
+  const check = async () => {
+    if (checking || stopped) return
+    checking = true
+    try {
+      const [balance, ledgerBalance, row, reservation] = await Promise.all([
+        db.getAvailableCreditBalance(p.userId),
+        db.getCreditBalance(p.userId),
+        db.prisma.project.findUnique({
+          where: { id: p.id },
+          select: { usageUsd: true, creditsCharged: true },
+        }),
+        reservationKey ? db.getCreditReservation(reservationKey) : null,
+      ])
+      if (stopped) return
+      if (!row) return
+      const owed = projectedCreditsOwed(
+        row.usageUsd,
+        row.creditsCharged,
+        {
+          modelUsd: peekModelCost(p.id),
+          computeSeconds: peekComputeSeconds(workspaceOf(p).internal),
+        },
+        modelCreditMultiplier(model),
+      )
+      if (owed <= 0) return
+      const allowance = reservation?.status === 'pending' ? reservation.credits + balance : balance
+      emitProjectEvent(p.id, {
+        type: 'credit_balance',
+        balance: Math.max(
+          0,
+          ledgerBalance -
+            (reservation?.status === 'pending' ? reservation.credits : 0) -
+            Math.max(0, owed - (reservation?.credits ?? 0)),
+        ),
+      })
+      if (owed <= allowance) return
+      stopped = true
+      emitProjectEvent(p.id, {
+        type: 'credit_exhausted',
+        message: 'Your credits ran out, so generation was stopped.',
+      })
+      await stopSession(p.id)
+    } catch (err) {
+      logger.warn({ err, projectId: p.id }, 'could not check live credit balance')
+    } finally {
+      checking = false
+    }
+  }
+  const timer = setInterval(() => void check(), 1000)
+  void check()
 }
 
 /**
@@ -357,18 +562,44 @@ function billTurn(
   turn: number,
   channel: 'product' | 'api' | 'discord' = p.source === 'api' ? 'api' : 'product',
   model?: string,
-  first = false,
+  reservationKey?: string,
 ): void {
   const off = onProjectEvent(p.id, (ev: StudioEvent) => {
     if (ev.type !== 'idle' || ev.turn !== turn) return
     off()
-    const providerUsd =
-      first && model ? videoGenerationCostUsd(model, Number(p.options?.durationSeconds ?? 30)) : 0
-    const productCredits =
-      first && model ? videoGenerationCredits(model, Number(p.options?.durationSeconds ?? 30)) : 0
-    void chargeTurn(p, takeModelCost(p.id), channel, model, providerUsd, productCredits).catch(
-      err => logger.warn({ err, projectId: p.id }, 'could not bill the turn'),
-    )
+    void (async () => {
+      const reservation = reservationKey ? await db.getCreditReservation(reservationKey) : null
+      const pendingKey =
+        reservation?.status === 'pending' &&
+        reservationKey &&
+        activatedReservations.has(reservationKey)
+          ? reservationKey
+          : undefined
+      const providerUsd =
+        pendingKey && model
+          ? videoGenerationCostUsd(model, Number(p.options?.durationSeconds ?? 30))
+          : 0
+      const modelUsd = takeModelCost(p.id)
+      if (reservationKey && reservation?.status === 'pending' && !pendingKey)
+        await db.releaseCreditReservation(reservationKey)
+      await chargeTurn(
+        p,
+        modelUsd,
+        channel,
+        model,
+        providerUsd,
+        pendingKey ? (reservation?.credits ?? 0) : 0,
+        pendingKey,
+      )
+      emitProjectEvent(p.id, {
+        type: 'credit_balance',
+        balance: await db.getCreditBalance(p.userId),
+      })
+    })()
+      .catch(err => logger.warn({ err, projectId: p.id }, 'could not bill the turn'))
+      .finally(() => {
+        if (reservationKey) activatedReservations.delete(reservationKey)
+      })
   })
 }
 

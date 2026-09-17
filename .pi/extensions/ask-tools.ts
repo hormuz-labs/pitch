@@ -22,6 +22,9 @@ import { Type } from '@sinclair/typebox'
 import { text } from '../lib/studio-host.ts'
 
 const Option = Type.Object({
+  id: Type.Optional(
+    Type.String({ description: 'Stable kebab-case option id, e.g. "product-walkthrough"' }),
+  ),
   label: Type.String({
     description: 'The words on the button — a few, in the user\'s language, e.g. "Cinematic"',
   }),
@@ -34,6 +37,12 @@ const Option = Type.Object({
 
 const Question = Type.Object({
   id: Type.String({ description: 'Short key for this question, e.g. "style" or "focus"' }),
+  bind: Type.Optional(
+    Type.Union([Type.Literal('videoType'), Type.Literal('durationSeconds')], {
+      description:
+        'Persist this consequential answer as structured project metadata. Use videoType for the kind and durationSeconds for length.',
+    }),
+  ),
   question: Type.String({ description: 'The question itself, one line' }),
   options: Type.Array(Option, {
     description:
@@ -47,7 +56,7 @@ const Question = Type.Object({
 })
 
 export const ASK_USER_DESCRIPTION =
-  'Ask the user up to three questions as CLICKABLE OPTIONS in the chat. Call this only after the user explicitly requests a named outcome and a consequential missing choice would materially change the result. Greetings, thanks, small talk and capability questions on their own are not briefs: reply briefly without calling this tool, inferring an outcome from project options or loading a skill. Answers to your pending question and permission to proceed continue the existing brief. Conversational turns do not consume the first actionable request. For an actionable brief, ask what kind only when the request leaves materially different outcomes possible, or ask which real part of a known product the piece should cover. Ask ALL necessary questions in ONE call, give every question a first option you would pick yourself, then END YOUR TURN and wait: the answer arrives as their next message. Never ask about the look, the moves, the colours, the fonts or the music, and never ask twice.'
+  'Ask the user up to three questions as CLICKABLE OPTIONS in the chat. Call this only after the user explicitly requests a named outcome and a consequential missing choice would materially change the result. Bind kind questions to videoType and length questions to durationSeconds, and give every option a stable kebab-case id. Greetings, thanks, small talk and capability questions on their own are not briefs: reply briefly without calling this tool, inferring an outcome from project options or loading a skill. Answers to your pending question and permission to proceed continue the existing brief. Conversational turns do not consume the first actionable request. For an actionable brief, ask what kind only when the request leaves materially different outcomes possible, or ask which real part of a known product the piece should cover. Ask ALL necessary questions in ONE call, give every question a first option you would pick yourself, then END YOUR TURN and wait: the answer arrives as their next message. Never ask about the look, the moves, the colours, the fonts or the music, and never ask twice.'
 
 export default function askTools(pi: ExtensionAPI) {
   pi.registerTool({

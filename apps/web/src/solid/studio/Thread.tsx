@@ -1,9 +1,10 @@
 import { CornerUpLeft, Pencil } from 'lucide-solid'
 import { createMemo, For, Show } from 'solid-js'
-import { AskStepper } from './Ask'
+import { QuestionCard } from './Ask'
 import { agentActivity } from './agent-activity'
+import { ReasoningSteps } from './ReasoningSteps'
 import { ThinkingOrb } from './ThinkingOrb'
-import type { Entry } from './types'
+import type { AskAnswer, Entry } from './types'
 
 type Inline = { kind: 'text' | 'strong' | 'em' | 'code' | 'link'; text: string; href?: string }
 function inline(text: string): Inline[] {
@@ -187,13 +188,19 @@ function AgentMarkdown(props: { text: string }) {
 export function Thread(props: {
   entries: Entry[]
   busy: boolean
-  onAnswer?: (text: string) => void
+  onAnswer?: (text: string, opts?: { answer?: AskAnswer }) => void
   onEdit?: (entry: Entry) => void
   onSteer?: (entry: Entry) => void
 }) {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
   const activity = createMemo(() => agentActivity(props.entries, props.busy))
+  const activeTurn = createMemo(() => {
+    const entries = props.entries.filter(entry => !entry.pending)
+    const prompt = entries.findLastIndex(entry => entry.role === 'user')
+    return entries.slice(prompt + 1)
+  })
+  const activeEntryIds = createMemo(() => new Set(activeTurn().map(entry => entry.id)))
   return (
     <div class="thread">
       <For each={props.entries.filter(e => e.role !== 'thinking')}>
@@ -202,69 +209,86 @@ export function Thread(props: {
             when={e.role === 'question'}
             fallback={
               <Show
-                when={e.role === 'tool'}
+                when={e.role === 'credit'}
                 fallback={
-                  <Show when={e.text.trim()}>
-                    {e.role === 'assistant' ? (
-                      <div class="msg assistant md">
-                        <AgentMarkdown text={e.text} />
+                  <Show
+                    when={e.role === 'tool'}
+                    fallback={
+                      <Show when={e.text.trim()}>
+                        {e.role === 'assistant' ? (
+                          <div class="msg assistant md">
+                            <AgentMarkdown text={e.text} />
+                          </div>
+                        ) : (
+                          <div class={`user-message${e.pending === 'queued' ? ' is-queued' : ''}`}>
+                            <div class={`msg ${e.role}`}>
+                              <Show when={e.pending === 'queued'}>
+                                <span class="queued-label">Queued</span>
+                              </Show>
+                              <span class="message-copy">{e.text}</span>
+                              <Show when={e.pending && e.pending !== 'queued'}>
+                                {pending => <span class="message-state">{pending()}</span>}
+                              </Show>
+                            </div>
+                            <Show when={e.pending === 'queued'}>
+                              <button class="message-steer" onClick={() => props.onSteer?.(e)}>
+                                <CornerUpLeft size={12} />
+                                <span>Steer now</span>
+                              </button>
+                            </Show>
+                            <Show
+                              when={
+                                e.role === 'user' &&
+                                e.sessionEntryId &&
+                                e.checkpointId &&
+                                !props.busy
+                              }
+                            >
+                              <button
+                                class="message-edit"
+                                aria-label="Edit and resend from this message"
+                                title="Edit and resend from here"
+                                onClick={() => props.onEdit?.(e)}
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            </Show>
+                          </div>
+                        )}
+                      </Show>
+                    }
+                  >
+                    <Show when={!props.busy || !activeEntryIds().has(e.id)}>
+                      <div class={`log-line tool ${e.tool?.status === 'error' ? 'error' : ''}`}>
+                        <span class="log-icon">
+                          {e.tool?.status === 'running' ? (
+                            <span class="spinner" />
+                          ) : e.tool?.status === 'error' ? (
+                            '✕'
+                          ) : (
+                            '✓'
+                          )}
+                        </span>
+                        <span class="log-text">{e.text}</span>
                       </div>
-                    ) : (
-                      <div class={`user-message${e.pending === 'queued' ? ' is-queued' : ''}`}>
-                        <div class={`msg ${e.role}`}>
-                          <Show when={e.pending === 'queued'}>
-                            <span class="queued-label">Queued</span>
-                          </Show>
-                          <span class="message-copy">{e.text}</span>
-                          <Show when={e.pending && e.pending !== 'queued'}>
-                            {pending => <span class="message-state">{pending()}</span>}
-                          </Show>
-                        </div>
-                        <Show when={e.pending === 'queued'}>
-                          <button class="message-steer" onClick={() => props.onSteer?.(e)}>
-                            <CornerUpLeft size={12} />
-                            <span>Steer now</span>
-                          </button>
-                        </Show>
-                        <Show
-                          when={
-                            e.role === 'user' && e.sessionEntryId && e.checkpointId && !props.busy
-                          }
-                        >
-                          <button
-                            class="message-edit"
-                            aria-label="Edit and resend from this message"
-                            title="Edit and resend from here"
-                            onClick={() => props.onEdit?.(e)}
-                          >
-                            <Pencil size={12} />
-                          </button>
-                        </Show>
-                      </div>
-                    )}
+                    </Show>
                   </Show>
                 }
               >
-                <div class={`log-line tool ${e.tool?.status === 'error' ? 'error' : ''}`}>
-                  <span class="log-icon">
-                    {e.tool?.status === 'running' ? (
-                      <span class="spinner" />
-                    ) : e.tool?.status === 'error' ? (
-                      '✕'
-                    ) : (
-                      '✓'
-                    )}
-                  </span>
-                  <span class="log-text">{e.text}</span>
+                <div class="credit-exhausted" role="alert">
+                  <strong>Credits ran out</strong>
+                  <span>{e.text}</span>
+                  <a href="/pricing">Add one-time credits</a>
                 </div>
               </Show>
             }
           >
             <Show when={e.ask}>
-              <AskStepper
+              <QuestionCard
+                entryId={e.id}
                 ask={e.ask!}
                 disabled={!props.onAnswer || e.id !== open()?.id}
-                onSend={t => props.onAnswer?.(t)}
+                onSend={(text, answer) => props.onAnswer?.(text, { answer })}
               />
             </Show>
           </Show>
@@ -272,15 +296,20 @@ export function Thread(props: {
       </For>
       <Show when={activity()}>
         {state => (
-          <div class="agent-activity" role="status" aria-live="polite" aria-atomic="true">
-            <ThinkingOrb state={state()} size={64} />
-            <span>
-              {state() === 'listening'
-                ? 'Listening…'
-                : state() === 'searching'
-                  ? 'Searching…'
-                  : 'Thinking…'}
-            </span>
+          <div class="agent-work" role="status" aria-live="polite">
+            <div class="agent-activity">
+              <ThinkingOrb state={state()} size={64} />
+              <span>
+                {state() === 'listening'
+                  ? 'Listening…'
+                  : state() === 'searching'
+                    ? 'Searching…'
+                    : 'Thinking…'}
+              </span>
+            </div>
+            <Show when={props.busy}>
+              <ReasoningSteps entries={activeTurn()} active />
+            </Show>
           </div>
         )}
       </Show>

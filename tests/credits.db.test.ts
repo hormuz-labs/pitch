@@ -19,6 +19,13 @@ vi.mock('@prisma/client', () => {
       create: vi.fn(),
       findMany: vi.fn(),
     },
+    creditReservation: {
+      aggregate: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
     discordRewardClaim: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   }
@@ -39,12 +46,15 @@ import {
   deductCredit,
   endSubscription,
   forfeitableCredits,
+  getAvailableCreditBalance,
   getCreditBalance,
   getCreditTransactions,
   getDiscordCreditBalance,
   grantDiscordWelcomeReward,
   recordTopUp,
   refundProjectUsage,
+  reserveCredits,
+  settleCreditReservation,
 } from '../packages/db/src/index.js'
 
 // The singleton the module uses — same object returned by the constructor.
@@ -52,12 +62,19 @@ const mockPrisma = new (PrismaClient as any)() as any
 
 /** Wire $transaction to invoke its callback with a tx client exposing the
  *  ledger ops deductCredit needs. */
-function makeTx(ops: { aggregate?: any; create?: any } = {}) {
+function makeTx(ops: { aggregate?: any; create?: any; creditReservation?: any } = {}) {
   return vi.fn(async (cb: any) =>
     cb({
+      $queryRaw: vi.fn(),
       creditTransaction: {
         aggregate: ops.aggregate ?? vi.fn(),
         create: ops.create ?? vi.fn().mockResolvedValue({}),
+      },
+      creditReservation: ops.creditReservation ?? {
+        aggregate: vi.fn().mockResolvedValue({ _sum: { credits: 0 } }),
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+        update: vi.fn(),
       },
     }),
   )
@@ -100,6 +117,68 @@ describe('getCreditBalance', () => {
         },
       },
       _sum: { delta: true },
+    })
+  })
+})
+
+describe('credit reservations', () => {
+  it('subtracts pending reservations from available balance', async () => {
+    mockPrisma.creditTransaction.aggregate.mockResolvedValue({ _sum: { delta: 100 } })
+    mockPrisma.creditReservation.aggregate.mockResolvedValue({ _sum: { credits: 35 } })
+    expect(await getAvailableCreditBalance('user_1')).toBe(65)
+  })
+
+  it('reserves once and returns the same hold on retry', async () => {
+    const existing = { id: 'hold_1', key: 'project:1', status: 'pending', credits: 40 }
+    const reservation = {
+      findUnique: vi.fn().mockResolvedValue(existing),
+      aggregate: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    }
+    mockPrisma.$transaction = makeTx({ creditReservation: reservation })
+    await expect(
+      reserveCredits({
+        key: 'project:1',
+        userId: 'user_1',
+        projectId: 'project_1',
+        kind: 'teaser',
+        credits: 40,
+      }),
+    ).resolves.toEqual(existing)
+    expect(reservation.create).not.toHaveBeenCalled()
+  })
+
+  it('settles a reservation idempotently', async () => {
+    const settled = { id: 'hold_1', key: 'project:1', status: 'settled', settledCredits: 22 }
+    const reservation = { findUnique: vi.fn().mockResolvedValue(settled) }
+    mockPrisma.$transaction = makeTx({ creditReservation: reservation })
+    await expect(settleCreditReservation('project:1', 22)).resolves.toBe(22)
+  })
+
+  it('settles above the hold only when the remaining balance covers the overage', async () => {
+    const pending = {
+      id: 'hold_1',
+      key: 'project:1',
+      userId: 'user_1',
+      projectId: 'project_1',
+      channel: 'product',
+      kind: 'cinematic',
+      status: 'pending',
+      credits: 40,
+    }
+    const creditReservation = {
+      findUnique: vi.fn().mockResolvedValue(pending),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { credits: 10 } }),
+      update: vi.fn(),
+    }
+    const aggregate = vi.fn().mockResolvedValue({ _sum: { delta: 100 } })
+    const create = vi.fn()
+    mockPrisma.$transaction = makeTx({ aggregate, create, creditReservation })
+
+    await expect(settleCreditReservation('project:1', 90)).resolves.toBe(90)
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ delta: -90, idempotencyKey: 'settlement:hold_1' }),
     })
   })
 })

@@ -7,12 +7,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   deductCredit: vi.fn().mockResolvedValue(0),
+  getCreditReservation: vi.fn().mockResolvedValue(null),
+  settleCreditReservation: vi.fn().mockResolvedValue(0),
   projectFindUnique: vi.fn(),
   projectUpdate: vi.fn().mockResolvedValue({}),
 }))
 
 vi.mock('@saas/db', () => ({
   deductCredit: mocks.deductCredit,
+  getCreditReservation: mocks.getCreditReservation,
+  settleCreditReservation: mocks.settleCreditReservation,
   prisma: { project: { findUnique: mocks.projectFindUnique, update: mocks.projectUpdate } },
 }))
 vi.mock('@saas/shared', () => ({ createLogger: () => ({ warn: vi.fn(), info: vi.fn() }) }))
@@ -25,7 +29,14 @@ vi.mock('../apps/api/src/studio/model-picker.js', () => ({
   platformMargin: vi.fn(() => 1.25),
 }))
 
-import { chargeTurn, noLossCredits, usageUsd } from '../apps/api/src/projects/usage.js'
+import {
+  chargeTurn,
+  generationReservationCredits,
+  generationReservationFromEstimate,
+  noLossCredits,
+  projectedCreditsOwed,
+  usageUsd,
+} from '../apps/api/src/projects/usage.js'
 
 /** A project row with just what chargeTurn reads. */
 function project(overrides: Record<string, unknown> = {}) {
@@ -36,6 +47,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.deductCredit.mockResolvedValue(0)
   mocks.projectUpdate.mockResolvedValue({})
+  mocks.getCreditReservation.mockResolvedValue(null)
 })
 
 describe('chargeTurn channel attribution', () => {
@@ -97,6 +109,23 @@ describe('model credit pricing', () => {
     expect(usageUsd({ modelUsd: 0.1, computeSeconds: 10 }, 2)).toBeCloseTo(0.275)
   })
 
+  it('projects the unpaid credits accrued during an active turn', () => {
+    expect(projectedCreditsOwed(0.1, 40, { modelUsd: 0.02, computeSeconds: 5 }, 1, 1)).toBe(12)
+  })
+
+  it('prices a teaser below a walkthrough and a cinematic film above it', () => {
+    expect(generationReservationCredits(125, 'teaser', 30)).toBe(82)
+    expect(generationReservationCredits(125, 'product-walkthrough', 30)).toBe(125)
+    expect(generationReservationCredits(125, 'cinematic', 30)).toBe(157)
+    expect(generationReservationCredits(125, 'product-walkthrough', 45)).toBe(188)
+  })
+
+  it('never discounts below a duration-priced provider reservation', () => {
+    expect(
+      generationReservationFromEstimate({ total: 1250, harness: 125, video: 1250 }, 'teaser', 15),
+    ).toBe(1250)
+  })
+
   it('charges the model selected for this turn', async () => {
     mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
 
@@ -138,5 +167,24 @@ describe('model credit pricing', () => {
       expect.any(String),
       expect.any(Object),
     )
+  })
+
+  it('does not mark credits charged when the balance cannot cover them', async () => {
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+    mocks.deductCredit.mockRejectedValueOnce(new Error('Insufficient credits'))
+
+    expect(await chargeTurn(project(), 0.3)).toBe(0)
+    expect(mocks.projectUpdate).not.toHaveBeenCalled()
+  })
+
+  it('settles a reservation once instead of deducting the same generation twice', async () => {
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+    mocks.getCreditReservation.mockResolvedValue({ status: 'pending', credits: 188 })
+
+    expect(
+      await chargeTurn(project(), 0.03, 'product', 'provider/astra', 0, 188, 'project:1'),
+    ).toBe(30)
+    expect(mocks.settleCreditReservation).toHaveBeenCalledWith('project:1', 30)
+    expect(mocks.deductCredit).not.toHaveBeenCalled()
   })
 })

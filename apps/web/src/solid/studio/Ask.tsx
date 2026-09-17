@@ -2,7 +2,18 @@ import { createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import type { Ask } from './types'
 
 const LETTERS = 'ABCDEFGH'
-export function AskStepper(props: { ask: Ask; disabled: boolean; onSend: (text: string) => void }) {
+export function QuestionCard(props: {
+  entryId: string
+  ask: Ask
+  disabled: boolean
+  onSend: (
+    text: string,
+    answer: {
+      askEntryId: string
+      selections: Array<{ questionId: string; optionIds: string[] }>
+    },
+  ) => void
+}) {
   const [step, setStep] = createSignal(0),
     [picked, setPicked] = createSignal<Record<string, string[]>>({}),
     [sent, setSent] = createSignal(false)
@@ -16,10 +27,19 @@ export function AskStepper(props: { ask: Ask; disabled: boolean; onSend: (text: 
       .filter(x => (picked()[x.id] ?? []).length)
       .map(x => `${x.question} → ${(picked()[x.id] ?? []).join(', ')}`),
   )
+  const answer = () => ({
+    askEntryId: props.entryId,
+    selections: questions().map(question => ({
+      questionId: question.id,
+      optionIds: question.options
+        .filter(option => (picked()[question.id] ?? []).includes(option.label))
+        .map(option => option.id),
+    })),
+  })
   const send = (text: string) => {
     if (locked()) return
     setSent(true)
-    props.onSend(text)
+    props.onSend(text, answer())
   }
   const choose = (label: string) => {
     const cur = q()
@@ -58,37 +78,28 @@ export function AskStepper(props: { ask: Ask; disabled: boolean; onSend: (text: 
   onMount(() => queueMicrotask(() => !locked() && el?.focus({ preventScroll: true })))
   return (
     <div
-      class={`ask${locked() ? ' locked' : ''}`}
+      class={`ask question-card${locked() ? ' locked' : ''}`}
       ref={el}
       tabIndex={locked() ? -1 : 0}
       onKeyDown={onKey}
     >
-      <div class="ask-steps">
-        <For each={questions()}>
-          {(x, i) => (
-            <button
-              type="button"
-              class={`ask-step${i() === step() ? ' on' : ''}${(picked()[x.id] ?? []).length ? ' done' : ''}`}
-              disabled={locked() || i() > step()}
-              onClick={() => setStep(i())}
-              title={x.question}
-            >
-              {x.id}
-            </button>
-          )}
-        </For>
-        <button
-          type="button"
-          class={`ask-step${confirming() ? ' on' : ''}`}
-          disabled={locked() || !summary().length}
-          onClick={() => setStep(questions().length)}
-        >
-          ✓
-        </button>
-        <Show when={props.ask.intro && !locked()}>
-          <span class="ask-intro">{props.ask.intro}</span>
-        </Show>
+      <div class="ask-head">
+        <span class="ask-progress">
+          {confirming() ? 'Review answers' : `Question ${step() + 1} of ${questions().length}`}
+        </span>
+        <div class="ask-dots" aria-hidden="true">
+          <For each={questions()}>
+            {(x, i) => (
+              <span
+                class={`ask-dot${i() === step() ? ' on' : ''}${(picked()[x.id] ?? []).length ? ' done' : ''}`}
+              />
+            )}
+          </For>
+        </div>
       </div>
+      <Show when={props.ask.intro && !locked()}>
+        <p class="ask-intro">{props.ask.intro}</p>
+      </Show>
       <Show
         when={confirming()}
         fallback={
@@ -136,9 +147,16 @@ export function AskStepper(props: { ask: Ask; disabled: boolean; onSend: (text: 
                     <button
                       type="button"
                       class="ask-flat"
-                      onClick={() =>
-                        send('You decide — take your own first option for each and get started.')
-                      }
+                      onClick={() => {
+                        setPicked(
+                          Object.fromEntries(
+                            questions().map(question => [question.id, [question.options[0].label]]),
+                          ),
+                        )
+                        queueMicrotask(() =>
+                          send('You decide — take your own first option for each and get started.'),
+                        )
+                      }}
                     >
                       You decide
                     </button>

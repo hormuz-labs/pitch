@@ -11,8 +11,11 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
 import { createLogger, type Logger } from '@saas/shared'
+import { hostActionSignal } from '../studio/host-actions.js'
 
-export const execAsync = promisify(exec)
+const runExec = promisify(exec)
+export const execAsync = (command: string, options: Record<string, any> = {}) =>
+  runExec(command, { ...options, signal: options.signal ?? hostActionSignal() })
 const moduleLogger = createLogger('studio:render:media')
 
 export async function getMediaDurationSec(file: string): Promise<number> {
