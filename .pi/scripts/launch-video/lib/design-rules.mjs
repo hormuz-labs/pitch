@@ -57,6 +57,22 @@ export function lintDesign(spec) {
   return out;
 }
 
+/** A lab citation means the implementation source was inspected in this workspace. */
+export function lintEffectSources(spec, inspected = []) {
+  const seen = new Set(inspected);
+  const out = [];
+  for (const shot of spec?.shots || []) {
+    if (shot.lab && !seen.has(shot.lab)) {
+      out.push({
+        level: "fail",
+        code: "lab-source",
+        msg: `#${shot.id}: lab \"${shot.lab}\" was cited from a code-free study card. Run pitch effects show ${shot.lab} --source, read the implementation, then adapt it or remove the lab citation.`,
+      });
+    }
+  }
+  return out;
+}
+
 /** The lints worth hearing while the film is still being built (cues.mjs --check). */
 export function lintWhileBuilding(spec) {
   return lintDesign(spec).filter((l) => l.code !== "count");

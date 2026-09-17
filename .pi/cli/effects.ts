@@ -13,7 +13,7 @@
  * Families let an agent browse beyond keyword matches without loading every
  * demo page. The complete shelf is still available with --limit 0.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Script } from 'node:vm'
 import { EFFECTS_DIR, SKILLS_DIR } from '../lib/paths.ts'
@@ -219,6 +219,16 @@ export function line(e: Effect): string {
 }
 
 const PORTING_GUIDE = join(SKILLS_DIR, 'launch-video', 'references', 'effects.md')
+const SOURCE_RECEIPT = join('.studio', 'effect-sources.json')
+
+function recordSourceInspection(cwd: string, id: string): void {
+  const file = join(cwd, SOURCE_RECEIPT)
+  const current = readJson(file)
+  const effects = new Set<string>(Array.isArray(current?.effects) ? current.effects : [])
+  effects.add(id)
+  mkdirSync(join(cwd, '.studio'), { recursive: true })
+  writeFileSync(file, `${JSON.stringify({ version: 1, effects: [...effects].sort() }, null, 2)}\n`)
+}
 
 /** Study the mechanism without loading a demo's placeholder HTML/CSS/JS. */
 export function study(e: Effect): string {
@@ -236,7 +246,7 @@ export function study(e: Effect): string {
     `\nFrames: ${join(dir, 'strip.jpg')} — read to judge the movement and composition.`,
     `Source when implementing: pitch effects show ${e.id} --source`,
     `Shared integration guide (read once): ${PORTING_GUIDE}`,
-    `If derived from this implementation: lab: "${e.id}"`,
+    'Do not add a lab citation from this code-free card; inspect the source first.',
   ]
     .filter(Boolean)
     .join('\n')
@@ -289,7 +299,10 @@ export function effectSource(e: Effect): string {
       '```',
     )
   }
-  blocks.push(`Shared integration guide (read once): ${PORTING_GUIDE}`)
+  blocks.push(
+    `Shared integration guide (read once): ${PORTING_GUIDE}`,
+    `If derived from this implementation: lab: "${e.id}"`,
+  )
   return blocks.join('\n')
 }
 
@@ -428,7 +441,7 @@ export default function effectsCommands(): CommandSpec[] {
         },
         required: ['id'],
       },
-      async execute(_id, p: any) {
+      async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
         let want = String(p.id ?? '')
           .trim()
           .replace(/^\/+|\/+$/g, '')
@@ -444,7 +457,10 @@ export default function effectsCommands(): CommandSpec[] {
             `No effect "${want}". Ids are family/slug — list them with: pitch effects list`,
           )
         }
-        return out(p.source ? effectSource(hit) : study(hit))
+        if (!p.source) return out(study(hit))
+        const source = effectSource(hit)
+        recordSourceInspection(ctx.cwd, hit.id)
+        return out(`${source}\n\nSource inspection recorded for ${hit.id}.`)
       },
     },
     {

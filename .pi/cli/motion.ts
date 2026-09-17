@@ -96,6 +96,7 @@ function validateFilm(name: string, args: string[], ws: string, out: string) {
       ...['index.html', 'shots.js', 'js', 'css', 'assets', 'recon', 'uploads', 'vendor'].map(f =>
         join(ws, f),
       ),
+      join(ws, '.studio', 'effect-sources.json'),
       ...args.filter(a => !a.startsWith('--')).map(f => join(ws, f)),
       ...narration,
       ...['gsap', 'three', 'lottie', 'rive', 'p5', 'fonts'].map(f => join(ASSETS_DIR, f)),

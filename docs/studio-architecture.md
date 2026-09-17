@@ -45,6 +45,7 @@ Project {
   thumbnailUrl  String?
   lastError     String?
   isPublic / shareSlug / shareViews
+  lastActivityAt conversation recency (not worker bookkeeping)
   createdAt / updatedAt
 }
 ```

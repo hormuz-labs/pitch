@@ -94,6 +94,7 @@ function row(id: string, over: Record<string, unknown> = {}) {
     workspaceVersion: 0,
     artifactKind: null,
     busyAt: null,
+    lastActivityAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
     ...over,

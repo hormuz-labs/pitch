@@ -52,6 +52,8 @@ export interface ProjectRow {
   /** Worker-maintained caches for lists: what is on disk, and whether a turn is running. */
   artifactKind: string | null
   busyAt: string | null
+  /** User-visible conversation recency; unaffected by worker bookkeeping. */
+  lastActivityAt: string
   createdAt: string
   updatedAt: string
 }
@@ -69,6 +71,7 @@ export function parseRow(r: any): ProjectRow {
     workspaceVersion: Number(r.workspaceVersion ?? 0),
     artifactKind: r.artifactKind ?? null,
     busyAt: r.busyAt ? new Date(r.busyAt).toISOString() : null,
+    lastActivityAt: new Date(r.lastActivityAt).toISOString(),
     createdAt: new Date(r.createdAt).toISOString(),
     updatedAt: new Date(r.updatedAt).toISOString(),
   }

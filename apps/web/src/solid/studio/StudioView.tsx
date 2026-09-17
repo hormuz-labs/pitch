@@ -11,6 +11,7 @@ import {
   Show,
   Switch,
 } from 'solid-js'
+import { PitchWordmark } from '../public/brand'
 import { AssetShelf } from './AssetShelf'
 import { Composer } from './Composer'
 import { type EditableFormat, type ExportResolution, exportFilename } from './editable-export'
@@ -122,7 +123,9 @@ function Actions(props: { store: ProjectStore }) {
     exportProgress = () =>
       s.exportPending
         ? 'Starting export...'
-        : `${s.exportStatus?.stage === 'packaging' ? 'Packaging' : 'Rendering'} ${s.exportStatus?.progress ?? 0}%`,
+        : (s.exportStatus?.progress ?? 0) <= 0
+          ? 'Warming up...'
+          : `${s.exportStatus?.stage === 'packaging' ? 'Packaging' : 'Rendering'} ${s.exportStatus?.progress ?? 0}%`,
     outputs = () =>
       [
         ...(s.project?.outputs ?? []),
@@ -130,13 +133,26 @@ function Actions(props: { store: ProjectStore }) {
           x => !(s.project?.outputs ?? []).some(y => y.url === x.url),
         ),
       ].filter(x => ['video', 'pdf', 'html'].includes(x.kind)),
-    renders = () =>
-      ((s.project?.description.extra as any)?.renders ?? []) as {
+    renders = () => {
+      const extra = s.project?.description.extra as any
+      const local = (extra?.renders ?? []) as {
         res: string
         url: string
         stale: boolean
         bytes: number
       }[]
+      const localRes = new Set(local.map(render => render.res))
+      const sourceModifiedAt = Number(extra?.sourceModifiedAt ?? 0)
+      const published = (s.project?.outputs ?? [])
+        .filter(output => output.kind === 'video' && output.res && !localRes.has(output.res))
+        .map(output => ({
+          res: output.res!,
+          url: output.url,
+          stale: sourceModifiedAt > Date.parse(output.createdAt),
+          bytes: 0,
+        }))
+      return [...local, ...published]
+    }
   onMount(() => {
     const close = (e: MouseEvent) => wrap && !wrap.contains(e.target as Node) && setOpen(false)
     const closeOnEscape = (e: KeyboardEvent) => {
@@ -362,6 +378,7 @@ export function StudioView(props: { projectId: string }) {
     side: HTMLElement | undefined,
     wrap: HTMLDivElement | undefined,
     stage: HTMLDivElement | undefined,
+    hadPreview = false,
     followFeed = true,
     drag: { x: number; w: number } | null = null,
     trayDrag: { y: number; h: number } | null = null
@@ -391,6 +408,15 @@ export function StudioView(props: { projectId: string }) {
     )
   })
   const showStage = createMemo(() => hasPreview() || (view() === 'files' && s.assets.length > 0))
+  const emptyChat = createMemo(() => !showStage() && !s.entries.length && !s.busy)
+  createEffect(() => {
+    const available = hasPreview()
+    if (available && !hadPreview) {
+      setView('preview')
+      setChatOpen(false)
+    }
+    hadPreview = available
+  })
   onMount(() => {
     const observer = new ResizeObserver(() => {
       if (stage && stage.clientHeight > 0) resizeTray(tray())
@@ -401,7 +427,11 @@ export function StudioView(props: { projectId: string }) {
   return (
     <div
       class="lv-studio"
-      classList={{ 'is-chat-only': !showStage(), 'is-chat-expanded': chatOpen() }}
+      classList={{
+        'is-chat-only': !showStage(),
+        'is-chat-empty': emptyChat(),
+        'is-chat-expanded': chatOpen(),
+      }}
     >
       <Show when={!s.loadError} fallback={<div class="picker-empty">{s.loadError}</div>}>
         <div class="editor-wrap" ref={wrap} style={{ '--sidebar-w': `${sidebar()}px` }}>
@@ -475,8 +505,15 @@ export function StudioView(props: { projectId: string }) {
               style={{ '--sidebar-w': `${sidebar()}px` }}
               aria-busy={s.busy}
             >
+              <Show when={emptyChat()}>
+                <div class="chat-welcome">
+                  <PitchWordmark class="chat-welcome__wordmark" />
+                  <h1>What do you want to create?</h1>
+                </div>
+              </Show>
               <div
                 class="feed"
+                hidden={emptyChat()}
                 ref={feed}
                 onScroll={event => {
                   const el = event.currentTarget
@@ -621,7 +658,7 @@ export function StudioView(props: { projectId: string }) {
                     <span class="editor-tracks-toggle__hint">
                       {timelineOpen() ? 'Collapse' : 'Expand'}
                     </span>
-                    {timelineOpen() ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {timelineOpen() ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                   </button>
                   <div
                     id={timelineId}

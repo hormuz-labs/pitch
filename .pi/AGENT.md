@@ -49,8 +49,9 @@ readable, at the absolute paths your system prompt and skills listing give:
 your skills, the effects lab, and the curated music, SFX and font libraries.
 The engine and the vendor libraries (GSAP, three.js, Rive) are not on disk
 for you and there is nothing in them to read: `pitch motion schema` is the engine's
-contract. `pitch effects show` gives study notes; add `--source` for a selected
-effect's implementation. Read only what you will
+contract. `pitch effects show` gives code-free shortlist notes; before reproducing
+a described move or adding its `lab` citation, fetch and read the selected effect
+with `--source`. Read only what you will
 edit — `shots.js`, `js/shots.custom.js`, `direction.md` — and reference the
 rest through `pitch`. Nothing else on this machine is reachable — no environment, no other projects, no network. Paths in a tool
 argument are relative to your workspace unless you make them absolute; there

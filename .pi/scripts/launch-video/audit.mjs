@@ -40,7 +40,7 @@ import os from "node:os";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
 import { pixelDiffRatio } from "./lib/png.mjs";
 import { findPhrase, loadWords, speechGaps, voStartOf, wordsPathFor } from "./lib/vo-words.mjs";
-import { designSummary, extractSpec, lintDesign } from "./lib/design-rules.mjs";
+import { designSummary, extractSpec, lintDesign, lintEffectSources } from "./lib/design-rules.mjs";
 import { quietStretches, sampleTimes, spansFor } from "./lib/audit-span.mjs";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -62,6 +62,14 @@ const only = args.shots ? String(args.shots).split(",").map(x => x.trim()).filte
 const workers = Math.max(1, Math.min(8, Number(args.workers ?? Math.max(1, Math.min(6, os.cpus().length - 2)))));
 const SCALE = 0.5;
 const shotOpts = { format: "png", captureBeyondViewport: false, clip: { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE } };
+const inspectedEffects = (() => {
+  try {
+    const receipt = JSON.parse(readFileSync(resolve(".studio/effect-sources.json"), "utf8"));
+    return Array.isArray(receipt.effects) ? receipt.effects : [];
+  } catch {
+    return [];
+  }
+})();
 
 if (!only.length) rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -123,6 +131,7 @@ if (!spec) {
   const shots = spec.shots;
   // Timeline validity and content-review hints (lib/design-rules.mjs).
   lint.push(...lintDesign(spec));
+  lint.push(...lintEffectSources(spec, inspectedEffects));
 
   // ---- Narration: one continuous read, picture cut to the words ----------------
   const legacyClips = shots.filter(s => typeof s.vo === "string").length;

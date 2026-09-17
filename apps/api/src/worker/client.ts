@@ -34,7 +34,7 @@ export interface WorkerClient {
   stop(id: string): Promise<boolean>
   steer(id: string, entryId: string): Promise<boolean>
   rollback(id: string, entryId: string): Promise<RollbackProjectResult>
-  entries(id: string): Promise<{ entries: Entry[]; busy: boolean }>
+  entries(id: string): Promise<{ entries: Entry[]; busy: boolean; activeModel: string | null }>
   describe(id: string): Promise<Description>
   busy(id: string): Promise<boolean>
   thumbnail(id: string, t: number): Promise<Buffer | null>

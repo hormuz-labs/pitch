@@ -24,10 +24,10 @@
  * only enters or a whole desktop is heard while the film is being built.
  * Exit 1 on a page error or a page that never becomes ready.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { localPageUrl, openStudioBrowser } from "./lib/browser.mjs";
-import { extractSpec, lintWhileBuilding } from "./lib/design-rules.mjs";
+import { extractSpec, lintEffectSources, lintWhileBuilding } from "./lib/design-rules.mjs";
 import { actionableOverruns } from "./lib/overruns.mjs";
 
 const args = process.argv.slice(2);
@@ -36,6 +36,14 @@ const outArg = args.find(a => a.startsWith("--out="));
 const out = outArg ? outArg.slice(6) : "audio/cues.json";
 const CHECK = args.includes("--check");
 const cdpArg = args.find(a => a.startsWith("--cdp="));
+const inspectedEffects = (() => {
+  try {
+    const receipt = JSON.parse(readFileSync(resolve(".studio/effect-sources.json"), "utf8"));
+    return Array.isArray(receipt.effects) ? receipt.effects : [];
+  } catch {
+    return [];
+  }
+})();
 
 // The browser is the CloakBrowser, so it cannot see this folder: the page and
 // every file it pulls are served into it from disk (see lib/browser.mjs).
@@ -91,7 +99,11 @@ if (overruns.length) console.log("   Include repeats and stagger: a tween at .6*
 if (CHECK) {
   // The shot-list rules, now — the audit says the same things after a render,
   // and a film that hears them there gets rebuilt instead of built.
-  for (const l of spec ? lintWhileBuilding(spec) : []) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
+  const buildLint = spec ? [...lintWhileBuilding(spec), ...lintEffectSources(spec, inspectedEffects)] : [];
+  for (const l of buildLint) console.log(`${l.level === "fail" ? "❌" : "⚠"} ${l.msg}`);
+  if (buildLint.some(l => l.code === "lab-source")) {
+    process.exit(1);
+  }
 }
 if (errors.length) {
   console.log(`\n❌ page errors:\n   - ${errors.join("\n   - ")}`);

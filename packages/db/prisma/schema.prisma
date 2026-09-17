@@ -375,6 +375,7 @@ model Project {
   workspaceCheckpointAt DateTime?
   artifactKind          String?
   busyAt                DateTime?
+  lastActivityAt        DateTime            @default(now())
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt()
   creditTransactions    CreditTransaction[]
@@ -382,6 +383,7 @@ model Project {
 
   @@unique([userId, flow, name])
   @@index([userId])
+  @@index([userId, lastActivityAt])
   @@index([workerId])
 }
 

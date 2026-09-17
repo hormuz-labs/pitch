@@ -1257,22 +1257,69 @@
   text-transform: capitalize;
 }
 .lv-studio .message-edit {
+  position: relative;
   width: 26px;
   height: 26px;
   flex: 0 0 26px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
   color: var(--faint);
   opacity: 0;
+  transform: translateX(-2px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
-.lv-studio .user-message:is(:hover, :focus-within) .message-edit { opacity: 1; }
+.lv-studio .user-message:is(:hover, :focus-within) .message-edit {
+  opacity: 1;
+  transform: translateX(0);
+}
 .lv-studio .message-edit:hover:not(:disabled) {
-  background: var(--panel-2);
+  border-color: var(--border);
+  background: var(--panel);
   color: var(--ink);
+}
+.lv-studio .message-edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .lv-studio .message-edit::after {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 7px);
+    z-index: 5;
+    width: max-content;
+    max-width: 150px;
+    padding: 5px 8px;
+    border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--ink) 94%, transparent);
+    box-shadow: 0 5px 14px rgb(0 0 0 / 14%);
+    color: var(--paper);
+    content: attr(data-tooltip);
+    font-size: 10px;
+    font-weight: 540;
+    line-height: 1.2;
+    letter-spacing: 0;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 100ms ease, transform 100ms ease;
+  }
+  .lv-studio .message-edit:hover::after,
+  .lv-studio .message-edit:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .lv-studio .msg.assistant {
   align-self: flex-start;
@@ -1452,6 +1499,9 @@
   border-left-color: var(--border);
   opacity: 0.55;
 }
+.lv-studio .ask.answered {
+  display: none;
+}
 .lv-studio .ask-head {
   display: flex;
   align-items: center;
@@ -1570,6 +1620,11 @@
   gap: 6px;
   justify-content: space-between;
   padding: 2px 0 0;
+}
+.lv-studio .ask-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .lv-studio .ask-send,
 .lv-studio .ask-flat {
@@ -2997,11 +3052,6 @@
   object-fit: contain;
 }
 
-.lv-studio .asset-viewer-body audio {
-  width: min(560px, 90%);
-  margin: 40px 0;
-}
-
 .lv-studio .asset-viewer-body iframe {
   width: 100%;
   height: 72vh;
@@ -3839,6 +3889,29 @@
   color: var(--ink);
 }
 
+.lv-studio .active-model-indicator {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 160px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lv-studio .active-model-indicator .spinner {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+}
+
+.lv-studio .active-model-indicator > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .lv-studio .job-composer .model-menu {
   position: absolute;
   right: 0;
@@ -3915,6 +3988,26 @@
   color: #ffffff;
 }
 
+.lv-studio .job-stop-task {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lv-studio .job-stop-task:hover {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #ffffff;
+}
+
 .lv-studio .job-send-round.steer,
 .lv-studio .job-send-round.steer:hover:not(:disabled) {
   background: var(--accent);
@@ -3922,7 +4015,7 @@
 }
 
 @media (hover: none) {
-  .lv-studio .message-edit { opacity: 1; }
+  .lv-studio .message-edit { opacity: 1; transform: none; }
 }
 
 .lv-studio .resize-handle {

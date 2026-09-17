@@ -112,11 +112,11 @@ export async function describeLaunch(
   Description & { renders: Array<{ res: RenderRes; url: string; stale: boolean; bytes: number }> }
 > {
   const dir = ws.dir
+  const sourcesAt = await newestMtime(sourceTargets(dir))
   const outputs: Output[] = []
   const renders: Array<{ res: RenderRes; url: string; stale: boolean; bytes: number }> = []
   const localRenders = path.join(dir, 'renders')
   if (existsSync(localRenders)) {
-    const sourcesAt = await newestMtime(sourceTargets(dir))
     for (const res of RENDER_RESES) {
       const file = path.join(dir, renderFile(res))
       if (!existsSync(file)) continue
@@ -189,6 +189,6 @@ export async function describeLaunch(
     outputs,
     error: probe.error,
     renders,
-    extra: { renders, sfxCues },
+    extra: { renders, sfxCues, sourceModifiedAt: sourcesAt },
   }
 }

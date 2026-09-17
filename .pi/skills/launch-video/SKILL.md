@@ -179,10 +179,14 @@ work, then adapt that knowledge to this product and the chosen treatment.
    few promising references, usually two or three, and **read their strips**.
    Note which mechanism or compositional idea helps the film in direction.md.
    Reuse these notes across shots; a new shot does not require a new search.
+   A card is only a shortlist aid: do not implement its described moves or put
+   its id in `lab` until you have fetched and read its source.
 3. Before adapting a selected implementation, read `references/effects.md`
-   **once**, then `pitch effects show <id> --source`. Source is for the chosen
-   mechanism, not every candidate. It is reference code: rebuild the content,
-   scale, timing and styling for the product rather than copying a demo page.
+   **once**, then `pitch effects show <id> --source`. This records the source
+   inspection in the workspace; `pitch motion check` and `audit` reject a
+   matching `lab` citation without it. Source is for the chosen mechanism, not
+   every candidate. It is reference code: rebuild the content, scale, timing
+   and styling for the product rather than copying a demo page.
 
 Built-in types, bespoke factories and lab adaptations remain valid execution
 choices. Consulting the library is required; copying a fixed number of effects
@@ -219,7 +223,10 @@ Use the syntax here directly; ask for help only when a needed option is
 unknown. Read `common shot fields` once; get needed sections and types together,
 e.g. `pitch motion schema --section "common shot fields" --types line,logo-cta`
 for a film using those types. Custom factories need `--section "custom shot types"`.
-Import a listed bed with `pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`;
+List all numbered beds with `pitch motion find-audio --max 25`. Their filenames
+are opaque IDs, not descriptions: never default to the first or lowest-numbered
+track, and do not infer style from its number. Import the chosen bed with
+`pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`;
 probe that workspace-relative path. Never probe an absolute library path.
 
 **One shot at a time, and the film runs after every one.** Save and compile

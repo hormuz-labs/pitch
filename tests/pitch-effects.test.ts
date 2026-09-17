@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Script } from 'node:vm'
@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * to appear without anyone re-running an index builder.
  */
 let lab: string
+let workspace: string
 
 vi.mock('../.pi/lib/paths.ts', async importOriginal => {
   const actual = await importOriginal<typeof import('../.pi/lib/paths.ts')>()
@@ -34,9 +35,13 @@ function addEffect(family: string, slug: string, meta: Record<string, unknown> =
 
 beforeEach(() => {
   lab = mkdtempSync(join(tmpdir(), 'effects-lab-'))
+  workspace = mkdtempSync(join(tmpdir(), 'effects-workspace-'))
   vi.resetModules()
 })
-afterEach(() => rmSync(lab, { recursive: true, force: true }))
+afterEach(() => {
+  rmSync(lab, { recursive: true, force: true })
+  rmSync(workspace, { recursive: true, force: true })
+})
 
 const load = async () => (await import('../.pi/cli/effects.ts')).loadEffects()
 
@@ -130,7 +135,11 @@ describe('search', () => {
 })
 
 describe('the commands', () => {
-  const ctx = { cwd: process.cwd() }
+  const ctx = {
+    get cwd() {
+      return workspace
+    },
+  }
   const run = async (line: string, c = ctx) =>
     (await import('../.pi/cli/run.ts')).run(line, c).then(r => r.text)
 
@@ -159,7 +168,8 @@ describe('the commands', () => {
     expect(out).not.toContain('```html')
     expect(out).toContain('mount() then animate()')
     expect(out).toContain('strip.jpg')
-    expect(out).toContain('lab: "text/bold-snap"')
+    expect(out).not.toContain('lab: "text/bold-snap"')
+    expect(out).toContain('inspect the source first')
     expect(out).toContain('references/effects.md')
     expect(out).toContain('pitch effects show text/bold-snap --source')
     expect(out).not.toContain('yPercent 140')
@@ -173,7 +183,15 @@ describe('the commands', () => {
     write(dir, 'index.html', html)
     const out = await run('effects show text/bold-snap --source')
     expect(out).toContain(html)
+    expect(out).toContain('lab: "text/bold-snap"')
+    expect(out).toContain('Source inspection recorded')
     expect(out).not.toContain('A detailed study of the collision.')
+    expect(
+      JSON.parse(readFileSync(join(workspace, '.studio', 'effect-sources.json'), 'utf8')),
+    ).toEqual({
+      version: 1,
+      effects: ['text/bold-snap'],
+    })
     expect(await run('effects show text/bold-snap --source false')).not.toContain(html)
   })
 
@@ -221,7 +239,7 @@ describe('the commands', () => {
     addEffect('logos', 'c', {})
     expect(await run('effects logos list')).toContain('logos/c')
     expect(await run('effects logos list')).not.toContain('text/a')
-    expect(await run('effects text show a')).toContain('lab: "text/a"')
+    expect(await run('effects text show a')).toContain('inspect the source first')
     expect(await run('effects logos')).toContain('pitch effects logos list')
     expect(await run('effects --help')).toContain('logos, text')
   })

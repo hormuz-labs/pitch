@@ -48,6 +48,7 @@ export interface ProjectSummary {
   lastError: string | null
   isPublic: boolean
   shareSlug: string | null
+  lastActivityAt: string
   createdAt: string
   updatedAt: string
   status: 'empty' | 'working' | 'ready' | 'failed'
@@ -120,7 +121,7 @@ export interface Asset {
   pages?: number
 }
 export type StudioEvent =
-  | { type: 'hello' | 'status'; busy: boolean }
+  | { type: 'hello' | 'status'; busy: boolean; activeModel?: string | null }
   | { type: 'entry'; entry: Entry }
   | { type: 'delta'; id: string; delta: string }
   | { type: 'update'; entry: Entry }
