@@ -171,9 +171,13 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       : `You are continuing "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}\n\nIf the message is actionable, apply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the pitch media commands before regenerating anything.`,
   )
 
-  if (typeof options.durationSeconds === 'number')
+  if (
+    typeof options.durationSeconds === 'number' &&
+    Number.isFinite(options.durationSeconds) &&
+    options.durationSeconds > 0
+  )
     parts.push(
-      `Required output duration: exactly ${options.durationSeconds} seconds. Treat this as a hard requirement when planning, scaffolding, authoring and verifying the artifact; do not substitute a pipeline default.`,
+      `Target runtime: about ${options.durationSeconds} seconds, not an exact-length requirement. The user's current brief takes precedence over this saved preference. Let the story, readable holds, completed actions and musical resolution determine the final length: shorter or moderately longer is welcome. Do not cram, accelerate or pad content to hit this number. Honor an explicitly exact duration, maximum or delivery slot in the conversation; meet that constraint by editing scope, not sacrificing comprehension. Report the actual finished runtime.`,
     )
   const direction = styleDirection(options.videoType)
   if (direction) parts.push(direction)

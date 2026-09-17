@@ -65,6 +65,25 @@ afterAll(async () => {
 })
 
 describe('launch audio regression', () => {
+  it('finds conventional audio files when music-only callers omit input flags', async () => {
+    const { stdout } = await exec(
+      'node',
+      [mixScript, '--duration=4', '--music-only', '--dry-run'],
+      { cwd: ws },
+    )
+    expect(stdout).toContain('music: audio/music.wav')
+    expect(stdout).toContain('sfx:   audio/sfx_bus.wav')
+    expect(stdout).not.toContain('music: (none)')
+  })
+
+  it('reports missing audio before constructing an empty ffmpeg filter', async () => {
+    const empty = path.join(ws, 'empty')
+    await mkdir(empty)
+    await expect(
+      exec('node', [mixScript, '--duration=4', '--music-only'], { cwd: empty }),
+    ).rejects.toMatchObject({ stderr: expect.stringContaining('No audio inputs') })
+  })
+
   it('computes a safer bed level from a marginal contrast failure', () => {
     expect(
       correctiveBedDb(

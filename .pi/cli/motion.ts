@@ -1,8 +1,8 @@
 /**
  * Launch films — `pitch motion` commands wrapping the Node programs in
  * .pi/scripts/launch-video (recon, screenshot, tts, align, sync, cues/check,
- * sfx, mix, audit, review, capture) plus two small host helpers (find_audio,
- * verify_duration). Every .mjs in that folder backs exactly one tool. They
+ * sfx, mix, audit, review) plus two small host helpers (find_audio,
+ * verify_duration). MP4 capture is owned by the user-triggered exporter. Scripts
  * live outside .pi/skills on purpose: the skills directory is readable by the
  * agent, and 200KB of host-side code is nothing it should ever read.
  *
@@ -199,7 +199,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'tts',
     description:
-      'Record the narration: ONE continuous read of the whole script, saved with its text beside it (audio/vo.txt). ' +
+      'Record the spoken story before authoring shot timings: one continuous read of the whole script, saved with its text beside it (audio/vo.txt). ' +
       'One call per film, never one per shot. Which service reads it — Gemini TTS (→ audio/vo.wav) or ElevenLabs (→ audio/vo.mp3) — ' +
       "is set in the studio's audio config, not by you; --provider overrides it for one read. " +
       'Then set audio.vo in shots.js to the file this prints, pitch motion align, cue every shot, pitch motion sync.',
@@ -207,7 +207,7 @@ export default function motionCommands(): CommandSpec[] {
       text: Type.Optional(
         Type.String({
           description:
-            'The whole script, as one flowing paragraph (60–110 words for a 25–40s film).',
+            'The complete spoken story, with natural sentences and pauses. It should make sense on its own, not read like a list of shot captions.',
         }),
       ),
       script: Type.Optional(
@@ -235,7 +235,7 @@ export default function motionCommands(): CommandSpec[] {
       style: Type.Optional(
         Type.String({
           description:
-            'Gemini only: one delivery direction for the whole read (emotion, register, pace). Never ask for fast or brisk. ' +
+            'Gemini only: one delivery direction for the whole read (emotion, register, pace). Leave room for emphasis and pauses; do not rush to match picture duration. ' +
             'On ElevenLabs v3 write delivery as audio tags in the script itself, e.g. [warmly].',
         }),
       ),
@@ -445,115 +445,19 @@ export default function motionCommands(): CommandSpec[] {
   })
 
   commands.push({
-    verb: 'render',
-    description:
-      'Render index.html to MP4 by deterministic seek-and-capture. To LOOK at shots use pitch motion review (frames, not video); render a from/to segment (fps 30, no audio) only when the motion itself is in doubt — a shutter (motion blur) is one such case. A full render only when the user asks for an MP4 in chat — the studio previews the live page and has its own Export button — then out_res and fps 60, after pitch motion audit and pitch motion review pass. Shutter, samples, depth and codec default to the film\'s `render` block in shots.js and the look to its `grade` block (pitch motion schema --section "render and grade"); the flags here override for one render.',
-    parameters: Type.Object({
-      out: Type.String({
-        description:
-          'Output MP4 inside the workspace, e.g. renders/shot3-check.mp4 or renders/launch-1080p.mp4',
-      }),
-      page: Type.Optional(Type.String({ description: 'Page to render (default index.html)' })),
-      fps: Type.Optional(
-        Type.Integer({
-          minimum: 1,
-          description: 'Frames/sec: 30 for a shot check, 60 for a deliverable',
-        }),
-      ),
-      out_res: Type.Optional(
-        Type.Union([Type.Literal('720p'), Type.Literal('1080p'), Type.Literal('4k')], {
-          description: 'Deliverable resolution (default 1080p). Overrides scale.',
-        }),
-      ),
-      scale: Type.Optional(
-        Type.Integer({
-          minimum: 1,
-          description: 'Capture scale when out_res is not given: 1=1080p (default), 2=4K',
-        }),
-      ),
-      width: Type.Optional(Type.Integer({ description: 'Viewport width (default 1920)' })),
-      height: Type.Optional(Type.Integer({ description: 'Viewport height (default 1080)' })),
-      workers: Type.Optional(
-        Type.Integer({ minimum: 1, description: 'Parallel browser workers (default auto ≤6)' }),
-      ),
-      from: Type.Optional(Type.Number({ minimum: 0, description: 'Segment start (s)' })),
-      to: Type.Optional(Type.Number({ minimum: 0, description: 'Segment end (s)' })),
-      samples: Type.Optional(
-        Type.Integer({
-          minimum: 1,
-          maximum: 16,
-          description:
-            'Captures averaged per frame (motion blur). 1 = none; 4 with shutter 0.5 is a 180° film shutter. Overrides render.samples.',
-        }),
-      ),
-      shutter: Type.Optional(
-        Type.Number({
-          minimum: 0,
-          maximum: 1,
-          description:
-            'Fraction of the frame interval the shutter is open (0.5 = 180°; 1 = frame blending). Overrides render.shutter.',
-        }),
-      ),
-      depth: Type.Optional(
-        Type.Union([Type.Literal(8), Type.Literal(10)], {
-          description:
-            '10-bit output stops soft gradients banding (default 8). Overrides render.depth.',
-        }),
-      ),
-      codec: Type.Optional(
-        Type.Union([Type.Literal('h264'), Type.Literal('hevc')], {
-          description:
-            'h264 plays everywhere; hevc for 10-bit deliverables on Apple devices. Overrides render.codec.',
-        }),
-      ),
-      frames: Type.Optional(
-        Type.Union([Type.Literal('jpeg'), Type.Literal('png')], {
-          description:
-            'Intermediate frame format: jpeg (default, q92) or png (lossless, slower, more disk) for a film that lives on soft gradients.',
-        }),
-      ),
-    }),
-    async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
-      const ws = workspaceOf(ctx)
-      const a: string[] = []
-      if (p.page) a.push(relativeIn(ws, p.page))
-      a.push('--out=' + relativeIn(ws, p.out, 'write'))
-      if (p.out_res) a.push('--out-res=' + p.out_res)
-      else if (p.scale === undefined) a.push('--scale=1')
-      for (const k of [
-        'fps',
-        'scale',
-        'width',
-        'height',
-        'workers',
-        'from',
-        'to',
-        'samples',
-        'shutter',
-        'depth',
-        'codec',
-        'frames',
-      ] as const) {
-        if (p[k] !== undefined) a.push(`--${k}=` + p[k])
-      }
-      try {
-        return text(await hostAction(ws, 'launch_capture', { args: a }))
-      } catch (err: any) {
-        return text(String(err?.message || err))
-      }
-    },
-  })
-
-  commands.push({
     verb: 'review',
     description:
-      "Your eyes on the film. Samples three moments per shot and tiles labelled frames into contact sheets. Measures hero-type clipping and grounds outside the declared brand/palette. Review against direction.md: composition, legibility, intended action or stillness, real product identity and removal of source placeholders. Intentional image crops and held frames are valid; declare authored treatment colours in brand.palette. Built-in, bespoke and adapted lab compositions are equally valid. Frames carry the film's grade. Fix accidental clipping, missing content and unplanned palette differences, then re-run with shots for the edited shots; repeat audit only if timing, cues or beats changed. Frames in review/ are for you, not the user.",
+      'A compact visual check: one settled frame per shot by default, tiled into contact sheets. Read each sheet once. Use shots and explicit times only for a specific unresolved layout or transition issue. Simplify the source copy before capturing pictures. Extra samples cost capture time and image tokens. This is not playback review; never render an MP4 for validation. The user owns launch export.',
     parameters: Type.Object({
       shots: Type.Optional(
         Type.Array(Type.String(), { description: 'Only these shot ids (default: every shot)' }),
       ),
       per_shot: Type.Optional(
-        Type.Integer({ minimum: 1, maximum: 6, description: 'Frames per shot (default 3)' }),
+        Type.Integer({
+          minimum: 1,
+          maximum: 6,
+          description: 'Frames per shot (default 1; increase only for a specific unresolved issue)',
+        }),
       ),
       times: Type.Optional(
         Type.Array(Type.Number(), { description: 'Extra moments to include, in seconds' }),
@@ -694,9 +598,28 @@ export default function motionCommands(): CommandSpec[] {
   })
 
   commands.push({
+    verb: 'inspect',
+    description:
+      'Explore a product URL in a browser without screenshots, font downloads or overwriting brand recon. Returns bounded readable text and real links (including docs/product pages), follows redirects and saves evidence under recon/pages/. Follow useful links autonomously until the selected workflow is understood; the page layout is not a video composition.',
+    parameters: Type.Object({
+      url: Type.String({
+        description: 'Product, feature, documentation or other relevant HTTP(S) URL',
+      }),
+      max_chars: Type.Optional(
+        Type.Integer({ minimum: 500, maximum: 12000, description: 'Text limit (default 5000)' }),
+      ),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx) {
+      const args = [`--url=${p.url}`]
+      if (p.max_chars) args.push(`--max-chars=${p.max_chars}`)
+      return text(await hostAction(workspaceOf(ctx), 'launch_inspect', { args }))
+    },
+  })
+
+  commands.push({
     verb: 'recon',
     description:
-      "Measure the product's brand from the live page in a real browser: body bg/ink/font, :root custom properties, headline and body type, the primary CTA's computed styles, surfaces, saturated colours, theme-color and the page copy → recon/brand-tokens.md + .json; saves the logo from the header verbatim into assets/logo/ (inline SVG as-is) and self-hosts the brand's web fonts into assets/fonts/ with a ready brand.fonts snippet. Run on the home page and 1–2 product pages (different out paths).",
+      'Measure brand identity from the live product page: palette, typography, CTA, logo and self-hosted fonts → recon/brand-tokens.md + .json. These are source facts, not a layout to copy. Run on the canonical brand page; explore further pages with pitch motion inspect without repeatedly harvesting fonts or replacing brand tokens.',
     parameters: Type.Object({
       url: Type.String({ description: 'Page to measure (http/https)' }),
       out: Type.Optional(
@@ -850,7 +773,7 @@ export default function motionCommands(): CommandSpec[] {
         return text(head + (await runScript('cues.mjs', a, ws, 120_000)))
       } catch (err: any) {
         const out = `${err?.stdout ?? ''}\n${err?.stderr ?? ''}`.trim()
-        if (out) return text(head + out)
+        if (out) return { ...text(head + out), isError: true }
         throw err
       }
     },
@@ -982,7 +905,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'find-audio',
     description:
-      'Choose music for any kind of video. Use --random to randomly select and import a bed from the full curated library into audio/music.<ext>; reuse that file during edits. Respect an existing bed or explicit user choice. Listing returns shuffled candidates. Pass src + copy_to to import a specific file.',
+      'Discover music candidates for any video. Respect an existing bed or user choice. List a small shuffled shortlist or use --random to import one candidate. Import only the candidate you will use or assess, not the entire shortlist. Optional pitch media review --purpose music analyzes actual sound when suitability is uncertain; it is not a routine gate. Filenames are opaque IDs, not moods. Reuse the chosen bed during edits.',
     parameters: Type.Object({
       dir: Type.Optional(
         Type.String({ description: "Directory to scan (default: the repo's assets/music)" }),
@@ -1072,8 +995,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'verify-duration',
     description:
-      'ffprobe the duration of a rendered MP4 to confirm it matches the timeline length, not the ' +
-      'audio length. Use after any final render.',
+      'Measure the rendered MP4 duration with ffprobe. Compare the reported value with the authored timeline and any explicit exact delivery constraint, not an approximate runtime preference. This command measures length; it does not automatically compare or certify it.',
     parameters: Type.Object({
       file: Type.String({ description: 'MP4 path to probe (workspace-relative)' }),
     }),

@@ -7,6 +7,7 @@ import { API_URL } from '../../config'
 import { firstUrlInText, isAuthenticatedFor, prettyHost } from '../../lib/authOrigins'
 import { ModelCatalog } from '../account/ModelCatalog'
 import { studio } from './client'
+import { PendingMessages } from './PendingMessages'
 import type { Target } from './types'
 import { useBrowserProfile } from './useBrowserProfile'
 import type { ProjectStore } from './useProject'
@@ -214,11 +215,14 @@ export function Composer(props: { store: ProjectStore }) {
         ? 'Describe what should change for [1], [2]…'
         : where()
           ? `What should change in ${where()}?`
-          : s.entries.length
-            ? 'Ask for a change…'
-            : 'Describe what you want…'
+          : s.busy
+            ? 'Add a follow-up… Enter to queue, ⌘/Ctrl+Enter to steer'
+            : s.entries.length
+              ? 'Ask for a change…'
+              : 'Describe what you want…'
   return (
     <div class="job-composer">
+      <PendingMessages entries={s.entries} busy={s.busy} onSteer={s.steerQueued} />
       <div class="job-composer-box">
         <Show when={s.targets.length}>
           <div class="target-row">

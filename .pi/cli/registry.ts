@@ -23,6 +23,7 @@ import deck from './deck.ts'
 import demo from './demo.ts'
 import demoFlow from './demo-flow.ts'
 import effects, { families } from './effects.ts'
+import icons from './icons.ts'
 import media from './media.ts'
 import motion from './motion.ts'
 import pdf from './pdf.ts'
@@ -82,6 +83,7 @@ const NAMESPACES: Record<string, Namespace> = {
     groups: { noun: 'family', param: 'family', list: families },
   },
   motion: { modules: [motion] },
+  icons: { modules: [icons] },
   media: { modules: [media] },
   video: { modules: [video] },
   deck: { modules: [deck] },

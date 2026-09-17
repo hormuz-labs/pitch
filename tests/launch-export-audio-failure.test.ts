@@ -39,7 +39,7 @@ it('stops export at a failed audio gate instead of capturing with the previous m
   await writeFile(path.join(dir, 'audio/mix.wav'), 'old mix')
   const publish = vi.fn()
   await launchExporter.start(
-    { id: 'audio-fail', userId: 'u', name: 'film' } as any,
+    { id: 'audio-fail', userId: 'u', name: 'film', outputs: [] } as any,
     { res: '1080p' },
     publish,
   )

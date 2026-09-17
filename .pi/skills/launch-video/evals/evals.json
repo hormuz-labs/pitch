@@ -1,0 +1,23 @@
+{
+  "skill_name": "launch-video",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create an approximately 30-second cinematic Akkari launch film. Focus on capture, prioritize, execute. Music only. Use recognizable icons and visual actions, with little text. I'll export it myself.",
+      "expected_output": "A live shots.js preview using the cinematic treatment, authoring and finish modules; music/mix guidance as needed. No narration or 3D guidance, no automatic MP4 render, no additional integration tour. Runtime follows the story.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Make a narrated kinetic-type announcement for the new search feature. About 20 seconds, short phrases, with a real search-result reveal.",
+      "expected_output": "A live preview using the kinetic treatment and narration module. Write and record a coherent spoken story before authoring shot timings; picture supports the read, with room for pauses rather than one caption per action. Load authoring/mix/finish guidance as needed, not unrelated treatments. No automatic export.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "The film is good. Just make the music quieter; keep everything else the same.",
+      "expected_output": "An existing-project audio edit loading only the mix module. Reuse the current bed and picture; no treatment re-planning, effects search, screenshots, paid review or MP4 render.",
+      "files": []
+    }
+  ]
+}

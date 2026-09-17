@@ -78,7 +78,7 @@ export interface Ask {
 }
 export interface AskAnswer {
   askEntryId: string
-  selections: Array<{ questionId: string; optionIds: string[] }>
+  selections: Array<{ questionId: string; optionIds: string[]; customText?: string }>
 }
 export interface Entry {
   id: string
