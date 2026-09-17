@@ -223,11 +223,12 @@ Use the syntax here directly; ask for help only when a needed option is
 unknown. Read `common shot fields` once; get needed sections and types together,
 e.g. `pitch motion schema --section "common shot fields" --types line,logo-cta`
 for a film using those types. Custom factories need `--section "custom shot types"`.
-List all numbered beds with `pitch motion find-audio --max 25`. Their filenames
-are opaque IDs, not descriptions: never default to the first or lowest-numbered
-track, and do not infer style from its number. Import the chosen bed with
-`pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`;
-probe that workspace-relative path. Never probe an absolute library path.
+Unless a bed is already selected or the user requested a specific soundtrack,
+run `pitch motion find-audio --random` to pick and import one from the full
+library. Reuse it during edits. Filenames are opaque IDs, not descriptions;
+do not infer style from a number. For an explicit choice, import with
+`pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`.
+Probe the returned workspace-relative path, never an absolute library path.
 
 **One shot at a time, and the film runs after every one.** Save and compile
 each added shot so the preview grows while the user watches. Use `check`

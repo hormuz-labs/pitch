@@ -9,15 +9,17 @@ mix's levels, reused by automatic preview/export rebuilds).
 ## 1. The bed
 
 The studio's music picker and `pitch motion find-audio` read the same curated
-library; a bed the user picked is already in `audio/`. Library filenames are
-numbered opaque IDs, not style labels. When no bed is already selected, list
-all 25 with `pitch motion find-audio --max 25`; do not repeatedly take the
-first or lowest-numbered result, and do not claim a number implies a mood or
-genre. Use any known user choice or prior listening evidence and report the
-numeric track ID in the summary. Without such evidence, `pitch motion music`
-generates an instrumental bed from the audio direction in `direction.md` —
-BPM, palette, instruments, the timed arrangement, the film's exact length —
-never an artist or a song by name. Never scan personal directories.
+library; a bed the user picked is already in `audio/`. When no bed is already
+selected and the user has not requested a specific soundtrack, run
+`pitch motion find-audio --random`. It picks uniformly from the full library
+and imports to `audio/music.<ext>`. Use that returned path, report the track ID
+in the summary, and reuse it throughout edits and re-renders. Do not replace
+the random draw with your own habitual favourite. Library filenames are opaque
+IDs, not mood or genre labels. Respect an explicit user choice or uploaded bed.
+When the brief calls for custom music, `pitch motion music` generates an
+instrumental bed from the audio direction in `direction.md` — BPM, palette,
+instruments, timed arrangement, exact length — never an artist or song by name.
+Never scan personal directories.
 
 ## 2. Narration — one read, cut to words
 

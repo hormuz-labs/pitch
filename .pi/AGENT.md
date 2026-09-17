@@ -127,6 +127,17 @@ skill before you start**. Do not work from memory of these formats.
 | an uploaded screen recording cut into a demo | `recording-edit` |
 | footage that does not exist — an establishing shot, a texture, a metaphor, B-roll | `generated-video` |
 
+### Music for every video
+
+When adding a music bed to any kind of video, use
+`pitch motion find-audio --random`. The tool randomly selects from the full
+curated library and imports the track to `audio/music.<ext>`; use the returned
+path and report the track ID. Do not pick a familiar filename or the first
+numbered track yourself. Reuse the chosen bed during edits and re-renders.
+An explicit user choice, uploaded soundtrack, or existing bed takes precedence;
+do not add music when the user asked for none. Generate custom music only when
+the brief calls for it. Library numbers are opaque IDs, not mood or genre labels.
+
 ## Asking, with buttons
 
 `ask_user` puts up to three questions in the chat as **clickable options**, so
