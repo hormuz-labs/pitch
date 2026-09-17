@@ -11,7 +11,7 @@ export default defineConfig({
   // them at startup so opening /dashboard cannot trigger a second optimizer
   // pass that invalidates module URLs already loaded by the browser.
   optimizeDeps: {
-    include: ['@clerk/clerk-js', '@solidjs/router', 'solid-js'],
+    include: ['@clerk/clerk-js', 'solid-js'],
   },
   build: {
     rollupOptions: {
