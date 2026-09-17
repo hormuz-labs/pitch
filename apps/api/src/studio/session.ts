@@ -289,7 +289,11 @@ export function onSessionBusy(hook: BusyHook | null): void {
 function setBusy(s: Session, busy: boolean): void {
   if (s.busy === busy) return
   s.busy = busy
-  emit(s, { type: 'status', busy, activeModel: busy ? (s.active?.model ?? null) : null })
+  emit(s, {
+    type: 'status',
+    busy,
+    ...(busy ? { activeModel: s.active?.model ?? null } : {}),
+  })
   busyHook?.(s.projectId, busy)
 }
 

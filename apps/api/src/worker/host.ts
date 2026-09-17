@@ -775,7 +775,7 @@ export async function subscribe(
   listener({
     type: 'hello',
     busy: session?.busy ?? false,
-    activeModel: session?.busy ? (session.active?.model ?? null) : null,
+    ...(session?.busy ? { activeModel: session.active?.model ?? null } : {}),
   })
   const off = onProjectEvent(projectId, listener)
   let done = false
