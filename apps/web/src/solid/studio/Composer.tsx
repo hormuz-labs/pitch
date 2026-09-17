@@ -56,7 +56,7 @@ function suggestions(targets: Target[], where: string | null) {
     ]
   return []
 }
-function CreditMarker(props: { store: ProjectStore; onBalance?: (balance: number) => void }) {
+function CreditMarker(props: { store: ProjectStore }) {
   const [credits, setCredits] = createSignal<number | null>(null)
   let request: AbortController | undefined
   const refresh = async () => {
@@ -76,7 +76,6 @@ function CreditMarker(props: { store: ProjectStore; onBalance?: (balance: number
       const data = await response.json()
       if (!controller.signal.aborted && typeof data.balance === 'number') {
         setCredits(data.balance)
-        props.onBalance?.(data.balance)
       }
     } catch {
       // Keep the last confirmed balance through transient connection failures.
@@ -128,7 +127,6 @@ export function Composer(props: { store: ProjectStore }) {
         estimatedCredits: number
       }[]
     >([]),
-    [credits, setCredits] = createSignal<number | null>(null),
     [defaultModel, setDefaultModel] = createSignal<string | null>(null),
     [modelOpen, setModelOpen] = createSignal(false),
     [modelPosition, setModelPosition] = createSignal({ right: 12, bottom: 12 }),
@@ -173,11 +171,6 @@ export function Composer(props: { store: ProjectStore }) {
     !profile.loading() &&
     !isAuthenticatedFor(promptUrl(), profile.origins())
   const selectedModel = () => models().find(m => m.spec === (s.model ?? defaultModel()))
-  const generationsLeft = () => {
-    const balance = credits()
-    const cost = selectedModel()?.estimatedCredits
-    return balance === null || !cost ? null : Math.floor(balance / cost)
-  }
   const send = async (delivery?: 'queue' | 'steer') => {
     const text = s.draft.trim()
     if (!text || uploading()) return
@@ -355,7 +348,7 @@ export function Composer(props: { store: ProjectStore }) {
               hidden
               onChange={e => setFiles(v => [...v, ...Array.from(e.currentTarget.files ?? [])])}
             />
-            <CreditMarker store={s} onBalance={setCredits} />
+            <CreditMarker store={s} />
           </div>
           <div class="job-composer-actions">
             <Show when={!s.busy && models().length}>
@@ -407,14 +400,6 @@ export function Composer(props: { store: ProjectStore }) {
                   </Portal>
                 </Show>
               </div>
-            </Show>
-            <Show when={!s.busy && generationsLeft() !== null}>
-              <span
-                class="generation-count"
-                title={`Estimated from your balance and about ${selectedModel()?.estimatedCredits ?? 0} credits per generation`}
-              >
-                {generationsLeft()} left
-              </span>
             </Show>
             <Show
               when={s.busy}

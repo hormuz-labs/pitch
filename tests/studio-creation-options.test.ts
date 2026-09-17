@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeCreationOptions } from '../apps/api/src/projects/creation-options.js'
+import {
+  durationOptionFromText,
+  normalizeCreationOptions,
+} from '../apps/api/src/projects/creation-options.js'
 
 describe('normalizeCreationOptions', () => {
   it('stores a narration preference without provider metadata or a preview URL', () => {
@@ -46,5 +49,25 @@ describe('normalizeCreationOptions', () => {
         topic: 'Product launch',
       }),
     ).toEqual({ referenceVideoFiles: [], topic: 'Product launch' })
+  })
+})
+
+describe('durationOptionFromText', () => {
+  it('extracts a duration from a questionnaire answer', () => {
+    expect(
+      durationOptionFromText(
+        'What style of launch film should we create? → Product walkthrough\nWhat length works best? → ~45s deep dive',
+      ),
+    ).toEqual({ durationSeconds: 45 })
+  })
+
+  it('extracts an explicit duration from a normal video brief', () => {
+    expect(durationOptionFromText('Make a 60 second product video')).toEqual({
+      durationSeconds: 60,
+    })
+  })
+
+  it('does not mistake unrelated numbers for duration', () => {
+    expect(durationOptionFromText('Use these 3 features in the launch')).toBeUndefined()
   })
 })

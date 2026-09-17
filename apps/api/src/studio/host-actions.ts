@@ -28,6 +28,11 @@ export function takeComputeSeconds(internal: string): number {
   return seconds
 }
 
+/** Host compute accrued without draining it, for live affordability checks. */
+export function peekComputeSeconds(internal: string): number {
+  return spent.get(internal) ?? 0
+}
+
 interface Registry {
   actions: Map<string, HostAction>
   call(cwd: string, name: string, params: Record<string, any>): Promise<string>

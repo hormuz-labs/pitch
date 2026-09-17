@@ -197,6 +197,11 @@ export function useProject(id: string | undefined) {
           { id: `err-${Date.now()}`, role: 'assistant', text: `⚠ ${ev.message}` },
         ])
         break
+      case 'credit_exhausted':
+        entryRevision++
+        setEntries(v => [...v, { id: `credit-${Date.now()}`, role: 'credit', text: ev.message }])
+        window.dispatchEvent(new Event('credits-changed'))
+        break
       case 'deleted':
         setLoadError('This project was deleted.')
         break

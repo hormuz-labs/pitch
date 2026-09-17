@@ -37,6 +37,7 @@ import {
   listAssets as listAssetsOf,
   type ThumbRequest,
 } from '../projects/assets.js'
+import { durationOptionFromText } from '../projects/creation-options.js'
 import { cancelExport, type ExportStatus, exportProject, getExport } from '../projects/export.js'
 import {
   addOutput,
@@ -49,10 +50,12 @@ import {
   workspaceOf,
 } from '../projects/rows.js'
 import { projectThumbnail } from '../projects/thumbnails.js'
-import { chargeTurn } from '../projects/usage.js'
+import { chargeTurn, projectedCreditsOwed } from '../projects/usage.js'
 import { emitProjectEvent, onProjectEvent, type StudioEvent } from '../studio/events.js'
 import { deleteWorkspaceHistory } from '../studio/history.js'
+import { peekComputeSeconds } from '../studio/host-actions.js'
 import {
+  modelCreditMultiplier,
   selectStudioModel,
   videoGenerationCostUsd,
   videoGenerationCredits,
@@ -66,6 +69,7 @@ import {
   listStudioModels,
   onSessionBusy,
   type PromptDelivery,
+  peekModelCost,
   peekSession,
   promptSession,
   rollbackSession,
@@ -300,6 +304,17 @@ export async function prompt(
   const agent = getAgent()
   const ws = h.ws
   const first = opts.first ?? false
+  const inferredOptions = durationOptionFromText(text)
+  if (inferredOptions) {
+    p.options = { ...p.options, ...inferredOptions }
+    await Promise.all([
+      db.prisma.project.update({
+        where: { id: p.id },
+        data: { options: JSON.stringify(p.options) },
+      }),
+      agent.prepare(ws, p.options, []),
+    ])
+  }
   const model = selectStudioModel(await listStudioModels(p.userId), opts.model, p.options?.model)
   if (opts.uploads?.length && !first)
     await agent.prepare(ws, { ...p.options, ...opts.options }, opts.uploads)
@@ -338,13 +353,69 @@ export async function prompt(
     opts.displayText,
   )
   markDirty(h)
-  if (result.delivery !== 'steered') billTurn(p, result.turn, opts.billingChannel, model, first)
+  if (result.delivery !== 'steered') {
+    billTurn(p, result.turn, opts.billingChannel, model, first)
+    guardTurnCredits(p, result.turn, model)
+  }
   if (first) followFirstTurn(p, result.turn)
   if (p.lastError)
     await db.prisma.project
       .update({ where: { id: p.id }, data: { lastError: null } })
       .catch(() => {})
   return { delivery: result.delivery, turn: result.turn, entryId: result.entryId }
+}
+
+/** Stop between model/tool boundaries when the accrued turn can no longer be paid for. */
+function guardTurnCredits(p: ProjectRow, turn: number, model: string): void {
+  let checking = false
+  let stopped = false
+  const off = onProjectEvent(p.id, (ev: StudioEvent) => {
+    if (ev.type !== 'idle' || ev.turn !== turn) return
+    stopped = true
+    clearInterval(timer)
+    off()
+  })
+  const check = async () => {
+    if (checking || stopped) return
+    checking = true
+    try {
+      const [balance, row] = await Promise.all([
+        db.getCreditBalance(p.userId),
+        db.prisma.project.findUnique({
+          where: { id: p.id },
+          select: { usageUsd: true, creditsCharged: true },
+        }),
+      ])
+      if (stopped) return
+      if (!row) return
+      const owed = projectedCreditsOwed(
+        row.usageUsd,
+        row.creditsCharged,
+        {
+          modelUsd: peekModelCost(p.id),
+          computeSeconds: peekComputeSeconds(workspaceOf(p).internal),
+        },
+        modelCreditMultiplier(model),
+      )
+      if (owed <= 0) return
+      if (owed <= balance) {
+        const charged = await chargeTurn(p, peekModelCost(p.id), undefined, model)
+        if (charged > 0 && charged < balance) return
+      }
+      stopped = true
+      emitProjectEvent(p.id, {
+        type: 'credit_exhausted',
+        message: 'Your credits ran out, so generation was stopped.',
+      })
+      await stopSession(p.id)
+    } catch (err) {
+      logger.warn({ err, projectId: p.id }, 'could not check live credit balance')
+    } finally {
+      checking = false
+    }
+  }
+  const timer = setInterval(() => void check(), 1000)
+  void check()
 }
 
 /**

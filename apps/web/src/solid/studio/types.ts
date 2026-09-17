@@ -76,7 +76,7 @@ export interface Ask {
 }
 export interface Entry {
   id: string
-  role: 'user' | 'assistant' | 'thinking' | 'tool' | 'question'
+  role: 'user' | 'assistant' | 'thinking' | 'tool' | 'question' | 'credit'
   text: string
   tool?: { name: string; status: 'running' | 'done' | 'error' }
   ask?: Ask
@@ -124,6 +124,7 @@ export type StudioEvent =
   | { type: 'reset'; entries: Entry[] }
   | { type: 'assets'; files: string[] }
   | { type: 'error'; message: string }
+  | { type: 'credit_exhausted'; message: string }
   | ({ type: 'preview'; ok: boolean; files: string[] } & Partial<Description>)
   | { type: 'project'; project: ProjectSummary }
   | { type: 'deleted' }

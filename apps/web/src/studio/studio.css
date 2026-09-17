@@ -1279,6 +1279,29 @@
   background: var(--panel);
   border: 1px solid var(--border);
 }
+.lv-studio .credit-exhausted {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 7%, var(--panel));
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.lv-studio .credit-exhausted strong {
+  font-size: 13px;
+}
+.lv-studio .credit-exhausted a {
+  align-self: flex-start;
+  margin-top: 2px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 /* Agent log lines (thinking / tool runs) */
 
 .lv-studio .log-line {
@@ -1302,6 +1325,13 @@
 .lv-studio .log-line.tool.error {
   color: var(--danger);
 }
+.lv-studio .agent-work {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(100%, 520px);
+}
 .lv-studio .agent-activity {
   --thinking-orb-size: clamp(24px, 3vw, 32px);
   display: flex;
@@ -1313,6 +1343,89 @@
 }
 .lv-studio .agent-activity canvas {
   flex: none;
+}
+.lv-studio .reasoning-steps {
+  margin-left: calc(var(--thinking-orb-size, 32px) + 6px);
+  color: var(--faint);
+  font-size: 12px;
+}
+.lv-studio .reasoning-steps__trigger {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.lv-studio .reasoning-steps__trigger span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lv-studio .reasoning-steps__trigger svg {
+  flex: none;
+  transition: transform 160ms ease;
+}
+.lv-studio .reasoning-steps__trigger svg.is-open {
+  transform: rotate(180deg);
+}
+.lv-studio .reasoning-steps__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 3px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lv-studio .reasoning-step {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+.lv-studio .reasoning-step > span:last-child {
+  overflow-wrap: anywhere;
+}
+.lv-studio .reasoning-step__icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  color: var(--muted);
+}
+.lv-studio .reasoning-step.is-running {
+  color: var(--muted);
+}
+.lv-studio .reasoning-step.is-running > span:last-child {
+  background: linear-gradient(90deg, var(--muted) 25%, var(--ink) 50%, var(--muted) 75%);
+  background-size: 220% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: reasoning-shimmer 1.8s linear infinite;
+}
+.lv-studio .reasoning-step.is-running .reasoning-step__icon {
+  color: var(--ink);
+  animation: reasoning-pulse 1.25s ease-in-out infinite;
+}
+.lv-studio .reasoning-step.is-error,
+.lv-studio .reasoning-step.is-error .reasoning-step__icon {
+  color: var(--danger);
+}
+@keyframes reasoning-pulse {
+  50% { opacity: 0.25; transform: scale(0.72); }
+}
+@keyframes reasoning-shimmer {
+  to { background-position: -220% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lv-studio .reasoning-step.is-running .reasoning-step__icon,
+  .lv-studio .reasoning-step.is-running > span:last-child {
+    animation: none;
+  }
 }
 
 /* The agent's question, as a stepper (see Ask.tsx) */
@@ -1327,50 +1440,57 @@
   padding-left: 10px;
   outline: none;
 }
+.lv-studio .question-card {
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--panel);
+  gap: 10px;
+  padding: 14px;
+}
 .lv-studio .ask.locked {
   border-left-color: var(--border);
   opacity: 0.55;
 }
-.lv-studio .ask-steps {
+.lv-studio .ask-head {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lv-studio .ask-progress {
   color: var(--faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.lv-studio .ask-step {
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--faint);
-  font: inherit;
-  font-size: 10.5px;
-  line-height: 1;
-  padding: 3px 6px;
-  cursor: pointer;
+.lv-studio .ask-dots {
+  display: flex;
+  gap: 5px;
 }
-.lv-studio .ask-step.done {
-  color: var(--muted);
-  border-color: var(--muted);
+.lv-studio .ask-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border);
 }
-.lv-studio .ask-step.on {
+.lv-studio .ask-dot.on {
   background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
+  box-shadow: 0 0 0 3px var(--panel-2);
 }
-.lv-studio .ask-step:disabled {
-  cursor: default;
-  opacity: 0.5;
+.lv-studio .ask-dot.done {
+  background: var(--muted);
 }
 .lv-studio .ask-intro {
-  margin-left: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
 }
 .lv-studio .ask-q {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
 }
@@ -1384,25 +1504,32 @@
   margin: 0;
   padding: 0;
 }
-.lv-studio .ask-row {
+.lv-studio .ask-list {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  gap: 5px;
+}
+.lv-studio .ask-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
   width: 100%;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
   color: inherit;
   font: inherit;
   font-size: 12.5px;
   line-height: 1.35;
   text-align: left;
-  padding: 4px 6px;
+  padding: 8px;
   cursor: pointer;
 }
 .lv-studio .ask-row:hover:not(:disabled),
 .lv-studio .ask-row.on {
-  background: var(--panel);
+  border-color: var(--muted);
+  background: var(--panel-2);
 }
 .lv-studio .ask-row.on .ask-key {
   background: var(--ink);
@@ -1423,14 +1550,14 @@
   color: var(--faint);
 }
 .lv-studio .ask-text {
-  flex: 0 0 auto;
+  min-width: 0;
+  font-weight: 500;
 }
 .lv-studio .ask-hint {
+  grid-column: 2;
   color: var(--faint);
-  font-size: 11.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.35;
 }
 .lv-studio .ask-summary li {
   font-size: 12px;
@@ -1441,12 +1568,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-left: 6px;
+  justify-content: space-between;
+  padding: 2px 0 0;
 }
 .lv-studio .ask-send,
 .lv-studio .ask-flat {
   border-radius: 6px;
-  padding: 4px 10px;
+  min-height: 30px;
+  padding: 5px 11px;
   font: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -3765,17 +3894,6 @@
   color: var(--ink);
 }
 
-
-.lv-studio .job-composer .generation-count {
-  flex: none;
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: var(--panel-2);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-}
 
 .lv-studio .job-send-round {
   background: #111111;

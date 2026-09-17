@@ -135,11 +135,6 @@ export function NewProjectView(props: {
     if (!selected.videoCreditsPer30Seconds) return selected.estimatedCredits
     return Math.ceil(selected.videoCreditsPer30Seconds * (Math.max(30, duration() ?? 30) / 30))
   })
-  const generationsLeft = createMemo(() => {
-    const balance = credits()
-    const cost = selectedModelCost()
-    return balance === null || !cost ? null : Math.floor(balance / cost)
-  })
   const insufficientCredits = createMemo(() => {
     const balance = credits()
     const cost = selectedModelCost()
@@ -603,14 +598,6 @@ export function NewProjectView(props: {
                   >
                     <ModelCatalog models={models()} selected={model()} onSelect={setModel} />
                   </StudioMenu>
-                </Show>
-                <Show when={generationsLeft() !== null}>
-                  <span
-                    class="generation-count"
-                    title={`Estimated from your balance and about ${selectedModelCost().toLocaleString()} credits for this duration`}
-                  >
-                    {generationsLeft()} left
-                  </span>
                 </Show>
                 <GenerateButton
                   hue={210}

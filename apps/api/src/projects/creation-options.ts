@@ -64,3 +64,14 @@ export function normalizeCreationOptions(value: unknown): Record<string, any> {
 
   return options
 }
+
+/** Pull a duration from a user brief or an answer emitted by the question card. */
+export function durationOptionFromText(text: string): { durationSeconds: number } | undefined {
+  const lines = text.split('\n')
+  const duration = /(?:~|about\s*)?(\d{1,3})\s*(?:s|sec(?:ond)?s?)\b/i
+  const relevant = lines.find(line => /(?:length|duration|long)/i.test(line) && duration.test(line))
+  const match = duration.exec(relevant ?? text)
+  if (!match) return undefined
+  const durationSeconds = Number(match[1])
+  return durationSeconds >= 3 && durationSeconds <= 300 ? { durationSeconds } : undefined
+}

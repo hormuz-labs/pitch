@@ -170,6 +170,11 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       : `You are continuing "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}\n\nIf the message is actionable, apply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the pitch media commands before regenerating anything.`,
   )
 
+  if (typeof options.durationSeconds === 'number')
+    parts.push(
+      `Required output duration: exactly ${options.durationSeconds} seconds. Treat this as a hard requirement when planning, scaffolding, authoring and verifying the artifact; do not substitute a pipeline default.`,
+    )
+
   if (turn.slide) parts.push(`The user is looking at slide ${turn.slide}.`)
 
   if (

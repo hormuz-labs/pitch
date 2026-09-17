@@ -63,6 +63,16 @@ export function creditsOwed(usd: number, charged: number): number {
   return Math.max(0, Math.floor(usd / CREDIT_USD) - charged)
 }
 
+export function projectedCreditsOwed(
+  usageSoFarUsd: number,
+  charged: number,
+  pending: TurnUsage,
+  multiplier = 1,
+  margin = platformMargin(),
+): number {
+  return creditsOwed(usageSoFarUsd + usageUsd(pending, multiplier, margin), charged)
+}
+
 export function noLossCredits(billableCostUsd: number): number {
   return Math.ceil(Math.max(0, billableCostUsd) / MIN_REVENUE_USD_PER_CREDIT)
 }
@@ -96,6 +106,18 @@ export async function chargeTurn(
   const total = row.usageUsd + usd
   const owed = creditsOwed(total, row.creditsCharged)
 
+  if (owed > 0) {
+    try {
+      await db.deductCredit(p.userId, owed, `Usage: ${p.title}`, {
+        projectId: p.id,
+        channel,
+      })
+    } catch (err) {
+      logger.warn({ err, projectId: p.id }, 'usage charge failed')
+      return 0
+    }
+  }
+
   await db.prisma.project
     .update({
       where: { id: p.id },
@@ -104,12 +126,6 @@ export async function chargeTurn(
     .catch(err => logger.warn({ err, projectId: p.id }, 'could not record usage'))
 
   if (owed > 0) {
-    await db
-      .deductCredit(p.userId, owed, `Usage: ${p.title}`, {
-        projectId: p.id,
-        channel,
-      })
-      .catch(err => logger.warn({ err, projectId: p.id }, 'usage charge failed'))
     logger.info(
       {
         projectId: p.id,

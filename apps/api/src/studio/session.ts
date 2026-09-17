@@ -737,6 +737,11 @@ export function takeModelCost(projectId: string): number {
   return cost
 }
 
+/** Model spend accrued without draining it, for live affordability checks. */
+export function peekModelCost(projectId: string): number {
+  return sessions.get(projectId)?.cost ?? 0
+}
+
 export function listBusy(): Set<string> {
   return new Set([...sessions.values()].filter(s => s.busy).map(s => s.projectId))
 }

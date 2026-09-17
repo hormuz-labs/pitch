@@ -25,7 +25,12 @@ vi.mock('../apps/api/src/studio/model-picker.js', () => ({
   platformMargin: vi.fn(() => 1.25),
 }))
 
-import { chargeTurn, noLossCredits, usageUsd } from '../apps/api/src/projects/usage.js'
+import {
+  chargeTurn,
+  noLossCredits,
+  projectedCreditsOwed,
+  usageUsd,
+} from '../apps/api/src/projects/usage.js'
 
 /** A project row with just what chargeTurn reads. */
 function project(overrides: Record<string, unknown> = {}) {
@@ -97,6 +102,10 @@ describe('model credit pricing', () => {
     expect(usageUsd({ modelUsd: 0.1, computeSeconds: 10 }, 2)).toBeCloseTo(0.275)
   })
 
+  it('projects the unpaid credits accrued during an active turn', () => {
+    expect(projectedCreditsOwed(0.1, 40, { modelUsd: 0.02, computeSeconds: 5 }, 1, 1)).toBe(12)
+  })
+
   it('charges the model selected for this turn', async () => {
     mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
 
@@ -138,5 +147,13 @@ describe('model credit pricing', () => {
       expect.any(String),
       expect.any(Object),
     )
+  })
+
+  it('does not mark credits charged when the balance cannot cover them', async () => {
+    mocks.projectFindUnique.mockResolvedValue({ usageUsd: 0, creditsCharged: 0 })
+    mocks.deductCredit.mockRejectedValueOnce(new Error('Insufficient credits'))
+
+    expect(await chargeTurn(project(), 0.3)).toBe(0)
+    expect(mocks.projectUpdate).not.toHaveBeenCalled()
   })
 })

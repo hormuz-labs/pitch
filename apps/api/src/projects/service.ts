@@ -25,7 +25,7 @@ import {
   type PromptProjectResult,
 } from '../worker/host.js'
 import { isLive } from '../worker/lease.js'
-import { normalizeCreationOptions } from './creation-options.js'
+import { durationOptionFromText, normalizeCreationOptions } from './creation-options.js'
 import {
   getRow,
   InsufficientCreditsError,
@@ -179,7 +179,10 @@ export async function createProject(
   const prompt = String(input.prompt ?? '').trim()
   if (!prompt && !input.uploads?.length)
     throw Object.assign(new Error('prompt is required'), { status: 400 })
-  const options = normalizeCreationOptions(input.options)
+  const options = normalizeCreationOptions({
+    ...input.options,
+    ...(durationOptionFromText(prompt) ?? {}),
+  })
   options.model = selectStudioModel(
     await listStudioModels(userId),
     typeof input.model === 'string'
