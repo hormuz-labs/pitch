@@ -5,8 +5,8 @@
 video in the studio: the preview, the element inspector, the scene strip, the
 mixer and the renderer all read the same shot list.
 
-- `schema.md` — every shot type and field, the **density layer** (`ambient`
-  stage, `motion.exit`, per-shot `beats`, `word-build`, `pile`), plus how a
+- `schema.md` — every shot type and field, optional stage and motion layers (`ambient`,
+  `motion.exit`, `motion.drift`, per-shot `beats`), plus how a
   project adds its own types in `js/shots.custom.js`.
 - `js/factories.js` — the built-in types, including `lottie`, `rive` and the
   layered `ui-frame`. `window.ShotKit` exposes the helpers custom factories
@@ -24,9 +24,10 @@ project factory instead.
 
 Preview: the studio, or serve the repo root and open
 `/projects/<name>/index.html?play` (space play/pause, arrows seek).
-`?audit` builds the page with drift and ambient off — what `pitch motion audit`
-measures. `projects/pacing-demo/` is a reference shot list that passes the
-gate and exercises every density feature.
+Drift and exits are opt-in; the compiler otherwise preserves the factory's
+motion. `?audit` builds the page with optional drift and ambient off for
+pixel-change diagnostics. Pacing is judged against the film's treatment;
+render determinism and scene visibility remain technical checks.
 
 Render (from the project folder — the studio's Export button does the same):
 

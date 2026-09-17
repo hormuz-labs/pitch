@@ -545,7 +545,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'review',
     description:
-      "Your eyes on the film. Seeks the compiled page at three moments per shot (entrance settled, second act, exit starting), stamps each frame with its shot and time, and tiles them into contact sheets you receive as images — the whole film on 3–4 sheets. It also measures, at every frame, each run of hero type against the mask holding it (or the stage edge) and lists what is clipped, in px, with the fix; and, at the settled frame, the ground — a shot sitting on a colour that is none of the brand's is named (`bg: \"ink\"` passes). Look for: words over a busy image, elements overlapping or half off-canvas, an empty frame, three identical frames (no second act), a colour or typeface that is not in recon/brand-tokens.md, a UI screenshot that never changes. What is on the stage — one thing or three forms — is the lab effect's composition and yours; the review does not count it. The frames carry the film's `grade` block. Fix in shots.js, then re-run with `shots` for the ones you touched — not another pitch motion audit, unless a dur, a cue or a beat changed. Run after pitch motion audit passes and after every shot edit; frames in review/ are for you, not the user.",
+      "Your eyes on the film. Samples three moments per shot and tiles labelled frames into contact sheets. Measures hero-type clipping and grounds outside the declared brand/palette. Review against direction.md: composition, legibility, intended action or stillness, real product identity and removal of source placeholders. Intentional image crops and held frames are valid; declare authored treatment colours in brand.palette. Built-in, bespoke and adapted lab compositions are equally valid. Frames carry the film's grade. Fix accidental clipping, missing content and unplanned palette differences, then re-run with shots for the edited shots; repeat audit only if timing, cues or beats changed. Frames in review/ are for you, not the user.",
     parameters: Type.Object({
       shots: Type.Optional(
         Type.Array(Type.String(), { description: 'Only these shot ids (default: every shot)' }),
@@ -598,7 +598,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'audit',
     description:
-      "The gate. Loads index.html?audit (drift and ambient off), samples every 0.25s and scores the film: the shot-list rules (shot count, scene lengths, the hook, breaths, a bare stage), the narration contract (one read in audio.vo, every shot cued and landing 0–0.35s before its word), factory overruns, seek determinism and overlap. Pacing is a ⚠️ note, not a ❌: a stretch with nothing new past 1.5s or a film under 0.7 events/s names the reference films' numbers — answer it with a beat or a cut, or keep the hold and say why in direction.md. Prints a per-shot ev/s table; a ❌ fails — fix and re-run; a ⚠️ alone needs no re-run, and a pacing note answered in direction.md is closed. After a fix that changes a dur, a cue or a beat, re-run with `shots` for the shots you touched: it samples only their stretch on the same grid (a 5s shot is ~8s, the film ~30s) and replaces their frames in audit/. Several tabs sample the film at once. Writes one frame per second to audit/. Not for audio-only changes: a breath or a mix level needs pitch motion cues and pitch motion mix, not the gate.",
+      'Render validation and pacing diagnostics. Loads index.html?audit (optional drift and ambient off), samples every 0.25s, checks timeline validity, narration alignment, factory overruns, seek determinism and scene visibility. Pixel-change rate is not a storytelling score: default notes flag quiet stretches over 1.5s or fewer than 0.7 events/s; max_quiet and min_eps may be chosen for the treatment. Review notes against direction.md and reading time. Intentional stillness needs no fix or re-run; never add decorative motion to raise the count. No prescribed shot count, duration, effect source, cut style or sound dip. Fix ❌ rendering failures and re-run. After timing, cue or beat edits, use shots to sample only the affected shots. Writes frames in audit/. Audio-only changes need pitch motion mix, not a visual audit.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to audit (default index.html)' })),
       shots: Type.Optional(
@@ -609,14 +609,16 @@ export default function motionCommands(): CommandSpec[] {
       step: Type.Optional(Type.Number({ description: 'Sample step in seconds (default 0.25)' })),
       max_quiet: Type.Optional(
         Type.Number({
+          minimum: 0,
           description:
-            'The stretch without an on-screen event the pacing note starts at, seconds (default 1.5; a note, not a failure)',
+            'Quiet-stretch diagnostic threshold in seconds; choose for the treatment (default 1.5, not a failure)',
         }),
       ),
       min_eps: Type.Optional(
         Type.Number({
+          minimum: 0,
           description:
-            'Events per second over the film the pacing note starts under (default 0.7; a note, not a failure)',
+            'Pixel-change events/s diagnostic threshold (default 0.7); 0 disables the rate note for a deliberately still treatment',
         }),
       ),
       out: Type.Optional(Type.String({ description: 'Output frame dir (default audit)' })),
@@ -627,8 +629,8 @@ export default function motionCommands(): CommandSpec[] {
       if (p.page) a.push(relativeIn(ws, p.page))
       if (p.shots?.length) a.push(`--shots=${p.shots.join(',')}`)
       if (p.step) a.push('--step=' + p.step)
-      if (p.max_quiet) a.push('--max-quiet=' + p.max_quiet)
-      if (p.min_eps) a.push('--min-eps=' + p.min_eps)
+      if (p.max_quiet !== undefined) a.push(`--max-quiet=${p.max_quiet}`)
+      if (p.min_eps !== undefined) a.push(`--min-eps=${p.min_eps}`)
       if (p.out) a.push('--out=' + relativeIn(ws, p.out, 'write'))
       try {
         return text(await validateFilm('audit.mjs', a, ws, p.out || 'audit'))
@@ -645,7 +647,7 @@ export default function motionCommands(): CommandSpec[] {
     verb: 'screenshot',
     description:
       'Capture the product: from a live URL, or a synthetic HTML template. For brand recon -> recon/screenshots/; ' +
-      'for a shot, `selector` crops to the one control the copy is about, at 2× — a whole desktop is never the subject of a shot. With `layers`, cuts the screen into a ' +
+      'for a detail shot, `selector` crops to the relevant control at 2×; keep an overview when the whole interface is the subject. With `layers`, cuts the screen into a ' +
       'base plate plus each floating piece (modal, sticky header, sidebar, toast) on transparency and writes ' +
       '<out>.layers.json with the `layers` field for a parallax ui-frame — out under assets/harvested/ in that case.',
     parameters: Type.Object({
@@ -832,7 +834,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'check',
     description:
-      "Fast compile check (seconds, not the audit): links any new js/shots/*.js and css/shots/*.css into index.html, then loads it and reports page errors, shot count, real duration, every shot's start time, any factory overrun worth a fix (over 1.1×; over 1.6× fails the audit) and the shot-list warnings the audit will raise — a shot that holds past 1.5s, text that only enters, a whole desktop as the subject, boundaries nothing crosses (no actor posed on both sides, no carry, no flood or zoom — over a third and the film reads as slides). Run after every batch of shots you save and act on the warnings then.",
+      'Fast compile check: links new js/shots/*.js and css/shots/*.css, loads the page and reports errors, valid durations, real shot start times and actionable factory overruns (over 1.1×; over 1.6× fails audit). Flags whole-screen UI for a delivery-size readability review; overviews are valid. Does not prescribe pacing, lab effects, word entrances or objects crossing cuts. Run after adding shots; address actual build problems and review content notes against the treatment.',
     parameters: Type.Object({
       page: Type.Optional(Type.String({ description: 'Page to load (default index.html)' })),
     }),
@@ -876,7 +878,7 @@ export default function motionCommands(): CommandSpec[] {
       'Query the curated SFX manifest or build the SFX bus. mode=list: the event vocabulary. ' +
       'mode=query: ranked, measured clips — pass every event the film needs in one call (event: "impact,whoosh_deep,chime"), not one call per event. ' +
       'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json with peak-safe gain staging. Transients land at t; a riser ENDS at t (dur is its approach, default at most 1.5s). Every other sound longer than 1.5s requires dur matching its animation. ' +
-      'Budget per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture; write the sheet to that budget so the build passes first time. The build must finish with no placement warnings.',
+      'Ceilings per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture; these are limits, not targets. Choose sparse effects or music alone when the treatment calls for it. The build must finish with no placement warnings.',
     parameters: Type.Object({
       mode: Type.Union([Type.Literal('list'), Type.Literal('query'), Type.Literal('build')]),
       event: Type.Optional(

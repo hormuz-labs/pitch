@@ -10,9 +10,9 @@ mix's levels, reused by automatic preview/export rebuilds).
 
 The studio's music picker and `pitch motion find-audio` read the same curated
 library; a bed the user picked is already in `audio/`. Pick by the audio
-persona (direction.md Axis 8) and name the file in your summary. The beat map
-beside the beds (`musicTimestamp.json`) lists beat times and strengths —
-nudge shot `dur`s so hard cuts land on strong beats. Never scan personal
+direction in `direction.md` and name the file in your summary. The beat map
+beside the beds (`musicTimestamp.json`) lists beat times and strengths and
+can guide cuts when the chosen rhythm is beat-led. Never scan personal
 directories. If nothing in the library fits, `pitch motion music` generates
 an instrumental bed to a brief — BPM, palette, instruments, the timed
 arrangement, the film's exact length — never an artist or a song by name.
@@ -28,8 +28,8 @@ picture is cut to its words.**
 - **Script first**, before the shot list is final. One paragraph at a human
   pace — 1.9–2.4 words/s, 60–70 words per 30s. Headlines on screen,
   sentences in the voice. Give every beat the words its picture needs (a 3s
-  demo ≈ 6–7 words, or a written pause "…"); a punch word needs one. If the
-  film feels slow, add a second act to the picture, never speed to the read.
+  demo ≈ 6–7 words, or a written pause "…"). If the film drags, revisit the
+  copy and visual timing while keeping the read natural.
 - **One call.** `pitch motion tts --script audio/vo.txt --voice <v> --style <s>` with
   one delivery direction for the whole read; the arc (drawing-in → proud →
   inviting) lives in phrasing and punctuation. Over 2.45 words/s is rushed
@@ -56,8 +56,8 @@ picture is cut to its words.**
 
 ## 3. SFX — sound is evidence that something moved
 
-A motion graphic without sound design reads as a slideshow with music. The
-fix is a sound for each real state change and silence everywhere else. Per
+Choose whether the film needs detailed effects, a few material sounds, or
+music alone. A state change is a possible cue, not an obligation. Per
 beat: did something change state? is it the beat's subject (background
 motion gets nothing)? is the voice speaking (then only micro-events, 6dB
 quieter)? One perfectly placed sound beats six.
@@ -73,11 +73,11 @@ cut · `glitch` scramble/error.
 
 **Two tiers, strictly separate.** Tier 1 signature cues — the moment the
 shot is *about*: `impact`, `subdrop`, `whoosh_deep`, `riser`, `success` —
-**~6 per 30s, one per shot** (the build warns past that). Tier 2 micro-
+**at most ~6 per 30s, one per shot** (the build warns past that). Tier 2 micro-
 texture — `tick`, `pop`, `click`, `type`, `data` only, ≤ −30 LUFS, ≥ 0.12s
 apart, varied clips (a repeated identical pop sounds like a stuck button) —
 up to ~10–14 per 30s. A staggered group is 3–4 pops at falling gain, never
-one per item. One shot is deliberately silent.
+one per item. These are ceilings, not targets; leave room for silence.
 
 **Sync law.** Library clips carry silence before the sound (206 of 308, up
 to 2.25s); the manifest measures each onset and the build subtracts it —

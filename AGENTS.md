@@ -110,5 +110,11 @@ Rules:
 
 ## Checks before committing
 
+The API runs TypeScript directly with Bun, including shared host helpers in
+`.pi/lib`. Its tsconfig is a no-emit check with Bun-compatible module resolution;
+`bun run build` in `apps/api` validates types. Workspace packages retain their
+own emitting builds.
+
 `bunx biome check <changed files>` and `bunx vitest run tests/`; `bunx tsc
---noEmit -p apps/api/tsconfig.json` and `-p apps/web/tsconfig.app.json`.
+--noEmit -p apps/api/tsconfig.json`, `bunx tsc --noEmit -p
+apps/web/tsconfig.solid.json` and `bunx tsc --noEmit -p apps/web/tsconfig.node.json`.

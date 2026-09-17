@@ -55,7 +55,7 @@ The checker has no minimum number of actor-linked cuts. Pick hard cuts,
 dissolves, wipes, punches or object handoffs for what the viewer should see
 next, then review the actual transition and composition.
 
-## The line builds a word at a time
+## Case study: a line built in phrases
 
 The promo's opener, frame-accurate:
 
@@ -66,18 +66,17 @@ The promo's opener, frame-accurate:
 | 1.488 | "OWNER" adds below, in the accent, ruled (one frame) |
 | 2.221 | the block is replaced by "YOU HELP PEOPLE" at ~2.5×; it settles over 0.5s |
 
-Arrivals 0.67s and 0.77s apart; a 2.2s shot holds three events. The word is
-never animated — it is there, and the composition settles after it. The
-no-cut film measured the same: a word adds sharp in one frame, the line
-settles 12 frames. In the engine: `line` with `steps`, one `add` per word
-(the engine's add is one frame + a 0.4s settle), the noun last in `accent`,
-`replace` for the next thought, `align: "left"` when the block should grow
-from a fixed anchor instead of re-centring. That is what a long shot that does
-not read as long is made of — never a longer `dur`.
+These arrivals are 0.67s and 0.77s apart. The composition settles after each
+phrase appears. `line.steps` with `add` and `replace` can implement this
+technique; `align: "left"` grows from a fixed anchor. Use it when the sentence
+benefits from staged reading. Whole-sentence reveals, static typography and
+other rhythms are equally valid. The measured intervals and accent placement
+belong to this reference, not to every line in a launch film.
 
-## Rhythm the two share
+## Reference-specific rhythm and finish
 
 Bursts of 0.2–0.5s, holds of 0.3–0.8s, whole-frame turnovers every ~0.75s
 in the promo; `expo.out` in, `power3.in` out; nothing bounces. A flat ground
 that flips between the brand's two grounds on the floods; one accent, one ink,
-one pale — no gradient, no glow, no grain, in either film.
+one pale. These observations describe the references' style, not a palette,
+easing or finish requirement. Choose those for the current treatment.

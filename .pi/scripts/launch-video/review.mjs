@@ -4,7 +4,7 @@
  *   node review.mjs [index.html] [--shots=hook,s3] [--per-shot=3] [--times=1.2,8]
  *                   [--out=review] [--cols=4] [--rows=3] [--tile=480] [--workers=6]
  *
- * Seeks the page (the real look: ambient and drift on, unlike the audit) at a
+ * Seeks the page (including any authored ambient and drift) at a
  * few moments per shot, stamps each frame with its shot, type and time inside
  * the page, captures it small, and tiles the frames into sheets with ffmpeg.
  * Forty frames become three or four images the agent can read at once, which
@@ -19,11 +19,10 @@
  *     one: a headline scaled up on its entrance ran past both stage edges at
  *     20% and 90% and fitted at 55%, and the settled-only check saw nothing.
  *
- *   • The ground. At the settled frame: the colour the shot sits on. A shot on
- *     a colour the brand never uses (a navy nobody measured) is named, while
- *     `bg: "ink"` — an inverted shot on the brand's own ink — is a choice and
- *     passes. What is on the stage — one thing or three forms — is the lab
- *     effect's composition and the director's; the review does not count it.
+ *   • The ground. At the settled frame: a colour outside the declared brand
+ *     and treatment palette is named. The director can correct an accidental
+ *     mismatch or declare a deliberate treatment colour in brand.palette.
+ *     Composition belongs to the treatment; the review does not count objects.
  *
  * Screenshots over CDP to the CloakBrowser cost ~1.3s each, so like the audit
  * the frames are captured by several tabs at once, each with its own label.
@@ -201,7 +200,7 @@ const hexOf = (rgb) => "#" + rgb.map(v => Math.round(v).toString(16).padStart(2,
 /**
  * The ground against the brand: a note when the shot sits on a colour that is
  * none of bg, ink, accent or the palette (within 40 per channel — a tint is
- * a choice, a different hue is an invention).
+ * within the declared palette's tolerance).
  */
 export function groundNote(ground, brand, shot) {
   const g = rgbOf(ground);
@@ -210,7 +209,7 @@ export function groundNote(ground, brand, shot) {
   if (!named.length) return null;
   const near = named.find(([, v]) => { const b = rgbOf(v); return Math.max(...g.map((x, i) => Math.abs(x - b[i]))) <= 40; });
   if (near) return null;
-  return `#${shot} sits on ${hexOf(g)} — not a brand colour (${named.map(([k, v]) => `${k} ${v}`).join(", ")}). A ground the product never uses is the invented look: \`bg: "ink"\` for an inverted shot, or put the colour in brand.palette with its evidence in direction.md.`;
+  return `#${shot} sits on ${hexOf(g)} — outside the declared palette (${named.map(([k, v]) => `${k} ${v}`).join(", ")}). Correct an accidental mismatch, or declare this treatment colour in brand.palette and explain the creative choice in direction.md. Do not present an authored colour as measured brand evidence.`;
 }
 
 

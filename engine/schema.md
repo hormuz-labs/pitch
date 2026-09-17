@@ -23,8 +23,8 @@ window.SHOTS = {
     ],
   },
   audio: { vo: "audio/vo.wav", voStart: 0.3 },  // ONE continuous read (omit for music-only)
-  ambient: { kind: "none" },                     // the stage — kind per direction.md Axis 1 (see "Density layer")
-  motion: { exit: "blur", cutDur: 0.5 },         // default exit motion: up | down | scale | scatter | blur | left | right | none; length of transitional cuts
+  ambient: { kind: "none" },                     // optional stage treatment (see "Density layer")
+  motion: { exit: "none", drift: false, cutDur: 0.5 }, // no added motion by default; opt into exits or drift for this film
   actors: { folder: { src: "assets/harvested/folder.png", w: 320 } },   // objects that live across shots (see "Actors")
   // render: { shutter: 0.5, samples: 4 },          // only when direction.md asks for motion blur: `samples` captures per frame = samples× the export time (see "Render and grade")
   // grade: { temperature: 5600, vignette: 0.3 },    // only when direction.md names a finish (see "Render and grade")
@@ -32,25 +32,27 @@ window.SHOTS = {
 };
 ```
 
-## Density layer (what keeps a film alive)
+## Density layer (optional stage, exits and beats)
 
-The studio's philosophy: **something new happens on screen at least every
-~1.2s.** An entrance-then-hold shot is a slide, not a shot. The engine gives
-every shot three layers of life on top of the factory's own animation, and
-`pitch motion audit` measures the result (no quiet stretch > 1.5s).
+These fields add motion beyond the shot factory. Choose them for the
+treatment; none is required. The engine adds no ambient, drift or exit by
+default. A hold, a simple reveal and a long take are valid. The audit reports
+pixel-change diagnostics for review against direction.md, not a required
+density or a universal animation pattern.
 
 | Field | Where | Meaning |
 |---|---|---|
-| `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — a living stage *between* every shot's background and its content, continuous across cuts (positions are a function of film time), position-only. `kind` is the direction.md Axis-1 choice: `blobs` (soft blurred discs — deep space + glow), `light` (one large soft light source orbiting — studio backdrop), `blueprint` (a fine line grid panning — technical grid; `size` = cell), `hairlines` (a few 1px rules drifting — editorial light, terminal noir), `halftone` (a dot screen panning — duotone poster; `size` = cell), `shapes` (flat discs, bars and slabs drifting and turning — solid brand field), `grid` (blurred rounded tiles), `aurora` (three or four very soft discs in the brand's own hues — `colors: [...]`, else the accent and two tints of it — the stage under hero type; `opacity` 0.22), `none` (a bare stage: whitespace does the work). `shot.ambient = false` hides it on one shot — product shots often sit on the bare stage while the type beats get the aurora. |
-| `motion.exit` / `shot.exit` | top / shot | `up` (default) \| `down` \| `scale` \| `scatter` \| `blur` \| `left` \| `right` \| `none` — the outgoing content leaves the frame in its last ~0.3s, so a cut is an arrival, not a freeze. `blur` rises 70px and blurs to nothing over 9 frames: the continuous take's one exit, the next thing already there on the following frame. `left` / `right` accelerate the whole line off that side (ease-in). `scatter` throws words/cards in random directions. |
-| `beats` | shot | `[{ at, kind, sel?, … }]` — mid-shot events for *any* type. `swap` (replace the text of `sel`, default the headline), `pulse` (scale pop on `sel`), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame color flash), `hide` / `show` (`sel`), `nudge` (move `sel` by `amount`/`y`), **`halo`** (a blurred disc of `color` blooms behind `sel`, `size` 900, `hold`, `fade: false` keeps it — the pre-flood glow, the press glow), `ripple` (**do not use** — rings from a press are the tell of a template and `pitch motion audit` fails it; a press is the control's own state change or a `flood`), **`blurout`** (`sel` blurs and fades in place over 0.3s), **`flood`** (the frame floods with `color` from `sel` — halo for `pre` 0.2s, solid for `hold` 0.08s, retreats to that point over `dur` 0.9s; `stay: true` leaves the frame that colour), **`zoom`** (the camera pushes into `sel` so it fills `fill` 0.6 of the width over `dur` 0.25s, everything else blurs (`dof: false` to keep it sharp); `release` seconds later it pulls back), **`breath`** (no picture: the music bed dips for `dur` 0.45s by `depth` 0.35, about −3.7dB; smooth `attack` 0.15s before the hold and `release` 0.3s after it. Hold through the payoff, then recover. `pitch motion mix` reads the current beats against compiled labels). `at` defaults to evenly spaced. |
+| `ambient` | top level | `{ kind, color?: "accent"\|"ink"\|css, colors?, count?, seed?, blur?, opacity?, size? }` — optional layer between the background and content, moving as a function of film time. Kinds: `blobs` (blurred discs), `light` (orbiting light), `blueprint` (panning line grid; `size` = cell), `hairlines` (drifting rules), `halftone` (panning dots; `size` = cell), `shapes` (flat rotating geometry), `grid` (blurred tiles), `aurora` (soft discs; `colors` or accent tints; default opacity 0.22), `none` (bare stage). `shot.ambient = false` hides it on one shot. Choose for the treatment; no stage layer is required. |
+| `motion.exit` / `shot.exit` | top / shot | `none` (default) \| `up` \| `down` \| `scale` \| `scatter` \| `blur` \| `left` \| `right` — optional exit in the last ~0.3s. `blur` rises 70px and blurs away; `left` / `right` accelerate off that side; `scatter` throws words/cards outward. Prefer `none` when the factory already supplies an exit or the next cut should arrive directly. |
+| `motion.drift` / `shot.drift` | top / shot | `false` (default). `true` adds linear rest travel (scale 1 → 1.045, x +10, y −8) over the shot. `shot.drift: false` overrides a film-wide `true`. Applies to custom types too; omit when their own camera or layout supplies the motion. The audit disables this layer. |
+| `beats` | shot | `[{ at, kind, sel?, … }]` — optional events for any type. `swap` (replace text of `sel`, default the headline), `pulse` (scale pop), `shake` (camera shake), `kick` (whole-shot scale hit), `flash` (one-frame colour flash), `hide` / `show` (`sel`), `nudge` (move by `amount`/`y`), `halo` (blurred disc of `color` behind `sel`, `size` 900, `hold`, `fade: false` keeps it), `ripple` (expanding rings), `blurout` (blur/fade over 0.3s), `flood` (colour from `sel`: halo for `pre` 0.2s, solid for `hold` 0.08s, retreat over `dur` 0.9s; `stay: true` keeps the colour), `zoom` (push into `sel`, `fill` 0.6, `dur` 0.25s, surroundings blur unless `dof: false`, pull back after `release`), `breath` (music dip, `dur` 0.45s, `depth` 0.35 ≈ −3.7dB, `attack` 0.15s, `release` 0.3s; read by `pitch motion mix`). `at` defaults to evenly spaced. Choose events for their meaning or musical role, not to raise the audit's pixel-change count. |
 | `reveal: "words"` | word-cut, color-punch | Words arrive one after another (0.13s apart, `each` overrides); parts with `accent: true` pop harder and take the accent color. |
 | `parts[].accent` | any `parts` | The keyword. Colored `--accent` (ink on accent backgrounds). One per line. |
 
-Rule of thumb for a built-in shot: **entrance (0–0.6s) → second act (a
-line swap, a second notification, a cursor) → exit (last 0.3s).** Shots
-shorter than 1.6s need no second act. A custom type's factory timeline is
-its own three acts — `beats` are not added on top of a lab port.
+An entrance → development → exit sequence is one option. A shot can also
+hold, reveal one change, or continue an action across a cut. Add `beats` only
+when they express something the treatment needs, never to satisfy an event
+counter. Custom factories and adapted lab effects own their timelines.
 
 ## Actors
 
@@ -115,7 +117,7 @@ and leave dead air between them.
 |---|---|
 | `id` | Stable label (`shot1`, `hook`, …). The studio's scene strip and the element inspector use it. |
 | `type` | One of the types below, or a project-local type from `js/shots.custom.js`. |
-| `dur` | Seconds. A `line` with steps or a shot posing actors is a scene and may run to 6s; a plain type beat 0.9–6s; a `ui-frame` demo 3–6s. When narrated, `pitch motion sync` sets it from the cue words — you author the `cue`, not the number. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). |
+| `dur` | Finite positive seconds, chosen for action, reading time and the treatment. When narrated, `pitch motion sync` derives durations from cue words. A shot lasts exactly `dur`; a factory timeline that runs longer is compressed to fit (reported by the audit). There is no per-shot duration limit. |
 | `bg` | `accent` \| `ink` \| `bg` \| a `brand.palette` name \| any CSS color. Text color is picked for contrast. |
 | `ink` | Optional explicit text color for this shot. |
 | `chapter` | The prompt → product → payoff group this shot belongs to (`"create"`, `"style"`). The studio and the audit read the groups; the first shot of a group opens it. |
@@ -126,16 +128,16 @@ and leave dead air between them.
 | `beats` | Mid-shot events — see "Density layer". |
 | `actors` | `{ name: pose \| [pose, …] }` — see "Actors". |
 | `ambient` | `false` hides the ambient stage on this shot. |
-| `lab` | The effects-lab id this shot's move was ported from (`"text/bold-text-snap"`). Annotation only — the audit counts it and the user can say "that one, but slower". |
+| `lab` | The selected `family/slug` id this shot derives from, when applicable. Source attribution only, not a quality score. Record substantial adaptations in direction.md; bespoke and built-in shots need no lab id. |
 | `cue` | The script phrase this shot lands on (`"step two"`). `pitch motion sync` starts the shot ~0.12s before that word. Beats, `word-build` lines and `device-notif` `more` items take `cue` too (→ `at`, `lineAt`, `moreAt`). |
 | `vo`, `voDur` | **Legacy per-shot clip — do not use.** More than one fails `pitch motion audit` (fragmented narration). |
-| `drift` | `false` disables the slow rest travel (scale 1.045, x +10, y −8 over the shot). `driftScale` / `driftX` / `driftY` override it. |
+| `drift` | `true` enables slow rest travel; otherwise inherits `motion.drift` (default false). `false` opts out of a film-wide drift. `driftScale` / `driftX` / `driftY` set the target scale and position when drift is enabled. |
 
 ## Types
 
 | type | Fields |
 |---|---|
-| `line` | **The sentence as protagonist** — one line of 2–4 words that changes in `steps` over the shot. `size` (px; 84–110 for a line among objects, 150–170 for a hero sentence), `align: "center"\|"left"`, `x`/`y` (the line's centre), `weight`, `container: "glass"\|"pill"` (a frosted or gradient pill that grows with the text), `typing: { cps: 22, caret: true, shrink?: 0.45, fit?: 1560 }` (chars appear one per 1/cps s behind a bar caret; a line that would outgrow `fit` px scales to `shrink` while typing goes on). `steps: [ { at, add: parts } \| { at, replace: parts } \| { at, keep: "style" \| index } \| { at, out: "blur"\|"left"\|"right"\|"fade"\|"shrink" } ]` — **add**: the new words are there in one frame and the line settles onto its new centre (0.4s expo-out, 8% oversize); **replace**: the old words shrink and blur out (5 frames), the new ones land from 1.5× and a 20px blur (8 frames); **keep**: every other word blurs out in place and the kept one slides to the centre — the word is now a button; **out**: the line leaves. `part: { text, tone: "ink"\|"accent"\|"muted"\|"gradient", weight?, rotate?: ["writer", "producer"], every?: 0.5 \| [0.67, 0.3, 0.33], slot?: "folder", w?: 320 }` — `tone` carries the hierarchy (never a weight change); `rotate` swaps the word through alternatives in one frame each, `every` the holds (shrinking toward the exit); a `slot` part reserves `w` px between the words for an actor (`anchor: ".slot-folder"`). Steps are the shot's second and third acts; a `line` with three or more steps may run to 6s. DOM: `.line-box` (the line), `.lw` (a word), `.slot-<name>`. |
+| `line` | A line of text with optional staged changes. `size` (px), `align: "center"\|"left"`, `x`/`y` (centre), `weight`, optional `container: "glass"\|"pill"`. `typing: { cps: 22, caret: true, shrink?: 0.45, fit?: 1560 }` reveals characters and shrinks text that outgrows `fit`. `steps: [ { at, add: parts } \| { at, replace: parts } \| { at, keep: "word" \| index } \| { at, out: "blur"\|"left"\|"right"\|"fade"\|"shrink" } ]`: `add` inserts text in one frame with a 0.4s expo-out settle from 8% oversize; `replace` shrinks/blurs the old words and brings new ones from 1.5× with 20px blur; `keep` centres one word as the rest leave; `out` exits. `part: { text, tone: "ink"\|"accent"\|"muted"\|"gradient", weight?, rotate?: ["first", "second"], every?: 0.5 \| [0.7, 1.2], slot?: "object", w?: 320 }`. `rotate` swaps alternatives, `every` sets holds, and a `slot` reserves space for an actor (`anchor: ".slot-object"`). Use this factory when its built-in settling behaviour fits; bespoke type can use a different layout or reveal. No word-count, accented-noun or step-cadence requirement. DOM: `.line-box`, `.lw`, `.slot-<name>`. |
 | `cascade` | Items land one after another at one anchor and push the earlier ones away while those fall out of focus: `items: [{ src \| html, w?, h?, r? }]`, `every` (0.25), `dir: "up"` (comments, rows — each new one pushes the stack up) \| `"left"` (a strip of cards growing to the right, sliding left), `gap` (24), `x`/`y` (the anchor), `start`, `dof: false` to keep earlier items sharp, `enter: "fade"`, `scroll: px` (after the last item the set keeps travelling), `caption` + `captionPos`. The card duplicating into a strip; the comments arriving. |
 | `word-build` | `lines: [{parts: [{text, weight, accent?}]}]` — a sentence assembles word by word in the centre; each further line replaces the last (previous words scatter). `each` (gap between words, 0.13), `align: "left"`, `seed`. |
 | `pile` | Chaos beat: `items: [{kind: "window"\|"toast"\|"pill", title?, body?, x, y, rot?, w?, tone?: "error"\|"warn"\|"ok"\|"plain"}]` land one after another (`every`, default fits 55% of the shot), `anchor: parts` headline appears over them, then everything blows away at `blowAt` (default D−0.55; `blow: false` keeps it). 5–8 items. |
@@ -170,7 +172,7 @@ and the render stays deterministic.
   width, height, offsetX, offsetY,         // optional frame geometry overrides (px)
   align: "top center",                     // object-position of the screenshot
   enter: "rise",                           // rise | scale | none
-  aura: true,                              // the accent's light spilling from under the frame's edge (the reference UI framing)
+  aura: false,                             // opt into an accent light spill when the treatment needs it
   caption: [{ text: "See every ", weight: "thin" }, { text: "deal.", weight: "heavy" }],
   captionPos: "top",                       // top | bottom
   focus: {                                 // ONE hotspot per shot (attention camera)
@@ -326,13 +328,16 @@ opacity/brightness loops, and every image from `assets/`.
 
 ## Rules
 
-- **Density.** 4–40 shots, average ≤ 3.6s, any one shot ≤ 6s; narrated
-  shots start on their `cue` word (sync.mjs). No stretch longer than 1.5s without a designed event.
-  `pitch motion audit` enforces all of this.
-- One idea per shot. Headlines only (≤ 8 words on screen; 2–4 on a `line`).
-- A cut is a decision: an actor, a carry, a flood or a blur exit hides the
-  boundary; a punch lands on the beat; a zoom moves between hero and UI
-  scale. One or two transition kinds per film — never a dissolve between two
-  type beats.
-- Brand from recon: `brand.bg/ink/accent/font` are measured values, `fonts` self-hosted.
+- **Timeline validity.** At least one shot, each with a finite positive
+  `dur`. Choose count and durations for the story; there is no style quota.
+  Cue narrated picture changes to the read (sync.mjs). Audit pacing thresholds
+  are configurable diagnostics, not failures or target scores.
+- Make text readable at delivery size for the time it is on screen. Choose
+  its scale, hierarchy, amount and reveal for the composition.
+- Choose cuts, transitions, camera motion and stillness for the treatment.
+  A direct cut needs no actor, carry or added exit. Lab effects may be adapted;
+  a source citation does not require its original composition or duration.
+- Brand identifiers come from recon; self-host the fonts. Declare additional
+  treatment colours in `brand.palette` and distinguish creative choices from
+  measured brand evidence in direction.md.
 - Logos are the product's own files (`logo-sting.src`, marquee `src`), never retyped or redrawn.
