@@ -9,13 +9,17 @@ mix's levels, reused by automatic preview/export rebuilds).
 ## 1. The bed
 
 The studio's music picker and `pitch motion find-audio` read the same curated
-library; a bed the user picked is already in `audio/`. Pick by the audio
-direction in `direction.md` and name the file in your summary. The beat map
-beside the beds (`musicTimestamp.json`) lists beat times and strengths and
-can guide cuts when the chosen rhythm is beat-led. Never scan personal
-directories. If nothing in the library fits, `pitch motion music` generates
-an instrumental bed to a brief — BPM, palette, instruments, the timed
-arrangement, the film's exact length — never an artist or a song by name.
+library; a bed the user picked is already in `audio/`. When no bed is already
+selected and the user has not requested a specific soundtrack, run
+`pitch motion find-audio --random`. It picks uniformly from the full library
+and imports to `audio/music.<ext>`. Use that returned path, report the track ID
+in the summary, and reuse it throughout edits and re-renders. Do not replace
+the random draw with your own habitual favourite. Library filenames are opaque
+IDs, not mood or genre labels. Respect an explicit user choice or uploaded bed.
+When the brief calls for custom music, `pitch motion music` generates an
+instrumental bed from the audio direction in `direction.md` — BPM, palette,
+instruments, timed arrangement, exact length — never an artist or song by name.
+Never scan personal directories.
 
 ## 2. Narration — one read, cut to words
 
@@ -134,9 +138,12 @@ transients until the final limiter; raising a quiet impact by its LUFS alone
 can clip its attack. Do not add a blanket boost in a music-only film.
 
 The music-only gate compares overlapping **400ms windows every 100ms**,
-ignoring silent/fading music entrances and exits. It names the offending time
-and required reduction. Reduce that cue's `gainDb`, or lower `sfx_db`, and
-re-mix; do not raise music just to mask an oversized hit. Source files keep
+ignoring silent/fading music entrances and exits. It reports every affected
+range and an absolute `--sfx-db` value for a global correction. Either apply
+that trim and re-mix, or fix all named cues' `gainDb` together, rebuild SFX
+once, and mix. Do not subtract the suggested reduction from zero: it is a
+further reduction from the current trim. Do not raise music just to mask an
+oversized hit. Source files keep
 their original loudness, so compare actual stems, not the nominal gain knobs.
 
 **Scheduled breaths are musical automation, not speech ducking.** A `breath`
@@ -155,3 +162,7 @@ from the current shots against the compiled labels by the mixer.
 "The music is missing" → raise `bed_db` (e.g. −10) and re-run. A failing
 gate means re-mix, never render. The renderer and the Export button mux
 `audio/mix.wav` automatically.
+
+The studio preview uses that same mix automatically. After a passing mix and
+picture review, finish; no HTML audio wiring, extra schema lookup or visual
+check is needed.

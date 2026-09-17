@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   balanceProblems,
+  balanceRegions,
   cueGain,
   measureAudioWindows,
 } from '../.pi/scripts/launch-video/lib/audio-levels.mjs'
@@ -94,6 +95,43 @@ describe('launch audio regression', () => {
       stderr: expect.stringContaining('SFX overpower music'),
     })
     expect(await readFile(path.join(ws, 'audio/mix.wav'), 'utf8')).toBe('previous good mix')
+  })
+
+  it('reports separate overpowering cues together, with an absolute global trim', async () => {
+    await generate(
+      'audio/two-hits.wav',
+      'sine=frequency=880:duration=0.1',
+      'volume=6,adelay=500|500,aecho=1:1:1200:0.5,apad=whole_dur=4',
+    )
+    await expect(
+      exec(
+        'node',
+        [
+          mixScript,
+          '--duration=4',
+          '--music=audio/music.wav',
+          '--sfx=audio/two-hits.wav',
+          '--music-only',
+          '--sfx-db=0',
+        ],
+        { cwd: ws },
+      ),
+    ).rejects.toMatchObject({
+      stderr: expect.stringMatching(
+        /re-run with --sfx-db -\d+[\s\S]*ALL affected ranges[\s\S]*0\.\d+–0\.\d+s:[\s\S]*1\.\d+–2\.\d+s:/,
+      ),
+    })
+  })
+
+  it('merges overlapping failing windows without hiding another cue', () => {
+    const a = { t: 1, reduceDb: 4 }
+    const b = { t: 1.1, reduceDb: 6 }
+    const c = { t: 3, reduceDb: 2 }
+    expect(balanceRegions([c, a, b])).toEqual([
+      { start: 1, end: 1.5, worst: b },
+      { start: 3, end: 3.4, worst: c },
+    ])
+    expect(balanceRegions([])).toEqual([])
   })
 
   it('detects the old +6dB pre-limiter clipping rather than hiding it in PCM16', async () => {

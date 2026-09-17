@@ -4,33 +4,19 @@
  * `pitch effects logos show <slug>`. The families are the directories, so a
  * new one is a new subcommand the moment it exists (see registry.ts Groups).
  *
- * What changed, and why. The lab used to be searched by Gemini embeddings
- * over a prebuilt index: `effects/build-search.mjs` wrote search.json and
- * embeddings.json, the host embedded the query, and the agent got the eight
- * nearest. Three problems, all measured on one 30-second film:
+ * Discovery returns shortlists, show returns study notes, and --source gives
+ * implementation only after selection. Shared porting guidance lives once in
+ * the launch skill's references rather than repeating with every effect.
  *
- *   - It cost more than it saved. Ten `motion_effects` calls returned 9.5k
- *     tokens of results — five top-k probes and five whole effects — because
- *     eight blind guesses per query is not enough to choose from, so the
- *     agent queried again with other words. The whole lab as one line each is
- *     about the same number of tokens, read once, and then it has SEEN the
- *     shelf instead of guessing at it.
- *   - It was a network call inside a tool that must not need one. When the
- *     key was missing or the request timed out the tool apologised in its own
- *     output — "(keyword match only: the embedding call failed)" — and the
- *     agent silently got worse results.
- *   - It went stale. An effect added to effects/ did not exist until someone
- *     remembered to re-run build-search.mjs. The lab is a directory; the
- *     directory should be the index.
- *
- * So the index is the filesystem, re-read whenever a family directory
- * changes. Drop a new effect in with an index.html and a meta.json and the
- * next `pitch effects list` has it. Search is the keyword scoring that was
- * always there, now on its own.
+ * The filesystem is the index: no network or prebuilt embeddings. Drop an
+ * effect in with index.html and meta.json and the next list/search sees it.
+ * Families let an agent browse beyond keyword matches without loading every
+ * demo page. The complete shelf is still available with --limit 0.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { EFFECTS_DIR } from '../lib/paths.ts'
+import { Script } from 'node:vm'
+import { EFFECTS_DIR, SKILLS_DIR } from '../lib/paths.ts'
 import type { CommandSpec } from './registry.ts'
 
 export interface Effect {
@@ -225,48 +211,99 @@ export function score(effects: Effect[], query: string): { effect: Effect; score
 
 // ── rendering ────────────────────────────────────────────────────────────────
 
-/** One line: enough to choose from, short enough to print all 409. */
+/** A compact discovery row; implementation is fetched only after choosing. */
 export function line(e: Effect): string {
   const secs = e.seconds ? ` ${e.seconds}s` : ''
   const libs = e.libs.length ? ` [${e.libs.join(' ')}]` : ''
   return `${e.id}${secs}${libs}\n  ${e.move ?? e.description}`
 }
 
-/** One effect whole: its notes, its source, and where its frames are. */
-export function whole(e: Effect): string {
+const PORTING_GUIDE = join(SKILLS_DIR, 'launch-video', 'references', 'effects.md')
+const SOURCE_RECEIPT = join('.studio', 'effect-sources.json')
+
+function recordSourceInspection(cwd: string, id: string): void {
+  const file = join(cwd, SOURCE_RECEIPT)
+  const current = readJson(file)
+  const effects = new Set<string>(Array.isArray(current?.effects) ? current.effects : [])
+  effects.add(id)
+  mkdirSync(join(cwd, '.studio'), { recursive: true })
+  writeFileSync(file, `${JSON.stringify({ version: 1, effects: [...effects].sort() }, null, 2)}\n`)
+}
+
+/** Study the mechanism without loading a demo's placeholder HTML/CSS/JS. */
+export function study(e: Effect): string {
   const dir = join(EFFECTS_DIR, e.id)
-  let src = ''
-  try {
-    src = readFileSync(join(dir, 'index.html'), 'utf8').trim()
-  } catch {
-    src = '(no index.html)'
-  }
   return [
     `# ${e.name}  —  ${e.id}`,
     `${e.seconds ?? '?'}s; ${e.size ?? '1280x720'}; loop: ${e.loop ?? '?'}; fidelity: ${e.fidelity ?? '?'}`,
-    'Source study: the notes below describe the original effect. Adapt its composition, material and timing to direction.md; preserve it faithfully only when the treatment or user calls for that.',
-    e.description ? `\n${e.description}` : '',
-    e.move ? `\nThe move: ${e.move}` : '',
+    `The move: ${e.move || e.description || '(no notes yet — inspect the source)'}`,
     e.how ? `\nHow: ${e.how}` : '',
     e.moves.length ? `\nMoves: ${e.moves.join(', ')}` : '',
     e.libs.length ? `Libs: ${e.libs.join(', ')}` : '',
-    e.adapt ? `\nTo make it the product's: ${e.adapt}` : '',
-    e.port ? `\nTo port into js/shots.custom.js: ${e.port}` : '',
+    e.adapt ? `\nAdaptation notes (original study): ${e.adapt}` : '',
+    e.port ? `\nImplementation notes: ${e.port}` : '',
     e.caveats.length ? `\nCaveats: ${e.caveats.join('; ')}` : '',
-    '',
-    `Frames: ${join(dir, 'strip.jpg')} — 8 frames across the loop, look at it before you port.`,
-    `Poster: ${join(dir, 'poster.jpg')}`,
-    '',
-    `## ${join(dir, 'index.html')}`,
+    `\nFrames: ${join(dir, 'strip.jpg')} — read to judge the movement and composition.`,
+    `Source when implementing: pitch effects show ${e.id} --source`,
+    `Shared integration guide (read once): ${PORTING_GUIDE}`,
+    'Do not add a lab citation from this code-free card; inspect the source first.',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** This authored bundle keeps one complete preset on each line. Keep its
+ * shared setup and registration, omitting other presets. If its structure
+ * changes, return the original source rather than a guessed implementation.
+ */
+export function selectPrimitive(source: string, preset: string): string {
+  const lines = source.split('\n')
+  const key = (line: string) => /^if\(P===['"]([^'"]+)['"]\)\{/.exec(line.trim())?.[1]
+  const branches = lines.filter(line => key(line))
+  if (
+    !branches.some(line => key(line) === preset) ||
+    branches.some(line => !line.trim().endsWith('}'))
+  )
+    return source
+  const selected = lines.filter(line => !key(line) || key(line) === preset).join('\n')
+  try {
+    new Script(selected) // Parse only; never execute the effect on the host.
+    return selected
+  } catch {
+    return source
+  }
+}
+
+/** Exact source on demand, without repeating the study or integration guide. */
+export function effectSource(e: Effect): string {
+  const file = join(EFFECTS_DIR, e.id, 'index.html')
+  const src = readFileSync(file, 'utf8').trim()
+  const blocks = [
+    `# ${e.id} — source (${e.size ?? '1280x720'})`,
+    `## ${file}`,
     '```html',
     src,
     '```',
-    '',
-    `The page loads GSAP from ../../../assets/gsap/ and its own ../../_lib/fx.js; in the film those plugins are already registered by the scaffold, fx.timeline({duration}) becomes the gsap.timeline() your factory returns, and every time is a fraction of D. Rebuild the placeholder content with the product's own — and put \`lab: "${e.id}"\` on the shot that uses it.`,
-    'Masks: an `overflow: hidden` reveal at line-height ≤ 1 can cut descenders and accents at hero size. Give the mask `padding: .16em .08em .24em; margin: -.16em -.08em -.24em` and start hidden text at yPercent 140 when needed. Check the adapted layout at delivery size. A 1280×720 source scales to 1920×1080 by 1.5; element count, arrangement, type and timing may change to serve the treatment. Record substantial adaptations alongside the lab citation.',
   ]
-    .filter(l => l !== '')
-    .join('\n')
+  // These pages are only launchers. Returning the launcher alone hides the
+  // actual movement; returning the whole bundle loads every unrelated preset.
+  const preset = /data-preset=["']([^"']+)["']/.exec(src)?.[1]
+  if (preset && /src=["']\.\.\/\.\.\/_lib\/launch-primitives\.js["']/.test(src)) {
+    const shared = join(EFFECTS_DIR, '_lib', 'launch-primitives.js')
+    const bundle = readFileSync(shared, 'utf8')
+    const selected = selectPrimitive(bundle, preset)
+    blocks.push(
+      `## ${shared} — ${selected === bundle ? 'full bundle (could not isolate preset)' : `preset ${preset} + shared setup`}`,
+      '```js',
+      selected,
+      '```',
+    )
+  }
+  blocks.push(
+    `Shared integration guide (read once): ${PORTING_GUIDE}`,
+    `If derived from this implementation: lab: "${e.id}"`,
+  )
+  return blocks.join('\n')
 }
 
 function familyCounts(effects: Effect[]): string {
@@ -279,6 +316,12 @@ function familyCounts(effects: Effect[]): string {
 }
 
 const out = (text: string) => ({ content: [{ type: 'text' as const, text }], details: {} })
+
+function rowLimit(value: unknown, total: number): number {
+  const limit = value === undefined ? 12 : Number(value)
+  if (!Number.isInteger(limit) || limit < 0) throw new Error('limit must be a non-negative integer')
+  return limit === 0 ? total : limit
+}
 
 /** Filter by family / moves / libs, in that order. */
 function filtered(p: Record<string, any>): Effect[] {
@@ -311,7 +354,7 @@ export default function effectsCommands(): CommandSpec[] {
         items: { type: 'string' },
         description: 'Only effects built with every one of these, e.g. three, SplitText.',
       },
-      limit: { type: 'integer', description: 'Cap the rows printed.' },
+      limit: { type: 'integer', minimum: 0, description: 'Max rows (default 12; 0 = all).' },
     },
   }
 
@@ -319,14 +362,14 @@ export default function effectsCommands(): CommandSpec[] {
     {
       verb: 'list',
       description:
-        'Every effect in the lab, one line each: id, length, libraries and the move it makes. ' +
-        'Browse after choosing a visual treatment when you need implementation ideas. ' +
-        'Narrow with --family, --moves, --libs; built-ins and bespoke animation are equally valid.',
+        'Browse the effects knowledge base: id, length, libraries and the move each makes. ' +
+        'Consult it before implementing a new film. Start with families and narrow with --family, --moves or --libs. ' +
+        'Returns 12 rows by default; --limit 0 lists all. Study selected effects with show, then fetch source only when implementing.',
       parameters,
       async execute(_id, p: any) {
         const all = loadEffects()
         const rows = filtered(p)
-        const limit = Number(p.limit) || rows.length
+        const limit = rowLimit(p.limit, rows.length)
         const shown = rows.slice(0, limit)
         if (!shown.length) {
           return out(`Nothing matches. ${all.length} effects; families: ${familyCounts(all)}`)
@@ -337,7 +380,10 @@ export default function effectsCommands(): CommandSpec[] {
             : `${rows.length} of ${all.length} effects${shown.length < rows.length ? `, first ${shown.length}` : ''}.`
         return out(
           `${head}\n\n${shown.map(line).join('\n')}\n\n` +
-            '`pitch effects show <id>` returns one whole — notes, source and its frame strip.',
+            '`pitch effects show <id>` returns study notes and a frame-strip path; --source returns the implementation.' +
+            (shown.length < rows.length
+              ? '\nNarrow by family/moves/libs, or --limit 0 for all matches.'
+              : ''),
         )
       },
     },
@@ -346,7 +392,7 @@ export default function effectsCommands(): CommandSpec[] {
       description:
         'Effects matching words, best first. Describe the MOVE a beat needs — "a card flipping ' +
         'to reveal a price", "lines colliding then snapping out" — not a template name. ' +
-        'Keyword scoring over the move, the tags and the notes; `list` is often better.',
+        'Keyword scoring over the move, tags and notes. Start with a focused query, study a few matches, then adapt the useful mechanisms to the product.',
       parameters: {
         type: 'object',
         properties: {
@@ -360,7 +406,8 @@ export default function effectsCommands(): CommandSpec[] {
       },
       async execute(_id, p: any) {
         const query = String(p.query ?? '')
-        const hits = score(filtered(p), query).slice(0, Number(p.limit) || 12)
+        const ranked = score(filtered(p), query)
+        const hits = ranked.slice(0, rowLimit(p.limit, ranked.length))
         if (!hits.length) {
           return out(
             `Nothing matches "${query}". Try other words, or read the shelf: pitch effects list --family <one>`,
@@ -368,15 +415,16 @@ export default function effectsCommands(): CommandSpec[] {
         }
         return out(
           `Effects for "${query}":\n\n${hits.map(h => line(h.effect)).join('\n')}\n\n` +
-            '`pitch effects show <id>` returns one whole.',
+            '`pitch effects show <id>` returns study notes; add --source only for an implementation you will adapt.',
         )
       },
     },
     {
       verb: 'show',
       description:
-        'One effect whole: its notes, how it is built, how to adapt it, its full source and the ' +
-        'path to its frame strip. Look at the strip before you port it.',
+        'Study one effect: its visual mechanism, timing, adaptation notes, caveats and frame-strip path. ' +
+        'Default output has no source code or repeated runtime instructions. Read the strip to judge the effect. ' +
+        'Use --source for the actual implementation after choosing what to adapt; this returns source instead of repeating the notes.',
       parameters: {
         type: 'object',
         properties: {
@@ -386,10 +434,14 @@ export default function effectsCommands(): CommandSpec[] {
               'A listed family/slug id — or just the slug after `pitch effects <family>`. Positional.',
           },
           family: { type: 'string', description: 'The family a bare slug belongs to.' },
+          source: {
+            type: 'boolean',
+            description: 'Return implementation source instead of study notes.',
+          },
         },
         required: ['id'],
       },
-      async execute(_id, p: any) {
+      async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
         let want = String(p.id ?? '')
           .trim()
           .replace(/^\/+|\/+$/g, '')
@@ -405,7 +457,10 @@ export default function effectsCommands(): CommandSpec[] {
             `No effect "${want}". Ids are family/slug — list them with: pitch effects list`,
           )
         }
-        return out(whole(hit))
+        if (!p.source) return out(study(hit))
+        const source = effectSource(hit)
+        recordSourceInspection(ctx.cwd, hit.id)
+        return out(`${source}\n\nSource inspection recorded for ${hit.id}.`)
       },
     },
     {

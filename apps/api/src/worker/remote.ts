@@ -15,7 +15,7 @@ import { createLogger } from '@saas/shared'
 import * as queue from '../renderer/queue.js'
 import { discardOutput, downloadOutput } from '../renderer/transfer.js'
 import type { HostContext, RemoteDispatcher } from '../studio/host-actions.js'
-import { PROJECTS_DIR, type Workspace } from '../studio/paths.js'
+import type { Workspace } from '../studio/paths.js'
 import { RENDER_TIMEOUT_MS } from './config.js'
 import { checkpointForRender, noteExternalWrite } from './host.js'
 
@@ -89,7 +89,7 @@ export const dispatchRemote: RemoteDispatcher = async (ws, name, params, ctx) =>
     )
   }
   ctx.progress?.('merging', 100)
-  const merged = await downloadOutput(job.id, PROJECTS_DIR)
+  const merged = await downloadOutput(job.id, ws.dir)
   if (merged) noteExternalWrite(projectId)
   void discardOutput(job.id)
   logger.info({ jobId: job.id, action: name, merged }, 'render job done')

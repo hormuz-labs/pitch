@@ -2,7 +2,6 @@ import { CornerUpLeft, Pencil } from 'lucide-solid'
 import { createMemo, For, Show } from 'solid-js'
 import { QuestionCard } from './Ask'
 import { agentActivity } from './agent-activity'
-import { ReasoningSteps } from './ReasoningSteps'
 import { ThinkingOrb } from './ThinkingOrb'
 import type { AskAnswer, Entry } from './types'
 
@@ -195,12 +194,6 @@ export function Thread(props: {
   const open = () =>
     [...props.entries].reverse().find(e => e.role === 'question' || e.role === 'user')
   const activity = createMemo(() => agentActivity(props.entries, props.busy))
-  const activeTurn = createMemo(() => {
-    const entries = props.entries.filter(entry => !entry.pending)
-    const prompt = entries.findLastIndex(entry => entry.role === 'user')
-    return entries.slice(prompt + 1)
-  })
-  const activeEntryIds = createMemo(() => new Set(activeTurn().map(entry => entry.id)))
   return (
     <div class="thread">
       <For each={props.entries.filter(e => e.role !== 'thinking')}>
@@ -245,9 +238,10 @@ export function Thread(props: {
                               }
                             >
                               <button
+                                type="button"
                                 class="message-edit"
                                 aria-label="Edit and resend from this message"
-                                title="Edit and resend from here"
+                                data-tooltip="Edit and resend"
                                 onClick={() => props.onEdit?.(e)}
                               >
                                 <Pencil size={12} />
@@ -258,20 +252,18 @@ export function Thread(props: {
                       </Show>
                     }
                   >
-                    <Show when={!props.busy || !activeEntryIds().has(e.id)}>
-                      <div class={`log-line tool ${e.tool?.status === 'error' ? 'error' : ''}`}>
-                        <span class="log-icon">
-                          {e.tool?.status === 'running' ? (
-                            <span class="spinner" />
-                          ) : e.tool?.status === 'error' ? (
-                            '✕'
-                          ) : (
-                            '✓'
-                          )}
-                        </span>
-                        <span class="log-text">{e.text}</span>
-                      </div>
-                    </Show>
+                    <div class={`log-line tool ${e.tool?.status === 'error' ? 'error' : ''}`}>
+                      <span class="log-icon">
+                        {e.tool?.status === 'running' ? (
+                          <span class="spinner" />
+                        ) : e.tool?.status === 'error' ? (
+                          '✕'
+                        ) : (
+                          '✓'
+                        )}
+                      </span>
+                      <span class="log-text">{e.text}</span>
+                    </div>
                   </Show>
                 }
               >
@@ -283,7 +275,7 @@ export function Thread(props: {
               </Show>
             }
           >
-            <Show when={e.ask}>
+            <Show when={e.ask && e.id === open()?.id}>
               <QuestionCard
                 entryId={e.id}
                 ask={e.ask!}
@@ -307,9 +299,6 @@ export function Thread(props: {
                     : 'Thinking…'}
               </span>
             </div>
-            <Show when={props.busy}>
-              <ReasoningSteps entries={activeTurn()} active />
-            </Show>
           </div>
         )}
       </Show>

@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Script } from 'node:vm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -9,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * to appear without anyone re-running an index builder.
  */
 let lab: string
+let workspace: string
 
 vi.mock('../.pi/lib/paths.ts', async importOriginal => {
   const actual = await importOriginal<typeof import('../.pi/lib/paths.ts')>()
@@ -33,9 +35,13 @@ function addEffect(family: string, slug: string, meta: Record<string, unknown> =
 
 beforeEach(() => {
   lab = mkdtempSync(join(tmpdir(), 'effects-lab-'))
+  workspace = mkdtempSync(join(tmpdir(), 'effects-workspace-'))
   vi.resetModules()
 })
-afterEach(() => rmSync(lab, { recursive: true, force: true }))
+afterEach(() => {
+  rmSync(lab, { recursive: true, force: true })
+  rmSync(workspace, { recursive: true, force: true })
+})
 
 const load = async () => (await import('../.pi/cli/effects.ts')).loadEffects()
 
@@ -129,7 +135,11 @@ describe('search', () => {
 })
 
 describe('the commands', () => {
-  const ctx = { cwd: process.cwd() }
+  const ctx = {
+    get cwd() {
+      return workspace
+    },
+  }
   const run = async (line: string, c = ctx) =>
     (await import('../.pi/cli/run.ts')).run(line, c).then(r => r.text)
 
@@ -151,13 +161,77 @@ describe('the commands', () => {
     expect(await run('effects list --libs three', ctx)).not.toContain('text/b')
   })
 
-  it('returns one effect whole, with its source and the path to its frames', async () => {
+  it('studies an effect without loading source or repeating common porting instructions', async () => {
     addEffect('text', 'bold-snap', { move: 'a word snaps in', port: 'mount() then animate()' })
     const out = await run('effects show text/bold-snap', ctx)
-    expect(out).toContain('<body>hi</body>')
+    expect(out).not.toContain('<body>hi</body>')
+    expect(out).not.toContain('```html')
     expect(out).toContain('mount() then animate()')
     expect(out).toContain('strip.jpg')
+    expect(out).not.toContain('lab: "text/bold-snap"')
+    expect(out).toContain('inspect the source first')
+    expect(out).toContain('references/effects.md')
+    expect(out).toContain('pitch effects show text/bold-snap --source')
+    expect(out).not.toContain('yPercent 140')
+  })
+
+  it('returns exact source on demand without repeating the study notes', async () => {
+    const dir = addEffect('text', 'bold-snap', { how: 'A detailed study of the collision.' })
+    const html =
+      '<style>.word{clip-path:inset(0)}</style><div class="word">Hi</div>' +
+      '<script>const tl = fx.timeline({duration:2}); tl.to(".word", {x:20});</script>'
+    write(dir, 'index.html', html)
+    const out = await run('effects show text/bold-snap --source')
+    expect(out).toContain(html)
     expect(out).toContain('lab: "text/bold-snap"')
+    expect(out).toContain('Source inspection recorded')
+    expect(out).not.toContain('A detailed study of the collision.')
+    expect(
+      JSON.parse(readFileSync(join(workspace, '.studio', 'effect-sources.json'), 'utf8')),
+    ).toEqual({
+      version: 1,
+      effects: ['text/bold-snap'],
+    })
+    expect(await run('effects show text/bold-snap --source false')).not.toContain(html)
+  })
+
+  it('keeps discovery bounded while allowing the whole shelf explicitly', async () => {
+    for (let i = 0; i < 15; i++)
+      addEffect('text', `item-${String(i).padStart(2, '0')}`, { move: 'colliding words' })
+    const shortlist = await run('effects list')
+    expect(shortlist).toContain('first 12')
+    expect(shortlist).not.toContain('text/item-14')
+    expect(await run('effects list --limit 0')).toContain('text/item-14')
+    expect(await run('effects search colliding --limit 2')).not.toContain('text/item-02')
+    expect(await run('effects search colliding --limit 0')).toContain('text/item-14')
+  })
+
+  it('returns the chosen primitive implementation, not just its launcher or every preset', async () => {
+    const dir = addEffect('launch-primitives', 'one')
+    write(
+      dir,
+      'index.html',
+      '<div data-preset="one"></div><script src="../../_lib/launch-primitives.js"></script>',
+    )
+    mkdirSync(join(lab, '_lib'))
+    const common = "const P = 'one'; let value = 0;"
+    const chosen = "if(P==='one'){value=10;}"
+    const other = "if(P==='two'){value=20;}"
+    const register = 'globalThis.result = value;'
+    const bundle = [common, chosen, other, register].join('\n')
+    write(join(lab, '_lib'), 'launch-primitives.js', bundle)
+    const out = await run('effects show launch-primitives/one --source')
+    expect(out).toContain(chosen)
+    expect(out).toContain(common)
+    expect(out).toContain(register)
+    expect(out).not.toContain(other)
+    const { selectPrimitive } = await import('../.pi/cli/effects.ts')
+    const context: Record<string, unknown> = {}
+    new Script(selectPrimitive(bundle, 'one')).runInNewContext(context)
+    expect(context.result).toBe(10)
+    expect(selectPrimitive(bundle, 'missing')).toBe(bundle)
+    const multiline = bundle.replace(chosen, "if(P==='one'){\nvalue=10;\n}")
+    expect(selectPrimitive(multiline, 'one')).toBe(multiline)
   })
 
   it('makes every family a subcommand, with a bare slug inside it', async () => {
@@ -165,7 +239,7 @@ describe('the commands', () => {
     addEffect('logos', 'c', {})
     expect(await run('effects logos list')).toContain('logos/c')
     expect(await run('effects logos list')).not.toContain('text/a')
-    expect(await run('effects text show a')).toContain('lab: "text/a"')
+    expect(await run('effects text show a')).toContain('inspect the source first')
     expect(await run('effects logos')).toContain('pitch effects logos list')
     expect(await run('effects --help')).toContain('logos, text')
   })

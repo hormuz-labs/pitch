@@ -77,7 +77,7 @@ function Sidebar(props: {
   }
   const visibleProjects = createMemo(() =>
     [...props.projects]
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
       .slice(0, 7),
   )
   const projectState = (project: Project) =>
@@ -132,7 +132,7 @@ function Sidebar(props: {
           <small>
             <span classList={{ 'is-working': project.busy }}>{projectState(project)}</span>
             <span aria-hidden="true">·</span>
-            <time datetime={project.updatedAt}>{projectDate(project.updatedAt)}</time>
+            <time datetime={project.lastActivityAt}>{projectDate(project.lastActivityAt)}</time>
           </small>
           <Show when={clipped() || expanded()}>
             <button

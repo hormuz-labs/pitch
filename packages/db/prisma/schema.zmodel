@@ -531,6 +531,9 @@ model Project {
   // the current turn started (null when idle).
   artifactKind   String?
   busyAt         DateTime?
+  // User-visible conversation recency. Unlike updatedAt, worker bookkeeping
+  // must not advance this value.
+  lastActivityAt DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -539,6 +542,7 @@ model Project {
 
   @@unique([userId, flow, name])
   @@index([userId])
+  @@index([userId, lastActivityAt])
   @@index([workerId])
 
   // Deny everything when not authenticated (public share pages read via the base client).

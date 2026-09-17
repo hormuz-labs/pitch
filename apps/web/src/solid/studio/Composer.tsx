@@ -176,6 +176,19 @@ export function Composer(props: { store: ProjectStore }) {
     !profile.loading() &&
     !isAuthenticatedFor(promptUrl(), profile.origins())
   const selectedModel = () => models().find(m => m.spec === (s.model ?? defaultModel()))
+  const activeModelLabel = () => {
+    const spec = s.activeModel ?? s.model ?? defaultModel()
+    if (!spec) return 'Model'
+    return (
+      models().find(model => model.spec === spec)?.label ??
+      spec
+        .split('/')
+        .at(-1)!
+        .split('-')
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
+    )
+  }
   const send = async (delivery?: 'queue' | 'steer') => {
     const text = s.draft.trim()
     if (!text || uploading()) return
@@ -356,6 +369,16 @@ export function Composer(props: { store: ProjectStore }) {
             <CreditMarker store={s} />
           </div>
           <div class="job-composer-actions">
+            <Show when={s.busy}>
+              <span
+                class="active-model-indicator"
+                aria-label={`Currently processing with ${activeModelLabel()}`}
+                title={`Currently processing with ${activeModelLabel()}`}
+              >
+                <span class="spinner" aria-hidden="true" />
+                <span>{activeModelLabel()}</span>
+              </span>
+            </Show>
             <Show when={!s.busy && models().length}>
               <div class="model-select" ref={modelEl}>
                 <button
@@ -419,18 +442,15 @@ export function Composer(props: { store: ProjectStore }) {
                 </button>
               }
             >
-              <Show
-                when={s.draft.trim()}
-                fallback={
-                  <button
-                    class="job-send-round stop"
-                    onClick={() => void s.stop()}
-                    aria-label="Stop generation"
-                  >
-                    <Square size={12} fill="currentColor" />
-                  </button>
-                }
+              <button
+                class="job-stop-task"
+                onClick={() => void s.stop()}
+                aria-label="Stop current task"
               >
+                <Square size={10} fill="currentColor" />
+                <span>Stop</span>
+              </button>
+              <Show when={s.draft.trim()}>
                 <button
                   class="job-send-round"
                   disabled={uploading()}

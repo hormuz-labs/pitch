@@ -78,7 +78,7 @@ export function QuestionCard(props: {
   onMount(() => queueMicrotask(() => !locked() && el?.focus({ preventScroll: true })))
   return (
     <div
-      class={`ask question-card${locked() ? ' locked' : ''}`}
+      class={`ask question-card${locked() ? ' locked' : ''}${sent() ? ' answered' : ''}`}
       ref={el}
       tabIndex={locked() ? -1 : 0}
       onKeyDown={onKey}
@@ -134,16 +134,18 @@ export function QuestionCard(props: {
                 </ul>
                 <Show when={!locked()}>
                   <div class="ask-actions">
-                    <Show when={cur.multi}>
-                      <button
-                        type="button"
-                        class="ask-send"
-                        disabled={!(picked()[cur.id] ?? []).length}
-                        onClick={() => setStep(v => v + 1)}
-                      >
-                        Next
-                      </button>
-                    </Show>
+                    <div class="ask-nav">
+                      <Show when={step() > 0}>
+                        <button type="button" class="ask-flat" onClick={() => setStep(v => v - 1)}>
+                          Previous
+                        </button>
+                      </Show>
+                      <Show when={(picked()[cur.id] ?? []).length}>
+                        <button type="button" class="ask-send" onClick={() => setStep(v => v + 1)}>
+                          Next
+                        </button>
+                      </Show>
+                    </div>
                     <button
                       type="button"
                       class="ask-flat"

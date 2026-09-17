@@ -28,6 +28,7 @@ export function useProject(id: string | undefined) {
     [loadError, setLoadError] = createSignal<string | null>(null)
   const [entries, setEntries] = createSignal<Entry[]>([]),
     [busy, setBusy] = createSignal(false),
+    [activeModel, setActiveModel] = createSignal<string | null>(null),
     [videoVersion, setVideoVersion] = createSignal(0)
   const [previewNote, setPreviewNote] = createSignal<string | null>(null),
     [liveCount, setLiveCount] = createSignal<number | null>(null),
@@ -143,10 +144,17 @@ export function useProject(id: string | undefined) {
       case 'status':
         busyRevision++
         setBusy(ev.busy)
+        setActiveModel(ev.busy ? (ev.activeModel ?? activeModel()) : null)
         break
       case 'entry':
         entryRevision++
         setEntries(v => {
+          const existing = v.findIndex(entry => entry.id === ev.entry.id)
+          if (existing >= 0) {
+            const next = v.slice()
+            next[existing] = ev.entry
+            return next
+          }
           if (ev.entry.role === 'user') {
             const i = v.findIndex(e => e.id.startsWith('local-') && e.text === ev.entry.text)
             if (i >= 0) {
@@ -289,7 +297,7 @@ export function useProject(id: string | undefined) {
       if (!t) return
       const [d, m, e, a] = await Promise.all([
         studio.get(t, id).catch(() => null),
-        studio.messages(t, id).catch(() => ({ entries: [], busy: false })),
+        studio.messages(t, id).catch(() => ({ entries: [], busy: false, activeModel: null })),
         studio.getExport(t, id).catch(() => null),
         studio.assets(t, id).catch(() => []),
       ])
@@ -301,7 +309,10 @@ export function useProject(id: string | undefined) {
           const liveIds = new Set(current.map(entry => entry.id))
           return [...m.entries.filter(entry => !liveIds.has(entry.id)), ...current]
         })
-      if (initialBusyRevision === busyRevision) setBusy(m.busy)
+      if (initialBusyRevision === busyRevision) {
+        setBusy(m.busy)
+        setActiveModel(m.busy ? m.activeModel : null)
+      }
       setAssets(a)
       if (e && !exportPending() && !exportStatus()) {
         setExportStatus(e)
@@ -345,6 +356,7 @@ export function useProject(id: string | undefined) {
     const wasBusy = busy()
     const delivery = wasBusy ? (opts.delivery ?? 'queue') : undefined
     setBusy(true)
+    if (!wasBusy) setActiveModel(model())
     const localEntryId = `local-${++localId}`
     setEntries(v => [
       ...v,
@@ -370,11 +382,14 @@ export function useProject(id: string | undefined) {
         model: model() ?? undefined,
         delivery,
       })
-      setEntries(current =>
-        current.map(entry =>
-          entry.id === localEntryId ? { ...entry, id: result.entryId } : entry,
-        ),
-      )
+      setEntries(current => {
+        const received = current.some(entry => entry.id === result.entryId)
+        return current.flatMap(entry => {
+          if (entry.id !== localEntryId) return [entry]
+          return received ? [] : [{ ...entry, id: result.entryId }]
+        })
+      })
+      window.dispatchEvent(new Event('pitch:projects-changed'))
     } catch (err: any) {
       if (!wasBusy) setBusy(false)
       setEntries(v => [
@@ -435,6 +450,9 @@ export function useProject(id: string | undefined) {
     },
     get busy() {
       return busy()
+    },
+    get activeModel() {
+      return activeModel()
     },
     get status() {
       return buildStatus(entries(), previewNote())
@@ -523,6 +541,7 @@ export function useProject(id: string | undefined) {
           current ? { ...current, ...result.project, description: current.description } : current,
         )
         setDraft(result.text)
+        window.dispatchEvent(new Event('pitch:projects-changed'))
         clearTargets()
         setSelectedScene(null)
         setSelectedSlide(null)

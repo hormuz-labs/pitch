@@ -5,12 +5,24 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildGallery } from './build-index.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.argv[2] || 4173);
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.mp4': 'video/mp4', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.wasm': 'application/wasm' };
 http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (p === '/' || p === '/effects' || p === '/effects/') { res.writeHead(302, { Location: '/effects/index.html' }); return res.end(); }
+  if (p === '/effects/index.html') {
+    try {
+      const { html } = buildGallery();
+      res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-cache' });
+      return res.end(html);
+    } catch (err) {
+      console.error('Could not build effects gallery:', err);
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      return res.end('Could not build effects gallery; see server output.');
+    }
+  }
   const f = path.join(ROOT, p);
   if (!f.startsWith(ROOT)) { res.writeHead(403); return res.end(); }
   fs.stat(f, (err, st) => {

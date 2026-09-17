@@ -118,7 +118,8 @@ function optionLine(name: string, spec: any, required: boolean): string {
   const enums = Array.isArray(spec?.enum) ? ` one of: ${spec.enum.join(', ')}` : ''
   const need = required ? ' (required)' : ''
   const desc = String(spec?.description ?? '').replace(/\s+/g, ' ')
-  return `  --${name} <${type}>${need}  ${desc}${enums}`.trimEnd()
+  const value = type === 'boolean' ? '[true|false]' : `<${type}>`
+  return `  --${name} ${value}${need}  ${desc}${enums}`.trimEnd()
 }
 
 /** Level 3: one command. */

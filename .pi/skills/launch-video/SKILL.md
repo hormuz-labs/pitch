@@ -96,7 +96,9 @@ and keep building.
 supplied a treatment, consider two genuinely different ways to tell this
 product's story — different material, framing or narrative device, not two
 palettes on the same sequence. Pick the stronger one yourself. This is a short
-creative decision, not extra mockups or an approval round.
+creative decision, not extra mockups or an approval round. Then consult the
+effects knowledge base below before finalizing the shot table or implementing
+new animation. Use what you learn to sharpen the concept and its execution.
 
 Write `direction.md`, briefly:
 
@@ -152,42 +154,54 @@ stall. Never add pulses, shakes, glows or cuts merely to raise a counter.
 Check reading time at delivery size; crop, focus or rebuild a UI detail when
 it cannot be read. An overview is valid when the whole interface is the point.
 
+**Design at the film's scale from the first shot.** The stage is 1920×1080;
+at a 960px-wide preview, 16px source text displays at only 8px. Choose the
+subject's frame occupancy and essential text size before writing CSS. Enlarge
+or isolate the actual checkout amount/control rather than reproducing a whole
+phone at web-page font sizes. Apply a scale correction to upcoming shots too,
+instead of rediscovering the same undersized hierarchy after every review.
+
 ## Use effects to serve the treatment
 
-The effects lab contains hundreds of working GSAP, three.js, lottie and SVG
-examples, each with code, frames and implementation notes. Built-in types,
-bespoke factories and lab adaptations are equally valid. A simple reveal is
-enough when the composition and story call for one; no lab-use quota applies.
+The effects lab is your **visual knowledge base**: hundreds of working GSAP,
+three.js, lottie and SVG studies with frames, mechanisms and implementation
+notes. **Consult it for every new film or substantially new sequence** before
+writing animation from scratch. For a small edit, reuse the references already
+studied. Learn how strong compositions, reveals, camera moves and transitions
+work, then adapt that knowledge to this product and the chosen treatment.
 
-- `pitch effects list` — the whole shelf, one line each: id, length, the
-  libraries and the move it makes. Browse after choosing the treatment when
-  you need to explore an implementation. Narrow it with
-  `--moves flip-3d`, `--libs three`, or by family: `pitch effects text list`
-  (a family is a subcommand; `pitch effects --help` lists them).
-- `pitch effects search a card flipping to reveal a price` — the same shelf
-  scored against words, when you know the move but not where it lives.
-- `pitch effects show <id>` — a selected effect whole. **Look at the strip**
-  before adapting it. Example ids in tool documentation are syntax examples,
-  not recommended effects.
+1. `pitch effects families` gives the compact map. Browse a relevant family
+   (`pitch effects text list --limit 8`) or search for the desired mechanism
+   (`pitch effects search a card flipping to reveal a price --limit 6`). List
+   and search default to 12 results; narrow first, rather than loading the
+   entire library with `--limit 0`.
+2. `pitch effects show <id>` returns a **study card**, without code. Study a
+   few promising references, usually two or three, and **read their strips**.
+   Note which mechanism or compositional idea helps the film in direction.md.
+   Reuse these notes across shots; a new shot does not require a new search.
+   A card is only a shortlist aid: do not implement its described moves or put
+   its id in `lab` until you have fetched and read its source.
+3. Before adapting a selected implementation, read `references/effects.md`
+   **once**, then `pitch effects show <id> --source`. This records the source
+   inspection in the workspace; `pitch motion check` and `audit` reject a
+   matching `lab` citation without it. Source is for the chosen mechanism, not
+   every candidate. It is reference code: rebuild the content, scale, timing
+   and styling for the product rather than copying a demo page.
+
+Built-in types, bespoke factories and lab adaptations remain valid execution
+choices. Consulting the library is required; copying a fixed number of effects
+is not. Keep a simple treatment when it tells the story best. Example ids are
+syntax examples, not recommended effects.
 
 The lab is a directory, so an effect added to it is listed the moment it is
 there. Nothing is indexed ahead of time and there is nothing to rebuild.
 
-Porting: its DOM goes in `mount(el, shot)`; `fx.timeline({ duration })`
-becomes the `gsap.timeline()` that `animate(el, shot, D)` returns; times are
-fractions of `D`; selectors scoped to `el`; `fx.rng` → `ShotKit.rng`; a
-canvas or three.js `seek` → a tween with `onUpdate`; the lab's 1280×720
-stage is the film's 1920×1080 at 1.5×. **Masks clip.** A reveal that hides
-overflow at line-height ≤ 1 cuts every descender and accent at hero size:
-give the mask `padding: .16em .08em .24em` with the same negative margin,
-start hidden text at yPercent 140, keep the longest line inside 1760px.
-`pitch motion schema --section "custom shot types"` has the shape. Understand
-the source's visual mechanism, then adapt its composition, count, typography,
-material, timing and exit to the treatment. Preserve it whole only when that
-is the right composition or the user requested a faithful reproduction.
-The source notes describe that effect, not rules for the film. Put
-`lab: "<id>"` on a shot genuinely derived from it, and note substantial changes
-in the table; bespoke shots need no lab annotation.
+`references/effects.md` holds the shared integration contract, sizing and mask
+rules so they are not repeated with every study. Source notes describe the
+original effect; their copy, palette and exact timings are not requirements
+for your film. Put `lab: "<id>"` on a shot genuinely derived from its
+implementation. Record broader visual influences in direction.md; browsing a
+study alone is not an implementation citation.
 
 `pitch motion schema` lists the built-in types, `pitch motion schema --types <type>` gives
 their fields. A custom type is **one file**: `js/shots/<type>.js` (its styles
@@ -200,24 +214,27 @@ tools.
 
 ## Build
 
-**One `bash` call, several `pitch` commands.** Everything below that is two
-decided steps in a row goes in one call, joined with `&&` — reading the schema
-for three sections, checking after a save, listing the lab and reading one
-effect. The last run spent six turns on six schema lookups before it had
-written a line. Turns are the cost; a batch is free.
+**Batch decided commands with `&&`.** Each model round trip re-reads the growing
+conversation. Request only the schema needed for the chosen treatment; do not
+load actors, materials or built-in types merely because an example lists them.
+Reuse documentation already in context rather than fetching it again.
 
 Use the syntax here directly; ask for help only when a needed option is
-unknown. Get sections **and** types together, for example:
-`pitch motion schema --section "actors,density layer,custom shot types" --types line,logo-cta,ui-frame`.
-Import a listed bed with `pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`;
-probe that workspace-relative path. Never probe an absolute library path.
+unknown. Read `common shot fields` once; get needed sections and types together,
+e.g. `pitch motion schema --section "common shot fields" --types line,logo-cta`
+for a film using those types. Custom factories need `--section "custom shot types"`.
+Unless a bed is already selected or the user requested a specific soundtrack,
+run `pitch motion find-audio --random` to pick and import one from the full
+library. Reuse it during edits. Filenames are opaque IDs, not descriptions;
+do not infer style from a number. For an explicit choice, import with
+`pitch motion find-audio --src "<listed path>" --copy_to audio/music.mp3`.
+Probe the returned workspace-relative path, never an absolute library path.
 
-**One shot at a time, and the film runs after every one.** The user is
-watching the preview; a film that appears all at once at minute nine is a
-blank stage for nine minutes. Measured on a real run: the scaffold landed at
-5:29, then twelve custom-type files went in before a single shot existed, and
-the first frame appeared at 9:05. Every shot you add is a save, and every save
-is a film that plays end to end — shorter than the last one, never broken.
+**One shot at a time, and the film runs after every one.** Save and compile
+each added shot so the preview grows while the user watches. Use `check`
+during construction; early `review` is for a specific visual uncertainty,
+not a mandatory review/read/polish loop after every shot. Review the complete
+sequence together before making a batch of visual corrections.
 
 1. `pitch motion scaffold` writes index.html and a starter `shots.js` — the brand
    recon measured and a **placeholder opener** built from the site's own h1,
@@ -237,6 +254,8 @@ is a film that plays end to end — shorter than the last one, never broken.
    (`js/shots/<type>.js`, `css/shots/<type>.css`): a change to one type is a
    small edit, and a `write` over an existing file past 12KB is refused —
    read the lines you change and `edit` them.
+   Include repeats and stagger in the time budget: at `.6*D`, a `.3*D` tween
+   with `repeat: 1` ends at `1.2*D`, even with `yoyo: true`.
 3. If narrated, record and sync before the visual gate: script
    (1.9–2.4 words/s) → `pitch motion tts` once (it prints the file it wrote)
    → `audio.vo` → `pitch motion align` →
@@ -263,12 +282,15 @@ is a film that plays end to end — shorter than the last one, never broken.
 5. Finish sound against the settled picture (`references/audio.md`). Read the
    audio reference before querying/building. `pitch motion check` already wrote
    the real labels to `audio/cues.json`; no separate cues call is needed.
-   Query all needed events once, write the cue sheet with duration limits for
+   Query needed events once with a small shortlist (`--limit 3` per event),
+   write the cue sheet as an object with a `cues` array and duration limits for
    sustained sounds, build once, then mix. Music-only uses `--music_only`;
    music leads, and `--sfx_db` controls its supporting effects. The mix names
    any local balance failure: fix that cue or trim, then re-mix.
    Audio-only changes (a breath, a level) and a `direction.md` edit need no
-   visual audit. Quote the scorecard and audio checks, name the bed, stop.
+   visual audit. The preview and Export use `audio/mix.wav` automatically;
+   do not search for or add audio wiring in index.html or shots.js. Once the
+   mix and picture pass, quote the checks briefly, name the bed, and stop.
 6. Export only when the user asks for an MP4: reuse the passing audit for the
    unchanged cut, then
    `pitch motion render --out <file> --out-res 1920x1080 --fps 60`, `pitch motion verify-duration`.
@@ -285,7 +307,9 @@ Verify with `pitch motion review --shots <id>`, never a full render.
 
 ## When a tool fails
 
-There is no network and no host. Report what failed and what is undone, and
-stop. Never hand-write a measurement (`audio/vo-words.json`,
+Correct argument/schema errors using the returned help. Fix validation
+failures in a batch and re-run the affected gate. If a host service or
+dependency is unavailable, report what failed and what is undone; stop rather
+than attempting to provision it. Never hand-write a measurement (`audio/vo-words.json`,
 `audio/cues.json`, `recon/brand-tokens.json`), never paste an effect from
 memory and call it a lab port, never call a film built when a gate never ran.

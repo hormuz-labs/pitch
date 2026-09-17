@@ -289,7 +289,11 @@ export function onSessionBusy(hook: BusyHook | null): void {
 function setBusy(s: Session, busy: boolean): void {
   if (s.busy === busy) return
   s.busy = busy
-  emit(s, { type: 'status', busy })
+  emit(s, {
+    type: 'status',
+    busy,
+    ...(busy ? { activeModel: s.active?.model ?? null } : {}),
+  })
   busyHook?.(s.projectId, busy)
 }
 
@@ -383,7 +387,9 @@ export function sessionEntriesFromTranscript(
           id: `${item.id}-tool-${i}`,
           role: 'tool',
           text: toolLabel(part.name, args),
-          tool: { name: part.name, status: ok === false ? 'error' : ok ? 'done' : 'running' },
+          // Transcript projection only happens for an idle, restored session.
+          // A call without a result was interrupted; it cannot still be running.
+          tool: { name: part.name, status: ok ? 'done' : 'error' },
           at,
         })
       }
@@ -822,6 +828,9 @@ function updateEntry(s: Session, entry: Entry): void {
 
 async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
   s.active = request
+  // setBusy() runs just before runPrompt(), so publish the model once the
+  // active request is attached. This also updates queued turns as they start.
+  emit(s, { type: 'status', busy: true, activeModel: request.model ?? null })
   let failed = false
   try {
     if (request.model) await applyModel(s, request.model)

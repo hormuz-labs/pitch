@@ -8,7 +8,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-.PHONY: help dev start dev-docker discord prod down logs ps test test-watch unittest integration sandbox-check whisper-model
+.PHONY: help dev start dev-docker discord prod down logs ps migrate test test-watch unittest integration sandbox-check whisper-model
 
 help:
 	@echo ""
@@ -22,6 +22,7 @@ help:
 	@echo "  $(GREEN)make down$(RESET)       — stop all containers and free dev ports"
 	@echo "  $(GREEN)make logs$(RESET)       — tail logs for the API container"
 	@echo "  $(GREEN)make ps$(RESET)         — list container status"
+	@echo "  $(GREEN)make migrate$(RESET)    — generate from ZenStack, then apply pending database migrations"
 	@echo "  $(GREEN)make unittest$(RESET)   — run fast pure unit tests (no browser)"
 	@echo "  $(GREEN)make integration$(RESET)— run browser-driven integration tests (playwright-cli)"
 	@echo "  $(GREEN)make test$(RESET)       — alias for unittest"
@@ -112,6 +113,12 @@ logs:
 
 ps:
 	docker compose -p pitch ps
+
+# ─── Database ─────────────────────────────────────────────────────────────────
+# Apply checked-in migrations; migrate dev is for authoring against an isolated database.
+migrate:
+	bunx zenstack generate --schema packages/db/prisma/schema.zmodel
+	bun run db:deploy
 
 # ─── Testing ──────────────────────────────────────────────────────────────────
 unittest:

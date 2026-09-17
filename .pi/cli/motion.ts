@@ -11,6 +11,7 @@
  */
 
 import { execFile, execFileSync } from 'node:child_process'
+import { randomInt } from 'node:crypto'
 import {
   copyFileSync,
   existsSync,
@@ -20,7 +21,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, extname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { Type } from '@sinclair/typebox'
 import { projectAudioConfig, TTS_PROVIDERS, type TtsProvider } from '../lib/audio-config.ts'
@@ -96,6 +97,7 @@ function validateFilm(name: string, args: string[], ws: string, out: string) {
       ...['index.html', 'shots.js', 'js', 'css', 'assets', 'recon', 'uploads', 'vendor'].map(f =>
         join(ws, f),
       ),
+      join(ws, '.studio', 'effect-sources.json'),
       ...args.filter(a => !a.startsWith('--')).map(f => join(ws, f)),
       ...narration,
       ...['gsap', 'three', 'lottie', 'rive', 'p5', 'fonts'].map(f => join(ASSETS_DIR, f)),
@@ -877,7 +879,7 @@ export default function motionCommands(): CommandSpec[] {
     description:
       'Query the curated SFX manifest or build the SFX bus. mode=list: the event vocabulary. ' +
       'mode=query: ranked, measured clips — pass every event the film needs in one call (event: "impact,whoosh_deep,chime"), not one call per event. ' +
-      'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json with peak-safe gain staging. Transients land at t; a riser ENDS at t (dur is its approach, default at most 1.5s). Every other sound longer than 1.5s requires dur matching its animation. ' +
+      'mode=build: render audio/sfx_bus.wav from audio/sfx-cues.json with peak-safe gain staging. Read references/audio.md first. Cue sheet: {"duration":23.4,"cues":[{"t":6.4,"event":"impact","dur":0.8}]}, not a bare array. Transients land at t; a riser ENDS at t (dur is its approach, default at most 1.5s). Every other sound longer than 1.5s requires dur matching its animation. ' +
       'Ceilings per 30s: ~6 signature cues (every event but tick/pop/click/type/data), one per shot, and up to ~14 micro-texture; these are limits, not targets. Choose sparse effects or music alone when the treatment calls for it. The build must finish with no placement warnings.',
     parameters: Type.Object({
       mode: Type.Union([Type.Literal('list'), Type.Literal('query'), Type.Literal('build')]),
@@ -980,22 +982,30 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'find-audio',
     description:
-      "List the curated music library (the one the studio's Music picker shows), newest first, or another directory. A bed the user picked is already in audio/. Pass src + copy_to (workspace-relative) to import a listed file.",
+      'Choose music for any kind of video. Use --random to randomly select and import a bed from the full curated library into audio/music.<ext>; reuse that file during edits. Respect an existing bed or explicit user choice. Listing returns shuffled candidates. Pass src + copy_to to import a specific file.',
     parameters: Type.Object({
       dir: Type.Optional(
         Type.String({ description: "Directory to scan (default: the repo's assets/music)" }),
       ),
       max: Type.Optional(Type.Integer({ minimum: 1, description: 'Max entries (default 15)' })),
+      random: Type.Optional(
+        Type.Boolean({
+          description: 'Randomly pick and import one track; max does not limit the pool',
+        }),
+      ),
       src: Type.Optional(
         Type.String({ description: 'Absolute path of a previously listed file to import' }),
       ),
       copy_to: Type.Optional(
-        Type.String({ description: 'Workspace-relative destination, e.g. audio/bed.mp3' }),
+        Type.String({
+          description: 'Workspace-relative destination (random default: audio/music.<ext>)',
+        }),
       ),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx: any) {
       const ws = workspaceOf(ctx)
-      if (p.src || p.copy_to) {
+      if (p.random && p.src) throw new Error('Choose either random or src, not both.')
+      if (!p.random && (p.src || p.copy_to)) {
         if (!p.src || !p.copy_to) {
           throw new Error('To import audio, provide both src and copy_to.')
         }
@@ -1017,7 +1027,7 @@ export default function motionCommands(): CommandSpec[] {
       for (const file of entries.filter(e => AUDIO_RE.test(e))) {
         const fp = join(root, file)
         const st = statSync(fp)
-        found.push({ p: fp, ms: st.size / 1e6, mtime: st.mtime })
+        if (st.isFile()) found.push({ p: fp, ms: st.size / 1e6, mtime: st.mtime })
       }
       for (const d of entries.filter(e => !AUDIO_RE.test(e))) {
         const dp = join(root, d)
@@ -1028,15 +1038,28 @@ export default function motionCommands(): CommandSpec[] {
           continue
         }
         for (const f of sub.filter(e => !e.startsWith('.') && AUDIO_RE.test(e))) {
-          if (found.length >= max) break
           const fp = join(dp, f)
           const st = statSync(fp)
-          found.push({ p: fp, ms: st.size / 1e6, mtime: st.mtime })
+          if (st.isFile()) found.push({ p: fp, ms: st.size / 1e6, mtime: st.mtime })
         }
-        if (found.length >= max) break
       }
       if (found.length === 0) return text(`No audio files found under ${root}`)
+      if (p.random) {
+        const selected = found[randomInt(found.length)]
+        const src = resolveIn(ws, selected.p)
+        const out = p.copy_to || `audio/music${extname(src).toLowerCase()}`
+        const dest = resolveIn(ws, out, 'write')
+        mkdirSync(dirname(dest), { recursive: true })
+        copyFileSync(src, dest)
+        return text(`Randomly selected ${basename(src)} from ${found.length} tracks -> ${out}`)
+      }
+      // Shuffle before truncating so every track can appear, even with --max 1.
+      for (let i = found.length - 1; i > 0; i--) {
+        const j = randomInt(i + 1)
+        ;[found[i], found[j]] = [found[j], found[i]]
+      }
       const lines = found
+        .slice(0, max)
         .map(
           f =>
             `${f.p}  [${f.ms.toFixed(1)} MB]  ${f.mtime.toISOString().slice(0, 16).replace('T', ' ')}`,
@@ -1070,7 +1093,7 @@ export default function motionCommands(): CommandSpec[] {
   commands.push({
     verb: 'schema',
     description:
-      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → the exact fields of those types and the DOM classes each mounts; `section` → one section, or SEVERAL AT ONCE as an array — ask for everything you need in one call, not six — from: density layer (stage, exits, beats), actors (one object across shots), narration spine, common shot fields (cuts incl. flood and zoom-out), ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
+      "The engine's shot schema in pieces: no arguments → the shot-type list and the sections; `types` → only those types' fields and DOM classes; `section` → named sections, one or several at once. Read common shot fields once with --section 'common shot fields'; it is not repeated with each type lookup. Request only capabilities used by the chosen treatment, and reuse sections already in context. Sections include density layer, actors, narration spine, common shot fields, ui-frame, materials, render and grade, custom shot types, rules. Use this instead of reading engine files.",
     parameters: Type.Object({
       types: Type.Optional(
         Type.Array(Type.String(), {
@@ -1133,7 +1156,6 @@ export default function motionCommands(): CommandSpec[] {
             mounted?.length ? `${row.replace(/\|\s*$/, '')} DOM: ${mounted.join(' ')} |` : row,
           )
         }
-        const common = sections.get('common shot fields') ?? ''
         const uiFrameKey = [...sections.keys()].find(k => k.startsWith('uiframe'))
         const uiFrame =
           p.types.some((t: string) => /ui-frame/.test(t)) && uiFrameKey
@@ -1141,8 +1163,7 @@ export default function motionCommands(): CommandSpec[] {
             : ''
         out.push(
           [
-            common,
-            '',
+            'Shared fields: pitch motion schema --section "common shot fields" (read once).',
             '| type | Fields |',
             '|---|---|',
             ...rows,

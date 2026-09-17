@@ -138,6 +138,7 @@ describe('GET /webhooks/endpoints', () => {
       events: ['job.completed'],
       isActive: true,
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       updatedAt: new Date(),
     }
     mockDb.listWebhookEndpoints.mockResolvedValue([ep])
@@ -166,6 +167,7 @@ describe('POST /webhooks/endpoints', () => {
       events: ['job.completed', 'job.failed'],
       isActive: true,
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       updatedAt: new Date(),
     }
     mockDb.createWebhookEndpoint.mockResolvedValue(mockEp)
@@ -229,6 +231,7 @@ describe('dispatchJobWebhooks', () => {
       attempts: 0,
       maxAttempts: 5,
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       updatedAt: new Date(),
     })
 
@@ -239,6 +242,7 @@ describe('dispatchJobWebhooks', () => {
       videoUrl: 'https://s3.trypitch.co/video.mp4',
       parameters: { jobType: 'demo' },
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       updatedAt: new Date(),
     }
 
@@ -273,6 +277,7 @@ describe('dispatchJobWebhooks', () => {
       attempts: 0,
       maxAttempts: 5,
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       updatedAt: new Date(),
     })
 
@@ -286,6 +291,7 @@ describe('dispatchJobWebhooks', () => {
         webhookUrl: 'https://custom-webhook.org/receive',
       },
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       updatedAt: new Date(),
     }
 

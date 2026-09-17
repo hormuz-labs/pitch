@@ -1,6 +1,7 @@
 import { Maximize, Minus, Plus } from 'lucide-solid'
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
+import { AudioPlayer } from './AudioPlayer'
 import type { Asset } from './types'
 import type { ProjectStore } from './useProject'
 
@@ -237,6 +238,7 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
         <div class="asset-viewer" onClick={props.close}>
           <div
             class="asset-viewer-box"
+            classList={{ 'asset-viewer-box--audio': props.asset.kind === 'audio' }}
             role="dialog"
             aria-modal="true"
             aria-label={props.asset.name}
@@ -292,7 +294,7 @@ function Viewer(props: { store: ProjectStore; asset: Asset; close: () => void })
                           </Show>
                         }
                       >
-                        <audio src={u()} controls autoplay />
+                        <AudioPlayer src={u()} />
                       </Show>
                     }
                   >

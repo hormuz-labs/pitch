@@ -45,8 +45,9 @@ const BASH_DESCRIPTION =
   'skills and asset libraries are readable). You have bash, node, python and `pitch` — the ' +
   "studio's command line, which runs outside this shell with a real browser, ffmpeg and " +
   'network: recon, screenshots, audio, the lab, review and rendering are all `pitch` commands ' +
-  '(`pitch --help`). Your shell itself has NO ffmpeg, browser or network. When a `pitch` command ' +
-  'fails you cannot install what it is missing: say what failed and stop. Never hand-write a ' +
+  '(`pitch --help`). Your shell itself has NO ffmpeg, browser or network. Correct invalid ' +
+  'arguments using the returned help; fix validation failures in your source and re-run the gate. ' +
+  'For unavailable host services or dependencies, report what failed and stop. Never hand-write a ' +
   'file a command produces (vo-words.json, cues.json, brand-tokens.json) — those are ' +
   'measurements, and a plausible substitute is a fabricated result nothing downstream can detect.'
 
