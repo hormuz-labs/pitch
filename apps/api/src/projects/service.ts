@@ -13,7 +13,7 @@ import * as db from '@saas/db'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
 import type { Description, UploadRef } from '../flows/types.js'
 import { publishProjectEvent } from '../studio/events.js'
-import { estimatedModelCredits, selectStudioModel } from '../studio/model-picker.js'
+import { selectStudioModel } from '../studio/model-picker.js'
 import { type FlowId, isValidProjectName, slugify } from '../studio/paths.js'
 import { type Entry, listStudioModels } from '../studio/session.js'
 import { currentOwner, ownerFor, withOwner } from '../worker/client.js'
@@ -209,12 +209,8 @@ export async function createProject(
   // Nothing is charged for opening a project: the studio bills what the work
   // actually costs, turn by turn (projects/usage.ts). The balance check is
   // only that they can pay for some of it.
-  const balance = await db.getCreditBalance(userId)
-  const estimatedCredits = estimatedModelCredits(
-    options.model,
-    Number(options.durationSeconds ?? 30),
-  ).total
-  if (balance < Math.max(MIN_BALANCE, estimatedCredits)) throw new InsufficientCreditsError(balance)
+  const balance = await db.getAvailableCreditBalance(userId)
+  if (balance < MIN_BALANCE) throw new InsufficientCreditsError(balance)
 
   const title = projectTitle(
     prompt,

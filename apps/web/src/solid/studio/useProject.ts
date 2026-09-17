@@ -202,6 +202,11 @@ export function useProject(id: string | undefined) {
         setEntries(v => [...v, { id: `credit-${Date.now()}`, role: 'credit', text: ev.message }])
         window.dispatchEvent(new Event('credits-changed'))
         break
+      case 'credit_balance':
+        window.dispatchEvent(
+          new CustomEvent('credits-changed', { detail: { balance: ev.balance } }),
+        )
+        break
       case 'deleted':
         setLoadError('This project was deleted.')
         break
@@ -324,6 +329,7 @@ export function useProject(id: string | undefined) {
     opts: {
       uploads?: UploadRef[]
       options?: Record<string, unknown>
+      answer?: import('./types').AskAnswer
       delivery?: 'queue' | 'steer'
     } = {},
   ) => {
@@ -360,6 +366,7 @@ export function useProject(id: string | undefined) {
         slide,
         uploads: opts.uploads,
         options: opts.options,
+        answer: opts.answer,
         model: model() ?? undefined,
         delivery,
       })

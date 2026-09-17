@@ -150,8 +150,11 @@ async function generate(
   body: Record<string, unknown>,
   timeoutMs: number,
   outputFormat?: string,
+  signal?: AbortSignal,
 ): Promise<{ audio: Buffer; contentType: string; songId?: string }> {
   const controller = new AbortController()
+  const abort = () => controller.abort()
+  signal?.addEventListener('abort', abort, { once: true })
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const query = outputFormat ? `?output_format=${encodeURIComponent(outputFormat)}` : ''
@@ -177,6 +180,7 @@ async function generate(
     throw error
   } finally {
     clearTimeout(timer)
+    signal?.removeEventListener('abort', abort)
   }
 }
 
@@ -257,7 +261,7 @@ registerHostAction('elevenlabs_voices', async (_ws, params) => {
     .join('\n')
 })
 
-registerHostAction('elevenlabs_voiceover', async (ws, params) => {
+registerHostAction('elevenlabs_voiceover', async (ws, params, ctx) => {
   const script = params.script ? String(params.script) : ''
   const text = script
     ? await readFile(insideWorkspace(ws, script), 'utf8')
@@ -280,6 +284,7 @@ registerHostAction('elevenlabs_voiceover', async (ws, params) => {
     body,
     TTS_TIMEOUT_MS,
     'mp3_44100_128',
+    ctx.signal,
   )
   await save(out.abs, result, { kind: 'voiceover', voiceId, script: script || undefined, ...body })
   // The exact text spoken, beside the file, so `pitch motion align` can time every word.
@@ -296,7 +301,7 @@ registerHostAction('elevenlabs_voiceover', async (ws, params) => {
   )
 })
 
-registerHostAction('elevenlabs_music', async (ws, params) => {
+registerHostAction('elevenlabs_music', async (ws, params, ctx) => {
   const request: MusicRequest = {
     prompt: String(params.prompt ?? ''),
     duration: Number(params.duration),
@@ -304,12 +309,12 @@ registerHostAction('elevenlabs_music', async (ws, params) => {
   const body = musicRequestBody(request)
   const out = outputPath(ws, params.out, 'audio/music.mp3')
   logger.info({ workspace: ws.internal, out: out.rel, duration: request.duration }, 'music')
-  const result = await generate('/v1/music', body, MUSIC_TIMEOUT_MS, 'auto')
+  const result = await generate('/v1/music', body, MUSIC_TIMEOUT_MS, 'auto', ctx.signal)
   await save(out.abs, result, { kind: 'music', model: MUSIC_MODEL, ...body })
   return `Generated an instrumental bed: ${out.rel} (${mb(result.audio)}, ${request.duration.toFixed(1)}s asked). pitch motion mix levels and ducks it.`
 })
 
-registerHostAction('elevenlabs_sound', async (ws, params) => {
+registerHostAction('elevenlabs_sound', async (ws, params, ctx) => {
   const request: SoundRequest = {
     prompt: String(params.prompt ?? ''),
     duration: params.duration === undefined ? undefined : Number(params.duration),
@@ -319,7 +324,7 @@ registerHostAction('elevenlabs_sound', async (ws, params) => {
   const body = soundRequestBody(request)
   const out = outputPath(ws, params.out, 'audio/generated-sfx/sound.mp3')
   logger.info({ workspace: ws.internal, out: out.rel, duration: request.duration }, 'sound')
-  const result = await generate('/v1/sound-generation', body, SFX_TIMEOUT_MS)
+  const result = await generate('/v1/sound-generation', body, SFX_TIMEOUT_MS, undefined, ctx.signal)
   await save(out.abs, result, { kind: 'sound', model: SFX_MODEL, ...body })
   return `Generated ${out.rel} (${mb(result.audio)}). In audio/sfx-cues.json: { "t": <when>, "event": "<class>", "file": "${out.rel}" } — then pitch motion sfx --mode build measures its onset and places it.`
 })

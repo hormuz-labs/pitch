@@ -4,7 +4,7 @@ import { QuestionCard } from './Ask'
 import { agentActivity } from './agent-activity'
 import { ReasoningSteps } from './ReasoningSteps'
 import { ThinkingOrb } from './ThinkingOrb'
-import type { Entry } from './types'
+import type { AskAnswer, Entry } from './types'
 
 type Inline = { kind: 'text' | 'strong' | 'em' | 'code' | 'link'; text: string; href?: string }
 function inline(text: string): Inline[] {
@@ -188,7 +188,7 @@ function AgentMarkdown(props: { text: string }) {
 export function Thread(props: {
   entries: Entry[]
   busy: boolean
-  onAnswer?: (text: string) => void
+  onAnswer?: (text: string, opts?: { answer?: AskAnswer }) => void
   onEdit?: (entry: Entry) => void
   onSteer?: (entry: Entry) => void
 }) {
@@ -285,9 +285,10 @@ export function Thread(props: {
           >
             <Show when={e.ask}>
               <QuestionCard
+                entryId={e.id}
                 ask={e.ask!}
                 disabled={!props.onAnswer || e.id !== open()?.id}
-                onSend={t => props.onAnswer?.(t)}
+                onSend={(text, answer) => props.onAnswer?.(text, { answer })}
               />
             </Show>
           </Show>

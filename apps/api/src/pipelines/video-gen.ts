@@ -142,7 +142,7 @@ async function previousIdFrom(ws: Workspace, ref: string): Promise<string> {
   return String(saved.interactionId)
 }
 
-registerHostAction('video_generate', async (ws, params) => {
+registerHostAction('video_generate', async (ws, params, ctx) => {
   const prompt = String(params.prompt ?? '').trim()
   if (!prompt) throw new Error('prompt is required')
   // A bare filename lands in renders/, which is where the asset shelf looks.
@@ -184,6 +184,8 @@ registerHostAction('video_generate', async (ws, params) => {
   logger.info({ workspace: ws.internal, out: outRel, resolution, aspect }, 'video_generate')
 
   const controller = new AbortController()
+  const abort = () => controller.abort()
+  ctx.signal?.addEventListener('abort', abort, { once: true })
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   const started = Date.now()
   let result: any
@@ -203,6 +205,7 @@ registerHostAction('video_generate', async (ws, params) => {
     throw err
   } finally {
     clearTimeout(timer)
+    ctx.signal?.removeEventListener('abort', abort)
   }
   const seconds = (Date.now() - started) / 1000
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   durationOptionFromText,
   normalizeCreationOptions,
+  videoTypeOptionFromText,
 } from '../apps/api/src/projects/creation-options.js'
 
 describe('normalizeCreationOptions', () => {
@@ -69,5 +70,13 @@ describe('durationOptionFromText', () => {
 
   it('does not mistake unrelated numbers for duration', () => {
     expect(durationOptionFromText('Use these 3 features in the launch')).toBeUndefined()
+  })
+})
+
+describe('videoTypeOptionFromText', () => {
+  it('extracts the stable type from a questionnaire label', () => {
+    expect(videoTypeOptionFromText('What style should we create? → Product walkthrough')).toEqual({
+      videoType: 'product-walkthrough',
+    })
   })
 })

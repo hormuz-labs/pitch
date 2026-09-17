@@ -3,9 +3,16 @@ import type { Ask } from './types'
 
 const LETTERS = 'ABCDEFGH'
 export function QuestionCard(props: {
+  entryId: string
   ask: Ask
   disabled: boolean
-  onSend: (text: string) => void
+  onSend: (
+    text: string,
+    answer: {
+      askEntryId: string
+      selections: Array<{ questionId: string; optionIds: string[] }>
+    },
+  ) => void
 }) {
   const [step, setStep] = createSignal(0),
     [picked, setPicked] = createSignal<Record<string, string[]>>({}),
@@ -20,10 +27,19 @@ export function QuestionCard(props: {
       .filter(x => (picked()[x.id] ?? []).length)
       .map(x => `${x.question} → ${(picked()[x.id] ?? []).join(', ')}`),
   )
+  const answer = () => ({
+    askEntryId: props.entryId,
+    selections: questions().map(question => ({
+      questionId: question.id,
+      optionIds: question.options
+        .filter(option => (picked()[question.id] ?? []).includes(option.label))
+        .map(option => option.id),
+    })),
+  })
   const send = (text: string) => {
     if (locked()) return
     setSent(true)
-    props.onSend(text)
+    props.onSend(text, answer())
   }
   const choose = (label: string) => {
     const cur = q()
@@ -131,9 +147,16 @@ export function QuestionCard(props: {
                     <button
                       type="button"
                       class="ask-flat"
-                      onClick={() =>
-                        send('You decide — take your own first option for each and get started.')
-                      }
+                      onClick={() => {
+                        setPicked(
+                          Object.fromEntries(
+                            questions().map(question => [question.id, [question.options[0].label]]),
+                          ),
+                        )
+                        queueMicrotask(() =>
+                          send('You decide — take your own first option for each and get started.'),
+                        )
+                      }}
                     >
                       You decide
                     </button>
