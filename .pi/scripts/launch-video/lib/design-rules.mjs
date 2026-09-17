@@ -1,28 +1,12 @@
 /**
- * design-rules.mjs — what the gate expects of any shot list.
+ * design-rules.mjs — timeline validity and review hints, independent of style.
  *
- * Limits measured from reference launch films (docs/studies/), loose enough
- * that any structure fits: the tells here are the ones every film shares —
- * shots that hold, a slideshow's rhythm, text that only enters, a whole
- * desktop where one control should be. Pure functions of the shot list;
+ * A treatment chooses shot lengths, animation vocabulary and composition.
+ * The checker must not turn one reference film into a mandatory template.
+ * Pure functions of the shot list;
  * cues.mjs --check prints them while the film is being built, audit.mjs
  * reports them at the gate.
  */
-
-export const LIMITS = {
-  shots: [4, 40],
-  avg: 3.6,       // over this the film reads as slides
-  shotMax: 6.0,   // one idea per shot, even a scene with steps or actors
-  hook: 3.5,      // the first shot is a designed hook, not a hold
-  hold: 1.5,      // the audit's longest quiet stretch: a shot longer than this needs a second act
-};
-
-export const TYPE_BEATS = new Set(["word-build", "pile", "type-field", "overlay-type", "logo-sting", "type-wipe", "icon-marquee", "word-cut", "color-punch", "logo-cta", "stat-counter", "line"]);
-/** Built-in type beats whose whole move is an entrance — the lab's text family does the same job with a real move. */
-export const PLAIN_TYPE = new Set(["word-cut", "type-wipe", "color-punch", "type-field", "overlay-type"]);
-/** The engine's own types. A project type (js/shots/<type>.js) is a lab port whose factory timeline carries its own acts — the check does not second-guess it; the audit measures it. */
-export const BUILT_IN = new Set([...TYPE_BEATS, "ui-frame", "device-notif", "device-3d", "lottie", "rive", "cascade"]);
-export const TRANSITION_CUTS = new Set(["dissolve", "wipe-left", "wipe-right", "wipe-up", "wipe-down", "push-left", "push-right", "push-up", "push-down", "iris", "zoom", "zoom-out", "flip", "flood"]);
 
 /**
  * The shot list as the lint sees it, read from window.SHOTS inside the page:
@@ -58,14 +42,6 @@ export function extractSpec() {
   };
 }
 
-/** Whether a shot changes after its entrance without a `beats` entry. */
-function secondAct(s) {
-  if (s.beats > 0 || s.steps > 0 || s.actors > 0) return true;
-  if (s.more > 0 || s.items > 0 || s.focus || s.cursor || s.cursors > 0 || s.tilt || s.typing) return true;
-  // these types are a sequence by construction
-  return ["pile", "cascade", "word-build", "icon-marquee", "stat-counter", "device-notif", "lottie", "rive", "device-3d"].includes(s.type);
-}
-
 /**
  * Lint the shot list (the shape extractSpec returns).
  * Returns [{ level: "fail" | "warn", code, msg }].
@@ -73,49 +49,17 @@ function secondAct(s) {
 export function lintDesign(spec) {
   const out = [];
   const shots = spec.shots || [];
-  const R = LIMITS;
-  const n = shots.length;
-  if (n < R.shots[0]) out.push({ level: "fail", code: "count", msg: `Only ${n} shots — a launch film runs ${R.shots[0]}–${R.shots[1]}. Cut ideas into more beats.` });
-  if (n > R.shots[1]) out.push({ level: "warn", code: "count", msg: `${n} shots — over ${R.shots[1]}; make sure each is one idea.` });
-  const avg = shots.reduce((a, s) => a + (Number(s.dur) || 0), 0) / Math.max(1, n);
-  // Length is a note, not a gate: the numbers are the reference films', and a
-  // 6.4s signature shot split in two to satisfy a limit became one shot and
-  // one static pair of cards.
-  if (avg > R.avg) out.push({ level: "warn", code: "avg", msg: `Average shot length ${avg.toFixed(2)}s — over ${R.avg}s a film tends to read as slides. A second act in the long ones, or a cut; not a rule to split a shot that works.` });
-  shots.forEach((s, i) => {
-    if (s.dur > R.shotMax) out.push({ level: "warn", code: "long", msg: `#${s.id} (${s.type}): ${s.dur}s — the reference films keep a shot under ${R.shotMax}s. Fine for a signature shot with steps, actors or beats all the way through; otherwise split it.` });
-    if (i === 0 && s.dur > R.hook) out.push({ level: "warn", code: "hook", msg: `#${s.id}: the hook is ${s.dur}s — the first ${R.hook} seconds should be a designed hook, not a hold.` });
-  });
-
-  const breaths = shots.reduce((a, s) => a + (s.breaths || 0), 0);
-  const punches = shots.filter((s) => s.cut === "punch").length;
-
-  const first = shots[0];
-  if (first && first.type === "line" && first.typing) out.push({ level: "fail", code: "typing", msg: `#${first.id}: the film opens on a caret typing at hero scale. The first second is a move; \`typing\` belongs only to a prompt box inside a rebuilt \`ui-frame\`, mid-film.` });
+  if (!shots.length) out.push({ level: "fail", code: "count", msg: "The timeline has no shots. Add the first shot before auditing." });
   shots.forEach((s) => {
-    if ((s.rippleBeats || 0) > 0) out.push({ level: "fail", code: "ripple", msg: `#${s.id}: a \`ripple\` beat — rings expanding from a press are banned. A press is the control's own state change (the pill grows, the button splits, the toggle snaps) or a \`flood\`.` });
-    if (s.type === "ui-frame" && s.capturedSrc && !secondAct(s)) out.push({ level: "warn", code: "still", msg: `#${s.id}: a captured screen sits still as the product (\`src\`, no \`html\`). A still screenshot cannot have a second act — give the shot a focus move, a cursor, a beat, or rebuild the part that moves as \`html\`.` });
-    // A built-in type that enters and then holds is the quiet stretch the audit notes. A project type is not
-    // judged here: its factory timeline is the acts, and adding `beats` on top of a lab port is what made
-    // the bouncy films — the audit measures what actually moves.
-    if (BUILT_IN.has(s.type) && s.dur > R.hold && !secondAct(s)) out.push({ level: "warn", code: "hold", msg: `#${s.id} (${s.type}): ${s.dur}s of a built-in type with nothing after its entrance — the audit will note the quiet stretch over ${R.hold}s. A \`steps\` sequence, a \`swap\`, a \`focus\` or \`cursor\` changes what the frame says; or cut it at ${R.hold}s. A pulse on a word is not a second act.` });
-    // Text that only slides in: the lab's text family exists for exactly this beat.
-    if (PLAIN_TYPE.has(s.type) && !s.lab) out.push({ level: "warn", code: "plain-type", msg: `#${s.id}: \`${s.type}\` is text that only enters. The lab has 69 text effects — motion_effects({ query: "<what this line should do>", family: "text" }) — port one as a custom type, or put the copy in a \`line\` with steps.` });
-    // A whole desktop at 1560px is wallpaper at 1080p: nothing on it can be read.
-    if (s.type === "ui-frame" && s.frame !== "phone" && !s.focus && !s.clickZoom && !s.layers && !s.html) out.push({ level: "warn", code: "desktop", msg: `#${s.id}: a whole screen in a ${s.frame || "browser"} frame with no \`focus\`, no \`cursor.zoom\` and no layers — at 1080p none of it can be read. Push in with \`focus\` or \`cursor.zoom\` to the part the copy is about, or rebuild that part as \`html\`.` });
+    if (!Number.isFinite(s.dur) || s.dur <= 0) out.push({ level: "fail", code: "duration", msg: `#${s.id}: duration must be a finite, positive number (got ${s.dur}).` });
+    if (s.type === "ui-frame" && s.frame !== "phone" && !s.focus && !s.clickZoom && !s.layers && !s.html) out.push({ level: "warn", code: "desktop", msg: `#${s.id}: review this whole-screen ${s.frame || "browser"} view at delivery size. An overview is valid; if a particular control or label must be read, crop, focus or rebuild that detail.` });
   });
-  if (n >= 8 && punches === 0) out.push({ level: "warn", code: "punch", msg: "No `punch` cuts — mark 2–3 boundaries where a beat lands." });
-  if (!breaths && n >= 8) out.push({ level: "warn", code: "breath", msg: "No `breath` beats — the reference films duck the bed for half a second before every payoff. Put one before the moment the film is about." });
-  // Actor presence and linked-cut counts cannot establish visual continuity.
-  // Requiring them rewarded a decorative shape held over unrelated scenes.
-  // Judge the sequence in visual review; clean cuts and a bare stage are valid.
   return out;
 }
 
 /** The lints worth hearing while the film is still being built (cues.mjs --check). */
 export function lintWhileBuilding(spec) {
-  const n = (spec.shots || []).length;
-  return lintDesign(spec).filter((l) => !["punch", "breath"].includes(l.code) && !(l.code === "count" && n < LIMITS.shots[0]));
+  return lintDesign(spec).filter((l) => l.code !== "count");
 }
 
 /** The per-shot line the audit prints for the summary. */

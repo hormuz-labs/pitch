@@ -1,6 +1,6 @@
 ---
 name: launch-video
-description: Build a product launch film — promo, teaser, feature announcement, kinetic typography, narrated product video — as a shots.js shot list the shared GSAP engine compiles, its moves drawn from the effects lab (`pitch effects`), previewed live in the studio and gated by pitch motion audit. Read this before starting any launch film.
+description: Direct and build a product launch film — promo, teaser, feature announcement, kinetic typography, narrated product video — with a product-specific visual concept and a shots.js timeline. Use built-ins, bespoke animation, or adapted effects as the treatment needs; preview live and verify with pitch motion audit and review. Read this before starting any launch film.
 ---
 
 # Launch films
@@ -29,8 +29,8 @@ as buttons they click:
      announcement · Kinetic typography. Use the ones that fit THIS product,
      not all six.
    - `length` — ~15s teaser · ~30s standard · ~60s full — when they gave none.
-   - `voice` — Music only · Narrated — only above ~40s; under that it is
-     music, and not a question.
+   - `voice` — Music only · Narrated — when that choice materially changes
+     the story and the user has not settled it. Length alone does not decide.
 
    Then **end your turn** and wait. Never ask about the look, the moves, the
    colours, the fonts or the music: those are yours.
@@ -54,19 +54,20 @@ answered.
 
 ### What each kind actually changes
 
-The answer is not a label on the same film. It decides the material:
+The answer changes what carries the story. These are starting points, not
+templates or required shot types:
 
-| kind | the stage | where the moves come from | a way to connect the scenes |
-|---|---|---|---|
-| Cinematic | designed motion, no chrome | `text`, light, camera families | the story arc, matched composition or a product-object handoff |
-| Product walkthrough | `ui-frame` with a cursor, real screens pushed into | `ui`, `device-3d`, cursor moves | the cursor, or the card it drags |
-| 3D render | three.js / an isometric stage | the `3d` and `three` libs in the lab | the object itself, turning |
-| Teaser | one idea, ~15s, mostly type | `text`, `word-cut`, hard cuts | one word, restated |
-| Feature announcement | the feature on screen, named | `ui` + `stat-counter` + `line` steps | the thing the feature makes |
-| Kinetic typography | type IS the picture, no UI | the 69 `text` moves | a line, one word at a time |
+| kind | what carries the story | decisions to make |
+|---|---|---|
+| Cinematic | imagery, a situation, a physical object, light or atmosphere | what the viewer discovers; framing, camera and moments of stillness |
+| Product walkthrough | real product actions and their consequences | what to demonstrate, where attention goes, how much context stays visible |
+| 3D render | an object, material or spatial process | geometry, lighting, camera path, scale and how the object changes |
+| Teaser | one reveal or unanswered question | what to conceal, when to reveal it, whether words are needed |
+| Feature announcement | a useful change made visible | the before/after, evidence and payoff |
+| Kinetic typography | language and its visual form | typographic composition, reading rhythm, movement or deliberate stillness |
 
-Everything else — palette, fonts, rhythm, the signature — comes from recon and
-from you, in every one of them.
+A kind does not prescribe a palette, an effect family, a cut rate or a text
+entrance. A cinematic brief can be quiet; a teaser can be entirely an object.
 
 ## Know the product
 
@@ -80,22 +81,43 @@ tools — nothing to read there.) Look once at the saved logo (`assets/logo/`)
 and use it wherever the mark appears; if what recon saved is not the mark, say
 so and set the wordmark in the brand's type. Recon also self-hosts the
 product's font files into your `assets/fonts/`; when it saved none, the
-brand font is a system stack — the shared assets are not the brand. Everything
-else is designed motion in the brand's voice, not a collage of its
-screenshots; `pitch motion image` makes an image nobody has. Never stall for an
-asset — say once what would help and keep building.
+brand font is a system stack — the shared assets are not the brand. Preserve
+the product's identity and distinguish measured brand facts from your creative
+choices. Recon is evidence about the product, not a complete art direction.
+Look at supplied imagery and visual references as well as CSS tokens.
+`pitch motion image` can make a still, object or illustration for the treatment.
+For footage with no real source, read `generated-video` before generating it;
+never invent product UI. Never stall for an asset — say once what would help
+and keep building.
 
 ## Make it this product's film
 
-Write `direction.md`, a few lines each: what the film is about in one
-sentence; the look (palette, type, stage, finish, each with its evidence from
-recon); the arc and the hook; the rhythm; **how the scenes connect** (below); and the
-**signature** — the one thing only this product could own. Then the shot
-table: `# | id | type | move (lab id) | dur | copy | cut | joins | sound`.
-Present it and keep building; do not wait for approval.
+**Choose a visual concept before browsing effects.** When the user has not
+supplied a treatment, consider two genuinely different ways to tell this
+product's story — different material, framing or narrative device, not two
+palettes on the same sequence. Pick the stronger one yourself. This is a short
+creative decision, not extra mockups or an approval round.
 
-The structure is open — chapters cut on the beat, a manifesto, a demo with a
-cursor, something you invent for this product. Choose the joins to suit it.
+Write `direction.md`, briefly:
+
+- **Idea and audience:** what the viewer should understand or feel, and the
+  product fact that makes the idea specific. Note why this treatment won.
+- **Visual system:** the dominant material (product UI, photography, objects,
+  illustration, type, spatial geometry, or a deliberate mix); composition,
+  scale, type hierarchy, palette, light and finish. Separate recon evidence
+  from authored choices. Describe frames, not just adjectives like "premium".
+- **Arc and rhythm:** the hook, development and payoff; what moves, what holds,
+  where attention shifts, and the role of sound. Choose durations for those
+  events and reading time. A held frame, a long take and a hard cut are valid.
+- **Connections and signature:** how adjacent scenes relate, and how the
+  product's mechanism shapes the film beyond its logo, colours and copy.
+
+Then the shot table:
+`# | id | subject/composition | type | action or hold | source (lab id if used) | dur | copy | cut/connection | sound`.
+Present it and keep building; do not wait for approval. If changing the logo
+and nouns would make the treatment fit any competitor, sharpen the concept
+before writing more shots. Do not force every film into hook → feature cards
+→ stat → logo, or add variation unrelated to the story.
 
 ## Continuity comes from the sequence
 
@@ -115,67 +137,38 @@ pose; use it only when that continued presence belongs in the composition.
 Do not add a dot, line, orb or other floating shape merely to signal
 continuity. Moving the same decoration around every scene does not connect
 their ideas. A recurring motif may leave and return; it need not remain on
-screen. Keep ported effects' compositions intact instead of overlaying a
-film-wide ornament.
+screen.
 
-The same is true inside a shot. A line arrives **one word at a time**, each
-fully formed in a single frame, 0.6–0.8s apart: `line` with `steps`, one
-`add` per word, the noun last in `accent`, `replace` for the next thought.
-A 2.2s shot then holds three events and never reads as a hold — that is
-the answer to "enough time to read, not enough to get bored", not a longer
-`dur`.
+Text may arrive whole, build word by word, sit within an image, change layout,
+or remain still. Use `line.steps` when paced reading serves the idea; choose
+the interval and emphasis for that sentence. There is no universal accented
+noun, easing curve, three-act shot pattern or entrance/exit requirement.
 
-Plan to the gate, not after it. `pitch motion audit` notes a picture that sits
-still past 1.5s or averages under 0.7 changes a second. Those are the
-reference films' numbers and a suggestion, not a rule: answer a note with a
-beat or a cut, or keep the hold and say why in direction.md — a lab effect
-ported whole keeps its own timing, and a counter never gets a film rebuilt.
-What does get rebuilt at the end is a shot list that only enters, so every
-shot in the table has **three acts** — it arrives, something changes, it
-leaves — and the `move` column names all three. A lab effect ported whole
-already has them: its timeline is the acts, and `pitch motion check` does not
-judge a project type. `beats` exist for the built-in types that only enter
-(`line`, `logo-cta`, `stat-counter`…) — a `swap`, a `flood`, a `breath`.
-**Never add a `pulse`, `kick`, `shake` or `halo` to a ported effect to
-answer a note** — that is copy jiggling, and it is what the user cuts.
+`pitch motion audit` reports pixel-change density, not storytelling quality.
+Its default quiet-stretch and event-rate thresholds are diagnostics; choose
+`--max_quiet` and `--min_eps` for the planned rhythm when appropriate. Review
+a note against the treatment. Keep an intentional hold; fix an accidental
+stall. Never add pulses, shakes, glows or cuts merely to raise a counter.
+Check reading time at delivery size; crop, focus or rebuild a UI detail when
+it cannot be read. An overview is valid when the whole interface is the point.
 
-**An effect is used in the form it was defined.** Its composition — how
-many things are on the stage, their sizes, their arrangement — is the
-effect as much as its timing: three forms piling up stay three forms;
-a grid of cards stays a grid. Put the product's words, colours and counts
-in; do not reduce it to one big thing, and do not add a kicker above it.
-A whole desktop screenshot is the one thing that never reads at 1080p —
-push into the part the copy is about, or rebuild that part as `html`.
+## Use effects to serve the treatment
 
-What reliably makes films worse, so don't: opening on a logo fade or a caret
-typing; every shot the same length; a shot that enters and then holds;
-near-black + glow orbs + glass + Inter as "the look"; `ripple` beats; copy
-that would fit a competitor's film — Introducing, Meet X, Say goodbye to,
-Seamless, Effortless, Supercharge, Unlock, The future of, In seconds,
-Game-changing, Powered by AI, All in one place.
-
-## The moves come from the effects lab
-
-408 effects — every Jitter template rebuilt in the engine's own GSAP, plus
-three.js, lottie and SVG filters — each with its code, eight frames and notes
-on how it works and how it ports. Look there for **everything** — how the
-headline lands, how the number counts, how the card turns, how the logo
-resolves — before you reach for a built-in. Type never just slides in: the
-`text` family alone has 69 moves, and `word-cut`, `type-wipe`,
-`color-punch`, `type-field` and `overlay-type` are placeholders the check
-flags. The built-ins that carry the product itself — `ui-frame`,
-`device-3d`, `logo-sting`, `logo-cta`, `stat-counter`, `line` with steps —
-stay.
+The effects lab contains hundreds of working GSAP, three.js, lottie and SVG
+examples, each with code, frames and implementation notes. Built-in types,
+bespoke factories and lab adaptations are equally valid. A simple reveal is
+enough when the composition and story call for one; no lab-use quota applies.
 
 - `pitch effects list` — the whole shelf, one line each: id, length, the
-  libraries and the move it makes. **Read it once, early**, and you have seen
-  every option instead of guessing at eight at a time. Narrow it with
+  libraries and the move it makes. Browse after choosing the treatment when
+  you need to explore an implementation. Narrow it with
   `--moves flip-3d`, `--libs three`, or by family: `pitch effects text list`
   (a family is a subcommand; `pitch effects --help` lists them).
 - `pitch effects search a card flipping to reveal a price` — the same shelf
   scored against words, when you know the move but not where it lives.
-- `pitch effects show text/bold-text-snap` — the effect whole. **Look at the
-  strip** before porting.
+- `pitch effects show <id>` — a selected effect whole. **Look at the strip**
+  before adapting it. Example ids in tool documentation are syntax examples,
+  not recommended effects.
 
 The lab is a directory, so an effect added to it is listed the moment it is
 there. Nothing is indexed ahead of time and there is nothing to rebuild.
@@ -188,10 +181,13 @@ stage is the film's 1920×1080 at 1.5×. **Masks clip.** A reveal that hides
 overflow at line-height ≤ 1 cuts every descender and accent at hero size:
 give the mask `padding: .16em .08em .24em` with the same negative margin,
 start hidden text at yPercent 140, keep the longest line inside 1760px.
-`pitch motion schema --section "custom shot types"` has the shape. The product's
-own words, colours and counts go in; the lab's timing and composition stay. Put
-`lab: "<id>"` on the shot and cite it in the table so the user can say
-"that one, but slower".
+`pitch motion schema --section "custom shot types"` has the shape. Understand
+the source's visual mechanism, then adapt its composition, count, typography,
+material, timing and exit to the treatment. Preserve it whole only when that
+is the right composition or the user requested a faithful reproduction.
+The source notes describe that effect, not rules for the film. Put
+`lab: "<id>"` on a shot genuinely derived from it, and note substantial changes
+in the table; bespoke shots need no lab annotation.
 
 `pitch motion schema` lists the built-in types, `pitch motion schema --types <type>` gives
 their fields. A custom type is **one file**: `js/shots/<type>.js` (its styles
@@ -225,13 +221,12 @@ is a film that plays end to end — shorter than the last one, never broken.
 
 1. `pitch motion scaffold` writes index.html and a starter `shots.js` — the brand
    recon measured and a **placeholder opener** built from the site's own h1,
-   so there is already a frame on the stage. Replace it with your hook, choose
-   the stage (including `none`) and add one or two more shots **using
-   built-in types only**, and save. `pitch motion check` — it prints the shot-list
-   warnings the audit will raise; address them while building. Add actors
-   only for planned object handoffs. The user should be watching a film
-   inside three or four minutes.
-2. Then one lab effect at a time: write its `js/shots/<type>.js` (+ its css),
+   so there is already a frame on the stage. It is a loading placeholder,
+   not a proposed hook or style. Replace it with the treatment's first shot,
+   built-in or custom, and save. The engine adds no drift or exit by default;
+   choose them explicitly only where wanted (`drift: true`, `exit`, or a
+   film-wide `motion` setting). `pitch motion check` verifies the build.
+2. Then one shot at a time: when custom, write its `js/shots/<type>.js` (+ its css),
    put its shot in `shots.js`, **save, `pitch motion check`, and only then start
    the next**. Never write a batch of type files before the shots that use
    them — an unused type is a file the check cannot judge and the user cannot
@@ -249,12 +244,14 @@ is a film that plays end to end — shorter than the last one, never broken.
    Music-only films skip this step.
 4. Once all shots are present, **one full** `pitch motion audit`, followed by
    **one full** `pitch motion review`. Zero ❌. A ⚠️ is a note: pacing notes name the still
-   stretch — answer with a beat or a cut, or keep it and say why in
-   direction.md — that closes the note; never a longer shot
-   (`references/pacing.md` has the numbers). Then `pitch motion review`: fix every line of its clipped-type
-   and off-brand-ground reports, and **look at every sheet** — an empty frame, a colour
-   that is not the brand's, a lab placeholder still on screen, an edge
-   touched. Fix in `shots.js`, then `pitch motion review --shots <ids>` for what
+   stretch — review it against the planned rhythm; an intentional hold needs
+   no animation added. `references/pacing.md` explains the measurement.
+   In `pitch motion review`, fix accidental clipping and missing content,
+   resolve unplanned palette differences, and **look at every sheet** against
+   direction.md. Intentional image crops and authored treatment colours are
+   valid; declare the latter in `brand.palette`. Check that source placeholders
+   are gone and the film has the chosen composition, not a series of reskinned
+   templates. Fix in `shots.js`, then `pitch motion review --shots <ids>` for what
    you touched — not another audit unless a `dur`, a cue or a beat changed,
    and then `pitch motion audit --shots <ids>` for those shots only: it samples
    their stretch on the same grid, in a quarter of the time.
@@ -277,7 +274,8 @@ is a film that plays end to end — shorter than the last one, never broken.
    `pitch motion render --out <file> --out-res 1920x1080 --fps 60`, `pitch motion verify-duration`.
 
 Length is approximate: the material decides and you report what it came out
-at. "Shorter" means cut a shot, never rush a read.
+at. To shorten, trim completed actions or remove a beat while preserving
+the story and reading time.
 
 ## Edits
 

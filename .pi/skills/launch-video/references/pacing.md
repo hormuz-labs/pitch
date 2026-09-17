@@ -1,54 +1,48 @@
-# Pacing — where the numbers come from
+# Pacing — choose the rhythm, then measure it
 
-**Something new happens on screen at least every ~1.2 seconds, and nothing
-ever just sits there.** A shot is an entrance, a second act and an exit —
-never an entrance followed by a hold. `pitch motion audit` measures this.
+Pacing follows attention, reading time, action and sound. Decide it in
+`direction.md` before building. A rapid type sequence, a sustained product
+demonstration and a quiet object reveal need different timing. There is no
+required shot count, average duration, three-act shot pattern or cut cadence.
+Equal lengths can support a musical pattern; unequal lengths can support an
+arc. Neither is automatically good.
 
-## The reference
+## What the audit actually measures
 
-A 37.5s product explainer, measured with scene detection and per-second frame
-difference: one hard cut, ~34 distinct on-screen events, no stretch longer
-than ~1.5s with nothing new, a stage layer always drifting, text arriving word
-by word with the accent word last, 3–6 overlapping elements per beat.
-Individual moves are 0.3–0.6s with expo eases; there are simply many of them.
-Energy is **density and layering**, not speed.
+`pitch motion audit` samples every 0.25s, with optional ambient and drift
+disabled. An "event" is a pair of samples with at least 0.6% of sampled pixels
+changed. That is not a semantic event: a continuous move can count several
+times, while a small but important UI change may not register at all.
 
-The failure mode is the opposite film: narration setting the durations, every
-shot an entrance then a hold, a whole desktop where one control should be.
-The fix is one read cut to words and a second act in every shot —
-planned in the shot table, not discovered by the gate. A lab effect ported
-whole brings its own acts and its own composition; nothing is added to it.
+The default notes flag a gap over 1.5s or a film below 0.7 events/s. They came
+from fast motion-graphics references in `docs/studies/`; they are not quality
+targets for every kind of film. Set `--max_quiet` and `--min_eps` to suit the
+planned rhythm when useful. A pacing note never fails the audit.
 
-## What the gate says
+For a flagged stretch, look at the picture and listen to the sound:
+- Does the viewer need this time to read, anticipate, inspect or feel a payoff?
+  Keep it. The treatment can explain the hold; no re-run is needed.
+- Has the intended action finished and attention gone nowhere? Tighten the
+  shot, change its composition or develop the idea. Add only meaningful action.
+- Does a small event fall below the pixel threshold? Judge its visibility at
+  delivery size. Do not enlarge it or add decoration just to satisfy the metric.
 
-The rows marked *note* are the reference films' numbers, said as a ⚠️: answer
-them with a beat or a cut, or keep the hold and say why in direction.md. A lab
-effect ported whole keeps its timing. Everything else is a ❌.
+Lengthen a shot when the material needs more time. Shorten or remove it when
+it has finished its job. Never use a pulse, shake, flash, extra word or cut
+solely to increase the event count.
 
-| Rule | Limit |
+## Verification
+
+| Check | What to do |
 |---|---|
-| Shots | 4–40 |
-| Average shot length | ≤ 3.6s |
-| Any one shot | ≤ 6s |
-| Hook | first shot ≤ 3.5s |
-| Narration | one read, every shot cued, drift −0.35…+0.15s |
-| Longest quiet stretch | ≤ 1.5s — *note* |
-| Events per second | ≥ 0.7 (the references run 2–3) — *note* |
-| Fails | a caret typing as the opener; a `ripple` beat |
-| Warnings, while building (`pitch motion check`) | a built-in type over 1.5s with nothing after its entrance (a project type is its own acts and is not judged); `word-cut` / `type-wipe` / `color-punch` / `type-field` / `overlay-type` with no `lab` port behind it; a whole screen in a browser frame with no `focus`, `cursor.zoom` or layers; a still screenshot as the product |
-| Warnings, at the gate | no `breath` beats; no `punch` cuts |
-| Continuity (visual review) | Review the connection in meaning, framing, motion or sound. Clean cuts and bare stages are valid; there is no actor or linked-cut quota. Use an object handoff only when it has a role in the scene (`continuity.md`). |
-| Clipped type (`pitch motion review`) | hero type measured against its mask and the stage edge at every frame: a run cut at the settled frame, or bigger than its mask mid-move (a snap scaled past its row), is listed with the fix |
+| Compilable timeline | At least one shot with finite, positive durations; fix page errors and substantial factory overruns. |
+| Narration | One continuous read when narrated; cue meaningful picture changes and check alignment. |
+| Seek determinism and scene visibility | Fix actual rendering errors. These fail the audit. |
+| Quiet stretches and event rate | Review against the treatment, not a universal density target. |
+| UI readability | An overview may stay wide. Enlarge the relevant detail when it needs to be read. |
+| Continuity | Review meaning, composition, movement and sound; cuts need no persistent actor. |
+| Clipping and palette | Fix unintended clipping and undeclared palette differences. An intentional image crop is a composition choice. |
 
-Both reference films measured 2.3 and 2.5 events per second, longest still
-frame 0.83s, and never a frame with nothing moving. The answer to a pacing
-note is a `line` step, an actor pose, a beat or a cursor — or cutting the
-shot. Never lengthening it.
-
-## Density is required; uniformity is not
-
-Dense films that all cut every 2.5s are one film. Rhythm belongs to the arc:
-a run of three 0.8s words, then a 5s product shot where the cursor does three
-things; a 1.2s stat against a 3s manifesto line. `pitch motion audit` warns when
-every `dur` sits within ±0.45s of the average — the metronome — and the
-answer is to split one shot and merge two, never to lengthen.
+Built-in and bespoke types are equally valid. Lab attribution records a
+source; it earns no quality points. Punch cuts, sound dips and word-by-word
+arrivals are optional techniques.

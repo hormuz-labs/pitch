@@ -915,12 +915,14 @@
       // air — and a shot the next cut transitions out of leaves through the
       // transition, not before it.
       const nextCut = i + 1 < shots.length ? shots[i + 1].cut : null;
-      const exitMode = shot.exit ?? (i === shots.length - 1 || TRANSITIONS.has(nextCut) ? "none" : motion.exit ?? "up");
+      const exitMode = shot.exit ?? (i === shots.length - 1 || TRANSITIONS.has(nextCut) ? "none" : motion.exit ?? "none");
       if (exitMode && exitMode !== "none") body.add(exitTween(exitWrap, inner, shot, D, exitMode), 0);
       if (Array.isArray(shot.beats) && shot.beats.length) body.add(beatTweens(el, inner, exitWrap, shot, D, shot.beats, spec, deferred, start), 0);
       if (ambient) body.add(ambientAnimate(ambient, clock, D), 0);
       clock += D;
-      if (shot.drift !== false && !AUDIT) {
+      // Rest travel is an authored choice, including for custom factories.
+      // A shot may opt out of a film-wide drift without changing its own animation.
+      if ((shot.drift ?? motion.drift) === true && !AUDIT) {
         body.fromTo(inner, { scale: 1, x: 0, y: 0 }, {
           scale: shot.driftScale ?? 1.045,
           x: shot.driftX ?? 10,

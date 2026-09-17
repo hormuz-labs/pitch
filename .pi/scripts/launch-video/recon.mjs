@@ -585,5 +585,5 @@ console.log(`   type: ${headFamily} (headline) / ${bodyFamily} (body) · h1 ${da
 if (data.cta) console.log(`   CTA "${data.cta.text}": ${toHex(data.cta.bg) || data.cta.bg} on ${toHex(data.cta.color) || data.cta.color}, radius ${data.cta.radius}`);
 console.log(`   ${varEntries.length} :root custom properties · ${accents.length} saturated colors · ${fontFiles.length} font file(s) saved${fontsDir ? ` to ${fontsDir}/` : ""}`);
 if (data.opaqueSheets.length) console.log(`   note: ${data.opaqueSheets.length} cross-origin stylesheet(s) read by fetch (variables inside them are not visible)`);
-console.log(`   Next: read ${out}, then direction.md — every hex there must be one of these values or a tint/shade of one.`);
+console.log(`   Next: read ${out}, then choose the treatment in direction.md. Preserve the measured brand identity; distinguish authored treatment colours from these measurements and declare them in brand.palette.`);
 console.log(`   ${jsonOut} is the same measurement for the tools (motion_scaffold seeds shots.js from it) — nothing to read there.`);
