@@ -9,9 +9,12 @@ export default defineConfig({
   envDir: '../../',
   // Dashboard-only dependencies live behind lazy route imports. Pre-bundle
   // them at startup so opening /dashboard cannot trigger a second optimizer
-  // pass that invalidates module URLs already loaded by the browser.
+  // pass that invalidates module URLs already loaded by the browser. Explicit
+  // discovery also avoids Vite 8's scanner parsing transformed Solid JSX.
   optimizeDeps: {
     include: ['@clerk/clerk-js', '@solidjs/router', 'solid-js'],
+    extensions: ['.jsx'],
+    noDiscovery: true,
   },
   build: {
     rollupOptions: {
