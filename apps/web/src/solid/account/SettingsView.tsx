@@ -4,7 +4,6 @@ import { createSignal, For, onMount, Show } from 'solid-js'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
 import { useAuth, useClerk, useUser } from '../core/auth'
-import { DiscordIcon } from '../public/brand'
 import { ApiKeysView } from './ApiKeysView'
 import { McpGuide, McpSettingsPanel } from './McpPanels'
 import { Select, Switch } from './primitives'
@@ -72,8 +71,8 @@ export function SettingsView() {
   }
   onMount(() => void load())
   return (
-    <div class="settings-page absolute inset-0 flex h-full w-full flex-col bg-[#fafafa] md:flex-row">
-      <aside class="w-full shrink-0 border-b bg-white p-4 md:w-64 md:border-b-0 md:border-r md:p-6">
+    <div class="settings-page absolute inset-0 flex h-full w-full flex-col md:flex-row">
+      <aside class="w-full shrink-0 border-b bg-[var(--bg-surface)] p-4 md:w-64 md:border-b-0 md:border-r md:p-6">
         <h2 class="mb-6 hidden text-xl font-bold md:block">Settings</h2>
         <div class="md:hidden">
           <Select
@@ -81,14 +80,14 @@ export function SettingsView() {
             value={tab()}
             options={tabs}
             onChange={value => setTab(value as Tab)}
-            class="h-10 w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 pr-9 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-900/10"
+            class="h-10 w-full appearance-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-sunken)] px-3 pr-9 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] focus:ring-2 focus:ring-[var(--border-default)]"
           />
         </div>
         <nav class="hidden flex-col gap-2 md:flex">
           <For each={tabs}>
             {item => (
               <button
-                class={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium ${tab() === item.value ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                class={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium ${tab() === item.value ? 'bg-[var(--interactive-bg)] text-[var(--interactive-text)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-raised)]'}`}
                 onClick={() => setTab(item.value as Tab)}
               >
                 {item.value === 'profile' ? (
@@ -496,7 +495,7 @@ export function SettingsModal(props: {
               <UsageSection />
             </Show>
             <Show when={props.section === 'credits'}>
-              <BuyCreditsSection />
+              <BuyCreditsSection openUsage={() => props.onSectionChange('usage')} />
             </Show>
             <Show when={props.section === 'rewards'}>
               <RewardsSection />
@@ -514,42 +513,36 @@ export function SettingsModal(props: {
               <ApiKeysView embedded />
             </Show>
             <Show when={props.section === 'support'}>
-              <section class="settings-card settings-support">
-                <a href="mailto:support@trypitch.co">
-                  <i>
-                    <Mail size={18} />
-                  </i>
-                  <span>
-                    <strong>Contact support</strong>
-                    <small>Get help from the Pitch team</small>
-                  </span>
-                  <ExternalLink size={14} />
-                </a>
-                <a href="https://discord.gg/a4SBW36mD" target="_blank" rel="noreferrer">
-                  <i>
-                    <DiscordIcon size={18} />
-                  </i>
-                  <span>
-                    <strong>Join our Discord</strong>
-                    <small>Chat with the community and get fast answers</small>
-                  </span>
-                  <ExternalLink size={14} />
-                </a>
-                <a href="/docs" target="_blank" rel="noopener">
-                  <i>
-                    <Code size={18} />
-                  </i>
-                  <span>
-                    <strong>Documentation</strong>
-                    <small>Guides for the API and MCP</small>
-                  </span>
-                  <ExternalLink size={14} />
-                </a>
+              <section class="settings-card settings-support-panel">
+                <div class="settings-support-panel__heading">
+                  <strong>Help &amp; support</strong>
+                  <small>Get help, share feedback, or reach the Pitch team.</small>
+                  <a class="settings-primary" href="mailto:support@trypitch.co">
+                    <Mail size={14} />
+                    Contact support
+                  </a>
+                </div>
+                <div class="settings-support">
+                  <a href="https://discord.gg/a4SBW36mD" target="_blank" rel="noreferrer">
+                    <span>
+                      <strong>Join our Discord</strong>
+                      <small>Chat with the community and get fast answers.</small>
+                    </span>
+                    <ExternalLink size={14} />
+                  </a>
+                  <a href="/docs" target="_blank" rel="noopener">
+                    <span>
+                      <strong>Read the documentation</strong>
+                      <small>Find guides for the API, MCP, and studio.</small>
+                    </span>
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+                <p class="settings-support-panel__footer">
+                  Prefer email? Reach us at{' '}
+                  <a href="mailto:support@trypitch.co">support@trypitch.co</a>.
+                </p>
               </section>
-              <p class="settings-note">
-                Prefer email? Reach us at{' '}
-                <a href="mailto:support@trypitch.co">support@trypitch.co</a>.
-              </p>
             </Show>
             <Show when={props.section === 'account'}>
               <AccountSection onClose={props.onClose} />

@@ -57,7 +57,7 @@ export function CreditPopover(props: { variant?: 'chip' | 'marker' }) {
       <p class="credit-popover-menu__balance">{credits() ?? '—'} available</p>
       <p class="credit-popover-menu__copy">
         Agent model spend and rendering compute draw from the same balance. Credits you buy are
-        yours to keep; monthly plan credits are forfeited when the plan ends.
+        yours to keep, including credits remaining when a subscription ends.
       </p>
       <div class="credit-popover-menu__plan">
         <span>Current plan</span>

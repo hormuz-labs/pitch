@@ -74,9 +74,9 @@ export function ApiKeysView(props: { embedded?: boolean }) {
   }
   return (
     <div class={props.embedded ? 'settings-api-keys' : 'mx-auto w-full max-w-5xl p-6 md:p-8'}>
-      <header class="mb-6 flex items-start justify-between gap-4">
+      <header class="settings-api-header mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold">API Keys</h1>
+          <h1 class="text-2xl font-bold">API keys</h1>
           <p class="mt-1 text-sm text-gray-500">
             API keys let MCP clients and integrations create Pitch projects programmatically.
           </p>
@@ -87,7 +87,7 @@ export function ApiKeysView(props: { embedded?: boolean }) {
           onClick={() => setCreateOpen(true)}
         >
           <Plus size={14} />
-          Create key
+          New key
         </button>
       </header>
       <Show when={error()}>
@@ -115,7 +115,7 @@ export function ApiKeysView(props: { embedded?: boolean }) {
         <Show
           when={keys().length}
           fallback={
-            <div class="rounded-xl border border-dashed py-16 text-center">
+            <div class="settings-api-empty rounded-xl border border-dashed py-16 text-center">
               <Key class="mx-auto text-gray-300" />
               <p class="mt-3 text-sm text-gray-500">No API keys yet</p>
             </div>

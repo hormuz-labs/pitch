@@ -1,3 +1,4 @@
+import { Bell } from 'lucide-solid'
 import { createSignal, onMount } from 'solid-js'
 import { api } from '../../../lib/api'
 import { useAuth, useUser } from '../../core/auth'
@@ -52,30 +53,35 @@ export function NotificationsSection() {
 
   return (
     <section class="settings-card">
-      <h4>Notifications</h4>
-      <div class="settings-toggle">
-        <span>
-          <strong>Email</strong>
-          <small>Completion and account updates</small>
-        </span>
-        <Switch
-          checked={prefs().emailNotifications}
-          disabled={loading()}
-          label="Email notifications"
-          onChange={checked => void update({ emailNotifications: checked })}
-        />
+      <div class="settings-card__title">
+        <Bell size={15} />
+        Notifications
       </div>
-      <div class="settings-toggle">
-        <span>
-          <strong>Browser</strong>
-          <small>Desktop alerts when runs finish</small>
-        </span>
-        <Switch
-          checked={prefs().browserNotifications}
-          disabled={loading() || !user()}
-          label="Browser notifications"
-          onChange={checked => void toggleBrowser(checked)}
-        />
+      <div class="settings-toggle-list">
+        <div class="settings-toggle">
+          <span>
+            <strong>Email</strong>
+            <small>Completion and account updates</small>
+          </span>
+          <Switch
+            checked={prefs().emailNotifications}
+            disabled={loading()}
+            label="Email notifications"
+            onChange={checked => void update({ emailNotifications: checked })}
+          />
+        </div>
+        <div class="settings-toggle">
+          <span>
+            <strong>Browser</strong>
+            <small>Desktop alerts when runs finish</small>
+          </span>
+          <Switch
+            checked={prefs().browserNotifications}
+            disabled={loading() || !user()}
+            label="Browser notifications"
+            onChange={checked => void toggleBrowser(checked)}
+          />
+        </div>
       </div>
     </section>
   )

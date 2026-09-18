@@ -148,8 +148,8 @@ export const PublicPricingView = () => {
             </For>
           </div>
           <p class="public-pricing-note">
-            Secure payments. Credits you buy are yours to keep; monthly plan credits are forfeited
-            when the plan ends. <a href="mailto:support@trypitch.co">Talk to us</a>.
+            Secure payments. Credits remain yours until used, including after a subscription ends.{' '}
+            <a href="mailto:support@trypitch.co">Talk to us</a>.
           </p>
         </section>
         <section class="public-pricing-topup">

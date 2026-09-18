@@ -17,6 +17,12 @@ const RANGE_DAYS = { '7D': 7, '30D': 30, '90D': 90, '1Y': 365 } as const
 type RangeKey = keyof typeof RANGE_DAYS
 
 const toISODate = (d: Date) => d.toISOString().slice(0, 10)
+const shortDate = (value: string) =>
+  new Date(`${value}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
 
 export function UsageSection() {
   const { getToken } = useAuth()
@@ -62,6 +68,18 @@ export function UsageSection() {
       tx => tx.createdAt.slice(0, 10) >= from() && tx.createdAt.slice(0, 10) <= to(),
     ),
   )
+  const totalUsed = createMemo(() => rangeTotal().studio + rangeTotal().api)
+  const dateTicks = createMemo(() => {
+    const rows = days() ?? []
+    if (!rows.length) return []
+    const indexes = [
+      0,
+      Math.floor((rows.length - 1) / 3),
+      Math.floor(((rows.length - 1) * 2) / 3),
+      rows.length - 1,
+    ]
+    return [...new Set(indexes)].map(index => rows[index])
+  })
 
   return (
     <>
@@ -78,9 +96,14 @@ export function UsageSection() {
         </div>
       </section>
 
-      <section class="settings-card">
+      <p class="settings-usage-note">Credit usage is grouped by UTC day.</p>
+
+      <section class="settings-card settings-usage-card">
         <div class="settings-usage-controls">
-          <h4>Daily credit usage</h4>
+          <div>
+            <h4>Daily credit usage</h4>
+            <p>Pick any date range. Every UTC day remains its own bar.</p>
+          </div>
           <div class="settings-billing-cycle" role="tablist">
             <For each={Object.keys(RANGE_DAYS) as RangeKey[]}>
               {key => (
@@ -109,14 +132,19 @@ export function UsageSection() {
             <input type="date" value={to()} onInput={event => setTo(event.currentTarget.value)} />
           </label>
         </div>
-        <p class="settings-usage-summary-line">
-          <span>Studio {rangeTotal().studio}</span>
-          <span>API {rangeTotal().api}</span>
-        </p>
-        <Show
-          when={days() && days()!.length > 0}
-          fallback={<p class="settings-empty">Loading usage…</p>}
-        >
+        <div class="settings-chart-summary">
+          <span>
+            <strong>
+              {shortDate(from())} – {shortDate(to())}
+            </strong>
+            <small>{totalUsed()} credits used in this range</small>
+          </span>
+          <span class="settings-chart-summary__totals">
+            <b>Studio {rangeTotal().studio}</b>
+            <b>API {rangeTotal().api}</b>
+          </span>
+        </div>
+        <div class="settings-chart-frame">
           <div class="settings-chart" role="img" aria-label="Daily credit usage">
             <For each={days()}>
               {day => {
@@ -125,7 +153,7 @@ export function UsageSection() {
                   <div class="settings-chart__col" title={`${day.date}: ${total} credits`}>
                     <div
                       class="settings-chart__bar"
-                      style={{ height: `${(total / maxTotal()) * 100}%` }}
+                      style={{ height: `${total ? Math.max(4, (total / maxTotal()) * 100) : 0}%` }}
                     >
                       <Show when={day.api > 0}>
                         <span
@@ -144,7 +172,18 @@ export function UsageSection() {
                 )
               }}
             </For>
+            <Show when={days.loading}>
+              <span class="settings-chart-empty">Loading usage…</span>
+            </Show>
+            <Show when={!days.loading && totalUsed() === 0}>
+              <span class="settings-chart-empty">No credits used in this range</span>
+            </Show>
           </div>
+          <div class="settings-chart__dates">
+            <For each={dateTicks()}>{day => <span>{shortDate(day.date)}</span>}</For>
+          </div>
+        </div>
+        <div class="settings-chart__footer">
           <div class="settings-chart__legend">
             <span>
               <i class="is-studio" />
@@ -155,7 +194,8 @@ export function UsageSection() {
               API
             </span>
           </div>
-        </Show>
+          <small>{days()?.length ?? 0} daily bars · UTC</small>
+        </div>
       </section>
 
       <section class="settings-card settings-activity">

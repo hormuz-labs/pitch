@@ -461,83 +461,14 @@ export async function cancelSubscription(dodoSubscriptionId: string) {
 }
 
 /**
- * How much of a balance a subscription takes with it when it ends.
- *
- * A monthly allowance is use-it-or-lose-it, but credits the user bought
- * outright — a Flex pack, a promo, a referral reward — are theirs to keep. So
- * spend draws the allowance down first, and only what is left of the allowance
- * is forfeited. Refunded work goes back to the allowance that paid for it.
- */
-export function forfeitableCredits(ledger: {
-  subscriptionGrants: number
-  refunds: number
-  spend: number
-  balance: number
-}): number {
-  const netSpend = Math.max(0, ledger.spend - ledger.refunds)
-  const allowanceLeft = Math.max(0, ledger.subscriptionGrants - netSpend)
-  return Math.max(0, Math.min(ledger.balance, allowanceLeft))
-}
-
-/** Sums the deltas matching `where`, as a non-negative number. */
-async function sumDeltas(
-  tx: Prisma.TransactionClient,
-  where: Prisma.CreditTransactionWhereInput,
-): Promise<number> {
-  const agg = await tx.creditTransaction.aggregate({ where, _sum: { delta: true } })
-  return Math.abs(agg._sum.delta ?? 0)
-}
-
-/**
- * Ends a subscription and forfeits what is left of its allowance. The ledger
- * adjustment is idempotent so duplicate terminal webhooks are harmless.
+ * Ends a subscription without changing its credit ledger. Plan capabilities
+ * stop with the subscription, while every credit already granted remains
+ * available until the user spends it.
  */
 export async function endSubscription(dodoSubscriptionId: string, status: string) {
-  return prisma.$transaction(async tx => {
-    const subscription = await tx.subscription.findUnique({ where: { dodoSubscriptionId } })
-    if (!subscription) return null
-
-    await tx.subscription.update({
-      where: { id: subscription.id },
-      data: { status, cancelledAt: new Date() },
-    })
-
-    const idempotencyKey = `subscription_end:${dodoSubscriptionId}`
-    const existing = await tx.creditTransaction.findUnique({ where: { idempotencyKey } })
-    if (!existing) {
-      const userId = subscription.userId
-      const [balance, subscriptionGrants, refunds, spend] = await Promise.all([
-        getCreditBalance(userId, tx),
-        sumDeltas(tx, {
-          userId,
-          channel: { not: 'discord' },
-          type: 'subscription_grant',
-          delta: { gt: 0 },
-        }),
-        sumDeltas(tx, {
-          userId,
-          channel: { not: 'discord' },
-          type: 'refund',
-          delta: { gt: 0 },
-        }),
-        sumDeltas(tx, { userId, channel: { not: 'discord' }, delta: { lt: 0 } }),
-      ])
-      const forfeit = forfeitableCredits({ subscriptionGrants, refunds, spend, balance })
-      if (forfeit > 0) {
-        await tx.creditTransaction.create({
-          data: {
-            userId,
-            delta: -forfeit,
-            type: 'admin_adjustment',
-            description: `Subscription credits forfeited when subscription ${status}`,
-            subscriptionId: subscription.id,
-            idempotencyKey,
-          },
-        })
-      }
-    }
-
-    return subscription
+  return prisma.subscription.update({
+    where: { dodoSubscriptionId },
+    data: { status, cancelledAt: new Date() },
   })
 }
 

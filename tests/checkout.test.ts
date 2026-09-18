@@ -43,6 +43,7 @@ app.use('/checkout', router)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  process.env.APP_URL = 'https://app.trypitch.co'
   mocks.createSession.mockResolvedValue({ checkout_url: 'https://dodo.test/checkout/abc' })
   mocks.getActiveSubscription.mockResolvedValue(null)
 })
@@ -100,6 +101,17 @@ describe('POST /checkout', () => {
       expect.objectContaining({
         product_cart: [{ product_id: 'pdt_pro_annual', quantity: 1 }],
         metadata: expect.objectContaining({ credits: '30000', pack: 'pro_annual' }),
+      }),
+    )
+  })
+
+  it('returns successful checkouts to the canonical production host', async () => {
+    const response = await request(app).post('/checkout').send({ pack: 'pro' })
+
+    expect(response.status).toBe(200)
+    expect(mocks.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        return_url: 'https://trypitch.co/checkout/return?checkout=success',
       }),
     )
   })

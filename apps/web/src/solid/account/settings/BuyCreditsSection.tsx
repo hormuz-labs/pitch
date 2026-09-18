@@ -6,16 +6,17 @@ import { useAuth } from '../../core/auth'
 
 interface Summary {
   balance: number
-  activeSubscription: null | { planKey: string }
+  activeSubscription: null | { planKey: string; currentPeriodEnd?: string }
+  usage?: { credits: number }
 }
 
-export function BuyCreditsSection() {
+export function BuyCreditsSection(props: { openUsage?: () => void }) {
   const { getToken } = useAuth()
   const [buying, setBuying] = createSignal(false)
   const [error, setError] = createSignal('')
   const [checkoutKey, setCheckoutKey] = createSignal('')
 
-  const [summary, { refetch }] = createResource(async () => {
+  const [summary] = createResource(async () => {
     const token = await getToken()
     if (!token) return null
     return api.get<Summary>('/credits', token)
@@ -24,6 +25,8 @@ export function BuyCreditsSection() {
   const flex = PLANS.find(plan => plan.key === 'flex')!
   const upsells = PLANS.filter(plan => plan.kind === 'subscription' || plan.kind === 'contact')
   const activeKey = () => summary()?.activeSubscription?.planKey ?? ''
+  const isCurrentPlan = (plan: Plan) => activeKey() === plan.key || activeKey() === plan.annual?.key
+  const isRecommendedPlan = (plan: Plan) => !activeKey() && !!plan.popular
 
   const buyFlex = async () => {
     setBuying(true)
@@ -55,43 +58,105 @@ export function BuyCreditsSection() {
 
   return (
     <>
-      <section class="settings-card settings-balance">
-        <img src={pCoinIcon} alt="" />
-        <div>
-          <span>Available credits</span>
-          <strong>{summary()?.balance ?? 0}</strong>
+      <section class="settings-card settings-credit-purchase">
+        <div class="settings-credit-purchase__header">
+          <div class="settings-balance">
+            <img src={pCoinIcon} alt="" />
+            <div>
+              <span>Available credits</span>
+              <strong>{summary()?.balance ?? 0}</strong>
+            </div>
+          </div>
+          <small>{summary()?.activeSubscription?.planKey.toUpperCase() ?? 'No plan'}</small>
         </div>
-        <button type="button" class="settings-credit-trigger" onClick={() => void refetch()}>
-          Refresh
-        </button>
-      </section>
-
-      <section class="settings-card settings-buy">
-        <div>
-          <strong>{flex.name}</strong>
+        <div class="settings-credit-meta">
+          <span>Usage to date: {summary()?.usage?.credits ?? 0}</span>
           <span>
-            ${flex.priceUsd} for {formatCredits(flex.credits ?? 0)} credits — {pricePerCredit(flex)}{' '}
-            / credit
+            Next reset:{' '}
+            {summary()?.activeSubscription?.currentPeriodEnd
+              ? new Date(summary()!.activeSubscription!.currentPeriodEnd!).toLocaleDateString()
+              : 'N/A'}
           </span>
         </div>
-        <button type="button" disabled={buying()} onClick={() => void buyFlex()}>
-          {buying() ? 'Redirecting…' : 'Buy credits'}
-        </button>
+        <div class="settings-buy-heading">Buy more credits</div>
+        <div class="settings-buy-row">
+          <div>
+            <span class="settings-buy-row__amount">
+              <strong>{formatCredits(flex.credits ?? 0)} credits</strong>
+              <b>${flex.priceUsd}</b>
+            </span>
+            <span>
+              {flex.name} one-time purchase · {pricePerCredit(flex)} per credit
+            </span>
+          </div>
+          <button type="button" disabled={buying()} onClick={() => void buyFlex()}>
+            {buying() ? 'Redirecting…' : 'Buy credits'}
+          </button>
+        </div>
+        <div class="settings-buy-detail">
+          <strong>One-time payment of ${flex.priceUsd}</strong>
+          <span>
+            {formatCredits(flex.credits ?? 0)} credits are added immediately after checkout.
+          </span>
+        </div>
+        <small class="settings-purchase-final">All purchases are final.</small>
       </section>
-      <p class="settings-note">No subscription required. Purchases are final.</p>
 
       <Show when={error()}>
         <p class="settings-field__error">{error()}</p>
       </Show>
 
+      <section class="settings-card settings-credit-usage-card">
+        <div class="settings-credit-usage-card__header">
+          <div>
+            <span>Credit usage</span>
+            <small>Day-by-day usage and exact charges.</small>
+          </div>
+          <Show when={props.openUsage}>
+            <button type="button" class="settings-secondary" onClick={props.openUsage}>
+              Open usage
+            </button>
+          </Show>
+        </div>
+        <div class="settings-credit-usage-row">
+          <strong>This period</strong>
+          <span>{summary()?.usage?.credits ?? 0} used</span>
+          <i
+            style={{
+              width: `${Math.min(100, ((summary()?.usage?.credits ?? 0) / Math.max(1, summary()?.balance ?? 0)) * 100)}%`,
+            }}
+          />
+        </div>
+        <div class="settings-credit-stats">
+          <div>
+            <span>Available</span>
+            <strong>{summary()?.balance ?? 0}</strong>
+          </div>
+          <div>
+            <span>Next reset</span>
+            <strong>
+              {summary()?.activeSubscription?.currentPeriodEnd
+                ? new Date(summary()!.activeSubscription!.currentPeriodEnd!).toLocaleDateString()
+                : 'N/A'}
+            </strong>
+          </div>
+        </div>
+      </section>
+
+      <div class="settings-subscriptions-heading">
+        <span>Subscription options</span>
+        <small>Pro and Max include monthly credits.</small>
+      </div>
       <div class="settings-plans">
         <For each={upsells}>
           {plan => (
-            <article class={`settings-card ${plan.popular ? 'is-popular' : ''}`}>
+            <article
+              class={`settings-card ${isCurrentPlan(plan) ? 'is-current' : isRecommendedPlan(plan) ? 'is-popular' : ''}`}
+            >
               <div class="settings-plan-name">
                 {plan.name}
-                <Show when={plan.popular}>
-                  <em>Most popular</em>
+                <Show when={isCurrentPlan(plan) || isRecommendedPlan(plan)}>
+                  <em>{isCurrentPlan(plan) ? 'Current plan' : 'Most popular'}</em>
                 </Show>
               </div>
               <div class="settings-price">
