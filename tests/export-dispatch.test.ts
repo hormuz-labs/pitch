@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const rows = new Map<string, any>()
 const kinds = new Map<string, string | null>()
 
-vi.mock('@saas/db', () => ({ getCreditBalance: vi.fn(), deductCredit: vi.fn(), prisma: {} }))
+vi.mock('@saas/db', () => ({ deductCredit: vi.fn(), prisma: {} }))
 vi.mock('../apps/api/src/projects/service.js', () => ({
   getRow: async (_u: string, id: string) => rows.get(id),
   getProject: async (_u: string, id: string) => ({

@@ -56,7 +56,7 @@
   --card-glow-rgb: 60, 60, 60;
 
   /* Typography */
-  --font-sans:  'DM Sans Variable', 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Noto Sans', Ubuntu, Cantarell, 'Helvetica Neue', sans-serif, Arial, 'PingFang SC', 'Source Han Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC';
   --font-serif: 'Instrument Serif', Georgia, serif;
   --font-mono:  'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 

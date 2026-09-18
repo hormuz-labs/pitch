@@ -1,36 +1,43 @@
-import { Bot, SquareTerminal } from 'lucide-solid'
-import { createEffect, createSignal, For, Match, onCleanup, Show, Switch } from 'solid-js'
+import { Bot, Check, Copy, SquareTerminal } from 'lucide-solid'
+import { createEffect, createSignal, createUniqueId, For, onCleanup, Show } from 'solid-js'
 import chatgptIco from '../../assets/chatgpt.png'
 import claudeIco from '../../assets/claude.svg'
 import cursorIco from '../../assets/cursor.png'
 import perplexityIco from '../../assets/perplexity.png'
 
 export const MCP_URL = 'https://api.trypitch.co/mcp'
+export const API_URL = 'https://api.trypitch.co/v1'
 export const REGISTRY_NAME = 'co.trypitch/pitch'
+
 const BRAND: Record<string, string> = {
   claude: claudeIco,
   cursor: cursorIco,
   chatgpt: chatgptIco,
   perplexity: perplexityIco,
 }
+
 export const Glyph = (props: { id: string }) => (
   <Show
     when={BRAND[props.id]}
-    fallback={props.id === 'api' ? <SquareTerminal size={13} /> : <Bot size={13} />}
+    fallback={props.id === 'api' ? <SquareTerminal size={14} /> : <Bot size={14} />}
   >
     <img
       src={BRAND[props.id]}
       alt=""
       class={`mcp-tab-ico${props.id === 'chatgpt' ? ' mcp-icon--invert' : ''}${props.id === 'cursor' || props.id === 'perplexity' ? ' mcp-icon--tile' : ''}`}
-      width="14"
-      height="14"
+      width="16"
+      height="16"
     />
   </Show>
 )
+
 type Line =
   | { kind: 'step'; n: number; text: string }
   | { kind: 'url' }
   | { kind: 'ok' | 'note' | 'code'; text: string }
+
+const command = (...lines: string[]) => lines.join('\n')
+
 const TABS = [
   { id: 'claude', label: 'Claude' },
   { id: 'cursor', label: 'Cursor' },
@@ -39,29 +46,43 @@ const TABS = [
   { id: 'any', label: 'Any agent' },
   { id: 'api', label: 'API' },
 ]
+
 const CONTENT: Record<string, { cmd: string; lines: Line[] }> = {
   claude: {
     cmd: 'connect claude',
     lines: [
       { kind: 'step', n: 1, text: 'Create an API key at trypitch.co/api-keys (pk_…)' },
-      { kind: 'step', n: 2, text: 'Add the server with that key as the Authorization header:' },
+      { kind: 'step', n: 2, text: 'Add Pitch with that key as the Authorization header:' },
       {
         kind: 'code',
-        text: `claude mcp add --transport http pitch \\\n+  ${MCP_URL} \\\n+  --header "Authorization: Bearer pk_your_key"`,
+        text: command(
+          'claude mcp add --transport http pitch \\',
+          `  ${MCP_URL} \\`,
+          '  --header "Authorization: Bearer pk_your_key"',
+        ),
       },
       {
         kind: 'ok',
-        text: 'Or add it as a custom connector in claude.ai under Settings, then Connectors.',
+        text: 'Or add a custom connector in claude.ai under Settings, then Connectors.',
       },
     ],
   },
   cursor: {
     cmd: 'connect cursor',
     lines: [
-      { kind: 'step', n: 1, text: 'Add to .cursor/mcp.json under Settings, MCP, then New server:' },
+      { kind: 'step', n: 1, text: 'Open Settings, MCP, then New server.' },
       {
         kind: 'code',
-        text: `{\n  "mcpServers": {\n    "pitch": {\n      "url": "${MCP_URL}",\n      "headers": { "Authorization": "Bearer pk_your_key" }\n    }\n  }\n}`,
+        text: command(
+          '{',
+          '  "mcpServers": {',
+          '    "pitch": {',
+          `      "url": "${MCP_URL}",`,
+          '      "headers": { "Authorization": "Bearer pk_your_key" }',
+          '    }',
+          '  }',
+          '}',
+        ),
       },
       { kind: 'ok', text: 'Get the key at trypitch.co/api-keys.' },
     ],
@@ -74,55 +95,67 @@ const CONTENT: Record<string, { cmd: string; lines: Line[] }> = {
         n: 1,
         text: 'Open Settings, Connectors, Advanced, Developer mode, then Add.',
       },
-      { kind: 'step', n: 2, text: 'Paste this URL:' },
+      { kind: 'step', n: 2, text: 'Paste the Streamable HTTP endpoint:' },
       { kind: 'url' },
-      { kind: 'step', n: 3, text: 'Auth: custom header  Authorization = Bearer pk_your_key' },
-      { kind: 'ok', text: 'Works in ChatGPT and the Responses / Agents API.' },
+      { kind: 'step', n: 3, text: 'Set Authorization to Bearer pk_your_key.' },
+      { kind: 'ok', text: 'The same connector works with the Responses and Agents APIs.' },
     ],
   },
   perplexity: {
     cmd: 'connect perplexity',
     lines: [
       { kind: 'step', n: 1, text: 'Open Settings, Connectors, Add connector, then Custom (MCP).' },
-      { kind: 'step', n: 2, text: 'Paste this URL:' },
+      { kind: 'step', n: 2, text: 'Paste the Streamable HTTP endpoint:' },
       { kind: 'url' },
-      { kind: 'step', n: 3, text: 'Auth header  Authorization = Bearer pk_your_key' },
-      { kind: 'ok', text: 'Same setup works in Comet and the Perplexity API.' },
+      { kind: 'step', n: 3, text: 'Set Authorization to Bearer pk_your_key.' },
+      { kind: 'ok', text: 'The same setup works in Comet and the Perplexity API.' },
     ],
   },
   any: {
     cmd: 'connect any-mcp-client',
     lines: [
-      { kind: 'step', n: 1, text: 'Streamable-HTTP endpoint, bearer-token auth:' },
+      { kind: 'step', n: 1, text: 'Use this Streamable HTTP endpoint with bearer-token auth:' },
       { kind: 'url' },
-      { kind: 'ok', text: `On the official MCP registry, add ${REGISTRY_NAME}.` },
+      { kind: 'ok', text: `Registry name: ${REGISTRY_NAME}.` },
     ],
   },
   api: {
-    cmd: 'pitch rest api',
+    cmd: 'use the pitch rest api',
     lines: [
-      { kind: 'step', n: 1, text: 'Same key, plain REST. Create a project:' },
+      { kind: 'step', n: 1, text: 'Use the same key to create a project:' },
       {
         kind: 'code',
-        text: `curl -X POST https://api.trypitch.co/v1/projects \\\n+  -H "Authorization: Bearer pk_your_key" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{ "flow": "demo-video", "prompt": "https://trypitch.co — 60 second demo" }'`,
+        text: command(
+          `curl -X POST ${API_URL}/projects \\`,
+          '  -H "Authorization: Bearer pk_your_key" \\',
+          '  -H "Content-Type: application/json" \\',
+          `  -d '{ "prompt": "Create a 60 second demo of https://trypitch.co" }'`,
+        ),
       },
-      { kind: 'step', n: 2, text: 'It returns a project id. Poll it until status is ready:' },
+      { kind: 'step', n: 2, text: 'Poll the returned project id until it is ready:' },
       {
         kind: 'code',
-        text: `curl https://api.trypitch.co/v1/projects/PROJECT_ID \\\n+  -H "Authorization: Bearer pk_your_key"`,
+        text: command(
+          `curl ${API_URL}/projects/PROJECT_ID \\`,
+          '  -H "Authorization: Bearer pk_your_key"',
+        ),
       },
       {
         kind: 'ok',
-        text: 'Read the video url off outputs. Follow-up prompts are free. Full reference in the docs.',
+        text: 'Read the result from outputs. Creation, prompts, and exports are usage-metered.',
       },
     ],
   },
 }
+
 export const McpSetup = (props: { instant?: boolean }) => {
-  const [tab, setTab] = createSignal('claude'),
-    [typed, setTyped] = createSignal(''),
-    [copied, setCopied] = createSignal(false)
-  let interval: number | undefined, timer: number | undefined
+  const panelId = createUniqueId()
+  const [tab, setTab] = createSignal('claude')
+  const [typed, setTyped] = createSignal('')
+  const [copied, setCopied] = createSignal<string | null>(null)
+  let interval: number | undefined
+  let timer: number | undefined
+
   createEffect(() => {
     clearInterval(interval)
     const cmd = CONTENT[tab()].cmd
@@ -137,17 +170,21 @@ export const McpSetup = (props: { instant?: boolean }) => {
       if (i >= cmd.length) clearInterval(interval)
     }, 30)
   })
+
   onCleanup(() => {
     clearInterval(interval)
     clearTimeout(timer)
   })
-  const copy = () => {
-    navigator.clipboard?.writeText(MCP_URL).catch(() => {})
-    setCopied(true)
-    timer = window.setTimeout(() => setCopied(false), 1600)
+
+  const copy = (text: string) => {
+    navigator.clipboard?.writeText(text).catch(() => {})
+    setCopied(text)
+    clearTimeout(timer)
+    timer = window.setTimeout(() => setCopied(null), 1600)
   }
+
   return (
-    <>
+    <div class="mcp-setup">
       <div class="mcp-tabs" role="tablist" aria-label="Connect Pitch to">
         <For each={TABS}>
           {item => (
@@ -155,6 +192,7 @@ export const McpSetup = (props: { instant?: boolean }) => {
               type="button"
               role="tab"
               aria-selected={tab() === item.id}
+              aria-controls={panelId}
               class={`mcp-tab${tab() === item.id ? ' is-on' : ''}`}
               onClick={() => setTab(item.id)}
             >
@@ -164,12 +202,14 @@ export const McpSetup = (props: { instant?: boolean }) => {
           )}
         </For>
       </div>
-      <div class="mcp-panel">
+      <div class="mcp-panel" id={panelId} role="tabpanel" aria-live="polite">
         <div class="mcp-chrome">
-          <i />
-          <i />
-          <i />
-          <span>pitch · {tab()}</span>
+          <span class="mcp-chrome-mark" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>pitch / {tab()}</span>
         </div>
         <div class={`mcp-term${props.instant ? ' mcp-term--instant' : ''}`}>
           <p class="mcp-cmd">
@@ -179,41 +219,65 @@ export const McpSetup = (props: { instant?: boolean }) => {
             </Show>
           </p>
           <Show when={typed().length >= CONTENT[tab()].cmd.length}>
-            <For each={CONTENT[tab()].lines}>
-              {line => (
-                <Switch>
-                  <Match when={line.kind === 'url'}>
-                    <div class="mcp-url mcp-line">
-                      <code>{MCP_URL}</code>
-                      <button type="button" onClick={copy}>
-                        {copied() ? '✓ Copied' : 'Copy'}
-                      </button>
-                    </div>
-                  </Match>
-                  <Match when={line.kind === 'code'}>
-                    <pre class="mcp-code mcp-line">{(line as any).text}</pre>
-                  </Match>
-                  <Match when={line.kind === 'step'}>
-                    <p class="mcp-step mcp-line">
-                      <span class="mcp-n">{(line as any).n}</span>
-                      {(line as any).text}
-                    </p>
-                  </Match>
-                  <Match when={line.kind === 'ok'}>
-                    <p class="mcp-ok mcp-line">
-                      <span class="mcp-check">✓</span>
-                      {(line as any).text}
-                    </p>
-                  </Match>
-                  <Match when={line.kind === 'note'}>
-                    <p class="mcp-note mcp-line">{(line as any).text}</p>
-                  </Match>
-                </Switch>
-              )}
-            </For>
+            <div class="mcp-lines">
+              <For each={CONTENT[tab()].lines}>
+                {line => {
+                  if (line.kind === 'url') {
+                    return (
+                      <div class="mcp-url mcp-line">
+                        <code>{MCP_URL}</code>
+                        <button
+                          type="button"
+                          onClick={() => copy(MCP_URL)}
+                          aria-label="Copy MCP URL"
+                        >
+                          <Show when={copied() === MCP_URL} fallback={<Copy size={13} />}>
+                            <Check size={13} />
+                          </Show>
+                          {copied() === MCP_URL ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    )
+                  }
+                  if (line.kind === 'code') {
+                    return (
+                      <div class="mcp-code-wrap mcp-line">
+                        <pre class="mcp-code">{line.text}</pre>
+                        <button
+                          type="button"
+                          onClick={() => copy(line.text)}
+                          aria-label="Copy command"
+                        >
+                          <Show when={copied() === line.text} fallback={<Copy size={13} />}>
+                            <Check size={13} />
+                          </Show>
+                        </button>
+                      </div>
+                    )
+                  }
+                  if (line.kind === 'step') {
+                    return (
+                      <p class="mcp-step mcp-line">
+                        <span class="mcp-n">{line.n}</span>
+                        <span>{line.text}</span>
+                      </p>
+                    )
+                  }
+                  if (line.kind === 'ok') {
+                    return (
+                      <p class="mcp-ok mcp-line">
+                        <span class="mcp-check">✓</span>
+                        <span>{line.text}</span>
+                      </p>
+                    )
+                  }
+                  return <p class="mcp-note mcp-line">{line.text}</p>
+                }}
+              </For>
+            </div>
           </Show>
         </div>
       </div>
-    </>
+    </div>
   )
 }

@@ -27,6 +27,7 @@ import {
 } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { addOutput } from '../../projects/service.js'
+import { shouldWatermarkVideo } from '../../projects/watermark.js'
 import { type DemoState, renderDemo } from '../../render/demo.js'
 import { execAsync } from '../../render/media.js'
 import { prepareDemoAssets, type RecordingHandle, startRecording } from '../../render/recording.js'
@@ -422,6 +423,7 @@ registerHostAction(
         assetsDir: ASSETS_DIR,
         options,
         outDir: rendersDir(ws),
+        watermark: await shouldWatermarkVideo(ws.userId),
       },
       logger,
     )

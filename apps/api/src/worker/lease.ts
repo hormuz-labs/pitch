@@ -49,6 +49,11 @@ export async function liveWorkers(): Promise<WorkerRow[]> {
   return prisma.studioWorker.findMany({ where: { heartbeatAt: { gt: liveSince() } } })
 }
 
+/** Resolve a specific worker without placing a project. Used for stale-copy cleanup. */
+export async function workerById(workerId: string): Promise<WorkerRow | null> {
+  return prisma.studioWorker.findUnique({ where: { id: workerId } })
+}
+
 interface LeaseColumns {
   workerId: string | null
   workerEpoch: number | null

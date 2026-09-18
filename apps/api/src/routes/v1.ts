@@ -1,7 +1,7 @@
 /**
  * Public REST API (API keys). Projects are the resource:
- *   POST /v1/projects            { flow, prompt, options?, uploads?[{fileBase64,fileName}] }
- *   GET  /v1/projects?flow=&limit=
+ *   POST /v1/projects            { prompt, options?, uploads?[{fileBase64,fileName}] }
+ *   GET  /v1/projects?limit=
  *   GET  /v1/projects/:id
  *   POST /v1/projects/:id/prompt { text, scene?, slide? }
  *   POST /v1/projects/:id/export { res? }   GET /v1/projects/:id/export
@@ -9,7 +9,7 @@
  */
 import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
-import { Router } from 'express'
+import express, { Router } from 'express'
 import { z } from 'zod'
 import {
   createFromApi,
@@ -26,6 +26,7 @@ import { InsufficientCreditsError } from '../projects/service.js'
 
 const logger = createLogger('studio:v1')
 export const router: Router = Router()
+router.use(express.json({ limit: '750mb' }))
 
 const fail = (
   res: any,
@@ -36,14 +37,18 @@ const fail = (
 ) => res.status(status).json({ error: { code, message, ...extra } })
 
 const failFromError = (res: any, error: unknown, context: string) => {
-  if (error instanceof InsufficientCreditsError)
+  if (error instanceof InsufficientCreditsError || (error as any)?.status === 402) {
+    const balance = typeof (error as any)?.balance === 'number' ? (error as any).balance : undefined
     return fail(
       res,
       402,
       'insufficient_credits',
-      `Not enough credits. Balance is ${error.balance}. Buy more at https://trypitch.co/pricing.`,
-      { balance: error.balance },
+      balance === undefined
+        ? 'Not enough credits. Buy more at https://trypitch.co/pricing.'
+        : `Not enough credits. Balance is ${balance}. Buy more at https://trypitch.co/pricing.`,
+      balance === undefined ? undefined : { balance },
     )
+  }
   const status = (error as any)?.status
   const message = error instanceof Error ? error.message : String(error)
   if (status === 404) return fail(res, 404, 'not_found', message)
@@ -93,14 +98,20 @@ router.post('/projects', async (req, res) => {
 })
 
 router.get('/projects', async (req, res) => {
-  try {
-    const limit = Math.min(Number(req.query.limit) || 50, 100)
-    const data = await listFromApi(
-      uid(req),
-      typeof req.query.flow === 'string' ? req.query.flow : undefined,
-      limit,
+  const parsed = z
+    .object({ limit: z.coerce.number().int().min(1).max(100).default(50) })
+    .safeParse({
+      limit: Array.isArray(req.query.limit) ? req.query.limit : (req.query.limit ?? 50),
+    })
+  if (!parsed.success)
+    return fail(
+      res,
+      400,
+      'invalid_request',
+      parsed.error.issues.map(i => `limit: ${i.message}`).join('; '),
     )
-    res.json({ data, total: data.length })
+  try {
+    res.json(await listFromApi(uid(req), parsed.data.limit))
   } catch (error) {
     failFromError(res, error, 'GET /v1/projects')
   }
@@ -166,4 +177,12 @@ router.get('/credits', async (req, res) => {
   } catch (error) {
     failFromError(res, error, 'GET /v1/credits')
   }
+})
+
+router.use((error: any, _req: any, res: any, _next: any) => {
+  if (error?.type === 'entity.parse.failed')
+    return fail(res, 400, 'invalid_request', 'Malformed JSON body')
+  if (error?.type === 'entity.too.large' || error?.status === 413)
+    return fail(res, 413, 'payload_too_large', 'Request body is too large')
+  return failFromError(res, error, 'request parsing')
 })

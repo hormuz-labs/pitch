@@ -10,6 +10,8 @@ import { createLogger } from '@saas/shared'
 import { z } from 'zod'
 import {
   createFromApi,
+  exportFromApi,
+  exportStatusFromApi,
   getFromApi,
   listFromApi,
   pricing,
@@ -25,13 +27,17 @@ const jsonResult = (value: unknown): ToolTextResult => ({
   content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
 })
 const errorResult = (error: unknown): ToolTextResult => {
-  if (error instanceof InsufficientCreditsError) {
+  if (error instanceof InsufficientCreditsError || (error as any)?.status === 402) {
+    const balance = typeof (error as any)?.balance === 'number' ? (error as any).balance : undefined
     return {
       isError: true,
       content: [
         {
           type: 'text',
-          text: `Insufficient credits: your current balance is ${error.balance}. Buy more at https://trypitch.co/pricing, then retry.`,
+          text:
+            balance === undefined
+              ? 'Insufficient credits. Buy more at https://trypitch.co/pricing, then retry.'
+              : `Insufficient credits: your current balance is ${balance}. Buy more at https://trypitch.co/pricing, then retry.`,
         },
       ],
     }
@@ -49,11 +55,15 @@ export const buildMcpServer = (userId: string): McpServer => {
     'create_project',
     {
       description:
-        'Start a studio project: launch-video (a motion-graphics launch film from a product URL), demo-video (a narrated browser demo of a web app, optionally from uploaded PDFs/images), deck (a slide deck from a topic, or an enhanced version of an uploaded PDF/PPTX), or recording-edit (camera moves and cards over an uploaded screen recording). The first prompt is charged (see get_pricing); every later prompt_project call is free. Returns the project; poll get_project for outputs.',
+        'Start a studio project. The agent chooses the tools needed from the prompt and files. Work is usage-metered; poll get_project for outputs.',
       inputSchema: {
-        flow: z.enum(['launch-video', 'demo-video', 'deck', 'recording-edit']),
+        flow: z
+          .enum(['launch-video', 'demo-video', 'deck', 'recording-edit'])
+          .optional()
+          .describe('Deprecated compatibility hint; accepted but ignored'),
         prompt: z
           .string()
+          .default('')
           .describe('What to make: the product URL and brief, the topic, the instructions…'),
         options: z
           .record(z.string(), z.any())
@@ -83,7 +93,7 @@ export const buildMcpServer = (userId: string): McpServer => {
     'prompt_project',
     {
       description:
-        "Send a follow-up message to a project's agent (edits, changes, exports). Free. Returns the project; the agent works asynchronously.",
+        "Send a usage-metered follow-up message to a project's agent. Returns the project; the agent works asynchronously.",
       inputSchema: {
         projectId: z.string(),
         text: z.string(),
@@ -130,13 +140,45 @@ export const buildMcpServer = (userId: string): McpServer => {
     {
       description: "List the API key owner's projects, newest first.",
       inputSchema: {
-        flow: z.enum(['launch-video', 'demo-video', 'deck', 'recording-edit']).optional(),
         limit: z.number().int().min(1).max(100).optional(),
       },
     },
-    async ({ flow, limit }) => {
+    async ({ limit }) => {
       try {
-        return jsonResult(await listFromApi(userId, flow, limit ?? 50))
+        return jsonResult(await listFromApi(userId, limit ?? 50))
+      } catch (error) {
+        return errorResult(error)
+      }
+    },
+  )
+
+  server.registerTool(
+    'export_project',
+    {
+      description: 'Start an export on the worker that owns the project.',
+      inputSchema: {
+        projectId: z.string(),
+        res: z.enum(['720p', '1080p', '4k']).optional(),
+      },
+    },
+    async ({ projectId, res }) => {
+      try {
+        return jsonResult(await exportFromApi(userId, projectId, { ...(res ? { res } : {}) }))
+      } catch (error) {
+        return errorResult(error)
+      }
+    },
+  )
+
+  server.registerTool(
+    'export_status',
+    {
+      description: 'Read the current export status without starting work.',
+      inputSchema: { projectId: z.string() },
+    },
+    async ({ projectId }) => {
+      try {
+        return jsonResult(await exportStatusFromApi(userId, projectId))
       } catch (error) {
         return errorResult(error)
       }
@@ -157,7 +199,7 @@ export const buildMcpServer = (userId: string): McpServer => {
 
   server.registerTool(
     'get_pricing',
-    { description: 'What each project flow costs in credits.' },
+    { description: 'How model and host-compute usage is converted to credits.' },
     async () => jsonResult(pricing()),
   )
 

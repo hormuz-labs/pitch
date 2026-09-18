@@ -101,6 +101,6 @@ router.post('/', parseFiles, async (req, res) => {
     res.status(201).json(results)
   } catch (error: any) {
     logger.error({ err: error, userId }, 'Failed to upload files')
-    res.status(500).json({ error: error.message || 'Upload failed' })
+    res.status(502).json({ error: 'Upload failed. Please try again.' })
   }
 })

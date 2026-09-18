@@ -1,30 +1,31 @@
-import { A, useLocation, useNavigate } from '@solidjs/router'
-import { AppWindow, FileText, PanelLeftClose, PanelLeftOpen, Plus, Shield, X } from 'lucide-solid'
+import { useLocation, useNavigate } from '@solidjs/router'
+import { PanelLeftOpen } from 'lucide-solid'
 import {
   type Accessor,
   createContext,
   createEffect,
   createMemo,
   createSignal,
-  createUniqueId,
-  For,
   onCleanup,
   onMount,
   type ParentProps,
   Show,
   useContext,
 } from 'solid-js'
-import tabLogo from '../../assets/tabLogoB.svg'
 import { api, isApiError } from '../../lib/api'
 import { captureRefFromUrl, getRefCode } from '../../lib/referral'
-import { listProjects, type Project } from '../../lib/studio-api'
+import { deleteProject, listProjects, type Project, patchProject } from '../../lib/studio-api'
 import type { UserProfile } from '../../types'
 import { DiscordOfferModal } from '../account/DiscordOfferModal'
 import { OnboardingSurvey } from '../account/OnboardingSurvey'
 import { SettingsModal, type SettingsSection } from '../account/SettingsView'
-import { SidebarAccountMenu } from '../account/SidebarAccountMenu'
-import { PitchWordmark } from '../public/brand'
 import { useAuth, useUser } from './auth'
+import {
+  readProjectNotifications,
+  reconcileProjectNotifications,
+  writeProjectNotifications,
+} from './projectNotifications'
+import { Sidebar } from './Sidebar'
 
 interface AppShellContextValue {
   isMobile: Accessor<boolean>
@@ -56,206 +57,6 @@ const routeKey = (path: string) => {
   return 'new'
 }
 
-function Sidebar(props: {
-  collapsed: boolean
-  isMobile: boolean
-  isAdmin: boolean
-  projects: Project[]
-  projectsLoading: boolean
-  selectedKey: string
-  selectedProjectId?: string
-  close: () => void
-  toggle: () => void
-  openSettings: (section?: SettingsSection) => void
-}) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const go = (path: string) => {
-    navigate(path)
-    if (path === '/new') window.dispatchEvent(new Event('pitch:new-chat'))
-    if (props.isMobile) props.close()
-  }
-  const visibleProjects = createMemo(() =>
-    [...props.projects]
-      .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
-      .slice(0, 7),
-  )
-  const projectState = (project: Project) =>
-    project.busy
-      ? 'Working'
-      : project.status === 'ready'
-        ? 'Ready'
-        : project.status === 'failed'
-          ? 'Needs attention'
-          : 'Draft'
-  const projectDate = (value: string) => {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return ''
-    return date.toDateString() === new Date().toDateString()
-      ? 'Today'
-      : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  }
-  const recentProject = (project: Project) => {
-    const [expanded, setExpanded] = createSignal(false)
-    const [clipped, setClipped] = createSignal(false)
-    const titleId = createUniqueId()
-    let heading!: HTMLElement
-    onMount(() => {
-      const observer = new ResizeObserver(() => {
-        if (!expanded()) setClipped(heading.scrollWidth > heading.clientWidth)
-      })
-      observer.observe(heading)
-      onCleanup(() => observer.disconnect())
-    })
-    return (
-      <div
-        class={`sidebar-recent-project${project.id === props.selectedProjectId ? ' is-active' : ''}`}
-      >
-        <button
-          type="button"
-          class="sidebar-recent-project__open"
-          onClick={() => go(`/p/${project.id}`)}
-          title={`${project.title || 'Untitled project'}${project.busy ? ' (Working)' : ''}`}
-          aria-label={`${project.title || 'Untitled project'}${project.busy ? ', working' : ''}`}
-          aria-current={project.id === props.selectedProjectId ? 'page' : undefined}
-        >
-          <span class="sidebar-recent-project__icon">
-            <FileText size={15} />
-          </span>
-          <span class="sidebar-recent-project__copy">
-            <strong ref={heading} id={titleId} classList={{ 'is-expanded': expanded() }}>
-              {project.title || 'Untitled project'}
-            </strong>
-          </span>
-        </button>
-        <div class="sidebar-recent-project__meta">
-          <small>
-            <span classList={{ 'is-working': project.busy }}>{projectState(project)}</span>
-            <span aria-hidden="true">·</span>
-            <time datetime={project.lastActivityAt}>{projectDate(project.lastActivityAt)}</time>
-          </small>
-          <Show when={clipped() || expanded()}>
-            <button
-              type="button"
-              class="sidebar-recent-project__more"
-              aria-expanded={expanded()}
-              aria-controls={titleId}
-              onClick={() => setExpanded(value => !value)}
-            >
-              {expanded() ? 'Read less' : 'Read more'}
-            </button>
-          </Show>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <>
-      <Show when={!props.collapsed && props.isMobile}>
-        <button
-          type="button"
-          aria-label="Close navigation"
-          class="conversation-sidebar__scrim"
-          onClick={props.close}
-        />
-      </Show>
-      <aside
-        class={`conversation-sidebar flex shrink-0 flex-col${props.isMobile ? ' fixed inset-y-0 left-0 z-[80] transition-transform duration-200' : ''}${props.collapsed ? (props.isMobile ? ' -translate-x-full' : ' is-collapsed') : ''}`}
-        aria-hidden={props.collapsed}
-        inert={props.collapsed}
-      >
-        <div class="conversation-sidebar__brand">
-          <button
-            type="button"
-            class="conversation-sidebar__wordmark"
-            aria-label="Pitch home"
-            onClick={() => go('/new')}
-          >
-            <img src={tabLogo} alt="" />
-            <PitchWordmark class="conversation-sidebar__wordmark-svg" />
-          </button>
-          <button
-            type="button"
-            class="conversation-sidebar__icon"
-            onClick={props.isMobile ? props.close : props.toggle}
-            aria-label="Collapse sidebar"
-          >
-            {props.isMobile ? <X size={16} /> : <PanelLeftClose size={16} />}
-          </button>
-        </div>
-
-        <nav class="conversation-sidebar__primary" aria-label="Primary">
-          <A
-            href="/new"
-            class={`conversation-sidebar__new${location.pathname === '/new' ? ' is-active' : ''}`}
-            onClick={() => {
-              window.dispatchEvent(new Event('pitch:new-chat'))
-              if (props.isMobile) props.close()
-            }}
-          >
-            <Plus size={17} />
-            <span>New project</span>
-            <kbd>⌘ K</kbd>
-          </A>
-          <button
-            type="button"
-            class={`conversation-sidebar__row${props.selectedKey === 'sessions' ? ' is-active' : ''}`}
-            onClick={() => go('/sessions')}
-          >
-            <AppWindow size={16} />
-            <span>Browser sessions</span>
-          </button>
-          <Show when={props.isAdmin}>
-            <button
-              type="button"
-              class={`conversation-sidebar__row${props.selectedKey === 'admin' ? ' is-active' : ''}`}
-              onClick={() => go('/admin')}
-            >
-              <Shield size={16} />
-              <span>Admin</span>
-            </button>
-          </Show>
-        </nav>
-
-        <section class="sidebar-recents" aria-label="Recent projects">
-          <div class="conversation-sidebar__projects-head">
-            <h2 class="conversation-sidebar__section-title">Chats</h2>
-            <button
-              type="button"
-              class="conversation-sidebar__all-chats"
-              aria-label="View all chats"
-              onClick={() => go('/chats/history')}
-            >
-              All chats
-            </button>
-          </div>
-          <div class="conversation-sidebar__history" aria-busy={props.projectsLoading}>
-            <Show
-              when={!props.projectsLoading}
-              fallback={
-                <p class="sidebar-recents__empty" role="status">
-                  Loading projects…
-                </p>
-              }
-            >
-              <Show
-                when={visibleProjects().length}
-                fallback={<p class="sidebar-recents__empty">Your recent chats will appear here.</p>}
-              >
-                <For each={visibleProjects()}>{recentProject}</For>
-              </Show>
-            </Show>
-          </div>
-        </section>
-        <footer class="conversation-sidebar__footer">
-          <SidebarAccountMenu openSettings={props.openSettings} />
-        </footer>
-      </aside>
-    </>
-  )
-}
-
 export function AppShell(props: ParentProps) {
   const auth = useAuth()
   const { userAccessor } = useUser()
@@ -265,9 +66,13 @@ export function AppShell(props: ParentProps) {
   const [collapsed, setCollapsed] = createSignal(window.innerWidth < 1024)
   const [projects, setProjects] = createSignal<Project[]>([])
   const [projectsLoading, setProjectsLoading] = createSignal(true)
+  const [projectNotifications, setProjectNotifications] = createSignal(
+    readProjectNotifications(localStorage),
+  )
   const [isAdmin, setIsAdmin] = createSignal(false)
   const [discordPromoOpen, setDiscordPromoOpen] = createSignal(false)
   const [settingsSection, setSettingsSection] = createSignal<SettingsSection | null>(null)
+  const pendingProjectPins = new Map<string, string | null>()
   const selectedKey = createMemo(() => routeKey(location.pathname))
   const selectedProjectId = createMemo(() =>
     location.pathname.startsWith('/p/') ? location.pathname.split('/')[2] : undefined,
@@ -304,11 +109,75 @@ export function AppShell(props: ParentProps) {
   const loadProjects = async () => {
     try {
       const token = await auth.getToken()
-      if (token) setProjects(await listProjects(token))
+      if (token) {
+        const next = await listProjects(token)
+        setProjects(
+          next.map(project =>
+            pendingProjectPins.has(project.id)
+              ? { ...project, pinnedAt: pendingProjectPins.get(project.id) ?? null }
+              : project,
+          ),
+        )
+        setProjectNotifications(current => {
+          const updated = reconcileProjectNotifications(current, next, selectedProjectId())
+          writeProjectNotifications(localStorage, updated)
+          return updated
+        })
+      }
     } catch {
       // History must not make primary navigation unavailable.
     } finally {
       setProjectsLoading(false)
+    }
+  }
+
+  const renameProject = async (project: Project, title: string) => {
+    try {
+      const token = await auth.getToken()
+      if (!token) throw new Error('Not signed in')
+      const updated = await patchProject(token, project.id, { title })
+      setProjects(rows => rows.map(row => (row.id === project.id ? { ...row, ...updated } : row)))
+      window.dispatchEvent(new Event('pitch:projects-changed'))
+      return true
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not rename chat')
+      return false
+    }
+  }
+
+  const toggleProjectPin = async (project: Project) => {
+    const previousPinnedAt = project.pinnedAt
+    const pinnedAt = previousPinnedAt ? null : new Date().toISOString()
+    pendingProjectPins.set(project.id, pinnedAt)
+    setProjects(rows => rows.map(row => (row.id === project.id ? { ...row, pinnedAt } : row)))
+    try {
+      const token = await auth.getToken()
+      if (!token) throw new Error('Not signed in')
+      const updated = await patchProject(token, project.id, { pinnedAt })
+      if (pendingProjectPins.get(project.id) !== pinnedAt) return
+      pendingProjectPins.delete(project.id)
+      setProjects(rows => rows.map(row => (row.id === project.id ? { ...row, ...updated } : row)))
+      window.dispatchEvent(new Event('pitch:projects-changed'))
+    } catch (error) {
+      if (pendingProjectPins.get(project.id) !== pinnedAt) return
+      pendingProjectPins.delete(project.id)
+      setProjects(rows =>
+        rows.map(row => (row.id === project.id ? { ...row, pinnedAt: previousPinnedAt } : row)),
+      )
+      window.alert(error instanceof Error ? error.message : 'Could not update pin')
+    }
+  }
+
+  const removeProject = async (project: Project) => {
+    try {
+      const token = await auth.getToken()
+      if (!token) throw new Error('Not signed in')
+      await deleteProject(token, project.id)
+      setProjects(rows => rows.filter(row => row.id !== project.id))
+      if (selectedProjectId() === project.id) navigate('/new')
+      window.dispatchEvent(new Event('pitch:projects-changed'))
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not delete chat')
     }
   }
 
@@ -348,6 +217,22 @@ export function AppShell(props: ParentProps) {
   createEffect(() => {
     location.pathname
     void loadProjects()
+  })
+
+  createEffect(() => {
+    const id = selectedProjectId()
+    if (!id) return
+    setProjectNotifications(current => {
+      const updated = reconcileProjectNotifications(current, projects(), id)
+      writeProjectNotifications(localStorage, updated)
+      return updated
+    })
+  })
+
+  createEffect(() => {
+    if (!projects().some(project => project.busy)) return
+    const timer = window.setInterval(() => void loadProjects(), 3000)
+    onCleanup(() => window.clearInterval(timer))
   })
 
   createEffect(() => {
@@ -436,11 +321,15 @@ export function AppShell(props: ParentProps) {
               isAdmin={isAdmin()}
               projects={projects()}
               projectsLoading={projectsLoading()}
+              unreadProjectIds={new Set(projectNotifications().unread)}
               selectedKey={selectedKey()}
               selectedProjectId={selectedProjectId()}
               close={() => setCollapsed(true)}
               toggle={() => setCollapsed(value => !value)}
               openSettings={openSettings}
+              renameProject={renameProject}
+              toggleProjectPin={toggleProjectPin}
+              deleteProject={removeProject}
             />
           </div>
         </Show>
@@ -451,11 +340,15 @@ export function AppShell(props: ParentProps) {
             isAdmin={isAdmin()}
             projects={projects()}
             projectsLoading={projectsLoading()}
+            unreadProjectIds={new Set(projectNotifications().unread)}
             selectedKey={selectedKey()}
             selectedProjectId={selectedProjectId()}
             close={() => setCollapsed(true)}
             toggle={() => setCollapsed(value => !value)}
             openSettings={openSettings}
+            renameProject={renameProject}
+            toggleProjectPin={toggleProjectPin}
+            deleteProject={removeProject}
           />
         </Show>
         <div

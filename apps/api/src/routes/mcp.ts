@@ -1,12 +1,13 @@
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { createLogger } from '@saas/shared'
-import { Router } from 'express'
+import express, { Router } from 'express'
 import { buildMcpServer } from '../mcp/server.js'
 import { requireApiKey } from '../middleware/auth.js'
 
 const logger = createLogger('studio:mcp')
 
 export const router = Router()
+router.use(express.json({ limit: '750mb' }))
 
 // Stateless Streamable HTTP: a fresh McpServer + transport per request, closed
 // when the response closes. Authenticated by API key, never by Clerk.
@@ -41,4 +42,16 @@ router.get('/', (_req, res) => {
 
 router.delete('/', (_req, res) => {
   res.status(405).json({ error: 'Method not allowed' })
+})
+
+router.use((error: any, _req: any, res: any, _next: any) => {
+  const tooLarge = error?.type === 'entity.too.large' || error?.status === 413
+  res.status(tooLarge ? 413 : 400).json({
+    jsonrpc: '2.0',
+    id: null,
+    error: {
+      code: tooLarge ? -32000 : -32700,
+      message: tooLarge ? 'Request body is too large' : 'Parse error',
+    },
+  })
 })

@@ -7,7 +7,7 @@
  *   REST        apps/api/src/routes/v1.ts
  *   shapes      apps/api/src/lib/public-api.ts
  *   MCP         apps/api/src/mcp/server.ts
- *   credits     packages/shared/src/index.ts, apps/api/src/flows/<flow>/index.ts
+ *   credits     apps/api/src/projects/usage.ts
  *   project     apps/api/src/projects/service.ts
  * If you change one, change the other.
  */
@@ -70,27 +70,27 @@ const overview: DocPage = {
     { k: 'h2', text: 'What you can make' },
     {
       k: 'table',
-      head: ['Flow', 'What it is', 'Credits'],
+      head: ['Outcome', 'What it is', 'Billing'],
       rows: [
         [
           <C key="a">demo-video</C>,
           'The agent drives your live product and narrates the flow',
-          '~120',
+          'Metered',
         ],
         [
           <C key="b">launch-video</C>,
           'A scripted, scored, cinematic film built scene by scene',
-          '240 to 520',
+          'Metered',
         ],
-        [<C key="c">deck</C>, 'A slide deck written and designed from a topic', '~40'],
+        [<C key="c">deck</C>, 'A slide deck written and designed from a topic', 'Metered'],
         [
           <>
             <C>deck</C> + upload
           </>,
           'A redesign of a PDF or PPTX you upload',
-          '~80',
+          'Metered',
         ],
-        [<C key="e">recording-edit</C>, 'A cut of a screen recording you already made', '~80'],
+        [<C key="e">recording-edit</C>, 'A cut of a screen recording you already made', 'Metered'],
       ],
     },
     {
@@ -105,7 +105,7 @@ const overview: DocPage = {
     { k: 'h2', text: 'How a project runs' },
     {
       k: 'p',
-      text: 'Every output is a project: a workspace, an agent, and a conversation. You create it with a first prompt, the agent starts working right away, and creation returns with an id. The work takes minutes, not milliseconds, so you poll for the result. Once it is ready you can keep talking to the same agent to change things, for free.',
+      text: 'Every output is a project: a workspace, an agent, and a conversation. You create it with a first prompt, the agent starts working right away, and creation returns with an id. Work is usage-metered as it runs. Poll for the result, then keep talking to the same agent to change it.',
     },
     {
       k: 'code',
@@ -119,7 +119,7 @@ const overview: DocPage = {
       text: (
         <>
           Work is metered as it happens, not charged up front. If the first turn ends with nothing
-          usable, we refund what it cost. See <A to="/docs/polling">Polling projects</A>.
+          usable, its status records the failure. See <A to="/docs/polling">Polling projects</A>.
         </>
       ),
     },
@@ -188,9 +188,9 @@ const gettingStarted: DocPage = {
       k: 'p',
       text: (
         <>
-          A demo video costs about 120 credits. If the balance is short, project creation fails with{' '}
-          <C>402 insufficient_credits</C> and nothing is charged. Buy more at{' '}
-          <A to="/pricing">trypitch.co/pricing</A>.
+          The final cost depends on model usage, skill loading, and render time. If the balance is
+          short, project creation fails with <C>402 insufficient_credits</C> and nothing is charged.
+          Buy more at <A to="/pricing">trypitch.co/pricing</A>.
         </>
       ),
     },
@@ -199,8 +199,8 @@ const gettingStarted: DocPage = {
       k: 'p',
       text: (
         <>
-          Pick a <C>flow</C> and write the first prompt the way you would in the app: the URL and
-          what you want. Instructions are free text. You do not need a script.
+          Write the first prompt the way you would in the app: describe what you want and attach any
+          source files. The agent chooses the appropriate tools. You do not need a script.
         </>
       ),
     },
@@ -211,7 +211,6 @@ const gettingStarted: DocPage = {
   -H "Authorization: Bearer pk_your_key" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "flow": "demo-video",
     "prompt": "https://trypitch.co — walk through sign-up and the first render. Keep it under 60 seconds."
   }'`,
     },
@@ -228,7 +227,6 @@ const gettingStarted: DocPage = {
       lang: 'json',
       code: `{
   "id": "cm4x8k2p90001abcd",
-  "flow": "demo-video",
   "title": "trypitch.co",
   "status": "working",
   "busy": true,
@@ -263,7 +261,6 @@ const gettingStarted: DocPage = {
       lang: 'json',
       code: `{
   "id": "cm4x8k2p90001abcd",
-  "flow": "demo-video",
   "title": "trypitch.co",
   "status": "ready",
   "busy": false,
@@ -292,7 +289,7 @@ const gettingStarted: DocPage = {
     { k: 'h2', text: '5. Change something (optional)' },
     {
       k: 'p',
-      text: 'The project is a conversation. Send another message and the same agent edits what it made. This is free, as many times as you like.',
+      text: 'The project is a conversation. Send another usage-metered message and the same agent edits what it made.',
     },
     {
       k: 'code',
@@ -333,7 +330,6 @@ const api = (path, init) =>
 const project = await api("/v1/projects", {
   method: "POST",
   body: JSON.stringify({
-    flow: "demo-video",
     prompt: "https://trypitch.co — walk through sign-up. Under 60 seconds.",
   }),
 })
@@ -490,8 +486,9 @@ Header  Authorization: Bearer pk_your_key`,
       k: 'p',
       text: (
         <>
-          Six tools. One spends credits and starts a project, one talks to a project for free, four
-          are free reads. Full argument lists are in <A to="/docs/tools">MCP tools</A>.
+          Eight tools create, edit, inspect, and export projects. Work-producing tools are
+          usage-metered; reads are free. Full argument lists are in{' '}
+          <A to="/docs/tools">MCP tools</A>.
         </>
       ),
     },
@@ -499,12 +496,14 @@ Header  Authorization: Bearer pk_your_key`,
       k: 'table',
       head: ['Tool', 'Credits'],
       rows: [
-        [<C key="1">create_project</C>, '1 to 13, by flow'],
-        [<C key="2">prompt_project</C>, 'free'],
+        [<C key="1">create_project</C>, 'usage-metered'],
+        [<C key="2">prompt_project</C>, 'usage-metered'],
         [<C key="3">get_project</C>, 'free'],
         [<C key="4">list_projects</C>, 'free'],
         [<C key="5">get_credits</C>, 'free'],
         [<C key="6">get_pricing</C>, 'free'],
+        [<C key="7">export_project</C>, 'usage-metered'],
+        [<C key="8">export_status</C>, 'free'],
       ],
     },
     { k: 'h2', text: 'Telling the agent how to behave' },
@@ -526,16 +525,15 @@ Header  Authorization: Bearer pk_your_key`,
 - Poll get_project every 10 seconds until status is "ready" or "failed".
 - On "ready", give the user the url of the newest entry in outputs (kind "video" or "pdf").
 - On "failed", read the error field and say what went wrong.
-- To change something, call prompt_project on the same project. It is free. Never create a second project for an edit.
+- To change something, call prompt_project on the same project. Never create a second project for an edit.
 - Never call create_project twice for the same request.`,
     },
     {
       k: 'note',
       text: (
         <>
-          That last line matters. <C>create_project</C> spends credits at once, so a retried call is
-          a second charge, not a resumed project. Edits go through <C>prompt_project</C>, which is
-          free.
+          That last line matters. There are no idempotency keys, so a retried create can make a
+          second project. Edits belong in <C>prompt_project</C> and are metered by actual usage.
         </>
       ),
     },
@@ -585,15 +583,6 @@ const authentication: DocPage = {
     {
       k: 'p',
       text: 'A key acts as the user who created it. There are no scopes and no per-key limits yet. Anything that user can do in the app, the key can do through the API, and every credit it spends lands in that user’s ledger next to their browser usage. Projects created with a key appear in that user’s app, and vice versa.',
-    },
-    {
-      k: 'note',
-      text: (
-        <>
-          A brand-new account has to finish onboarding in the app once before a key can create
-          projects. Until then creation returns <C>428 onboarding_required</C>.
-        </>
-      ),
     },
     { k: 'h2', text: 'Revoking' },
     {
@@ -661,27 +650,26 @@ const credits: DocPage = {
       text: (
         <>
           One credit is $0.0025 of measured cost: the agent's model usage plus the machine time
-          spent recording and rendering. Nothing is charged when a project is created — the meter
-          runs as the work happens, so a quick edit costs far less than a 4K render. These are
-          typical totals, not fixed prices.
+          spent recording and rendering. Nothing is charged when a project is created — the meter runs as the work
+          happens. These are typical totals, not fixed prices.
         </>
       ),
     },
     {
       k: 'table',
-      head: ['Flow', 'What it makes', 'Credits (~)'],
+      head: ['Outcome', 'What it makes', 'Billing'],
       rows: [
-        [<C key="a">demo-video</C>, 'Narrated demo of your live product', '120'],
-        [<C key="b">launch-video</C>, 'Cinematic launch film', '240 to 520'],
-        [<C key="c">deck</C>, 'Slide deck from a topic', '40'],
+        [<C key="a">demo-video</C>, 'Narrated demo of your live product', 'Metered'],
+        [<C key="b">launch-video</C>, 'Cinematic launch film', 'Metered'],
+        [<C key="c">deck</C>, 'Slide deck from a topic', 'Metered'],
         [
           <>
             <C>deck</C> with an upload and <C>options.mode</C>
           </>,
           'Redesign of a PDF or PPTX',
-          '80',
+          'Metered',
         ],
-        [<C key="e">recording-edit</C>, 'Cut of a screen recording', '80'],
+        [<C key="e">recording-edit</C>, 'Cut of a screen recording', 'Metered'],
         [
           <>
             <C>GET /v1/*</C> / <C>get_*</C>, <C>list_*</C>
@@ -694,36 +682,24 @@ const credits: DocPage = {
     { k: 'h2', text: 'Launch video exports' },
     {
       k: 'p',
-      text: 'An export is the one place with a published tier price. The resolution sets the base, and narration adds 40 credits on top, because a narrated film needs a script and a voiceover clip per scene.',
-    },
-    {
-      k: 'table',
-      head: ['Resolution', 'Narrated (default)', 'Music only'],
-      rows: [
-        ['720p', '240', '200'],
-        ['1080p (default)', '360', '320'],
-        ['4K', '520', '480'],
-      ],
+      text: 'Launch exports are usage-metered. Higher resolutions usually consume more host compute, while model usage on a turn that loads a provided Pitch SKILL.',
     },
     {
       k: 'p',
       text: (
         <>
-          If you send no <C>options.resolution</C>, you get 1080p and pay 360. An unrecognised value
-          also falls back to 1080p rather than the cheapest tier, so a typo can never underpay.
-          Exporting at a higher resolution later, from the app, charges only the difference.
+          If you send no <C>options.resolution</C>, the default is 1080p. The meter charges the
+          model and render time actually used.
         </>
       ),
     },
     {
       k: 'code',
       lang: 'bash',
-      code: `# a 240-credit launch video instead of the 360-credit default
-curl -X POST ${BASE}/v1/projects \\
+      code: `curl -X POST ${BASE}/v1/projects \\
   -H "Authorization: Bearer pk_your_key" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "flow": "launch-video",
     "prompt": "https://acme.com — 60 second launch film for an AI notetaker. Confident, fast.",
     "options": { "resolution": "720p" }
   }'`,
@@ -769,14 +745,8 @@ curl -X POST ${BASE}/v1/projects \\
   "model": "usage",
   "creditUsd": 0.0025,
   "computeUsdPerSecond": 0.002,
-  "explanation": "Projects are not priced up front...",
-  "launchVideo": {
-    "tiers": [
-      { "res": "720p",  "credits": 200, "narrated": 240 },
-      { "res": "1080p", "credits": 320, "narrated": 360 },
-      { "res": "4k",    "credits": 480, "narrated": 520 }
-    ]
-  }
+  "providedSkillModelMultiplier": 250,
+  "explanation": "Projects are not priced up front..."
 }`,
     },
     {
@@ -818,15 +788,6 @@ curl -X POST ${BASE}/v1/projects \\
         </>
       ),
     },
-    { k: 'h2', text: 'Refunds' },
-    {
-      k: 'p',
-      text: 'If the agent’s first turn ends with nothing usable, whether it failed, was stopped, or finished empty, we mark the project failed and put back everything it was charged, so a bad first run never silently eats credits.',
-    },
-    {
-      k: 'p',
-      text: 'Email support@trypitch.co if a project failed for a reason on our side and was not refunded.',
-    },
     {
       k: 'p',
       text: 'Credits you bought outright stay on the balance. Whatever is left of a monthly allowance is forfeited when the subscription ends, including after a failed renewal payment. Spend draws the allowance down first, so a plan never eats the credits you paid for separately.',
@@ -841,7 +802,7 @@ const files: DocPage = {
   title: 'Files and uploads',
   group: 'Guide',
   nav: 'Files & Uploads',
-  lede: 'Three flows take files you already have. Send them base64-encoded in the JSON body, as entries in uploads.',
+  lede: 'Send source files as base64-encoded entries in the uploads array.',
   blocks: [
     {
       k: 'p',
@@ -899,8 +860,7 @@ const files: DocPage = {
   -H "Content-Type: application/json" \\
   -d "$(jq -n \\
     --arg f "$(base64 -w0 deck.pdf)" \\
-    '{ flow: "deck",
-       prompt: "Modernise it, keep the story",
+    '{ prompt: "Modernise it, keep the story",
        options: { mode: "recreate" },
        uploads: [{ fileBase64: $f, fileName: "deck.pdf" }] }')"`,
     },
@@ -918,7 +878,6 @@ const res = await fetch("${BASE}/v1/projects", {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    flow: "recording-edit",
     prompt: "Cut the dead air at the start. Add intro and outro cards.",
     options: { productName: "Acme", productUrl: "https://acme.com" },
     uploads: [{ fileBase64: file.toString("base64"), fileName: "recording.mp4" }],
@@ -953,7 +912,6 @@ const res = await fetch("${BASE}/v1/projects", {
       k: 'code',
       lang: 'json',
       code: `{
-  "flow": "demo-video",
   "prompt": "https://trypitch.co — open with the pricing one-pager, then show sign-up.",
   "uploads": [{ "fileBase64": "...", "fileName": "pricing.pdf" }]
 }`,
@@ -966,12 +924,12 @@ const res = await fetch("${BASE}/v1/projects", {
         [
           '413',
           <C key="a">payload_too_large</C>,
-          'The decoded file is over the limit for that flow',
+          'The decoded file is over the limit for its media type',
         ],
         [
           '415',
           <C key="b">unsupported_media_type</C>,
-          'The extension is not in the accepted list for that flow',
+          'The extension is not in the accepted media list',
         ],
         ['400', <C key="c">invalid_request</C>, 'The base64 decoded to nothing'],
       ],
@@ -1125,8 +1083,8 @@ console.log(latest.url)`,
         <>
           A launch video is <C>ready</C> as soon as the film plays in the studio, with <C>scenes</C>{' '}
           filled in. The MP4 itself is rendered by the Export button in the app at the resolution
-          you paid for, and lands in <C>outputs</C> when that finishes. There is no export endpoint
-          in the API yet.
+          requested, and lands in <C>outputs</C> when that finishes. REST and MCP both expose export
+          start and status operations.
         </>
       ),
     },
@@ -1170,7 +1128,7 @@ console.log(latest.url)`,
     {
       k: 'code',
       lang: 'bash',
-      code: `curl "${BASE}/v1/projects?flow=demo-video&limit=10" \\
+      code: `curl "${BASE}/v1/projects?limit=10" \\
   -H "Authorization: Bearer pk_your_key"`,
     },
     { k: 'h2', text: 'Scenes and slides' },
@@ -1189,7 +1147,6 @@ console.log(latest.url)`,
       lang: 'json',
       code: `{
   "id": "cm4x8k2p90001abcd",
-  "flow": "launch-video",
   "status": "ready",
   "scenes": [
     { "id": "s1", "index": 1, "start": 0, "end": 6.2, "dur": 6.2, "label": "Meet Acme", "type": "hero" }
@@ -1273,14 +1230,8 @@ const errors: DocPage = {
         [
           '415',
           <C key="g">unsupported_media_type</C>,
-          'The extension is not accepted for that flow.',
+          'The extension is not accepted.',
           'Convert it first.',
-        ],
-        [
-          '428',
-          <C key="h">onboarding_required</C>,
-          'The account has never finished onboarding in the app.',
-          'Sign in at trypitch.co once and complete it.',
         ],
         [
           '500',
@@ -1293,14 +1244,14 @@ const errors: DocPage = {
     { k: 'h2', text: 'What is safe to retry' },
     {
       k: 'p',
-      text: 'There are no idempotency keys yet, so a retried create is a second project and a second charge. Retry creates only when you never got a response at all, and check the project list first. Prompts are free, so retrying one costs nothing but may queue the same edit twice.',
+      text: 'There are no idempotency keys yet, so a retried create can make a second project. Retry creates only when you never got a response at all, and check the project list first. Retrying a prompt can queue the same metered edit twice.',
     },
     {
       k: 'table',
       head: ['Case', 'Retry?'],
       rows: [
         [<C key="a">GET</C>, 'Yes, always safe'],
-        ['400, 401, 402, 404, 413, 415, 428', 'No, fix the cause first'],
+        ['400, 401, 402, 404, 413, 415', 'No, fix the cause first'],
         ['409 on a prompt', 'Yes, after the current turn ends'],
         ['500 on a read', 'Yes, with backoff'],
         [
@@ -1333,7 +1284,7 @@ const errors: DocPage = {
     },
     {
       k: 'p',
-      text: 'Common causes: the URL is behind a login, blocked our browser, or was down. Sites that need a sign-in cannot be demoed from a public URL alone. A failed first turn is refunded; you can also send a follow-up prompt to have the agent try again in the same project.',
+      text: 'Common causes: the URL is behind a login, blocked our browser, or was down. Sites that need a sign-in cannot be demoed from a public URL alone. Send a follow-up prompt to have the agent try again in the same project.',
     },
     { k: 'h2', text: 'Errors over MCP' },
     {
@@ -1405,14 +1356,7 @@ const restApi: DocPage = {
       head: ['Field', 'Type', 'Notes'],
       rows: [
         [<C key="a">id</C>, 'string', 'Use it to poll and to prompt'],
-        [
-          <C key="b">flow</C>,
-          'string',
-          <>
-            <C>launch-video</C>, <C>demo-video</C>, <C>deck</C>, <C>recording-edit</C>
-          </>,
-        ],
-        [<C key="c">title</C>, 'string', 'Derived from the prompt, URL, topic, or file name'],
+        [<C key="b">title</C>, 'string', 'Derived from the prompt, URL, topic, or file name'],
         [
           <C key="d">status</C>,
           'string',
@@ -1428,7 +1372,7 @@ const restApi: DocPage = {
           </>,
         ],
         [<C key="f">prompt</C>, 'string', 'The first message'],
-        [<C key="g">options</C>, 'object', 'The flow options given at creation'],
+        [<C key="g">options</C>, 'object', 'Creation preferences'],
         [
           <C key="h">outputs</C>,
           'array',
@@ -1477,19 +1421,17 @@ const restApi: DocPage = {
     { k: 'h2', text: 'POST /v1/projects' },
     {
       k: 'p',
-      text: 'Create a project and send its first prompt. Charges the flow’s price at once.',
+      text: 'Create a project and send its first prompt. Work is usage-metered as it runs.',
     },
     {
       k: 'table',
       head: ['Field', 'Type', 'Required', 'Notes'],
       rows: [
         [
-          <C key="a">flow</C>,
+          <C key="a">flow (deprecated)</C>,
           'string',
-          'yes',
-          <>
-            <C>launch-video</C>, <C>demo-video</C>, <C>deck</C>, <C>recording-edit</C>
-          </>,
+          'no',
+          <>Deprecated compatibility hint. Accepted but ignored.</>,
         ],
         [
           <C key="b">prompt</C>,
@@ -1511,20 +1453,20 @@ const restApi: DocPage = {
           'string',
           'no',
           <>
-            Workspace slug, unique per flow. Made from the title if omitted. No <C>/</C> or <C>\</C>
+            Workspace slug, unique per user. Made from the title if omitted. No <C>/</C> or <C>\</C>
             , cannot start with a dot
           </>,
         ],
       ],
     },
-    { k: 'h3', text: 'Options by flow' },
+    { k: 'h3', text: 'Common outcome options' },
     {
       k: 'table',
-      head: ['Flow', 'Credits', 'Options'],
+      head: ['Outcome', 'Billing', 'Options'],
       rows: [
         [
           <C key="a">launch-video</C>,
-          '240 to 520',
+          'Metered',
           <>
             <C>resolution</C> (<C>720p</C>, <C>1080p</C> default, <C>4k</C>; sets the price; every
             export is 60 fps), <C>narration</C> (default true; false saves 40 credits), <C>music</C>{' '}
@@ -1533,7 +1475,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="b">demo-video</C>,
-          '~120',
+          'Metered',
           <>
             <C>url</C> (also read from the prompt), <C>instructions</C>, <C>script</C> (your own
             narration), <C>voice</C>, <C>background</C>, <C>shape</C>, <C>inset</C>,{' '}
@@ -1542,7 +1484,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="c">deck</C>,
-          '~40, or ~80 with an upload',
+          'Metered',
           <>
             <C>topic</C>, <C>slideCount</C>, <C>headings</C>, <C>template</C>, <C>mode</C> (
             <C>recreate</C> rebuilds an uploaded deck, <C>preserve</C> keeps its layout; setting it
@@ -1551,7 +1493,7 @@ const restApi: DocPage = {
         ],
         [
           <C key="d">recording-edit</C>,
-          '~80',
+          'Metered',
           <>
             <C>productName</C> (intro card), <C>productUrl</C> (outro card), <C>instructions</C>,{' '}
             <C>fps</C> (<C>30</C> or <C>60</C>; default the recording's own)
@@ -1566,7 +1508,6 @@ const restApi: DocPage = {
   -H "Authorization: Bearer pk_your_key" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "flow": "launch-video",
     "prompt": "https://acme.com — 60 second launch film for an AI notetaker. Confident, fast.",
     "options": { "resolution": "1080p", "narration": true }
   }'`,
@@ -1578,7 +1519,6 @@ const restApi: DocPage = {
   -H "Authorization: Bearer pk_your_key" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "flow": "deck",
     "prompt": "Seed round deck for an AI video startup",
     "options": { "slideCount": 10 }
   }'`,
@@ -1587,9 +1527,8 @@ const restApi: DocPage = {
       k: 'p',
       text: (
         <>
-          Returns <C>202</C> with the project, <C>status: "working"</C>. Fails with <C>402</C> if
-          the balance is short, <C>428</C> if the account never finished onboarding, <C>413</C> or{' '}
-          <C>415</C> for a bad upload.
+          Returns <C>202</C> with the project. Fails with <C>402</C> if the balance is too low and
+          <C>413</C> or <C>415</C> for a bad upload.
         </>
       ),
     },
@@ -1598,20 +1537,12 @@ const restApi: DocPage = {
     {
       k: 'table',
       head: ['Query', 'Notes'],
-      rows: [
-        [
-          <C key="a">flow</C>,
-          <>
-            One of <C>launch-video</C>, <C>demo-video</C>, <C>deck</C>, <C>recording-edit</C>
-          </>,
-        ],
-        [<C key="b">limit</C>, 'Default 50, max 100'],
-      ],
+      rows: [[<C key="b">limit</C>, 'Default 50, max 100']],
     },
     {
       k: 'code',
       lang: 'json',
-      code: `{ "data": [ { "id": "cm4x...", "flow": "demo-video", "status": "ready", "outputs": [ ... ], ... } ], "total": 37 }`,
+      code: `{ "data": [ { "id": "cm4x...", "status": "ready", "outputs": [ ... ], ... } ], "total": 37 }`,
     },
     { k: 'h2', text: 'GET /v1/projects/:id' },
     {
@@ -1626,7 +1557,7 @@ const restApi: DocPage = {
     { k: 'h2', text: 'POST /v1/projects/:id/prompt' },
     {
       k: 'p',
-      text: 'Send the agent a follow-up. Free. The agent works asynchronously; poll the project.',
+      text: 'Send the agent a usage-metered follow-up. It works asynchronously; poll the project.',
     },
     {
       k: 'table',
@@ -1667,6 +1598,11 @@ const restApi: DocPage = {
         </>
       ),
     },
+    { k: 'h2', text: 'POST /v1/projects/:id/export' },
+    {
+      k: 'p',
+      text: 'Start an export with optional res (720p, 1080p, or 4k). Returns 202 with export status. Poll GET on the same path until running is false.',
+    },
     { k: 'h2', text: 'GET /v1/credits' },
     {
       k: 'p',
@@ -1682,15 +1618,15 @@ const restApi: DocPage = {
       k: 'p',
       text: (
         <>
-          Current credit prices per flow, launch video tiers, and deck generate versus enhance. No
-          key needed. The payload is in <A to="/docs/credits">Credits</A>.
+          Usage-metering rates and indicative launch export tiers. No key needed. The payload is in{' '}
+          <A to="/docs/credits">Credits</A>.
         </>
       ),
     },
     { k: 'h2', text: 'Not there yet' },
     {
       k: 'p',
-      text: 'Being straight about the edges: there are no webhooks, so you have to poll. There are no idempotency keys, so a retried create is a second charge. There is no cursor pagination on the project list, only a limit. There is no way to stop, delete, share, or export a project through the API; a launch video’s MP4 is rendered from the Export button in the app. Email support@trypitch.co if you need one of these and we will prioritise it.',
+      text: 'There are no webhooks, so you have to poll. There are no idempotency keys, so a retried create can make a second project. There is no cursor pagination on the project list, only a limit. Stop, delete, and share are not exposed through the public API; exports are.',
     },
   ],
 }
@@ -1702,7 +1638,7 @@ const tools: DocPage = {
   title: 'MCP tools',
   group: 'Reference',
   nav: 'MCP Tools',
-  lede: 'The six tools an agent gets, and what each one takes.',
+  lede: 'The eight tools an agent gets, and what each one takes.',
   blocks: [
     {
       k: 'p',
@@ -1718,19 +1654,17 @@ const tools: DocPage = {
     { k: 'h2', text: 'create_project' },
     {
       k: 'p',
-      text: 'Start a project and send its first prompt. Charges the flow’s price: demo-video 3, launch-video 6 to 13, deck 1 (2 with an upload), recording-edit 2.',
+      text: 'Start a project and send its first prompt. Work is usage-metered as it runs.',
     },
     {
       k: 'table',
       head: ['Argument', 'Type', 'Required', 'Notes'],
       rows: [
         [
-          <C key="a">flow</C>,
+          <C key="a">flow (deprecated)</C>,
           'string',
-          'yes',
-          <>
-            <C>launch-video</C>, <C>demo-video</C>, <C>deck</C>, <C>recording-edit</C>
-          </>,
+          'no',
+          <>Deprecated compatibility hint. Accepted but ignored.</>,
         ],
         [
           <C key="b">prompt</C>,
@@ -1772,7 +1706,7 @@ const tools: DocPage = {
     { k: 'h2', text: 'prompt_project' },
     {
       k: 'p',
-      text: 'Send a follow-up message to a project’s agent: edits, changes, a different take. Free. Returns the project; the agent works asynchronously.',
+      text: 'Send a usage-metered follow-up message to a project’s agent. Returns the project; the agent works asynchronously.',
     },
     {
       k: 'table',
@@ -1814,10 +1748,15 @@ const tools: DocPage = {
       k: 'p',
       text: (
         <>
-          Your projects, newest first. Optional <C>flow</C> filter and <C>limit</C> (1 to 100,
-          default 50). Free.
+          Your projects, newest first. Optional <C>limit</C> (1 to 100, default 50). Returns{' '}
+          <C>{`{ data, total }`}</C>.
         </>
       ),
+    },
+    { k: 'h2', text: 'export_project / export_status' },
+    {
+      k: 'p',
+      text: 'Start an export with projectId and optional res (720p, 1080p, or 4k), then poll export_status. Export work is usage-metered.',
     },
     { k: 'h2', text: 'get_credits' },
     {
@@ -1829,8 +1768,8 @@ const tools: DocPage = {
       k: 'p',
       text: (
         <>
-          What each flow costs in credits, the launch video tiers, and deck generate versus enhance.
-          Free. Same payload as <C>GET /v1/pricing</C>.
+          Usage-metering rates and indicative launch export tiers. Free. Same payload as{' '}
+          <C>GET /v1/pricing</C>.
         </>
       ),
     },

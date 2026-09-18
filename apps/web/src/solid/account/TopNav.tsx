@@ -62,6 +62,7 @@ export function TopNav(props: {
       <div class="new-project-topnav__actions">
         <button
           type="button"
+          class="new-project-topnav__secondary-action"
           onClick={() => navigate('/blog')}
           aria-label="Announcements"
           title="Announcements"
@@ -70,6 +71,7 @@ export function TopNav(props: {
         </button>
         <button
           type="button"
+          class="new-project-topnav__secondary-action"
           onClick={theme.toggleTheme}
           aria-label={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}
           title={`Switch to ${theme.theme() === 'dark' ? 'light' : 'dark'} theme`}

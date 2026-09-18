@@ -23,7 +23,7 @@
  *              cache and is preferred by the next placement
  */
 import { existsSync } from 'node:fs'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as db from '@saas/db'
 import { createLogger } from '@saas/shared'
@@ -52,6 +52,7 @@ import {
 import { projectThumbnail } from '../projects/thumbnails.js'
 import {
   chargeTurn,
+  effectiveModelMultiplier,
   generationReservationFromEstimate,
   projectedCreditsOwed,
 } from '../projects/usage.js'
@@ -66,6 +67,7 @@ import {
 } from '../studio/model-picker.js'
 import { PROJECTS_DIR, type Workspace } from '../studio/paths.js'
 import {
+  activeTurnUsesProvidedSkill,
   closeSession,
   closeStudio,
   type Entry,
@@ -80,10 +82,8 @@ import {
   rollbackSession,
   steerQueuedPrompt,
   stopSession,
-  takeModelCost,
 } from '../studio/session.js'
 import {
-  deleteCheckpoints,
   pruneCheckpoints,
   readMarker,
   restoreCheckpoint,
@@ -259,16 +259,19 @@ function onEvent(h: Held, ev: StudioEvent): void {
   }
 }
 
-async function refreshArtifactKind(h: Held): Promise<void> {
+async function refreshArtifactKind(h: Held, strict = false): Promise<void> {
+  let kind: string | null
   try {
-    const kind = await getAgent().artifactKind(h.ws)
-    await db.prisma.project.updateMany({
-      where: { id: h.id, workerId: WORKER_ID, workerEpoch: h.epoch },
-      data: { artifactKind: kind },
-    })
+    kind = await getAgent().artifactKind(h.ws)
   } catch (err) {
     logger.warn({ err, projectId: h.id }, 'could not refresh artifact kind')
+    return
   }
+  const updated = await db.prisma.project.updateMany({
+    where: { id: h.id, workerId: WORKER_ID, workerEpoch: h.epoch },
+    data: { artifactKind: kind },
+  })
+  if (strict && updated.count === 0) throw new NotOwnerError(h.id)
 }
 
 async function open(row: ProjectRow, epoch: number): Promise<{ h: Held; row: ProjectRow }> {
@@ -360,6 +363,7 @@ export async function prepare(
   const { h } = await ensureOpen(projectId)
   await getAgent().prepare(h.ws, options, uploads)
   markDirty(h)
+  await refreshArtifactKind(h, true)
 }
 
 export async function prompt(
@@ -513,9 +517,8 @@ function guardTurnCredits(
     if (checking || stopped) return
     checking = true
     try {
-      const [balance, ledgerBalance, row, reservation] = await Promise.all([
+      const [balance, row, reservation] = await Promise.all([
         db.getAvailableCreditBalance(p.userId),
-        db.getCreditBalance(p.userId),
         db.prisma.project.findUnique({
           where: { id: p.id },
           select: { usageUsd: true, creditsCharged: true },
@@ -531,18 +534,17 @@ function guardTurnCredits(
           modelUsd: peekModelCost(p.id),
           computeSeconds: peekComputeSeconds(workspaceOf(p).internal),
         },
-        modelCreditMultiplier(model),
+        effectiveModelMultiplier(
+          modelCreditMultiplier(model),
+          activeTurnUsesProvidedSkill(p.id, turn),
+        ),
       )
       if (owed <= 0) return
       const allowance = reservation?.status === 'pending' ? reservation.credits + balance : balance
       emitProjectEvent(p.id, {
         type: 'credit_balance',
-        balance: Math.max(
-          0,
-          ledgerBalance -
-            (reservation?.status === 'pending' ? reservation.credits : 0) -
-            Math.max(0, owed - (reservation?.credits ?? 0)),
-        ),
+        balance: Math.max(0, balance - Math.max(0, owed - (reservation?.credits ?? 0))),
+        pending: true,
       })
       if (owed <= allowance) return
       stopped = true
@@ -576,6 +578,8 @@ function billTurn(
   const off = onProjectEvent(p.id, (ev: StudioEvent) => {
     if (ev.type !== 'idle' || ev.turn !== turn) return
     off()
+    const modelUsd = Number(ev.cost ?? 0)
+    const usedProvidedSkill = ev.usedProvidedSkill === true
     void (async () => {
       const reservation = reservationKey ? await db.getCreditReservation(reservationKey) : null
       const pendingKey =
@@ -588,7 +592,6 @@ function billTurn(
         pendingKey && model
           ? videoGenerationCostUsd(model, Number(p.options?.durationSeconds ?? 30))
           : 0
-      const modelUsd = takeModelCost(p.id)
       if (reservationKey && reservation?.status === 'pending' && !pendingKey)
         await db.releaseCreditReservation(reservationKey)
       await chargeTurn(
@@ -599,10 +602,12 @@ function billTurn(
         providerUsd,
         pendingKey ? (reservation?.credits ?? 0) : 0,
         pendingKey,
+        usedProvidedSkill,
       )
       emitProjectEvent(p.id, {
         type: 'credit_balance',
-        balance: await db.getCreditBalance(p.userId),
+        balance: await db.getAvailableCreditBalance(p.userId),
+        pending: false,
       })
     })()
       .catch(err => logger.warn({ err, projectId: p.id }, 'could not bill the turn'))
@@ -926,21 +931,31 @@ export async function release(projectId: string): Promise<void> {
   logger.info({ projectId }, 'project released')
 }
 
-/** Delete everything local: session, transcript, history, workspace. */
-export async function remove(projectId: string, row: ProjectRow): Promise<void> {
+/** Delete a local copy after the database row has been removed as the fence. */
+export async function remove(row: ProjectRow): Promise<void> {
+  const projectId = row.id
+  if (await db.prisma.project.count({ where: { id: projectId } }))
+    throw Object.assign(new Error('project deletion is not fenced'), {
+      status: 409,
+      code: 'DELETE_NOT_FENCED',
+    })
   const h = held.get(projectId)
   const ws = h?.ws ?? workspaceOf(row)
   if (h) {
     held.delete(projectId)
     h.off()
+    await stopSession(projectId).catch(() => {})
+    await h.checkpointing?.catch(() => {})
   }
-  await closeSession(projectId, row.sessionFile, ws.dir)
+  await closeSession(projectId, row.sessionFile, ws.dir).catch(() => {})
   await deleteWorkspaceHistory(ws.dir)
-  if (path.dirname(ws.dir) === PROJECTS_DIR && existsSync(ws.dir))
-    await rm(ws.dir, { recursive: true, force: true })
-  await deleteCheckpoints(projectId).catch(err =>
-    logger.warn({ err, projectId }, 'could not delete workspace checkpoints'),
+  const marker = await readMarker(ws.dir)
+  if (
+    path.dirname(ws.dir) === PROJECTS_DIR &&
+    existsSync(ws.dir) &&
+    marker?.projectId === projectId
   )
+    await rm(ws.dir, { recursive: true, force: true })
 }
 
 /** Wipe a local copy this worker does not hold (the row is gone). */
@@ -948,7 +963,7 @@ export async function discardLocal(row: ProjectRow): Promise<void> {
   const ws = workspaceOf(row)
   if (path.dirname(ws.dir) !== PROJECTS_DIR) return
   const marker = await readMarker(ws.dir)
-  if (!existsSync(ws.dir) || (marker && marker.projectId !== row.id)) return
+  if (!existsSync(ws.dir) || marker?.projectId !== row.id) return
   await rm(ws.dir, { recursive: true, force: true })
   await deleteWorkspaceHistory(ws.dir)
 }
@@ -1018,6 +1033,22 @@ async function idleTick(): Promise<void> {
   }
 }
 
+/** Finish cleanup for projects deleted while this worker was unreachable. */
+async function orphanTick(): Promise<void> {
+  const entries = await readdir(PROJECTS_DIR, { withFileTypes: true }).catch(() => [])
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith('.')) continue
+    const dir = path.join(PROJECTS_DIR, entry.name)
+    const marker = await readMarker(dir)
+    if (!marker) continue
+    const exists = await db.prisma.project.count({ where: { id: marker.projectId } })
+    if (exists) continue
+    await rm(dir, { recursive: true, force: true })
+    await deleteWorkspaceHistory(dir)
+    logger.info({ projectId: marker.projectId, dir }, 'removed orphaned project workspace')
+  }
+}
+
 export function startHostLoops(): void {
   if (loops.length) return
   onSessionBusy((projectId, busy) => {
@@ -1044,6 +1075,8 @@ export function startHostLoops(): void {
   }
   every(5000, checkpointTick)
   every(60_000, idleTick)
+  void orphanTick().catch(err => logger.warn({ err }, 'orphan workspace sweep failed'))
+  every(60 * 60_000, orphanTick)
 }
 
 export function stopHostLoops(): void {

@@ -43,6 +43,7 @@ interface ProjectFile {
 }
 
 const projectFile = (ws: Workspace) => path.join(ws.dir, 'project.json')
+const uploadName = (name: string) => path.basename(name).replace(/[^\w.-]+/g, '_') || 'upload'
 
 async function readProjectFile(ws: Workspace): Promise<ProjectFile> {
   try {
@@ -72,7 +73,7 @@ export async function prepareWorkspace(
   const known = new Map((previous.uploads ?? []).map(u => [u.url, u]))
 
   for (const upload of uploads) {
-    const name = path.basename(upload.name).replace(/[^\w.-]+/g, '_') || 'upload'
+    const name = uploadName(upload.name)
     try {
       await download(upload.url, path.join(ws.dir, 'uploads', name))
       // A video is also the recording editor's input, at the fixed path it
@@ -88,10 +89,12 @@ export async function prepareWorkspace(
         for (const stale of ['demo-state.json', 'edit-session.json'])
           await rm(path.join(dir, stale), { force: true })
       }
+      // Persist the path that actually exists in the workspace. The original
+      // browser filename may contain spaces or characters removed above.
+      known.set(upload.url, { ...upload, name })
     } catch (err) {
       logger.warn({ err, url: upload.url, ws: ws.internal }, 'could not stage upload')
     }
-    known.set(upload.url, upload)
   }
 
   // A PDF or PPTX is also a deck the agent can rebuild; parsing it up front
@@ -128,8 +131,11 @@ export async function prepareWorkspace(
 async function inventory(ws: Workspace): Promise<string> {
   const lines: string[] = []
   const project = await readProjectFile(ws)
-  for (const u of project.uploads ?? [])
-    lines.push(`- uploads/${path.basename(u.name)} (${u.type || 'file'})`)
+  for (const u of project.uploads ?? []) {
+    const name = uploadName(u.name)
+    if (existsSync(path.join(ws.dir, 'uploads', name)))
+      lines.push(`- uploads/${name} (${u.type || 'file'})`)
+  }
   if (existsSync(path.join(ws.dir, 'deck.html'))) lines.push('- deck.html (a slide deck)')
   // shots.js is at the workspace root — the same wrong path that made every
   // finished film report as "produced nothing" (see agent/describe.ts).
@@ -170,6 +176,14 @@ export async function buildContext(ws: Workspace, turn: TurnInput): Promise<stri
       ? `New project "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}`
       : `You are continuing "${ws.name}". ${await inventory(ws)}\nProject options (preferences or UI defaults, not a request): ${optionSummary(options)}.\n\n${TURN_REQUEST_CONTRACT}\n\nIf the message is actionable, apply exactly what the user asked for. A small change is a small edit, not a rebuild — reach for the pitch media commands before regenerating anything.`,
   )
+
+  const hasStagedUpload = (project.uploads ?? []).some(u =>
+    existsSync(path.join(ws.dir, 'uploads', uploadName(u.name))),
+  )
+  if (hasStagedUpload)
+    parts.push(
+      'The files under uploads/ are source materials attached by the user. Use their workspace-relative paths directly, and inspect relevant images or documents with the read tool before creating or editing the artifact.',
+    )
 
   if (
     typeof options.durationSeconds === 'number' &&

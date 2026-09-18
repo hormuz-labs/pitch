@@ -31,7 +31,7 @@
   flex: 1;
   min-width: 0;
   color: var(--affiliate-ink);
-  font-family: var(--font-sans, 'Geist Variable', sans-serif);
+  font-family: var(--font-sans, system-ui, sans-serif);
 }
 
 .affiliate-loading { display: grid; min-height: 60vh; place-items: center; }

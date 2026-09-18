@@ -15,6 +15,7 @@ import {
 import { createSignal, onCleanup, onMount, Show } from 'solid-js'
 import pCoinIcon from '../../assets/pCoin.svg'
 import { API_URL } from '../../config'
+import { PLANS } from '../../lib/plans'
 import { useAuth, useClerk, useUser } from '../core/auth'
 import { useTheme } from '../core/theme'
 import { DiscordIcon } from '../public/brand'
@@ -28,6 +29,9 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
   const theme = useTheme()
   const { getToken } = useAuth()
   const [credits, setCredits] = createSignal<number | null>(null)
+  const [plan, setPlan] = createSignal('Free')
+  const planName = (key?: string) =>
+    PLANS.find(item => item.key === key || item.annual?.key === key)?.name ?? key ?? 'Free'
   const loadCredits = async () => {
     const token = await getToken()
     if (!token) return
@@ -35,7 +39,11 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
-    if (response.ok) setCredits((await response.json()).balance)
+    if (response.ok) {
+      const summary = await response.json()
+      setCredits(summary.balance)
+      setPlan(planName(summary.activeSubscription?.planKey))
+    }
   }
   onMount(() => {
     void loadCredits()
@@ -57,7 +65,8 @@ export function SidebarAccountMenu(props: { openSettings: (section?: SettingsSec
                   {src => <img src={src()} alt="" />}
                 </Show>
               </span>
-              <span>{user()?.firstName || 'Your account'}</span>
+              <span class="sidebar-account-name">{user()?.firstName || 'Your account'}</span>
+              <span class="sidebar-account-plan">{plan()}</span>
               <ChevronUp class="sidebar-account-chevron" size={12} />
             </>
           }

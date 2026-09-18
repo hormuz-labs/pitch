@@ -1,6 +1,6 @@
 import { LocateFixed, Mic, Music, SkipBack } from 'lucide-solid'
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
-import { fmt, timelineFollowScrollLeft } from './helpers'
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import { fmt, fmtRulerTick, timelineFollowScrollLeft, timelineRulerTicks } from './helpers'
 import type { Scene } from './types'
 import type { ProjectStore } from './useProject'
 
@@ -52,6 +52,7 @@ interface Cue {
 export function SceneStrip(props: { store: ProjectStore }) {
   const s = props.store
   const [follow, setFollow] = createSignal(false)
+  const [rulerWidth, setRulerWidth] = createSignal(760)
   let viewport: HTMLDivElement | undefined
   const scenes = createMemo(() => s.project?.description.scenes ?? []),
     duration = createMemo(() => s.project?.description.duration || scenes().at(-1)?.end || 1),
@@ -84,7 +85,9 @@ export function SceneStrip(props: { store: ProjectStore }) {
     width = createMemo(() =>
       Math.min(7200, Math.max(760, Math.ceil(duration() * 48), scenes().length * 132)),
     ),
-    playheadX = () => Math.max(0, Math.min(1, s.playhead / duration())) * width(),
+    contentWidth = createMemo(() => Math.max(width(), rulerWidth())),
+    playheadX = () => Math.max(0, Math.min(1, s.playhead / duration())) * contentWidth(),
+    rulerTicks = createMemo(() => timelineRulerTicks(duration(), contentWidth())),
     activeScene = createMemo(
       () => scenes().find(scene => s.playhead >= scene.start && s.playhead < scene.end)?.id,
     )
@@ -106,6 +109,14 @@ export function SceneStrip(props: { store: ProjectStore }) {
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })
+  onMount(() => {
+    if (!viewport) return
+    const measure = () => setRulerWidth(Math.max(240, viewport!.clientWidth - 104))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    onCleanup(() => observer.disconnect())
+  })
   const target = (scene: Scene, kind = 'scene') => {
     s.seekPlayer(scene.start + 0.01)
     s.addTarget({
@@ -123,7 +134,7 @@ export function SceneStrip(props: { store: ProjectStore }) {
     <div
       class="timeline pro-multi-track-timeline"
       style={{
-        '--timeline-content-w': `${width()}px`,
+        '--timeline-content-w': `${contentWidth()}px`,
       }}
     >
       <Show
@@ -176,7 +187,10 @@ export function SceneStrip(props: { store: ProjectStore }) {
           onWheel={() => setFollow(false)}
           onTouchStart={() => setFollow(false)}
         >
-          <div class="pro-timeline-canvas" style={{ '--timeline-content-w': `${width()}px` }}>
+          <div
+            class="pro-timeline-canvas"
+            style={{ '--timeline-content-w': `${contentWidth()}px` }}
+          >
             <span
               class="timeline-playhead"
               aria-hidden="true"
@@ -203,10 +217,10 @@ export function SceneStrip(props: { store: ProjectStore }) {
                   )
                 }
               >
-                <For each={[0, 0.25, 0.5, 0.75, 1]}>
-                  {f => (
-                    <span class="ruler-mark" style={{ left: `${f * 100}%` }}>
-                      {fmt(f * duration())}
+                <For each={rulerTicks()}>
+                  {tick => (
+                    <span class="ruler-mark" style={{ left: `${(tick / duration()) * 100}%` }}>
+                      {fmtRulerTick(tick, duration())}
                     </span>
                   )}
                 </For>

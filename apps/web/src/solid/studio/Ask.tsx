@@ -49,6 +49,7 @@ export function QuestionCard(props: {
     setSent(true)
     props.onSend(text, answer())
   }
+  const goToStep = (next: number) => setStep(Math.max(0, Math.min(next, questions().length)))
   const choose = (label: string) => {
     const cur = q()
     if (locked() || !cur) return
@@ -63,7 +64,6 @@ export function QuestionCard(props: {
     }
     setCustom(values => ({ ...values, [cur.id]: '' }))
     setPicked(p => ({ ...p, [cur.id]: [label] }))
-    setStep(v => v + 1)
   }
   const hasAnswer = (question = q()) =>
     Boolean(question && ((picked()[question.id] ?? []).length || custom()[question.id]?.trim()))
@@ -78,7 +78,7 @@ export function QuestionCard(props: {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (confirming()) send(summary().join('\n'))
-      else if (hasAnswer()) setStep(v => v + 1)
+      else if (hasAnswer()) goToStep(step() + 1)
       return
     }
     if (e.key === 'Backspace' && step() > 0) {
@@ -104,11 +104,18 @@ export function QuestionCard(props: {
         <span class="ask-progress">
           {confirming() ? 'Review answers' : `Question ${step() + 1} of ${questions().length}`}
         </span>
-        <div class="ask-dots" aria-hidden="true">
+        <div class="ask-dots" aria-label="Question navigation">
           <For each={questions()}>
             {(x, i) => (
-              <span
-                class={`ask-dot${i() === step() ? ' on' : ''}${(picked()[x.id] ?? []).length ? ' done' : ''}`}
+              <button
+                type="button"
+                class={`ask-dot${i() === step() ? ' on' : ''}${
+                  (picked()[x.id] ?? []).length || custom()[x.id]?.trim() ? ' done' : ''
+                }`}
+                aria-label={`Go to question ${i() + 1}`}
+                aria-current={i() === step() ? 'step' : undefined}
+                disabled={locked()}
+                onClick={() => goToStep(i())}
               />
             )}
           </For>
@@ -129,13 +136,14 @@ export function QuestionCard(props: {
                     <span class="ask-any"> · any</span>
                   </Show>
                 </p>
-                <ul class="ask-list">
+                <ul class={`ask-list ${cur.multi ? 'is-multiple' : 'is-single'}`}>
                   <For each={cur.options}>
                     {(o, i) => (
                       <li>
                         <button
                           type="button"
                           class={`ask-row${(picked()[cur.id] ?? []).includes(o.label) ? ' on' : ''}`}
+                          aria-pressed={(picked()[cur.id] ?? []).includes(o.label)}
                           disabled={locked()}
                           onClick={() => choose(o.label)}
                         >
@@ -158,13 +166,13 @@ export function QuestionCard(props: {
                           value={custom()[cur.id] ?? ''}
                           disabled={locked()}
                           maxLength={500}
-                          placeholder="Type your answer…"
+                          placeholder="Describe what you have in mind…"
                           onInput={event => setOther(event.currentTarget.value)}
                           onKeyDown={event => {
                             event.stopPropagation()
                             if (event.key === 'Enter' && event.currentTarget.value.trim()) {
                               event.preventDefault()
-                              setStep(value => value + 1)
+                              goToStep(step() + 1)
                             }
                           }}
                         />
@@ -176,15 +184,18 @@ export function QuestionCard(props: {
                   <div class="ask-actions">
                     <div class="ask-nav">
                       <Show when={step() > 0}>
-                        <button type="button" class="ask-flat" onClick={() => setStep(v => v - 1)}>
+                        <button type="button" class="ask-flat" onClick={() => goToStep(step() - 1)}>
                           Previous
                         </button>
                       </Show>
-                      <Show when={hasAnswer(cur)}>
-                        <button type="button" class="ask-send" onClick={() => setStep(v => v + 1)}>
-                          Next
-                        </button>
-                      </Show>
+                      <button
+                        type="button"
+                        class="ask-send"
+                        disabled={!hasAnswer(cur)}
+                        onClick={() => goToStep(step() + 1)}
+                      >
+                        {step() === questions().length - 1 ? 'Review answers' : 'Confirm & next'}
+                      </button>
                     </div>
                     <button
                       type="button"
@@ -197,11 +208,13 @@ export function QuestionCard(props: {
                         )
                         setCustom({})
                         queueMicrotask(() =>
-                          send('You decide — take your own first option for each and get started.'),
+                          send(
+                            'Let the agent decide — choose the best option for each question and get started.',
+                          ),
                         )
                       }}
                     >
-                      You decide
+                      Let agent decide
                     </button>
                   </div>
                 </Show>
@@ -219,11 +232,7 @@ export function QuestionCard(props: {
             <button type="button" class="ask-send" onClick={() => send(summary().join('\n'))}>
               Send
             </button>
-            <button
-              type="button"
-              class="ask-flat"
-              onClick={() => setStep(Math.max(0, questions().length - 1))}
-            >
+            <button type="button" class="ask-flat" onClick={() => goToStep(questions().length - 1)}>
               Back
             </button>
           </div>

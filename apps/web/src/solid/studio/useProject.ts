@@ -25,7 +25,8 @@ export function useProject(id: string | undefined) {
     return token
   }
   const [project, setProject] = createSignal<ProjectDetail | null>(null),
-    [loadError, setLoadError] = createSignal<string | null>(null)
+    [loadError, setLoadError] = createSignal<string | null>(null),
+    [initialLoading, setInitialLoading] = createSignal(true)
   const [entries, setEntries] = createSignal<Entry[]>([]),
     [busy, setBusy] = createSignal(false),
     [activeModel, setActiveModel] = createSignal<string | null>(null),
@@ -212,7 +213,9 @@ export function useProject(id: string | undefined) {
         break
       case 'credit_balance':
         window.dispatchEvent(
-          new CustomEvent('credits-changed', { detail: { balance: ev.balance } }),
+          new CustomEvent('credits-changed', {
+            detail: { balance: ev.balance, pending: ev.pending === true },
+          }),
         )
         break
       case 'deleted':
@@ -289,34 +292,38 @@ export function useProject(id: string | undefined) {
     const tokenTimer = setInterval(token, 45000)
     void connect()
     void (async () => {
-      if (!id) return
-      const initialEntryRevision = entryRevision
-      const initialBusyRevision = busyRevision
-      const initialProjectRevision = projectRevision
-      const t = await getToken().catch(() => null)
-      if (!t) return
-      const [d, m, e, a] = await Promise.all([
-        studio.get(t, id).catch(() => null),
-        studio.messages(t, id).catch(() => ({ entries: [], busy: false, activeModel: null })),
-        studio.getExport(t, id).catch(() => null),
-        studio.assets(t, id).catch(() => []),
-      ])
-      if (!live) return
-      if (d && projectRevision === initialProjectRevision) setProject(d)
-      if (initialEntryRevision === entryRevision) setEntries(m.entries)
-      else
-        setEntries(current => {
-          const liveIds = new Set(current.map(entry => entry.id))
-          return [...m.entries.filter(entry => !liveIds.has(entry.id)), ...current]
-        })
-      if (initialBusyRevision === busyRevision) {
-        setBusy(m.busy)
-        setActiveModel(m.busy ? m.activeModel : null)
-      }
-      setAssets(a)
-      if (e && !exportPending() && !exportStatus()) {
-        setExportStatus(e)
-        if (e.running) startPoll()
+      try {
+        if (!id) return
+        const initialEntryRevision = entryRevision
+        const initialBusyRevision = busyRevision
+        const initialProjectRevision = projectRevision
+        const t = await getToken().catch(() => null)
+        if (!t) return
+        const [d, m, e, a] = await Promise.all([
+          studio.get(t, id).catch(() => null),
+          studio.messages(t, id).catch(() => ({ entries: [], busy: false, activeModel: null })),
+          studio.getExport(t, id).catch(() => null),
+          studio.assets(t, id).catch(() => []),
+        ])
+        if (!live) return
+        if (d && projectRevision === initialProjectRevision) setProject(d)
+        if (initialEntryRevision === entryRevision) setEntries(m.entries)
+        else
+          setEntries(current => {
+            const liveIds = new Set(current.map(entry => entry.id))
+            return [...m.entries.filter(entry => !liveIds.has(entry.id)), ...current]
+          })
+        if (initialBusyRevision === busyRevision) {
+          setBusy(m.busy)
+          setActiveModel(m.busy ? m.activeModel : null)
+        }
+        setAssets(a)
+        if (e && !exportPending() && !exportStatus()) {
+          setExportStatus(e)
+          if (e.running) startPoll()
+        }
+      } finally {
+        if (live) setInitialLoading(false)
       }
     })()
     onCleanup(() => {
@@ -459,6 +466,9 @@ export function useProject(id: string | undefined) {
     get loadError() {
       return loadError()
     },
+    get initialLoading() {
+      return initialLoading()
+    },
     get entries() {
       return entries()
     },
@@ -583,6 +593,14 @@ export function useProject(id: string | undefined) {
     },
     stop: async () => {
       if (id) await studio.stop(await getToken(), id).catch(() => {})
+    },
+    updateProject: async (data: { title?: string; pinnedAt?: string | null }) => {
+      if (!id) return
+      const next = await studio.patch(await getToken(), id, data)
+      setProject(current =>
+        current ? { ...current, ...next, description: current.description } : current,
+      )
+      window.dispatchEvent(new Event('pitch:projects-changed'))
     },
     remove: async () => {
       if (id) await studio.remove(await getToken(), id)

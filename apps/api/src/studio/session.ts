@@ -12,7 +12,7 @@
  * The session file is persisted on the Project row so a conversation resumes
  * across restarts.
  */
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, realpathSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
@@ -45,7 +45,7 @@ import {
   parseModelSpec,
   studioModelSpecs,
 } from './model-picker.js'
-import { PI_DIR, PI_EXTENSIONS_DIR, type Workspace } from './paths.js'
+import { PI_DIR, PI_EXTENSIONS_DIR, SKILLS_DIR, type Workspace } from './paths.js'
 import { unwatchWorkspace, watchWorkspace } from './watch.js'
 
 const logger = createLogger('studio:session')
@@ -103,6 +103,7 @@ interface PendingPrompt {
   model?: string
   entry: Entry
   turn: number
+  usedProvidedSkill: boolean
 }
 
 interface PendingSteer {
@@ -127,10 +128,34 @@ export interface Session {
   pendingBindings: Entry[]
   preStartSteers: PendingSteer[]
   stopping: boolean
+  providedSkillFiles: Set<string>
+  pendingSkillReads: Map<string, number>
 }
 
 const sessions = new Map<string, Session>()
 const pendingCreates = new Map<string, Promise<Session>>()
+
+function canonicalPath(file: string, cwd: string): string | null {
+  try {
+    return realpathSync(path.resolve(cwd, file))
+  } catch {
+    return null
+  }
+}
+
+export function isProvidedSkillRead(
+  toolName: string,
+  args: unknown,
+  cwd: string,
+  providedSkillFiles: ReadonlySet<string>,
+): boolean {
+  if (toolName !== 'read') return false
+  const value = args as { path?: unknown; file?: unknown }
+  const named = value?.path ?? value?.file
+  if (typeof named !== 'string') return false
+  const resolved = canonicalPath(named, cwd)
+  return Boolean(resolved && providedSkillFiles.has(resolved))
+}
 
 let modelRuntime: any
 let initPromise: Promise<void> | null = null
@@ -559,6 +584,12 @@ function onPiEvent(s: Session, ev: any): void {
       break
     }
     case 'tool_execution_start':
+      if (
+        s.active &&
+        typeof ev.toolCallId === 'string' &&
+        isProvidedSkillRead(ev.toolName, ev.args, s.ws.dir, s.providedSkillFiles)
+      )
+        s.pendingSkillReads.set(ev.toolCallId, s.active.turn)
       // ask_user is not a step the user watches — it IS the message. Draw it
       // as the question card instead of a "running" log line.
       if (ev.toolName === 'ask_user') {
@@ -572,6 +603,10 @@ function onPiEvent(s: Session, ev: any): void {
       emit(s, { type: 'tool', name: ev.toolName, args: ev.args ?? {} })
       break
     case 'tool_execution_end': {
+      const skillTurn = s.pendingSkillReads.get(ev.toolCallId)
+      s.pendingSkillReads.delete(ev.toolCallId)
+      if (!ev.isError && skillTurn !== undefined && s.active?.turn === skillTurn)
+        s.active.usedProvidedSkill = true
       const entry = [...s.entries]
         .reverse()
         .find(e => e.role === 'tool' && e.tool?.status === 'running' && e.tool.name === ev.toolName)
@@ -704,6 +739,12 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       appendSystemPromptOverride: () => (prompt ? [prompt] : []),
     })
     await resourceLoader.reload()
+    const skillsRoot = canonicalPath(SKILLS_DIR, ws.dir)
+    const providedSkillFiles = new Set<string>()
+    for (const skill of resourceLoader.getSkills?.()?.skills ?? []) {
+      const file = canonicalPath(skill.filePath, ws.dir)
+      if (skillsRoot && file?.startsWith(`${skillsRoot}${path.sep}`)) providedSkillFiles.add(file)
+    }
     const ext: any = resourceLoader.getExtensions?.()
     for (const e of ext?.errors ?? [])
       logger.warn({ err: e.error, path: e.path }, 'extension failed to load')
@@ -743,6 +784,8 @@ export async function getSession(opts: OpenSessionOptions): Promise<Session> {
       pendingBindings: [],
       preStartSteers: [],
       stopping: false,
+      providedSkillFiles,
+      pendingSkillReads: new Map(),
     }
     session.subscribe((ev: any) => onPiEvent(s, ev))
     sessions.set(opts.projectId, s)
@@ -811,6 +854,11 @@ export function takeModelCost(projectId: string): number {
 /** Model spend accrued without draining it, for live affordability checks. */
 export function peekModelCost(projectId: string): number {
   return sessions.get(projectId)?.cost ?? 0
+}
+
+export function activeTurnUsesProvidedSkill(projectId: string, turn: number): boolean {
+  const active = sessions.get(projectId)?.active
+  return active?.turn === turn && active.usedProvidedSkill
 }
 
 export function listBusy(): Set<string> {
@@ -897,10 +945,13 @@ async function runPrompt(s: Session, request: PendingPrompt): Promise<void> {
       s.stopping = false
       setBusy(s, false)
     }
+    const modelUsd = s.cost
+    s.cost = 0
     emit(s, {
       type: 'idle',
       turn: request.turn,
-      cost: s.cost,
+      cost: modelUsd,
+      usedProvidedSkill: request.usedProvidedSkill,
       busy: Boolean(next),
       ...(failed ? { failed: true } : {}),
       ...(aborted ? { aborted: true } : {}),
@@ -946,7 +997,14 @@ export async function promptSession(
         }
         entry.pending = 'queued'
         updateEntry(s, entry)
-        const request = { text, context, model: opts.model, entry, turn: ++s.turn }
+        const request = {
+          text,
+          context,
+          model: opts.model,
+          entry,
+          turn: ++s.turn,
+          usedProvidedSkill: false,
+        }
         if (s.busy) s.queue.unshift(request)
         else {
           setBusy(s, true)
@@ -960,14 +1018,28 @@ export async function promptSession(
       }
     }
     const entry = addEntry(s, 'user', displayText, undefined, undefined, 'queued')
-    const request = { text, context, model: opts.model, entry, turn: ++s.turn }
+    const request = {
+      text,
+      context,
+      model: opts.model,
+      entry,
+      turn: ++s.turn,
+      usedProvidedSkill: false,
+    }
     s.queue.push(request)
     return { session: s, turn: request.turn, entryId: entry.id, delivery: 'queued' }
   }
 
   const entry = addEntry(s, 'user', displayText)
   setBusy(s, true)
-  const request = { text, context, model: opts.model, entry, turn: ++s.turn }
+  const request = {
+    text,
+    context,
+    model: opts.model,
+    entry,
+    turn: ++s.turn,
+    usedProvidedSkill: false,
+  }
   void runPrompt(s, request)
   return { session: s, turn: request.turn, entryId: entry.id, delivery: 'started' }
 }

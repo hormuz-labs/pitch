@@ -5,6 +5,7 @@
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
+    "declaration": false,
     "composite": false
   },
   "include": ["src/**/*"],

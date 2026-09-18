@@ -17,7 +17,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-import type { ObjectDriver, PutOptions } from './driver.js'
+import { type ObjectDriver, type PutOptions, readAll } from './driver.js'
 
 const MULTIPART_THRESHOLD = 5 * 1024 * 1024 // 5 MB
 const MULTIPART_PART_SIZE = 5 * 1024 * 1024 // 5 MB per part
@@ -31,6 +31,15 @@ const notFound = (e: any) =>
   e?.name === 'NotFound' ||
   e?.name === 'NoSuchBucket' ||
   e?.$metadata?.httpStatusCode === 404
+
+/** S3-compatible endpoints require the declared length to match the wire body exactly. */
+export async function byteExactBody(body: Readable | Buffer, size: number): Promise<Buffer> {
+  const bytes = Buffer.isBuffer(body) ? body : await readAll(body)
+  if (bytes.length !== size) {
+    throw new Error(`Upload expected ${size} bytes but received ${bytes.length}`)
+  }
+  return bytes
+}
 
 export function s3Driver(): ObjectDriver {
   const client = new S3Client({
@@ -91,14 +100,17 @@ export function s3Driver(): ObjectDriver {
       const known =
         !Buffer.isBuffer(body) && opts.size !== undefined && opts.size <= MULTIPART_THRESHOLD
       if (small || known) {
+        const exactBody = await byteExactBody(
+          body,
+          Buffer.isBuffer(body) ? body.length : opts.size!,
+        )
         await client.send(
           new PutObjectCommand({
             Bucket: bucket,
             Key: key,
-            Body: body,
+            Body: exactBody,
             ContentType: opts.contentType,
-            // A stream has no length of its own; the SDK needs one to send it in one request.
-            ContentLength: Buffer.isBuffer(body) ? body.length : opts.size,
+            ContentLength: exactBody.length,
           }),
         )
         return

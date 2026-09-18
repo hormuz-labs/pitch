@@ -20,6 +20,12 @@ vi.mock('../apps/api/src/worker/host.js', () => ({
       throw Object.assign(new Error('not held'), { status: 409, code: 'NOT_OWNER' })
     return { preview: null, outputs: [] }
   }),
+  subscribe: vi.fn(async (id: string, send: (event: unknown) => void) => {
+    if (id === 'gone')
+      throw Object.assign(new Error('not held'), { status: 409, code: 'NOT_OWNER' })
+    send({ type: 'hello', busy: false })
+    return () => {}
+  }),
 }))
 vi.mock('../apps/api/src/worker/registry.js', () => ({ currentEpoch: () => 7 }))
 
@@ -51,5 +57,13 @@ describe('worker contract auth', () => {
       .get('/internal/worker/projects/p1/describe')
       .set('Authorization', 'Bearer secret-token')
     expect(ok.body).toEqual({ preview: null, outputs: [] })
+  })
+
+  it('returns a retryable error before opening an event stream', async () => {
+    const res = await request(app)
+      .get('/internal/worker/projects/gone/events')
+      .set('Authorization', 'Bearer secret-token')
+    expect(res.status).toBe(409)
+    expect(res.body).toEqual({ error: 'not held', code: 'NOT_OWNER' })
   })
 })

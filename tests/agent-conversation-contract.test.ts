@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -78,6 +78,61 @@ describe('agent conversation contract', () => {
     const context = await buildContext(ws, { first: false, options: { durationSeconds: 45 } })
     expect(context).toContain('Target runtime: about 45 seconds')
     expect(context).not.toContain('Target runtime: about 15 seconds')
+  })
+
+  it.each([true, false])(
+    'gives attached files to the agent using their real workspace paths when first=%s',
+    async first => {
+      const ws = workspace()
+      mkdirSync(path.join(ws.dir, 'uploads'), { recursive: true })
+      writeFileSync(path.join(ws.dir, 'uploads', 'my_logo.png'), 'image')
+      writeFileSync(
+        path.join(ws.dir, 'project.json'),
+        JSON.stringify({
+          options: {},
+          uploads: [
+            {
+              url: 'https://storage.example/my-logo',
+              name: 'my logo.png',
+              type: 'image/png',
+              size: 5,
+            },
+          ],
+        }),
+      )
+
+      const context = await buildContext(ws, { first, options: {} })
+
+      expect(context).toContain('uploads/my_logo.png (image/png)')
+      expect(context).not.toContain('uploads/my logo.png')
+      expect(context).toContain('source materials attached by the user')
+      expect(context).toContain('inspect relevant images or documents with the read tool')
+    },
+  )
+
+  it('does not tell the agent that a failed or missing upload exists', async () => {
+    const ws = workspace()
+    mkdirSync(path.join(ws.dir, 'uploads'), { recursive: true })
+    writeFileSync(
+      path.join(ws.dir, 'project.json'),
+      JSON.stringify({
+        options: {},
+        uploads: [
+          {
+            url: 'https://storage.example/missing',
+            name: 'missing image.png',
+            type: 'image/png',
+            size: 5,
+          },
+        ],
+      }),
+    )
+
+    const context = await buildContext(ws, { first: true, options: {} })
+
+    expect(context).not.toContain('uploads/missing_image.png')
+    expect(context).toContain('The workspace is empty.')
+    expect(context).not.toContain('source materials attached by the user')
   })
 
   it.each([undefined, 0, -15, Number.NaN, Number.POSITIVE_INFINITY])(

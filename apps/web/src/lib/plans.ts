@@ -156,7 +156,12 @@ export const PLANS: readonly Plan[] = [
     priceUsd: 20,
     credits: 800,
     description: 'Best for occasional videos without a recurring plan.',
-    features: ['800 credits', 'No subscription required', 'Up to 1080p exports'],
+    features: [
+      '800 credits',
+      'No subscription required',
+      'Watermark-free exports',
+      'Up to 1080p exports',
+    ],
   },
   {
     key: 'pro',

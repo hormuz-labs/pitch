@@ -1,102 +1,25 @@
-# Pitch
+# Pitch API
 
-> Pitch turns any website URL into a cinematic, narrated product demo video. An autonomous AI agent opens a real browser, navigates the product, writes the script, records the screen with smooth cursor motion, and renders a 1080p MP4 — in minutes, with no recording or editing.
+Pitch is one usage-metered studio with one agent. A project is a workspace and a resumable conversation. The prompt and uploaded files determine which tools the agent uses; callers do not select a flow.
 
-Pitch is built for founders, product marketers, and agencies who need polished product demo videos without the cost or turnaround of traditional production. Typical use cases include website hero videos, investor updates, demo-day pitches, sales outreach, onboarding walkthroughs, and changelog announcements.
+API: https://api.trypitch.co/v1
+MCP: POST https://api.trypitch.co/mcp
+Auth: Authorization: Bearer pk_... or X-API-Key: pk_...
 
-## How it works
+REST:
+- POST /v1/projects: { prompt?, options?, uploads?, name? }. Prompt is required unless uploads are present. A legacy optional flow field is accepted but ignored.
+- GET /v1/projects?limit=50: { data, total }. Limit is 1-100.
+- GET /v1/projects/{id}
+- POST /v1/projects/{id}/prompt: { text, scene?, slide?, delivery?: "queue"|"steer" }
+- POST /v1/projects/{id}/export: { res?: "720p"|"1080p"|"4k" }
+- GET /v1/projects/{id}/export
+- GET /v1/credits
+- GET /v1/pricing (public)
 
-1. Drop your URL — the agent opens a real browser and navigates your live product.
-2. Direct the scene — describe what to show in plain English, pick a voice, theme, and pace.
-3. Receive the cut — a narrated, scored, color-graded 1080p MP4, editable scene-by-scene.
+MCP tools: create_project, prompt_project, get_project, list_projects, export_project, export_status, get_credits, get_pricing.
 
-## For developers and AI agents
+Creation, prompts, and exports are billed by model spend and host compute. Reads are free. Poll project status until ready or failed. Active prompts queue by default; delivery "steer" redirects active work. There are no idempotency keys.
 
-Pitch has two programmatic surfaces. Both use the same `pk_` API key, created at https://trypitch.co/api-keys, and both spend from the same credit balance.
+Uploads are base64 { fileBase64, fileName }. Accepted: PDF, PPTX, PNG, JPG, JPEG, WEBP, MP4, WEBM, MOV, MKV, AVI. Documents/images: 50 MB. Videos: 500 MB. Whole request: 750 MB.
 
-- MCP server: `POST https://api.trypitch.co/mcp`. Streamable HTTP, stateless. Auth header `Authorization: Bearer pk_...` (or `X-API-Key: pk_...`). Listed on the official MCP registry as `co.trypitch/pitch`. Works in Claude, Cursor, ChatGPT, and Perplexity.
-- REST API: `https://api.trypitch.co/v1`. Same auth. Create a project, then poll it.
-
-Every output is a project: a workspace, an agent, and a conversation. Creating one returns `202` with a project id and charges credits immediately. Poll `GET /v1/projects/{id}` every 10 seconds until `status` is `ready` or `failed`. The result is the newest entry in `outputs` (`{ kind, url, res?, label?, createdAt }`, kind `video` or `pdf`). Every prompt after the first is free: `POST /v1/projects/{id}/prompt` edits the project in place.
-
-### Endpoints
-
-- `POST /v1/projects` — `{ flow, prompt, options?, uploads? }`. Flows: `demo-video` (3 credits), `launch-video` (6 at 720p, 9 at 1080p default, 13 at 4K; `options.narration: false` saves 1), `deck` (1; 2 when enhancing an uploaded PDF/PPTX with `options.mode`), `recording-edit` (2, upload the recording). Uploads are base64 `{ fileBase64, fileName }` entries; 50 MB for PDFs/PPTX/images, 500 MB for video.
-- `POST /v1/projects/{id}/prompt` — `{ text, scene?, slide? }`. Follow-up to the same agent. Free. 409 while the agent is busy.
-- `GET /v1/projects`, `GET /v1/projects/{id}` — project state, outputs, scenes or slides. Free.
-- `GET /v1/credits` — balance and ledger. Free.
-- `GET /v1/pricing` — current credit prices. Free, no key.
-
-### MCP tools
-
-`create_project` (1-13 by flow), `prompt_project` (free), `get_project`, `list_projects`, `get_credits`, `get_pricing`.
-
-### Developer docs
-
-- [Docs home](https://trypitch.co/docs): overview of both surfaces
-- [Getting started](https://trypitch.co/docs/getting-started): first video with curl
-- [AI agents (MCP)](https://trypitch.co/docs/mcp): connect Claude, Cursor, ChatGPT, Perplexity
-- [Authentication](https://trypitch.co/docs/authentication): API keys and headers
-- [Credits](https://trypitch.co/docs/credits): what everything costs
-- [Files and uploads](https://trypitch.co/docs/files): base64 uploads and limits
-- [Polling projects](https://trypitch.co/docs/polling): statuses, outputs, follow-up prompts, and a loop that handles every case
-- [Errors](https://trypitch.co/docs/errors): codes and what is safe to retry
-- [REST API reference](https://trypitch.co/docs/api): every endpoint and field
-- [MCP tools reference](https://trypitch.co/docs/tools): every tool and argument
-- [OpenAPI spec](https://trypitch.co/openapi.json): machine-readable API definition
-- [llms-full.txt](https://trypitch.co/llms-full.txt): the full developer docs as one file
-
-## Pricing
-
-- Starter — $10/month, 10 credits (3 videos)
-- Pro — $40/month, 50 credits (~16 videos), watermark removed
-- Enterprise — custom volume
-- One-time top-ups: 10 credits / $12, 50 credits / $45
-- 3 credits = one full AI-generated demo video. Credits never expire.
-
-## FAQ
-
-- **How is Pitch different from Loom or other screen recorders?** Loom records you clicking around your product. Pitch is autonomous — an AI agent opens a real browser, navigates your product, writes the script, and produces a polished, narrated video with cinematic cursor motion and color grading. No recording, no editing.
-- **How is Pitch different from Synthesia or HeyGen?** Synthesia and HeyGen generate talking-head avatars. Pitch shows your actual product — the AI agent navigates your real website and narrates what is happening on screen.
-- **How long does it take?** Most videos generate in minutes once you submit your URL and instructions.
-- **What does a video cost?** A full AI-generated demo video uses 3 credits (~$3 on Starter, ~$2.40 on Pro). Credits never expire.
-- **Do I need to install anything or instrument my site?** No. You just provide a public URL. The agent uses a real browser — nothing to install, no SDK, no code change.
-- **Can I edit the video after it's generated?** Yes. Edit captions, swap voices, or re-render individual scenes without regenerating the entire video.
-- **Will the video have a watermark?** Starter videos include a small "Powered by Pitch" watermark. Pro and Enterprise remove it.
-
-## Blog
-
-- [Why Every SaaS Product Needs a Demo Video in 2026](https://trypitch.co/blog/why-every-saas-needs-a-demo-video): B2B buyers watch multiple videos before talking to sales; a good demo video cuts sales cycles and increases sign-ups.
-- [How AI Agents Are Replacing Screen Recorders](https://trypitch.co/blog/ai-agents-replacing-screen-recorders): AI agents browse your product autonomously and deliver a finished video — no manual clicking or editing.
-- [Onboarding Videos That Actually Reduce Churn](https://trypitch.co/blog/onboarding-videos-reduce-churn): Contextual onboarding videos increase activation rates and reduce support tickets.
-- [Pitch Deck vs. Demo Video: Which Converts More Leads?](https://trypitch.co/blog/pitch-deck-vs-demo-video): Prospects who watch a demo video book more discovery calls than those who read a deck.
-- [The Ultimate Guide to a Product Hunt Launch Video](https://trypitch.co/blog/product-hunt-launch-video-guide): Listings with a high-quality demo video get significantly more upvotes.
-- [Scaling Video Content Production with AI: A Founder's Playbook](https://trypitch.co/blog/scaling-content-production-ai): AI video generation lets small teams produce content at production-house speed.
-- [Using Personalized Demo Videos in B2B Cold Outreach](https://trypitch.co/blog/b2b-cold-outreach-video): Cold emails with a personalized demo video get higher reply rates than text-only emails.
-- [The Future of Product Demos: Interactive, AI-Narrated, and On-Demand](https://trypitch.co/blog/future-of-product-demos): Next-gen demos are interactive, tailored to the viewer's role, and generated instantly.
-- [Picking the Right AI Voice for Your Demo Video](https://trypitch.co/blog/voice-selection-demo-videos): How voice tone and pace shape product perception, and what works best for SaaS.
-- [Best AI Tools for Startup Founders in 2026](https://trypitch.co/blog/best-ai-tools-for-startup-founders-2026): Top founders use AI tools to build, sell, and fundraise faster with smaller teams.
-- [How to Build an AI-Powered Go-to-Market Strategy for SaaS](https://trypitch.co/blog/ai-go-to-market-strategy-saas): The AI go-to-market playbook for 2026.
-- [How AI Demo Automation Is Replacing the Sales Engineer Role](https://trypitch.co/blog/replace-sales-engineer-ai-demo-automation): AI demo tools do most of a sales engineer's work quickly and cheaply.
-- [How Founders Are Using AI Demo Videos to Close Investor Meetings](https://trypitch.co/blog/ai-for-investor-fundraising-demo): A 90-second AI demo video wins more initial investor meetings than a pitch deck alone.
-- [Async Demo vs. Live Demo: Which Converts More SaaS Deals?](https://trypitch.co/blog/async-demo-vs-live-demo-saas-sales): Async AI demos run constantly; the data on which closes more deals.
-- [How Generative AI Is Transforming Product Marketing in 2026](https://trypitch.co/blog/generative-ai-product-marketing-2026): Product marketing teams ship launch assets and demo videos faster without adding headcount.
-- [How Buyers Now Discover Software via ChatGPT and Perplexity](https://trypitch.co/blog/chatgpt-perplexity-product-discovery-2026): Why SaaS companies need to optimize content for AI answer engines.
-- [Zero-Shot Demo Video: Generate a Product Walkthrough from Just a URL](https://trypitch.co/blog/zero-shot-demo-video-from-url): Generate a professional demo video from a product URL alone — no script or editor.
-- [Product-Led Growth + AI: The 2026 Playbook](https://trypitch.co/blog/product-led-growth-ai-2026): PLG companies using AI for demos and onboarding grow revenue faster.
-
-## Site
-
-- [Landing page](https://trypitch.co/): product overview, sample video, how it works
-- [Launch videos](https://trypitch.co/product/launch-videos): cinematic launch films
-- [Product demos](https://trypitch.co/product/product-demos): narrated walkthroughs of real flows
-- [Explainers](https://trypitch.co/product/explainers): short clips that make the complex obvious
-- [Pitch decks](https://trypitch.co/product/pitch-decks): investor and sales decks from a URL
-- [Pricing](https://trypitch.co/pricing): subscriptions and one-time top-ups
-- [Machine-readable pricing](https://trypitch.co/pricing.md): structured pricing for AI agents
-- [Blog](https://trypitch.co/blog): guides on AI demo videos and SaaS go-to-market
-
-## Contact
-
-- Email: support@trypitch.co
-- Site: https://trypitch.co
+Full docs: https://trypitch.co/docs

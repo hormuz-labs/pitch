@@ -375,6 +375,7 @@ model Project {
   workspaceCheckpointAt DateTime?
   artifactKind          String?
   busyAt                DateTime?
+  pinnedAt              DateTime?
   lastActivityAt        DateTime            @default(now())
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt()

@@ -1,132 +1,117 @@
-# MCP Server & API Keys
+# MCP Server & Public API
 
 > Public-facing docs live at `apps/web/src/docs/pages.tsx` and render at
-> https://trypitch.co/docs. This file is the internal companion: keep both in
-> sync when tools, costs, or auth change. The `pk_` key also authenticates the
-> REST API in `apps/api/src/routes/v1.ts`.
+> https://trypitch.co/docs. Keep both surfaces and `apps/web/public/openapi.json`
+> in sync.
 
-The studio exposes a remote [Model Context Protocol](https://modelcontextprotocol.io)
-server so external agents can use the product the same way humans do in the web
-UI — start a project (launch video, demo video, deck, recording edit), talk to
-its agent, and read its outputs — with the same credit accounting. Users mint
-API keys from the **API Keys** page (`/api-keys`) in the web app.
+Pitch exposes the same studio through MCP and REST. A project is one workspace
+and one resumable agent session. The request and attached files determine which
+tools the agent uses; callers do not select a product flow.
 
-## Endpoint
+## Endpoints
 
-```
+```text
 POST https://api.trypitch.co/mcp
+https://api.trypitch.co/v1/*
 ```
 
-Transport: MCP Streamable HTTP, stateless (no session id — every request is
-independent). `GET`/`DELETE` return 405.
+MCP uses stateless Streamable HTTP. `GET /mcp` and `DELETE /mcp` return 405.
 
 ## Authentication
 
-Create a key in the web app (**API Keys → Create key**). The full key (`pk_…`)
-is shown once; only its SHA-256 hash is stored. Send it as a Bearer token:
+Create a key on the API Keys page. Send the full `pk_...` key as either:
 
-```
+```text
 Authorization: Bearer pk_...
+X-API-Key: pk_...
 ```
 
-(`x-api-key: pk_...` also works.) Keys resolve to the owning user; all tools
-are scoped to that user, and credit usage lands in the same ledger as web
-usage (`CreditTransaction` rows with the project id). Revoking a key in the UI
-takes effect immediately.
+Only the SHA-256 hash is stored. Keys resolve to their owner, and projects and
+credit usage are scoped to that user. Revocation takes effect immediately.
+`GET /v1/pricing` is public; every other `/v1` route and MCP require a key.
 
-### Client config example
+## MCP Tools
 
-```json
-{
-  "mcpServers": {
-    "pitch": {
-      "url": "https://api.trypitch.co/mcp",
-      "headers": { "Authorization": "Bearer pk_your_key_here" }
-    }
-  }
-}
-```
+| Tool | Description |
+|---|---|
+| `create_project` | Create a project from `prompt`, optional `options`, and optional base64 `uploads`. A deprecated optional `flow` hint is accepted but ignored. |
+| `prompt_project` | Send another usage-metered message. Active work is queued by default; `delivery: "steer"` redirects it. |
+| `get_project` | Read status, outputs, scenes/slides, sharing, and errors. |
+| `list_projects` | Return `{ data, total }`, newest first. `limit` is 1-100, default 50. |
+| `export_project` | Start an export on the project's owning worker. Optional `res`: `720p`, `1080p`, or `4k`. |
+| `export_status` | Read export progress without starting work. |
+| `get_credits` | Read the credit summary. |
+| `get_pricing` | Read usage-metering rates and indicative launch export tiers. |
 
-## Tools
+Every tool returns JSON in a text content block. Failures set `isError: true`.
 
-| Tool | Cost | Description |
-|---|---|---|
-| `create_project` | see below | Start a project and send its first prompt. Args: `flow` (required: `launch-video`\|`demo-video`\|`deck`\|`recording-edit`), `prompt` (required — the product URL and brief, the topic, the instructions…), `options?` (flow options, below), `uploads?` (array of `{ fileBase64, fileName }`). Returns the project; poll `get_project` for outputs. |
-| `prompt_project` | free | Follow-up message to a project's agent (edits, changes, renders). Args: `projectId`, `text`, `scene?` (scope to a scene/shot id), `slide?` (1-based slide). Returns the project; the agent works asynchronously. Errors with "busy" while a turn is still running. |
-| `get_project` | — | One project: `status`, `outputs`, `scenes`/`slides`, `shareUrl`, `error`. This is what the agent polls. |
-| `list_projects` | — | The key owner's projects, newest first. Args: `flow?`, `limit?` (1–100, default 50). |
-| `export_project` / `export_status` | — | Render a launch video MP4 (`res` 720p/1080p/4k; paid tier free, higher tiers charge the difference) and poll its progress; other flows return their latest output. |
-| `get_credits` | — | Balance, active subscription, recent transactions. |
-| `get_pricing` | — | What each flow costs in credits (same payload as `GET /v1/pricing`). |
+## Billing
 
-### Credit costs
+Projects are not priced up front. Model spend and timed host compute accrue as
+work runs, including follow-up prompts and exports. A turn that successfully
+loads one of Pitch's provided skills applies a 250x multiplier to that turn's
+model usage only. Host compute and provider charges are not multiplied. One credit currently
+represents `$0.0025` of measured cost after configured multipliers and margin.
+A minimum balance is required to start work. Insufficient-credit errors include
+the current balance when available.
 
-Charged once, at `create_project`, by `flow.price(options)`
-(`apps/api/src/flows/<flow>/index.ts`). Every `prompt_project` after that
-is free. The charge is refunded if the first turn ends with nothing usable.
+Creation itself is not charged. An empty prompt is allowed when uploads are
+present and opens the project without running a turn.
 
-| Flow | Credits | Options |
-|---|---|---|
-| `launch-video` | 5 (720p) / 8 (1080p, default) / 12 (4K), **+1 with narration** (default on) — so 6 / 9 / 13 narrated; see `launchVideoCreditCost` in `packages/shared` | `resolution?` (`720p`\|`1080p`\|`4k`), `narration?` (default true), `music?` |
-| `demo-video` | 3 | `url?`, `instructions?`, `script?`, `voice?`, `background?`, `shape?`, `inset?`, `browserHeader?`; uploads: PDFs/images (≤ 50 MB each) become a slideshow |
-| `deck` | 1 to generate; **2** when enhancing an upload (`options.mode` set) | `topic?`, `slideCount?`, `headings?`, `template?`, `mode?` (`recreate`\|`preserve`); uploads: one `.pdf`/`.pptx` (≤ 50 MB) |
-| `recording-edit` | 2 | `productName?`, `productUrl?`, `instructions?`; uploads: the recording (`.mp4 .webm .mov .mkv .avi`, ≤ 500 MB) |
+## Uploads
 
-### Project shape
+Uploads are `{ fileBase64, fileName }`. Accepted extensions are `.pdf`, `.pptx`,
+`.png`, `.jpg`, `.jpeg`, `.webp`, `.mp4`, `.webm`, `.mov`, `.mkv`, and `.avi`.
+Documents and images are limited to 50 MB after decoding; videos are limited to
+500 MB. The complete JSON request is limited to 750 MB. Successfully staged
+objects are removed if staging or project creation fails.
 
-Every tool that touches a project returns the same object
-(`publicProject` in `apps/api/src/lib/public-api.ts`):
+## Project Shape
 
 ```json
 {
   "id": "cm4x8k2p90001abcd",
-  "flow": "demo-video",
   "title": "trypitch.co",
   "status": "working",
   "busy": true,
-  "prompt": "https://trypitch.co — walk through sign-up, under 60s",
+  "prompt": "Create a short narrated product demo",
   "options": {},
   "outputs": [],
   "thumbnailUrl": null,
   "shareUrl": null,
   "error": null,
   "scenes": [],
-  "createdAt": "2026-09-02T10:14:03.221Z",
-  "updatedAt": "2026-09-02T10:14:03.221Z"
+  "createdAt": "2026-09-18T10:14:03.221Z",
+  "updatedAt": "2026-09-18T10:14:03.221Z"
 }
 ```
 
-`status` is derived, never stored: `working` while the agent has a turn in
-flight, `ready` when the flow finds a preview or an output, `failed` when
-`error` is set and nothing newer exists, `empty` otherwise. `outputs` is an
-array of `{ kind: 'video'|'pdf'|'html'|'thumbnail', url, res?, label?, createdAt }`,
-newest first. `scenes` (launch/demo/recording) and `slides` (deck) come from the
-live workspace.
+`status` is derived: `working` while a turn is active, `ready` when an artifact
+or output exists, `failed` when an error exists and no artifact exists, and
+`empty` otherwise. List responses omit live-workspace `scenes` and `slides`.
 
-Poll `get_project` until `status` is `ready` or `failed`, then read `outputs`.
-To change something, call `prompt_project` (free) and poll again: `status` goes
-back to `working` while the agent edits. Insufficient credits return a tool
-error containing the current balance. A launch video's MP4 is rendered by the
-Export button in the app (`/p/:id`); the API surfaces its scenes and preview
-state but has no export endpoint yet.
+## REST
 
-## Implementation notes
+```text
+POST /v1/projects
+GET  /v1/projects?limit=50
+GET  /v1/projects/:id
+POST /v1/projects/:id/prompt
+POST /v1/projects/:id/export
+GET  /v1/projects/:id/export
+GET  /v1/credits
+GET  /v1/pricing
+```
 
-- `apps/api/src/routes/mcp.ts` mounts the stateless transport; auth is
-  `requireApiKey` in `apps/api/src/middleware/auth.ts`.
-- `apps/api/src/mcp/server.ts` registers the tools. `create_project`,
-  `prompt_project`, `get_project` and `list_projects` call the shared helpers in
-  `apps/api/src/lib/public-api.ts` (`createFromApi`, `promptFromApi`,
-  `getFromApi`, `listFromApi`), which wrap the same project service the app
-  uses (`apps/api/src/projects/service.ts`: credit-gate → create row →
-  deduct → prepare workspace → first turn), so usage tracking is identical for
-  humans and agents. Base64 uploads are staged to object storage by
-  `stageBase64Upload` (`apps/api/src/lib/base64-upload.ts`) before the
-  project is created. `/v1` uses the same helpers.
-- The route is mounted before `clerkMiddleware` in `apps/api/src/index.ts`
-  with its own `express.json({ limit: '750mb' })` (base64 uploads up to
-  500 MB must survive body parsing).
-- API-key CRUD for the UI lives in `apps/api/src/routes/api-keys.ts`
-  (Clerk-authenticated), backed by the `ApiKey` model (table `PitchApiKey` —
-  the plain `ApiKey` table name is taken by an unrelated service in the dev
-  database).
+REST errors use `{ "error": { "code", "message", ... } }`. Malformed JSON is
+`400 invalid_request`; oversized requests are `413 payload_too_large`; rejected
+work is `402 insufficient_credits`; ownership-safe missing resources are 404.
+
+## Implementation
+
+- `routes/mcp.ts` and `routes/v1.ts` mount before Clerk and authenticate API keys.
+- `mcp/server.ts` registers tools; `lib/public-api.ts` supplies their shared behavior.
+- Every creation path delegates to `projects/service.ts:createProject`.
+- Workspace and session operations, including public exports, go through the
+  `WorkerClient` selected by `withOwner()`.
+- Base64 uploads are staged to object storage before workspace preparation.

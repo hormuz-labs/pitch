@@ -212,7 +212,7 @@ export const LandingChatInput = () => {
                   </div>
                 </Show>
               </div>
-              <GenerateButton hue={210} isReady={Boolean(input().trim())} onClick={send} />
+              <GenerateButton isReady={Boolean(input().trim())} onClick={send} />
             </div>
           </div>
         </div>

@@ -10,7 +10,8 @@
  */
 import { createLogger } from '@saas/shared'
 import express from 'express'
-import { rowById } from '../projects/rows.js'
+import { parseRow, rowById } from '../projects/rows.js'
+import type { StudioEvent } from '../studio/events.js'
 import { authorizedByWorkerToken } from './auth.js'
 import { WORKER_ID, WORKER_TOKEN } from './config.js'
 import { serveWorkspaceFile } from './files.js'
@@ -166,25 +167,29 @@ router.post(
 )
 
 router.get('/projects/:id/events', async (req, res) => {
-  let off: () => void
+  let off: (() => void) | undefined
+  const pending: StudioEvent[] = []
+  let ready = false
+  const send = (ev: StudioEvent) => {
+    if (ready) res.write(`data: ${JSON.stringify(ev)}\n\n`)
+    else pending.push(ev)
+  }
   try {
+    off = await host.subscribe(req.params.id, send)
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
     })
-    off = await host.subscribe(req.params.id, ev => res.write(`data: ${JSON.stringify(ev)}\n\n`))
-  } catch (err: any) {
-    res.write(
-      `data: ${JSON.stringify({ type: 'error', message: err?.message ?? String(err) })}\n\n`,
-    )
-    res.end()
-    return
+    ready = true
+    for (const ev of pending) send(ev)
+  } catch (err) {
+    return fail(res, err, 'events')
   }
   const keepAlive = setInterval(() => res.write(': ping\n\n'), 15000)
   req.on('close', () => {
     clearInterval(keepAlive)
-    off()
+    off?.()
   })
 })
 
@@ -209,9 +214,10 @@ router.post(
 router.delete(
   '/projects/:id',
   route('remove', async req => {
-    const row = await rowById(req.params.id).catch(() => null)
-    if (!row) return { ok: true }
-    await host.remove(row.id, row)
+    const raw = req.body?.row
+    if (!raw || raw.id !== req.params.id)
+      throw Object.assign(new Error('matching project row is required'), { status: 400 })
+    await host.remove(parseRow(raw))
     return { ok: true }
   }),
 )

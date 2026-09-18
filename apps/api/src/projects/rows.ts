@@ -52,6 +52,7 @@ export interface ProjectRow {
   /** Worker-maintained caches for lists: what is on disk, and whether a turn is running. */
   artifactKind: string | null
   busyAt: string | null
+  pinnedAt: string | null
   /** User-visible conversation recency; unaffected by worker bookkeeping. */
   lastActivityAt: string
   createdAt: string
@@ -71,6 +72,7 @@ export function parseRow(r: any): ProjectRow {
     workspaceVersion: Number(r.workspaceVersion ?? 0),
     artifactKind: r.artifactKind ?? null,
     busyAt: r.busyAt ? new Date(r.busyAt).toISOString() : null,
+    pinnedAt: r.pinnedAt ? new Date(r.pinnedAt).toISOString() : null,
     lastActivityAt: new Date(r.lastActivityAt).toISOString(),
     createdAt: new Date(r.createdAt).toISOString(),
     updatedAt: new Date(r.updatedAt).toISOString(),
@@ -112,6 +114,14 @@ export async function rowById(id: string): Promise<ProjectRow> {
   const r = await db.prisma.project.findUnique({ where: { id } })
   if (!r) throw new NotFoundError('Project not found')
   return parseRow(r)
+}
+
+/** Delete and return the row in one statement, fencing placement before disk cleanup. */
+export async function deleteRow(userId: string, id: string): Promise<ProjectRow> {
+  const rows = await db.prisma.$queryRaw<any[]>`
+    DELETE FROM "Project" WHERE "id" = ${id} AND "userId" = ${userId} RETURNING *`
+  if (!rows[0]) throw new NotFoundError('Project not found')
+  return parseRow(rows[0])
 }
 
 /**
@@ -165,14 +175,20 @@ export async function syncOutputs(userId: string, id: string): Promise<void> {
 export async function updateProject(
   userId: string,
   id: string,
-  data: { title?: string; options?: Record<string, any> },
+  data: { title?: string; options?: Record<string, any>; pinnedAt?: string | null },
 ): Promise<ProjectRow> {
   const p = await getRow(userId, id)
+  const title = data.title?.trim()
+  if (data.title !== undefined && !title) throw new Error('Project title cannot be empty')
+  if (title && title.length > 120) throw new Error('Project title must be 120 characters or less')
+  const pinnedAt = data.pinnedAt ? new Date(data.pinnedAt) : null
+  if (data.pinnedAt && Number.isNaN(pinnedAt?.getTime())) throw new Error('Invalid pin date')
   const row = await db.prisma.project.update({
     where: { id },
     data: {
-      ...(data.title ? { title: data.title } : {}),
+      ...(title ? { title } : {}),
       ...(data.options ? { options: JSON.stringify({ ...p.options, ...data.options }) } : {}),
+      ...(data.pinnedAt !== undefined ? { pinnedAt } : {}),
     },
   })
   const updated = parseRow(row)

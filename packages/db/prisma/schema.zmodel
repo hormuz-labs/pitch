@@ -531,6 +531,7 @@ model Project {
   // the current turn started (null when idle).
   artifactKind   String?
   busyAt         DateTime?
+  pinnedAt       DateTime?
   // User-visible conversation recency. Unlike updatedAt, worker bookkeeping
   // must not advance this value.
   lastActivityAt DateTime @default(now())

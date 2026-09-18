@@ -1,14 +1,16 @@
-import { A, useNavigate } from '@solidjs/router'
-import { ArrowUp, ChevronDown, Globe2, LockKeyhole, Plus, Square, X } from 'lucide-solid'
+import { useNavigate } from '@solidjs/router'
+import { ArrowUp, ChevronDown, Plus, Square } from 'lucide-solid'
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { Portal } from 'solid-js/web'
-import pCoinIcon from '../../assets/pCoin.svg'
-import { API_URL } from '../../config'
-import { firstUrlInText, isAuthenticatedFor, prettyHost } from '../../lib/authOrigins'
+import { firstUrlInText, isAuthenticatedFor } from '../../lib/authOrigins'
 import { ModelCatalog } from '../account/ModelCatalog'
+import { ComposerShell } from '../common/ComposerShell'
+import { CreditMarker } from './CreditMarker'
 import { studio } from './client'
+import { modelMenuLeft } from './modelMenuPosition'
 import { PendingMessages } from './PendingMessages'
 import type { Target } from './types'
+import { UrlAuthSuggestion } from './UrlAuthSuggestion'
 import { useBrowserProfile } from './useBrowserProfile'
 import type { ProjectStore } from './useProject'
 
@@ -57,69 +59,6 @@ function suggestions(targets: Target[], where: string | null) {
     ]
   return []
 }
-function CreditMarker(props: { store: ProjectStore }) {
-  const [credits, setCredits] = createSignal<number | null>(null)
-  let request: AbortController | undefined
-  const refresh = async (event?: Event) => {
-    const live = (event as CustomEvent<{ balance?: number }>)?.detail?.balance
-    if (typeof live === 'number') {
-      setCredits(live)
-      return
-    }
-    if (document.hidden) return
-    request?.abort()
-    const controller = new AbortController()
-    request = controller
-    try {
-      const token = await props.store.getToken()
-      if (controller.signal.aborted) return
-      const response = await fetch(`${API_URL}/credits`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-        signal: controller.signal,
-      })
-      if (!response.ok) return
-      const data = await response.json()
-      if (!controller.signal.aborted && typeof data.balance === 'number') {
-        setCredits(data.balance)
-      }
-    } catch {
-      // Keep the last confirmed balance through transient connection failures.
-    }
-  }
-  createEffect(() => {
-    props.store.busy
-    props.store.project?.creditsCharged
-    void refresh()
-    if (props.store.busy) {
-      const timer = window.setInterval(() => void refresh(), 5000)
-      onCleanup(() => clearInterval(timer))
-    }
-  })
-  onMount(() => {
-    window.addEventListener('credits-changed', refresh)
-    window.addEventListener('focus', refresh)
-    document.addEventListener('visibilitychange', refresh)
-    onCleanup(() => {
-      window.removeEventListener('credits-changed', refresh)
-      window.removeEventListener('focus', refresh)
-      document.removeEventListener('visibilitychange', refresh)
-    })
-  })
-  onCleanup(() => request?.abort())
-  const balance = () => credits()?.toLocaleString() ?? '—'
-  const label = () =>
-    credits() === null
-      ? 'Loading credit balance'
-      : `${balance()} credits remaining — manage credits`
-  return (
-    <A class="composer-credits" href="/pricing" aria-label={label()} title={label()}>
-      <img src={pCoinIcon} alt="" width={18} height={18} />
-      <span class="composer-credits__balance">{balance()}</span>
-      <span class="composer-credits__label">credits</span>
-    </A>
-  )
-}
 export function Composer(props: { store: ProjectStore }) {
   const s = props.store,
     [files, setFiles] = createSignal<File[]>([]),
@@ -135,7 +74,7 @@ export function Composer(props: { store: ProjectStore }) {
     >([]),
     [defaultModel, setDefaultModel] = createSignal<string | null>(null),
     [modelOpen, setModelOpen] = createSignal(false),
-    [modelPosition, setModelPosition] = createSignal({ right: 12, bottom: 12 }),
+    [modelPosition, setModelPosition] = createSignal({ left: 12, bottom: 12 }),
     [promptUrl, setPromptUrl] = createSignal<string | null>(null)
   let modelEl: HTMLDivElement | undefined,
     modelMenuEl: HTMLDivElement | undefined,
@@ -223,7 +162,134 @@ export function Composer(props: { store: ProjectStore }) {
   return (
     <div class="job-composer">
       <PendingMessages entries={s.entries} busy={s.busy} onSteer={s.steerQueued} />
-      <div class="job-composer-box">
+      <ComposerShell
+        class="job-composer-box"
+        footerClass="job-composer-footer"
+        leadingClass="job-composer-tools"
+        trailingClass="job-composer-actions"
+        leading={
+          <>
+            <button
+              class="job-attach-plus"
+              disabled={uploading()}
+              onClick={() => fileInput?.click()}
+              aria-label="Attach files"
+            >
+              {uploading() ? <span class="spinner" /> : <Plus size={18} />}
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              hidden
+              onChange={e => setFiles(v => [...v, ...Array.from(e.currentTarget.files ?? [])])}
+            />
+            <CreditMarker store={s} />
+          </>
+        }
+        trailing={
+          <>
+            <Show when={s.busy}>
+              <span
+                class="active-model-indicator"
+                aria-label={`Currently processing with ${activeModelLabel()}`}
+                title={`Currently processing with ${activeModelLabel()}`}
+              >
+                <span class="spinner" aria-hidden="true" />
+                <span>{activeModelLabel()}</span>
+              </span>
+            </Show>
+            <Show when={!s.busy && models().length}>
+              <div class="model-select" ref={modelEl}>
+                <button
+                  class="model-btn"
+                  onClick={() => {
+                    if (modelOpen()) {
+                      setModelOpen(false)
+                      return
+                    }
+                    const rect = modelEl?.getBoundingClientRect()
+                    if (rect) {
+                      const viewport = window.visualViewport
+                      setModelPosition({
+                        left: modelMenuLeft(
+                          rect,
+                          viewport?.width ?? window.innerWidth,
+                          viewport?.offsetLeft ?? 0,
+                        ),
+                        bottom: Math.max(12, window.innerHeight - rect.top + 6),
+                      })
+                    }
+                    setModelOpen(true)
+                  }}
+                  aria-label="Choose model"
+                  aria-haspopup="listbox"
+                  aria-expanded={modelOpen()}
+                >
+                  <span>{selectedModel()?.label ?? 'Model'}</span>
+                  <ChevronDown size={12} />
+                </button>
+                <Show when={modelOpen()}>
+                  <Portal>
+                    <div
+                      ref={modelMenuEl}
+                      class="model-menu model-menu--catalog is-portal"
+                      role="listbox"
+                      style={{
+                        left: `${modelPosition().left}px`,
+                        bottom: `${modelPosition().bottom}px`,
+                      }}
+                    >
+                      <ModelCatalog
+                        models={models()}
+                        selected={s.model ?? defaultModel()}
+                        itemRole="option"
+                        onSelect={spec => {
+                          s.setModel(spec)
+                          setModelOpen(false)
+                        }}
+                      />
+                    </div>
+                  </Portal>
+                </Show>
+              </div>
+            </Show>
+            <Show
+              when={s.busy}
+              fallback={
+                <button
+                  class="job-send-round"
+                  disabled={uploading() || !s.draft.trim()}
+                  onClick={() => void send()}
+                  aria-label="Send message"
+                >
+                  <ArrowUp size={17} />
+                </button>
+              }
+            >
+              <button
+                class="job-stop-task job-send-round"
+                onClick={() => void s.stop()}
+                aria-label="Stop generation"
+                title="Stop generation"
+              >
+                <Square size={11} fill="currentColor" aria-hidden="true" />
+              </button>
+              <Show when={s.draft.trim()}>
+                <button
+                  class="job-send-round"
+                  disabled={uploading()}
+                  onClick={() => void send('queue')}
+                  aria-label="Queue message"
+                  title="Queue after current work"
+                >
+                  <ArrowUp size={17} />
+                </button>
+              </Show>
+            </Show>
+          </>
+        }
+      >
         <Show when={s.targets.length}>
           <div class="target-row">
             <For each={s.targets}>
@@ -288,37 +354,18 @@ export function Composer(props: { store: ProjectStore }) {
         </Show>
         <Show when={authHint() && promptUrl()}>
           {url => (
-            <div class="url-auth-suggestion-slot">
-              <section class="url-auth-suggestion">
-                <span class="url-auth-suggestion__icon">
-                  <LockKeyhole size={15} />
-                </span>
-                <div class="url-auth-suggestion__copy">
-                  <strong>Does {prettyHost(url())} need a login?</strong>
-                  <span>Authenticate once so Pitch can record the signed-in experience.</span>
-                </div>
-                <div class="url-auth-suggestion__actions">
-                  <button class="url-auth-suggestion__public" onClick={() => setDismissed(url())}>
-                    <Globe2 size={13} /> Public site
-                  </button>
-                  <button
-                    class="url-auth-suggestion__authenticate"
-                    onClick={() => {
-                      if (!s.id) return
-                      sessionStorage.setItem(`pitch:project-auth-draft:${s.id}`, s.draft)
-                      navigate(
-                        `/sessions?url=${encodeURIComponent(url())}&from=project&project=${encodeURIComponent(s.id)}`,
-                      )
-                    }}
-                  >
-                    Authenticate
-                  </button>
-                </div>
-                <button class="url-auth-suggestion__close" onClick={() => setDismissed(url())}>
-                  <X size={13} />
-                </button>
-              </section>
-            </div>
+            <UrlAuthSuggestion
+              url={url()}
+              onPublic={() => setDismissed(url())}
+              onClose={() => setDismissed(url())}
+              onAuthenticate={() => {
+                if (!s.id) return
+                sessionStorage.setItem(`pitch:project-auth-draft:${s.id}`, s.draft)
+                navigate(
+                  `/sessions?url=${encodeURIComponent(url())}&from=project&project=${encodeURIComponent(s.id)}`,
+                )
+              }}
+            />
           )}
         </Show>
         <Show when={suggestions(s.targets, where()).length}>
@@ -353,122 +400,7 @@ export function Composer(props: { store: ProjectStore }) {
             }
           }}
         />
-        <div class="job-composer-footer">
-          <div class="job-composer-tools">
-            <button
-              class="job-attach-plus"
-              disabled={uploading()}
-              onClick={() => fileInput?.click()}
-              aria-label="Attach files"
-            >
-              {uploading() ? <span class="spinner" /> : <Plus size={18} />}
-            </button>
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              hidden
-              onChange={e => setFiles(v => [...v, ...Array.from(e.currentTarget.files ?? [])])}
-            />
-            <CreditMarker store={s} />
-          </div>
-          <div class="job-composer-actions">
-            <Show when={s.busy}>
-              <span
-                class="active-model-indicator"
-                aria-label={`Currently processing with ${activeModelLabel()}`}
-                title={`Currently processing with ${activeModelLabel()}`}
-              >
-                <span class="spinner" aria-hidden="true" />
-                <span>{activeModelLabel()}</span>
-              </span>
-            </Show>
-            <Show when={!s.busy && models().length}>
-              <div class="model-select" ref={modelEl}>
-                <button
-                  class="model-btn"
-                  onClick={() => {
-                    if (modelOpen()) {
-                      setModelOpen(false)
-                      return
-                    }
-                    const rect = modelEl?.getBoundingClientRect()
-                    if (rect) {
-                      setModelPosition({
-                        right: Math.max(12, window.innerWidth - rect.right),
-                        bottom: Math.max(12, window.innerHeight - rect.top + 6),
-                      })
-                    }
-                    setModelOpen(true)
-                  }}
-                  aria-label="Choose model"
-                  aria-haspopup="listbox"
-                  aria-expanded={modelOpen()}
-                >
-                  <span>{selectedModel()?.label ?? 'Model'}</span>
-                  <ChevronDown size={12} />
-                </button>
-                <Show when={modelOpen()}>
-                  <Portal>
-                    <div
-                      ref={modelMenuEl}
-                      class="model-menu model-menu--catalog is-portal"
-                      role="listbox"
-                      style={{
-                        right: `${modelPosition().right}px`,
-                        bottom: `${modelPosition().bottom}px`,
-                      }}
-                    >
-                      <ModelCatalog
-                        models={models()}
-                        selected={s.model ?? defaultModel()}
-                        itemRole="option"
-                        onSelect={spec => {
-                          s.setModel(spec)
-                          setModelOpen(false)
-                        }}
-                      />
-                    </div>
-                  </Portal>
-                </Show>
-              </div>
-            </Show>
-            <Show
-              when={s.busy}
-              fallback={
-                <button
-                  class="job-send-round"
-                  disabled={uploading() || !s.draft.trim()}
-                  onClick={() => void send()}
-                  aria-label="Send message"
-                >
-                  <ArrowUp size={17} />
-                </button>
-              }
-            >
-              <button
-                class="job-stop-task"
-                onClick={() => void s.stop()}
-                aria-label="Stop current task"
-              >
-                <Square size={10} fill="currentColor" />
-                <span>Stop</span>
-              </button>
-              <Show when={s.draft.trim()}>
-                <button
-                  class="job-send-round"
-                  disabled={uploading()}
-                  onClick={() => void send('queue')}
-                  aria-label="Queue message"
-                  title="Queue after current work"
-                >
-                  <ArrowUp size={17} />
-                </button>
-              </Show>
-            </Show>
-          </div>
-        </div>
-      </div>
+      </ComposerShell>
     </div>
   )
 }

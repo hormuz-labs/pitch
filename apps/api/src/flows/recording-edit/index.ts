@@ -21,6 +21,7 @@ import { getClerkUserEmail, sendJobCompleteEmail } from '@saas/email'
 import { createLogger, sendDiscordMessage } from '@saas/shared'
 import * as storage from '@saas/storage'
 import { addOutput } from '../../projects/service.js'
+import { shouldWatermarkVideo } from '../../projects/watermark.js'
 import { type RecordingEditState, renderRecordingEdit } from '../../render/recording-edit.js'
 import { writeTimeline } from '../../render/utils/beats.js'
 import { registerHostAction } from '../../studio/host-actions.js'
@@ -208,6 +209,7 @@ registerHostAction(
         options,
         outDir,
         narration: await readNarration(ws.dir),
+        watermark: await shouldWatermarkVideo(ws.userId),
       },
       log,
     )

@@ -23,7 +23,7 @@ import { type ProjectRow, workspaceOf } from './rows.js'
 
 const logger = createLogger('studio:usage')
 
-/** What one credit buys, in measured cost. A demo video runs about 120 credits. */
+/** What one credit buys, in measured billable usage. */
 export const CREDIT_USD = 0.0025
 
 /**
@@ -32,6 +32,13 @@ export const CREDIT_USD = 0.0025
  * because the point is that long renders cost more than short ones.
  */
 export const COMPUTE_USD_PER_SEC = 0.002
+
+/** Model-usage pricing for turns that successfully load a provided Pitch skill. */
+export const PROVIDED_SKILL_MODEL_MULTIPLIER = 250
+
+export function effectiveModelMultiplier(modelMultiplier: number, usedProvidedSkill: boolean) {
+  return Math.max(0, modelMultiplier) * (usedProvidedSkill ? PROVIDED_SKILL_MODEL_MULTIPLIER : 1)
+}
 
 /** A turn cannot start unless the user can pay for a meaningful slice of it. */
 export const MIN_BALANCE = 40
@@ -124,9 +131,13 @@ export async function chargeTurn(
   providerUsd = 0,
   productCredits = 0,
   reservationKey?: string,
+  usedProvidedSkill = false,
 ): Promise<number> {
   const computeSeconds = takeComputeSeconds(workspaceOf(p).internal)
-  const multiplier = modelSpec ? modelCreditMultiplier(modelSpec) : 1
+  const multiplier = effectiveModelMultiplier(
+    modelSpec ? modelCreditMultiplier(modelSpec) : 1,
+    usedProvidedSkill,
+  )
   const margin = platformMargin()
   const measuredUsd = usageUsd({ modelUsd, computeSeconds, providerUsd }, multiplier, margin)
   if (measuredUsd <= 0 && productCredits <= 0) return 0
@@ -190,6 +201,7 @@ export async function chargeTurn(
         projectId: p.id,
         modelSpec,
         multiplier,
+        usedProvidedSkill,
         margin,
         modelUsd,
         computeSeconds,

@@ -15,10 +15,13 @@ export const PREVIEW_COOKIE = 'pitch_preview'
 export const PREVIEW_PATH = '/files'
 const GRANT_TTL_MS = 12 * 60 * 60 * 1000
 
-const SECRET =
-  process.env.PREVIEW_COOKIE_SECRET ||
-  process.env.CLERK_SECRET_KEY ||
-  randomBytes(32).toString('hex')
+const configuredSecret = process.env.PREVIEW_COOKIE_SECRET || process.env.CLERK_SECRET_KEY
+if (
+  (process.env.STUDIO_ROLE === 'api' || process.env.STUDIO_ROLE === 'worker') &&
+  !process.env.PREVIEW_COOKIE_SECRET
+)
+  throw new Error('PREVIEW_COOKIE_SECRET is required when studio roles run separately')
+const SECRET = configuredSecret || randomBytes(32).toString('hex')
 
 function sign(payload: string): string {
   return createHmac('sha256', SECRET).update(payload).digest('base64url')

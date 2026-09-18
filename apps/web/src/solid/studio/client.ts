@@ -37,6 +37,8 @@ export const studio = {
   models: (token: string) =>
     api.get<{ default: string; models: StudioModel[] }>('/projects/models', token),
   get: (token: string, id: string) => api.get<ProjectDetail>(p(id), token),
+  patch: (token: string, id: string, data: { title?: string; pinnedAt?: string | null }) =>
+    api.patch<ProjectSummary>(p(id), token, data),
   remove: (token: string, id: string) => api.delete<void>(p(id), token),
   prompt: (
     token: string,

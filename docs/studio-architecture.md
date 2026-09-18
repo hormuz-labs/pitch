@@ -34,7 +34,7 @@ Project {
   id            cuid
   userId        Clerk id (owner; the isolation boundary)
   flow          'studio' for everything new; the old values name workspaces already on disk
-  name          slug, unique per (userId, flow); the workspace dir name
+  name          slug, unique per user; the workspace dir name
   title         human title (host, topic, file name)
   prompt        the first message
   options       JSON  anything passed at creation (mostly empty — preferences are said in chat)
@@ -57,7 +57,7 @@ the registry; the directory is the truth.
 
 Status is derived, never stored: `working` while the session has a turn in
 flight, else `ready` when the workspace probe finds a preview or an output,
-else `empty`; `failed` when `lastError` is set and nothing newer exists.
+else `empty`; `failed` when `lastError` is set and no current artifact exists.
 
 Dropping a file with nothing typed is a normal way to start: the project
 opens with the upload as its preview and no turn is run, because you cannot
@@ -213,7 +213,7 @@ path-scoped `pitch_preview` cookie.
 
 ```
 GET    /projects                       list (derived status, outputs, thumbnail)
-POST   /projects                       { prompt, options?, uploads?[] } → creates it; runs the first turn only if `prompt` is non-empty → { project }
+POST   /projects                       { prompt, options?, uploads?[] } → creates it; runs the first turn only if `prompt` is non-empty → ProjectDetail
 GET    /projects/:id                   detail = Project + Description + busy
 DELETE /projects/:id                   abort, drop session, delete workspace
 POST   /projects/:id/prompt            { text, targets?, scene?, slide?, options?, delivery?: 'queue'|'steer' } → 202
@@ -235,7 +235,7 @@ GET    /music                          MusicTrack[]
 GET    /voices                         authenticated ElevenLabs catalog, search + pagination + preview URLs
 POST   /uploads                        multipart → S3 URLs (used by "new project" for PDFs/images/videos)
 GET    /d/:slug, /projects/public/:slug   share page + payload
-/mcp, /v1                              create_project / get_project / list_projects / prompt_project (+ credits)
+/mcp, /v1                              create / prompt / get / list / export / credits / pricing
 /checkout /credits /users /api-keys /affiliate /newsletter /browser /webhooks /admin   carried over
 ```
 
@@ -348,9 +348,11 @@ and bills that (`apps/api/src/projects/usage.ts`):
 | host compute | wall clock inside every host action, timed in the bridge |
 
 Each model has a relative credit multiplier (configured with
-`STUDIO_MODEL_CREDIT_MULTIPLIERS`) applied to that turn's model and compute
-cost. A platform margin (`STUDIO_PLATFORM_MARGIN`, default `1.25`) is applied
-afterward. Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as
+`STUDIO_MODEL_CREDIT_MULTIPLIERS`). When a turn successfully reads one of
+Pitch's registered skills, a `250x` provided-skill multiplier composes with the
+model multiplier. Both affect model usage only; host compute and provider costs
+are not multiplied. A platform margin (`STUDIO_PLATFORM_MARGIN`, default
+`1.25`) is applied afterward. Cost accrues in dollars on `Project.usageUsd`, and credits are drawn down as
 it crosses each `CREDIT_USD` boundary, so a cheap turn is not rounded up to a
 credit and many cheap turns still add up. Asking a question costs almost
 nothing; encoding 4K does not. A turn needs `MIN_BALANCE` credits to start.
